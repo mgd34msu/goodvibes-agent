@@ -1,5 +1,7 @@
 import { RegistryConflictError, RegistryNotFoundError } from '../store/errors.js';
 import { formatJson } from '../utils/format.js';
+import { CompanionChatError } from '../assistant/companion-chat.js';
+import { DaemonConnectionError, DaemonRequestError, classifyDaemonError } from '../daemon/client.js';
 import { z } from 'zod';
 
 export interface CliSuccess<T> {
@@ -30,6 +32,12 @@ export function printCaughtFailure(error: unknown): number {
   }
   if (error instanceof RegistryNotFoundError || error instanceof RegistryConflictError) {
     return printFailure(error.kind, error.message);
+  }
+  if (error instanceof CompanionChatError) {
+    return printFailure(error.kind, error.message);
+  }
+  if (error instanceof DaemonConnectionError || error instanceof DaemonRequestError) {
+    return printFailure(classifyDaemonError(error), error.message);
   }
   if (error instanceof Error) return printFailure('error', error.message);
   return printFailure('error', String(error));

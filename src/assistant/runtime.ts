@@ -10,6 +10,8 @@ import { formatJson } from '../utils/format.js';
 import { classifyPrompt } from './policy.js';
 import { buildAssistantSystemPrompt } from './system-prompt.js';
 import { delegateToTui, shouldDelegateToTui, shouldRequestWrfc } from './delegation.js';
+import { CompanionChatCoordinator, type CompanionChatStatus, type CompanionChatTurnResult } from './companion-chat.js';
+import { resolveProviderModel, type ProviderModelSelection } from './provider-model.js';
 
 export interface AssistantRuntimeOptions {
   readonly config: AgentConfig;
@@ -26,9 +28,18 @@ export class AssistantRuntime {
   readonly memory = new MemoryStore();
   readonly skills = new SkillStore();
   readonly personas = new PersonaStore();
+  readonly providerModel: ProviderModelSelection;
+  private readonly companionChat: CompanionChatCoordinator;
 
   constructor(readonly options: AssistantRuntimeOptions) {
     this.client = options.client ?? new GoodVibesDaemonClient(options.config);
+    this.providerModel = resolveProviderModel(options.config);
+    this.companionChat = new CompanionChatCoordinator({
+      client: this.client,
+      title: options.config.defaultChatTitle,
+      providerModel: this.providerModel,
+      timeoutMs: options.config.companionTimeoutMs,
+    });
   }
 
   async handleUserText(text: string): Promise<AssistantReply> {
@@ -61,22 +72,27 @@ export class AssistantRuntime {
       };
     }
 
-    const response = await this.chat(trimmed);
+    const result = await this.sendChat(trimmed);
+    const response = result.recovered && result.recovery
+      ? `Recovered companion chat session ${result.recovery.previousSessionId} -> ${result.recovery.newSessionId}.\n\n${result.text}`
+      : result.text;
     return {
       text: captured ? `${response}\n\nRemembered: ${captured.summary}` : response,
     };
   }
 
   async chat(text: string): Promise<string> {
+    return (await this.sendChat(text)).text;
+  }
+
+  chatStatus(): CompanionChatStatus {
+    return this.companionChat.status();
+  }
+
+  private async sendChat(text: string): Promise<CompanionChatTurnResult> {
     const persona = this.personas.find('operator') ?? this.personas.list()[0]!;
     const memories = this.memory.search(text, 8);
-    const session = await this.client.createCompanionChat({
-      title: 'GoodVibes Agent',
-      systemPrompt: buildAssistantSystemPrompt({ persona, memories }),
-    });
-    const after = Date.now();
-    await this.client.postCompanionMessage(session.sessionId, text);
-    return this.client.waitForCompanionAssistantMessage(session.sessionId, after);
+    return this.companionChat.send(text, buildAssistantSystemPrompt({ persona, memories }));
   }
 
   async askKnowledge(query: string): Promise<AssistantReply> {

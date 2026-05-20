@@ -1,5 +1,6 @@
 import { appendMessage, createAgentSession } from '../core/session.js';
 import type { AssistantRuntime } from '../assistant/runtime.js';
+import { CompanionChatError } from '../assistant/companion-chat.js';
 import { renderApp } from '../renderer/app-renderer.js';
 import { ANSI } from '../renderer/ansi.js';
 import { decodeKeys, type KeyEvent } from '../input/key-reader.js';
@@ -9,6 +10,7 @@ export class AgentTuiApp {
   private input = '';
   private status = 'Enter submits. Ctrl-J inserts newline. Up/Down history. Ctrl-C/Esc exits.';
   private daemonStatus = 'Daemon: checking connection.';
+  private daemonConnectionStatus = 'Daemon: checking connection.';
   private busy = false;
   private history: string[] = [];
   private historyIndex: number | null = null;
@@ -37,6 +39,7 @@ export class AgentTuiApp {
       this.session = appendMessage(this.session, 'system', 'GoodVibes Agent is a proactive assistant/operator surface. Build/fix work is delegated to GoodVibes TUI.');
       await this.checkDaemonCompatibility();
       if (this.stopped) return;
+      this.updateCompanionStatus();
       this.render();
       await new Promise<void>((resolve) => {
         this.stopResolve = resolve;
@@ -123,9 +126,10 @@ export class AgentTuiApp {
       try {
         const reply = await this.runtime.handleUserText(text);
         if (reply.text.trim()) this.session = appendMessage(this.session, 'assistant', reply.text);
+        this.updateCompanionStatus();
         this.status = 'Ready.';
       } catch (error) {
-        this.session = appendMessage(this.session, 'assistant', error instanceof Error ? error.message : String(error));
+        this.session = appendMessage(this.session, 'assistant', formatError(error));
         this.status = 'Last action failed.';
       } finally {
         this.busy = false;
@@ -148,12 +152,20 @@ export class AgentTuiApp {
     const diagnostics = await this.runtime.client.diagnostics();
     if (diagnostics.ok) {
       const version = diagnostics.compatibility?.daemonVersion ?? 'unknown';
-      this.daemonStatus = `Daemon: connected ${version} at ${this.runtime.client.baseUrl}`;
+      this.daemonConnectionStatus = `Daemon: connected ${version} at ${this.runtime.client.baseUrl}`;
+      this.daemonStatus = this.daemonConnectionStatus;
       return;
     }
-    this.daemonStatus = `Daemon: ${diagnostics.kind} at ${this.runtime.client.baseUrl}`;
+    this.daemonConnectionStatus = `Daemon: ${diagnostics.kind} at ${this.runtime.client.baseUrl}`;
+    this.daemonStatus = this.daemonConnectionStatus;
     this.session = appendMessage(this.session, 'system', `Daemon warning: ${diagnostics.message}`);
     this.status = 'Daemon connection/auth check failed.';
+  }
+
+  private updateCompanionStatus(): void {
+    const chat = this.runtime.chatStatus();
+    const session = chat.sessionId ?? 'new';
+    this.daemonStatus = `${this.daemonConnectionStatus} | Chat: ${session} | Model: ${chat.providerModelDisplay}`;
   }
 
   private pushHistory(text: string): void {
@@ -250,6 +262,12 @@ export class AgentTuiApp {
     if (rest) await this.handleData(Buffer.from(rest));
     return true;
   }
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof CompanionChatError) return `${error.kind}: ${error.message}`;
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 function normalizePastedText(value: string): string {

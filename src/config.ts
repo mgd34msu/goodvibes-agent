@@ -11,6 +11,9 @@ const ConfigSchema = z.object({
   surfaceKind: z.string().default('goodvibes-agent'),
   surfaceId: z.string().default('goodvibes-agent'),
   defaultChatTitle: z.string().default('GoodVibes Agent'),
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  companionTimeoutMs: z.number().int().positive().default(90_000),
   autoRemember: z.boolean().default(true),
   autoDelegateBuildRequests: z.boolean().default(true),
 });
@@ -114,10 +117,14 @@ export function loadAgentConfigWithMetadata(): LoadedAgentConfig {
   const fileRecord = isRecord(fileConfig) ? fileConfig : {};
   const token = readDaemonToken();
   const envBaseUrl = process.env.GOODVIBES_AGENT_BASE_URL ?? process.env.GOODVIBES_BASE_URL;
+  const envProvider = process.env.GOODVIBES_AGENT_PROVIDER;
+  const envModel = process.env.GOODVIBES_AGENT_MODEL;
   const config = ConfigSchema.parse({
     ...fileRecord,
     ...(envBaseUrl ? { baseUrl: envBaseUrl }
       : {}),
+    ...(envProvider ? { provider: envProvider } : {}),
+    ...(envModel ? { model: envModel } : {}),
     ...(token.token ? { token: token.token } : {}),
   });
   return {

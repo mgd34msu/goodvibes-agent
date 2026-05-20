@@ -2,6 +2,11 @@ import { getRoute, type RouteId } from './routes.js';
 import type { AgentConfig } from '../config.js';
 import { isRecord } from '../types.js';
 import { EXPECTED_GOODVIBES_SDK_VERSION } from '../version.js';
+import type {
+  CompanionChatMessage,
+  OperatorMethodInput,
+  OperatorMethodOutput,
+} from '@pellux/goodvibes-sdk/contracts';
 
 export interface RequestOptions {
   readonly query?: Record<string, unknown> | undefined;
@@ -197,8 +202,21 @@ export class GoodVibesDaemonClient {
     }
   }
 
-  async createCompanionChat(input: { readonly title?: string; readonly systemPrompt?: string }): Promise<{ sessionId: string }> {
+  async createCompanionChat(
+    input: OperatorMethodInput<'companion.chat.sessions.create'>,
+  ): Promise<OperatorMethodOutput<'companion.chat.sessions.create'>> {
     return this.invoke('companion.chat.sessions.create', input as Record<string, unknown>);
+  }
+
+  async getCompanionChatSession(sessionId: string): Promise<OperatorMethodOutput<'companion.chat.sessions.get'>> {
+    return this.invoke('companion.chat.sessions.get', { sessionId });
+  }
+
+  async updateCompanionChatSession(
+    sessionId: string,
+    input: Omit<OperatorMethodInput<'companion.chat.sessions.update'>, 'sessionId'>,
+  ): Promise<OperatorMethodOutput<'companion.chat.sessions.update'>> {
+    return this.invoke('companion.chat.sessions.update', { sessionId, ...input });
   }
 
   async createSharedSession(input: { readonly title: string; readonly surfaceKind: string; readonly surfaceId: string }): Promise<{ sessionId: string; session: unknown }> {
@@ -210,13 +228,21 @@ export class GoodVibesDaemonClient {
     return { sessionId: session.id, session };
   }
 
-  async postCompanionMessage(sessionId: string, content: string): Promise<{ messageId: string }> {
-    return this.invoke('companion.chat.messages.create', { sessionId, content });
+  async postCompanionMessage(
+    sessionId: string,
+    content: string,
+    metadata?: OperatorMethodInput<'companion.chat.messages.create'>['metadata'],
+  ): Promise<OperatorMethodOutput<'companion.chat.messages.create'>> {
+    return this.invoke('companion.chat.messages.create', {
+      sessionId,
+      body: content,
+      ...(metadata ? { metadata } : {}),
+    });
   }
 
-  async listCompanionMessages(sessionId: string): Promise<unknown[]> {
-    const response = await this.invoke('companion.chat.messages.list', { sessionId });
-    return isRecord(response) && Array.isArray(response.messages) ? response.messages : [];
+  async listCompanionMessages(sessionId: string): Promise<readonly CompanionChatMessage[]> {
+    const response = await this.invoke<OperatorMethodOutput<'companion.chat.messages.list'>>('companion.chat.messages.list', { sessionId });
+    return response.messages;
   }
 
   async waitForCompanionAssistantMessage(sessionId: string, afterEpochMs: number, timeoutMs = 90_000): Promise<string> {
@@ -224,19 +250,11 @@ export class GoodVibesDaemonClient {
     while (Date.now() - started < timeoutMs) {
       const messages = await this.listCompanionMessages(sessionId);
       const assistant = [...messages].reverse().find((message) => (
-        isRecord(message)
-        && message.role === 'assistant'
-        && typeof message.createdAt === 'number'
+        message.role === 'assistant'
         && message.createdAt >= afterEpochMs
+        && message.content.trim()
       ));
-      if (isRecord(assistant)) {
-        const text = typeof assistant.content === 'string'
-          ? assistant.content
-          : typeof assistant.body === 'string'
-            ? assistant.body
-            : '';
-        if (text.trim()) return text;
-      }
+      if (assistant) return assistant.content;
       await sleep(750);
     }
     throw new Error(`Timed out waiting for assistant reply in companion chat session ${sessionId}`);

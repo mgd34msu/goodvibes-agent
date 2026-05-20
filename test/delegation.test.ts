@@ -12,6 +12,7 @@ describe('TUI delegation', () => {
       surfaceKind: 'goodvibes-agent',
       surfaceId: 'goodvibes-agent-test',
       defaultChatTitle: 'GoodVibes Agent',
+      companionTimeoutMs: 90_000,
       autoRemember: true,
       autoDelegateBuildRequests: true,
     };

@@ -47,6 +47,9 @@ Daemon connection defaults:
 
 - Base URL: `GOODVIBES_AGENT_BASE_URL`, `GOODVIBES_BASE_URL`, or `http://127.0.0.1:3421`
 - Token: `GOODVIBES_AGENT_TOKEN`, `GOODVIBES_HTTP_TOKEN`, `GOODVIBES_DAEMON_TOKEN`, or `~/.goodvibes/daemon/operator-tokens.json`
+- Companion chat routing: optional `GOODVIBES_AGENT_PROVIDER` and `GOODVIBES_AGENT_MODEL`
+
+When both provider and model are configured, the agent follows daemon runtime provider-row semantics. For example, `GOODVIBES_AGENT_PROVIDER=openai-subscriber` with `GOODVIBES_AGENT_MODEL=openai:gpt-5.5` creates companion chat sessions with provider `openai-subscriber` and model `gpt-5.5`.
 
 Local assistant state is stored under `~/.goodvibes/agent/`.
 

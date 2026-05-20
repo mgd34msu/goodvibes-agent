@@ -30,11 +30,8 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
       await new AgentTuiApp(runtime).run();
       return 0;
     case 'status':
-    case 'health': {
-      const diagnostics = await runtime.client.diagnostics();
-      console.log(formatJson(diagnostics));
-      return diagnostics.ok ? 0 : 1;
-    }
+    case 'health':
+      return handleStatus(services);
     case 'auth':
       console.log(formatJson(await runtime.client.currentAuth()));
       return 0;
@@ -45,6 +42,8 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
         bin: 'goodvibes-agent',
         surfaceKind: config.surfaceKind,
         surfaceId: config.surfaceId,
+        providerModel: runtime.providerModel,
+        companionChat: runtime.chatStatus(),
         daemon: diagnostics,
       }));
       return diagnostics.ok ? 0 : 1;
@@ -98,6 +97,20 @@ async function handleConfig(services: AgentRuntimeServices): Promise<number> {
   return diagnostics.daemon.ok ? 0 : 1;
 }
 
+async function handleStatus(services: AgentRuntimeServices): Promise<number> {
+  const diagnostics = await services.daemon.diagnostics();
+  console.log(formatJson({
+    ok: diagnostics.ok,
+    kind: diagnostics.kind,
+    data: {
+      daemon: diagnostics,
+      providerModel: services.assistant.providerModel,
+      companionChat: services.assistant.chatStatus(),
+    },
+  }));
+  return diagnostics.ok ? 0 : 1;
+}
+
 async function configDiagnostics(services: AgentRuntimeServices): Promise<{
   readonly config: {
     readonly baseUrl: string;
@@ -107,8 +120,10 @@ async function configDiagnostics(services: AgentRuntimeServices): Promise<{
     readonly configExists: boolean;
     readonly surfaceKind: string;
     readonly surfaceId: string;
+    readonly providerModel: AgentRuntimeServices['assistant']['providerModel'];
     readonly token: AgentRuntimeServices['configMetadata']['token'];
   };
+  readonly companionChat: ReturnType<AgentRuntimeServices['assistant']['chatStatus']>;
   readonly daemon: Awaited<ReturnType<AgentRuntimeServices['daemon']['diagnostics']>>;
   readonly nextSteps: readonly string[];
 }> {
@@ -122,8 +137,10 @@ async function configDiagnostics(services: AgentRuntimeServices): Promise<{
       configExists: services.configMetadata.configExists,
       surfaceKind: services.config.surfaceKind,
       surfaceId: services.config.surfaceId,
+      providerModel: services.assistant.providerModel,
       token: services.configMetadata.token,
     },
+    companionChat: services.assistant.chatStatus(),
     daemon,
     nextSteps: daemon.ok
       ? ['Daemon connection is ready.']
