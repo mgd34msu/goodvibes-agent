@@ -1,0 +1,163 @@
+import type { AgentConfig } from '../config.js';
+import { GoodVibesDaemonClient } from '../daemon/client.js';
+import { MemoryStore } from '../store/memory.js';
+import { PersonaStore } from '../store/personas.js';
+import { SkillStore } from '../store/skills.js';
+import { formatJson } from '../utils/format.js';
+import { classifyPrompt } from './policy.js';
+import { buildAssistantSystemPrompt } from './system-prompt.js';
+import { delegateToTui, shouldDelegateToTui, shouldRequestWrfc } from './delegation.js';
+
+export interface AssistantRuntimeOptions {
+  readonly config: AgentConfig;
+  readonly client?: GoodVibesDaemonClient | undefined;
+}
+
+export interface AssistantReply {
+  readonly text: string;
+  readonly data?: unknown | undefined;
+}
+
+export class AssistantRuntime {
+  readonly client: GoodVibesDaemonClient;
+  readonly memory = new MemoryStore();
+  readonly skills = new SkillStore();
+  readonly personas = new PersonaStore();
+
+  constructor(readonly options: AssistantRuntimeOptions) {
+    this.client = options.client ?? new GoodVibesDaemonClient(options.config);
+  }
+
+  async handleUserText(text: string): Promise<AssistantReply> {
+    const trimmed = text.trim();
+    if (!trimmed) return { text: '' };
+
+    if (trimmed.startsWith('/')) return this.handleSlash(trimmed);
+
+    const captured = this.options.config.autoRemember
+      ? this.memory.autoCaptureFromUserText(trimmed)
+      : null;
+
+    const safety = classifyPrompt(trimmed);
+    if (safety.requiresApproval) {
+      return {
+        text: `I need approval before doing that. Reason: ${safety.reason}`,
+        data: safety,
+      };
+    }
+
+    if (this.options.config.autoDelegateBuildRequests && shouldDelegateToTui(trimmed)) {
+      const result = await delegateToTui(this.client, this.options.config, {
+        task: trimmed,
+        wrfc: shouldRequestWrfc(trimmed),
+        reason: 'auto-build-delegation',
+      });
+      return {
+        text: `Delegated to GoodVibes TUI (${result.mode})${result.sessionId ? ` in session ${result.sessionId}` : ''}.`,
+        data: result,
+      };
+    }
+
+    const response = await this.chat(trimmed);
+    return {
+      text: captured ? `${response}\n\nRemembered: ${captured.text}` : response,
+    };
+  }
+
+  async chat(text: string): Promise<string> {
+    const persona = this.personas.find('operator') ?? this.personas.list()[0]!;
+    const memories = this.memory.search(text, 8);
+    const session = await this.client.createCompanionChat({
+      title: 'GoodVibes Agent',
+      systemPrompt: buildAssistantSystemPrompt({ persona, memories }),
+    });
+    const after = Date.now();
+    await this.client.postCompanionMessage(session.sessionId, text);
+    return this.client.waitForCompanionAssistantMessage(session.sessionId, after);
+  }
+
+  async askKnowledge(query: string): Promise<AssistantReply> {
+    const data = await this.client.invoke('knowledge.ask', {
+      query,
+      includeSources: true,
+      includeConfidence: true,
+      metadata: { originProduct: 'goodvibes-agent' },
+    });
+    return { text: summarizeKnowledgeAnswer(data), data };
+  }
+
+  async searchKnowledge(query: string): Promise<AssistantReply> {
+    const data = await this.client.invoke('knowledge.search', {
+      query,
+      limit: 12,
+      includeSources: true,
+      includeNodes: true,
+      metadata: { originProduct: 'goodvibes-agent' },
+    });
+    return { text: formatJson(data), data };
+  }
+
+  private async handleSlash(command: string): Promise<AssistantReply> {
+    const [name = '', ...args] = command.slice(1).split(/\s+/);
+    const rest = args.join(' ').trim();
+    switch (name) {
+      case 'help':
+        return { text: slashHelp() };
+      case 'status':
+        return { text: formatJson(await this.client.status()) };
+      case 'ask':
+        return this.askKnowledge(rest);
+      case 'search':
+        return this.searchKnowledge(rest);
+      case 'remember': {
+        const record = this.memory.remember({ text: rest, source: 'user-command' });
+        return { text: `Remembered ${record.id}: ${record.text}`, data: record };
+      }
+      case 'memory':
+        return { text: formatJson(rest ? this.memory.search(rest) : this.memory.list()) };
+      case 'skills':
+        return { text: formatJson(rest ? this.skills.search(rest) : this.skills.list()) };
+      case 'personas':
+        return { text: formatJson(this.personas.list()) };
+      case 'delegate': {
+        const wrfc = args.includes('--wrfc');
+        const task = args.filter((arg) => arg !== '--wrfc').join(' ').trim();
+        const result = await delegateToTui(this.client, this.options.config, { task, wrfc, reason: 'slash-command' });
+        return { text: `Delegated to GoodVibes TUI (${result.mode}).`, data: result };
+      }
+      case 'approvals':
+        return { text: formatJson(await this.client.invoke('approvals.list')) };
+      case 'workplan':
+        return { text: formatJson(await this.client.invoke('projectPlanning.workPlan.snapshot')) };
+      default:
+        return { text: `Unknown command: /${name}\n\n${slashHelp()}` };
+    }
+  }
+}
+
+function summarizeKnowledgeAnswer(data: unknown): string {
+  if (typeof data === 'string') return data;
+  if (data && typeof data === 'object') {
+    const record = data as Record<string, unknown>;
+    for (const key of ['answer', 'text', 'summary', 'response']) {
+      if (typeof record[key] === 'string' && record[key].trim()) return record[key];
+    }
+  }
+  return formatJson(data);
+}
+
+function slashHelp(): string {
+  return [
+    'Commands:',
+    '/status                 Check daemon status',
+    '/ask <query>            Ask GoodVibes knowledge',
+    '/search <query>         Search GoodVibes knowledge',
+    '/remember <fact>        Store durable assistant memory',
+    '/memory [query]         List/search assistant memory',
+    '/skills [query]         List/search assistant skills',
+    '/personas               List assistant personas',
+    '/delegate [--wrfc] <t>  Delegate build/fix/review work to GoodVibes TUI',
+    '/approvals              List daemon approvals',
+    '/workplan               Show project work-plan snapshot',
+  ].join('\n');
+}
