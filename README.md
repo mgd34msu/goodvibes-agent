@@ -10,6 +10,7 @@ It talks to the GoodVibes daemon through public SDK/daemon contracts, owns assis
 - WRFC is not a default reasoning mode. It is requested only for explicit build/implementation/fix/review/check work.
 - Coding UX, file edits, git/worktrees, QEMU/sandbox command UX, and WRFC execution stay owned by `goodvibes-tui`.
 - This package must not import from `goodvibes-tui/src/*`; use `@pellux/goodvibes-sdk`, daemon REST/operator routes, and published contracts.
+- The codebase is strongly typed TypeScript. Explicit `any` is not allowed.
 
 ## Quick Start
 

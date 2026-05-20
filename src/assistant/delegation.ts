@@ -1,5 +1,5 @@
 import type { AgentConfig } from '../config.js';
-import type { GoodVibesDaemonClient } from '../daemon/client.js';
+import type { RouteId } from '../daemon/routes.js';
 import { explicitlyRequestsWrfc, isBuildLikeRequest, wrfcEligible } from './policy.js';
 import { titleFromText } from '../utils/format.js';
 
@@ -20,6 +20,19 @@ export interface DelegationResult {
   readonly output: unknown;
 }
 
+export interface DelegationDaemonClient {
+  createSharedSession(input: {
+    readonly title: string;
+    readonly surfaceKind: string;
+    readonly surfaceId: string;
+  }): Promise<{ readonly sessionId: string; readonly session: unknown }>;
+
+  invoke<T = unknown>(
+    routeId: RouteId,
+    input: Record<string, unknown>,
+  ): Promise<T>;
+}
+
 export function shouldDelegateToTui(text: string): boolean {
   return isBuildLikeRequest(text);
 }
@@ -29,7 +42,7 @@ export function shouldRequestWrfc(text: string, explicitFlag = false): boolean {
 }
 
 export async function delegateToTui(
-  client: GoodVibesDaemonClient,
+  client: DelegationDaemonClient,
   config: AgentConfig,
   request: DelegationRequest,
 ): Promise<DelegationResult> {

@@ -6,6 +6,7 @@ This plan targets the first usable `goodvibes-agent` alpha. The package stays at
 
 - Bun is the runtime, package manager, test runner, and build tool.
 - Authored source code is TypeScript.
+- Strong typing is required; explicit `any` and untyped escape hatches are not allowed.
 - The distributed package must install a real `goodvibes-agent` executable through `package.json` `bin`; it is not a library-only package.
 - Package contents must include the runtime bin, `src/`, docs needed at runtime/release, and no accidental build or local daemon state.
 - Runtime dependencies use public SDK/daemon contracts, not `goodvibes-tui/src/*` imports.

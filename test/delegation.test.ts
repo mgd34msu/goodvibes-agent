@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { AgentConfig } from '../src/config.js';
-import type { GoodVibesDaemonClient } from '../src/daemon/client.js';
-import { delegateToTui } from '../src/assistant/delegation.js';
+import { delegateToTui, type DelegationDaemonClient } from '../src/assistant/delegation.js';
+import type { RouteId } from '../src/daemon/routes.js';
 
 describe('TUI delegation', () => {
   test('uses the public sessions message payload shape', async () => {
@@ -15,17 +15,17 @@ describe('TUI delegation', () => {
       autoRemember: true,
       autoDelegateBuildRequests: true,
     };
-    const client = {
+    const client: DelegationDaemonClient = {
       createSharedSession: async () => ({
         sessionId: 'session-1',
         session: { id: 'session-1' },
       }),
-      invoke: async (routeId: string, input: Record<string, unknown>) => {
+      invoke: async <T = unknown>(routeId: RouteId, input: Record<string, unknown>): Promise<T> => {
         capturedRoute = routeId;
         capturedInput = input;
-        return { sessionId: 'session-1', mode: 'queued' };
+        return { sessionId: 'session-1', mode: 'queued' } as T;
       },
-    } as unknown as GoodVibesDaemonClient;
+    };
 
     const result = await delegateToTui(client, config, {
       task: 'Build a durable task inbox with wrfc',
@@ -34,7 +34,7 @@ describe('TUI delegation', () => {
     expect(result.delegated).toBe(true);
     expect(capturedRoute).toBe('sessions.messages.create');
     expect(capturedInput).toBeDefined();
-    const payload = capturedInput as Record<string, unknown>;
+    const payload = expectRecord(capturedInput);
     expect(payload.sessionId).toBe('session-1');
     expect(payload.surfaceKind).toBe('goodvibes-agent');
     expect(payload.surfaceId).toBe('goodvibes-agent-test');
@@ -55,3 +55,10 @@ describe('TUI delegation', () => {
     expect('metadata' in payload).toBe(false);
   });
 });
+
+function expectRecord(value: unknown): Record<string, unknown> {
+  expect(value).toBeDefined();
+  expect(typeof value).toBe('object');
+  expect(value).not.toBeNull();
+  return value as Record<string, unknown>;
+}

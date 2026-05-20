@@ -4,6 +4,9 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "skipLibCheck": true,
@@ -15,6 +18,7 @@
   },
   "include": [
     "bin/**/*.ts",
+    "scripts/**/*.ts",
     "src/**/*.ts",
     "test/**/*.ts"
   ]
