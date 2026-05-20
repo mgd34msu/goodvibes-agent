@@ -9,7 +9,11 @@ export interface RequestOptions {
   readonly timeoutMs?: number | undefined;
 }
 
+export type DaemonErrorKind = 'daemon_unavailable' | 'daemon_timeout' | 'auth_required' | 'http_error';
+
 export class DaemonRequestError extends Error {
+  readonly kind: DaemonErrorKind;
+
   constructor(
     message: string,
     readonly status: number,
@@ -17,6 +21,17 @@ export class DaemonRequestError extends Error {
   ) {
     super(message);
     this.name = 'DaemonRequestError';
+    this.kind = status === 401 || status === 403 ? 'auth_required' : 'http_error';
+  }
+}
+
+export class DaemonConnectionError extends Error {
+  constructor(
+    readonly kind: DaemonErrorKind,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'DaemonConnectionError';
   }
 }
 
@@ -50,7 +65,8 @@ export class GoodVibesDaemonClient {
     options: RequestOptions & { readonly method?: string | undefined } = {},
   ): Promise<T> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 60_000);
+    const timeoutMs = options.timeoutMs ?? 60_000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const method = options.method ?? 'GET';
       const url = this.buildUrl(path, options.query);
@@ -66,9 +82,24 @@ export class GoodVibesDaemonClient {
       });
       const body = await readResponseBody(response);
       if (!response.ok) {
-        throw new DaemonRequestError(`${method} ${path} failed: ${response.status} ${response.statusText}`.trim(), response.status, body);
+        const authHint = response.status === 401 || response.status === 403
+          ? ' Auth failed; check GOODVIBES_AGENT_TOKEN, GOODVIBES_HTTP_TOKEN, GOODVIBES_DAEMON_TOKEN, or the daemon token file.'
+          : '';
+        throw new DaemonRequestError(`${method} ${path} failed: ${response.status} ${response.statusText}.${authHint}`.trim(), response.status, body);
       }
       return body as T;
+    } catch (error) {
+      if (error instanceof DaemonRequestError) throw error;
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new DaemonConnectionError(
+          'daemon_timeout',
+          `GoodVibes daemon at ${this.baseUrl} did not respond within ${timeoutMs}ms. The daemon is expected to already be running; check its health and GOODVIBES_AGENT_BASE_URL.`,
+        );
+      }
+      throw new DaemonConnectionError(
+        'daemon_unavailable',
+        `Could not connect to the GoodVibes daemon at ${this.baseUrl}. The daemon is expected to already be running; check GOODVIBES_AGENT_BASE_URL and token configuration.`,
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -120,6 +151,50 @@ export class GoodVibesDaemonClient {
 
   async currentAuth(): Promise<unknown> {
     return this.invoke('control.auth.current');
+  }
+
+  async diagnostics(): Promise<DaemonDiagnosticResult> {
+    try {
+      const compatibility = await this.checkCompatibility();
+      let auth: unknown = null;
+      let authenticated = false;
+      try {
+        auth = await this.currentAuth();
+        authenticated = isRecord(auth) && auth.authenticated === true;
+      } catch (error) {
+        return {
+          ok: false,
+          kind: classifyDaemonError(error),
+          baseUrl: this.baseUrl,
+          compatibility,
+          auth,
+          message: daemonErrorMessage(error),
+        };
+      }
+      return {
+        ok: compatibility.ok && authenticated,
+        kind: compatibility.ok
+          ? authenticated ? 'ok' : 'auth_required'
+          : 'version_mismatch',
+        baseUrl: this.baseUrl,
+        compatibility,
+        auth,
+        message: compatibility.ok
+          ? authenticated
+            ? 'GoodVibes daemon is reachable, authenticated, and compatible.'
+            : 'GoodVibes daemon is reachable but auth is not confirmed.'
+          : compatibility.reason,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        kind: classifyDaemonError(error),
+        baseUrl: this.baseUrl,
+        compatibility: null,
+        auth: null,
+        message: daemonErrorMessage(error),
+      };
+    }
   }
 
   async createCompanionChat(input: { readonly title?: string; readonly systemPrompt?: string }): Promise<{ sessionId: string }> {
@@ -205,6 +280,26 @@ export interface DaemonCompatibilityResult {
   readonly expectedVersion: string;
   readonly status: unknown;
   readonly reason: string;
+}
+
+export interface DaemonDiagnosticResult {
+  readonly ok: boolean;
+  readonly kind: 'ok' | 'daemon_unavailable' | 'daemon_timeout' | 'auth_required' | 'http_error' | 'version_mismatch';
+  readonly baseUrl: string;
+  readonly compatibility: DaemonCompatibilityResult | null;
+  readonly auth: unknown;
+  readonly message: string;
+}
+
+export function classifyDaemonError(error: unknown): DaemonDiagnosticResult['kind'] {
+  if (error instanceof DaemonConnectionError) return error.kind;
+  if (error instanceof DaemonRequestError) return error.kind;
+  return 'http_error';
+}
+
+export function daemonErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 function compareSemver(actual: string, expected: string): number {

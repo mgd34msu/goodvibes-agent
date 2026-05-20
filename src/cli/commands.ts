@@ -20,24 +20,24 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
       await new AgentTuiApp(runtime).run();
       return 0;
     case 'status':
-      console.log(formatJson(await runtime.client.checkCompatibility()));
-      return 0;
+    case 'health': {
+      const diagnostics = await runtime.client.diagnostics();
+      console.log(formatJson(diagnostics));
+      return diagnostics.ok ? 0 : 1;
+    }
     case 'auth':
       console.log(formatJson(await runtime.client.currentAuth()));
       return 0;
     case 'smoke': {
-      const [compatibility, auth] = await Promise.all([
-        runtime.client.assertCompatibility(),
-        runtime.client.currentAuth(),
-      ]);
+      const diagnostics = await runtime.client.diagnostics();
       console.log(formatJson({
-        ok: true,
+        ok: diagnostics.ok,
         bin: 'goodvibes-agent',
         surfaceKind: config.surfaceKind,
         surfaceId: config.surfaceId,
-        daemon: { compatibility, auth },
+        daemon: diagnostics,
       }));
-      return 0;
+      return diagnostics.ok ? 0 : 1;
     }
     case 'chat':
       console.log((await runtime.handleUserText(text)).text);

@@ -18,6 +18,8 @@ bun install
 bun run dev tui
 ```
 
+`goodvibes-agent` connects to an already-running GoodVibes daemon. It does not start, stop, install, or supervise the daemon.
+
 Common commands:
 
 ```sh
@@ -27,6 +29,14 @@ bun run dev chat "What do you remember about my Home Assistant setup?"
 bun run dev ask "GoodVibes project planning status"
 bun run dev delegate --wrfc "Build the first version of the assistant inbox"
 ```
+
+Terminal controls:
+
+- `Enter` submits.
+- `Ctrl-J` inserts a newline.
+- `Up` / `Down` navigates input history.
+- `Ctrl-U` clears the current input.
+- `Ctrl-C`, `Esc`, `/quit`, or `/exit` exits and restores the terminal.
 
 Daemon connection defaults:
 

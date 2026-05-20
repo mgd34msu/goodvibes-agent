@@ -1,6 +1,8 @@
 export const ANSI = {
   clear: '\x1b[2J',
   home: '\x1b[H',
+  bracketedPasteOn: '\x1b[?2004h',
+  bracketedPasteOff: '\x1b[?2004l',
   hideCursor: '\x1b[?25l',
   showCursor: '\x1b[?25h',
   reset: '\x1b[0m',

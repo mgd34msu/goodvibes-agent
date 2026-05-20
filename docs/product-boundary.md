@@ -6,6 +6,7 @@
 
 - Answer or act serially.
 - Use daemon APIs for knowledge, tasks, MCP, artifacts, automation, approvals, channels, and companion chat.
+- Connect to an already-running GoodVibes daemon; do not start, stop, install, supervise, or repair daemon lifecycle from this product.
 - Remember durable user preferences and operating facts in assistant-local memory unless they look secret or sensitive.
 - Create skills and personas as reusable local assets.
 - Delegate build/fix/review work to GoodVibes TUI/daemon sessions.

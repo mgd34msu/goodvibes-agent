@@ -1,3 +1,5 @@
+import { stripAnsi, visibleLength } from './ansi.js';
+
 export interface TerminalSize {
   readonly columns: number;
   readonly rows: number;
@@ -11,8 +13,9 @@ export function getTerminalSize(): TerminalSize {
 }
 
 export function fitLine(line: string, width: number): string {
-  if (line.length <= width) return line.padEnd(width);
+  const length = visibleLength(line);
+  if (length <= width) return `${line}${' '.repeat(width - length)}`;
   if (width <= 1) return line.slice(0, width);
   if (width <= 3) return line.slice(0, width);
-  return `${line.slice(0, width - 3)}...`;
+  return `${stripAnsi(line).slice(0, width - 3)}...`;
 }
