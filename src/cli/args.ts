@@ -35,6 +35,11 @@ export function hasFlag(args: ParsedArgs, name: string): boolean {
   return args.flags.get(name) === true;
 }
 
+export function getFlag(args: ParsedArgs, name: string): string | undefined {
+  const value = args.flags.get(name);
+  return typeof value === 'string' ? value : undefined;
+}
+
 export function getText(args: ParsedArgs): string {
   return args.positional.join(' ').trim();
 }

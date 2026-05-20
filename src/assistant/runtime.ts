@@ -1,5 +1,8 @@
 import type { AgentConfig } from '../config.js';
 import { GoodVibesDaemonClient } from '../daemon/client.js';
+import type { MemoryRecord } from '../store/memory.js';
+import type { PersonaRecord } from '../store/personas.js';
+import type { SkillRecord } from '../store/skills.js';
 import { MemoryStore } from '../store/memory.js';
 import { PersonaStore } from '../store/personas.js';
 import { SkillStore } from '../store/skills.js';
@@ -60,7 +63,7 @@ export class AssistantRuntime {
 
     const response = await this.chat(trimmed);
     return {
-      text: captured ? `${response}\n\nRemembered: ${captured.text}` : response,
+      text: captured ? `${response}\n\nRemembered: ${captured.summary}` : response,
     };
   }
 
@@ -104,21 +107,21 @@ export class AssistantRuntime {
       case 'help':
         return { text: slashHelp() };
       case 'status':
-        return { text: formatJson(await this.client.status()) };
+        return { text: formatJson(await this.client.diagnostics()) };
       case 'ask':
         return this.askKnowledge(rest);
       case 'search':
         return this.searchKnowledge(rest);
       case 'remember': {
-        const record = this.memory.remember({ text: rest, source: 'user-command' });
-        return { text: `Remembered ${record.id}: ${record.text}`, data: record };
+        const record = this.memory.remember({ summary: rest, source: 'user-command', provenance: [{ kind: 'user', id: 'slash-remember' }] });
+        return { text: `Remembered ${record.id}: ${record.summary}`, data: record };
       }
       case 'memory':
-        return { text: formatJson(rest ? this.memory.search(rest) : this.memory.list()) };
+        return { text: formatMemory(rest ? this.memory.search(rest) : this.memory.list()) };
       case 'skills':
-        return { text: formatJson(rest ? this.skills.search(rest) : this.skills.list()) };
+        return { text: formatSkills(rest ? this.skills.search(rest) : this.skills.list()) };
       case 'personas':
-        return { text: formatJson(this.personas.list()) };
+        return { text: formatPersonas(this.personas.list()) };
       case 'delegate': {
         const wrfc = args.includes('--wrfc');
         const task = args.filter((arg) => arg !== '--wrfc').join(' ').trim();
@@ -133,6 +136,27 @@ export class AssistantRuntime {
         return { text: `Unknown command: /${name}\n\n${slashHelp()}` };
     }
   }
+}
+
+function formatMemory(records: readonly MemoryRecord[]): string {
+  if (records.length === 0) return 'No matching memory records.';
+  return records.map((record) => (
+    `${record.id} [${record.cls}/${record.reviewState}/${record.sensitivity}] ${record.summary}`
+  )).join('\n');
+}
+
+function formatSkills(records: readonly SkillRecord[]): string {
+  if (records.length === 0) return 'No matching skills.';
+  return records.map((record) => (
+    `${record.id} [${record.reviewState}] ${record.name}: ${record.description || record.title}`
+  )).join('\n');
+}
+
+function formatPersonas(records: readonly PersonaRecord[]): string {
+  if (records.length === 0) return 'No personas.';
+  return records.map((record) => (
+    `${record.id} [${record.reviewState}] ${record.name}: ${record.description || record.title}`
+  )).join('\n');
 }
 
 function summarizeKnowledgeAnswer(data: unknown): string {

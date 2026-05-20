@@ -6,10 +6,10 @@ export function buildAssistantSystemPrompt(input: {
   readonly memories: readonly MemoryRecord[];
 }): string {
   const memoryBlock = input.memories.length
-    ? input.memories.map((memory) => `- [${memory.kind}] ${memory.text}`).join('\n')
+    ? input.memories.map((memory) => `- [${memory.cls}/${memory.reviewState}] ${memory.summary}`).join('\n')
     : '- No matching durable memories.';
   return [
-    input.persona.systemPrompt,
+    input.persona.body,
     '',
     'Product rules:',
     '- You are the GoodVibes Agent assistant/operator, not the coding TUI.',

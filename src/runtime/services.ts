@@ -1,4 +1,4 @@
-import { loadAgentConfig, type AgentConfig } from '../config.js';
+import { loadAgentConfigWithMetadata, type AgentConfig, type AgentConfigMetadata } from '../config.js';
 import { AssistantRuntime } from '../assistant/runtime.js';
 import { GoodVibesDaemonClient } from '../daemon/client.js';
 import { MemoryStore } from '../store/memory.js';
@@ -7,6 +7,7 @@ import { SkillStore } from '../store/skills.js';
 
 export interface AgentRuntimeServices {
   readonly config: AgentConfig;
+  readonly configMetadata: AgentConfigMetadata;
   readonly daemon: GoodVibesDaemonClient;
   readonly memory: MemoryStore;
   readonly personas: PersonaStore;
@@ -14,15 +15,30 @@ export interface AgentRuntimeServices {
   readonly assistant: AssistantRuntime;
 }
 
-export function createAgentRuntimeServices(config: AgentConfig = loadAgentConfig()): AgentRuntimeServices {
-  const daemon = new GoodVibesDaemonClient(config);
-  const assistant = new AssistantRuntime({ config, client: daemon });
+export function createAgentRuntimeServices(config?: AgentConfig): AgentRuntimeServices {
+  const loaded = config
+    ? { config, metadata: fallbackMetadata() }
+    : loadAgentConfigWithMetadata();
+  const resolvedConfig = loaded.config;
+  const daemon = new GoodVibesDaemonClient(resolvedConfig);
+  const assistant = new AssistantRuntime({ config: resolvedConfig, client: daemon });
   return {
-    config,
+    config: resolvedConfig,
+    configMetadata: loaded.metadata,
     daemon,
     memory: assistant.memory,
     personas: assistant.personas,
     skills: assistant.skills,
     assistant,
+  };
+}
+
+function fallbackMetadata(): AgentConfigMetadata {
+  return {
+    agentHome: '',
+    configPath: '',
+    configExists: false,
+    baseUrlSource: 'default',
+    token: { source: 'none', present: false },
   };
 }

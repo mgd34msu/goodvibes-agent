@@ -25,9 +25,13 @@ Common commands:
 
 ```sh
 bun run dev status
+bun run dev config
 bun run dev smoke
 bun run dev chat "What do you remember about my Home Assistant setup?"
 bun run dev ask "GoodVibes project planning status"
+bun run dev memory add "We use Bun for goodvibes-agent" --class constraint --tags runtime,typescript
+bun run dev skills create weekly-plan --description "Plan the week from durable context" --triggers "plan week,weekly planning"
+bun run dev personas create travel --description "Travel planning mode" --body "Plan travel carefully using known preferences."
 bun run dev delegate --wrfc "Build the first version of the assistant inbox"
 ```
 
