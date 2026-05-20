@@ -1,0 +1,1 @@
+export const EXPECTED_GOODVIBES_SDK_VERSION = '0.33.30';

@@ -5,6 +5,7 @@ export function renderHelp(): string {
     'Usage:',
     '  goodvibes-agent tui',
     '  goodvibes-agent status',
+    '  goodvibes-agent smoke',
     '  goodvibes-agent chat <message>',
     '  goodvibes-agent ask <knowledge query>',
     '  goodvibes-agent search <knowledge query>',

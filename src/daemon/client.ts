@@ -1,6 +1,7 @@
 import { getRoute, type RouteId } from './routes.js';
 import type { AgentConfig } from '../config.js';
 import { isRecord } from '../types.js';
+import { EXPECTED_GOODVIBES_SDK_VERSION } from '../version.js';
 
 export interface RequestOptions {
   readonly query?: Record<string, unknown> | undefined;
@@ -75,6 +76,46 @@ export class GoodVibesDaemonClient {
 
   async status(): Promise<unknown> {
     return this.invoke('control.status');
+  }
+
+  async checkCompatibility(): Promise<DaemonCompatibilityResult> {
+    const status = await this.status();
+    const daemonVersion = isRecord(status) && typeof status.version === 'string'
+      ? status.version
+      : undefined;
+    if (!daemonVersion) {
+      return {
+        ok: false,
+        expectedVersion: EXPECTED_GOODVIBES_SDK_VERSION,
+        status,
+        reason: 'GoodVibes daemon status did not include a version.',
+      };
+    }
+    const comparison = compareSemver(daemonVersion, EXPECTED_GOODVIBES_SDK_VERSION);
+    if (comparison < 0) {
+      return {
+        ok: false,
+        daemonVersion,
+        expectedVersion: EXPECTED_GOODVIBES_SDK_VERSION,
+        status,
+        reason: `GoodVibes daemon ${daemonVersion} is older than goodvibes-agent expects (${EXPECTED_GOODVIBES_SDK_VERSION}).`,
+      };
+    }
+    return {
+      ok: true,
+      daemonVersion,
+      expectedVersion: EXPECTED_GOODVIBES_SDK_VERSION,
+      status,
+      reason: comparison > 0
+        ? `GoodVibes daemon ${daemonVersion} is newer than the pinned SDK contract ${EXPECTED_GOODVIBES_SDK_VERSION}.`
+        : 'GoodVibes daemon version matches the pinned SDK contract.',
+    };
+  }
+
+  async assertCompatibility(): Promise<DaemonCompatibilityResult> {
+    const compatibility = await this.checkCompatibility();
+    if (!compatibility.ok) throw new Error(compatibility.reason);
+    return compatibility;
   }
 
   async currentAuth(): Promise<unknown> {
@@ -156,4 +197,32 @@ async function readResponseBody(response: Response): Promise<unknown> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export interface DaemonCompatibilityResult {
+  readonly ok: boolean;
+  readonly daemonVersion?: string | undefined;
+  readonly expectedVersion: string;
+  readonly status: unknown;
+  readonly reason: string;
+}
+
+function compareSemver(actual: string, expected: string): number {
+  const actualParts = parseSemver(actual);
+  const expectedParts = parseSemver(expected);
+  for (let index = 0; index < expectedParts.length; index += 1) {
+    const actualPart = actualParts[index] ?? 0;
+    const expectedPart = expectedParts[index] ?? 0;
+    if (actualPart > expectedPart) return 1;
+    if (actualPart < expectedPart) return -1;
+  }
+  return 0;
+}
+
+function parseSemver(version: string): readonly number[] {
+  const [core = ''] = version.split('-', 1);
+  return core.split('.').map((part) => {
+    const parsed = Number.parseInt(part, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  });
 }

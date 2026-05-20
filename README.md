@@ -22,6 +22,7 @@ Common commands:
 
 ```sh
 bun run dev status
+bun run dev smoke
 bun run dev chat "What do you remember about my Home Assistant setup?"
 bun run dev ask "GoodVibes project planning status"
 bun run dev delegate --wrfc "Build the first version of the assistant inbox"
@@ -39,3 +40,5 @@ Local assistant state is stored under `~/.goodvibes/agent/`.
 While private and unreleased, the package version stays at `0.0.0`. The first intentionally published usable alpha should become `0.1.0`; SDK compatibility is expressed through the exact `@pellux/goodvibes-sdk` dependency pin, not by mirroring SDK or TUI versions.
 
 During pre-1.0 near-fork development, `@pellux/goodvibes-sdk` is pinned exactly to the daemon-compatible version instead of using a caret range. This package does not currently ship a binary postinstall or trust native lifecycle packages it does not directly exercise.
+
+The distributed package must install a real `goodvibes-agent` executable through `package.json` `bin`. The bin is TypeScript-authored and Bun-backed; release smoke must verify `goodvibes-agent --help` and `goodvibes-agent smoke` from a fresh install.

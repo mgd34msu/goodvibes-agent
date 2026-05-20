@@ -10,11 +10,19 @@
     "node": ">=22.0.0"
   },
   "bin": {
-    "goodvibes-agent": "bin/goodvibes-agent"
+    "goodvibes-agent": "bin/goodvibes-agent.ts"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "docs/",
+    "README.md",
+    "tsconfig.json"
+  ],
   "scripts": {
     "dev": "bun run src/main.ts",
     "tui": "bun run src/main.ts tui",
+    "smoke": "bun run src/main.ts smoke",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "build": "bun build src/main.ts --compile --outfile dist/goodvibes-agent"

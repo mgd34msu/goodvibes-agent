@@ -24,6 +24,7 @@ export class AgentTuiApp {
     });
     process.stdout.on('resize', () => this.render());
     this.session = appendMessage(this.session, 'system', 'GoodVibes Agent is a proactive assistant/operator surface. Build/fix work is delegated to GoodVibes TUI.');
+    await this.checkDaemonCompatibility();
     this.render();
     await new Promise<void>((resolve) => {
       const stop = () => {
@@ -84,5 +85,18 @@ export class AgentTuiApp {
       status: this.status,
       busy: this.busy,
     }));
+  }
+
+  private async checkDaemonCompatibility(): Promise<void> {
+    try {
+      const compatibility = await this.runtime.client.checkCompatibility();
+      if (!compatibility.ok) {
+        this.session = appendMessage(this.session, 'system', `Daemon compatibility warning: ${compatibility.reason}`);
+        this.status = 'Daemon compatibility check failed.';
+      }
+    } catch (error) {
+      this.session = appendMessage(this.session, 'system', `Daemon connection warning: ${error instanceof Error ? error.message : String(error)}`);
+      this.status = 'Daemon connection check failed.';
+    }
   }
 }
