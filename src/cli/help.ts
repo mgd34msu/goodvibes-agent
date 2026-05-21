@@ -185,7 +185,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   bundle: {
     usage: ['bundle export [path]', 'bundle inspect <path>', 'bundle import <path>'],
     summary: 'Export, inspect, or import setup/profile/trust/support bundle data.',
-    examples: ['bundle export goodvibes-bundle.json', 'bundle inspect goodvibes-bundle.json'],
+    examples: ['bundle export goodvibes-agent-bundle.json', 'bundle inspect goodvibes-agent-bundle.json'],
   },
   pair: {
     usage: ['pair', 'qrcode'],
