@@ -8,6 +8,9 @@ import type {
   OperatorMethodOutput,
 } from '@pellux/goodvibes-sdk/contracts';
 
+export const AGENT_KNOWLEDGE_ASK_PATH = '/api/goodvibes-agent/knowledge/ask';
+export const AGENT_KNOWLEDGE_SEARCH_PATH = '/api/goodvibes-agent/knowledge/search';
+
 export interface RequestOptions {
   readonly query?: Record<string, unknown> | undefined;
   readonly body?: unknown | undefined;
@@ -243,6 +246,24 @@ export class GoodVibesDaemonClient {
   async listCompanionMessages(sessionId: string): Promise<readonly CompanionChatMessage[]> {
     const response = await this.invoke<OperatorMethodOutput<'companion.chat.messages.list'>>('companion.chat.messages.list', { sessionId });
     return response.messages;
+  }
+
+  async askAgentKnowledge(
+    input: OperatorMethodInput<'knowledge.ask'>,
+  ): Promise<OperatorMethodOutput<'knowledge.ask'>> {
+    return this.request<OperatorMethodOutput<'knowledge.ask'>>(AGENT_KNOWLEDGE_ASK_PATH, {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  async searchAgentKnowledge(
+    input: OperatorMethodInput<'knowledge.search'>,
+  ): Promise<OperatorMethodOutput<'knowledge.search'>> {
+    return this.request<OperatorMethodOutput<'knowledge.search'>>(AGENT_KNOWLEDGE_SEARCH_PATH, {
+      method: 'POST',
+      body: input,
+    });
   }
 
   async waitForCompanionAssistantMessage(sessionId: string, afterEpochMs: number, timeoutMs = 90_000): Promise<string> {

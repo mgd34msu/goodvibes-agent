@@ -126,7 +126,7 @@ export class AssistantRuntime {
   }
 
   async askKnowledge(query: string): Promise<AssistantReply> {
-    const data = await this.client.invoke<OperatorMethodOutput<'knowledge.ask'>>('knowledge.ask', {
+    const data = await this.client.askAgentKnowledge({
       query,
       includeSources: true,
       includeConfidence: true,
@@ -136,7 +136,7 @@ export class AssistantRuntime {
   }
 
   async searchKnowledge(query: string): Promise<AssistantReply> {
-    const data = await this.client.invoke<OperatorMethodOutput<'knowledge.search'>>('knowledge.search', {
+    const data = await this.client.searchAgentKnowledge({
       query,
       limit: 12,
       includeSources: true,

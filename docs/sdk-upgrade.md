@@ -1,14 +1,14 @@
 # SDK Upgrade Notes
 
-GoodVibes Agent pins `@pellux/goodvibes-sdk` exactly during pre-1.0 development. Do not move the pin or switch knowledge routes until SDK/TUI provide a verified npm release and route-contract handoff.
+GoodVibes Agent pins `@pellux/goodvibes-sdk` exactly during pre-1.0 development. Move the pin or switch knowledge routes only after SDK/TUI provide a verified npm release and route-contract handoff.
 
 ## Current Pin
 
 - Agent package version: `0.0.0`
-- SDK package pin: `@pellux/goodvibes-sdk@0.33.30`
-- Expected daemon contract version: `0.33.30`
-- Active knowledge routes: `knowledge.ask` and `knowledge.search`
-- Agent-specific knowledge isolation: pending SDK handoff
+- SDK package pin: `@pellux/goodvibes-sdk@0.33.31`
+- Expected daemon contract version: `0.33.31`
+- Active knowledge routes: `/api/goodvibes-agent/knowledge/ask` and `/api/goodvibes-agent/knowledge/search`
+- Agent-specific knowledge isolation: active in code; live validation requires a daemon reporting `0.33.31`
 
 Check the live daemon contract with:
 
@@ -18,14 +18,15 @@ bun run check:sdk
 
 ## Handoff Summary
 
-When SDK publishes the Agent-specific knowledge seam:
+For the SDK `0.33.31` Agent-specific knowledge handoff:
 
-1. Confirm npm has the exact SDK version and the route contracts are present in the published package.
-2. Update the exact `@pellux/goodvibes-sdk` pin and the expected SDK constants together.
-3. Run `bun install`, `bun run check:sdk`, and `bun run check:release` before any route switch.
-4. Switch only `ask`/`search` after the Agent route request/response shapes are verified.
-5. Rerun contamination checks: Agent queries must not return HomeGraph, Home Assistant, TV, or unrelated default-wiki facts.
-6. Update `docs/release-risks.md`, `docs/release-evidence.md`, and release notes with the verified route state.
+1. npm publish and package export verification are complete for `@pellux/goodvibes-sdk@0.33.31`.
+2. The exact SDK dependency pin and expected SDK constants move together.
+3. Agent `ask`/`search` target only `/api/goodvibes-agent/knowledge/ask` and `/api/goodvibes-agent/knowledge/search`.
+4. Memory, skills, and personas stay local until shared registry contracts are promoted.
+5. `bun run check:sdk` and `bun run check:release` require the daemon to report a compatible `0.33.31` contract.
+6. Contamination checks must confirm Agent queries do not return HomeGraph, Home Assistant, TV, or unrelated default-wiki facts.
+7. `docs/release-risks.md`, `docs/release-evidence.md`, and release notes must be updated after live validation.
 
 ## Upgrade Process
 
@@ -39,7 +40,7 @@ When SDK publishes the Agent-specific knowledge seam:
 
 ## Knowledge Route Switch Gate
 
-Before replacing default `knowledge.ask` or `knowledge.search`, validate:
+Before any future Agent knowledge route change, validate:
 
 - Public route IDs and request/response shapes are present in the published SDK contracts.
 - Agent ask/search use only Agent-owned knowledge and return no HomeGraph, Home Assistant, TV, or unrelated default-wiki facts for Agent queries.

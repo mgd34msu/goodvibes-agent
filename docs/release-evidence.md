@@ -44,3 +44,14 @@ Live daemon smoke:
 Skipped live checks:
 
 - Live delegation dry receipt was skipped. The current `delegate` command creates a real shared session/task through public daemon routes and can hand work to TUI; there is no dry-run receipt mode. This remains a documented release consideration rather than an accidental live mutation.
+
+## 2026-05-21 SDK 0.33.31 Handoff Status
+
+- SDK confirmed `@pellux/goodvibes-sdk@0.33.31` is published and that Agent knowledge routes are `/api/goodvibes-agent/knowledge/ask` and `/api/goodvibes-agent/knowledge/search`.
+- Code now targets the Agent-specific knowledge environment for `ask` and `search`.
+- The running daemon now reports a compatible `0.33.31` contract.
+- Live Agent knowledge validation passed after daemon route-service wiring was restored.
+- `/api/goodvibes-agent/knowledge/status` reported ready with an empty Agent knowledge store.
+- `/api/goodvibes-agent/knowledge/ask` for `What is GoodVibes Agent?` returned no match with no sources, facts, or gaps.
+- `/api/goodvibes-agent/knowledge/search` for `What is GoodVibes Agent?` returned no results.
+- The Agent-owned route did not return HomeGraph, Home Assistant, TV, or unrelated default-wiki facts for the validation query.

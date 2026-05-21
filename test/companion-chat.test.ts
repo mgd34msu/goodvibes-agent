@@ -156,9 +156,9 @@ class FakeCompanionClient implements CompanionChatDaemonClient {
   async checkCompatibility(): Promise<DaemonCompatibilityResult> {
     return {
       ok: true,
-      daemonVersion: '0.33.30',
-      expectedVersion: '0.33.30',
-      status: { status: 'running', version: '0.33.30' },
+      daemonVersion: '0.33.31',
+      expectedVersion: '0.33.31',
+      status: { status: 'running', version: '0.33.31' },
       reason: 'ok',
     };
   }

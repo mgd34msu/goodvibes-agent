@@ -1,4 +1,4 @@
-import type { DaemonCompatibilityResult, DaemonDiagnosticResult } from './client.js';
+import { AGENT_KNOWLEDGE_ASK_PATH, AGENT_KNOWLEDGE_SEARCH_PATH, type DaemonCompatibilityResult, type DaemonDiagnosticResult } from './client.js';
 import { EXPECTED_GOODVIBES_SDK_VERSION, GOODVIBES_AGENT_PACKAGE_VERSION, GOODVIBES_SDK_PACKAGE_PIN } from '../version.js';
 
 export interface SdkCompatibilityReport {
@@ -17,10 +17,10 @@ export interface SdkCompatibilityReport {
     readonly reason: string;
   };
   readonly knowledge: {
-    readonly agentSpecificIsolation: 'pending_sdk_handoff';
-    readonly activeAskRoute: 'knowledge.ask';
-    readonly activeSearchRoute: 'knowledge.search';
-    readonly routeSwitchAllowed: false;
+    readonly agentSpecificIsolation: 'active';
+    readonly activeAskRoute: typeof AGENT_KNOWLEDGE_ASK_PATH;
+    readonly activeSearchRoute: typeof AGENT_KNOWLEDGE_SEARCH_PATH;
+    readonly routeSwitchAllowed: true;
     readonly notes: readonly string[];
   };
 }
@@ -49,14 +49,14 @@ export function buildSdkCompatibilityReport(input: {
       reason: compatibility?.reason ?? input.errorMessage ?? 'GoodVibes daemon compatibility could not be checked.',
     },
     knowledge: {
-      agentSpecificIsolation: 'pending_sdk_handoff',
-      activeAskRoute: 'knowledge.ask',
-      activeSearchRoute: 'knowledge.search',
-      routeSwitchAllowed: false,
+      agentSpecificIsolation: 'active',
+      activeAskRoute: AGENT_KNOWLEDGE_ASK_PATH,
+      activeSearchRoute: AGENT_KNOWLEDGE_SEARCH_PATH,
+      routeSwitchAllowed: true,
       notes: [
-        'Agent-specific knowledge isolation is not enabled in the pinned published SDK.',
-        'Do not switch routes until SDK/TUI confirm a verified npm release and public route contract.',
-        'Current ask/search commands intentionally stay on knowledge.ask and knowledge.search.',
+        'Agent-specific knowledge isolation is active in the pinned published SDK.',
+        'ask/search commands target the GoodVibes Agent knowledge environment.',
+        'Memory, skills, and personas remain Agent-local until shared registry contracts are promoted.',
       ],
     },
   };

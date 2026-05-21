@@ -6,7 +6,7 @@ This checklist is for preparing the first usable `goodvibes-agent` alpha. Do not
 
 - GoodVibes daemon is already running and compatible with the pinned SDK.
 - `@pellux/goodvibes-sdk` remains exactly pinned to the verified published version.
-- No Agent-specific knowledge route switch is made without SDK/TUI handoff.
+- Agent-specific knowledge routes are used only after SDK/TUI handoff and daemon contract compatibility are verified.
 - Package version remains `0.0.0` and `private: true` until the final publish decision.
 - README and `CHANGELOG.md` describe only current behavior.
 - `docs/release-risks.md` is current and referenced from README and CHANGELOG.
@@ -22,7 +22,7 @@ bun run check:source
 bun run check:release
 ```
 
-`check:sdk` reports the pinned SDK package contract, daemon version, expected version, and pending Agent-specific knowledge isolation state. It is read-only and does not start/stop the daemon or switch knowledge routes.
+`check:sdk` reports the pinned SDK package contract, daemon version, expected version, and Agent-specific knowledge isolation state. It is read-only and does not start/stop the daemon.
 
 `check:source` runs type policy checks, typecheck, tests, build, `git diff --check`, and `npm pack --dry-run`.
 
@@ -35,8 +35,9 @@ bun run check:release
 - Verify no token values are printed in config/status/auth failure output.
 - Verify unavailable daemon, auth failure, and version mismatch are actionable.
 - Verify companion chat works for a two-turn conversation and reuses the session.
-- Verify knowledge ask/search are scoped acceptably for the currently pinned SDK. If SDK has not published Agent-specific knowledge isolation, document the known default-wiki contamination risk instead of switching routes.
-- Verify `bun run check:sdk` reports the expected SDK pin and does not claim Agent-specific knowledge routes are active until SDK/TUI hand off a published route contract.
+- Verify knowledge ask/search use the Agent-specific knowledge routes for the currently pinned SDK.
+- Verify `bun run check:sdk` reports the expected SDK pin and daemon contract before treating live knowledge validation as complete.
+- Verify `goodvibes-agent ask "What is GoodVibes Agent?"` returns only Agent-owned knowledge or no match, never HomeGraph, Home Assistant, TV, or unrelated default-wiki facts.
 - Verify explicit TUI build delegation through public contracts with a harmless task, or document why live delegation was skipped.
 - Review `docs/release-risks.md` and mark every remaining blocker accepted or resolved.
 - Confirm any skipped live checks are explicitly documented in `docs/release-evidence.md`.

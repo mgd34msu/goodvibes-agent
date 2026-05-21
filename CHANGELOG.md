@@ -15,7 +15,7 @@ This package remains private at `0.0.0`. The first public usable alpha should be
 - Explicit, confirmation-gated operator mutation commands for approvals, automation runs/jobs, and schedule runs.
 - Release smoke scripts that verify source commands, packed artifact installation, global-prefix bin, Bun shebang, compatibility, status, and smoke commands.
 - Terminal input hardening for Unicode, multiline paste, history, cursor movement, Home/End, Delete, and cleanup behavior.
-- Read-only SDK compatibility reporting for the pinned SDK/daemon contract and pending Agent knowledge isolation.
+- Read-only SDK compatibility reporting for the pinned SDK/daemon contract and active Agent knowledge isolation.
 
 ### Boundaries
 
@@ -24,8 +24,8 @@ This package remains private at `0.0.0`. The first public usable alpha should be
 - Build/fix/review work delegates to GoodVibes TUI through public shared-session routes.
 - WRFC is requested only for explicit build/fix/review work.
 - Memory, skills, and personas are local to GoodVibes Agent until stable shared SDK registries exist.
-- SDK remains pinned to published `@pellux/goodvibes-sdk@0.33.30`.
-- Agent-specific knowledge isolation is pending a verified newer SDK npm handoff.
+- SDK remains pinned to published `@pellux/goodvibes-sdk@0.33.31`.
+- Agent knowledge ask/search use the isolated `/api/goodvibes-agent/knowledge/*` environment.
 
 ### Release Notes
 

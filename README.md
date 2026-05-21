@@ -128,10 +128,10 @@ Keep `CHANGELOG.md` current before any version bump. Publishing requires a delib
 
 ## Current Limitations
 
-- Agent knowledge still uses the default `knowledge.ask` and `knowledge.search` routes until SDK/TUI confirm a newer published Agent-specific knowledge seam. This can reflect default-wiki contamination from unrelated GoodVibes domains.
+- Agent knowledge uses the isolated `/api/goodvibes-agent/knowledge/*` routes from SDK `0.33.31`; live validation requires the already-running daemon to report a compatible `0.33.31` contract.
 - The agent does not own daemon lifecycle. A compatible daemon must already be running.
 - Memory, skills, and personas are local Agent registries until stable shared SDK registries exist.
-- The package is private `0.0.0`; do not publish until the release checklist, TUI review, SDK handoff, and manual PTY smoke are complete.
+- The package is private `0.0.0`; do not publish until the release checklist, TUI/SDK review, compatible daemon validation, and manual PTY smoke are complete.
 
 SDK upgrade notes live in `docs/sdk-upgrade.md`.
 

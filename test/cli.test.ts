@@ -58,16 +58,31 @@ describe('cli failure envelope', () => {
   });
 
   test('chat auth failures return auth_required JSON', async () => {
-    const result = await runCliWithHome({
-      command: ['chat', 'hello'],
-      env: { GOODVIBES_AGENT_TOKEN: 'invalid-token' },
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        return Response.json({ error: 'no' }, { status: 401 });
+      },
     });
+    try {
+      const result = await runCliWithHome({
+        command: ['chat', 'hello'],
+        env: {
+          GOODVIBES_AGENT_BASE_URL: `http://127.0.0.1:${server.port}`,
+          GOODVIBES_AGENT_TOKEN: 'invalid-token',
+        },
+      });
 
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toBe('');
-    expect(result.body.ok).toBe(false);
-    expect(result.body.kind).toBe('auth_required');
-    expect(String(result.body.error)).toContain('Auth failed');
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe('');
+      expect(result.body.ok).toBe(false);
+      expect(result.body.kind).toBe('auth_required');
+      expect(String(result.body.error)).toContain('Auth failed');
+      expect(result.stdout).not.toContain('invalid-token');
+      expect(result.stderr).not.toContain('invalid-token');
+    } finally {
+      await server.stop(true);
+    }
   });
 
   test('ask daemon connection failures return actionable JSON', async () => {
@@ -197,12 +212,12 @@ describe('cli failure envelope', () => {
     }
   });
 
-  test('compat reports SDK pin, daemon version, and pending Agent knowledge isolation', async () => {
+  test('compat reports SDK pin, daemon version, and active Agent knowledge isolation', async () => {
     const server = Bun.serve({
       port: 0,
       fetch(request) {
         const path = new URL(request.url).pathname;
-        if (path === '/status') return Response.json({ status: 'running', version: '0.33.30' });
+        if (path === '/status') return Response.json({ status: 'running', version: '0.33.31' });
         return Response.json({ error: 'not found' }, { status: 404 });
       },
     });
@@ -220,13 +235,14 @@ describe('cli failure envelope', () => {
       const agent = recordValue(data, 'agent');
       const daemon = recordValue(data, 'daemon');
       const knowledge = recordValue(data, 'knowledge');
-      expect(agent.sdkPackagePin).toBe('0.33.30');
-      expect(agent.expectedDaemonVersion).toBe('0.33.30');
-      expect(daemon.daemonVersion).toBe('0.33.30');
+      expect(agent.sdkPackagePin).toBe('0.33.31');
+      expect(agent.expectedDaemonVersion).toBe('0.33.31');
+      expect(daemon.daemonVersion).toBe('0.33.31');
       expect(daemon.compatible).toBe(true);
-      expect(knowledge.agentSpecificIsolation).toBe('pending_sdk_handoff');
-      expect(knowledge.activeAskRoute).toBe('knowledge.ask');
-      expect(knowledge.routeSwitchAllowed).toBe(false);
+      expect(knowledge.agentSpecificIsolation).toBe('active');
+      expect(knowledge.activeAskRoute).toBe('/api/goodvibes-agent/knowledge/ask');
+      expect(knowledge.activeSearchRoute).toBe('/api/goodvibes-agent/knowledge/search');
+      expect(knowledge.routeSwitchAllowed).toBe(true);
     } finally {
       await server.stop(true);
     }
@@ -246,10 +262,10 @@ describe('cli failure envelope', () => {
     const agent = recordValue(data, 'agent');
     const daemon = recordValue(data, 'daemon');
     const knowledge = recordValue(data, 'knowledge');
-    expect(agent.sdkPackagePin).toBe('0.33.30');
+    expect(agent.sdkPackagePin).toBe('0.33.31');
     expect(daemon.reachable).toBe(false);
-    expect(daemon.expectedVersion).toBe('0.33.30');
-    expect(knowledge.agentSpecificIsolation).toBe('pending_sdk_handoff');
+    expect(daemon.expectedVersion).toBe('0.33.31');
+    expect(knowledge.agentSpecificIsolation).toBe('active');
   });
 
   test('compat fails clearly when daemon contract is older than the SDK pin', async () => {
@@ -257,7 +273,7 @@ describe('cli failure envelope', () => {
       port: 0,
       fetch(request) {
         const path = new URL(request.url).pathname;
-        if (path === '/status') return Response.json({ status: 'running', version: '0.33.29' });
+        if (path === '/status') return Response.json({ status: 'running', version: '0.33.30' });
         return Response.json({ error: 'not found' }, { status: 404 });
       },
     });
@@ -273,9 +289,58 @@ describe('cli failure envelope', () => {
 
       const data = recordValue(result.body, 'data');
       const daemon = recordValue(data, 'daemon');
-      expect(daemon.daemonVersion).toBe('0.33.29');
-      expect(daemon.expectedVersion).toBe('0.33.30');
+      expect(daemon.daemonVersion).toBe('0.33.30');
+      expect(daemon.expectedVersion).toBe('0.33.31');
       expect(String(daemon.reason)).toContain('older than goodvibes-agent expects');
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  test('ask and search use Agent-specific knowledge routes', async () => {
+    const calls: { readonly method: string; readonly path: string; readonly body: unknown }[] = [];
+    const server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        const path = new URL(request.url).pathname;
+        const bodyText = await request.text();
+        const body = bodyText.trim() ? JSON.parse(bodyText) as unknown : null;
+        calls.push({ method: request.method, path, body });
+        switch (path) {
+          case '/api/goodvibes-agent/knowledge/ask':
+            return Response.json({ answer: { text: 'GoodVibes Agent isolated answer.', confidence: 1, sources: [] }, results: [] });
+          case '/api/goodvibes-agent/knowledge/search':
+            return Response.json({ results: [] });
+          default:
+            return Response.json({ error: 'not found' }, { status: 404 });
+        }
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}`;
+      const ask = await runCliWithHome({
+        command: ['ask', 'What is GoodVibes Agent?', '--json'],
+        env: { GOODVIBES_AGENT_BASE_URL: baseUrl },
+      });
+      const search = await runCliWithHome({
+        command: ['search', 'What is GoodVibes Agent?', '--json'],
+        env: { GOODVIBES_AGENT_BASE_URL: baseUrl },
+      });
+
+      expect(ask.exitCode).toBe(0);
+      expect(ask.body.kind).toBe('knowledge.ask');
+      expect(search.exitCode).toBe(0);
+      expect(search.body.kind).toBe('knowledge.search');
+      expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+        'POST /api/goodvibes-agent/knowledge/ask',
+        'POST /api/goodvibes-agent/knowledge/search',
+      ]);
+      const [askCall, searchCall] = calls;
+      if (!askCall || !searchCall || !isRecord(askCall.body) || !isRecord(searchCall.body)) {
+        throw new Error('Expected Agent knowledge request bodies.');
+      }
+      expect(recordValue(askCall.body, 'metadata').originProduct).toBe('goodvibes-agent');
+      expect(recordValue(searchCall.body, 'metadata').originProduct).toBe('goodvibes-agent');
     } finally {
       await server.stop(true);
     }
