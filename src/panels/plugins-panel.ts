@@ -1,0 +1,178 @@
+import type { Line } from '../types/grid.ts';
+import { createEmptyLine } from '../types/grid.ts';
+import { ScrollableListPanel } from './scrollable-list-panel.ts';
+import type { PluginManagerObserver, PluginStatus } from '@pellux/goodvibes-sdk/platform/plugins';
+import {
+  buildEmptyState,
+  buildPanelLine,
+  buildPanelWorkspace,
+  DEFAULT_PANEL_PALETTE,
+  type PanelPalette,
+} from './polish.ts';
+
+const C = {
+  ...DEFAULT_PANEL_PALETTE,
+  header: '#94a3b8',
+  headerBg: '#1e293b',
+  ok: '#22c55e',
+  warn: '#eab308',
+  error: '#ef4444',
+  info: '#38bdf8',
+  selectBg: '#0f172a',
+} as const;
+
+function trustColor(tier: PluginStatus['trustTier']): string {
+  switch (tier) {
+    case 'trusted':
+      return C.ok;
+    case 'limited':
+      return C.warn;
+    case 'untrusted':
+      return C.error;
+  }
+}
+
+function statusColor(status: PluginStatus): string {
+  if (status.quarantined) return C.error;
+  if (status.active) return C.ok;
+  if (status.enabled) return C.warn;
+  return C.dim;
+}
+
+function statusLabel(status: PluginStatus): string {
+  if (status.quarantined) return 'QUARANTINED';
+  if (status.active) return 'ACTIVE';
+  if (status.enabled) return 'ENABLED';
+  return 'DISABLED';
+}
+
+export class PluginsPanel extends ScrollableListPanel<PluginStatus> {
+  private readonly manager: PluginManagerObserver;
+  private readonly unsub: (() => void) | null;
+
+  public constructor(manager: PluginManagerObserver) {
+    super('plugins', 'Plugins', 'P', 'monitoring');
+    this.showSelectionGutter = true; // I5: non-color selection affordance
+    this.manager = manager;
+    this.unsub = manager.subscribe(() => this.markDirty());
+  }
+
+  public override onActivate(): void {
+    super.onActivate();
+    this.selectedIndex = 0;
+  }
+
+  public override onDestroy(): void {
+    this.unsub?.();
+  }
+
+  protected override getPalette(): PanelPalette {
+    return C;
+  }
+
+  protected getItems(): readonly PluginStatus[] {
+    return this.manager.list();
+  }
+
+  protected renderItem(plugin: PluginStatus, _index: number, selected: boolean, width: number): Line {
+    const bg = selected ? C.selectBg : undefined;
+    return buildPanelLine(width, [
+      [' ', C.label, bg],
+      [plugin.name.padEnd(22), C.value, bg],
+      [` ${statusLabel(plugin).padEnd(11)}`, statusColor(plugin), bg],
+      [` ${plugin.trustTier.toUpperCase().padEnd(10)}`, trustColor(plugin.trustTier), bg],
+      [` ${plugin.version}`, C.dim, bg],
+    ]);
+  }
+
+  protected override getEmptyStateMessage(): string {
+    return ' No plugins discovered.';
+  }
+
+  protected override getEmptyStateActions(): Array<{ command: string; summary: string }> {
+    return [
+      { command: '/plugin list', summary: 'inspect plugin discovery paths and current registry state' },
+      { command: '/marketplace', summary: 'review curated ecosystem entries and provenance posture' },
+    ];
+  }
+
+  public render(width: number, height: number): Line[] {
+    const intro = 'Plugin trust, capabilities, signatures, and quarantine posture for the active ecosystem surface.';
+    const plugins = this.getItems();
+
+    if (plugins.length === 0) {
+      const workspace = buildPanelWorkspace(width, height, {
+        title: 'Plugin Control Room',
+        intro,
+        sections: [{
+          lines: buildEmptyState(
+            width,
+            ' No plugins discovered.',
+            'Use /plugin list for search paths, install hints, and trust review before activating plugin-backed flows.',
+            [
+              { command: '/plugin list', summary: 'inspect plugin discovery paths and current registry state' },
+              { command: '/marketplace', summary: 'review curated ecosystem entries and provenance posture' },
+            ],
+            C,
+          ),
+        }],
+        palette: C,
+      });
+      while (workspace.length < height) workspace.push(createEmptyLine(width));
+      return workspace;
+    }
+
+    this.clampSelection();
+    const selected = plugins[this.selectedIndex]!;
+    const selectedCaps = this.manager.capabilities(selected.name);
+    const trustRecord = this.manager.getTrustRecord(selected.name);
+    const quarantineRecord = this.manager.getQuarantineRecord(selected.name);
+    const detailLines: Line[] = [
+      buildPanelLine(width, [
+        ['  Plugin: ', C.label],
+        [selected.name, C.value],
+        ['  State: ', C.label],
+        [statusLabel(selected), statusColor(selected)],
+        ['  Trust: ', C.label],
+        [selected.trustTier, trustColor(selected.trustTier)],
+      ]),
+      buildPanelLine(width, [
+        ['  Description: ', C.label],
+        [selected.description.slice(0, Math.max(0, width - 15)), C.dim],
+      ]),
+    ];
+
+    if (selectedCaps) {
+      detailLines.push(buildPanelLine(width, [
+        ['  Capabilities: ', C.label],
+        [String(selectedCaps.requested.length), C.value],
+        ['  High-risk: ', C.label],
+        [String(selectedCaps.highRisk.length), selectedCaps.highRisk.length > 0 ? C.warn : C.ok],
+        ['  Blocked: ', C.label],
+        [String(selectedCaps.blocked.length), selectedCaps.blocked.length > 0 ? C.error : C.ok],
+      ]));
+    }
+
+    if (trustRecord?.signatureFingerprint) {
+      detailLines.push(buildPanelLine(width, [
+        ['  Signature: ', C.label],
+        [trustRecord.signatureFingerprint, C.info],
+      ]));
+    }
+
+    if (quarantineRecord) {
+      detailLines.push(buildPanelLine(width, [
+        ['  Quarantine: ', C.label],
+        [quarantineRecord.reason.slice(0, Math.max(0, width - 14)), C.error],
+      ]));
+    }
+
+    detailLines.push(buildPanelLine(width, [['  Inspect trust and capability state here, then use /plugin to take action.', C.dim]]));
+    detailLines.push(buildPanelLine(width, [['  Up/Down move through discovered plugins', C.dim]]));
+
+    return this.renderList(width, height, {
+      title: 'Plugin Control Room',
+      footer: detailLines,
+    });
+  }
+}

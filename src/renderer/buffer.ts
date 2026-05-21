@@ -19,10 +19,7 @@ export class TerminalBuffer {
     if (y >= 0 && y < this.height && x >= 0 && x < this.width) {
       // No-op guard: skip the dirty mark and allocation if every field in `cell`
       // already matches the current cell value (idempotent write).
-      const row = this.cells[y];
-      if (!row) return;
-      const current = row[x];
-      if (!current) return;
+      const current = this.cells[y][x]!;
       let changed = false;
       for (const k in cell) {
         if ((cell as unknown as Record<string, unknown>)[k] !== (current as unknown as Record<string, unknown>)[k]) {
@@ -31,7 +28,7 @@ export class TerminalBuffer {
         }
       }
       if (!changed) return;
-      row[x] = { ...current, ...cell };
+      this.cells[y][x] = { ...current, ...cell };
       this.dirtyRows[y] = true;
     }
   }

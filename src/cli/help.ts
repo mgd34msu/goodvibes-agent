@@ -1,48 +1,296 @@
-export function renderHelp(): string {
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { VERSION } from '../version.ts';
+
+function readJsonVersion(path: string): string | null {
+  try {
+    if (!existsSync(path)) return null;
+    const parsed = JSON.parse(readFileSync(path, 'utf-8')) as { version?: unknown };
+    return typeof parsed.version === 'string' ? parsed.version : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getPackageVersion(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  return readJsonVersion(join(here, '..', '..', 'package.json'))
+    ?? VERSION;
+}
+
+export function renderGoodVibesVersion(binary = 'goodvibes-agent'): string {
+  return `${binary} ${getPackageVersion()}`;
+}
+
+export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
   return [
-    'goodvibes-agent',
+    `Usage: ${binary} [OPTIONS] [PROMPT]`,
+    `       ${binary} [OPTIONS] <COMMAND> [ARGS]`,
     '',
-    'Usage',
-    '  goodvibes-agent [command]',
-    '  goodvibes-agent tui',
+    'Commands:',
+    '  tui [path]                 Start the interactive TUI (default)',
+    '  run|exec [prompt]          Run non-interactively with text/json/stream-json output',
+    '  web                        Show browser surface bind URL and enablement',
+    '  service                    Inspect existing daemon service posture (read-only)',
+    '  status                     Print config, provider, service, and onboarding posture',
+    '  doctor                     Print status plus setup warnings',
+    '  onboarding [status]        Open onboarding in the TUI, or print onboarding status',
+    '  models [provider]          List/use/pin selectable models and recent model history',
+    '  providers                  List/inspect/use provider config/auth posture',
+    '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
+    '  subscription               Start/finish/logout provider subscription sessions',
+    '  secrets                    List, set, link, delete, and test GoodVibes secret refs',
+    '  sessions                   List, show, export, or resume saved sessions',
+    '  tasks                      List/show in-process tasks or submit a non-interactive task',
+    '  pair|qrcode                Print companion pairing payload and QR code',
+    '  surfaces                   Inspect/check browser/listener/external surfaces (read-only)',
+    '  listener test              Test HTTP listener/webhook readiness',
+    '  control-plane status       Inspect daemon auth, local admin, tokens, and ports',
+    '  bundle export|inspect|import',
+    '                             Move setup/profile/trust/support bundles',
+    '  remote|bridge              Inspect remote runner/node posture',
+    '  completion <shell>         Generate shell completion script',
+    '  help [command]             Print this help or command-specific help',
+    '  version                    Print version',
     '',
-    'Daemon and config',
-    '  goodvibes-agent config',
-    '  goodvibes-agent compat',
-    '  goodvibes-agent status',
-    '  goodvibes-agent auth',
-    '  goodvibes-agent smoke',
+    'Options:',
+    '  -m, --model <registryKey>       Override model. provider:model infers --provider',
+    '      --provider <id>            Override provider',
+    '  -C, --cd <dir>                 Set working directory for this launch',
+    '      --working-dir <dir>        Alias for --cd',
+    '      --daemon-home <dir>        Override daemon home for daemon-backed commands',
+    '  -c, --config <key=value>       Override a config value for this launch',
+    '      --enable <feature>         Enable a feature flag for this launch',
+    '      --disable <feature>        Disable a feature flag for this launch',
+    '  -p, --prompt <text>            Run a non-interactive prompt',
+    '      --print                    Alias for non-interactive run mode',
+    '  -o, --output <format>          text, json, or stream-json',
+    '      --output-format <format>   Alias for --output',
+    '      --json                     Alias for --output-format json',
+    '      --no-alt-screen            Keep output in normal terminal scrollback',
+    '      --port <port>              Port for server/web commands',
+    '      --hostname <host>          Hostname for server/web commands',
+    '      --open                     Open browser when supported',
+    '  -r, --resume [id|latest]       Resume saved session when supported',
+    '  -s, --session <id>             Use a specific session when supported',
+    '      --continue                 Continue the latest session when supported',
+    '      --fork                     Fork session when supported',
+    '  -h, --help                     Print help',
+    '  -v, --version                  Print version',
     '',
-    'Assistant work',
-    '  goodvibes-agent policy <request>',
-    '  goodvibes-agent chat <message>',
-    '  goodvibes-agent ask <knowledge query> [--json]',
-    '  goodvibes-agent search <knowledge query> [--json]',
-    '  goodvibes-agent workplan [--json]',
-    '  goodvibes-agent approvals [--json]',
-    '  goodvibes-agent automation [snapshot|jobs|runs|heartbeat|capacity|run|pause|resume|cancel|retry] [id] [--yes] [--json]',
-    '  goodvibes-agent schedules [run <id> --yes] [--json]',
+    'Examples:',
+    `  ${binary}`,
+    `  ${binary} --no-alt-screen`,
+    `  ${binary} --cd ~/work/project --model openai:gpt-5.2`,
+    `  ${binary} onboarding`,
+    `  ${binary} onboarding status`,
+    `  ${binary} status`,
+    `  ${binary} models current`,
+    `  ${binary} models use openai:gpt-5.2`,
+    `  ${binary} providers inspect openai`,
+    `  ${binary} surfaces`,
+    `  ${binary} surfaces check`,
+    `  ${binary} service check`,
+    `  ${binary} listener test`,
+    `  ${binary} control-plane status`,
+    `  ${binary} subscription providers`,
+    `  ${binary} subscription login openai start --open`,
+  ].join('\n');
+}
+
+type CommandHelp = {
+  readonly usage: readonly string[];
+  readonly summary: string;
+  readonly subcommands?: readonly string[];
+  readonly examples?: readonly string[];
+};
+
+const COMMAND_HELP: Record<string, CommandHelp> = {
+  tui: {
+    usage: ['tui [path]', '[prompt]'],
+    summary: 'Start the interactive terminal UI. A prompt starts the TUI with that prompt seeded.',
+    examples: ['', 'tui ~/work/project', '"review this repo"'],
+  },
+  run: {
+    usage: ['run [prompt] [--output text|json|stream-json]', 'exec [prompt]'],
+    summary: 'Run a single non-interactive agent turn and write the result to stdout.',
+    examples: ['run "summarize the current project"', 'run --output json "list risks"', 'exec --output stream-json "fix lint"'],
+  },
+  onboarding: {
+    usage: ['onboarding', 'setup', 'onboarding status'],
+    summary: 'Open the setup wizard, or inspect whether onboarding has already been shown for this user.',
+    examples: ['onboarding', 'onboarding status'],
+  },
+  status: {
+    usage: ['status', 'status --json'],
+    summary: 'Print config, provider, auth, service, surface, and onboarding posture.',
+    examples: ['status', 'status --json'],
+  },
+  doctor: {
+    usage: ['doctor', 'doctor --json'],
+    summary: 'Print status plus actionable setup warnings with cause, impact, and next action.',
+    examples: ['doctor', 'doctor --json'],
+  },
+  providers: {
+    usage: ['providers [list]', 'providers current', 'providers inspect <provider>', 'providers use <provider> [modelRegistryKey]'],
+    summary: 'Inspect and change provider setup, auth posture, model counts, and setup class.',
+    examples: ['providers', 'providers inspect openai-subscriber', 'providers use openai openai:gpt-5.4'],
+  },
+  models: {
+    usage: ['models [provider]', 'models current', 'models use <registryKey>', 'models pin <registryKey>', 'models recent'],
+    summary: 'List, inspect, select, pin, and review model choices.',
+    examples: ['models current', 'models openai', 'models use openai:gpt-5.4'],
+  },
+  auth: {
+    usage: ['auth status', 'auth users', 'auth sessions', 'auth add-user <username>', 'auth clear-bootstrap'],
+    summary: 'Inspect and manage local admin users, bootstrap auth, and local sessions.',
+    examples: ['auth', 'auth add-user admin --password-stdin', 'auth clear-bootstrap'],
+  },
+  subscription: {
+    usage: ['subscription list', 'subscription providers', 'subscription inspect <provider>', 'subscription login <provider> start|finish', 'subscription logout <provider>'],
+    summary: 'Manage OAuth/subscription-backed provider sessions such as OpenAI subscription access.',
+    examples: ['subscription providers', 'subscription login openai start --open', 'subscription inspect openai'],
+  },
+  secrets: {
+    usage: ['secrets list', 'secrets providers', 'secrets test goodvibes://secrets/<source>/...', 'secrets set <KEY> <value>', 'secrets link <KEY> <ref>'],
+    summary: 'Manage GoodVibes secret records and secret references. Secret refs never embed secret values.',
+    examples: ['secrets providers', 'secrets test goodvibes://secrets/env/OPENAI_API_KEY', 'secrets link OPENAI_API_KEY goodvibes://secrets/env/OPENAI_API_KEY'],
+  },
+  sessions: {
+    usage: ['sessions list', 'sessions show <id|name>', 'sessions export <id|name> [path]', 'sessions resume <id|name>'],
+    summary: 'List, inspect, export, or resume saved TUI sessions.',
+    examples: ['sessions list', 'sessions show latest-session', 'sessions export abc123 session.json'],
+  },
+  tasks: {
+    usage: ['tasks list', 'tasks show <taskId>', 'tasks submit <prompt>'],
+    summary: 'Inspect runtime tasks or submit a non-interactive task.',
+    examples: ['tasks list', 'tasks submit "check provider readiness"'],
+  },
+  surfaces: {
+    usage: ['surfaces [list]', 'surfaces check', 'surfaces show <surfaceId>'],
+    summary: 'Inspect browser, control-plane, HTTP listener, and external integration surfaces. Agent does not mutate daemon/listener posture.',
+    examples: ['surfaces', 'surfaces check', 'surfaces show slack'],
+  },
+  listener: {
+    usage: ['listener test'],
+    summary: 'Check HTTP listener/webhook readiness, network posture, service posture, auth, and enabled surface requirements.',
+    examples: ['listener test', 'listener test --json'],
+  },
+  'control-plane': {
+    usage: ['control-plane status'],
+    summary: 'Inspect daemon control-plane bind posture, reachability, local auth, bootstrap credentials, and operator tokens.',
+    examples: ['control-plane status', 'control-plane status --json'],
+  },
+  bundle: {
+    usage: ['bundle export [path]', 'bundle inspect <path>', 'bundle import <path>'],
+    summary: 'Export, inspect, or import setup/profile/trust/support bundle data.',
+    examples: ['bundle export goodvibes-bundle.json', 'bundle inspect goodvibes-bundle.json'],
+  },
+  pair: {
+    usage: ['pair', 'qrcode'],
+    summary: 'Print companion pairing connection details and a QR code.',
+    examples: ['pair', 'qrcode'],
+  },
+  web: {
+    usage: ['web [--open]'],
+    summary: 'Show the configured browser surface URL, bind address, and enablement state.',
+    examples: ['web', 'web --open', 'web --hostname 0.0.0.0 --port 3423'],
+  },
+  service: {
+    usage: ['service status', 'service check'],
+    summary: 'Inspect the externally owned GoodVibes daemon service posture. Agent does not install, start, stop, restart, or uninstall the daemon.',
+    examples: ['service status', 'service check --json'],
+  },
+  completion: {
+    usage: ['completion <bash|zsh|fish>'],
+    summary: 'Generate shell completion scripts.',
+    examples: ['completion bash', 'completion zsh'],
+  },
+  serve: {
+    usage: ['serve [--hostname <host>] [--port <port>]', 'daemon [--hostname <host>] [--port <port>]'],
+    summary: 'Unavailable in GoodVibes Agent. Agent connects to an already-running GoodVibes daemon owned by GoodVibes TUI/daemon tooling.',
+    examples: [],
+  },
+  remote: {
+    usage: ['remote', 'bridge'],
+    summary: 'Inspect remote runner/node posture and bridge readiness.',
+    examples: ['remote', 'bridge'],
+  },
+};
+
+const HELP_ALIASES: Record<string, string> = {
+  app: 'tui',
+  exec: 'run',
+  setup: 'onboarding',
+  provider: 'providers',
+  model: 'models',
+  subscriptions: 'subscription',
+  secret: 'secrets',
+  session: 'sessions',
+  task: 'tasks',
+  surface: 'surfaces',
+  webhook: 'listener',
+  controlplane: 'control-plane',
+  cp: 'control-plane',
+  qrcode: 'pair',
+  qr: 'pair',
+  daemon: 'serve',
+  server: 'serve',
+  services: 'service',
+  bridge: 'remote',
+};
+
+function normalizeHelpTopic(topic: string): string {
+  const normalized = topic.trim().toLowerCase();
+  return HELP_ALIASES[normalized] ?? normalized;
+}
+
+export function renderGoodVibesCommandHelp(topic: string, binary = 'goodvibes-agent'): string {
+  const normalized = normalizeHelpTopic(topic);
+  const help = COMMAND_HELP[normalized];
+  if (!help) {
+    return [
+      `No detailed help is available for "${topic}".`,
+      '',
+      renderGoodVibesHelp(binary),
+    ].join('\n');
+  }
+  return [
+    `GoodVibes ${normalized}`,
     '',
-    'Local memory, skills, and personas',
-    '  goodvibes-agent remember <fact>',
-    '  goodvibes-agent memory [query]',
-    '  goodvibes-agent memory add|update|review|stale|delete|search|list',
-    '  goodvibes-agent skills create|update|review|stale|enable|disable|active|delete|search|list',
-    '  goodvibes-agent personas create|update|review|stale|use|active|delete|search|list',
+    help.summary,
     '',
-    'Delegation and explicit mutations',
-    '  goodvibes-agent delegate [--wrfc] <build/fix/review task>',
-    '  goodvibes-agent delegations [list|status <id>] [--json]',
-    '  goodvibes-agent approvals approve|deny|cancel <id> --yes [--json]',
-    '  goodvibes-agent automation run|pause|resume <job-id> --yes [--json]',
-    '  goodvibes-agent automation cancel|retry <run-id> --yes [--json]',
-    '  goodvibes-agent schedules run <schedule-id> --yes [--json]',
+    'Usage:',
+    ...help.usage.map((usage) => `  ${binary} ${usage}`),
+    ...(help.subcommands && help.subcommands.length > 0 ? [
+      '',
+      'Subcommands:',
+      ...help.subcommands.map((subcommand) => `  ${subcommand}`),
+    ] : []),
+    ...(help.examples && help.examples.length > 0 ? [
+      '',
+      'Examples:',
+      ...help.examples.map((example) => `  ${binary}${example ? ` ${example}` : ''}`),
+    ] : []),
+  ].join('\n');
+}
+
+export function renderGoodVibesDaemonHelp(binary = 'goodvibes-daemon'): string {
+  return [
+    `Usage: ${binary} [OPTIONS]`,
     '',
-    'Safety',
-    '  Normal chat uses companion.chat. Build work delegates to GoodVibes TUI.',
-    '  Side-effecting operator routes require exact commands plus --yes.',
-    '  WRFC is requested only when explicit build/fix/review work asks for it.',
+    'Starts the headless GoodVibes daemon/API host.',
     '',
-    'The default command is tui.',
+    'Options:',
+    '      --daemon-home <dir>        Override daemon home',
+    '      --working-dir <dir>        Override working directory',
+    '  -C, --cd <dir>                 Alias for --working-dir',
+    '      --provider <id>            Override provider',
+    '  -m, --model <registryKey>      Override model. provider:model infers --provider',
+    '      --hostname <host>          Hostname hint for printed connection info',
+    '      --port <port>              Control-plane port override when supported',
+    '  -h, --help                     Print help',
+    '  -v, --version                  Print version',
   ].join('\n');
 }

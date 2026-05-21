@@ -19,8 +19,8 @@ export interface ShellLayout {
   readonly body: Rect;
   readonly footer: Rect;
   readonly conversation: Rect;
-  readonly panel?: Rect | undefined;
-  readonly separatorX?: number | undefined;
+  readonly panel?: Rect;
+  readonly separatorX?: number;
 }
 
 export interface SplitPaneLayout {

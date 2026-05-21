@@ -1,5 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
+import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 
 /**
  * InputHistory — Persisted command history with arrow-key navigation.
@@ -118,7 +120,7 @@ function resolveHistoryPath(options?: InputHistoryOptions): string {
   if (!userRoot) {
     throw new Error('InputHistory requires historyPath or an explicit userRoot/homeDirectory.');
   }
-  return join(userRoot, '.goodvibes', 'agent', 'input-history.json');
+  return join(userRoot, '.goodvibes', 'tui', 'input-history.json');
 }
 
 export class InputHistory {
@@ -240,8 +242,8 @@ export class InputHistory {
     try {
       mkdirSync(dirname(this.historyPath), { recursive: true });
       writeFileSync(this.historyPath, JSON.stringify(this.entries), 'utf-8');
-    } catch {
-      // History persistence must never break prompt input.
+    } catch (err) {
+      logger.debug('InputHistory save failed (non-fatal)', { error: summarizeError(err) });
     }
   }
 
@@ -260,7 +262,8 @@ export class InputHistory {
             .slice(0, this.maxEntries);
         }
       }
-    } catch {
+    } catch (err) {
+      logger.debug('InputHistory load failed (non-fatal, using empty history)', { error: summarizeError(err) });
       this.entries = [];
     }
   }

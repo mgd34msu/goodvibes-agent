@@ -21,17 +21,17 @@ export interface PanelCompositeData {
   /** Workspace-level tab bar spanning all open panels. */
   workspaceBar: Line;
   /** Top pane: tab bar */
-  topTabBar?: Line | undefined;
+  topTabBar?: Line;
   /** Top pane: panel content lines */
   topContent: Line[];
   /** Whether the top pane is focused (affects separator color) */
   topFocused: boolean;
   /** Bottom pane tab bar. Undefined = no bottom pane. */
-  bottomTabBar?: Line | undefined;
+  bottomTabBar?: Line;
   /** Bottom pane content lines. Undefined = no bottom pane. */
-  bottomContent?: Line[] | undefined;
+  bottomContent?: Line[];
   /** Whether the bottom pane is focused */
-  bottomFocused?: boolean | undefined;
+  bottomFocused?: boolean;
   /** Separator between left and right panel area */
   separator: boolean;
   /** Ratio of panel height for the top pane (0–1). Only used when bottom pane is present. */

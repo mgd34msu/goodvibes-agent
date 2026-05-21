@@ -35,17 +35,14 @@ export const createEmptyLine = (width: number): Line =>
 /**
  * createStyledCell - Create a Cell with all defaults, applying only the provided overrides.
  */
-export const createStyledCell = (char: string, overrides: Partial<Omit<Cell, 'char'>> = {}): Cell => {
-  const cell: Cell = {
-    char,
-    fg: overrides.fg ?? '',
-    bg: overrides.bg ?? '',
-    bold: overrides.bold ?? false,
-    dim: overrides.dim ?? false,
-    underline: overrides.underline ?? false,
-    italic: overrides.italic ?? false,
-    strikethrough: overrides.strikethrough ?? false,
-  };
-  if (overrides.link !== undefined) return { ...cell, link: overrides.link };
-  return cell;
-};
+export const createStyledCell = (char: string, overrides: Partial<Omit<Cell, 'char'>> = {}): Cell => ({
+  char,
+  fg: overrides.fg ?? '',
+  bg: overrides.bg ?? '',
+  bold: overrides.bold ?? false,
+  dim: overrides.dim ?? false,
+  underline: overrides.underline ?? false,
+  italic: overrides.italic ?? false,
+  strikethrough: overrides.strikethrough ?? false,
+  link: overrides.link,
+});

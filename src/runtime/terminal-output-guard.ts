@@ -1,3 +1,6 @@
+import { format } from 'node:util';
+import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+
 type WritableStreamLike = {
   write: {
     (buffer: string | Uint8Array, cb?: (error?: Error | null) => void): boolean;
@@ -5,36 +8,99 @@ type WritableStreamLike = {
   };
 };
 
-export interface TerminalOutputGuard {
+export type TerminalOutputInterceptSource =
+  | 'stdout'
+  | 'stderr'
+  | 'console.debug'
+  | 'console.error'
+  | 'console.info'
+  | 'console.log'
+  | 'console.warn';
+
+export type TerminalOutputIntercept = {
+  readonly source: TerminalOutputInterceptSource;
+  readonly text: string;
+  readonly preview: string;
+};
+
+export type TerminalOutputGuard = {
   setActive(active: boolean): void;
   allowTerminalWrite<T>(fn: () => T): T;
   dispose(): void;
-}
+};
 
-export interface TerminalOutputGuardOptions {
+export type TerminalOutputGuardOptions = {
   readonly stdout: WritableStreamLike;
   readonly stderr?: WritableStreamLike;
   readonly active?: boolean;
-  readonly notify?: (message: string) => void;
-}
+  readonly onIntercept?: (event: TerminalOutputIntercept) => void;
+};
+
+export type TuiTerminalOutputGuardOptions = {
+  readonly stdout: WritableStreamLike;
+  readonly stderr?: WritableStreamLike;
+  readonly active?: boolean;
+  readonly notify: (message: string) => void;
+};
+
+const MAX_LOG_TEXT = 4_000;
+const MAX_PREVIEW_TEXT = 180;
+const ANSI_RE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 
 let currentGuard: TerminalOutputGuard | null = null;
+
+function writeCallback(args: unknown[]): ((error?: Error | null) => void) | undefined {
+  const maybeCallback = args[args.length - 1];
+  return typeof maybeCallback === 'function'
+    ? maybeCallback as (error?: Error | null) => void
+    : undefined;
+}
+
+function chunkToText(chunk: unknown): string {
+  if (typeof chunk === 'string') return chunk;
+  if (chunk instanceof Uint8Array) return Buffer.from(chunk).toString('utf8');
+  return String(chunk);
+}
+
+function normalizeText(text: string): string {
+  return text.replace(ANSI_RE, '').replace(/\r/g, '').trim();
+}
+
+function previewText(text: string): string {
+  const singleLine = normalizeText(text).replace(/\s+/g, ' ');
+  if (singleLine.length <= MAX_PREVIEW_TEXT) return singleLine;
+  return `${singleLine.slice(0, MAX_PREVIEW_TEXT - 1)}...`;
+}
+
+function truncateForLog(text: string): string {
+  if (text.length <= MAX_LOG_TEXT) return text;
+  return `${text.slice(0, MAX_LOG_TEXT)}\n[truncated ${text.length - MAX_LOG_TEXT} byte(s)]`;
+}
+
+function invokeSuppressedCallback(args: unknown[]): void {
+  const callback = writeCallback(args);
+  if (callback) {
+    queueMicrotask(() => callback(null));
+  }
+}
 
 export function allowTerminalWrite<T>(fn: () => T): T {
   return currentGuard ? currentGuard.allowTerminalWrite(fn) : fn();
 }
 
-export function installTuiTerminalOutputGuard(options: TerminalOutputGuardOptions): TerminalOutputGuard {
+export function installTerminalOutputGuard(options: TerminalOutputGuardOptions): TerminalOutputGuard {
   const stdout = options.stdout;
   const stderr = options.stderr ?? process.stderr;
   const originalStdoutWriteMethod = stdout.write;
   const originalStderrWriteMethod = stderr.write;
-  const originalStdoutWrite = (...args: readonly unknown[]): boolean =>
+  const originalStdoutWrite = (...args: unknown[]): boolean =>
     Reflect.apply(originalStdoutWriteMethod, stdout, args) as boolean;
-  const originalStderrWrite = (...args: readonly unknown[]): boolean =>
+  const originalStderrWrite = (...args: unknown[]): boolean =>
     Reflect.apply(originalStderrWriteMethod, stderr, args) as boolean;
   const originalConsole = {
+    debug: console.debug.bind(console),
     error: console.error.bind(console),
+    info: console.info.bind(console),
     log: console.log.bind(console),
     warn: console.warn.bind(console),
   };
@@ -42,37 +108,71 @@ export function installTuiTerminalOutputGuard(options: TerminalOutputGuardOption
   let active = options.active ?? true;
   let disposed = false;
   let allowDepth = 0;
-  let lastNoticeAt = 0;
+  let captureDepth = 0;
+
+  const record = (source: TerminalOutputInterceptSource, text: string): void => {
+    if (disposed || !active) return;
+    const normalized = normalizeText(text);
+    if (!normalized) return;
+    if (normalized.startsWith('[ActivityLogger]')) return;
+    if (captureDepth > 0) return;
+
+    captureDepth++;
+    try {
+      const event: TerminalOutputIntercept = {
+        source,
+        text: truncateForLog(normalized),
+        preview: previewText(normalized),
+      };
+      logger.warn('Intercepted terminal output while TUI renderer was active', {
+        source: event.source,
+        text: event.text,
+      });
+      options.onIntercept?.(event);
+    } finally {
+      captureDepth--;
+    }
+  };
 
   const shouldPassThrough = (): boolean => !active || allowDepth > 0 || disposed;
-  const suppress = (source: string, args: readonly unknown[]): boolean => {
-    const callback = args[args.length - 1];
-    if (typeof callback === 'function') queueMicrotask(() => callback(null));
-    const now = Date.now();
-    if (options.notify && now - lastNoticeAt > 5_000) {
-      lastNoticeAt = now;
-      options.notify(`[Terminal] Captured direct ${source} output while the TUI renderer was active.`);
-    }
-    return true;
-  };
 
-  stdout.write = ((...args: readonly unknown[]) => (
-    shouldPassThrough() ? originalStdoutWrite(...args) : suppress('stdout', args)
-  )) as WritableStreamLike['write'];
-  stderr.write = ((...args: readonly unknown[]) => (
-    shouldPassThrough() ? originalStderrWrite(...args) : suppress('stderr', args)
-  )) as WritableStreamLike['write'];
-  console.error = (...args: readonly unknown[]) => {
-    if (shouldPassThrough()) return originalConsole.error(...args);
-    suppress('console.error', args);
+  stdout.write = ((...args: unknown[]) => {
+    if (shouldPassThrough()) {
+      return originalStdoutWrite(...args);
+    }
+    record('stdout', chunkToText(args[0]));
+    invokeSuppressedCallback(args);
+    return true;
+  }) as WritableStreamLike['write'];
+
+  stderr.write = ((...args: unknown[]) => {
+    if (shouldPassThrough()) {
+      return originalStderrWrite(...args);
+    }
+    record('stderr', chunkToText(args[0]));
+    invokeSuppressedCallback(args);
+    return true;
+  }) as WritableStreamLike['write'];
+
+  console.debug = (...args: unknown[]) => {
+    if (!active || disposed) return originalConsole.debug(...args);
+    record('console.debug', format(...args));
   };
-  console.log = (...args: readonly unknown[]) => {
-    if (shouldPassThrough()) return originalConsole.log(...args);
-    suppress('console.log', args);
+  console.error = (...args: unknown[]) => {
+    if (!active || disposed) return originalConsole.error(...args);
+    record('console.error', format(...args));
   };
-  console.warn = (...args: readonly unknown[]) => {
-    if (shouldPassThrough()) return originalConsole.warn(...args);
-    suppress('console.warn', args);
+  console.info = (...args: unknown[]) => {
+    if (!active || disposed) return originalConsole.info(...args);
+    record('console.info', format(...args));
+  };
+  console.log = (...args: unknown[]) => {
+    if (!active || disposed) return originalConsole.log(...args);
+    record('console.log', format(...args));
+  };
+  console.warn = (...args: unknown[]) => {
+    if (!active || disposed) return originalConsole.warn(...args);
+    record('console.warn', format(...args));
   };
 
   const guard: TerminalOutputGuard = {
@@ -92,12 +192,37 @@ export function installTuiTerminalOutputGuard(options: TerminalOutputGuardOption
       disposed = true;
       stdout.write = originalStdoutWriteMethod;
       stderr.write = originalStderrWriteMethod;
+      console.debug = originalConsole.debug;
       console.error = originalConsole.error;
+      console.info = originalConsole.info;
       console.log = originalConsole.log;
       console.warn = originalConsole.warn;
-      if (currentGuard === guard) currentGuard = null;
+      if (currentGuard === guard) {
+        currentGuard = null;
+      }
     },
   };
+
   currentGuard = guard;
   return guard;
+}
+
+export function installTuiTerminalOutputGuard(options: TuiTerminalOutputGuardOptions): TerminalOutputGuard {
+  let capturedWriteCount = 0;
+  let lastNoticeAt = 0;
+  return installTerminalOutputGuard({
+    stdout: options.stdout,
+    stderr: options.stderr,
+    active: options.active,
+    onIntercept: (event) => {
+      capturedWriteCount++;
+      const now = Date.now();
+      if (now - lastNoticeAt < 5_000) return;
+      const count = capturedWriteCount;
+      capturedWriteCount = 0;
+      lastNoticeAt = now;
+      const plural = count === 1 ? '' : 's';
+      options.notify(`[Terminal] Captured ${count} direct ${event.source} write${plural} that would have corrupted the TUI: ${event.preview}`);
+    },
+  });
 }

@@ -1,13 +1,9 @@
 import type { Line } from '../types/grid.ts';
 import { createEmptyLine } from '../types/grid.ts';
-
-export interface ConversationHistoryLike {
-  getLineCount(): number;
-  getSnapshot(scrollTop: number, height: number, width: number): Line[];
-}
+import type { ConversationManager } from '../core/conversation';
 
 export interface ConversationViewportRequest {
-  readonly conversation: { readonly history: ConversationHistoryLike };
+  readonly conversation: ConversationManager;
   readonly width: number;
   readonly viewportHeight: number;
   readonly scrollTop: number;

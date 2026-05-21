@@ -21,10 +21,10 @@ export interface ShellFooterBuildOptions {
   readonly lastInputTokens?: number;
   readonly commandArgsHint?: string;
   readonly hitlMode?: string;
-  readonly activeTurnCount: number;
+  readonly runningAgentCount: number;
   readonly runningProcessCount: number;
   readonly indicatorFocused: boolean;
-  readonly activeTurnProgress?: string;
+  readonly runningAgentProgress?: string;
   readonly composerMode?: string;
   readonly composerStatus?: string;
   readonly composerFlags?: readonly string[];
@@ -77,10 +77,10 @@ export function buildShellFooter(
   );
   const processIndicator = renderProcessIndicator(
     options.width,
-    options.activeTurnCount,
+    options.runningAgentCount,
     options.runningProcessCount,
     options.indicatorFocused,
-    options.activeTurnProgress,
+    options.runningAgentProgress,
   );
   const inputBoxRows = Math.max(1, options.promptLineCount) + 2;
   lines.splice(inputBoxRows, 0, ...processIndicator);

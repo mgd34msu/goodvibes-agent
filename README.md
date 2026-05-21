@@ -1,138 +1,80 @@
-# goodvibes-agent
+# GoodVibes Agent
 
-`goodvibes-agent` is the proactive serial assistant/operator surface for the GoodVibes ecosystem.
+GoodVibes Agent is the personal operator assistant built on the GoodVibes terminal UI foundation. This repository is intentionally in a near-fork baseline phase: the shell, renderer, input, fullscreen workspace, command, and release bones are copied from the terminal product first, then the coding-specific behavior is removed or reshaped deliberately.
 
-It talks to the GoodVibes daemon through public SDK/daemon contracts, owns assistant-local memory, skills, and personas, and delegates real build/fix/review work to GoodVibes TUI sessions instead of becoming a second coding TUI.
+The Agent product connects to an already-running GoodVibes daemon. It does not install, start, stop, restart, or own the daemon, HTTP listener, web surface, or service lifecycle.
 
-## Product Boundary
+## Current Status
 
-- Assistant/operator work is serial by default: chat, inspect, remember, schedule, query knowledge, use safe daemon tools, and route tasks.
-- WRFC is not a default reasoning mode. It is requested only for explicit build/implementation/fix/review/check work.
-- Coding UX, file edits, git/worktrees, QEMU/sandbox command UX, and WRFC execution stay owned by `goodvibes-tui`.
-- This package must not import from `goodvibes-tui/src/*`; use `@pellux/goodvibes-sdk`, daemon REST/operator routes, and published contracts.
-- The codebase is strongly typed TypeScript. Explicit `any` is not allowed.
+- Package version: `0.0.0`
+- Release state: private baseline, not public-product-ready
+- Runtime: Bun-only, TypeScript-authored source
+- SDK pin: `@pellux/goodvibes-sdk@0.33.35`
+- Installed command: `goodvibes-agent`
+- Daemon model: external daemon only
 
-## Quick Start
+Coding and WRFC code is still present because this is a broad foundation copy. It is not the desired Agent policy. Before user-facing validation, the Agent prompt and behavior must be replaced with serial/proactive assistant policy, with WRFC used only for explicit build/fix/review delegation to GoodVibes TUI.
 
-```sh
-bun install
-bun run dev tui
-```
+## Install
 
-`goodvibes-agent` connects to an already-running GoodVibes daemon. It does not start, stop, install, or supervise the daemon.
-
-For a packed/global install smoke, use the release smoke instead of publishing:
+The package is private at `0.0.0`; do not publish it yet.
 
 ```sh
-bun run smoke:release
-```
-
-After an intentional publish, Bun global install should look like:
-
-```sh
-bun install -g @pellux/goodvibes-agent
+bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent status
 ```
 
-Do not use the global install path until the package has been deliberately released.
-
-Common commands:
+If Bun reports untrusted lifecycle dependencies, trust only the package and dependencies required by this package:
 
 ```sh
-bun run dev status
-bun run dev config
-bun run dev compat
-bun run dev smoke
-bun run dev auth
-bun run dev policy "summarize my current work plan"
-bun run dev chat "What do you remember about my Home Assistant setup?"
-bun run dev ask "GoodVibes project planning status"
-bun run dev ask "GoodVibes project planning status" --json
-bun run dev search "GoodVibes Agent"
-bun run dev workplan
-bun run dev approvals
-bun run dev approvals approve <approval-id> --yes
-bun run dev automation
-bun run dev automation jobs --json
-bun run dev automation capacity
-bun run dev automation run <job-id> --yes
-bun run dev automation cancel <run-id> --yes
-bun run dev schedules
-bun run dev schedules run <schedule-id> --yes
-bun run dev delegations
-bun run dev memory add "We use Bun for goodvibes-agent" --class constraint --tags runtime,typescript
-bun run dev skills create weekly-plan --description "Plan the week from durable context" --triggers "plan week,weekly planning"
-bun run dev skills enable weekly-plan
-bun run dev personas create travel --description "Travel planning mode" --body "Plan travel carefully using known preferences."
-bun run dev personas use travel
-bun run dev delegate --wrfc "Build the first version of the assistant inbox"
-bun run dev delegations status <receipt-id>
+bun pm trust -g @pellux/goodvibes-agent @pellux/goodvibes-sdk core-js tree-sitter-css tree-sitter-javascript tree-sitter-json tree-sitter-python tree-sitter-typescript
 ```
 
-Terminal controls:
-
-- `Enter` submits.
-- `Ctrl-J` inserts a newline.
-- `Left` / `Right` moves the input cursor.
-- `Home` / `End` moves to the start/end of the current input line.
-- `Delete` removes the character under the cursor.
-- `Up` / `Down` navigates input history and preserves multiline drafts.
-- `Ctrl-U` clears the current input.
-- `Ctrl-R` refreshes the read-only operator status panes.
-- `Ctrl-C`, `Esc`, `/quit`, or `/exit` exits and restores the terminal.
-
-Daemon connection defaults:
-
-- Base URL: `GOODVIBES_AGENT_BASE_URL`, `GOODVIBES_BASE_URL`, or `http://127.0.0.1:3421`
-- Token: `GOODVIBES_AGENT_TOKEN`, `GOODVIBES_HTTP_TOKEN`, `GOODVIBES_DAEMON_TOKEN`, or `~/.goodvibes/daemon/operator-tokens.json`
-- Companion chat routing: optional `GOODVIBES_AGENT_PROVIDER` and `GOODVIBES_AGENT_MODEL`
-
-When both provider and model are configured, the agent follows daemon runtime provider-row semantics. For example, `GOODVIBES_AGENT_PROVIDER=openai-subscriber` with `GOODVIBES_AGENT_MODEL=openai:gpt-5.5` creates companion chat sessions with provider `openai-subscriber` and model `gpt-5.5`.
-
-Local assistant state is stored under `~/.goodvibes/agent/`.
-
-`compat` reports the exact pinned SDK contract, the daemon version seen through `control.status`, and the current Agent knowledge isolation state. It is read-only and does not switch routes.
-
-Human-facing `ask`, `search`, `workplan`, `approvals`, `delegate`, and `delegations` output is concise by default. Use `--json` on those commands when you need structured output for inspection or tooling. Auth and config diagnostics report token source, presence, and fingerprints, never token values.
-
-Delegation receipts are stored under the agent home so build handoffs remain inspectable even before daemon routes expose origin-filtered delegation history. `delegations` uses public session, task, and work-plan routes opportunistically and shows warnings instead of hiding route failures.
-
-`policy` explains the local safe-action decision for a request. Safe read/format/summarize and non-secret local memory/skill/persona lifecycle actions can proceed; workspace writes, daemon mutations, service changes, package installs, secret handling, deletes, network effects, and external side effects require explicit approval or an explicit command flow. Active persona and skill selections are local agent state and are included in the assistant prompt.
-
-`automation` and `schedules` use public daemon operator routes for snapshots, jobs, runs, heartbeat, schedules, and scheduler capacity. The first side-effecting flows are intentionally narrow and exact-command only: approvals `approve`/`deny`/`cancel`, automation job `run`/`pause`/`resume`, automation run `cancel`/`retry`, and schedule `run`. Every side-effecting route requires `--yes`; without it the command returns `confirmation_required` before calling the daemon. Create/delete/update definitions, schedule enable/disable, heartbeat execution, and daemon lifecycle ownership are intentionally not wired here.
-
-Smoke checks:
+## Source Usage
 
 ```sh
-bun run smoke:cli
-bun run smoke:release
-bun run check:sdk
-bun run check:source
-bun run check:release
+git clone https://github.com/mgd34msu/goodvibes-agent.git
+cd goodvibes-agent
+bun install
+bun run dev
 ```
 
-`smoke:cli` checks source-tree commands from a temporary agent home. `smoke:release` also runs `npm pack`, installs the packed artifact into a temporary global prefix, verifies the `goodvibes-agent` bin and Bun shebang, then runs installed help/compat/status/smoke checks. Both scripts connect to an already-running daemon; they do not start or stop it.
+Useful checks:
 
-`check:source` and `check:release` compose the release gates without publishing. Manual PTY smoke steps live in `docs/manual-smoke.md`, release-candidate evidence lives in `docs/release-evidence.md`, the release-risk inventory lives in `docs/release-risks.md`, and the full release checklist lives in `docs/release-checklist.md`.
+```sh
+bunx tsc --noEmit
+bun run build
+bun run package:install-check
+bun run publish:check
+```
 
-## Packaging Notes
+## Daemon Prerequisite
 
-While private and unreleased, the package version stays at `0.0.0`. The first intentionally published usable alpha should become `0.1.0`; SDK compatibility is expressed through the exact `@pellux/goodvibes-sdk` dependency pin, not by mirroring SDK or TUI versions.
+Start or restart the daemon from GoodVibes TUI or the daemon host before launching Agent. Agent status and companion/knowledge routes connect to that external daemon, normally on `http://127.0.0.1:3421`.
 
-During pre-1.0 near-fork development, `@pellux/goodvibes-sdk` is pinned exactly to the daemon-compatible version instead of using a caret range. This package does not currently ship a binary postinstall or trust native lifecycle packages it does not directly exercise.
+Agent intentionally blocks daemon lifecycle commands:
 
-The distributed package must install a real `goodvibes-agent` executable through `package.json` `bin`. The bin is TypeScript-authored and Bun-backed; release smoke must verify `goodvibes-agent --help`, `goodvibes-agent compat`, and `goodvibes-agent smoke` from a fresh install.
+```sh
+goodvibes-agent serve
+goodvibes-agent service start
+goodvibes-agent surfaces enable web
+```
 
-Keep `CHANGELOG.md` current before any version bump. Publishing requires a deliberate release commit that bumps to `0.1.0`, removes `private`, and follows `docs/release-checklist.md`.
+Those commands should return explicit external-daemon guidance instead of mutating local service posture.
 
-## Current Limitations
+## Product Boundary
 
-- Agent knowledge uses the isolated `/api/goodvibes-agent/knowledge/*` routes from SDK `0.33.34`; live validation requires the already-running daemon to report a compatible `0.33.34` contract.
-- The agent does not own daemon lifecycle. A compatible daemon must already be running.
-- Memory, skills, and personas are local Agent registries until stable shared SDK registries exist.
-- The package is private `0.0.0`; do not publish until the release checklist, TUI/SDK review, compatible daemon validation, and manual PTY smoke are complete.
+GoodVibes Agent owns the operator assistant surface: serial assistant flow, proactive safe actions, local memory/skills/personas until stable shared registries exist, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
-SDK upgrade notes live in `docs/sdk-upgrade.md`.
+GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, sandbox/QEMU UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public daemon/session contracts; normal assistant chat must not use shared coding sessions.
 
-Known release blockers and accepted limitations are tracked in `docs/release-risks.md`.
+## Package Docs
+
+Package-facing docs are intentionally narrow during the near-fork baseline:
+
+- [Getting Started](docs/getting-started.md)
+- [Deployment And Services](docs/deployment-and-services.md)
+- [Release And Publishing](docs/release-and-publishing.md)
+
+Broader copied TUI docs may exist in the source tree while the foundation is being ported, but they are not product-ready Agent documentation unless listed above.

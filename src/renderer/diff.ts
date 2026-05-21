@@ -50,7 +50,7 @@ export class DiffEngine {
       }
     }
 
-    // Close an open OSC 8 hyperlink at end of frame.
+    // Close any open OSC 8 hyperlink at end of frame
     if (this.lastLink) {
       output += '\x1b]8;;\x1b\\';
       this.lastLink = '';
@@ -116,7 +116,7 @@ export class DiffEngine {
     // OSC 8 hyperlink: emit open/close/change sequences only when link changes
     if (link !== this.lastLink) {
       if (link) {
-        // Open new hyperlink and close previous links.
+        // Open new hyperlink (close previous if any was open)
         style += `\x1b]8;;${link}\x1b\\`;
       } else {
         // Close hyperlink

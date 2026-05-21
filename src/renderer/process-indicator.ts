@@ -17,16 +17,21 @@ function truncateToWidth(text: string, maxWidth: number): string {
 }
 
 /**
- * Shows a one-line summary of the current operator turn below the input area.
+ * renderProcessIndicator — shows a one-line summary of active background
+ * processes below the input area.
+ *
+ * Dimmed when no processes are active, highlighted (cyan) when agents or
+ * background exec processes are running. Includes an `Enter to view` hint
+ * when active.
  */
 export function renderProcessIndicator(
   width: number,
-  activeTurnCount: number,
+  agentCount: number,
   toolCount: number,
   focused: boolean = false,
-  activeTurnProgress?: string,
+  agentProgress?: string,
 ): Line[] {
-  const total = activeTurnCount + toolCount;
+  const total = agentCount + toolCount;
   const renderPlainStatus = (text: string, style: { fg: string; bold?: boolean; dim?: boolean }): Line[] => (
     [UIFactory.stringToLine(`   ${text}`, width, style)]
   );
@@ -42,13 +47,11 @@ export function renderProcessIndicator(
     for (let i = 0; i < highlighted.length && startX + i < width - 2; i++) {
       const ch = highlighted[i]!;
       const isMarker = i < prefix.length + 1;
-      const cell = line[startX + i];
-      if (!cell) continue;
-      cell.char = ch;
-      cell.fg = isMarker ? markerFg : fg;
-      cell.bg = bg;
-      cell.bold = true;
-      cell.dim = false;
+      line[startX + i].char = ch;
+      line[startX + i].fg = isMarker ? markerFg : fg;
+      line[startX + i].bg = bg;
+      line[startX + i].bold = true;
+      line[startX + i].dim = false;
     }
     return [line];
   };
@@ -56,29 +59,36 @@ export function renderProcessIndicator(
   // --- Focused state: always render before idle/active branches ---
   if (focused) {
     const parts: string[] = [];
-    if (activeTurnCount > 0) parts.push(`${activeTurnCount} operator turn${activeTurnCount !== 1 ? 's' : ''}`);
+    if (agentCount > 0) parts.push(`${agentCount} agent${agentCount !== 1 ? 's' : ''}`);
     if (toolCount > 0) parts.push(`${toolCount} tool${toolCount !== 1 ? 's' : ''} running`);
     const label = total === 0
-      ? `No active operator turn  ${GLYPHS.status.pending}  back to input`
+      ? `No background processes  ${GLYPHS.status.pending}  back to input`
       : `${parts.join(` ${GLYPHS.navigation.pipeSeparator} `)}  ${GLYPHS.status.pending}  Enter to open  ${GLYPHS.status.pending}  back to input`;
     return renderFocusedStatus(label);
   }
 
   if (total === 0) {
-    return renderPlainStatus('No active operator turn', { fg: '238', dim: true });
+    return renderPlainStatus('No background processes', { fg: '238', dim: true });
   }
 
+  // Build the label: "bg: 2 agents | Turn 3 | write - src/foo.ts"
   const parts: string[] = [];
-  if (activeTurnCount > 0) {
-    parts.push(`${activeTurnCount} operator turn${activeTurnCount !== 1 ? 's' : ''}`);
+  if (agentCount > 0) {
+    parts.push(`${agentCount} agent${agentCount !== 1 ? 's' : ''}`);
   }
   if (toolCount > 0) {
     parts.push(`${toolCount} tool${toolCount !== 1 ? 's' : ''} running`);
   }
+  // Append the first running agent's progress (truncated to fit)
+  /**
+   * Number of columns reserved for the agent count label and hint text.
+   * Breakdown: "bg: N agents" prefix (~15 chars) + " | " separator (~3)
+   * + "  Enter to view  " hint (~17) + padding (~8) ≈ 43 chars.
+   */
   const PROGRESS_RESERVED_CHARS = 43;
-  const progressMaxLen = Math.max(0, width - PROGRESS_RESERVED_CHARS);
-  const progressSuffix = activeTurnProgress && progressMaxLen > 10
-    ? ` | ${activeTurnProgress.length > progressMaxLen ? activeTurnProgress.slice(0, Math.max(0, progressMaxLen - 3)) + '...' : activeTurnProgress}`
+  const progressMaxLen = Math.max(0, width - PROGRESS_RESERVED_CHARS); // reserve space for count + hint
+  const progressSuffix = agentProgress && progressMaxLen > 10
+    ? ` | ${agentProgress.length > progressMaxLen ? agentProgress.slice(0, Math.max(0, progressMaxLen - 3)) + '...' : agentProgress}`
     : '';
   const label = `${parts.join(` ${GLYPHS.navigation.pipeSeparator} `)}${progressSuffix}`;
   const hint = `  ${GLYPHS.status.pending}  Enter to view`;

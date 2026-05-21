@@ -1,0 +1,347 @@
+import type { ConfigManager } from '../config/index.ts';
+import { getProviderIdFromModel } from '../config/provider-model.ts';
+import type { ConversationManager } from '../core/conversation';
+import type { CommandContext } from '../input/command-registry.ts';
+import type { InputHandler } from '../input/handler.ts';
+import type { PanelManager } from '../panels/panel-manager.ts';
+import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import type { MutableRuntimeState } from '@/runtime/index.ts';
+import type { FeatureFlagManager } from '@/runtime/index.ts';
+import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
+import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
+import type { SecretsManager } from '@pellux/goodvibes-sdk/platform/config';
+import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
+import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
+import { syncServiceSettingToPlatform } from './service-settings-sync.ts';
+
+type WireShellUiOpenersOptions = {
+  commandContext: CommandContext;
+  input: InputHandler;
+  panelManager: PanelManager;
+  conversation: ConversationManager;
+  configManager: ConfigManager;
+  providerRegistry: ProviderRegistry;
+  runtime: MutableRuntimeState;
+  featureFlags: FeatureFlagManager;
+  mcpRegistry: McpRegistry;
+  subscriptionManager: SubscriptionManager;
+  secretsManager?: Pick<SecretsManager, 'delete' | 'get' | 'set'>;
+  serviceRegistry: Pick<ServiceInspectionQuery, 'getAll'>;
+  workingDirectory: string;
+  homeDirectory: string;
+  getConfiguredProviderIds: () => string[];
+  getPinned: () => Promise<string[]>;
+  render: () => void;
+};
+
+/**
+ * Derive the configuredVia tier for a provider.
+ * Tier order mirrors SDK provider-routes.ts: env → secrets → subscription → undefined.
+ * The preResolvedSecretKeys set is pre-fetched async before the sync picker render cycle.
+ */
+function deriveConfiguredVia(
+  providerId: string,
+  configuredIds: Set<string>,
+  subscriptionManager: SubscriptionManager,
+  preResolvedSecretKeys?: ReadonlySet<string>,
+): 'env' | 'secrets' | 'subscription' | 'anonymous' | undefined {
+  if (!configuredIds.has(providerId)) return undefined;
+
+  // Tier 1: subscription check (most specific — subscription overrides env for this provider)
+  const subs = subscriptionManager.list();
+  if (subs.some((s) => s.provider === providerId)) return 'subscription';
+
+  // Tier 2: env-var present (process.env check; anonymous providers don't appear in configuredIds)
+  // We don't have BUILTIN_PROVIDER_ENV_KEYS here; if env was used the configuredIds path covers it.
+  // The presence in configuredIds and no subscription → either env or secrets.
+  // Tier 3: secrets-manager backed (pre-resolved async batch)
+  if (preResolvedSecretKeys && preResolvedSecretKeys.has(providerId)) return 'secrets';
+
+  return 'env';
+}
+
+/**
+ * Build a configuredViaMap for the given provider list.
+ * Pass preResolvedSecretKeys (from an async SecretsManager batch) to surface the 'secrets' tier.
+ */
+function buildConfiguredViaMap(
+  providers: string[],
+  configuredIds: Set<string>,
+  subscriptionManager: SubscriptionManager,
+  preResolvedSecretKeys?: ReadonlySet<string>,
+): Map<string, 'env' | 'secrets' | 'subscription' | 'anonymous'> {
+  const map = new Map<string, 'env' | 'secrets' | 'subscription' | 'anonymous'>();
+  for (const p of providers) {
+    const via = deriveConfiguredVia(p, configuredIds, subscriptionManager, preResolvedSecretKeys);
+    if (via !== undefined) map.set(p, via);
+  }
+  return map;
+}
+
+export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
+  const {
+    commandContext,
+    input,
+    panelManager,
+    conversation,
+    configManager,
+    providerRegistry,
+    runtime,
+    featureFlags,
+    mcpRegistry,
+    subscriptionManager,
+    secretsManager,
+    serviceRegistry,
+    workingDirectory,
+    homeDirectory,
+    getConfiguredProviderIds,
+    getPinned,
+    render,
+  } = options;
+
+  /**
+   * Pre-resolve which provider IDs have secrets-manager keys (async batch, SDK tier pattern).
+   * Returns a set of provider IDs (not env var names) that are secrets-backed.
+   * Falls back to empty set if secretsManager is not provided.
+   */
+  async function resolveSecretProviderIds(): Promise<ReadonlySet<string>> {
+    if (!secretsManager) return new Set<string>();
+    const configuredIds = new Set(getConfiguredProviderIds());
+    // For each configured provider, check if secretsManager has a key for it by provider ID.
+    // We use provider ID as the lookup key since we don't have BUILTIN_PROVIDER_ENV_KEYS here.
+    const results = await Promise.all(
+      [...configuredIds].map(async (providerId) => {
+        const val = await secretsManager.get(providerId).catch(() => null);
+        return val !== null ? providerId : null;
+      }),
+    );
+    return new Set(results.filter((v): v is string => v !== null));
+  }
+
+  const getCurrentModelForPickerTarget = (): string => {
+    const selectedTarget = input.modelPicker.getSelectedTargetInfo();
+    const target = selectedTarget?.target ?? input.modelPicker.target;
+    if (target === 'helper') return String(configManager.get('helper.globalModel') || runtime.model);
+    if (target === 'tool') return String(configManager.get('tools.llmModel') || runtime.model);
+    if (target === 'tts') return String(configManager.get('tts.llmModel') || runtime.model);
+    return runtime.model;
+  };
+
+  const getCurrentProviderForPickerTarget = (): string => {
+    const selectedTarget = input.modelPicker.getSelectedTargetInfo();
+    const target = selectedTarget?.target ?? input.modelPicker.target;
+    if (target === 'helper') return String(configManager.get('helper.globalProvider') || runtime.provider);
+    if (target === 'tool') return String(configManager.get('tools.llmProvider') || runtime.provider);
+    if (target === 'tts') return String(configManager.get('tts.llmProvider') || runtime.provider);
+    return runtime.provider;
+  };
+
+  const buildModelPickerTargets = (): ModelPickerTargetInfo[] => {
+    const mainProvider = getProviderIdFromModel(configManager.get('provider.model') || runtime.provider).trim();
+    const mainModel = String(configManager.get('provider.model') || runtime.model || '').trim();
+    const helperProvider = String(configManager.get('helper.globalProvider') ?? '').trim();
+    const helperModel = String(configManager.get('helper.globalModel') ?? '').trim();
+    const toolProvider = String(configManager.get('tools.llmProvider') ?? '').trim();
+    const toolModel = String(configManager.get('tools.llmModel') ?? '').trim();
+    const ttsProvider = String(configManager.get('tts.llmProvider') ?? '').trim();
+    const ttsModel = String(configManager.get('tts.llmModel') ?? '').trim();
+
+    return [
+      {
+        target: 'main',
+        label: 'Main Chat',
+        description: 'Default provider and model for normal chat turns in this TUI session.',
+        provider: mainProvider,
+        model: mainModel,
+        enabled: true,
+        inherited: false,
+      },
+      {
+        target: 'helper',
+        label: 'Helper Model',
+        description: 'Optional helper route used for supporting work. Empty provider/model values inherit Main Chat.',
+        provider: helperProvider || mainProvider,
+        model: helperModel || mainModel,
+        enabled: Boolean(configManager.get('helper.enabled')),
+        inherited: helperProvider.length === 0 && helperModel.length === 0,
+      },
+      {
+        target: 'tool',
+        label: 'Tool LLM',
+        description: 'Optional LLM route for tool-specific reasoning. Selecting a model enables the tool LLM route.',
+        provider: toolProvider || mainProvider,
+        model: toolModel || mainModel,
+        enabled: Boolean(configManager.get('tools.llmEnabled')),
+        inherited: toolProvider.length === 0 && toolModel.length === 0,
+      },
+      {
+        target: 'tts',
+        label: 'TTS LLM',
+        description: 'Optional LLM override for /tts response generation. Empty values use the current chat model.',
+        provider: ttsProvider || mainProvider,
+        model: ttsModel || mainModel,
+        enabled: true,
+        inherited: ttsProvider.length === 0 && ttsModel.length === 0,
+      },
+    ];
+  };
+
+  commandContext.openModelPicker = () => {
+    void (async () => {
+      const models = providerRegistry.getSelectableModels();
+      const configuredIds = new Set(getConfiguredProviderIds());
+      input.modelPicker.configuredProviders = configuredIds;
+      const providerIds = [...new Set(models.map((m) => m.provider))];
+      const secretProviderIds = await resolveSecretProviderIds();
+      input.modelPicker.configuredViaMap = buildConfiguredViaMap(providerIds, configuredIds, subscriptionManager, secretProviderIds);
+      void getPinned().then((pinned) => {
+        input.modelPicker.pinnedIds = new Set(pinned);
+      });
+      void input.modelPicker.loadRecentModels().catch(() => {}); // best-effort: prefetch for UI, failure is non-visible
+      input.modalOpened('modelPicker');
+      input.modelPicker.setTargetInfos(buildModelPickerTargets());
+      input.modelPicker.openAllModels(models, getCurrentModelForPickerTarget());
+      render();
+    })().catch((error: unknown) => {
+      commandContext.print?.(`Model picker failed to open: ${error instanceof Error ? error.message : String(error)}`);
+      render();
+    });
+  };
+
+  commandContext.openModelPickerWithTarget = (target) => input.openModelPickerWithTarget(target);
+  commandContext.openProviderModelPickerWithTarget = (target) => input.openProviderModelPickerWithTarget(target);
+
+  commandContext.openProviderPicker = () => {
+    void (async () => {
+      const providers = [...new Set(providerRegistry.listModels().map((model) => model.provider))];
+      const configuredIds = new Set(getConfiguredProviderIds());
+      input.modelPicker.configuredProviders = configuredIds;
+      const secretProviderIds = await resolveSecretProviderIds();
+      input.modelPicker.configuredViaMap = buildConfiguredViaMap(providers, configuredIds, subscriptionManager, secretProviderIds);
+      input.modalOpened('modelPicker');
+      input.modelPicker.setTargetInfos(buildModelPickerTargets());
+      input.modelPicker.openProviders(providers, getCurrentProviderForPickerTarget());
+      render();
+    })().catch((error: unknown) => {
+      commandContext.print?.(`Provider picker failed to open: ${error instanceof Error ? error.message : String(error)}`);
+      render();
+    });
+  };
+
+  commandContext.openSelection = (title, items, opts, callback) => {
+    input.openSelection(title, items, opts, callback);
+  };
+
+  commandContext.openOnboardingWizard = (modeOrOptions) => {
+    input.openOnboardingWizard(modeOrOptions);
+  };
+
+  commandContext.openContextInspector = () => {
+    input.modalOpened('contextInspector');
+    input.contextInspectorModal.open();
+    render();
+  };
+
+  commandContext.openBookmarkModal = () => {
+    input.modalOpened('bookmark');
+    input.bookmarkModal.open();
+    render();
+  };
+
+  commandContext.openHelpOverlay = () => {
+    if (!input.helpOverlayActive) input.modalOpened('help');
+    input.helpOverlayActive = !input.helpOverlayActive;
+    input.helpScrollOffset = 0;
+  };
+
+  commandContext.openShortcutsOverlay = () => {
+    if (!input.shortcutsOverlayActive) input.modalOpened('shortcuts');
+    input.shortcutsOverlayActive = !input.shortcutsOverlayActive;
+    input.shortcutsScrollOffset = 0;
+    render();
+  };
+
+  commandContext.openProfilePicker = () => {
+    input.modalOpened('profilePicker');
+    input.profilePickerModal.open();
+    render();
+  };
+
+  commandContext.openSettingsModal = (target?: string) => {
+    input.modalOpened('settings');
+    input.settingsModal.open(configManager, featureFlags, subscriptionManager, serviceRegistry, mcpRegistry, secretsManager, {
+      onSettingApplied: (change) => syncServiceSettingToPlatform(
+        { configManager, workingDirectory, homeDirectory },
+        change,
+      ),
+    });
+    input.settingsModal.selectTarget(target);
+    render();
+  };
+
+  commandContext.openMcpWorkspace = () => {
+    input.openMcpWorkspace(commandContext);
+    render();
+  };
+
+  commandContext.openSessionPicker = () => {
+    input.modalOpened('sessionPicker');
+    input.sessionPickerModal.open();
+    render();
+  };
+
+  commandContext.openPanelPicker = () => {
+    if (!panelManager.isVisible()) {
+      if (panelManager.getAllOpen().length === 0) {
+        try {
+          panelManager.open('panel-list');
+        } catch {
+          // non-fatal
+        }
+      }
+      panelManager.show();
+      input.panelFocused = true;
+      conversation.setSplashSuppressed(true);
+      conversation.rebuildHistory();
+    } else if (!input.panelFocused) {
+      if (panelManager.getAllOpen().length === 0) {
+        try {
+          panelManager.open('panel-list');
+        } catch {
+          // non-fatal
+        }
+      }
+      panelManager.show();
+      input.panelFocused = true;
+      conversation.setSplashSuppressed(true);
+      conversation.rebuildHistory();
+    } else {
+      panelManager.hide();
+      input.panelFocused = false;
+      conversation.setSplashSuppressed(false);
+      conversation.rebuildHistory();
+    }
+    render();
+  };
+
+  commandContext.focusPanels = () => {
+    if (!panelManager.isVisible() || panelManager.getAllOpen().length === 0) return;
+    input.panelFocused = true;
+    render();
+  };
+
+  commandContext.focusPrompt = () => {
+    input.panelFocused = false;
+    input.indicatorFocused = false;
+    render();
+  };
+
+  commandContext.showPanel = (panelId, pane) => {
+    panelManager.open(panelId, pane);
+    panelManager.show();
+    input.panelFocused = true;
+    conversation.setSplashSuppressed(true);
+    conversation.rebuildHistory();
+    render();
+  };
+}

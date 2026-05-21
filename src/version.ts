@@ -1,3 +1,17 @@
-export const GOODVIBES_AGENT_PACKAGE_VERSION = '0.0.0';
-export const GOODVIBES_SDK_PACKAGE_PIN = '0.33.34';
-export const EXPECTED_GOODVIBES_SDK_VERSION = GOODVIBES_SDK_PACKAGE_PIN;
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+// Read version from package.json at runtime (eliminates build-time sync issues).
+// Fallback for compiled binaries where package.json may not be present.
+// The prebuild script updates the fallback value before compilation.
+// Uses import.meta.dir (Bun) to locate package.json relative to this file,
+// which is correct regardless of the process working directory.
+let _version = '0.0.0';
+try {
+  const pkg = JSON.parse(readFileSync(join(import.meta.dir, '..', 'package.json'), 'utf-8'));
+  _version = pkg.version ?? _version;
+} catch {
+  // Compiled binary or missing package.json — use fallback
+}
+
+export const VERSION = _version;

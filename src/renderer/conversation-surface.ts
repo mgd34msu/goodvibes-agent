@@ -43,7 +43,7 @@ function writeText(
   endColExclusive: number,
   text: string,
   fg: string,
-  options: { readonly bg?: string | undefined; readonly bold?: boolean; readonly dim?: boolean; readonly italic?: boolean; readonly strikethrough?: boolean } = {},
+  options: { readonly bg?: string; readonly bold?: boolean; readonly dim?: boolean; readonly italic?: boolean; readonly strikethrough?: boolean } = {},
 ): void {
   let col = startCol;
   for (const ch of text) {

@@ -1,26 +1,18 @@
 {
   "compilerOptions": {
-    "target": "ES2023",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "allowImportingTsExtensions": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
     "skipLibCheck": true,
-    "types": [
-      "bun-types"
-    ],
-    "outDir": "dist",
-    "rootDir": "."
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+    }
   },
-  "include": [
-    "bin/**/*.ts",
-    "scripts/**/*.ts",
-    "src/**/*.ts",
-    "test/**/*.ts"
-  ]
+  "include": ["src", "examples/**/*.ts"],
+  "exclude": ["src/test", "src/**/*.test.ts"]
 }
