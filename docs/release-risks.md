@@ -11,7 +11,7 @@ This inventory tracks known blockers and accepted limitations before a public `0
 
 - Manual PTY smoke was recorded as passed on `2026-05-20` in `docs/release-evidence.md`. Re-run it before publishing if terminal/input/rendering code changes.
 - Live status/auth/compat and two-turn companion chat smoke were recorded on `2026-05-20` in `docs/release-evidence.md`.
-- SDK `0.33.32` Agent knowledge validation is recorded in `docs/release-evidence.md`; the empty Agent store returns no unrelated default-wiki facts.
+- SDK `0.33.34` Agent knowledge validation is recorded in `docs/release-evidence.md`; the empty Agent store returns no unrelated default-wiki facts.
 - The remaining default Knowledge/Wiki scoping blocker is recorded in `docs/release-evidence.md`.
 - Live delegation dry receipt was skipped because the current delegation command creates a real shared session/task and has no dry-run mode.
 

@@ -1,8 +1,9 @@
 import { appendMessage, createAgentSession } from '../core/session.js';
 import type { AssistantRuntime } from '../assistant/runtime.js';
 import { CompanionChatError } from '../assistant/companion-chat.js';
-import { renderApp } from '../renderer/app-renderer.js';
+import { renderAppFrame } from '../renderer/app-renderer.js';
 import { ANSI } from '../renderer/ansi.js';
+import { Compositor } from '../renderer/compositor.ts';
 import { decodeKeys, type KeyEvent } from '../input/key-reader.js';
 import {
   backspace,
@@ -22,6 +23,8 @@ import {
   type RemoteSnapshot,
 } from './dashboard.js';
 import type { DaemonDiagnosticResult } from '../daemon/client.js';
+import { allowTerminalWrite, installTuiTerminalOutputGuard, type TerminalOutputGuard } from '../runtime/terminal-output-guard.ts';
+import { CLEAR_SCREEN, terminalEnterSequence, terminalExitSequence } from './terminal-control.ts';
 
 export class AgentTuiApp {
   private session = createAgentSession();
@@ -39,10 +42,15 @@ export class AgentTuiApp {
   private stopped = false;
   private terminalActive = false;
   private stopResolve: (() => void) | null = null;
+  private readonly compositor = new Compositor(process.stdout);
+  private terminalOutputGuard: TerminalOutputGuard | null = null;
   private readonly dataHandler = (buffer: Buffer) => {
     void this.handleData(buffer);
   };
-  private readonly resizeHandler = () => this.render();
+  private readonly resizeHandler = () => {
+    this.compositor.resetDiff();
+    this.render();
+  };
   private readonly sigintHandler = () => this.stop();
 
   constructor(private readonly runtime: AssistantRuntime) {}
@@ -142,7 +150,7 @@ export class AgentTuiApp {
       return;
     }
     if (key.type === 'clear-screen') {
-      this.render();
+      this.forceFullRedraw();
       return;
     }
     if (key.type === 'refresh-status') {
@@ -192,19 +200,36 @@ export class AgentTuiApp {
   }
 
   private render(): void {
-    process.stdout.write(renderApp({
-      session: this.session,
-      input: this.inputBuffer.text,
-      inputCursor: this.inputBuffer.cursor,
-      status: this.status,
-      daemonStatus: this.daemonStatus,
-      dashboard: buildDashboard({
-        runtime: this.runtime,
-        daemon: this.daemonDiagnostics,
-        remote: this.remoteState,
-      }),
-      busy: this.busy,
-    }));
+    renderAppFrame(
+      this.compositor,
+      {
+        session: this.session,
+        input: this.inputBuffer.text,
+        inputCursor: this.inputBuffer.cursor,
+        status: this.status,
+        daemonStatus: this.daemonStatus,
+        dashboard: buildDashboard({
+          runtime: this.runtime,
+          daemon: this.daemonDiagnostics,
+          remote: this.remoteState,
+        }),
+        busy: this.busy,
+        provider: this.runtime.providerModel.provider ?? 'daemon',
+        model: this.runtime.providerModel.model ?? this.runtime.providerModel.modelRegistryKey ?? 'daemon-default',
+      },
+      {
+        width: process.stdout.columns || 100,
+        height: process.stdout.rows || 32,
+      },
+    );
+  }
+
+  private forceFullRedraw(): void {
+    this.compositor.resetDiff();
+    allowTerminalWrite(() => {
+      process.stdout.write(CLEAR_SCREEN);
+    });
+    this.render();
   }
 
   private async checkDaemonCompatibility(): Promise<void> {
@@ -290,7 +315,17 @@ export class AgentTuiApp {
     stdin.on('data', this.dataHandler);
     process.stdout.on('resize', this.resizeHandler);
     process.once('SIGINT', this.sigintHandler);
-    process.stdout.write(ANSI.bracketedPasteOn);
+    this.terminalOutputGuard = installTuiTerminalOutputGuard({
+      stdout: process.stdout,
+      stderr: process.stderr,
+      notify: (message) => {
+        this.session = appendMessage(this.session, 'system', message);
+        this.render();
+      },
+    });
+    allowTerminalWrite(() => {
+      process.stdout.write(terminalEnterSequence());
+    });
   }
 
   private cleanupTerminal(): void {
@@ -300,7 +335,11 @@ export class AgentTuiApp {
     process.stdout.off('resize', this.resizeHandler);
     process.off('SIGINT', this.sigintHandler);
     if (process.stdin.isTTY) process.stdin.setRawMode(false);
-    process.stdout.write(`${ANSI.bracketedPasteOff}${ANSI.showCursor}${ANSI.reset}\n`);
+    allowTerminalWrite(() => {
+      process.stdout.write(terminalExitSequence() + ANSI.reset);
+    });
+    this.terminalOutputGuard?.dispose();
+    this.terminalOutputGuard = null;
   }
 
   private async handleBracketedPaste(value: string): Promise<boolean> {

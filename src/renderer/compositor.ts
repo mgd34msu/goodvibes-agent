@@ -1,0 +1,283 @@
+import { TerminalBuffer } from './buffer.ts';
+import { DiffEngine } from './diff.ts';
+import { type Line, createEmptyCell, createStyledCell } from '../types/grid.ts';
+import { getDisplayWidth } from '../utils/terminal-width.ts';
+import type { SearchManager } from '../input/search.ts';
+import { allowTerminalWrite } from '../runtime/terminal-output-guard.ts';
+
+export interface SelectionInfo {
+  isCellSelected: (col: number, absoluteRow: number) => boolean;
+  scrollTop: number;
+  lineCount: number;
+}
+
+export interface SearchInfo {
+  manager: SearchManager;
+  scrollTop: number;
+  viewportStartY: number;
+}
+
+export interface PanelCompositeData {
+  /** Workspace-level tab bar spanning all open panels. */
+  workspaceBar: Line;
+  /** Top pane: tab bar */
+  topTabBar?: Line | undefined;
+  /** Top pane: panel content lines */
+  topContent: Line[];
+  /** Whether the top pane is focused (affects separator color) */
+  topFocused: boolean;
+  /** Bottom pane tab bar. Undefined = no bottom pane. */
+  bottomTabBar?: Line | undefined;
+  /** Bottom pane content lines. Undefined = no bottom pane. */
+  bottomContent?: Line[] | undefined;
+  /** Whether the bottom pane is focused */
+  bottomFocused?: boolean | undefined;
+  /** Separator between left and right panel area */
+  separator: boolean;
+  /** Ratio of panel height for the top pane (0–1). Only used when bottom pane is present. */
+  verticalSplitRatio: number;
+}
+
+export interface CompositeRequest {
+  width: number;
+  height: number;
+  header: Line[];
+  viewport: Line[];
+  footer: Line[];
+  selection?: SelectionInfo;
+  search?: SearchInfo;
+  panel?: PanelCompositeData;
+  panelWidth?: number; // width of the right panel area (0 = no panel)
+}
+
+/**
+ * Compositor - Authoritative TUI layout engine with Selection Overlay.
+ * Decoupled from global state — all needed data is passed as parameters.
+ */
+export class Compositor {
+  /** Double-buffer reuse: back is written, front is the last-rendered reference. */
+  private frontBuffer: TerminalBuffer | null = null;
+  private backBuffer: TerminalBuffer | null = null;
+  private diffEngine = new DiffEngine();
+
+  constructor(private stdout: NodeJS.WriteStream) {}
+
+  /** Exposed for unit tests — returns the last composited buffer. */
+  public get lastBufferForTest(): TerminalBuffer | null {
+    return this.frontBuffer;
+  }
+
+  public resetDiff(): void {
+    this.diffEngine.reset();
+    this.frontBuffer = null;
+    this.backBuffer = null;
+  }
+
+  public composite(params: CompositeRequest): void {
+    const { width, height, header, viewport, footer, selection, search, panel, panelWidth } = params;
+    // R3: Reuse back-buffer instead of allocating each frame
+    if (!this.backBuffer) {
+      this.backBuffer = new TerminalBuffer(width, height);
+    } else {
+      this.backBuffer.reset(width, height, this.frontBuffer);
+    }
+    const newBuffer = this.backBuffer;
+
+    const hasPanel = panel !== undefined && panelWidth !== undefined && panelWidth > 0;
+    const leftWidth = hasPanel ? Math.max(1, width - panelWidth - 1) : width;
+    const sepX = hasPanel ? leftWidth : -1;
+
+    // 1. Draw Header — always full width
+    header.forEach((line, i) => newBuffer.blitLine(i, line));
+
+    // 2. Draw Viewport directly after the supplied header.
+    const viewportStartY = header.length;
+    const vHeight = Math.max(0, height - header.length - footer.length);
+
+    // Calculate the offset for bottom-anchored short history
+    const lineCount = selection?.lineCount ?? 0;
+    const offset = Math.max(0, vHeight - lineCount);
+
+    // --- Pre-compute panel row layout when split pane is active ---
+    // When both top and bottom panes are visible, the panel area is split:
+    //   row 0:              workspace tab bar
+    //   row 1:              top tab bar
+    //   rows 2..topH+1:     top content
+    //   row topH+2:         horizontal separator (───)
+    //   row topH+3:         bottom tab bar
+    //   rows topH+4..end:   bottom content
+    const hasBottomPane = hasPanel && panel!.bottomTabBar !== undefined;
+    let topPaneHeight = 0;   // number of content rows in top pane
+    let bottomPaneHeight = 0;
+    let hSepRow = -1;        // viewport row of the horizontal separator
+    if (hasPanel && hasBottomPane) {
+      const panelAreaRows = Math.max(0, vHeight - 1); // subtract workspace tab bar
+      // top: 1 (tabbar) + topContent rows; bottom: 1 (sep) + 1 (tabbar) + bottomContent
+      const contentRows = Math.max(0, panelAreaRows - 3); // subtract top-tabbar + h-sep + bottom-tabbar
+      topPaneHeight = Math.max(1, Math.floor(contentRows * panel!.verticalSplitRatio));
+      bottomPaneHeight = Math.max(1, contentRows - topPaneHeight);
+      hSepRow = 2 + topPaneHeight; // workspace bar + top tab bar + top content rows
+    }
+
+    const sepFg = hasPanel && panel!.separator
+      ? (panel!.topFocused || panel!.bottomFocused ? '244' : '238')
+      : '238';
+
+    viewport.forEach((line, i) => {
+      const screenY = viewportStartY + i;
+      if (screenY >= height) return;
+
+      if (!hasPanel) {
+        // No panel: existing fast path
+        newBuffer.blitLine(screenY, line);
+      } else {
+        // Panel active: write cells individually to support split layout
+        // Left side: viewport cells 0..leftWidth-1
+        for (let x = 0; x < leftWidth; x++) {
+          const cell = line[x];
+          if (cell !== undefined) {
+            // If this is a wide char (2-cell) at the last left-side column,
+            // it would bleed into the separator column visually.
+            // Replace with a space to keep the separator aligned.
+            if (x === leftWidth - 1 && cell.char && cell.char.length > 0 && getDisplayWidth(cell.char) > 1) {
+              newBuffer.setCell(x, screenY, { ...cell, char: ' ' });
+              continue;
+            }
+            newBuffer.setCell(x, screenY, cell);
+          }
+        }
+
+        const p = panel!;
+
+        // Separator column (vertical bar between left and panel area)
+        if (p.separator) {
+          newBuffer.setCell(sepX, screenY, createStyledCell('│', { fg: sepFg }));
+        }
+
+        const panelStartX = sepX + 1;
+        const clearPanelRemainder = (fromX = 0) => {
+          for (let x = Math.max(0, fromX); x < panelWidth; x++) {
+            newBuffer.setCell(panelStartX + x, screenY, createEmptyCell());
+          }
+        };
+        const drawPanelLine = (panelLine: Line | undefined) => {
+          if (panelLine === undefined) {
+            clearPanelRemainder();
+            return;
+          }
+          const limit = Math.min(panelLine.length, panelWidth);
+          for (let x = 0; x < limit; x++) {
+            const cell = panelLine[x];
+            if (cell !== undefined) {
+              newBuffer.setCell(panelStartX + x, screenY, cell);
+            }
+          }
+          clearPanelRemainder(limit);
+        };
+
+        if (!hasBottomPane) {
+          // --- Single pane mode ---
+          // viewport row 0 → workspace bar, viewport rows 1+ → panel content
+          const panelLine = i === 0 ? p.workspaceBar : p.topContent[i - 1];
+          drawPanelLine(panelLine);
+        } else {
+          // --- Two pane mode ---
+          // Row layout (by viewport row i):
+          //   i = 0:                      workspace tab bar
+          //   i = 1:                      top tab bar
+          //   2 <= i <= topPaneHeight+1:  top content[i-2]
+          //   i = hSepRow:                horizontal separator
+          //   i = hSepRow+1:              bottom tab bar
+          //   i >= hSepRow+2:             bottom content[i - (hSepRow+2)]
+          let panelLine: Line | undefined;
+
+          if (i === 0) {
+            panelLine = p.workspaceBar;
+          } else if (i === 1) {
+            panelLine = p.topTabBar;
+          } else if (i <= topPaneHeight + 1) {
+            panelLine = p.topContent[i - 2];
+          } else if (i === hSepRow) {
+            // Horizontal separator between the two panes
+            // Render ─ chars across the panel width
+            const focusFg = p.bottomFocused ? '36' : '238'; // cyan if bottom pane focused
+            for (let x = 0; x < panelWidth; x++) {
+              newBuffer.setCell(panelStartX + x, screenY, createStyledCell('─', { fg: focusFg }));
+            }
+            // Also update the separator column char to T-junction (├):
+            // ├ connects the vertical left-separator with the horizontal pane divider,
+            // forming a clean T-shaped joint at the split point.
+            if (p.separator) {
+              newBuffer.setCell(sepX, screenY, createStyledCell('├', { fg: focusFg }));
+            }
+          } else if (i === hSepRow + 1) {
+            panelLine = p.bottomTabBar;
+          } else {
+            panelLine = p.bottomContent?.[i - (hSepRow + 2)];
+          }
+
+          if (i !== hSepRow) {
+            drawPanelLine(panelLine);
+          }
+        }
+      }
+
+      // Apply Selection Highlighting Overlay (left side only)
+      // Only highlight rows that actually contain history (past the bottom-anchor offset)
+      if (selection && i >= offset) {
+        const absoluteRow = selection.scrollTop + (i - offset);
+        for (let x = 0; x < leftWidth; x++) {
+          if (selection.isCellSelected(x, absoluteRow)) {
+            newBuffer.setCell(x, screenY, { bg: '4', fg: '0', bold: false, dim: false });
+          }
+        }
+      }
+
+      // Apply Search Match Highlighting Overlay (left side only)
+      if (search && search.manager.active && search.manager.query.length > 0 && i >= offset) {
+        const absoluteRow = search.scrollTop + (i - offset);
+        const lineMatches = search.manager.getMatchesOnLine(absoluteRow);
+        for (const match of lineMatches) {
+          const isCurrent = search.manager.isCurrentMatch(absoluteRow, match.col);
+          for (let x = match.col; x < match.col + match.length && x < leftWidth; x++) {
+            if (isCurrent) {
+              newBuffer.setCell(x, screenY, { bg: '#ffff00', fg: '#000000', bold: true, dim: false });
+            } else {
+              newBuffer.setCell(x, screenY, { bg: '#806600', fg: '#ffffff', bold: false, dim: false });
+            }
+          }
+        }
+      }
+    });
+
+    // Draw separator on remaining viewport rows past content (when panel is active)
+    if (hasPanel && panel!.separator) {
+      for (let i = viewport.length; i < vHeight; i++) {
+        const screenY = viewportStartY + i;
+        if (screenY >= height) break;
+        newBuffer.setCell(sepX, screenY, createStyledCell('│', { fg: sepFg }));
+      }
+    }
+
+    // 3. Draw Footer (Pinned to Bottom) — always full width
+    const footerStart = height - footer.length;
+    footer.forEach((line, i) => {
+      const screenY = footerStart + i;
+      if (screenY >= height) return;
+      newBuffer.blitLine(screenY, line);
+    });
+
+    // 4. Diff and Render
+    // R3: Diff against front-buffer (last-rendered), then swap front/back — no clone() needed
+    const diff = this.diffEngine.diff(this.frontBuffer, newBuffer);
+    if (diff) {
+      allowTerminalWrite(() => this.stdout.write(diff));
+    }
+
+    // Swap: back (just written) becomes the new front reference; old front becomes the next back
+    const swap = this.frontBuffer;
+    this.frontBuffer = this.backBuffer;
+    this.frontBuffer.clearDirty();
+    this.backBuffer = swap;
+  }
+}

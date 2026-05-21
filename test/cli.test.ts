@@ -217,7 +217,7 @@ describe('cli failure envelope', () => {
       port: 0,
       fetch(request) {
         const path = new URL(request.url).pathname;
-        if (path === '/status') return Response.json({ status: 'running', version: '0.33.32' });
+        if (path === '/status') return Response.json({ status: 'running', version: '0.33.34' });
         return Response.json({ error: 'not found' }, { status: 404 });
       },
     });
@@ -235,9 +235,9 @@ describe('cli failure envelope', () => {
       const agent = recordValue(data, 'agent');
       const daemon = recordValue(data, 'daemon');
       const knowledge = recordValue(data, 'knowledge');
-      expect(agent.sdkPackagePin).toBe('0.33.32');
-      expect(agent.expectedDaemonVersion).toBe('0.33.32');
-      expect(daemon.daemonVersion).toBe('0.33.32');
+      expect(agent.sdkPackagePin).toBe('0.33.34');
+      expect(agent.expectedDaemonVersion).toBe('0.33.34');
+      expect(daemon.daemonVersion).toBe('0.33.34');
       expect(daemon.compatible).toBe(true);
       expect(knowledge.agentSpecificIsolation).toBe('active');
       expect(knowledge.activeAskRoute).toBe('/api/goodvibes-agent/knowledge/ask');
@@ -262,9 +262,9 @@ describe('cli failure envelope', () => {
     const agent = recordValue(data, 'agent');
     const daemon = recordValue(data, 'daemon');
     const knowledge = recordValue(data, 'knowledge');
-    expect(agent.sdkPackagePin).toBe('0.33.32');
+    expect(agent.sdkPackagePin).toBe('0.33.34');
     expect(daemon.reachable).toBe(false);
-    expect(daemon.expectedVersion).toBe('0.33.32');
+    expect(daemon.expectedVersion).toBe('0.33.34');
     expect(knowledge.agentSpecificIsolation).toBe('active');
   });
 
@@ -273,7 +273,7 @@ describe('cli failure envelope', () => {
       port: 0,
       fetch(request) {
         const path = new URL(request.url).pathname;
-        if (path === '/status') return Response.json({ status: 'running', version: '0.33.31' });
+        if (path === '/status') return Response.json({ status: 'running', version: '0.33.33' });
         return Response.json({ error: 'not found' }, { status: 404 });
       },
     });
@@ -289,8 +289,8 @@ describe('cli failure envelope', () => {
 
       const data = recordValue(result.body, 'data');
       const daemon = recordValue(data, 'daemon');
-      expect(daemon.daemonVersion).toBe('0.33.31');
-      expect(daemon.expectedVersion).toBe('0.33.32');
+      expect(daemon.daemonVersion).toBe('0.33.33');
+      expect(daemon.expectedVersion).toBe('0.33.34');
       expect(String(daemon.reason)).toContain('older than goodvibes-agent expects');
     } finally {
       await server.stop(true);

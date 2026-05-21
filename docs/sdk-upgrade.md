@@ -5,10 +5,10 @@ GoodVibes Agent pins `@pellux/goodvibes-sdk` exactly during pre-1.0 development.
 ## Current Pin
 
 - Agent package version: `0.0.0`
-- SDK package pin: `@pellux/goodvibes-sdk@0.33.32`
-- Expected daemon contract version: `0.33.32`
+- SDK package pin: `@pellux/goodvibes-sdk@0.33.34`
+- Expected daemon contract version: `0.33.34`
 - Active knowledge routes: `/api/goodvibes-agent/knowledge/ask` and `/api/goodvibes-agent/knowledge/search`
-- Agent-specific knowledge isolation: active in code; live validation requires a daemon reporting `0.33.32`
+- Agent-specific knowledge isolation: active in code; live validation requires a daemon reporting `0.33.34`
 
 Check the live daemon contract with:
 
@@ -18,13 +18,13 @@ bun run check:sdk
 
 ## Handoff Summary
 
-For the SDK `0.33.32` Agent-specific knowledge handoff:
+For the SDK `0.33.34` Agent-specific knowledge handoff:
 
-1. npm publish and package export verification are complete for `@pellux/goodvibes-sdk@0.33.32`.
+1. npm publish and package export verification are complete for `@pellux/goodvibes-sdk@0.33.34`.
 2. The exact SDK dependency pin and expected SDK constants move together.
 3. Agent `ask`/`search` target only `/api/goodvibes-agent/knowledge/ask` and `/api/goodvibes-agent/knowledge/search`.
 4. Memory, skills, and personas stay local until shared registry contracts are promoted.
-5. `bun run check:sdk` and `bun run check:release` require the daemon to report a compatible `0.33.32` contract.
+5. `bun run check:sdk` and `bun run check:release` require the daemon to report a compatible `0.33.34` contract.
 6. Contamination checks must confirm Agent queries do not return HomeGraph, Home Assistant, TV, or unrelated default-wiki facts.
 7. `docs/release-risks.md`, `docs/release-evidence.md`, and release notes must be updated after live validation.
 

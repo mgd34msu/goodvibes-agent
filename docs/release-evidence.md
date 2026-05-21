@@ -66,3 +66,34 @@ Skipped live checks:
 - `/api/goodvibes-agent/knowledge/search` for `What is GoodVibes Agent?` returned no results.
 - The Agent-owned routes did not return HomeGraph, Home Assistant, TV, or default-wiki cross-talk for the validation query.
 - Separate TUI validation found default `/api/knowledge/ask` still answers `What is GoodVibes Agent?` from regular Knowledge/Wiki GoodVibes GitHub repo sources. GoodVibes Agent does not use that route for Agent ask/search, but release green handoff remains held pending SDK patch or guidance.
+
+## 2026-05-21 SDK 0.33.33 Handoff Status
+
+- SDK confirmed `@pellux/goodvibes-sdk@0.33.33` is published and verified.
+- The already-running daemon was updated by TUI and reported a compatible `0.33.33` contract.
+- Agent code remains on `/api/goodvibes-agent/knowledge/status`, `/ask`, and `/search`; no default wiki fallback or client-side content filtering is used.
+- `/api/goodvibes-agent/knowledge/status` reported ready with the isolated `knowledge-agent.sqlite` store and zero sources, nodes, issues, and usage records.
+- `/api/goodvibes-agent/knowledge/ask` for `What is GoodVibes Agent?` returned no match with zero confidence and no sources, facts, or gaps.
+- `/api/goodvibes-agent/knowledge/search` for `What is GoodVibes Agent?` returned no results.
+- The Agent-owned routes did not return HomeGraph, Home Assistant, TV, or default-wiki cross-talk for the validation query.
+- Separate TUI validation found default `/api/knowledge/ask` still answers `What is GoodVibes Agent?` from a regular Knowledge/Wiki default-space Navigation Menu source under `github.com/mgd34msu/goodvibes`. GoodVibes Agent does not use that route for Agent ask/search, but release green handoff remains held pending SDK patch or guidance.
+
+## 2026-05-21 SDK 0.33.34 Handoff Status
+
+- SDK confirmed `@pellux/goodvibes-sdk@0.33.34` is published and verified.
+- The already-running daemon was updated by TUI and reported a compatible `0.33.34` contract.
+- Agent code remains on `/api/goodvibes-agent/knowledge/status`, `/ask`, and `/search`; no default wiki fallback or client-side content filtering is used.
+- `/api/goodvibes-agent/knowledge/status` reported ready with the isolated Agent knowledge store, zero sources, nodes, issues, and usage records, plus one prior job run record.
+- `/api/goodvibes-agent/knowledge/ask` for `What is GoodVibes Agent?` returned no match with zero confidence and no sources, facts, or gaps.
+- `/api/goodvibes-agent/knowledge/search` for `What is GoodVibes Agent?` returned no results.
+- The Agent-owned routes did not return HomeGraph, Home Assistant, TV, or default-wiki cross-talk for the validation query.
+
+## 2026-05-21 M1 TUI Foundation Smoke
+
+- Ran `GOODVIBES_AGENT_HOME=$(mktemp -d) bun run src/main.ts tui` in a real PTY.
+- Terminal setup emitted alt-screen enter, screen clear, cursor hide, mouse enable, keyboard-extension enable, and bracketed-paste enable sequences.
+- First typed key appeared immediately in the shell footer prompt through the compositor-rendered frame.
+- Ctrl-J inserted multiline prompt input, and subsequent text rendered on the next prompt line with the visible cursor preserved.
+- PTY resize was exercised by changing `/dev/pts/4` to `30x100` and sending `SIGWINCH`; the compositor reset its diff and redrew the TUI shell without falling back to a full custom string renderer.
+- Ctrl-L emitted a forced clear/home sequence, reset the compositor diff, and redrew the shell with the compact operator dashboard still visible.
+- Esc exited cleanly and emitted bracketed-paste-off, keyboard-extension reset, mouse disable, cursor show, screen clear, alt-screen exit, and ANSI reset sequences.

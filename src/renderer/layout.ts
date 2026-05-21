@@ -1,5 +1,11 @@
 import { stripAnsi, visibleLength } from './ansi.js';
 
+export const LAYOUT = {
+  LEFT_MARGIN: 2,
+  RIGHT_MARGIN: 2,
+  USER_BOX_MARGIN: 2,
+} as const;
+
 export interface TerminalSize {
   readonly columns: number;
   readonly rows: number;
