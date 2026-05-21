@@ -30,6 +30,7 @@ describe('release metadata', () => {
     const license = await readFile('LICENSE', 'utf-8');
     const readme = await readFile('README.md', 'utf-8');
     const checklist = await readFile('docs/release-checklist.md', 'utf-8');
+    const plan = await readFile('docs/release-plan.md', 'utf-8');
     const upgrade = await readFile('docs/sdk-upgrade.md', 'utf-8');
     const risks = await readFile('docs/release-risks.md', 'utf-8');
 
@@ -51,8 +52,13 @@ describe('release metadata', () => {
     expect(checklist).toContain('docs/manual-smoke.md');
     expect(checklist).toContain('docs/release-risks.md');
     expect(checklist).toContain('docs/release-evidence.md');
+    expect(plan).toContain('goodvibes-agent compat');
+    expect(plan).not.toContain('publish dry-run');
+    expect(plan).toContain('skipped live delegation check is explicitly documented');
     expect(upgrade).toContain('@pellux/goodvibes-sdk@0.33.30');
     expect(upgrade).toContain('Agent-specific knowledge isolation: pending');
+    expect(upgrade).toContain('## Handoff Summary');
+    expect(upgrade).toContain('Switch only `ask`/`search`');
     expect(evidence).toContain('2026-05-20 M4/M5 Readiness Evidence');
     expect(evidence).toContain('Manual PTY smoke');
     expect(evidence).toContain('AGENT_SMOKE_ONE');

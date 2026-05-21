@@ -16,6 +16,17 @@ Check the live daemon contract with:
 bun run check:sdk
 ```
 
+## Handoff Summary
+
+When SDK publishes the Agent-specific knowledge seam:
+
+1. Confirm npm has the exact SDK version and the route contracts are present in the published package.
+2. Update the exact `@pellux/goodvibes-sdk` pin and the expected SDK constants together.
+3. Run `bun install`, `bun run check:sdk`, and `bun run check:release` before any route switch.
+4. Switch only `ask`/`search` after the Agent route request/response shapes are verified.
+5. Rerun contamination checks: Agent queries must not return HomeGraph, Home Assistant, TV, or unrelated default-wiki facts.
+6. Update `docs/release-risks.md`, `docs/release-evidence.md`, and release notes with the verified route state.
+
 ## Upgrade Process
 
 1. SDK confirms the new package is published on npm and gives the exact version.

@@ -21,7 +21,7 @@ This plan targets the first usable `goodvibes-agent` alpha. The package stays at
 - The bin target is TypeScript-authored and uses a Bun shebang path that works after global install.
 - The bin file has executable permissions in git and package artifacts.
 - `package.json` `files` includes `bin/`, `src/`, and docs required for install/runtime use.
-- Release smoke includes package contents inspection, fresh install into a temporary prefix/global-equivalent location, `goodvibes-agent --help`, and `goodvibes-agent status` or `goodvibes-agent smoke` from `PATH`.
+- Release smoke includes package contents inspection, fresh install into a temporary prefix/global-equivalent location, `goodvibes-agent --help`, `goodvibes-agent compat`, and `goodvibes-agent status` or `goodvibes-agent smoke` from `PATH`.
 
 ## Collaboration Cadence
 
@@ -86,7 +86,7 @@ Ask TUI before major architectural copy/promote decisions. If a feature needs TU
 ### M4: Install And Release Parity
 
 - Keep exact dependency pins during pre-1.0 development.
-- Add release scripts only after behavior stabilizes: test, typecheck, build, npm pack dry-run, publish dry-run, install smoke.
+- Add release scripts only after behavior stabilizes: test, typecheck, build, npm pack dry-run, and install smoke.
 - Add a changelog starting with the first release.
 - Add package install smoke for Bun global/local usage.
 - Add Bun-only packaging checks: clean `bun install`, documented `bun pm trust` only if lifecycle dependencies require it, `npm pack` contents inspection, install into a temporary prefix/global-equivalent location, command available on `PATH`, help smoke, and status/smoke command.
@@ -104,6 +104,7 @@ Ask TUI before major architectural copy/promote decisions. If a feature needs TU
 - Flip from `0.0.0` to `0.1.0` only for the first intentionally published usable alpha.
 - Complete TUI release review and document any accepted risks.
 - Run source checkout, package contents, temporary/global install, daemon status/auth, companion chat, knowledge, local store, and delegation smoke checks.
+- Record release-candidate evidence in `docs/release-evidence.md` and keep known risks current in `docs/release-risks.md`.
 - Publish only after the package installs a real `goodvibes-agent` executable and docs match current behavior.
 
 ## Must-Have TUI Parity To Copy Or Adapt Next
@@ -147,7 +148,7 @@ Ask TUI before major architectural copy/promote decisions. If a feature needs TU
 - Companion chat smoke passes.
 - Knowledge ask/search smoke passes.
 - Memory, skill, and persona CRUD smoke passes.
-- Delegation dry-run/live smoke passes through public contracts.
+- Delegation smoke is verified through public contracts, or a skipped live delegation check is explicitly documented when no dry-run route exists and the live command would create shared session/task state.
 - `npm pack` and install smoke pass.
 - The TUI can complete normal assistant work without requiring slash commands.
 - Daemon status, companion chat, knowledge ask/search, memory, skills, personas, approvals, and work-plan commands work or fail with clear actionable errors.
