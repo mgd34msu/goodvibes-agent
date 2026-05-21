@@ -87,8 +87,8 @@ export class AutomationControlPanel extends ScrollableListPanel<AutomationRun> {
 
   protected override getEmptyStateActions(): Array<{ command: string; summary: string }> {
     return [
-      { command: '/schedule add cron 0 * * * * repo sweep', summary: 'create a recurring automation job' },
-      { command: '/schedule list', summary: 'inspect jobs and run history from the shell' },
+      { command: '/schedule list', summary: 'inspect jobs and run history without mutating schedules' },
+      { command: '/automation jobs', summary: 'review daemon-owned automation jobs from the Agent CLI' },
     ];
   }
 
@@ -131,7 +131,7 @@ export class AutomationControlPanel extends ScrollableListPanel<AutomationRun> {
         { label: 'dead letters', value: String(snapshot.deliveryTotals.deadLettered), valueColor: snapshot.deliveryTotals.deadLettered > 0 ? C.warn : C.dim },
         { label: 'sources', value: String(snapshot.sourceCount), valueColor: snapshot.sourceCount > 0 ? C.info : C.dim },
       ], C),
-      buildGuidanceLine(width, '/schedule list', 'manage jobs and use the web or surface controls for retries, delivery, and cross-surface sessions', C),
+      buildGuidanceLine(width, '/schedule list', 'read-only in Agent; schedule mutation/run controls remain blocked here', C),
     ];
 
     if (jobs.length === 0 && runs.length === 0) {

@@ -1140,7 +1140,7 @@ describe('DaemonServer', () => {
     expect(body.jobs.some((job) => job.name === 'API Heartbeat')).toBe(true);
   });
 
-  test('automation control-plane API can create and run jobs', async () => {
+  test('automation control-plane API creates jobs but blocks Agent-owned local runs', async () => {
     daemon.enable({ daemon: true }, TEST_TOKEN);
     await daemon.start();
 
@@ -1165,10 +1165,9 @@ describe('DaemonServer', () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${TEST_TOKEN}` },
     });
-    expect(run.status).toBe(200);
-    const runBody = await run.json() as { jobId: string; runId: string };
-    expect(runBody.jobId).toBe(created.id);
-    expect(typeof runBody.runId).toBe('string');
+    expect(run.status).toBe(500);
+    const runBody = await run.json() as { error?: string };
+    expect(runBody.error).toContain('does not spawn local automation agents');
   });
 
   test('automation API accepts cron stagger, main target, and upstream-compatible execution metadata', async () => {

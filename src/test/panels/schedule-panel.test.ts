@@ -70,6 +70,8 @@ describe('SchedulePanel', () => {
     panel.onActivate();
     const text = linesText(panel.render(90, 20));
     expect(text).toContain('No scheduled tasks');
+    expect(text).toContain('Schedule mutation and run controls are blocked');
+    expect(text).not.toContain('/schedule add');
   });
 
   test('renders scheduled task rows through the shared workspace path', () => {
@@ -86,5 +88,23 @@ describe('SchedulePanel', () => {
       expect(text).toContain('0 0 * * *');
       expect(text).toContain('Run a daily repo sweep');
     });
+  });
+
+  test('blocks copied schedule mutation and run shortcuts in Agent', async () => {
+    const panel = new SchedulePanel(manager);
+    await manager.createJob({
+      name: 'Daily Sweep',
+      prompt: 'Run a daily repo sweep',
+      schedule: normalizeCronSchedule('0 0 * * *'),
+      enabled: true,
+    });
+
+    panel.onActivate();
+
+    expect(panel.handleInput('r')).toBe(true);
+    expect(linesText(panel.render(100, 24))).toContain('Schedule run is blocked in GoodVibes Agent');
+
+    expect(panel.handleInput(' ')).toBe(true);
+    expect(linesText(panel.render(100, 24))).toContain('Schedule mutation is read-only in GoodVibes Agent');
   });
 });

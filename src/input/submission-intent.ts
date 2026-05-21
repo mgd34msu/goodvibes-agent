@@ -3,8 +3,8 @@ export type SubmissionIntentKind =
   | 'prompt'
   | 'slash-command'
   | 'orchestration'
+  | 'delegation'
   | 'plan'
-  | 'review'
   | 'panel-action'
   | 'shell'
   | 'memory-pin';
@@ -15,4 +15,3 @@ export interface SubmissionIntent {
   readonly commandName?: string;
   readonly hasAttachments: boolean;
 }
-

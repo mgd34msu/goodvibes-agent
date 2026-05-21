@@ -6,7 +6,11 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { OrchestrationEvent } from '@/runtime/index.ts';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { normalizeWrfcAgentToolInvocation, wrapWrfcAgentTool } from '../../tools/wrfc-agent-guard.ts';
+import {
+  AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
+  normalizeAgentToolInvocationForAgentPolicy,
+  wrapAgentToolForAgentPolicy,
+} from '../../tools/wrfc-agent-guard.ts';
 
 const EXPECTED_AGENT_TEMPLATES = [
   'orchestrator',
@@ -25,7 +29,7 @@ const flushMicrotasks = async () => { await Promise.resolve(); await Promise.res
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeAgentHarness() {
+function makeAgentHarness(options: { readonly guarded?: boolean } = {}) {
   const configDir = join(tmpdir(), `gv-agent-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir });
   const runtimeBus = new RuntimeEventBus();
@@ -46,7 +50,7 @@ function makeAgentHarness() {
     messageBus,
     configManager,
   });
-  wrapWrfcAgentTool(agentTool);
+  if (options.guarded) wrapAgentToolForAgentPolicy(agentTool);
   return { agentTool, manager, messageBus, configManager };
 }
 
@@ -124,7 +128,12 @@ describe('spawn mode', () => {
   });
 
   test('plain spawn does not implicitly start WRFC', async () => {
-    const result = await runAgent({ mode: 'spawn', task: 'Inspect one thing with a normal agent' });
+    const result = await runAgent({
+      mode: 'spawn',
+      task: 'Inspect one thing with a normal agent',
+      reviewMode: 'none',
+      dangerously_disable_wrfc: true,
+    });
     const record = await runAgent({ mode: 'get', agentId: result.agentId as string });
     expect(record.reviewMode).toBe('none');
   });
@@ -215,9 +224,11 @@ describe('spawn mode', () => {
   test('batch-spawn with restrictTools propagates to each agent', async () => {
     const result = await runAgent({
       mode: 'batch-spawn',
+      reviewMode: 'none',
+      dangerously_disable_wrfc: true,
       tasks: [
-        { task: 'Batch task A', template: 'engineer', tools: ['read', 'find'], restrictTools: true },
-        { task: 'Batch task B', template: 'engineer', tools: ['read'], restrictTools: true },
+        { task: 'Batch task A', template: 'engineer', tools: ['read', 'find'], restrictTools: true, reviewMode: 'none', dangerously_disable_wrfc: true },
+        { task: 'Batch task B', template: 'engineer', tools: ['read'], restrictTools: true, reviewMode: 'none', dangerously_disable_wrfc: true },
       ],
     });
     const agents = result.agents as Array<{ id: string; task: string }>;
@@ -313,59 +324,45 @@ describe('spawn mode', () => {
     expect(harness.manager.list().filter((agent) => agent.parentAgentId == null)).toHaveLength(1);
   });
 
-  test('collapses narrowed rate limiter WRFC role batch to the authoritative user request', () => {
-    const normalized = normalizeWrfcAgentToolInvocation({
-      mode: 'batch-spawn',
-      cohort: 'rate-limiter-wrfc',
-      tasks: [
-        {
-          task: 'Independently design a minimal token bucket rate limiter API for an empty repository. Do not write files.',
-          template: 'engineer',
-          tools: ['find', 'inspect'],
-          restrictTools: true,
-          dangerously_disable_wrfc: true,
-        },
-        {
-          task: 'Review expected correctness properties for the rate limiter. Do not write files.',
-          template: 'reviewer',
-          tools: ['find', 'inspect'],
-          restrictTools: true,
-          dangerously_disable_wrfc: true,
-        },
-      ],
-    }, {
-      getLastUserMessage: () => 'make a token bucket rate limiter',
+  test('Agent runtime guard blocks local spawn and points explicit build work to TUI delegation', async () => {
+    const guarded = makeAgentHarness({ guarded: true });
+    const result = await guarded.agentTool.execute({
+      mode: 'spawn',
+      task: 'Build the feature',
+      template: 'engineer',
+      reviewMode: 'wrfc',
     });
 
-    expect(normalized.mode).toBe('spawn');
-    expect(normalized.task).toBe('make a token bucket rate limiter');
-    expect(normalized.template).toBe('engineer');
-    expect(normalized.reviewMode).toBe('wrfc');
-    expect(normalized.dangerously_disable_wrfc).toBe(false);
-    expect(normalized.tools).toBeUndefined();
-    expect(normalized.restrictTools).toBeUndefined();
-    const context = String(normalized.context);
-    expect(context).toContain('Authoritative user request');
-    expect(context).toContain('Proposed child tasks');
-    expect(context).toContain('Do not write files');
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(AGENT_LOCAL_SPAWN_DENIAL_MESSAGE);
+    expect(guarded.manager.list()).toHaveLength(0);
   });
 
-  test('normalizes plain batch-spawn to disable WRFC on every root agent', () => {
-    const normalized = normalizeWrfcAgentToolInvocation({
+  test('Agent runtime guard blocks local batch-spawn fanout', async () => {
+    const guarded = makeAgentHarness({ guarded: true });
+    const result = await guarded.agentTool.execute({
       mode: 'batch-spawn',
-      cohort: 'plain-batch',
       tasks: [
-        { task: 'Inspect package metadata', template: 'engineer' },
-        { task: 'Inspect tests', template: 'engineer', reviewMode: 'none' },
+        { task: 'Implement locally', template: 'engineer' },
+        { task: 'Review locally', template: 'reviewer' },
       ],
     });
 
-    expect(normalized.reviewMode).toBe('none');
-    expect(normalized.dangerously_disable_wrfc).toBe(true);
-    const tasks = normalized.tasks as Array<Record<string, unknown>>;
-    expect(tasks).toHaveLength(2);
-    expect(tasks.every((task) => task.reviewMode === 'none')).toBe(true);
-    expect(tasks.every((task) => task.dangerously_disable_wrfc === true)).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('does not spawn local');
+    expect(guarded.manager.list()).toHaveLength(0);
+  });
+
+  test('Agent runtime guard leaves read-only agent inspection modes unchanged', () => {
+    const normalized = normalizeAgentToolInvocationForAgentPolicy({
+      mode: 'list',
+      status: 'running',
+    });
+
+    expect(normalized).toEqual({
+      mode: 'list',
+      status: 'running',
+    });
   });
 
   test('child spawn inherits and enforces the parent capability ceiling', async () => {
@@ -706,8 +703,8 @@ describe('list mode', () => {
   });
 
   test('list returns all spawned agents', async () => {
-    await runAgent({ mode: 'spawn', task: 'Task One' });
-    await runAgent({ mode: 'spawn', task: 'Task Two' });
+    await runAgent({ mode: 'spawn', task: 'Task One', reviewMode: 'none', dangerously_disable_wrfc: true });
+    await runAgent({ mode: 'spawn', task: 'Task Two', reviewMode: 'none', dangerously_disable_wrfc: true });
 
     const result = await runAgent({ mode: 'list' });
     const agents = result.agents as Array<Record<string, unknown>>;

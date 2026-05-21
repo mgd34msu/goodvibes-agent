@@ -42,16 +42,15 @@ import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 
-// Copied TUI policy retained only for the near-fork baseline checkpoint.
-// This is not product-ready Agent behavior; replace with serial/proactive
-// Agent policy and explicit build-delegation-only WRFC before user validation.
-const COPIED_TUI_ORCHESTRATION_GUARDRAILS = [
-  '## GoodVibes TUI Orchestration Guardrails',
-  '- If the user asks to make, build, implement, create, add, fix, update, or patch something, preserve that implementation request. Do not restate it as design-only, planning-only, read-only, or no-write work unless the user explicitly requested that.',
-  '- Do not add "Do not write files", restrict tools to read/find/inspect, or remove write/exec capability for implementation work unless the user explicitly asked for read-only analysis.',
-  '- For one deliverable that needs WRFC, reviewed implementation, testing, verification, or review/fix cycles, use one `agent` spawn with `template: "engineer"` and `reviewMode: "wrfc"` whose `task` is the full user request. Do not batch-spawn sibling Engineer/Reviewer/Tester/Verifier roots for the same deliverable.',
-  '- Use `batch-spawn` only for genuinely independent sidecar tasks. Review, test, verify, and fix phases for one deliverable belong inside the WRFC owner chain.',
-  '- If an `agent` tool result reports `authoritativeWrfcChain: true`, `continueRootSpawning: false`, or `orchestrationStopSignal: "wrfc_owner_chain_started"`, stop spawning root agents for that deliverable and wait/report status instead.',
+const GOODVIBES_AGENT_OPERATOR_POLICY = [
+  '## GoodVibes Agent Operator Policy',
+  '- Default to serial, proactive assistant work in the main conversation. Answer, inspect, summarize, remember useful non-secret facts, configure local Agent state, use read-only daemon/operator routes, and take safe non-destructive actions without spawning local agents or WRFC.',
+  '- GoodVibes Agent connects to an externally managed GoodVibes daemon. Do not start, stop, restart, install, expose, or mutate daemon/listener/control-plane surface posture from Agent runtime.',
+  '- WRFC is never the default Agent reasoning path. Do not create local WRFC chains for planning, research, operations, knowledge, memory, configuration, approvals, automation observability, or ordinary assistant work.',
+  '- GoodVibes Agent is not the coding TUI. Do not use the `agent` tool to spawn local Engineer, Reviewer, Tester, Verifier, or batch-spawn roots from Agent.',
+  '- When the user explicitly asks to build, implement, fix, patch, or review code, preserve the full original user ask and delegate one build request to GoodVibes TUI through the public shared-session/build-delegation contract. Include clear executionIntent and request WRFC only for explicit build/fix/review work or when the user explicitly asks for WRFC/agent review.',
+  '- Do not narrow explicit build/fix/review requests into design-only, read-only, or no-write work unless the user explicitly requested that limitation. TUI owns file edits, git/worktree work, sandbox/QEMU UX, and any WRFC owner chain.',
+  '- If a stable public delegation route is unavailable, say that the task needs GoodVibes TUI delegation and report the missing route instead of pretending to implement it locally or spawning sibling local agents.',
 ].join('\n');
 
 function joinPromptParts(...parts: Array<string | null | undefined>): string {
@@ -205,7 +204,7 @@ export async function bootstrapRuntime(
       const contextWindow = providerRegistry.getContextWindowForModel(currentModel);
       const tier = getTierForContextWindow(contextWindow);
       const supplement = getTierPromptSupplement(tier);
-      return joinPromptParts(runtime.systemPrompt, COPIED_TUI_ORCHESTRATION_GUARDRAILS, supplement);
+      return joinPromptParts(runtime.systemPrompt, GOODVIBES_AGENT_OPERATOR_POLICY, supplement);
     },
     hookDispatcher,
     flagManager: services.featureFlags,
@@ -247,7 +246,6 @@ export async function bootstrapRuntime(
     acpTaskAdapter.sync(acpManager);
   }, ACP_TASK_SYNC_INTERVAL_MS);
   bootstrapUnsubs.push(() => clearInterval(acpTaskSyncInterval));
-  orchestrator.registerDelegateTool(acpManager);
   const opsTaskManager = createTaskManager(store, runtimeBus, userSessionId);
   const opsControlPlane = services.featureFlags.isEnabled('operator-control-plane')
     ? new OpsControlPlane(opsTaskManager, runtimeBus, store, userSessionId)

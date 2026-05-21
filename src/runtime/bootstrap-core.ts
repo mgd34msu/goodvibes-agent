@@ -29,7 +29,7 @@ import { registerBootstrapHookBridge } from '@/runtime/index.ts';
 import { registerBootstrapRuntimeEvents } from '@/runtime/index.ts';
 import { createRuntimeServices, type RuntimeServices } from './services.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
-import { installWrfcAgentToolGuard } from '../tools/wrfc-agent-guard.ts';
+import { installAgentToolPolicyGuard } from '../tools/wrfc-agent-guard.ts';
 
 export interface BootstrapCoreState {
   readonly userSessionId: string;
@@ -222,7 +222,7 @@ export async function initializeBootstrapCore(
     overflowHandler: services.overflowHandler,
     changeTracker: services.sessionChangeTracker,
   });
-  installWrfcAgentToolGuard(toolRegistry, {
+  installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),
   });
   services.agentOrchestrator.setDependencies({

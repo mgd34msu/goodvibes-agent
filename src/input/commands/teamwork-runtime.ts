@@ -2,8 +2,7 @@ import type { CommandRegistry, CommandContext } from '../command-registry.ts';
 import { join } from 'node:path';
 import { AGENT_TEMPLATES } from '@pellux/goodvibes-sdk/platform/tools';
 import { ArchetypeLoader, type AgentArchetype } from '@pellux/goodvibes-sdk/platform/agents';
-import { requireOpsApi, requireReadModels, requireShellPaths } from './runtime-services.ts';
-import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireReadModels, requireShellPaths } from './runtime-services.ts';
 
 type TeamworkModeId =
   | 'local-engineer'
@@ -151,38 +150,14 @@ function buildTeamworkReviewSnapshot(ctx: CommandContext): TeamworkReviewSnapsho
   };
 }
 
-function createModeTask(mode: TeamworkMode, title: string, ctx: CommandContext): string {
-  const task = requireOpsApi(ctx).tasks.create({
-    kind: mode.taskKind,
-    owner: mode.owner,
-    title,
-    description: JSON.stringify({
-      title,
-      mode: mode.id,
-      template: mode.template,
-      reviewMode: mode.reviewMode,
-      executionProtocol: mode.executionProtocol,
-    }),
-  });
-  return task.id;
-}
-
-function createResolvedModeTask(mode: ResolvedArchetypeMode, title: string, ctx: CommandContext): string {
-  const task = requireOpsApi(ctx).tasks.create({
-    kind: mode.taskKind,
-    owner: mode.owner,
-    title,
-    description: JSON.stringify({
-      title,
-      mode: mode.id,
-      template: mode.template,
-      reviewMode: mode.reviewMode,
-      executionProtocol: mode.executionProtocol,
-      source: mode.source,
-      family: mode.family,
-    }),
-  });
-  return task.id;
+function printAgentDelegationBoundary(ctx: CommandContext, requestedAction: string): void {
+  ctx.print([
+    'GoodVibes Agent does not create local teamwork, Engineer, Reviewer, Tester, Verifier, or WRFC-owned tasks.',
+    `  requested: ${requestedAction}`,
+    '  policy: keep ordinary work serial in the main assistant conversation',
+    '  build/fix/review: delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract',
+    '  preserve: full original user ask and executionIntent; let TUI own WRFC when explicitly requested',
+  ].join('\n'));
 }
 
 export function registerTeamworkRuntimeCommands(registry: CommandRegistry): void {
@@ -249,12 +224,7 @@ export function registerTeamworkRuntimeCommands(registry: CommandRegistry): void
           ctx.print('Usage: /teamwork create-mode <local-engineer|local-shell|remote-engineer|teammate|research|dream|review|verifier|integration> <title...>');
           return;
         }
-        try {
-          const taskId = createModeTask(mode, title, ctx);
-          ctx.print(`Created teamwork task ${taskId} using mode ${mode.id}.`);
-        } catch (error) {
-          ctx.print(String(summarizeError(error) ?? error));
-        }
+        printAgentDelegationBoundary(ctx, `/teamwork create-mode ${mode.id} ${title}`);
         return;
       }
 
@@ -359,12 +329,7 @@ export function registerTeamworkRuntimeCommands(registry: CommandRegistry): void
           ctx.print(`Unknown archetype: ${archetypeName}`);
           return;
         }
-        try {
-          const taskId = createResolvedModeTask(mode, title, ctx);
-          ctx.print(`Created teamwork task ${taskId} using archetype ${mode.id}.`);
-        } catch (error) {
-          ctx.print(String(summarizeError(error) ?? error));
-        }
+        printAgentDelegationBoundary(ctx, `/teamwork create-archetype ${mode.id} ${title}`);
         return;
       }
 

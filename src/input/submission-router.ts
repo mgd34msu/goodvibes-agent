@@ -8,15 +8,11 @@ export interface SubmissionRouterInput {
 }
 
 const PLAN_COMMANDS = new Set(['plan']);
-const REVIEW_COMMANDS = new Set(['review']);
+const DELEGATION_COMMANDS = new Set(['review', 'wrfc', 'teamwork', 'agents', 'remote']);
 const PANEL_COMMANDS = new Set(['panel']);
 const ORCHESTRATION_COMMANDS = new Set([
-  'wrfc',
   'orchestration',
-  'teamwork',
   'tasks',
-  'agents',
-  'remote',
   'bridge',
   'teleport',
   'sandbox',
@@ -47,8 +43,8 @@ export function routeSubmissionIntent(input: SubmissionRouterInput): SubmissionI
     if (PLAN_COMMANDS.has(commandName)) {
       return { kind: 'plan', label: 'plan', commandName, hasAttachments };
     }
-    if (REVIEW_COMMANDS.has(commandName)) {
-      return { kind: 'review', label: 'review', commandName, hasAttachments };
+    if (DELEGATION_COMMANDS.has(commandName)) {
+      return { kind: 'delegation', label: 'TUI delegation', commandName, hasAttachments };
     }
     if (PANEL_COMMANDS.has(commandName)) {
       return { kind: 'panel-action', label: 'panel action', commandName, hasAttachments };
@@ -61,4 +57,3 @@ export function routeSubmissionIntent(input: SubmissionRouterInput): SubmissionI
 
   return { kind: 'prompt', label: 'prompt', hasAttachments };
 }
-

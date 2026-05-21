@@ -13,7 +13,7 @@ The Agent product connects to an already-running GoodVibes daemon. It does not i
 - Installed command: `goodvibes-agent`
 - Daemon model: external daemon only
 
-Coding and WRFC code is still present because this is a broad foundation copy. It is not the desired Agent policy. Before user-facing validation, the Agent prompt and behavior must be replaced with serial/proactive assistant policy, with WRFC used only for explicit build/fix/review delegation to GoodVibes TUI.
+Coding and WRFC code is still present because this is a broad foundation copy, but the Agent runtime policy is now serial/proactive by default. Local agent spawning and local WRFC are blocked for normal Agent work; explicit build/fix/review requests must be delegated to GoodVibes TUI through public session/delegation contracts.
 
 ## Install
 

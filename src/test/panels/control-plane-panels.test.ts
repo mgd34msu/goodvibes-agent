@@ -192,6 +192,9 @@ describe('control-plane operator panels', () => {
     expect(text).toContain('Nightly Sweep');
     expect(text).toContain('running');
     expect(text).toContain('deliveries ok');
+    expect(text).toContain('read-only in Agent');
+    expect(text).not.toContain('/schedule add');
+    expect(text).not.toContain('manage jobs');
   });
 
   test('RoutesPanel renders bound surface/session context', () => {

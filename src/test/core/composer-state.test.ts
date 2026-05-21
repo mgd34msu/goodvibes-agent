@@ -9,9 +9,10 @@ describe('composer state', () => {
       pendingApproval: true,
       turnState: 'preflight',
     });
-    expect(state.modeLabel).toBe('review');
+    expect(state.modeLabel).toBe('TUI delegation');
     expect(state.statusLabel).toBe('preflight');
     expect(state.flags).toContain('approval');
+    expect(state.flags).toContain('delegation');
     expect(state.pendingRisk).toBe('approval-wait');
   });
 
@@ -24,4 +25,3 @@ describe('composer state', () => {
     expect(state.pendingRisk).toBe('shell');
   });
 });
-

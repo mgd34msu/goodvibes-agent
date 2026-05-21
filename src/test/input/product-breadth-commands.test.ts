@@ -2054,7 +2054,7 @@ describe('product breadth commands', () => {
     }
   });
 
-  test('teamwork command exposes packaged modes, recipes, and task creation', async () => {
+  test('teamwork command exposes packaged modes and blocks local task creation', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const teamwork = registry.get('teamwork');
@@ -2107,9 +2107,9 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await teamwork!.handler(['create-mode', 'remote-engineer', 'Remote', 'bridge', 'certification'], ctx);
-    expect(out.join('\n')).toContain('Created teamwork task');
-    expect(created[0]?.kind).toBe('acp');
-    expect(created[0]?.owner).toBe('remote-engineer');
+    expect(out.join('\n')).toContain('does not create local teamwork');
+    expect(out.join('\n')).toContain('delegate one request to GoodVibes TUI');
+    expect(created).toHaveLength(0);
 
     mkdirSync(join(root, '.goodvibes', 'agents'), { recursive: true });
     writeFileSync(join(root, '.goodvibes', 'agents', 'doc-specialist.md'), [
@@ -2138,9 +2138,9 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await teamwork!.handler(['create-archetype', 'doc-specialist', 'Document', 'handoff'], ctx);
-    expect(out.join('\n')).toContain('Created teamwork task');
-    expect(created[1]?.kind).toBe('agent');
-    expect(created[1]?.owner).toBe('custom:doc-specialist');
+    expect(out.join('\n')).toContain('does not create local teamwork');
+    expect(out.join('\n')).toContain('/teamwork create-archetype doc-specialist Document handoff');
+    expect(created).toHaveLength(0);
   });
 
   test('health command exposes unified setup, service, sandbox, and provider surfaces', async () => {

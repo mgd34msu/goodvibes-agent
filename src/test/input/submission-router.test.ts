@@ -16,10 +16,25 @@ describe('submission router', () => {
     });
   });
 
-  test('classifies orchestration commands', () => {
+  test('classifies explicit delegation commands', () => {
     expect(routeSubmissionIntent({ text: '/teamwork create-mode review bug bash' })).toMatchObject({
-      kind: 'orchestration',
+      kind: 'delegation',
       commandName: 'teamwork',
+    });
+    expect(routeSubmissionIntent({ text: '/wrfc build this' })).toMatchObject({
+      kind: 'delegation',
+      commandName: 'wrfc',
+    });
+    expect(routeSubmissionIntent({ text: '/review this patch' })).toMatchObject({
+      kind: 'delegation',
+      commandName: 'review',
+    });
+  });
+
+  test('classifies non-delegation orchestration commands separately', () => {
+    expect(routeSubmissionIntent({ text: '/tasks list' })).toMatchObject({
+      kind: 'orchestration',
+      commandName: 'tasks',
     });
   });
 
@@ -28,4 +43,3 @@ describe('submission router', () => {
     expect(routeSubmissionIntent({ text: '!# remember this' }).kind).toBe('memory-pin');
   });
 });
-

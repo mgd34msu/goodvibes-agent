@@ -357,25 +357,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     messageSender: agentMessageBus,
   });
   sessionBroker.setContinuationRunner(async ({ task, input }) => {
-    const record = agentManager.spawn({
-      mode: 'spawn',
-      task,
-      ...(input.routing?.modelId ? { model: input.routing.modelId } : {}),
-      ...(input.routing?.providerId ? { provider: input.routing.providerId } : {}),
-      ...(input.routing?.tools?.length ? { tools: [...input.routing.tools], restrictTools: true } : {}),
-      ...(input.routing
-        ? {
-            routing: {
-              providerSelection: input.routing.providerSelection ?? (input.routing.providerId ? 'concrete' : 'inherit-current'),
-              providerFailurePolicy: input.routing.providerFailurePolicy ?? 'ordered-fallbacks',
-              ...(input.routing.fallbackModels?.length ? { fallbackModels: [...input.routing.fallbackModels] } : {}),
-            },
-          }
-        : {}),
-      ...(input.routing?.reasoningEffort ? { reasoningEffort: input.routing.reasoningEffort } : {}),
-      context: `shared-session:${input.sessionId}`,
-    });
-    return { agentId: record.id };
+    throw new Error([
+      'GoodVibes Agent does not own shared-session task execution.',
+      `Received task for session ${input.sessionId}: ${task}`,
+      'Delegate explicit build/fix/review work to GoodVibes TUI through the public shared-session/build-delegation contract.',
+    ].join(' '));
   });
   const artifactStore = new ArtifactStore({ configManager });
   const memoryEmbeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
@@ -401,20 +387,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     runtimeBus: options.runtimeBus,
     deliveryManager,
     spawnTask: (input) => {
-      const record = agentManager.spawn({
-        mode: 'spawn',
-        task: input.prompt,
-        ...(input.modelId ? { model: input.modelId } : {}),
-        ...(input.modelProvider ? { provider: input.modelProvider } : {}),
-        ...(input.fallbackModels !== undefined ? { fallbackModels: [...input.fallbackModels] } : {}),
-        ...(input.routing ? { routing: input.routing } : {}),
-        ...(input.executionIntent ? { executionIntent: input.executionIntent } : {}),
-        ...(input.template ? { template: input.template } : {}),
-        ...(input.reasoningEffort ? { reasoningEffort: input.reasoningEffort } : {}),
-        ...(input.toolAllowlist?.length ? { tools: [...input.toolAllowlist], restrictTools: true } : {}),
-        ...(input.context ? { context: input.context } : {}),
-      });
-      return record.id;
+      throw new Error([
+        'GoodVibes Agent does not spawn local automation agents.',
+        `Received automation prompt: ${input.prompt}`,
+        'Use read-only automation observability here; explicit build/fix/review execution belongs to GoodVibes TUI delegation.',
+      ].join(' '));
     },
   });
   const knowledgeStore = new KnowledgeStore({

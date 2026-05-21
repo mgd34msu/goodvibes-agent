@@ -46,7 +46,7 @@ type ViewItem =
 
 type ScheduleAutomationManager = Pick<
   AutomationManager,
-  'start' | 'listJobs' | 'listRuns' | 'setEnabled' | 'runNow'
+  'listJobs' | 'listRuns'
 >;
 
 function formatSchedule(schedule: AutomationScheduleDefinition): string {
@@ -101,10 +101,6 @@ export class SchedulePanel extends BasePanel {
 
   override onActivate(): void {
     super.onActivate();
-    void this.automationManager.start().then(() => {
-      this.rebuild();
-      this.markDirty();
-    });
     this.rebuild();
     this.refreshTimerId = this.registerTimer(setInterval(() => {
       this.rebuild();
@@ -175,26 +171,11 @@ export class SchedulePanel extends BasePanel {
       }
       case 'return':
       case ' ': {
-        // Toggle enabled/disabled on selected task
-        const item = this.items[this.selectedIndex];
-        if (item?.kind === 'task') {
-          void this.automationManager.setEnabled(item.task.id, !item.task.enabled).then(() => {
-            this.rebuild();
-            this.markDirty();
-          });
-        }
+        this.setError('Schedule mutation is read-only in GoodVibes Agent; use daemon/TUI-owned explicit approval routes later.');
         return true;
       }
       case 'r': {
-        // Trigger immediate run of selected task
-        const item = this.items[this.selectedIndex];
-        if (item?.kind === 'task') {
-          this.automationManager.runNow(item.task.id).catch(() => {
-            // Non-fatal — error logged by scheduler
-          });
-          this.rebuild();
-          this.markDirty();
-        }
+        this.setError('Schedule run is blocked in GoodVibes Agent; local automation spawns are disabled.');
         return true;
       }
       case 'R': {
@@ -224,14 +205,15 @@ export class SchedulePanel extends BasePanel {
             lines: buildEmptyState(
               width,
               ' No scheduled tasks',
-              'Use /schedule add to create a recurring task. Scheduled runs and history will appear here.',
+              'Schedule mutation and run controls are blocked in GoodVibes Agent. Use /schedule list for read-only history.',
               [],
               DEFAULT_PANEL_PALETTE,
             ),
           },
         ],
         footerLines: [
-          buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   Space', DEFAULT_PANEL_PALETTE.info], [' toggle', DEFAULT_PANEL_PALETTE.dim], ['   r', DEFAULT_PANEL_PALETTE.info], [' run now', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim]]),
+          ...(this.renderErrorLine(width) ? [this.renderErrorLine(width)!] : []),
+          buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim], ['   mutation/run blocked', DEFAULT_PANEL_PALETTE.warn]]),
         ],
         palette: DEFAULT_PANEL_PALETTE,
       });
@@ -253,7 +235,8 @@ export class SchedulePanel extends BasePanel {
     const scheduledTasksSection = resolveScrollablePanelSection(width, height, {
       intro: 'Review recurring scheduled tasks, next run timing, recent history, and enablement state.',
       footerLines: [
-        buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   Space', DEFAULT_PANEL_PALETTE.info], [' toggle', DEFAULT_PANEL_PALETTE.dim], ['   r', DEFAULT_PANEL_PALETTE.info], [' run now', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim]]),
+        ...(this.renderErrorLine(width) ? [this.renderErrorLine(width)!] : []),
+        buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim], ['   mutation/run blocked', DEFAULT_PANEL_PALETTE.warn]]),
       ],
       palette: DEFAULT_PANEL_PALETTE,
       beforeSections: [summarySection],
@@ -276,7 +259,8 @@ export class SchedulePanel extends BasePanel {
       intro: 'Review recurring scheduled tasks, next run timing, recent history, and enablement state.',
       sections,
       footerLines: [
-        buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   Space', DEFAULT_PANEL_PALETTE.info], [' toggle', DEFAULT_PANEL_PALETTE.dim], ['   r', DEFAULT_PANEL_PALETTE.info], [' run now', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim]]),
+        ...(this.renderErrorLine(width) ? [this.renderErrorLine(width)!] : []),
+        buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim], ['   mutation/run blocked', DEFAULT_PANEL_PALETTE.warn]]),
       ],
       palette: DEFAULT_PANEL_PALETTE,
     });

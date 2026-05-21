@@ -27,8 +27,11 @@ export function deriveComposerState(input: ComposerStateInput): ComposerState {
   if (intent.kind === 'shell') {
     flags.push('shell');
     if (pendingRisk === 'none') pendingRisk = 'shell';
-  } else if (intent.kind === 'slash-command' || intent.kind === 'plan' || intent.kind === 'review') {
+  } else if (intent.kind === 'slash-command' || intent.kind === 'plan') {
     if (pendingRisk === 'none') pendingRisk = 'command';
+  } else if (intent.kind === 'delegation') {
+    flags.push('delegation');
+    if (pendingRisk === 'none') pendingRisk = 'remote';
   } else if (intent.kind === 'orchestration') {
     flags.push('orchestration');
     if (pendingRisk === 'none') pendingRisk = 'remote';
@@ -56,4 +59,3 @@ export function deriveComposerState(input: ComposerStateInput): ComposerState {
     flags,
   };
 }
-

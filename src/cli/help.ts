@@ -110,12 +110,12 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   tui: {
     usage: ['tui [path]', '[prompt]'],
     summary: 'Start the interactive terminal UI. A prompt starts the TUI with that prompt seeded.',
-    examples: ['', 'tui ~/work/project', '"review this repo"'],
+    examples: ['', 'tui ~/work/project', '"summarize current tasks"'],
   },
   run: {
     usage: ['run [prompt] [--output text|json|stream-json]', 'exec [prompt]'],
     summary: 'Run a single non-interactive agent turn and write the result to stdout.',
-    examples: ['run "summarize the current project"', 'run --output json "list risks"', 'exec --output stream-json "fix lint"'],
+    examples: ['run "summarize the current project"', 'run --output json "list risks"', 'exec --output stream-json "check daemon status"'],
   },
   onboarding: {
     usage: ['onboarding', 'setup', 'onboarding status'],

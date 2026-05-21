@@ -3,12 +3,22 @@ import type { CommandRegistry, CommandContext } from '../command-registry.ts';
 import { AGENT_TEMPLATES } from '@pellux/goodvibes-sdk/platform/tools';
 import { handleRemoteSetupCommand } from './remote-runtime-setup.ts';
 import { handleRemotePoolCommand } from './remote-runtime-pool.ts';
-import { requireAgentManager, requireAcpManager, requirePeerClient, requireShellPaths } from './runtime-services.ts';
+import { requireAgentManager, requireAcpManager, requirePeerClient } from './runtime-services.ts';
 
 type RemoteConnectionLike = { agentId: string };
 type RemoteCancelContext = Pick<CommandContext, 'print'>;
 type RemoteCancelAgentManager = Pick<ReturnType<typeof requireAgentManager>, 'cancel'>;
 type RemoteCancelAcpManager = Pick<ReturnType<typeof requireAcpManager>, 'cancel'>;
+
+function printRemoteDelegationBoundary(ctx: Pick<CommandContext, 'print'>, requestedAction: string): void {
+  ctx.print([
+    'GoodVibes Agent does not dispatch remote/local coding runners from copied TUI commands.',
+    `  requested: ${requestedAction}`,
+    '  policy: keep ordinary work serial in the main assistant conversation',
+    '  build/fix/review: delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract',
+    '  preserve: full original user ask and executionIntent; let TUI own runner/WRFC topology when explicitly requested',
+  ].join('\n'));
+}
 
 export function handleRemoteCancelCommand(
   agentId: string | undefined,
@@ -229,10 +239,6 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'dispatch') {
-        if (!ctx.ops.acpManager) {
-          ctx.print('ACP manager is not available for remote dispatch in this runtime.');
-          return;
-        }
         let template = 'general';
         let descriptionArgs = args.slice(1);
         if (descriptionArgs.length > 0 && descriptionArgs[0] in AGENT_TEMPLATES) {
@@ -244,55 +250,11 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           ctx.print('Usage: /remote dispatch [template] <description>');
           return;
         }
-        const templateDef = AGENT_TEMPLATES[template] ?? AGENT_TEMPLATES.general;
-        const workingDirectory = requireShellPaths(ctx).workingDirectory;
-        const runnerId = await ctx.ops.acpManager.spawn({
-          description,
-          context: `Self-hosted remote runner dispatched from session ${ctx.session.runtime.sessionId}. Follow ${template} discipline and return concise evidence.`,
-          tools: [...templateDef.defaultTools],
-          workingDirectory,
-        });
-        const now = Date.now();
-        remoteRunners.registerContract({
-          id: `runner:${runnerId}`,
-          runnerId,
-          label: `${template} remote runner`,
-          sourceTransport: 'acp',
-          trustClass: 'self-hosted-acp',
-          template,
-          capabilityCeiling: Object.freeze({
-            allowedTools: [...templateDef.defaultTools],
-            capabilityCeilingTools: [...templateDef.defaultTools],
-            executionProtocol: 'gather-plan-apply',
-            reviewMode: 'none',
-            communicationLane: 'direct',
-            orchestrationDepth: 0,
-            successCriteria: [],
-            requiredEvidence: [],
-            writeScope: [],
-          }),
-          createdAt: now,
-          lastUpdatedAt: now,
-          transport: Object.freeze({
-            state: 'initializing',
-            messageCount: 0,
-            errorCount: 0,
-          }),
-        });
-        ctx.print([
-          `Dispatched remote runner ${runnerId}`,
-          `  template: ${template}`,
-          `  tools: ${templateDef.defaultTools.join(', ')}`,
-          `  description: ${description}`,
-        ].join('\n'));
+        printRemoteDelegationBoundary(ctx, `/remote dispatch ${template} ${description}`);
         return;
       }
 
       if (subcommand === 'dispatch-pool') {
-        if (!ctx.ops.acpManager) {
-          ctx.print('ACP manager is not available for remote dispatch in this runtime.');
-          return;
-        }
         const poolId = args[1];
         if (!poolId) {
           ctx.print('Usage: /remote dispatch-pool <pool> [template] <description>');
@@ -314,49 +276,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           ctx.print('Usage: /remote dispatch-pool <pool> [template] <description>');
           return;
         }
-        const templateDef = AGENT_TEMPLATES[template] ?? AGENT_TEMPLATES.general;
-        const workingDirectory = requireShellPaths(ctx).workingDirectory;
-        const runnerId = await ctx.ops.acpManager.spawn({
-          description,
-          context: `Self-hosted remote runner dispatched from session ${ctx.session.runtime.sessionId} via pool ${poolId}. Follow ${template} discipline and return concise evidence.`,
-          tools: [...templateDef.defaultTools],
-          workingDirectory,
-        });
-        const now = Date.now();
-        remoteRunners.registerContract({
-          id: `runner:${runnerId}`,
-          runnerId,
-          poolId,
-          label: `${template} remote runner`,
-          sourceTransport: 'acp',
-          trustClass: pool.trustClass === 'mixed' ? 'self-hosted-acp' : pool.trustClass,
-          template,
-          capabilityCeiling: Object.freeze({
-            allowedTools: [...templateDef.defaultTools],
-            capabilityCeilingTools: [...templateDef.defaultTools],
-            executionProtocol: 'gather-plan-apply',
-            reviewMode: 'none',
-            communicationLane: 'direct',
-            orchestrationDepth: 0,
-            successCriteria: [],
-            requiredEvidence: [],
-            writeScope: [],
-          }),
-          createdAt: now,
-          lastUpdatedAt: now,
-          transport: Object.freeze({
-            state: 'initializing',
-            messageCount: 0,
-            errorCount: 0,
-          }),
-        });
-        remoteRunners.assignRunnerToPool(poolId, runnerId);
-        ctx.print([
-          `Dispatched remote runner ${runnerId} via pool ${poolId}`,
-          `  template: ${template}`,
-          `  tools: ${templateDef.defaultTools.join(', ')}`,
-          `  description: ${description}`,
-        ].join('\n'));
+        printRemoteDelegationBoundary(ctx, `/remote dispatch-pool ${pool.id} ${template} ${description}`);
         return;
       }
 
@@ -490,27 +410,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           ctx.print(`Unknown remote artifact: ${artifactId}`);
           return;
         }
-        const template = artifact.runnerContract.template in AGENT_TEMPLATES
-          ? artifact.runnerContract.template
-          : 'general';
-        const agentManager = ctx.ops.agentManager;
-        if (!agentManager) {
-          ctx.print('Agent manager is not available in this runtime.');
-          return;
-        }
-        const agent = agentManager.spawn({
-          mode: 'spawn',
-          task: artifact.task.task,
-          template,
-          tools: [...artifact.runnerContract.capabilityCeiling.allowedTools],
-          successCriteria: [...artifact.runnerContract.capabilityCeiling.successCriteria],
-          requiredEvidence: [...artifact.runnerContract.capabilityCeiling.requiredEvidence],
-          writeScope: [...artifact.runnerContract.capabilityCeiling.writeScope],
-          executionProtocol: artifact.runnerContract.capabilityCeiling.executionProtocol,
-          reviewMode: artifact.runnerContract.capabilityCeiling.reviewMode,
-          communicationLane: artifact.runnerContract.capabilityCeiling.communicationLane,
-        });
-        ctx.print(`Spawned local rerun agent ${agent.id} from remote artifact ${artifactId}.`);
+        printRemoteDelegationBoundary(ctx, `/remote rerun-local ${artifactId}`);
         return;
       }
 

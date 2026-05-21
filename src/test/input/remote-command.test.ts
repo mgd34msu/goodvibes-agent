@@ -261,7 +261,7 @@ describe('remote command', () => {
     expect(out.join('\n')).toContain('Imported remote review artifact');
   });
 
-  test('dispatches a self-hosted remote runner and can rerun imported work locally', async () => {
+  test('blocks copied remote dispatch and local rerun paths in Agent', async () => {
     resetTestRuntimeServices();
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
@@ -271,6 +271,17 @@ describe('remote command', () => {
     const store = createRuntimeStore();
     const spawn = mock(async () => 'remote-runner-1');
     const out: string[] = [];
+    const manager = getTestAgentManager();
+    const agent = manager.spawn({
+      mode: 'spawn',
+      task: 'Remote artifact available for rerun policy check',
+      template: 'engineer',
+      tools: ['read'],
+      dangerously_disable_wrfc: true,
+    });
+    agent.status = 'completed';
+    agent.fullOutput = 'Artifact generated.';
+    agent.completedAt = Date.now();
 
     const ctx = createRemoteCommandContext(store, out, {
       ops: {
@@ -281,16 +292,17 @@ describe('remote command', () => {
     });
 
     await remote!.handler(['dispatch', 'researcher', 'Inspect', 'deployment', 'logs'], ctx);
-    expect(spawn).toHaveBeenCalledTimes(1);
-    expect(out.join('\n')).toContain('Dispatched remote runner remote-runner-1');
+    expect(spawn).toHaveBeenCalledTimes(0);
+    expect(out.join('\n')).toContain('does not dispatch remote/local coding runners');
+    expect(out.join('\n')).toContain('delegate one request to GoodVibes TUI');
 
     store.setState((state) => ({
       ...state,
       acp: {
         ...state.acp,
         connections: new Map([
-          ['remote-runner-1', {
-            agentId: 'remote-runner-1',
+          [agent.id, {
+            agentId: agent.id,
             label: 'researcher remote runner',
             transportState: 'connected',
             connectedAt: Date.now(),
@@ -300,7 +312,7 @@ describe('remote command', () => {
             taskId: 'task-remote-1',
           }],
         ]),
-        activeConnectionIds: ['remote-runner-1'],
+        activeConnectionIds: [agent.id],
       },
       tasks: {
         ...state.tasks,
@@ -323,7 +335,7 @@ describe('remote command', () => {
     }));
 
     out.length = 0;
-    await remote!.handler(['export', 'remote-runner-1'], ctx);
+    await remote!.handler(['export', agent.id], ctx);
     expect(out.join('\n')).toContain('Exported remote review artifact');
 
     const artifactId = out.join('\n').match(/artifact:[^\s]+/)?.[0];
@@ -331,7 +343,8 @@ describe('remote command', () => {
 
     out.length = 0;
     await remote!.handler(['rerun-local', artifactId!], ctx);
-    expect(out.join('\n')).toContain('Spawned local rerun agent');
+    expect(out.join('\n')).toContain('does not dispatch remote/local coding runners');
+    expect(out.join('\n')).toContain(`/remote rerun-local ${artifactId}`);
   });
 
   test('renders remote setup guidance and exports reusable environment snippets', async () => {
@@ -424,13 +437,14 @@ describe('remote command', () => {
 
     out.length = 0;
     await remote!.handler(['dispatch-pool', 'ops', 'engineer', 'Triage', 'incident'], ctx);
-    expect(spawn).toHaveBeenCalledTimes(1);
-    expect(out.join('\n')).toContain('Dispatched remote runner remote-runner-pool-1 via pool ops');
+    expect(spawn).toHaveBeenCalledTimes(0);
+    expect(out.join('\n')).toContain('does not dispatch remote/local coding runners');
+    expect(out.join('\n')).toContain('/remote dispatch-pool ops engineer Triage incident');
 
     out.length = 0;
     await remote!.handler(['pool', 'show', 'ops'], ctx);
     expect(out.join('\n')).toContain('Remote Runner Pool ops');
-    expect(out.join('\n')).toContain('remote-runner-pool-1');
+    expect(out.join('\n')).toContain('runners: (none)');
 
     out.length = 0;
     await remote!.handler(['list'], ctx);

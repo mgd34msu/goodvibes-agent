@@ -48,4 +48,4 @@ Agent lifecycle commands that would start or mutate daemon posture are blocked i
 
 ## Current Baseline Notes
 
-This repository still contains broad copied TUI code. That is intentional for the baseline. Coding-first guardrails and WRFC-default behavior must be removed or reshaped before user-facing Agent validation. The final Agent product should be serial/proactive by default and delegate build/fix/review work explicitly to GoodVibes TUI.
+This repository still contains broad copied TUI code. That is intentional for the baseline. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/spawn fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.
