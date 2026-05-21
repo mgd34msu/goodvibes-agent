@@ -10,7 +10,9 @@ import {
 import { evaluateActionPolicy } from '../assistant/policy.js';
 import { AgentTuiApp } from '../tui/app.js';
 import { bootstrapAgentRuntime } from '../runtime/bootstrap.js';
+import { buildSdkCompatibilityReport } from '../daemon/sdk-compat.js';
 import { summarizeAuth, summarizeDaemonDiagnostics, type DaemonDiagnosticSummary } from '../daemon/diagnostics-format.js';
+import { classifyDaemonError, daemonErrorMessage } from '../daemon/client.js';
 import type { AgentRuntimeServices } from '../runtime/services.js';
 import type { MemoryClass, MemoryReviewState, MemoryScope, MemorySensitivity } from '../store/memory.js';
 import type { SkillReviewState } from '../store/skills.js';
@@ -61,6 +63,8 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
     }
     case 'config':
       return handleConfig(services);
+    case 'compat':
+      return handleSdkCompatibility(services);
     case 'chat':
       console.log((await runtime.handleUserText(text)).text);
       return 0;
@@ -95,6 +99,30 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
       console.error(renderHelp());
       return 2;
   }
+}
+
+async function handleSdkCompatibility(services: AgentRuntimeServices): Promise<number> {
+  let compatibility: Awaited<ReturnType<AgentRuntimeServices['daemon']['checkCompatibility']>> | null = null;
+  let errorKind: ReturnType<typeof classifyDaemonError> | undefined;
+  let errorMessage: string | undefined;
+  try {
+    compatibility = await services.daemon.checkCompatibility();
+  } catch (error) {
+    errorKind = classifyDaemonError(error);
+    errorMessage = daemonErrorMessage(error);
+  }
+  const report = buildSdkCompatibilityReport({
+    baseUrl: services.daemon.baseUrl,
+    compatibility,
+    errorKind,
+    errorMessage,
+  });
+  console.log(formatJson({
+    ok: report.daemon.compatible,
+    kind: report.daemon.compatible ? 'sdk.compatibility' : report.daemon.kind,
+    data: report,
+  }));
+  return report.daemon.compatible ? 0 : 1;
 }
 
 async function handleDelegate(

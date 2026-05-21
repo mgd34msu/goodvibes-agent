@@ -16,13 +16,16 @@ Run from a clean checkout:
 
 ```sh
 bun install
+bun run check:sdk
 bun run check:source
 bun run check:release
 ```
 
+`check:sdk` reports the pinned SDK package contract, daemon version, expected version, and pending Agent-specific knowledge isolation state. It is read-only and does not start/stop the daemon or switch knowledge routes.
+
 `check:source` runs type policy checks, typecheck, tests, build, `git diff --check`, and `npm pack --dry-run`.
 
-`check:release` runs the source gate plus CLI and packed-artifact smoke. It installs the packed artifact into a temporary global prefix and verifies `goodvibes-agent --help`, `goodvibes-agent status`, and `goodvibes-agent smoke` from `PATH`.
+`check:release` runs the source gate plus SDK compatibility, CLI smoke, and packed-artifact smoke. It installs the packed artifact into a temporary global prefix and verifies `goodvibes-agent --help`, `goodvibes-agent status`, and `goodvibes-agent smoke` from `PATH`.
 
 ## Manual Gates
 
@@ -31,6 +34,7 @@ bun run check:release
 - Verify unavailable daemon, auth failure, and version mismatch are actionable.
 - Verify companion chat works for a two-turn conversation and reuses the session.
 - Verify knowledge ask/search are scoped acceptably for the currently pinned SDK. If SDK has not published Agent-specific knowledge isolation, document the known default-wiki contamination risk instead of switching routes.
+- Verify `bun run check:sdk` reports the expected SDK pin and does not claim Agent-specific knowledge routes are active until SDK/TUI hand off a published route contract.
 - Verify explicit TUI build delegation through public contracts with a harmless task, or document why live delegation was skipped.
 
 ## Publish Decision

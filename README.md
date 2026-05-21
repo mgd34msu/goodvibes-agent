@@ -42,6 +42,7 @@ Common commands:
 ```sh
 bun run dev status
 bun run dev config
+bun run dev compat
 bun run dev smoke
 bun run dev auth
 bun run dev policy "summarize my current work plan"
@@ -91,6 +92,8 @@ When both provider and model are configured, the agent follows daemon runtime pr
 
 Local assistant state is stored under `~/.goodvibes/agent/`.
 
+`compat` reports the exact pinned SDK contract, the daemon version seen through `control.status`, and the current Agent knowledge isolation state. It is read-only and does not switch routes.
+
 Human-facing `ask`, `search`, `workplan`, `approvals`, `delegate`, and `delegations` output is concise by default. Use `--json` on those commands when you need structured output for inspection or tooling. Auth and config diagnostics report token source, presence, and fingerprints, never token values.
 
 Delegation receipts are stored under the agent home so build handoffs remain inspectable even before daemon routes expose origin-filtered delegation history. `delegations` uses public session, task, and work-plan routes opportunistically and shows warnings instead of hiding route failures.
@@ -104,6 +107,7 @@ Smoke checks:
 ```sh
 bun run smoke:cli
 bun run smoke:release
+bun run check:sdk
 bun run check:source
 bun run check:release
 ```
@@ -121,3 +125,12 @@ During pre-1.0 near-fork development, `@pellux/goodvibes-sdk` is pinned exactly 
 The distributed package must install a real `goodvibes-agent` executable through `package.json` `bin`. The bin is TypeScript-authored and Bun-backed; release smoke must verify `goodvibes-agent --help` and `goodvibes-agent smoke` from a fresh install.
 
 Keep `CHANGELOG.md` current before any version bump. Publishing requires a deliberate release commit that bumps to `0.1.0`, removes `private`, and follows `docs/release-checklist.md`.
+
+## Current Limitations
+
+- Agent knowledge still uses the default `knowledge.ask` and `knowledge.search` routes until SDK/TUI confirm a newer published Agent-specific knowledge seam. This can reflect default-wiki contamination from unrelated GoodVibes domains.
+- The agent does not own daemon lifecycle. A compatible daemon must already be running.
+- Memory, skills, and personas are local Agent registries until stable shared SDK registries exist.
+- The package is private `0.0.0`; do not publish until the release checklist, TUI review, SDK handoff, and manual PTY smoke are complete.
+
+SDK upgrade notes live in `docs/sdk-upgrade.md`.

@@ -197,6 +197,90 @@ describe('cli failure envelope', () => {
     }
   });
 
+  test('compat reports SDK pin, daemon version, and pending Agent knowledge isolation', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const path = new URL(request.url).pathname;
+        if (path === '/status') return Response.json({ status: 'running', version: '0.33.30' });
+        return Response.json({ error: 'not found' }, { status: 404 });
+      },
+    });
+    try {
+      const result = await runCliWithHome({
+        command: ['compat'],
+        env: { GOODVIBES_AGENT_BASE_URL: `http://127.0.0.1:${server.port}` },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.body.ok).toBe(true);
+      expect(result.body.kind).toBe('sdk.compatibility');
+
+      const data = recordValue(result.body, 'data');
+      const agent = recordValue(data, 'agent');
+      const daemon = recordValue(data, 'daemon');
+      const knowledge = recordValue(data, 'knowledge');
+      expect(agent.sdkPackagePin).toBe('0.33.30');
+      expect(agent.expectedDaemonVersion).toBe('0.33.30');
+      expect(daemon.daemonVersion).toBe('0.33.30');
+      expect(daemon.compatible).toBe(true);
+      expect(knowledge.agentSpecificIsolation).toBe('pending_sdk_handoff');
+      expect(knowledge.activeAskRoute).toBe('knowledge.ask');
+      expect(knowledge.routeSwitchAllowed).toBe(false);
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  test('compat preserves SDK and knowledge state when daemon is unavailable', async () => {
+    const result = await runCliWithHome({
+      command: ['compat'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.body.ok).toBe(false);
+    expect(result.body.kind).toBe('daemon_unavailable');
+
+    const data = recordValue(result.body, 'data');
+    const agent = recordValue(data, 'agent');
+    const daemon = recordValue(data, 'daemon');
+    const knowledge = recordValue(data, 'knowledge');
+    expect(agent.sdkPackagePin).toBe('0.33.30');
+    expect(daemon.reachable).toBe(false);
+    expect(daemon.expectedVersion).toBe('0.33.30');
+    expect(knowledge.agentSpecificIsolation).toBe('pending_sdk_handoff');
+  });
+
+  test('compat fails clearly when daemon contract is older than the SDK pin', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const path = new URL(request.url).pathname;
+        if (path === '/status') return Response.json({ status: 'running', version: '0.33.29' });
+        return Response.json({ error: 'not found' }, { status: 404 });
+      },
+    });
+    try {
+      const result = await runCliWithHome({
+        command: ['compat'],
+        env: { GOODVIBES_AGENT_BASE_URL: `http://127.0.0.1:${server.port}` },
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.body.ok).toBe(false);
+      expect(result.body.kind).toBe('version_mismatch');
+
+      const data = recordValue(result.body, 'data');
+      const daemon = recordValue(data, 'daemon');
+      expect(daemon.daemonVersion).toBe('0.33.29');
+      expect(daemon.expectedVersion).toBe('0.33.30');
+      expect(String(daemon.reason)).toContain('older than goodvibes-agent expects');
+    } finally {
+      await server.stop(true);
+    }
+  });
+
   test('schedules daemon connection failures return actionable JSON', async () => {
     const result = await runCliWithHome({
       command: ['schedules', '--json'],
@@ -429,6 +513,12 @@ async function runCliWithHome(input: {
   } finally {
     await rm(agentHome, { recursive: true, force: true });
   }
+}
+
+function recordValue(record: Readonly<Record<string, unknown>>, key: string): Readonly<Record<string, unknown>> {
+  const value = record[key];
+  if (!isRecord(value)) throw new Error(`${key} is not a JSON object`);
+  return value;
 }
 
 async function runTextCliWithHome(input: {

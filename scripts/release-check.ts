@@ -27,6 +27,7 @@ await runStep('git diff check', ['git', 'diff', '--check']);
 await runStep('npm pack dry-run', ['npm', 'pack', '--dry-run']);
 
 if (mode === 'release') {
+  await runStep('sdk compatibility', ['bun', 'run', 'check:sdk']);
   await runStep('smoke cli', ['bun', 'run', 'smoke:cli']);
   await runStep('smoke release', ['bun', 'run', 'smoke:release']);
 }
@@ -75,7 +76,9 @@ function successDetail(stdout: string): string {
   if (parsed) {
     const ok = parsed.ok;
     const mode = parsed.mode;
+    const kind = parsed.kind;
     if (typeof ok === 'boolean' && typeof mode === 'string') return `ok ${ok}; mode ${mode}`;
+    if (typeof ok === 'boolean' && typeof kind === 'string') return `ok ${ok}; kind ${kind}`;
     if (typeof ok === 'boolean') return `ok ${ok}`;
   }
   return firstLine(stdout) || 'ok';

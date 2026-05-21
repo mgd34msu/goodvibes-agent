@@ -6,6 +6,7 @@ describe('CLI help', () => {
     const help = renderHelp();
 
     expect(help).toContain('Daemon and config');
+    expect(help).toContain('goodvibes-agent compat');
     expect(help).toContain('Assistant work');
     expect(help).toContain('Local memory, skills, and personas');
     expect(help).toContain('Delegation and explicit mutations');

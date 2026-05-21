@@ -8,6 +8,7 @@ export function renderHelp(): string {
     '',
     'Daemon and config',
     '  goodvibes-agent config',
+    '  goodvibes-agent compat',
     '  goodvibes-agent status',
     '  goodvibes-agent auth',
     '  goodvibes-agent smoke',

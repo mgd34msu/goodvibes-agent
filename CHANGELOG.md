@@ -15,6 +15,7 @@ This package remains private at `0.0.0`. The first public usable alpha should be
 - Explicit, confirmation-gated operator mutation commands for approvals, automation runs/jobs, and schedule runs.
 - Release smoke scripts that verify source commands, packed artifact installation, global-prefix bin, Bun shebang, status, and smoke commands.
 - Terminal input hardening for Unicode, multiline paste, history, cursor movement, Home/End, Delete, and cleanup behavior.
+- Read-only SDK compatibility reporting for the pinned SDK/daemon contract and pending Agent knowledge isolation.
 
 ### Boundaries
 
