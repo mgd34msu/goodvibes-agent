@@ -53,7 +53,7 @@ Ask TUI before major architectural copy/promote decisions. If a feature needs TU
 - Keep slash commands as shortcuts, not the primary interaction model.
 - Harden config loading, env/file overrides, auth/token discovery, clean shutdown, daemon health handling, and actionable connection errors.
 - Add provider/model awareness without making the assistant coding-first.
-- Provide CLI commands for `status`, `chat`, `ask`, `search`, `remember`, `memory`, `skills`, `personas`, `delegate`, `approvals`, and `workplan`.
+- Provide CLI commands for `status`, `chat`, `ask`, `search`, `remember`, `memory`, `skills`, `personas`, `delegate`, `delegations`, `approvals`, and `workplan`.
 - Stay `0.0.0` and private through M1 validation. M1 proves local usability from a fresh clone/install but is not the public `0.1.0` gate by itself.
 - TUI review: compare shell usability against GoodVibes TUI basics without inheriting coding-transcript assumptions.
 
@@ -125,7 +125,7 @@ Ask TUI before major architectural copy/promote decisions. If a feature needs TU
 - Use work-plan/task APIs for visible durable task tracking.
 - Use artifact-backed attachments for chat/delegation where needed.
 - Identify missing stable seams for build delegation, task progress events, auth/pairing UX, and provider/model selection.
-- SDK/TUI review: decide whether `sessions.messages.create` is enough or whether SDK should promote `sessions.delegations.create` or equivalent.
+- SDK/TUI review: decide whether `sessions.messages.create` plus local receipt history is enough or whether SDK should promote `sessions.delegations.create` or equivalent.
 
 ## Release Criteria For `0.1.0`
 

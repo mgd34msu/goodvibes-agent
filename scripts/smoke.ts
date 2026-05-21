@@ -100,6 +100,20 @@ async function runSourceSmoke(): Promise<void> {
       env,
       expectIncludes: ['Approvals'],
     });
+    await expectTextCommand({
+      name: 'source delegations',
+      cmd: source(['delegations']),
+      cwd: repoRoot,
+      env,
+      expectIncludes: ['Delegations'],
+    });
+    await expectJsonCommand({
+      name: 'source delegations json',
+      cmd: source(['delegations', '--json']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'delegations.status',
+    });
     await runLocalCrud(source, env, 'source');
     await expectFailureJsonCommand({
       name: 'invalid base URL envelope',

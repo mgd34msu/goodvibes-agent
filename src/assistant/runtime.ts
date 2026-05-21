@@ -10,11 +10,13 @@ import { formatDaemonDiagnostics } from '../daemon/diagnostics-format.js';
 import type { OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import { classifyPrompt } from './policy.js';
 import { buildAssistantSystemPrompt } from './system-prompt.js';
-import { delegateToTui, shouldDelegateToTui, shouldRequestWrfc } from './delegation.js';
+import { delegateToTui, shouldDelegateToTui, shouldRequestWrfc, type DelegationResult } from './delegation.js';
 import { CompanionChatCoordinator, type CompanionChatStatus, type CompanionChatTurnResult } from './companion-chat.js';
 import { resolveProviderModel, type ProviderModelSelection } from './provider-model.js';
 import { formatKnowledgeAnswer, formatKnowledgeSearch } from './knowledge-format.js';
 import { formatApprovals, formatWorkPlan } from './operator-format.js';
+import { formatDelegationReceipt, formatDelegationStatus, loadDelegationStatusSnapshot } from './delegation-status.js';
+import { DelegationReceiptStore } from '../store/delegations.js';
 
 export interface AssistantRuntimeOptions {
   readonly config: AgentConfig;
@@ -31,6 +33,7 @@ export class AssistantRuntime {
   readonly memory = new MemoryStore();
   readonly skills = new SkillStore();
   readonly personas = new PersonaStore();
+  readonly delegations = new DelegationReceiptStore();
   readonly providerModel: ProviderModelSelection;
   private readonly companionChat: CompanionChatCoordinator;
 
@@ -64,13 +67,13 @@ export class AssistantRuntime {
     }
 
     if (this.options.config.autoDelegateBuildRequests && shouldDelegateToTui(trimmed)) {
-      const result = await delegateToTui(this.client, this.options.config, {
+      const result = await this.delegateBuildTask({
         task: trimmed,
         wrfc: shouldRequestWrfc(trimmed),
         reason: 'auto-build-delegation',
       });
       return {
-        text: `Delegated to GoodVibes TUI (${result.mode})${result.sessionId ? ` in session ${result.sessionId}` : ''}.`,
+        text: formatDelegationReceipt(result.receipt),
         data: result,
       };
     }
@@ -129,6 +132,24 @@ export class AssistantRuntime {
     return { text: formatWorkPlan(data), data };
   }
 
+  async delegateBuildTask(request: {
+    readonly task: string;
+    readonly wrfc?: boolean | undefined;
+    readonly sessionId?: string | undefined;
+    readonly title?: string | undefined;
+    readonly reason?: string | undefined;
+  }): Promise<DelegationResult> {
+    if (!request.task.trim()) throw new Error('Delegation task cannot be empty.');
+    const result = await delegateToTui(this.client, this.options.config, request);
+    this.delegations.save(result.receipt);
+    return result;
+  }
+
+  async getDelegations(selector?: string | undefined): Promise<AssistantReply> {
+    const data = await loadDelegationStatusSnapshot(this.client, this.options.config, this.delegations, selector);
+    return { text: formatDelegationStatus(data), data };
+  }
+
   private async handleSlash(command: string): Promise<AssistantReply> {
     const [name = '', ...args] = command.slice(1).split(/\s+/);
     const rest = args.join(' ').trim();
@@ -154,8 +175,12 @@ export class AssistantRuntime {
       case 'delegate': {
         const wrfc = args.includes('--wrfc');
         const task = args.filter((arg) => arg !== '--wrfc').join(' ').trim();
-        const result = await delegateToTui(this.client, this.options.config, { task, wrfc, reason: 'slash-command' });
-        return { text: `Delegated to GoodVibes TUI (${result.mode}).`, data: result };
+        if (!task) return { text: 'Delegation task cannot be empty.' };
+        const result = await this.delegateBuildTask({ task, wrfc, reason: 'slash-command' });
+        return { text: formatDelegationReceipt(result.receipt), data: result };
+      }
+      case 'delegations': {
+        return this.getDelegations(rest);
       }
       case 'approvals':
         return this.getApprovals();
@@ -199,6 +224,7 @@ function slashHelp(): string {
     '/skills [query]         List/search assistant skills',
     '/personas               List assistant personas',
     '/delegate [--wrfc] <t>  Delegate build/fix/review work to GoodVibes TUI',
+    '/delegations [id]       Show delegated build receipts and status',
     '/approvals              List daemon approvals',
     '/workplan               Show project work-plan snapshot',
   ].join('\n');

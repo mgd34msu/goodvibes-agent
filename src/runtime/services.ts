@@ -4,6 +4,7 @@ import { GoodVibesDaemonClient } from '../daemon/client.js';
 import { MemoryStore } from '../store/memory.js';
 import { PersonaStore } from '../store/personas.js';
 import { SkillStore } from '../store/skills.js';
+import { DelegationReceiptStore } from '../store/delegations.js';
 
 export interface AgentRuntimeServices {
   readonly config: AgentConfig;
@@ -12,6 +13,7 @@ export interface AgentRuntimeServices {
   readonly memory: MemoryStore;
   readonly personas: PersonaStore;
   readonly skills: SkillStore;
+  readonly delegations: DelegationReceiptStore;
   readonly assistant: AssistantRuntime;
 }
 
@@ -29,6 +31,7 @@ export function createAgentRuntimeServices(config?: AgentConfig): AgentRuntimeSe
     memory: assistant.memory,
     personas: assistant.personas,
     skills: assistant.skills,
+    delegations: assistant.delegations,
     assistant,
   };
 }

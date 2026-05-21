@@ -13,6 +13,7 @@ export function renderHelp(): string {
     '  goodvibes-agent search <knowledge query> [--json]',
     '  goodvibes-agent remember <fact>',
     '  goodvibes-agent delegate [--wrfc] <build/fix/review task>',
+    '  goodvibes-agent delegations [list|status <id>] [--json]',
     '  goodvibes-agent approvals [--json]',
     '  goodvibes-agent workplan [--json]',
     '  goodvibes-agent memory [query]',

@@ -1,5 +1,8 @@
 import type { AgentConfig } from '../config.js';
 import type { RouteId } from '../daemon/routes.js';
+import type { DelegationReceipt } from '../store/delegations.js';
+import { isRecord } from '../types.js';
+import { createId } from '../utils/ids.js';
 import { explicitlyRequestsWrfc, isBuildLikeRequest, wrfcEligible } from './policy.js';
 import { titleFromText } from '../utils/format.js';
 
@@ -14,9 +17,11 @@ export interface DelegationRequest {
 export interface DelegationResult {
   readonly delegated: boolean;
   readonly mode: string;
+  readonly receipt: DelegationReceipt;
   readonly sessionId?: string | undefined;
   readonly agentId?: string | undefined;
   readonly taskId?: string | undefined;
+  readonly messageId?: string | undefined;
   readonly output: unknown;
 }
 
@@ -84,15 +89,51 @@ export async function delegateToTui(
   };
 
   const output = await client.invoke<Record<string, unknown>>('sessions.messages.create', input);
+  const mode = typeof output.mode === 'string' ? output.mode : 'unknown';
+  const sessionId = outputString(output, 'sessionId') ?? nestedOutputString(output, ['session', 'id']) ?? session.sessionId;
+  const agentId = outputString(output, 'agentId') ?? nestedOutputString(output, ['task', 'agentId']);
+  const taskId = outputString(output, 'taskId') ?? nestedOutputString(output, ['task', 'id']);
+  const messageId = outputString(output, 'messageId') ?? nestedOutputString(output, ['message', 'id']);
+  const receiptId = createId('del');
+  const receipt: DelegationReceipt = {
+    id: receiptId,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    task: request.task,
+    summary: titleFromText(request.task),
+    requestedWrfc: wrfc,
+    mode,
+    sessionId,
+    surfaceKind: config.surfaceKind,
+    surfaceId: config.surfaceId,
+    checkCommand: `goodvibes-agent delegations status ${receiptId}`,
+    reason: request.reason,
+    agentId,
+    taskId,
+    messageId,
+  };
   return {
     delegated: true,
-    mode: typeof output.mode === 'string' ? output.mode : 'unknown',
-    sessionId: typeof output.sessionId === 'string'
-      ? output.sessionId
-      : typeof output.session === 'object' && output.session !== null && 'id' in output.session && typeof output.session.id === 'string'
-        ? output.session.id
-        : session.sessionId,
-    agentId: typeof output.agentId === 'string' ? output.agentId : undefined,
+    mode,
+    receipt,
+    sessionId,
+    agentId,
+    taskId,
+    messageId,
     output,
   };
+}
+
+function outputString(output: Record<string, unknown>, key: string): string | undefined {
+  const value = output[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function nestedOutputString(output: Record<string, unknown>, path: readonly string[]): string | undefined {
+  let current: unknown = output;
+  for (const key of path) {
+    if (!isRecord(current)) return undefined;
+    current = current[key];
+  }
+  return typeof current === 'string' && current.trim().length > 0 ? current.trim() : undefined;
 }

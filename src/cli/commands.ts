@@ -1,5 +1,5 @@
-import { delegateToTui } from '../assistant/delegation.js';
 import { formatJson } from '../utils/format.js';
+import { formatDelegationReceipt } from '../assistant/delegation-status.js';
 import { AgentTuiApp } from '../tui/app.js';
 import { bootstrapAgentRuntime } from '../runtime/bootstrap.js';
 import { summarizeAuth, summarizeDaemonDiagnostics, type DaemonDiagnosticSummary } from '../daemon/diagnostics-format.js';
@@ -10,6 +10,7 @@ import type { PersonaReviewState } from '../store/personas.js';
 import { getFlag, getText, hasFlag, type ParsedArgs } from './args.js';
 import { renderHelp } from './help.js';
 import { printCaughtFailure, printFailure, printSuccess } from './output.js';
+import { isRecord } from '../types.js';
 
 export async function runCommand(args: ParsedArgs): Promise<number> {
   let services: AgentRuntimeServices;
@@ -66,12 +67,9 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
     case 'personas':
       return handlePersonas(args, services);
     case 'delegate':
-      console.log(formatJson(await delegateToTui(runtime.client, config, {
-        task: text,
-        wrfc: hasFlag(args, 'wrfc'),
-        reason: 'cli-command',
-      })));
-      return 0;
+      return handleDelegate(args, runtime, text);
+    case 'delegations':
+      return handleDelegations(args, runtime);
     case 'approvals':
       return handleApprovals(args, runtime);
     case 'workplan':
@@ -81,6 +79,38 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
       console.error(renderHelp());
       return 2;
   }
+}
+
+async function handleDelegate(
+  args: ParsedArgs,
+  runtime: AgentRuntimeServices['assistant'],
+  text: string,
+): Promise<number> {
+  if (!text) return printFailure('validation_error', 'Delegation task cannot be empty.');
+  const result = await runtime.delegateBuildTask({
+    task: text,
+    wrfc: hasFlag(args, 'wrfc'),
+    reason: 'cli-command',
+  });
+  if (args.flags.has('json')) return printSuccess('delegation.created', result);
+  console.log(formatDelegationReceipt(result.receipt));
+  return 0;
+}
+
+async function handleDelegations(
+  args: ParsedArgs,
+  runtime: AgentRuntimeServices['assistant'],
+): Promise<number> {
+  const [action = 'list', selector] = args.positional;
+  const selected = action === 'status' ? selector : action === 'list' ? undefined : action;
+  if (action === 'status' && !selector) return printFailure('validation_error', 'delegations status requires a receipt, session, task, message, or agent id.');
+  const reply = await runtime.getDelegations(selected);
+  if (selected && isMissingDelegation(reply.data)) {
+    return printFailure('not_found', `No delegation receipt found for ${selected}.`);
+  }
+  if (args.flags.has('json')) return printSuccess('delegations.status', reply.data);
+  console.log(reply.text);
+  return 0;
 }
 
 async function handleConfig(services: AgentRuntimeServices): Promise<number> {
@@ -409,4 +439,8 @@ function parseEnum<const T extends string>(value: string | undefined, allowed: r
   const match = allowed.find((item) => item === value);
   if (!match) throw new Error(`Invalid ${label}: ${value}`);
   return match;
+}
+
+function isMissingDelegation(data: unknown): boolean {
+  return isRecord(data) && data.selector !== null && data.selected === null;
 }

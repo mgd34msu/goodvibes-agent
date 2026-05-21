@@ -19,6 +19,9 @@ export interface WorkPlanTaskSummary {
   readonly status: string;
   readonly owner: string | null;
   readonly phaseId: string | null;
+  readonly agentId: string | null;
+  readonly sourceMessageId: string | null;
+  readonly originSurface: string | null;
   readonly priority: number | null;
   readonly notes: string | null;
   readonly tags: readonly string[];
@@ -163,6 +166,9 @@ function summarizeWorkPlanTask(task: ReadonlyUnknownRecord): WorkPlanTaskSummary
     status: firstString(task, ['status']) || 'unknown',
     owner: nullableString(task, 'owner'),
     phaseId: nullableString(task, 'phaseId'),
+    agentId: nullableString(task, 'agentId'),
+    sourceMessageId: nullableString(task, 'sourceMessageId'),
+    originSurface: nullableString(task, 'originSurface'),
     priority: nullableNumber(task, 'priority'),
     notes: nullableString(task, 'notes'),
     tags: stringsValue(task, 'tags'),

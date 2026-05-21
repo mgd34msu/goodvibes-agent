@@ -117,6 +117,42 @@ describe('cli failure envelope', () => {
     expect(result.body.ok).toBe(false);
     expect(result.body.kind).toBe('daemon_unavailable');
   });
+
+  test('delegate daemon connection failures return actionable JSON', async () => {
+    const result = await runCliWithHome({
+      command: ['delegate', '--wrfc', 'Build a harmless diagnostics note'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(result.body.ok).toBe(false);
+    expect(result.body.kind).toBe('daemon_unavailable');
+  });
+
+  test('empty delegate input returns validation JSON', async () => {
+    const result = await runCliWithHome({
+      command: ['delegate'],
+      env: {},
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(result.body.ok).toBe(false);
+    expect(result.body.kind).toBe('validation_error');
+  });
+
+  test('delegations status degrades daemon failures into local history output', async () => {
+    const result = await runTextCliWithHome({
+      command: ['delegations'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain('Delegations');
+    expect(result.stdout).toContain('Sessions warning: daemon_unavailable');
+  });
 });
 
 async function runCliWithHome(input: {
@@ -150,6 +186,37 @@ async function runCliWithHome(input: {
       stdout,
       stderr: decode(result.stderr),
       body: parsed,
+    };
+  } finally {
+    await rm(agentHome, { recursive: true, force: true });
+  }
+}
+
+async function runTextCliWithHome(input: {
+  readonly command: readonly string[];
+  readonly env: Readonly<Record<string, string>>;
+}): Promise<{
+  readonly exitCode: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
+}> {
+  const agentHome = await mkdtemp(join(tmpdir(), 'goodvibes-agent-cli-'));
+  try {
+    const result = Bun.spawnSync({
+      cmd: [process.execPath, 'run', 'src/main.ts', ...input.command],
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        ...input.env,
+        GOODVIBES_AGENT_HOME: agentHome,
+      },
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    return {
+      exitCode: result.exitCode,
+      stdout: decode(result.stdout),
+      stderr: decode(result.stderr),
     };
   } finally {
     await rm(agentHome, { recursive: true, force: true });
