@@ -37,4 +37,8 @@ describe('terminal key decoding', () => {
     expect(decodeKeys(Buffer.from('\r'))).toEqual([{ type: 'enter' }]);
     expect(decodeKeys(Buffer.from('\n'))).toEqual([{ type: 'newline' }]);
   });
+
+  test('decodes explicit status refresh', () => {
+    expect(decodeKeys(Buffer.from('\u0012'))).toEqual([{ type: 'refresh-status' }]);
+  });
 });

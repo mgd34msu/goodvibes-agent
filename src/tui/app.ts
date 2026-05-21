@@ -4,6 +4,13 @@ import { CompanionChatError } from '../assistant/companion-chat.js';
 import { renderApp } from '../renderer/app-renderer.js';
 import { ANSI } from '../renderer/ansi.js';
 import { decodeKeys, type KeyEvent } from '../input/key-reader.js';
+import {
+  buildDashboard,
+  emptyRemoteState,
+  type DashboardRemoteState,
+  type RemoteSnapshot,
+} from './dashboard.js';
+import type { DaemonDiagnosticResult } from '../daemon/client.js';
 
 export class AgentTuiApp {
   private session = createAgentSession();
@@ -11,6 +18,8 @@ export class AgentTuiApp {
   private status = 'Enter submits. Ctrl-J inserts newline. Up/Down history. Ctrl-C/Esc exits.';
   private daemonStatus = 'Daemon: checking connection.';
   private daemonConnectionStatus = 'Daemon: checking connection.';
+  private daemonDiagnostics: DaemonDiagnosticResult | null = null;
+  private remoteState: DashboardRemoteState = emptyRemoteState();
   private busy = false;
   private history: string[] = [];
   private historyIndex: number | null = null;
@@ -38,6 +47,7 @@ export class AgentTuiApp {
       this.setupTerminal(stdin);
       this.session = appendMessage(this.session, 'system', 'GoodVibes Agent is a proactive assistant/operator surface. Build/fix work is delegated to GoodVibes TUI.');
       await this.checkDaemonCompatibility();
+      await this.refreshDashboard();
       if (this.stopped) return;
       this.updateCompanionStatus();
       this.render();
@@ -98,6 +108,11 @@ export class AgentTuiApp {
       this.render();
       return;
     }
+    if (key.type === 'refresh-status') {
+      await this.refreshDashboard();
+      this.render();
+      return;
+    }
     if (key.type === 'history-prev') {
       this.showHistory(-1);
       return;
@@ -126,6 +141,7 @@ export class AgentTuiApp {
       try {
         const reply = await this.runtime.handleUserText(text);
         if (reply.text.trim()) this.session = appendMessage(this.session, 'assistant', reply.text);
+        await this.refreshDashboard();
         this.updateCompanionStatus();
         this.status = 'Ready.';
       } catch (error) {
@@ -144,12 +160,18 @@ export class AgentTuiApp {
       input: this.input,
       status: this.status,
       daemonStatus: this.daemonStatus,
+      dashboard: buildDashboard({
+        runtime: this.runtime,
+        daemon: this.daemonDiagnostics,
+        remote: this.remoteState,
+      }),
       busy: this.busy,
     }));
   }
 
   private async checkDaemonCompatibility(): Promise<void> {
     const diagnostics = await this.runtime.client.diagnostics();
+    this.daemonDiagnostics = diagnostics;
     if (diagnostics.ok) {
       const version = diagnostics.compatibility?.daemonVersion ?? 'unknown';
       this.daemonConnectionStatus = `Daemon: connected ${version} at ${this.runtime.client.baseUrl}`;
@@ -166,6 +188,22 @@ export class AgentTuiApp {
     const chat = this.runtime.chatStatus();
     const session = chat.sessionId ?? 'new';
     this.daemonStatus = `${this.daemonConnectionStatus} | Chat: ${session} | Model: ${chat.providerModelDisplay}`;
+  }
+
+  private async refreshDashboard(): Promise<void> {
+    const [approvals, workPlan] = await Promise.all([
+      this.remoteSnapshot(() => this.runtime.client.invoke('approvals.list')),
+      this.remoteSnapshot(() => this.runtime.client.invoke('projectPlanning.workPlan.snapshot')),
+    ]);
+    this.remoteState = { approvals, workPlan };
+  }
+
+  private async remoteSnapshot(load: () => Promise<unknown>): Promise<RemoteSnapshot> {
+    try {
+      return { data: await withTimeout(load(), 2_500), error: null };
+    } catch (error) {
+      return { data: null, error: formatError(error) };
+    }
   }
 
   private pushHistory(text: string): void {
@@ -268,6 +306,20 @@ function formatError(error: unknown): string {
   if (error instanceof CompanionChatError) return `${error.kind}: ${error.message}`;
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeout: Timer | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => reject(new Error(`status refresh timed out after ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 function normalizePastedText(value: string): string {

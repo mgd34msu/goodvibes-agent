@@ -41,6 +41,7 @@ Terminal controls:
 - `Ctrl-J` inserts a newline.
 - `Up` / `Down` navigates input history.
 - `Ctrl-U` clears the current input.
+- `Ctrl-R` refreshes the read-only operator status panes.
 - `Ctrl-C`, `Esc`, `/quit`, or `/exit` exits and restores the terminal.
 
 Daemon connection defaults:

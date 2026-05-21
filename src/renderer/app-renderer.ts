@@ -8,6 +8,7 @@ export interface RenderState {
   readonly input: string;
   readonly status: string;
   readonly daemonStatus: string;
+  readonly dashboard: readonly string[];
   readonly busy: boolean;
 }
 
@@ -20,7 +21,7 @@ export function renderApp(state: RenderState): string {
   const footer = `${state.busy ? `${ANSI.fg.yellow}working${ANSI.reset}` : `${ANSI.fg.green}ready${ANSI.reset}`}  ${state.status}`;
   const inputLines = renderInput(state.input, width);
   const bodyHeight = Math.max(1, height - 5 - inputLines.length);
-  const bodyLines = renderMessages(state.session, width).slice(-bodyHeight);
+  const bodyLines = renderBody(state, width, bodyHeight);
   while (bodyLines.length < bodyHeight) bodyLines.unshift('');
   return [
     ANSI.hideCursor,
@@ -35,6 +36,68 @@ export function renderApp(state: RenderState): string {
     ...inputLines.map((line) => fitLine(line, width)),
     ANSI.showCursor,
   ].join('\n');
+}
+
+function renderBody(state: RenderState, width: number, height: number): string[] {
+  if (width < 96) return renderNarrowBody(state, width, height);
+  const dashboardWidth = Math.min(34, Math.max(28, Math.floor(width * 0.28)));
+  const gap = '  ';
+  const transcriptWidth = width - dashboardWidth - gap.length;
+  const transcript = renderMessages(state.session, transcriptWidth).slice(-height);
+  const dashboard = renderDashboard(state.dashboard, dashboardWidth).slice(0, height);
+  while (transcript.length < height) transcript.unshift('');
+  while (dashboard.length < height) dashboard.push('');
+  return transcript.map((line, index) => (
+    `${fitLine(line, transcriptWidth)}${gap}${fitLine(dashboard[index] ?? '', dashboardWidth)}`
+  ));
+}
+
+function renderNarrowBody(state: RenderState, width: number, height: number): string[] {
+  const dashboard = renderDashboard(compactDashboardLines(state.dashboard), width);
+  const transcriptHeight = Math.max(1, height - dashboard.length - 1);
+  const transcript = renderMessages(state.session, width).slice(-transcriptHeight);
+  return [
+    ...dashboard,
+    '-'.repeat(width),
+    ...transcript,
+  ].slice(-height);
+}
+
+function compactDashboardLines(lines: readonly string[]): readonly string[] {
+  const daemon = lineAfter(lines, 'Status');
+  const chat = lines.find((line) => line.startsWith('Chat ')) ?? 'Chat new';
+  const model = lines.find((line) => line.startsWith('Model ')) ?? 'Model daemon-default/daemon-default';
+  const local = lines.find((line) => line.startsWith('Local ')) ?? 'Local 0 memory, 0 skills, 0 personas';
+  const workPlan = lineAfter(lines, 'Work Plan');
+  const approvals = lineAfter(lines, 'Approvals');
+  return [
+    'Status',
+    daemon,
+    `${chat} | ${model}`,
+    local,
+    `Work ${workPlan}`,
+    `Approvals ${approvals}`,
+  ];
+}
+
+function lineAfter(lines: readonly string[], heading: string): string {
+  const index = lines.indexOf(heading);
+  if (index < 0) return 'unknown';
+  return lines.slice(index + 1).find((line) => line.trim()) ?? 'none';
+}
+
+function renderDashboard(lines: readonly string[], width: number): string[] {
+  const output: string[] = [];
+  for (const line of lines) {
+    if (!line) {
+      output.push('');
+      continue;
+    }
+    const heading = /^[A-Z][A-Za-z ]+$/.test(line);
+    const prefix = heading ? `${ANSI.bold}${line}${ANSI.reset}` : `  ${line}`;
+    for (const wrapped of wrapText(prefix, width)) output.push(wrapped);
+  }
+  return output;
 }
 
 function renderMessages(session: AgentSessionState, width: number): string[] {

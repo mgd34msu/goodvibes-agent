@@ -7,6 +7,7 @@ export type KeyEvent =
   | { readonly type: 'history-next' }
   | { readonly type: 'clear-screen' }
   | { readonly type: 'clear-input' }
+  | { readonly type: 'refresh-status' }
   | { readonly type: 'eof' }
   | { readonly type: 'ctrl-c' }
   | { readonly type: 'escape' };
@@ -21,6 +22,7 @@ export function decodeKeys(buffer: Buffer): readonly KeyEvent[] {
   if (value === '\u0004') return [{ type: 'eof' }];
   if (value === '\u000a') return [{ type: 'newline' }];
   if (value === '\u000c') return [{ type: 'clear-screen' }];
+  if (value === '\u0012') return [{ type: 'refresh-status' }];
   if (value === '\u0015') return [{ type: 'clear-input' }];
   if (value === '\r' || value === '\n') return [{ type: 'enter' }];
   if (value === '\u007f' || value === '\b') return [{ type: 'backspace' }];
@@ -55,6 +57,9 @@ export function decodeKeys(buffer: Buffer): readonly KeyEvent[] {
     } else if (char === '\r') {
       flushText();
       events.push({ type: 'enter' });
+    } else if (char === '\u0012') {
+      flushText();
+      events.push({ type: 'refresh-status' });
     } else if (char === '\u007f' || char === '\b') {
       flushText();
       events.push({ type: 'backspace' });
