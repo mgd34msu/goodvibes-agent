@@ -61,6 +61,15 @@ Local assistant state is stored under `~/.goodvibes/agent/`.
 
 Human-facing `ask`, `search`, `workplan`, and `approvals` output is concise by default. Use `--json` on those commands when you need the full daemon response for inspection or tooling. Auth and config diagnostics report token source, presence, and fingerprints, never token values.
 
+Smoke checks:
+
+```sh
+bun run smoke:cli
+bun run smoke:release
+```
+
+`smoke:cli` checks source-tree commands from a temporary agent home. `smoke:release` also runs `npm pack`, installs the packed artifact into a temporary global prefix, verifies the `goodvibes-agent` bin and Bun shebang, then runs installed help/status/smoke checks. Both scripts connect to an already-running daemon; they do not start or stop it.
+
 ## Packaging Notes
 
 While private and unreleased, the package version stays at `0.0.0`. The first intentionally published usable alpha should become `0.1.0`; SDK compatibility is expressed through the exact `@pellux/goodvibes-sdk` dependency pin, not by mirroring SDK or TUI versions.

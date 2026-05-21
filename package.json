@@ -24,6 +24,8 @@
     "dev": "bun run src/main.ts",
     "tui": "bun run src/main.ts tui",
     "smoke": "bun run src/main.ts smoke",
+    "smoke:cli": "bun run scripts/smoke.ts",
+    "smoke:release": "bun run scripts/smoke.ts --release",
     "check:types": "bun run scripts/check-types.ts",
     "typecheck": "tsc --noEmit && bun run check:types",
     "test": "bun test",
