@@ -112,9 +112,9 @@ bun run check:source
 bun run check:release
 ```
 
-`smoke:cli` checks source-tree commands from a temporary agent home. `smoke:release` also runs `npm pack`, installs the packed artifact into a temporary global prefix, verifies the `goodvibes-agent` bin and Bun shebang, then runs installed help/status/smoke checks. Both scripts connect to an already-running daemon; they do not start or stop it.
+`smoke:cli` checks source-tree commands from a temporary agent home. `smoke:release` also runs `npm pack`, installs the packed artifact into a temporary global prefix, verifies the `goodvibes-agent` bin and Bun shebang, then runs installed help/compat/status/smoke checks. Both scripts connect to an already-running daemon; they do not start or stop it.
 
-`check:source` and `check:release` compose the release gates without publishing. Manual PTY smoke steps live in `docs/manual-smoke.md`, the release-risk inventory lives in `docs/release-risks.md`, and the full release checklist lives in `docs/release-checklist.md`.
+`check:source` and `check:release` compose the release gates without publishing. Manual PTY smoke steps live in `docs/manual-smoke.md`, release-candidate evidence lives in `docs/release-evidence.md`, the release-risk inventory lives in `docs/release-risks.md`, and the full release checklist lives in `docs/release-checklist.md`.
 
 ## Packaging Notes
 
@@ -122,7 +122,7 @@ While private and unreleased, the package version stays at `0.0.0`. The first in
 
 During pre-1.0 near-fork development, `@pellux/goodvibes-sdk` is pinned exactly to the daemon-compatible version instead of using a caret range. This package does not currently ship a binary postinstall or trust native lifecycle packages it does not directly exercise.
 
-The distributed package must install a real `goodvibes-agent` executable through `package.json` `bin`. The bin is TypeScript-authored and Bun-backed; release smoke must verify `goodvibes-agent --help` and `goodvibes-agent smoke` from a fresh install.
+The distributed package must install a real `goodvibes-agent` executable through `package.json` `bin`. The bin is TypeScript-authored and Bun-backed; release smoke must verify `goodvibes-agent --help`, `goodvibes-agent compat`, and `goodvibes-agent smoke` from a fresh install.
 
 Keep `CHANGELOG.md` current before any version bump. Publishing requires a deliberate release commit that bumps to `0.1.0`, removes `private`, and follows `docs/release-checklist.md`.
 

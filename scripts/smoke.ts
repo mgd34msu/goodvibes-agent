@@ -59,6 +59,13 @@ async function runSourceSmoke(): Promise<void> {
       expectedKind: 'ok',
     });
     await expectJsonCommand({
+      name: 'source compat',
+      cmd: source(['compat']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'sdk.compatibility',
+    });
+    await expectJsonCommand({
       name: 'source smoke',
       cmd: source(['smoke']),
       cwd: repoRoot,
@@ -262,6 +269,13 @@ async function runReleaseSmoke(): Promise<void> {
         cwd: repoRoot,
         env,
         expectedKind: 'ok',
+      });
+      await expectJsonCommand({
+        name: 'installed compat',
+        cmd: ['goodvibes-agent', 'compat'],
+        cwd: repoRoot,
+        env,
+        expectedKind: 'sdk.compatibility',
       });
       await expectJsonCommand({
         name: 'installed smoke',

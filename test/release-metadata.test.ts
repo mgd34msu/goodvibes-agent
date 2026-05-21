@@ -26,6 +26,7 @@ describe('release metadata', () => {
 
   test('documents release checklist and manual PTY gate', async () => {
     const changelog = await readFile('CHANGELOG.md', 'utf-8');
+    const evidence = await readFile('docs/release-evidence.md', 'utf-8');
     const license = await readFile('LICENSE', 'utf-8');
     const readme = await readFile('README.md', 'utf-8');
     const checklist = await readFile('docs/release-checklist.md', 'utf-8');
@@ -33,22 +34,31 @@ describe('release metadata', () => {
     const risks = await readFile('docs/release-risks.md', 'utf-8');
 
     expect(changelog).toContain('Manual PTY smoke');
+    expect(changelog).toContain('docs/release-evidence.md');
     expect(license).toContain('MIT License');
     expect(license).toContain('GoodVibes contributors');
     expect(changelog).toContain('@pellux/goodvibes-sdk@0.33.30');
     expect(changelog).toContain('docs/release-risks.md');
     expect(readme).toContain('bun install -g @pellux/goodvibes-agent');
+    expect(readme).toContain('goodvibes-agent compat');
     expect(readme).toContain('Current Limitations');
     expect(readme).toContain('docs/release-risks.md');
+    expect(readme).toContain('docs/release-evidence.md');
     expect(checklist).toContain('bun run check:release');
+    expect(checklist).toContain('goodvibes-agent compat');
     expect(checklist).toContain('bun run check:sdk');
     expect(checklist).toContain('Do not publish');
     expect(checklist).toContain('docs/manual-smoke.md');
     expect(checklist).toContain('docs/release-risks.md');
+    expect(checklist).toContain('docs/release-evidence.md');
     expect(upgrade).toContain('@pellux/goodvibes-sdk@0.33.30');
     expect(upgrade).toContain('Agent-specific knowledge isolation: pending');
+    expect(evidence).toContain('2026-05-20 M4/M5 Readiness Evidence');
+    expect(evidence).toContain('Manual PTY smoke');
+    expect(evidence).toContain('AGENT_SMOKE_ONE');
+    expect(evidence).toContain('Live delegation dry receipt was skipped');
     expect(risks).toContain('Agent-specific knowledge isolation is pending');
-    expect(risks).toContain('Manual PTY smoke has not been recorded as passed');
+    expect(risks).toContain('Manual PTY smoke was recorded as passed on `2026-05-20`');
     expect(risks).toContain('It does not start, stop, install, supervise, repair, or own daemon lifecycle');
     expect(risks).toContain('Agent-local registries');
     expect(risks).toContain('private `0.0.0`');

@@ -26,11 +26,12 @@ bun run check:release
 
 `check:source` runs type policy checks, typecheck, tests, build, `git diff --check`, and `npm pack --dry-run`.
 
-`check:release` runs the source gate plus SDK compatibility, CLI smoke, and packed-artifact smoke. It installs the packed artifact into a temporary global prefix and verifies `goodvibes-agent --help`, `goodvibes-agent status`, and `goodvibes-agent smoke` from `PATH`.
+`check:release` runs the source gate plus SDK compatibility, CLI smoke, and packed-artifact smoke. It installs the packed artifact into a temporary global prefix and verifies `goodvibes-agent --help`, `goodvibes-agent compat`, `goodvibes-agent status`, and `goodvibes-agent smoke` from `PATH`.
 
 ## Manual Gates
 
 - Run `docs/manual-smoke.md` in a real PTY.
+- Record release-candidate evidence in `docs/release-evidence.md`.
 - Verify no token values are printed in config/status/auth failure output.
 - Verify unavailable daemon, auth failure, and version mismatch are actionable.
 - Verify companion chat works for a two-turn conversation and reuses the session.
@@ -38,6 +39,7 @@ bun run check:release
 - Verify `bun run check:sdk` reports the expected SDK pin and does not claim Agent-specific knowledge routes are active until SDK/TUI hand off a published route contract.
 - Verify explicit TUI build delegation through public contracts with a harmless task, or document why live delegation was skipped.
 - Review `docs/release-risks.md` and mark every remaining blocker accepted or resolved.
+- Confirm any skipped live checks are explicitly documented in `docs/release-evidence.md`.
 
 ## Publish Decision
 
@@ -47,4 +49,4 @@ bun run check:release
 - `CHANGELOG.md` is current.
 - Package version is bumped to `0.1.0`.
 - `private` is removed only as part of the intentional publish commit.
-- After publish, Bun global install is verified with `bun install -g @pellux/goodvibes-agent`, `goodvibes-agent --help`, and `goodvibes-agent status`.
+- After publish, Bun global install is verified with `bun install -g @pellux/goodvibes-agent`, `goodvibes-agent --help`, `goodvibes-agent compat`, and `goodvibes-agent status`.

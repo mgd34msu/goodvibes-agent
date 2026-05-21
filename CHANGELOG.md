@@ -13,7 +13,7 @@ This package remains private at `0.0.0`. The first public usable alpha should be
 - Durable companion chat session reuse with provider/model routing awareness.
 - Local delegation receipts and read-only delegation status summaries.
 - Explicit, confirmation-gated operator mutation commands for approvals, automation runs/jobs, and schedule runs.
-- Release smoke scripts that verify source commands, packed artifact installation, global-prefix bin, Bun shebang, status, and smoke commands.
+- Release smoke scripts that verify source commands, packed artifact installation, global-prefix bin, Bun shebang, compatibility, status, and smoke commands.
 - Terminal input hardening for Unicode, multiline paste, history, cursor movement, Home/End, Delete, and cleanup behavior.
 - Read-only SDK compatibility reporting for the pinned SDK/daemon contract and pending Agent knowledge isolation.
 
@@ -30,5 +30,6 @@ This package remains private at `0.0.0`. The first public usable alpha should be
 ### Release Notes
 
 - Manual PTY smoke in `docs/manual-smoke.md` is mandatory before publishing because terminal editing behavior is user-facing.
+- Release-candidate evidence is recorded in `docs/release-evidence.md`.
 - Current blockers and accepted limitations are tracked in `docs/release-risks.md`.
 - `bun run check:release` is a non-publishing release gate. It does not replace manual PTY smoke.
