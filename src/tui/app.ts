@@ -5,6 +5,17 @@ import { renderApp } from '../renderer/app-renderer.js';
 import { ANSI } from '../renderer/ansi.js';
 import { decodeKeys, type KeyEvent } from '../input/key-reader.js';
 import {
+  backspace,
+  createInputBuffer,
+  deleteForward,
+  insertText,
+  moveCursor,
+  moveCursorEnd,
+  moveCursorHome,
+  setCursorEnd,
+  type InputBufferState,
+} from '../input/edit-buffer.js';
+import {
   buildDashboard,
   emptyRemoteState,
   type DashboardRemoteState,
@@ -14,8 +25,8 @@ import type { DaemonDiagnosticResult } from '../daemon/client.js';
 
 export class AgentTuiApp {
   private session = createAgentSession();
-  private input = '';
-  private status = 'Enter submits. Ctrl-J inserts newline. Up/Down history. Ctrl-C/Esc exits.';
+  private inputBuffer: InputBufferState = createInputBuffer();
+  private status = 'Enter submits. Ctrl-J newline. Arrows edit/history. Ctrl-C/Esc exits.';
   private daemonStatus = 'Daemon: checking connection.';
   private daemonConnectionStatus = 'Daemon: checking connection.';
   private daemonDiagnostics: DaemonDiagnosticResult | null = null;
@@ -76,30 +87,56 @@ export class AgentTuiApp {
       return;
     }
     if (this.busy) return;
-    if (key.type === 'eof' && !this.input) {
+    if (key.type === 'eof' && !this.inputBuffer.text) {
       this.stop();
       return;
     }
     if (key.type === 'backspace') {
-      this.input = this.input.slice(0, -1);
+      this.inputBuffer = backspace(this.inputBuffer);
+      this.resetHistoryCursor();
+      this.render();
+      return;
+    }
+    if (key.type === 'delete') {
+      this.inputBuffer = deleteForward(this.inputBuffer);
       this.resetHistoryCursor();
       this.render();
       return;
     }
     if (key.type === 'text') {
-      this.input += key.value;
+      this.inputBuffer = insertText(this.inputBuffer, key.value);
       this.resetHistoryCursor();
       this.render();
       return;
     }
     if (key.type === 'newline') {
-      this.input += '\n';
+      this.inputBuffer = insertText(this.inputBuffer, '\n');
       this.resetHistoryCursor();
       this.render();
       return;
     }
+    if (key.type === 'cursor-left') {
+      this.inputBuffer = moveCursor(this.inputBuffer, -1);
+      this.render();
+      return;
+    }
+    if (key.type === 'cursor-right') {
+      this.inputBuffer = moveCursor(this.inputBuffer, 1);
+      this.render();
+      return;
+    }
+    if (key.type === 'home') {
+      this.inputBuffer = moveCursorHome(this.inputBuffer);
+      this.render();
+      return;
+    }
+    if (key.type === 'end') {
+      this.inputBuffer = moveCursorEnd(this.inputBuffer);
+      this.render();
+      return;
+    }
     if (key.type === 'clear-input') {
-      this.input = '';
+      this.inputBuffer = createInputBuffer();
       this.resetHistoryCursor();
       this.render();
       return;
@@ -122,8 +159,8 @@ export class AgentTuiApp {
       return;
     }
     if (key.type === 'enter') {
-      const text = this.input.trim();
-      this.input = '';
+      const text = this.inputBuffer.text.trim();
+      this.inputBuffer = createInputBuffer();
       this.resetHistoryCursor();
       if (!text) {
         this.render();
@@ -157,7 +194,8 @@ export class AgentTuiApp {
   private render(): void {
     process.stdout.write(renderApp({
       session: this.session,
-      input: this.input,
+      input: this.inputBuffer.text,
+      inputCursor: this.inputBuffer.cursor,
       status: this.status,
       daemonStatus: this.daemonStatus,
       dashboard: buildDashboard({
@@ -221,19 +259,19 @@ export class AgentTuiApp {
   private showHistory(direction: -1 | 1): void {
     if (this.history.length === 0) return;
     if (this.historyIndex === null) {
-      this.draftBeforeHistory = this.input;
+      this.draftBeforeHistory = this.inputBuffer.text;
       this.historyIndex = direction < 0 ? this.history.length - 1 : null;
     } else {
       this.historyIndex += direction;
     }
     if (this.historyIndex === null || this.historyIndex >= this.history.length) {
       this.historyIndex = null;
-      this.input = this.draftBeforeHistory;
+      this.inputBuffer = setCursorEnd(this.draftBeforeHistory);
     } else if (this.historyIndex < 0) {
       this.historyIndex = 0;
-      this.input = this.history[0] ?? '';
+      this.inputBuffer = setCursorEnd(this.history[0] ?? '');
     } else {
-      this.input = this.history[this.historyIndex] ?? '';
+      this.inputBuffer = setCursorEnd(this.history[this.historyIndex] ?? '');
     }
     this.render();
   }

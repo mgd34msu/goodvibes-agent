@@ -3,9 +3,12 @@ import { wrapText } from '../utils/format.js';
 import { ANSI } from './ansi.js';
 import { fitLine, getTerminalSize } from './layout.js';
 
+const DASHBOARD_HEADINGS = new Set(['Status', 'Work Plan', 'Approvals', 'Automation', 'Memory', 'Skills', 'Personas']);
+
 export interface RenderState {
   readonly session: AgentSessionState;
   readonly input: string;
+  readonly inputCursor?: number | undefined;
   readonly status: string;
   readonly daemonStatus: string;
   readonly dashboard: readonly string[];
@@ -19,7 +22,7 @@ export function renderApp(state: RenderState): string {
   const header = `${ANSI.bold}GoodVibes Agent${ANSI.reset} ${ANSI.dim}${state.session.id}${ANSI.reset}`;
   const daemon = `${ANSI.dim}${state.daemonStatus}${ANSI.reset}`;
   const footer = `${state.busy ? `${ANSI.fg.yellow}working${ANSI.reset}` : `${ANSI.fg.green}ready${ANSI.reset}`}  ${state.status}`;
-  const inputLines = renderInput(state.input, width);
+  const inputLines = renderInput(state.input, width, state.inputCursor);
   const bodyHeight = Math.max(1, height - 5 - inputLines.length);
   const bodyLines = renderBody(state, width, bodyHeight);
   while (bodyLines.length < bodyHeight) bodyLines.unshift('');
@@ -93,7 +96,7 @@ function renderDashboard(lines: readonly string[], width: number): string[] {
       output.push('');
       continue;
     }
-    const heading = /^[A-Z][A-Za-z ]+$/.test(line);
+    const heading = DASHBOARD_HEADINGS.has(line);
     const prefix = heading ? `${ANSI.bold}${line}${ANSI.reset}` : `  ${line}`;
     for (const wrapped of wrapText(prefix, width)) output.push(wrapped);
   }
@@ -117,20 +120,51 @@ function renderMessages(session: AgentSessionState, width: number): string[] {
   return lines;
 }
 
-function renderInput(input: string, width: number): string[] {
+export function renderInput(input: string, width: number, cursor = [...input].length): string[] {
   const lines: string[] = [];
   const parts = input.split('\n');
+  let offset = 0;
   for (let index = 0; index < parts.length; index += 1) {
     const prefix = index === 0 ? `${ANSI.fg.cyan}>${ANSI.reset} ` : `${ANSI.fg.gray}|${ANSI.reset} `;
-    const available = Math.max(8, width - 2);
-    const wrapped = wrapText(parts[index] ?? '', available);
-    if (wrapped.length === 0) {
-      lines.push(prefix);
-      continue;
-    }
+    const part = parts[index] ?? '';
+    const partLength = [...part].length;
+    const cursorInLine = cursor >= offset && cursor <= offset + partLength ? cursor - offset : null;
+    const wrapped = wrapInputLine(part, Math.max(8, width - 2), cursorInLine);
     for (let wrappedIndex = 0; wrappedIndex < wrapped.length; wrappedIndex += 1) {
       lines.push(`${wrappedIndex === 0 ? prefix : '  '}${wrapped[wrappedIndex]}`);
     }
+    offset += partLength + 1;
   }
   return lines.slice(-5);
+}
+
+function wrapInputLine(line: string, width: number, cursor: number | null): readonly string[] {
+  const chars = [...line];
+  if (chars.length === 0) return [cursor === 0 ? cursorCell(' ') : ''];
+  const output: string[] = [];
+  const visibleCells = chars.length + (cursor === chars.length ? 1 : 0);
+  const chunkCount = Math.max(1, Math.ceil(visibleCells / width));
+  for (let chunk = 0; chunk < chunkCount; chunk += 1) {
+    const start = chunk * width;
+    const end = Math.min(visibleCells, start + width);
+    output.push(renderInputChunk(chars, start, end, cursor));
+  }
+  return output;
+}
+
+function renderInputChunk(chars: readonly string[], start: number, end: number, cursor: number | null): string {
+  let output = '';
+  for (let index = start; index < end; index += 1) {
+    if (index >= chars.length) {
+      output += cursor === index ? cursorCell(' ') : ' ';
+      continue;
+    }
+    const char = chars[index] ?? '';
+    output += cursor === index ? cursorCell(char) : char;
+  }
+  return output;
+}
+
+function cursorCell(value: string): string {
+  return `${ANSI.inverse}${value || ' '}${ANSI.reset}`;
 }

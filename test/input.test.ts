@@ -23,8 +23,16 @@ describe('terminal key decoding', () => {
     expect(decodeKeys(Buffer.from('\u001b[B'))).toEqual([{ type: 'history-next' }]);
   });
 
+  test('decodes cursor navigation and delete keys', () => {
+    expect(decodeKeys(Buffer.from('\u001b[D'))).toEqual([{ type: 'cursor-left' }]);
+    expect(decodeKeys(Buffer.from('\u001b[C'))).toEqual([{ type: 'cursor-right' }]);
+    expect(decodeKeys(Buffer.from('\u001b[H'))).toEqual([{ type: 'home' }]);
+    expect(decodeKeys(Buffer.from('\u001b[F'))).toEqual([{ type: 'end' }]);
+    expect(decodeKeys(Buffer.from('\u001b[3~'))).toEqual([{ type: 'delete' }]);
+  });
+
   test('filters unsupported escape sequences instead of leaking control bytes', () => {
-    expect(decodeKeys(Buffer.from('\u001b[C'))).toEqual([]);
+    expect(decodeKeys(Buffer.from('\u001b[15~'))).toEqual([]);
   });
 
   test('keeps bracketed paste as one text event', () => {

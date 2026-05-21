@@ -3,6 +3,11 @@ export type KeyEvent =
   | { readonly type: 'enter' }
   | { readonly type: 'newline' }
   | { readonly type: 'backspace' }
+  | { readonly type: 'delete' }
+  | { readonly type: 'cursor-left' }
+  | { readonly type: 'cursor-right' }
+  | { readonly type: 'home' }
+  | { readonly type: 'end' }
   | { readonly type: 'history-prev' }
   | { readonly type: 'history-next' }
   | { readonly type: 'clear-screen' }
@@ -28,6 +33,11 @@ export function decodeKeys(buffer: Buffer): readonly KeyEvent[] {
   if (value === '\u007f' || value === '\b') return [{ type: 'backspace' }];
   if (value === '\u001b[A') return [{ type: 'history-prev' }];
   if (value === '\u001b[B') return [{ type: 'history-next' }];
+  if (value === '\u001b[D') return [{ type: 'cursor-left' }];
+  if (value === '\u001b[C') return [{ type: 'cursor-right' }];
+  if (value === '\u001b[H' || value === '\u001bOH' || value === '\u001b[1~' || value === '\u001b[7~') return [{ type: 'home' }];
+  if (value === '\u001b[F' || value === '\u001bOF' || value === '\u001b[4~' || value === '\u001b[8~') return [{ type: 'end' }];
+  if (value === '\u001b[3~') return [{ type: 'delete' }];
   if (value === '\u001b') return [{ type: 'escape' }];
 
   const paste = parseBracketedPaste(value);
@@ -73,6 +83,28 @@ export function decodeKeys(buffer: Buffer): readonly KeyEvent[] {
       } else if (next === '[' && final === 'B') {
         events.push({ type: 'history-next' });
         index += 2;
+      } else if (next === '[' && final === 'D') {
+        events.push({ type: 'cursor-left' });
+        index += 2;
+      } else if (next === '[' && final === 'C') {
+        events.push({ type: 'cursor-right' });
+        index += 2;
+      } else if (next === '[' && final === 'H') {
+        events.push({ type: 'home' });
+        index += 2;
+      } else if (next === '[' && final === 'F') {
+        events.push({ type: 'end' });
+        index += 2;
+      } else if (next === 'O' && final === 'H') {
+        events.push({ type: 'home' });
+        index += 2;
+      } else if (next === 'O' && final === 'F') {
+        events.push({ type: 'end' });
+        index += 2;
+      } else if (next === '[' && chars[index + 3] === '~') {
+        const event = tildeEscapeEvent(final);
+        if (event) events.push(event);
+        index += 3;
       } else {
         index += consumeEscapeSequence(chars.slice(index));
       }
@@ -82,6 +114,21 @@ export function decodeKeys(buffer: Buffer): readonly KeyEvent[] {
   }
   flushText();
   return events;
+}
+
+function tildeEscapeEvent(value: string | undefined): KeyEvent | null {
+  switch (value) {
+    case '1':
+    case '7':
+      return { type: 'home' };
+    case '4':
+    case '8':
+      return { type: 'end' };
+    case '3':
+      return { type: 'delete' };
+    default:
+      return null;
+  }
 }
 
 function parseBracketedPaste(value: string): string | null {

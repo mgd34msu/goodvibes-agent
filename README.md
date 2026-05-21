@@ -57,7 +57,10 @@ Terminal controls:
 
 - `Enter` submits.
 - `Ctrl-J` inserts a newline.
-- `Up` / `Down` navigates input history.
+- `Left` / `Right` moves the input cursor.
+- `Home` / `End` moves to the start/end of the current input line.
+- `Delete` removes the character under the cursor.
+- `Up` / `Down` navigates input history and preserves multiline drafts.
 - `Ctrl-U` clears the current input.
 - `Ctrl-R` refreshes the read-only operator status panes.
 - `Ctrl-C`, `Esc`, `/quit`, or `/exit` exits and restores the terminal.
@@ -88,6 +91,8 @@ bun run smoke:release
 ```
 
 `smoke:cli` checks source-tree commands from a temporary agent home. `smoke:release` also runs `npm pack`, installs the packed artifact into a temporary global prefix, verifies the `goodvibes-agent` bin and Bun shebang, then runs installed help/status/smoke checks. Both scripts connect to an already-running daemon; they do not start or stop it.
+
+Manual PTY smoke steps live in `docs/manual-smoke.md`.
 
 ## Packaging Notes
 
