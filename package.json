@@ -18,6 +18,7 @@
     "src/",
     "docs/",
     "README.md",
+    "CHANGELOG.md",
     "tsconfig.json"
   ],
   "scripts": {
@@ -26,6 +27,8 @@
     "smoke": "bun run src/main.ts smoke",
     "smoke:cli": "bun run scripts/smoke.ts",
     "smoke:release": "bun run scripts/smoke.ts --release",
+    "check:source": "bun run scripts/release-check.ts",
+    "check:release": "bun run scripts/release-check.ts --release",
     "check:types": "bun run scripts/check-types.ts",
     "typecheck": "tsc --noEmit && bun run check:types",
     "test": "bun test",

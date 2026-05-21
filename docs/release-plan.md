@@ -92,6 +92,7 @@ Ask TUI before major architectural copy/promote decisions. If a feature needs TU
 - Add Bun-only packaging checks: clean `bun install`, documented `bun pm trust` only if lifecycle dependencies require it, `npm pack` contents inspection, install into a temporary prefix/global-equivalent location, command available on `PATH`, help smoke, and status/smoke command.
 - Keep release checks Bun/TypeScript-only: no explicit weak top type, no authored `.js`/`.mjs`/`.cjs`/`.jsx` files under `bin/`, `scripts/`, `src/`, or `test/`.
 - Maintain manual PTY smoke notes for first key input, Unicode, cursor editing, multiline history, paste, resize, and terminal cleanup.
+- Maintain `docs/release-checklist.md` as the non-publishing release procedure.
 - Document README install/trust behavior, service/daemon connection, auth setup, upgrade notes, and current limitations.
 - Do not add binary postinstall unless the package ships platform artifacts.
 - If binaries are shipped later, use a deliberate agent-specific binary release flow and GitHub release artifacts.

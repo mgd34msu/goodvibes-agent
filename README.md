@@ -21,6 +21,22 @@ bun run dev tui
 
 `goodvibes-agent` connects to an already-running GoodVibes daemon. It does not start, stop, install, or supervise the daemon.
 
+For a packed/global install smoke, use the release smoke instead of publishing:
+
+```sh
+bun run smoke:release
+```
+
+After an intentional publish, Bun global install should look like:
+
+```sh
+bun install -g @pellux/goodvibes-agent
+goodvibes-agent --help
+goodvibes-agent status
+```
+
+Do not use the global install path until the package has been deliberately released.
+
 Common commands:
 
 ```sh
@@ -88,11 +104,13 @@ Smoke checks:
 ```sh
 bun run smoke:cli
 bun run smoke:release
+bun run check:source
+bun run check:release
 ```
 
 `smoke:cli` checks source-tree commands from a temporary agent home. `smoke:release` also runs `npm pack`, installs the packed artifact into a temporary global prefix, verifies the `goodvibes-agent` bin and Bun shebang, then runs installed help/status/smoke checks. Both scripts connect to an already-running daemon; they do not start or stop it.
 
-Manual PTY smoke steps live in `docs/manual-smoke.md`.
+`check:source` and `check:release` compose the release gates without publishing. Manual PTY smoke steps live in `docs/manual-smoke.md`, and the full release checklist lives in `docs/release-checklist.md`.
 
 ## Packaging Notes
 
@@ -101,3 +119,5 @@ While private and unreleased, the package version stays at `0.0.0`. The first in
 During pre-1.0 near-fork development, `@pellux/goodvibes-sdk` is pinned exactly to the daemon-compatible version instead of using a caret range. This package does not currently ship a binary postinstall or trust native lifecycle packages it does not directly exercise.
 
 The distributed package must install a real `goodvibes-agent` executable through `package.json` `bin`. The bin is TypeScript-authored and Bun-backed; release smoke must verify `goodvibes-agent --help` and `goodvibes-agent smoke` from a fresh install.
+
+Keep `CHANGELOG.md` current before any version bump. Publishing requires a deliberate release commit that bumps to `0.1.0`, removes `private`, and follows `docs/release-checklist.md`.
