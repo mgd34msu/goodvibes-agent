@@ -6,9 +6,10 @@ import type { SkillRecord } from '../store/skills.js';
 import { MemoryStore } from '../store/memory.js';
 import { PersonaStore } from '../store/personas.js';
 import { SkillStore } from '../store/skills.js';
+import { AssistantProfileStore, type AssistantProfileState } from '../store/profile.js';
 import { formatDaemonDiagnostics } from '../daemon/diagnostics-format.js';
 import type { OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
-import { classifyPrompt } from './policy.js';
+import { evaluateActionPolicy } from './policy.js';
 import { buildAssistantSystemPrompt } from './system-prompt.js';
 import { delegateToTui, shouldDelegateToTui, shouldRequestWrfc, type DelegationResult } from './delegation.js';
 import { CompanionChatCoordinator, type CompanionChatStatus, type CompanionChatTurnResult } from './companion-chat.js';
@@ -33,6 +34,7 @@ export class AssistantRuntime {
   readonly memory = new MemoryStore();
   readonly skills = new SkillStore();
   readonly personas = new PersonaStore();
+  readonly profile = new AssistantProfileStore();
   readonly delegations = new DelegationReceiptStore();
   readonly providerModel: ProviderModelSelection;
   private readonly companionChat: CompanionChatCoordinator;
@@ -54,17 +56,17 @@ export class AssistantRuntime {
 
     if (trimmed.startsWith('/')) return this.handleSlash(trimmed);
 
+    const policy = evaluateActionPolicy(trimmed);
+    if (policy.requiresApproval) {
+      return {
+        text: `I need approval before doing that. Reason: ${policy.reason}`,
+        data: policy,
+      };
+    }
+
     const captured = this.options.config.autoRemember
       ? this.memory.autoCaptureFromUserText(trimmed)
       : null;
-
-    const safety = classifyPrompt(trimmed);
-    if (safety.requiresApproval) {
-      return {
-        text: `I need approval before doing that. Reason: ${safety.reason}`,
-        data: safety,
-      };
-    }
 
     if (this.options.config.autoDelegateBuildRequests && shouldDelegateToTui(trimmed)) {
       const result = await this.delegateBuildTask({
@@ -96,9 +98,11 @@ export class AssistantRuntime {
   }
 
   private async sendChat(text: string): Promise<CompanionChatTurnResult> {
-    const persona = this.personas.find('operator') ?? this.personas.list()[0]!;
+    const profile = this.profile.current();
+    const persona = this.resolveActivePersona(profile);
+    const skills = this.resolveActiveSkills(profile);
     const memories = this.memory.search(text, 8);
-    return this.companionChat.send(text, buildAssistantSystemPrompt({ persona, memories }));
+    return this.companionChat.send(text, buildAssistantSystemPrompt({ persona, memories, skills }));
   }
 
   async askKnowledge(query: string): Promise<AssistantReply> {
@@ -158,6 +162,8 @@ export class AssistantRuntime {
         return { text: slashHelp() };
       case 'status':
         return { text: formatDaemonDiagnostics(await this.client.diagnostics()) };
+      case 'policy':
+        return { text: formatPolicy(evaluateActionPolicy(rest)), data: evaluateActionPolicy(rest) };
       case 'ask':
         return this.askKnowledge(rest);
       case 'search':
@@ -169,9 +175,9 @@ export class AssistantRuntime {
       case 'memory':
         return { text: formatMemory(rest ? this.memory.search(rest) : this.memory.list()) };
       case 'skills':
-        return { text: formatSkills(rest ? this.skills.search(rest) : this.skills.list()) };
+        return this.handleSkillsSlash(args);
       case 'personas':
-        return { text: formatPersonas(this.personas.list()) };
+        return this.handlePersonasSlash(args);
       case 'delegate': {
         const wrfc = args.includes('--wrfc');
         const task = args.filter((arg) => arg !== '--wrfc').join(' ').trim();
@@ -190,6 +196,82 @@ export class AssistantRuntime {
         return { text: `Unknown command: /${name}\n\n${slashHelp()}` };
     }
   }
+
+  activeProfile(): {
+    readonly state: AssistantProfileState;
+    readonly persona: PersonaRecord;
+    readonly skills: readonly SkillRecord[];
+  } {
+    const state = this.profile.current();
+    return {
+      state,
+      persona: this.resolveActivePersona(state),
+      skills: this.resolveActiveSkills(state),
+    };
+  }
+
+  private resolveActivePersona(profile: AssistantProfileState): PersonaRecord {
+    return this.personas.find(profile.activePersona)
+      ?? this.personas.find('operator')
+      ?? this.personas.list()[0]
+      ?? fallbackPersona();
+  }
+
+  private resolveActiveSkills(profile: AssistantProfileState): readonly SkillRecord[] {
+    return profile.activeSkills
+      .map((idOrName) => this.skills.find(idOrName))
+      .filter((skill): skill is SkillRecord => skill !== null);
+  }
+
+  private handleSkillsSlash(args: readonly string[]): AssistantReply {
+    const [action = '', selector = '', ...rest] = args;
+    if (action === 'active') {
+      const active = this.activeProfile();
+      return { text: formatActiveSkills(active.skills), data: active };
+    }
+    if (action === 'enable' || action === 'disable' || action === 'review' || action === 'stale') {
+      const skill = this.skills.find(selector);
+      if (!skill) return { text: `No skill found for ${selector || '(empty)'}.` };
+      if (action === 'enable') {
+        const profile = this.profile.enableSkill(skill.id);
+        return { text: `Enabled skill ${skill.name}.`, data: { profile, skill } };
+      }
+      if (action === 'disable') {
+        const profile = this.profile.disableSkill(skill.id);
+        return { text: `Disabled skill ${skill.name}.`, data: { profile, skill } };
+      }
+      const updated = this.skills.update(skill.id, {
+        reviewState: action === 'review' ? 'reviewed' : 'stale',
+        reviewedBy: action === 'review' ? 'goodvibes-agent-tui' : undefined,
+      });
+      return { text: `${action === 'review' ? 'Reviewed' : 'Marked stale'} skill ${updated.name}.`, data: updated };
+    }
+    const query = [action, selector, ...rest].join(' ').trim();
+    return { text: formatSkills(query ? this.skills.search(query) : this.skills.list()) };
+  }
+
+  private handlePersonasSlash(args: readonly string[]): AssistantReply {
+    const [action = '', selector = '', ...rest] = args;
+    if (action === 'active') {
+      const active = this.activeProfile();
+      return { text: `Active persona: ${active.persona.name}\n${active.persona.description || active.persona.title}`, data: active };
+    }
+    if (action === 'use' || action === 'review' || action === 'stale') {
+      const persona = this.personas.find(selector);
+      if (!persona) return { text: `No persona found for ${selector || '(empty)'}.` };
+      if (action === 'use') {
+        const profile = this.profile.setActivePersona(persona.id);
+        return { text: `Using persona ${persona.name}.`, data: { profile, persona } };
+      }
+      const updated = this.personas.update(persona.id, {
+        reviewState: action === 'review' ? 'reviewed' : 'stale',
+        reviewedBy: action === 'review' ? 'goodvibes-agent-tui' : undefined,
+      });
+      return { text: `${action === 'review' ? 'Reviewed' : 'Marked stale'} persona ${updated.name}.`, data: updated };
+    }
+    const query = [action, selector, ...rest].join(' ').trim();
+    return { text: formatPersonas(query ? this.personas.search(query) : this.personas.list()) };
+  }
 }
 
 function formatMemory(records: readonly MemoryRecord[]): string {
@@ -206,6 +288,14 @@ function formatSkills(records: readonly SkillRecord[]): string {
   )).join('\n');
 }
 
+function formatActiveSkills(records: readonly SkillRecord[]): string {
+  if (records.length === 0) return 'No active skills.';
+  return [
+    'Active skills:',
+    ...records.map((record) => `- ${record.name} [${record.reviewState}]: ${record.description || record.title}`),
+  ].join('\n');
+}
+
 function formatPersonas(records: readonly PersonaRecord[]): string {
   if (records.length === 0) return 'No personas.';
   return records.map((record) => (
@@ -213,16 +303,45 @@ function formatPersonas(records: readonly PersonaRecord[]): string {
   )).join('\n');
 }
 
+function fallbackPersona(): PersonaRecord {
+  const now = Date.now();
+  return {
+    id: 'persona_operator_fallback',
+    name: 'operator',
+    title: 'Operator',
+    description: 'Fallback proactive serial assistant/operator.',
+    body: 'Act as a proactive serial GoodVibes assistant. Make ordinary safe progress, use knowledge and memory, and delegate explicit build work to GoodVibes TUI.',
+    tags: ['fallback', 'operator'],
+    source: 'built-in',
+    provenance: ['goodvibes-agent'],
+    reviewState: 'reviewed',
+    createdAt: now,
+    updatedAt: now,
+    reviewedAt: now,
+    reviewedBy: 'goodvibes-agent',
+  };
+}
+
+function formatPolicy(policy: ReturnType<typeof evaluateActionPolicy>): string {
+  return [
+    `Policy: ${policy.category} (${policy.risk})`,
+    `Approval required: ${policy.requiresApproval ? 'yes' : 'no'}`,
+    `Automatic action: ${policy.allowedAutomatically ? 'yes' : 'no'}`,
+    policy.reason,
+  ].join('\n');
+}
+
 function slashHelp(): string {
   return [
     'Commands:',
     '/status                 Check daemon status',
+    '/policy <text>          Explain safe-action policy for a request',
     '/ask <query>            Ask GoodVibes knowledge',
     '/search <query>         Search GoodVibes knowledge',
     '/remember <fact>        Store durable assistant memory',
     '/memory [query]         List/search assistant memory',
-    '/skills [query]         List/search assistant skills',
-    '/personas               List assistant personas',
+    '/skills [query]         List/search assistant skills; active|enable|disable|review|stale',
+    '/personas               List assistant personas; active|use|review|stale',
     '/delegate [--wrfc] <t>  Delegate build/fix/review work to GoodVibes TUI',
     '/delegations [id]       Show delegated build receipts and status',
     '/approvals              List daemon approvals',

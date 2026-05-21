@@ -5,6 +5,7 @@ import { MemoryStore } from '../store/memory.js';
 import { PersonaStore } from '../store/personas.js';
 import { SkillStore } from '../store/skills.js';
 import { DelegationReceiptStore } from '../store/delegations.js';
+import { AssistantProfileStore } from '../store/profile.js';
 
 export interface AgentRuntimeServices {
   readonly config: AgentConfig;
@@ -13,6 +14,7 @@ export interface AgentRuntimeServices {
   readonly memory: MemoryStore;
   readonly personas: PersonaStore;
   readonly skills: SkillStore;
+  readonly profile: AssistantProfileStore;
   readonly delegations: DelegationReceiptStore;
   readonly assistant: AssistantRuntime;
 }
@@ -31,6 +33,7 @@ export function createAgentRuntimeServices(config?: AgentConfig): AgentRuntimeSe
     memory: assistant.memory,
     personas: assistant.personas,
     skills: assistant.skills,
+    profile: assistant.profile,
     delegations: assistant.delegations,
     assistant,
   };

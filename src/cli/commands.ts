@@ -1,5 +1,6 @@
 import { formatJson } from '../utils/format.js';
 import { formatDelegationReceipt } from '../assistant/delegation-status.js';
+import { evaluateActionPolicy } from '../assistant/policy.js';
 import { AgentTuiApp } from '../tui/app.js';
 import { bootstrapAgentRuntime } from '../runtime/bootstrap.js';
 import { summarizeAuth, summarizeDaemonDiagnostics, type DaemonDiagnosticSummary } from '../daemon/diagnostics-format.js';
@@ -7,6 +8,7 @@ import type { AgentRuntimeServices } from '../runtime/services.js';
 import type { MemoryClass, MemoryReviewState, MemoryScope, MemorySensitivity } from '../store/memory.js';
 import type { SkillReviewState } from '../store/skills.js';
 import type { PersonaReviewState } from '../store/personas.js';
+import { RegistryNotFoundError } from '../store/errors.js';
 import { getFlag, getText, hasFlag, type ParsedArgs } from './args.js';
 import { renderHelp } from './help.js';
 import { printCaughtFailure, printFailure, printSuccess } from './output.js';
@@ -45,6 +47,7 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
         surfaceId: config.surfaceId,
         providerModel: runtime.providerModel,
         companionChat: runtime.chatStatus(),
+        profile: profileSummary(services),
         daemon: summarizeDaemonDiagnostics(diagnostics),
       }));
       return diagnostics.ok ? 0 : 1;
@@ -54,6 +57,8 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
     case 'chat':
       console.log((await runtime.handleUserText(text)).text);
       return 0;
+    case 'policy':
+      return printSuccess('policy.evaluated', evaluateActionPolicy(text));
     case 'ask':
       return handleKnowledgeAsk(args, runtime, text);
     case 'search':
@@ -132,6 +137,7 @@ async function handleStatus(services: AgentRuntimeServices): Promise<number> {
       daemon: summarizeDaemonDiagnostics(diagnostics),
       providerModel: services.assistant.providerModel,
       companionChat: services.assistant.chatStatus(),
+      profile: profileSummary(services),
     },
   }));
   return diagnostics.ok ? 0 : 1;
@@ -176,6 +182,33 @@ async function configDiagnostics(services: AgentRuntimeServices): Promise<{
         'Check GOODVIBES_AGENT_BASE_URL or GOODVIBES_BASE_URL.',
         'Check GOODVIBES_AGENT_TOKEN, GOODVIBES_HTTP_TOKEN, GOODVIBES_DAEMON_TOKEN, or the daemon token file.',
       ],
+  };
+}
+
+function profileSummary(services: AgentRuntimeServices): {
+  readonly activePersona: {
+    readonly id: string;
+    readonly name: string;
+    readonly reviewState: string;
+  };
+  readonly activeSkills: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly reviewState: string;
+  }[];
+} {
+  const active = services.assistant.activeProfile();
+  return {
+    activePersona: {
+      id: active.persona.id,
+      name: active.persona.name,
+      reviewState: active.persona.reviewState,
+    },
+    activeSkills: active.skills.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      reviewState: skill.reviewState,
+    })),
   };
 }
 
@@ -335,9 +368,36 @@ function handleSkills(args: ParsedArgs, services: AgentRuntimeServices): number 
           reviewState: 'reviewed',
           reviewedBy: 'goodvibes-agent-cli',
         }));
+      case 'stale':
+        return printSuccess('skills.stale', services.skills.update(requireFirst(rest, 'skills stale requires an id or name.'), {
+          reviewState: 'stale',
+        }));
+      case 'enable': {
+        const skill = services.skills.find(requireFirst(rest, 'skills enable requires an id or name.'));
+        if (!skill) throw new RegistryNotFoundError('skill', rest[0] ?? '');
+        return printSuccess('skills.enabled', {
+          profile: services.profile.enableSkill(skill.id),
+          skill,
+        });
+      }
+      case 'disable': {
+        const skill = services.skills.find(requireFirst(rest, 'skills disable requires an id or name.'));
+        if (!skill) throw new RegistryNotFoundError('skill', rest[0] ?? '');
+        return printSuccess('skills.disabled', {
+          profile: services.profile.disableSkill(skill.id),
+          skill,
+        });
+      }
+      case 'active': {
+        const active = services.assistant.activeProfile();
+        return printSuccess('skills.active', {
+          profile: active.state,
+          skills: active.skills,
+        });
+      }
       case 'delete':
         if (!hasFlag(args, 'yes')) return printFailure('confirmation_required', 'Deleting a skill requires --yes.');
-        return printSuccess('skills.deleted', services.skills.delete(requireFirst(rest, 'skills delete requires an id or name.')));
+        return deleteSkill(services, requireFirst(rest, 'skills delete requires an id or name.'));
       default:
         return printSuccess('skills.search', services.skills.search(args.positional.join(' ')));
     }
@@ -380,9 +440,28 @@ function handlePersonas(args: ParsedArgs, services: AgentRuntimeServices): numbe
           reviewState: 'reviewed',
           reviewedBy: 'goodvibes-agent-cli',
         }));
+      case 'stale':
+        return printSuccess('personas.stale', services.personas.update(requireFirst(rest, 'personas stale requires an id or name.'), {
+          reviewState: 'stale',
+        }));
+      case 'use': {
+        const persona = services.personas.find(requireFirst(rest, 'personas use requires an id or name.'));
+        if (!persona) throw new RegistryNotFoundError('persona', rest[0] ?? '');
+        return printSuccess('personas.active', {
+          profile: services.profile.setActivePersona(persona.id),
+          persona,
+        });
+      }
+      case 'active': {
+        const active = services.assistant.activeProfile();
+        return printSuccess('personas.active', {
+          profile: active.state,
+          persona: active.persona,
+        });
+      }
       case 'delete':
         if (!hasFlag(args, 'yes')) return printFailure('confirmation_required', 'Deleting a persona requires --yes.');
-        return printSuccess('personas.deleted', services.personas.delete(requireFirst(rest, 'personas delete requires an id or name.')));
+        return deletePersona(services, requireFirst(rest, 'personas delete requires an id or name.'));
       default:
         return printSuccess('personas.search', services.personas.search(args.positional.join(' ')));
     }
@@ -395,6 +474,28 @@ function requireFirst(values: readonly string[], message: string): string {
   const value = values[0]?.trim();
   if (!value) throw new Error(message);
   return value;
+}
+
+function deleteSkill(services: AgentRuntimeServices, idOrName: string): number {
+  const deleted = services.skills.delete(idOrName);
+  services.profile.disableSkill(deleted.id);
+  services.profile.disableSkill(deleted.name);
+  return printSuccess('skills.deleted', {
+    skill: deleted,
+    profile: services.assistant.activeProfile().state,
+  });
+}
+
+function deletePersona(services: AgentRuntimeServices, idOrName: string): number {
+  const deleted = services.personas.delete(idOrName);
+  const active = services.profile.current();
+  if (active.activePersona === deleted.id || active.activePersona === deleted.name) {
+    services.profile.setActivePersona('operator');
+  }
+  return printSuccess('personas.deleted', {
+    persona: deleted,
+    profile: services.assistant.activeProfile().state,
+  });
 }
 
 function parseList(value: string | undefined): readonly string[] | undefined {

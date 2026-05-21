@@ -72,6 +72,13 @@ async function runSourceSmoke(): Promise<void> {
       env,
       expectedKind: 'auth.current',
     });
+    await expectJsonCommand({
+      name: 'source policy safe',
+      cmd: source(['policy', 'summarize', 'my', 'work', 'plan']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'policy.evaluated',
+    });
     await expectTextCommand({
       name: 'source ask',
       cmd: source(['ask', 'GoodVibes Agent']),
@@ -255,6 +262,34 @@ async function runLocalCrud(
     expectedKind: 'skills.updated',
   });
   await expectJsonCommand({
+    name: `${prefix} skill enable`,
+    cmd: command(['skills', 'enable', 'smoke-skill']),
+    cwd: repoRoot,
+    env,
+    expectedKind: 'skills.enabled',
+  });
+  await expectJsonCommand({
+    name: `${prefix} skill active`,
+    cmd: command(['skills', 'active']),
+    cwd: repoRoot,
+    env,
+    expectedKind: 'skills.active',
+  });
+  await expectJsonCommand({
+    name: `${prefix} skill stale`,
+    cmd: command(['skills', 'stale', 'smoke-skill']),
+    cwd: repoRoot,
+    env,
+    expectedKind: 'skills.stale',
+  });
+  await expectJsonCommand({
+    name: `${prefix} skill disable`,
+    cmd: command(['skills', 'disable', 'smoke-skill']),
+    cwd: repoRoot,
+    env,
+    expectedKind: 'skills.disabled',
+  });
+  await expectJsonCommand({
     name: `${prefix} skill delete`,
     cmd: command(['skills', 'delete', 'smoke-skill', '--yes']),
     cwd: repoRoot,
@@ -276,6 +311,27 @@ async function runLocalCrud(
     cwd: repoRoot,
     env,
     expectedKind: 'personas.updated',
+  });
+  await expectJsonCommand({
+    name: `${prefix} persona use`,
+    cmd: command(['personas', 'use', 'smoke-persona']),
+    cwd: repoRoot,
+    env,
+    expectedKind: 'personas.active',
+  });
+  await expectJsonCommand({
+    name: `${prefix} persona active`,
+    cmd: command(['personas', 'active']),
+    cwd: repoRoot,
+    env,
+    expectedKind: 'personas.active',
+  });
+  await expectJsonCommand({
+    name: `${prefix} persona stale`,
+    cmd: command(['personas', 'stale', 'smoke-persona']),
+    cwd: repoRoot,
+    env,
+    expectedKind: 'personas.stale',
   });
   await expectJsonCommand({
     name: `${prefix} persona delete`,

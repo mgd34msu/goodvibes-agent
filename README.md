@@ -28,6 +28,7 @@ bun run dev status
 bun run dev config
 bun run dev smoke
 bun run dev auth
+bun run dev policy "summarize my current work plan"
 bun run dev chat "What do you remember about my Home Assistant setup?"
 bun run dev ask "GoodVibes project planning status"
 bun run dev ask "GoodVibes project planning status" --json
@@ -37,7 +38,9 @@ bun run dev approvals
 bun run dev delegations
 bun run dev memory add "We use Bun for goodvibes-agent" --class constraint --tags runtime,typescript
 bun run dev skills create weekly-plan --description "Plan the week from durable context" --triggers "plan week,weekly planning"
+bun run dev skills enable weekly-plan
 bun run dev personas create travel --description "Travel planning mode" --body "Plan travel carefully using known preferences."
+bun run dev personas use travel
 bun run dev delegate --wrfc "Build the first version of the assistant inbox"
 bun run dev delegations status <receipt-id>
 ```
@@ -64,6 +67,8 @@ Local assistant state is stored under `~/.goodvibes/agent/`.
 Human-facing `ask`, `search`, `workplan`, `approvals`, `delegate`, and `delegations` output is concise by default. Use `--json` on those commands when you need structured output for inspection or tooling. Auth and config diagnostics report token source, presence, and fingerprints, never token values.
 
 Delegation receipts are stored under the agent home so build handoffs remain inspectable even before daemon routes expose origin-filtered delegation history. `delegations` uses public session, task, and work-plan routes opportunistically and shows warnings instead of hiding route failures.
+
+`policy` explains the local safe-action decision for a request. Safe read/format/summarize and non-secret local memory/skill/persona lifecycle actions can proceed; workspace writes, daemon mutations, service changes, package installs, secret handling, deletes, network effects, and external side effects require explicit approval or an explicit command flow. Active persona and skill selections are local agent state and are included in the assistant prompt.
 
 Smoke checks:
 

@@ -8,6 +8,7 @@ export function renderHelp(): string {
     '  goodvibes-agent status',
     '  goodvibes-agent auth',
     '  goodvibes-agent smoke',
+    '  goodvibes-agent policy <request>',
     '  goodvibes-agent chat <message>',
     '  goodvibes-agent ask <knowledge query> [--json]',
     '  goodvibes-agent search <knowledge query> [--json]',
@@ -18,8 +19,8 @@ export function renderHelp(): string {
     '  goodvibes-agent workplan [--json]',
     '  goodvibes-agent memory [query]',
     '  goodvibes-agent memory add|update|review|stale|delete|search|list',
-    '  goodvibes-agent skills create|update|review|delete|search|list',
-    '  goodvibes-agent personas create|update|review|delete|search|list',
+    '  goodvibes-agent skills create|update|review|stale|enable|disable|active|delete|search|list',
+    '  goodvibes-agent personas create|update|review|stale|use|active|delete|search|list',
     '',
     'The default command is tui.',
   ].join('\n');

@@ -37,12 +37,14 @@ export function buildDashboard(input: DashboardInput): readonly string[] {
   const memoryCount = input.runtime.memory.list().length;
   const skillCount = input.runtime.skills.list().length;
   const personaCount = input.runtime.personas.list().length;
+  const active = input.runtime.activeProfile();
   return [
     'Status',
     daemonLine(input.daemon),
     `Chat ${chat.sessionId ?? 'new'}`,
     `Model ${chat.providerModelDisplay}`,
     `Local ${memoryCount} memory, ${skillCount} skills, ${personaCount} personas`,
+    `Active ${active.persona.name}; skills ${active.skills.length ? active.skills.map((skill) => skill.name).join(', ') : 'none'}`,
     '',
     'Work Plan',
     ...workPlanLines(input.remote.workPlan),

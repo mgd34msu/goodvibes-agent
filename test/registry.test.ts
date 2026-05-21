@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { MemoryStore } from '../src/store/memory.js';
 import { SkillStore } from '../src/store/skills.js';
 import { PersonaStore } from '../src/store/personas.js';
+import { AssistantProfileStore } from '../src/store/profile.js';
 
 let previousHome: string | undefined;
 let testHome = '';
@@ -76,5 +77,18 @@ describe('local registries', () => {
     expect(reviewed.description).toBe('Travel planning mode.');
     expect(reviewed.reviewState).toBe('reviewed');
     expect(store.find(persona.id)?.name).toBe('travel');
+  });
+
+  test('profile tracks active persona and skills', () => {
+    const profile = new AssistantProfileStore();
+    const skills = new SkillStore();
+    const personas = new PersonaStore();
+    const skill = skills.create({ name: 'weekly-plan' });
+    const persona = personas.create({ name: 'travel' });
+
+    expect(profile.setActivePersona(persona.id).activePersona).toBe(persona.id);
+    expect(profile.enableSkill(skill.id).activeSkills).toContain(skill.id);
+    expect(profile.enableSkill(skill.id).activeSkills.filter((active) => active === skill.id)).toHaveLength(1);
+    expect(profile.disableSkill(skill.id).activeSkills).not.toContain(skill.id);
   });
 });

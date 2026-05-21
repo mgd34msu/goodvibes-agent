@@ -72,9 +72,11 @@ Ask TUI before major architectural copy/promote decisions. If a feature needs TU
 ### M3: Assistant Autonomy
 
 - Improve intent classification for safe action, approval-worthy action, knowledge lookup, memory update, task tracking, automation, and TUI delegation.
+- Keep the action policy auditable through CLI/TUI-visible decisions: category, risk, approval requirement, automatic-action allowance, matched trigger, and reason.
 - Add explicit approval flow backed by daemon approvals where available.
 - Store memories with provenance, confidence, timestamps, and sensitivity handling.
 - Let the assistant create/update local skills and personas from repeated workflows.
+- Add active persona and active skill selection as local assistant state that influences normal companion-chat prompts.
 - Add reviewable memory changes, periodic memory/skill review commands, and stale-memory cleanup.
 - Add scheduling/routines, MCP use, and notifications through stable daemon/operator contracts.
 - TUI review: confirm the assistant remains serial/proactive and does not adopt WRFC/fanout as a default reasoning path.

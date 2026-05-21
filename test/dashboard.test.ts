@@ -80,6 +80,7 @@ describe('operator dashboard', () => {
 
     expect(lines).toContain('Daemon ok 0.33.30');
     expect(lines).toContain('Local 1 memory, 1 skills, 2 personas');
+    expect(lines).toContain('Active operator; skills none');
     expect(lines).toContain('2 total, 1 active, 1 pending, 0 blocked');
     expect(lines).toContain('pending write:file');
     expect(lines).toContain('constraint/fresh We use Bun');
