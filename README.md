@@ -114,7 +114,7 @@ bun run check:release
 
 `smoke:cli` checks source-tree commands from a temporary agent home. `smoke:release` also runs `npm pack`, installs the packed artifact into a temporary global prefix, verifies the `goodvibes-agent` bin and Bun shebang, then runs installed help/status/smoke checks. Both scripts connect to an already-running daemon; they do not start or stop it.
 
-`check:source` and `check:release` compose the release gates without publishing. Manual PTY smoke steps live in `docs/manual-smoke.md`, and the full release checklist lives in `docs/release-checklist.md`.
+`check:source` and `check:release` compose the release gates without publishing. Manual PTY smoke steps live in `docs/manual-smoke.md`, the release-risk inventory lives in `docs/release-risks.md`, and the full release checklist lives in `docs/release-checklist.md`.
 
 ## Packaging Notes
 
@@ -134,3 +134,5 @@ Keep `CHANGELOG.md` current before any version bump. Publishing requires a delib
 - The package is private `0.0.0`; do not publish until the release checklist, TUI review, SDK handoff, and manual PTY smoke are complete.
 
 SDK upgrade notes live in `docs/sdk-upgrade.md`.
+
+Known release blockers and accepted limitations are tracked in `docs/release-risks.md`.

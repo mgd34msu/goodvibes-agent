@@ -9,6 +9,7 @@ This checklist is for preparing the first usable `goodvibes-agent` alpha. Do not
 - No Agent-specific knowledge route switch is made without SDK/TUI handoff.
 - Package version remains `0.0.0` and `private: true` until the final publish decision.
 - README and `CHANGELOG.md` describe only current behavior.
+- `docs/release-risks.md` is current and referenced from README and CHANGELOG.
 
 ## Automated Gates
 
@@ -36,6 +37,7 @@ bun run check:release
 - Verify knowledge ask/search are scoped acceptably for the currently pinned SDK. If SDK has not published Agent-specific knowledge isolation, document the known default-wiki contamination risk instead of switching routes.
 - Verify `bun run check:sdk` reports the expected SDK pin and does not claim Agent-specific knowledge routes are active until SDK/TUI hand off a published route contract.
 - Verify explicit TUI build delegation through public contracts with a harmless task, or document why live delegation was skipped.
+- Review `docs/release-risks.md` and mark every remaining blocker accepted or resolved.
 
 ## Publish Decision
 

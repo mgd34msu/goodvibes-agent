@@ -7,6 +7,7 @@ describe('CLI help', () => {
 
     expect(help).toContain('Daemon and config');
     expect(help).toContain('goodvibes-agent compat');
+    expect(help).not.toContain('goodvibes-agent sdk');
     expect(help).toContain('Assistant work');
     expect(help).toContain('Local memory, skills, and personas');
     expect(help).toContain('Delegation and explicit mutations');

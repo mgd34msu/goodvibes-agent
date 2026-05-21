@@ -17,6 +17,7 @@
     "scripts/",
     "src/",
     "docs/",
+    "LICENSE",
     "README.md",
     "CHANGELOG.md",
     "tsconfig.json"
@@ -50,5 +51,16 @@
     "assistant",
     "daemon"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mgd34msu/goodvibes-agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mgd34msu/goodvibes-agent/issues"
+  },
+  "homepage": "https://github.com/mgd34msu/goodvibes-agent#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }

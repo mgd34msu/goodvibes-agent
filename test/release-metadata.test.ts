@@ -17,24 +17,41 @@ describe('release metadata', () => {
     expect(recordValue(packageJson, 'scripts')['check:release']).toBe('bun run scripts/release-check.ts --release');
     expect(recordValue(packageJson, 'scripts')['check:sdk']).toBe('bun run src/main.ts compat');
     expect(arrayValue(packageJson, 'files')).toContain('CHANGELOG.md');
+    expect(arrayValue(packageJson, 'files')).toContain('LICENSE');
+    expect(recordValue(packageJson, 'repository').url).toBe('git+https://github.com/mgd34msu/goodvibes-agent.git');
+    expect(recordValue(packageJson, 'bugs').url).toBe('https://github.com/mgd34msu/goodvibes-agent/issues');
+    expect(packageJson.homepage).toBe('https://github.com/mgd34msu/goodvibes-agent#readme');
+    expect(recordValue(packageJson, 'publishConfig').access).toBe('public');
   });
 
   test('documents release checklist and manual PTY gate', async () => {
     const changelog = await readFile('CHANGELOG.md', 'utf-8');
+    const license = await readFile('LICENSE', 'utf-8');
     const readme = await readFile('README.md', 'utf-8');
     const checklist = await readFile('docs/release-checklist.md', 'utf-8');
     const upgrade = await readFile('docs/sdk-upgrade.md', 'utf-8');
+    const risks = await readFile('docs/release-risks.md', 'utf-8');
 
     expect(changelog).toContain('Manual PTY smoke');
+    expect(license).toContain('MIT License');
+    expect(license).toContain('GoodVibes contributors');
     expect(changelog).toContain('@pellux/goodvibes-sdk@0.33.30');
+    expect(changelog).toContain('docs/release-risks.md');
     expect(readme).toContain('bun install -g @pellux/goodvibes-agent');
     expect(readme).toContain('Current Limitations');
+    expect(readme).toContain('docs/release-risks.md');
     expect(checklist).toContain('bun run check:release');
     expect(checklist).toContain('bun run check:sdk');
     expect(checklist).toContain('Do not publish');
     expect(checklist).toContain('docs/manual-smoke.md');
+    expect(checklist).toContain('docs/release-risks.md');
     expect(upgrade).toContain('@pellux/goodvibes-sdk@0.33.30');
     expect(upgrade).toContain('Agent-specific knowledge isolation: pending');
+    expect(risks).toContain('Agent-specific knowledge isolation is pending');
+    expect(risks).toContain('Manual PTY smoke has not been recorded as passed');
+    expect(risks).toContain('It does not start, stop, install, supervise, repair, or own daemon lifecycle');
+    expect(risks).toContain('Agent-local registries');
+    expect(risks).toContain('private `0.0.0`');
   });
 });
 

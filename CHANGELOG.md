@@ -30,4 +30,5 @@ This package remains private at `0.0.0`. The first public usable alpha should be
 ### Release Notes
 
 - Manual PTY smoke in `docs/manual-smoke.md` is mandatory before publishing because terminal editing behavior is user-facing.
+- Current blockers and accepted limitations are tracked in `docs/release-risks.md`.
 - `bun run check:release` is a non-publishing release gate. It does not replace manual PTY smoke.
