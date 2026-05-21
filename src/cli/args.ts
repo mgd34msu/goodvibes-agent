@@ -4,6 +4,8 @@ export interface ParsedArgs {
   readonly flags: ReadonlyMap<string, string | boolean>;
 }
 
+const BOOLEAN_FLAGS = new Set(['json', 'wrfc', 'yes']);
+
 export function parseArgs(argv: readonly string[]): ParsedArgs {
   const [command = 'tui', ...rest] = argv;
   const positional: string[] = [];
@@ -18,6 +20,10 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     const equalsIndex = raw.indexOf('=');
     if (equalsIndex >= 0) {
       flags.set(raw.slice(0, equalsIndex), raw.slice(equalsIndex + 1));
+      continue;
+    }
+    if (BOOLEAN_FLAGS.has(raw)) {
+      flags.set(raw, true);
       continue;
     }
     const next = rest[index + 1];

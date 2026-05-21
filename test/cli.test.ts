@@ -69,6 +69,30 @@ describe('cli failure envelope', () => {
     expect(result.body.kind).toBe('auth_required');
     expect(String(result.body.error)).toContain('Auth failed');
   });
+
+  test('ask daemon connection failures return actionable JSON', async () => {
+    const result = await runCliWithHome({
+      command: ['ask', 'hello'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(result.body.ok).toBe(false);
+    expect(result.body.kind).toBe('daemon_unavailable');
+  });
+
+  test('search daemon connection failures return actionable JSON', async () => {
+    const result = await runCliWithHome({
+      command: ['search', 'hello'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(result.body.ok).toBe(false);
+    expect(result.body.kind).toBe('daemon_unavailable');
+  });
 });
 
 async function runCliWithHome(input: {

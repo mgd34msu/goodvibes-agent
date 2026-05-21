@@ -7,11 +7,14 @@ import { MemoryStore } from '../store/memory.js';
 import { PersonaStore } from '../store/personas.js';
 import { SkillStore } from '../store/skills.js';
 import { formatJson } from '../utils/format.js';
+import { formatDaemonDiagnostics } from '../daemon/diagnostics-format.js';
+import type { OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import { classifyPrompt } from './policy.js';
 import { buildAssistantSystemPrompt } from './system-prompt.js';
 import { delegateToTui, shouldDelegateToTui, shouldRequestWrfc } from './delegation.js';
 import { CompanionChatCoordinator, type CompanionChatStatus, type CompanionChatTurnResult } from './companion-chat.js';
 import { resolveProviderModel, type ProviderModelSelection } from './provider-model.js';
+import { formatKnowledgeAnswer, formatKnowledgeSearch } from './knowledge-format.js';
 
 export interface AssistantRuntimeOptions {
   readonly config: AgentConfig;
@@ -96,24 +99,24 @@ export class AssistantRuntime {
   }
 
   async askKnowledge(query: string): Promise<AssistantReply> {
-    const data = await this.client.invoke('knowledge.ask', {
+    const data = await this.client.invoke<OperatorMethodOutput<'knowledge.ask'>>('knowledge.ask', {
       query,
       includeSources: true,
       includeConfidence: true,
       metadata: { originProduct: 'goodvibes-agent' },
     });
-    return { text: summarizeKnowledgeAnswer(data), data };
+    return { text: formatKnowledgeAnswer(data), data };
   }
 
   async searchKnowledge(query: string): Promise<AssistantReply> {
-    const data = await this.client.invoke('knowledge.search', {
+    const data = await this.client.invoke<OperatorMethodOutput<'knowledge.search'>>('knowledge.search', {
       query,
       limit: 12,
       includeSources: true,
       includeNodes: true,
       metadata: { originProduct: 'goodvibes-agent' },
     });
-    return { text: formatJson(data), data };
+    return { text: formatKnowledgeSearch(data, query), data };
   }
 
   private async handleSlash(command: string): Promise<AssistantReply> {
@@ -123,7 +126,7 @@ export class AssistantRuntime {
       case 'help':
         return { text: slashHelp() };
       case 'status':
-        return { text: formatJson(await this.client.diagnostics()) };
+        return { text: formatDaemonDiagnostics(await this.client.diagnostics()) };
       case 'ask':
         return this.askKnowledge(rest);
       case 'search':
@@ -173,17 +176,6 @@ function formatPersonas(records: readonly PersonaRecord[]): string {
   return records.map((record) => (
     `${record.id} [${record.reviewState}] ${record.name}: ${record.description || record.title}`
   )).join('\n');
-}
-
-function summarizeKnowledgeAnswer(data: unknown): string {
-  if (typeof data === 'string') return data;
-  if (data && typeof data === 'object') {
-    const record = data as Record<string, unknown>;
-    for (const key of ['answer', 'text', 'summary', 'response']) {
-      if (typeof record[key] === 'string' && record[key].trim()) return record[key];
-    }
-  }
-  return formatJson(data);
 }
 
 function slashHelp(): string {

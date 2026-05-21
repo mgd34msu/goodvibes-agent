@@ -2,6 +2,7 @@ import { delegateToTui } from '../assistant/delegation.js';
 import { formatJson } from '../utils/format.js';
 import { AgentTuiApp } from '../tui/app.js';
 import { bootstrapAgentRuntime } from '../runtime/bootstrap.js';
+import { summarizeAuth, summarizeDaemonDiagnostics, type DaemonDiagnosticSummary } from '../daemon/diagnostics-format.js';
 import type { AgentRuntimeServices } from '../runtime/services.js';
 import type { MemoryClass, MemoryReviewState, MemoryScope, MemorySensitivity } from '../store/memory.js';
 import type { SkillReviewState } from '../store/skills.js';
@@ -33,8 +34,7 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
     case 'health':
       return handleStatus(services);
     case 'auth':
-      console.log(formatJson(await runtime.client.currentAuth()));
-      return 0;
+      return printSuccess('auth.current', summarizeAuth(await runtime.client.currentAuth()));
     case 'smoke': {
       const diagnostics = await runtime.client.diagnostics();
       console.log(formatJson({
@@ -44,7 +44,7 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
         surfaceId: config.surfaceId,
         providerModel: runtime.providerModel,
         companionChat: runtime.chatStatus(),
-        daemon: diagnostics,
+        daemon: summarizeDaemonDiagnostics(diagnostics),
       }));
       return diagnostics.ok ? 0 : 1;
     }
@@ -54,11 +54,9 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
       console.log((await runtime.handleUserText(text)).text);
       return 0;
     case 'ask':
-      console.log((await runtime.askKnowledge(text)).text);
-      return 0;
+      return handleKnowledgeAsk(args, runtime, text);
     case 'search':
-      console.log((await runtime.searchKnowledge(text)).text);
-      return 0;
+      return handleKnowledgeSearch(args, runtime, text);
     case 'remember':
       return handleRemember(args, services);
     case 'memory':
@@ -103,7 +101,7 @@ async function handleStatus(services: AgentRuntimeServices): Promise<number> {
     ok: diagnostics.ok,
     kind: diagnostics.kind,
     data: {
-      daemon: diagnostics,
+      daemon: summarizeDaemonDiagnostics(diagnostics),
       providerModel: services.assistant.providerModel,
       companionChat: services.assistant.chatStatus(),
     },
@@ -124,10 +122,11 @@ async function configDiagnostics(services: AgentRuntimeServices): Promise<{
     readonly token: AgentRuntimeServices['configMetadata']['token'];
   };
   readonly companionChat: ReturnType<AgentRuntimeServices['assistant']['chatStatus']>;
-  readonly daemon: Awaited<ReturnType<AgentRuntimeServices['daemon']['diagnostics']>>;
+  readonly daemon: DaemonDiagnosticSummary;
   readonly nextSteps: readonly string[];
 }> {
   const daemon = await services.daemon.diagnostics();
+  const daemonSummary = summarizeDaemonDiagnostics(daemon);
   return {
     config: {
       baseUrl: services.config.baseUrl,
@@ -141,8 +140,8 @@ async function configDiagnostics(services: AgentRuntimeServices): Promise<{
       token: services.configMetadata.token,
     },
     companionChat: services.assistant.chatStatus(),
-    daemon,
-    nextSteps: daemon.ok
+    daemon: daemonSummary,
+    nextSteps: daemonSummary.ok
       ? ['Daemon connection is ready.']
       : [
         'Confirm the GoodVibes daemon is already running.',
@@ -150,6 +149,30 @@ async function configDiagnostics(services: AgentRuntimeServices): Promise<{
         'Check GOODVIBES_AGENT_TOKEN, GOODVIBES_HTTP_TOKEN, GOODVIBES_DAEMON_TOKEN, or the daemon token file.',
       ],
   };
+}
+
+async function handleKnowledgeAsk(
+  args: ParsedArgs,
+  runtime: AgentRuntimeServices['assistant'],
+  text: string,
+): Promise<number> {
+  const query = text || getFlag(args, 'json') || '';
+  const reply = await runtime.askKnowledge(query);
+  if (args.flags.has('json')) return printSuccess('knowledge.ask', reply.data);
+  console.log(reply.text);
+  return 0;
+}
+
+async function handleKnowledgeSearch(
+  args: ParsedArgs,
+  runtime: AgentRuntimeServices['assistant'],
+  text: string,
+): Promise<number> {
+  const query = text || getFlag(args, 'json') || '';
+  const reply = await runtime.searchKnowledge(query);
+  if (args.flags.has('json')) return printSuccess('knowledge.search', reply.data);
+  console.log(reply.text);
+  return 0;
 }
 
 function handleRemember(args: ParsedArgs, services: AgentRuntimeServices): number {
