@@ -107,6 +107,13 @@ async function runSourceSmoke(): Promise<void> {
       env,
       expectIncludes: ['Approvals'],
     });
+    await expectFailureJsonCommand({
+      name: 'source approvals approve confirmation',
+      cmd: source(['approvals', 'approve', 'smoke-approval']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'confirmation_required',
+    });
     await expectTextCommand({
       name: 'source automation',
       cmd: source(['automation']),
@@ -142,12 +149,26 @@ async function runSourceSmoke(): Promise<void> {
       env,
       expectedKind: 'scheduler.capacity',
     });
+    await expectFailureJsonCommand({
+      name: 'source automation run confirmation',
+      cmd: source(['automation', 'run', 'smoke-job']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'confirmation_required',
+    });
     await expectTextCommand({
       name: 'source schedules',
       cmd: source(['schedules']),
       cwd: repoRoot,
       env,
       expectIncludes: ['Schedules'],
+    });
+    await expectFailureJsonCommand({
+      name: 'source schedules run confirmation',
+      cmd: source(['schedules', 'run', 'smoke-schedule']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'confirmation_required',
     });
     await expectTextCommand({
       name: 'source delegations',

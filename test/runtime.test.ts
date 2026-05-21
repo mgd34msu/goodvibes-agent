@@ -42,6 +42,14 @@ describe('assistant runtime local lifecycle', () => {
     expect(services.memory.list()).toHaveLength(0);
   });
 
+  test('ordinary chat text cannot trigger daemon mutations', async () => {
+    const services = createAgentRuntimeServices({ ...config, baseUrl: 'http://127.0.0.1:1' });
+    const reply = await services.assistant.handleUserText('run automation job job-1');
+
+    expect(reply.text).toContain('I need approval');
+    expect(reply.text).toContain('Daemon mutation routes require an explicit user command');
+  });
+
   test('slash commands manage active local skills and personas', async () => {
     const services = createAgentRuntimeServices(config);
     services.skills.create({ name: 'weekly-plan', description: 'Plan the week.' });

@@ -1,6 +1,7 @@
 import { RegistryConflictError, RegistryNotFoundError } from '../store/errors.js';
 import { formatJson } from '../utils/format.js';
 import { CompanionChatError } from '../assistant/companion-chat.js';
+import { OperatorMutationError } from '../assistant/operator-mutations.js';
 import { DaemonConnectionError, DaemonRequestError, classifyDaemonError } from '../daemon/client.js';
 import { z } from 'zod';
 
@@ -34,6 +35,9 @@ export function printCaughtFailure(error: unknown): number {
     return printFailure(error.kind, error.message);
   }
   if (error instanceof CompanionChatError) {
+    return printFailure(error.kind, error.message);
+  }
+  if (error instanceof OperatorMutationError) {
     return printFailure(error.kind, error.message);
   }
   if (error instanceof DaemonConnectionError || error instanceof DaemonRequestError) {

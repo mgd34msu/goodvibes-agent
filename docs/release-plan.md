@@ -79,6 +79,7 @@ Ask TUI before major architectural copy/promote decisions. If a feature needs TU
 - Add active persona and active skill selection as local assistant state that influences normal companion-chat prompts.
 - Add reviewable memory changes, periodic memory/skill review commands, and stale-memory cleanup.
 - Add read-only automation, schedules, runs, heartbeat, and scheduler-capacity observability through stable daemon/operator contracts before adding any mutation flows.
+- Add the first daemon mutation flows only behind exact CLI/slash commands plus confirmation: approvals approve/deny/cancel, automation job run/pause/resume, automation run cancel/retry, and schedule run.
 - Add scheduling/routine create/update/run/cancel flows only as explicit-user-action work with approval-aware handling.
 - TUI review: confirm the assistant remains serial/proactive and does not adopt WRFC/fanout as a default reasoning path.
 

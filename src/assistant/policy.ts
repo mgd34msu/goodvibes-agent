@@ -1,4 +1,5 @@
 import { getRoute, type RouteId } from '../daemon/routes.js';
+import { isAllowlistedOperatorMutationRoute } from './operator-mutations.js';
 
 export type RiskLevel = 'safe' | 'elevated' | 'dangerous';
 export type ActionPolicyCategory =
@@ -150,7 +151,7 @@ export function evaluateActionPolicy(text: string): ActionPolicyDecision {
 
 export function routeRequiresApproval(routeId: RouteId): boolean {
   const route = getRoute(routeId);
-  return route.dangerous === true || route.admin === true;
+  return route.dangerous === true || route.admin === true || isAllowlistedOperatorMutationRoute(routeId);
 }
 
 export function isBuildLikeRequest(text: string): boolean {

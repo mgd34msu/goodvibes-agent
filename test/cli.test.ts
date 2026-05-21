@@ -209,6 +209,149 @@ describe('cli failure envelope', () => {
     expect(result.body.kind).toBe('daemon_unavailable');
   });
 
+  test('mutation commands require confirmation before daemon calls', async () => {
+    let requestCount = 0;
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        requestCount += 1;
+        return Response.json({ ok: true });
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}`;
+      const cases = [
+        ['approvals', 'approve', 'approval-1'],
+        ['automation', 'run', 'job-1'],
+        ['schedules', 'run', 'schedule-1'],
+      ] as const;
+
+      for (const command of cases) {
+        const result = await runCliWithHome({
+          command,
+          env: { GOODVIBES_AGENT_BASE_URL: baseUrl },
+        });
+        expect(result.exitCode).toBe(1);
+        expect(result.body.ok).toBe(false);
+        expect(result.body.kind).toBe('confirmation_required');
+      }
+      expect(requestCount).toBe(0);
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  test('mutation commands use exact route paths and success kinds', async () => {
+    const calls: { readonly method: string; readonly path: string; readonly body: unknown }[] = [];
+    const server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        const bodyText = await request.text();
+        calls.push({
+          method: request.method,
+          path: new URL(request.url).pathname,
+          body: bodyText.trim() ? JSON.parse(bodyText) as unknown : null,
+        });
+        return Response.json({ id: 'result-1', status: 'accepted', jobId: 'job-1', runId: 'run-1' });
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}`;
+      const cases = [
+        {
+          command: ['approvals', 'approve', 'approval-1', '--yes', '--note', 'looks good', '--json'],
+          kind: 'approvals.approve',
+          call: { method: 'POST', path: '/api/approvals/approval-1/approve', body: { note: 'looks good' } },
+        },
+        {
+          command: ['approvals', 'deny', 'approval-2', '--yes', '--json'],
+          kind: 'approvals.deny',
+          call: { method: 'POST', path: '/api/approvals/approval-2/deny', body: {} },
+        },
+        {
+          command: ['approvals', 'cancel', 'approval-3', '--yes', '--json'],
+          kind: 'approvals.cancel',
+          call: { method: 'POST', path: '/api/approvals/approval-3/cancel', body: {} },
+        },
+        {
+          command: ['automation', 'run', 'job-1', '--yes', '--json'],
+          kind: 'automation.jobs.run',
+          call: { method: 'POST', path: '/api/automation/jobs/job-1/run', body: {} },
+        },
+        {
+          command: ['automation', 'pause', 'job-2', '--yes', '--json'],
+          kind: 'automation.jobs.pause',
+          call: { method: 'POST', path: '/api/automation/jobs/job-2/pause', body: {} },
+        },
+        {
+          command: ['automation', 'resume', 'job-3', '--yes', '--json'],
+          kind: 'automation.jobs.resume',
+          call: { method: 'POST', path: '/api/automation/jobs/job-3/resume', body: {} },
+        },
+        {
+          command: ['automation', 'cancel', 'run-1', '--yes', '--json'],
+          kind: 'automation.runs.cancel',
+          call: { method: 'POST', path: '/api/automation/runs/run-1/cancel', body: {} },
+        },
+        {
+          command: ['automation', 'retry', 'run-2', '--yes', '--json'],
+          kind: 'automation.runs.retry',
+          call: { method: 'POST', path: '/api/automation/runs/run-2/retry', body: {} },
+        },
+        {
+          command: ['schedules', 'run', 'schedule-1', '--yes', '--json'],
+          kind: 'schedules.run',
+          call: { method: 'POST', path: '/api/automation/schedules/schedule-1/run', body: {} },
+        },
+      ] as const;
+
+      for (const entry of cases) {
+        const result = await runCliWithHome({
+          command: entry.command,
+          env: { GOODVIBES_AGENT_BASE_URL: baseUrl },
+        });
+        expect(result.exitCode).toBe(0);
+        expect(result.body.ok).toBe(true);
+        expect(result.body.kind).toBe(entry.kind);
+      }
+      expect(calls).toEqual(cases.map((entry) => entry.call));
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  test('mutation command daemon and auth failures are structured', async () => {
+    const unavailable = await runCliWithHome({
+      command: ['automation', 'run', 'job-1', '--yes', '--json'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+    expect(unavailable.exitCode).toBe(1);
+    expect(unavailable.body.kind).toBe('daemon_unavailable');
+
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        return Response.json({ error: 'no' }, { status: 401 });
+      },
+    });
+    try {
+      const denied = await runCliWithHome({
+        command: ['approvals', 'approve', 'approval-1', '--yes', '--json'],
+        env: {
+          GOODVIBES_AGENT_BASE_URL: `http://127.0.0.1:${server.port}`,
+          GOODVIBES_AGENT_TOKEN: 'invalid-token',
+        },
+      });
+      expect(denied.exitCode).toBe(1);
+      expect(denied.body.ok).toBe(false);
+      expect(denied.body.kind).toBe('auth_required');
+      expect(denied.stdout).not.toContain('invalid-token');
+      expect(denied.stderr).not.toContain('invalid-token');
+    } finally {
+      await server.stop(true);
+    }
+  });
+
   test('delegate daemon connection failures return actionable JSON', async () => {
     const result = await runCliWithHome({
       command: ['delegate', '--wrfc', 'Build a harmless diagnostics note'],

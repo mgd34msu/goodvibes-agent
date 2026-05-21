@@ -46,6 +46,7 @@ describe('assistant policy', () => {
 
   test('dangerous routes require approval', () => {
     expect(routeRequiresApproval('automation.jobs.delete')).toBe(true);
+    expect(routeRequiresApproval('automation.jobs.run')).toBe(true);
     expect(routeRequiresApproval('knowledge.ask')).toBe(false);
   });
 });

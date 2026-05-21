@@ -35,10 +35,14 @@ bun run dev ask "GoodVibes project planning status" --json
 bun run dev search "GoodVibes Agent"
 bun run dev workplan
 bun run dev approvals
+bun run dev approvals approve <approval-id> --yes
 bun run dev automation
 bun run dev automation jobs --json
 bun run dev automation capacity
+bun run dev automation run <job-id> --yes
+bun run dev automation cancel <run-id> --yes
 bun run dev schedules
+bun run dev schedules run <schedule-id> --yes
 bun run dev delegations
 bun run dev memory add "We use Bun for goodvibes-agent" --class constraint --tags runtime,typescript
 bun run dev skills create weekly-plan --description "Plan the week from durable context" --triggers "plan week,weekly planning"
@@ -74,7 +78,7 @@ Delegation receipts are stored under the agent home so build handoffs remain ins
 
 `policy` explains the local safe-action decision for a request. Safe read/format/summarize and non-secret local memory/skill/persona lifecycle actions can proceed; workspace writes, daemon mutations, service changes, package installs, secret handling, deletes, network effects, and external side effects require explicit approval or an explicit command flow. Active persona and skill selections are local agent state and are included in the assistant prompt.
 
-`automation` and `schedules` are read-only observability commands in this phase. They use public daemon operator routes for snapshots, jobs, runs, heartbeat, schedules, and scheduler capacity. Create/update/delete/run/cancel/retry flows are future explicit-user-action work and are intentionally not wired here.
+`automation` and `schedules` use public daemon operator routes for snapshots, jobs, runs, heartbeat, schedules, and scheduler capacity. The first side-effecting flows are intentionally narrow and exact-command only: approvals `approve`/`deny`/`cancel`, automation job `run`/`pause`/`resume`, automation run `cancel`/`retry`, and schedule `run`. Every side-effecting route requires `--yes`; without it the command returns `confirmation_required` before calling the daemon. Create/delete/update definitions, schedule enable/disable, heartbeat execution, and daemon lifecycle ownership are intentionally not wired here.
 
 Smoke checks:
 

@@ -1,5 +1,12 @@
 import { formatJson } from '../utils/format.js';
 import { formatDelegationReceipt } from '../assistant/delegation-status.js';
+import {
+  formatOperatorMutationResult,
+  isApprovalMutationAction,
+  isAutomationMutationAction,
+  isScheduleMutationAction,
+  type OperatorMutationResult,
+} from '../assistant/operator-mutations.js';
 import { evaluateActionPolicy } from '../assistant/policy.js';
 import { AgentTuiApp } from '../tui/app.js';
 import { bootstrapAgentRuntime } from '../runtime/bootstrap.js';
@@ -244,6 +251,17 @@ async function handleApprovals(
   args: ParsedArgs,
   runtime: AgentRuntimeServices['assistant'],
 ): Promise<number> {
+  const [action = '', approvalId = ''] = args.positional;
+  if (action) {
+    if (!isApprovalMutationAction(action)) return printFailure('validation_error', 'Unknown approvals action. Use approve, deny, or cancel.');
+    const result = await runtime.mutateApproval({
+      action,
+      approvalId,
+      confirmed: hasFlag(args, 'yes'),
+      note: getFlag(args, 'note'),
+    });
+    return printMutationResult(args, result);
+  }
   const reply = await runtime.getApprovals();
   if (args.flags.has('json')) return printSuccess('approvals.list', reply.data);
   console.log(reply.text);
@@ -265,6 +283,15 @@ async function handleAutomation(
   runtime: AgentRuntimeServices['assistant'],
 ): Promise<number> {
   const [view = 'snapshot'] = args.positional;
+  if (isAutomationMutationAction(view)) {
+    const targetId = args.positional.find((value, index) => index > 0 && !value.startsWith('--')) ?? '';
+    const result = await runtime.mutateAutomation({
+      action: view,
+      targetId,
+      confirmed: hasFlag(args, 'yes'),
+    });
+    return printMutationResult(args, result);
+  }
   const reply = await automationReply(runtime, view);
   if (!reply) return printFailure('validation_error', 'Unknown automation view. Use snapshot, jobs, runs, heartbeat, or capacity.');
   if (args.flags.has('json')) return printSuccess(automationKind(view), reply.data);
@@ -276,9 +303,26 @@ async function handleSchedules(
   args: ParsedArgs,
   runtime: AgentRuntimeServices['assistant'],
 ): Promise<number> {
+  const [action = ''] = args.positional;
+  if (action && action !== 'list' && action !== 'status') {
+    if (!isScheduleMutationAction(action)) return printFailure('validation_error', 'Unknown schedules action. Use run.');
+    const scheduleId = args.positional.find((value, index) => index > 0 && !value.startsWith('--')) ?? '';
+    const result = await runtime.mutateSchedule({
+      action,
+      scheduleId,
+      confirmed: hasFlag(args, 'yes'),
+    });
+    return printMutationResult(args, result);
+  }
   const reply = await runtime.getSchedules();
   if (args.flags.has('json')) return printSuccess('schedules.list', reply.data);
   console.log(reply.text);
+  return 0;
+}
+
+function printMutationResult(args: ParsedArgs, result: OperatorMutationResult): number {
+  if (args.flags.has('json')) return printSuccess(result.routeId, result);
+  console.log(formatOperatorMutationResult(result));
   return 0;
 }
 

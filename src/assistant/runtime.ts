@@ -24,6 +24,18 @@ import {
   formatHeartbeat,
   formatSchedules,
 } from './automation-format.js';
+import {
+  executeOperatorMutation,
+  formatOperatorMutationResult,
+  isApprovalMutationAction,
+  isAutomationMutationAction,
+  isScheduleMutationAction,
+  OperatorMutationError,
+  type ApprovalMutationAction,
+  type AutomationMutationAction,
+  type OperatorMutationResult,
+  type ScheduleMutationAction,
+} from './operator-mutations.js';
 import { formatDelegationReceipt, formatDelegationStatus, loadDelegationStatusSnapshot } from './delegation-status.js';
 import { DelegationReceiptStore } from '../store/delegations.js';
 
@@ -174,6 +186,47 @@ export class AssistantRuntime {
     return { text: formatCapacity(data), data };
   }
 
+  async mutateApproval(request: {
+    readonly action: ApprovalMutationAction;
+    readonly approvalId: string;
+    readonly confirmed: boolean;
+    readonly note?: string | undefined;
+  }): Promise<OperatorMutationResult> {
+    return executeOperatorMutation(this.client, {
+      kind: 'approval',
+      action: request.action,
+      targetId: request.approvalId,
+      confirmed: request.confirmed,
+      note: request.note,
+    });
+  }
+
+  async mutateAutomation(request: {
+    readonly action: AutomationMutationAction;
+    readonly targetId: string;
+    readonly confirmed: boolean;
+  }): Promise<OperatorMutationResult> {
+    return executeOperatorMutation(this.client, {
+      kind: 'automation',
+      action: request.action,
+      targetId: request.targetId,
+      confirmed: request.confirmed,
+    });
+  }
+
+  async mutateSchedule(request: {
+    readonly action: ScheduleMutationAction;
+    readonly scheduleId: string;
+    readonly confirmed: boolean;
+  }): Promise<OperatorMutationResult> {
+    return executeOperatorMutation(this.client, {
+      kind: 'schedule',
+      action: request.action,
+      targetId: request.scheduleId,
+      confirmed: request.confirmed,
+    });
+  }
+
   async delegateBuildTask(request: {
     readonly task: string;
     readonly wrfc?: boolean | undefined;
@@ -227,13 +280,13 @@ export class AssistantRuntime {
         return this.getDelegations(rest);
       }
       case 'approvals':
-        return this.getApprovals();
+        return this.handleApprovalsSlash(args);
       case 'workplan':
         return this.getWorkPlan();
       case 'automation':
         return this.handleAutomationSlash(args);
       case 'schedules':
-        return this.getSchedules();
+        return this.handleSchedulesSlash(args);
       default:
         return { text: `Unknown command: /${name}\n\n${slashHelp()}` };
     }
@@ -315,8 +368,27 @@ export class AssistantRuntime {
     return { text: formatPersonas(query ? this.personas.search(query) : this.personas.list()) };
   }
 
+  private async handleApprovalsSlash(args: readonly string[]): Promise<AssistantReply> {
+    const [action = '', approvalId = ''] = args;
+    if (!action) return this.getApprovals();
+    if (!isApprovalMutationAction(action)) return { text: 'Unknown approvals action. Use approve, deny, or cancel.' };
+    return this.mutationReply(this.mutateApproval({
+      action,
+      approvalId,
+      confirmed: args.includes('--yes'),
+    }));
+  }
+
   private async handleAutomationSlash(args: readonly string[]): Promise<AssistantReply> {
     const [action = 'snapshot'] = args;
+    if (isAutomationMutationAction(action)) {
+      const targetId = args.find((arg, index) => index > 0 && !arg.startsWith('--')) ?? '';
+      return this.mutationReply(this.mutateAutomation({
+        action,
+        targetId,
+        confirmed: args.includes('--yes'),
+      }));
+    }
     switch (action) {
       case '':
       case 'snapshot':
@@ -334,6 +406,28 @@ export class AssistantRuntime {
         return this.getSchedulerCapacity();
       default:
         return { text: 'Unknown automation view. Use snapshot, jobs, runs, schedules, heartbeat, or capacity.' };
+    }
+  }
+
+  private async handleSchedulesSlash(args: readonly string[]): Promise<AssistantReply> {
+    const [action = ''] = args;
+    if (!action || action === 'list' || action === 'status') return this.getSchedules();
+    if (!isScheduleMutationAction(action)) return { text: 'Unknown schedules action. Use run.' };
+    const scheduleId = args.find((arg, index) => index > 0 && !arg.startsWith('--')) ?? '';
+    return this.mutationReply(this.mutateSchedule({
+      action,
+      scheduleId,
+      confirmed: args.includes('--yes'),
+    }));
+  }
+
+  private async mutationReply(promise: Promise<OperatorMutationResult>): Promise<AssistantReply> {
+    try {
+      const result = await promise;
+      return { text: formatOperatorMutationResult(result), data: result };
+    } catch (error) {
+      if (error instanceof OperatorMutationError) return { text: error.message, data: { kind: error.kind } };
+      throw error;
     }
   }
 }
@@ -408,9 +502,9 @@ function slashHelp(): string {
     '/personas               List assistant personas; active|use|review|stale',
     '/delegate [--wrfc] <t>  Delegate build/fix/review work to GoodVibes TUI',
     '/delegations [id]       Show delegated build receipts and status',
-    '/approvals              List daemon approvals',
+    '/approvals              List approvals; approve|deny|cancel <id> --yes',
     '/workplan               Show project work-plan snapshot',
-    '/automation [view]      Show read-only automation status',
-    '/schedules              Show read-only schedules status',
+    '/automation [view]      Show automation; run|pause|resume <job> --yes; cancel|retry <run> --yes',
+    '/schedules              Show schedules; run <id> --yes',
   ].join('\n');
 }
