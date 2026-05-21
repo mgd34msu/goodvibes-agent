@@ -4,13 +4,15 @@ This inventory tracks known blockers and accepted limitations before a public `0
 
 ## Current Blockers
 
+- Default regular `/api/knowledge/ask` still answers `What is GoodVibes Agent?` from regular Knowledge/Wiki GoodVibes GitHub repo sources. GoodVibes Agent ask/search use the isolated Agent routes, but release green handoff remains held pending SDK patch or guidance for the default wiki scope.
 - The package is still private `0.0.0`. Do not publish until there is an explicit release decision, version bump to `0.1.0`, and TUI/SDK review acceptance.
 
 ## Current Evidence
 
 - Manual PTY smoke was recorded as passed on `2026-05-20` in `docs/release-evidence.md`. Re-run it before publishing if terminal/input/rendering code changes.
 - Live status/auth/compat and two-turn companion chat smoke were recorded on `2026-05-20` in `docs/release-evidence.md`.
-- SDK `0.33.31` Agent knowledge validation is recorded in `docs/release-evidence.md`; the empty Agent store returns no unrelated default-wiki facts.
+- SDK `0.33.32` Agent knowledge validation is recorded in `docs/release-evidence.md`; the empty Agent store returns no unrelated default-wiki facts.
+- The remaining default Knowledge/Wiki scoping blocker is recorded in `docs/release-evidence.md`.
 - Live delegation dry receipt was skipped because the current delegation command creates a real shared session/task and has no dry-run mode.
 
 ## Design Limitations

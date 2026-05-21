@@ -128,7 +128,7 @@ Keep `CHANGELOG.md` current before any version bump. Publishing requires a delib
 
 ## Current Limitations
 
-- Agent knowledge uses the isolated `/api/goodvibes-agent/knowledge/*` routes from SDK `0.33.31`; live validation requires the already-running daemon to report a compatible `0.33.31` contract.
+- Agent knowledge uses the isolated `/api/goodvibes-agent/knowledge/*` routes from SDK `0.33.32`; live validation requires the already-running daemon to report a compatible `0.33.32` contract.
 - The agent does not own daemon lifecycle. A compatible daemon must already be running.
 - Memory, skills, and personas are local Agent registries until stable shared SDK registries exist.
 - The package is private `0.0.0`; do not publish until the release checklist, TUI/SDK review, compatible daemon validation, and manual PTY smoke are complete.

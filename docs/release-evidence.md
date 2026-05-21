@@ -55,3 +55,14 @@ Skipped live checks:
 - `/api/goodvibes-agent/knowledge/ask` for `What is GoodVibes Agent?` returned no match with no sources, facts, or gaps.
 - `/api/goodvibes-agent/knowledge/search` for `What is GoodVibes Agent?` returned no results.
 - The Agent-owned route did not return HomeGraph, Home Assistant, TV, or unrelated default-wiki facts for the validation query.
+
+## 2026-05-21 SDK 0.33.32 Handoff Status
+
+- SDK confirmed `@pellux/goodvibes-sdk@0.33.32` is published and verified.
+- The already-running daemon was updated by TUI and reported a compatible `0.33.32` contract.
+- Agent code remains on `/api/goodvibes-agent/knowledge/status`, `/ask`, and `/search`; no default wiki fallback or client-side content filtering is used.
+- `/api/goodvibes-agent/knowledge/status` reported ready with the isolated `knowledge-agent.sqlite` store.
+- `/api/goodvibes-agent/knowledge/ask` for `What is GoodVibes Agent?` returned no match with zero confidence and no sources, facts, or gaps.
+- `/api/goodvibes-agent/knowledge/search` for `What is GoodVibes Agent?` returned no results.
+- The Agent-owned routes did not return HomeGraph, Home Assistant, TV, or default-wiki cross-talk for the validation query.
+- Separate TUI validation found default `/api/knowledge/ask` still answers `What is GoodVibes Agent?` from regular Knowledge/Wiki GoodVibes GitHub repo sources. GoodVibes Agent does not use that route for Agent ask/search, but release green handoff remains held pending SDK patch or guidance.

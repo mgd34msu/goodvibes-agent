@@ -24,7 +24,7 @@ This package remains private at `0.0.0`. The first public usable alpha should be
 - Build/fix/review work delegates to GoodVibes TUI through public shared-session routes.
 - WRFC is requested only for explicit build/fix/review work.
 - Memory, skills, and personas are local to GoodVibes Agent until stable shared SDK registries exist.
-- SDK remains pinned to published `@pellux/goodvibes-sdk@0.33.31`.
+- SDK remains pinned to published `@pellux/goodvibes-sdk@0.33.32`.
 - Agent knowledge ask/search use the isolated `/api/goodvibes-agent/knowledge/*` environment.
 
 ### Release Notes
