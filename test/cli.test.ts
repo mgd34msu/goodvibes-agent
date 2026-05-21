@@ -118,6 +118,97 @@ describe('cli failure envelope', () => {
     expect(result.body.kind).toBe('daemon_unavailable');
   });
 
+  test('automation daemon connection failures return actionable JSON', async () => {
+    const result = await runCliWithHome({
+      command: ['automation', '--json'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(result.body.ok).toBe(false);
+    expect(result.body.kind).toBe('daemon_unavailable');
+  });
+
+  test('automation json views use exact route id failure kinds', async () => {
+    const cases = [
+      { command: ['automation', '--json'], kind: 'daemon_unavailable' },
+      { command: ['automation', 'status', '--json'], kind: 'daemon_unavailable' },
+      { command: ['automation', 'jobs', '--json'], kind: 'daemon_unavailable' },
+      { command: ['automation', 'runs', '--json'], kind: 'daemon_unavailable' },
+      { command: ['automation', 'heartbeat', '--json'], kind: 'daemon_unavailable' },
+      { command: ['automation', 'capacity', '--json'], kind: 'daemon_unavailable' },
+    ] as const;
+
+    for (const entry of cases) {
+      const result = await runCliWithHome({
+        command: entry.command,
+        env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+      });
+      expect(result.body.kind).toBe(entry.kind);
+    }
+  });
+
+  test('automation json views use exact route id success kinds', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const path = new URL(request.url).pathname;
+        switch (path) {
+          case '/api/automation':
+            return Response.json({ totals: { jobs: 0, enabled: 0, paused: 0, runs: 0 }, jobs: [], recentRuns: [] });
+          case '/status':
+            return Response.json({ status: 'running', version: '0.33.30' });
+          case '/api/automation/jobs':
+            return Response.json({ jobs: [] });
+          case '/api/automation/runs':
+            return Response.json({ runs: [] });
+          case '/api/automation/heartbeat':
+            return Response.json({ pending: [] });
+          case '/api/runtime/scheduler':
+            return Response.json({ slotsTotal: 1, slotsInUse: 0, queueDepth: 0, oldestQueuedAgeMs: null });
+          default:
+            return Response.json({ error: 'not found' }, { status: 404 });
+        }
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}`;
+      const cases = [
+        { command: ['automation', '--json'], kind: 'automation.integration.snapshot' },
+        { command: ['automation', 'status', '--json'], kind: 'automation.integration.snapshot' },
+        { command: ['automation', 'jobs', '--json'], kind: 'automation.jobs.list' },
+        { command: ['automation', 'runs', '--json'], kind: 'automation.runs.list' },
+        { command: ['automation', 'heartbeat', '--json'], kind: 'automation.heartbeat.list' },
+        { command: ['automation', 'capacity', '--json'], kind: 'scheduler.capacity' },
+      ] as const;
+
+      for (const entry of cases) {
+        const result = await runCliWithHome({
+          command: entry.command,
+          env: { GOODVIBES_AGENT_BASE_URL: baseUrl },
+        });
+        expect(result.exitCode).toBe(0);
+        expect(result.body.ok).toBe(true);
+        expect(result.body.kind).toBe(entry.kind);
+      }
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  test('schedules daemon connection failures return actionable JSON', async () => {
+    const result = await runCliWithHome({
+      command: ['schedules', '--json'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(result.body.ok).toBe(false);
+    expect(result.body.kind).toBe('daemon_unavailable');
+  });
+
   test('delegate daemon connection failures return actionable JSON', async () => {
     const result = await runCliWithHome({
       command: ['delegate', '--wrfc', 'Build a harmless diagnostics note'],
@@ -166,7 +257,7 @@ async function runCliWithHome(input: {
 }> {
   const agentHome = await mkdtemp(join(tmpdir(), 'goodvibes-agent-cli-'));
   try {
-    const result = Bun.spawnSync({
+    const result = Bun.spawn({
       cmd: [process.execPath, 'run', 'src/main.ts', ...input.command],
       cwd: repoRoot,
       env: {
@@ -177,14 +268,19 @@ async function runCliWithHome(input: {
       stdout: 'pipe',
       stderr: 'pipe',
     });
-    const stdout = decode(result.stdout);
+    const [stdoutBytes, stderrBytes, exitCode] = await Promise.all([
+      new Response(result.stdout).arrayBuffer(),
+      new Response(result.stderr).arrayBuffer(),
+      result.exited,
+    ]);
+    const stdout = decode(new Uint8Array(stdoutBytes));
     const parsed: unknown = JSON.parse(stdout);
     expect(isRecord(parsed)).toBe(true);
     if (!isRecord(parsed)) throw new Error('CLI output was not a JSON object');
     return {
-      exitCode: result.exitCode,
+      exitCode,
       stdout,
-      stderr: decode(result.stderr),
+      stderr: decode(new Uint8Array(stderrBytes)),
       body: parsed,
     };
   } finally {

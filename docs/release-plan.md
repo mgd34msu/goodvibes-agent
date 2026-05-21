@@ -78,7 +78,8 @@ Ask TUI before major architectural copy/promote decisions. If a feature needs TU
 - Let the assistant create/update local skills and personas from repeated workflows.
 - Add active persona and active skill selection as local assistant state that influences normal companion-chat prompts.
 - Add reviewable memory changes, periodic memory/skill review commands, and stale-memory cleanup.
-- Add scheduling/routines, MCP use, and notifications through stable daemon/operator contracts.
+- Add read-only automation, schedules, runs, heartbeat, and scheduler-capacity observability through stable daemon/operator contracts before adding any mutation flows.
+- Add scheduling/routine create/update/run/cancel flows only as explicit-user-action work with approval-aware handling.
 - TUI review: confirm the assistant remains serial/proactive and does not adopt WRFC/fanout as a default reasoning path.
 
 ### M4: Install And Release Parity

@@ -108,6 +108,48 @@ async function runSourceSmoke(): Promise<void> {
       expectIncludes: ['Approvals'],
     });
     await expectTextCommand({
+      name: 'source automation',
+      cmd: source(['automation']),
+      cwd: repoRoot,
+      env,
+      expectIncludes: ['Automation'],
+    });
+    await expectJsonCommand({
+      name: 'source automation jobs json',
+      cmd: source(['automation', 'jobs', '--json']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'automation.jobs.list',
+    });
+    await expectJsonCommand({
+      name: 'source automation runs json',
+      cmd: source(['automation', 'runs', '--json']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'automation.runs.list',
+    });
+    await expectJsonCommand({
+      name: 'source automation heartbeat json',
+      cmd: source(['automation', 'heartbeat', '--json']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'automation.heartbeat.list',
+    });
+    await expectJsonCommand({
+      name: 'source automation capacity json',
+      cmd: source(['automation', 'capacity', '--json']),
+      cwd: repoRoot,
+      env,
+      expectedKind: 'scheduler.capacity',
+    });
+    await expectTextCommand({
+      name: 'source schedules',
+      cmd: source(['schedules']),
+      cwd: repoRoot,
+      env,
+      expectIncludes: ['Schedules'],
+    });
+    await expectTextCommand({
       name: 'source delegations',
       cmd: source(['delegations']),
       cwd: repoRoot,

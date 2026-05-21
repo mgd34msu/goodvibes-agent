@@ -191,11 +191,13 @@ export class AgentTuiApp {
   }
 
   private async refreshDashboard(): Promise<void> {
-    const [approvals, workPlan] = await Promise.all([
+    const [approvals, workPlan, automation, capacity] = await Promise.all([
       this.remoteSnapshot(() => this.runtime.client.invoke('approvals.list')),
       this.remoteSnapshot(() => this.runtime.client.invoke('projectPlanning.workPlan.snapshot')),
+      this.remoteSnapshot(() => this.runtime.client.invoke('automation.integration.snapshot')),
+      this.remoteSnapshot(() => this.runtime.client.invoke('scheduler.capacity')),
     ]);
-    this.remoteState = { approvals, workPlan };
+    this.remoteState = { approvals, workPlan, automation, capacity };
   }
 
   private async remoteSnapshot(load: () => Promise<unknown>): Promise<RemoteSnapshot> {

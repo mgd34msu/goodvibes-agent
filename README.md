@@ -35,6 +35,10 @@ bun run dev ask "GoodVibes project planning status" --json
 bun run dev search "GoodVibes Agent"
 bun run dev workplan
 bun run dev approvals
+bun run dev automation
+bun run dev automation jobs --json
+bun run dev automation capacity
+bun run dev schedules
 bun run dev delegations
 bun run dev memory add "We use Bun for goodvibes-agent" --class constraint --tags runtime,typescript
 bun run dev skills create weekly-plan --description "Plan the week from durable context" --triggers "plan week,weekly planning"
@@ -69,6 +73,8 @@ Human-facing `ask`, `search`, `workplan`, `approvals`, `delegate`, and `delegati
 Delegation receipts are stored under the agent home so build handoffs remain inspectable even before daemon routes expose origin-filtered delegation history. `delegations` uses public session, task, and work-plan routes opportunistically and shows warnings instead of hiding route failures.
 
 `policy` explains the local safe-action decision for a request. Safe read/format/summarize and non-secret local memory/skill/persona lifecycle actions can proceed; workspace writes, daemon mutations, service changes, package installs, secret handling, deletes, network effects, and external side effects require explicit approval or an explicit command flow. Active persona and skill selections are local agent state and are included in the assistant prompt.
+
+`automation` and `schedules` are read-only observability commands in this phase. They use public daemon operator routes for snapshots, jobs, runs, heartbeat, schedules, and scheduler capacity. Create/update/delete/run/cancel/retry flows are future explicit-user-action work and are intentionally not wired here.
 
 Smoke checks:
 

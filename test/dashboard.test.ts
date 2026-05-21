@@ -75,6 +75,20 @@ describe('operator dashboard', () => {
             ],
           },
         },
+        automation: {
+          error: null,
+          data: {
+            totals: { jobs: 1, enabled: 1, paused: 0, runs: 3 },
+            jobs: [
+              { id: 'job-1', name: 'Daily summary', status: 'enabled', enabled: true, schedule: { kind: 'cron', expression: '0 9 * * *' }, runCount: 3, failureCount: 0 },
+            ],
+            recentRuns: [],
+          },
+        },
+        capacity: {
+          error: null,
+          data: { slotsTotal: 2, slotsInUse: 1, queueDepth: 0, oldestQueuedAgeMs: null },
+        },
       },
     });
 
@@ -83,6 +97,8 @@ describe('operator dashboard', () => {
     expect(lines).toContain('Active operator; skills none');
     expect(lines).toContain('2 total, 1 active, 1 pending, 0 blocked');
     expect(lines).toContain('pending write:file');
+    expect(lines).toContain('1 jobs, 1 enabled, 0 paused, 3 runs');
+    expect(lines).toContain('capacity 1/2, queue 0');
     expect(lines).toContain('constraint/fresh We use Bun');
     expect(lines).toContain('fresh weekly-plan');
   });
@@ -95,11 +111,15 @@ describe('operator dashboard', () => {
       remote: {
         workPlan: { data: null, error: 'work plan route failed' },
         approvals: { data: null, error: 'approvals route failed' },
+        automation: { data: null, error: 'automation route failed' },
+        capacity: { data: null, error: 'capacity route failed' },
       },
     });
 
     expect(lines).toContain('Daemon checking');
     expect(lines).toContain('warn work plan route failed');
     expect(lines).toContain('warn approvals route failed');
+    expect(lines).toContain('warn automation route failed');
+    expect(lines).toContain('warn capacity route failed');
   });
 });

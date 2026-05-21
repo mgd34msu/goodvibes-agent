@@ -17,6 +17,8 @@ export function renderHelp(): string {
     '  goodvibes-agent delegations [list|status <id>] [--json]',
     '  goodvibes-agent approvals [--json]',
     '  goodvibes-agent workplan [--json]',
+    '  goodvibes-agent automation [snapshot|jobs|runs|heartbeat|capacity] [--json]',
+    '  goodvibes-agent schedules [--json]',
     '  goodvibes-agent memory [query]',
     '  goodvibes-agent memory add|update|review|stale|delete|search|list',
     '  goodvibes-agent skills create|update|review|stale|enable|disable|active|delete|search|list',

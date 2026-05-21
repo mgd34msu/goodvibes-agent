@@ -79,6 +79,10 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
       return handleApprovals(args, runtime);
     case 'workplan':
       return handleWorkPlan(args, runtime);
+    case 'automation':
+      return handleAutomation(args, runtime);
+    case 'schedules':
+      return handleSchedules(args, runtime);
     default:
       console.error(`Unknown command: ${args.command}\n`);
       console.error(renderHelp());
@@ -254,6 +258,69 @@ async function handleWorkPlan(
   if (args.flags.has('json')) return printSuccess('projectPlanning.workPlan.snapshot', reply.data);
   console.log(reply.text);
   return 0;
+}
+
+async function handleAutomation(
+  args: ParsedArgs,
+  runtime: AgentRuntimeServices['assistant'],
+): Promise<number> {
+  const [view = 'snapshot'] = args.positional;
+  const reply = await automationReply(runtime, view);
+  if (!reply) return printFailure('validation_error', 'Unknown automation view. Use snapshot, jobs, runs, heartbeat, or capacity.');
+  if (args.flags.has('json')) return printSuccess(automationKind(view), reply.data);
+  console.log(reply.text);
+  return 0;
+}
+
+async function handleSchedules(
+  args: ParsedArgs,
+  runtime: AgentRuntimeServices['assistant'],
+): Promise<number> {
+  const reply = await runtime.getSchedules();
+  if (args.flags.has('json')) return printSuccess('schedules.list', reply.data);
+  console.log(reply.text);
+  return 0;
+}
+
+async function automationReply(
+  runtime: AgentRuntimeServices['assistant'],
+  view: string,
+): Promise<Awaited<ReturnType<AgentRuntimeServices['assistant']['getAutomationSnapshot']>> | null> {
+  switch (view) {
+    case '':
+    case 'snapshot':
+    case 'status':
+      return runtime.getAutomationSnapshot();
+    case 'jobs':
+      return runtime.getAutomationJobs();
+    case 'runs':
+      return runtime.getAutomationRuns();
+    case 'heartbeat':
+      return runtime.getAutomationHeartbeat();
+    case 'capacity':
+      return runtime.getSchedulerCapacity();
+    default:
+      return null;
+  }
+}
+
+function automationKind(view: string): string {
+  switch (view) {
+    case '':
+    case 'snapshot':
+    case 'status':
+      return 'automation.integration.snapshot';
+    case 'jobs':
+      return 'automation.jobs.list';
+    case 'runs':
+      return 'automation.runs.list';
+    case 'heartbeat':
+      return 'automation.heartbeat.list';
+    case 'capacity':
+      return 'scheduler.capacity';
+    default:
+      return 'automation.integration.snapshot';
+  }
 }
 
 function handleRemember(args: ParsedArgs, services: AgentRuntimeServices): number {

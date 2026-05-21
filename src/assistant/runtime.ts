@@ -16,6 +16,14 @@ import { CompanionChatCoordinator, type CompanionChatStatus, type CompanionChatT
 import { resolveProviderModel, type ProviderModelSelection } from './provider-model.js';
 import { formatKnowledgeAnswer, formatKnowledgeSearch } from './knowledge-format.js';
 import { formatApprovals, formatWorkPlan } from './operator-format.js';
+import {
+  formatAutomationJobs,
+  formatAutomationRuns,
+  formatAutomationSnapshot,
+  formatCapacity,
+  formatHeartbeat,
+  formatSchedules,
+} from './automation-format.js';
 import { formatDelegationReceipt, formatDelegationStatus, loadDelegationStatusSnapshot } from './delegation-status.js';
 import { DelegationReceiptStore } from '../store/delegations.js';
 
@@ -136,6 +144,36 @@ export class AssistantRuntime {
     return { text: formatWorkPlan(data), data };
   }
 
+  async getAutomationSnapshot(): Promise<AssistantReply> {
+    const data = await this.client.invoke<OperatorMethodOutput<'automation.integration.snapshot'>>('automation.integration.snapshot');
+    return { text: formatAutomationSnapshot(data), data };
+  }
+
+  async getAutomationJobs(): Promise<AssistantReply> {
+    const data = await this.client.invoke<OperatorMethodOutput<'automation.jobs.list'>>('automation.jobs.list');
+    return { text: formatAutomationJobs(data), data };
+  }
+
+  async getAutomationRuns(): Promise<AssistantReply> {
+    const data = await this.client.invoke<OperatorMethodOutput<'automation.runs.list'>>('automation.runs.list');
+    return { text: formatAutomationRuns(data), data };
+  }
+
+  async getSchedules(): Promise<AssistantReply> {
+    const data = await this.client.invoke<OperatorMethodOutput<'schedules.list'>>('schedules.list');
+    return { text: formatSchedules(data), data };
+  }
+
+  async getAutomationHeartbeat(): Promise<AssistantReply> {
+    const data = await this.client.invoke<OperatorMethodOutput<'automation.heartbeat.list'>>('automation.heartbeat.list');
+    return { text: formatHeartbeat(data), data };
+  }
+
+  async getSchedulerCapacity(): Promise<AssistantReply> {
+    const data = await this.client.invoke<OperatorMethodOutput<'scheduler.capacity'>>('scheduler.capacity');
+    return { text: formatCapacity(data), data };
+  }
+
   async delegateBuildTask(request: {
     readonly task: string;
     readonly wrfc?: boolean | undefined;
@@ -192,6 +230,10 @@ export class AssistantRuntime {
         return this.getApprovals();
       case 'workplan':
         return this.getWorkPlan();
+      case 'automation':
+        return this.handleAutomationSlash(args);
+      case 'schedules':
+        return this.getSchedules();
       default:
         return { text: `Unknown command: /${name}\n\n${slashHelp()}` };
     }
@@ -272,6 +314,28 @@ export class AssistantRuntime {
     const query = [action, selector, ...rest].join(' ').trim();
     return { text: formatPersonas(query ? this.personas.search(query) : this.personas.list()) };
   }
+
+  private async handleAutomationSlash(args: readonly string[]): Promise<AssistantReply> {
+    const [action = 'snapshot'] = args;
+    switch (action) {
+      case '':
+      case 'snapshot':
+      case 'status':
+        return this.getAutomationSnapshot();
+      case 'jobs':
+        return this.getAutomationJobs();
+      case 'runs':
+        return this.getAutomationRuns();
+      case 'schedules':
+        return this.getSchedules();
+      case 'heartbeat':
+        return this.getAutomationHeartbeat();
+      case 'capacity':
+        return this.getSchedulerCapacity();
+      default:
+        return { text: 'Unknown automation view. Use snapshot, jobs, runs, schedules, heartbeat, or capacity.' };
+    }
+  }
 }
 
 function formatMemory(records: readonly MemoryRecord[]): string {
@@ -346,5 +410,7 @@ function slashHelp(): string {
     '/delegations [id]       Show delegated build receipts and status',
     '/approvals              List daemon approvals',
     '/workplan               Show project work-plan snapshot',
+    '/automation [view]      Show read-only automation status',
+    '/schedules              Show read-only schedules status',
   ].join('\n');
 }

@@ -4,11 +4,14 @@ import type { MemoryRecord } from '../store/memory.js';
 import type { PersonaRecord } from '../store/personas.js';
 import type { SkillRecord } from '../store/skills.js';
 import { summarizeApprovals, summarizeWorkPlan } from '../assistant/operator-format.js';
+import { summarizeAutomationSnapshot, summarizeCapacity } from '../assistant/automation-format.js';
 import { truncate } from '../utils/format.js';
 
 export interface DashboardRemoteState {
   readonly approvals: RemoteSnapshot;
   readonly workPlan: RemoteSnapshot;
+  readonly automation: RemoteSnapshot;
+  readonly capacity: RemoteSnapshot;
 }
 
 export interface RemoteSnapshot {
@@ -26,6 +29,8 @@ export function emptyRemoteState(): DashboardRemoteState {
   return {
     approvals: { data: null, error: null },
     workPlan: { data: null, error: null },
+    automation: { data: null, error: null },
+    capacity: { data: null, error: null },
   };
 }
 
@@ -52,6 +57,9 @@ export function buildDashboard(input: DashboardInput): readonly string[] {
     'Approvals',
     ...approvalLines(input.remote.approvals),
     '',
+    'Automation',
+    ...automationLines(input.remote.automation, input.remote.capacity),
+    '',
     'Memory',
     ...memoryLines(memory),
     '',
@@ -61,6 +69,26 @@ export function buildDashboard(input: DashboardInput): readonly string[] {
     'Personas',
     ...personaLines(personas),
   ];
+}
+
+function automationLines(automation: RemoteSnapshot, capacity: RemoteSnapshot): readonly string[] {
+  const lines: string[] = [];
+  if (automation.error) {
+    lines.push(`warn ${truncate(automation.error, 72)}`);
+  } else if (automation.data === null || automation.data === undefined) {
+    lines.push('No automation data');
+  } else {
+    const summary = summarizeAutomationSnapshot(automation.data);
+    lines.push(`${summary.jobsTotal} jobs, ${summary.enabled} enabled, ${summary.paused} paused, ${summary.runsTotal} runs`);
+    for (const job of summary.jobs.slice(0, 2)) lines.push(`${job.status} ${truncate(job.name, 64)}`);
+  }
+  if (capacity.error) {
+    lines.push(`warn ${truncate(capacity.error, 72)}`);
+  } else if (capacity.data !== null && capacity.data !== undefined) {
+    const summary = summarizeCapacity(capacity.data);
+    lines.push(`capacity ${summary.slotsInUse}/${summary.slotsTotal}, queue ${summary.queueDepth}`);
+  }
+  return lines;
 }
 
 function daemonLine(daemon: DaemonDiagnosticResult | null): string {
