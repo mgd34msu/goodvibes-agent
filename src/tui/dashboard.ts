@@ -3,7 +3,7 @@ import type { DaemonDiagnosticResult } from '../daemon/client.js';
 import type { MemoryRecord } from '../store/memory.js';
 import type { PersonaRecord } from '../store/personas.js';
 import type { SkillRecord } from '../store/skills.js';
-import { isRecord } from '../types.js';
+import { summarizeApprovals, summarizeWorkPlan } from '../assistant/operator-format.js';
 import { truncate } from '../utils/format.js';
 
 export interface DashboardRemoteState {
@@ -69,38 +69,23 @@ function daemonLine(daemon: DaemonDiagnosticResult | null): string {
 
 function workPlanLines(snapshot: RemoteSnapshot): readonly string[] {
   if (snapshot.error) return [`warn ${truncate(snapshot.error, 72)}`];
-  const data = snapshot.data;
-  if (!isRecord(data)) return ['No work-plan data'];
-  const counts = isRecord(data.counts) ? data.counts : {};
-  const total = numberField(counts, 'total');
-  const pending = numberField(counts, 'pending');
-  const active = numberField(counts, 'in_progress');
-  const blocked = numberField(counts, 'blocked');
-  const lines = [`${total} total, ${active} active, ${pending} pending, ${blocked} blocked`];
-  const tasks = Array.isArray(data.tasks) ? data.tasks.slice(0, 3) : [];
-  for (const task of tasks) {
-    if (!isRecord(task)) continue;
-    const title = typeof task.title === 'string' ? task.title : 'Untitled task';
-    const status = typeof task.status === 'string' ? task.status : 'unknown';
-    lines.push(`${status} ${truncate(title, 64)}`);
+  if (snapshot.data === null || snapshot.data === undefined) return ['No work-plan data'];
+  const summary = summarizeWorkPlan(snapshot.data);
+  const counts = summary.counts;
+  const lines = [`${counts.total} total, ${counts.inProgress} active, ${counts.pending} pending, ${counts.blocked} blocked`];
+  for (const task of summary.tasks.slice(0, 3)) {
+    lines.push(`${task.status} ${truncate(task.title, 64)}`);
   }
   return lines;
 }
 
 function approvalLines(snapshot: RemoteSnapshot): readonly string[] {
   if (snapshot.error) return [`warn ${truncate(snapshot.error, 72)}`];
-  const data = snapshot.data;
-  if (!isRecord(data)) return ['No approval data'];
-  const approvals = Array.isArray(data.approvals) ? data.approvals : [];
-  const pending = approvals.filter((approval) => isRecord(approval) && approval.status === 'pending').length;
-  const mode = typeof data.mode === 'string' ? data.mode : 'unknown';
-  const lines = [`${pending} pending, mode ${mode}`];
-  for (const approval of approvals.slice(0, 3)) {
-    if (!isRecord(approval)) continue;
-    const request = isRecord(approval.request) ? approval.request : {};
-    const tool = typeof request.tool === 'string' ? request.tool : 'approval';
-    const status = typeof approval.status === 'string' ? approval.status : 'unknown';
-    lines.push(`${status} ${truncate(tool, 64)}`);
+  if (snapshot.data === null || snapshot.data === undefined) return ['No approval data'];
+  const summary = summarizeApprovals(snapshot.data);
+  const lines = [`${summary.pendingCount} pending, mode ${summary.mode ?? 'unknown'}`];
+  for (const approval of summary.approvals.slice(0, 3)) {
+    lines.push(`${approval.status} ${truncate(approval.tool, 64)}`);
   }
   return lines;
 }
@@ -118,9 +103,4 @@ function skillLines(records: readonly SkillRecord[]): readonly string[] {
 function personaLines(records: readonly PersonaRecord[]): readonly string[] {
   if (records.length === 0) return ['No personas'];
   return records.map((record) => `${record.reviewState} ${truncate(record.name, 64)}`);
-}
-
-function numberField(record: Record<string, unknown>, key: string): number {
-  const value = record[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }

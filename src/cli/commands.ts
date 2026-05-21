@@ -73,11 +73,9 @@ export async function runCommand(args: ParsedArgs): Promise<number> {
       })));
       return 0;
     case 'approvals':
-      console.log(formatJson(await runtime.client.invoke('approvals.list')));
-      return 0;
+      return handleApprovals(args, runtime);
     case 'workplan':
-      console.log(formatJson(await runtime.client.invoke('projectPlanning.workPlan.snapshot')));
-      return 0;
+      return handleWorkPlan(args, runtime);
     default:
       console.error(`Unknown command: ${args.command}\n`);
       console.error(renderHelp());
@@ -171,6 +169,26 @@ async function handleKnowledgeSearch(
   const query = text || getFlag(args, 'json') || '';
   const reply = await runtime.searchKnowledge(query);
   if (args.flags.has('json')) return printSuccess('knowledge.search', reply.data);
+  console.log(reply.text);
+  return 0;
+}
+
+async function handleApprovals(
+  args: ParsedArgs,
+  runtime: AgentRuntimeServices['assistant'],
+): Promise<number> {
+  const reply = await runtime.getApprovals();
+  if (args.flags.has('json')) return printSuccess('approvals.list', reply.data);
+  console.log(reply.text);
+  return 0;
+}
+
+async function handleWorkPlan(
+  args: ParsedArgs,
+  runtime: AgentRuntimeServices['assistant'],
+): Promise<number> {
+  const reply = await runtime.getWorkPlan();
+  if (args.flags.has('json')) return printSuccess('projectPlanning.workPlan.snapshot', reply.data);
   console.log(reply.text);
   return 0;
 }

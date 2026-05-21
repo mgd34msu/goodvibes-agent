@@ -6,7 +6,6 @@ import type { SkillRecord } from '../store/skills.js';
 import { MemoryStore } from '../store/memory.js';
 import { PersonaStore } from '../store/personas.js';
 import { SkillStore } from '../store/skills.js';
-import { formatJson } from '../utils/format.js';
 import { formatDaemonDiagnostics } from '../daemon/diagnostics-format.js';
 import type { OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import { classifyPrompt } from './policy.js';
@@ -15,6 +14,7 @@ import { delegateToTui, shouldDelegateToTui, shouldRequestWrfc } from './delegat
 import { CompanionChatCoordinator, type CompanionChatStatus, type CompanionChatTurnResult } from './companion-chat.js';
 import { resolveProviderModel, type ProviderModelSelection } from './provider-model.js';
 import { formatKnowledgeAnswer, formatKnowledgeSearch } from './knowledge-format.js';
+import { formatApprovals, formatWorkPlan } from './operator-format.js';
 
 export interface AssistantRuntimeOptions {
   readonly config: AgentConfig;
@@ -119,6 +119,16 @@ export class AssistantRuntime {
     return { text: formatKnowledgeSearch(data, query), data };
   }
 
+  async getApprovals(): Promise<AssistantReply> {
+    const data = await this.client.invoke<OperatorMethodOutput<'approvals.list'>>('approvals.list');
+    return { text: formatApprovals(data), data };
+  }
+
+  async getWorkPlan(): Promise<AssistantReply> {
+    const data = await this.client.invoke<OperatorMethodOutput<'projectPlanning.workPlan.snapshot'>>('projectPlanning.workPlan.snapshot');
+    return { text: formatWorkPlan(data), data };
+  }
+
   private async handleSlash(command: string): Promise<AssistantReply> {
     const [name = '', ...args] = command.slice(1).split(/\s+/);
     const rest = args.join(' ').trim();
@@ -148,9 +158,9 @@ export class AssistantRuntime {
         return { text: `Delegated to GoodVibes TUI (${result.mode}).`, data: result };
       }
       case 'approvals':
-        return { text: formatJson(await this.client.invoke('approvals.list')) };
+        return this.getApprovals();
       case 'workplan':
-        return { text: formatJson(await this.client.invoke('projectPlanning.workPlan.snapshot')) };
+        return this.getWorkPlan();
       default:
         return { text: `Unknown command: /${name}\n\n${slashHelp()}` };
     }

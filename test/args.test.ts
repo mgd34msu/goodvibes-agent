@@ -12,6 +12,16 @@ describe('CLI argument parsing', () => {
     expect(delegate.command).toBe('delegate');
     expect(hasFlag(delegate, 'wrfc')).toBe(true);
     expect(getText(delegate)).toBe('Build a task inbox');
+
+    const workplan = parseArgs(['workplan', '--json']);
+    expect(workplan.command).toBe('workplan');
+    expect(hasFlag(workplan, 'json')).toBe(true);
+    expect(getText(workplan)).toBe('');
+
+    const approvals = parseArgs(['approvals', '--json']);
+    expect(approvals.command).toBe('approvals');
+    expect(hasFlag(approvals, 'json')).toBe(true);
+    expect(getText(approvals)).toBe('');
   });
 
   test('keeps value flags for command options', () => {

@@ -32,6 +32,8 @@ bun run dev chat "What do you remember about my Home Assistant setup?"
 bun run dev ask "GoodVibes project planning status"
 bun run dev ask "GoodVibes project planning status" --json
 bun run dev search "GoodVibes Agent"
+bun run dev workplan
+bun run dev approvals
 bun run dev memory add "We use Bun for goodvibes-agent" --class constraint --tags runtime,typescript
 bun run dev skills create weekly-plan --description "Plan the week from durable context" --triggers "plan week,weekly planning"
 bun run dev personas create travel --description "Travel planning mode" --body "Plan travel carefully using known preferences."
@@ -57,7 +59,7 @@ When both provider and model are configured, the agent follows daemon runtime pr
 
 Local assistant state is stored under `~/.goodvibes/agent/`.
 
-Human-facing `ask` and `search` output is concise by default. Use `--json` on those commands when you need the full daemon response for inspection or tooling. Auth and config diagnostics report token source, presence, and fingerprints, never token values.
+Human-facing `ask`, `search`, `workplan`, and `approvals` output is concise by default. Use `--json` on those commands when you need the full daemon response for inspection or tooling. Auth and config diagnostics report token source, presence, and fingerprints, never token values.
 
 ## Packaging Notes
 

@@ -93,6 +93,30 @@ describe('cli failure envelope', () => {
     expect(result.body.ok).toBe(false);
     expect(result.body.kind).toBe('daemon_unavailable');
   });
+
+  test('workplan daemon connection failures return actionable JSON', async () => {
+    const result = await runCliWithHome({
+      command: ['workplan'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(result.body.ok).toBe(false);
+    expect(result.body.kind).toBe('daemon_unavailable');
+  });
+
+  test('approvals daemon connection failures return actionable JSON', async () => {
+    const result = await runCliWithHome({
+      command: ['approvals'],
+      env: { GOODVIBES_AGENT_BASE_URL: 'http://127.0.0.1:1' },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(result.body.ok).toBe(false);
+    expect(result.body.kind).toBe('daemon_unavailable');
+  });
 });
 
 async function runCliWithHome(input: {
