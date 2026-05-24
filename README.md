@@ -4,17 +4,6 @@ GoodVibes Agent is the personal operator assistant built on the GoodVibes termin
 
 The Agent product connects to an already-running GoodVibes daemon. It does not install, start, stop, restart, or own the daemon, HTTP listener, web surface, or service lifecycle.
 
-## Current Status
-
-- Package version: `0.0.0`
-- Release state: private baseline, not public-product-ready
-- Runtime: Bun-only, TypeScript-authored source
-- SDK pin: `@pellux/goodvibes-sdk@0.33.35`
-- Installed command: `goodvibes-agent`
-- Daemon model: external daemon only
-
-Coding and WRFC code is still present because this is a broad foundation copy, but the Agent runtime policy is now serial/proactive by default. Local agent spawning and local WRFC are blocked for normal Agent work; explicit build/fix/review requests must be delegated to GoodVibes TUI through public session/delegation contracts.
-
 ## Install
 
 The package is private at `0.0.0`; do not publish it yet.
