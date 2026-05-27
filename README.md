@@ -1,9 +1,6 @@
 # GoodVibes Agent
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Bun](https://img.shields.io/badge/Bun-%E2%89%A51.3.10-f9f1e1?logo=bun&logoColor=black)](https://bun.sh)
-[![Node](https://img.shields.io/badge/Node-%E2%89%A520-339933?logo=node.js&logoColor=white)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#install)
 
 GoodVibes Agent is the personal operator assistant built on the GoodVibes terminal UI foundation. This repository is intentionally in a near-fork baseline phase: the shell, renderer, input, fullscreen workspace, command, and release bones are copied from the terminal product first, then the coding-specific behavior is removed or reshaped deliberately.
