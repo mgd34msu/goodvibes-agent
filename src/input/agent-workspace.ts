@@ -27,6 +27,89 @@ export interface AgentWorkspaceCategory {
 
 export type AgentWorkspaceCommandDispatcher = (command: string) => void;
 
+type AgentWorkspaceConfigReader = {
+  get(key: string): unknown;
+};
+
+export interface AgentWorkspaceRuntimeSnapshot {
+  readonly provider: string;
+  readonly model: string;
+  readonly modelDisplayName: string;
+  readonly sessionId: string;
+  readonly workingDirectory: string;
+  readonly homeDirectory: string;
+  readonly daemonBaseUrl: string;
+  readonly daemonOwnership: 'external';
+  readonly sessionMemoryCount: number;
+  readonly knowledgeRoute: '/api/goodvibes-agent/knowledge';
+  readonly knowledgeIsolation: 'agent-only';
+  readonly executionPolicy: 'serial-proactive';
+  readonly wrfcPolicy: 'explicit-build-delegation-only';
+  readonly warnings: readonly string[];
+}
+
+function readConfigString(context: CommandContext, key: string, fallback: string): string {
+  try {
+    const configManager = context.platform?.configManager as unknown as AgentWorkspaceConfigReader | undefined;
+    const value = configManager?.get(key);
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readConfigNumber(context: CommandContext, key: string, fallback: number): number {
+  try {
+    const configManager = context.platform?.configManager as unknown as AgentWorkspaceConfigReader | undefined;
+    const value = configManager?.get(key);
+    const numberValue = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(numberValue) ? numberValue : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): AgentWorkspaceRuntimeSnapshot {
+  const host = readConfigString(context, 'controlPlane.host', '127.0.0.1');
+  const port = readConfigNumber(context, 'controlPlane.port', 3421);
+  const model = context.session?.runtime?.model ?? 'unknown';
+  const provider = context.session?.runtime?.provider ?? 'unknown';
+  const currentModel = (() => {
+    try {
+      return context.provider?.providerRegistry?.getCurrentModel?.();
+    } catch {
+      return null;
+    }
+  })();
+  const sessionMemoryCount = (() => {
+    try {
+      return context.session?.sessionMemoryStore?.list?.().length ?? 0;
+    } catch {
+      return 0;
+    }
+  })();
+  const warnings: string[] = [];
+  if (provider === 'unknown' || model === 'unknown') warnings.push('Provider/model unavailable in this runtime context.');
+  if (!context.executeCommand) warnings.push('Command dispatch is unavailable; workspace actions will show guidance only.');
+
+  return {
+    provider,
+    model,
+    modelDisplayName: currentModel?.displayName ?? model,
+    sessionId: context.session?.runtime?.sessionId ?? 'unknown',
+    workingDirectory: context.workspace?.shellPaths?.workingDirectory ?? 'unavailable',
+    homeDirectory: context.workspace?.shellPaths?.homeDirectory ?? 'unavailable',
+    daemonBaseUrl: `http://${host}:${port}`,
+    daemonOwnership: 'external',
+    sessionMemoryCount,
+    knowledgeRoute: '/api/goodvibes-agent/knowledge',
+    knowledgeIsolation: 'agent-only',
+    executionPolicy: 'serial-proactive',
+    wrfcPolicy: 'explicit-build-delegation-only',
+    warnings,
+  };
+}
+
 export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   {
     id: 'home',
@@ -129,12 +212,14 @@ export class AgentWorkspace {
   public selectedCategoryIndex = 0;
   public selectedActionIndex = 0;
   public status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
+  public runtimeSnapshot: AgentWorkspaceRuntimeSnapshot | null = null;
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
 
   open(context: CommandContext, dispatchCommand: AgentWorkspaceCommandDispatcher): void {
     this.context = context;
     this.dispatchCommand = dispatchCommand;
+    this.runtimeSnapshot = buildAgentWorkspaceRuntimeSnapshot(context);
     this.active = true;
     this.focusPane = 'actions';
     this.status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';

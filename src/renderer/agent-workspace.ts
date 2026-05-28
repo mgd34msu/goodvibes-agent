@@ -1,4 +1,9 @@
-import type { AgentWorkspace, AgentWorkspaceAction, AgentWorkspaceCategory } from '../input/agent-workspace.ts';
+import type {
+  AgentWorkspace,
+  AgentWorkspaceAction,
+  AgentWorkspaceCategory,
+  AgentWorkspaceRuntimeSnapshot,
+} from '../input/agent-workspace.ts';
 import type { Line } from '../types/grid.ts';
 import { wrapText } from '../utils/terminal-width.ts';
 import { GLYPHS } from './ui-primitives.ts';
@@ -57,12 +62,68 @@ function actionCommand(action: AgentWorkspaceAction): string {
   return action.command ?? '(guidance)';
 }
 
-function buildContextRows(category: AgentWorkspaceCategory, action: AgentWorkspaceAction | null, width: number): WorkspaceRow[] {
-  const lines: Array<{ readonly text: string; readonly fg?: string; readonly bold?: boolean; readonly dim?: boolean }> = [
+type ContextLine = { readonly text: string; readonly fg?: string; readonly bold?: boolean; readonly dim?: boolean };
+
+function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
+  if (!snapshot) return [{ text: 'Runtime context is not loaded yet.', fg: PALETTE.warn }];
+  const base: ContextLine[] = [{ text: 'Live Agent Context', fg: PALETTE.title, bold: true }];
+  if (category.id === 'home') {
+    base.push(
+      { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
+      { text: `Session: ${snapshot.sessionId}`, fg: PALETTE.muted },
+      { text: `Policy: ${snapshot.executionPolicy}; WRFC ${snapshot.wrfcPolicy}`, fg: PALETTE.good },
+    );
+  } else if (category.id === 'setup') {
+    base.push(
+      { text: `External daemon: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
+      { text: `Daemon ownership: ${snapshot.daemonOwnership}; Agent never starts or restarts it`, fg: PALETTE.good },
+      { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
+      { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
+    );
+  } else if (category.id === 'knowledge') {
+    base.push(
+      { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },
+      { text: `Isolation: ${snapshot.knowledgeIsolation}; no default Knowledge/Wiki or HomeGraph fallback`, fg: PALETTE.good },
+      { text: 'Agent-owned content appears here only after explicit Agent knowledge ingestion.', fg: PALETTE.muted },
+    );
+  } else if (category.id === 'memory') {
+    base.push(
+      { text: `Session memories: ${snapshot.sessionMemoryCount}`, fg: PALETTE.info },
+      { text: 'Durable memory, skills, and personas remain Agent-local until shared registry contracts exist.', fg: PALETTE.good },
+      { text: 'Secrets are rejected/redacted; store secret references instead of secret values.', fg: PALETTE.warn },
+    );
+  } else if (category.id === 'work') {
+    base.push(
+      { text: 'Work plan and approvals are read or explicitly confirmed through public operator routes.', fg: PALETTE.info },
+      { text: 'This workspace does not approve, deny, cancel, or mutate requests by selection alone.', fg: PALETTE.good },
+    );
+  } else if (category.id === 'automation') {
+    base.push(
+      { text: 'Automation and schedules default to read-only observability.', fg: PALETTE.info },
+      { text: 'Run/pause/resume/cancel/retry require exact explicit commands and confirmation.', fg: PALETTE.warn },
+    );
+  } else if (category.id === 'delegate') {
+    base.push(
+      { text: 'Build/fix/review work is handed to GoodVibes TUI/shared-session contracts.', fg: PALETTE.info },
+      { text: `WRFC policy: ${snapshot.wrfcPolicy}`, fg: PALETTE.warn },
+      { text: 'Agent does not spawn local Engineer/Reviewer/Tester roots.', fg: PALETTE.good },
+    );
+  }
+  if (snapshot.warnings.length > 0) {
+    base.push({ text: '', dim: true }, { text: 'Warnings', fg: PALETTE.warn, bold: true });
+    for (const warning of snapshot.warnings) base.push({ text: warning, fg: PALETTE.warn });
+  }
+  return base;
+}
+
+function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCategory, action: AgentWorkspaceAction | null, width: number): WorkspaceRow[] {
+  const lines: ContextLine[] = [
     { text: category.label, fg: PALETTE.title, bold: true },
     { text: category.summary, fg: PALETTE.subtitle },
     { text: '' },
     { text: category.detail, fg: PALETTE.text },
+    { text: '' },
+    ...snapshotLines(category, workspace.runtimeSnapshot),
   ];
 
   if (action) {
@@ -140,7 +201,7 @@ export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, h
     leftHeader: 'Operator Areas',
     mainHeader: `${category.label} · ${category.actions.length} action(s)`,
     leftRows: buildLeftRows(workspace, metrics.bodyRows),
-    contextRows: buildContextRows(category, action, metrics.contextWidth),
+    contextRows: buildContextRows(workspace, category, action, metrics.contextWidth),
     controlRows: buildActionRows(workspace, metrics.contextWidth, metrics.controlRows),
     footer: footerText(workspace),
   });
