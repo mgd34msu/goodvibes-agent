@@ -111,7 +111,7 @@ export function registerAgentPanels(manager: PanelManager, deps: ResolvedBuiltin
     name: 'Schedule',
     icon: 'Z',
     category: 'agent',
-    description: 'Scheduled agent tasks: cron expressions, next run time, enable/disable, run history',
+    description: 'Read-only schedule posture from the external daemon; local Agent schedule mutation is blocked',
     factory: () => new SchedulePanel(requireAutomationManager(deps)),
   });
 }

@@ -14,14 +14,11 @@ import { registerScheduleRuntimeCommands } from './commands/schedule-runtime.ts'
 import { registerBranchRuntimeCommands } from './commands/branch-runtime.ts';
 import { registerOperatorRuntimeCommands } from './commands/operator-runtime.ts';
 import { registerIntegrationRuntimeCommands } from './commands/integration-runtime.ts';
-import { registerDiffRuntimeCommands } from './commands/diff-runtime.ts';
-import { registerGitRuntimeCommands } from './commands/git-runtime.ts';
 import { registerNotifyRuntimeCommands } from './commands/notify-runtime.ts';
 import { registerReplayRuntimeCommands } from './commands/replay-runtime.ts';
 import { registerShareRuntimeCommands } from './commands/share-runtime.ts';
 import { registerLocalSetupCommands } from './commands/local-setup.ts';
 import { registerProductRuntimeCommands } from './commands/product-runtime.ts';
-import { registerPlatformRuntimeCommands } from './commands/platform-runtime.ts';
 import { registerProfileSyncRuntimeCommands } from './commands/profile-sync-runtime.ts';
 import { registerManagedRuntimeCommands } from './commands/managed-runtime.ts';
 import { registerPlatformAccessRuntimeCommands } from './commands/platform-access-runtime.ts';
@@ -46,7 +43,6 @@ import { registerTasksRuntimeCommands } from './commands/tasks-runtime.ts';
 import { registerLocalProviderRuntimeCommands } from './commands/local-provider-runtime.ts';
 import { registerHealthRuntimeCommands } from './commands/health-runtime.ts';
 import { registerSettingsSyncRuntimeCommands } from './commands/settings-sync-runtime.ts';
-import { registerWorktreeRuntimeCommands } from './commands/worktree-runtime.ts';
 import { registerProviderAccountsRuntimeCommands } from './commands/provider-accounts-runtime.ts';
 import { registerLocalAuthRuntimeCommands } from './commands/local-auth-runtime.ts';
 import { registerIntelligenceRuntimeCommands } from './commands/intelligence-runtime.ts';
@@ -57,6 +53,7 @@ import { registerTtsRuntimeCommands } from './commands/tts-runtime.ts';
 import { registerCloudflareRuntimeCommands } from './commands/cloudflare-runtime.ts';
 import { registerWorkPlanRuntimeCommands } from './commands/work-plan-runtime.ts';
 import { registerAgentWorkspaceRuntimeCommands } from './commands/agent-workspace-runtime.ts';
+import { registerAgentExternalizedTuiCommands } from './commands/agent-externalized-tui.ts';
 
 /**
  * registerBuiltinCommands - Register all built-in slash commands into the registry.
@@ -68,14 +65,12 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerConfigCommand(registry);
   registerOperatorRuntimeCommands(registry);
   registerIntegrationRuntimeCommands(registry);
-  registerDiffRuntimeCommands(registry);
-  registerGitRuntimeCommands(registry);
+  registerAgentExternalizedTuiCommands(registry);
   registerNotifyRuntimeCommands(registry);
   registerReplayRuntimeCommands(registry);
   registerShareRuntimeCommands(registry);
   registerLocalSetupCommands(registry);
   registerProductRuntimeCommands(registry);
-  registerPlatformRuntimeCommands(registry);
   registerProfileSyncRuntimeCommands(registry);
   registerManagedRuntimeCommands(registry);
   registerPlatformAccessRuntimeCommands(registry);
@@ -98,7 +93,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerLocalProviderRuntimeCommands(registry);
   registerHealthRuntimeCommands(registry);
   registerSettingsSyncRuntimeCommands(registry);
-  registerWorktreeRuntimeCommands(registry);
   registerProviderAccountsRuntimeCommands(registry);
   registerLocalAuthRuntimeCommands(registry);
   registerIntelligenceRuntimeCommands(registry);

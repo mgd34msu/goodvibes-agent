@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -8,6 +8,7 @@ import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createRuntimeServices } from '../../runtime/services.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
+import { registerBuiltinCommands } from '../../input/commands.ts';
 import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
 
 describe('Agent operator policy hidden spawn gates', () => {
@@ -110,5 +111,44 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(manager.removeJob).toHaveBeenCalledTimes(0);
     expect(manager.setEnabled).toHaveBeenCalledTimes(0);
     expect(manager.runNow).toHaveBeenCalledTimes(0);
+  });
+
+  test('copied TUI coding commands are externalized and do not mutate local Agent state', async () => {
+    const services = makeRuntimeServices();
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const git = registry.get('git');
+    const diff = registry.get('diff');
+    const worktree = registry.get('worktree');
+    const sandbox = registry.get('sandbox');
+    expect(git).toBeDefined();
+    expect(diff).toBeDefined();
+    expect(worktree).toBeDefined();
+    expect(sandbox).toBeDefined();
+
+    const out: string[] = [];
+    const ctx = {
+      print: (text: string) => out.push(text),
+      workspace: {
+        sandboxSessionRegistry: services.sandboxSessionRegistry,
+        worktreeRegistry: services.worktreeRegistry,
+      },
+      platform: {
+        configManager: services.configManager,
+      },
+    } as unknown as CommandContext;
+
+    await git!.handler(['status'], ctx);
+    await diff!.handler(['working'], ctx);
+    await worktree!.handler(['attach', '/tmp/agent-worktree', 'session', 'session-1'], ctx);
+    await sandbox!.handler(['session', 'start', 'eval-py'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('git is externalized in GoodVibes Agent.');
+    expect(text).toContain('diff is externalized in GoodVibes Agent.');
+    expect(text).toContain('worktree is externalized in GoodVibes Agent.');
+    expect(text).toContain('sandbox is externalized in GoodVibes Agent.');
+    expect(existsSync(join(root, '.git'))).toBe(false);
+    expect(services.sandboxSessionRegistry.list()).toHaveLength(0);
   });
 });

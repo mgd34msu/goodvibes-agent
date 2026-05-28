@@ -1838,7 +1838,7 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Logged out of openai.');
   });
 
-  test('sandbox command probes host posture and exports bundles', async () => {
+  test('sandbox command is externalized to GoodVibes TUI and does not run local sandbox workflows', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const sandbox = registry.get('sandbox');
@@ -1848,77 +1848,11 @@ describe('product breadth commands', () => {
     const ctx = makeContext(out);
 
     await sandbox!.handler(['probe'], ctx);
-    expect(out.join('\n')).toContain('Sandbox Probe');
-
-    const bundlePath = join(root, 'artifacts', 'sandbox.json');
-    out.length = 0;
-    await sandbox!.handler(['bundle', 'export', bundlePath], ctx);
-    expect(out.join('\n')).toContain('Sandbox bundle exported');
-
-    out.length = 0;
-    await sandbox!.handler(['bundle', 'inspect', bundlePath], ctx);
-    expect(out.join('\n')).toContain('Sandbox Bundle Review');
-
-    out.length = 0;
-    await sandbox!.handler(['session', 'start', 'eval-py', 'Python', 'isolation'], ctx);
-    expect(out.join('\n')).toContain('Started sandbox session');
-    expect(out.join('\n')).toContain('startup=');
-
-    out.length = 0;
-    await sandbox!.handler(['session', 'list'], ctx);
-    expect(out.join('\n')).toContain('Sandbox Sessions');
-    expect(out.join('\n')).toContain('eval-py');
-
-    const sessionIdMatch = out.join('\n').match(/sandbox_[a-z0-9_]+/i);
-    expect(sessionIdMatch).not.toBeNull();
-
-    out.length = 0;
-    await sandbox!.handler(['session', 'inspect', sessionIdMatch![0]], ctx);
-    expect(out.join('\n')).toContain(`Sandbox session ${sessionIdMatch![0]}`);
-    expect(out.join('\n')).toContain('profile: eval-py');
-
-    out.length = 0;
-    await sandbox!.handler(['session', 'run', sessionIdMatch![0], 'bash', '-lc', 'printf session-run-ok'], ctx);
-    expect(out.join('\n')).toContain('Sandbox session run');
-    expect(out.join('\n')).toContain('session-run-ok');
-
-    const wrapperPath = join(root, 'artifacts', 'qemu-wrapper.sh');
-    out.length = 0;
-    await sandbox!.handler(['scaffold-qemu-wrapper', wrapperPath], ctx);
-    expect(out.join('\n')).toContain('Scaffolded QEMU wrapper');
-
-    out.length = 0;
-    await sandbox!.handler(['guest-test', 'eval-js'], ctx);
-    expect(out.join('\n')).toContain('Sandbox guest test requires sandbox.qemuGuestHost');
-
-    const initDir = join(root, 'artifacts', 'qemu-init');
-    out.length = 0;
-    await sandbox!.handler(['init-qemu', initDir], ctx);
-    expect(out.join('\n')).toContain('Initialized QEMU sandbox bundle');
-    expect(existsSync(join(initDir, 'qemu-wrapper.sh'))).toBe(true);
-    expect(existsSync(join(initDir, 'guest-bundle.json'))).toBe(true);
-    expect(existsSync(join(initDir, 'README.txt'))).toBe(true);
-
-    out.length = 0;
-    await sandbox!.handler(['qemu', 'bootstrap', join(root, 'artifacts', 'qemu-bootstrap'), '1', '--scaffold-only'], ctx);
-    expect(out.join('\n')).toContain('Bootstrapped QEMU sandbox');
-    expect(out.join('\n')).toContain('applied: backend=qemu');
-    expect(out.join('\n')).toContain('image build: skipped');
-
-    out.length = 0;
-    await sandbox!.handler(['qemu', 'setup'], ctx);
-    expect(out.join('\n')).toContain(join(root, '.goodvibes', 'tui', 'sandbox'));
-    expect(existsSync(join(root, '.goodvibes', 'tui', 'sandbox', 'qemu-wrapper.sh'))).toBe(true);
-
-    out.length = 0;
-    await sandbox!.handler(['set-qemu-guest-host', '127.0.0.1'], ctx);
-    await sandbox!.handler(['set-qemu-guest-port', '2222'], ctx);
-    await sandbox!.handler(['set-qemu-guest-user', 'goodvibes'], ctx);
-    await sandbox!.handler(['set-qemu-workspace', '/workspace'], ctx);
-    await sandbox!.handler(['set-qemu-session-mode', 'launch-per-command'], ctx);
-    expect(out.join('\n')).toContain('Sandbox QEMU guest host set to 127.0.0.1.');
-    expect(out.join('\n')).toContain('Sandbox QEMU guest workspace set to /workspace.');
-    expect(out.join('\n')).toContain('Sandbox QEMU session mode set to launch-per-command.');
+    const text = out.join('\n');
+    expect(text).toContain('sandbox is externalized in GoodVibes Agent.');
+    expect(text).toContain('owner: GoodVibes TUI');
+    expect(text).toContain('result: blocked here');
+    expect(ctx.workspace.sandboxSessionRegistry?.list()).toHaveLength(0);
   });
 
   test('subscription command manages oauth-backed provider sessions and logout', async () => {
@@ -1961,7 +1895,7 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Logged out of openai');
   });
 
-  test('sandbox command reviews and updates isolation posture', async () => {
+  test('sandbox command blocks copied isolation mutations', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const sandbox = registry.get('sandbox');
@@ -1971,24 +1905,8 @@ describe('product breadth commands', () => {
     const ctx = makeContext(out);
 
     await sandbox!.handler(['review'], ctx);
-    expect(out.join('\n')).toContain('Sandbox Review');
-    expect(out.join('\n')).toContain('repl isolation');
-
-    out.length = 0;
-    await sandbox!.handler(['recommend'], ctx);
-    expect(out.join('\n')).toContain('Sandbox Recommendation');
-
-    out.length = 0;
-    await sandbox!.handler(['profiles'], ctx);
-    expect(out.join('\n')).toContain('Sandbox Profiles');
-
-    out.length = 0;
-    await sandbox!.handler(['set-mcp', 'per-server-vm'], ctx);
-    expect(out.join('\n')).toContain('Sandbox MCP isolation set to per-server-vm');
-
-    out.length = 0;
-    await sandbox!.handler(['set-repl', 'shared-vm'], ctx);
-    expect(out.join('\n')).toContain('Sandbox REPL isolation set to shared-vm');
+    expect(out.join('\n')).toContain('sandbox is externalized in GoodVibes Agent.');
+    expect(out.join('\n')).toContain('no local files, config, worktrees, sandbox sessions, or repository state were changed');
   });
 
   test('storage and deeplink commands expose platform-service breadth', async () => {
@@ -2230,20 +2148,9 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await worktree!.handler(['attach', '/tmp/demo-worktree', 'session', 'demo-session'], ctx);
-    expect(out.join('\n')).toContain('Attached /tmp/demo-worktree to session demo-session.');
-
-    out.length = 0;
-    await worktree!.handler(['inspect', '/tmp/demo-worktree'], ctx);
-    expect(out.join('\n')).toContain('Worktree Inspect');
-    expect(out.join('\n')).toContain('/worktree session demo-session');
-
-    out.length = 0;
-    await worktree!.handler(['session', 'demo-session'], ctx);
-    expect(out.join('\n')).toContain('Worktree Attachment Review: session demo-session');
-
-    out.length = 0;
-    await worktree!.handler(['recover', 'session', 'demo-session'], ctx);
-    expect(out.join('\n')).toContain('Worktree Recovery: session demo-session');
+    expect(out.join('\n')).toContain('worktree is externalized in GoodVibes Agent.');
+    expect(out.join('\n')).toContain('owner: GoodVibes TUI');
+    expect(out.join('\n')).toContain('result: blocked here');
   });
 
   test('auth command exposes local admin management surface', async () => {

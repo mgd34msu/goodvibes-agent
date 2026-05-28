@@ -192,7 +192,6 @@ describe('operator surfaces gate', () => {
     expect(ids).toContain('cockpit');
     expect(ids).toContain('security');
     expect(ids).toContain('marketplace');
-    expect(ids).toContain('sandbox');
     expect(ids).toContain('approval');
     expect(ids).toContain('subscription');
     expect(ids).toContain('knowledge');
@@ -203,6 +202,13 @@ describe('operator surfaces gate', () => {
     expect(ids).toContain('providers');
     expect(ids).toContain('sessions');
     expect(ids).toContain('ops');
+    expect(ids).not.toContain('git');
+    expect(ids).not.toContain('diff');
+    expect(ids).not.toContain('worktrees');
+    expect(ids).not.toContain('sandbox');
+    expect(ids).not.toContain('explorer');
+    expect(ids).not.toContain('preview');
+    expect(ids).not.toContain('symbols');
   });
 
   test('command registry exposes the provider, policy, and session control surfaces', () => {
@@ -218,6 +224,9 @@ describe('operator surfaces gate', () => {
     expect(registry.get('security')).toBeDefined();
     expect(registry.get('marketplace')).toBeDefined();
     expect(registry.get('sandbox')).toBeDefined();
+    expect(registry.get('git')).toBeDefined();
+    expect(registry.get('diff')).toBeDefined();
+    expect(registry.get('worktree')).toBeDefined();
     expect(registry.get('approval')).toBeDefined();
     expect(registry.get('subscription')).toBeDefined();
     expect(registry.get('storage')).toBeDefined();

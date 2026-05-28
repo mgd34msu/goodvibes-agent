@@ -12,11 +12,9 @@ import { SubscriptionPanel } from '../subscription-panel.ts';
 import { LocalAuthPanel } from '../local-auth-panel.ts';
 import { ProviderAccountsPanel } from '../provider-accounts-panel.ts';
 import { SettingsSyncPanel } from '../settings-sync-panel.ts';
-import { WorktreePanel } from '../worktree-panel.ts';
 import { HooksPanel } from '../hooks-panel.ts';
 import { SecurityPanel } from '../security-panel.ts';
 import { MarketplacePanel } from '../marketplace-panel.ts';
-import { SandboxPanel } from '../sandbox-panel.ts';
 import { TasksPanel } from '../tasks-panel.ts';
 import { OrchestrationPanel } from '../orchestration-panel.ts';
 import { OpsStrategyPanel } from '../ops-strategy-panel.ts';
@@ -176,15 +174,6 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
   });
 
   manager.registerType({
-    id: 'worktrees',
-    name: 'Worktrees',
-    icon: 'W',
-    category: 'monitoring',
-    description: 'Orchestrator-owned git worktree lifecycle, attachments, and cleanup state',
-    factory: () => new WorktreePanel(deps.worktreeRegistry),
-  });
-
-  manager.registerType({
     id: 'hooks',
     name: 'Hooks',
     icon: 'H',
@@ -219,15 +208,6 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
         userCatalogRoot: ui.environment.shellPaths.resolveUserPath('tui', 'ecosystem'),
       });
     },
-  });
-
-  manager.registerType({
-    id: 'sandbox',
-    name: 'Sandbox',
-    icon: 'X',
-    category: 'monitoring',
-    description: 'VM isolation posture for MCP servers and evaluation runtimes',
-    factory: () => new SandboxPanel(deps.configManager, deps.sandboxSessionRegistry),
   });
 
   manager.registerType({
