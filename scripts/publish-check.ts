@@ -72,6 +72,45 @@ for (const requiredPath of [
   }
 }
 
+const packagedGuidanceChecks: readonly {
+  readonly path: string;
+  readonly forbidden: readonly string[];
+}[] = [
+  {
+    path: '.goodvibes/GOODVIBES.md',
+    forbidden: [
+      'Every plan must have a multi-agent execution strategy',
+      'NEVER skip WRFC',
+      'ALWAYS work in parallel when implementing a plan',
+      'PRIMARY GOAL: Fully complete and functional code',
+    ],
+  },
+  {
+    path: '.goodvibes/agents/reviewer.md',
+    forbidden: [
+      'You are a code reviewer for the WRFC',
+      'ReviewerReport',
+      '"wrfcId"',
+    ],
+  },
+  {
+    path: '.goodvibes/skills/add-provider/SKILL.md',
+    forbidden: [
+      'goodvibes-tui',
+      '~/.goodvibes/tui/providers',
+    ],
+  },
+];
+
+for (const check of packagedGuidanceChecks) {
+  const content = readFileSync(join(root, check.path), 'utf8');
+  for (const forbidden of check.forbidden) {
+    if (content.includes(forbidden)) {
+      throw new Error(`package-facing guidance ${check.path} contains forbidden copied TUI policy: ${forbidden}`);
+    }
+  }
+}
+
 if (typeof packResult.size === 'number' && packResult.size > 50 * 1024 * 1024) {
   throw new Error(`published tarball is too large: ${packResult.size} bytes`);
 }

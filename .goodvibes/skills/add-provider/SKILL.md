@@ -1,6 +1,6 @@
 ---
 name: add-provider
-description: Adds custom LLM providers and models to goodvibes-tui. Use when user wants to add a provider, add a model, configure Ollama, Together AI, OpenRouter, Groq, LM Studio, Fireworks, vLLM, or any OpenAI-compatible endpoint.
+description: Adds custom LLM providers and models to GoodVibes Agent. Use when the user wants to add a provider, add a model, configure Ollama, Together AI, OpenRouter, Groq, LM Studio, Fireworks, vLLM, or any OpenAI-compatible endpoint.
 version: 1.0.0
 triggers:
   - /add-provider
@@ -15,13 +15,13 @@ author: goodvibes
 
 # Add Custom Provider
 
-Interactively collect provider and model details from the user, then write a JSON config to `~/.goodvibes/tui/providers/{name}.json`.
+Interactively collect provider and model details from the user, then write a JSON config to `~/.goodvibes/agent/providers/{name}.json`.
 
 ## Workflow
 
 ### Step 1: Check for Existing Provider
 
-Before collecting info, check if `~/.goodvibes/tui/providers/` already has JSON files. If the user names a provider that already exists, ask:
+Before collecting info, check if `~/.goodvibes/agent/providers/` already has JSON files. If the user names a provider that already exists, ask:
 - **Add models** to the existing provider, or
 - **Overwrite** it entirely
 
@@ -150,7 +150,7 @@ Example output:
 
 ### Step 5: Write the File
 
-Write to `~/.goodvibes/tui/providers/{name}.json`. Create the directory if it does not exist.
+Write to `~/.goodvibes/agent/providers/{name}.json`. Create the directory if it does not exist.
 
 Use `precision_write` with `mode: "fail_if_exists"` for new providers. Use `mode: "overwrite"` when the user chose to overwrite an existing provider or when merging models into an existing file.
 
@@ -161,8 +161,8 @@ If `defaultHeaders` were provided, include them.
 ### Step 6: Confirm
 
 Tell the user:
-- The file was written to `~/.goodvibes/tui/providers/{name}.json`
-- The provider should be available immediately if goodvibes-tui is currently running (it hot-reloads custom provider configs); if not running, changes take effect on next startup
+- The file was written to `~/.goodvibes/agent/providers/{name}.json`
+- The provider should be available to the Agent runtime after provider reload or next Agent startup
 - If an API key is needed, remind them to set the environment variable
 
 ## Validation Rules
