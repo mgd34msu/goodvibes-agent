@@ -1,6 +1,6 @@
 # Release And Publishing
 
-GoodVibes Agent is private at `0.0.0`. Do not publish until there is an explicit release decision.
+GoodVibes Agent `0.1.0` is the first public alpha release.
 
 ## Package Identity
 
@@ -43,4 +43,4 @@ Do not ship daemon binaries from this package. If Agent later gets compiled arti
 
 ## Near-Fork Baseline Rule
 
-The first baseline commit can include copied TUI foundation code, but it must be marked as a copy checkpoint rather than product-ready Agent behavior. Follow-up work must remove or adapt coding-first policy, especially default WRFC/coding guardrails.
+The public alpha can include copied TUI foundation code, but package-facing behavior must follow Agent product policy. Follow-up work should continue pruning or reshaping copied coding-first surfaces while preserving the TUI-derived renderer, input, fullscreen workspace, command registry, and release bones.

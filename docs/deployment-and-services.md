@@ -47,7 +47,7 @@ If the daemon is unavailable, unauthenticated, or on an incompatible SDK version
 
 ## Release Rule
 
-Do not publish a public Agent release until the copied TUI foundation has been reshaped into the Agent product policy:
+Only publish Agent releases that preserve the Agent product policy:
 
 - serial/proactive assistant by default
 - local memory/skills/personas until shared registries are stable

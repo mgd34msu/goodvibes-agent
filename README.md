@@ -1,7 +1,7 @@
 # GoodVibes Agent
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#install)
+[![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#install)
 
 GoodVibes Agent is the personal operator assistant built on the GoodVibes terminal UI foundation. This repository is intentionally in a near-fork baseline phase: the shell, renderer, input, fullscreen workspace, command, and release bones are copied from the terminal product first, then the coding-specific behavior is removed or reshaped deliberately.
 
@@ -9,7 +9,7 @@ The Agent product connects to an already-running GoodVibes daemon. It does not i
 
 ## Install
 
-The package is private at `0.0.0`; do not publish it yet.
+Install the public alpha package with Bun:
 
 ```sh
 bun add -g @pellux/goodvibes-agent

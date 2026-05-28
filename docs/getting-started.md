@@ -1,6 +1,6 @@
 # Getting Started
 
-GoodVibes Agent is currently a private `0.0.0` baseline. It is installable for smoke testing, but it is not ready for public release.
+GoodVibes Agent `0.1.0` is the first public alpha of the personal operator assistant built on the GoodVibes TUI foundation.
 
 ## Requirements
 
@@ -50,4 +50,4 @@ Agent lifecycle commands that would start or mutate daemon posture are blocked i
 
 ## Current Baseline Notes
 
-This repository still contains broad copied TUI code. That is intentional for the baseline. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/spawn fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.
+This repository still contains broad copied TUI code. That is intentional for the near-fork foundation. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/spawn fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.
