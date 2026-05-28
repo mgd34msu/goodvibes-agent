@@ -27,6 +27,16 @@ export interface AgentWorkspaceCategory {
 
 export type AgentWorkspaceCommandDispatcher = (command: string) => void;
 
+export type AgentWorkspaceActionResultKind = 'guidance' | 'blocked' | 'dispatched' | 'refreshed' | 'error';
+
+export interface AgentWorkspaceActionResult {
+  readonly kind: AgentWorkspaceActionResultKind;
+  readonly title: string;
+  readonly detail: string;
+  readonly command?: string;
+  readonly safety?: AgentWorkspaceAction['safety'];
+}
+
 type AgentWorkspaceConfigReader = {
   get(key: string): unknown;
 };
@@ -213,6 +223,7 @@ export class AgentWorkspace {
   public selectedActionIndex = 0;
   public status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
   public runtimeSnapshot: AgentWorkspaceRuntimeSnapshot | null = null;
+  public lastActionResult: AgentWorkspaceActionResult | null = null;
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
 
@@ -223,6 +234,7 @@ export class AgentWorkspace {
     this.active = true;
     this.focusPane = 'actions';
     this.status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
+    this.lastActionResult = null;
     this.clampSelection();
   }
 
@@ -295,6 +307,25 @@ export class AgentWorkspace {
     this.clampSelection();
   }
 
+  refreshRuntimeSnapshot(): void {
+    if (!this.context) {
+      this.status = 'Runtime context is unavailable.';
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Context refresh failed',
+        detail: 'The Agent workspace has no command context to inspect.',
+      };
+      return;
+    }
+    this.runtimeSnapshot = buildAgentWorkspaceRuntimeSnapshot(this.context);
+    this.status = 'Runtime context refreshed.';
+    this.lastActionResult = {
+      kind: 'refreshed',
+      title: 'Runtime context refreshed',
+      detail: 'Provider, model, session, local memory, daemon URL, and Agent knowledge route posture were re-read from the live command context.',
+    };
+  }
+
   activateSelected(): void {
     if (this.focusPane === 'categories') {
       this.focusActions();
@@ -304,18 +335,55 @@ export class AgentWorkspace {
     if (!action) return;
     if (action.kind === 'guidance' || !action.command) {
       this.status = action.detail;
+      this.lastActionResult = {
+        kind: 'guidance',
+        title: action.label,
+        detail: action.detail,
+        safety: action.safety,
+      };
+      return;
+    }
+    if (action.safety === 'blocked') {
+      this.status = `Blocked here: ${action.label}.`;
+      this.lastActionResult = {
+        kind: 'blocked',
+        title: `${action.label} is blocked in Agent`,
+        detail: action.detail,
+        command: action.command,
+        safety: action.safety,
+      };
       return;
     }
     const parsed = parseCommand(action.command);
     if (!parsed.name) {
       this.status = `No command is configured for ${action.label}.`;
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Command unavailable',
+        detail: `No command is configured for ${action.label}.`,
+        safety: action.safety,
+      };
       return;
     }
     if (!this.context?.executeCommand || !this.dispatchCommand) {
       this.status = `Command dispatch is not available for ${action.command}.`;
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Command dispatch unavailable',
+        detail: `The command ${action.command} cannot be opened from this runtime.`,
+        command: action.command,
+        safety: action.safety,
+      };
       return;
     }
     this.status = `Opening ${action.command}.`;
+    this.lastActionResult = {
+      kind: 'dispatched',
+      title: `Opening ${action.label}`,
+      detail: 'The workspace handed this safe or read-only command to the shell-owned command router.',
+      command: action.command,
+      safety: action.safety,
+    };
     this.dispatchCommand(action.command);
   }
 
@@ -351,6 +419,7 @@ export function handleAgentWorkspaceToken(
     else if (token.value === 'l') workspace.focusActions();
     else if (token.value === 'j') workspace.moveDown();
     else if (token.value === 'k') workspace.moveUp();
+    else if (token.value === 'r' || token.value === 'R') workspace.refreshRuntimeSnapshot();
     else if (token.value === ' ') workspace.activateSelected();
   }
 

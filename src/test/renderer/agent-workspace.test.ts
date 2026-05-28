@@ -95,4 +95,19 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('agent-session-1');
     expect(output).toContain('serial-proactive');
   });
+
+  test('renders action feedback and refresh affordance', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'remote-policy');
+    workspace.activateSelected();
+
+    const output = text(renderAgentWorkspace(workspace, 132, 34));
+
+    expect(output).toContain('Action Result');
+    expect(output).toContain('Remote runner policy is blocked in Agent');
+    expect(output).toContain('/remote dispatch');
+    expect(output).toContain('R refresh');
+  });
 });

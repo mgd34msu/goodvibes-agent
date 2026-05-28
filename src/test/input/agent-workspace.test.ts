@@ -43,6 +43,62 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/model');
   });
 
+  test('blocks copied TUI-only blocked commands inside the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'remote-policy');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.status).toContain('Blocked here');
+    expect(workspace.lastActionResult?.kind).toBe('blocked');
+    expect(workspace.lastActionResult?.command).toBe('/remote dispatch');
+  });
+
+  test('refresh key rereads the live runtime snapshot', () => {
+    const workspace = new AgentWorkspace();
+    const runtime = {
+      model: 'openai:gpt-5.5',
+      provider: 'openai-subscriber',
+      sessionId: 'session-1',
+      debugMode: false,
+      systemPrompt: '',
+      reasoningEffort: 'medium',
+    };
+    const ctx = {
+      executeCommand: async () => true,
+      print: () => undefined,
+      session: {
+        runtime,
+        sessionMemoryStore: { list: () => [] },
+      },
+      provider: {
+        providerRegistry: {
+          getCurrentModel: () => ({
+            id: 'gpt-5.5',
+            provider: runtime.provider,
+            displayName: runtime.model,
+            registryKey: runtime.model,
+            contextWindow: 256000,
+          }),
+        },
+      },
+    } as unknown as CommandContext;
+
+    workspace.open(ctx, () => undefined);
+    expect(workspace.runtimeSnapshot?.model).toBe('openai:gpt-5.5');
+
+    runtime.model = 'anthropic:claude-sonnet-4.5';
+    handleAgentWorkspaceToken(workspace, { type: 'text', value: 'r' }, () => undefined, () => undefined);
+
+    expect(workspace.runtimeSnapshot?.model).toBe('anthropic:claude-sonnet-4.5');
+    expect(workspace.status).toContain('refreshed');
+    expect(workspace.lastActionResult?.kind).toBe('refreshed');
+  });
+
   test('token routing supports pane focus and navigation', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined);

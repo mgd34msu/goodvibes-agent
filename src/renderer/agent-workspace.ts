@@ -1,6 +1,7 @@
 import type {
   AgentWorkspace,
   AgentWorkspaceAction,
+  AgentWorkspaceActionResult,
   AgentWorkspaceCategory,
   AgentWorkspaceRuntimeSnapshot,
 } from '../input/agent-workspace.ts';
@@ -21,6 +22,13 @@ function safetyColor(action: AgentWorkspaceAction): string {
   if (action.safety === 'read-only') return PALETTE.info;
   if (action.safety === 'delegates') return PALETTE.warn;
   return PALETTE.bad;
+}
+
+function actionResultColor(result: AgentWorkspaceActionResult): string {
+  if (result.kind === 'blocked' || result.kind === 'error') return PALETTE.bad;
+  if (result.kind === 'dispatched') return PALETTE.info;
+  if (result.kind === 'refreshed') return PALETTE.good;
+  return PALETTE.muted;
 }
 
 function buildLeftRows(workspace: AgentWorkspace, height: number): WorkspaceRow[] {
@@ -136,6 +144,18 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
     );
   }
 
+  if (workspace.lastActionResult) {
+    lines.push(
+      { text: '' },
+      { text: 'Action Result', fg: PALETTE.title, bold: true },
+      { text: workspace.lastActionResult.title, fg: actionResultColor(workspace.lastActionResult), bold: true },
+      { text: workspace.lastActionResult.detail, fg: PALETTE.text },
+    );
+    if (workspace.lastActionResult.command) {
+      lines.push({ text: `Command: ${workspace.lastActionResult.command}`, fg: PALETTE.muted });
+    }
+  }
+
   return lines.flatMap((entry): WorkspaceRow[] => {
     if (entry.text.length === 0) return [{ text: '', kind: 'empty', dim: true }];
     return wrapText(entry.text, Math.max(1, width)).map((text, index): WorkspaceRow => ({
@@ -178,6 +198,16 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   if (window.end < actions.length) rows.push({ text: `${GLYPHS.navigation.moreBelow} ${actions.length - window.end} more action(s) below`, kind: 'more', fg: PALETTE.dim, dim: true });
   rows.push({ text: '' });
   rows.push({ text: `Status: ${workspace.status}`, fg: PALETTE.muted });
+  if (workspace.lastActionResult) {
+    rows.push({ text: '' });
+    rows.push({ text: `Action Result: ${workspace.lastActionResult.title}`, fg: actionResultColor(workspace.lastActionResult), bold: true });
+    for (const line of wrapText(workspace.lastActionResult.detail, Math.max(1, width - 2))) {
+      rows.push({ text: `  ${line}`, fg: PALETTE.text });
+    }
+    if (workspace.lastActionResult.command) {
+      rows.push({ text: `  Command: ${workspace.lastActionResult.command}`, fg: PALETTE.muted });
+    }
+  }
 
   while (rows.length < height) rows.push({ text: '', kind: 'empty' });
   return rows.slice(0, height);
@@ -185,7 +215,7 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
 
 function footerText(workspace: AgentWorkspace): string {
   const focus = workspace.focusPane === 'categories' ? 'categories' : 'actions';
-  return `Agent workspace · focus ${focus} · Up/Down navigate · Left/Right pane · Enter open/action · Esc close`;
+  return `Agent workspace · focus ${focus} · Up/Down navigate · Left/Right pane · Enter open/action · R refresh · Esc close`;
 }
 
 export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, height: number): Line[] {
