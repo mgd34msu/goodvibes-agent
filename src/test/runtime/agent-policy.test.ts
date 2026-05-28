@@ -40,6 +40,12 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(source).not.toContain('registerDelegateTool');
   });
 
+  test('bootstrap does not start the copied local automation runner', () => {
+    const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
+    expect(source).not.toContain('automationManager.start(');
+    expect(source).toContain('Local automation runners are disabled in GoodVibes Agent');
+  });
+
   test('shared-session task continuation fails closed instead of spawning a local agent', async () => {
     const services = makeRuntimeServices();
     await services.sessionBroker.start();

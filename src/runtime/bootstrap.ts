@@ -446,19 +446,8 @@ export async function bootstrapRuntime(
   });
   bootstrapUnsubs.push(() => mcpAutoReload.stop());
   if (configManager.get('automation.enabled')) {
-    deferredStartup.schedule({
-      label: 'automation',
-      run: async () => {
-        await automationManager.start();
-        requestRender();
-      },
-      onError: (error) => {
-        const message = summarizeError(error);
-        logger.error('Deferred automation startup failed', { error: message });
-        systemMessageRouter.high(`[Startup] Automation failed to initialize: ${message}`);
-        requestRender();
-      },
-    });
+    logger.warn('Local automation startup is disabled in GoodVibes Agent; use external daemon observability instead.');
+    systemMessageRouter.low('[Startup] Local automation runners are disabled in GoodVibes Agent; use read-only automation observability or explicit external-daemon actions.');
   }
 
   // ── Phase 12: Session:start lifecycle hook ─────────────────────────────
