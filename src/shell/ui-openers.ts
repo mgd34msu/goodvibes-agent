@@ -284,6 +284,11 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     render();
   };
 
+  commandContext.openAgentWorkspace = () => {
+    input.openAgentWorkspace(commandContext);
+    render();
+  };
+
   commandContext.openSessionPicker = () => {
     input.modalOpened('sessionPicker');
     input.sessionPickerModal.open();

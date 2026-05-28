@@ -14,6 +14,7 @@ import { renderLiveTailModal } from './live-tail-modal.ts';
 import { renderContextInspector } from './context-inspector.ts';
 import { renderSettingsModal } from './settings-modal.ts';
 import { renderMcpWorkspace } from './mcp-workspace.ts';
+import { renderAgentWorkspace } from './agent-workspace.ts';
 import { renderSessionPickerModal } from './session-picker-modal.ts';
 import { renderProfilePickerModal } from './profile-picker-modal.ts';
 import { renderBookmarkModal } from './bookmark-modal.ts';
@@ -95,6 +96,11 @@ export function applyConversationOverlays(
 
   if (input.mcpWorkspace.active) {
     const lines = renderMcpWorkspace(input.mcpWorkspace, conversationWidth, viewportHeight);
+    next = replaceViewportWithOverlay(lines, conversationWidth, viewportHeight);
+  }
+
+  if (input.agentWorkspace.active) {
+    const lines = renderAgentWorkspace(input.agentWorkspace, conversationWidth, viewportHeight);
     next = replaceViewportWithOverlay(lines, conversationWidth, viewportHeight);
   }
 

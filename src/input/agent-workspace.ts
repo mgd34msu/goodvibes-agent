@@ -1,0 +1,274 @@
+import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
+import type { CommandContext } from './command-registry.ts';
+
+export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
+
+export type AgentWorkspaceFocusPane = 'categories' | 'actions';
+
+export type AgentWorkspaceActionKind = 'command' | 'guidance';
+
+export interface AgentWorkspaceAction {
+  readonly id: string;
+  readonly label: string;
+  readonly detail: string;
+  readonly command?: string;
+  readonly kind: AgentWorkspaceActionKind;
+  readonly safety: 'safe' | 'read-only' | 'delegates' | 'blocked';
+}
+
+export interface AgentWorkspaceCategory {
+  readonly id: string;
+  readonly group: string;
+  readonly label: string;
+  readonly summary: string;
+  readonly detail: string;
+  readonly actions: readonly AgentWorkspaceAction[];
+}
+
+export type AgentWorkspaceCommandDispatcher = (command: string) => void;
+
+export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
+  {
+    id: 'home',
+    group: 'OPERATE',
+    label: 'Home',
+    summary: 'Main operator surface for normal assistant work.',
+    detail: 'Use this as the Agent front door: chat in the main conversation, inspect state, choose model/provider, and open setup surfaces without switching into coding-TUI behavior.',
+    actions: [
+      { id: 'chat', label: 'Continue assistant chat', detail: 'Close this workspace and type a normal message. Agent work stays serial in the main conversation.', kind: 'guidance', safety: 'safe' },
+      { id: 'model', label: 'Choose model', detail: 'Open the copied TUI model/provider workspace for the Agent chat route.', command: '/model', kind: 'command', safety: 'safe' },
+      { id: 'help', label: 'Browse commands', detail: 'Open registry-driven command help.', command: '/help', kind: 'command', safety: 'safe' },
+      { id: 'health', label: 'Review health', detail: 'Show the local health review surface without starting or mutating daemon services.', command: '/health review', kind: 'command', safety: 'read-only' },
+    ],
+  },
+  {
+    id: 'setup',
+    group: 'SETUP',
+    label: 'Setup',
+    summary: 'Configuration, auth, provider, and onboarding surfaces.',
+    detail: 'Agent connects to an external daemon and owns local assistant configuration only. Daemon lifecycle and listener posture remain external.',
+    actions: [
+      { id: 'config', label: 'Open config workspace', detail: 'Use the TUI-derived fullscreen settings workspace.', command: '/config', kind: 'command', safety: 'safe' },
+      { id: 'onboarding', label: 'Open setup wizard', detail: 'Review Agent runtime settings in the copied onboarding/config style.', command: '/onboarding', kind: 'command', safety: 'safe' },
+      { id: 'provider', label: 'Provider status', detail: 'Review provider/model posture.', command: '/provider', kind: 'command', safety: 'read-only' },
+      { id: 'auth', label: 'Auth review', detail: 'Review authentication posture without printing token values.', command: '/auth review', kind: 'command', safety: 'read-only' },
+    ],
+  },
+  {
+    id: 'knowledge',
+    group: 'KNOW',
+    label: 'Knowledge',
+    summary: 'Agent Knowledge/Wiki and source-backed lookup.',
+    detail: 'Agent knowledge calls must use the isolated /api/goodvibes-agent/knowledge routes. Default regular wiki and HomeGraph are not the Agent knowledge environment.',
+    actions: [
+      { id: 'knowledge-status', label: 'Knowledge status', detail: 'Inspect Agent knowledge readiness and counts.', command: '/knowledge status', kind: 'command', safety: 'read-only' },
+      { id: 'knowledge-open', label: 'Open knowledge surface', detail: 'Open the knowledge panel/surface when available.', command: '/knowledge', kind: 'command', safety: 'read-only' },
+      { id: 'knowledge-ask', label: 'Ask Agent knowledge', detail: 'Close this workspace and run /knowledge ask <question> or ask normally in chat.', kind: 'guidance', safety: 'read-only' },
+    ],
+  },
+  {
+    id: 'memory',
+    group: 'LEARN',
+    label: 'Memory & Skills',
+    summary: 'Local assistant memory, skills, and reusable behavior.',
+    detail: 'Memory, skills, and personas stay Agent-local until stable shared daemon registry contracts exist. Secrets must not be stored as memory.',
+    actions: [
+      { id: 'memory', label: 'Open memory', detail: 'Inspect local/session memory commands and surfaces.', command: '/memory', kind: 'command', safety: 'read-only' },
+      { id: 'skills', label: 'Open skills', detail: 'Inspect discovered skills and skill catalog state.', command: '/skills open', kind: 'command', safety: 'read-only' },
+      { id: 'personas', label: 'Personas pending', detail: 'Persona registry UX is still a local Agent product gap after the near-fork baseline.', kind: 'guidance', safety: 'safe' },
+    ],
+  },
+  {
+    id: 'work',
+    group: 'TRACK',
+    label: 'Work & Approvals',
+    summary: 'Visible task state, work plan, and approval posture.',
+    detail: 'Use these surfaces to inspect active operator state. Side-effecting approval decisions require explicit commands and confirmation outside this workspace.',
+    actions: [
+      { id: 'workplan', label: 'Open work plan', detail: 'Open the workspace-scoped work plan panel.', command: '/workplan panel', kind: 'command', safety: 'read-only' },
+      { id: 'workplan-list', label: 'List work plan', detail: 'Print a concise work plan summary.', command: '/workplan list', kind: 'command', safety: 'read-only' },
+      { id: 'approvals', label: 'Review approvals', detail: 'Open/read approval posture. This workspace does not approve or deny requests.', command: '/approval open', kind: 'command', safety: 'read-only' },
+    ],
+  },
+  {
+    id: 'automation',
+    group: 'WATCH',
+    label: 'Automation',
+    summary: 'Read-only automation and schedule observability.',
+    detail: 'Agent does not create, run, enable, disable, or remove local automation jobs. Schedule mutations wait for an Agent-safe public route and explicit approval.',
+    actions: [
+      { id: 'schedule-list', label: 'List schedules', detail: 'Inspect configured jobs and history without running or mutating them.', command: '/schedule list', kind: 'command', safety: 'read-only' },
+      { id: 'schedule-policy', label: 'Mutation blocked', detail: 'Schedule add/run/remove/enable/disable are intentionally blocked in Agent.', kind: 'guidance', safety: 'blocked' },
+      { id: 'health-services', label: 'Service health', detail: 'Inspect service readiness without starting, stopping, or restarting daemon services.', command: '/health services', kind: 'command', safety: 'read-only' },
+    ],
+  },
+  {
+    id: 'delegate',
+    group: 'BUILD',
+    label: 'Build Delegation',
+    summary: 'Explicit handoff to GoodVibes TUI for code work.',
+    detail: 'Agent does not become the coding TUI. Build, implement, fix, patch, and review work must be handed to GoodVibes TUI with the full original ask and WRFC only when explicitly requested.',
+    actions: [
+      { id: 'delegate-guidance', label: 'Delegation rule', detail: 'For build/fix/review work, delegate one request to GoodVibes TUI instead of spawning local Engineer/Reviewer/Tester roots.', kind: 'guidance', safety: 'delegates' },
+      { id: 'review-command', label: 'Review delegation command', detail: 'Use /review or /wrfc only when the user explicitly asks for code review/build execution.', command: '/review', kind: 'command', safety: 'delegates' },
+      { id: 'remote-policy', label: 'Remote runner policy', detail: 'Remote dispatch/rerun copied from TUI is blocked in Agent; TUI owns runner topology.', command: '/remote dispatch', kind: 'command', safety: 'blocked' },
+    ],
+  },
+];
+
+function parseCommand(command: string): { readonly name: string; readonly args: readonly string[] } {
+  const trimmed = command.trim().replace(/^\//, '');
+  if (!trimmed) return { name: '', args: [] };
+  const parts = trimmed.split(/\s+/);
+  return { name: parts[0] ?? '', args: parts.slice(1) };
+}
+
+export class AgentWorkspace {
+  public active = false;
+  public focusPane: AgentWorkspaceFocusPane = 'actions';
+  public selectedCategoryIndex = 0;
+  public selectedActionIndex = 0;
+  public status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
+  private context: CommandContext | null = null;
+  private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
+
+  open(context: CommandContext, dispatchCommand: AgentWorkspaceCommandDispatcher): void {
+    this.context = context;
+    this.dispatchCommand = dispatchCommand;
+    this.active = true;
+    this.focusPane = 'actions';
+    this.status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
+    this.clampSelection();
+  }
+
+  reopen(): void {
+    this.active = true;
+    this.clampSelection();
+  }
+
+  close(): void {
+    this.active = false;
+  }
+
+  get categories(): readonly AgentWorkspaceCategory[] {
+    return AGENT_WORKSPACE_CATEGORIES;
+  }
+
+  get selectedCategory(): AgentWorkspaceCategory {
+    return this.categories[this.selectedCategoryIndex] ?? this.categories[0]!;
+  }
+
+  get actions(): readonly AgentWorkspaceAction[] {
+    return this.selectedCategory.actions;
+  }
+
+  get selectedAction(): AgentWorkspaceAction | null {
+    return this.actions[this.selectedActionIndex] ?? null;
+  }
+
+  focusCategories(): void {
+    this.focusPane = 'categories';
+  }
+
+  focusActions(): void {
+    this.focusPane = 'actions';
+  }
+
+  toggleFocusPane(): void {
+    this.focusPane = this.focusPane === 'categories' ? 'actions' : 'categories';
+  }
+
+  moveUp(): void {
+    if (this.focusPane === 'categories') {
+      this.selectedCategoryIndex = Math.max(0, this.selectedCategoryIndex - 1);
+      this.selectedActionIndex = 0;
+    } else {
+      this.selectedActionIndex = Math.max(0, this.selectedActionIndex - 1);
+    }
+    this.clampSelection();
+  }
+
+  moveDown(): void {
+    if (this.focusPane === 'categories') {
+      this.selectedCategoryIndex = Math.min(this.categories.length - 1, this.selectedCategoryIndex + 1);
+      this.selectedActionIndex = 0;
+    } else {
+      this.selectedActionIndex = Math.min(this.actions.length - 1, this.selectedActionIndex + 1);
+    }
+    this.clampSelection();
+  }
+
+  jumpHome(): void {
+    if (this.focusPane === 'categories') this.selectedCategoryIndex = 0;
+    else this.selectedActionIndex = 0;
+    this.clampSelection();
+  }
+
+  jumpEnd(): void {
+    if (this.focusPane === 'categories') this.selectedCategoryIndex = this.categories.length - 1;
+    else this.selectedActionIndex = this.actions.length - 1;
+    this.clampSelection();
+  }
+
+  activateSelected(): void {
+    if (this.focusPane === 'categories') {
+      this.focusActions();
+      return;
+    }
+    const action = this.selectedAction;
+    if (!action) return;
+    if (action.kind === 'guidance' || !action.command) {
+      this.status = action.detail;
+      return;
+    }
+    const parsed = parseCommand(action.command);
+    if (!parsed.name) {
+      this.status = `No command is configured for ${action.label}.`;
+      return;
+    }
+    if (!this.context?.executeCommand || !this.dispatchCommand) {
+      this.status = `Command dispatch is not available for ${action.command}.`;
+      return;
+    }
+    this.status = `Opening ${action.command}.`;
+    this.dispatchCommand(action.command);
+  }
+
+  private clampSelection(): void {
+    this.selectedCategoryIndex = Math.max(0, Math.min(this.selectedCategoryIndex, this.categories.length - 1));
+    this.selectedActionIndex = Math.max(0, Math.min(this.selectedActionIndex, this.actions.length - 1));
+  }
+}
+
+export function handleAgentWorkspaceToken(
+  workspace: AgentWorkspace,
+  token: InputToken,
+  handleEscape: () => void,
+  requestRender: () => void,
+): boolean {
+  if (!workspace.active) return false;
+
+  if (token.type === 'key') {
+    if (token.logicalName === 'escape') {
+      handleEscape();
+      return true;
+    }
+    if (token.logicalName === 'enter' || token.logicalName === 'space') workspace.activateSelected();
+    else if (token.logicalName === 'left') workspace.focusCategories();
+    else if (token.logicalName === 'right') workspace.focusActions();
+    else if (token.logicalName === 'up') workspace.moveUp();
+    else if (token.logicalName === 'down') workspace.moveDown();
+    else if (token.logicalName === 'tab') workspace.toggleFocusPane();
+    else if (token.logicalName === 'home') workspace.jumpHome();
+    else if (token.logicalName === 'end') workspace.jumpEnd();
+  } else if (token.type === 'text') {
+    if (token.value === 'h') workspace.focusCategories();
+    else if (token.value === 'l') workspace.focusActions();
+    else if (token.value === 'j') workspace.moveDown();
+    else if (token.value === 'k') workspace.moveUp();
+    else if (token.value === ' ') workspace.activateSelected();
+  }
+
+  requestRender();
+  return true;
+}

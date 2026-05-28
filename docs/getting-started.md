@@ -35,6 +35,8 @@ bun run dev
 
 `bun run dev` starts the Agent TUI. The same entrypoint backs the installed `goodvibes-agent` command.
 
+Once the TUI opens, run `/agent`, `/home`, or `/operator` to open the Agent operator workspace. That fullscreen workspace is the current front door for setup/config, knowledge status, local memory and skills, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
+
 ## External Daemon
 
 Start the daemon from GoodVibes TUI or the daemon host before using daemon-backed Agent features. Agent expects the daemon to expose the public operator/Agent routes, including:

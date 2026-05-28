@@ -156,6 +156,7 @@ export function createBootstrapCommandActions(
   | 'openOrchestrationPanel'
   | 'openCockpitPanel'
   | 'openMcpWorkspace'
+  | 'openAgentWorkspace'
   | 'openSecurityPanel'
   | 'openKnowledgePanel'
   | 'openRemotePanel'
@@ -263,6 +264,7 @@ export function createBootstrapCommandActions(
       showPanel('cockpit');
     },
     openMcpWorkspace: () => unwiredShellAction('openMcpWorkspace'),
+    openAgentWorkspace: () => unwiredShellAction('openAgentWorkspace'),
     openSecurityPanel: () => {
       showPanel('security');
     },

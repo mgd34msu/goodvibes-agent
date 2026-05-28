@@ -26,6 +26,7 @@ import { ContextInspectorModal } from '../renderer/context-inspector.ts';
 import { BookmarkModal } from './bookmark-modal.ts';
 import { SettingsModal } from './settings-modal.ts';
 import { McpWorkspace } from './mcp-workspace.ts';
+import { AgentWorkspace } from './agent-workspace.ts';
 import { SessionPickerModal } from './session-picker-modal.ts';
 import { ProfilePickerModal } from './profile-picker-modal.ts';
 import { OnboardingWizardController, type OnboardingWizardAction, type OnboardingWizardMode } from './onboarding/onboarding-wizard.ts';
@@ -159,6 +160,7 @@ export class InputHandler {
   public blockActionsMenu = new BlockActionsMenu();
   public settingsModal = new SettingsModal();
   public mcpWorkspace = new McpWorkspace();
+  public agentWorkspace = new AgentWorkspace();
   public onboardingWizard = new OnboardingWizardController();
   public onboardingModelPickerCancelSnapshot: OnboardingWizardSnapshot | null = null;
   public onboardingHydrationSerial = 0;
@@ -278,6 +280,7 @@ export class InputHandler {
         bookmarkModal: this.bookmarkModal,
         settingsModal: this.settingsModal,
         mcpWorkspace: this.mcpWorkspace,
+        agentWorkspace: this.agentWorkspace,
         sessionPickerModal: this.sessionPickerModal,
         profilePickerModal: this.profilePickerModal,
         historySearch: this.historySearch,
@@ -419,6 +422,27 @@ export class InputHandler {
     this.indicatorFocused = false;
     this.modalOpened('mcpWorkspace');
     this.mcpWorkspace.open(context);
+    this.requestRender();
+  }
+  public openAgentWorkspace(context: CommandContext): void {
+    this.panelFocused = false;
+    this.indicatorFocused = false;
+    this.modalOpened('agentWorkspace');
+    this.agentWorkspace.open(context, (command) => this.dispatchAgentWorkspaceCommand(command, context));
+    this.requestRender();
+  }
+
+  private dispatchAgentWorkspaceCommand(command: string, context: CommandContext): void {
+    this.agentWorkspace.close();
+    for (let index = this.modalStack.length - 1; index >= 0; index -= 1) {
+      if (this.modalStack[index] === 'agentWorkspace') this.modalStack.splice(index, 1);
+    }
+    const [name, ...args] = command.trim().replace(/^\//, '').split(/\s+/);
+    if (!name) return;
+    void context.executeCommand?.(name, args).catch((error: unknown) => {
+      context.print(`Agent workspace command failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.requestRender();
+    });
     this.requestRender();
   }
   public handleModelPickerCommit(): boolean { return handleModelPickerCommitForHandler(this); }

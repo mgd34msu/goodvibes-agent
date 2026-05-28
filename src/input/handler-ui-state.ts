@@ -59,6 +59,7 @@ export type ActiveModalState = {
   liveTailModal: { active: boolean; close: () => void };
   settingsModal: { active: boolean; close: () => void };
   mcpWorkspace?: { active: boolean; close: () => void; reopen: () => void };
+  agentWorkspace?: { active: boolean; close: () => void; reopen: () => void };
   sessionPickerModal: { active: boolean; close: () => void };
   profilePickerModal: { active: boolean; close: () => void };
   contextInspectorModal: { active: boolean; close: () => void };
@@ -79,6 +80,7 @@ export function getActiveModalName(state: ActiveModalState): string | null {
   if (state.liveTailModal.active) return 'liveTail';
   if (state.settingsModal.active) return 'settings';
   if (state.mcpWorkspace?.active) return 'mcpWorkspace';
+  if (state.agentWorkspace?.active) return 'agentWorkspace';
   if (state.sessionPickerModal.active) return 'sessionPicker';
   if (state.profilePickerModal.active) return 'profilePicker';
   if (state.contextInspectorModal.active) return 'contextInspector';
@@ -100,6 +102,7 @@ export type ModalCloseOps = {
   closeLiveTail: () => void;
   closeSettings: () => void;
   closeMcpWorkspace: () => void;
+  closeAgentWorkspace?: () => void;
   closeSessionPicker: () => void;
   closeProfilePicker: () => void;
   closeContextInspector: () => void;
@@ -134,6 +137,9 @@ export function closeModalByName(name: string, ops: ModalCloseOps): void {
       break;
     case 'mcpWorkspace':
       ops.closeMcpWorkspace();
+      break;
+    case 'agentWorkspace':
+      ops.closeAgentWorkspace?.();
       break;
     case 'sessionPicker':
       ops.closeSessionPicker();
@@ -175,6 +181,7 @@ export type ModalOpenOps = {
   openProcess: () => void;
   openContextInspector: () => void;
   openMcpWorkspace?: () => void;
+  openAgentWorkspace?: () => void;
   openOnboarding?: () => void;
   openCommandMode: () => void;
 };
@@ -198,6 +205,9 @@ export function reopenModalByName(name: string, ops: ModalOpenOps): void {
       break;
     case 'mcpWorkspace':
       ops.openMcpWorkspace?.();
+      break;
+    case 'agentWorkspace':
+      ops.openAgentWorkspace?.();
       break;
     case 'onboarding':
       ops.openOnboarding?.();

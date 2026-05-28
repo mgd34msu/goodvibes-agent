@@ -115,6 +115,8 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     handler(_args, ctx) {
       if (ctx.openSelection) {
         const items: SelectionItem[] = [
+          { id: '/agent', label: '/agent', detail: 'Open the Agent operator workspace', category: 'Agent Operator' },
+          { id: '/home', label: '/home', detail: 'Alias for the Agent operator workspace', category: 'Agent Operator' },
           { id: '/model', label: '/model [id]', detail: 'Select LLM model', category: 'Model & Provider' },
           { id: '/provider', label: '/provider [name]', detail: 'Switch provider', category: 'Model & Provider' },
           { id: '/effort', label: '/effort [level]', detail: 'Reasoning effort (instant/low/medium/high)', category: 'Model & Provider' },
@@ -171,7 +173,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Use /help to open the help modal. Commands: /model, /provider, /config, /template, /tools, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /debug, /quit, /wq');
+      ctx.print('Use /help to open the help modal. Commands: /agent, /model, /provider, /config, /template, /tools, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /debug, /quit, /wq');
     },
   });
 

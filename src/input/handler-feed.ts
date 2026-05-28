@@ -17,6 +17,7 @@ import { ContextInspectorModal } from '../renderer/context-inspector.ts';
 import { BookmarkModal } from './bookmark-modal.ts';
 import { SettingsModal } from './settings-modal.ts';
 import type { McpWorkspace } from './mcp-workspace.ts';
+import type { AgentWorkspace } from './agent-workspace.ts';
 import { SessionPickerModal } from './session-picker-modal.ts';
 import { ProfilePickerModal } from './profile-picker-modal.ts';
 import type { OnboardingWizardController } from './onboarding/onboarding-wizard.ts';
@@ -108,6 +109,7 @@ export interface InputFeedContext {
   readonly bookmarkModal: BookmarkModal;
   readonly settingsModal: SettingsModal;
   readonly mcpWorkspace: McpWorkspace;
+  readonly agentWorkspace: AgentWorkspace;
   readonly sessionPickerModal: SessionPickerModal;
   readonly profilePickerModal: ProfilePickerModal;
   readonly historySearch: HistorySearch;
@@ -190,6 +192,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       bookmarkModal: context.bookmarkModal,
       settingsModal: context.settingsModal,
       mcpWorkspace: context.mcpWorkspace,
+      agentWorkspace: context.agentWorkspace,
       sessionPickerModal: context.sessionPickerModal,
       profilePickerModal: context.profilePickerModal,
       onboardingWizard: context.onboardingWizard,

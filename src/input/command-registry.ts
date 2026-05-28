@@ -116,6 +116,7 @@ export interface CommandShellUiOpeners {
   openHooksPanel?: () => void;
   openCommunicationPanel?: () => void;
   openMcpWorkspace?: () => void;
+  openAgentWorkspace?: () => void;
   openSecurityPanel?: () => void;
   openKnowledgePanel?: () => void;
   openRemotePanel?: () => void;
