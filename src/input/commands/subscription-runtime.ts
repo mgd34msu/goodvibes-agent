@@ -164,7 +164,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
         if (!resolved) {
           ctx.print([
             `OAuth is not configured for ${provider}.`,
-            'Add an oauth block to .goodvibes/tui/services.json for that provider, for example:',
+            'Add an oauth block to .goodvibes/agent/services.json for that provider, for example:',
             `  { "name": "${provider}", "authType": "oauth", "tokenKey": "${provider.toUpperCase()}_API_KEY", "providerId": "${provider}", "oauth": { "authUrl": "...", "tokenUrl": "...", "clientId": "...", "redirectUri": "http://127.0.0.1/callback", "scopes": ["..."] } }`,
           ].join('\n'));
           return;

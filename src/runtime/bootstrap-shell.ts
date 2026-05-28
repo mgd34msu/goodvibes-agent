@@ -32,6 +32,7 @@ import type { PolicyRuntimeState } from '@/runtime/index.ts';
 import type { TaskManager } from '@/runtime/index.ts';
 import type { UiRuntimeServices } from './ui-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export interface BootstrapShellState {
   readonly commandRegistry: CommandRegistry;
@@ -267,7 +268,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
 
   const saveHistory = configManager.get('behavior.saveHistory') as boolean;
   const inputHistory = new InputHistory({
-    historyPath: services.shellPaths.resolveUserPath('tui', 'input-history.json'),
+    historyPath: services.shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'input-history.json'),
     persist: saveHistory,
   });
 

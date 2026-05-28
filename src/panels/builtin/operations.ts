@@ -22,6 +22,7 @@ import { CommunicationPanel } from '../communication-panel.ts';
 import { RemotePanel } from '../remote-panel.ts';
 import { ProviderStatsPanel } from '../provider-stats-panel.ts';
 import { ProviderHealthPanel } from '../provider-health-panel.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { DebugPanel } from '../debug-panel.ts';
 import { IncidentReviewPanel } from '../incident-review-panel.ts';
 import { ForensicsPanel } from '../forensics-panel.ts';
@@ -204,8 +205,8 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
       return new MarketplacePanel(ui.readModels.marketplace, {
         cwd: ui.environment.shellPaths.workingDirectory,
         homeDir: ui.environment.shellPaths.homeDirectory,
-        projectCatalogRoot: ui.environment.shellPaths.resolveProjectPath('tui', 'ecosystem'),
-        userCatalogRoot: ui.environment.shellPaths.resolveUserPath('tui', 'ecosystem'),
+        projectCatalogRoot: ui.environment.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'ecosystem'),
+        userCatalogRoot: ui.environment.shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'ecosystem'),
       });
     },
   });

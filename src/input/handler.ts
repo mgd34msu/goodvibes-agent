@@ -28,6 +28,7 @@ import { SettingsModal } from './settings-modal.ts';
 import { McpWorkspace } from './mcp-workspace.ts';
 import { AgentWorkspace } from './agent-workspace.ts';
 import { SessionPickerModal } from './session-picker-modal.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { ProfilePickerModal } from './profile-picker-modal.ts';
 import { OnboardingWizardController, type OnboardingWizardAction, type OnboardingWizardMode } from './onboarding/onboarding-wizard.ts';
 import {
@@ -245,7 +246,7 @@ export class InputHandler {
     this.agentDetailModal = new AgentDetailModal({
       agentManager: uiServices.agents.agentManager,
       agentMessageBus: uiServices.agents.agentMessageBus,
-      sessionLogPathResolver: (agentId) => uiServices.environment.shellPaths.resolveProjectPath('tui', 'sessions', `${agentId}.jsonl`),
+      sessionLogPathResolver: (agentId) => uiServices.environment.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'sessions', `${agentId}.jsonl`),
       // SDK 0.23.0: supply wrfcController so the modal can show constraint data
       wrfcController: uiServices.agents.wrfcController,
     });

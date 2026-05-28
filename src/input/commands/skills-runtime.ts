@@ -80,7 +80,7 @@ export function registerSkillsRuntimeCommands(registry: CommandRegistry): void {
         if (entries.length === 0) {
           ctx.print(query
             ? `No curated skill catalog entries matched "${query}".`
-            : 'No curated skill catalog entries found. Add .goodvibes/tui/ecosystem/skills.json to publish a local-first skill catalog.');
+            : 'No curated skill catalog entries found. Add .goodvibes/agent/ecosystem/skills.json to publish a local-first skill catalog.');
           return;
         }
         ctx.print([

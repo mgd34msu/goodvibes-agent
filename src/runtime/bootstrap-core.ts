@@ -30,6 +30,7 @@ import { registerBootstrapRuntimeEvents } from '@/runtime/index.ts';
 import { createRuntimeServices, type RuntimeServices } from './services.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
 import { installAgentToolPolicyGuard } from '../tools/wrfc-agent-guard.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export interface BootstrapCoreState {
   readonly userSessionId: string;
@@ -198,7 +199,7 @@ export async function initializeBootstrapCore(
 
   const toolRegistry = new ToolRegistry();
   const { fileCache, projectIndex } = registerAllTools(toolRegistry, {
-    surfaceRoot: 'tui',
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     fileUndoManager: services.fileUndoManager,
     modeManager: services.modeManager,
     processManager: services.processManager,
@@ -226,7 +227,7 @@ export async function initializeBootstrapCore(
     getLastUserMessage: () => conversation.getLastUserMessage(),
   });
   services.agentOrchestrator.setDependencies({
-    surfaceRoot: 'tui',
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     fileCache,
     projectIndex,
     workingDirectory: services.workingDirectory,

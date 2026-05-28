@@ -41,6 +41,7 @@ import { initializeBootstrapCore } from './bootstrap-core.ts';
 import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '## GoodVibes Agent Operator Policy',
@@ -420,14 +421,14 @@ export async function bootstrapRuntime(
     restoreRuntimeModel: restoreSavedModel,
     systemMessageRouter,
     shellPaths: services.shellPaths,
-    surfaceRoot: 'tui',
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
   });
   const mcpDiscovery = scheduleBackgroundMcpDiscovery({
     mcpRegistry: services.mcpRegistry,
     systemMessageRouter,
     requestRender,
     shellPaths: services.shellPaths,
-    surfaceRoot: 'tui',
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
   });
   bootstrapUnsubs.push(() => mcpDiscovery.stop());
   const mcpAutoReload = startMcpConfigAutoReload({

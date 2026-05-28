@@ -2,7 +2,7 @@
  * KeybindingsManager — loads and merges keyboard shortcut configuration.
  *
  * Default bindings are hardcoded here. Users can override any binding by
- * creating ~/.goodvibes/tui/keybindings.json.
+ * creating ~/.goodvibes/agent/keybindings.json.
  *
  * Config file format example:
  * {
@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { resolveSurfaceDirectory } from '@/runtime/index.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 /** Identifies a specific key press with modifiers. */
 export interface KeyCombo {
@@ -126,7 +127,7 @@ function resolveKeybindingsPath(options?: KeybindingsManagerOptions): string {
   if (options?.surfaceRoot) {
     return resolveSurfaceDirectory(userRoot, options.surfaceRoot, 'keybindings.json');
   }
-  return join(userRoot, '.goodvibes', 'tui', 'keybindings.json');
+  return join(userRoot, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'keybindings.json');
 }
 
 /**

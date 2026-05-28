@@ -18,6 +18,7 @@ import type { McpApi } from '@pellux/goodvibes-sdk/platform/mcp';
 import type { OperatorClient } from '@/runtime/index.ts';
 import type { OpsApi } from '@/runtime/index.ts';
 import type { PeerClient } from '@/runtime/index.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type { ProviderApi } from '@pellux/goodvibes-sdk/platform/providers';
 import type {
   ShellAgentManagerService,
@@ -75,8 +76,8 @@ export function requireEcosystemCatalogPaths(
   return {
     cwd: shellPaths.workingDirectory,
     homeDir: shellPaths.homeDirectory,
-    projectCatalogRoot: shellPaths.resolveProjectPath('tui', 'ecosystem'),
-    userCatalogRoot: shellPaths.resolveUserPath('tui', 'ecosystem'),
+    projectCatalogRoot: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'ecosystem'),
+    userCatalogRoot: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'ecosystem'),
   };
 }
 

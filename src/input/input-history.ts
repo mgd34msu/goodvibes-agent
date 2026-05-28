@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 /**
  * InputHistory — Persisted command history with arrow-key navigation.
@@ -120,7 +121,7 @@ function resolveHistoryPath(options?: InputHistoryOptions): string {
   if (!userRoot) {
     throw new Error('InputHistory requires historyPath or an explicit userRoot/homeDirectory.');
   }
-  return join(userRoot, '.goodvibes', 'tui', 'input-history.json');
+  return join(userRoot, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'input-history.json');
 }
 
 export class InputHistory {

@@ -98,7 +98,7 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
 
   registry.register({
     name: 'save',
-    description: 'Save current session to .goodvibes/tui/sessions/',
+    description: 'Save current session to .goodvibes/agent/sessions/',
     usage: '[name]',
     argsHint: '[name]',
     handler(args, ctx) {

@@ -8,6 +8,7 @@ import { getPluginDirectories } from '../../plugins/loader';
 import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import type { SetupReviewSnapshot } from './local-setup-transfer.ts';
 import { requireProviderApi, requireReadModels, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from './runtime-services.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<SetupReviewSnapshot> {
   const shellPaths = requireShellPaths(ctx);
@@ -154,16 +155,14 @@ export function renderSetupSandboxReview(ctx: CommandContext, snapshot: SetupRev
     '  next:',
   ];
   if (backend === 'local') {
-    lines.push('    /sandbox qemu bootstrap');
-    lines.push('    default bundle: ~/.goodvibes/tui/sandbox');
-    lines.push('    /sandbox doctor');
+    lines.push('    sandbox/QEMU setup is externalized to GoodVibes TUI');
+    lines.push('    use GoodVibes TUI for coding/runtime isolation work');
   } else if (!image || !wrapper) {
-    lines.push('    /sandbox qemu bootstrap');
-    lines.push('    default bundle: ~/.goodvibes/tui/sandbox');
-    lines.push('    /sandbox doctor');
+    lines.push('    sandbox/QEMU setup is externalized to GoodVibes TUI');
+    lines.push('    use GoodVibes TUI for coding/runtime isolation work');
   } else {
-    lines.push('    /sandbox guest-test eval-js');
-    lines.push('    /sandbox session start eval-py');
+    lines.push('    sandbox sessions are blocked in Agent');
+    lines.push('    delegate build/fix/review work to GoodVibes TUI');
   }
   if (process.platform === 'win32' && !isRunningInWsl()) {
     lines.push('    Run GoodVibes inside WSL before enabling QEMU sandboxing.');
@@ -180,7 +179,7 @@ export function exportSetupSupportBundle(
   const targetDir = shellPaths.resolveWorkspacePath(targetDirArg);
   mkdirSync(targetDir, { recursive: true });
   writeFileSync(join(targetDir, 'startup-review.json'), JSON.stringify(snapshot, null, 2) + '\n', 'utf-8');
-  const servicesPath = shellPaths.resolveProjectPath('tui', 'services.json');
+  const servicesPath = shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'services.json');
   if (existsSync(servicesPath)) {
     writeFileSync(join(targetDir, 'services.json'), readFileSync(servicesPath, 'utf-8'), 'utf-8');
   }

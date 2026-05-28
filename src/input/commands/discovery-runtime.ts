@@ -2,6 +2,7 @@ import type { CommandRegistry } from '../command-registry.ts';
 import { scan, persistProviders } from '@pellux/goodvibes-sdk/platform/discovery';
 import { requireProviderApi, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 export function registerDiscoveryRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
@@ -42,7 +43,7 @@ export function registerDiscoveryRuntimeCommands(registry: CommandRegistry): voi
         const shellPaths = requireShellPaths(ctx);
         persistProviders({
           homeDirectory: shellPaths.homeDirectory,
-          surfaceRoot: 'tui',
+          surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
         }, result.servers);
       }
       ctx.renderRequest();

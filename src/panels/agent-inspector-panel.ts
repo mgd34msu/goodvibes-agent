@@ -22,6 +22,7 @@ import {
   DEFAULT_PANEL_PALETTE,
 } from './polish.ts';
 import { truncateDisplay } from '../utils/terminal-width.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import {
   type AgentDisplayRow as DisplayRow,
@@ -442,7 +443,7 @@ export class AgentInspectorPanel extends BasePanel {
     try {
       const sessionFile = join(
         this.deps.workingDirectory,
-        '.goodvibes', 'tui', 'sessions',
+        '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'sessions',
         `${this.selectedAgentId}.jsonl`,
       );
       const raw = await readFile(sessionFile, 'utf-8');

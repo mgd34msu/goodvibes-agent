@@ -6,6 +6,7 @@ import { fetchModelContextWindows } from '@pellux/goodvibes-sdk/platform/discove
 import type { CustomProviderConfig } from '@pellux/goodvibes-sdk/platform/providers';
 import { requireProviderApi, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 function isValidProviderName(name: string): boolean {
   return /^[a-zA-Z0-9_-]+$/.test(name);
@@ -38,7 +39,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
           ctx.print(`Error: '${baseURL}' is not a valid URL. Example: http://192.168.0.85:8001/v1`);
           return;
         }
-        const providersDir = shellPaths.resolveUserPath('tui', 'providers');
+        const providersDir = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'providers');
         const providerFile = join(providersDir, `${name}.json`);
         if (existsSync(providerFile)) {
           ctx.print(`Error: Provider '${name}' already exists at ${providerFile}\nRemove it first with: /provider remove ${name}`);
@@ -120,7 +121,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
           ctx.print('Error: Provider name must contain only letters, numbers, hyphens, and underscores.');
           return;
         }
-        const providerFile = shellPaths.resolveUserPath('tui', 'providers', `${name}.json`);
+        const providerFile = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'providers', `${name}.json`);
         if (!existsSync(providerFile)) {
           ctx.print(`Error: No custom provider '${name}' found at ${providerFile}`);
           return;

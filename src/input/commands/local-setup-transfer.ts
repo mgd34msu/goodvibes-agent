@@ -4,6 +4,7 @@ import type { CommandContext } from '../command-registry.ts';
 import type { ConfigKey } from '../../config/index.ts';
 import { CONFIG_SCHEMA } from '../../config/index.ts';
 import { requireShellPaths } from './runtime-services.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 export interface SetupReviewSnapshot {
   readonly sessionId: string;
@@ -75,9 +76,9 @@ export function buildSetupTransferBundle(ctx: CommandContext, snapshot: SetupRev
       // Ignore unreadable config values in transfer bundles.
     }
   }
-  const servicesPath = shellPaths.resolveProjectPath('tui', 'services.json');
-  const pluginsPath = shellPaths.resolveProjectPath('tui', 'ecosystem', 'plugins.json');
-  const skillsPath = shellPaths.resolveProjectPath('tui', 'ecosystem', 'skills.json');
+  const servicesPath = shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'services.json');
+  const pluginsPath = shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'ecosystem', 'plugins.json');
+  const skillsPath = shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'ecosystem', 'skills.json');
   const services = existsSync(servicesPath)
     ? JSON.parse(readFileSync(servicesPath, 'utf-8')) as Record<string, unknown>
     : undefined;

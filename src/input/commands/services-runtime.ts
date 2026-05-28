@@ -4,6 +4,7 @@ import type { CommandRegistry } from '../command-registry.ts';
 import type { SelectionAction, SelectionItem } from '../selection-modal.ts';
 import { openCommandPanel, requireServiceRegistry, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 export function registerServicesRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
@@ -160,7 +161,7 @@ export function registerServicesRuntimeCommands(registry: CommandRegistry): void
         const sourcePath = shellPaths.resolveWorkspacePath(pathArg);
         try {
           const parsed = JSON.parse(readFileSync(sourcePath, 'utf-8')) as Record<string, unknown>;
-          const targetPath = shellPaths.resolveProjectPath('tui', 'services.json');
+          const targetPath = shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'services.json');
           mkdirSync(dirname(targetPath), { recursive: true });
           writeFileSync(targetPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
           ctx.print(`Imported services config from ${sourcePath}`);
@@ -172,7 +173,7 @@ export function registerServicesRuntimeCommands(registry: CommandRegistry): void
       if (ctx.openSelection) {
         const testAction = new Map<string, SelectionAction>([['t', 'select' as const]]);
         const items: SelectionItem[] = keys.length === 0
-          ? [{ id: '_empty', label: 'No services configured', detail: '.goodvibes/tui/services.json' }]
+          ? [{ id: '_empty', label: 'No services configured', detail: '.goodvibes/agent/services.json' }]
           : keys.map((key) => ({ id: key, label: all[key].name ?? key, detail: `${all[key].authType}  ${all[key].baseUrl ?? '(no url)'}`, actions: '[t] test' }));
         ctx.openSelection('Services', items, { allowSearch: true, customActions: testAction }, (result) => {
           if (!result || result.item.id === '_empty') return;
@@ -199,7 +200,7 @@ export function registerServicesRuntimeCommands(registry: CommandRegistry): void
         return;
       }
       if (keys.length === 0) {
-        ctx.print('[services] No services configured. Add entries to .goodvibes/tui/services.json');
+        ctx.print('[services] No services configured. Add entries to .goodvibes/agent/services.json');
         return;
       }
       ctx.print(['Services:', '', ...keys.map((key) => `  ${key.padEnd(20)} ${all[key].authType.padEnd(10)} ${all[key].baseUrl ?? '(no url)'}`)].join('\n'));

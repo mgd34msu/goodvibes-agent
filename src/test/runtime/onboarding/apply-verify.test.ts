@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
 import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../../config/surface.ts';
 import { SecretsManager } from '../../../config/secrets.ts';
 import {
   applyOnboardingRequest,
@@ -26,7 +27,7 @@ describe('onboarding apply and verify helpers', () => {
       homeDirectory: join(root, 'home'),
     });
     configManager = new ConfigManager({
-      surfaceRoot: 'tui',
+      surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
       homeDir: join(root, 'home'),
       workingDir: join(root, 'workspace'),
     });
@@ -69,8 +70,8 @@ describe('onboarding apply and verify helpers', () => {
     expect(applied.errors).toEqual([]);
     expect(configManager.get('display.stream')).toBe(false);
 
-    const projectSettingsPath = shellPaths.resolveProjectPath('tui', 'settings.json');
-    const globalSettingsPath = shellPaths.resolveUserPath('tui', 'settings.json');
+    const projectSettingsPath = shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'settings.json');
+    const globalSettingsPath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'settings.json');
     const projectSettings = JSON.parse(readFileSync(projectSettingsPath, 'utf-8')) as Record<string, unknown>;
 
     expect(projectSettings).toMatchObject({

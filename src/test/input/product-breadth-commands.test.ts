@@ -436,8 +436,8 @@ describe('product breadth commands', () => {
   }
 
   test('services command can inspect and test configured services', async () => {
-    mkdirSync(join(root, '.goodvibes', 'tui'), { recursive: true });
-    writeFileSync(join(root, '.goodvibes', 'tui', 'services.json'), JSON.stringify({
+    mkdirSync(join(root, '.goodvibes', 'agent'), { recursive: true });
+    writeFileSync(join(root, '.goodvibes', 'agent', 'services.json'), JSON.stringify({
       github: {
         name: 'github',
         baseUrl: 'https://api.github.com',
@@ -655,7 +655,7 @@ describe('product breadth commands', () => {
     out.length = 0;
     await setup!.handler(['sandbox'], ctx);
     expect(out.join('\n')).toContain('Setup Sandbox Review');
-    expect(out.join('\n')).toContain('/sandbox qemu bootstrap');
+    expect(out.join('\n')).toContain('sandbox/QEMU setup is externalized to GoodVibes TUI');
 
     const exportPath = join(root, 'artifacts', 'startup-review.json');
     out.length = 0;
@@ -991,7 +991,7 @@ describe('product breadth commands', () => {
   });
 
   test('plugin command exposes directory and review surfaces', async () => {
-    mkdirSync(join(root, '.goodvibes', 'tui', 'ecosystem'), { recursive: true });
+    mkdirSync(join(root, '.goodvibes', 'agent', 'ecosystem'), { recursive: true });
     mkdirSync(join(root, 'catalog', 'plugins', 'deploy-audit'), { recursive: true });
     writeFileSync(join(root, 'catalog', 'plugins', 'deploy-audit', 'manifest.json'), JSON.stringify({
       name: 'deploy-audit',
@@ -999,7 +999,7 @@ describe('product breadth commands', () => {
       description: 'Reviews deploy surfaces before release',
     }, null, 2));
     writeFileSync(join(root, 'catalog', 'plugins', 'deploy-audit', 'index.ts'), 'export function init() {}\n');
-    writeFileSync(join(root, '.goodvibes', 'tui', 'ecosystem', 'plugins.json'), JSON.stringify({
+    writeFileSync(join(root, '.goodvibes', 'agent', 'ecosystem', 'plugins.json'), JSON.stringify({
       version: 1,
       entries: [
         {
@@ -1009,7 +1009,7 @@ describe('product breadth commands', () => {
           summary: 'Reviews deploy surfaces before release',
           source: './catalog/plugins/deploy-audit',
           tags: ['security', 'release'],
-          installHint: 'Clone into .goodvibes/tui/plugins/deploy-audit and reload.',
+          installHint: 'Clone into .goodvibes/agent/plugins/deploy-audit and reload.',
         },
       ],
     }, null, 2));
@@ -1041,7 +1041,7 @@ describe('product breadth commands', () => {
     out.length = 0;
     await plugin!.handler(['publish-local', 'ops-helper', './catalog/plugins/deploy-audit', 'Operator', 'deploy', 'helper'], ctx);
     expect(out.join('\n')).toContain('Published curated plugin ops-helper');
-    expect(readFileSync(join(root, '.goodvibes', 'tui', 'ecosystem', 'plugins.json'), 'utf-8')).toContain('"ops-helper"');
+    expect(readFileSync(join(root, '.goodvibes', 'agent', 'ecosystem', 'plugins.json'), 'utf-8')).toContain('"ops-helper"');
 
     out.length = 0;
     await plugin!.handler(['catalog-review', 'deploy-audit'], ctx);
@@ -1071,7 +1071,7 @@ describe('product breadth commands', () => {
   });
 
   test('skills command exposes curated catalog guidance', async () => {
-    mkdirSync(join(root, '.goodvibes', 'tui', 'ecosystem'), { recursive: true });
+    mkdirSync(join(root, '.goodvibes', 'agent', 'ecosystem'), { recursive: true });
     mkdirSync(join(root, 'catalog', 'skills', 'release-gate'), { recursive: true });
     writeFileSync(join(root, 'catalog', 'skills', 'release-gate', 'SKILL.md'), [
       '---',
@@ -1082,7 +1082,7 @@ describe('product breadth commands', () => {
       '',
       '@shared/checklist',
     ].join('\n'));
-    writeFileSync(join(root, '.goodvibes', 'tui', 'ecosystem', 'skills.json'), JSON.stringify({
+    writeFileSync(join(root, '.goodvibes', 'agent', 'ecosystem', 'skills.json'), JSON.stringify({
       version: 1,
       entries: [
         {
@@ -1116,7 +1116,7 @@ describe('product breadth commands', () => {
     out.length = 0;
     await skills!.handler(['publish-local', 'ops-playbook', './catalog/skills/release-gate', 'Ops', 'release', 'playbook'], ctx);
     expect(out.join('\n')).toContain('Published curated skill ops-playbook');
-    expect(readFileSync(join(root, '.goodvibes', 'tui', 'ecosystem', 'skills.json'), 'utf-8')).toContain('"ops-playbook"');
+    expect(readFileSync(join(root, '.goodvibes', 'agent', 'ecosystem', 'skills.json'), 'utf-8')).toContain('"ops-playbook"');
 
     out.length = 0;
     await skills!.handler(['catalog-review', 'release-gate'], ctx);
@@ -1247,7 +1247,7 @@ describe('product breadth commands', () => {
   });
 
   test('marketplace command exposes combined ecosystem flows', async () => {
-    mkdirSync(join(root, '.goodvibes', 'tui', 'ecosystem'), { recursive: true });
+    mkdirSync(join(root, '.goodvibes', 'agent', 'ecosystem'), { recursive: true });
     mkdirSync(join(root, 'catalog', 'plugins', 'deploy-audit'), { recursive: true });
     mkdirSync(join(root, 'catalog', 'skills', 'release-gate'), { recursive: true });
     mkdirSync(join(root, 'catalog', 'hooks', 'guard-pack'), { recursive: true });
@@ -1274,7 +1274,7 @@ describe('product breadth commands', () => {
       bundleId: 'strict-policy',
       rules: [{ id: 'deny-exec', action: 'deny', match: { tool: 'exec' } }],
     }, null, 2));
-    writeFileSync(join(root, '.goodvibes', 'tui', 'ecosystem', 'plugins.json'), JSON.stringify({
+    writeFileSync(join(root, '.goodvibes', 'agent', 'ecosystem', 'plugins.json'), JSON.stringify({
       version: 1,
       entries: [{
         id: 'deploy-audit',
@@ -1289,7 +1289,7 @@ describe('product breadth commands', () => {
         compatibility: { minAppVersion: '0.14.0' },
       }],
     }, null, 2));
-    writeFileSync(join(root, '.goodvibes', 'tui', 'ecosystem', 'skills.json'), JSON.stringify({
+    writeFileSync(join(root, '.goodvibes', 'agent', 'ecosystem', 'skills.json'), JSON.stringify({
       version: 1,
       entries: [{
         id: 'release-gate',
@@ -1300,7 +1300,7 @@ describe('product breadth commands', () => {
         tags: ['release'],
       }],
     }, null, 2));
-    writeFileSync(join(root, '.goodvibes', 'tui', 'ecosystem', 'hook-packs.json'), JSON.stringify({
+    writeFileSync(join(root, '.goodvibes', 'agent', 'ecosystem', 'hook-packs.json'), JSON.stringify({
       version: 1,
       entries: [{
         id: 'guard-pack',
@@ -1311,7 +1311,7 @@ describe('product breadth commands', () => {
         tags: ['hooks', 'security'],
       }],
     }, null, 2));
-    writeFileSync(join(root, '.goodvibes', 'tui', 'ecosystem', 'policy-packs.json'), JSON.stringify({
+    writeFileSync(join(root, '.goodvibes', 'agent', 'ecosystem', 'policy-packs.json'), JSON.stringify({
       version: 1,
       entries: [{
         id: 'strict-policy',

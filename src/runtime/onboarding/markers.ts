@@ -8,6 +8,7 @@ import type {
   OnboardingStateScope,
   WriteOnboardingCheckMarkerOptions,
 } from './types.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 const ONBOARDING_CHECK_MARKER_FILE = 'onboarding-checked.json';
 
@@ -21,8 +22,8 @@ function resolveMarkerPath(
   scope: OnboardingStateScope,
 ): string {
   return scope === 'project'
-    ? shellPaths.resolveProjectPath('tui', ONBOARDING_CHECK_MARKER_FILE)
-    : shellPaths.resolveUserPath('tui', ONBOARDING_CHECK_MARKER_FILE);
+    ? shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, ONBOARDING_CHECK_MARKER_FILE)
+    : shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, ONBOARDING_CHECK_MARKER_FILE);
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

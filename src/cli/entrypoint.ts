@@ -22,6 +22,7 @@ import {
   renderOnboardingCliStatus,
 } from './index.ts';
 import { buildCliServicePosture } from './service-posture.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 type ShellEntrypointOwnership = {
   readonly workingDirectory: string;
@@ -93,7 +94,7 @@ export async function prepareShellCliRuntime(
   const configManager = new ConfigManager({
     workingDir: bootstrapWorkingDir,
     homeDir: bootstrapHomeDirectory,
-    surfaceRoot: 'tui',
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
   });
   new GlobalNetworkTransportInstaller().install(configManager);
 
@@ -124,8 +125,8 @@ export async function prepareShellCliRuntime(
       workingDirectory: bootstrapWorkingDir,
       homeDirectory: bootstrapHomeDirectory,
     });
-    const userStorePath = shellPaths.resolveUserPath('tui', 'auth-users.json');
-    const bootstrapCredentialPath = shellPaths.resolveUserPath('tui', 'auth-bootstrap.txt');
+    const userStorePath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-users.json');
+    const bootstrapCredentialPath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-bootstrap.txt');
     const operatorTokenPath = join(bootstrapHomeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
     const onboardingMarkers = readOnboardingCheckMarkers(shellPaths);
     const service = await buildCliServicePosture({

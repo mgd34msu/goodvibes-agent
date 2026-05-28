@@ -16,6 +16,7 @@ import {
 import { buildSetupReviewSnapshot, exportSetupSupportBundle, renderSetupSandboxReview } from './local-setup-review.ts';
 import { openOnboardingWizard, requirePanelManager, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 type SetupSnapshot = Awaited<ReturnType<typeof buildSetupReviewSnapshot>>;
 
@@ -203,17 +204,17 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
               }
             }
             if (bundle.services) {
-              const servicesPath = getShellPaths().resolveProjectPath('tui', 'services.json');
+              const servicesPath = getShellPaths().resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'services.json');
               mkdirSync(dirname(servicesPath), { recursive: true });
               writeFileSync(servicesPath, JSON.stringify(bundle.services, null, 2) + '\n', 'utf-8');
             }
             if (bundle.ecosystem?.plugins) {
-              const pluginsPath = getShellPaths().resolveProjectPath('tui', 'ecosystem', 'plugins.json');
+              const pluginsPath = getShellPaths().resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'ecosystem', 'plugins.json');
               mkdirSync(dirname(pluginsPath), { recursive: true });
               writeFileSync(pluginsPath, JSON.stringify(bundle.ecosystem.plugins, null, 2) + '\n', 'utf-8');
             }
             if (bundle.ecosystem?.skills) {
-              const skillsPath = getShellPaths().resolveProjectPath('tui', 'ecosystem', 'skills.json');
+              const skillsPath = getShellPaths().resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'ecosystem', 'skills.json');
               mkdirSync(dirname(skillsPath), { recursive: true });
               writeFileSync(skillsPath, JSON.stringify(bundle.ecosystem.skills, null, 2) + '\n', 'utf-8');
             }

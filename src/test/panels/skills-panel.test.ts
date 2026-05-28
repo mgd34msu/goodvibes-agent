@@ -114,7 +114,7 @@ describe('SkillsPanel', () => {
     );
     writeSkill(
       homeDir,
-      '.goodvibes/tui/skills/beta/SKILL.md',
+      '.goodvibes/agent/skills/beta/SKILL.md',
       [
         '---',
         'name: beta',
@@ -148,12 +148,12 @@ describe('SkillsPanel', () => {
   test('supports filtering and navigation', async () => {
     writeSkill(
       cwd,
-      '.goodvibes/tui/skills/alpha/SKILL.md',
+      '.goodvibes/agent/skills/alpha/SKILL.md',
       ['---', 'name: alpha', 'description: Alpha skill', '---', ''].join('\n'),
     );
     writeSkill(
       cwd,
-      '.goodvibes/tui/skills/beta/SKILL.md',
+      '.goodvibes/agent/skills/beta/SKILL.md',
       ['---', 'name: beta', 'description: Beta skill needle-42', '---', ''].join('\n'),
     );
     writeSkill(
@@ -185,12 +185,12 @@ describe('SkillsPanel', () => {
   test('up at top focuses filter and down returns to list navigation', async () => {
     writeSkill(
       cwd,
-      '.goodvibes/tui/skills/alpha/SKILL.md',
+      '.goodvibes/agent/skills/alpha/SKILL.md',
       ['---', 'name: alpha', 'description: Alpha skill', '---', ''].join('\n'),
     );
     writeSkill(
       cwd,
-      '.goodvibes/tui/skills/beta/SKILL.md',
+      '.goodvibes/agent/skills/beta/SKILL.md',
       ['---', 'name: beta', 'description: Beta skill', '---', ''].join('\n'),
     );
 

@@ -9,6 +9,7 @@ import {
   writeOnboardingAcknowledgementState,
 } from './state.ts';
 import { verifyOnboardingRequest } from './verify.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type {
   OnboardingApplyDependencies,
   OnboardingAppliedOperation,
@@ -256,7 +257,7 @@ function applyConfigOperation(
   validateConfigValue(operation);
 
   if ((operation.scope ?? 'global') === 'project') {
-    const path = deps.shellPaths.resolveProjectPath('tui', 'settings.json');
+    const path = deps.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'settings.json');
     const existing = readJsonObject(path);
     const updated = setNestedValue(existing, operation.key, operation.value);
     writeJsonObject(path, updated);
@@ -415,7 +416,7 @@ async function buildRollbackAction(
   if (operation.kind === 'set-config') {
     if ((operation.scope ?? 'global') === 'project') {
       return snapshotFileRollback(
-        deps.shellPaths.resolveProjectPath('tui', 'settings.json'),
+        deps.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'settings.json'),
         () => deps.config.load(),
       );
     }
@@ -500,7 +501,7 @@ function prevalidateApplyRequest(
       if (operation.kind === 'set-config') {
         validateConfigValue(operation);
         if ((operation.scope ?? 'global') === 'project') {
-          readJsonObject(deps.shellPaths.resolveProjectPath('tui', 'settings.json'));
+          readJsonObject(deps.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'settings.json'));
         }
         continue;
       }

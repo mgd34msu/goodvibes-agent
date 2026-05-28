@@ -16,6 +16,7 @@ import {
   getPanelSearchFocusTransition,
   isPanelSearchCancel,
 } from './search-focus.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 const C = {
   ...DEFAULT_PANEL_PALETTE,
@@ -69,9 +70,9 @@ function parseFrontmatter(content: string): Record<string, string> {
 function getSkillDirectories(cwd: string, homeDir: string): Array<{ root: string; origin: SkillOrigin }> {
   return [
     { root: join(cwd, '.goodvibes', 'skills'), origin: 'project-local' },
-    { root: join(cwd, '.goodvibes', 'tui', 'skills'), origin: 'project-local' },
+    { root: join(cwd, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'skills'), origin: 'project-local' },
     { root: join(homeDir, '.goodvibes', 'skills'), origin: 'global' },
-    { root: join(homeDir, '.goodvibes', 'tui', 'skills'), origin: 'global' },
+    { root: join(homeDir, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'skills'), origin: 'global' },
   ];
 }
 

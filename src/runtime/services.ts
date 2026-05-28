@@ -78,6 +78,7 @@ import { ComponentHealthMonitor } from '@/runtime/index.ts';
 import { WorktreeRegistry } from '@/runtime/index.ts';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import { createShellPathService, type ShellPathService } from '@/runtime/index.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
@@ -255,7 +256,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const gatewayMethods = new GatewayMethodCatalog();
   const panelManager = new PanelManager();
   const keybindingsManager = new KeybindingsManager({
-    configPath: shellPaths.resolveUserPath('tui', 'keybindings.json'),
+    configPath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'keybindings.json'),
   });
   const routeBindings = new RouteBindingManager({
     store: new AutomationRouteStore({ configManager }),
@@ -271,18 +272,18 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     configManager,
   });
   const subscriptionManager = new SubscriptionManager(
-    shellPaths.resolveUserPath('tui', 'subscriptions.json'),
+    shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'subscriptions.json'),
   );
-  const serviceRegistry = new ServiceRegistry(shellPaths.resolveProjectPath('tui', 'services.json'), {
+  const serviceRegistry = new ServiceRegistry(shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'services.json'), {
     secretsManager,
     subscriptionManager,
   });
   const providerCapabilityRegistry = new ProviderCapabilityRegistry();
   const cacheHitTracker = new CacheHitTracker();
-  const favoritesStore = new FavoritesStore({ dir: shellPaths.resolveUserPath('tui') });
-  const benchmarkStore = new BenchmarkStore({ dir: shellPaths.resolveUserPath('tui') });
+  const favoritesStore = new FavoritesStore({ dir: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT) });
+  const benchmarkStore = new BenchmarkStore({ dir: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT) });
   const modelLimitsService = new ModelLimitsService({
-    cachePath: shellPaths.resolveUserPath('tui', 'model-limits.json'),
+    cachePath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'model-limits.json'),
   });
   const providerRegistry = new ProviderRegistry({
     configManager,
@@ -304,18 +305,18 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     providerRegistry,
   });
   const localUserAuthManager = options.localUserAuthManager ?? new UserAuthManager({
-    bootstrapFilePath: shellPaths.resolveUserPath('tui', 'auth-users.json'),
-    bootstrapCredentialPath: shellPaths.resolveUserPath('tui', 'auth-bootstrap.txt'),
+    bootstrapFilePath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-users.json'),
+    bootstrapCredentialPath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-bootstrap.txt'),
   });
-  const profileManager = new ProfileManager(shellPaths.resolveUserPath('tui', 'profiles'));
-  const bookmarkManager = new BookmarkManager(shellPaths.resolveUserPath('tui', 'bookmarks'));
-  const sessionManager = new SessionManager(workingDirectory, { surfaceRoot: 'tui' });
+  const profileManager = new ProfileManager(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'profiles'));
+  const bookmarkManager = new BookmarkManager(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'bookmarks'));
+  const sessionManager = new SessionManager(workingDirectory, { surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT });
   const sessionOrchestration = new CrossSessionTaskRegistry(
-    shellPaths.resolveProjectPath('tui', 'sessions', 'task-graph.json'),
+    shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'sessions', 'task-graph.json'),
   );
   const hookActivityTracker = new HookActivityTracker();
   const watcherRegistry = new WatcherRegistry({
-    storePath: shellPaths.resolveProjectPath('tui', 'watchers.json'),
+    storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'watchers.json'),
   });
   watcherRegistry.attachRuntime({
     runtimeStore: options.runtimeStore,
@@ -348,10 +349,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     configManager,
   });
   const approvalBroker = new ApprovalBroker({
-    storePath: shellPaths.resolveProjectPath('tui', 'control-plane', 'approvals.json'),
+    storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'approvals.json'),
   });
   const sessionBroker = new SharedSessionBroker({
-    storePath: shellPaths.resolveProjectPath('tui', 'control-plane', 'sessions.json'),
+    storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'sessions.json'),
     routeBindings,
     agentStatusProvider: agentManager,
     messageSender: agentMessageBus,
@@ -365,7 +366,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const artifactStore = new ArtifactStore({ configManager });
   const memoryEmbeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
-  const memoryDbPath = join(workingDirectory, '.goodvibes', 'tui', 'memory.sqlite');
+  const memoryDbPath = join(workingDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'memory.sqlite');
   const memoryStore = new MemoryStore(memoryDbPath, {
     embeddingRegistry: memoryEmbeddingRegistry,
   });
@@ -478,15 +479,15 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       cwd: shellPaths.workingDirectory,
       homeDir: shellPaths.homeDirectory,
     },
-    stateFilePath: shellPaths.resolveUserPath('tui', 'plugins.json'),
+    stateFilePath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'plugins.json'),
   });
   const workflow = createWorkflowServices();
   hookDispatcher.setTriggerManager(workflow.triggerManager);
   const channelPolicy = new ChannelPolicyManager({
-    storePath: shellPaths.resolveProjectPath('tui', 'channels', 'policies.json'),
+    storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'channels', 'policies.json'),
   });
   const distributedRuntime = new DistributedRuntimeManager(
-    shellPaths.resolveProjectPath('tui', 'remote', 'distributed-runtime.json'),
+    shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'remote', 'distributed-runtime.json'),
   );
   distributedRuntime.attachRuntime({
     sessionBridge: sessionBroker,
@@ -548,7 +549,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     secretsManager,
   });
   agentOrchestrator.setDependencies({
-    surfaceRoot: 'tui',
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     fileCache,
     projectIndex,
     workingDirectory,
@@ -661,7 +662,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     fileUndoManager,
     integrationHelpers,
     async rerootStores(newWorkingDir: string): Promise<void> {
-      const newMemoryDbPath = join(newWorkingDir, '.goodvibes', 'tui', 'memory.sqlite');
+      const newMemoryDbPath = join(newWorkingDir, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'memory.sqlite');
       await memoryStore.reroot(newMemoryDbPath);
       await projectIndex.reroot(newWorkingDir);
     },

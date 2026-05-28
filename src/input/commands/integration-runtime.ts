@@ -118,7 +118,7 @@ export function registerIntegrationRuntimeCommands(registry: CommandRegistry): v
         if (entries.length === 0) {
           ctx.print(query
             ? `No curated plugin catalog entries matched "${query}".`
-            : 'No curated plugin catalog entries found. Add .goodvibes/tui/ecosystem/plugins.json to publish a local-first plugin catalog.');
+            : 'No curated plugin catalog entries found. Add .goodvibes/agent/ecosystem/plugins.json to publish a local-first plugin catalog.');
           return;
         }
         ctx.print([

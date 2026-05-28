@@ -7,6 +7,7 @@ import type {
   OnboardingShellPaths,
   OnboardingStateScope,
 } from './types.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 const ONBOARDING_RUNTIME_STATE_FILE = 'onboarding-state.json';
 
@@ -33,8 +34,8 @@ function resolveStatePath(
   scope: OnboardingStateScope,
 ): string {
   return scope === 'project'
-    ? shellPaths.resolveProjectPath('tui', ONBOARDING_RUNTIME_STATE_FILE)
-    : shellPaths.resolveUserPath('tui', ONBOARDING_RUNTIME_STATE_FILE);
+    ? shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, ONBOARDING_RUNTIME_STATE_FILE)
+    : shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, ONBOARDING_RUNTIME_STATE_FILE);
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

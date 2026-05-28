@@ -15,6 +15,7 @@ import { getPackageVersion } from './help.ts';
 import { classifyProviderSetup } from './provider-classification.ts';
 import { buildCliServicePosture } from './service-posture.ts';
 import { REDACTED_VALUE, collectSensitiveConfigValues, isRedactedValue, redactConfig, redactSerializedSecrets } from './redaction.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 interface BundleInspectSummary {
   readonly type: string;
@@ -68,8 +69,8 @@ function readAuthPosture(runtime: CliCommandRuntime) {
     workingDirectory: runtime.workingDirectory,
     homeDirectory: runtime.homeDirectory,
   });
-  const userStorePath = shellPaths.resolveUserPath('tui', 'auth-users.json');
-  const bootstrapCredentialPath = shellPaths.resolveUserPath('tui', 'auth-bootstrap.txt');
+  const userStorePath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-users.json');
+  const bootstrapCredentialPath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-bootstrap.txt');
   const operatorTokenPath = join(runtime.homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
   return {
     userStorePath,

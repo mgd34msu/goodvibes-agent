@@ -31,6 +31,7 @@ import { handleServiceCommand } from './service-command.ts';
 import { handleBundleCommand } from './bundle-command.ts';
 import { buildListenerTestResult, formatListenerTestResult, handleSurfacesCommand } from './surface-command.ts';
 import { buildControlPlaneStatusResult, formatControlPlaneStatus, handleSecrets, handleSessions, handleTasks, renderPairing, renderRemote, renderSubscriptions, renderWeb } from './management-commands.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export interface CliCommandRuntime {
   readonly cli: GoodVibesCliParseResult;
@@ -275,8 +276,8 @@ export function readAuthPaths(runtime: CliCommandRuntime) {
     workingDirectory: runtime.workingDirectory,
     homeDirectory: runtime.homeDirectory,
   });
-  const userStorePath = shellPaths.resolveUserPath('tui', 'auth-users.json');
-  const bootstrapCredentialPath = shellPaths.resolveUserPath('tui', 'auth-bootstrap.txt');
+  const userStorePath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-users.json');
+  const bootstrapCredentialPath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-bootstrap.txt');
   const operatorTokenPath = join(runtime.homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
   return {
     userStorePath,

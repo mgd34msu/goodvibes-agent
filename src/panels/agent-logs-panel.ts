@@ -21,6 +21,7 @@ import {
   AGENT_LOG_FILTER_LABELS as FILTER_LABELS,
   parseAgentJsonl,
 } from './agent-logs-shared.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -434,7 +435,7 @@ export class AgentLogsPanel extends ScrollableListPanel<LogEntry> {
   }
 
   private _sessionFilePath(agentId: string): string {
-    return `${this.deps.workingDirectory}/.goodvibes/tui/sessions/${agentId}.jsonl`;
+    return `${this.deps.workingDirectory}/.goodvibes/${GOODVIBES_AGENT_SURFACE_ROOT}/sessions/${agentId}.jsonl`;
   }
 
   // ── Private: filter ───────────────────────────────────────────────────────
