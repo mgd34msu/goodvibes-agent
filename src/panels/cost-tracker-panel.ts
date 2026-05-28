@@ -388,8 +388,8 @@ export class CostTrackerPanel extends BasePanel {
         title: 'Agents',
         lines: buildEmptyState(
           width,
-          ' No agents spawned this session',
-          'Agent-level cost estimates appear here once delegated or background agents start running.',
+          ' No delegated agent cost records',
+          'Agent-level cost estimates appear only for explicit delegated build/review session records.',
           [],
           DEFAULT_PANEL_PALETTE,
         ),

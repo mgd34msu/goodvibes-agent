@@ -151,7 +151,7 @@ describe('workspace panel migrations', () => {
     expect(lines).toHaveLength(20);
     expect(lines.every((line) => line.length === 80)).toBe(true);
     expect(linesText(lines)).toContain('Cost Tracker');
-    expect(linesText(lines)).toContain('No agents spawned this session');
+    expect(linesText(lines)).toContain('No delegated agent cost records');
   });
 
   test('DebugPanel renders shared workspace empty state cleanly', async () => {
@@ -221,7 +221,7 @@ describe('workspace panel migrations', () => {
     expect(lines).toHaveLength(20);
     expect(lines.every((line) => line.length === 80)).toBe(true);
     expect(linesText(lines)).toContain('Agents');
-    expect(linesText(lines)).toContain('No agents running');
+    expect(linesText(lines)).toContain('No delegated agent sessions tracked');
   });
 
   test('AgentInspectorPanel renders shared workspace empty state cleanly', async () => {

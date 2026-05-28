@@ -56,7 +56,7 @@ export function registerAgentPanels(manager: PanelManager, deps: ResolvedBuiltin
     name: 'Agents',
     icon: 'A',
     category: 'agent',
-    description: 'View-only live session stream from running agents with per-agent switching',
+    description: 'View-only stream for explicit delegated build/review session records',
     preload: true,
     factory: () => {
       const ui = requireUiServices(deps);

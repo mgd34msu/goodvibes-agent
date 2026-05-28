@@ -151,14 +151,14 @@ export class AgentLogsPanel extends ScrollableListPanel<LogEntry> {
     if (this.agents.length === 0) {
       return buildPanelWorkspace(width, height, {
         title: ' Agents',
-        intro: 'View-only live session stream for running agents, with per-agent switching and filtered event tails.',
+        intro: 'View-only stream for explicit delegated build/review session records; normal assistant work stays in the main conversation.',
         sections: [
           { title: 'Summary', lines: summaryLines },
           {
             lines: buildEmptyState(
               width,
-              ' No agents running',
-              'Spawn or attach to an agent session and its structured logs will appear here.',
+              ' No delegated agent sessions tracked',
+              'Explicit GoodVibes TUI build/review delegation records will appear here when available.',
               [],
               DEFAULT_PANEL_PALETTE,
             ),
@@ -183,7 +183,7 @@ export class AgentLogsPanel extends ScrollableListPanel<LogEntry> {
     if (this.filteredEntries.length === 0) {
       return buildPanelWorkspace(width, height, {
         title: ' Agents',
-        intro: 'View-only live session stream for running agents, with per-agent switching and filtered event tails.',
+        intro: 'View-only stream for explicit delegated build/review session records; normal assistant work stays in the main conversation.',
         sections: [
           { title: 'Summary', lines: summaryLines },
           { title: 'Agents', lines: [selectorLine] },
@@ -208,7 +208,7 @@ export class AgentLogsPanel extends ScrollableListPanel<LogEntry> {
     const summarySection = { title: 'Summary', lines: summaryLines } as const;
     const agentsSection = { title: 'Agents', lines: [selectorLine] } as const;
     const logStreamSection = resolveScrollablePanelSection(width, height, {
-      intro: 'Tail per-agent JSONL session logs, filter entries, and switch between running or completed agents.',
+      intro: 'Tail explicit delegated-session JSONL logs, filter entries, and switch between tracked sessions.',
       footerLines,
       palette: DEFAULT_PANEL_PALETTE,
       beforeSections: [summarySection, agentsSection],
@@ -224,7 +224,7 @@ export class AgentLogsPanel extends ScrollableListPanel<LogEntry> {
 
     return buildPanelWorkspace(width, height, {
       title: ' Agents',
-      intro: 'View-only live session stream for running agents, with per-agent switching and filtered event tails.',
+      intro: 'View-only stream for explicit delegated build/review session records; normal assistant work stays in the main conversation.',
       sections: [
         summarySection,
         agentsSection,
@@ -489,7 +489,7 @@ export class AgentLogsPanel extends ScrollableListPanel<LogEntry> {
     ]);
   }
 
-  /** Agent selector bar: shows running agents with cycle indicator */
+  /** Agent selector bar: shows tracked delegated sessions with cycle indicator */
   private _renderAgentSelector(width: number): Line {
     const prefix = ' Agents: ';
     const segments: Array<{ text: string; fg: string; bold?: boolean }> = [

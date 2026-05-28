@@ -22,7 +22,7 @@ export interface ProcessEntry {
   status: string;
   /** Elapsed milliseconds since start */
   elapsedMs: number;
-  /** Live streaming snippet for running agents (last ~60 chars of current turn output). */
+  /** Live streaming snippet for tracked delegated sessions (last ~60 chars of current turn output). */
   streamSnippet?: string;
 }
 
