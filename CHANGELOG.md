@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.1 - 2026-05-30
+
+- Reissued the first public alpha package after the initial `0.1.0` registry publish produced an install-blocking npm packument inconsistency.
+- Kept the same Agent runtime boundary and TUI-derived shell foundation: external daemon only, serial/proactive Agent policy, and explicit GoodVibes TUI delegation for build/fix/review work.
+
 ## 0.1.0 - 2026-05-28
 
 - Published the first public alpha package for `@pellux/goodvibes-agent`.
