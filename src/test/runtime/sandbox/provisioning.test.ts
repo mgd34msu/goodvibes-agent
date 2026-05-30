@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
+  AgentSandboxExternalizedError,
   applySandboxQemuSetupManifest,
   inspectSandboxQemuSetupManifest,
-  loadSandboxQemuSetupManifest,
   scaffoldSandboxQemuSetupBundle,
 } from '@/runtime/index.ts';
 
@@ -33,64 +33,57 @@ function makeManager(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe('sandbox provisioning', () => {
-  test('scaffolded setup bundle includes an inspectable/applyable manifest', () => {
+  test('QEMU setup scaffolding is externalized to GoodVibes TUI', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'gv-sandbox-provision-'));
     try {
       const manager = makeManager();
-      const bundle = scaffoldSandboxQemuSetupBundle(manager as never, cwd, '.goodvibes/tui/sandbox', { surfaceRoot: 'tui' });
-      const manifest = loadSandboxQemuSetupManifest(cwd, bundle.manifestPath);
-      expect(manifest.recommendedSettings.backend).toBe('qemu');
-      expect(manifest.recommendedSettings.qemuBinary).toBe('qemu-system-x86_64');
-      expect(manifest.recommendedSettings.sessionMode).toBe('launch-per-command');
-      expect(manifest.recommendedSettings.replJavaScriptCommand).toBe('/home/goodvibes/.bun/bin/bun');
-      expect(manifest.seedIsoPath.endsWith('/seed/nocloud.iso')).toBe(true);
-      expect(inspectSandboxQemuSetupManifest(manifest)).toContain('QEMU sandbox setup manifest');
-      expect(existsSync(bundle.wrapperPath)).toBe(true);
-      expect(existsSync(bundle.imageCreateScriptPath)).toBe(true);
-      expect(existsSync(bundle.guestBootstrapScriptPath)).toBe(true);
-      expect(readFileSync(bundle.wrapperPath, 'utf8')).toContain('GV_SANDBOX_WRAPPER_MODE');
-      expect(readFileSync(bundle.wrapperPath, 'utf8')).toContain('launch-qemu-ssh');
-      expect(readFileSync(bundle.wrapperPath, 'utf8')).toContain('-netdev "user,id=net0,hostfwd=tcp:127.0.0.1:$port-:22"');
-      expect(readFileSync(bundle.wrapperPath, 'utf8')).toContain('QEMU process exited before SSH became available.');
-      expect(readFileSync(bundle.wrapperPath, 'utf8')).toContain('export PATH=\\$HOME/.bun/bin:\\$HOME/.deno/bin:\\$HOME/.local/bin:\\$PATH');
-      expect(readFileSync(join(bundle.seedDirectory, 'network-config'), 'utf8')).toContain('name: "ens3"');
-      expect(readFileSync(join(bundle.seedDirectory, 'user-data'), 'utf8')).toContain('systemd-networkd-wait-online.service');
-      expect(readFileSync(bundle.imageCreateScriptPath, 'utf8')).toContain('debian-12-genericcloud-amd64.qcow2');
-      expect(readFileSync(bundle.guestBootstrapScriptPath, 'utf8')).toContain('tsx ts-node graphql');
-      expect(readFileSync(bundle.guestBootstrapScriptPath, 'utf8')).toContain('postgresql-client');
-      expect(readFileSync(bundle.guestBootstrapScriptPath, 'utf8')).toContain('mariadb-client');
-      expect(readFileSync(bundle.guestBootstrapScriptPath, 'utf8')).toContain('golang');
-      expect(readFileSync(bundle.guestBootstrapScriptPath, 'utf8')).toContain('GOODVIBES_QEMU_INSTALL_BUN:-1');
-      expect(readFileSync(bundle.guestBootstrapScriptPath, 'utf8')).toContain('GOODVIBES_QEMU_INSTALL_DUCKDB:-1');
-      expect(readFileSync(bundle.guestBootstrapScriptPath, 'utf8')).toContain('/usr/local/bin/bun');
-
-      const target = makeManager();
-      applySandboxQemuSetupManifest(target as never, manifest);
-      expect(target.get('sandbox.vmBackend')).toBe('qemu');
-      expect(target.get('sandbox.qemuBinary')).toBe('qemu-system-x86_64');
-      expect(target.get('sandbox.qemuExecWrapper')).toBe(bundle.wrapperPath);
-      expect(target.get('sandbox.qemuImagePath')).toBe(bundle.imagePath);
-      expect(target.get('sandbox.qemuGuestHost')).toBe('127.0.0.1');
-      expect(target.get('sandbox.qemuGuestWorkspacePath')).toBeUndefined();
-      expect(target.get('sandbox.qemuWorkspacePath')).toBe('/workspace');
-      expect(target.get('sandbox.qemuSessionMode')).toBe('launch-per-command');
-      expect(target.get('sandbox.replJavaScriptCommand')).toBe('/home/goodvibes/.bun/bin/bun');
+      expect(() => scaffoldSandboxQemuSetupBundle(manager as never, cwd, '.goodvibes/agent/sandbox', { surfaceRoot: 'agent' })).toThrow(AgentSandboxExternalizedError);
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }
   });
 
-  test('scaffolded setup bundle can target an absolute user GoodVibes directory', () => {
+  test('QEMU manifests remain inspectable but cannot mutate Agent config', () => {
+    const manifest = {
+      version: 1,
+      createdAt: 1000,
+      wrapperPath: '/tmp/qemu-wrapper.sh',
+      imagePath: '/tmp/goodvibes-sandbox.qcow2',
+      imageCreateScriptPath: '/tmp/create-image.sh',
+      guestBootstrapScriptPath: '/tmp/guest-bootstrap.sh',
+      projectionPolicyPath: '/tmp/projection-policy.json',
+      sshConfigPath: '/tmp/ssh-config',
+      seedDirectory: '/tmp/seed',
+      seedIsoPath: '/tmp/seed/nocloud.iso',
+      sshKeyPath: '/tmp/keys/goodvibes_qemu_ed25519',
+      sshPublicKeyPath: '/tmp/keys/goodvibes_qemu_ed25519.pub',
+      recommendedSettings: {
+        backend: 'qemu' as const,
+        qemuBinary: 'qemu-system-x86_64',
+        wrapperPath: '/tmp/qemu-wrapper.sh',
+        imagePath: '/tmp/goodvibes-sandbox.qcow2',
+        guestHost: '127.0.0.1',
+        guestPort: 2222,
+        guestUser: 'goodvibes',
+        guestWorkspacePath: '/workspace',
+        sessionMode: 'launch-per-command',
+        replJavaScriptCommand: '/home/goodvibes/.bun/bin/bun',
+      },
+    };
+
+    const target = makeManager();
+    expect(inspectSandboxQemuSetupManifest(manifest)).toContain('QEMU sandbox setup manifest');
+    expect(() => applySandboxQemuSetupManifest(target as never, manifest)).toThrow(AgentSandboxExternalizedError);
+    expect(target.get('sandbox.vmBackend')).toBe('local');
+  });
+
+  test('QEMU setup bundle absolute targets are blocked before writing files', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'gv-sandbox-provision-workspace-'));
     const home = mkdtempSync(join(tmpdir(), 'gv-sandbox-provision-home-'));
     try {
       const manager = makeManager();
-      const targetDir = join(home, '.goodvibes', 'tui', 'sandbox');
-      const bundle = scaffoldSandboxQemuSetupBundle(manager as never, cwd, targetDir, { surfaceRoot: 'tui' });
-      expect(bundle.directory).toBe(targetDir);
-      expect(bundle.wrapperPath).toBe(join(targetDir, 'qemu-wrapper.sh'));
-      expect(bundle.imagePath).toBe(join(targetDir, 'goodvibes-sandbox.qcow2'));
-      expect(existsSync(bundle.wrapperPath)).toBe(true);
+      const targetDir = join(home, '.goodvibes', 'agent', 'sandbox');
+      expect(() => scaffoldSandboxQemuSetupBundle(manager as never, cwd, targetDir, { surfaceRoot: 'agent' })).toThrow(AgentSandboxExternalizedError);
     } finally {
       rmSync(cwd, { recursive: true, force: true });
       rmSync(home, { recursive: true, force: true });

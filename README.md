@@ -71,4 +71,4 @@ Package-facing docs are intentionally narrow during the near-fork baseline:
 - [Deployment And Services](docs/deployment-and-services.md)
 - [Release And Publishing](docs/release-and-publishing.md)
 
-Broader copied TUI docs may exist in the source tree while the foundation is being ported, but they are not product-ready Agent documentation unless listed above.
+Broader TUI-derived reference docs may exist in the source tree while the near-fork foundation is being completed, but the package-facing Agent documentation is limited to the docs listed above.

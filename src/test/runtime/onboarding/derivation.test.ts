@@ -222,15 +222,15 @@ describe('onboarding derivation helpers', () => {
     expect(deriveStep1Capabilities(snapshot)).toEqual([
       {
         id: 'local-tui-only',
-        label: 'Local TUI Only (No Servers)',
+        label: 'Agent Local Only (External Daemon)',
         selected: false,
-        detail: 'Turn off browser access, background services, HTTP listeners, external app surfaces, and network setup.',
+        detail: 'Keep Agent local-only by not enabling browser access, background services, HTTP listeners, external app surfaces, or network setup.',
       },
       {
         id: 'browser-access',
         label: 'Open GoodVibes in a Browser',
         selected: true,
-        detail: 'Keep the background service and web UI enabled. Network reachability is controlled on the next screen.',
+        detail: 'Review the externally managed daemon web UI posture. Network reachability is controlled by the daemon owner.',
       },
       {
         id: 'network-access',
@@ -504,15 +504,15 @@ describe('onboarding derivation helpers', () => {
     expect(deriveStep1Capabilities(snapshot)).toEqual([
       {
         id: 'local-tui-only',
-        label: 'Local TUI Only (No Servers)',
+        label: 'Agent Local Only (External Daemon)',
         selected: true,
-        detail: 'Use GoodVibes only in this terminal. No browser access, background service, HTTP listener, external app surface, or network setup.',
+        detail: 'Use GoodVibes Agent in this terminal while connecting only to an externally managed daemon. Agent does not enable service mode, HTTP listeners, external app surfaces, or network setup.',
       },
       {
         id: 'browser-access',
         label: 'Open GoodVibes in a Browser',
         selected: false,
-        detail: 'Run the background service and web UI. GoodVibes will use the local network by default; you can restrict or customize it next.',
+        detail: 'Review browser access requirements for the externally managed daemon. Agent records intent but does not start web services.',
       },
       {
         id: 'network-access',

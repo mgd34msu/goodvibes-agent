@@ -26,7 +26,7 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
           '  /onboarding         - open the onboarding wizard with current settings preloaded',
           '  /setup onboarding   - open the same onboarding wizard from setup workflows',
           '  /health review      - unified startup, service, and sandbox posture',
-          '  /sandbox review     - inspect VM isolation posture',
+          '  /sandbox            - explain that sandbox/QEMU workflows are delegated to GoodVibes TUI',
           '  /marketplace open   - browse curated plugins, skills, hook packs, and policy packs',
           '  /remote setup       - review bridge, tunnel, env, and bootstrap flows',
           '  /security           - review trust posture, policy pressure, and incidents',

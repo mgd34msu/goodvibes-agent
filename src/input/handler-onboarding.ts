@@ -595,187 +595,26 @@ export function getOnboardingRuntimePostureForHandler(handler: InputHandler, req
   }
 
 export async function restartOnboardingExternalServicesIfNeededForHandler(handler: InputHandler, request: OnboardingApplyRequest): Promise<OnboardingVerificationItem[]> {
-    const posture = handler.getOnboardingRuntimePosture(request);
     const externalServices = handler.uiServices.platform.externalServices;
-
-    if (!externalServices) {
-      return [{
-        id: 'runtime:activation-restart',
-        status: 'fail',
-        message: 'Background service controller is unavailable, so onboarding cannot verify active daemon/listener state.',
-        target: 'service',
-      }];
-    }
-
-    const currentState = externalServices.inspect();
-    const hasLiveExternalServices = isRuntimeEndpointOccupyingConfiguredPort(currentState, 'daemon')
-      || isRuntimeEndpointOccupyingConfiguredPort(currentState, 'httpListener');
-    if (!posture.serverBacked && !hasLiveExternalServices) return [];
-
-    try {
-      const state = await externalServices.restart();
-      const failures: OnboardingVerificationItem[] = [];
-      if (posture.expectedDaemon && !isRuntimeEndpointActive(state, 'daemon')) {
-        failures.push({
-          id: 'runtime:daemon-active',
-          status: 'fail',
-          message: formatRuntimeActiveFailureMessage(handler, request, 'daemon', state),
-          target: 'service',
-        });
-      }
-      if (!posture.expectedDaemon && isRuntimeEndpointOccupyingConfiguredPort(state, 'daemon')) {
-        failures.push({
-          id: 'runtime:daemon-stopped',
-          status: 'fail',
-          message: formatRuntimeStoppedFailureMessage(handler, request, 'daemon', state),
-          target: 'service',
-        });
-      }
-      if (posture.expectedHttpListener && !isRuntimeEndpointActive(state, 'httpListener')) {
-        failures.push({
-          id: 'runtime:http-listener-active',
-          status: 'fail',
-          message: formatRuntimeActiveFailureMessage(handler, request, 'httpListener', state),
-          target: 'service',
-        });
-      }
-      if (!posture.expectedHttpListener && isRuntimeEndpointOccupyingConfiguredPort(state, 'httpListener')) {
-        failures.push({
-          id: 'runtime:http-listener-stopped',
-          status: 'fail',
-          message: formatRuntimeStoppedFailureMessage(handler, request, 'httpListener', state),
-          target: 'service',
-        });
-      }
-      if (failures.length > 0) return failures;
-
-      return [{
-        id: 'runtime:activation-restart',
-        status: 'pass',
-        message: 'Background services restarted with the applied onboarding settings.',
-        target: 'service',
-      }];
-    } catch (error) {
-      return [{
-        id: 'runtime:activation-restart',
-        status: 'fail',
-        message: `Background services could not restart: ${error instanceof Error ? error.message : String(error)}`,
-        target: 'service',
-      }];
-    }
+    const state = externalServices?.inspect();
+    const daemonStatus = state?.daemonStatus?.reason ?? (state?.daemonRunning ? 'external daemon appears active' : 'external daemon is not verified from this shell');
+    return [{
+      id: 'runtime:external-daemon-owned',
+      status: 'pass',
+      message: `GoodVibes Agent did not start, stop, or restart daemon/listener services; daemon lifecycle is external. ${daemonStatus}`,
+      target: 'service',
+    }];
   }
 
 export function verifyOnboardingRuntimePostureForHandler(handler: InputHandler, request: OnboardingApplyRequest): OnboardingVerificationItem[] {
-    const posture = handler.getOnboardingRuntimePosture(request);
     const externalServices = handler.uiServices.platform.externalServices;
     const externalState = externalServices?.inspect();
-    if (!posture.serverBacked) {
-      if (!externalServices) {
-        return [{
-          id: 'runtime:external-services-controller',
-          status: 'fail',
-          message: 'Background service controller is unavailable, so onboarding cannot verify daemon/listener shutdown state.',
-          target: 'service',
-        }];
-      }
-
-      const stoppedItems: OnboardingVerificationItem[] = [];
-      if (isRuntimeEndpointOccupyingConfiguredPort(externalState, 'daemon')) {
-        stoppedItems.push({
-          id: 'runtime:daemon-stopped',
-          status: 'fail',
-          message: formatRuntimeStoppedFailureMessage(handler, request, 'daemon', externalState),
-          target: 'service',
-        });
-      }
-      if (isRuntimeEndpointOccupyingConfiguredPort(externalState, 'httpListener')) {
-        stoppedItems.push({
-          id: 'runtime:http-listener-stopped',
-          status: 'fail',
-          message: formatRuntimeStoppedFailureMessage(handler, request, 'httpListener', externalState),
-          target: 'service',
-        });
-      }
-      if (externalState && stoppedItems.length === 0) {
-        stoppedItems.push({
-          id: 'runtime:external-services-stopped',
-          status: 'pass',
-          message: 'Background daemon and HTTP listener are stopped for Local TUI Only.',
-          target: 'service',
-        });
-      }
-      return stoppedItems;
-    }
-
-    const auth = handler.uiServices.platform.localUserAuthManager.inspect();
-    const hasLocalAuth = auth.users.length > 0;
-    const items: OnboardingVerificationItem[] = [];
-
-    items.push({
-      id: 'runtime:service-mode',
-      status: posture.serviceEnabled && posture.serviceAutostart && posture.restartOnFailure ? 'pass' : 'fail',
-      message: posture.serviceEnabled && posture.serviceAutostart && posture.restartOnFailure
-        ? 'Service mode, autostart, and restart-on-failure are enabled for server-backed onboarding.'
-        : 'Server-backed onboarding requires service mode, autostart, and restart-on-failure.',
+    return [{
+      id: 'runtime:external-daemon-owned',
+      status: 'pass',
+      message: externalState
+        ? 'Daemon/listener lifecycle is externally managed; Agent onboarding did not request service shutdown, startup, restart, or bind changes.'
+        : 'Daemon/listener lifecycle is externally managed; no local service controller is required for Agent onboarding.',
       target: 'service',
-    });
-    items.push({
-      id: 'runtime:auth-posture',
-      status: hasLocalAuth && !auth.bootstrapCredentialPresent ? 'pass' : 'fail',
-      message: hasLocalAuth && !auth.bootstrapCredentialPresent
-        ? 'Local auth is configured and bootstrap credentials are not present.'
-        : 'Network-capable surfaces require local auth with no bootstrap credential file.',
-      target: 'auth',
-    });
-    if (posture.remoteExposure) {
-      items.push({
-        id: 'runtime:remote-auth-gate',
-        status: hasLocalAuth ? 'pass' : 'fail',
-        message: hasLocalAuth
-          ? 'Remote-capable bind settings have local auth available.'
-          : 'Remote-capable bind settings cannot be applied without local auth.',
-        target: 'auth',
-      });
-    }
-
-    if (posture.expectedDaemon) {
-      const daemonActive = isRuntimeEndpointActive(externalState, 'daemon');
-      items.push({
-        id: 'runtime:daemon-active',
-        status: daemonActive ? 'pass' : 'fail',
-        message: daemonActive
-          ? formatRuntimeActiveSuccessMessage('daemon', externalState)
-          : formatRuntimeActiveFailureMessage(handler, request, 'daemon', externalState),
-        target: 'service',
-      });
-    }
-    if (!posture.expectedDaemon && isRuntimeEndpointOccupyingConfiguredPort(externalState, 'daemon')) {
-      items.push({
-        id: 'runtime:daemon-stopped',
-        status: 'fail',
-        message: formatRuntimeStoppedFailureMessage(handler, request, 'daemon', externalState),
-        target: 'service',
-      });
-    }
-    if (posture.expectedHttpListener) {
-      const httpListenerActive = isRuntimeEndpointActive(externalState, 'httpListener');
-      items.push({
-        id: 'runtime:http-listener-active',
-        status: httpListenerActive ? 'pass' : 'fail',
-        message: httpListenerActive
-          ? formatRuntimeActiveSuccessMessage('httpListener', externalState)
-          : formatRuntimeActiveFailureMessage(handler, request, 'httpListener', externalState),
-        target: 'service',
-      });
-    }
-    if (!posture.expectedHttpListener && isRuntimeEndpointOccupyingConfiguredPort(externalState, 'httpListener')) {
-      items.push({
-        id: 'runtime:http-listener-stopped',
-        status: 'fail',
-        message: formatRuntimeStoppedFailureMessage(handler, request, 'httpListener', externalState),
-        target: 'service',
-      });
-    }
-
-    return items;
+    }];
   }

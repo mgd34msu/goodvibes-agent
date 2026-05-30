@@ -2,10 +2,9 @@
  * operator-token-cleanup.ts
  *
  * Shared helper that enumerates the legacy workspace-scoped `operator-tokens.json`
- * locations the TUI has written at various pre-0.21.28 versions. Used by both the
- * in-process bootstrap path (`src/runtime/bootstrap.ts`) and the standalone daemon
- * CLI (`src/daemon/cli.ts`) so F3 (stale-token pruning) has a single source of
- * truth for where to look.
+ * locations earlier GoodVibes builds may have written. Used by the in-process
+ * bootstrap path so stale-token pruning has a single source of truth for where
+ * to look. GoodVibes Agent itself does not own daemon startup.
  *
  * Adding a new legacy location: append to `workspaceOperatorTokenCandidates` and
  * the new path will be inspected on the next daemon boot.

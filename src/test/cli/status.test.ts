@@ -146,7 +146,7 @@ describe('CLI status and doctor output', () => {
       findings: unknown[];
     };
 
-    expect(parsed.title).toBe('GoodVibes status');
+    expect(parsed.title).toBe('GoodVibes Agent status');
     expect(parsed.provider.provider).toBe('openai');
     expect(parsed.service.lifecycle.managed.running).toBe(true);
     expect(parsed.service.lifecycle.managed.pid).toBe(123);

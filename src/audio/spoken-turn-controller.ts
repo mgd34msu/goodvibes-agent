@@ -175,7 +175,7 @@ export class SpokenTurnController {
       format: 'mp3',
       signal,
       metadata: {
-        source: 'goodvibes-tui',
+        source: 'goodvibes-agent',
         feature: 'live-tts',
         turnId,
         sequence,

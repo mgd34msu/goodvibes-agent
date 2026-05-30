@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   buildSandboxReview,
+  AgentSandboxExternalizedError,
   getSandboxConfigSnapshot,
   inspectSandboxBundle,
   inspectSandboxProbe,
@@ -20,7 +21,6 @@ import {
   resolveSandboxCommandPlan,
 } from '@/runtime/index.ts';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
-import { renderQemuWrapperTemplate } from '@/runtime/index.ts';
 
 function makeManager(overrides: Partial<Record<string, unknown>> = {}) {
   const values = new Map<string, unknown>([
@@ -109,7 +109,7 @@ describe('sandbox manager', () => {
     expect(plan.workspaceRoot.length).toBeGreaterThan(0);
   });
 
-  test('qemu launch plans carry configured binary and image path', () => {
+  test('qemu launch planning is externalized to GoodVibes TUI', () => {
     const manager = makeManager({
       'sandbox.vmBackend': 'qemu',
       'sandbox.qemuBinary': 'bash',
@@ -117,13 +117,10 @@ describe('sandbox manager', () => {
     });
     const profile = listSandboxProfiles(manager as never).find((entry) => entry.id === 'eval-py');
     expect(profile).toBeDefined();
-    const plan = buildSandboxLaunchPlan(profile!, 'Python eval', manager as never, WORKSPACE_ROOT);
-    expect(plan.command).toBe('bash');
-    expect(plan.imagePath).toBe('/tmp/gv-sandbox.qcow2');
-    expect(plan.summary).toContain('/tmp/gv-sandbox.qcow2');
+    expect(() => buildSandboxLaunchPlan(profile!, 'Python eval', manager as never, WORKSPACE_ROOT)).toThrow(AgentSandboxExternalizedError);
   });
 
-  test('resolves and executes local sandbox commands', () => {
+  test('resolves local sandbox commands but externalizes execution', () => {
     const commandPlan = resolveSandboxCommandPlan({
       backend: 'local',
       command: 'bash',
@@ -134,15 +131,13 @@ describe('sandbox manager', () => {
     expect(commandPlan.command).toBe('bash');
     expect(commandPlan.summary).toContain('printf sandbox-ok');
 
-    const result = executeSandboxCommand({
+    expect(() => executeSandboxCommand({
       backend: 'local',
       command: 'bash',
       args: ['-lc', 'true'],
       workspaceRoot: process.cwd(),
       summary: 'local',
-    }, 'bash', ['-lc', 'printf sandbox-ok']);
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain('sandbox-ok');
+    }, 'bash', ['-lc', 'printf sandbox-ok'])).toThrow(AgentSandboxExternalizedError);
   });
 
   test('sandbox sessions record verified startup state for local backends', async () => {
@@ -193,68 +188,22 @@ describe('sandbox manager', () => {
     expect(session.startupDetail).toContain(wrapperPath);
   });
 
-  test('qemu wrapper template can execute bridge commands in host-exec mode', () => {
-    const wrapperPath = join(tmpdir(), `gv-qemu-wrapper-template-${Date.now()}.sh`);
-    writeFileSync(wrapperPath, renderQemuWrapperTemplate(), 'utf-8');
-    chmodSync(wrapperPath, 0o755);
-    const manager = makeManager({
-      'sandbox.vmBackend': 'qemu',
-      'sandbox.qemuBinary': 'bash',
-      'sandbox.qemuImagePath': '/tmp/gv-sandbox.qcow2',
-      'sandbox.qemuExecWrapper': wrapperPath,
-    });
-    const profile = listSandboxProfiles(manager as never).find((entry) => entry.id === 'eval-js');
-    expect(profile).toBeDefined();
-    const plan = buildSandboxLaunchPlan(profile!, 'JavaScript eval', manager as never, WORKSPACE_ROOT);
-    const result = executeSandboxManagedCommand(plan, 'bash', ['-lc', 'printf wrapper-ok'], manager as never, {
-      env: {
-        GV_SANDBOX_WRAPPER_MODE: 'host-exec',
-      },
-    });
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain('wrapper-ok');
-  });
-
-  test('qemu command plan switches wrapper mode to ssh-guest when guest transport is configured', () => {
-    const wrapperPath = join(tmpdir(), `gv-qemu-wrapper-mode-${Date.now()}.sh`);
-    writeFileSync(wrapperPath, renderQemuWrapperTemplate(), 'utf-8');
-    chmodSync(wrapperPath, 0o755);
-    const manager = makeManager({
-      'sandbox.vmBackend': 'qemu',
-      'sandbox.qemuBinary': 'bash',
-      'sandbox.qemuImagePath': '/tmp/gv-sandbox.qcow2',
-      'sandbox.qemuExecWrapper': wrapperPath,
-      'sandbox.qemuGuestHost': '127.0.0.1',
-      'sandbox.qemuGuestPort': 2222,
-      'sandbox.qemuGuestUser': 'goodvibes',
-      'sandbox.qemuWorkspacePath': '/workspace',
-    });
-    const profile = listSandboxProfiles(manager as never).find((entry) => entry.id === 'eval-js');
-    expect(profile).toBeDefined();
-    const plan = buildSandboxLaunchPlan(profile!, 'JavaScript eval', manager as never, WORKSPACE_ROOT);
-    const resolved = resolveSandboxCommandPlan(plan, 'bash', ['-lc', 'printf guest-ok'], manager as never);
-    expect(resolved.command).toBe(wrapperPath);
-    expect(resolved.env?.GV_SANDBOX_WRAPPER_MODE).toBe('ssh-guest');
-    expect(resolved.env?.GV_SANDBOX_GUEST_HOST).toBe('127.0.0.1');
-  });
-
-  test('qemu command plan can request launch-per-command guest lifecycle', () => {
-    const wrapperPath = join(tmpdir(), `gv-qemu-wrapper-launch-${Date.now()}.sh`);
-    writeFileSync(wrapperPath, renderQemuWrapperTemplate(), 'utf-8');
-    chmodSync(wrapperPath, 0o755);
-    const manager = makeManager({
-      'sandbox.vmBackend': 'qemu',
-      'sandbox.qemuBinary': 'bash',
-      'sandbox.qemuImagePath': '/tmp/gv-sandbox.qcow2',
-      'sandbox.qemuExecWrapper': wrapperPath,
-      'sandbox.qemuGuestHost': '127.0.0.1',
-      'sandbox.qemuSessionMode': 'launch-per-command',
-    });
-    const profile = listSandboxProfiles(manager as never).find((entry) => entry.id === 'eval-js');
-    expect(profile).toBeDefined();
-    const plan = buildSandboxLaunchPlan(profile!, 'JavaScript eval', manager as never, WORKSPACE_ROOT);
-    const resolved = resolveSandboxCommandPlan(plan, 'bash', ['-lc', 'printf guest-ok'], manager as never);
-    expect(resolved.env?.GV_SANDBOX_WRAPPER_MODE).toBe('launch-qemu-ssh');
+  test('qemu command execution is externalized even with a prebuilt launch plan', () => {
+    expect(() => resolveSandboxCommandPlan({
+      backend: 'qemu',
+      command: 'qemu-system-x86_64',
+      args: [],
+      workspaceRoot: WORKSPACE_ROOT,
+      summary: 'qemu',
+      imagePath: '/tmp/gv-sandbox.qcow2',
+    }, 'bash', ['-lc', 'printf guest-ok'], makeManager() as never)).toThrow(AgentSandboxExternalizedError);
+    expect(() => executeSandboxManagedCommand({
+      backend: 'local',
+      command: 'bash',
+      args: [],
+      workspaceRoot: WORKSPACE_ROOT,
+      summary: 'local',
+    }, 'bash', ['-lc', 'printf local-ok'], makeManager() as never)).toThrow(AgentSandboxExternalizedError);
   });
 
   test('qemu probe warns when wrapper path is missing or not executable', () => {

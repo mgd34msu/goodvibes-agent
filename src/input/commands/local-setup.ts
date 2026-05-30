@@ -4,7 +4,6 @@ import type { CommandRegistry } from '../command-registry.ts';
 import type { ConfigKey } from '../../config/index.ts';
 import { CONFIG_SCHEMA } from '../../config/index.ts';
 import { listHookPointContracts } from '@pellux/goodvibes-sdk/platform/hooks';
-import { renderQemuWrapperTemplate } from '@/runtime/index.ts';
 import type { SetupTransferBundle } from './local-setup-transfer.ts';
 import {
   buildSetupTransferBundle,
@@ -13,7 +12,7 @@ import {
   inspectSetupTransferBundle,
   parseSetupLink,
 } from './local-setup-transfer.ts';
-import { buildSetupReviewSnapshot, exportSetupSupportBundle, renderSetupSandboxReview } from './local-setup-review.ts';
+import { buildSetupReviewSnapshot, exportSetupSupportBundle } from './local-setup-review.ts';
 import { openOnboardingWizard, requirePanelManager, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
@@ -24,7 +23,7 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'setup',
     aliases: ['startup'],
-    description: 'Launch the onboarding wizard and review startup readiness, service posture, and sandbox bring-up',
+    description: 'Launch the onboarding wizard and review Agent startup readiness',
     usage: '[review|doctor|services|hooks|remote|sandbox|onboarding|support-bundle <dir>|export <path>|transfer <export|inspect|import> <path>|link <surface> [target]|open-link <uri>]',
     async handler(args, ctx) {
       const sub = args[0] ?? 'review';
@@ -56,9 +55,7 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
           `  mcp quarantined: ${snapshot.quarantinedMcpCount}`,
           `  mcp elevated: ${snapshot.elevatedMcpCount}`,
           `  remote runners: ${snapshot.remoteRunnerCount}`,
-          `  sandbox backend: ${ctx.platform.configManager.get('sandbox.vmBackend')}`,
-          `  qemu image: ${String(ctx.platform.configManager.get('sandbox.qemuImagePath')) || '(not configured)'}`,
-          `  qemu wrapper: ${String(ctx.platform.configManager.get('sandbox.qemuExecWrapper')) || '(not configured)'}`,
+          '  sandbox/QEMU: externalized to GoodVibes TUI for delegated build/runtime isolation',
           '',
           `  service ids: ${snapshot.services.join(', ') || '(none)'}`,
           `  plugin dirs: ${snapshot.pluginDirectories.join(', ') || '(none)'}`,
@@ -71,12 +68,7 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
         ctx.print([
           'Startup Doctor',
           ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`),
-          ...(`${ctx.platform.configManager.get('sandbox.vmBackend')}` === 'qemu' && !String(ctx.platform.configManager.get('sandbox.qemuImagePath')).trim()
-            ? ['  [WARN] sandbox: qemu backend selected without qemuImagePath'] : []),
-          ...(`${ctx.platform.configManager.get('sandbox.vmBackend')}` === 'qemu' && !String(ctx.platform.configManager.get('sandbox.qemuExecWrapper')).trim()
-            ? ['  [WARN] sandbox: qemu backend selected without qemuExecWrapper', '    next: /sandbox qemu setup'] : []),
-          ...(`${ctx.platform.configManager.get('sandbox.vmBackend')}` === 'qemu' && String(ctx.platform.configManager.get('sandbox.qemuExecWrapper')).trim()
-            ? ['  [INFO] sandbox: wrapper bridge can be validated with GV_SANDBOX_WRAPPER_MODE=host-exec before wiring a real guest transport'] : []),
+          '  [INFO] sandbox: GoodVibes Agent does not own sandbox/QEMU setup; delegate build/runtime isolation to GoodVibes TUI.',
           ...(snapshot.serviceIssues.length > 0
             ? ['', '  Service issues:', ...snapshot.serviceIssues.map((issue) => `    - ${issue}`)]
             : []),
@@ -125,8 +117,13 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'sandbox') {
-        const snapshot = await getSnapshot();
-        ctx.print(renderSetupSandboxReview(ctx, snapshot));
+        ctx.print([
+          'Setup Sandbox',
+          '  status: externalized',
+          '  owner: GoodVibes TUI',
+          '  reason: sandbox/QEMU setup and runtime isolation are coding/build execution surfaces.',
+          '  result: no local Agent sandbox settings, files, or sessions were changed.',
+        ].join('\n'));
         return;
       }
 
@@ -153,7 +150,6 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
             createdAt: artifact.createdAt,
           })),
         }, null, 2) + '\n', 'utf-8');
-        writeFileSync(join(targetDir, 'qemu-wrapper.template.sh'), renderQemuWrapperTemplate(), { encoding: 'utf-8', mode: 0o755 });
         ctx.print(`Exported support bundle to ${targetDir}`);
         return;
       }

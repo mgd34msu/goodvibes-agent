@@ -37,7 +37,7 @@ export interface CliDoctorFinding {
 }
 
 export interface CliStatusSnapshot {
-  readonly title: 'GoodVibes status' | 'GoodVibes doctor';
+  readonly title: 'GoodVibes Agent status' | 'GoodVibes Agent doctor';
   readonly workingDirectory: string;
   readonly homeDirectory: string;
   readonly provider: {
@@ -136,7 +136,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       severity: 'warning',
       summary: 'Service mode is enabled but autostart is off.',
       cause: 'service.enabled is true and service.autostart is false.',
-      impact: 'GoodVibes may not start after login or reboot even though service mode is selected.',
+      impact: 'The external GoodVibes daemon may not be available after login or reboot even though service mode is selected.',
       action: 'Enable service.autostart if the daemon/listener/web surfaces should stay available.',
     });
   }
@@ -163,7 +163,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         summary: issue,
         cause: 'The service lifecycle inspection found a mismatch between configured service/surface state and observed host state.',
         impact: 'Daemon, control-plane, listener, or web availability may not match the configuration.',
-        action: 'Run goodvibes service check and apply the suggested service install/start/configuration fix.',
+        action: 'Run goodvibes-agent service check, then manage the daemon from GoodVibes TUI or your daemon host tooling.',
       });
     }
   }
@@ -176,7 +176,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       summary: 'Onboarding has not been shown for this user.',
       cause: 'No global user onboarding check marker was found.',
       impact: 'Important service, network, provider, auth, or permission choices may still be implicit defaults.',
-      action: 'Run /onboarding in the TUI or goodvibes onboarding status to review setup state.',
+      action: 'Run /onboarding in GoodVibes Agent or goodvibes-agent onboarding status to review setup state.',
     });
   }
 
@@ -251,7 +251,7 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
   const marker = options.onboardingMarkers?.effective;
   const findings = buildCliDoctorFindings(options);
   return {
-    title: options.doctor ? 'GoodVibes doctor' : 'GoodVibes status',
+    title: options.doctor ? 'GoodVibes Agent doctor' : 'GoodVibes Agent status',
     workingDirectory: options.workingDirectory,
     homeDirectory: options.homeDirectory,
     provider: {

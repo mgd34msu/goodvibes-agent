@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export const WORK_PLAN_STATUSES = [
   'pending',
@@ -166,7 +167,7 @@ export class WorkPlanStore {
 
   constructor(private readonly options: WorkPlanStoreOptions) {
     const fileName = `${safeFileId(options.projectId, options.projectRoot)}.json`;
-    this.filePath = join(options.homeDirectory, '.goodvibes', 'tui', 'work-plans', fileName);
+    this.filePath = join(options.homeDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'work-plans', fileName);
   }
 
   getActivePlan(): WorkPlan {

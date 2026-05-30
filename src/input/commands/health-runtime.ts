@@ -318,8 +318,8 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  verify: /health services');
         } else if (domain === 'sandbox') {
           lines.push('  domain: sandbox');
-          lines.push('  /sandbox review');
-          lines.push('  /sandbox doctor');
+          lines.push('  /sandbox');
+          lines.push('  delegate sandbox/QEMU setup and execution to GoodVibes TUI');
           lines.push('  /health sandbox');
           lines.push('  verify: /health sandbox');
         } else if (domain === 'remote') {

@@ -342,7 +342,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     projectRoot: workingDirectory,
   });
   agentManager.setWrfcController(wrfcController);
-  const hookDispatcher = new HookDispatcher({ agentManager, toolLLM, projectRoot: workingDirectory }, hookActivityTracker);
+  const hookDispatcher = new HookDispatcher({ toolLLM, projectRoot: workingDirectory }, hookActivityTracker);
   configManager.attachHookDispatcher(hookDispatcher);
   const hookWorkbench = createHookWorkbench({
     hookDispatcher,
@@ -381,7 +381,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const automationManager = new AutomationManager({
     configManager,
-    defaultSurfaceKind: 'tui',
+    defaultSurfaceKind: 'service',
     routeBindings,
     sessionBroker,
     runtimeStore: options.runtimeStore,

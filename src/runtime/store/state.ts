@@ -1,5 +1,5 @@
 /**
- * RuntimeState — the canonical top-level state shape for the goodvibes-tui
+ * RuntimeState — the canonical top-level state shape for the goodvibes-agent
  * runtime store. All domain slices are defined here.
  *
  * Each domain includes revision, lastUpdatedAt, and source metadata fields.

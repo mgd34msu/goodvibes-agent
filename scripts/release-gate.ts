@@ -119,7 +119,7 @@ function formatResult(r: GateResult): string {
 // ── Main ───────────────────────────────────────────────────────────────────
 
 console.log('='.repeat(80));
-console.log('Release Gate Runner — goodvibes-tui');
+console.log('Release Gate Runner — goodvibes-agent');
 console.log(`Running ${gatesToRun.length} gate(s)`);
 console.log('='.repeat(80));
 console.log();

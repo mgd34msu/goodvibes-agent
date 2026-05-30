@@ -545,10 +545,10 @@ export class ProjectPlanningPanel extends BasePanel {
         answer: 'Scope is everything required to make the requested outcome work end-to-end. Include TUI, daemon composition, configuration, docs, and tests if they are required. Do not include unrelated cleanup or broad refactors unless they are necessary for this task.',
       });
       actions.push({
-        id: 'scope-tui-first',
-        label: 'TUI-first scope',
-        detail: 'Fix TUI behavior here; report SDK blockers instead of patching around SDK-owned bugs.',
-        answer: 'Scope is TUI-owned behavior first. If a blocker is SDK-owned, report the exact SDK contract/runtime issue instead of patching around it in the TUI. Include daemon composition only where the TUI owns the wiring.',
+        id: 'scope-agent-first',
+        label: 'Agent-first scope',
+        detail: 'Fix Agent behavior here; report SDK blockers instead of patching around SDK-owned bugs.',
+        answer: 'Scope is Agent-owned behavior first. If a blocker is SDK-owned, report the exact SDK contract/runtime issue instead of patching around it locally. Include daemon contracts only where Agent consumes public daemon routes.',
       });
     }
     actions.push({

@@ -478,12 +478,12 @@ export async function initializeBootstrapCore(
   runtimeSessionIdRef.value = runtime.sessionId;
   void sharedSessionBroker.createSession({
     id: runtime.sessionId,
-    title: 'Terminal UI session',
-    metadata: { source: 'tui' },
+    title: 'GoodVibes Agent session',
+    metadata: { source: 'goodvibes-agent' },
     participant: {
-      surfaceKind: 'tui',
-      surfaceId: 'surface:tui',
-      displayName: 'Terminal UI',
+      surfaceKind: 'service',
+      surfaceId: 'surface:goodvibes-agent',
+      displayName: 'GoodVibes Agent',
       lastSeenAt: Date.now(),
     },
   }).catch((err) => { logger.debug('session broker create session failed at bootstrap', { err }); });

@@ -149,7 +149,7 @@ export function getTestRuntimeServices(): RuntimeServices {
   if (!runtimeServices) {
     const { workingDir, configDir } = nextRuntimeRoots();
     runtimeServices = createRuntimeServices({
-      configManager: new ConfigManager({ surfaceRoot: 'tui',
+      configManager: new ConfigManager({ surfaceRoot: 'agent',
         configDir,
         workingDir,
         homeDir: workingDir,

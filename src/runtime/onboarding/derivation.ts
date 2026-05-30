@@ -264,16 +264,16 @@ function hasCloudflareBatch(snapshot: OnboardingSnapshotState): boolean {
 
 function describeLocalTuiOnly(snapshot: OnboardingSnapshotState): string {
   if (!hasAnyServerEnabled(snapshot)) {
-    return 'Use GoodVibes only in this terminal. No browser access, background service, HTTP listener, external app surface, or network setup.';
+    return 'Use GoodVibes Agent in this terminal while connecting only to an externally managed daemon. Agent does not enable service mode, HTTP listeners, external app surfaces, or network setup.';
   }
 
-  return 'Turn off browser access, background services, HTTP listeners, external app surfaces, and network setup.';
+  return 'Keep Agent local-only by not enabling browser access, background services, HTTP listeners, external app surfaces, or network setup.';
 }
 
 function describeBrowserAccess(snapshot: OnboardingSnapshotState): string {
   return snapshot.bindSettings.web.enabled
-    ? 'Keep the background service and web UI enabled. Network reachability is controlled on the next screen.'
-    : 'Run the background service and web UI. GoodVibes will use the local network by default; you can restrict or customize it next.';
+    ? 'Review the externally managed daemon web UI posture. Network reachability is controlled by the daemon owner.'
+    : 'Review browser access requirements for the externally managed daemon. Agent records intent but does not start web services.';
 }
 
 function describeRemoteDeviceAccess(snapshot: OnboardingSnapshotState): string {
@@ -349,7 +349,7 @@ export function deriveStep1Capabilities(
   return [
     {
       id: 'local-tui-only',
-      label: 'Local TUI Only (No Servers)',
+      label: 'Agent Local Only (External Daemon)',
       selected: !hasAnyServerEnabled(snapshot),
       detail: describeLocalTuiOnly(snapshot),
     },

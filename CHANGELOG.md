@@ -22,4 +22,4 @@ All notable changes to GoodVibes Agent will be recorded here.
 - Replaced copied coding-first orchestration policy with Agent serial/proactive policy and explicit GoodVibes TUI build delegation.
 - Added the first Agent operator workspace on the copied fullscreen workspace foundation, exposed through `/agent`, `/home`, and `/operator`.
 
-This baseline is not product-ready. It still contains broad copied TUI surfaces that must be pruned or reshaped into Agent-first operator workflows before a public release.
+The private baseline intentionally kept broad TUI foundation code so the Agent could inherit the renderer, input, fullscreen workspace, command registry, and release bones before Agent-specific policy was applied.

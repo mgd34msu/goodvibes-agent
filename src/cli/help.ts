@@ -29,13 +29,13 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `       ${binary} [OPTIONS] <COMMAND> [ARGS]`,
     '',
     'Commands:',
-    '  tui [path]                 Start the interactive TUI (default)',
+    '  tui [path]                 Start the interactive Agent terminal UI (default)',
     '  run|exec [prompt]          Run non-interactively with text/json/stream-json output',
     '  web                        Show browser surface bind URL and enablement',
     '  service                    Inspect existing daemon service posture (read-only)',
     '  status                     Print config, provider, service, and onboarding posture',
     '  doctor                     Print status plus setup warnings',
-    '  onboarding [status]        Open onboarding in the TUI, or print onboarding status',
+    '  onboarding [status]        Open Agent onboarding, or print onboarding status',
     '  models [provider]          List/use/pin selectable models and recent model history',
     '  providers                  List/inspect/use provider config/auth posture',
     '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
@@ -109,7 +109,7 @@ type CommandHelp = {
 const COMMAND_HELP: Record<string, CommandHelp> = {
   tui: {
     usage: ['tui [path]', '[prompt]'],
-    summary: 'Start the interactive terminal UI. A prompt starts the TUI with that prompt seeded.',
+    summary: 'Start the interactive Agent terminal UI. A prompt starts Agent with that prompt seeded.',
     examples: ['', 'tui ~/work/project', '"summarize current tasks"'],
   },
   run: {
@@ -159,7 +159,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   sessions: {
     usage: ['sessions list', 'sessions show <id|name>', 'sessions export <id|name> [path]', 'sessions resume <id|name>'],
-    summary: 'List, inspect, export, or resume saved TUI sessions.',
+    summary: 'List, inspect, export, or resume saved Agent terminal sessions.',
     examples: ['sessions list', 'sessions show latest-session', 'sessions export abc123 session.json'],
   },
   tasks: {
@@ -280,7 +280,10 @@ export function renderGoodVibesDaemonHelp(binary = 'goodvibes-daemon'): string {
   return [
     `Usage: ${binary} [OPTIONS]`,
     '',
-    'Starts the headless GoodVibes daemon/API host.',
+    'Unavailable in GoodVibes Agent.',
+    '',
+    'GoodVibes Agent connects to an already-running GoodVibes daemon. It does not start, install, restart, or own daemon/listener lifecycle.',
+    'Use GoodVibes TUI or your daemon host tooling to manage the daemon, then connect with goodvibes-agent.',
     '',
     'Options:',
     '      --daemon-home <dir>        Override daemon home',

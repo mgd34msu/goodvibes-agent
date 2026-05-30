@@ -54,7 +54,7 @@ Representative slash-command families include:
 - `/recall`
 - `/knowledge`
 - `/remote`
-- `/sandbox`
+- `/sandbox` (externalized boundary guidance; GoodVibes TUI owns sandbox/QEMU execution)
 - `/plugin`
 - `/marketplace`
 - `/workflow`
@@ -161,9 +161,9 @@ Some command families are especially important when you are running GoodVibes as
 - `/schedule` for cron-like and interval-based automation
 - `/hooks` for managed hook inspection and simulation
 - `/remote` for dispatching and recovering distributed work
-- `/sandbox` for isolation review and QEMU/bootstrap flows
+- `/sandbox` for explaining the Agent boundary and delegating sandbox/QEMU work to GoodVibes TUI
 
-For QEMU guest bootstrapping details, including the generated image script and guest runtime package list, see [QEMU sandbox bootstrapping](qemu-sandbox.md).
+For the Agent sandbox boundary, see [QEMU sandbox boundary](qemu-sandbox.md). Use the GoodVibes TUI project documentation for actual QEMU setup and execution.
 
 ## Related docs
 

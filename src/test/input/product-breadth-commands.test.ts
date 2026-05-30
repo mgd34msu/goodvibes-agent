@@ -638,7 +638,7 @@ describe('product breadth commands', () => {
     await setup!.handler(['review'], ctx);
     expect(out.join('\n')).toContain('Startup Readiness Review');
     expect(out.join('\n')).toContain('skills discovered:');
-    expect(out.join('\n')).toContain('sandbox backend:');
+    expect(out.join('\n')).toContain('sandbox/QEMU: externalized to GoodVibes TUI for delegated build/runtime isolation');
 
     out.length = 0;
     await setup!.handler(['doctor'], ctx);
@@ -654,8 +654,9 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await setup!.handler(['sandbox'], ctx);
-    expect(out.join('\n')).toContain('Setup Sandbox Review');
-    expect(out.join('\n')).toContain('sandbox/QEMU setup is externalized to GoodVibes TUI');
+    expect(out.join('\n')).toContain('Setup Sandbox');
+    expect(out.join('\n')).toContain('owner: GoodVibes TUI');
+    expect(out.join('\n')).toContain('sandbox/QEMU setup and runtime isolation are coding/build execution surfaces');
 
     const exportPath = join(root, 'artifacts', 'startup-review.json');
     out.length = 0;
@@ -669,7 +670,8 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Exported support bundle');
     expect(existsSync(join(supportDir, 'startup-review.json'))).toBe(true);
     expect(existsSync(join(supportDir, 'remote-summary.json'))).toBe(true);
-    expect(existsSync(join(supportDir, 'qemu-wrapper.template.sh'))).toBe(true);
+    expect(existsSync(join(supportDir, 'sandbox-externalized.txt'))).toBe(true);
+    expect(existsSync(join(supportDir, 'qemu-wrapper.template.sh'))).toBe(false);
   });
 
   test('health and guidance commands surface maintenance posture', async () => {
@@ -2140,7 +2142,8 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await health!.handler(['repair', 'sandbox'], ctx);
-    expect(out.join('\n')).toContain('/sandbox review');
+    expect(out.join('\n')).toContain('/sandbox');
+    expect(out.join('\n')).toContain('GoodVibes TUI');
 
     out.length = 0;
     await remote!.handler(['recover'], ctx);

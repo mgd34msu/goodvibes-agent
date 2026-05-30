@@ -3,7 +3,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import type { CommandContext } from '../command-registry.ts';
 import { discoverSkills } from '../../panels/skills-panel.ts';
 import { buildSandboxReview, isRunningInWsl } from '@/runtime/index.ts';
-import { renderQemuWrapperTemplate } from '@/runtime/index.ts';
 import { getPluginDirectories } from '../../plugins/loader';
 import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import type { SetupReviewSnapshot } from './local-setup-transfer.ts';
@@ -187,6 +186,14 @@ export function exportSetupSupportBundle(
   if (existsSync(hooksPath)) {
     writeFileSync(join(targetDir, 'hooks.managed.json'), readFileSync(hooksPath, 'utf-8'), 'utf-8');
   }
-  writeFileSync(join(targetDir, 'qemu-wrapper.template.sh'), renderQemuWrapperTemplate(), { encoding: 'utf-8', mode: 0o755 });
+  writeFileSync(
+    join(targetDir, 'sandbox-externalized.txt'),
+    [
+      'GoodVibes Agent does not ship or manage QEMU sandbox wrappers.',
+      'Delegate build, fix, review, and runtime-isolation work to GoodVibes TUI.',
+      '',
+    ].join('\n'),
+    'utf-8',
+  );
   return targetDir;
 }

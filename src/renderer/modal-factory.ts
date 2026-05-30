@@ -108,7 +108,7 @@ const DEFAULT_STYLE: Required<ModalStyle> = {
 // ── ModalFactory ─────────────────────────────────────────────────────────────
 
 /**
- * ModalFactory — unified modal rendering for goodvibes-tui.
+ * ModalFactory — unified modal rendering for goodvibes-agent.
  *
  * Renders modals as Line[] (Cell arrays) consistent with the compositor
  * overlay pipeline. All existing modals (file-picker, model-picker,

@@ -16,15 +16,15 @@ export const STEP_ORDER: readonly OnboardingWizardStepId[] = [
 export const DEFAULT_CAPABILITIES: readonly OnboardingStep1CapabilityItem[] = [
   {
     id: 'local-tui-only',
-    label: 'Local TUI Only (No Servers)',
+    label: 'Agent Local Only (External Daemon)',
     selected: true,
-    detail: 'Use GoodVibes only in this terminal. No browser access, background service, HTTP listener, external app surface, or network setup.',
+    detail: 'Use GoodVibes Agent in this terminal and connect only to an externally managed daemon. Agent does not enable service mode, HTTP listeners, external app surfaces, or network setup.',
   },
   {
     id: 'browser-access',
     label: 'Open GoodVibes in a Browser',
     selected: false,
-    detail: 'Run the background service and web UI. GoodVibes will use the local network by default; you can restrict or customize it next.',
+    detail: 'Review browser access requirements for the externally managed daemon. Agent records intent but does not start web services.',
   },
   {
     id: 'network-access',

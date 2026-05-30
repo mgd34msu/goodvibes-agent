@@ -84,7 +84,7 @@ export class SandboxPanel extends BasePanel {
       ? sessions.find((session) => session.id === selected.id) ?? null
       : null;
 
-    const intro = 'Sandbox posture for local execution, optional QEMU isolation, profiles, sessions, and Windows host requirements.';
+    const intro = 'External sandbox posture. Agent can inspect copied sandbox configuration, but GoodVibes TUI owns QEMU setup, profiles, sessions, and command execution.';
     const overviewLines: Line[] = [
       buildKeyValueLine(width, [
         { label: 'host', value: review.host.platform, valueColor: C.value },
@@ -116,15 +116,9 @@ export class SandboxPanel extends BasePanel {
       buildKeyValueLine(width, [
         { label: 'guest workspace', value: review.config.qemuWorkspacePath || '(not configured)', valueColor: review.config.qemuWorkspacePath ? C.value : C.warn },
       ], C),
-      buildGuidanceLine(width, '/sandbox review', 'inspect local vs QEMU posture, host readiness, and isolation defaults', C),
-      buildGuidanceLine(width, '/sandbox set-qemu-image <path>', 'set the guest image path before enabling QEMU-backed session execution', C),
-      buildGuidanceLine(width, '/sandbox scaffold-qemu-wrapper <path>', 'generate a host-side wrapper scaffold with a bring-up bridge mode and a real guest handoff contract', C),
-      buildGuidanceLine(width, '/sandbox set-qemu-wrapper <path>', 'configure the host bridge that actually executes commands inside the QEMU guest', C),
-      buildGuidanceLine(width, '/sandbox set-qemu-guest-host <host>', 'switch wrapper-backed execution from host bridge mode to real guest SSH transport', C),
-      buildGuidanceLine(width, '/sandbox guest-test <profile>', 'verify SSH guest transport plus workspace projection against the configured QEMU guest host', C),
-      buildGuidanceLine(width, '/sandbox wrapper-test <profile>', 'validate the wrapper bridge contract before wiring a real guest transport', C),
-      buildGuidanceLine(width, '/sandbox session run <id> <command> [args...]', 'execute through a tracked sandbox session and capture runtime metadata on the session record', C),
-      buildGuidanceLine(width, 'GV_SANDBOX_WRAPPER_MODE=host-exec', 'validate the wrapper contract on the host before wiring a real guest transport', C),
+      buildGuidanceLine(width, '/sandbox', 'externalized here; use GoodVibes TUI for sandbox/QEMU setup or execution', C),
+      buildGuidanceLine(width, '/delegate --wrfc <task>', 'send explicit build/fix/review work that needs sandboxing to GoodVibes TUI', C),
+      buildGuidanceLine(width, '/setup sandbox', 'show Agent boundary guidance without changing sandbox configuration', C),
       buildPanelLine(width, [[`  Up/Down move  Home/End jump  focus=profiles+sessions`, C.dim]]),
     ];
 
@@ -178,9 +172,9 @@ export class SandboxPanel extends BasePanel {
     if (sessions.length === 0) {
       sessionLines.push(...buildEmptyState(
         width,
-        ' No active sandbox sessions.',
-        'Start a sandbox session from a profile to make the running VM/session posture visible here.',
-        [{ command: '/sandbox session start <profile>', summary: 'start a sandbox session and capture its VM/session record' }],
+        ' No Agent-owned sandbox sessions.',
+        'GoodVibes Agent does not start sandbox sessions. Delegate build/fix/review work to GoodVibes TUI when sandbox execution is required.',
+        [{ command: '/delegate --wrfc <task>', summary: 'delegate explicit sandbox-backed build work to GoodVibes TUI' }],
         C,
       ));
     } else {
@@ -227,8 +221,8 @@ export class SandboxPanel extends BasePanel {
     const [sessionsSection, profilesSection] = resolveStackedScrollableSections(width, height, {
       intro,
       footerLines: [
-        buildGuidanceLine(width, '/sandbox presets', 'compare secure, balanced, and shared sandbox operating modes', C),
-        buildGuidanceLine(width, '/sandbox apply-preset <id>', 'change local vs QEMU isolation policy without editing config by hand', C),
+        buildGuidanceLine(width, '/sandbox', 'blocked here; sandbox lifecycle belongs to GoodVibes TUI', C),
+        buildGuidanceLine(width, '/delegate --wrfc <task>', 'delegate explicit sandbox-backed build work to GoodVibes TUI', C),
       ],
       palette: C,
       beforeSections: [
@@ -274,12 +268,12 @@ export class SandboxPanel extends BasePanel {
     ];
 
     const lines = buildPanelWorkspace(width, height, {
-      title: 'Sandbox Control Room',
+      title: 'External Sandbox Boundary',
       intro,
       sections,
       footerLines: [
-        buildGuidanceLine(width, '/sandbox presets', 'compare secure, balanced, and shared sandbox operating modes', C),
-        buildGuidanceLine(width, '/sandbox apply-preset <id>', 'change local vs QEMU isolation policy without editing config by hand', C),
+        buildGuidanceLine(width, '/sandbox', 'blocked here; sandbox lifecycle belongs to GoodVibes TUI', C),
+        buildGuidanceLine(width, '/delegate --wrfc <task>', 'delegate explicit sandbox-backed build work to GoodVibes TUI', C),
       ],
       palette: C,
     });

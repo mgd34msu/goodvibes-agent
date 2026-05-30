@@ -82,7 +82,7 @@ export async function prepareShellCliRuntime(
 
   if (cli.command === 'serve') {
     console.error(`${binary} connects to an already-running GoodVibes daemon and does not start or own daemon lifecycle.`);
-    console.error('Start or manage the daemon from goodvibes-tui/daemon tooling, then run this Agent against it.');
+    console.error('Start or manage the daemon from GoodVibes TUI or your daemon host tooling, then run this Agent against it.');
     process.exit(2);
   }
 

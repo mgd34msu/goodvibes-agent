@@ -208,33 +208,18 @@ describe('OnboardingWizardController', () => {
     }
   });
 
-  test('derives service/autostart and LAN defaults from non-TUI capabilities', () => {
+  test('keeps daemon lifecycle external when capabilities are selected', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
     wizard.setFieldValue('capabilities.browser-access', true);
 
     const request = wizard.buildApplyRequest();
 
-    expect(request.operations).toContainEqual({
-      kind: 'set-config',
-      key: 'service.enabled',
-      value: true,
-    });
-    expect(request.operations).toContainEqual({
-      kind: 'set-config',
-      key: 'service.autostart',
-      value: true,
-    });
-    expect(request.operations).toContainEqual({
-      kind: 'set-config',
-      key: 'service.restartOnFailure',
-      value: true,
-    });
-    expect(request.operations).toContainEqual({
-      kind: 'set-config',
-      key: 'web.hostMode',
-      value: 'network',
-    });
+    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'service.enabled', value: true });
+    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'service.autostart', value: true });
+    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'service.restartOnFailure', value: true });
+    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'danger.daemon', value: true });
+    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'web.hostMode', value: 'network' });
   });
 
   test('maps Cloudflare onboarding fields to config and batch operations', () => {
@@ -257,8 +242,8 @@ describe('OnboardingWizardController', () => {
       if (operation.kind === 'set-config') configValues.set(operation.key, operation.value);
     }
 
-    expect(configValues.get('service.enabled')).toBe(true);
-    expect(configValues.get('service.autostart')).toBe(true);
+    expect(configValues.has('service.enabled')).toBe(false);
+    expect(configValues.has('service.autostart')).toBe(false);
     expect(configValues.get('cloudflare.enabled')).toBe(true);
     expect(configValues.get('cloudflare.accountId')).toBe('account-123');
     expect(configValues.get('cloudflare.apiTokenRef')).toBe('goodvibes://secrets/env/MY_CF_TOKEN');
@@ -347,20 +332,18 @@ describe('OnboardingWizardController', () => {
     expect(networkStep?.fields.map((field) => field.id)).not.toContain('network.service-ip');
   });
 
-  test('keeps the control plane local for webhook-only onboarding', () => {
+  test('does not mutate control-plane or listener posture for webhook-only onboarding', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
     wizard.setFieldValue('capabilities.webhook-events', true);
 
     const request = wizard.buildApplyRequest();
-    expect(request.operations).toContainEqual({ kind: 'set-config', key: 'controlPlane.enabled', value: true });
-    expect(request.operations).toContainEqual({ kind: 'set-config', key: 'controlPlane.hostMode', value: 'local' });
-    expect(request.operations).toContainEqual({ kind: 'set-config', key: 'controlPlane.host', value: '127.0.0.1' });
-    expect(request.operations).toContainEqual({ kind: 'set-config', key: 'controlPlane.allowRemote', value: false });
-    expect(request.operations).toContainEqual({ kind: 'set-config', key: 'httpListener.hostMode', value: 'network' });
+    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('controlPlane.'))).toBe(false);
+    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('httpListener.'))).toBe(false);
+    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'danger.httpListener', value: true });
   });
 
-  test('reopening a webhook-only LAN listener keeps the control plane local', () => {
+  test('reopening a webhook-only LAN listener still does not mutate daemon listener posture', () => {
     const snapshot = makeOnboardingSnapshot({
       bindSettings: {
         daemonEnabled: true,
@@ -385,10 +368,9 @@ describe('OnboardingWizardController', () => {
     wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
 
     const request = wizard.buildApplyRequest();
-    expect(request.operations).toContainEqual({ kind: 'set-config', key: 'controlPlane.hostMode', value: 'local' });
-    expect(request.operations).toContainEqual({ kind: 'set-config', key: 'controlPlane.host', value: '127.0.0.1' });
-    expect(request.operations).toContainEqual({ kind: 'set-config', key: 'controlPlane.allowRemote', value: false });
-    expect(request.operations).toContainEqual({ kind: 'set-config', key: 'httpListener.hostMode', value: 'network' });
+    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('controlPlane.'))).toBe(false);
+    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('httpListener.'))).toBe(false);
+    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'danger.httpListener', value: true });
   });
 
   test('derives per-service custom network hosts when existing enabled hosts differ', () => {
@@ -501,7 +483,7 @@ describe('OnboardingWizardController', () => {
     );
   });
 
-  test('enabling an inbound external surface turns on the HTTP listener', () => {
+  test('enabling an inbound external surface does not turn on the HTTP listener', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
     wizard.setFieldValue('capabilities.external-integrations', true);
@@ -512,17 +494,14 @@ describe('OnboardingWizardController', () => {
 
     expect(request.operations).toContainEqual({
       kind: 'set-config',
-      key: 'danger.httpListener',
+      key: 'surfaces.slack.enabled',
       value: true,
     });
-    expect(request.operations).toContainEqual({
-      kind: 'set-config',
-      key: 'httpListener.hostMode',
-      value: 'network',
-    });
+    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'danger.httpListener', value: true });
+    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('httpListener.'))).toBe(false);
   });
 
-  test('every external surface enables listener posture when selected', () => {
+  test('every external surface keeps listener posture external when selected', () => {
     const surfaceFieldIds = [
       'external-services.ntfy',
       'external-services.webhook',
@@ -539,11 +518,9 @@ describe('OnboardingWizardController', () => {
       wizard.setFieldValue(surfaceFieldId, true);
       wizard.setFieldValue(`${surfaceFieldId}.auto-start`, 'yes');
 
-      expect(wizard.buildApplyRequest().operations).toContainEqual({
-        kind: 'set-config',
-        key: 'danger.httpListener',
-        value: true,
-      });
+      const operations = wizard.buildApplyRequest().operations;
+      expect(operations).not.toContainEqual({ kind: 'set-config', key: 'danger.httpListener', value: true });
+      expect(operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('httpListener.'))).toBe(false);
     }
   });
 
@@ -632,26 +609,26 @@ describe('OnboardingWizardController', () => {
       retireBootstrapCredential: false,
     });
     expect(secretValues.get('OPENAI_API_KEY')).toBe('sk-test-openai');
-    expect(configValues.get('service.enabled')).toBe(true);
-    expect(configValues.get('service.autostart')).toBe(true);
-    expect(configValues.get('service.restartOnFailure')).toBe(true);
-    expect(configValues.get('danger.daemon')).toBe(true);
-    expect(configValues.get('controlPlane.enabled')).toBe(true);
-    expect(configValues.get('danger.httpListener')).toBe(true);
-    expect(configValues.get('web.enabled')).toBe(true);
-    expect(configValues.get('controlPlane.hostMode')).toBe('custom');
-    expect(configValues.get('controlPlane.host')).toBe('10.0.0.10');
-    expect(configValues.get('controlPlane.port')).toBe(4551);
-    expect(configValues.get('controlPlane.allowRemote')).toBe(true);
-    expect(configValues.get('web.hostMode')).toBe('custom');
-    expect(configValues.get('web.host')).toBe('10.0.0.11');
-    expect(configValues.get('web.port')).toBe(4552);
-    expect(configValues.get('httpListener.hostMode')).toBe('custom');
-    expect(configValues.get('httpListener.host')).toBe('10.0.0.12');
-    expect(configValues.get('httpListener.port')).toBe(4553);
+    expect(configValues.has('service.enabled')).toBe(false);
+    expect(configValues.has('service.autostart')).toBe(false);
+    expect(configValues.has('service.restartOnFailure')).toBe(false);
+    expect(configValues.has('danger.daemon')).toBe(false);
+    expect(configValues.has('controlPlane.enabled')).toBe(false);
+    expect(configValues.has('danger.httpListener')).toBe(false);
+    expect(configValues.has('web.enabled')).toBe(false);
+    expect(configValues.has('controlPlane.hostMode')).toBe(false);
+    expect(configValues.has('controlPlane.host')).toBe(false);
+    expect(configValues.has('controlPlane.port')).toBe(false);
+    expect(configValues.has('controlPlane.allowRemote')).toBe(false);
+    expect(configValues.has('web.hostMode')).toBe(false);
+    expect(configValues.has('web.host')).toBe(false);
+    expect(configValues.has('web.port')).toBe(false);
+    expect(configValues.has('httpListener.hostMode')).toBe(false);
+    expect(configValues.has('httpListener.host')).toBe(false);
+    expect(configValues.has('httpListener.port')).toBe(false);
     expect(configValues.get('featureFlags.control-plane-gateway')).toBe('enabled');
     expect(configValues.get('featureFlags.service-management')).toBe('enabled');
-    expect(configValues.get('featureFlags.web-surface')).toBe('enabled');
+    expect(configValues.has('featureFlags.web-surface')).toBe(false);
     expect(configValues.get('featureFlags.route-binding')).toBe('enabled');
     expect(configValues.get('featureFlags.delivery-engine')).toBe('enabled');
     expect(configValues.get('provider.model')).toBe('openai:gpt-5-test');
@@ -1190,7 +1167,7 @@ describe('InputHandler onboarding integration', () => {
     expect(prints).toEqual([]);
   });
 
-  test('keeps the global onboarding check marker when post-apply verification fails', async () => {
+  test('keeps the global onboarding check marker after external-daemon onboarding apply', async () => {
     resetTestRuntimeServices();
     const uiServices = createDefaultUiRuntimeServices();
     const input = makeInput(uiServices);
@@ -1223,10 +1200,11 @@ describe('InputHandler onboarding integration', () => {
 
     const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
     expect(marker.exists).toBe(true);
-    expect(prints.join('\n')).toContain('Network-capable surfaces require local auth with no bootstrap credential file.');
+    expect(prints.join('\n')).toContain('Onboarding applied and verified');
+    expect(prints.join('\n')).not.toContain('Network-capable surfaces require local auth with no bootstrap credential file.');
   });
 
-  test('restarts and verifies background services after the wizard has been checked', async () => {
+  test('keeps daemon lifecycle external after the wizard has been checked', async () => {
     resetTestRuntimeServices();
     const uiServices = createDefaultUiRuntimeServices();
     ensureLocalAdminAuth(uiServices);
@@ -1273,7 +1251,7 @@ describe('InputHandler onboarding integration', () => {
     await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
 
     const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    expect(restarted).toBe(true);
+    expect(restarted).toBe(false);
     expect(marker.exists).toBe(true);
     expect(prints.join('\n')).toContain('Onboarding applied and verified');
   });
@@ -1346,7 +1324,7 @@ describe('InputHandler onboarding integration', () => {
     expect(output).not.toContain('runtime:daemon-active');
   });
 
-  test('keeps the global onboarding check marker when background service activation fails', async () => {
+  test('does not treat external daemon availability as Agent onboarding failure', async () => {
     resetTestRuntimeServices();
     const uiServices = createDefaultUiRuntimeServices();
     ensureLocalAdminAuth(uiServices);
@@ -1389,14 +1367,15 @@ describe('InputHandler onboarding integration', () => {
     await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
 
     const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
+    const output = prints.join('\n');
     expect(marker.exists).toBe(true);
-    expect(prints.join('\n')).toContain('Onboarding settings applied.');
-    expect(prints.join('\n')).not.toContain('Onboarding applied and verified');
-    expect(prints.join('\n')).toContain('GoodVibes daemon is enabled for');
-    expect(prints.join('\n')).toContain('No process is listening');
+    expect(output).toContain('Onboarding applied and verified');
+    expect(output).not.toContain('Onboarding settings applied.');
+    expect(output).not.toContain('GoodVibes daemon is enabled for');
+    expect(output).not.toContain('No process is listening');
   });
 
-  test('reports blocked daemon status reason when an unverified process owns the configured port', async () => {
+  test('does not probe or reject externally owned daemon ports during Agent onboarding', async () => {
     resetTestRuntimeServices();
     const uiServices = createDefaultUiRuntimeServices();
     ensureLocalAdminAuth(uiServices);
@@ -1449,13 +1428,14 @@ describe('InputHandler onboarding integration', () => {
     await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
 
     const output = prints.join('\n');
-    expect(output).toContain('Onboarding settings applied.');
-    expect(output).toContain('could not confirm an embedded or verified external service');
-    expect(output).toContain('identity probe was rejected by the configured token');
-    expect(output).toContain('runtime:daemon-active');
+    expect(output).toContain('Onboarding applied and verified');
+    expect(output).not.toContain('Onboarding settings applied.');
+    expect(output).not.toContain('could not confirm an embedded or verified external service');
+    expect(output).not.toContain('identity probe was rejected by the configured token');
+    expect(output).not.toContain('runtime:daemon-active');
   });
 
-  test('deduplicates runtime activation warnings in completion output', async () => {
+  test('does not emit runtime activation warnings for external listener state', async () => {
     resetTestRuntimeServices();
     const uiServices = createDefaultUiRuntimeServices();
     ensureLocalAdminAuth(uiServices);
@@ -1500,16 +1480,16 @@ describe('InputHandler onboarding integration', () => {
     await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
 
     const output = prints.join('\n');
-    expect(output).toContain('Onboarding settings applied.');
-    expect(output).not.toContain('Onboarding applied and verified');
-    expect(output).toContain('HTTP listener is enabled for');
-    expect(output).toContain('The configured port');
-    expect(output).toContain('is occupied after restart');
-    expect((output.match(/runtime:http-listener-active/g) ?? []).length).toBe(1);
+    expect(output).toContain('Onboarding applied and verified');
+    expect(output).not.toContain('Onboarding settings applied.');
+    expect(output).not.toContain('HTTP listener is enabled for');
+    expect(output).not.toContain('The configured port');
+    expect(output).not.toContain('is occupied after restart');
+    expect((output.match(/runtime:http-listener-active/g) ?? []).length).toBe(0);
     expect(output).not.toContain('not running after onboarding apply');
   });
 
-  test('stops running background services before completing Local TUI Only', async () => {
+  test('keeps running external services untouched before completing local-only Agent mode', async () => {
     resetTestRuntimeServices();
     const uiServices = createDefaultUiRuntimeServices();
     let daemonRunning = true;
@@ -1562,12 +1542,12 @@ describe('InputHandler onboarding integration', () => {
     await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
 
     const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    expect(restarted).toBe(true);
+    expect(restarted).toBe(false);
     expect(marker.exists).toBe(true);
     expect(prints.join('\n')).toContain('Onboarding applied and verified');
   });
 
-  test('keeps the global onboarding check marker when Local TUI Only cannot inspect services', async () => {
+  test('completes local-only Agent mode without inspecting external services', async () => {
     resetTestRuntimeServices();
     const uiServices = createDefaultUiRuntimeServices();
     const input = makeInput(uiServices);
@@ -1603,11 +1583,13 @@ describe('InputHandler onboarding integration', () => {
     await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
 
     const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
+    const output = prints.join('\n');
     expect(marker.exists).toBe(true);
-    expect(prints.join('\n')).toContain('Background service controller is unavailable');
+    expect(output).toContain('Onboarding applied and verified');
+    expect(output).not.toContain('Background service controller is unavailable');
   });
 
-  test('keeps the global onboarding check marker when Local TUI Only cannot stop a running service', async () => {
+  test('does not stop external listeners for local-only Agent mode', async () => {
     resetTestRuntimeServices();
     const uiServices = createDefaultUiRuntimeServices();
     installExternalServices(uiServices, {
@@ -1652,12 +1634,14 @@ describe('InputHandler onboarding integration', () => {
     await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
 
     const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
+    const output = prints.join('\n');
     expect(marker.exists).toBe(true);
-    expect(prints.join('\n')).toContain('HTTP listener was disabled for incoming event surfaces');
-    expect(prints.join('\n')).toContain('is still occupied');
+    expect(output).toContain('Onboarding applied and verified');
+    expect(output).not.toContain('HTTP listener was disabled for incoming event surfaces');
+    expect(output).not.toContain('is still occupied');
   });
 
-  test('keeps the global onboarding check marker when Local TUI Only leaves an external listener port occupied', async () => {
+  test('ignores externally occupied listener ports for local-only Agent mode', async () => {
     resetTestRuntimeServices();
     const uiServices = createDefaultUiRuntimeServices();
     installExternalServices(uiServices, {
@@ -1706,8 +1690,10 @@ describe('InputHandler onboarding integration', () => {
     await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
 
     const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
+    const output = prints.join('\n');
     expect(marker.exists).toBe(true);
-    expect(prints.join('\n')).toContain('HTTP listener was disabled for incoming event surfaces');
-    expect(prints.join('\n')).toContain('is still occupied');
+    expect(output).toContain('Onboarding applied and verified');
+    expect(output).not.toContain('HTTP listener was disabled for incoming event surfaces');
+    expect(output).not.toContain('is still occupied');
   });
 });

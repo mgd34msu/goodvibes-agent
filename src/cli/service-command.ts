@@ -13,7 +13,7 @@ export async function handleServiceCommand(runtime: CliCommandRuntime): Promise<
     };
   }
   if (sub === 'install' || sub === 'start' || sub === 'restart' || sub === 'stop' || sub === 'uninstall') {
-    const text = 'GoodVibes Agent connects to an existing daemon and does not manage daemon lifecycle. Use goodvibes-tui/daemon tooling for service mutations.';
+    const text = 'GoodVibes Agent connects to an existing daemon and does not manage daemon lifecycle. Use GoodVibes TUI or your daemon host tooling for service mutations.';
     return {
       output: json ? JSON.stringify({ ok: false, kind: 'daemon_lifecycle_external', action: sub, error: text }, null, 2) : text,
       exitCode: 2,

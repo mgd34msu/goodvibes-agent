@@ -3,7 +3,7 @@
  * which panels are open, their layout, and focus state.
  */
 
-/** All known panel identifiers in the TUI. */
+/** All known panel identifiers in the terminal shell. */
 export type PanelId =
   | 'main_conversation'
   | 'agent_monitor'

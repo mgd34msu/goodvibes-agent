@@ -78,7 +78,7 @@ export class ControlPlanePanel extends ScrollableListPanel<ControlPlaneClient> {
   protected override getEmptyStateActions(): Array<{ command: string; summary: string }> {
     return [
       { command: '/cockpit', summary: 'watch operator posture from the terminal' },
-      { command: '/schedule list', summary: 'run automation that creates surface and daemon traffic' },
+      { command: '/schedule list', summary: 'inspect externally managed automation without starting jobs here' },
     ];
   }
 

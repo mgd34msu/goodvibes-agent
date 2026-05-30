@@ -114,16 +114,16 @@ export function buildCapabilitiesStep(controller: OnboardingWizardController): O
         kind: 'action',
         id: 'capabilities.select-all',
         action: 'select-all-capabilities',
-        label: 'Select all server-backed capabilities',
-        hint: 'Enable browser access, LAN reachability, webhooks/events, and external app surfaces. Local TUI Only is turned off.',
+        label: 'Review external-daemon capabilities',
+        hint: 'Review browser, LAN, webhooks/events, and external app surfaces without letting Agent own daemon lifecycle.',
         defaultValue: 'Action',
       },
       {
         kind: 'action',
         id: 'capabilities.clear',
         action: 'clear-capabilities',
-        label: 'Use Local TUI Only (No Servers)',
-        hint: 'Clear all server-backed capabilities and keep GoodVibes in this terminal only.',
+        label: 'Keep Agent local-only',
+        hint: 'Clear external-daemon capabilities and keep Agent work in this terminal conversation.',
         defaultValue: 'Action',
       },
     ];
@@ -132,7 +132,7 @@ export function buildCapabilitiesStep(controller: OnboardingWizardController): O
       id: 'capabilities',
       title: 'Choose GoodVibes capabilities',
       shortLabel: 'Capabilities',
-      description: 'Choose what GoodVibes should be able to do. Local TUI Only avoids servers; any other choice enables service mode and autostart.',
+      description: 'Choose what Agent should prepare locally. Daemon-backed capabilities are reviewed as external dependencies; Agent does not enable service mode or autostart.',
       summaryTitle: 'Selected capabilities',
       summaryLines: [
         `${selectedCount}/${capabilities.length} option(s) selected`,
@@ -368,7 +368,7 @@ const SURFACE_AUTO_START_OPTIONS: readonly OnboardingWizardRadioOption[] = [
   {
     id: 'yes',
     label: 'Yes',
-    hint: 'Start this surface automatically when the GoodVibes service starts.',
+    hint: 'Save the surface as enabled; the external daemon/service owner controls actual startup.',
   },
   {
     id: 'no',
@@ -436,23 +436,23 @@ function buildExternalSurfaceStep(
       id: `external-surface:${surface.id}` as OnboardingWizardExternalSurfaceStepId,
       title,
       shortLabel: surface.label.replace(/ surface$/i, ''),
-      description: `Configure ${surface.label}. Settings are saved either way; auto-start controls whether this surface starts with the background service.`,
+      description: `Configure ${surface.label}. Settings are saved either way; Agent does not start or own the background service.`,
       summaryTitle: `${surface.label} setup`,
       summaryLines: [
-        `Auto-start: ${autoStartValue === 'yes' ? 'yes' : 'no'}`,
+        `External activation requested: ${autoStartValue === 'yes' ? 'yes' : 'no'}`,
         ...ntfyTopicSummary,
         setupSummary,
         `Secret policy: ${controller.getStringFieldValue('external-services.secret-policy', controller.runtimeSnapshot?.runtimeDefaults.secretStoragePolicy ?? 'preferred_secure')}`,
         autoStartValue === 'yes'
-          ? 'The surface will be enabled after apply.'
-          : 'Start it later from Settings > Surfaces by turning Enabled on.',
+          ? 'Agent will save the requested enabled state, but daemon lifecycle remains external.'
+          : 'Enable it later from Settings > Surfaces after the external daemon is ready.',
       ],
       fields: [
         {
           kind: 'radio',
           id: autoStartFieldId,
-          label: 'Auto-start this surface',
-          hint: `Yes turns on ${surface.enabledConfigKey}. No saves setup values but keeps the surface off until Settings > Surfaces enables it.`,
+          label: 'Request external activation',
+          hint: `Yes saves ${surface.enabledConfigKey}. No saves setup values but keeps the surface off until Settings > Surfaces enables it.`,
           options: SURFACE_AUTO_START_OPTIONS,
           defaultValue: autoStartDefault,
         },

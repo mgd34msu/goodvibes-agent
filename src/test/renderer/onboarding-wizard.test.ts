@@ -37,7 +37,7 @@ describe('renderOnboardingWizard', () => {
     expect(text).toContain('┌─Onboarding Wizard');
     expect(text).toContain('1. Capabilities');
     expect(text).not.toContain('Capabilit…');
-    expect(text).toContain('Choose what GoodVibes should be able to do.');
+    expect(text).toContain('Choose what Agent should prepare locally.');
   });
 
   test('shows scroll affordances for the field body when the current step exceeds the visible window', () => {
@@ -59,7 +59,7 @@ describe('renderOnboardingWizard', () => {
     const applyLine = textLines.findIndex((line) => line.includes('Apply & Continue To Next Section'));
     let previousActionLine = -1;
     for (let index = 0; index < applyLine; index += 1) {
-      if (textLines[index]?.includes('Use Local TUI Only (No Servers)')) previousActionLine = index;
+      if (textLines[index]?.includes('Keep Agent local-only')) previousActionLine = index;
     }
 
     expect(applyLine).toBeGreaterThan(0);

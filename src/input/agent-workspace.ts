@@ -129,7 +129,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Use this as the Agent front door: chat in the main conversation, inspect state, choose model/provider, and open setup surfaces without switching into coding-TUI behavior.',
     actions: [
       { id: 'chat', label: 'Continue assistant chat', detail: 'Close this workspace and type a normal message. Agent work stays serial in the main conversation.', kind: 'guidance', safety: 'safe' },
-      { id: 'model', label: 'Choose model', detail: 'Open the copied TUI model/provider workspace for the Agent chat route.', command: '/model', kind: 'command', safety: 'safe' },
+      { id: 'model', label: 'Choose model', detail: 'Open the model/provider workspace for the Agent chat route.', command: '/model', kind: 'command', safety: 'safe' },
       { id: 'help', label: 'Browse commands', detail: 'Open registry-driven command help.', command: '/help', kind: 'command', safety: 'safe' },
       { id: 'health', label: 'Review health', detail: 'Show the local health review surface without starting or mutating daemon services.', command: '/health review', kind: 'command', safety: 'read-only' },
     ],
@@ -142,7 +142,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent connects to an external daemon and owns local assistant configuration only. Daemon lifecycle and listener posture remain external.',
     actions: [
       { id: 'config', label: 'Open config workspace', detail: 'Use the TUI-derived fullscreen settings workspace.', command: '/config', kind: 'command', safety: 'safe' },
-      { id: 'onboarding', label: 'Open setup wizard', detail: 'Review Agent runtime settings in the copied onboarding/config style.', command: '/onboarding', kind: 'command', safety: 'safe' },
+      { id: 'onboarding', label: 'Open setup wizard', detail: 'Review Agent runtime settings in the fullscreen setup flow.', command: '/onboarding', kind: 'command', safety: 'safe' },
       { id: 'provider', label: 'Provider status', detail: 'Review provider/model posture.', command: '/provider', kind: 'command', safety: 'read-only' },
       { id: 'auth', label: 'Auth review', detail: 'Review authentication posture without printing token values.', command: '/auth review', kind: 'command', safety: 'read-only' },
     ],
@@ -168,7 +168,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'memory', label: 'Open memory', detail: 'Inspect local/session memory commands and surfaces.', command: '/memory', kind: 'command', safety: 'read-only' },
       { id: 'skills', label: 'Open skills', detail: 'Inspect discovered skills and skill catalog state.', command: '/skills open', kind: 'command', safety: 'read-only' },
-      { id: 'personas', label: 'Personas pending', detail: 'Persona registry UX is still a local Agent product gap after the near-fork baseline.', kind: 'guidance', safety: 'safe' },
+      { id: 'personas', label: 'Persona library', detail: 'Use local Agent personas to shape serial assistant behavior without spawning background agents.', kind: 'guidance', safety: 'safe' },
     ],
   },
   {
@@ -204,7 +204,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'delegate-guidance', label: 'Delegation rule', detail: 'For build/fix/review work, delegate one request to GoodVibes TUI instead of spawning local Engineer/Reviewer/Tester roots.', kind: 'guidance', safety: 'delegates' },
       { id: 'review-command', label: 'Review delegation command', detail: 'Use /review or /wrfc only when the user explicitly asks for code review/build execution.', command: '/review', kind: 'command', safety: 'delegates' },
-      { id: 'remote-policy', label: 'Remote runner policy', detail: 'Remote dispatch/rerun copied from TUI is blocked in Agent; TUI owns runner topology.', command: '/remote dispatch', kind: 'command', safety: 'blocked' },
+      { id: 'remote-policy', label: 'Remote runner policy', detail: 'Remote dispatch/rerun is blocked in Agent; TUI owns runner topology for delegated build work.', command: '/remote dispatch', kind: 'command', safety: 'blocked' },
     ],
   },
 ];

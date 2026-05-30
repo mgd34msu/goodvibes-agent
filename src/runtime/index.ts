@@ -1,9 +1,9 @@
 /**
- * Runtime module barrel for the TUI.
+ * Runtime module barrel for GoodVibes Agent.
  *
  * SDK 0.33 intentionally removed private deep imports and the runtime root
- * god-barrel. This file keeps the TUI on public SDK seams while preserving the
- * local import surface used by the app.
+ * god-barrel. This file keeps the near-fork Agent app on public SDK seams
+ * while preserving the local import surface used by the shell.
  */
 
 import {
@@ -100,8 +100,34 @@ export const synchronizeConfiguredServices = bootstrap.synchronizeConfiguredServ
 export const syncConfiguredServices = bootstrap.synchronizeConfiguredServices;
 export const registerBootstrapRuntimeEvents = bootstrap.registerBootstrapRuntimeEvents;
 export const registerHostRuntimeEvents = bootstrap.registerHostRuntimeEvents;
-export const startHostServices = bootstrap.startHostServices;
-export const startExternalServices = bootstrap.startHostServices;
+function agentExternalHostStatus(
+  config: Bootstrap.HostServicesConfig,
+  service: 'daemon' | 'httpListener',
+): Bootstrap.HostServiceStatus {
+  const hostKey = service === 'daemon' ? 'controlPlane.host' : 'httpListener.host';
+  const portKey = service === 'daemon' ? 'controlPlane.port' : 'httpListener.port';
+  const host = String(config.get(hostKey) ?? '127.0.0.1');
+  const port = Number(config.get(portKey) ?? (service === 'daemon' ? 3421 : 3422));
+  return {
+    mode: service === 'daemon' ? 'external' : 'disabled',
+    host,
+    port,
+    baseUrl: `http://${host}:${port}`,
+    reason: service === 'daemon'
+      ? 'GoodVibes Agent connects to an externally managed GoodVibes daemon and does not start or restart it.'
+      : 'GoodVibes Agent does not own the HTTP listener lifecycle.',
+  };
+}
+
+export const startHostServices: typeof bootstrap.startHostServices = async (config) => ({
+  daemonServer: null,
+  httpListener: null,
+  daemonStatus: agentExternalHostStatus(config, 'daemon'),
+  httpListenerStatus: agentExternalHostStatus(config, 'httpListener'),
+  listRecentControlPlaneEvents: () => [],
+  async stop(): Promise<void> {},
+});
+export const startExternalServices = startHostServices;
 export const registerBootstrapHookBridge = bootstrap.registerBootstrapHookBridge;
 export const createDeferredStartupCoordinator = bootstrap.createDeferredStartupCoordinator;
 export const shutdownRuntime = bootstrap.shutdownRuntime;

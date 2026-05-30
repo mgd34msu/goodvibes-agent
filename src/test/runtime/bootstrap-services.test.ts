@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
-import { RuntimeEventBus } from '@/runtime/index.ts';
+import { RuntimeEventBus, startExternalServices } from '@/runtime/index.ts';
 import { HookDispatcher } from '@pellux/goodvibes-sdk/platform/hooks';
-import { startExternalServices } from '@/runtime/index.ts';
 import { getTestRuntimeServices } from '../helpers/runtime-services.ts';
 
 function createConfig(overrides: {
@@ -43,55 +42,7 @@ describe('startExternalServices', () => {
     runtimeServices = getTestRuntimeServices();
   });
 
-  test('starts both daemon and HTTP listener when enabled', async () => {
-    const daemonStart = mock(async () => {});
-    const daemonStop = mock(async () => {});
-    const daemonEnable = mock(() => true);
-    const listenerStart = mock(async () => {});
-    const listenerStop = mock(async () => {});
-    const listenerEnable = mock(() => true);
-    const daemonFactory = mock((_bus: RuntimeEventBus, _userAuth: object) => ({
-      enable: daemonEnable,
-      start: daemonStart,
-      stop: daemonStop,
-      listRecentControlPlaneEvents: mock(() => []),
-    }));
-    const listenerFactory = mock((_dispatcher: HookDispatcher, _userAuth: object) => ({
-      enable: listenerEnable,
-      start: listenerStart,
-      stop: listenerStop,
-    }));
-
-    const services = await startExternalServices(
-      createConfig({ daemon: true, httpListener: true }),
-      runtimeBus,
-      hookDispatcher,
-      runtimeServices,
-      {
-        createDaemonServer: daemonFactory,
-        createHttpListener: listenerFactory,
-        probeDaemonPortInUse: async () => false,
-        probeHttpListenerPortInUse: async () => false,
-      },
-    );
-
-    expect(daemonFactory).toHaveBeenCalledTimes(1);
-    expect(listenerFactory).toHaveBeenCalledTimes(1);
-    expect(daemonFactory.mock.calls[0]?.[1]).toBe(listenerFactory.mock.calls[0]?.[1]);
-    // sharedDaemonToken / sharedHttpListenerToken default to undefined when
-    // not provided in factories; enable(config, token?) is now called with
-    // the token argument explicitly.
-    expect(daemonEnable).toHaveBeenCalledWith({ daemon: true }, undefined);
-    expect(daemonStart).toHaveBeenCalled();
-    expect(listenerEnable).toHaveBeenCalledWith({ httpListener: true }, undefined);
-    expect(listenerStart).toHaveBeenCalled();
-
-    await services.stop();
-    expect(daemonStop).toHaveBeenCalled();
-    expect(listenerStop).toHaveBeenCalled();
-  });
-
-  test('does not start disabled services', async () => {
+  test('does not start embedded daemon or listener even when legacy flags are enabled', async () => {
     const daemonFactory = mock(() => ({
       enable: mock(() => true),
       start: mock(async () => {}),
@@ -103,147 +54,39 @@ describe('startExternalServices', () => {
       start: mock(async () => {}),
       stop: mock(async () => {}),
     }));
+    const probeDaemonPortInUse = mock(async () => false);
+    const probeHttpListenerPortInUse = mock(async () => false);
 
     const services = await startExternalServices(
-      createConfig(),
+      createConfig({ daemon: true, httpListener: true }),
       runtimeBus,
       hookDispatcher,
       runtimeServices,
       {
         createDaemonServer: daemonFactory,
         createHttpListener: listenerFactory,
+        probeDaemonPortInUse,
+        probeHttpListenerPortInUse,
       },
     );
 
     expect(daemonFactory).not.toHaveBeenCalled();
     expect(listenerFactory).not.toHaveBeenCalled();
+    expect(probeDaemonPortInUse).not.toHaveBeenCalled();
+    expect(probeHttpListenerPortInUse).not.toHaveBeenCalled();
     expect(services.daemonServer).toBeNull();
     expect(services.httpListener).toBeNull();
+    expect(services.daemonStatus.mode).toBe('external');
+    expect(services.httpListenerStatus.mode).toBe('disabled');
+    expect(services.daemonStatus.reason).toContain('externally managed GoodVibes daemon');
+    expect(services.httpListenerStatus.reason).toContain('does not own the HTTP listener lifecycle');
+
+    await services.stop();
+    expect(services.listRecentControlPlaneEvents()).toEqual([]);
   });
 
-  test('continues boot when daemon port is already in use', async () => {
-    const listenerStart = mock(async () => {});
+  test('reports configured external daemon endpoint without binding ports', async () => {
     const services = await startExternalServices(
-      createConfig({ daemon: true, httpListener: true }),
-      runtimeBus,
-      hookDispatcher,
-      runtimeServices,
-      {
-        probeDaemonPortInUse: async () => false,
-        probeHttpListenerPortInUse: async () => false,
-        createDaemonServer: () => ({
-          enable: mock(() => true),
-          start: mock(async () => {
-            throw new Error('listen EADDRINUSE: Address already in use 127.0.0.1:3421');
-          }),
-          stop: mock(async () => {}),
-          listRecentControlPlaneEvents: mock(() => []),
-        }),
-        createHttpListener: () => ({
-          enable: mock(() => true),
-          start: listenerStart,
-          stop: mock(async () => {}),
-        }),
-      },
-    );
-
-    expect(services.daemonServer).toBeNull();
-    expect(services.httpListener).not.toBeNull();
-    expect(listenerStart).toHaveBeenCalled();
-  });
-
-  test('continues boot when listener port is already in use', async () => {
-    const daemonStart = mock(async () => {});
-    const services = await startExternalServices(
-      createConfig({ daemon: true, httpListener: true }),
-      runtimeBus,
-      hookDispatcher,
-      runtimeServices,
-      {
-        probeDaemonPortInUse: async () => false,
-        probeHttpListenerPortInUse: async () => false,
-        createDaemonServer: () => ({
-          enable: mock(() => true),
-          start: daemonStart,
-          stop: mock(async () => {}),
-          listRecentControlPlaneEvents: mock(() => []),
-        }),
-        createHttpListener: () => ({
-          enable: mock(() => true),
-          start: mock(async () => {
-            throw new Error('listen EADDRINUSE: Address already in use 127.0.0.1:3422');
-          }),
-          stop: mock(async () => {}),
-        }),
-      },
-    );
-
-    expect(services.daemonServer).not.toBeNull();
-    expect(services.httpListener).toBeNull();
-    expect(daemonStart).toHaveBeenCalled();
-  });
-
-  test('skips daemon startup when another process already owns the default port', async () => {
-    const daemonStart = mock(async () => {});
-    const services = await startExternalServices(
-      createConfig({ daemon: true }),
-      runtimeBus,
-      hookDispatcher,
-      runtimeServices,
-      {
-        probeDaemonPortInUse: async () => true,
-        createDaemonServer: () => ({
-          enable: mock(() => true),
-          start: daemonStart,
-          stop: mock(async () => {}),
-          listRecentControlPlaneEvents: mock(() => []),
-        }),
-      },
-    );
-
-    expect(services.daemonServer).toBeNull();
-    expect(daemonStart).not.toHaveBeenCalled();
-  });
-
-  test('continues boot when daemon startup hangs', async () => {
-    const daemonStart = mock(async () => {
-      await new Promise(() => {});
-    });
-    const listenerStart = mock(async () => {});
-
-    const services = await startExternalServices(
-      createConfig({ daemon: true, httpListener: true }),
-      runtimeBus,
-      hookDispatcher,
-      runtimeServices,
-      {
-        startupTimeoutMs: 20,
-        probeDaemonPortInUse: async () => false,
-        probeHttpListenerPortInUse: async () => false,
-        createDaemonServer: () => ({
-          enable: mock(() => true),
-          start: daemonStart,
-          stop: mock(async () => {}),
-          listRecentControlPlaneEvents: mock(() => []),
-        }),
-        createHttpListener: () => ({
-          enable: mock(() => true),
-          start: listenerStart,
-          stop: mock(async () => {}),
-        }),
-      },
-    );
-
-    expect(services.daemonServer).toBeNull();
-    expect(services.httpListener).not.toBeNull();
-    expect(listenerStart).toHaveBeenCalled();
-  });
-
-  test('uses configured hosts and ports when probing service bindings', async () => {
-    const probeDaemonPortInUse = mock(async () => false);
-    const probeHttpListenerPortInUse = mock(async () => false);
-
-    await startExternalServices(
       createConfig({
         daemon: true,
         httpListener: true,
@@ -255,26 +98,42 @@ describe('startExternalServices', () => {
       runtimeBus,
       hookDispatcher,
       runtimeServices,
-      {
-        probeDaemonPortInUse,
-        probeHttpListenerPortInUse,
-        createDaemonServer: () => ({
-          enable: mock(() => true),
-          start: mock(async () => {}),
-          stop: mock(async () => {}),
-          listRecentControlPlaneEvents: mock(() => []),
-        }),
-        createHttpListener: () => ({
-          enable: mock(() => true),
-          start: mock(async () => {}),
-          stop: mock(async () => {}),
-        }),
-      },
     );
 
-    expect(probeDaemonPortInUse).toHaveBeenCalledTimes(1);
-    expect(probeHttpListenerPortInUse).toHaveBeenCalledTimes(1);
-    expect(probeDaemonPortInUse).toHaveBeenCalledWith('0.0.0.0', 4444);
-    expect(probeHttpListenerPortInUse).toHaveBeenCalledWith('0.0.0.0', 5555);
+    expect(services.daemonStatus).toMatchObject({
+      mode: 'external',
+      host: '0.0.0.0',
+      port: 4444,
+      baseUrl: 'http://0.0.0.0:4444',
+    });
+    expect(services.httpListenerStatus).toMatchObject({
+      mode: 'disabled',
+      host: '0.0.0.0',
+      port: 5555,
+      baseUrl: 'http://0.0.0.0:5555',
+    });
+  });
+
+  test('runtime hook dispatcher does not configure local agent hook spawning', async () => {
+    runtimeServices.hookDispatcher.clear();
+    runtimeServices.hookDispatcher.register('Pre:tool:read', {
+      match: 'read',
+      type: 'agent',
+      prompt: 'spawn a background checker',
+    });
+
+    const result = await runtimeServices.hookDispatcher.fire({
+      path: 'Pre:tool:read',
+      phase: 'Pre',
+      category: 'tool',
+      specific: 'read',
+      sessionId: 'session-agent-hook-block',
+      timestamp: Date.now(),
+      payload: {},
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('agent hook runner is not configured');
+    expect(runtimeServices.agentManager.list()).toHaveLength(0);
   });
 });

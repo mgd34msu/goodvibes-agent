@@ -20,14 +20,6 @@ import type { OnboardingWizardController } from './onboarding-wizard.ts';
 
 export function buildOnboardingApplyRequest(controller: OnboardingWizardController): OnboardingApplyRequest {
     const operations: OnboardingApplyOperation[] = [];
-    const hasServers = controller.hasServerCapabilitiesSelected();
-    const browserAccess = controller.shouldEnableBrowserSurface();
-    const httpListener = controller.shouldEnableHttpListener();
-    const httpListenerNetworkFields = controller.shouldExposeHttpListenerNetworkFields();
-    const controlPlaneRemote = controller.shouldExposeControlPlaneNetwork();
-    const networkMode = controller.getStringFieldValue('network.mode', controller.runtimeDerived.step1_5NetworkMode);
-    const customNetwork = hasServers && networkMode === 'custom';
-
     const setConfig = (
       key: Extract<OnboardingApplyOperation, { kind: 'set-config' }>['key'],
       value: unknown,
@@ -82,30 +74,9 @@ export function buildOnboardingApplyRequest(controller: OnboardingWizardControll
       });
     }
 
-    setConfig('service.enabled', hasServers);
-    setConfig('service.autostart', hasServers);
-    setConfig('service.restartOnFailure', true);
-    setConfig('danger.daemon', hasServers);
-    setConfig('controlPlane.enabled', hasServers);
-    setConfig('danger.httpListener', httpListener);
-    setConfig('web.enabled', browserAccess);
-
-    if (hasServers) {
-      addNetworkOperations(controller, operations, customNetwork, {
-        controlPlane: hasServers,
-        controlPlaneRemote,
-        httpListener: httpListenerNetworkFields,
-        web: browserAccess,
-      });
-    } else {
-      setConfig('controlPlane.hostMode', 'local');
-      setConfig('controlPlane.host', controller.runtimeSnapshot?.bindSettings.controlPlane.host || '127.0.0.1');
-      setConfig('controlPlane.allowRemote', false);
-      setConfig('httpListener.hostMode', 'local');
-      setConfig('httpListener.host', controller.runtimeSnapshot?.bindSettings.httpListener.host || '127.0.0.1');
-      setConfig('web.hostMode', 'local');
-      setConfig('web.host', controller.runtimeSnapshot?.bindSettings.web.host || '127.0.0.1');
-    }
+    // GoodVibes Agent consumes an externally managed daemon. Onboarding must not
+    // enable, disable, bind, expose, start, stop, or restart daemon/listener/web
+    // lifecycle settings; provider/auth/local Agent state is the owned surface.
 
     const defaultModel = controller.modelSelectionState.get('main');
     if (defaultModel && defaultModel.enabled !== false && defaultModel.providerId.length > 0 && defaultModel.modelId.length > 0) {
@@ -161,8 +132,8 @@ export function buildOnboardingApplyRequest(controller: OnboardingWizardControll
       }
     }
     enableFeatureFlags(getServerSurfaceFeatureFlags({
-      serverBacked: hasServers,
-      web: browserAccess,
+      serverBacked: false,
+      web: false,
       externalSurfaces: enabledExternalSurfaceIds,
     }));
 

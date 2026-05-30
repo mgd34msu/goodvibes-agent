@@ -12,7 +12,7 @@ type RemoteCancelAcpManager = Pick<ReturnType<typeof requireAcpManager>, 'cancel
 
 function printRemoteDelegationBoundary(ctx: Pick<CommandContext, 'print'>, requestedAction: string): void {
   ctx.print([
-    'GoodVibes Agent does not dispatch remote/local coding runners from copied TUI commands.',
+    'GoodVibes Agent does not dispatch remote/local coding runners from this surface.',
     `  requested: ${requestedAction}`,
     '  policy: keep ordinary work serial in the main assistant conversation',
     '  build/fix/review: delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract',

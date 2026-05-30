@@ -20,4 +20,4 @@ Important baseline constraints:
 - Normal assistant chat is not coding-session delegation.
 - Build/fix/review delegation to GoodVibes TUI must be explicit; WRFC is not the default Agent behavior.
 
-Copied TUI docs that remain in the source tree are reference material during the near-fork baseline. They are not product-ready Agent docs unless they are listed above.
+TUI-derived docs that remain outside this package-facing set are reference material during the near-fork foundation work. The Agent docs above define the supported alpha behavior.

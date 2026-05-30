@@ -13,8 +13,8 @@ describe('SandboxPanel', () => {
   beforeEach(() => {
     const root = mkdtempSync(join(tmpdir(), 'gv-sandbox-panel-'));
     sessions = new SandboxSessionRegistry(root);
-    config = new ConfigManager({ surfaceRoot: 'tui',
-      configDir: join(root, '.goodvibes', 'tui'),
+    config = new ConfigManager({ surfaceRoot: 'agent',
+      configDir: join(root, '.goodvibes', 'agent'),
       workingDir: root,
     });
     config.set('sandbox.replIsolation', 'shared-vm');
@@ -29,12 +29,13 @@ describe('SandboxPanel', () => {
     config.set('sandbox.qemuGuestUser', 'goodvibes');
     const panel = new SandboxPanel(config, sessions);
     const text = panel.render(100, 36).flat().map((cell) => cell.char).join('');
-    expect(text).toContain('Sandbox Control Room');
+    expect(text).toContain('External Sandbox Boundary');
     expect(text).toContain('Sandbox posture');
     expect(text).toContain('shared-vm');
     expect(text).toContain('guest host');
     expect(text).toContain('127.0.0.1');
-    expect(text).toContain('/sandbox wrapper-test <profile>');
+    expect(text).toContain('GoodVibes TUI');
+    expect(text).toContain('/delegate --wrfc <task>');
     expect(text).toContain('Sessions');
     expect(text).toContain('eval-py');
   });
