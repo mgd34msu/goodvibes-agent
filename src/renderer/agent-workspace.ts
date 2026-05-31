@@ -134,6 +134,7 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: `Runtime profile root: ${snapshot.runtimeProfileRoot}`, fg: PALETTE.muted },
       { text: `Config profiles: ${snapshot.configProfileCount}`, fg: PALETTE.info },
       { text: 'Named runtime profiles isolate Agent-local config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
+      { text: 'Starter templates: household, research, travel, operations, personal-productivity.', fg: PALETTE.info },
       { text: 'The external daemon remains shared unless the daemon host is configured separately.', fg: PALETTE.warn },
       { text: 'Portable bundles require explicit export/import commands with real paths and --yes.', fg: PALETTE.muted },
     );

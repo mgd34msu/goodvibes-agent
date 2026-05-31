@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
+import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 
 async function runProfilesCli(args: readonly string[], homeDirectory: string) {
   const output: string[] = [];
@@ -76,5 +77,34 @@ describe('profiles CLI command', () => {
     const parsed = JSON.parse(result.output) as { ok?: unknown; kind?: unknown };
     expect(parsed.ok).toBe(true);
     expect(parsed.kind).toBe('agent.profiles.list');
+  });
+
+  test('lists starter templates and creates a seeded profile', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-starter-'));
+    const templates = await runProfilesCli(['profiles', 'templates'], home);
+    expect(templates.result.exitCode).toBe(0);
+    expect(templates.output).toContain('household');
+    expect(templates.output).toContain('personal-productivity');
+
+    const created = await runProfilesCli(['profiles', 'create', 'research-lab', '--template', 'research', '--yes'], home);
+    expect(created.result.exitCode).toBe(0);
+    expect(created.output).toContain('starter: research');
+    expect(created.output).toContain('seeded: 1 persona, 2 skills, 1 routine');
+
+    const skillRegistry = new AgentSkillRegistry(join(home, '.goodvibes', 'agent', 'profile-homes', 'research-lab', '.goodvibes', 'agent', 'skills', 'skills.json'));
+    expect(skillRegistry.snapshot().enabledSkills.map((skill) => skill.name)).toContain('Source-grounded Brief');
+
+    const listed = await runProfilesCli(['profiles', 'list'], home);
+    expect(listed.output).toContain('starter=research');
+
+    const shown = await runProfilesCli(['profiles', 'show', 'research-lab'], home);
+    expect(shown.output).toContain('starter: research');
+  });
+
+  test('rejects unknown starter templates before writing profile records', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-starter-error-'));
+    const result = await runProfilesCli(['profiles', 'create', 'bad', '--template', 'unknown', '--yes'], home);
+    expect(result.result.exitCode).toBe(2);
+    expect(result.output).toContain('Unknown Agent starter profile template');
   });
 });

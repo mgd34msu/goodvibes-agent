@@ -7,10 +7,14 @@ import {
   createAgentRuntimeProfile,
   deleteAgentRuntimeProfile,
   getAgentRuntimeProfilesRoot,
+  listAgentRuntimeProfileTemplates,
   listAgentRuntimeProfiles,
   normalizeAgentRuntimeProfileId,
   resolveAgentRuntimeProfileHome,
 } from '../../agent/runtime-profile.ts';
+import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
+import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 
 function makeHome(): string {
   return mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-home-'));
@@ -47,5 +51,30 @@ describe('Agent runtime profiles', () => {
     expect(deleteAgentRuntimeProfile(home, 'household')).toBe(true);
     expect(deleteAgentRuntimeProfile(home, 'household')).toBe(false);
     expect(listAgentRuntimeProfiles(home)).toEqual([]);
+  });
+
+  test('lists curated starter profile templates', () => {
+    const ids = listAgentRuntimeProfileTemplates().map((template) => template.id);
+    expect(ids).toEqual(['household', 'research', 'travel', 'operations', 'personal-productivity']);
+  });
+
+  test('creates a profile from a starter template with local persona skills and routine', () => {
+    const home = makeHome();
+    const created = createAgentRuntimeProfile(home, 'Ops', { templateId: 'operations' });
+    expect(created.id).toBe('ops');
+    expect(created.starterTemplateId).toBe('operations');
+    expect(created.starterTemplateApplication?.personaIds).toEqual(['operations-lead']);
+    expect(created.starterTemplateApplication?.skillIds).toContain('incident-intake');
+    expect(created.starterTemplateApplication?.routineIds).toEqual(['daily-operations-sweep']);
+
+    const persona = new AgentPersonaRegistry(join(created.homeDirectory, '.goodvibes', 'agent', 'personas', 'personas.json')).snapshot();
+    const skills = new AgentSkillRegistry(join(created.homeDirectory, '.goodvibes', 'agent', 'skills', 'skills.json')).snapshot();
+    const routines = new AgentRoutineRegistry(join(created.homeDirectory, '.goodvibes', 'agent', 'routines', 'routines.json')).snapshot();
+    expect(persona.activePersona?.name).toBe('Operations Lead');
+    expect(skills.enabledSkills.map((skill) => skill.name)).toContain('Incident Intake');
+    expect(routines.enabledRoutines.map((routine) => routine.name)).toContain('Daily Operations Sweep');
+
+    const listed = listAgentRuntimeProfiles(home);
+    expect(listed[0]?.starterTemplateId).toBe('operations');
   });
 });

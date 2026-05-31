@@ -227,6 +227,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/profilesync list');
     expect(output).toContain('/profilesync export <path> --yes');
     expect(output).toContain('/setup transfer export <path> --yes');
+    expect(output).toContain('Starter templates: household, research, travel, operations, personal-productivity.');
     expect(output).toContain('external daemon remains shared');
   });
 

@@ -1,8 +1,11 @@
 import {
   createAgentRuntimeProfile,
   deleteAgentRuntimeProfile,
+  isAgentRuntimeProfileTemplateId,
   listAgentRuntimeProfiles,
+  listAgentRuntimeProfileTemplates,
   resolveAgentRuntimeProfileHome,
+  type AgentRuntimeProfileTemplateId,
   type AgentRuntimeProfileCommandResult,
   type AgentRuntimeProfileInfo,
 } from '../agent/runtime-profile.ts';
@@ -26,26 +29,68 @@ function commandValues(args: readonly string[]): readonly string[] {
   return values;
 }
 
+function flagValue(args: readonly string[], names: readonly string[]): string | null {
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index]!;
+    for (const name of names) {
+      if (token === name) {
+        const next = args[index + 1];
+        return next && !next.startsWith('--') ? next : null;
+      }
+      if (token.startsWith(`${name}=`)) return token.slice(name.length + 1);
+    }
+  }
+  return null;
+}
+
+function parseTemplate(args: readonly string[]): AgentRuntimeProfileTemplateId | undefined {
+  const raw = flagValue(args, ['--template', '--starter']);
+  if (!raw || raw === 'blank') return undefined;
+  const normalized = raw.trim().toLowerCase().replace(/_/g, '-');
+  if (isAgentRuntimeProfileTemplateId(normalized)) return normalized;
+  throw new Error(`Unknown Agent starter profile template: ${raw}. Use profiles templates to list starters.`);
+}
+
 function profileLine(profile: AgentRuntimeProfileInfo): string {
   const created = profile.createdAt ? ` created=${profile.createdAt}` : '';
-  return `  ${profile.id}  home=${profile.homeDirectory}${created}`;
+  const starter = profile.starterTemplateId ? ` starter=${profile.starterTemplateId}` : '';
+  return `  ${profile.id}  home=${profile.homeDirectory}${created}${starter}`;
 }
 
 function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string {
   if (!result.ok) return result.error ?? 'Agent profile command failed.';
   if (result.kind === 'agent.profiles.list') {
     const profiles = result.data?.profiles ?? [];
-    if (profiles.length === 0) return 'No Agent runtime profiles. Use: goodvibes-agent profiles create <name> --yes';
+    if (profiles.length === 0) return 'No Agent runtime profiles. Use: goodvibes-agent profiles create <name> --template <id> --yes';
     return [
       `Agent runtime profiles (${profiles.length})`,
       ...profiles.map(profileLine),
     ].join('\n');
   }
+  if (result.kind === 'agent.profiles.templates') {
+    const templates = result.data?.templates ?? [];
+    return [
+      `Agent starter profile templates (${templates.length})`,
+      ...templates.map((template) => [
+        `  ${template.id}  ${template.name}`,
+        `    ${template.description}`,
+        `    persona: ${template.personaName}`,
+        `    skills: ${template.skillNames.join(', ')}`,
+        `    routines: ${template.routineNames.join(', ')}`,
+      ].join('\n')),
+      'Use: goodvibes-agent profiles create <name> --template <id> --yes',
+    ].join('\n');
+  }
   const profile = result.data?.profile;
   if (result.kind === 'agent.profiles.create' && profile) {
+    const template = result.data?.appliedTemplate;
     return [
       `Agent runtime profile created: ${profile.id}`,
       `  home: ${profile.homeDirectory}`,
+      ...(template ? [
+        `  starter: ${template.id} (${template.name})`,
+        `  seeded: ${template.personaIds.length} persona, ${template.skillIds.length} skills, ${template.routineIds.length} routine`,
+      ] : []),
       `  use: ${result.data?.nextCommand ?? `goodvibes-agent --agent-profile ${profile.id}`}`,
     ].join('\n');
   }
@@ -77,6 +122,18 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
       };
     }
 
+    if (sub === 'templates' || sub === 'starters') {
+      const result: AgentRuntimeProfileCommandResult = {
+        ok: true,
+        kind: 'agent.profiles.templates',
+        data: { templates: listAgentRuntimeProfileTemplates() },
+      };
+      return {
+        output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+        exitCode: 0,
+      };
+    }
+
     if (sub === 'show' || sub === 'path' || sub === 'home') {
       const name = values[0];
       if (!name) {
@@ -91,12 +148,14 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
         };
       }
       const profile = resolveAgentRuntimeProfileHome(runtime.homeDirectory, name);
+      const info = listAgentRuntimeProfiles(runtime.homeDirectory).find((entry) => entry.id === profile.id) ?? { ...profile, createdAt: null };
       const result: AgentRuntimeProfileCommandResult = {
         ok: true,
         kind: 'agent.profiles.show',
-        data: { profile: { ...profile, createdAt: null } },
+        data: { profile: info },
       };
-      const text = [`Agent runtime profile: ${profile.id}`, `  home: ${profile.homeDirectory}`, `  use: goodvibes-agent --agent-profile ${profile.id}`].join('\n');
+      const starter = info.starterTemplateId ? [`  starter: ${info.starterTemplateId} (${info.starterTemplateName ?? info.starterTemplateId})`] : [];
+      const text = [`Agent runtime profile: ${profile.id}`, `  home: ${profile.homeDirectory}`, ...starter, `  use: goodvibes-agent --agent-profile ${profile.id}`].join('\n');
       return {
         output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(result, null, 2) : text,
         exitCode: 0,
@@ -109,7 +168,7 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
         const result: AgentRuntimeProfileCommandResult = {
           ok: false,
           kind: 'agent.profiles.error',
-          error: 'Usage: goodvibes-agent profiles create <name> --yes',
+          error: 'Usage: goodvibes-agent profiles create <name> [--template <id>] --yes',
         };
         return {
           output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
@@ -127,12 +186,14 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
           exitCode: 2,
         };
       }
-      const profile = createAgentRuntimeProfile(runtime.homeDirectory, name);
+      const templateId = parseTemplate(rawRest);
+      const profile = createAgentRuntimeProfile(runtime.homeDirectory, name, { templateId });
       const result: AgentRuntimeProfileCommandResult = {
         ok: true,
         kind: 'agent.profiles.create',
         data: {
           profile,
+          appliedTemplate: profile.starterTemplateApplication,
           nextCommand: `goodvibes-agent --agent-profile ${profile.id}`,
         },
       };
@@ -188,7 +249,7 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
     const result: AgentRuntimeProfileCommandResult = {
       ok: false,
       kind: 'agent.profiles.error',
-      error: 'Usage: goodvibes-agent profiles [list|show <name>|create <name> --yes|delete <name> --yes]',
+      error: 'Usage: goodvibes-agent profiles [list|templates|show <name>|create <name> [--template <id>] --yes|delete <name> --yes]',
     };
     return {
       output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
