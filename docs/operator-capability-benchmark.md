@@ -57,7 +57,7 @@ Primary sources used for the benchmark:
 | Tools/MCP | Broad toolsets, MCP, browser, media, terminal, files | GoodVibes SDK tools with Agent policy guards and MCP/provider integrations |
 | Voice/media/canvas/nodes | Voice, TTS, mobile nodes, live canvas, browser automation | GoodVibes media/voice/browser/node primitives with an Agent workspace for setup, image input, browser posture, MCP, and remote/node inspection |
 | Build/code work | Direct terminal/file/code tools and subagents | Explicit delegation to GoodVibes TUI; local WRFC/spawn fanout blocked |
-| Profiles | Independent profiles with own config/memory/skills/gateway | `GOODVIBES_AGENT_HOME` and named `--agent-profile` homes isolate Agent-local state; starter templates seed local personas/skills/routines; the Agent workspace exposes profile and portability flows; daemon remains external |
+| Profiles | Independent profiles with own config/memory/skills/gateway | `GOODVIBES_AGENT_HOME` and named `--agent-profile` homes isolate Agent-local state; starter templates seed local personas/skills/routines; starter JSON can be exported/imported for local custom lanes; the Agent workspace exposes profile and portability flows; daemon remains external |
 | Security | DM pairing, approvals, sandboxing, allowlists | Daemon approvals, auth diagnostics, secret refs, confirmation gates, model-tool policy |
 
 ## Exceed Targets
@@ -75,7 +75,7 @@ GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true fr
 
 - Live daemon account health and last delivery errors in the Channels workspace once a stable read-only route is available.
 - Artifact and multimodal Agent Knowledge ingest affordances once Agent-specific routes are stable.
-- Custom starter profile authoring/import for teams and repeatable operator lanes.
+- Guided starter profile authoring inside the fullscreen Agent workspace.
 - Artifact and multimodal Agent Knowledge ingestion when the isolated Agent route accepts artifact-backed media.
 - Delegation receipts and artifact review inside the operator workspace.
 - Approval center with route risk labels and saved policy presets.

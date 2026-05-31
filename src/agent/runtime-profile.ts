@@ -1,11 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { AgentPersonaRegistry } from './persona-registry.ts';
 import { AgentRoutineRegistry } from './routine-registry.ts';
 import { AgentSkillRegistry } from './skill-registry.ts';
 
-export type AgentRuntimeProfileTemplateId = 'household' | 'research' | 'travel' | 'operations' | 'personal-productivity';
+export type AgentRuntimeProfileTemplateId = string;
+export type AgentRuntimeProfileTemplateSource = 'builtin' | 'local';
 
 export interface AgentRuntimeProfileTemplateSummary {
   readonly id: AgentRuntimeProfileTemplateId;
@@ -14,6 +15,8 @@ export interface AgentRuntimeProfileTemplateSummary {
   readonly personaName: string;
   readonly skillNames: readonly string[];
   readonly routineNames: readonly string[];
+  readonly source: AgentRuntimeProfileTemplateSource;
+  readonly path?: string;
 }
 
 export interface AgentRuntimeProfileResolution {
@@ -31,6 +34,7 @@ export interface AgentRuntimeProfileInfo extends AgentRuntimeProfileResolution {
 export interface AgentRuntimeProfileTemplateApplication {
   readonly id: AgentRuntimeProfileTemplateId;
   readonly name: string;
+  readonly source: AgentRuntimeProfileTemplateSource;
   readonly appliedAt: string;
   readonly personaIds: readonly string[];
   readonly skillIds: readonly string[];
@@ -47,6 +51,8 @@ export interface AgentRuntimeProfileCommandResult {
     | 'agent.profiles.list'
     | 'agent.profiles.show'
     | 'agent.profiles.templates'
+    | 'agent.profiles.template.export'
+    | 'agent.profiles.template.import'
     | 'agent.profiles.create'
     | 'agent.profiles.delete'
     | 'agent.profiles.error';
@@ -55,6 +61,8 @@ export interface AgentRuntimeProfileCommandResult {
     readonly profile?: AgentRuntimeProfileInfo;
     readonly templates?: readonly AgentRuntimeProfileTemplateSummary[];
     readonly appliedTemplate?: AgentRuntimeProfileTemplateApplication;
+    readonly template?: AgentRuntimeProfileTemplateSummary;
+    readonly path?: string;
     readonly nextCommand?: string;
   };
   readonly error?: string;
@@ -87,9 +95,15 @@ interface AgentRuntimeProfileStarterTemplate extends AgentRuntimeProfileTemplate
   }[];
 }
 
+interface AgentRuntimeProfileStarterTemplateFile {
+  readonly version: 1;
+  readonly template: AgentRuntimeProfileStarterTemplate;
+}
+
 const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = [
   {
     id: 'household',
+    source: 'builtin',
     name: 'Household Operator',
     description: 'Coordinate household tasks, home service checks, shared routines, and family logistics.',
     personaName: 'Household Operator',
@@ -149,6 +163,7 @@ const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = [
   },
   {
     id: 'research',
+    source: 'builtin',
     name: 'Research Analyst',
     description: 'Source-grounded research, brief generation, question tracking, and evidence review.',
     personaName: 'Research Analyst',
@@ -208,6 +223,7 @@ const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = [
   },
   {
     id: 'travel',
+    source: 'builtin',
     name: 'Travel Planner',
     description: 'Trip planning, itinerary decisions, packing, local constraints, and travel follow-through.',
     personaName: 'Travel Planner',
@@ -267,6 +283,7 @@ const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = [
   },
   {
     id: 'operations',
+    source: 'builtin',
     name: 'Operations Lead',
     description: 'Operational monitoring, incident triage, approvals, schedules, and service health.',
     personaName: 'Operations Lead',
@@ -325,6 +342,7 @@ const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = [
   },
   {
     id: 'personal-productivity',
+    source: 'builtin',
     name: 'Personal Productivity',
     description: 'Task capture, weekly planning, focus blocks, reminders, and decision hygiene.',
     personaName: 'Personal Productivity Coach',
@@ -408,6 +426,10 @@ export function getAgentRuntimeProfilesRoot(baseHomeDirectory: string): string {
   return join(baseHomeDirectory, '.goodvibes', 'agent', 'profile-homes');
 }
 
+export function getAgentRuntimeProfileTemplatesRoot(baseHomeDirectory: string): string {
+  return join(baseHomeDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'profile-starters');
+}
+
 export function resolveAgentRuntimeProfileHome(baseHomeDirectory: string, profileName: string): AgentRuntimeProfileResolution {
   const id = assertValidAgentRuntimeProfileId(profileName);
   return {
@@ -465,23 +487,16 @@ function profileStorePath(homeDirectory: string, folder: string, file: string): 
 }
 
 export function isAgentRuntimeProfileTemplateId(value: unknown): value is AgentRuntimeProfileTemplateId {
-  return typeof value === 'string' && STARTER_TEMPLATES.some((template) => template.id === value);
+  if (typeof value !== 'string') return false;
+  try {
+    assertValidAgentRuntimeProfileId(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function listAgentRuntimeProfileTemplates(): readonly AgentRuntimeProfileTemplateSummary[] {
-  return STARTER_TEMPLATES.map((template) => ({
-    id: template.id,
-    name: template.name,
-    description: template.description,
-    personaName: template.personaName,
-    skillNames: [...template.skillNames],
-    routineNames: [...template.routineNames],
-  }));
-}
-
-export function getAgentRuntimeProfileTemplate(templateId: AgentRuntimeProfileTemplateId): AgentRuntimeProfileTemplateSummary {
-  const template = STARTER_TEMPLATES.find((entry) => entry.id === templateId);
-  if (!template) throw new Error(`Unknown Agent starter profile template: ${templateId}`);
+function summarizeTemplate(template: AgentRuntimeProfileStarterTemplate): AgentRuntimeProfileTemplateSummary {
   return {
     id: template.id,
     name: template.name,
@@ -489,7 +504,146 @@ export function getAgentRuntimeProfileTemplate(templateId: AgentRuntimeProfileTe
     personaName: template.personaName,
     skillNames: [...template.skillNames],
     routineNames: [...template.routineNames],
+    source: template.source,
+    path: template.path,
   };
+}
+
+function parseStringArray(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean);
+}
+
+function readTemplateTextBlock(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`Starter template ${field} is required.`);
+  return value.trim();
+}
+
+function readTemplateObject(value: unknown, field: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Starter template ${field} must be an object.`);
+  return value as Record<string, unknown>;
+}
+
+function parseTemplateSkill(value: unknown): AgentRuntimeProfileStarterTemplate['skills'][number] {
+  const record = readTemplateObject(value, 'skill');
+  return {
+    name: readTemplateTextBlock(record.name, 'skill.name'),
+    description: readTemplateTextBlock(record.description, 'skill.description'),
+    procedure: readTemplateTextBlock(record.procedure, 'skill.procedure'),
+    triggers: parseStringArray(record.triggers),
+    tags: parseStringArray(record.tags),
+  };
+}
+
+function parseTemplateRoutine(value: unknown): AgentRuntimeProfileStarterTemplate['routines'][number] {
+  const record = readTemplateObject(value, 'routine');
+  return {
+    name: readTemplateTextBlock(record.name, 'routine.name'),
+    description: readTemplateTextBlock(record.description, 'routine.description'),
+    steps: readTemplateTextBlock(record.steps, 'routine.steps'),
+    triggers: parseStringArray(record.triggers),
+    tags: parseStringArray(record.tags),
+  };
+}
+
+function parseStarterTemplate(raw: unknown, source: AgentRuntimeProfileTemplateSource, path?: string): AgentRuntimeProfileStarterTemplate {
+  const file = readTemplateObject(raw, 'file');
+  const templateRecord = readTemplateObject(file.template ?? raw, 'template');
+  const id = assertValidAgentRuntimeProfileId(readTemplateTextBlock(templateRecord.id, 'id'));
+  const personaRecord = readTemplateObject(templateRecord.persona, 'persona');
+  const skills = Array.isArray(templateRecord.skills) ? templateRecord.skills.map(parseTemplateSkill) : [];
+  const routines = Array.isArray(templateRecord.routines) ? templateRecord.routines.map(parseTemplateRoutine) : [];
+  if (skills.length === 0) throw new Error(`Starter template ${id} must include at least one skill.`);
+  if (routines.length === 0) throw new Error(`Starter template ${id} must include at least one routine.`);
+  const persona = {
+    name: readTemplateTextBlock(personaRecord.name, 'persona.name'),
+    description: readTemplateTextBlock(personaRecord.description, 'persona.description'),
+    body: readTemplateTextBlock(personaRecord.body, 'persona.body'),
+    tags: parseStringArray(personaRecord.tags),
+    triggers: parseStringArray(personaRecord.triggers),
+  };
+  return {
+    id,
+    source,
+    path,
+    name: readTemplateTextBlock(templateRecord.name, 'name'),
+    description: readTemplateTextBlock(templateRecord.description, 'description'),
+    personaName: typeof templateRecord.personaName === 'string' && templateRecord.personaName.trim() ? templateRecord.personaName.trim() : persona.name,
+    skillNames: skills.map((skill) => skill.name),
+    routineNames: routines.map((routine) => routine.name),
+    persona,
+    skills,
+    routines,
+  };
+}
+
+function readLocalTemplate(path: string): AgentRuntimeProfileStarterTemplate | null {
+  try {
+    return parseStarterTemplate(JSON.parse(readFileSync(path, 'utf-8')), 'local', path);
+  } catch {
+    return null;
+  }
+}
+
+function listLocalTemplates(baseHomeDirectory: string): readonly AgentRuntimeProfileStarterTemplate[] {
+  const root = getAgentRuntimeProfileTemplatesRoot(baseHomeDirectory);
+  if (!existsSync(root)) return [];
+  return readdirSync(root)
+    .filter((entry) => entry.endsWith('.json'))
+    .map((entry) => readLocalTemplate(join(root, entry)))
+    .filter((entry): entry is AgentRuntimeProfileStarterTemplate => entry !== null)
+    .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function resolveAgentRuntimeProfileTemplate(templateId: AgentRuntimeProfileTemplateId, baseHomeDirectory?: string): AgentRuntimeProfileStarterTemplate {
+  const id = assertValidAgentRuntimeProfileId(templateId);
+  const builtin = STARTER_TEMPLATES.find((template) => template.id === id);
+  if (builtin) return builtin;
+  const local = baseHomeDirectory ? listLocalTemplates(baseHomeDirectory).find((template) => template.id === id) : undefined;
+  if (local) return local;
+  const suffix = baseHomeDirectory ? ' Use profiles templates to list starters.' : '';
+  throw new Error(`Unknown Agent starter profile template: ${templateId}.${suffix}`);
+}
+
+export function listAgentRuntimeProfileTemplates(baseHomeDirectory?: string): readonly AgentRuntimeProfileTemplateSummary[] {
+  const builtins = STARTER_TEMPLATES.map(summarizeTemplate);
+  const locals = baseHomeDirectory ? listLocalTemplates(baseHomeDirectory).map(summarizeTemplate) : [];
+  return [...builtins, ...locals];
+}
+
+export function getAgentRuntimeProfileTemplate(templateId: AgentRuntimeProfileTemplateId, baseHomeDirectory?: string): AgentRuntimeProfileTemplateSummary {
+  return summarizeTemplate(resolveAgentRuntimeProfileTemplate(templateId, baseHomeDirectory));
+}
+
+function templateFilePayload(template: AgentRuntimeProfileStarterTemplate): AgentRuntimeProfileStarterTemplateFile {
+  return {
+    version: 1,
+    template: {
+      ...template,
+      source: 'local',
+      path: undefined,
+    },
+  };
+}
+
+export function exportAgentRuntimeProfileTemplate(baseHomeDirectory: string, templateId: AgentRuntimeProfileTemplateId, outputPath: string): AgentRuntimeProfileTemplateSummary {
+  const template = resolveAgentRuntimeProfileTemplate(templateId, baseHomeDirectory);
+  const target = outputPath.trim();
+  if (!target) throw new Error('Template export path is required.');
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, `${JSON.stringify(templateFilePayload(template), null, 2)}\n`, 'utf-8');
+  return { ...summarizeTemplate(template), path: target };
+}
+
+export function importAgentRuntimeProfileTemplate(baseHomeDirectory: string, sourcePath: string): AgentRuntimeProfileTemplateSummary {
+  const source = sourcePath.trim();
+  if (!source) throw new Error('Template import path is required.');
+  const parsed = parseStarterTemplate(JSON.parse(readFileSync(source, 'utf-8')), 'local');
+  const root = getAgentRuntimeProfileTemplatesRoot(baseHomeDirectory);
+  mkdirSync(root, { recursive: true });
+  const target = join(root, `${parsed.id}.json`);
+  writeFileSync(target, `${JSON.stringify(templateFilePayload({ ...parsed, source: 'local', path: target }), null, 2)}\n`, 'utf-8');
+  return summarizeTemplate({ ...parsed, source: 'local', path: target });
 }
 
 function createMissingSkill(registry: AgentSkillRegistry, template: AgentRuntimeProfileStarterTemplate['skills'][number]): string {
@@ -522,9 +676,8 @@ function createMissingRoutine(registry: AgentRoutineRegistry, template: AgentRun
   }).id;
 }
 
-export function applyAgentRuntimeProfileTemplate(homeDirectory: string, templateId: AgentRuntimeProfileTemplateId): AgentRuntimeProfileTemplateApplication {
-  const template = STARTER_TEMPLATES.find((entry) => entry.id === templateId);
-  if (!template) throw new Error(`Unknown Agent starter profile template: ${templateId}`);
+export function applyAgentRuntimeProfileTemplate(homeDirectory: string, templateId: AgentRuntimeProfileTemplateId, baseHomeDirectory?: string): AgentRuntimeProfileTemplateApplication {
+  const template = resolveAgentRuntimeProfileTemplate(templateId, baseHomeDirectory);
   const personaRegistry = new AgentPersonaRegistry(profileStorePath(homeDirectory, 'personas', 'personas.json'));
   const skillRegistry = new AgentSkillRegistry(profileStorePath(homeDirectory, 'skills', 'skills.json'));
   const routineRegistry = new AgentRoutineRegistry(profileStorePath(homeDirectory, 'routines', 'routines.json'));
@@ -544,6 +697,7 @@ export function applyAgentRuntimeProfileTemplate(homeDirectory: string, template
   return {
     id: template.id,
     name: template.name,
+    source: template.source,
     appliedAt: new Date().toISOString(),
     personaIds: [persona.id],
     skillIds,
@@ -572,7 +726,7 @@ export function createAgentRuntimeProfile(baseHomeDirectory: string, profileName
   mkdirSync(resolution.homeDirectory, { recursive: true });
   const createdAt = new Date().toISOString();
   const appliedTemplate = options.templateId
-    ? applyAgentRuntimeProfileTemplate(resolution.homeDirectory, options.templateId)
+    ? applyAgentRuntimeProfileTemplate(resolution.homeDirectory, options.templateId, baseHomeDirectory)
     : undefined;
   writeFileSync(
     join(resolution.homeDirectory, PROFILE_CREATED_FILE),

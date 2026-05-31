@@ -51,11 +51,13 @@ Use isolated Agent runtime profiles when one machine needs separate operator ide
 ```sh
 goodvibes-agent profiles templates
 goodvibes-agent profiles create household --template household --yes
+goodvibes-agent profiles templates export research ./research-starter.json --yes
+goodvibes-agent profiles templates import ./research-starter.json --yes
 goodvibes-agent --agent-profile household status
 GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
 ```
 
-Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles. The daemon is still external and shared unless your daemon host is separately configured otherwise.
+Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The daemon is still external and shared unless your daemon host is separately configured otherwise.
 
 Local Agent behavior is editable from the TUI:
 

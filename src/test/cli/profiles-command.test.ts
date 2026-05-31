@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
@@ -106,5 +106,50 @@ describe('profiles CLI command', () => {
     const result = await runProfilesCli(['profiles', 'create', 'bad', '--template', 'unknown', '--yes'], home);
     expect(result.result.exitCode).toBe(2);
     expect(result.output).toContain('Unknown Agent starter profile template');
+  });
+
+  test('exports imports and applies a custom starter template through the CLI', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-custom-starter-'));
+    const path = join(home, 'custom-starter.json');
+
+    const exportRefused = await runProfilesCli(['profiles', 'templates', 'export', 'research', path], home);
+    expect(exportRefused.result.exitCode).toBe(2);
+    expect(exportRefused.output).toContain('without --yes');
+
+    const exported = await runProfilesCli(['profiles', 'templates', 'export', 'research', path, '--yes'], home);
+    expect(exported.result.exitCode).toBe(0);
+    expect(exported.output).toContain('Agent starter template exported: research');
+
+    const raw = JSON.parse(readFileSync(path, 'utf-8')) as {
+      template: {
+        id: string;
+        name: string;
+        persona: { name: string };
+        skills: Array<{ name: string }>;
+        routines: Array<{ name: string }>;
+      };
+    };
+    raw.template.id = 'daily-briefing';
+    raw.template.name = 'Daily Briefing';
+    raw.template.persona.name = 'Daily Briefing Operator';
+    raw.template.skills[0]!.name = 'Morning Source Brief';
+    raw.template.routines[0]!.name = 'Morning Review';
+    writeFileSync(path, `${JSON.stringify(raw, null, 2)}\n`, 'utf-8');
+
+    const importRefused = await runProfilesCli(['profiles', 'templates', 'import', path], home);
+    expect(importRefused.result.exitCode).toBe(2);
+    expect(importRefused.output).toContain('without --yes');
+
+    const imported = await runProfilesCli(['profiles', 'templates', 'import', path, '--yes'], home);
+    expect(imported.result.exitCode).toBe(0);
+    expect(imported.output).toContain('Agent starter template imported: daily-briefing');
+
+    const templates = await runProfilesCli(['profiles', 'templates'], home);
+    expect(templates.output).toContain('daily-briefing');
+    expect(templates.output).toContain('[local]');
+
+    const created = await runProfilesCli(['profiles', 'create', 'briefing', '--template', 'daily-briefing', '--yes'], home);
+    expect(created.result.exitCode).toBe(0);
+    expect(created.output).toContain('starter: daily-briefing');
   });
 });

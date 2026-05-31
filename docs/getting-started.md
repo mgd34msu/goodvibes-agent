@@ -50,11 +50,13 @@ Use named runtime profiles for repeatable local identities:
 ```sh
 goodvibes-agent profiles templates
 goodvibes-agent profiles create household --template household --yes
+goodvibes-agent profiles templates export research ./research-starter.json --yes
+goodvibes-agent profiles templates import ./research-starter.json --yes
 goodvibes-agent --agent-profile household status
 goodvibes-agent --agent-profile household
 ```
 
-Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles. They do not start or isolate the external daemon by themselves.
+Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate the external daemon by themselves.
 
 ## Local Personas, Routines, And Skills
 

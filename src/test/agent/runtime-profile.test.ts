@@ -1,12 +1,14 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   assertValidAgentRuntimeProfileId,
   createAgentRuntimeProfile,
   deleteAgentRuntimeProfile,
+  exportAgentRuntimeProfileTemplate,
   getAgentRuntimeProfilesRoot,
+  importAgentRuntimeProfileTemplate,
   listAgentRuntimeProfileTemplates,
   listAgentRuntimeProfiles,
   normalizeAgentRuntimeProfileId,
@@ -76,5 +78,37 @@ describe('Agent runtime profiles', () => {
 
     const listed = listAgentRuntimeProfiles(home);
     expect(listed[0]?.starterTemplateId).toBe('operations');
+  });
+
+  test('exports edits imports and uses a local starter template', () => {
+    const home = makeHome();
+    const exportedPath = join(home, 'research-starter.json');
+    const exported = exportAgentRuntimeProfileTemplate(home, 'research', exportedPath);
+    expect(exported.path).toBe(exportedPath);
+
+    const raw = JSON.parse(readFileSync(exportedPath, 'utf-8')) as {
+      template: {
+        id: string;
+        name: string;
+        persona: { name: string };
+        skills: Array<{ name: string }>;
+        routines: Array<{ name: string }>;
+      };
+    };
+    raw.template.id = 'lab-operator';
+    raw.template.name = 'Lab Operator';
+    raw.template.persona.name = 'Lab Operator';
+    raw.template.skills[0]!.name = 'Lab Source Brief';
+    raw.template.routines[0]!.name = 'Lab Review';
+    writeFileSync(exportedPath, `${JSON.stringify(raw, null, 2)}\n`, 'utf-8');
+
+    const imported = importAgentRuntimeProfileTemplate(home, exportedPath);
+    expect(imported.id).toBe('lab-operator');
+    expect(imported.source).toBe('local');
+    expect(listAgentRuntimeProfileTemplates(home).map((template) => template.id)).toContain('lab-operator');
+
+    const profile = createAgentRuntimeProfile(home, 'lab', { templateId: 'lab-operator' });
+    const persona = new AgentPersonaRegistry(join(profile.homeDirectory, '.goodvibes', 'agent', 'personas', 'personas.json')).snapshot();
+    expect(persona.activePersona?.name).toBe('Lab Operator');
   });
 });

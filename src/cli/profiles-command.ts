@@ -1,6 +1,8 @@
 import {
   createAgentRuntimeProfile,
   deleteAgentRuntimeProfile,
+  exportAgentRuntimeProfileTemplate,
+  importAgentRuntimeProfileTemplate,
   isAgentRuntimeProfileTemplateId,
   listAgentRuntimeProfiles,
   listAgentRuntimeProfileTemplates,
@@ -72,13 +74,29 @@ function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string 
     return [
       `Agent starter profile templates (${templates.length})`,
       ...templates.map((template) => [
-        `  ${template.id}  ${template.name}`,
+        `  ${template.id}  ${template.name} [${template.source}]`,
         `    ${template.description}`,
         `    persona: ${template.personaName}`,
         `    skills: ${template.skillNames.join(', ')}`,
         `    routines: ${template.routineNames.join(', ')}`,
       ].join('\n')),
       'Use: goodvibes-agent profiles create <name> --template <id> --yes',
+      'Export/edit/import: goodvibes-agent profiles templates export <id> <path> --yes',
+    ].join('\n');
+  }
+  if (result.kind === 'agent.profiles.template.export' && result.data?.template && result.data.path) {
+    return [
+      `Agent starter template exported: ${result.data.template.id}`,
+      `  path: ${result.data.path}`,
+      '  edit the JSON, then import it with: goodvibes-agent profiles templates import <path> --yes',
+    ].join('\n');
+  }
+  if (result.kind === 'agent.profiles.template.import' && result.data?.template) {
+    return [
+      `Agent starter template imported: ${result.data.template.id}`,
+      `  name: ${result.data.template.name}`,
+      `  source: ${result.data.template.source}`,
+      `  use: goodvibes-agent profiles create <name> --template ${result.data.template.id} --yes`,
     ].join('\n');
   }
   const profile = result.data?.profile;
@@ -123,10 +141,79 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
     }
 
     if (sub === 'templates' || sub === 'starters') {
+      const [templateAction, templateId, templatePath] = values;
+      if (templateAction === 'export') {
+        if (!templateId || !templatePath) {
+          const result: AgentRuntimeProfileCommandResult = {
+            ok: false,
+            kind: 'agent.profiles.error',
+            error: 'Usage: goodvibes-agent profiles templates export <id> <path> --yes',
+          };
+          return {
+            output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+            exitCode: 2,
+          };
+        }
+        if (!hasYes(rawRest)) {
+          const result: AgentRuntimeProfileCommandResult = {
+            ok: false,
+            kind: 'agent.profiles.error',
+            error: `Refusing to export Agent starter template ${templateId} without --yes.`,
+          };
+          return {
+            output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+            exitCode: 2,
+          };
+        }
+        const template = exportAgentRuntimeProfileTemplate(runtime.homeDirectory, templateId, templatePath);
+        const result: AgentRuntimeProfileCommandResult = {
+          ok: true,
+          kind: 'agent.profiles.template.export',
+          data: { template, path: templatePath },
+        };
+        return {
+          output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+          exitCode: 0,
+        };
+      }
+      if (templateAction === 'import') {
+        if (!templateId) {
+          const result: AgentRuntimeProfileCommandResult = {
+            ok: false,
+            kind: 'agent.profiles.error',
+            error: 'Usage: goodvibes-agent profiles templates import <path> --yes',
+          };
+          return {
+            output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+            exitCode: 2,
+          };
+        }
+        if (!hasYes(rawRest)) {
+          const result: AgentRuntimeProfileCommandResult = {
+            ok: false,
+            kind: 'agent.profiles.error',
+            error: `Refusing to import Agent starter template ${templateId} without --yes.`,
+          };
+          return {
+            output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+            exitCode: 2,
+          };
+        }
+        const template = importAgentRuntimeProfileTemplate(runtime.homeDirectory, templateId);
+        const result: AgentRuntimeProfileCommandResult = {
+          ok: true,
+          kind: 'agent.profiles.template.import',
+          data: { template, path: templateId },
+        };
+        return {
+          output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+          exitCode: 0,
+        };
+      }
       const result: AgentRuntimeProfileCommandResult = {
         ok: true,
         kind: 'agent.profiles.templates',
-        data: { templates: listAgentRuntimeProfileTemplates() },
+        data: { templates: listAgentRuntimeProfileTemplates(runtime.homeDirectory) },
       };
       return {
         output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),

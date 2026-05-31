@@ -526,6 +526,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'profile-sync-export', label: 'Export profile sync', detail: 'Export config profiles to a portable bundle. Requires a real path and explicit --yes.', command: '/profilesync export <path> --yes', kind: 'command', safety: 'safe' },
       { id: 'setup-transfer-export', label: 'Export setup transfer', detail: 'Export Agent setup transfer data from the current home. Requires a real path and explicit --yes.', command: '/setup transfer export <path> --yes', kind: 'command', safety: 'safe' },
       { id: 'runtime-profile-create', label: 'Create runtime profile', detail: 'Use goodvibes-agent profiles templates, then goodvibes-agent profiles create <name> --template <id> --yes. Starters seed local personas, skills, and routines without touching the daemon.', kind: 'guidance', safety: 'safe' },
+      { id: 'runtime-profile-template-edit', label: 'Customize starter', detail: 'Use goodvibes-agent profiles templates export <id> <path> --yes, edit the JSON, then import it with profiles templates import <path> --yes.', kind: 'guidance', safety: 'safe' },
       { id: 'runtime-profile-switch', label: 'Switch runtime profile', detail: 'Launch goodvibes-agent --agent-profile <name> to use that isolated Agent home. This workspace cannot switch the current process home after startup.', kind: 'guidance', safety: 'safe' },
     ],
   },

@@ -154,9 +154,9 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     examples: ['providers', 'providers inspect openai-subscriber', 'providers use openai openai:gpt-5.4'],
   },
   profiles: {
-    usage: ['profiles list', 'profiles templates', 'profiles show <name>', 'profiles create <name> [--template <id>] --yes', 'profiles delete <name> --yes', '--agent-profile <name>'],
-    summary: 'Create and inspect isolated Agent runtime profile homes, with starter templates for household, research, travel, operations, and personal productivity. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing the externally owned daemon.',
-    examples: ['profiles templates', 'profiles create household --template household --yes', 'profiles list', '--agent-profile household status', '--agent-profile household'],
+    usage: ['profiles list', 'profiles templates', 'profiles templates export <id> <path> --yes', 'profiles templates import <path> --yes', 'profiles show <name>', 'profiles create <name> [--template <id>] --yes', 'profiles delete <name> --yes', '--agent-profile <name>'],
+    summary: 'Create and inspect isolated Agent runtime profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing the externally owned daemon.',
+    examples: ['profiles templates', 'profiles templates export research ./research-starter.json --yes', 'profiles templates import ./research-starter.json --yes', 'profiles create household --template household --yes', '--agent-profile household status'],
   },
   models: {
     usage: ['models [provider]', 'models current', 'models use <registryKey>', 'models pin <registryKey>', 'models recent'],
