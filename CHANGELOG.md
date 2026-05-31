@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.4 - 2026-05-31
+
+- Hardened Agent Knowledge route isolation for CLI JSON output and diagnostics: Agent status, ask, search, and ingest-url now report explicit `agentKnowledge.*` identities and `/api/goodvibes-agent/knowledge/*` routes.
+- Pointed runtime orchestrator and multimodal writeback dependencies at Agent Knowledge so assistant-authored knowledge cannot land in default Knowledge/Wiki.
+- Moved project planning and work-plan artifacts onto the Agent Knowledge store so Agent task state does not use the regular wiki segment.
+
 ## 0.1.3 - 2026-05-31
 
 - Added local Agent personas with `/personas`: create/list/search/show/use/review/stale/delete, secret-looking value rejection, active persona prompt injection, and operator workspace status.
