@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.28 - 2026-05-31
+
+- 77a9dc4 Add isolated Agent runtime profiles
+
 ## 0.1.27 - 2026-05-31
 
 - b5be172 Add capabilities CLI handler
