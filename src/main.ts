@@ -45,7 +45,7 @@ import { deriveComposerState } from './core/composer-state.ts';
 import { buildPersistedSessionContext, formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
-import { applyInitialTuiCliState } from './cli/tui-startup.ts';
+import { applyInitialTuiCliState, getInteractiveTerminalLaunchError } from './cli/tui-startup.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './audio/spoken-turn-model-routing.ts';
 import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/terminal-output-guard.ts';
@@ -53,17 +53,8 @@ import { ProjectPlanningCoordinator } from './planning/project-planning-coordina
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 
-const ALT_SCREEN_ENTER = '\x1b[?1049h';
-const ALT_SCREEN_EXIT  = '\x1b[?1049l';
-const MOUSE_ENABLE     = '\x1b[?1000h\x1b[?1002h\x1b[?1006h';
-const MOUSE_DISABLE    = '\x1b[?1006l\x1b[?1002l\x1b[?1000l';
-const CURSOR_HIDE      = '\x1b[?25l';
-const CURSOR_SHOW      = '\x1b[?25h';
-const CLEAR_SCREEN     = '\x1b[2J\x1b[3J\x1b[H';
-const KEYBOARD_EXT_ENABLE  = '\x1b[>4;2m' + '\x1b[?1u';
-const KEYBOARD_EXT_DISABLE = '\x1b[>4;0m' + '\x1b[?1l';
-const PASTE_ENABLE     = '\x1b[?2004h';
-const PASTE_DISABLE    = '\x1b[?2004l';
+const ALT_SCREEN_ENTER = '\x1b[?1049h', ALT_SCREEN_EXIT = '\x1b[?1049l', MOUSE_ENABLE = '\x1b[?1000h\x1b[?1002h\x1b[?1006h', MOUSE_DISABLE = '\x1b[?1006l\x1b[?1002l\x1b[?1000l', CURSOR_HIDE = '\x1b[?25l', CURSOR_SHOW = '\x1b[?25h', CLEAR_SCREEN = '\x1b[2J\x1b[3J\x1b[H';
+const KEYBOARD_EXT_ENABLE = '\x1b[>4;2m' + '\x1b[?1u', KEYBOARD_EXT_DISABLE = '\x1b[>4;0m' + '\x1b[?1l', PASTE_ENABLE = '\x1b[?2004h', PASTE_DISABLE = '\x1b[?2004l';
 
 async function main() {
   const stdout = process.stdout;
@@ -72,6 +63,16 @@ async function main() {
     defaultWorkingDirectory: process.env['GOODVIBES_WORKING_DIR'] ?? process.cwd(),
     homeDirectory: process.env['GOODVIBES_AGENT_HOME'] ?? homedir(),
   }, 'goodvibes-agent');
+
+  const terminalLaunchError = getInteractiveTerminalLaunchError({
+    binary: cli.binary,
+    stdinIsTTY: stdin.isTTY,
+    stdoutIsTTY: stdout.isTTY,
+  });
+  if (terminalLaunchError !== null) {
+    process.stderr.write(`${terminalLaunchError}\n`);
+    process.exit(2);
+  }
 
   const ctx: BootstrapContext = await bootstrapRuntime(stdout, {
     configManager,

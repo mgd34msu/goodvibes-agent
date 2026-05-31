@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createShellPathService } from '@/runtime/index.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
-import { applyInitialTuiCliState } from '../../cli/tui-startup.ts';
+import { applyInitialTuiCliState, getInteractiveTerminalLaunchError } from '../../cli/tui-startup.ts';
 import { writeOnboardingCheckMarker } from '../../runtime/onboarding/index.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import type { InputHandler } from '../../input/handler.ts';
@@ -27,6 +27,7 @@ function makeCli(overrides: Partial<GoodVibesCliParseResult> = {}): GoodVibesCli
     flags: {
       provider: undefined,
       model: undefined,
+      agentProfile: undefined,
       daemonHome: undefined,
       workingDir: undefined,
       help: false,
@@ -102,5 +103,28 @@ describe('initial TUI onboarding startup check', () => {
     });
 
     expect(runStartup(shellPaths).opened).toBe(0);
+  });
+});
+
+describe('interactive TUI terminal guard', () => {
+  test('allows launch when stdin and stdout are TTY streams', () => {
+    expect(getInteractiveTerminalLaunchError({
+      binary: 'goodvibes-agent',
+      stdinIsTTY: true,
+      stdoutIsTTY: true,
+    })).toBeNull();
+  });
+
+  test('returns a plain non-TTY error before renderer startup', () => {
+    const message = getInteractiveTerminalLaunchError({
+      binary: 'goodvibes-agent',
+      stdinIsTTY: false,
+      stdoutIsTTY: false,
+    });
+
+    expect(message).toContain('requires an interactive terminal');
+    expect(message).toContain('stdin and stdout are not a TTY');
+    expect(message).toContain('goodvibes-agent status --json');
+    expect(message).not.toContain('\x1b[');
   });
 });

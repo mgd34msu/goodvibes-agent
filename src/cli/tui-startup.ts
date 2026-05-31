@@ -3,6 +3,29 @@ import type { InputHandler } from '../input/handler.ts';
 import { readOnboardingCheckMarker } from '../runtime/onboarding/index.ts';
 import type { GoodVibesCliParseResult } from './types.ts';
 
+export type InteractiveTerminalCheckInput = {
+  readonly binary: string;
+  readonly stdinIsTTY: boolean | undefined;
+  readonly stdoutIsTTY: boolean | undefined;
+};
+
+export function getInteractiveTerminalLaunchError(input: InteractiveTerminalCheckInput): string | null {
+  const stdinReady = input.stdinIsTTY === true;
+  const stdoutReady = input.stdoutIsTTY === true;
+  if (stdinReady && stdoutReady) return null;
+
+  const missing = [
+    stdinReady ? null : 'stdin',
+    stdoutReady ? null : 'stdout',
+  ].filter((entry): entry is string => entry !== null);
+  const missingLabel = missing.length === 1 ? `${missing[0]} is` : `${missing.join(' and ')} are`;
+
+  return [
+    `${input.binary} requires an interactive terminal for the TUI (${missingLabel} not a TTY).`,
+    `Run it from a terminal, or use non-interactive commands such as '${input.binary} --help', '${input.binary} status --json', or '${input.binary} run --print "<prompt>"'.`,
+  ].join('\n');
+}
+
 export function applyInitialTuiCliState(options: {
   readonly cli: GoodVibesCliParseResult;
   readonly input: InputHandler;
