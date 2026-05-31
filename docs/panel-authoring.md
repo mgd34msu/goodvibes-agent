@@ -1,6 +1,6 @@
 # Panel Authoring Guide
 
-This guide is the on-ramp for contributors who want to extend goodvibes-tui with a new panel. It covers the class hierarchy, the canonical implementation pattern used by the 22+ built-in panels, rendering utilities, input handling, performance instrumentation, and contract testing.
+This guide is the on-ramp for contributors who want to extend GoodVibes Agent with a new panel once the Agent product needs one. Panels are inherited from the GoodVibes TUI foundation, but Agent currently prioritizes fullscreen operator workspaces for setup, routines, knowledge, memory, skills, personas, and explicit build delegation. Use panels only when a persistent read-only or review workspace is a better fit than the fullscreen operator surface.
 
 ## Table of Contents
 

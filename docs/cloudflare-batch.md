@@ -1,12 +1,12 @@
 # Cloudflare Batch And Control Plane
 
-GoodVibes can optionally use Cloudflare Workers and Queues for batch-capable daemon work. This is opt-in. By default the TUI keeps immediate local daemon behavior:
+GoodVibes Agent can optionally configure Cloudflare Workers and Queues for batch-capable daemon work. This is opt-in. By default Agent keeps immediate external-daemon behavior:
 
 - `batch.mode = off`
 - `batch.queueBackend = local`
 - `cloudflare.enabled = false`
 
-The TUI owns the user flow. The SDK daemon owns all Cloudflare API calls, token creation, validation, discovery, provisioning, verification, repair paths, and secret persistence. The TUI never calls Cloudflare APIs directly.
+Agent owns the user flow and local configuration entry. The SDK daemon owns all Cloudflare API calls, token creation, validation, discovery, provisioning, verification, repair paths, and secret persistence. Agent never calls Cloudflare APIs directly and does not start or own daemon lifecycle.
 
 ## Onboarding
 
@@ -27,9 +27,9 @@ The wizard supports these paths:
 
 - Save settings only: persist configuration and provision later.
 - Paste temporary bootstrap token: the SDK creates a narrower operational token, stores it in GoodVibes secrets, and does not persist the bootstrap token.
-- Read bootstrap token from environment: same as pasted bootstrap token, but the TUI reads the value from an environment variable in the current process.
-- Paste final operational token: the TUI stores it as `goodvibes://secrets/goodvibes/CLOUDFLARE_API_TOKEN`.
-- Use final token from environment: the TUI writes a `goodvibes://secrets/env/<ENV_NAME>` reference, usually `CLOUDFLARE_API_TOKEN`.
+- Read bootstrap token from environment: same as pasted bootstrap token, but Agent reads the value from an environment variable in the current process.
+- Paste final operational token: Agent stores it as `goodvibes://secrets/goodvibes/CLOUDFLARE_API_TOKEN`.
+- Use final token from environment: Agent writes a `goodvibes://secrets/env/<ENV_NAME>` reference, usually `CLOUDFLARE_API_TOKEN`.
 
 Bootstrap tokens should be temporary and should be revoked or allowed to expire after GoodVibes creates and validates the operational token.
 
@@ -55,7 +55,7 @@ Use `/cloudflare` for runtime inspection and daemon actions:
 
 ## Daemon Routes
 
-The TUI integrates with these daemon routes:
+Agent integrates with these external-daemon routes:
 
 ```text
 GET  /api/cloudflare
@@ -69,7 +69,7 @@ POST /api/cloudflare/verify
 POST /api/cloudflare/disable
 ```
 
-Errors return JSON with `error` and `code`. The TUI displays route failures as actionable wizard or command output and does not block normal local daemon usage unless the user explicitly depends on Cloudflare provisioning.
+Errors return JSON with `error` and `code`. Agent displays route failures as actionable wizard or command output and does not block normal external-daemon usage unless the user explicitly depends on Cloudflare provisioning.
 
 ## Batch Modes
 

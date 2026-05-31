@@ -47,7 +47,7 @@ If neither player is on `PATH`, `/tts` still submits and renders the normal text
 
 ## Providers and Voices
 
-Live TTS uses voice providers that advertise the `tts-stream` capability. The TUI does not hardcode provider behavior. It asks the SDK voice service for streaming synthesis and uses the configured provider/voice defaults.
+Live TTS uses voice providers that advertise the `tts-stream` capability. Agent does not hardcode provider behavior. It asks the SDK voice service for streaming synthesis and uses the configured provider/voice defaults.
 
 Useful setup path:
 
@@ -56,7 +56,7 @@ Useful setup path:
 /config tts.voice
 ```
 
-In the TUI these rows open selection pickers that set the chosen streaming provider or provider-specific voice.
+In Agent these rows open selection pickers that set the chosen streaming provider or provider-specific voice.
 
 For ElevenLabs, configure provider credentials in the environment before starting GoodVibes:
 

@@ -32,7 +32,7 @@ The channel runtime owns:
 
 ## Home Assistant
 
-The Home Assistant surface is configured from onboarding or Settings > Surfaces. The TUI stores the SDK config keys and controls auto-start; the SDK daemon owns the actual Home Assistant API/tool surface, callback verification, account metadata, and channel actions.
+The Home Assistant surface is configured from Agent onboarding or Settings > Surfaces when the user opts into that channel. Agent stores SDK config keys; the external daemon owns the actual Home Assistant API/tool surface, callback verification, account metadata, and channel actions. Agent does not start or own the daemon lifecycle.
 
 Relevant settings:
 
@@ -57,7 +57,7 @@ The same runtime pipeline is used to render and deliver:
 - tool output
 - final replies
 
-That keeps TUI, web, webhook, and channel-native surfaces aligned around the same runtime events.
+That keeps Agent, web, webhook, and channel-native surfaces aligned around the same runtime events.
 
 ## Daemon and control plane
 

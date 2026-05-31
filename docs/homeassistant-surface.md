@@ -1,6 +1,6 @@
 # Home Assistant Surface
 
-GoodVibes can expose a Home Assistant companion surface through the daemon. The TUI owns onboarding, settings, and auto-start selection; the SDK daemon owns Home Assistant API calls, callback verification, tool/action metadata, and event delivery.
+GoodVibes Agent can expose a Home Assistant companion surface through the external daemon. Agent owns onboarding and settings entry for this surface when the user opts in; the SDK daemon owns Home Assistant API calls, callback verification, tool/action metadata, and event delivery. Agent does not start or own the daemon lifecycle.
 
 ## Onboarding
 
@@ -45,7 +45,7 @@ POST /api/homeassistant/conversation/stream
 POST /api/homeassistant/conversation/cancel
 ```
 
-`POST /api/homeassistant/conversation` is the submit-and-wait Assist path for companion clients. `POST /api/homeassistant/conversation/stream` streams the response. `POST /api/homeassistant/conversation/cancel` cancels an active Home Assistant remote conversation. Remote sessions are daemon-owned, isolated from TUI/shared sessions, and close after `surfaces.homeassistant.remoteSessionTtlMs` of inactivity.
+`POST /api/homeassistant/conversation` is the submit-and-wait Assist path for companion clients. `POST /api/homeassistant/conversation/stream` streams the response. `POST /api/homeassistant/conversation/cancel` cancels an active Home Assistant remote conversation. Remote sessions are daemon-owned, isolated from Agent chat and shared build-delegation sessions, and close after `surfaces.homeassistant.remoteSessionTtlMs` of inactivity.
 
 Home Assistant conversation responses use the SDK-owned remote-chat contract:
 
@@ -62,15 +62,15 @@ routeId
 
 Home Assistant clients should not expect `agentId` for Assist chat. Use `sessionId`, `messageId`, `replyToMessageId`, `conversationId`, and `routeId` for correlation.
 
-The SDK advertises Home Assistant account, setup, capabilities, tools, actions, directory, target-resolution metadata, and direct conversation routes through the channel daemon routes. The TUI should not call Home Assistant APIs directly.
+The SDK advertises Home Assistant account, setup, capabilities, tools, actions, directory, target-resolution metadata, and direct conversation routes through the channel daemon routes. Agent should not call Home Assistant APIs directly.
 
-Home Assistant ingress is handled as isolated remote-chat work by the SDK daemon. The TUI configures the surface and credentials, but Home Assistant messages should not spawn engineer/reviewer/fixer chains and should not attach to the active TUI/shared session.
+Home Assistant ingress is handled as isolated remote-chat work by the SDK daemon. Agent configures the surface and credentials, but Home Assistant messages should not spawn engineer/reviewer/fixer chains and should not attach to the active Agent chat or shared build-delegation session.
 
 ## Home Graph
 
 Home Graph is the Home Assistant-specific knowledge layer for devices, entities, areas, integrations, manuals, generated pages, facts, issues, and refinement tasks. Home Assistant clients should send snapshots, URLs, notes, artifacts, links, and review actions to the daemon rather than duplicating graph storage, source inventory, wiki/export/import behavior, or fact review queues.
 
-Home Graph uses Home Assistant-specific routes and storage. Regular `/api/knowledge/*` and `/knowledge` surfaces are for the default Knowledge/Wiki instance and must not show Home Graph records by default.
+Home Graph uses Home Assistant-specific routes and storage. Agent Knowledge/Wiki remains separate and must use `/api/goodvibes-agent/knowledge/*`; Agent must not use Home Graph as a fallback for Agent knowledge.
 
 Runtime stores are intentionally separate:
 
@@ -126,7 +126,7 @@ Read routes accept `installationId` or `knowledgeSpaceId`. List and browse route
 
 ### Client Rendering Rules
 
-TUI and companion clients should render the SDK-returned fields directly:
+Agent and companion clients should render the SDK-returned fields directly:
 
 - Ask responses: `answer.text`, `answer.synthesized`, `answer.sources`, `answer.facts`, `answer.gaps`, `answer.linkedObjects`, `answer.refinementTaskIds`, and `answer.refinement`.
 - Map responses: SDK-provided nodes, edges, facets, filters, source/target ids, and source/target titles.
@@ -139,7 +139,7 @@ Home Graph answers are designed to be responsive. If evidence is weak, Ask shoul
 
 ### Refinement And Reindex
 
-The TUI daemon composes the SDK Home Graph service with the SDK web-backed semantic gap repairer. Refinement tasks can search for candidate repair sources, ingest accepted sources, promote subject-linked facts, refresh generated pages, and continue the SDK refinement state machine.
+The external daemon composes the SDK Home Graph service with the SDK web-backed semantic gap repairer. Refinement tasks can search for candidate repair sources, ingest accepted sources, promote subject-linked facts, refresh generated pages, and continue the SDK refinement state machine.
 
 Operational expectations:
 

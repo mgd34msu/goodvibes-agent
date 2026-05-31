@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(import.meta.dir, '../../..');
@@ -9,6 +9,18 @@ function readRepoFile(path: string): string {
 }
 
 describe('Agent boundary docs', () => {
+  test('source tree does not keep copied TUI release, UAT, or WRFC artifacts as Agent docs', () => {
+    const forbiddenPaths = [
+      'docs/releases',
+      'docs/uat',
+      'docs/wrfc',
+    ] as const;
+
+    for (const path of forbiddenPaths) {
+      expect(existsSync(join(ROOT, path))).toBe(false);
+    }
+  });
+
   test('source docs describe isolated Agent Knowledge without default wiki fallback', () => {
     const paths = [
       'docs/tools-and-commands.md',
