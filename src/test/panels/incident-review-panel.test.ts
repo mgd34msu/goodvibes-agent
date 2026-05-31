@@ -106,6 +106,6 @@ describe('IncidentReviewPanel', () => {
     const text = linesText(panel.render(140, 20));
     expect(text).toContain('selected 2/2');
     expect(text).toContain('Action Rail');
-    expect(text).toMatch(/\/recall capture incident incident-[34]/);
+    expect(text).toMatch(/\/incident capture incident-[34] --yes/);
   });
 });

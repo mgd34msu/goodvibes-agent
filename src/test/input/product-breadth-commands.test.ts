@@ -1294,11 +1294,20 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await incident!.handler(['export', 'latest', incidentPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export incident bundle latest without --yes.');
+    expect(existsSync(incidentPath)).toBe(false);
+
+    out.length = 0;
+    await incident!.handler(['export', 'latest', incidentPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported incident bundle');
     expect(existsSync(incidentPath)).toBe(true);
 
     out.length = 0;
     await incident!.handler(['capture', 'latest'], ctx);
+    expect(out.join('\n')).toContain('Refusing to capture incident latest into durable memory without --yes.');
+
+    out.length = 0;
+    await incident!.handler(['capture', 'latest', '--yes'], ctx);
     expect(out.join('\n')).toContain('Captured incident incident-1 into durable memory');
   });
 

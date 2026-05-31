@@ -185,7 +185,7 @@ export class IncidentReviewPanel extends ScrollableListPanel<FailureReport> {
       }
     }
     footerLines.push(buildPanelLine(width, [['  Action Rail', C.label]]));
-    footerLines.push(buildPanelLine(width, [[`  /incident latest   /incident export ${selected.id}   /recall capture incident ${selected.id}`, C.info]]));
+    footerLines.push(buildPanelLine(width, [[`  /incident latest   /incident export ${selected.id} <path> --yes   /incident capture ${selected.id} --yes`, C.info]]));
     footerLines.push(buildGuidanceLine(width, '/security', 'open the broader trust and incident posture control room', C));
 
     return this.renderList(width, height, {

@@ -4,16 +4,19 @@ import type { CommandRegistry } from '../command-registry.ts';
 import { buildIncidentMemoryAddOptions } from '@pellux/goodvibes-sdk/platform/state';
 import { requireShellPaths } from './runtime-services.ts';
 import { getMemoryApi } from './recall-query.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 export function registerIncidentRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'incident',
     aliases: [],
     description: 'Open, export, and capture incident review bundles',
-    usage: '[open | latest | show <id|latest> | export <id|latest> <path> | capture <id|latest>]',
+    usage: '[open | latest | show <id|latest> | export <id|latest> <path> --yes | capture <id|latest> --yes]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const subcommand = (args[0] ?? 'open').toLowerCase();
+      const subcommand = (commandArgs[0] ?? 'open').toLowerCase();
       const forensicRegistry = ctx.extensions.forensicsRegistry;
       if (subcommand === 'open') {
         if (ctx.openIncidentPanel) {
@@ -27,7 +30,7 @@ export function registerIncidentRuntimeCommands(registry: CommandRegistry): void
         ctx.print('Forensics registry is not available in this runtime.');
         return;
       }
-      const requestedId = args[1];
+      const requestedId = commandArgs[1];
       const report = !requestedId || requestedId === 'latest'
         ? forensicRegistry.latest()
         : forensicRegistry.getById(requestedId);
@@ -53,9 +56,13 @@ export function registerIncidentRuntimeCommands(registry: CommandRegistry): void
         return;
       }
       if (subcommand === 'export') {
-        const pathArg = args[2];
+        const pathArg = commandArgs[2];
         if (!requestedId || !pathArg) {
-          ctx.print('Usage: /incident export <id|latest> <path>');
+          ctx.print('Usage: /incident export <id|latest> <path> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `export incident bundle ${requestedId}`, '/incident export <id|latest> <path> --yes');
           return;
         }
         if (!report) {
@@ -74,6 +81,10 @@ export function registerIncidentRuntimeCommands(registry: CommandRegistry): void
         return;
       }
       if (subcommand === 'capture') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `capture incident ${requestedId ?? 'latest'} into durable memory`, '/incident capture <id|latest> --yes');
+          return;
+        }
         const memory = getMemoryApi(ctx);
         if (!memory) return;
         if (!report) {
@@ -89,7 +100,7 @@ export function registerIncidentRuntimeCommands(registry: CommandRegistry): void
         ctx.print(`Captured incident ${report.id} into durable memory as ${record.id}`);
         return;
       }
-      ctx.print('Usage: /incident [open | latest | show <id|latest> | export <id|latest> <path> | capture <id|latest>]');
+      ctx.print('Usage: /incident [open | latest | show <id|latest> | export <id|latest> <path> --yes | capture <id|latest> --yes]');
     },
   });
 }

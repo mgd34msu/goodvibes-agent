@@ -11,23 +11,26 @@ import {
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 export function registerShareRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'share',
     aliases: [],
     description: 'Export the current session to a shareable format (html, json, md)',
-    usage: '<html|json|md> [path] [--redact]',
+    usage: '<html|json|md> [path] [--redact] --yes',
     argsHint: '<html|json|md> [path]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       const FORMATS = ['html', 'json', 'md'] as const;
       type Format = typeof FORMATS[number];
 
-      const format = args[0]?.toLowerCase() as Format | undefined;
+      const format = commandArgs[0]?.toLowerCase() as Format | undefined;
       if (!format || !FORMATS.includes(format)) {
         ctx.print(
-          'Usage: /share <html|json|md> [path] [--redact]\n'
+          'Usage: /share <html|json|md> [path] [--redact] --yes\n'
           + '  html  — self-contained HTML with syntax highlighting\n'
           + '  json  — structured JSON (machine-readable)\n'
           + '  md    — Markdown\n\n'
@@ -38,12 +41,17 @@ export function registerShareRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      const remainingArgs = args.slice(1);
+      const remainingArgs = commandArgs.slice(1);
       const redact = remainingArgs.includes('--redact');
       const pathArgs = remainingArgs.filter(a => a !== '--redact');
       const outputPath = pathArgs.length > 0
         ? shellPaths.resolveWorkspacePath(pathArgs[0])
         : defaultExportPath(format, shellPaths.homeDirectory);
+
+      if (!parsed.yes) {
+        requireYesFlag(ctx, `export ${format.toUpperCase()} session to ${outputPath}`, '/share <html|json|md> [path] [--redact] --yes');
+        return;
+      }
 
       const convData = ctx.session.conversationManager.toJSON() as {
         messages: Array<{

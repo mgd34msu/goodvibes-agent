@@ -496,6 +496,10 @@ describe('remote command', () => {
 
     const bundlePath = join(dir, 'teleport.json');
     await teleport!.handler(['export', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export teleport bundle');
+
+    out.length = 0;
+    await teleport!.handler(['export', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Teleport bundle exported');
 
     out.length = 0;
@@ -504,6 +508,10 @@ describe('remote command', () => {
 
     out.length = 0;
     await teleport!.handler(['import', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to import teleport bundle');
+
+    out.length = 0;
+    await teleport!.handler(['import', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Imported teleport bundle');
   });
 });
