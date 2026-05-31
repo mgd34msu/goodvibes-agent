@@ -105,4 +105,31 @@ describe('runtime knowledge store isolation', () => {
     expect(multimodal.knowledgeService).toBe(services.agentKnowledgeService);
     expect(multimodal.knowledgeService).not.toBe(services.knowledgeService);
   });
+
+  test('project planning and work plans store artifacts in Agent Knowledge only', async () => {
+    const { services } = makeRuntime();
+
+    await services.projectPlanningService.createWorkPlanTask({
+      task: {
+        title: 'Keep Agent work plans isolated',
+        source: 'agent',
+        originSurface: GOODVIBES_AGENT_SURFACE_ROOT,
+      },
+    });
+
+    const agentSources = services.agentKnowledgeService.querySources({
+      includeAllSpaces: true,
+      connectorId: 'goodvibes-project-planning',
+      limit: 100,
+    }).items;
+    const regularSources = services.knowledgeService.querySources({
+      includeAllSpaces: true,
+      connectorId: 'goodvibes-project-planning',
+      limit: 100,
+    }).items;
+
+    expect(agentSources).toHaveLength(1);
+    expect(agentSources[0]?.title).toBe('Project Work Plan');
+    expect(regularSources).toHaveLength(0);
+  });
 });

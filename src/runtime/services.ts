@@ -440,7 +440,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     semanticService: homeGraphSemanticService,
   });
   const projectPlanningProjectId = projectPlanningProjectIdFromPath(workingDirectory);
-  const projectPlanningService = new ProjectPlanningService(knowledgeStore, {
+  const projectPlanningService = new ProjectPlanningService(agentKnowledgeStore, {
     defaultProjectId: projectPlanningProjectId,
   });
   const workPlanStore = new WorkPlanStore({
