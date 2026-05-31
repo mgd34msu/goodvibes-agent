@@ -33,6 +33,7 @@ if (testFiles.length === 0) {
 
 let passedFiles = 0;
 let failedFiles = 0;
+const failedTestFiles: string[] = [];
 
 for (const testFile of testFiles) {
   const rel = relative(ROOT, testFile);
@@ -61,7 +62,14 @@ for (const testFile of testFiles) {
   }
 
   failedFiles += 1;
+  failedTestFiles.push(rel);
 }
 
 console.log(`\nTest files: ${testFiles.length}, passed: ${passedFiles}, failed: ${failedFiles}`);
+if (failedTestFiles.length > 0) {
+  console.log('Failed test files:');
+  for (const failedTestFile of failedTestFiles) {
+    console.log(`- ${failedTestFile}`);
+  }
+}
 process.exit(failedFiles === 0 ? 0 : 1);
