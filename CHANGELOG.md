@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.55 - 2026-05-31
+
+- d8f4eee Remove copied developer audit surfaces
+
 ## 0.1.54 - 2026-05-31
 
 - dc1a290 Keep release docs version-neutral
