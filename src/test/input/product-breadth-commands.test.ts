@@ -1422,15 +1422,20 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Marketplace Install Guidance: Release Gate');
 
     out.length = 0;
-    await marketplace!.handler(['install', 'hook-pack', 'guard-pack', 'project'], ctx);
+    await marketplace!.handler(['install', 'plugin', 'deploy-audit', 'project'], ctx);
+    expect(out.join('\n')).toContain('Refusing to install curated plugin deploy-audit without --yes.');
+    expect(existsSync(join(root, '.goodvibes', 'plugins', 'deploy-audit', 'index.ts'))).toBe(false);
+
+    out.length = 0;
+    await marketplace!.handler(['install', 'hook-pack', 'guard-pack', 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Installed curated hook-pack guard-pack');
 
     out.length = 0;
-    await marketplace!.handler(['install', 'policy-pack', 'strict-policy', 'project'], ctx);
+    await marketplace!.handler(['install', 'policy-pack', 'strict-policy', 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Installed curated policy-pack strict-policy');
 
     out.length = 0;
-    await marketplace!.handler(['install', 'plugin', 'deploy-audit', 'project'], ctx);
+    await marketplace!.handler(['install', 'plugin', 'deploy-audit', 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Installed curated plugin deploy-audit');
     const installedPluginPath = join(root, '.goodvibes', 'plugins', 'deploy-audit', 'index.ts');
     expect(readFileSync(installedPluginPath, 'utf-8')).toContain('init');
@@ -1449,7 +1454,7 @@ describe('product breadth commands', () => {
 
     writeFileSync(join(root, 'catalog', 'plugins', 'deploy-audit', 'index.ts'), 'export function init() { return "updated"; }\n');
     out.length = 0;
-    await marketplace!.handler(['update', 'plugin', 'deploy-audit', 'project'], ctx);
+    await marketplace!.handler(['update', 'plugin', 'deploy-audit', 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Updated curated plugin deploy-audit');
     expect(readFileSync(installedPluginPath, 'utf-8')).toContain('updated');
 
@@ -1459,13 +1464,18 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('update');
 
     out.length = 0;
-    await marketplace!.handler(['rollback', 'plugin', 'deploy-audit', 'project'], ctx);
+    await marketplace!.handler(['rollback', 'plugin', 'deploy-audit', 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Rolled back curated plugin deploy-audit');
     expect(readFileSync(installedPluginPath, 'utf-8')).toContain('export function init() {}');
 
     const bundlePath = join(root, 'artifacts', 'marketplace-bundle.json');
     out.length = 0;
     await marketplace!.handler(['bundle', 'export', bundlePath, 'project'], ctx);
+    expect(out.join('\n')).toContain('Refusing to export marketplace bundle');
+    expect(existsSync(bundlePath)).toBe(false);
+
+    out.length = 0;
+    await marketplace!.handler(['bundle', 'export', bundlePath, 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Marketplace bundle exported');
     expect(existsSync(bundlePath)).toBe(true);
 
@@ -1475,10 +1485,19 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await marketplace!.handler(['bundle', 'import', bundlePath, 'user'], ctx);
+    expect(out.join('\n')).toContain('Refusing to import marketplace bundle');
+
+    out.length = 0;
+    await marketplace!.handler(['bundle', 'import', bundlePath, 'user', '--yes'], ctx);
     expect(out.join('\n')).toContain('Marketplace bundle imported');
 
     out.length = 0;
     await marketplace!.handler(['uninstall', 'plugin', 'deploy-audit', 'project'], ctx);
+    expect(out.join('\n')).toContain('Refusing to uninstall curated plugin deploy-audit without --yes.');
+    expect(existsSync(installedPluginPath)).toBe(true);
+
+    out.length = 0;
+    await marketplace!.handler(['uninstall', 'plugin', 'deploy-audit', 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Uninstalled curated plugin deploy-audit');
   });
 

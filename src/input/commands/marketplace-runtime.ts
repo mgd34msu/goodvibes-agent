@@ -20,6 +20,7 @@ import {
   type EcosystemEntryKind,
 } from '@/runtime/index.ts';
 import { openCommandPanel, requireEcosystemCatalogPaths, requireReadModels, requireShellPaths } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 function resolveMarketplaceEntry(
   kind: EcosystemEntryKind,
@@ -39,11 +40,13 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
     name: 'marketplace',
     aliases: ['catalog'],
     description: 'Browse the unified plugin and skill marketplace',
-    usage: '[open|overview|recommend|browse [query]|review <plugin|skill|hook-pack|policy-pack> <id>|provenance <plugin|skill|hook-pack|policy-pack> <id>|install-hint <plugin|skill|hook-pack|policy-pack> <id>|install <plugin|skill|hook-pack|policy-pack> <id> [project|user]|update <plugin|skill|hook-pack|policy-pack> <id> [project|user]|rollback <plugin|skill|hook-pack|policy-pack> <id> [project|user] [backupId]|history <plugin|skill|hook-pack|policy-pack> <id> [project|user]|uninstall <plugin|skill|hook-pack|policy-pack> <id> [project|user]|receipt <plugin|skill|hook-pack|policy-pack> <id> [project|user]|bundle export <path> [project|user]|bundle inspect <path>|bundle import <path> [project|user]|installed]',
+    usage: '[open|overview|recommend|browse [query]|review <plugin|skill|hook-pack|policy-pack> <id>|provenance <plugin|skill|hook-pack|policy-pack> <id>|install-hint <plugin|skill|hook-pack|policy-pack> <id>|install <plugin|skill|hook-pack|policy-pack> <id> [project|user] --yes|update <plugin|skill|hook-pack|policy-pack> <id> [project|user] --yes|rollback <plugin|skill|hook-pack|policy-pack> <id> [project|user] [backupId] --yes|history <plugin|skill|hook-pack|policy-pack> <id> [project|user]|uninstall <plugin|skill|hook-pack|policy-pack> <id> [project|user] --yes|receipt <plugin|skill|hook-pack|policy-pack> <id> [project|user]|bundle export <path> [project|user] --yes|bundle inspect <path>|bundle import <path> [project|user] --yes|installed]',
     handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       const ecosystemPaths = requireEcosystemCatalogPaths(ctx);
-      const sub = args[0] ?? 'open';
+      const sub = commandArgs[0] ?? 'open';
       if (sub === 'open' || sub === 'panel') {
         openCommandPanel(ctx, 'marketplace');
         return;
@@ -71,7 +74,7 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
         return;
       }
       if (sub === 'browse') {
-        const query = args.slice(1).join(' ');
+        const query = commandArgs.slice(1).join(' ');
         const pluginEntries = query ? searchEcosystemCatalog('plugin', query, ecosystemPaths) : loadEcosystemCatalog('plugin', ecosystemPaths);
         const skillEntries = query ? searchEcosystemCatalog('skill', query, ecosystemPaths) : loadEcosystemCatalog('skill', ecosystemPaths);
         const hookPackEntries = query ? searchEcosystemCatalog('hook-pack', query, ecosystemPaths) : loadEcosystemCatalog('hook-pack', ecosystemPaths);
@@ -113,14 +116,18 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
         return;
       }
       if (sub === 'bundle') {
-        const mode = args[1];
-        const target = args[2];
-        const scope = args[3] === 'user' ? 'user' : 'project';
+        const mode = commandArgs[1];
+        const target = commandArgs[2];
+        const scope = commandArgs[3] === 'user' ? 'user' : 'project';
         if ((mode === 'export' || mode === 'inspect' || mode === 'import') && !target) {
-          ctx.print(`Usage: /marketplace bundle ${mode} <path>${mode === 'export' || mode === 'import' ? ' [project|user]' : ''}`);
+          ctx.print(`Usage: /marketplace bundle ${mode} <path>${mode === 'export' || mode === 'import' ? ' [project|user] --yes' : ''}`);
           return;
         }
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export marketplace bundle to ${target}`, '/marketplace bundle export <path> [project|user] --yes');
+            return;
+          }
           const bundle = exportEcosystemCatalogBundle(scope, ecosystemPaths);
           const targetPath = shellPaths.resolveWorkspacePath(target!);
           mkdirSync(dirname(targetPath), { recursive: true });
@@ -141,6 +148,10 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
           return;
         }
         if (mode === 'import') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `import marketplace bundle from ${target}`, '/marketplace bundle import <path> [project|user] --yes');
+            return;
+          }
           const bundle = JSON.parse(readFileSync(shellPaths.resolveWorkspacePath(target!), 'utf-8')) as EcosystemCatalogBundle;
           const result = importEcosystemCatalogBundle(bundle, { ...ecosystemPaths, scope });
           ctx.print([
@@ -150,14 +161,14 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
           ].join('\n'));
           return;
         }
-        ctx.print('Usage: /marketplace bundle <export|inspect|import> <path> [project|user]');
+        ctx.print('Usage: /marketplace bundle <export|inspect|import> <path> [project|user] --yes');
         return;
       }
 
-      const kind = args[1] as EcosystemEntryKind | undefined;
-      const entryId = args[2];
+      const kind = commandArgs[1] as EcosystemEntryKind | undefined;
+      const entryId = commandArgs[2];
       if ((sub === 'review' || sub === 'provenance' || sub === 'install-hint' || sub === 'install' || sub === 'update' || sub === 'rollback' || sub === 'history' || sub === 'uninstall' || sub === 'receipt') && (!kind || !entryId || !['plugin', 'skill', 'hook-pack', 'policy-pack'].includes(kind))) {
-        ctx.print(`Usage: /marketplace ${sub} <plugin|skill|hook-pack|policy-pack> <id>${sub === 'install' || sub === 'update' || sub === 'rollback' || sub === 'history' || sub === 'uninstall' || sub === 'receipt' ? ' [project|user]' : ''}`);
+        ctx.print(`Usage: /marketplace ${sub} <plugin|skill|hook-pack|policy-pack> <id>${sub === 'install' || sub === 'update' || sub === 'rollback' || sub === 'history' || sub === 'uninstall' || sub === 'receipt' ? ' [project|user]' : ''}${sub === 'install' || sub === 'update' || sub === 'rollback' || sub === 'uninstall' ? ' --yes' : ''}`);
         return;
       }
       if (sub === 'review') {
@@ -216,7 +227,7 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
         return;
       }
       if (sub === 'receipt') {
-        const scope = args[3] === 'user' ? 'user' : 'project';
+        const scope = commandArgs[3] === 'user' ? 'user' : 'project';
         const result = inspectInstalledEcosystemEntry(kind!, entryId!, { ...ecosystemPaths, scope });
         if (!result.ok) {
           ctx.print(`Error: ${result.error}`);
@@ -236,7 +247,7 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
         return;
       }
       if (sub === 'history') {
-        const scope = args[3] === 'user' ? 'user' : 'project';
+        const scope = commandArgs[3] === 'user' ? 'user' : 'project';
         const backups = listEcosystemInstallBackups(kind!, entryId!, { ...ecosystemPaths, scope });
         ctx.print(backups.length > 0
           ? [
@@ -247,7 +258,11 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
         return;
       }
       if (sub === 'install' || sub === 'update' || sub === 'rollback' || sub === 'uninstall') {
-        const scope = args[3] === 'user' ? 'user' : 'project';
+        const scope = commandArgs[3] === 'user' ? 'user' : 'project';
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `${sub} curated ${kind} ${entryId}`, `/marketplace ${sub} <plugin|skill|hook-pack|policy-pack> <id> [project|user]${sub === 'rollback' ? ' [backupId]' : ''} --yes`);
+          return;
+        }
         if (sub === 'install') {
           const result = installEcosystemCatalogEntry(kind!, entryId!, { ...ecosystemPaths, scope });
           if (!result.ok) {
@@ -267,7 +282,7 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
           return;
         }
         if (sub === 'rollback') {
-          const backupId = args[4];
+          const backupId = commandArgs[4];
           const result = rollbackInstalledEcosystemEntry(kind!, entryId!, { ...ecosystemPaths, scope, backupId });
           if (!result.ok) {
             ctx.print(`Error: ${result.error}`);
@@ -284,7 +299,7 @@ export function registerMarketplaceRuntimeCommands(registry: CommandRegistry): v
         ctx.print(`Uninstalled curated ${kind} ${entryId} from ${result.removedPath}`);
         return;
       }
-      ctx.print('Usage: /marketplace [open|overview|recommend|browse [query]|review <plugin|skill|hook-pack|policy-pack> <id>|provenance <plugin|skill|hook-pack|policy-pack> <id>|install-hint <plugin|skill|hook-pack|policy-pack> <id>|install <plugin|skill|hook-pack|policy-pack> <id> [project|user]|update <plugin|skill|hook-pack|policy-pack> <id> [project|user]|rollback <plugin|skill|hook-pack|policy-pack> <id> [project|user] [backupId]|history <plugin|skill|hook-pack|policy-pack> <id> [project|user]|uninstall <plugin|skill|hook-pack|policy-pack> <id> [project|user]|receipt <plugin|skill|hook-pack|policy-pack> <id> [project|user]|bundle export <path> [project|user]|bundle inspect <path>|bundle import <path> [project|user]|installed]');
+      ctx.print('Usage: /marketplace [open|overview|recommend|browse [query]|review <plugin|skill|hook-pack|policy-pack> <id>|provenance <plugin|skill|hook-pack|policy-pack> <id>|install-hint <plugin|skill|hook-pack|policy-pack> <id>|install <plugin|skill|hook-pack|policy-pack> <id> [project|user] --yes|update <plugin|skill|hook-pack|policy-pack> <id> [project|user] --yes|rollback <plugin|skill|hook-pack|policy-pack> <id> [project|user] [backupId] --yes|history <plugin|skill|hook-pack|policy-pack> <id> [project|user]|uninstall <plugin|skill|hook-pack|policy-pack> <id> [project|user] --yes|receipt <plugin|skill|hook-pack|policy-pack> <id> [project|user]|bundle export <path> [project|user] --yes|bundle inspect <path>|bundle import <path> [project|user] --yes|installed]');
     },
   });
 }
