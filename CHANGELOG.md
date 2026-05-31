@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.39 - 2026-05-31
+
+- c98de19 Add routine schedule reconciliation
+
 ## 0.1.38 - 2026-05-31
 
 - 072503c Add routine schedule promotion receipts
