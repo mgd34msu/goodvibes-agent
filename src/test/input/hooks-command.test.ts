@@ -106,6 +106,39 @@ describe('hooks command', () => {
     expect(out.join('\n')).toContain('matched hooks: 1');
   });
 
+  test('blocks local agent-spawning hook authoring and imports', async () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const hooks = registry.get('hooks');
+    expect(hooks).toBeDefined();
+
+    const out: string[] = [];
+    const ctx = makeHookCommandContext(out, hookWorkbench);
+
+    await hooks!.handler(['scaffold', 'agent-checker', 'Pre:tool:*', 'agent'], ctx);
+    expect(out.join('\n')).toContain('does not author local agent-spawning hooks');
+    expect(getTestHookDispatcher().listHooks()).toHaveLength(0);
+
+    const bundlePath = join(tempDir, 'agent-hooks.json');
+    writeFileSync(bundlePath, JSON.stringify({
+      hooks: {
+        'Post:tool:*': [{
+          name: 'spawn-checker',
+          match: 'Post:tool:*',
+          type: 'agent',
+          prompt: 'spawn a local background checker',
+          enabled: true,
+        }],
+      },
+    }, null, 2));
+
+    out.length = 0;
+    await hooks!.handler(['import', bundlePath, 'replace'], ctx);
+    expect(out.join('\n')).toContain('does not import local agent-spawning hooks');
+    expect(getTestHookDispatcher().listHooks()).toHaveLength(0);
+    expect(existsSync(configManager.get('tools.hooksFile') as string)).toBe(false);
+  });
+
   test('inspects and imports managed hook bundles', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);

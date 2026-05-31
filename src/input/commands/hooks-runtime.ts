@@ -1,5 +1,25 @@
+import { readFileSync } from 'node:fs';
 import type { CommandRegistry } from '../command-registry.ts';
 import { requireHookApi } from './runtime-services.ts';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function containsAgentHookType(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some((entry) => containsAgentHookType(entry));
+  if (!isRecord(value)) return false;
+  if (value.type === 'agent') return true;
+  return Object.values(value).some((entry) => containsAgentHookType(entry));
+}
+
+function fileContainsAgentHookType(path: string): boolean {
+  try {
+    return containsAgentHookType(JSON.parse(readFileSync(path, 'utf-8')) as unknown);
+  } catch {
+    return false;
+  }
+}
 
 export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
@@ -25,10 +45,14 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
       if (subcommand === 'scaffold') {
         const [name, match, type] = args.slice(1);
         if (!name || !match || !type) {
-          ctx.print('Usage: /hooks scaffold <name> <match> <command|prompt|agent|http|ts>');
+          ctx.print('Usage: /hooks scaffold <name> <match> <command|prompt|http|ts>');
           return;
         }
-        if (!['command', 'prompt', 'agent', 'http', 'ts'].includes(type)) {
+        if (type === 'agent') {
+          ctx.print('Blocked: GoodVibes Agent does not author local agent-spawning hooks. Use command, prompt, http, or ts hooks, or delegate explicit build work to GoodVibes TUI.');
+          return;
+        }
+        if (!['command', 'prompt', 'http', 'ts'].includes(type)) {
           ctx.print(`Unknown hook type: ${type}`);
           return;
         }
@@ -116,6 +140,10 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
         const strategy = args[2] === 'replace' ? 'replace' : 'merge';
         if (!path) {
           ctx.print('Usage: /hooks import <path> [merge|replace]');
+          return;
+        }
+        if (fileContainsAgentHookType(path)) {
+          ctx.print('Blocked: hook bundle contains type=agent entries. GoodVibes Agent does not import local agent-spawning hooks.');
           return;
         }
         await workbench.import(path, strategy);
