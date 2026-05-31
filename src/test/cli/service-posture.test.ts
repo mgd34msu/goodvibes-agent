@@ -230,6 +230,6 @@ describe('CLI service posture', () => {
     expect(posture.managed.autostart).toBe(true);
     expect(posture.managed.running).toBe(true);
     expect(posture.managed.pid).toBe(12345);
-    expect(posture.issues).not.toContain('Service mode is enabled but the managed service is not running.');
+    expect(posture.issues).not.toContain('External daemon service config is enabled, but the managed service is not running.');
   });
 });

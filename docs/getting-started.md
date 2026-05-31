@@ -1,6 +1,6 @@
 # Getting Started
 
-GoodVibes Agent `0.1.7` is the current installable public alpha of the personal operator assistant built on the GoodVibes TUI foundation.
+GoodVibes Agent `0.1.9` is the current installable public alpha of the personal operator assistant built on the GoodVibes TUI foundation.
 
 ## Requirements
 

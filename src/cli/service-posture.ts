@@ -397,19 +397,19 @@ export async function buildCliServicePosture(
   const issues: string[] = [];
 
   if (serverBackedEnabled && !config.enabled) {
-    issues.push('Server-backed surfaces are enabled but service mode is off.');
+    issues.push('Daemon-owned surfaces are configured, but Agent service ownership is disabled.');
   }
   if (config.enabled && !config.autostart) {
-    issues.push('Service mode is enabled but autostart is off.');
+    issues.push('External daemon service config has autostart off.');
   }
   if (config.enabled && !config.restartOnFailure) {
-    issues.push('Service mode is enabled but restart-on-failure is off.');
+    issues.push('External daemon service config has restart-on-failure off.');
   }
   if (config.enabled && !status.installed) {
-    issues.push('Service mode is enabled but no platform service definition is installed.');
+    issues.push('External daemon service config is enabled, but no platform service definition is installed.');
   }
   if (config.enabled && !status.running) {
-    issues.push('Service mode is enabled but the managed service is not running.');
+    issues.push('External daemon service config is enabled, but the managed service is not running.');
   }
   if (status.actionError) {
     issues.push(`Service manager reported an error: ${status.actionError}`);
@@ -454,7 +454,7 @@ function yesNo(value: boolean): string {
 export function formatCliServicePosture(posture: CliServicePosture, json = false): string {
   if (json) return JSON.stringify(posture, null, 2);
   return [
-    'GoodVibes service',
+    'GoodVibes external daemon service',
     `  enabled: ${yesNo(posture.config.enabled)}`,
     `  autostart: ${yesNo(posture.config.autostart)}`,
     `  restartOnFailure: ${yesNo(posture.config.restartOnFailure)}`,

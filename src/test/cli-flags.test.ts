@@ -363,7 +363,7 @@ describe('parseCliFlags', () => {
     expect(text.result).toEqual({ handled: true, exitCode: 1 });
     expect(text.output).toContain('bind posture: Local Network');
     expect(text.output).toContain('readiness: needs attention');
-    expect(text.output).toContain('HTTP listener is enabled but service mode is off.');
+    expect(text.output).toContain('HTTP listener is enabled on the external daemon config, but Agent service ownership is disabled.');
     expect(text.output).toContain('Network-facing listener has no local auth user store.');
     expect(text.output).toContain('Slack is enabled but missing surfaces.slack.signingSecret, surfaces.slack.botToken.');
 
@@ -371,7 +371,7 @@ describe('parseCliFlags', () => {
     expect(json.result).toEqual({ handled: true, exitCode: 1 });
     const parsed = JSON.parse(json.output) as { issues: string[]; posture: { kind: string }; surfaces: Array<{ id: string; ready: boolean }> };
     expect(parsed.posture.kind).toBe('local-network');
-    expect(parsed.issues).toContain('HTTP listener is enabled but service mode is off.');
+    expect(parsed.issues).toContain('HTTP listener is enabled on the external daemon config, but Agent service ownership is disabled.');
     expect(parsed.surfaces.find((surface) => surface.id === 'slack')?.ready).toBe(false);
   });
 
@@ -515,16 +515,16 @@ describe('parseCliFlags', () => {
 
     const text = await captureGoodVibesCliCommand(['service', 'check'], configManager, root);
     expect(text.result).toEqual({ handled: true, exitCode: 1 });
-    expect(text.output).toContain('GoodVibes service');
+    expect(text.output).toContain('GoodVibes external daemon service');
     expect(text.output).toContain('Readiness: needs attention');
-    expect(text.output).toContain('Service mode is enabled but no platform service definition is installed.');
+    expect(text.output).toContain('External daemon service config is enabled, but no platform service definition is installed.');
 
     const json = await captureGoodVibesCliCommand(['service', 'check', '--json'], configManager, root);
     expect(json.result).toEqual({ handled: true, exitCode: 1 });
     const parsed = JSON.parse(json.output) as { managed: { installed: boolean }; endpoints: Array<{ id: string }>; issues: string[] };
     expect(parsed.managed.installed).toBe(false);
     expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
-    expect(parsed.issues).toContain('Service mode is enabled but no platform service definition is installed.');
+    expect(parsed.issues).toContain('External daemon service config is enabled, but no platform service definition is installed.');
   });
 
   test('control-plane status returns readiness failures for enabled unreachable network posture', async () => {
@@ -543,14 +543,14 @@ describe('parseCliFlags', () => {
     expect(text.result).toEqual({ handled: true, exitCode: 1 });
     expect(text.output).toContain('bind posture: Local Network');
     expect(text.output).toContain('readiness: needs attention');
-    expect(text.output).toContain('Control plane is enabled but service mode is off.');
+    expect(text.output).toContain('Control plane is enabled on the external daemon config, but Agent service ownership is disabled.');
     expect(text.output).toContain('Network-facing control plane has no local auth user store.');
 
     const json = await captureGoodVibesCliCommand(['control-plane', 'status', '--json'], configManager, root);
     expect(json.result).toEqual({ handled: true, exitCode: 1 });
     const parsed = JSON.parse(json.output) as { posture: { kind: string }; issues: string[] };
     expect(parsed.posture.kind).toBe('local-network');
-    expect(parsed.issues).toContain('Control plane is enabled but service mode is off.');
+    expect(parsed.issues).toContain('Control plane is enabled on the external daemon config, but Agent service ownership is disabled.');
   });
 
   test('providers and models commands surface setup posture through CLI output', async () => {

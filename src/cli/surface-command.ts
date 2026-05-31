@@ -217,9 +217,9 @@ export async function buildListenerTestResult(runtime: CliCommandRuntime): Promi
   }).filter((surface) => surface.enabled === true);
   const issues: string[] = [];
   if (enabled !== true) issues.push('HTTP listener is disabled.');
-  if (enabled === true && service.enabled !== true) issues.push('HTTP listener is enabled but service mode is off.');
-  if (enabled === true && service.autostart !== true) issues.push('HTTP listener is enabled but service autostart is off.');
-  if (enabled === true && service.restartOnFailure !== true) issues.push('HTTP listener is enabled but service restart-on-failure is off.');
+  if (enabled === true && service.enabled !== true) issues.push('HTTP listener is enabled on the external daemon config, but Agent service ownership is disabled.');
+  if (enabled === true && service.autostart !== true) issues.push('HTTP listener is enabled on the external daemon config, but daemon autostart is off.');
+  if (enabled === true && service.restartOnFailure !== true) issues.push('HTTP listener is enabled on the external daemon config, but restart-on-failure is off.');
   if (isNetworkFacing(enabled, binding) && !auth.userStorePresent) issues.push('Network-facing listener has no local auth user store.');
   if (isNetworkFacing(enabled, binding) && auth.bootstrapCredentialPresent) issues.push('Network-facing listener still has a bootstrap credential file.');
   for (const surface of surfaces) {

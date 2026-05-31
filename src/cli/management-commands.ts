@@ -329,9 +329,9 @@ export async function buildControlPlaneStatusResult(runtime: CliCommandRuntime):
   };
   const issues: string[] = [];
   if (enabled === true && !reachable) issues.push(`Control plane is enabled but not reachable on ${binding.host}:${binding.port}.`);
-  if (enabled === true && service.enabled !== true) issues.push('Control plane is enabled but service mode is off.');
-  if (enabled === true && service.autostart !== true) issues.push('Control plane is enabled but service autostart is off.');
-  if (enabled === true && service.restartOnFailure !== true) issues.push('Control plane is enabled but service restart-on-failure is off.');
+  if (enabled === true && service.enabled !== true) issues.push('Control plane is enabled on the external daemon config, but Agent service ownership is disabled.');
+  if (enabled === true && service.autostart !== true) issues.push('Control plane is enabled on the external daemon config, but daemon autostart is off.');
+  if (enabled === true && service.restartOnFailure !== true) issues.push('Control plane is enabled on the external daemon config, but restart-on-failure is off.');
   if (isNetworkFacing(enabled, binding) && !auth.userStorePresent) issues.push('Network-facing control plane has no local auth user store.');
   if (isNetworkFacing(enabled, binding) && auth.bootstrapCredentialPresent) issues.push('Network-facing control plane still has a bootstrap credential file.');
   return {

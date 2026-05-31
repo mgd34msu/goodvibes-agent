@@ -122,10 +122,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'service-disabled-for-server-surfaces',
       area: 'service',
       severity: 'warning',
-      summary: 'Server-backed surfaces are enabled but service mode is off.',
+      summary: 'Daemon-owned surfaces are configured while Agent service ownership is disabled.',
       cause: 'One or more daemon, control-plane, listener, or web settings are enabled while service.enabled is false.',
-      impact: 'The configured surfaces may not start automatically or survive restarts.',
-      action: 'Enable service mode or disable the server-backed surfaces you do not want.',
+      impact: 'The external daemon host must own availability for those surfaces; Agent will not start or enable them.',
+      action: 'Manage surface/service posture from GoodVibes TUI or the daemon host, then use Agent for read-only diagnostics.',
     });
   }
 
@@ -134,10 +134,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'service-autostart-disabled',
       area: 'service',
       severity: 'warning',
-      summary: 'Service mode is enabled but autostart is off.',
+      summary: 'External daemon service config has autostart off.',
       cause: 'service.enabled is true and service.autostart is false.',
       impact: 'The external GoodVibes daemon may not be available after login or reboot even though service mode is selected.',
-      action: 'Enable service.autostart if the daemon/listener/web surfaces should stay available.',
+      action: 'Configure daemon autostart from GoodVibes TUI or the daemon host; Agent will not mutate this setting.',
     });
   }
 
@@ -146,10 +146,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'service-restart-disabled',
       area: 'service',
       severity: 'warning',
-      summary: 'Service restart-on-failure is off.',
+      summary: 'External daemon service config has restart-on-failure off.',
       cause: 'service.enabled is true and service.restartOnFailure is false.',
       impact: 'A crashed daemon or listener may stay down until manually restarted.',
-      action: 'Enable service.restartOnFailure for durable daemon/listener operation.',
+      action: 'Configure restart-on-failure from GoodVibes TUI or the daemon host; Agent will not mutate this setting.',
     });
   }
 
@@ -163,7 +163,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         summary: issue,
         cause: 'The service lifecycle inspection found a mismatch between configured service/surface state and observed host state.',
         impact: 'Daemon, control-plane, listener, or web availability may not match the configuration.',
-        action: 'Run goodvibes-agent service check, then manage the daemon from GoodVibes TUI or your daemon host tooling.',
+        action: 'Use goodvibes-agent service check for read-only detail, then manage the daemon from GoodVibes TUI or your daemon host tooling.',
       });
     }
   }
@@ -326,7 +326,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
       ? `  operatorTokens: ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
       : '  operatorTokens: unknown',
     '',
-    'Service:',
+    'External Daemon Service:',
     `  enabled: ${yesNo(serviceEnabled)}`,
     `  autostart: ${yesNo(serviceAutostart)}`,
     `  restartOnFailure: ${yesNo(restartOnFailure)}`,

@@ -165,7 +165,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         ['shell', 'Shell execution approval with side-effect and credential review.'],
         ['file', 'File mutation approval with config/notebook differentiation.'],
         ['network', 'Network access approval with host/scope review.'],
-        ['delegate', 'Agent spawn/delegation approval with recursion ceilings.'],
+        ['delegate', 'Explicit GoodVibes TUI build delegation approval; local Agent spawn is blocked.'],
         ['mcp', 'MCP trust escalation approval with host/path review.'],
         ['remote', 'Remote dispatch approval with trust/artifact review.'],
         ['hook', 'Hook execution approval with deny/mutate authority review.'],

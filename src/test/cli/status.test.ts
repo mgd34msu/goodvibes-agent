@@ -81,6 +81,23 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('[warning:network:network-http-listener-enabled]');
   });
 
+  test('service posture findings never instruct Agent to mutate daemon lifecycle', () => {
+    const findings = buildCliDoctorFindings(makeOptions({
+      'service.enabled': false,
+      'service.autostart': false,
+      'service.restartOnFailure': false,
+      'danger.daemon': true,
+      'controlPlane.enabled': true,
+    }));
+    const text = findings.map((finding) => `${finding.summary}\n${finding.action}`).join('\n');
+
+    expect(text).toContain('Agent service ownership is disabled');
+    expect(text).toContain('GoodVibes TUI or the daemon host');
+    expect(text).not.toContain('Enable service mode');
+    expect(text).not.toContain('Enable service.autostart');
+    expect(text).not.toContain('Enable service.restartOnFailure');
+  });
+
   test('network auth posture is flagged when LAN surfaces have no local users or bootstrap is still present', () => {
     const findings = buildCliDoctorFindings({
       ...makeOptions({
