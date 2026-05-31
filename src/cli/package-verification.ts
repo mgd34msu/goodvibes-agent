@@ -32,6 +32,7 @@ const REQUIRED_BIN_COMMANDS = ['goodvibes-agent'] as const;
 const REQUIRED_TARBALL_PATHS = [
   'README.md',
   'CHANGELOG.md',
+  'LICENSE',
   'package.json',
   'src/main.ts',
   'bin/goodvibes-agent.ts',

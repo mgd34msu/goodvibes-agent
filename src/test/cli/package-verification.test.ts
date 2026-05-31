@@ -14,6 +14,7 @@ describe('package CLI install verification', () => {
     expect(report.bins.every((bin) => bin.hasSourceEntrypoint)).toBe(true);
     expect(report.tarball.requiredPathsPresent).toContain('bin/goodvibes-agent.ts');
     expect(report.tarball.requiredPathsPresent).toContain('scripts/check-bun.sh');
+    expect(report.tarball.requiredPathsPresent).toContain('LICENSE');
     expect(report.tarball.forbiddenPaths).toEqual([]);
     expect(report.packageFacingText.failures).toEqual([]);
     expect(report.packageFacingText.checkedPaths).toContain('README.md');

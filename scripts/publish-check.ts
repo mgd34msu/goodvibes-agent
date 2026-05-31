@@ -71,6 +71,7 @@ for (const filePath of filePaths) {
 for (const requiredPath of [
   'README.md',
   'CHANGELOG.md',
+  'LICENSE',
   'src/main.ts',
   'bin/goodvibes-agent.ts',
   'scripts/check-bun.sh',
