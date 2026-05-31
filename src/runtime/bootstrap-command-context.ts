@@ -100,6 +100,7 @@ export type CreateBootstrapCommandContextOptions = {
   sessionOrchestration?: ShellSessionOrchestrationService;
   operatorClient?: OperatorClient;
   peerClient?: PeerClient;
+  agentKnowledgeApi?: KnowledgeApi;
   knowledgeApi?: KnowledgeApi;
   hookApi?: HookApi;
   mcpApi?: McpApi;
@@ -170,6 +171,7 @@ export function createBootstrapCommandContext(
     sessionOrchestration,
     operatorClient,
     peerClient,
+    agentKnowledgeApi,
     knowledgeApi,
     hookApi,
     mcpApi,
@@ -245,6 +247,7 @@ export function createBootstrapCommandContext(
   const clients = createBootstrapCommandClientsSection({
     operatorClient,
     peerClient,
+    agentKnowledgeApi,
     providerApi,
     knowledgeApi,
     hookApi,

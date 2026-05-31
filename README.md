@@ -61,6 +61,8 @@ Those commands should return explicit external-daemon guidance instead of mutati
 
 GoodVibes Agent owns the operator assistant surface: serial assistant flow, proactive safe actions, local memory/skills/personas until stable shared registries exist, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
+Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki, HomeGraph, or Home Assistant routes.
+
 GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, sandbox/QEMU UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public daemon/session contracts; normal assistant chat must not use shared coding sessions.
 
 ## Package Docs

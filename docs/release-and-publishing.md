@@ -39,6 +39,8 @@ Also run the package install smoke from a packed artifact. It must prove:
 
 Do not publish if package-facing docs or install commands refer to another package name, another executable, or Agent-owned daemon lifecycle.
 
+Do not publish if Agent Knowledge commands can fall back to default Knowledge/Wiki, HomeGraph, or Home Assistant routes. Agent Knowledge must use the isolated `/api/goodvibes-agent/knowledge/*` segment.
+
 Do not ship daemon binaries from this package. If Agent later gets compiled artifacts, they must use Agent artifact names and remain separate from daemon ownership.
 
 ## Near-Fork Baseline Rule

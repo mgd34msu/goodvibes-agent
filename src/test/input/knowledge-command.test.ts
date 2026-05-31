@@ -65,10 +65,10 @@ function makeKnowledgeCommandContext(
     extensions: {
       toolRegistry: {} as never,
       mcpRegistry: {} as never,
-      knowledgeService,
+      agentKnowledgeService: knowledgeService,
     },
     clients: {
-      knowledgeApi: createKnowledgeApi(knowledgeService, { memoryRegistry }),
+      agentKnowledgeApi: createKnowledgeApi(knowledgeService, { memoryRegistry }),
     },
     renderRequest: () => {},
     print: (text: string) => { printed.push(text); },
@@ -101,12 +101,12 @@ function makeKnowledgeAskCommandContext(printed: string[], askResult: unknown): 
     extensions: {
       toolRegistry: {} as never,
       mcpRegistry: {} as never,
-      knowledgeService: {
+      agentKnowledgeService: {
         ask: async () => askResult,
       } as never,
     },
     clients: {
-      knowledgeApi: {} as never,
+      agentKnowledgeApi: {} as never,
     },
     renderRequest: () => {},
     print: (text: string) => { printed.push(text); },
@@ -194,10 +194,10 @@ describe('knowledgeCommand', () => {
 
   test('asks knowledge and renders SDK semantic answer fields', async () => {
     await knowledgeCommand.handler(
-      ['ask', 'what', 'does', 'the', 'manual', 'say?', '--space', 'homeassistant:test', '--mode', 'detailed'],
+      ['ask', 'what', 'does', 'the', 'manual', 'say?', '--mode', 'detailed'],
       makeKnowledgeAskCommandContext(printed, {
         ok: true,
-        spaceId: 'homeassistant:test',
+        spaceId: 'goodvibes-agent',
         query: 'what does the manual say?',
         answer: {
           text: 'The SDK answer text.',
@@ -206,9 +206,9 @@ describe('knowledgeCommand', () => {
           synthesized: true,
           sources: [{
             id: 'src-1',
-            connectorId: 'homeassistant',
+            connectorId: 'goodvibes-agent',
             sourceType: 'document',
-            title: 'Device manual.pdf',
+            title: 'Agent manual.pdf',
             tags: [],
             status: 'indexed',
             summary: 'Official manual.',
@@ -220,8 +220,8 @@ describe('knowledgeCommand', () => {
             id: 'fact-1',
             kind: 'feature',
             slug: 'feature-1',
-            title: 'Supports HDMI',
-            summary: 'HDMI support is documented.',
+            title: 'Supports explicit delegation',
+            summary: 'Delegation support is documented.',
             aliases: [],
             status: 'active',
             confidence: 88,
@@ -231,10 +231,10 @@ describe('knowledgeCommand', () => {
           }],
           linkedObjects: [{
             id: 'device-1',
-            kind: 'ha_device',
+            kind: 'agent_capability',
             slug: 'device-1',
-            title: 'Living Room TV',
-            summary: 'LG TV',
+            title: 'Operator workspace',
+            summary: 'Agent workspace',
             aliases: [],
             status: 'active',
             confidence: 90,
@@ -268,13 +268,78 @@ describe('knowledgeCommand', () => {
     const output = printed.join('\n');
     expect(output).toContain('The SDK answer text.');
     expect(output).toContain('Sources:');
-    expect(output).toContain('Device manual.pdf');
+    expect(output).toContain('Agent manual.pdf');
     expect(output).toContain('Facts:');
-    expect(output).toContain('Supports HDMI');
+    expect(output).toContain('Supports explicit delegation');
     expect(output).toContain('Linked objects:');
-    expect(output).toContain('Living Room TV');
+    expect(output).toContain('Operator workspace');
     expect(output).toContain('Gaps:');
     expect(output).toContain('Missing warranty');
     expect(output).not.toContain('This local snippet should not be rendered.');
+  });
+
+  test('refuses default Knowledge/Wiki or HomeGraph fallback when Agent Knowledge is not wired', async () => {
+    const genericKnowledgeApi = createKnowledgeApi({
+      getStatus: () => {
+        throw new Error('default wiki must not be called');
+      },
+    } as never);
+    const context = {
+      ...makeKnowledgeAskCommandContext(printed, {
+        query: '',
+        answer: {
+          text: '',
+          mode: 'standard',
+          confidence: 0,
+          synthesized: false,
+          sources: [],
+          facts: [],
+          linkedObjects: [],
+          gaps: [],
+        },
+      }),
+      extensions: {
+        toolRegistry: {} as never,
+        mcpRegistry: {} as never,
+        knowledgeService: {
+          ask: async () => {
+            throw new Error('default knowledge ask must not be called');
+          },
+        } as never,
+      },
+      clients: {
+        knowledgeApi: genericKnowledgeApi,
+      },
+    } as CommandContext;
+
+    await knowledgeCommand.handler(['status'], context);
+
+    const output = printed.join('\n');
+    expect(output).toContain('Agent Knowledge API is not available');
+    expect(output).toContain('Refusing to use default Knowledge/Wiki or HomeGraph fallback');
+  });
+
+  test('rejects space flags instead of routing Agent Knowledge to HomeGraph/default spaces', async () => {
+    await knowledgeCommand.handler(
+      ['ask', 'what', 'does', 'the', 'manual', 'say?', '--space', 'homeassistant:test'],
+      makeKnowledgeAskCommandContext(printed, {
+        query: 'what does the manual say?',
+        answer: {
+          text: 'This must not render.',
+          mode: 'standard',
+          confidence: 99,
+          synthesized: true,
+          sources: [],
+          facts: [],
+          linkedObjects: [],
+          gaps: [],
+        },
+      }),
+    );
+
+    const output = printed.join('\n');
+    expect(output).toContain('Agent Knowledge is isolated');
+    expect(output).toContain('--space/--knowledge-space is not accepted');
+    expect(output).not.toContain('This must not render.');
   });
 });

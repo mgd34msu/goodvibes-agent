@@ -45,6 +45,9 @@ Start the daemon from GoodVibes TUI or the daemon host before using daemon-backe
 - `/api/goodvibes-agent/knowledge/status`
 - `/api/goodvibes-agent/knowledge/ask`
 - `/api/goodvibes-agent/knowledge/search`
+- `/api/goodvibes-agent/knowledge/ingest/url`
+
+Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not fall back to default Knowledge/Wiki, HomeGraph, or Home Assistant spaces.
 
 Agent lifecycle commands that would start or mutate daemon posture are blocked intentionally. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and read-only surface checks for diagnostics.
 

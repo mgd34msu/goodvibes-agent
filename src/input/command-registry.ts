@@ -180,7 +180,9 @@ export interface CommandExtensionRegistryServices {
 
 export interface CommandExtensionServices
   extends CommandExtensionRegistryServices,
-    CommandExtensionShellServices {}
+    CommandExtensionShellServices {
+  readonly agentKnowledgeService?: import('@pellux/goodvibes-sdk/platform/knowledge').KnowledgeService;
+}
 
 /**
  * CommandContext - Passed to every slash command handler so commands can
@@ -200,6 +202,7 @@ export interface CommandContext
     readonly operator?: OperatorClient;
     readonly peer?: PeerClient;
     readonly providerApi?: ProviderApi;
+    readonly agentKnowledgeApi?: KnowledgeApi;
     readonly knowledgeApi?: KnowledgeApi;
     readonly hookApi?: HookApi;
     readonly mcpApi?: McpApi;

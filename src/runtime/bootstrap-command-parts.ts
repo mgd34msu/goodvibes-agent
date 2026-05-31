@@ -117,6 +117,7 @@ export interface BootstrapCommandSectionOptions {
   readonly operatorClient?: OperatorClient;
   readonly peerClient?: PeerClient;
   readonly providerApi?: ProviderApi;
+  readonly agentKnowledgeApi?: KnowledgeApi;
   readonly knowledgeApi?: KnowledgeApi;
   readonly hookApi?: HookApi;
   readonly mcpApi?: McpApi;
@@ -360,23 +361,26 @@ export function createBootstrapCommandExtensionsSection(
   >,
   shellServices: BootstrapCommandShellServices,
 ): BootstrapCommandExtensionSection {
+  const shellExtensionServices = shellServices.extensions;
   return {
     toolRegistry: options.toolRegistry,
     mcpRegistry: options.mcpRegistry,
-    ...shellServices.extensions,
+    ...shellExtensionServices,
+    agentKnowledgeService: shellExtensionServices.knowledgeService,
   };
 }
 
 export function createBootstrapCommandClientsSection(
   options: Pick<
     BootstrapCommandSectionOptions,
-    'operatorClient' | 'peerClient' | 'providerApi' | 'knowledgeApi' | 'hookApi' | 'mcpApi' | 'opsApi' | 'directTransport'
+    'operatorClient' | 'peerClient' | 'providerApi' | 'agentKnowledgeApi' | 'knowledgeApi' | 'hookApi' | 'mcpApi' | 'opsApi' | 'directTransport'
   >,
 ): BootstrapCommandClientSection {
   return {
     operator: options.operatorClient,
     peer: options.peerClient,
     providerApi: options.providerApi,
+    agentKnowledgeApi: options.agentKnowledgeApi,
     knowledgeApi: options.knowledgeApi,
     hookApi: options.hookApi,
     mcpApi: options.mcpApi,

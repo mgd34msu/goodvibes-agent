@@ -8,10 +8,10 @@ type KnowledgeAskInput = Parameters<KnowledgeService['ask']>[0];
 type KnowledgeAskResult = Awaited<ReturnType<KnowledgeService['ask']>>;
 type KnowledgeAskMode = NonNullable<KnowledgeAskInput['mode']>;
 
-function requireKnowledgeApi(context: CommandContext) {
-  const knowledgeApi = context.clients?.knowledgeApi;
+function requireAgentKnowledgeApi(context: CommandContext) {
+  const knowledgeApi = context.clients?.agentKnowledgeApi;
   if (!knowledgeApi) {
-    context.print('[knowledge] Knowledge API is not available in this runtime.');
+    context.print('[knowledge] Agent Knowledge API is not available in this runtime. Refusing to use default Knowledge/Wiki or HomeGraph fallback.');
     return null;
   }
   return knowledgeApi;
@@ -57,14 +57,11 @@ function positionalArgs(args: string[], valuedFlags: readonly string[] = []): st
   });
 }
 
-function requireKnowledgeAsk(context: CommandContext): ((input: KnowledgeAskInput) => Promise<KnowledgeAskResult>) | null {
-  const serviceAsk = context.extensions.knowledgeService?.ask?.bind(context.extensions.knowledgeService);
+function requireAgentKnowledgeAsk(context: CommandContext): ((input: KnowledgeAskInput) => Promise<KnowledgeAskResult>) | null {
+  const serviceAsk = context.extensions.agentKnowledgeService?.ask?.bind(context.extensions.agentKnowledgeService);
   if (serviceAsk) return serviceAsk;
 
-  const clientAsk = (context.clients?.knowledgeApi as unknown as { ask?: (input: KnowledgeAskInput) => Promise<KnowledgeAskResult> } | undefined)?.ask;
-  if (clientAsk) return clientAsk;
-
-  context.print('[knowledge] Knowledge ask is not available in this runtime.');
+  context.print('[knowledge] Agent Knowledge ask is not available in this runtime. Refusing to use default Knowledge/Wiki or HomeGraph fallback.');
   return null;
 }
 
@@ -132,11 +129,11 @@ function renderKnowledgeAskResult(result: KnowledgeAskResult): string {
 export const knowledgeCommand: SlashCommand = {
   name: 'knowledge',
   aliases: ['know', 'kb'],
-  description: 'Structured knowledge graph: ingest URLs/bookmarks, inspect issues, and build compact prompt packets.',
+  description: 'Agent Knowledge/Wiki: isolated Agent-owned sources, graph, review queue, and compact prompt packets.',
   usage: '<subcommand> [args]',
   argsHint: 'status|ask|ingest-url|import-bookmarks|import-urls|list|search|get|queue|review-issue|candidates|reports|schedules|lint|packet|explain|reindex|consolidate',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
-    const knowledge = requireKnowledgeApi(context);
+    const knowledge = requireAgentKnowledgeApi(context);
     if (!knowledge) {
       return;
     }
@@ -149,12 +146,16 @@ export const knowledgeCommand: SlashCommand = {
 
     switch (sub) {
       case 'ask': {
-        const ask = requireKnowledgeAsk(context);
+        const ask = requireAgentKnowledgeAsk(context);
         if (!ask) return;
-        const valuedFlags = ['--space', '--knowledge-space', '--limit', '--mode'];
+        const valuedFlags = ['--limit', '--mode'];
         const query = positionalArgs(rest, valuedFlags).join(' ').trim();
         if (!query) {
-          context.print('[knowledge] Usage: /knowledge ask <query> [--space <knowledgeSpaceId>] [--limit <n>] [--mode <concise|standard|detailed>]');
+          context.print('[knowledge] Usage: /knowledge ask <query> [--limit <n>] [--mode <concise|standard|detailed>]');
+          return;
+        }
+        if (readFlag(rest, '--space') || readFlag(rest, '--knowledge-space')) {
+          context.print('[knowledge] Agent Knowledge is isolated. --space/--knowledge-space is not accepted because Agent must not fall back to default Knowledge/Wiki or HomeGraph.');
           return;
         }
         const requestedMode = readFlag(rest, '--mode') as KnowledgeAskMode | undefined;
@@ -163,7 +164,6 @@ export const knowledgeCommand: SlashCommand = {
           : 'standard';
         const result = await ask({
           query,
-          knowledgeSpaceId: readFlag(rest, '--space') ?? readFlag(rest, '--knowledge-space'),
           limit: readPositiveIntFlag(rest, '--limit', 10),
           mode,
           includeSources: true,
@@ -177,7 +177,7 @@ export const knowledgeCommand: SlashCommand = {
       case 'status': {
         const status = await knowledge.status.get();
         context.print([
-          '[knowledge] Structured knowledge status',
+          '[knowledge] Agent Knowledge status',
           `  ready: ${status.ready ? 'yes' : 'no'}`,
           `  storage: ${status.storagePath}`,
           `  sources: ${status.sourceCount}`,
@@ -385,7 +385,7 @@ export const knowledgeCommand: SlashCommand = {
           const result = await knowledge.graph.issues.review({
             issueId,
             action: action as KnowledgeReviewAction,
-            reviewer: readFlag(rest, '--reviewer') ?? 'tui',
+            reviewer: readFlag(rest, '--reviewer') ?? 'agent',
             ...(value ? { value } : {}),
           });
           context.print([
@@ -508,7 +508,7 @@ export const knowledgeCommand: SlashCommand = {
         context.print([
           'Usage: /knowledge <subcommand>',
           '  status',
-          '  ask <query> [--space <knowledgeSpaceId>] [--limit <n>] [--mode <concise|standard|detailed>]',
+          '  ask <query> [--limit <n>] [--mode <concise|standard|detailed>]',
           '  ingest-url <url> [--title <title>] [--tags <a,b>] [--folder <path>]',
           '  import-bookmarks <path>',
           '  import-urls <path>',

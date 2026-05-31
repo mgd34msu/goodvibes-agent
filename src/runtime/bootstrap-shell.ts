@@ -177,6 +177,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     opsApi,
     providerApi,
   } = foundationClients;
+  const agentKnowledgeApi = createKnowledgeApi(services.agentKnowledgeService, { memoryRegistry: services.memoryRegistry });
   const remoteRuntime = createShellRemoteCommandService({
     readModels: uiServices.readModels,
     remoteRunnerRegistry: services.remoteRunnerRegistry,
@@ -239,7 +240,8 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     sessionOrchestration: services.sessionOrchestration,
     operatorClient: directTransport.operator,
     peerClient: directTransport.peer,
-    knowledgeApi: createKnowledgeApi(services.agentKnowledgeService, { memoryRegistry: services.memoryRegistry }),
+    agentKnowledgeApi,
+    knowledgeApi: agentKnowledgeApi,
     hookApi,
     mcpApi,
     opsApi,
