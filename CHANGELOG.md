@@ -2,6 +2,33 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.11 - 2026-05-31
+
+- d20a93e Allow explicit recall review without yes
+- 601f41c Require confirmation for eval execution
+- f41befb Block Cloudflare onboarding mutations
+- 79071ec Block implicit block file saves
+- 40aca02 Block inline diff file edits in Agent
+- 854eda8 Block MCP workspace config mutations
+- 665c423 Require confirmation for CLI Agent Knowledge ingest
+- f07255a Require confirmation for recall review mutations
+- 6e78ec3 Require confirmation for Agent Knowledge mutations
+- c1e5ac1 Require confirmation for operator control mutations
+- 5d6fc3c Require confirmation for local state mutations
+- 3afd788 Require confirmation for remaining export paths
+- d36ae96 Require confirmation for portable state bundles
+- 1f0caab Require confirmation for setup and remote exports
+- 2e149c9 Require confirmation for incident and handoff exports
+- b439c55 Require confirmation for settings mutations
+- f7c8fe6 Require confirmation for platform auth mutations
+- 09064e0 Require confirmation for auth and service mutations
+- 55e8b8d Require confirmation for marketplace mutations
+- 88becca Require confirmation for plugin mutations
+- 89c0584 Require confirmation for local provider mutations
+- 7f3af1b Require confirmation for managed hook mutations
+- 323426c Require confirmation for destructive workplan cleanup
+- 191350e Require confirmation for side-effecting slash commands
+
 ## 0.1.10 - 2026-05-31
 
 - 93aba19 Block agent-spawning hook authoring
