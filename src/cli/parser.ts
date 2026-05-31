@@ -27,6 +27,8 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   provider: 'providers',
   profiles: 'profiles',
   profile: 'profiles',
+  routines: 'routines',
+  routine: 'routines',
   auth: 'auth',
   compat: 'compat',
   compatibility: 'compat',

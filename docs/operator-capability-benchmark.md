@@ -53,7 +53,7 @@ Primary sources used for the benchmark:
 | Channels | WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat | GoodVibes daemon channel and companion surfaces with Agent-side policy, a Channels operator workspace, and per-channel readiness/risk labels |
 | Knowledge/memory | Durable memory, semantic search, wiki/claim layers | Isolated Agent Knowledge routes with workspace ask/search/ingest/review flows plus local memory/skills/personas/routines |
 | Skills/procedural memory | Skills directories, registries, skill lifecycle | Local Agent skills with review/stale/source/provenance fields |
-| Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Guarded automation/schedule routes plus local routines; hidden model scheduling blocked |
+| Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Local routines can be explicitly promoted to external daemon `schedules.create` with `--yes`; hidden model scheduling and local scheduler spawns are blocked |
 | Tools/MCP | Broad toolsets, MCP, browser, media, terminal, files | GoodVibes SDK tools with Agent policy guards and MCP/provider integrations |
 | Voice/media/canvas/nodes | Voice, TTS, mobile nodes, live canvas, browser automation | GoodVibes media/voice/browser/node primitives with an Agent workspace for setup, image input, browser posture, MCP, and remote/node inspection |
 | Build/code work | Direct terminal/file/code tools and subagents | Explicit delegation to GoodVibes TUI; local WRFC/spawn fanout blocked |
@@ -66,6 +66,7 @@ GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true fr
 
 - Capability surfaces are discoverable through `goodvibes-agent capabilities`, `/capabilities`, onboarding, and the operator workspace.
 - Agent Knowledge isolation is a release gate, not a convention.
+- Routine-to-schedule promotion preserves Agent Knowledge isolation and uses only public external daemon schedule routes.
 - Model-visible tools are policy-gated for serial, non-secret, non-destructive use.
 - Personal assistant state is Agent-local unless an explicit Agent Knowledge ingest route is used.
 - Build work is delegated to the product that owns coding execution instead of turning the personal operator into a second coding TUI.

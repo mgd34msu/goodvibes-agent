@@ -23,6 +23,7 @@ describe('CLI help/version', () => {
     expect(help).toContain('tasks                      List/show in-process runtime tasks (read-only)');
     expect(help).toContain('capabilities               Show OpenClaw/Hermes capability parity and Agent readiness');
     expect(help).toContain('profiles                   Manage isolated Agent runtime profile homes');
+    expect(help).toContain('routines                   Inspect local routines and explicitly promote one to a daemon schedule');
     expect(help).toContain('--agent-profile <name>');
     expect(help).not.toContain('tasks submit <prompt>');
     expect(help).not.toContain('submit a non-interactive task');
@@ -33,5 +34,12 @@ describe('CLI help/version', () => {
     expect(help).toContain('isolated Agent runtime profile homes');
     expect(help).toContain('--agent-profile');
     expect(help).toContain('externally owned daemon');
+  });
+
+  test('routines command help explains explicit daemon schedule promotion', () => {
+    const help = renderGoodVibesCommandHelp('routines');
+    expect(help).toContain('promote <id>');
+    expect(help).toContain('external daemon schedule');
+    expect(help).toContain('Without --yes');
   });
 });

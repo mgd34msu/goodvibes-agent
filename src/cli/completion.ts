@@ -12,6 +12,7 @@ const COMMANDS = [
   'models',
   'providers',
   'profiles',
+  'routines',
   'auth',
   'compat',
   'capabilities',

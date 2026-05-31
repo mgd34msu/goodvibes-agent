@@ -35,6 +35,7 @@ import { buildControlPlaneStatusResult, formatControlPlaneStatus, handleSecrets,
 import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand, handleCompatCommand, handleDelegateCommand } from './agent-knowledge-command.ts';
 import { handleCapabilitiesCommand } from './capabilities-command.ts';
 import { handleProfilesCommand } from './profiles-command.ts';
+import { handleRoutinesCommand } from './routines-command.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export interface CliCommandRuntime {
@@ -707,6 +708,11 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
       }
       case 'profiles': {
         const result = await handleProfilesCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'routines': {
+        const result = await handleRoutinesCommand(runtime);
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }

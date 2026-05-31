@@ -25,7 +25,7 @@ High-signal Agent command families:
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
 - `/approvals` for pending approval visibility and explicit approval actions.
-- `/automation` and `/schedule` for read-only automation visibility plus narrow explicit-user-action run/pause/resume/cancel/retry flows where implemented.
+- `/automation` and `/schedule` for automation visibility plus narrow explicit-user-action flows, including `/schedule promote-routine <routine> --cron <expr> --yes` for external daemon schedule creation.
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
 
@@ -65,6 +65,8 @@ Approvals and automation are safe by default:
 - mutating routes require exact commands and explicit confirmation such as `--yes`;
 - no chat turn silently runs approval, schedule, or automation mutations;
 - unavailable routes return structured errors rather than fallback behavior.
+
+Routine promotion is the first Agent-owned scheduling bridge: local routines stay local during normal use, and promotion creates a daemon `schedules.create` record only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or HomeGraph fallback.
 
 ## Related Docs
 

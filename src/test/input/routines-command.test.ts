@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { ConfigManager } from '../../config/index.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerRoutinesRuntimeCommands } from '../../input/commands/routines-runtime.ts';
+import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
 function commandHarness(): {
@@ -14,14 +17,79 @@ function commandHarness(): {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-routine-command-'));
   const registry = new CommandRegistry();
   registerRoutinesRuntimeCommands(registry);
+  registerScheduleRuntimeCommands(registry);
   const out: string[] = [];
+  mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
+  writeFileSync(join(root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'routine-token' }));
   const ctx = {
     print: (text: string) => out.push(text),
     workspace: {
       shellPaths: createShellPathService({ workingDirectory: root, homeDirectory: root }),
     },
+    platform: {
+      configManager: new ConfigManager({
+        surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+        workingDir: root,
+        homeDir: root,
+      }),
+    },
+    ops: {
+      automationManager: {
+        listJobs: () => [],
+      },
+    },
   } as unknown as CommandContext;
   return { registry, out, ctx };
+}
+
+function inputUrl(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+function scheduleResponse(): Response {
+  return new Response(JSON.stringify({
+    id: 'sched-1',
+    name: 'Agent routine: Inbox Sweep',
+    labels: [],
+    createdAt: 1,
+    updatedAt: 1,
+    status: 'enabled',
+    enabled: true,
+    schedule: { kind: 'cron', expression: '0 9 * * *', timezone: 'America/Chicago' },
+    execution: { prompt: 'routine prompt', target: { kind: 'main' } },
+    delivery: {
+      mode: 'none',
+      targets: [],
+      fallbackTargets: [],
+      includeSummary: true,
+      includeTranscript: false,
+      includeLinks: true,
+    },
+    failure: {
+      action: 'retry',
+      maxConsecutiveFailures: 3,
+      cooldownMs: 3600000,
+      retryPolicy: { maxAttempts: 2, delayMs: 60000, strategy: 'exponential' },
+    },
+    source: {
+      id: 'source-sched-1',
+      kind: 'schedule',
+      label: 'schedule',
+      enabled: true,
+      createdAt: 1,
+      updatedAt: 1,
+      metadata: {},
+    },
+    runCount: 0,
+    successCount: 0,
+    failureCount: 0,
+    deleteAfterRun: false,
+  }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 describe('/routines command', () => {
@@ -67,5 +135,60 @@ describe('/routines command', () => {
     expect(text).toContain('Refusing to delete Agent routine ops without --yes');
     expect(text).toContain('Deleted Agent routine ops');
     expect(text).toContain('secret-looking');
+  });
+
+  test('previews routine schedule promotion without calling the daemon', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return scheduleResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      await registry.execute('routines', ['create', '--name', 'Inbox Sweep', '--description', 'Review messages.', '--steps', 'Summarize inbound messages and ask before replies.'], ctx);
+      await registry.execute('routines', ['promote', 'inbox-sweep', '--cron', '0 9 * * *', '--timezone', 'America/Chicago'], ctx);
+
+      const text = out.join('\n');
+      expect(text).toContain('Daemon schedule preview for Agent routine');
+      expect(text).toContain('schedules.create /api/automation/schedules');
+      expect(text).toContain('isolated Agent Knowledge only');
+      expect(calls).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('confirmed routine promotion uses schedules.create and preserves Agent policy', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : '',
+      });
+      return scheduleResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      await registry.execute('routines', ['create', '--name', 'Inbox Sweep', '--description', 'Review messages.', '--steps', 'Summarize inbound messages and ask before replies.'], ctx);
+      await registry.execute('schedule', ['promote-routine', 'inbox-sweep', '--cron', '0 9 * * *', '--timezone', 'America/Chicago', '--yes'], ctx);
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0]!.url).toBe('http://127.0.0.1:3421/api/automation/schedules');
+      expect(requests[0]!.method).toBe('POST');
+      const payload = JSON.parse(requests[0]!.body) as { readonly prompt?: string; readonly kind?: string; readonly cron?: string; readonly target?: { readonly kind?: string; readonly surfaceKind?: string } };
+      expect(payload.kind).toBe('cron');
+      expect(payload.cron).toBe('0 9 * * *');
+      expect(payload.target).toEqual(expect.objectContaining({ kind: 'main', surfaceKind: 'service' }));
+      expect(payload.prompt).toContain('Use isolated Agent Knowledge routes only');
+      expect(payload.prompt).toContain('never use default Knowledge/Wiki or HomeGraph');
+      expect(out.join('\n')).toContain('Created daemon schedule for Agent routine');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

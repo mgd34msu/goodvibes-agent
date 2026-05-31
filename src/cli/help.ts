@@ -39,6 +39,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  models [provider]          List/use/pin selectable models and recent model history',
     '  providers                  List/inspect/use provider config/auth posture',
     '  profiles                   Manage isolated Agent runtime profile homes',
+    '  routines                   Inspect local routines and explicitly promote one to a daemon schedule',
     '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
     '  compat                     Inspect Agent SDK pin, daemon version, and Agent knowledge route readiness',
     '  capabilities               Show OpenClaw/Hermes capability parity and Agent readiness',
@@ -98,6 +99,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `  ${binary} providers inspect openai`,
     `  ${binary} profiles create household --template household --yes`,
     `  ${binary} --agent-profile household`,
+    `  ${binary} routines promote daily-operations-sweep --cron "0 9 * * *" --timezone America/Chicago --yes`,
     `  ${binary} compat`,
     `  ${binary} capabilities`,
     `  ${binary} knowledge status`,
@@ -157,6 +159,21 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     usage: ['profiles list', 'profiles templates', 'profiles templates export <id> <path> --yes', 'profiles templates import <path> --yes', 'profiles show <name>', 'profiles create <name> [--template <id>] --yes', 'profiles delete <name> --yes', '--agent-profile <name>'],
     summary: 'Create and inspect isolated Agent runtime profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing the externally owned daemon.',
     examples: ['profiles templates', 'profiles templates export research ./research-starter.json --yes', 'profiles templates import ./research-starter.json --yes', 'profiles create household --template household --yes', '--agent-profile household status'],
+  },
+  routines: {
+    usage: [
+      'routines list',
+      'routines enabled',
+      'routines show <id>',
+      'routines promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--disabled] --yes',
+    ],
+    summary: 'Inspect Agent-local routines and explicitly promote a reviewed routine into an external daemon schedule. Without --yes, promote only prints the schedules.create preview.',
+    examples: [
+      'routines list',
+      'routines show daily-operations-sweep',
+      'routines promote daily-operations-sweep --cron "0 9 * * *" --timezone America/Chicago --yes',
+      'routines promote weekly-review --every 7d --disabled',
+    ],
   },
   models: {
     usage: ['models [provider]', 'models current', 'models use <registryKey>', 'models pin <registryKey>', 'models recent'],

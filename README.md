@@ -68,9 +68,12 @@ Local Agent behavior is editable from the TUI:
 /personas use research
 /routines create --name "Evening Review" --description "Review open work before shutdown" --steps "Check work plan, approvals, and Agent Knowledge status before summarizing." --enabled true
 /routines start evening-review
+/schedule promote-routine evening-review --cron "0 17 * * 1-5" --timezone America/Chicago --yes
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
 /skills local list
 ```
+
+Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promotion to a daemon schedule is separate and explicit: it calls the public `schedules.create` route on the externally managed daemon only after `--yes`, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and HomeGraph.
 
 ## Daemon Prerequisite
 

@@ -1,4 +1,13 @@
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../../agent/routine-registry.ts';
+import {
+  buildRoutineSchedulePreview,
+  formatRoutineScheduleFailure,
+  formatRoutineSchedulePreview,
+  formatRoutineScheduleSuccess,
+  parseRoutineSchedulePromotionArgs,
+  promoteRoutineToDaemonSchedule,
+  resolveAgentDaemonConnection,
+} from '../../agent/routine-schedule-promotion.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
 
@@ -91,6 +100,31 @@ function renderRoutine(routine: AgentRoutineRecord): string {
 
 function printError(ctx: CommandContext, error: unknown): void {
   ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
+}
+
+async function promoteRoutine(args: readonly string[], routineRegistry: AgentRoutineRegistry, ctx: CommandContext): Promise<void> {
+  const parsed = parseRoutineSchedulePromotionArgs(args);
+  if (parsed.errors.length > 0) {
+    ctx.print([
+      'Usage: /routines promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--disabled] --yes',
+      ...parsed.errors.map((error) => `  ${error}`),
+    ].join('\n'));
+    return;
+  }
+  const routine = routineRegistry.get(parsed.routineId ?? '');
+  if (!routine) {
+    ctx.print(`Unknown Agent routine: ${parsed.routineId ?? ''}`);
+    return;
+  }
+  const preview = buildRoutineSchedulePreview(routine, parsed);
+  if (!parsed.yes) {
+    ctx.print(formatRoutineSchedulePreview(preview));
+    return;
+  }
+  const shellPaths = requireShellPaths(ctx);
+  const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+  const result = await promoteRoutineToDaemonSchedule(connection, preview);
+  ctx.print(result.ok ? formatRoutineScheduleSuccess(result) : formatRoutineScheduleFailure(result));
 }
 
 export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
@@ -200,6 +234,10 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       ctx.print(`Marked Agent routine ${routine.id} stale.`);
       return;
     }
+    if (sub === 'promote' || sub === 'schedule' || sub === 'promote-schedule') {
+      await promoteRoutine(args.slice(1), routineRegistry, ctx);
+      return;
+    }
     if (sub === 'delete' || sub === 'remove') {
       const parsed = parseRoutineArgs(args.slice(1));
       const id = parsed.rest[0];
@@ -215,7 +253,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       ctx.print(`Deleted Agent routine ${removed.id}: ${removed.name}`);
       return;
     }
-    ctx.print('Usage: /routines [list|enabled|search|show|create|update|enable|disable|start|review|stale|delete]');
+    ctx.print('Usage: /routines [list|enabled|search|show|create|update|enable|disable|start|review|stale|promote|delete]');
   } catch (error) {
     printError(ctx, error);
   }
@@ -226,7 +264,7 @@ export function registerRoutinesRuntimeCommands(registry: CommandRegistry): void
     name: 'routines',
     aliases: ['routine'],
     description: 'Manage local GoodVibes Agent routines',
-    usage: '[list|enabled|search <query>|show <id>|create --name <name> --description <summary> --steps <steps>|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|delete <id> --yes]',
+    usage: '[list|enabled|search <query>|show <id>|create --name <name> --description <summary> --steps <steps>|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> --yes|delete <id> --yes]',
     handler: runRoutinesRuntimeCommand,
   });
 }

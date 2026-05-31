@@ -10,6 +10,7 @@ export type GoodVibesCliCommand =
   | 'models'
   | 'providers'
   | 'profiles'
+  | 'routines'
   | 'auth'
   | 'compat'
   | 'capabilities'
