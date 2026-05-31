@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -39,6 +39,21 @@ describe('Agent operator policy hidden spawn gates', () => {
     });
   }
 
+  function productionSourceFiles(dir: string): string[] {
+    const files: string[] = [];
+    for (const entry of readdirSync(dir)) {
+      const fullPath = join(dir, entry);
+      const stat = statSync(fullPath);
+      if (stat.isDirectory()) {
+        if (entry === 'test') continue;
+        files.push(...productionSourceFiles(fullPath));
+      } else if (stat.isFile() && fullPath.endsWith('.ts')) {
+        files.push(fullPath);
+      }
+    }
+    return files;
+  }
+
   test('bootstrap does not register the copied ACP delegate tool', () => {
     const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
     expect(source).not.toContain('registerDelegateTool');
@@ -48,6 +63,44 @@ describe('Agent operator policy hidden spawn gates', () => {
     const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
     expect(source).not.toContain('automationManager.start(');
     expect(source).toContain('Local automation runners are disabled in GoodVibes Agent');
+  });
+
+  test('production runtime does not call copied local spawn, cancel, or daemon ownership paths', () => {
+    const srcRoot = join(import.meta.dir, '../..');
+    const forbidden = [
+      'agentManager.spawn',
+      'agentManager.cancel',
+      'agentManager.clear',
+      'agentManager.importState',
+      'agentManager.exportState',
+      'acpManager.spawn',
+      'acpManager.cancel',
+      'acpManager.cancelAll',
+      'spawnTask(',
+      'startExternalServices(',
+      'new DaemonServer',
+      'new HttpListener',
+    ];
+    const offenders: string[] = [];
+    for (const file of productionSourceFiles(srcRoot)) {
+      const content = readFileSync(file, 'utf8');
+      for (const pattern of forbidden) {
+        if (content.includes(pattern)) offenders.push(`${file.slice(srcRoot.length + 1)}: ${pattern}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test('activity UI does not present local agent cancellation or background-agent posture', () => {
+    const srcRoot = join(import.meta.dir, '../..');
+    const offenders: string[] = [];
+    for (const file of productionSourceFiles(srcRoot)) {
+      const content = readFileSync(file, 'utf8');
+      for (const pattern of ['Background Processes', 'No background processes', '[k] Kill']) {
+        if (content.includes(pattern)) offenders.push(`${file.slice(srcRoot.length + 1)}: ${pattern}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   test('shared-session task continuation fails closed instead of spawning a local agent', async () => {
