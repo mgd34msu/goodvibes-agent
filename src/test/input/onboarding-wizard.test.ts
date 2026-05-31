@@ -3,6 +3,7 @@ import { InfiniteBuffer } from '../../core/history.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { InputHandler } from '../../input/handler.ts';
 import { OnboardingWizardController } from '../../input/onboarding/onboarding-wizard.ts';
+import { addNetworkOperations } from '../../input/onboarding/onboarding-wizard-apply.ts';
 import { EXTERNAL_SURFACE_SPECS, getExternalSurfaceAutoStartFieldId } from '../../input/onboarding/onboarding-wizard-external-surfaces.ts';
 import { buildGoodVibesSecretKey, buildGoodVibesSecretRef } from '../../input/onboarding/onboarding-wizard-helpers.ts';
 import { handleOnboardingWizardToken } from '../../input/onboarding/handler-onboarding-routes.ts';
@@ -308,7 +309,7 @@ describe('OnboardingWizardController', () => {
     wizard.setFieldValue('network.mode', 'custom');
     wizard.setFieldValue('network.service-port', 'not-a-port');
 
-    expect(wizard.getBlockingFieldLabels()).toContain('Network: GoodVibes service port must be a port number from 1 to 65535.');
+    expect(wizard.getBlockingFieldLabels()).toContain('Network: External daemon control-plane port must be a port number from 1 to 65535.');
   });
 
   test('blocks custom network host fields that include URL or port syntax', () => {
@@ -341,6 +342,24 @@ describe('OnboardingWizardController', () => {
     expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('controlPlane.'))).toBe(false);
     expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('httpListener.'))).toBe(false);
     expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'danger.httpListener', value: true });
+  });
+
+  test('legacy network operation helper is fail-closed for Agent', () => {
+    const wizard = new OnboardingWizardController();
+    wizard.open('new');
+    wizard.setFieldValue('capabilities.browser-access', true);
+    wizard.setFieldValue('network.mode', 'custom');
+    wizard.setFieldValue('network.service-port', '4555');
+
+    const operations: Parameters<typeof addNetworkOperations>[1] = [];
+    addNetworkOperations(wizard, operations, true, {
+      controlPlane: true,
+      controlPlaneRemote: true,
+      httpListener: true,
+      web: true,
+    });
+
+    expect(operations).toEqual([]);
   });
 
   test('reopening a webhook-only LAN listener still does not mutate daemon listener posture', () => {
@@ -926,7 +945,7 @@ describe('OnboardingWizardController', () => {
     });
   });
 
-  test('local TUI only disables existing external surfaces', () => {
+  test('local Agent mode disables existing external surfaces', () => {
     const base = makeOnboardingSnapshot();
     const snapshot = makeOnboardingSnapshot({
       config: {
@@ -1484,7 +1503,7 @@ describe('InputHandler onboarding integration', () => {
     expect(output).not.toContain('Onboarding settings applied.');
     expect(output).not.toContain('HTTP listener is enabled for');
     expect(output).not.toContain('The configured port');
-    expect(output).not.toContain('is occupied after restart');
+    expect(output).not.toContain('is occupied; another GoodVibes process');
     expect((output.match(/runtime:http-listener-active/g) ?? []).length).toBe(0);
     expect(output).not.toContain('not running after onboarding apply');
   });

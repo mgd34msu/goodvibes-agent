@@ -1,6 +1,23 @@
 import type { ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
+import type { ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import type { ProviderAuthFreshness, ProviderAuthRoute } from '@/runtime/index.ts';
 import type { FeatureFlag, FlagState } from '@/runtime/index.ts';
+
+export interface SettingsModalChange {
+  readonly key: ConfigKey;
+  readonly previousValue: unknown;
+  readonly value: unknown;
+}
+
+export interface SettingsModalChangeResult {
+  readonly message?: string;
+}
+
+export type SettingsModalChangeHandler = (change: SettingsModalChange) => SettingsModalChangeResult | void;
+
+export interface SettingsModalOpenOptions {
+  readonly onSettingApplied?: SettingsModalChangeHandler;
+}
 
 export type SettingsCategory =
   | 'display'

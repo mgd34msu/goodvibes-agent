@@ -1,14 +1,4 @@
-/**
- * SettingsModal — state management for the /settings and /config fullscreen workspace.
- *
- * Loads CONFIG_SCHEMA, groups settings by category, and tracks UI state:
- *   - Active category (Tab to cycle)
- *   - Selected setting index within category (↑↓)
- *   - Editing mode for inline string/number input
- *   - Feature flags tab with runtime toggle support
- *
- * Saves changes via configManager.set(key, value) or featureFlagManager methods.
- */
+/** SettingsModal state for the /settings and /config fullscreen workspace. */
 
 import { CONFIG_SCHEMA, type ConfigKey, type PersistedFlagState } from '@pellux/goodvibes-sdk/platform/config';
 import type { ModelPickerTarget } from './model-picker.ts';
@@ -40,24 +30,11 @@ import {
   type SettingEntry,
   type SettingsCategory,
   type SettingsFocusPane,
+  type SettingsModalChangeHandler,
+  type SettingsModalOpenOptions,
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
-
-export interface SettingsModalChange {
-  readonly key: ConfigKey;
-  readonly previousValue: unknown;
-  readonly value: unknown;
-}
-
-export interface SettingsModalChangeResult {
-  readonly message?: string;
-}
-
-export type SettingsModalChangeHandler = (change: SettingsModalChange) => SettingsModalChangeResult | void;
-
-export interface SettingsModalOpenOptions {
-  readonly onSettingApplied?: SettingsModalChangeHandler;
-}
+import { AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON, isExternalDaemonOwnedSettingKey } from './settings-modal-agent-policy.ts';
 
 export {
   SETTINGS_CATEGORIES,
@@ -67,8 +44,13 @@ export {
   type SettingEntry,
   type SettingsCategory,
   type SettingsFocusPane,
+  type SettingsModalChange,
+  type SettingsModalChangeHandler,
+  type SettingsModalChangeResult,
+  type SettingsModalOpenOptions,
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
+export { AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON, isExternalDaemonOwnedSettingKey } from './settings-modal-agent-policy.ts';
 
 // ---------------------------------------------------------------------------
 // SettingsModal
@@ -369,6 +351,7 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return;
+    if (this._blockExternalDaemonOwnedSetting(entry)) return;
 
     const { setting } = entry;
 
@@ -433,6 +416,7 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return;
+    if (this._blockExternalDaemonOwnedSetting(entry)) return;
     const { setting } = entry;
 
     if (setting.type === 'boolean') {
@@ -554,6 +538,11 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return false;
+    if (this._blockExternalDaemonOwnedSetting(entry)) {
+      this.editingMode = false;
+      this.editBuffer = '';
+      return false;
+    }
 
     const { setting } = entry;
     let parsed: unknown = this.editBuffer;
@@ -600,6 +589,7 @@ export class SettingsModal {
     if (this.editingMode || !this.configManager) return null;
     const entry = this.getSelected();
     if (!entry) return null;
+    if (this._blockExternalDaemonOwnedSetting(entry)) return null;
     const key = entry.setting.key as ConfigKey;
     this._setValue(key, entry.setting.default);
     if (isSecretConfigKey(key) && this.secretsManager) {
@@ -635,15 +625,16 @@ export class SettingsModal {
       const cat = rawCat as SettingsCategory;
       const currentValue = configManager.get(setting.key as ConfigKey);
       const resolved = getResolvedSettingLookup(configManager, setting.key as ConfigKey)?.entry;
+      const daemonOwned = isExternalDaemonOwnedSettingKey(setting.key);
       const entry: SettingEntry = {
         setting,
         currentValue,
         isDefault: currentValue === setting.default,
         effectiveSource: resolved?.effectiveSource,
-        locked: resolved?.locked,
+        locked: daemonOwned || resolved?.locked,
         conflict: resolved?.conflict,
         sourceLabel: resolved?.sourceLabel,
-        lockReason: resolved?.lockReason,
+        lockReason: daemonOwned ? AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON : resolved?.lockReason,
       };
       if (this.groups.has(cat)) this.groups.get(cat)!.push(entry);
       if ((rawCat === 'controlPlane' || rawCat === 'httpListener' || rawCat === 'web') && this.groups.has('network')) {
@@ -752,6 +743,10 @@ export class SettingsModal {
 
   private _setValue(key: ConfigKey, value: unknown): void {
     if (!this.configManager) return;
+    if (isExternalDaemonOwnedSettingKey(key)) {
+      this.lastSettingEffectMessage = AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON;
+      return;
+    }
     // Diff previous value before writing — avoids false restart notices on no-op saves
     const previousValue = this.configManager.get(key);
     const isRestartKey = ['host', 'port', 'hostMode', 'enabled'].includes(key.split('.')[1] ?? '');
@@ -788,6 +783,12 @@ export class SettingsModal {
       logger.error('SettingsModal: failed to set config value', { key, error: summarizeError(e) });
       this.lastSettingEffectMessage = `Save failed: ${summarizeError(e)}`;
     }
+  }
+
+  private _blockExternalDaemonOwnedSetting(entry: SettingEntry): boolean {
+    if (!isExternalDaemonOwnedSettingKey(entry.setting.key)) return false;
+    this.lastSettingEffectMessage = entry.lockReason ?? AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON;
+    return true;
   }
 
 }

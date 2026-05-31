@@ -15,7 +15,7 @@ import {
   getExternalSurfaceAutoStartFieldId,
   isExternalSurfaceSelectedByDefault,
 } from './onboarding-wizard-external-surfaces.ts';
-import { buildGoodVibesSecretKey, buildGoodVibesSecretRef, isLoopbackAddress, isSecretReferenceValue } from './onboarding-wizard-helpers.ts';
+import { buildGoodVibesSecretKey, buildGoodVibesSecretRef, isSecretReferenceValue } from './onboarding-wizard-helpers.ts';
 import type { OnboardingWizardController } from './onboarding-wizard.ts';
 
 export function buildOnboardingApplyRequest(controller: OnboardingWizardController): OnboardingApplyRequest {
@@ -203,7 +203,7 @@ function addCloudflareOperations(
     setConfig('cloudflare.workerCron', controller.getStringFieldValue('cloudflare.worker-cron', config?.workerCron ?? '*/5 * * * *'));
     setConfig('cloudflare.queueName', controller.getStringFieldValue('cloudflare.queue-name', config?.queueName ?? 'goodvibes-batch'));
     setConfig('cloudflare.deadLetterQueueName', controller.getStringFieldValue('cloudflare.dead-letter-queue-name', config?.deadLetterQueueName ?? 'goodvibes-batch-dlq'));
-    setConfig('cloudflare.tunnelName', controller.getStringFieldValue('cloudflare.tunnel-name', config?.tunnelName ?? 'goodvibes-daemon'));
+    setConfig('cloudflare.tunnelName', controller.getStringFieldValue('cloudflare.tunnel-name', config?.tunnelName ?? 'goodvibes-agent-daemon'));
     setConfig('cloudflare.tunnelId', controller.getStringFieldValue('cloudflare.tunnel-id', config?.tunnelId ?? ''));
     setConfig('cloudflare.tunnelTokenRef', controller.getStringFieldValue('cloudflare.tunnel-token-ref', config?.tunnelTokenRef ?? ''));
     setConfig('cloudflare.accessAppId', controller.getStringFieldValue('cloudflare.access-app-id', config?.accessAppId ?? ''));
@@ -222,56 +222,16 @@ function addCloudflareOperations(
   }
 
 export function addNetworkOperations(
-  controller: OnboardingWizardController,
-    operations: OnboardingApplyOperation[],
-    customNetwork: boolean,
-    enabled: {
-      readonly controlPlane: boolean;
-      readonly controlPlaneRemote: boolean;
-      readonly httpListener: boolean;
-      readonly web: boolean;
-    },
+  _controller: OnboardingWizardController,
+  _operations: OnboardingApplyOperation[],
+  _customNetwork: boolean,
+  _enabled: {
+    readonly controlPlane: boolean;
+    readonly controlPlaneRemote: boolean;
+    readonly httpListener: boolean;
+    readonly web: boolean;
+  },
   ): void {
-    const setConfig = (
-      key: Extract<OnboardingApplyOperation, { kind: 'set-config' }>['key'],
-      value: unknown,
-    ): void => {
-      operations.push({ kind: 'set-config', key, value });
-    };
-    const networkFacingEnabled = {
-      controlPlane: enabled.controlPlaneRemote,
-      httpListener: enabled.httpListener,
-      web: enabled.web,
-    };
-    const sharedIpDefault = controller.getSharedIpDefault(networkFacingEnabled);
-    const sharedIp = controller.getBooleanFieldValue('network.shared-ip', sharedIpDefault);
-    const sharedHost = controller.getStringFieldValue('network.shared-ip-address', controller.getSharedIpHostDefault(networkFacingEnabled)) || '0.0.0.0';
-    const controlPlaneHost = sharedIp
-      ? sharedHost
-      : controller.getStringFieldValue('network.service-ip', controller.runtimeSnapshot?.bindSettings.controlPlane.host ?? '0.0.0.0');
-    const httpListenerHost = sharedIp
-      ? sharedHost
-      : controller.getStringFieldValue('network.webhook-ip', controller.runtimeSnapshot?.bindSettings.httpListener.host ?? '0.0.0.0');
-    const webHost = sharedIp
-      ? sharedHost
-      : controller.getStringFieldValue('network.browser-ip', controller.runtimeSnapshot?.bindSettings.web.host ?? '0.0.0.0');
-
-    if (enabled.controlPlane) {
-      setConfig('controlPlane.hostMode', enabled.controlPlaneRemote ? (customNetwork ? 'custom' : 'network') : 'local');
-      setConfig('controlPlane.host', enabled.controlPlaneRemote ? (customNetwork ? controlPlaneHost : '0.0.0.0') : '127.0.0.1');
-      setConfig('controlPlane.port', controller.getPortFieldValue('network.service-port', controller.runtimeSnapshot?.bindSettings.controlPlane.port ?? 3421));
-      setConfig('controlPlane.allowRemote', enabled.controlPlaneRemote && (customNetwork ? !isLoopbackAddress(controlPlaneHost) : true));
-    }
-
-    if (enabled.httpListener) {
-      setConfig('httpListener.hostMode', customNetwork ? 'custom' : 'network');
-      setConfig('httpListener.host', customNetwork ? httpListenerHost : '0.0.0.0');
-      setConfig('httpListener.port', controller.getPortFieldValue('network.webhook-port', controller.runtimeSnapshot?.bindSettings.httpListener.port ?? 3422));
-    }
-
-    if (enabled.web) {
-      setConfig('web.hostMode', customNetwork ? 'custom' : 'network');
-      setConfig('web.host', customNetwork ? webHost : '0.0.0.0');
-      setConfig('web.port', controller.getPortFieldValue('network.browser-port', controller.runtimeSnapshot?.bindSettings.web.port ?? 3423));
-    }
+    // Agent onboarding intentionally never mutates daemon/listener/web bind posture.
+    // Network fields are advisory for the external daemon owner.
   }

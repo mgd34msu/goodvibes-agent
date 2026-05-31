@@ -105,8 +105,8 @@ export const HOME_ASSISTANT_SURFACE_SPEC: ExternalSurfaceSpec = {
       kind: 'text',
       label: 'Home Assistant device ID',
       hint: 'Stable device identifier exposed by the GoodVibes daemon.',
-      placeholder: 'goodvibes-daemon',
-      defaultValue: (snapshot) => snapshot?.config.surfaces.homeassistant.deviceId ?? 'goodvibes-daemon',
+      placeholder: 'goodvibes-agent',
+      defaultValue: (snapshot) => snapshot?.config.surfaces.homeassistant.deviceId ?? 'goodvibes-agent',
     },
     {
       id: 'external-services.homeassistant.device-name',
@@ -114,8 +114,8 @@ export const HOME_ASSISTANT_SURFACE_SPEC: ExternalSurfaceSpec = {
       kind: 'text',
       label: 'Home Assistant device name',
       hint: 'Display name for the GoodVibes daemon device in Home Assistant.',
-      placeholder: 'GoodVibes Daemon',
-      defaultValue: (snapshot) => snapshot?.config.surfaces.homeassistant.deviceName ?? 'GoodVibes Daemon',
+      placeholder: 'GoodVibes Agent',
+      defaultValue: (snapshot) => snapshot?.config.surfaces.homeassistant.deviceName ?? 'GoodVibes Agent',
     },
     {
       id: 'external-services.homeassistant.event-type',

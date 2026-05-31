@@ -465,7 +465,8 @@ describe('command modal handoff', () => {
       const before = configManager.get('danger.daemon');
       input.feed(' ');
 
-      expect(configManager.get('danger.daemon')).toBe(!before);
+      expect(configManager.get('danger.daemon')).toBe(before);
+      expect(input.settingsModal.lastSettingEffectMessage).toContain('external daemon');
       expect(input.settingsModal.active).toBe(true);
       expect(input.commandMode).toBe(false);
       expect(input.modalStack).toEqual(['settings']);

@@ -436,7 +436,7 @@ function buildExternalSurfaceStep(
       id: `external-surface:${surface.id}` as OnboardingWizardExternalSurfaceStepId,
       title,
       shortLabel: surface.label.replace(/ surface$/i, ''),
-      description: `Configure ${surface.label}. Settings are saved either way; Agent does not start or own the background service.`,
+      description: `Configure ${surface.label}. Settings are saved either way; Agent does not start or own the external daemon service.`,
       summaryTitle: `${surface.label} setup`,
       summaryLines: [
         `External activation requested: ${autoStartValue === 'yes' ? 'yes' : 'no'}`,
@@ -540,8 +540,8 @@ export function buildNetworkStep(controller: OnboardingWizardController): Onboar
       const sharedIpField: OnboardingWizardChecklistFieldDefinition = {
         kind: 'checklist',
         id: 'network.shared-ip',
-        label: 'Use the same IP address for all services',
-        hint: 'When included, browser, GoodVibes service, and webhook listener network bindings share one IP address.',
+        label: 'Use the same IP address for all external daemon surfaces',
+        hint: 'When included, browser, external daemon control plane, and webhook listener network bindings share one IP address in the daemon host configuration.',
         defaultValue: controller.getSharedIpDefault(networkEnabled),
       };
       const sharedIp = controller.getBooleanFieldValue(sharedIpField.id, sharedIpField.defaultValue);
@@ -561,8 +561,8 @@ export function buildNetworkStep(controller: OnboardingWizardController): Onboar
         fields.push({
           kind: 'text',
           id: 'network.service-port',
-          label: 'GoodVibes service port',
-          hint: 'Port for the background service and control plane.',
+          label: 'External daemon control-plane port',
+          hint: 'Port exposed by the external daemon control plane.',
           placeholder: '3421',
           defaultValue: String(bindSettings?.controlPlane.port ?? 3421),
         });
@@ -570,8 +570,8 @@ export function buildNetworkStep(controller: OnboardingWizardController): Onboar
           fields.push({
             kind: 'text',
             id: 'network.service-ip',
-            label: 'GoodVibes service IP address',
-            hint: 'IP address for the background service and control plane.',
+            label: 'External daemon control-plane IP address',
+            hint: 'IP address exposed by the external daemon control plane.',
             placeholder: '0.0.0.0',
             defaultValue: normalizeText(bindSettings?.controlPlane.host) || '0.0.0.0',
           });
@@ -625,7 +625,7 @@ export function buildNetworkStep(controller: OnboardingWizardController): Onboar
       id: 'network',
       title: 'Network setup',
       shortLabel: 'Network',
-      description: 'Choose the LAN default or customize IP addresses and ports for the enabled browser, service, and listener surfaces.',
+      description: 'Review LAN defaults or IP addresses and ports for the external daemon browser, control-plane, and listener surfaces. Agent does not apply daemon bind changes.',
       summaryTitle: 'Bind posture',
       summaryLines: [
         `Mode: ${custom ? 'custom' : 'local network default'}`,
@@ -653,7 +653,7 @@ export function buildAccountsStep(controller: OnboardingWizardController): Onboa
         id: 'accounts.admin-username',
         label: 'Local auth admin username',
         hint: needsAuthBootstrap
-          ? 'Required before any background service, browser surface, or listener is exposed.'
+          ? 'Required before the external daemon exposes browser, control-plane, or listener surfaces.'
           : 'Optional. Enter an existing admin username to rotate its password, or a new username to create another admin.',
         placeholder: defaultAdminUsername,
         defaultValue: defaultAdminUsername,
@@ -666,7 +666,7 @@ export function buildAccountsStep(controller: OnboardingWizardController): Onboa
         hint: needsAuthBootstrap
           ? controller.hasBootstrapCredentialPresent()
             ? 'Creates or updates the named local admin, removes the bootstrap credential file, and retires the bootstrap admin when it is a different user.'
-            : 'Creates the first local admin user and an initial session before LAN/server settings are applied.'
+            : 'Creates the first local admin user and an initial session before external daemon network settings are used by the daemon owner.'
           : 'Optional. Leave blank to keep existing local auth unchanged; enter a password to create or rotate the named admin user.',
         placeholder: needsAuthBootstrap ? 'password required' : 'leave blank to keep unchanged',
         defaultValue: '',
@@ -724,7 +724,7 @@ export function buildAccountsStep(controller: OnboardingWizardController): Onboa
       title: 'Subscriptions and auth review',
       shortLabel: 'Accounts',
       description: needsAuthBootstrap
-        ? 'Create wizard-owned local auth before any LAN, browser, service, or listener settings are applied.'
+        ? 'Create local auth state before external daemon LAN, browser, service, or listener settings are applied by the daemon owner.'
         : 'Review existing subscription and local auth state. Existing local auth is kept unless you change it elsewhere.',
       summaryTitle: 'Stored account state',
       summaryLines: [
@@ -732,8 +732,8 @@ export function buildAccountsStep(controller: OnboardingWizardController): Onboa
         `Auth: ${auth?.userCount ?? 0} users / ${auth?.sessionCount ?? 0} sessions`,
         needsAuthBootstrap
           ? controller.hasBootstrapCredentialPresent()
-            ? 'Bootstrap credentials will be replaced before network settings are applied'
-            : 'Local admin will be created before network settings are applied'
+            ? 'Bootstrap credentials will be replaced before external network settings are used'
+            : 'Local admin will be created before external network settings are used'
           : controller.hasLocalAuthUser() ? 'Existing local auth will be kept' : 'Local auth is not required for this setup',
       ],
       fields,

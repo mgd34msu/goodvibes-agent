@@ -30,13 +30,13 @@ export const DEFAULT_CAPABILITIES: readonly OnboardingStep1CapabilityItem[] = [
     id: 'network-access',
     label: 'Let other devices use GoodVibes',
     selected: false,
-    detail: 'Make enabled GoodVibes services reachable from other devices on your LAN. Local authentication is required.',
+    detail: 'Review external daemon surfaces that are reachable from other devices on your LAN. Local authentication is required.',
   },
   {
     id: 'webhook-events',
     label: 'Receive webhooks or events from other tools',
     selected: false,
-    detail: 'Turn on the HTTP listener for incoming webhooks, callbacks, and automation events.',
+    detail: 'Review the external HTTP listener required for incoming webhooks, callbacks, and automation events.',
   },
   {
     id: 'external-integrations',
@@ -48,7 +48,7 @@ export const DEFAULT_CAPABILITIES: readonly OnboardingStep1CapabilityItem[] = [
     id: 'cloudflare-batch',
     label: 'Use Cloudflare for batch or remote daemon work',
     selected: false,
-    detail: 'Optionally configure Cloudflare Workers and Queues for explicit or eligible background batch jobs. Immediate local daemon behavior stays the default unless enabled.',
+    detail: 'Optionally configure Cloudflare Workers and Queues for explicit or eligible background batch jobs. The external daemon still owns execution.',
   },
 ];
 
@@ -60,13 +60,13 @@ export const REASONING_OPTIONS: readonly OnboardingWizardRadioOption[] = [
 ];
 
 export const NETWORK_MODE_OPTIONS: readonly OnboardingWizardRadioOption[] = [
-  { id: 'local-network-default', label: 'Local Network (Default)', hint: 'Use the default LAN-facing setup for enabled browser, service, and event features.' },
-  { id: 'custom', label: 'Custom', hint: 'Choose IP addresses and ports for each enabled service.' },
+  { id: 'local-network-default', label: 'Local Network (Default)', hint: 'Review the default LAN-facing external daemon setup for browser, control-plane, and event features.' },
+  { id: 'custom', label: 'Custom', hint: 'Review IP addresses and ports for each external daemon surface.' },
 ];
 
 export const HITL_MODE_OPTIONS: readonly OnboardingWizardRadioOption[] = [
   { id: 'quiet', label: 'Quiet', hint: 'Only interrupt for important attention requests.' },
-  { id: 'balanced', label: 'Balanced', hint: 'Show important activity without turning the TUI into a log stream.' },
+  { id: 'balanced', label: 'Balanced', hint: 'Show important activity without turning Agent into a log stream.' },
   { id: 'operator', label: 'Operator', hint: 'Keep operational activity visible for hands-on supervision.' },
 ];
 
@@ -90,7 +90,7 @@ export const SECRET_POLICY_OPTIONS: readonly OnboardingWizardRadioOption[] = [
 
 export const TELEGRAM_MODE_OPTIONS: readonly OnboardingWizardRadioOption[] = [
   { id: 'webhook', label: 'Webhook', hint: 'Receive Telegram updates through a webhook.' },
-  { id: 'polling', label: 'Polling', hint: 'Poll Telegram for updates from the background service.' },
+  { id: 'polling', label: 'Polling', hint: 'The external daemon polls Telegram for updates.' },
 ];
 
 export const WHATSAPP_PROVIDER_OPTIONS: readonly OnboardingWizardRadioOption[] = [

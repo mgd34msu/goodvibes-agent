@@ -267,7 +267,7 @@ function describeLocalTuiOnly(snapshot: OnboardingSnapshotState): string {
     return 'Use GoodVibes Agent in this terminal while connecting only to an externally managed daemon. Agent does not enable service mode, HTTP listeners, external app surfaces, or network setup.';
   }
 
-  return 'Keep Agent local-only by not enabling browser access, background services, HTTP listeners, external app surfaces, or network setup.';
+  return 'Keep Agent local-only by not requesting browser access, service posture changes, HTTP listeners, external app surfaces, or network setup from the daemon owner.';
 }
 
 function describeBrowserAccess(snapshot: OnboardingSnapshotState): string {
@@ -278,14 +278,14 @@ function describeBrowserAccess(snapshot: OnboardingSnapshotState): string {
 
 function describeRemoteDeviceAccess(snapshot: OnboardingSnapshotState): string {
   return hasRemoteDeviceAccess(snapshot)
-    ? 'Keep enabled GoodVibes services reachable from other devices on your LAN. Local authentication is required.'
-    : 'Make enabled GoodVibes services reachable from other devices on your LAN. Local authentication is required.';
+    ? 'Review external daemon surfaces reachable from other devices on your LAN. Local authentication is required.'
+    : 'Review the external daemon surfaces required for other-device LAN access. Local authentication is required.';
 }
 
 function describeWebhookIngress(snapshot: OnboardingSnapshotState): string {
   return hasWebhookOrEventIngress(snapshot)
-    ? 'Keep the HTTP listener available for incoming webhooks, callbacks, and automation events.'
-    : 'Turn on the HTTP listener for incoming webhooks, callbacks, and automation events.';
+    ? 'Review the external HTTP listener used for incoming webhooks, callbacks, and automation events.'
+    : 'Review the external HTTP listener required for incoming webhooks, callbacks, and automation events.';
 }
 
 function describeExternalIntegrations(snapshot: OnboardingSnapshotState): string {
@@ -306,7 +306,7 @@ function describeCloudflareBatch(snapshot: OnboardingSnapshotState): string {
     return 'Review Cloudflare Workers/Queues batch processing, token storage, and optional remote daemon provisioning settings.';
   }
 
-  return 'Optionally configure Cloudflare Workers and Queues for explicit or eligible background batch jobs. Immediate local daemon behavior stays the default unless enabled.';
+  return 'Optionally configure Cloudflare Workers and Queues for explicit or eligible background batch jobs. The external daemon still owns execution.';
 }
 
 function getAcknowledgementAccepted(

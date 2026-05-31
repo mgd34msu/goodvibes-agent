@@ -176,7 +176,7 @@ export function buildCloudflareProvisionRequest(controller: OnboardingWizardCont
     daemonHostname: controller.getStringFieldValue('cloudflare.daemon-hostname', controller.runtimeSnapshot?.config.cloudflare.daemonHostname ?? ''),
     queueName: controller.getStringFieldValue('cloudflare.queue-name', controller.runtimeSnapshot?.config.cloudflare.queueName ?? 'goodvibes-batch'),
     deadLetterQueueName: controller.getStringFieldValue('cloudflare.dead-letter-queue-name', controller.runtimeSnapshot?.config.cloudflare.deadLetterQueueName ?? 'goodvibes-batch-dlq'),
-    tunnelName: controller.getStringFieldValue('cloudflare.tunnel-name', controller.runtimeSnapshot?.config.cloudflare.tunnelName ?? 'goodvibes-daemon'),
+    tunnelName: controller.getStringFieldValue('cloudflare.tunnel-name', controller.runtimeSnapshot?.config.cloudflare.tunnelName ?? 'goodvibes-agent-daemon'),
     tunnelId: controller.getStringFieldValue('cloudflare.tunnel-id', controller.runtimeSnapshot?.config.cloudflare.tunnelId ?? ''),
     tunnelServiceUrl: controller.getStringFieldValue('cloudflare.tunnel-service-url', ''),
     tunnelTokenRef: controller.getStringFieldValue('cloudflare.tunnel-token-ref', controller.runtimeSnapshot?.config.cloudflare.tunnelTokenRef ?? ''),

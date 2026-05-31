@@ -224,7 +224,7 @@ describe('onboarding derivation helpers', () => {
         id: 'local-tui-only',
         label: 'Agent Local Only (External Daemon)',
         selected: false,
-        detail: 'Keep Agent local-only by not enabling browser access, background services, HTTP listeners, external app surfaces, or network setup.',
+        detail: 'Keep Agent local-only by not requesting browser access, service posture changes, HTTP listeners, external app surfaces, or network setup from the daemon owner.',
       },
       {
         id: 'browser-access',
@@ -236,13 +236,13 @@ describe('onboarding derivation helpers', () => {
         id: 'network-access',
         label: 'Let other devices use GoodVibes',
         selected: true,
-        detail: 'Keep enabled GoodVibes services reachable from other devices on your LAN. Local authentication is required.',
+        detail: 'Review external daemon surfaces reachable from other devices on your LAN. Local authentication is required.',
       },
       {
         id: 'webhook-events',
         label: 'Receive webhooks or events from other tools',
         selected: true,
-        detail: 'Keep the HTTP listener available for incoming webhooks, callbacks, and automation events.',
+        detail: 'Review the external HTTP listener used for incoming webhooks, callbacks, and automation events.',
       },
       {
         id: 'external-integrations',
@@ -254,7 +254,7 @@ describe('onboarding derivation helpers', () => {
         id: 'cloudflare-batch',
         label: 'Use Cloudflare for batch or remote daemon work',
         selected: false,
-        detail: 'Optionally configure Cloudflare Workers and Queues for explicit or eligible background batch jobs. Immediate local daemon behavior stays the default unless enabled.',
+        detail: 'Optionally configure Cloudflare Workers and Queues for explicit or eligible background batch jobs. The external daemon still owns execution.',
       },
     ]);
 
@@ -518,13 +518,13 @@ describe('onboarding derivation helpers', () => {
         id: 'network-access',
         label: 'Let other devices use GoodVibes',
         selected: false,
-        detail: 'Make enabled GoodVibes services reachable from other devices on your LAN. Local authentication is required.',
+        detail: 'Review the external daemon surfaces required for other-device LAN access. Local authentication is required.',
       },
       {
         id: 'webhook-events',
         label: 'Receive webhooks or events from other tools',
         selected: false,
-        detail: 'Turn on the HTTP listener for incoming webhooks, callbacks, and automation events.',
+        detail: 'Review the external HTTP listener required for incoming webhooks, callbacks, and automation events.',
       },
       {
         id: 'external-integrations',
@@ -536,7 +536,7 @@ describe('onboarding derivation helpers', () => {
         id: 'cloudflare-batch',
         label: 'Use Cloudflare for batch or remote daemon work',
         selected: false,
-        detail: 'Optionally configure Cloudflare Workers and Queues for explicit or eligible background batch jobs. Immediate local daemon behavior stays the default unless enabled.',
+        detail: 'Optionally configure Cloudflare Workers and Queues for explicit or eligible background batch jobs. The external daemon still owns execution.',
       },
     ]);
   });

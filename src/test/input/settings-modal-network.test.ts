@@ -4,14 +4,13 @@
  * Covers:
  *   - Network tab populated with controlPlane.* and httpListener.* entries
  *   - host field visibility gating (hidden unless hostMode === 'custom')
- *   - Save via ConfigManager.setDynamic and lastSaveTriggeredRestart flag
- *   - Enum cycling for hostMode (local → network → custom via activateSelected)
+ *   - External daemon lifecycle/network rows are visible but locked for Agent
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { SettingsModal, SETTINGS_CATEGORIES } from '../../input/settings-modal.ts';
+import { AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON, SettingsModal, SETTINGS_CATEGORIES, isExternalDaemonOwnedSettingKey } from '../../input/settings-modal.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
@@ -147,57 +146,62 @@ describe('SettingsModal — network category', () => {
     expect(visibleKeys).toContain('httpListener.host');
   });
 
-  // ── Save path and restart flag ────────────────────────────────────────
+  // ── Agent external-daemon lock path ───────────────────────────────────
 
   test('lastSaveTriggeredRestart is null on fresh open', () => {
     openOnNetworkTab();
     expect(modal.lastSaveTriggeredRestart).toBeNull();
   });
 
-  test('changing controlPlane.hostMode sets lastSaveTriggeredRestart to control-plane', () => {
+  test('controlPlane.hostMode is locked and does not mutate from Agent settings', () => {
     openOnNetworkTab();
-    // Select the controlPlane.hostMode entry
     const items = modal.currentItems;
     const cpHostModeIdx = items.findIndex(e => e.setting.key === 'controlPlane.hostMode');
     modal.selectedIndex = cpHostModeIdx;
-    // Activate to cycle enum (local → network)
+    const before = cm.get('controlPlane.hostMode');
     modal.activateSelected();
-    expect(modal.lastSaveTriggeredRestart).toBe('control-plane');
+    expect(cm.get('controlPlane.hostMode')).toBe(before);
+    expect(modal.lastSaveTriggeredRestart).toBeNull();
+    expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
   });
 
-  test('changing httpListener.hostMode sets lastSaveTriggeredRestart to http-listener', () => {
+  test('httpListener.hostMode is locked and does not mutate from Agent settings', () => {
     openOnNetworkTab();
     const items = modal.currentItems;
     const httpHostModeIdx = items.findIndex(e => e.setting.key === 'httpListener.hostMode');
     modal.selectedIndex = httpHostModeIdx;
+    const before = cm.get('httpListener.hostMode');
     modal.activateSelected();
-    expect(modal.lastSaveTriggeredRestart).toBe('http-listener');
+    expect(cm.get('httpListener.hostMode')).toBe(before);
+    expect(modal.lastSaveTriggeredRestart).toBeNull();
+    expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
   });
 
-  test('lastSaveTriggeredRestart cleared on close()', () => {
+  test('external daemon lock notice is cleared on close()', () => {
     openOnNetworkTab();
     const items = modal.currentItems;
     const idx = items.findIndex(e => e.setting.key === 'controlPlane.hostMode');
     modal.selectedIndex = idx;
     modal.activateSelected();
-    expect(modal.lastSaveTriggeredRestart).not.toBeNull();
+    expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
     modal.close();
+    expect(modal.lastSettingEffectMessage).toBeNull();
     expect(modal.lastSaveTriggeredRestart).toBeNull();
   });
 
-  test('lastSaveTriggeredRestart cleared on open()', () => {
+  test('external daemon lock notice is cleared on open()', () => {
     openOnNetworkTab();
     const items = modal.currentItems;
     const idx = items.findIndex(e => e.setting.key === 'controlPlane.hostMode');
     modal.selectedIndex = idx;
     modal.activateSelected();
-    expect(modal.lastSaveTriggeredRestart).not.toBeNull();
-    // Re-open resets it
+    expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, emptyMcpRegistry);
+    expect(modal.lastSettingEffectMessage).toBeNull();
     expect(modal.lastSaveTriggeredRestart).toBeNull();
   });
 
-  test('adjustSelected cycles controlPlane.hostMode values', () => {
+  test('adjustSelected does not cycle external daemon controlPlane.hostMode values', () => {
     openOnNetworkTab();
     const items = modal.currentItems;
     const cpHostModeIdx = items.findIndex(e => e.setting.key === 'controlPlane.hostMode');
@@ -205,12 +209,11 @@ describe('SettingsModal — network category', () => {
 
     const initial = cm.get('controlPlane.hostMode');
     modal.adjustSelected('right');
-    const afterRight = cm.get('controlPlane.hostMode');
-    expect(afterRight).not.toBe(initial);
+    expect(cm.get('controlPlane.hostMode')).toBe(initial);
+    expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
 
     modal.adjustSelected('left');
-    const afterLeft = cm.get('controlPlane.hostMode');
-    expect(afterLeft).toBe(initial);
+    expect(cm.get('controlPlane.hostMode')).toBe(initial);
   });
 
   test('controlPlane.port is always visible', () => {
@@ -256,36 +259,26 @@ describe('SettingsModal — network category', () => {
     expect(visibleKeys).toContain('web.host');
   });
 
-  test('changing web.hostMode sets lastSaveTriggeredRestart to web', () => {
+  test('web.hostMode is locked and does not mutate from Agent settings', () => {
     openOnNetworkTab();
     const items = modal.currentItems;
     const webHostModeIdx = items.findIndex(e => e.setting.key === 'web.hostMode');
     modal.selectedIndex = webHostModeIdx;
+    const before = cm.get('web.hostMode');
     modal.activateSelected();
-    expect(modal.lastSaveTriggeredRestart).toBe('web');
+    expect(cm.get('web.hostMode')).toBe(before);
+    expect(modal.lastSaveTriggeredRestart).toBeNull();
+    expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
   });
 
-  test('no-op write does not set lastSaveTriggeredRestart', () => {
+  test('external daemon-owned network keys are marked locked', () => {
     openOnNetworkTab();
-    const items = modal.currentItems;
-    // Set controlPlane.hostMode to its current value (no change)
-    const cpHostModeEntry = items.find(e => e.setting.key === 'controlPlane.hostMode')!;
-    const currentVal = cpHostModeEntry.currentValue;
-    // Directly call adjustSelected twice (left then right) to ensure net no-op
-    const cpHostModeIdx = items.findIndex(e => e.setting.key === 'controlPlane.hostMode');
-    modal.selectedIndex = cpHostModeIdx;
-    modal.adjustSelected('right');
-    const after = modal.lastSaveTriggeredRestart;
-    // cycling right changes the value so restart fires; cycle back
-    modal.adjustSelected('left');
-    // After cycling back, we made two real changes so restart is still set from first
-    // The key test: a genuine write triggers restart, a same-value write does not
-    // Verify by resetting and writing the same value manually via _setValue path
-    modal.close();
-    modal.open(cm, ffm, subscriptionManager, serviceRegistry, emptyMcpRegistry);
-    modal.categoryIndex = SETTINGS_CATEGORIES.indexOf('network');
-    // Now write same value as current (no-op) via adjustSelected left then right to net zero
-    expect(modal.lastSaveTriggeredRestart).toBeNull();
+    const daemonOwnedEntries = modal.currentItems.filter((entry) => isExternalDaemonOwnedSettingKey(entry.setting.key));
+    expect(daemonOwnedEntries.length).toBeGreaterThan(0);
+    for (const entry of daemonOwnedEntries) {
+      expect(entry.locked).toBe(true);
+      expect(entry.lockReason).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
+    }
   });
 
   // ── M3: render-layer banner test ─────────────────────────────────────────
@@ -302,19 +295,17 @@ describe('SettingsModal — network category', () => {
           : ''
       )
       .join('\n');
-    expect(text).toContain('control-plane');
+    expect(text).toContain('external daemon');
   });
 
-  test('render-layer: restart banner appears after a restart-triggering change', () => {
+  test('render-layer: external daemon lock notice appears after a blocked change', () => {
     const { renderSettingsModal } = require('../../renderer/settings-modal.ts');
     openOnNetworkTab();
-    // Trigger a restart by cycling controlPlane.hostMode
     const items = modal.currentItems;
     const cpHostModeIdx = items.findIndex(e => e.setting.key === 'controlPlane.hostMode');
     modal.selectedIndex = cpHostModeIdx;
     modal.activateSelected();
-    expect(modal.lastSaveTriggeredRestart).not.toBeNull();
-    // Render and verify the banner text is present
+    expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
     const lines: unknown[] = renderSettingsModal(modal, 120, 30);
     const text = lines
       .map((line: unknown) =>
@@ -323,29 +314,29 @@ describe('SettingsModal — network category', () => {
           : ''
       )
       .join('\n');
-    expect(text).toContain('Restarting');
+    expect(text).toContain('external daemon');
   });
 
-  test('setting apply handler is called after a persisted setting change', () => {
+  test('service settings are locked and do not call the setting apply handler', () => {
     const calls: Array<{ key: string; previousValue: unknown; value: unknown }> = [];
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, emptyMcpRegistry, undefined, {
       onSettingApplied: (change) => {
         calls.push(change);
         cm.setDynamic('service.enabled', true);
-        return { message: 'OS service installed and started' };
+        return { message: 'unexpected daemon-owned mutation' };
       },
     });
     modal.categoryIndex = SETTINGS_CATEGORIES.indexOf('service');
     const idx = modal.currentItems.findIndex(e => e.setting.key === 'service.autostart');
     expect(idx).toBeGreaterThanOrEqual(0);
     modal.selectedIndex = idx;
+    const before = cm.get('service.autostart');
     modal.activateSelected();
 
-    expect(calls).toEqual([
-      { key: 'service.autostart', previousValue: false, value: true },
-    ]);
-    expect(modal.lastSettingEffectMessage).toBe('OS service installed and started');
+    expect(calls).toEqual([]);
+    expect(cm.get('service.autostart')).toBe(before);
+    expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
     const serviceEnabledEntry = modal.groups.get('service')?.find((entry) => entry.setting.key === 'service.enabled');
-    expect(serviceEnabledEntry?.currentValue).toBe(true);
+    expect(serviceEnabledEntry?.currentValue).toBe(false);
   });
 });

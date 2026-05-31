@@ -19,24 +19,24 @@ export function runtimePortDiagnostic(
   if (status) {
     const reason = status.reason ? ` ${status.reason}` : '';
     if (status.mode === 'blocked') {
-      return `The configured endpoint ${status.baseUrl} is occupied but was not usable by this TUI instance.${reason}`;
+      return `The configured endpoint ${status.baseUrl} is occupied but was not usable by this Agent instance.${reason}`;
     }
     if (status.mode === 'disabled') {
       return `The configured endpoint ${status.baseUrl} is disabled in the runtime service configuration.${reason}`;
     }
     if (status.mode === 'unavailable') {
-      return `The configured endpoint ${status.baseUrl} is unavailable after startup or restart.${reason}`;
+      return `The configured endpoint ${status.baseUrl} is unavailable to Agent.${reason}`;
     }
     if (status.mode === 'external') {
       const version = status.version ? ` version ${status.version}` : '';
       return `An existing GoodVibes service was verified at ${status.baseUrl}${version}.`;
     }
-    return `An embedded GoodVibes service is running at ${status.baseUrl}.`;
+    return `A GoodVibes service reports embedded mode at ${status.baseUrl}; Agent still treats daemon lifecycle as external.`;
   }
   if (portInUse) {
-    return `The configured port ${binding.host}:${binding.port} is occupied after restart; another GoodVibes process, an overlapping restart, or another service may still own it.`;
+    return `The configured port ${binding.host}:${binding.port} is occupied; another GoodVibes process or another service may own it.`;
   }
-  return `No process is listening on ${binding.host}:${binding.port} after restart.`;
+  return `No process is listening on ${binding.host}:${binding.port}.`;
 }
 
 export function getRuntimeEndpointStatus(
@@ -79,9 +79,9 @@ export function formatRuntimeActiveSuccessMessage(
     return `${label} is already running as a verified external GoodVibes service at ${status.baseUrl}${version}.`;
   }
   if (status?.mode === 'embedded') {
-    return `${label} is running as an embedded service at ${status.baseUrl}.`;
+    return `${label} reports embedded mode at ${status.baseUrl}; Agent does not own that service lifecycle.`;
   }
   return endpoint === 'daemon'
-    ? 'The GoodVibes daemon is running with the applied onboarding settings.'
-    : 'The HTTP listener is running with the applied onboarding settings.';
+    ? 'The GoodVibes daemon is reachable to Agent.'
+    : 'The HTTP listener is reachable to Agent.';
 }

@@ -26,7 +26,7 @@ export function buildCloudflareStep(controller: OnboardingWizardController): Onb
   const bind = controller.runtimeSnapshot?.bindSettings.controlPlane;
   const defaultDaemonBaseUrl = normalizeText(config?.daemonBaseUrl)
     || `http://${bind?.host && bind.host !== '0.0.0.0' && bind.host !== '::' ? bind.host : '127.0.0.1'}:${bind?.port ?? 3421}`;
-  const resultMessage = controller.textState.get('cloudflare.action-status') ?? 'No Cloudflare daemon action has run in this wizard session.';
+  const resultMessage = controller.textState.get('cloudflare.action-status') ?? 'No Cloudflare action has run in this wizard session.';
   const fields: OnboardingWizardFieldDefinition[] = [
     {
       kind: 'checklist',
@@ -96,7 +96,7 @@ export function buildCloudflareStep(controller: OnboardingWizardController): Onb
         kind: 'text',
         id: 'cloudflare.bootstrap-env-name',
         label: 'Bootstrap token environment variable',
-        hint: 'The TUI reads this environment variable once and passes the value to the SDK token-create route. It is not persisted.',
+        hint: 'Agent reads this environment variable once and passes the value to the SDK token-create route. It is not persisted.',
         placeholder: 'GOODVIBES_CLOUDFLARE_BOOTSTRAP_TOKEN',
         defaultValue: 'GOODVIBES_CLOUDFLARE_BOOTSTRAP_TOKEN',
       });
@@ -227,8 +227,8 @@ export function buildCloudflareStep(controller: OnboardingWizardController): Onb
           id: 'cloudflare.tunnel-name',
           label: 'Tunnel name',
           hint: 'Cloudflare Tunnel name to create or reuse.',
-          placeholder: 'goodvibes-daemon',
-          defaultValue: config?.tunnelName || 'goodvibes-daemon',
+          placeholder: 'goodvibes-agent-daemon',
+          defaultValue: config?.tunnelName || 'goodvibes-agent-daemon',
         },
         {
           kind: 'text',
