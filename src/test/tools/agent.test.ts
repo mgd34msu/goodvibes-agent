@@ -20,8 +20,14 @@ import {
   AGENT_READ_ONLY_FETCH_METHODS,
   AGENT_READ_ONLY_MCP_TOOL_MODES,
   AGENT_READ_ONLY_REMOTE_TOOL_MODES,
+  AGENT_READ_ONLY_STATE_ANALYTICS_ACTIONS,
+  AGENT_READ_ONLY_STATE_HOOK_ACTIONS,
+  AGENT_READ_ONLY_STATE_MEMORY_ACTIONS,
+  AGENT_READ_ONLY_STATE_MODE_ACTIONS,
+  AGENT_READ_ONLY_STATE_TOOL_MODES,
   AGENT_READ_ONLY_TOOL_MODES,
   AGENT_REMOTE_MUTATION_DENIAL_MESSAGE,
+  AGENT_STATE_MUTATION_DENIAL_MESSAGE,
   installAgentToolPolicyGuard,
   normalizeAgentToolInvocationForAgentPolicy,
   wrapAgentToolForAgentPolicy,
@@ -135,6 +141,44 @@ function makeFetchModeTool(): Tool {
         },
       },
       sideEffects: ['network'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
+  };
+}
+
+function makeStateModeTool(): Tool {
+  return {
+    definition: {
+      name: 'state',
+      description: 'state test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: {
+            type: 'string',
+            enum: ['get', 'set', 'list', 'clear', 'budget', 'context', 'memory', 'telemetry', 'hooks', 'mode', 'analytics'],
+          },
+          keys: { type: 'array' },
+          values: { type: 'object' },
+          clearKeys: { type: 'array' },
+          memoryAction: { type: 'string', enum: ['list', 'get', 'set'] },
+          memoryKey: { type: 'string' },
+          memoryValue: { type: 'string' },
+          hookAction: { type: 'string', enum: ['list', 'enable', 'disable', 'add', 'remove'] },
+          hookName: { type: 'string' },
+          hookDefinition: { type: 'object' },
+          modeAction: { type: 'string', enum: ['get', 'list', 'set'] },
+          modeName: { type: 'string' },
+          analyticsAction: { type: 'string', enum: ['summary', 'query', 'dashboard', 'record', 'sync', 'export'] },
+          analyticsTool: { type: 'string' },
+          analyticsArgs: { type: 'object' },
+          analyticsResult: { type: 'object' },
+          analyticsDuration: { type: 'number' },
+          analyticsTokens: { type: 'number' },
+          analyticsFormat: { type: 'string' },
+        },
+      },
+      sideEffects: ['state'],
     },
     execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
   };
@@ -712,6 +756,73 @@ describe('spawn mode', () => {
       const result = await registry.execute(`call-fetch-blocked-${index}`, 'fetch', input);
       expect(result.success).toBe(false);
       expect(result.error).toBe(AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE);
+    }
+  });
+
+  test('Agent runtime guard narrows state tool to read-only runtime inspection', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeStateModeTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const stateDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'state');
+    expect(stateDefinition?.description).toContain('Inspect copied runtime state');
+    const properties = stateDefinition?.parameters.properties as Record<string, unknown>;
+    const modeProperty = getRecordProperty(properties, 'mode');
+    expect(modeProperty?.enum).toEqual([...AGENT_READ_ONLY_STATE_TOOL_MODES]);
+    expect(properties.values).toBeUndefined();
+    expect(properties.clearKeys).toBeUndefined();
+    expect(properties.memoryValue).toBeUndefined();
+    expect(properties.hookDefinition).toBeUndefined();
+    expect(properties.modeName).toBeUndefined();
+    expect(properties.analyticsTool).toBeUndefined();
+
+    expect(getRecordProperty(properties, 'memoryAction')?.enum).toEqual([...AGENT_READ_ONLY_STATE_MEMORY_ACTIONS]);
+    expect(getRecordProperty(properties, 'hookAction')?.enum).toEqual([...AGENT_READ_ONLY_STATE_HOOK_ACTIONS]);
+    expect(getRecordProperty(properties, 'modeAction')?.enum).toEqual([...AGENT_READ_ONLY_STATE_MODE_ACTIONS]);
+    expect(getRecordProperty(properties, 'analyticsAction')?.enum).toEqual([...AGENT_READ_ONLY_STATE_ANALYTICS_ACTIONS]);
+
+    const readOnlyInputs: ReadonlyArray<Record<string, unknown>> = [
+      { mode: 'get', keys: ['runtime.workingDir'] },
+      { mode: 'list' },
+      { mode: 'budget' },
+      { mode: 'context' },
+      { mode: 'memory', memoryAction: 'list' },
+      { mode: 'memory', memoryAction: 'get', memoryKey: 'example' },
+      { mode: 'telemetry' },
+      { mode: 'hooks', hookAction: 'list' },
+      { mode: 'mode', modeAction: 'get' },
+      { mode: 'mode', modeAction: 'list' },
+      { mode: 'analytics', analyticsAction: 'summary' },
+      { mode: 'analytics', analyticsAction: 'query' },
+      { mode: 'analytics', analyticsAction: 'dashboard' },
+    ];
+
+    for (const [index, input] of readOnlyInputs.entries()) {
+      const result = await registry.execute(`call-state-read-${index}`, 'state', input);
+      expect(result.success).toBe(true);
+    }
+
+    const blockedInputs: ReadonlyArray<Record<string, unknown>> = [
+      { mode: 'set', values: { key: 'value' } },
+      { mode: 'clear', clearKeys: ['key'] },
+      { mode: 'get', values: { key: 'value' } },
+      { mode: 'memory', memoryAction: 'set', memoryKey: 'memory', memoryValue: 'value' },
+      { mode: 'memory', memoryAction: 'list', memoryValue: 'value' },
+      { mode: 'hooks', hookAction: 'enable', hookName: 'hook' },
+      { mode: 'hooks', hookAction: 'add', hookDefinition: { type: 'command' } },
+      { mode: 'mode', modeAction: 'set', modeName: 'verbose' },
+      { mode: 'analytics', analyticsAction: 'record', analyticsTool: 'fetch' },
+      { mode: 'analytics', analyticsAction: 'sync' },
+      { mode: 'analytics', analyticsAction: 'export', analyticsFormat: 'json' },
+    ];
+
+    for (const [index, input] of blockedInputs.entries()) {
+      const result = await registry.execute(`call-state-blocked-${index}`, 'state', input);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(AGENT_STATE_MUTATION_DENIAL_MESSAGE);
     }
   });
 

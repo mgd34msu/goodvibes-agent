@@ -34,6 +34,26 @@ type FetchToolArgs = {
   readonly [key: string]: unknown;
 };
 
+type StateToolArgs = {
+  readonly mode?: unknown;
+  readonly memoryAction?: unknown;
+  readonly hookAction?: unknown;
+  readonly modeAction?: unknown;
+  readonly analyticsAction?: unknown;
+  readonly values?: unknown;
+  readonly clearKeys?: unknown;
+  readonly memoryValue?: unknown;
+  readonly hookDefinition?: unknown;
+  readonly modeName?: unknown;
+  readonly analyticsTool?: unknown;
+  readonly analyticsArgs?: unknown;
+  readonly analyticsResult?: unknown;
+  readonly analyticsDuration?: unknown;
+  readonly analyticsTokens?: unknown;
+  readonly analyticsFormat?: unknown;
+  readonly [key: string]: unknown;
+};
+
 type AgentToolPolicyGuardOptions = {
   readonly getLastUserMessage?: () => string | null;
 };
@@ -60,10 +80,20 @@ const READ_ONLY_REMOTE_TOOL_MODES = ['pools', 'contracts', 'artifacts', 'review'
 const READ_ONLY_CHANNEL_TOOL_MODES = ['accounts', 'directory', 'resolve_target', 'capabilities', 'tools', 'agent_tools', 'actions'] as const;
 const READ_ONLY_MCP_TOOL_MODES = ['servers', 'tools', 'schema', 'resources', 'security', 'auth'] as const;
 const READ_ONLY_FETCH_METHODS = ['GET', 'HEAD', 'OPTIONS'] as const;
+const READ_ONLY_STATE_TOOL_MODES = ['get', 'list', 'budget', 'context', 'memory', 'telemetry', 'hooks', 'mode', 'analytics'] as const;
+const READ_ONLY_STATE_MEMORY_ACTIONS = ['list', 'get'] as const;
+const READ_ONLY_STATE_HOOK_ACTIONS = ['list'] as const;
+const READ_ONLY_STATE_MODE_ACTIONS = ['get', 'list'] as const;
+const READ_ONLY_STATE_ANALYTICS_ACTIONS = ['summary', 'query', 'dashboard'] as const;
 const READ_ONLY_REMOTE_TOOL_MODE_SET = new Set<string>(READ_ONLY_REMOTE_TOOL_MODES);
 const READ_ONLY_CHANNEL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CHANNEL_TOOL_MODES);
 const READ_ONLY_MCP_TOOL_MODE_SET = new Set<string>(READ_ONLY_MCP_TOOL_MODES);
 const READ_ONLY_FETCH_METHOD_SET = new Set<string>(READ_ONLY_FETCH_METHODS);
+const READ_ONLY_STATE_TOOL_MODE_SET = new Set<string>(READ_ONLY_STATE_TOOL_MODES);
+const READ_ONLY_STATE_MEMORY_ACTION_SET = new Set<string>(READ_ONLY_STATE_MEMORY_ACTIONS);
+const READ_ONLY_STATE_HOOK_ACTION_SET = new Set<string>(READ_ONLY_STATE_HOOK_ACTIONS);
+const READ_ONLY_STATE_MODE_ACTION_SET = new Set<string>(READ_ONLY_STATE_MODE_ACTIONS);
+const READ_ONLY_STATE_ANALYTICS_ACTION_SET = new Set<string>(READ_ONLY_STATE_ANALYTICS_ACTIONS);
 
 const LOCAL_AGENT_DENIAL = [
   'GoodVibes Agent does not spawn local Engineer/Reviewer/Tester/Verifier roots or run local WRFC chains.',
@@ -107,6 +137,12 @@ const FETCH_NETWORK_MUTATION_DENIAL = [
   'Network writes or credentialed external calls require an explicit Agent approval flow before they can run.',
 ].join(' ');
 
+const STATE_MUTATION_DENIAL = [
+  'GoodVibes Agent only inspects copied runtime state from the main conversation.',
+  'Arbitrary state set/clear, copied memory writes, hook mutation, output-mode mutation, and analytics writes are disabled here.',
+  'Use Agent-owned memory, skills, personas, routines, and explicit CLI/slash commands for intentional local state changes.',
+].join(' ');
+
 export function installAgentToolPolicyGuard(registry: ToolRegistry, options: AgentToolPolicyGuardOptions = {}): void {
   const agentTool = registry.list().find((tool) => tool.definition.name === 'agent');
   if (!agentTool) throw new Error('Agent tool policy guard could not find the agent tool.');
@@ -138,6 +174,8 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       });
     } else if (tool.definition.name === 'fetch') {
       wrapFetchToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'state') {
+      wrapStateToolForAgentPolicy(tool);
     } else if (BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET.has(tool.definition.name)) {
       wrapBlockedMainConversationToolForAgentPolicy(tool);
     }
@@ -193,6 +231,16 @@ export function wrapFetchToolForAgentPolicy(tool: Tool): void {
   };
 }
 
+export function wrapStateToolForAgentPolicy(tool: Tool): void {
+  narrowStateToolDefinitionForAgentPolicy(tool);
+  const originalExecute = tool.execute.bind(tool);
+  tool.execute = async (args) => {
+    const denial = validateStateToolInvocationForAgentPolicy(args as StateToolArgs);
+    if (denial) return { success: false, error: denial };
+    return originalExecute(args);
+  };
+}
+
 export function validateExecToolInvocationForAgentPolicy(args: ExecToolArgs): string | null {
   if (args.parallel === true) return BACKGROUND_EXEC_DENIAL;
   if (Array.isArray(args.file_ops) && args.file_ops.length > 0) return BACKGROUND_EXEC_DENIAL;
@@ -238,6 +286,43 @@ export function validateFetchToolInvocationForAgentPolicy(args: FetchToolArgs): 
 
 export function normalizeFetchToolInvocationForAgentPolicy(args: FetchToolArgs): FetchToolArgs {
   return { ...args, parallel: false };
+}
+
+export function validateStateToolInvocationForAgentPolicy(args: StateToolArgs): string | null {
+  if (isPresent(args.values) || isPresent(args.clearKeys)) return STATE_MUTATION_DENIAL;
+  if (typeof args.mode === 'string' && !READ_ONLY_STATE_TOOL_MODE_SET.has(args.mode)) return STATE_MUTATION_DENIAL;
+
+  if (args.mode === 'memory') {
+    const action = typeof args.memoryAction === 'string' ? args.memoryAction : 'list';
+    if (!READ_ONLY_STATE_MEMORY_ACTION_SET.has(action) || isPresent(args.memoryValue)) return STATE_MUTATION_DENIAL;
+  }
+
+  if (args.mode === 'hooks') {
+    const action = typeof args.hookAction === 'string' ? args.hookAction : 'list';
+    if (!READ_ONLY_STATE_HOOK_ACTION_SET.has(action) || isPresent(args.hookDefinition)) return STATE_MUTATION_DENIAL;
+  }
+
+  if (args.mode === 'mode') {
+    const action = typeof args.modeAction === 'string' ? args.modeAction : 'get';
+    if (!READ_ONLY_STATE_MODE_ACTION_SET.has(action) || isPresent(args.modeName)) return STATE_MUTATION_DENIAL;
+  }
+
+  if (args.mode === 'analytics') {
+    const action = typeof args.analyticsAction === 'string' ? args.analyticsAction : 'summary';
+    if (!READ_ONLY_STATE_ANALYTICS_ACTION_SET.has(action)) return STATE_MUTATION_DENIAL;
+    if (
+      isPresent(args.analyticsTool)
+      || isPresent(args.analyticsArgs)
+      || isPresent(args.analyticsResult)
+      || isPresent(args.analyticsDuration)
+      || isPresent(args.analyticsTokens)
+      || isPresent(args.analyticsFormat)
+    ) {
+      return STATE_MUTATION_DENIAL;
+    }
+  }
+
+  return null;
 }
 
 type ModeRestrictedToolPolicy = {
@@ -294,10 +379,16 @@ export const AGENT_READ_ONLY_REMOTE_TOOL_MODES = READ_ONLY_REMOTE_TOOL_MODES;
 export const AGENT_READ_ONLY_CHANNEL_TOOL_MODES = READ_ONLY_CHANNEL_TOOL_MODES;
 export const AGENT_READ_ONLY_MCP_TOOL_MODES = READ_ONLY_MCP_TOOL_MODES;
 export const AGENT_READ_ONLY_FETCH_METHODS = READ_ONLY_FETCH_METHODS;
+export const AGENT_READ_ONLY_STATE_TOOL_MODES = READ_ONLY_STATE_TOOL_MODES;
+export const AGENT_READ_ONLY_STATE_MEMORY_ACTIONS = READ_ONLY_STATE_MEMORY_ACTIONS;
+export const AGENT_READ_ONLY_STATE_HOOK_ACTIONS = READ_ONLY_STATE_HOOK_ACTIONS;
+export const AGENT_READ_ONLY_STATE_MODE_ACTIONS = READ_ONLY_STATE_MODE_ACTIONS;
+export const AGENT_READ_ONLY_STATE_ANALYTICS_ACTIONS = READ_ONLY_STATE_ANALYTICS_ACTIONS;
 export const AGENT_REMOTE_MUTATION_DENIAL_MESSAGE = REMOTE_MUTATION_DENIAL;
 export const AGENT_CHANNEL_ACTION_DENIAL_MESSAGE = CHANNEL_ACTION_DENIAL;
 export const AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE = MCP_SECURITY_MUTATION_DENIAL;
 export const AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE = FETCH_NETWORK_MUTATION_DENIAL;
+export const AGENT_STATE_MUTATION_DENIAL_MESSAGE = STATE_MUTATION_DENIAL;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -397,6 +488,40 @@ function narrowFetchToolDefinitionForAgentPolicy(tool: Tool): void {
   delete urlProperties.auth;
 }
 
+function narrowStateToolDefinitionForAgentPolicy(tool: Tool): void {
+  tool.definition.description = [
+    'Inspect copied runtime state for GoodVibes Agent.',
+    'State mutation, copied memory writes, hook changes, output-mode changes, and analytics writes are disabled in the main conversation.',
+    'Use Agent-owned commands for intentional memory, skill, persona, and routine changes.',
+  ].join(' ');
+
+  const properties = tool.definition.parameters.properties;
+  if (!isRecord(properties)) return;
+  const modeProperty = properties.mode;
+  if (isRecord(modeProperty)) {
+    modeProperty.enum = [...READ_ONLY_STATE_TOOL_MODES];
+    modeProperty.description = 'Read-only copied runtime state mode. set and clear are disabled in GoodVibes Agent.';
+  }
+
+  delete properties.values;
+  delete properties.clearKeys;
+  delete properties.memoryValue;
+  delete properties.hookDefinition;
+  delete properties.hookName;
+  delete properties.modeName;
+  delete properties.analyticsTool;
+  delete properties.analyticsArgs;
+  delete properties.analyticsResult;
+  delete properties.analyticsDuration;
+  delete properties.analyticsTokens;
+  delete properties.analyticsFormat;
+
+  narrowStringEnumProperty(properties, 'memoryAction', READ_ONLY_STATE_MEMORY_ACTIONS, 'Read-only copied memory actions allowed by GoodVibes Agent.');
+  narrowStringEnumProperty(properties, 'hookAction', READ_ONLY_STATE_HOOK_ACTIONS, 'Read-only hook action allowed by GoodVibes Agent.');
+  narrowStringEnumProperty(properties, 'modeAction', READ_ONLY_STATE_MODE_ACTIONS, 'Read-only mode actions allowed by GoodVibes Agent.');
+  narrowStringEnumProperty(properties, 'analyticsAction', READ_ONLY_STATE_ANALYTICS_ACTIONS, 'Read-only analytics actions allowed by GoodVibes Agent.');
+}
+
 function narrowModeToolDefinitionForAgentPolicy(tool: Tool, allowedModes: readonly string[], description: string): void {
   tool.definition.description = description;
 
@@ -415,6 +540,18 @@ function narrowModeToolDefinitionForAgentPolicy(tool: Tool, allowedModes: readon
     delete properties.actorId;
     delete properties.createIfMissing;
   }
+}
+
+function narrowStringEnumProperty(
+  properties: Record<string, unknown>,
+  key: string,
+  values: readonly string[],
+  description: string,
+): void {
+  const property = properties[key];
+  if (!isRecord(property)) return;
+  property.enum = [...values];
+  property.description = description;
 }
 
 // Compatibility exports for copied TUI tests/imports during the near-fork phase.
