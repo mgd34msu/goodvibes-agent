@@ -3,12 +3,10 @@ import type { CommandRegistry, CommandContext } from '../command-registry.ts';
 import { AGENT_TEMPLATES } from '@pellux/goodvibes-sdk/platform/tools';
 import { handleRemoteSetupCommand } from './remote-runtime-setup.ts';
 import { handleRemotePoolCommand } from './remote-runtime-pool.ts';
-import { requireAgentManager, requireAcpManager, requirePeerClient } from './runtime-services.ts';
+import { requirePeerClient } from './runtime-services.ts';
 
 type RemoteConnectionLike = { agentId: string };
 type RemoteCancelContext = Pick<CommandContext, 'print'>;
-type RemoteCancelAgentManager = Pick<ReturnType<typeof requireAgentManager>, 'cancel'>;
-type RemoteCancelAcpManager = Pick<ReturnType<typeof requireAcpManager>, 'cancel'>;
 
 function printRemoteDelegationBoundary(ctx: Pick<CommandContext, 'print'>, requestedAction: string): void {
   ctx.print([
@@ -24,8 +22,6 @@ export function handleRemoteCancelCommand(
   agentId: string | undefined,
   activeConnections: RemoteConnectionLike[],
   ctx: RemoteCancelContext,
-  agentManager: RemoteCancelAgentManager,
-  acpManager?: RemoteCancelAcpManager,
 ): void {
   if (!agentId) {
     ctx.print('Usage: /remote cancel <agentId>');
@@ -36,17 +32,12 @@ export function handleRemoteCancelCommand(
     ctx.print(`Unknown remote connection: ${agentId}`);
     return;
   }
-  const localAgentCancelled = agentManager.cancel(agentId);
-  if (localAgentCancelled) {
-    ctx.print(`Cancelled remote agent ${agentId}.`);
-    return;
-  }
-  if (!acpManager) {
-    ctx.print(`Remote agent ${agentId} could not be cancelled in this runtime.`);
-    return;
-  }
-  void acpManager.cancel(agentId);
-  ctx.print(`Cancellation requested for remote runner ${agentId}.`);
+  ctx.print([
+    'GoodVibes Agent remote control is read-only.',
+    `  requested: /remote cancel ${agentId}`,
+    '  policy: Agent does not cancel local ACP/runner processes from this surface',
+    '  next: inspect with /remote show or delegate explicit build/fix/review work to GoodVibes TUI',
+  ].join('\n'));
 }
 
 export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
@@ -310,16 +301,10 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'cancel') {
-        if (!ctx.ops.agentManager) {
-          ctx.print('Agent manager is not available in this runtime.');
-          return;
-        }
         handleRemoteCancelCommand(
           args[1],
           activeConnections,
           ctx,
-          requireAgentManager(ctx),
-          ctx.ops.acpManager ? requireAcpManager(ctx) : undefined,
         );
         return;
       }

@@ -198,7 +198,7 @@ describe('local runtime remote commands', () => {
     expect(printed.join('\n')).toContain('task-remote');
   });
 
-  test('cancels a remote agent through the normal agent manager path', async () => {
+  test('blocks remote cancellation without touching the local agent manager', async () => {
     resetTestRuntimeServices();
     const manager = getTestAgentManager();
     const record = manager.spawn({ mode: 'spawn', task: 'Stuck task', template: 'general', tools: [], orchestrationNodeId: 'remote-node', orchestrationGraphId: 'graph-remote' });
@@ -228,7 +228,8 @@ describe('local runtime remote commands', () => {
 
     await registry.execute('remote', ['cancel', record.id], context);
 
-    expect(manager.getStatus(record.id)?.status).toBe('cancelled');
-    expect(printed.join('\n')).toContain(`Cancelled remote agent ${record.id}`);
+    expect(manager.getStatus(record.id)?.status).toBe('pending');
+    expect(printed.join('\n')).toContain('GoodVibes Agent remote control is read-only.');
+    expect(printed.join('\n')).toContain(`/remote cancel ${record.id}`);
   });
 });

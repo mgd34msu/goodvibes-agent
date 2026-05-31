@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 
 import type { AgentRecord } from '@pellux/goodvibes-sdk/platform/tools';
 import { buildKnowledgeInjectionPrompt } from '@pellux/goodvibes-sdk/platform/state';
@@ -53,24 +53,19 @@ describe('next cycle certification gate', () => {
     expect(knowledgeInjections[0]?.reason).toContain('matched');
   });
 
-  test('remote operator control uses a scoped command path and cancels the target agent only', () => {
+  test('remote operator control is read-only and does not cancel local agents', () => {
     const remoteRecord = { id: 'agent-remote-01' };
-    const otherRecord = { id: 'agent-local-02' };
     const printed: string[] = [];
-    const cancel = mock((agentId: string) => agentId === remoteRecord.id);
     handleRemoteCancelCommand(
       remoteRecord.id,
       [{ agentId: remoteRecord.id }],
       {
         print: (text: string) => { printed.push(text); },
       },
-      { cancel },
-      undefined,
     );
 
-    expect(cancel).toHaveBeenCalledWith(remoteRecord.id);
-    expect(cancel).not.toHaveBeenCalledWith(otherRecord.id);
-    expect(printed.join('\n')).toContain(`Cancelled remote agent ${remoteRecord.id}`);
+    expect(printed.join('\n')).toContain('GoodVibes Agent remote control is read-only.');
+    expect(printed.join('\n')).toContain(`/remote cancel ${remoteRecord.id}`);
   });
 
   test('MCP security review produces programmatic attack-path findings for incoherent servers', () => {
