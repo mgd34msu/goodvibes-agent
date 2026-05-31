@@ -1041,7 +1041,7 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Plugin Install Guidance');
 
     out.length = 0;
-    await plugin!.handler(['publish-local', 'ops-helper', './catalog/plugins/deploy-audit', 'Operator', 'deploy', 'helper'], ctx);
+    await plugin!.handler(['publish-local', 'ops-helper', './catalog/plugins/deploy-audit', 'Operator', 'deploy', 'helper', '--yes'], ctx);
     expect(out.join('\n')).toContain('Published curated plugin ops-helper');
     expect(readFileSync(join(root, '.goodvibes', 'agent', 'ecosystem', 'plugins.json'), 'utf-8')).toContain('"ops-helper"');
 
@@ -1051,7 +1051,7 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('sourceKind: local-path');
 
     out.length = 0;
-    await plugin!.handler(['install', 'deploy-audit', 'project'], ctx);
+    await plugin!.handler(['install', 'deploy-audit', 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Installed curated plugin');
     expect(existsSync(join(root, '.goodvibes', 'plugins', 'deploy-audit', 'manifest.json'))).toBe(true);
 
@@ -1060,16 +1060,74 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Installed Curated Plugins');
 
     out.length = 0;
-    await plugin!.handler(['update', 'deploy-audit', 'project'], ctx);
+    await plugin!.handler(['update', 'deploy-audit', 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Updated curated plugin');
 
     out.length = 0;
-    await plugin!.handler(['uninstall', 'deploy-audit', 'project'], ctx);
+    await plugin!.handler(['uninstall', 'deploy-audit', 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Uninstalled curated plugin');
 
     out.length = 0;
-    await plugin!.handler(['unpublish', 'ops-helper'], ctx);
+    await plugin!.handler(['unpublish', 'ops-helper', '--yes'], ctx);
     expect(out.join('\n')).toContain('Removed curated plugin ops-helper');
+  });
+
+  test('plugin command refuses mutating ecosystem actions without explicit confirmation', async () => {
+    mkdirSync(join(root, '.goodvibes', 'agent', 'ecosystem'), { recursive: true });
+    mkdirSync(join(root, 'catalog', 'plugins', 'deploy-audit'), { recursive: true });
+    writeFileSync(join(root, 'catalog', 'plugins', 'deploy-audit', 'manifest.json'), JSON.stringify({
+      name: 'deploy-audit',
+      version: '1.0.0',
+      description: 'Reviews deploy surfaces before release',
+    }, null, 2));
+    writeFileSync(join(root, 'catalog', 'plugins', 'deploy-audit', 'index.ts'), 'export function init() {}\n');
+    const catalogPath = join(root, '.goodvibes', 'agent', 'ecosystem', 'plugins.json');
+    writeFileSync(catalogPath, JSON.stringify({
+      version: 1,
+      entries: [
+        {
+          id: 'deploy-audit',
+          kind: 'plugin',
+          name: 'Deploy Audit',
+          summary: 'Reviews deploy surfaces before release',
+          source: './catalog/plugins/deploy-audit',
+          tags: ['security', 'release'],
+        },
+      ],
+    }, null, 2));
+
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const plugin = registry.get('plugin');
+    expect(plugin).toBeDefined();
+
+    const out: string[] = [];
+    const ctx = makeContext(out);
+
+    await plugin!.handler(['publish-local', 'ops-helper', './catalog/plugins/deploy-audit', 'Operator', 'helper'], ctx);
+    expect(readFileSync(catalogPath, 'utf-8')).not.toContain('"ops-helper"');
+    expect(out.join('\n')).toContain('Refusing to publish curated plugin ops-helper without --yes.');
+
+    out.length = 0;
+    await plugin!.handler(['install', 'deploy-audit', 'project'], ctx);
+    expect(existsSync(join(root, '.goodvibes', 'plugins', 'deploy-audit', 'manifest.json'))).toBe(false);
+    expect(out.join('\n')).toContain('Refusing to install curated plugin deploy-audit without --yes.');
+
+    out.length = 0;
+    await plugin!.handler(['reload'], ctx);
+    expect(out.join('\n')).toContain('Refusing to reload plugins without --yes.');
+
+    out.length = 0;
+    await plugin!.handler(['enable', 'deploy-audit'], ctx);
+    expect(out.join('\n')).toContain('Refusing to enable plugin deploy-audit without --yes.');
+
+    out.length = 0;
+    await plugin!.handler(['trust', 'deploy-audit', 'trusted'], ctx);
+    expect(out.join('\n')).toContain('Refusing to set plugin deploy-audit trust tier without --yes.');
+
+    out.length = 0;
+    await plugin!.handler(['quarantine', 'deploy-audit', 'suspicious'], ctx);
+    expect(out.join('\n')).toContain('Refusing to quarantine plugin deploy-audit without --yes.');
   });
 
   test('skills command exposes curated catalog guidance', async () => {
