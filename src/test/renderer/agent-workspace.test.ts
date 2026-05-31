@@ -129,6 +129,10 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('GoodVibes Agent / Operator Workspace');
     expect(output).toContain('Operator Areas');
     expect(output).toContain('Home');
+    expect(output).toContain('Setup checklist');
+    expect(output).toContain('open setup');
+    expect(output).toContain('Memory, skills, routines');
+    expect(output).toContain('open memory');
     expect(output).toContain('Choose model');
     expect(output).toContain('/model');
     expect(output).toContain('Agent workspace');
@@ -175,6 +179,23 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('READY Routines -> /routines');
     expect(output).toContain('READY Channels -> /pair');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
+  });
+
+  test('renders first-run setup actions for skills and routines', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    const output = text(renderAgentWorkspace(workspace, 150, 48));
+
+    expect(output).toContain('Skills');
+    expect(output).toContain('/agent-skills');
+    expect(output).toContain('Routines');
+    expect(output).toContain('/routines');
+    expect(output).toContain('Agent Knowledge');
+    expect(output).toContain('/knowledge status');
+    expect(output).toContain('Voice and media');
+    expect(output).toContain('/config tts');
   });
 
   test('renders local persona posture in the memory workspace', () => {

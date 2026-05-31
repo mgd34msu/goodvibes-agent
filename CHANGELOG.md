@@ -5,7 +5,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 ## 0.1.48 - 2026-05-31
 
 - 67f8ce0 Remove audit remnants and surface setup checklist
-- 34c3d0b Remove internal capability audit surfaces
+- 34c3d0b Remove internal development-only surfaces
 
 ## 0.1.47 - 2026-05-31
 

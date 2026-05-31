@@ -67,6 +67,7 @@ function buildLeftRows(workspace: AgentWorkspace, height: number): WorkspaceRow[
 }
 
 function actionCommand(action: AgentWorkspaceAction): string {
+  if (action.kind === 'workspace') return action.targetCategoryId ? `open ${action.targetCategoryId}` : '(workspace)';
   return action.command ?? '(guidance)';
 }
 

@@ -20,13 +20,14 @@ export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
 export type AgentWorkspaceFocusPane = 'categories' | 'actions';
 
-export type AgentWorkspaceActionKind = 'command' | 'guidance';
+export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace';
 
 export interface AgentWorkspaceAction {
   readonly id: string;
   readonly label: string;
   readonly detail: string;
   readonly command?: string;
+  readonly targetCategoryId?: string;
   readonly kind: AgentWorkspaceActionKind;
   readonly safety: 'safe' | 'read-only' | 'delegates' | 'blocked';
 }
@@ -307,6 +308,11 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'chat', label: 'Continue assistant chat', detail: 'Close this workspace and type a normal message. Agent work stays serial in the main conversation.', kind: 'guidance', safety: 'safe' },
       { id: 'model', label: 'Choose model', detail: 'Open the model/provider workspace for the Agent chat route.', command: '/model', kind: 'command', safety: 'safe' },
+      { id: 'setup-home', label: 'Setup checklist', detail: 'Jump to the first-run checklist for provider, knowledge, personas, skills, routines, memory, channels, and voice/media.', targetCategoryId: 'setup', kind: 'workspace', safety: 'safe' },
+      { id: 'knowledge-home', label: 'Agent Knowledge', detail: 'Jump to isolated Agent Knowledge status, ingest, search, and review flows.', targetCategoryId: 'knowledge', kind: 'workspace', safety: 'read-only' },
+      { id: 'memory-home', label: 'Memory, skills, routines', detail: 'Jump to local memory, persona, skill, and routine setup. These are core Agent product features.', targetCategoryId: 'memory', kind: 'workspace', safety: 'safe' },
+      { id: 'channels-home', label: 'Channels', detail: 'Jump to companion pairing and channel readiness without changing daemon lifecycle.', targetCategoryId: 'channels', kind: 'workspace', safety: 'read-only' },
+      { id: 'voice-home', label: 'Voice and media', detail: 'Jump to voice, TTS, image input, browser, and node posture setup.', targetCategoryId: 'voice-media', kind: 'workspace', safety: 'safe' },
       { id: 'help', label: 'Browse commands', detail: 'Open registry-driven command help.', command: '/help', kind: 'command', safety: 'safe' },
       { id: 'health', label: 'Review health', detail: 'Show the local health review surface without starting or mutating daemon services.', command: '/health review', kind: 'command', safety: 'read-only' },
     ],
@@ -320,6 +326,15 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'config', label: 'Open config workspace', detail: 'Use the TUI-derived fullscreen settings workspace.', command: '/config', kind: 'command', safety: 'safe' },
       { id: 'onboarding', label: 'Open setup wizard', detail: 'Review Agent runtime settings in the fullscreen setup flow.', command: '/onboarding', kind: 'command', safety: 'safe' },
+      { id: 'setup-provider-model', label: 'Provider and model', detail: 'Choose the provider/model route for normal assistant chat.', command: '/model', kind: 'command', safety: 'safe' },
+      { id: 'setup-agent-knowledge', label: 'Agent Knowledge', detail: 'Inspect the isolated Agent Knowledge store before ingesting source-backed material.', command: '/knowledge status', kind: 'command', safety: 'read-only' },
+      { id: 'setup-runtime-profiles', label: 'Runtime profiles', detail: 'Browse starter templates for isolated Agent homes and operator identities.', command: '/agent-profile templates', kind: 'command', safety: 'read-only' },
+      { id: 'setup-personas', label: 'Personas', detail: 'Create or select the active local Agent persona.', command: '/personas', kind: 'command', safety: 'safe' },
+      { id: 'setup-skills', label: 'Skills', detail: 'Create, review, and enable reusable local Agent skills.', command: '/agent-skills', kind: 'command', safety: 'safe' },
+      { id: 'setup-routines', label: 'Routines', detail: 'Create, review, and enable local Agent routines before any explicit schedule promotion.', command: '/routines', kind: 'command', safety: 'safe' },
+      { id: 'setup-memory', label: 'Local memory', detail: 'Inspect local/session memory; secrets stay rejected or redacted.', command: '/memory', kind: 'command', safety: 'read-only' },
+      { id: 'setup-channels', label: 'Channels', detail: 'Open companion pairing and channel readiness setup.', command: '/pair', kind: 'command', safety: 'safe' },
+      { id: 'setup-voice-media', label: 'Voice and media', detail: 'Open TTS/media settings for voice and image-capable Agent flows.', command: '/config tts', kind: 'command', safety: 'safe' },
       { id: 'provider', label: 'Provider status', detail: 'Review provider/model posture.', command: '/provider', kind: 'command', safety: 'read-only' },
       { id: 'auth', label: 'Auth review', detail: 'Review authentication posture without printing token values.', command: '/auth review', kind: 'command', safety: 'read-only' },
     ],
@@ -566,6 +581,31 @@ export class AgentWorkspace {
     const action = this.selectedAction;
     if (!action) return;
     if (action.kind === 'guidance' || !action.command) {
+      if (action.kind === 'workspace' && action.targetCategoryId) {
+        const targetIndex = this.categories.findIndex((category) => category.id === action.targetCategoryId);
+        if (targetIndex >= 0) {
+          this.selectedCategoryIndex = targetIndex;
+          this.selectedActionIndex = 0;
+          this.focusActions();
+          this.status = `Opened ${this.selectedCategory.label}.`;
+          this.lastActionResult = {
+            kind: 'refreshed',
+            title: `Opened ${this.selectedCategory.label}`,
+            detail: action.detail,
+            safety: action.safety,
+          };
+          this.clampSelection();
+          return;
+        }
+        this.status = `Workspace area unavailable: ${action.targetCategoryId}.`;
+        this.lastActionResult = {
+          kind: 'error',
+          title: 'Workspace area unavailable',
+          detail: `No Agent workspace category exists for ${action.targetCategoryId}.`,
+          safety: action.safety,
+        };
+        return;
+      }
       this.status = action.detail;
       this.lastActionResult = {
         kind: 'guidance',

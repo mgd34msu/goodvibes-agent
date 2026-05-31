@@ -101,6 +101,36 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/pair');
   });
 
+  test('home workspace jumps directly into setup without dispatching a command', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-home');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.selectedCategory.id).toBe('setup');
+    expect(workspace.focusPane).toBe('actions');
+    expect(workspace.lastActionResult?.kind).toBe('refreshed');
+    expect(workspace.status).toContain('Opened Setup');
+  });
+
+  test('setup workspace keeps skills and routines as direct actions', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-skills');
+    workspace.activateSelected();
+    expect(dispatched).toEqual(['/agent-skills']);
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-routines');
+    workspace.activateSelected();
+    expect(dispatched).toEqual(['/agent-skills', '/routines']);
+  });
+
   test('keeps channel delivery safety guidance local', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
