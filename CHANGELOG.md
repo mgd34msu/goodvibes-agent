@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.58 - 2026-05-31
+
+- e137f90 Fail cleanly for non-TTY TUI launch
+
 ## 0.1.57 - 2026-05-31
 
 - 90edab3 Expand Agent onboarding setup surfaces
