@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.36 - 2026-05-31
+
+- 9de2f5e Add guided Agent starter authoring
+
 ## 0.1.35 - 2026-05-31
 
 - 2c25d5e Add local starter profile import export
