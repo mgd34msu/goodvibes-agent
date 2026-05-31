@@ -5,6 +5,7 @@ import {
   wrapRegistryToolForAgentPolicy,
 } from './agent-analysis-registry-policy.ts';
 import { wrapFindToolForAgentPolicy } from './agent-find-policy.ts';
+import { wrapReadToolForAgentPolicy } from './agent-read-policy.ts';
 import { wrapWebSearchToolForAgentPolicy } from './agent-web-search-policy.ts';
 
 type AgentToolArgs = {
@@ -198,6 +199,8 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
   for (const tool of registry.list()) {
     if (tool.definition.name === 'exec') {
       wrapExecToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'read') {
+      wrapReadToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'remote') {
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_REMOTE_TOOL_MODES,
@@ -558,6 +561,16 @@ export {
   wrapAnalyzeToolForAgentPolicy,
   wrapRegistryToolForAgentPolicy,
 } from './agent-analysis-registry-policy.ts';
+
+export {
+  AGENT_MAX_READ_FILES,
+  AGENT_MAX_READ_IMAGE_SIZE_BYTES,
+  AGENT_READ_IMAGE_MODES,
+  AGENT_READ_POLICY_DENIAL_MESSAGE,
+  isBlockedReadPath,
+  validateReadToolInvocationForAgentPolicy,
+  wrapReadToolForAgentPolicy,
+} from './agent-read-policy.ts';
 
 export {
   AGENT_FIND_POLICY_DENIAL_MESSAGE,

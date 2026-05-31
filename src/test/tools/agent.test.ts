@@ -18,9 +18,12 @@ import {
   AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE,
   AGENT_FIND_POLICY_DENIAL_MESSAGE,
   AGENT_INSPECT_WRITE_DENIAL_MESSAGE,
+  AGENT_MAX_READ_FILES,
+  AGENT_MAX_READ_IMAGE_SIZE_BYTES,
   AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE,
   AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
+  AGENT_READ_IMAGE_MODES,
   AGENT_READ_ONLY_ANALYZE_TOOL_MODES,
   AGENT_READ_ONLY_CHANNEL_TOOL_MODES,
   AGENT_READ_ONLY_CONTROL_TOOL_MODES,
@@ -42,6 +45,7 @@ import {
   AGENT_READ_ONLY_WEB_SEARCH_EVIDENCE_EXTRACTS,
   AGENT_READ_ONLY_WEB_SEARCH_VERBOSITIES,
   AGENT_READ_ONLY_WORKLIST_TOOL_MODES,
+  AGENT_READ_POLICY_DENIAL_MESSAGE,
   AGENT_REMOTE_MUTATION_DENIAL_MESSAGE,
   AGENT_REGISTRY_CONTENT_DENIAL_MESSAGE,
   AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE,
@@ -160,6 +164,38 @@ function makeFetchModeTool(): Tool {
         },
       },
       sideEffects: ['network'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
+  };
+}
+
+function makeReadTool(): Tool {
+  return {
+    definition: {
+      name: 'read',
+      description: 'read test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          files: {
+            type: 'array',
+            maxItems: 50,
+            items: {
+              type: 'object',
+              properties: {
+                path: { type: 'string' },
+                extract: { type: 'string', enum: ['content', 'outline', 'symbols', 'ast', 'lines'] },
+                image_mode: { type: 'string', enum: ['default', 'unoptimized', 'metadata-only', 'thumbnail-only'] },
+              },
+            },
+          },
+          extract: { type: 'string', enum: ['content', 'outline', 'symbols', 'ast', 'lines'] },
+          image_mode: { type: 'string', enum: ['default', 'unoptimized', 'metadata-only', 'thumbnail-only'] },
+          max_image_size: { type: 'integer', minimum: 1 },
+        },
+      },
+      sideEffects: ['read_fs'],
+      concurrency: 'parallel',
     },
     execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
   };
@@ -994,6 +1030,60 @@ describe('spawn mode', () => {
       const result = await registry.execute(`call-fetch-blocked-${index}`, 'fetch', input);
       expect(result.success).toBe(false);
       expect(result.error).toBe(AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE);
+    }
+  });
+
+  test('Agent runtime guard narrows read to bounded non-secret project files', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeReadTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const readDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'read');
+    expect(readDefinition?.description).toContain('bounded, non-secret');
+    expect(readDefinition?.sideEffects).toEqual(['read_fs']);
+    expect(readDefinition?.concurrency).toBe('serial');
+
+    const properties = readDefinition?.parameters.properties as Record<string, unknown>;
+    const files = getRecordProperty(properties, 'files');
+    expect(files?.maxItems).toBe(AGENT_MAX_READ_FILES);
+    const itemSchema = files ? getRecordProperty(files, 'items') : undefined;
+    const fileProperties = itemSchema ? getRecordProperty(itemSchema, 'properties') : undefined;
+    const fileImageMode = fileProperties ? getRecordProperty(fileProperties, 'image_mode') : undefined;
+    const globalImageMode = getRecordProperty(properties, 'image_mode');
+    const maxImageSize = getRecordProperty(properties, 'max_image_size');
+    expect(fileImageMode?.enum).toEqual([...AGENT_READ_IMAGE_MODES]);
+    expect(globalImageMode?.enum).toEqual([...AGENT_READ_IMAGE_MODES]);
+    expect(maxImageSize?.maximum).toBe(AGENT_MAX_READ_IMAGE_SIZE_BYTES);
+
+    const allowed = await registry.execute('call-read-source', 'read', {
+      files: [{ path: 'src/main.ts', extract: 'outline' }],
+      image_mode: 'metadata-only',
+      max_image_size: AGENT_MAX_READ_IMAGE_SIZE_BYTES,
+    });
+    expect(allowed.success).toBe(true);
+
+    const tooManyFiles = Array.from({ length: AGENT_MAX_READ_FILES + 1 }, (_, index) => ({
+      path: `src/example-${index}.ts`,
+    }));
+    const blockedInputs: ReadonlyArray<Record<string, unknown>> = [
+      { files: [{ path: '.env' }] },
+      { files: [{ path: 'src/.hidden/config.ts' }] },
+      { files: [{ path: 'secrets/api-token.txt' }] },
+      { files: [{ path: 'config/credentials.json' }] },
+      { files: [{ path: 'keys/service.pem' }] },
+      { files: [{ path: 'assets/diagram.png', image_mode: 'unoptimized' }] },
+      { files: [{ path: 'assets/diagram.png' }], image_mode: 'unoptimized' },
+      { files: [{ path: 'assets/diagram.png' }], max_image_size: AGENT_MAX_READ_IMAGE_SIZE_BYTES + 1 },
+      { files: tooManyFiles },
+    ];
+
+    for (const [index, input] of blockedInputs.entries()) {
+      const result = await registry.execute(`call-read-blocked-${index}`, 'read', input);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(AGENT_READ_POLICY_DENIAL_MESSAGE);
     }
   });
 
