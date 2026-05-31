@@ -2,6 +2,20 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.10 - 2026-05-31
+
+- 93aba19 Block agent-spawning hook authoring
+- 735839a Prune git header renderer from Agent
+- 95d22fd Remove unused git shell bootstrap wiring
+- 1392ebc Remove Agent write-quit commit helper
+- df6572f Remove coding header posture from Agent shell
+- 2b8e679 Align live verification with Agent routes
+- 70eb800 Add stable typecheck release scripts
+- 6b57500 Hide local agent activity in Agent UI
+- 7166188 Add Agent Knowledge CLI shortcuts
+- 386c19d Align service diagnostics with Agent boundaries
+- e8b19db Lock daemon-owned settings in Agent
+
 ## 0.1.9 - 2026-05-31
 
 - 75e5d4a Align shell surface delegation test
