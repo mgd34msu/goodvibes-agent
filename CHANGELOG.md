@@ -7,6 +7,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 - Replaced active planning-loop output and tests that still described planning as TUI-owned with Agent-owned planning state and planning namespace language.
 - Added `LICENSE` to the explicit package file contract and release verification so npm tarballs cannot omit license text.
 - Prevented the operator workspace from dispatching placeholder delegation commands such as `/delegate --wrfc <task>`; those actions now provide guidance until the user supplies real task text.
+- Added local Agent routines with `/routines`: create/list/search/show/enable/disable/start/review/stale/delete, secret-looking value rejection, enabled routine prompt injection, and operator workspace status. Starting a routine stays in the main conversation and does not create hidden background jobs.
 
 ## 0.1.6 - 2026-05-31
 

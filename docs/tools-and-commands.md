@@ -1,13 +1,13 @@
 # Tools and Commands
 
-GoodVibes Agent is an operator assistant, not a coding TUI clone at the product-policy layer. It keeps the GoodVibes TUI terminal foundation, but its command surface is centered on main-conversation assistant work, isolated Agent Knowledge/Wiki, local memory/skills/personas, daemon observability, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
+GoodVibes Agent is an operator assistant, not a coding TUI clone at the product-policy layer. It keeps the GoodVibes TUI terminal foundation, but its command surface is centered on main-conversation assistant work, isolated Agent Knowledge/Wiki, local memory/routines/skills/personas, daemon observability, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
 
 ## Product Boundaries
 
 - Normal chat stays in the main Agent conversation.
 - Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`.
 - Agent never falls back to the default Knowledge/Wiki, HomeGraph, Home Assistant, or arbitrary knowledge spaces.
-- Local memory, skills, and personas remain Agent-local until a stable shared registry contract exists.
+- Local memory, routines, skills, and personas remain Agent-local until a stable shared registry contract exists.
 - The daemon is external. Agent connects to it and reports health; it does not start, stop, restart, or install it.
 - WRFC is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, review, or WRFC work.
 - Code-building work is delegated to GoodVibes TUI through public shared-session/task contracts.
@@ -20,7 +20,7 @@ High-signal Agent command families:
 - `/status`, `/auth`, and `/compat` for daemon/auth/SDK diagnostics.
 - `/model` and `/provider` for provider/model selection and visibility.
 - `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, and ingest.
-- `/recall`, `/memory`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
+- `/recall`, `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
 - `/approvals` for pending approval visibility and explicit approval actions.

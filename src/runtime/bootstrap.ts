@@ -44,6 +44,7 @@ import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { buildActivePersonaPrompt } from '../agent/persona-registry.ts';
 import { buildEnabledSkillsPrompt } from '../agent/skill-registry.ts';
+import { buildEnabledRoutinesPrompt } from '../agent/routine-registry.ts';
 
 const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '## GoodVibes Agent Operator Policy',
@@ -210,6 +211,7 @@ export async function bootstrapRuntime(
       return joinPromptParts(
         runtime.systemPrompt,
         GOODVIBES_AGENT_OPERATOR_POLICY,
+        buildEnabledRoutinesPrompt(services.shellPaths),
         buildEnabledSkillsPrompt(services.shellPaths),
         buildActivePersonaPrompt(services.shellPaths),
         supplement,

@@ -97,9 +97,10 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
   } else if (category.id === 'memory') {
     base.push(
       { text: `Session memories: ${snapshot.sessionMemoryCount}`, fg: PALETTE.info },
+      { text: `Local routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
       { text: `Local skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}`, fg: PALETTE.info },
       { text: `Local personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
-      { text: 'Durable memory, skills, and personas remain Agent-local until shared registry contracts exist.', fg: PALETTE.good },
+      { text: 'Durable memory, routines, skills, and personas remain Agent-local until shared registry contracts exist.', fg: PALETTE.good },
       { text: 'Secrets are rejected/redacted; store secret references instead of secret values.', fg: PALETTE.warn },
     );
   } else if (category.id === 'work') {

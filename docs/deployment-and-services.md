@@ -50,7 +50,7 @@ If the daemon is unavailable, unauthenticated, or on an incompatible SDK version
 Only publish Agent releases that preserve the Agent product policy:
 
 - serial/proactive assistant by default
-- local memory/skills/personas until shared registries are stable
+- local memory/routines/skills/personas until shared registries are stable
 - Agent knowledge routes only for Agent wiki calls
 - companion chat for normal assistant chat
 - explicit delegation to GoodVibes TUI for build/fix/review work

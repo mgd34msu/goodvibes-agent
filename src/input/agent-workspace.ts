@@ -1,6 +1,7 @@
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
+import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 
 export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
@@ -53,6 +54,8 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly daemonBaseUrl: string;
   readonly daemonOwnership: 'external';
   readonly sessionMemoryCount: number;
+  readonly localRoutineCount: number;
+  readonly enabledRoutineCount: number;
   readonly localSkillCount: number;
   readonly enabledSkillCount: number;
   readonly localPersonaCount: number;
@@ -124,6 +127,16 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: 0, enabled: 0 };
     }
   })();
+  const routineSnapshot = (() => {
+    try {
+      const shellPaths = context.workspace?.shellPaths;
+      if (!shellPaths) return { count: 0, enabled: 0 };
+      const snapshot = AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot();
+      return { count: snapshot.routines.length, enabled: snapshot.enabledRoutines.length };
+    } catch {
+      return { count: 0, enabled: 0 };
+    }
+  })();
   const warnings: string[] = [];
   if (provider === 'unknown' || model === 'unknown') warnings.push('Provider/model unavailable in this runtime context.');
   if (!context.executeCommand) warnings.push('Command dispatch is unavailable; workspace actions will show guidance only.');
@@ -138,6 +151,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     daemonBaseUrl: `http://${host}:${port}`,
     daemonOwnership: 'external',
     sessionMemoryCount,
+    localRoutineCount: routineSnapshot.count,
+    enabledRoutineCount: routineSnapshot.enabled,
     localSkillCount: skillSnapshot.count,
     enabledSkillCount: skillSnapshot.enabled,
     localPersonaCount: personaSnapshot.count,
@@ -193,10 +208,11 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     id: 'memory',
     group: 'LEARN',
     label: 'Memory & Skills',
-    summary: 'Local assistant memory, skills, and reusable behavior.',
-    detail: 'Memory, skills, and personas stay Agent-local until stable shared daemon registry contracts exist. Secrets must not be stored as memory.',
+    summary: 'Local assistant memory, routines, skills, and reusable behavior.',
+    detail: 'Memory, routines, skills, and personas stay Agent-local until stable shared daemon registry contracts exist. Secrets must not be stored as memory.',
     actions: [
       { id: 'memory', label: 'Open memory', detail: 'Inspect local/session memory commands and surfaces.', command: '/memory', kind: 'command', safety: 'read-only' },
+      { id: 'routines', label: 'Routine library', detail: 'Create, review, enable, and start local Agent routines in the main conversation.', command: '/routines', kind: 'command', safety: 'safe' },
       { id: 'skills', label: 'Local skill library', detail: 'Create, review, and enable local Agent reusable procedures.', command: '/agent-skills', kind: 'command', safety: 'safe' },
       { id: 'personas', label: 'Persona library', detail: 'Use local Agent personas to shape serial assistant behavior without spawning background agents.', command: '/personas', kind: 'command', safety: 'safe' },
     ],

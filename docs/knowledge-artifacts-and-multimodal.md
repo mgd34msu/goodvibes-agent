@@ -8,11 +8,11 @@ GoodVibes Agent uses these context layers:
 
 - current conversation context for the active turn;
 - local Agent memory records for durable but private assistant facts and preferences;
-- local Agent skills and personas for reusable behavior profiles;
+- local Agent routines, skills, and personas for reusable behavior profiles;
 - isolated Agent Knowledge/Wiki for source-backed documents, search, and semantic answers;
 - artifacts for uploaded/generated files that can be referenced by chat, delegation, or future Agent Knowledge ingestion.
 
-These layers are intentionally separate. Local memory/skills/personas are not automatically promoted into Agent Knowledge. Agent Knowledge records are not copied into the default wiki. Secrets are rejected or represented only by explicit secret references.
+These layers are intentionally separate. Local memory/routines/skills/personas are not automatically promoted into Agent Knowledge. Agent Knowledge records are not copied into the default wiki. Secrets are rejected or represented only by explicit secret references.
 
 ## Agent Knowledge Boundary
 
@@ -50,7 +50,7 @@ The command layer does not turn search results into an answer locally and does n
 
 `/knowledge ingest-url <url>` and `goodvibes-agent knowledge ingest-url <url>` ingest URL sources into Agent Knowledge only. Additional ingest shapes should be added only when the SDK exposes Agent-specific routes for them.
 
-Do not map local memory, skills, personas, or default wiki documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
+Do not map local memory, routines, skills, personas, or default wiki documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
 
 ## Artifacts
 

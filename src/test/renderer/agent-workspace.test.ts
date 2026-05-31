@@ -3,6 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
@@ -36,6 +37,13 @@ function liveCommandContext(): CommandContext {
     name: 'Briefing',
     description: 'Summarize state before action.',
     procedure: 'Review current daemon, tasks, and approvals first.',
+    enabled: true,
+  });
+  const routines = AgentRoutineRegistry.fromShellPaths(shellPaths);
+  routines.create({
+    name: 'Daily Brief',
+    description: 'Summarize operator state.',
+    steps: 'Review current daemon, tasks, approvals, and Agent Knowledge status first.',
     enabled: true,
   });
   return {
@@ -122,8 +130,10 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 34));
 
+    expect(output).toContain('Local routines: 1; enabled: 1');
     expect(output).toContain('Local skills: 1; enabled: 1');
     expect(output).toContain('Local personas: 1; active: Research Analyst');
+    expect(output).toContain('/routines');
     expect(output).toContain('/agent-skills');
     expect(output).toContain('/personas');
   });

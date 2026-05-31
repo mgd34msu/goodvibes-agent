@@ -48,6 +48,8 @@ Local Agent behavior is editable from the TUI:
 ```text
 /personas create --name Research --description "Source-backed research" --body "Check sources, call out uncertainty, keep answers concise."
 /personas use research
+/routines create --name "Evening Review" --description "Review open work before shutdown" --steps "Check work plan, approvals, and Agent Knowledge status before summarizing." --enabled true
+/routines start evening-review
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
 /skills local list
 ```
@@ -68,7 +70,7 @@ Those commands should return explicit external-daemon guidance instead of mutati
 
 ## Product Boundary
 
-GoodVibes Agent owns the operator assistant surface: serial assistant flow, proactive safe actions, local memory/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
+GoodVibes Agent owns the operator assistant surface: serial assistant flow, proactive safe actions, local memory/routines/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki, HomeGraph, or Home Assistant routes.
 
