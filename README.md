@@ -19,6 +19,13 @@ goodvibes-agent profiles templates
 goodvibes-agent knowledge status
 ```
 
+If `goodvibes-agent` is not found after installation, add Bun's global bin directory to `PATH`:
+
+```sh
+export PATH="$(bun pm bin -g):$PATH"
+goodvibes-agent --help
+```
+
 If Bun reports untrusted lifecycle dependencies, trust only the package and dependencies required by this package:
 
 ```sh

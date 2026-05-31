@@ -18,6 +18,13 @@ goodvibes-agent --help
 goodvibes-agent status
 ```
 
+If the installed command is not found, add Bun's global bin directory to `PATH`:
+
+```sh
+export PATH="$(bun pm bin -g):$PATH"
+goodvibes-agent --help
+```
+
 If Bun requires lifecycle trust:
 
 ```sh
