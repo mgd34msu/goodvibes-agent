@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.57 - 2026-05-31
+
+- 90edab3 Expand Agent onboarding setup surfaces
+- 251ae62 Guard package-facing Agent product language
+
 ## 0.1.56 - 2026-05-31
 
 - a0b54e8 Document Bun global PATH setup
