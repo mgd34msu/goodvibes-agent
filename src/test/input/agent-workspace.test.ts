@@ -84,6 +84,20 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.command).toBe('/remote dispatch');
   });
 
+  test('does not dispatch template delegation commands from the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'review-command');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.lastActionResult?.kind).toBe('guidance');
+    expect(workspace.status).toContain('actual task text');
+  });
+
   test('refresh key rereads the live runtime snapshot', () => {
     const workspace = new AgentWorkspace();
     const runtime = {

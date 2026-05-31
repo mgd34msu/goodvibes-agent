@@ -233,7 +233,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent does not become the coding TUI. Build, implement, fix, patch, and review work must be handed to GoodVibes TUI with the full original ask and WRFC only when explicitly requested.',
     actions: [
       { id: 'delegate-guidance', label: 'Delegation rule', detail: 'For build/fix/review work, delegate one request to GoodVibes TUI instead of spawning local Engineer/Reviewer/Tester roots.', kind: 'guidance', safety: 'delegates' },
-      { id: 'review-command', label: 'Review delegation command', detail: 'Use /delegate --wrfc only when the user explicitly asks for code review/build execution.', command: '/delegate --wrfc <task>', kind: 'command', safety: 'delegates' },
+      { id: 'review-command', label: 'Review delegation command', detail: 'Use /delegate --wrfc <task> only when the user explicitly asks for code review/build execution. Close this workspace and include the actual task text.', kind: 'guidance', safety: 'delegates' },
       { id: 'remote-policy', label: 'Remote runner policy', detail: 'Remote dispatch/rerun is blocked in Agent; TUI owns runner topology for delegated build work.', command: '/remote dispatch', kind: 'command', safety: 'blocked' },
     ],
   },
@@ -391,6 +391,17 @@ export class AgentWorkspace {
         kind: 'error',
         title: 'Command unavailable',
         detail: `No command is configured for ${action.label}.`,
+        safety: action.safety,
+      };
+      return;
+    }
+    if (/<[^>\s]+(?:\s+[^>]*)?>/.test(action.command)) {
+      this.status = `Placeholder command not dispatched: ${action.command}.`;
+      this.lastActionResult = {
+        kind: 'guidance',
+        title: `${action.label} needs details`,
+        detail: 'This action is a command template. Close the workspace and run it with real task text instead of placeholder values.',
+        command: action.command,
         safety: action.safety,
       };
       return;
