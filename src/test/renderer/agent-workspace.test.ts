@@ -3,6 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
@@ -30,6 +31,13 @@ function liveCommandContext(): CommandContext {
     body: 'Prefer checked sources and clear unknowns.',
   });
   personas.setActive('research-analyst');
+  const skills = AgentSkillRegistry.fromShellPaths(shellPaths);
+  skills.create({
+    name: 'Briefing',
+    description: 'Summarize state before action.',
+    procedure: 'Review current daemon, tasks, and approvals first.',
+    enabled: true,
+  });
   return {
     executeCommand: async () => true,
     print: () => undefined,
@@ -114,7 +122,9 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 34));
 
+    expect(output).toContain('Local skills: 1; enabled: 1');
     expect(output).toContain('Local personas: 1; active: Research Analyst');
+    expect(output).toContain('/agent-skills');
     expect(output).toContain('/personas');
   });
 

@@ -106,7 +106,7 @@ function containsSecretLikeText(text: string): boolean {
   return SECRET_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-function assertNoSecretLikeText(fields: readonly string[]): void {
+export function assertNoSecretLikeText(fields: readonly string[]): void {
   if (fields.some((field) => containsSecretLikeText(field))) {
     throw new Error('Personas cannot store secret-looking values. Store a secret reference or remove the sensitive text.');
   }

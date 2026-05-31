@@ -56,6 +56,19 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/personas');
   });
 
+  test('dispatches local skill library through the command router', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/agent-skills']);
+    expect(workspace.status).toContain('/agent-skills');
+  });
+
   test('blocks copied TUI-only blocked commands inside the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
