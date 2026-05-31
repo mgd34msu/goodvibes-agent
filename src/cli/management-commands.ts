@@ -10,7 +10,7 @@ import { generateQrMatrix, renderQrToString } from '@pellux/goodvibes-sdk/platfo
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import { classifyBindPosture, isNetworkFacing } from './network-posture.ts';
 import type { CliCommandRuntime } from './management.ts';
-import { extractAuthorizationCode, formatJsonOrText, hasCommandFlag, openBrowser, probeTcp, readAuthPaths, runNonInteractiveAgent, urlHostForBindHost, withRuntimeServices, yesNo } from './management.ts';
+import { extractAuthorizationCode, formatJsonOrText, hasCommandFlag, openBrowser, probeTcp, readAuthPaths, urlHostForBindHost, withRuntimeServices, yesNo } from './management.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 
 export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<string> {
@@ -277,16 +277,12 @@ export async function handleSessions(runtime: CliCommandRuntime): Promise<string
 export async function handleTasks(runtime: CliCommandRuntime): Promise<string> {
   const [sub = 'list', ...rest] = runtime.cli.commandArgs;
   if (sub === 'submit') {
-    const prompt = rest.join(' ').trim();
-    if (!prompt) return 'Usage: goodvibes tasks submit <prompt>';
-    const runCli = {
-      ...runtime.cli,
-      command: 'run' as const,
-      flags: { ...runtime.cli.flags, prompt },
-      positionals: [prompt],
-    };
-    const code = await runNonInteractiveAgent({ ...runtime, cli: runCli });
-    return code === 0 ? '' : `Task submit failed with exit code ${code}`;
+    return [
+      'GoodVibes Agent blocks CLI task submission from the copied task surface.',
+      '  policy: do normal assistant work in the main Agent conversation or use `goodvibes-agent run <prompt>` for an explicit one-shot run.',
+      '  build/fix/review: use `goodvibes-agent delegate <task>` for explicit GoodVibes TUI handoff.',
+      '  result: no local task was started.',
+    ].join('\n');
   }
   return await withRuntimeServices(runtime, (services) => {
     const tasks = [...services.runtimeStore.getState().tasks.tasks.values()];
@@ -300,7 +296,7 @@ export async function handleTasks(runtime: CliCommandRuntime): Promise<string> {
       const task = tasks.find((candidate) => candidate.id === rest[0]);
       return task ? JSON.stringify(task, null, 2) : `Unknown task: ${rest[0] ?? ''}`;
     }
-    return 'Usage: goodvibes tasks list|show <taskId>|submit <prompt>';
+    return 'Usage: goodvibes tasks list|show <taskId>';
   });
 }
 
