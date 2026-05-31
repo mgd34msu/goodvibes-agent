@@ -5,6 +5,7 @@ import { join } from 'path';
 import { AgentSession } from '@pellux/goodvibes-sdk/platform/agents';
 import { ConversationManager } from '@pellux/goodvibes-sdk/platform/core';
 import { KVState } from '@pellux/goodvibes-sdk/platform/state';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 const TEST_TMP_ROOT = join(import.meta.dir, '../../../.tmp-tests');
 
@@ -17,7 +18,7 @@ describe('AgentSession', () => {
 
   function sessionPaths(root: string) {
     return {
-      sessionsDir: join(root, '.goodvibes', 'tui', 'sessions'),
+      sessionsDir: join(root, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'sessions'),
       stateDir: join(root, '.goodvibes', 'state'),
     };
   }
@@ -54,7 +55,7 @@ describe('AgentSession', () => {
 
     test('sets sessionFile path with agent prefix', () => {
       expect(session.sessionFile).toContain(`${agentId}.jsonl`);
-      expect(session.sessionFile).toContain('.goodvibes/tui/sessions');
+      expect(session.sessionFile).toContain('.goodvibes/agent/sessions');
     });
 
     test('creates the sessions directory', () => {
