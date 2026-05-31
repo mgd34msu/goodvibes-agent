@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.56 - 2026-05-31
+
+- a0b54e8 Document Bun global PATH setup
+- f845cca Rename onboarding capabilities step
+- 4462e52 Clarify Bun-only install path
+
 ## 0.1.55 - 2026-05-31
 
 - d8f4eee Remove copied developer audit surfaces
