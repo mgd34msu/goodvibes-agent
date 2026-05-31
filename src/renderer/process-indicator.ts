@@ -20,7 +20,7 @@ function truncateToWidth(text: string, maxWidth: number): string {
  * renderProcessIndicator — shows a one-line summary of active runtime
  * activity below the input area.
  *
- * Dimmed when no entries are active, highlighted (cyan) when delegated agent
+ * Dimmed when no entries are active, highlighted (cyan) when delegated work
  * records or shell exec processes are running. Includes an `Enter to view`
  * hint when active.
  */
@@ -32,6 +32,7 @@ export function renderProcessIndicator(
   agentProgress?: string,
 ): Line[] {
   const total = agentCount + toolCount;
+  const delegationLabel = (count: number): string => `${count} delegation${count !== 1 ? 's' : ''}`;
   const renderPlainStatus = (text: string, style: { fg: string; bold?: boolean; dim?: boolean }): Line[] => (
     [UIFactory.stringToLine(`   ${text}`, width, style)]
   );
@@ -59,7 +60,7 @@ export function renderProcessIndicator(
   // --- Focused state: always render before idle/active branches ---
   if (focused) {
     const parts: string[] = [];
-    if (agentCount > 0) parts.push(`${agentCount} agent${agentCount !== 1 ? 's' : ''}`);
+    if (agentCount > 0) parts.push(delegationLabel(agentCount));
     if (toolCount > 0) parts.push(`${toolCount} tool${toolCount !== 1 ? 's' : ''} running`);
     const label = total === 0
       ? `No runtime activity  ${GLYPHS.status.pending}  back to input`
@@ -71,18 +72,18 @@ export function renderProcessIndicator(
     return renderPlainStatus('No runtime activity', { fg: '238', dim: true });
   }
 
-  // Build the label: "2 agents | Turn 3 | write - src/foo.ts"
+  // Build the label: "2 delegations | Turn 3 | write - src/foo.ts"
   const parts: string[] = [];
   if (agentCount > 0) {
-    parts.push(`${agentCount} agent${agentCount !== 1 ? 's' : ''}`);
+    parts.push(delegationLabel(agentCount));
   }
   if (toolCount > 0) {
     parts.push(`${toolCount} tool${toolCount !== 1 ? 's' : ''} running`);
   }
   // Append the first running agent's progress (truncated to fit)
   /**
-   * Number of columns reserved for the agent count label and hint text.
-   * Breakdown: "bg: N agents" prefix (~15 chars) + " | " separator (~3)
+   * Number of columns reserved for the delegation count label and hint text.
+   * Breakdown: "N delegations" prefix (~15 chars) + " | " separator (~3)
    * + "  Enter to view  " hint (~17) + padding (~8) ≈ 43 chars.
    */
   const PROGRESS_RESERVED_CHARS = 43;

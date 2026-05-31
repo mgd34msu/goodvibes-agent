@@ -5,7 +5,7 @@ import { lineToString } from '../setup.ts';
 const W = 100;
 
 describe('renderProcessIndicator', () => {
-  test('returns a single Line when idle (0 agents, 0 tools)', () => {
+  test('returns a single Line when idle (0 delegations, 0 tools)', () => {
     const lines = renderProcessIndicator(W, 0, 0);
     expect(lines.length).toBe(1);
   });
@@ -37,10 +37,11 @@ describe('renderProcessIndicator', () => {
     expect(lines[0].length).toBe(W);
   });
 
-  test('active state shows agent count', () => {
+  test('active state shows delegation count', () => {
     const lines = renderProcessIndicator(W, 2, 0);
     const text = lineToString(lines[0]);
-    expect(text).toContain('2 agents');
+    expect(text).toContain('2 delegations');
+    expect(text).not.toContain('agents');
   });
 
   test('active state shows tool count', () => {
@@ -49,25 +50,26 @@ describe('renderProcessIndicator', () => {
     expect(text).toContain('3 tools running');
   });
 
-  test('active state shows both agents and tools', () => {
+  test('active state shows both delegations and tools', () => {
     const lines = renderProcessIndicator(W, 1, 2);
     const text = lineToString(lines[0]);
-    expect(text).toContain('1 agent');
+    expect(text).toContain('1 delegation');
     expect(text).toContain('2 tools running');
     expect(text).toContain('│');
   });
 
-  test('pluralization: 1 agent singular', () => {
+  test('pluralization: 1 delegation singular', () => {
     const lines = renderProcessIndicator(W, 1, 0);
     const text = lineToString(lines[0]);
-    expect(text).toContain('1 agent');
-    expect(text).not.toContain('1 agents');
+    expect(text).toContain('1 delegation');
+    expect(text).not.toContain('1 delegations');
+    expect(text).not.toContain('1 agent');
   });
 
-  test('pluralization: 2 agents plural', () => {
+  test('pluralization: 2 delegations plural', () => {
     const lines = renderProcessIndicator(W, 2, 0);
     const text = lineToString(lines[0]);
-    expect(text).toContain('2 agents');
+    expect(text).toContain('2 delegations');
   });
 
   test('pluralization: 1 tool singular', () => {
@@ -169,8 +171,8 @@ describe('renderProcessIndicator', () => {
   test('no agentProgress shows no progress suffix', () => {
     const lines = renderProcessIndicator(W, 1, 0, false, undefined);
     const text = lineToString(lines[0]);
-    // Should contain agent count but no progress suffix beyond it
-    expect(text).toContain('1 agent');
+    // Should contain delegation count but no progress suffix beyond it
+    expect(text).toContain('1 delegation');
     expect(text).not.toContain(' | Turn');
   });
 });
