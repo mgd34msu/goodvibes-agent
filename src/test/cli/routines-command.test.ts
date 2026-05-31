@@ -140,7 +140,8 @@ describe('routines CLI command', () => {
     }) satisfies typeof fetch;
 
     try {
-      const result = await handleRoutinesCommand(runtime(['promote', 'daily-operations-sweep', '--cron', '0 8 * * *', '--yes']));
+      const baseRuntime = runtime(['promote', 'daily-operations-sweep', '--cron', '0 8 * * *', '--yes']);
+      const result = await handleRoutinesCommand(baseRuntime);
       expect(result.exitCode).toBe(0);
       expect(requests).toHaveLength(1);
       expect(requests[0]!.url).toBe('http://127.0.0.1:3421/api/automation/schedules');
@@ -148,6 +149,18 @@ describe('routines CLI command', () => {
       expect(payload.target).toEqual(expect.objectContaining({ kind: 'main', surfaceKind: 'service' }));
       expect(payload.prompt).toContain('Use isolated Agent Knowledge routes only');
       expect(payload.prompt).toContain('never use default Knowledge/Wiki or HomeGraph');
+      const receiptId = result.output.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
+      expect(receiptId).toBeTruthy();
+
+      const receipts = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'receipts']) });
+      expect(receipts.exitCode).toBe(0);
+      expect(receipts.output).toContain('Agent routine schedule receipts');
+      expect(receipts.output).toContain('schedule=sched-cli-1');
+
+      const receipt = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'receipt', receiptId!]) });
+      expect(receipt.exitCode).toBe(0);
+      expect(receipt.output).toContain('Agent routine schedule receipt');
+      expect(receipt.output).toContain('cadence: cron 0 8 * * *');
     } finally {
       globalThis.fetch = originalFetch;
     }

@@ -186,7 +186,19 @@ describe('/routines command', () => {
       expect(payload.target).toEqual(expect.objectContaining({ kind: 'main', surfaceKind: 'service' }));
       expect(payload.prompt).toContain('Use isolated Agent Knowledge routes only');
       expect(payload.prompt).toContain('never use default Knowledge/Wiki or HomeGraph');
-      expect(out.join('\n')).toContain('Created daemon schedule for Agent routine');
+      const promotionText = out.join('\n');
+      const receiptId = promotionText.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
+      expect(promotionText).toContain('Created daemon schedule for Agent routine');
+      expect(receiptId).toBeTruthy();
+
+      await registry.execute('schedule', ['receipts'], ctx);
+      await registry.execute('schedule', ['receipt', receiptId!], ctx);
+
+      const receiptText = out.join('\n');
+      expect(receiptText).toContain('Agent routine schedule receipts');
+      expect(receiptText).toContain('schedule=sched-1');
+      expect(receiptText).toContain('Agent routine schedule receipt');
+      expect(receiptText).toContain('cadence: cron 0 9 * * * [America/Chicago]');
     } finally {
       globalThis.fetch = originalFetch;
     }

@@ -2,12 +2,15 @@ import { createShellPathService } from '@/runtime/index.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
+  formatRoutineScheduleReceipt,
+  formatRoutineScheduleReceipts,
   formatRoutineScheduleFailure,
   formatRoutineSchedulePreview,
   formatRoutineScheduleSuccess,
   parseRoutineSchedulePromotionArgs,
   promoteRoutineToDaemonSchedule,
   resolveAgentDaemonConnection,
+  RoutineScheduleReceiptStore,
 } from '../agent/routine-schedule-promotion.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
@@ -30,6 +33,13 @@ function jsonOrText(runtime: CliCommandRuntime, value: unknown, text: string): s
 
 function routineRegistry(runtime: CliCommandRuntime): AgentRoutineRegistry {
   return AgentRoutineRegistry.fromShellPaths(createShellPathService({
+    workingDirectory: runtime.workingDirectory,
+    homeDirectory: runtime.homeDirectory,
+  }));
+}
+
+function routineReceiptStore(runtime: CliCommandRuntime): RoutineScheduleReceiptStore {
+  return RoutineScheduleReceiptStore.fromShellPaths(createShellPathService({
     workingDirectory: runtime.workingDirectory,
     homeDirectory: runtime.homeDirectory,
   }));
@@ -121,14 +131,16 @@ async function handleRoutinePromotion(runtime: CliCommandRuntime, args: readonly
   }
   const connection = resolveAgentDaemonConnection(runtime.configManager, runtime.homeDirectory);
   const result = await promoteRoutineToDaemonSchedule(connection, preview);
+  const receipt = routineReceiptStore(runtime).append(connection, preview, result);
   if (!result.ok) {
     return {
-      output: json ? JSON.stringify(result, null, 2) : formatRoutineScheduleFailure(result),
+      output: json ? JSON.stringify({ ...result, receipt }, null, 2) : `${formatRoutineScheduleFailure(result)}\n  receipt: ${receipt.id}`,
       exitCode: 1,
     };
   }
+  const value = { ...result, receipt };
   return {
-    output: jsonOrText(runtime, result, formatRoutineScheduleSuccess(result)),
+    output: jsonOrText(runtime, value, `${formatRoutineScheduleSuccess(result)}\n  receipt: ${receipt.id}`),
     exitCode: 0,
   };
 }
@@ -175,11 +187,44 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       exitCode: 0,
     };
   }
+  if (normalized === 'receipts' || normalized === 'history') {
+    const snapshot = routineReceiptStore(runtime).snapshot();
+    const value: RoutinesCommandSuccess<typeof snapshot> = {
+      ok: true,
+      kind: 'agent.routines.scheduleReceipts.list',
+      data: snapshot,
+    };
+    return {
+      output: jsonOrText(runtime, value, formatRoutineScheduleReceipts(snapshot)),
+      exitCode: 0,
+    };
+  }
+  if (normalized === 'receipt') {
+    const id = rest[0];
+    if (!id) return { output: 'Usage: goodvibes-agent routines receipt <receipt-id>', exitCode: 2 };
+    const receipt = routineReceiptStore(runtime).get(id);
+    if (!receipt) {
+      const failure: RoutinesCommandFailure = { ok: false, kind: 'routine_schedule_receipt_not_found', error: `Unknown routine schedule receipt: ${id}` };
+      return {
+        output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(failure, null, 2) : failure.error,
+        exitCode: 1,
+      };
+    }
+    const value: RoutinesCommandSuccess<typeof receipt> = {
+      ok: true,
+      kind: 'agent.routines.scheduleReceipts.get',
+      data: receipt,
+    };
+    return {
+      output: jsonOrText(runtime, value, formatRoutineScheduleReceipt(receipt)),
+      exitCode: 0,
+    };
+  }
   if (normalized === 'promote' || normalized === 'schedule' || normalized === 'promote-schedule') {
     return handleRoutinePromotion(runtime, rest);
   }
   return {
-    output: 'Usage: goodvibes-agent routines [list|enabled|show <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) --yes]',
+    output: 'Usage: goodvibes-agent routines [list|enabled|show <id>|receipts|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) --yes]',
     exitCode: 2,
   };
 }

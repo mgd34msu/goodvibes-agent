@@ -76,7 +76,7 @@ Personas, routines, and reusable Agent skills are local to GoodVibes Agent. They
 /skills local list
 ```
 
-The active persona plus enabled Agent routines and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call to the external daemon, requires `--yes`, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or HomeGraph.
+The active persona plus enabled Agent routines and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call to the external daemon, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or HomeGraph.
 
 ## External Daemon
 

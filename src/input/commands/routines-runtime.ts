@@ -1,12 +1,15 @@
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
+  formatRoutineScheduleReceipt,
+  formatRoutineScheduleReceipts,
   formatRoutineScheduleFailure,
   formatRoutineSchedulePreview,
   formatRoutineScheduleSuccess,
   parseRoutineSchedulePromotionArgs,
   promoteRoutineToDaemonSchedule,
   resolveAgentDaemonConnection,
+  RoutineScheduleReceiptStore,
 } from '../../agent/routine-schedule-promotion.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
@@ -50,6 +53,10 @@ function splitList(value: string | undefined): readonly string[] {
 
 function registryFromContext(ctx: CommandContext): AgentRoutineRegistry {
   return AgentRoutineRegistry.fromShellPaths(requireShellPaths(ctx));
+}
+
+function receiptStoreFromContext(ctx: CommandContext): RoutineScheduleReceiptStore {
+  return RoutineScheduleReceiptStore.fromShellPaths(requireShellPaths(ctx));
 }
 
 function requiredFlag(flags: ReadonlyMap<string, string>, key: string): string {
@@ -124,7 +131,8 @@ async function promoteRoutine(args: readonly string[], routineRegistry: AgentRou
   const shellPaths = requireShellPaths(ctx);
   const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
   const result = await promoteRoutineToDaemonSchedule(connection, preview);
-  ctx.print(result.ok ? formatRoutineScheduleSuccess(result) : formatRoutineScheduleFailure(result));
+  const receipt = receiptStoreFromContext(ctx).append(connection, preview, result);
+  ctx.print(result.ok ? `${formatRoutineScheduleSuccess(result)}\n  receipt: ${receipt.id}` : `${formatRoutineScheduleFailure(result)}\n  receipt: ${receipt.id}`);
 }
 
 export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
@@ -153,6 +161,20 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       }
       const routine = routineRegistry.get(id);
       ctx.print(routine ? renderRoutine(routine) : `Unknown Agent routine: ${id}`);
+      return;
+    }
+    if (sub === 'receipts' || sub === 'history') {
+      ctx.print(formatRoutineScheduleReceipts(receiptStoreFromContext(ctx).snapshot()));
+      return;
+    }
+    if (sub === 'receipt') {
+      const id = args[1];
+      if (!id) {
+        ctx.print('Usage: /routines receipt <receipt-id>');
+        return;
+      }
+      const receipt = receiptStoreFromContext(ctx).get(id);
+      ctx.print(receipt ? formatRoutineScheduleReceipt(receipt) : `Unknown routine schedule receipt: ${id}`);
       return;
     }
     if (sub === 'create') {
@@ -253,7 +275,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       ctx.print(`Deleted Agent routine ${removed.id}: ${removed.name}`);
       return;
     }
-    ctx.print('Usage: /routines [list|enabled|search|show|create|update|enable|disable|start|review|stale|promote|delete]');
+    ctx.print('Usage: /routines [list|enabled|search|show|receipts|receipt|create|update|enable|disable|start|review|stale|promote|delete]');
   } catch (error) {
     printError(ctx, error);
   }

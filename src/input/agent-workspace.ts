@@ -573,10 +573,11 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'WATCH',
     label: 'Automation',
     summary: 'Automation and schedule observability with explicit routine promotion.',
-    detail: 'Agent does not create local automation jobs or hidden scheduler spawns. Reviewed local routines can be promoted into externally owned daemon schedules only through an explicit schedules.create command with --yes.',
+    detail: 'Agent does not create local automation jobs or hidden scheduler spawns. Reviewed local routines can be promoted into externally owned daemon schedules only through an explicit schedules.create command with --yes and a redacted local receipt.',
     actions: [
       { id: 'schedule-list', label: 'List schedules', detail: 'Inspect configured jobs and history without running or mutating them.', command: '/schedule list', kind: 'command', safety: 'read-only' },
       { id: 'schedule-promote-routine', label: 'Promote routine', detail: 'Create an external daemon schedule from a local Agent routine. Requires a real routine id, schedule expression, and explicit --yes.', command: '/schedule promote-routine <routine-id> --cron <expr> --yes', kind: 'command', safety: 'safe' },
+      { id: 'schedule-receipts', label: 'Promotion receipts', detail: 'Review local redacted receipt history for routine-to-daemon schedule promotion attempts.', command: '/schedule receipts', kind: 'command', safety: 'read-only' },
       { id: 'schedule-policy', label: 'Local scheduler blocked', detail: 'Local schedule add/run/remove/enable/disable remain blocked; only explicit external daemon schedule promotion is allowed here.', kind: 'guidance', safety: 'blocked' },
       { id: 'health-services', label: 'Service health', detail: 'Inspect service readiness without starting, stopping, or restarting daemon services.', command: '/health services', kind: 'command', safety: 'read-only' },
     ],

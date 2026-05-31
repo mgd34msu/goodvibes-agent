@@ -337,6 +337,19 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/agent-profile guide');
   });
 
+  test('automation workspace dispatches routine promotion receipt review', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-receipts');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/schedule receipts']);
+    expect(workspace.status).toContain('/schedule receipts');
+  });
+
   test('blocks copied TUI-only blocked commands inside the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

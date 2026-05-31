@@ -1,9 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
 import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import type { ShellPathService } from '@/runtime/index.ts';
 import { getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { SDK_VERSION } from '../version.ts';
 import type { AgentRoutineRecord } from './routine-registry.ts';
 
@@ -80,6 +82,47 @@ export type RoutineSchedulePromotionResult =
   | RoutineSchedulePromotionSuccess
   | RoutineSchedulePromotionFailure;
 
+export interface RoutineScheduleReceipt {
+  readonly id: string;
+  readonly createdAt: string;
+  readonly routineId: string;
+  readonly routineName: string;
+  readonly route: typeof ROUTINE_SCHEDULE_ROUTE;
+  readonly method: typeof ROUTINE_SCHEDULE_METHOD;
+  readonly status: 'created' | 'failed';
+  readonly daemonBaseUrl: string;
+  readonly scheduleId?: string;
+  readonly scheduleStatus?: string;
+  readonly scheduleName: string;
+  readonly scheduleKind: RoutineScheduleKind;
+  readonly scheduleValue: string;
+  readonly timezone?: string;
+  readonly provider?: string;
+  readonly model?: string;
+  readonly enabled: boolean;
+  readonly target: {
+    readonly kind?: string;
+    readonly surfaceKind?: string;
+    readonly preserveThread?: boolean;
+    readonly createIfMissing?: boolean;
+  };
+  readonly deliveryMode?: string;
+  readonly failureKind?: RoutineSchedulePromotionFailure['kind'];
+  readonly failureError?: string;
+}
+
+export interface RoutineScheduleReceiptSnapshot {
+  readonly path: string;
+  readonly receipts: readonly RoutineScheduleReceipt[];
+}
+
+interface RoutineScheduleReceiptStoreFile {
+  readonly version: 1;
+  readonly receipts: readonly RoutineScheduleReceipt[];
+}
+
+const RECEIPT_STORE_VERSION = 1;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -87,6 +130,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function readString(record: Record<string, unknown>, key: string): string | null {
   const value = record[key];
   return typeof value === 'string' ? value : null;
+}
+
+function readBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
+  const value = record[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
 }
 
 function optionValue(args: readonly string[], index: number, inlineValue: string | undefined): {
@@ -109,6 +161,198 @@ function normalizeProviderModel(provider: string | undefined, model: string | un
     provider: normalizedProvider,
     model: getModelIdFromProviderModel(model),
   };
+}
+
+function readReceipt(value: unknown): RoutineScheduleReceipt | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value, 'id')?.trim();
+  const createdAt = readString(value, 'createdAt')?.trim();
+  const routineId = readString(value, 'routineId')?.trim();
+  const routineName = readString(value, 'routineName')?.trim();
+  const status = value.status === 'created' || value.status === 'failed' ? value.status : null;
+  const scheduleKind = value.scheduleKind === 'cron' || value.scheduleKind === 'every' || value.scheduleKind === 'at'
+    ? value.scheduleKind
+    : null;
+  const scheduleValue = readString(value, 'scheduleValue')?.trim();
+  const target = isRecord(value.target) ? value.target : {};
+  if (!id || !createdAt || !routineId || !routineName || !status || !scheduleKind || !scheduleValue) return null;
+  return {
+    id,
+    createdAt,
+    routineId,
+    routineName,
+    route: ROUTINE_SCHEDULE_ROUTE,
+    method: ROUTINE_SCHEDULE_METHOD,
+    status,
+    daemonBaseUrl: readString(value, 'daemonBaseUrl') ?? '',
+    scheduleId: readString(value, 'scheduleId') ?? undefined,
+    scheduleStatus: readString(value, 'scheduleStatus') ?? undefined,
+    scheduleName: readString(value, 'scheduleName') ?? routineName,
+    scheduleKind,
+    scheduleValue,
+    timezone: readString(value, 'timezone') ?? undefined,
+    provider: readString(value, 'provider') ?? undefined,
+    model: readString(value, 'model') ?? undefined,
+    enabled: value.enabled !== false,
+    target: {
+      kind: readString(target, 'kind') ?? undefined,
+      surfaceKind: readString(target, 'surfaceKind') ?? undefined,
+      preserveThread: readBoolean(target, 'preserveThread'),
+      createIfMissing: readBoolean(target, 'createIfMissing'),
+    },
+    deliveryMode: readString(value, 'deliveryMode') ?? undefined,
+    failureKind: value.failureKind === 'confirmation_required'
+      || value.failureKind === 'auth_required'
+      || value.failureKind === 'daemon_unavailable'
+      || value.failureKind === 'version_mismatch'
+      || value.failureKind === 'daemon_route_unavailable'
+      || value.failureKind === 'daemon_error'
+      ? value.failureKind
+      : undefined,
+    failureError: readString(value, 'failureError') ?? undefined,
+  };
+}
+
+function parseReceiptStore(raw: string): RoutineScheduleReceiptStoreFile {
+  const parsed: unknown = JSON.parse(raw);
+  if (!isRecord(parsed)) return { version: RECEIPT_STORE_VERSION, receipts: [] };
+  return {
+    version: RECEIPT_STORE_VERSION,
+    receipts: Array.isArray(parsed.receipts)
+      ? parsed.receipts.map(readReceipt).filter((receipt): receipt is RoutineScheduleReceipt => receipt !== null)
+      : [],
+  };
+}
+
+function formatReceiptStore(store: RoutineScheduleReceiptStoreFile): string {
+  return `${JSON.stringify(store, null, 2)}\n`;
+}
+
+function receiptId(createdAt: string, routineId: string, existing: readonly RoutineScheduleReceipt[]): string {
+  const dayStamp = createdAt.slice(0, 10).replace(/-/g, '');
+  const base = `routine-schedule-${routineId}-${dayStamp}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const ids = new Set(existing.map((receipt) => receipt.id));
+  if (!ids.has(base)) return base;
+  for (let index = 2; index < 1000; index += 1) {
+    const candidate = `${base}-${index}`;
+    if (!ids.has(candidate)) return candidate;
+  }
+  return `${base}-${existing.length + 1}`;
+}
+
+function scheduleValue(payload: ScheduleCreateInput): string {
+  if (payload.kind === 'cron') return String(payload.cron ?? '');
+  if (payload.kind === 'every') return String(payload.every ?? '');
+  return String(payload.at ?? '');
+}
+
+function scheduleKind(payload: ScheduleCreateInput): RoutineScheduleKind {
+  if (payload.kind === 'cron' || payload.kind === 'every' || payload.kind === 'at') return payload.kind;
+  throw new Error('Routine schedule payload is missing a schedule kind.');
+}
+
+function targetSummary(payload: ScheduleCreateInput): RoutineScheduleReceipt['target'] {
+  return isRecord(payload.target)
+    ? {
+      kind: typeof payload.target.kind === 'string' ? payload.target.kind : undefined,
+      surfaceKind: typeof payload.target.surfaceKind === 'string' ? payload.target.surfaceKind : undefined,
+      preserveThread: typeof payload.target.preserveThread === 'boolean' ? payload.target.preserveThread : undefined,
+      createIfMissing: typeof payload.target.createIfMissing === 'boolean' ? payload.target.createIfMissing : undefined,
+    }
+    : {};
+}
+
+function deliveryMode(payload: ScheduleCreateInput): string | undefined {
+  return isRecord(payload.delivery) && typeof payload.delivery.mode === 'string' ? payload.delivery.mode : undefined;
+}
+
+function resultScheduleRecord(result: RoutineSchedulePromotionResult): Record<string, unknown> {
+  return result.ok && isRecord(result.schedule) ? result.schedule : {};
+}
+
+function buildReceipt(
+  existing: readonly RoutineScheduleReceipt[],
+  connection: AgentDaemonConnection,
+  preview: RoutineSchedulePromotionPreview,
+  result: RoutineSchedulePromotionResult,
+): RoutineScheduleReceipt {
+  const createdAt = nowIso();
+  const kind = scheduleKind(preview.payload);
+  const schedule = resultScheduleRecord(result);
+  const scheduleId = readString(schedule, 'id') ?? undefined;
+  const scheduleStatus = readString(schedule, 'status') ?? (schedule.enabled === false ? 'paused' : schedule.enabled === true ? 'enabled' : undefined);
+  return {
+    id: receiptId(createdAt, preview.routineId, existing),
+    createdAt,
+    routineId: preview.routineId,
+    routineName: preview.routineName,
+    route: ROUTINE_SCHEDULE_ROUTE,
+    method: ROUTINE_SCHEDULE_METHOD,
+    status: result.ok ? 'created' : 'failed',
+    daemonBaseUrl: connection.baseUrl,
+    scheduleId,
+    scheduleStatus,
+    scheduleName: String(preview.payload.name ?? `Agent routine: ${preview.routineName}`),
+    scheduleKind: kind,
+    scheduleValue: scheduleValue(preview.payload),
+    timezone: kind === 'cron' ? preview.payload.timezone : undefined,
+    provider: preview.payload.provider,
+    model: preview.payload.model,
+    enabled: preview.payload.enabled !== false,
+    target: targetSummary(preview.payload),
+    deliveryMode: deliveryMode(preview.payload),
+    failureKind: result.ok ? undefined : result.kind,
+    failureError: result.ok ? undefined : result.error,
+  };
+}
+
+export function routineScheduleReceiptStorePath(shellPaths: ShellPathService): string {
+  return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'routines', 'schedule-receipts.json');
+}
+
+export class RoutineScheduleReceiptStore {
+  public constructor(private readonly storePath: string) {}
+
+  public static fromShellPaths(shellPaths: ShellPathService): RoutineScheduleReceiptStore {
+    return new RoutineScheduleReceiptStore(routineScheduleReceiptStorePath(shellPaths));
+  }
+
+  public snapshot(): RoutineScheduleReceiptSnapshot {
+    const store = this.readStore();
+    return {
+      path: this.storePath,
+      receipts: [...store.receipts].sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
+    };
+  }
+
+  public get(id: string): RoutineScheduleReceipt | null {
+    const normalized = id.trim().toLowerCase();
+    if (!normalized) return null;
+    return this.snapshot().receipts.find((receipt) => receipt.id.toLowerCase() === normalized) ?? null;
+  }
+
+  public append(connection: AgentDaemonConnection, preview: RoutineSchedulePromotionPreview, result: RoutineSchedulePromotionResult): RoutineScheduleReceipt {
+    const store = this.readStore();
+    const receipt = buildReceipt(store.receipts, connection, preview, result);
+    this.writeStore({ ...store, receipts: [...store.receipts, receipt] });
+    return receipt;
+  }
+
+  private readStore(): RoutineScheduleReceiptStoreFile {
+    if (!existsSync(this.storePath)) return { version: RECEIPT_STORE_VERSION, receipts: [] };
+    try {
+      return parseReceiptStore(readFileSync(this.storePath, 'utf-8'));
+    } catch (error) {
+      throw new Error(`Could not read Agent routine schedule receipt store: ${summarizeError(error)}`);
+    }
+  }
+
+  private writeStore(store: RoutineScheduleReceiptStoreFile): void {
+    mkdirSync(dirname(this.storePath), { recursive: true });
+    const tmpPath = `${this.storePath}.tmp`;
+    writeFileSync(tmpPath, formatReceiptStore(store), 'utf-8');
+    renameSync(tmpPath, this.storePath);
+  }
 }
 
 export function parseRoutineSchedulePromotionArgs(args: readonly string[]): ParsedRoutineSchedulePromotionArgs {
@@ -410,6 +654,49 @@ export function formatRoutineScheduleSuccess(result: RoutineSchedulePromotionSuc
     `  route: ${result.kind} ${result.route}`,
     '  next: inspect with /schedule list or daemon schedule observability',
   ].join('\n');
+}
+
+export function formatRoutineScheduleReceipts(snapshot: RoutineScheduleReceiptSnapshot, limit = 10): string {
+  const receipts = snapshot.receipts.slice(0, Math.max(1, limit));
+  if (snapshot.receipts.length === 0) {
+    return [
+      'Agent routine schedule receipts',
+      `  store: ${snapshot.path}`,
+      '  No routine schedule promotions have been recorded yet.',
+      '  Create one with /schedule promote-routine <routine-id> --cron <expr> --yes.',
+    ].join('\n');
+  }
+  return [
+    `Agent routine schedule receipts (${snapshot.receipts.length})`,
+    `  store: ${snapshot.path}`,
+    ...receipts.map((receipt) => {
+      const schedule = receipt.scheduleId ? ` schedule=${receipt.scheduleId}` : '';
+      const failure = receipt.status === 'failed' && receipt.failureKind ? ` failure=${receipt.failureKind}` : '';
+      return `  ${receipt.id}  ${receipt.status}  ${receipt.scheduleKind} ${receipt.scheduleValue}  routine=${receipt.routineId}${schedule}${failure}`;
+    }),
+    snapshot.receipts.length > receipts.length ? `  ...${snapshot.receipts.length - receipts.length} more` : '',
+  ].filter((line): line is string => Boolean(line)).join('\n');
+}
+
+export function formatRoutineScheduleReceipt(receipt: RoutineScheduleReceipt): string {
+  return [
+    `Agent routine schedule receipt ${receipt.id}`,
+    `  created: ${receipt.createdAt}`,
+    `  status: ${receipt.status}`,
+    `  routine: ${receipt.routineName} (${receipt.routineId})`,
+    `  route: ${receipt.method} ${receipt.route}`,
+    `  daemon: ${receipt.daemonBaseUrl}`,
+    `  schedule: ${receipt.scheduleName}${receipt.scheduleId ? ` (${receipt.scheduleId})` : ''}`,
+    receipt.scheduleStatus ? `  schedule status: ${receipt.scheduleStatus}` : '',
+    `  cadence: ${receipt.scheduleKind} ${receipt.scheduleValue}${receipt.timezone ? ` [${receipt.timezone}]` : ''}`,
+    `  enabled: ${receipt.enabled ? 'yes' : 'no'}`,
+    receipt.provider ? `  provider: ${receipt.provider}` : '',
+    receipt.model ? `  model: ${receipt.model}` : '',
+    `  target: ${receipt.target.kind ?? 'unknown'}${receipt.target.surfaceKind ? `/${receipt.target.surfaceKind}` : ''}`,
+    receipt.deliveryMode ? `  delivery: ${receipt.deliveryMode}` : '',
+    receipt.failureKind ? `  failure: ${receipt.failureKind}` : '',
+    receipt.failureError ? `  error: ${receipt.failureError}` : '',
+  ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
 export function formatRoutineScheduleFailure(failure: RoutineSchedulePromotionFailure): string {

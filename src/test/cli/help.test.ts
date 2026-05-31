@@ -39,6 +39,7 @@ describe('CLI help/version', () => {
   test('routines command help explains explicit daemon schedule promotion', () => {
     const help = renderGoodVibesCommandHelp('routines');
     expect(help).toContain('promote <id>');
+    expect(help).toContain('routines receipts');
     expect(help).toContain('external daemon schedule');
     expect(help).toContain('Without --yes');
   });

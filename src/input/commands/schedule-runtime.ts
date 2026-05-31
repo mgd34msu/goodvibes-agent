@@ -7,12 +7,15 @@ import type { AutomationScheduleDefinition } from '@pellux/goodvibes-sdk/platfor
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
+  formatRoutineScheduleReceipt,
+  formatRoutineScheduleReceipts,
   formatRoutineScheduleFailure,
   formatRoutineSchedulePreview,
   formatRoutineScheduleSuccess,
   parseRoutineSchedulePromotionArgs,
   promoteRoutineToDaemonSchedule,
   resolveAgentDaemonConnection,
+  RoutineScheduleReceiptStore,
 } from '../../agent/routine-schedule-promotion.ts';
 import type { CommandContext } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
@@ -73,7 +76,8 @@ async function promoteRoutineSchedule(args: readonly string[], ctx: CommandConte
   }
   const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
   const result = await promoteRoutineToDaemonSchedule(connection, preview);
-  ctx.print(result.ok ? formatRoutineScheduleSuccess(result) : formatRoutineScheduleFailure(result));
+  const receipt = RoutineScheduleReceiptStore.fromShellPaths(shellPaths).append(connection, preview, result);
+  ctx.print(result.ok ? `${formatRoutineScheduleSuccess(result)}\n  receipt: ${receipt.id}` : `${formatRoutineScheduleFailure(result)}\n  receipt: ${receipt.id}`);
 }
 
 export function registerScheduleRuntimeCommands(registry: CommandRegistry): void {
@@ -81,13 +85,29 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
     name: 'schedule',
     aliases: ['sched'],
     description: 'Inspect schedules and explicitly promote local Agent routines to daemon schedules',
-    usage: 'list | promote-routine <routine-id> --cron <expr> --yes',
-    argsHint: 'list | promote-routine <routine-id> --cron <expr> --yes',
+    usage: 'list | receipts | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
+    argsHint: 'list | receipts | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
     async handler(args, ctx) {
       const sub = args[0];
 
       if (sub === 'promote-routine' || sub === 'promote' || sub === 'create-routine-schedule') {
         await promoteRoutineSchedule(args.slice(1), ctx);
+        return;
+      }
+
+      if (sub === 'receipts' || sub === 'history') {
+        ctx.print(formatRoutineScheduleReceipts(RoutineScheduleReceiptStore.fromShellPaths(requireShellPaths(ctx)).snapshot()));
+        return;
+      }
+
+      if (sub === 'receipt') {
+        const id = args[1];
+        if (!id) {
+          ctx.print('Usage: /schedule receipt <receipt-id>');
+          return;
+        }
+        const receipt = RoutineScheduleReceiptStore.fromShellPaths(requireShellPaths(ctx)).get(id);
+        ctx.print(receipt ? formatRoutineScheduleReceipt(receipt) : `Unknown routine schedule receipt: ${id}`);
         return;
       }
 
@@ -127,6 +147,8 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
       ctx.print(
         'Usage:\n'
         + '  /schedule list\n'
+        + '  /schedule receipts\n'
+        + '  /schedule receipt <receipt-id>\n'
         + '  /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) --yes\n'
         + '  Local schedule mutations and runs remain blocked.'
       );
