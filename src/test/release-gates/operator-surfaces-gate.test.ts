@@ -243,6 +243,8 @@ describe('operator surfaces gate', () => {
         'surface: "tui"',
         "surfaceKind: 'tui'",
         "surfaceId: 'surface:tui'",
+        "id: 'client:tui'",
+        "kind: 'tui'",
         "getOrCreateCompanionToken('tui'",
       ];
       return markers

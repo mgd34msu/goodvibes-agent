@@ -126,16 +126,20 @@ export async function initializeBootstrapCore(
     isRunning: Boolean(configManager.get('controlPlane.enabled')),
   }, 'bootstrap.control-plane');
   domainDispatch.syncControlPlaneClient({
-    id: 'client:tui',
-    kind: 'tui',
-    label: 'Terminal UI',
+    id: 'client:goodvibes-agent',
+    kind: 'service',
+    label: 'GoodVibes Agent',
     transport: 'local',
     connected: true,
     sessionId: userSessionId,
     authenticatedAt: Date.now(),
     lastSeenAt: Date.now(),
     capabilities: ['session', 'panels', 'commands', 'automation'],
-    metadata: {},
+    metadata: {
+      product: 'goodvibes-agent',
+      surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+      clientKindNote: 'SDK has no dedicated agent client kind yet; using service for the Agent operator surface.',
+    },
   }, 'bootstrap.control-plane');
 
   const {
