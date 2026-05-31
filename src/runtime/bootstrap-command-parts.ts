@@ -118,7 +118,6 @@ export interface BootstrapCommandSectionOptions {
   readonly peerClient?: PeerClient;
   readonly providerApi?: ProviderApi;
   readonly agentKnowledgeApi?: KnowledgeApi;
-  readonly knowledgeApi?: KnowledgeApi;
   readonly hookApi?: HookApi;
   readonly mcpApi?: McpApi;
   readonly opsApi?: OpsApi;
@@ -373,7 +372,7 @@ export function createBootstrapCommandExtensionsSection(
 export function createBootstrapCommandClientsSection(
   options: Pick<
     BootstrapCommandSectionOptions,
-    'operatorClient' | 'peerClient' | 'providerApi' | 'agentKnowledgeApi' | 'knowledgeApi' | 'hookApi' | 'mcpApi' | 'opsApi' | 'directTransport'
+    'operatorClient' | 'peerClient' | 'providerApi' | 'agentKnowledgeApi' | 'hookApi' | 'mcpApi' | 'opsApi' | 'directTransport'
   >,
 ): BootstrapCommandClientSection {
   return {
@@ -381,7 +380,6 @@ export function createBootstrapCommandClientsSection(
     peer: options.peerClient,
     providerApi: options.providerApi,
     agentKnowledgeApi: options.agentKnowledgeApi,
-    knowledgeApi: options.knowledgeApi,
     hookApi: options.hookApi,
     mcpApi: options.mcpApi,
     opsApi: options.opsApi,

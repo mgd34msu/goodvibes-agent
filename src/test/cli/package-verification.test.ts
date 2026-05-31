@@ -15,5 +15,8 @@ describe('package CLI install verification', () => {
     expect(report.tarball.requiredPathsPresent).toContain('bin/goodvibes-agent.ts');
     expect(report.tarball.requiredPathsPresent).toContain('scripts/check-bun.sh');
     expect(report.tarball.forbiddenPaths).toEqual([]);
+    expect(report.packageFacingText.failures).toEqual([]);
+    expect(report.packageFacingText.checkedPaths).toContain('README.md');
+    expect(report.packageFacingText.checkedPaths).toContain('docs/release-and-publishing.md');
   }, 30_000);
 });

@@ -172,7 +172,6 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
   const {
     directTransport,
     hookApi,
-    knowledgeApi,
     mcpApi,
     opsApi,
     providerApi,
@@ -241,7 +240,6 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     operatorClient: directTransport.operator,
     peerClient: directTransport.peer,
     agentKnowledgeApi,
-    knowledgeApi: agentKnowledgeApi,
     hookApi,
     mcpApi,
     opsApi,

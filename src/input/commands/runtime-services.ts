@@ -246,8 +246,12 @@ export async function compactConversation(context: CommandContext): Promise<void
   );
 }
 
+export function requireAgentKnowledgeApi(context: CommandContext): KnowledgeApi {
+  return requireContextValue(context.clients?.agentKnowledgeApi, 'clients.agentKnowledgeApi');
+}
+
 export function requireKnowledgeApi(context: CommandContext): KnowledgeApi {
-  return requireContextValue(context.clients?.knowledgeApi, 'clients.knowledgeApi');
+  return requireAgentKnowledgeApi(context);
 }
 
 export function requireHookApi(context: CommandContext): HookApi {

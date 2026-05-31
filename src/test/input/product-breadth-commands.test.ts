@@ -310,7 +310,7 @@ describe('product breadth commands', () => {
         importedLinks: 0,
       }),
     } as never;
-    const knowledgeApi = {
+    const agentKnowledgeApi = {
       ...createRuntimeKnowledgeApi(runtimeServices),
       memory: createMemoryApi(memoryRegistry),
     };
@@ -381,7 +381,7 @@ describe('product breadth commands', () => {
         operator: operatorClient,
         peer: peerClient,
         providerApi,
-        knowledgeApi,
+        agentKnowledgeApi,
         hookApi,
         mcpApi,
         opsApi,
@@ -862,8 +862,7 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await memoryReview!.handler(['queue', '5'], ctx);
-    expect(out.join('\n')).toContain('Agent Knowledge API is not available');
-    expect(out.join('\n')).toContain('Refusing to use default Knowledge/Wiki or HomeGraph fallback');
+    expect(out.join('\n')).toContain('Knowledge review queue is empty.');
 
     out.length = 0;
     await approval!.handler(['matrix'], ctx);

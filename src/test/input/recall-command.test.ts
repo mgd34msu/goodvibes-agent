@@ -201,7 +201,7 @@ function makeRecallCommandContext(
       policyRuntimeState: options.policyRuntimeState,
     },
     clients: {
-      knowledgeApi: {
+      agentKnowledgeApi: {
         memory: createMemoryApi(options.memoryRegistry),
       } as never,
     },
@@ -237,6 +237,26 @@ describe('recallCommand', () => {
       budgetBreaches: [],
       jumpLinks: [],
     });
+  });
+
+  test('refuses a generic default Knowledge/Wiki memory client', async () => {
+    const context = {
+      ...makeRecallCommandContext(printed, {
+        memoryRegistry: makeRegistry(),
+        forensicsRegistry,
+      }),
+      clients: {
+        knowledgeApi: {
+          memory: createMemoryApi(makeRegistry()),
+        },
+      },
+    } as unknown as CommandContext;
+
+    await recallCommand.handler(['list'], context);
+
+    const output = printed.join('\n');
+    expect(output).toContain('Agent Memory API is not available');
+    expect(output).toContain('Refusing to use default Knowledge/Wiki or HomeGraph fallback');
   });
 
   test('captures the latest incident into memory', async () => {

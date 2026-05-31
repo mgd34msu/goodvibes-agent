@@ -101,7 +101,6 @@ export type CreateBootstrapCommandContextOptions = {
   operatorClient?: OperatorClient;
   peerClient?: PeerClient;
   agentKnowledgeApi?: KnowledgeApi;
-  knowledgeApi?: KnowledgeApi;
   hookApi?: HookApi;
   mcpApi?: McpApi;
   opsApi?: OpsApi;
@@ -172,7 +171,6 @@ export function createBootstrapCommandContext(
     operatorClient,
     peerClient,
     agentKnowledgeApi,
-    knowledgeApi,
     hookApi,
     mcpApi,
     opsApi,
@@ -249,7 +247,6 @@ export function createBootstrapCommandContext(
     peerClient,
     agentKnowledgeApi,
     providerApi,
-    knowledgeApi,
     hookApi,
     mcpApi,
     opsApi,

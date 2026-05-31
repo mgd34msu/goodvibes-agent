@@ -44,7 +44,7 @@ function makeBaseContext(registry: MemoryRegistry, printed: string[]): CommandCo
       memoryRegistry: registry,
     },
     clients: {
-      knowledgeApi: {
+      agentKnowledgeApi: {
         memory: createMemoryApi(registry),
       } as never,
     },

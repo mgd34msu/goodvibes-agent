@@ -4,9 +4,10 @@ import type { MemorySearchFilter } from '@pellux/goodvibes-sdk/platform/state';
 import { VALID_CLASSES, VALID_SCOPES, isValidClass, isValidScope } from './recall-shared.ts';
 
 export function getMemoryApi(context: CommandContext): MemoryApi | null {
-  const memoryApi = context.clients?.knowledgeApi?.memory;
+  const memoryApi = context.clients?.agentKnowledgeApi?.memory;
   if (!memoryApi) {
-    context.print('[recall] Memory API is not available in this runtime.');
+    context.print('[recall] Agent Memory API is not available in this runtime.');
+    context.print('[recall] Refusing to use default Knowledge/Wiki or HomeGraph fallback.');
     return null;
   }
   return memoryApi;

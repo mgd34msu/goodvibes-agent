@@ -140,7 +140,6 @@ describe('operator surfaces gate', () => {
           knowledgeService: runtimeServices.agentKnowledgeService,
           memoryRegistry: runtimeServices.memoryRegistry,
         }),
-        knowledgeApi: createRuntimeKnowledgeApi(runtimeServices),
         hookApi: createRuntimeHookApi({
           dispatcher: {
             listHooks: () => runtimeServices.hookDispatcher.listHooks(),

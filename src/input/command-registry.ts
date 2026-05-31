@@ -203,7 +203,6 @@ export interface CommandContext
     readonly peer?: PeerClient;
     readonly providerApi?: ProviderApi;
     readonly agentKnowledgeApi?: KnowledgeApi;
-    readonly knowledgeApi?: KnowledgeApi;
     readonly hookApi?: HookApi;
     readonly mcpApi?: McpApi;
     readonly opsApi?: OpsApi;

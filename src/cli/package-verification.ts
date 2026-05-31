@@ -21,6 +21,10 @@ export interface PackageCliVerificationReport {
     readonly requiredPathsPresent: readonly string[];
     readonly forbiddenPaths: readonly string[];
   };
+  readonly packageFacingText: {
+    readonly checkedPaths: readonly string[];
+    readonly failures: readonly string[];
+  };
   readonly issues: readonly string[];
 }
 
@@ -46,6 +50,43 @@ const FORBIDDEN_TARBALL_DOCS = [
   'docs/homeassistant-surface.md',
   'docs/wrfc/',
 ] as const;
+const PACKAGE_FACING_TEXT_PATHS = [
+  'README.md',
+  'docs/README.md',
+  'docs/getting-started.md',
+  'docs/deployment-and-services.md',
+  'docs/release-and-publishing.md',
+  '.goodvibes/GOODVIBES.md',
+  '.goodvibes/agents/reviewer.md',
+  '.goodvibes/skills/add-provider/SKILL.md',
+] as const;
+const PACKAGE_FACING_FORBIDDEN_TEXT = [
+  '/api/knowledge',
+  '/api/homeassistant',
+  'homeassistant.homeGraph',
+  'includeAllSpaces',
+  'knowledgeSpaceId',
+  '@pellux/goodvibes-tui',
+  '@pellux/goodvibes-daemon',
+  'goodvibes-daemon',
+  '~/.goodvibes/tui',
+  'Every plan must have a multi-agent execution strategy',
+  'NEVER skip WRFC',
+  'ALWAYS work in parallel when implementing a plan',
+  'PRIMARY GOAL: Fully complete and functional code',
+  'You are a code reviewer for the WRFC',
+  'ReviewerReport',
+  '"wrfcId"',
+] as const;
+const PACKAGE_FACING_REQUIRED_TEXT: readonly {
+  readonly path: typeof PACKAGE_FACING_TEXT_PATHS[number];
+  readonly required: readonly string[];
+}[] = [
+  { path: 'README.md', required: ['/api/goodvibes-agent/knowledge'] },
+  { path: 'docs/README.md', required: ['/api/goodvibes-agent/knowledge'] },
+  { path: 'docs/getting-started.md', required: ['/api/goodvibes-agent/knowledge'] },
+  { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge'] },
+];
 
 function readPackageJson(root: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')) as Record<string, unknown>;
@@ -82,6 +123,35 @@ function npmPackDryRun(root: string): { readonly files: readonly string[]; reado
   };
 }
 
+export function verifyPackageFacingText(root: string): { readonly checkedPaths: readonly string[]; readonly failures: readonly string[] } {
+  const failures: string[] = [];
+  for (const path of PACKAGE_FACING_TEXT_PATHS) {
+    const absolutePath = join(root, path);
+    if (!existsSync(absolutePath)) {
+      failures.push(`package-facing text is missing: ${path}`);
+      continue;
+    }
+    const content = readFileSync(absolutePath, 'utf-8');
+    for (const forbidden of PACKAGE_FACING_FORBIDDEN_TEXT) {
+      if (content.includes(forbidden)) {
+        failures.push(`package-facing text ${path} contains forbidden default/TUI route or policy: ${forbidden}`);
+      }
+    }
+    const requirement = PACKAGE_FACING_REQUIRED_TEXT.find((entry) => entry.path === path);
+    if (requirement) {
+      for (const required of requirement.required) {
+        if (!content.includes(required)) {
+          failures.push(`package-facing text ${path} is missing required Agent route/policy text: ${required}`);
+        }
+      }
+    }
+  }
+  return {
+    checkedPaths: PACKAGE_FACING_TEXT_PATHS,
+    failures,
+  };
+}
+
 export function verifyPackageCliInstall(root: string): PackageCliVerificationReport {
   const pkg = readPackageJson(root);
   const bin = pkg.bin && typeof pkg.bin === 'object' ? pkg.bin as Record<string, string | undefined> : {};
@@ -93,6 +163,7 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
     return FORBIDDEN_TARBALL_DOCS.some((docPath) => path === docPath || path.startsWith(docPath));
   });
   const issues: string[] = [];
+  const packageFacingText = verifyPackageFacingText(root);
 
   for (const item of bins) {
     if (!item.target) issues.push(`package.json bin is missing ${item.command}.`);
@@ -107,6 +178,9 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
   for (const path of forbiddenPaths) {
     issues.push(`npm tarball includes forbidden path: ${path}`);
   }
+  for (const failure of packageFacingText.failures) {
+    issues.push(failure);
+  }
 
   return {
     packageName: String(pkg.name ?? ''),
@@ -118,6 +192,7 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
       requiredPathsPresent,
       forbiddenPaths,
     },
+    packageFacingText,
     issues,
   };
 }
