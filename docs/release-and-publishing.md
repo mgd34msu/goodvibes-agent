@@ -4,12 +4,21 @@ GoodVibes Agent's current installable public alpha version is recorded in `packa
 
 ## Package Identity
 
-- npm package: `@pellux/goodvibes-agent`
+- registry package: `@pellux/goodvibes-agent`
 - executable: `goodvibes-agent`
 - SDK dependency: exact pin to `@pellux/goodvibes-sdk@0.33.35`
 - runtime: Bun
 - source language: TypeScript
 - daemon ownership: external only
+
+End users install and run GoodVibes Agent with Bun:
+
+```sh
+bun add -g @pellux/goodvibes-agent
+goodvibes-agent --help
+```
+
+Do not add non-Bun install instructions for this product. The package is hosted on the npm registry, but the supported install and smoke path is Bun.
 
 ## Required Gates
 
@@ -25,7 +34,7 @@ bun pm pack --dry-run
 git diff --check
 ```
 
-`bun run publish:package` publishes from a staged package directory. If `NPM_CONFIG_USERCONFIG` is already set, npm uses it. Otherwise the script creates a temporary 0600 npm userconfig from `NODE_AUTH_TOKEN` or `NPM_TOKEN`, uses it for that publish command, and removes it with the staging directory.
+`bun run publish:package` publishes from a staged package directory to the package registry. If `NPM_CONFIG_USERCONFIG` is already set, the registry publish command uses it. Otherwise the script creates a temporary 0600 registry userconfig from `NODE_AUTH_TOKEN` or `NPM_TOKEN`, uses it for that publish command, and removes it with the staging directory.
 
 Also run the package install smoke from a packed artifact. It must prove:
 

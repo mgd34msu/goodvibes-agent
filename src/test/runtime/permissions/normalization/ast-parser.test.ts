@@ -137,8 +137,8 @@ describe('parseCommandAST — sequence operators', () => {
   });
 
   it('parses three-command && chain', () => {
-    const names = commandNames('git pull && npm install && npm run build');
-    expect(names).toEqual(['git', 'npm', 'npm']);
+    const names = commandNames('git pull && bun install && bun run build');
+    expect(names).toEqual(['git', 'bun', 'bun']);
   });
 
   it('parses ; separated commands', () => {

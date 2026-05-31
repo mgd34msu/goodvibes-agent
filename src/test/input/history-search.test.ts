@@ -74,7 +74,7 @@ describe('HistorySearch — search()', () => {
   let hs: HistorySearch;
 
   beforeEach(() => {
-    hs = makeSearch(['git commit -m "fix"', 'git status', 'npm install', 'GIT LOG']);
+    hs = makeSearch(['git commit -m "fix"', 'git status', 'bun install', 'GIT LOG']);
     hs.open('');
   });
 
@@ -119,7 +119,7 @@ describe('HistorySearch — appendChar() / deleteChar()', () => {
   let hs: HistorySearch;
 
   beforeEach(() => {
-    hs = makeSearch(['git commit', 'git status', 'npm install']);
+    hs = makeSearch(['git commit', 'git status', 'bun install']);
     hs.open('');
   });
 

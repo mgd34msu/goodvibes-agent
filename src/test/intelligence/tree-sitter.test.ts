@@ -24,7 +24,7 @@ import { getTestTreeSitterService } from '../helpers/runtime-services.ts';
 // Environment probes
 // ---------------------------------------------------------------------------
 
-/** Returns true if the web-tree-sitter WASM is available (always true after npm install). */
+/** Returns true if the web-tree-sitter WASM is available after dependencies are installed. */
 function wasmAvailable(): boolean {
   return existsSync(
     join(process.cwd(), 'node_modules', 'web-tree-sitter', 'web-tree-sitter.wasm'),
