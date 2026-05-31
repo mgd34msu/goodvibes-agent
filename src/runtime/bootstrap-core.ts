@@ -30,6 +30,7 @@ import { registerBootstrapRuntimeEvents } from '@/runtime/index.ts';
 import { createRuntimeServices, type RuntimeServices } from './services.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
 import { installAgentToolPolicyGuard } from '../tools/wrfc-agent-guard.ts';
+import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export interface BootstrapCoreState {
@@ -227,6 +228,7 @@ export async function initializeBootstrapCore(
     overflowHandler: services.overflowHandler,
     changeTracker: services.sessionChangeTracker,
   });
+  registerAgentLocalRegistryTool(toolRegistry, services.shellPaths);
   installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),
   });
