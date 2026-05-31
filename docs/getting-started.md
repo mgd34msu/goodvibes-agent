@@ -5,10 +5,10 @@ GoodVibes Agent is the installable public alpha of the personal operator assista
 ## Requirements
 
 - Bun `1.3.10` or newer
-- An already-running GoodVibes daemon compatible with `@pellux/goodvibes-sdk@0.33.35`
-- A daemon token/config path accepted by the external daemon
+- An already-running GoodVibes runtime compatible with `@pellux/goodvibes-sdk@0.33.35`
+- A runtime token/config path accepted by that external runtime
 
-Agent does not launch the daemon for you.
+Agent does not launch the runtime for you.
 
 ## Install From Package
 
@@ -46,7 +46,7 @@ Once the TUI opens, run `/agent`, `/home`, or `/operator` to open the Agent oper
 
 Use `/agent-profile guide` inside that workspace to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
-Use `/schedule receipts` to review redacted local routine promotion history and `/schedule reconcile` to compare those receipts with live externally owned daemon schedules through public `schedules.list`.
+Use `/schedule receipts` to review redacted local routine promotion history and `/schedule reconcile` to compare those receipts with live external schedules through public `schedules.list`.
 
 ## Isolated Agent Profiles
 
@@ -67,7 +67,7 @@ goodvibes-agent --agent-profile household status
 goodvibes-agent --agent-profile household
 ```
 
-Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate the external daemon by themselves.
+Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate the external GoodVibes runtime by themselves.
 
 ## Local Personas, Routines, And Skills
 
@@ -85,11 +85,11 @@ Personas, routines, and reusable Agent skills are local to GoodVibes Agent. They
 /skills local list
 ```
 
-The active persona plus enabled Agent routines and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call to the external daemon, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or non-Agent knowledge segments.
+The active persona plus enabled Agent routines and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or non-Agent knowledge segments.
 
-## External Daemon
+## External Runtime
 
-Start the daemon from GoodVibes TUI or the daemon host before using daemon-backed Agent features. Agent expects the daemon to expose the public operator/Agent routes, including:
+Start the runtime from GoodVibes TUI or the owning host before using runtime-backed Agent features. Agent expects the runtime to expose the public operator/Agent routes, including:
 
 - `/status`
 - `/api/goodvibes-agent/knowledge/status`
@@ -99,7 +99,7 @@ Start the daemon from GoodVibes TUI or the daemon host before using daemon-backe
 
 Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not fall back to default Knowledge/Wiki or other product-specific knowledge spaces.
 
-Agent lifecycle commands that would start or mutate daemon posture are blocked intentionally. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and read-only surface checks for diagnostics.
+Agent lifecycle commands that would start or mutate runtime posture are blocked intentionally. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and read-only surface checks for diagnostics.
 
 ## Current Baseline Notes
 

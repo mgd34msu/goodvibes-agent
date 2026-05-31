@@ -153,8 +153,8 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     );
   } else if (category.id === 'setup') {
     base.push(
-      { text: `External daemon: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
-      { text: `Daemon ownership: ${snapshot.daemonOwnership}; Agent never starts or restarts it`, fg: PALETTE.good },
+      { text: `External runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
+      { text: `Runtime ownership: ${snapshot.daemonOwnership}; Agent never starts or restarts it`, fg: PALETTE.good },
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
       { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
       { text: '' },
@@ -166,7 +166,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     const configuredDefaults = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
     const disabledChannels = snapshot.channels.filter((channel) => !channel.enabled).map((channel) => channel.label).join(', ');
     base.push(
-      { text: `External daemon: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
+      { text: `External runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
       { text: `Readiness: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} default target(s) configured.`, fg: PALETTE.info },
       { text: `Disabled channels: ${disabledChannels || 'none'}.`, fg: PALETTE.dim },
       { text: 'Pairing: use /pair or /qrcode for companion setup.', fg: PALETTE.info },
@@ -208,7 +208,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Config profiles: ${snapshot.configProfileCount}`, fg: PALETTE.info },
       { text: 'Named runtime profiles isolate Agent-local config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
       { text: 'Starter authoring: browse, export, edit, import, and create Agent profiles from inside this workspace via /agent-profile.', fg: PALETTE.info },
-      { text: 'The external daemon remains shared unless the daemon host is configured separately.', fg: PALETTE.warn },
+      { text: 'The external GoodVibes runtime remains shared unless the owning host is configured separately.', fg: PALETTE.warn },
       { text: 'Portable bundles require explicit export/import commands with real paths and --yes.', fg: PALETTE.muted },
     );
   } else if (category.id === 'memory') {
@@ -240,7 +240,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `Routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
       { text: 'Routines are repeatable main-conversation workflows. Starting one does not create hidden jobs.', fg: PALETTE.good },
-      { text: 'Scheduling a reviewed routine is explicit and writes to the externally owned daemon only with --yes.', fg: PALETTE.warn },
+      { text: 'Scheduling a reviewed routine is explicit and writes to the external GoodVibes runtime only with --yes.', fg: PALETTE.warn },
       { text: '' },
       ...localLibraryLines('Routine Library', snapshot.localRoutines, 'No local routines yet. Create one here with Create routine.', workspace.selectedLocalLibraryItem('routine')?.id ?? null),
     );

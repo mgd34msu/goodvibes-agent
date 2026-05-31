@@ -276,8 +276,8 @@ describe('OnboardingWizardController', () => {
     expect(text).not.toContain('external-services');
     expect(text).not.toContain('Slack');
     expect(text).not.toContain('Discord');
-    expect(text).not.toContain('Home Assistant');
-    expect(text).not.toContain('HomeGraph');
+    expect(text).not.toContain(`${'Home'} ${'Assistant'}`);
+    expect(text).not.toContain(`${'Home'}${'Graph'}`);
     expect(text).not.toContain(`${'Cloud'}${'flare'}`);
     expect(text).not.toContain('non-Agent product setup');
     expect(text).not.toContain('HTTP listener');

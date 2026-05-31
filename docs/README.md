@@ -15,8 +15,8 @@ Important baseline constraints:
 - Agent installs one executable: `goodvibes-agent`.
 - Agent uses Bun and TypeScript-authored source.
 - Agent depends on `@pellux/goodvibes-sdk@0.33.35`.
-- Agent connects to an externally managed daemon.
-- Agent does not start, stop, restart, install, uninstall, or own daemon/listener/web/service lifecycle.
+- Agent connects to an externally managed GoodVibes runtime.
+- Agent does not start, stop, restart, install, uninstall, or own runtime connectivity or service lifecycle.
 - Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`; there is no default Knowledge/Wiki or non-Agent product fallback.
 - Agent supports isolated runtime homes with `GOODVIBES_AGENT_HOME=<path>` and named profile homes with `goodvibes-agent profiles create <name> --template <starter> --yes` plus `--agent-profile <name>`.
 - Agent ships starter profile templates for household, research, travel, operations, and personal productivity local state; `profiles templates export/import` and `/agent-profile guide` support local custom starters.

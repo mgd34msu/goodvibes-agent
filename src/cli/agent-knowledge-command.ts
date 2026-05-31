@@ -214,7 +214,7 @@ async function classifyKnowledgeError(error: unknown, connection: AgentDaemonCon
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `External daemon SDK version ${daemonVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
+        error: `External runtime SDK version ${daemonVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
         baseUrl: connection.baseUrl,
         route,
         daemonVersion,
@@ -419,16 +419,16 @@ function formatFailure(failure: AgentKnowledgeFailure, json: boolean): string {
   return [
     `Agent Knowledge error: ${failure.kind}`,
     `  ${failure.error}`,
-    `  daemon: ${failure.baseUrl}`,
+    `  runtime: ${failure.baseUrl}`,
     `  route: ${failure.route}`,
     failure.kind === 'version_mismatch' && failure.daemonVersion && failure.expectedSdkVersion
-      ? `  versions: daemon=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
+      ? `  versions: runtime=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
       : null,
     failure.kind === 'version_mismatch'
-      ? '  next: update/restart the external GoodVibes daemon so /status matches the Agent SDK pin.'
+      ? '  next: update/restart the external GoodVibes runtime so /status matches the Agent SDK pin.'
       : null,
     failure.kind === 'daemon_route_unavailable'
-      ? '  next: update/restart the external GoodVibes daemon to the SDK version required by this Agent package.'
+      ? '  next: update/restart the external GoodVibes runtime to the SDK version required by this Agent package.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
@@ -615,11 +615,11 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
     'GoodVibes Agent compatibility',
     `  package: ${metadata.version}`,
     `  SDK pin: ${metadata.sdkVersion}`,
-    `  daemon: ${daemonVersion} at ${connection.baseUrl} (${daemon.ok ? 'reachable' : 'unreachable'})`,
+    `  runtime: ${daemonVersion} at ${connection.baseUrl} (${daemon.ok ? 'reachable' : 'unreachable'})`,
     `  version compatible: ${yesNo(versionCompatible)}`,
     `  operator token: ${connection.token ? 'present' : 'missing'} (${connection.tokenPath})`,
     `  Agent knowledge route: ${knowledgeRouteReady ? 'ready' : `not ready (${knowledgeRoute.ok ? 'unknown' : knowledgeRoute.kind})`}`,
-    ...(versionCompatible ? [] : ['  next: update/restart the external GoodVibes daemon so /status matches the Agent SDK pin.']),
+    ...(versionCompatible ? [] : ['  next: update/restart the external GoodVibes runtime so /status matches the Agent SDK pin.']),
   ].join('\n');
   return {
     output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text,

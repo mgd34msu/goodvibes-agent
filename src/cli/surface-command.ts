@@ -40,8 +40,8 @@ export async function handleSurfacesCommand(runtime: CliCommandRuntime): Promise
   if (sub === 'enable' || sub === 'disable') {
     if (!target) return { output: `Usage: goodvibes-agent surfaces ${sub} <web|listener|control-plane|surfaceId>`, exitCode: 2 };
     const text = [
-      'GoodVibes Agent does not mutate daemon, listener, web, or channel surface posture.',
-      'Configure those surfaces from GoodVibes TUI or the externally managed daemon host, then use `goodvibes-agent surfaces check` for read-only diagnostics.',
+      'GoodVibes Agent does not mutate runtime, listener, web, or channel surface posture.',
+      'Configure those surfaces from GoodVibes TUI or the external GoodVibes runtime host, then use `goodvibes-agent surfaces check` for read-only diagnostics.',
     ].join(' ');
     return {
       output: formatJsonOrText(runtime.cli)({
@@ -217,9 +217,9 @@ export async function buildListenerTestResult(runtime: CliCommandRuntime): Promi
   }).filter((surface) => surface.enabled === true);
   const issues: string[] = [];
   if (enabled !== true) issues.push('HTTP listener is disabled.');
-  if (enabled === true && service.enabled !== true) issues.push('HTTP listener is enabled on the external daemon config, but Agent service ownership is disabled.');
-  if (enabled === true && service.autostart !== true) issues.push('HTTP listener is enabled on the external daemon config, but daemon autostart is off.');
-  if (enabled === true && service.restartOnFailure !== true) issues.push('HTTP listener is enabled on the external daemon config, but restart-on-failure is off.');
+  if (enabled === true && service.enabled !== true) issues.push('HTTP listener is enabled on the external runtime config, but Agent service ownership is disabled.');
+  if (enabled === true && service.autostart !== true) issues.push('HTTP listener is enabled on the external runtime config, but autostart is off.');
+  if (enabled === true && service.restartOnFailure !== true) issues.push('HTTP listener is enabled on the external runtime config, but restart-on-failure is off.');
   if (isNetworkFacing(enabled, binding) && !auth.userStorePresent) issues.push('Network-facing listener has no local auth user store.');
   if (isNetworkFacing(enabled, binding) && auth.bootstrapCredentialPresent) issues.push('Network-facing listener still has a bootstrap credential file.');
   for (const surface of surfaces) {

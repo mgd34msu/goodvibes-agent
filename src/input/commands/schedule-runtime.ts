@@ -56,7 +56,7 @@ function printReadOnlyScheduleBoundary(print: (text: string) => void, requestedA
     `  requested: ${requestedAction}`,
     '  policy: no local Agent automation jobs, scheduled spawns, or immediate automation runs',
     '  use: /schedule list',
-    '  daemon route: use /schedule promote-routine <routine> --cron <expr> --yes to create an external daemon schedule explicitly',
+    '  schedule route: use /schedule promote-routine <routine> --cron <expr> --yes to create an external schedule explicitly',
   ].join('\n'));
 }
 
@@ -90,7 +90,7 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'schedule',
     aliases: ['sched'],
-    description: 'Inspect schedules and explicitly promote local Agent routines to daemon schedules',
+    description: 'Inspect schedules and explicitly promote local Agent routines to external schedules',
     usage: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-surface slack] --yes',
     argsHint: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-surface slack] --yes',
     async handler(args, ctx) {
@@ -136,7 +136,7 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         if (jobs.length === 0) {
           ctx.print(
             'No automation jobs.\n'
-            + 'Local add/run/enable/disable/remove are blocked. Use /schedule promote-routine <routine> --cron <expr> --yes for an explicit external daemon schedule.'
+            + 'Local add/run/enable/disable/remove are blocked. Use /schedule promote-routine <routine> --cron <expr> --yes for an explicit external schedule.'
           );
           return;
         }

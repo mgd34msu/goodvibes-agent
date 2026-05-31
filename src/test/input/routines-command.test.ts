@@ -201,7 +201,7 @@ describe('/routines command', () => {
       await registry.execute('routines', ['promote', 'inbox-sweep', '--cron', '0 9 * * *', '--timezone', 'America/Chicago'], ctx);
 
       const text = out.join('\n');
-      expect(text).toContain('Daemon schedule preview for Agent routine');
+      expect(text).toContain('GoodVibes schedule preview for Agent routine');
       expect(text).toContain('schedules.create /api/automation/schedules');
       expect(text).toContain('isolated Agent Knowledge only');
       expect(calls).toBe(0);
@@ -266,7 +266,7 @@ describe('/routines command', () => {
       expect(payload.prompt).toContain('never use default Knowledge/Wiki or non-Agent knowledge spaces');
       const promotionText = out.join('\n');
       const receiptId = promotionText.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
-      expect(promotionText).toContain('Created daemon schedule for Agent routine');
+      expect(promotionText).toContain('Created GoodVibes schedule for Agent routine');
       expect(receiptId).toBeTruthy();
 
       await registry.execute('schedule', ['receipts'], ctx);

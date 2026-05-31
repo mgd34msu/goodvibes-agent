@@ -37,9 +37,9 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  models [provider]          List/use/pin selectable models and recent model history',
     '  providers                  List/inspect/use provider config/auth posture',
     '  profiles                   Manage isolated Agent runtime profile homes',
-    '  routines                   Inspect local routines and explicitly promote one to a daemon schedule',
+    '  routines                   Inspect local routines and explicitly promote one to an external schedule',
     '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
-    '  compat                     Inspect Agent SDK pin, daemon version, and Agent knowledge route readiness',
+    '  compat                     Inspect Agent SDK pin, runtime version, and Agent knowledge route readiness',
     '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
     '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
     '  delegate                   Explicitly delegate build/fix/review work to GoodVibes TUI',
@@ -96,8 +96,8 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `  ${binary} delegate --wrfc "fix the failing tests in ~/work/project"`,
     `  ${binary} subscription providers`,
     `  ${binary} subscription login openai start --open`,
-    `  ${binary} help service`,
-    `  ${binary} help surfaces`,
+    `  ${binary} pair`,
+    `  ${binary} routines list`,
   ].join('\n');
 }
 
@@ -117,7 +117,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   run: {
     usage: ['run [prompt] [--output text|json|stream-json]', 'exec [prompt]'],
     summary: 'Run a single non-interactive agent turn and write the result to stdout.',
-    examples: ['run "summarize the current project"', 'run --output json "list risks"', 'exec --output stream-json "check daemon status"'],
+    examples: ['run "summarize the current project"', 'run --output json "list risks"', 'exec --output stream-json "check runtime status"'],
   },
   onboarding: {
     usage: ['onboarding', 'setup', 'onboarding status'],
@@ -126,7 +126,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   status: {
     usage: ['status', 'status --json'],
-    summary: 'Print config, provider, auth, service, surface, and onboarding posture.',
+    summary: 'Print Agent config, provider, auth, runtime connection, and onboarding posture.',
     examples: ['status', 'status --json'],
   },
   doctor: {
@@ -141,7 +141,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   profiles: {
     usage: ['profiles list', 'profiles templates', 'profiles templates export <id> <path> --yes', 'profiles templates import <path> --yes', 'profiles show <name>', 'profiles create <name> [--template <id>] --yes', 'profiles delete <name> --yes', '--agent-profile <name>'],
-    summary: 'Create and inspect isolated Agent runtime profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing the externally owned daemon.',
+    summary: 'Create and inspect isolated Agent runtime profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing the shared GoodVibes runtime.',
     examples: ['profiles templates', 'profiles templates export research ./research-starter.json --yes', 'profiles templates import ./research-starter.json --yes', 'profiles create household --template household --yes', '--agent-profile household status'],
   },
   routines: {
@@ -154,7 +154,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'routines receipt <receipt-id>',
       'routines promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--delivery-surface <surface[:route[:label]]>|--delivery-route <route[:label]>|--delivery-webhook <url>|--delivery-link <url>] [--disabled] --yes',
     ],
-    summary: 'Inspect Agent-local routines, review local promotion receipts, reconcile receipts against live daemon schedules, and explicitly promote a reviewed routine into an external daemon schedule. Without --yes, promote only prints the schedules.create preview.',
+    summary: 'Inspect Agent-local routines, review local promotion receipts, reconcile receipts against live external schedules, and explicitly promote a reviewed routine into a GoodVibes schedule. Without --yes, promote only prints the schedules.create preview.',
     examples: [
       'routines list',
       'routines show daily-operations-sweep',
@@ -176,7 +176,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   compat: {
     usage: ['compat', 'compat --json'],
-    summary: 'Inspect package SDK pin, live daemon version, and Agent-specific knowledge route readiness.',
+    summary: 'Inspect package SDK pin, live runtime version, and Agent-specific knowledge route readiness.',
     examples: ['compat', 'compat --json'],
   },
   knowledge: {
@@ -234,17 +234,17 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   surfaces: {
     usage: ['surfaces [list]', 'surfaces check', 'surfaces show <surfaceId>'],
-    summary: 'Inspect browser, control-plane, HTTP listener, and external integration surfaces. Agent does not mutate daemon/listener posture.',
+    summary: 'Inspect advanced browser, channel, and runtime connection surfaces. Agent does not mutate runtime connection posture.',
     examples: ['surfaces', 'surfaces check', 'surfaces show slack'],
   },
   listener: {
     usage: ['listener test'],
-    summary: 'Check HTTP listener/webhook readiness, network posture, service posture, auth, and enabled surface requirements.',
+    summary: 'Check advanced inbound webhook readiness, network posture, auth, and enabled channel requirements.',
     examples: ['listener test', 'listener test --json'],
   },
   'control-plane': {
     usage: ['control-plane status'],
-    summary: 'Inspect daemon control-plane bind posture, reachability, local auth, bootstrap credentials, and operator tokens.',
+    summary: 'Inspect advanced runtime API reachability, local auth, bootstrap credentials, and operator tokens.',
     examples: ['control-plane status', 'control-plane status --json'],
   },
   bundle: {
@@ -264,7 +264,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   service: {
     usage: ['service status', 'service check'],
-    summary: 'Inspect the externally owned GoodVibes daemon service posture. Agent does not install, start, stop, restart, or uninstall the daemon.',
+    summary: 'Inspect the externally owned GoodVibes runtime service posture. Agent does not install, start, stop, restart, or uninstall the runtime.',
     examples: ['service status', 'service check --json'],
   },
   completion: {
@@ -274,7 +274,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   serve: {
     usage: ['serve [--hostname <host>] [--port <port>]', 'daemon [--hostname <host>] [--port <port>]'],
-    summary: 'Unavailable in GoodVibes Agent. Agent connects to an already-running GoodVibes daemon owned by GoodVibes TUI/daemon tooling.',
+    summary: 'Unavailable in GoodVibes Agent. Agent connects to an already-running GoodVibes runtime owned by GoodVibes TUI/host tooling.',
     examples: [],
   },
   remote: {

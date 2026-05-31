@@ -81,7 +81,7 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('[warning:network:network-http-listener-enabled]');
   });
 
-  test('service posture findings never instruct Agent to mutate daemon lifecycle', () => {
+  test('service posture findings never instruct Agent to mutate runtime lifecycle', () => {
     const findings = buildCliDoctorFindings(makeOptions({
       'service.enabled': false,
       'service.autostart': false,
@@ -92,7 +92,7 @@ describe('CLI status and doctor output', () => {
     const text = findings.map((finding) => `${finding.summary}\n${finding.action}`).join('\n');
 
     expect(text).toContain('Agent service ownership is disabled');
-    expect(text).toContain('GoodVibes TUI or the daemon host');
+    expect(text).toContain('GoodVibes TUI or the owning host');
     expect(text).not.toContain('Enable service mode');
     expect(text).not.toContain('Enable service.autostart');
     expect(text).not.toContain('Enable service.restartOnFailure');
@@ -132,7 +132,7 @@ describe('CLI status and doctor output', () => {
         },
         managed: {
           platform: 'manual',
-          path: 'external daemon host',
+          path: 'external GoodVibes runtime host',
           installed: false,
           autostart: false,
           running: false,
@@ -140,7 +140,7 @@ describe('CLI status and doctor output', () => {
           commandPreview: 'managed outside goodvibes-agent',
           suggestedCommands: [],
           lastAction: 'status',
-          pidPath: 'external daemon host',
+          pidPath: 'external GoodVibes runtime host',
           lastError: null,
         },
         endpoints: [],

@@ -454,7 +454,7 @@ async function classifyScheduleListError(
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `External daemon SDK version ${daemonVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.list is unavailable.`,
+        error: `External runtime SDK version ${daemonVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.list is unavailable.`,
         route: ROUTINE_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
         daemonVersion,

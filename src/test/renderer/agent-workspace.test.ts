@@ -286,7 +286,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/setup transfer export <path> --yes');
     expect(output).toContain('Starter templates: 5; local custom: 0');
     expect(output).toContain('Starter authoring: browse, export, edit, import, and create Agent profiles');
-    expect(output).toContain('external daemon remains shared');
+    expect(output).toContain('external GoodVibes runtime remains shared');
   });
 
   test('renders channel onboarding and delivery safety posture', () => {

@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.62 - 2026-05-31
+
+- Tightened primary CLI help around Agent workflows instead of advanced runtime diagnostics.
+- Reworded onboarding, workspace, and routine schedule surfaces toward Agent/operator language.
+- Kept schedule promotion explicit while removing stale daemon-schedule wording from user-facing flows.
+
 ## 0.1.61 - 2026-05-31
 
 - ff6766d Stop shipping repo-local skills

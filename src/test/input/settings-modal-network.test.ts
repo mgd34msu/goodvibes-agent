@@ -4,7 +4,7 @@
  * Covers:
  *   - Network tab populated with controlPlane.* and httpListener.* entries
  *   - host field visibility gating (hidden unless hostMode === 'custom')
- *   - External daemon lifecycle/network rows are visible but locked for Agent
+ *   - External runtime lifecycle/network rows are visible but locked for Agent
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync } from 'fs';
@@ -177,7 +177,7 @@ describe('SettingsModal — network category', () => {
     expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
   });
 
-  test('external daemon lock notice is cleared on close()', () => {
+  test('external runtime lock notice is cleared on close()', () => {
     openOnNetworkTab();
     const items = modal.currentItems;
     const idx = items.findIndex(e => e.setting.key === 'controlPlane.hostMode');
@@ -189,7 +189,7 @@ describe('SettingsModal — network category', () => {
     expect(modal.lastSaveTriggeredRestart).toBeNull();
   });
 
-  test('external daemon lock notice is cleared on open()', () => {
+  test('external runtime lock notice is cleared on open()', () => {
     openOnNetworkTab();
     const items = modal.currentItems;
     const idx = items.findIndex(e => e.setting.key === 'controlPlane.hostMode');
@@ -201,7 +201,7 @@ describe('SettingsModal — network category', () => {
     expect(modal.lastSaveTriggeredRestart).toBeNull();
   });
 
-  test('adjustSelected does not cycle external daemon controlPlane.hostMode values', () => {
+  test('adjustSelected does not cycle external runtime controlPlane.hostMode values', () => {
     openOnNetworkTab();
     const items = modal.currentItems;
     const cpHostModeIdx = items.findIndex(e => e.setting.key === 'controlPlane.hostMode');
@@ -271,7 +271,7 @@ describe('SettingsModal — network category', () => {
     expect(modal.lastSettingEffectMessage).toBe(AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON);
   });
 
-  test('external daemon-owned network keys are marked locked', () => {
+  test('external runtime-owned network keys are marked locked', () => {
     openOnNetworkTab();
     const daemonOwnedEntries = modal.currentItems.filter((entry) => isExternalDaemonOwnedSettingKey(entry.setting.key));
     expect(daemonOwnedEntries.length).toBeGreaterThan(0);
@@ -295,10 +295,10 @@ describe('SettingsModal — network category', () => {
           : ''
       )
       .join('\n');
-    expect(text).toContain('external daemon');
+    expect(text).toContain('external GoodVibes runtime');
   });
 
-  test('render-layer: external daemon lock notice appears after a blocked change', () => {
+  test('render-layer: external runtime lock notice appears after a blocked change', () => {
     const { renderSettingsModal } = require('../../renderer/settings-modal.ts');
     openOnNetworkTab();
     const items = modal.currentItems;
@@ -314,7 +314,7 @@ describe('SettingsModal — network category', () => {
           : ''
       )
       .join('\n');
-    expect(text).toContain('external daemon');
+    expect(text).toContain('external GoodVibes runtime');
   });
 
   test('service settings are locked and do not call the setting apply handler', () => {

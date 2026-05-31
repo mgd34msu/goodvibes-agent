@@ -1,18 +1,18 @@
 # Deployment And Services
 
-GoodVibes Agent is a client/operator surface. It does not own daemon or listener deployment.
+GoodVibes Agent is a client/operator surface. It does not own runtime or listener deployment.
 
 ## Service Ownership
 
 Agent must not:
 
-- start an embedded daemon
+- start an embedded runtime
 - start an embedded HTTP listener
 - install or uninstall OS services
-- start, stop, or restart daemon services
+- start, stop, or restart runtime services
 - enable web, listener, control-plane, or channel surface posture
 
-Those operations belong to GoodVibes TUI or the daemon host.
+Those operations belong to GoodVibes TUI or the owning runtime host.
 
 ## Agent Runtime
 
@@ -30,21 +30,21 @@ The executable is backed by TypeScript-authored source with a Bun shebang. Packa
 - `goodvibes-agent` launches the TUI in a real PTY
 - `goodvibes-agent smoke --json` when that command is available in the baseline being tested
 
-## External Daemon Connection
+## External Runtime Connection
 
-Agent reads configuration and tokens, then connects to an already-running daemon. The default local control-plane URL is normally:
+Agent reads configuration and tokens, then connects to an already-running GoodVibes runtime. The default local control-plane URL is normally:
 
 ```text
 http://127.0.0.1:3421
 ```
 
-If the daemon is unavailable, unauthenticated, or on an incompatible SDK version, Agent commands should report actionable diagnostics without printing token values.
+If the runtime is unavailable, unauthenticated, or on an incompatible SDK version, Agent commands should report actionable diagnostics without printing token values.
 
 ## Surface Commands
 
 `goodvibes-agent surfaces`, `surfaces check`, and `surfaces show <surfaceId>` are read-only diagnostics.
 
-`surfaces enable` and `surfaces disable` are intentionally blocked in Agent because they can mutate daemon/listener/web/channel posture.
+`surfaces enable` and `surfaces disable` are intentionally blocked in Agent because they can mutate runtime/listener/web/channel posture.
 
 ## Release Rule
 

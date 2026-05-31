@@ -34,11 +34,11 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   wrfc: 'WRFC is external to normal Agent operation. Review these copied compatibility values only for explicit GoodVibes TUI build delegation.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
-  service: 'External daemon service posture. Agent shows these copied compatibility keys for inspection only and does not install, start, stop, restart, or autostart services.',
-  controlPlane: 'External daemon control-plane settings for local admin/API access. Agent connects to this daemon and does not mutate its bind posture.',
+  service: 'External GoodVibes runtime service posture. Agent shows these compatibility keys for inspection only and does not install, start, stop, restart, or autostart services.',
+  controlPlane: 'External GoodVibes runtime control-plane settings for local admin/API access. Agent connects to that runtime and does not mutate its bind posture.',
   httpListener: 'External HTTP listener settings for webhook and integration ingress. Agent does not start or expose the listener.',
   web: 'External browser surface settings. Agent does not own the web listener or network bind lifecycle.',
-  batch: 'Batch execution settings reported from the external daemon. Agent does not own remote queue provisioning.',
+  batch: 'Batch execution settings reported from the external GoodVibes runtime. Agent does not own remote queue provisioning.',
   automation: 'Scheduled and automated run settings, concurrency, timeout, catch-up, cooldown, and retention behavior.',
   watchers: 'File/process watcher heartbeat, polling, and recovery-window behavior.',
   runtime: 'Runtime guardrails such as companion chat limiter and event bus listener caps.',
@@ -47,10 +47,10 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   mcp: 'MCP server trust and scope review. Trust changes can expose local files, tools, databases, browsers, or remote automation depending on the server.',
   surfaces: 'External app surfaces such as Slack, Discord, ntfy, Telegram, webhooks, chat bridges, and messaging providers.',
   release: 'Release-channel preference.',
-  danger: 'High-impact daemon and listener switches. Agent renders daemon-owned switches read-only; use GoodVibes TUI or the daemon host to change them.',
+  danger: 'High-impact runtime and listener switches. Agent renders host-owned switches read-only; use GoodVibes TUI or the owning host to change them.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
   flags: 'Feature flags are SDK runtime gates. They are separate from normal config keys because they enable or disable staged runtime behavior.',
-  network: 'Read-only view of external daemon control-plane, HTTP listener, and browser web bind posture plus editable non-daemon network settings.',
+  network: 'Read-only view of external GoodVibes runtime control-plane, HTTP listener, and browser web bind posture plus editable Agent network settings.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
@@ -479,7 +479,7 @@ function footerText(modal: SettingsModal): string {
   if (modal.currentCategory === 'flags') return 'Focus feature flags · Up/Down flag · Left categories · Tab pane · Enter/Space toggle · Esc close';
   const selected = modal.getSelected();
   if (selected && isExternalDaemonOwnedSettingKey(selected.setting.key)) {
-    return 'Read-only external daemon setting · Change from GoodVibes TUI or daemon host · Esc close';
+    return 'Read-only external runtime setting · Change from GoodVibes TUI or the owning host · Esc close';
   }
   return 'Focus settings · Up/Down setting · Left categories · Tab pane · Enter/Space edit/toggle · R reset · Esc close';
 }
@@ -490,7 +490,7 @@ export function renderSettingsModal(
   viewportHeight = 24,
 ): Line[] {
   const notices = [
-    ...(modal.lastSaveTriggeredRestart ? [`External daemon owner must restart ${modal.lastSaveTriggeredRestart}`] : []),
+    ...(modal.lastSaveTriggeredRestart ? [`External runtime owner must restart ${modal.lastSaveTriggeredRestart}`] : []),
     ...(modal.lastSettingEffectMessage ? [modal.lastSettingEffectMessage] : []),
   ];
   const metrics = getFullscreenWorkspaceMetrics({ width, height: viewportHeight });

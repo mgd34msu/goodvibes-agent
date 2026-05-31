@@ -1,4 +1,4 @@
-export const AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON = 'GoodVibes Agent connects to an external daemon. Change this from GoodVibes TUI or the daemon host; Agent settings are read-only for daemon lifecycle and bind posture.';
+export const AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON = 'GoodVibes Agent connects to an external GoodVibes runtime. Change runtime lifecycle and bind posture from the owning host; Agent settings are read-only for those controls.';
 
 const AGENT_HIDDEN_SETTING_PREFIXES = [
   ['cloud', 'flare.'].join(''),

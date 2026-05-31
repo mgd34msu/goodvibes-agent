@@ -466,7 +466,7 @@ describe('command modal handoff', () => {
       input.feed(' ');
 
       expect(configManager.get('danger.daemon')).toBe(before);
-      expect(input.settingsModal.lastSettingEffectMessage).toContain('external daemon');
+      expect(input.settingsModal.lastSettingEffectMessage).toContain('external GoodVibes runtime');
       expect(input.settingsModal.active).toBe(true);
       expect(input.commandMode).toBe(false);
       expect(input.modalStack).toEqual(['settings']);

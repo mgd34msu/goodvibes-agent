@@ -5,7 +5,7 @@
 
 GoodVibes Agent is the personal operator assistant built on the GoodVibes terminal UI foundation. This repository is intentionally in a near-fork baseline phase: the shell, renderer, input, fullscreen workspace, command, and release bones are copied from the terminal product first, then the coding-specific behavior is removed or reshaped deliberately.
 
-The Agent product connects to an already-running GoodVibes daemon. It does not install, start, stop, restart, or own the daemon, HTTP listener, web surface, or service lifecycle.
+The Agent product connects to an already-running GoodVibes runtime. It does not install, start, stop, restart, or own runtime connectivity or service lifecycle.
 
 ## Install
 
@@ -65,7 +65,7 @@ goodvibes-agent --agent-profile household status
 GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
 ```
 
-Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The daemon is still external and shared unless your daemon host is separately configured otherwise.
+Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The GoodVibes runtime is still external and shared unless the owning host is separately configured otherwise.
 
 Local Agent behavior is editable from the TUI:
 
@@ -81,13 +81,13 @@ Local Agent behavior is editable from the TUI:
 /skills local list
 ```
 
-Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promotion to a daemon schedule is separate and explicit: it calls the public `schedules.create` route on the externally managed daemon only after `--yes`, can include explicit delivery targets such as `--delivery-surface slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live externally owned daemon schedules through public `schedules.list`.
+Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promotion to an external schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-surface slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live external schedules through public `schedules.list`.
 
-## Daemon Prerequisite
+## Runtime Prerequisite
 
-Start or restart the daemon from GoodVibes TUI or the daemon host before launching Agent. Agent status and companion/knowledge routes connect to that external daemon, normally on `http://127.0.0.1:3421`.
+Start or restart the GoodVibes runtime from GoodVibes TUI or the owning host before launching Agent. Agent status and companion/knowledge routes connect to that external runtime, normally on `http://127.0.0.1:3421`.
 
-Agent intentionally blocks daemon lifecycle commands:
+Agent intentionally blocks runtime lifecycle commands:
 
 ```sh
 goodvibes-agent serve
@@ -95,7 +95,7 @@ goodvibes-agent service start
 goodvibes-agent surfaces enable web
 ```
 
-Those commands should return explicit external-daemon guidance instead of mutating local service posture.
+Those commands should return explicit external-runtime guidance instead of mutating local service posture.
 
 ## Product Boundary
 
@@ -103,7 +103,7 @@ GoodVibes Agent owns the operator assistant surface: serial assistant flow, proa
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
 
-GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, runtime-isolation UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public daemon/session contracts; normal assistant chat must not use shared coding sessions.
+GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, runtime-isolation UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public runtime/session contracts; normal assistant chat must not use shared coding sessions.
 
 ## Package Docs
 

@@ -43,7 +43,7 @@ export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind): AgentWor
     mode: 'create',
     title: 'Create Routine',
     selectedFieldIndex: 0,
-    message: 'Enter a repeatable workflow. It runs in the main conversation unless explicitly promoted to a daemon schedule.',
+    message: 'Enter a repeatable workflow. It runs in the main conversation unless explicitly promoted to an external schedule.',
     fields: [
       { id: 'name', label: 'Name', value: '', required: true, multiline: false, hint: 'Short routine name.' },
       { id: 'description', label: 'Description', value: '', required: true, multiline: false, hint: 'One-line summary of the workflow.' },

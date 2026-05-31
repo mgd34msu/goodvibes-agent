@@ -27,7 +27,7 @@ describe('CLI service posture', () => {
     });
   }
 
-  test('reports external daemon diagnostics without resolving daemon binaries', async () => {
+  test('reports external runtime diagnostics without resolving runtime binaries', async () => {
     const config = createConfig();
     config.setDynamic('service.enabled', true);
     config.setDynamic('service.autostart', true);
@@ -41,11 +41,11 @@ describe('CLI service posture', () => {
     });
     const text = formatCliServicePosture(posture);
 
-    expect(posture.managed.path).toBe('external daemon host');
+    expect(posture.managed.path).toBe('external GoodVibes runtime host');
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(posture.managed.suggestedCommands).toEqual([]);
-    expect(posture.issues).not.toContain('External daemon service config is enabled, but no platform service definition is installed.');
-    expect(text).toContain('GoodVibes external daemon diagnostics');
+    expect(posture.issues).not.toContain('External runtime service config is enabled, but no platform service definition is installed.');
+    expect(text).toContain('GoodVibes external runtime diagnostics');
     expect(text).toContain('lifecycle: managed outside goodvibes-agent');
     expect(text).not.toContain('goodvibes-daemon');
     expect(text).not.toContain('systemctl');
@@ -73,7 +73,7 @@ describe('CLI service posture', () => {
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
   });
 
-  test('reads configured external daemon logs with redaction', async () => {
+  test('reads configured external runtime logs with redaction', async () => {
     const config = createConfig();
     const logPath = join(root, 'daemon.log');
     writeFileSync(logPath, 'token=secret-value GOODVIBES_DAEMON_TOKEN=abc123\n', 'utf-8');
@@ -106,9 +106,9 @@ describe('CLI service posture', () => {
       issues: string[];
     };
 
-    expect(parsed.managed.path).toBe('external daemon host');
+    expect(parsed.managed.path).toBe('external GoodVibes runtime host');
     expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
-    expect(parsed.issues).toContain('Daemon-owned surfaces are configured, but Agent service ownership is disabled.');
+    expect(parsed.issues).toContain('Host-owned surfaces are configured, but Agent service ownership is disabled.');
   });
 });

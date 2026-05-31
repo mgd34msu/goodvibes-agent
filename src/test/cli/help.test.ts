@@ -22,7 +22,7 @@ describe('CLI help/version', () => {
 
     expect(help).not.toContain('tasks                      ');
     expect(help).toContain('profiles                   Manage isolated Agent runtime profile homes');
-    expect(help).toContain('routines                   Inspect local routines and explicitly promote one to a daemon schedule');
+    expect(help).toContain('routines                   Inspect local routines and explicitly promote one to an external schedule');
     expect(help).not.toContain('capabilities               ');
     expect(help).toContain('--agent-profile <name>');
     expect(help).not.toContain('tasks submit <prompt>');
@@ -33,17 +33,17 @@ describe('CLI help/version', () => {
     const help = renderGoodVibesCommandHelp('profiles');
     expect(help).toContain('isolated Agent runtime profile homes');
     expect(help).toContain('--agent-profile');
-    expect(help).toContain('externally owned daemon');
+    expect(help).toContain('shared GoodVibes runtime');
   });
 
-  test('routines command help explains explicit daemon schedule promotion', () => {
+  test('routines command help explains explicit external schedule promotion', () => {
     const help = renderGoodVibesCommandHelp('routines');
     expect(help).toContain('promote <id>');
     expect(help).toContain('routines receipts');
     expect(help).toContain('routines reconcile');
     expect(help).toContain('--delivery-surface');
     expect(help).toContain('--delivery-webhook');
-    expect(help).toContain('external daemon schedule');
+    expect(help).toContain('GoodVibes schedule');
     expect(help).toContain('Without --yes');
   });
 });

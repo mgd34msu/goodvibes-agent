@@ -27,16 +27,16 @@ export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPr
   const delivery = preview.payload.delivery;
   const deliveryTargetCount = delivery?.targets.length ?? 0;
   return [
-    'Daemon schedule preview for Agent routine',
+    'GoodVibes schedule preview for Agent routine',
     `  routine: ${preview.routineName} (${preview.routineId})`,
     `  route: ${preview.method} ${preview.route}`,
-    `  name: ${String(preview.payload.name ?? '(daemon default)')}`,
+    `  name: ${String(preview.payload.name ?? '(runtime default)')}`,
     `  schedule: ${preview.payload.kind} ${schedule}`,
     `  enabled: ${preview.payload.enabled === false ? 'no' : 'yes'}`,
     `  delivery: ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
-    '  target: external daemon service/main conversation route',
+    '  target: GoodVibes runtime/main conversation route',
     '  policy: isolated Agent Knowledge only; no default wiki/non-Agent fallback; no WRFC unless explicitly delegated',
-    '  next: rerun with --yes to create this daemon schedule',
+    '  next: rerun with --yes to create this external schedule',
   ].join('\n');
 }
 
@@ -45,12 +45,12 @@ export function formatRoutineScheduleSuccess(result: RoutineSchedulePromotionSuc
   const id = readString(record, 'id') ?? '(unknown)';
   const status = readString(record, 'status') ?? (record.enabled === false ? 'paused' : 'enabled');
   return [
-    'Created daemon schedule for Agent routine',
+    'Created GoodVibes schedule for Agent routine',
     `  routine: ${result.routineName} (${result.routineId})`,
     `  schedule: ${id}`,
     `  status: ${status}`,
     `  route: ${result.kind} ${result.route}`,
-    '  next: inspect with /schedule list or daemon schedule observability',
+    '  next: inspect with /schedule list or schedule observability',
   ].join('\n');
 }
 
@@ -83,7 +83,7 @@ export function formatRoutineScheduleReceipt(receipt: RoutineScheduleReceipt): s
     `  status: ${receipt.status}`,
     `  routine: ${receipt.routineName} (${receipt.routineId})`,
     `  route: ${receipt.method} ${receipt.route}`,
-    `  daemon: ${receipt.daemonBaseUrl}`,
+    `  runtime: ${receipt.daemonBaseUrl}`,
     `  schedule: ${receipt.scheduleName}${receipt.scheduleId ? ` (${receipt.scheduleId})` : ''}`,
     receipt.scheduleStatus ? `  schedule status: ${receipt.scheduleStatus}` : '',
     `  cadence: ${receipt.scheduleKind} ${receipt.scheduleValue}${receipt.timezone ? ` [${receipt.timezone}]` : ''}`,
@@ -101,18 +101,18 @@ export function formatRoutineScheduleReceipt(receipt: RoutineScheduleReceipt): s
 export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelationResult, limit = 10): string {
   if (!result.ok) {
     return [
-      `Daemon schedule reconciliation error: ${result.kind}`,
+      `GoodVibes schedule reconciliation error: ${result.kind}`,
       `  ${result.error}`,
-      result.baseUrl ? `  daemon: ${result.baseUrl}` : null,
+      result.baseUrl ? `  runtime: ${result.baseUrl}` : null,
       `  route: ${ROUTINE_SCHEDULE_LIST_METHOD} ${result.route}`,
       result.kind === 'auth_required'
-        ? '  next: pair/authenticate with the externally managed GoodVibes daemon, then retry.'
+        ? '  next: pair/authenticate with the external GoodVibes runtime, then retry.'
         : null,
       result.kind === 'daemon_unavailable'
-        ? '  next: start/restart the external GoodVibes daemon from TUI or daemon host tooling; Agent does not own daemon lifecycle.'
+        ? '  next: start/restart the external GoodVibes runtime from TUI or host tooling; Agent does not own runtime lifecycle.'
         : null,
       result.kind === 'version_mismatch' || result.kind === 'daemon_route_unavailable'
-        ? '  next: update/restart the external GoodVibes daemon so public schedules.list is available.'
+        ? '  next: update/restart the external GoodVibes runtime so public schedules.list is available.'
         : null,
     ].filter((line): line is string => Boolean(line)).join('\n');
   }
@@ -120,7 +120,7 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
   if (result.receiptCount === 0) {
     return [
       'Agent routine schedule reconciliation',
-      `  daemon: ${result.baseUrl}`,
+      `  runtime: ${result.baseUrl}`,
       `  route: ${result.kind} ${result.route}`,
       `  live schedules: ${result.scheduleCount}`,
       '  No local routine promotion receipts exist yet.',
@@ -132,7 +132,7 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
   const failed = result.correlations.filter((entry) => entry.liveStatus === 'failed-receipt').length;
   return [
     'Agent routine schedule reconciliation',
-    `  daemon: ${result.baseUrl}`,
+    `  runtime: ${result.baseUrl}`,
     `  route: ${result.kind} ${result.route}`,
     `  receipts: ${result.receiptCount}; live schedules: ${result.scheduleCount}; matched: ${matched}; missing: ${missing}; failed receipts: ${failed}`,
     ...correlations.map((entry) => {
@@ -153,21 +153,21 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
 
 export function formatRoutineScheduleFailure(failure: RoutineSchedulePromotionFailure): string {
   return [
-    `Daemon schedule error: ${failure.kind}`,
+    `GoodVibes schedule error: ${failure.kind}`,
     `  ${failure.error}`,
-    failure.baseUrl ? `  daemon: ${failure.baseUrl}` : null,
+    failure.baseUrl ? `  runtime: ${failure.baseUrl}` : null,
     `  route: ${ROUTINE_SCHEDULE_METHOD} ${failure.route}`,
     failure.kind === 'version_mismatch' && failure.daemonVersion && failure.expectedSdkVersion
-      ? `  versions: daemon=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
+      ? `  versions: runtime=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
       : null,
     failure.kind === 'auth_required'
-      ? '  next: pair/authenticate with the externally managed GoodVibes daemon, then retry with --yes.'
+      ? '  next: pair/authenticate with the external GoodVibes runtime, then retry with --yes.'
       : null,
     failure.kind === 'daemon_unavailable'
-      ? '  next: start/restart the external GoodVibes daemon from TUI or daemon host tooling; Agent does not own daemon lifecycle.'
+      ? '  next: start/restart the external GoodVibes runtime from TUI or host tooling; Agent does not own runtime lifecycle.'
       : null,
     failure.kind === 'version_mismatch' || failure.kind === 'daemon_route_unavailable'
-      ? '  next: update/restart the external GoodVibes daemon so public schedules.create is available.'
+      ? '  next: update/restart the external GoodVibes runtime so public schedules.create is available.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }

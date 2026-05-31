@@ -34,10 +34,10 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
   const hasActivePersona = input.activePersonaName !== '(none)' && input.activePersonaName !== '(unavailable)';
   return [
     {
-      id: 'daemon',
-      label: 'External daemon',
+      id: 'runtime',
+      label: 'External runtime',
       status: 'ready',
-      detail: `Agent will connect to ${input.daemonBaseUrl}; daemon lifecycle stays external.`,
+      detail: `Agent will connect to ${input.daemonBaseUrl}; runtime lifecycle stays external.`,
       command: '/status',
     },
     {

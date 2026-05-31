@@ -47,10 +47,10 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
     id: 'agent-communication',
     title: 'Channels and notifications',
     shortLabel: 'Channels',
-    description: 'Prepare the Agent for companion pairing, messaging-channel awareness, notification delivery, and safe outbound communication without owning daemon listeners.',
+    description: 'Prepare the Agent for companion pairing, messaging-channel awareness, notification delivery, and safe outbound communication without changing runtime connectivity.',
     summaryTitle: 'Communication posture',
     summaryLines: [
-      'Companion chat: paired through the external GoodVibes service',
+      'Companion chat: paired through the GoodVibes runtime',
       'Channel accounts: inspect readiness before using them',
       'Outbound messages: explicit user action only',
     ],
@@ -59,14 +59,14 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-communication.companion',
         label: 'Companion pairing',
-        hint: 'Use /pair from the Agent workspace to pair companion clients through the already-running service.',
+        hint: 'Use /pair from the Agent workspace to pair companion clients through the already-running GoodVibes runtime.',
         defaultValue: 'External service route',
       },
       {
         kind: 'status',
         id: 'agent-communication.channels',
         label: 'Messaging channels',
-        hint: 'Use the Channels workspace to inspect account readiness, delivery posture, and recent communication without changing listener or service lifecycle.',
+        hint: 'Use the Channels workspace to inspect account readiness, delivery posture, and recent communication without changing runtime connectivity.',
         defaultValue: 'Inspectable',
       },
       {
@@ -80,7 +80,7 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-communication.inbound-policy',
         label: 'Inbound command policy',
-        hint: 'Incoming channel commands stay constrained by daemon-side policy, allowlists, and account posture.',
+        hint: 'Incoming channel commands stay constrained by runtime policy, allowlists, and account posture.',
         defaultValue: 'Policy gated',
       },
     ],
@@ -169,7 +169,7 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
     summaryTitle: 'Agent setup posture',
     summaryLines: [
       'Agent owns the operator TUI and local behavior registry.',
-      'GoodVibes service lifecycle is external to this product.',
+      'GoodVibes runtime lifecycle is external to this product.',
       `Secret policy: ${controller.getStringFieldValue('agent-setup.secret-policy', secretPolicy)}`,
       collectionIssues > 0 ? `${collectionIssues} setup snapshot issue(s)` : 'Setup snapshot collected cleanly',
     ],
@@ -184,10 +184,10 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
       {
         kind: 'status',
         id: 'agent-setup.connection',
-        label: 'GoodVibes service connection',
+        label: 'GoodVibes runtime connection',
         hint: collectionIssues > 0
           ? `${collectionIssues} setup snapshot issue(s) were reported. Status and doctor commands show connection details.`
-          : 'Agent connects to an already-running GoodVibes service for companion chat, work plans, approvals, automation, and Agent Knowledge.',
+          : 'Agent connects to an already-running GoodVibes runtime for companion chat, work plans, approvals, automation, and Agent Knowledge.',
         defaultValue: collectionIssues > 0 ? `${collectionIssues} issue(s)` : 'External service',
       },
       {
@@ -423,11 +423,11 @@ export function buildAutomationStep(): OnboardingWizardStepDefinition {
     id: 'agent-automation',
     title: 'Routines and automation',
     shortLabel: 'Routines',
-    description: 'Set the Agent automation posture: local routines run in the main conversation, while daemon schedules remain externally owned and explicit.',
+    description: 'Set the Agent automation posture: local routines run in the main conversation, while external schedules remain explicit.',
     summaryTitle: 'Routine and schedule posture',
     summaryLines: [
       'Local routines: reusable main-conversation workflows',
-      'Daemon schedules: explicit promotion only',
+      'External schedules: explicit promotion only',
       'Runs/cancels/retries: command-confirmed side effects',
     ],
     fields: [
@@ -449,7 +449,7 @@ export function buildAutomationStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-automation.schedule-promotion',
         label: 'Routine-to-schedule promotion',
-        hint: 'Creating daemon schedules from routines requires a reviewed routine, a real timing expression, optional delivery target, and explicit confirmation.',
+        hint: 'Creating external schedules from routines requires a reviewed routine, a real timing expression, optional delivery target, and explicit confirmation.',
         defaultValue: 'Explicit command',
       },
       {
@@ -468,7 +468,7 @@ export function buildVoiceMediaStep(): OnboardingWizardStepDefinition {
     id: 'agent-voice-media',
     title: 'Voice and media',
     shortLabel: 'Voice',
-    description: 'Prepare voice, speech, image input, and media understanding as Agent operator surfaces rather than daemon lifecycle features.',
+    description: 'Prepare voice, speech, image input, and media understanding as Agent operator surfaces rather than runtime lifecycle features.',
     summaryTitle: 'Voice and media posture',
     summaryLines: [
       'Voice and speech: optional operator surfaces',
@@ -637,7 +637,7 @@ export function buildReviewStep(controller: OnboardingWizardController): Onboard
         id: 'review.apply',
         action: 'apply',
         label: 'Apply Agent settings and verify',
-        hint: 'Persist the Agent-owned settings and verify that no service lifecycle, non-Agent entrypoint, default wiki, or non-Agent knowledge setup was requested.',
+        hint: 'Persist the Agent-owned settings and verify that no runtime lifecycle, non-Agent entrypoint, default wiki, or non-Agent knowledge setup was requested.',
         defaultValue: 'Ready',
       },
     ],

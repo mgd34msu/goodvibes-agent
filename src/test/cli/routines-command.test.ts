@@ -176,7 +176,7 @@ describe('routines CLI command', () => {
         'https://hooks.example.test/routine/secret-token',
       ]));
       expect(result.exitCode).toBe(0);
-      expect(result.output).toContain('Daemon schedule preview');
+      expect(result.output).toContain('GoodVibes schedule preview');
       expect(result.output).toContain('schedules.create /api/automation/schedules');
       expect(result.output).toContain('delivery: webhook (1 target)');
       expect(result.output).not.toContain('secret-token');

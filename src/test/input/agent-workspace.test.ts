@@ -584,7 +584,7 @@ describe('AgentWorkspace', () => {
     } as unknown as CommandContext);
     const byId = new Map(snapshot.setupChecklist.map((item) => [item.id, item]));
 
-    expect(byId.get('daemon')?.status).toBe('ready');
+    expect(byId.get('runtime')?.status).toBe('ready');
     expect(byId.get('provider-model')?.status).toBe('ready');
     expect(byId.get('agent-knowledge')?.status).toBe('recommended');
     expect(byId.get('memory')?.status).toBe('ready');

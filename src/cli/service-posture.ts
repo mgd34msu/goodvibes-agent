@@ -143,7 +143,7 @@ function resolveConfiguredLogPath(runtime: CliServiceRuntime): string | undefine
 function createExternalDaemonLifecycle(logPath: string | undefined): CliExternalDaemonLifecyclePosture {
   return {
     platform: 'manual',
-    path: 'external daemon host',
+    path: 'external GoodVibes runtime host',
     installed: false,
     autostart: false,
     running: false,
@@ -151,7 +151,7 @@ function createExternalDaemonLifecycle(logPath: string | undefined): CliExternal
     commandPreview: 'managed outside goodvibes-agent',
     suggestedCommands: [],
     lastAction: 'status',
-    pidPath: 'external daemon host',
+    pidPath: 'external GoodVibes runtime host',
     lastError: null,
   };
 }
@@ -184,13 +184,13 @@ export async function buildCliServicePosture(
   const issues: string[] = [];
 
   if (serverBackedEnabled && !config.enabled) {
-    issues.push('Daemon-owned surfaces are configured, but Agent service ownership is disabled.');
+    issues.push('Host-owned surfaces are configured, but Agent service ownership is disabled.');
   }
   if (config.enabled && !config.autostart) {
-    issues.push('External daemon service config has autostart off.');
+    issues.push('External runtime service config has autostart off.');
   }
   if (config.enabled && !config.restartOnFailure) {
-    issues.push('External daemon service config has restart-on-failure off.');
+    issues.push('External runtime service config has restart-on-failure off.');
   }
   for (const endpoint of endpoints) {
     if (endpoint.enabled && options.probe && endpoint.reachable === false) {
@@ -229,7 +229,7 @@ function yesNo(value: boolean): string {
 export function formatCliServicePosture(posture: CliServicePosture, json = false): string {
   if (json) return JSON.stringify(posture, null, 2);
   return [
-    'GoodVibes external daemon diagnostics',
+    'GoodVibes external runtime diagnostics',
     '  lifecycle: managed outside goodvibes-agent',
     `  service config enabled: ${yesNo(posture.config.enabled)}`,
     `  autostart config: ${yesNo(posture.config.autostart)}`,

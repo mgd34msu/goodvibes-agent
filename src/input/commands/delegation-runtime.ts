@@ -48,7 +48,7 @@ export function registerDelegationRuntimeCommands(registry: CommandRegistry): vo
     if (!operator) {
       ctx.print([
         'Delegation unavailable: no operator client is attached.',
-        'Use the external daemon/shared-session route from a configured Agent runtime, or open GoodVibes TUI in the target workspace.',
+        'Use the shared-session route from a configured Agent runtime, or open GoodVibes TUI in the target workspace.',
       ].join('\n'));
       return;
     }
