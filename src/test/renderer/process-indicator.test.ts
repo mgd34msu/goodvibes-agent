@@ -18,7 +18,7 @@ describe('renderProcessIndicator', () => {
   test('idle state contains idle label text', () => {
     const lines = renderProcessIndicator(W, 0, 0);
     const text = lineToString(lines[0]);
-    expect(text).toContain('No background processes');
+    expect(text).toContain('No runtime activity');
   });
 
   test('idle state cells are dimmed', () => {
@@ -108,7 +108,7 @@ describe('renderProcessIndicator', () => {
     expect(lines.length).toBe(1);
     const text = lines[0].map(c => c.char).join('');
     expect(text).toContain('▸');
-    expect(text).toContain('No background processes');
+    expect(text).toContain('No runtime activity');
   });
 
   test('focused with active processes shows Enter hint', () => {

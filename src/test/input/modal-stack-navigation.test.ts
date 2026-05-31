@@ -47,7 +47,7 @@ describe('modal stack navigation', () => {
     expect(selectedId).toBe('agent-1');
   });
 
-  test('live tail kill-and-return unwinds through escape instead of flattening the stack', () => {
+  test('live tail stop-and-return unwinds through escape only after a stopped exec', () => {
     let killCount = 0;
     let escapeCount = 0;
     const state = {
@@ -55,7 +55,10 @@ describe('modal stack navigation', () => {
         active: true,
         scrollUp: () => {},
         scrollDown: () => {},
-        killProcess: () => { killCount += 1; },
+        killProcess: () => {
+          killCount += 1;
+          return true;
+        },
         close: () => {},
       },
       processModal: {
@@ -70,5 +73,28 @@ describe('modal stack navigation', () => {
     expect(handled).toBe(true);
     expect(killCount).toBe(1);
     expect(escapeCount).toBe(1);
+  });
+
+  test('live tail stop shortcut stays open when cancellation is blocked', () => {
+    let escapeCount = 0;
+    const state = {
+      liveTailModal: {
+        active: true,
+        scrollUp: () => {},
+        scrollDown: () => {},
+        killProcess: () => false,
+        close: () => {},
+      },
+      processModal: {
+        open: () => {},
+      },
+      requestRender: () => {},
+      handleEscape: () => { escapeCount += 1; },
+    };
+
+    const handled = handleLiveTailToken(state, { type: 'text', value: 'k' });
+
+    expect(handled).toBe(true);
+    expect(escapeCount).toBe(0);
   });
 });

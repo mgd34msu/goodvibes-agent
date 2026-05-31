@@ -6,7 +6,7 @@ import type { ProcessEntry } from './process-modal.ts';
 import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay-viewport.ts';
 
 export interface LiveTailModalDeps {
-  readonly agentManager: Pick<AgentManager, 'cancel' | 'getStatus'>;
+  readonly agentManager: Pick<AgentManager, 'getStatus'>;
   readonly processManager: Pick<ProcessManager, 'stop' | 'getOutput'>;
 }
 
@@ -15,7 +15,7 @@ export interface LiveTailModalDeps {
 /**
  * LiveTailModal — manages state for the live output peek modal.
  *
- * Shows streaming stdout/stderr from a selected background process or agent
+ * Shows streaming stdout/stderr from a selected shell process or agent
  * progress notes. Auto-scrolls to the bottom unless the user scrolled up.
  */
 export class LiveTailModal {
@@ -48,17 +48,17 @@ export class LiveTailModal {
   }
 
   /**
-   * Kill the current process.
-   * Returns true if the process was found and stopped.
+   * Stop the current shell process when it is an exec entry.
+   * Agent entries are read-only in GoodVibes Agent; build execution and
+   * cancellation belong to GoodVibes TUI/shared-session owners.
    */
   killProcess(): boolean {
     if (!this.entry) return false;
 
     if (this.entry.type === 'exec') {
       return this.deps.processManager.stop(this.entry.id);
-    } else {
-      return this.deps.agentManager.cancel(this.entry.id);
     }
+    return false;
   }
 
   /** Retrieve the current output text for the watched process. */
@@ -151,6 +151,6 @@ export function renderLiveTailModal(
     margin: 2,
     targetContentRows,
     sections,
-    hints: ['[Up/Down] Scroll', '[k] Kill', '[Esc] Back'],
+    hints: ['[Up/Down] Scroll', '[k] Stop exec only', '[Esc] Back'],
   }, width);
 }

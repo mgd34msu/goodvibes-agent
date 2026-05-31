@@ -70,12 +70,6 @@ function createProcessModal(): ProcessModal {
     agentManager: {
       list: () => Array.from(agents.values()),
       getStatus: (id: string) => agents.get(id) ?? null,
-      cancel: (id: string) => {
-        const record = agents.get(id);
-        if (!record) return false;
-        record.status = 'cancelled';
-        return true;
-      },
     },
     processManager: {
       list: () => Array.from(processes.values()),
@@ -181,16 +175,17 @@ describe('ProcessModal state', () => {
     expect(sel!.label).toContain('Task B');
   });
 
-  test('killSelected() delegates to AgentManager for agent entries', () => {
+  test('killSelected() refuses to cancel agent entries', () => {
     const id = seedAgent('Kill this task');
+    const record = agents.get(id);
+    if (!record) throw new Error('expected agent record');
     const modal = createProcessModal();
     modal.open();
-    // Find the agent entry
     const entryIdx = modal.entries.findIndex((e) => e.id === id);
     modal.selectedIndex = entryIdx;
-    // AgentManager.cancel returns false if agent already cancelled; just verify no throw
     const result = modal.killSelected();
-    expect(typeof result).toBe('boolean');
+    expect(result).toBe(false);
+    expect(record.status).toBe('running');
   });
 
   test('killSelected() returns false when no entries', () => {
@@ -501,7 +496,7 @@ describe('renderProcessModal', () => {
     const modal = createProcessModal();
     const lines = renderProcessModal(modal, W);
     const text = linesToText(lines).join('\n');
-    expect(text).toContain('No background processes running');
+    expect(text).toContain('No runtime activity');
   });
 
   test('all lines have correct terminal width', () => {
@@ -593,10 +588,10 @@ describe('renderProcessModal', () => {
     expect(text).toContain('Esc');
   });
 
-  test('title contains Background Processes', () => {
+  test('title contains Runtime Activity', () => {
     const modal = createProcessModal();
     const lines = renderProcessModal(modal, W);
     const text = linesToText(lines).join('\n');
-    expect(text).toContain('Background Processes');
+    expect(text).toContain('Runtime Activity');
   });
 });

@@ -42,7 +42,7 @@ const WRFC_ROLE_ORDER: Record<string, number> = {
 };
 
 export interface ProcessModalDeps {
-  readonly agentManager: Pick<AgentManager, 'list' | 'getStatus' | 'cancel'>;
+  readonly agentManager: Pick<AgentManager, 'list' | 'getStatus'>;
   readonly processManager: Pick<ProcessManager, 'list' | 'getStatus' | 'stop'>;
   readonly wrfcController: Pick<WrfcController, 'getChain'> & Partial<Pick<WrfcController, 'listChains'>>;
 }
@@ -558,8 +558,9 @@ export class ProcessModal {
   }
 
   /**
-   * Kill the selected process.
-   * Returns true if a process was killed, false otherwise.
+   * Stop the selected shell process.
+   * Agent entries are read-only in GoodVibes Agent; build execution and
+   * cancellation belong to GoodVibes TUI/shared-session owners.
    */
   killSelected(): boolean {
     const entry = this.getSelected();
@@ -567,9 +568,8 @@ export class ProcessModal {
 
     if (entry.type === 'exec') {
       return this.deps.processManager.stop(entry.id);
-    } else {
-      return this.deps.agentManager.cancel(entry.id);
     }
+    return false;
   }
 }
 
@@ -598,12 +598,12 @@ export function renderProcessModal(modal: ProcessModal, width: number, viewportH
 
   if (modal.entries.length === 0) {
     return ModalFactory.createModal({
-      title: 'Background Processes',
+      title: 'Runtime Activity',
       width: boxW,
       margin: boxMargin,
       targetContentRows,
       sections: [
-        { type: 'text', content: 'No background processes running.' },
+        { type: 'text', content: 'No runtime activity.' },
       ],
       hints: ['[Esc] Close'],
     }, width);
@@ -643,7 +643,7 @@ export function renderProcessModal(modal: ProcessModal, width: number, viewportH
   }
 
   return ModalFactory.createModal({
-    title: 'Background Processes',
+    title: 'Runtime Activity',
     width: boxW,
     margin: boxMargin,
     targetContentRows,
@@ -651,6 +651,6 @@ export function renderProcessModal(modal: ProcessModal, width: number, viewportH
     helpers: modal.entries.length > maxVisibleRows
       ? [{ content: `[${window.start + 1}-${window.end} of ${modal.entries.length}]` }]
       : undefined,
-    hints: ['[Up/Down] Navigate', '[Enter] Peek output', '[k] Kill', '[Esc] Close'],
+    hints: ['[Up/Down] Navigate', '[Enter] Details/output', '[k] Stop exec only', '[Esc] Close'],
   }, width);
 }

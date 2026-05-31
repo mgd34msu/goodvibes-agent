@@ -17,12 +17,12 @@ function truncateToWidth(text: string, maxWidth: number): string {
 }
 
 /**
- * renderProcessIndicator — shows a one-line summary of active background
- * processes below the input area.
+ * renderProcessIndicator — shows a one-line summary of active runtime
+ * activity below the input area.
  *
- * Dimmed when no processes are active, highlighted (cyan) when agents or
- * background exec processes are running. Includes an `Enter to view` hint
- * when active.
+ * Dimmed when no entries are active, highlighted (cyan) when delegated agent
+ * records or shell exec processes are running. Includes an `Enter to view`
+ * hint when active.
  */
 export function renderProcessIndicator(
   width: number,
@@ -62,16 +62,16 @@ export function renderProcessIndicator(
     if (agentCount > 0) parts.push(`${agentCount} agent${agentCount !== 1 ? 's' : ''}`);
     if (toolCount > 0) parts.push(`${toolCount} tool${toolCount !== 1 ? 's' : ''} running`);
     const label = total === 0
-      ? `No background processes  ${GLYPHS.status.pending}  back to input`
+      ? `No runtime activity  ${GLYPHS.status.pending}  back to input`
       : `${parts.join(` ${GLYPHS.navigation.pipeSeparator} `)}  ${GLYPHS.status.pending}  Enter to open  ${GLYPHS.status.pending}  back to input`;
     return renderFocusedStatus(label);
   }
 
   if (total === 0) {
-    return renderPlainStatus('No background processes', { fg: '238', dim: true });
+    return renderPlainStatus('No runtime activity', { fg: '238', dim: true });
   }
 
-  // Build the label: "bg: 2 agents | Turn 3 | write - src/foo.ts"
+  // Build the label: "2 agents | Turn 3 | write - src/foo.ts"
   const parts: string[] = [];
   if (agentCount > 0) {
     parts.push(`${agentCount} agent${agentCount !== 1 ? 's' : ''}`);

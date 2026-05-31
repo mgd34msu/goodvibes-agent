@@ -256,7 +256,7 @@ type LiveTailRouteState = {
     active: boolean;
     scrollUp: () => void;
     scrollDown: () => void;
-    killProcess: () => void;
+    killProcess: () => boolean;
     close: () => void;
   };
   processModal: {
@@ -270,8 +270,7 @@ export function handleLiveTailToken(state: LiveTailRouteState, token: InputToken
   if (!state.liveTailModal.active) return false;
 
   const killAndReturn = (): void => {
-    state.liveTailModal.killProcess();
-    state.handleEscape();
+    if (state.liveTailModal.killProcess()) state.handleEscape();
   };
 
   if (token.type === 'key') {

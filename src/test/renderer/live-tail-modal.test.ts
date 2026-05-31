@@ -136,12 +136,15 @@ describe('LiveTailModal state', () => {
     expect(modal.killProcess()).toBe(false);
   });
 
-  test('killProcess() delegates to AgentManager for agent entries', () => {
+  test('killProcess() refuses to cancel agent entries', () => {
     const id = seedAgent('Kill me');
+    const agent = getTestAgentManager().getStatus(id);
+    if (!agent) throw new Error('expected agent record');
     const modal = createLiveTailModal();
     modal.open(makeEntry({ id, type: 'agent' }));
     const result = modal.killProcess();
-    expect(typeof result).toBe('boolean');
+    expect(result).toBe(false);
+    expect(agent.status).toBe('running');
   });
 
   test('killProcess() delegates to ProcessManager for exec entries', async () => {
@@ -203,13 +206,13 @@ describe('renderLiveTailModal', () => {
     expect(text).toContain('no output yet');
   });
 
-  test('footer contains hint text [k] Kill and [Esc] Back', () => {
+  test('footer contains read-only stop hint and [Esc] Back', () => {
     const id = seedAgent('Hint test');
     const modal = createLiveTailModal();
     modal.open(makeEntry({ id, type: 'agent', label: 'Hint test' }));
     const lines = renderLiveTailModal(modal, W);
     const text = linesToText(lines).join('\n');
-    expect(text).toContain('Kill');
+    expect(text).toContain('Stop exec only');
     expect(text).toContain('Back');
   });
 
