@@ -1,8 +1,28 @@
 import type { CommandRegistry } from '../command-registry.ts';
 import type { RuntimeTask, TaskLifecycleState } from '@/runtime/index.ts';
 import { reviewWorktreeAttachments } from '@/runtime/index.ts';
-import { requireOperatorClient, requireOpsApi, requirePanelManager, requireShellPaths } from './runtime-services.ts';
-import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireOperatorClient, requirePanelManager, requireShellPaths } from './runtime-services.ts';
+
+const BLOCKED_TASK_MUTATIONS: ReadonlySet<string> = new Set([
+  'create',
+  'update',
+  'complete',
+  'fail',
+  'cancel',
+  'pause',
+  'resume',
+  'retry',
+]);
+
+function printTaskMutationBlocked(print: (text: string) => void, subcommand: string): void {
+  print([
+    `Task mutation "${subcommand}" is blocked in GoodVibes Agent.`,
+    '  policy: runtime tasks are read-only from the Agent surface; normal work stays in the main conversation.',
+    '  durable tasks: use /workplan for visible planning and task tracking.',
+    '  build/fix/review: use /delegate <task> to hand explicit implementation work to GoodVibes TUI.',
+    '  result: no local runtime task state was changed.',
+  ].join('\n'));
+}
 
 function sortRuntimeTasks(tasks: RuntimeTask[]): RuntimeTask[] {
   const statusOrder: TaskLifecycleState[] = ['running', 'queued', 'blocked', 'failed', 'completed', 'cancelled'];
@@ -32,8 +52,8 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'tasks',
     aliases: ['task'],
-    description: 'Inspect and control runtime tasks',
-    usage: '[list [status|kind] | show <taskId> | output <taskId> | create <kind> <owner> <title...> | update <taskId> <title|description|result> <value...> | complete <taskId> [result] | fail <taskId> <error...> | cancel <taskId> [note] | pause <taskId> [note] | resume <taskId> [note] | retry <taskId> [note]]',
+    description: 'Inspect runtime tasks without starting or mutating local background work',
+    usage: '[list [status|kind] | show <taskId> | output <taskId>]',
     handler(args, ctx) {
       if (args.length === 0) {
         if (ctx.showPanel) ctx.showPanel('tasks');
@@ -125,106 +145,12 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      if (subcommand === 'create') {
-        const opsApi = requireOpsApi(ctx);
-        const kind = args[1];
-        const owner = args[2];
-        const title = args.slice(3).join(' ').trim();
-        if (!kind || !owner || !title) {
-          ctx.print('Usage: /tasks create <kind> <owner> <title...>');
-          return;
-        }
-        const validKinds = new Set(['exec', 'agent', 'acp', 'scheduler', 'daemon', 'mcp', 'plugin', 'integration']);
-        if (!validKinds.has(kind)) {
-          ctx.print(`Unknown task kind: ${kind}`);
-          return;
-        }
-        const task = opsApi.tasks.create({
-          kind: kind as import('@/runtime/index.ts').TaskKind,
-          owner,
-          title,
-          description: title,
-        });
-        ctx.print(`Created task ${task.id} (${task.kind}) for ${task.owner}.`);
+      if (BLOCKED_TASK_MUTATIONS.has(subcommand)) {
+        printTaskMutationBlocked(ctx.print, subcommand);
         return;
       }
 
-      if (subcommand === 'update') {
-        const opsApi = requireOpsApi(ctx);
-        const taskId = args[1];
-        const field = args[2];
-        const value = args.slice(3).join(' ').trim();
-        if (!taskId || !field || !value) {
-          ctx.print('Usage: /tasks update <taskId> <title|description|result> <value...>');
-          return;
-        }
-        if (field !== 'title' && field !== 'description' && field !== 'result') {
-          ctx.print(`Unsupported task update field: ${field}`);
-          return;
-        }
-        opsApi.tasks.update(taskId, field === 'result' ? { result: value } : { [field]: value });
-        ctx.print(`Updated task ${taskId} field ${field}.`);
-        return;
-      }
-
-      if (subcommand === 'complete') {
-        const opsApi = requireOpsApi(ctx);
-        const taskId = args[1];
-        if (!taskId) {
-          ctx.print('Usage: /tasks complete <taskId> [result]');
-          return;
-        }
-        const result = args.slice(2).join(' ').trim() || undefined;
-        opsApi.tasks.complete(taskId, result);
-        ctx.print(`Completed task ${taskId}.`);
-        return;
-      }
-
-      if (subcommand === 'fail') {
-        const opsApi = requireOpsApi(ctx);
-        const taskId = args[1];
-        const errorText = args.slice(2).join(' ').trim();
-        if (!taskId || !errorText) {
-          ctx.print('Usage: /tasks fail <taskId> <error...>');
-          return;
-        }
-        opsApi.tasks.fail(taskId, { error: errorText });
-        ctx.print(`Failed task ${taskId}.`);
-        return;
-      }
-
-      const taskId = args[1];
-      const note = args.slice(2).join(' ').trim() || undefined;
-      if (!taskId) {
-        ctx.print(`Usage: /tasks ${subcommand} <taskId> [note]`);
-        return;
-      }
-      const opsApi = requireOpsApi(ctx);
-      try {
-        switch (subcommand) {
-          case 'cancel':
-            opsApi.tasks.cancel(taskId, note);
-            ctx.print(`Cancelled task ${taskId}.`);
-            return;
-          case 'pause':
-            opsApi.tasks.pause(taskId, note);
-            ctx.print(`Paused task ${taskId}.`);
-            return;
-          case 'resume':
-            opsApi.tasks.resume(taskId, note);
-            ctx.print(`Resumed task ${taskId}.`);
-            return;
-          case 'retry':
-            opsApi.tasks.retry(taskId, note);
-            ctx.print(`Re-queued task ${taskId}.`);
-            return;
-          default:
-            ctx.print(`Unknown tasks subcommand: ${subcommand}`);
-            return;
-        }
-      } catch (error) {
-        ctx.print(summarizeError(error));
-      }
+      ctx.print(`Unknown tasks subcommand: ${subcommand}`);
     },
   });
 }

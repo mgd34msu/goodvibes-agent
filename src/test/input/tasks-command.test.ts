@@ -137,7 +137,7 @@ describe('tasks command', () => {
     expect(out.join('\n')).toContain('artifact-1');
   });
 
-  test('routes task interventions through the ops control plane', async () => {
+  test('blocks copied runtime task interventions in Agent', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const tasksCommand = registry.get('tasks');
@@ -170,21 +170,22 @@ describe('tasks command', () => {
     });
 
     await tasksCommand!.handler(['pause', task.id, 'waiting', 'for', 'approval'], ctx);
-    expect(taskManager.getTask(task.id)?.status).toBe('blocked');
-    expect(out.join('\n')).toContain(`Paused task ${task.id}.`);
+    expect(taskManager.getTask(task.id)?.status).toBe('running');
+    expect(out.join('\n')).toContain('Task mutation "pause" is blocked in GoodVibes Agent.');
+    expect(out.join('\n')).toContain('no local runtime task state was changed');
 
     out.length = 0;
     await tasksCommand!.handler(['resume', task.id], ctx);
     expect(taskManager.getTask(task.id)?.status).toBe('running');
-    expect(out.join('\n')).toContain(`Resumed task ${task.id}.`);
+    expect(out.join('\n')).toContain('Task mutation "resume" is blocked in GoodVibes Agent.');
 
     out.length = 0;
     await tasksCommand!.handler(['cancel', task.id], ctx);
-    expect(taskManager.getTask(task.id)?.status).toBe('cancelled');
-    expect(out.join('\n')).toContain(`Cancelled task ${task.id}.`);
+    expect(taskManager.getTask(task.id)?.status).toBe('running');
+    expect(out.join('\n')).toContain('Task mutation "cancel" is blocked in GoodVibes Agent.');
   });
 
-  test('supports explicit task creation, update, completion, and failure flows', async () => {
+  test('blocks copied task CRUD mutation flows in Agent', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const tasksCommand = registry.get('tasks');
@@ -211,22 +212,16 @@ describe('tasks command', () => {
     ctx.session.runtime.sessionId = 'sess-task-crud';
 
     await tasksCommand!.handler(['create', 'integration', 'release-bot', 'Prepare', 'release', 'bundle'], ctx);
-    expect(out.join('\n')).toContain('Created task');
-    const createdId = out.join('\n').match(/[0-9a-f-]{36}/)?.[0];
-    expect(createdId).toBeDefined();
-    const createdTask = taskManager.getTask(createdId!);
-    expect(createdTask?.title).toBe('Prepare release bundle');
+    expect(out.join('\n')).toContain('Task mutation "create" is blocked in GoodVibes Agent.');
+    expect(taskManager.getTasksByKind('integration')).toHaveLength(0);
 
     out.length = 0;
-    await tasksCommand!.handler(['update', createdId!, 'description', 'Publish', 'and', 'verify', 'bundle'], ctx);
-    expect(out.join('\n')).toContain(`Updated task ${createdId!} field description.`);
-    expect(taskManager.getTask(createdId!)?.description).toBe('Publish and verify bundle');
+    await tasksCommand!.handler(['update', 'task-1', 'description', 'Publish', 'and', 'verify', 'bundle'], ctx);
+    expect(out.join('\n')).toContain('Task mutation "update" is blocked in GoodVibes Agent.');
 
-    taskManager.startTask(createdId!);
     out.length = 0;
-    await tasksCommand!.handler(['complete', createdId!, 'bundle-ready'], ctx);
-    expect(out.join('\n')).toContain(`Completed task ${createdId!}.`);
-    expect(taskManager.getTask(createdId!)?.status).toBe('completed');
+    await tasksCommand!.handler(['complete', 'task-1', 'bundle-ready'], ctx);
+    expect(out.join('\n')).toContain('Task mutation "complete" is blocked in GoodVibes Agent.');
 
     const failedTask = taskManager.createTask({
       kind: 'exec',
@@ -236,7 +231,7 @@ describe('tasks command', () => {
     taskManager.startTask(failedTask.id);
     out.length = 0;
     await tasksCommand!.handler(['fail', failedTask.id, 'lint', 'failed'], ctx);
-    expect(out.join('\n')).toContain(`Failed task ${failedTask.id}.`);
-    expect(taskManager.getTask(failedTask.id)?.status).toBe('failed');
+    expect(out.join('\n')).toContain('Task mutation "fail" is blocked in GoodVibes Agent.');
+    expect(taskManager.getTask(failedTask.id)?.status).toBe('running');
   });
 });
