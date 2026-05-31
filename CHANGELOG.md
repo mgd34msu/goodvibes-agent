@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.42 - 2026-05-31
+
+- 3c84649 Surface daemon capabilities in Agent workspace
+
 ## 0.1.41 - 2026-05-31
 
 - c108e13 Add live daemon capability audit
