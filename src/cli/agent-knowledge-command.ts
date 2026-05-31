@@ -222,6 +222,62 @@ function createAgentSdk(connection: AgentDaemonConnection) {
   });
 }
 
+async function postAgentKnowledgeJson<TData>(
+  connection: AgentDaemonConnection,
+  route: string,
+  body: JsonRecord,
+): Promise<TData> {
+  const response = await fetch(`${connection.baseUrl}${route}`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${connection.token ?? ''}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  let parsed: unknown = text;
+  if (text.trim()) {
+    try {
+      parsed = JSON.parse(text) as unknown;
+    } catch {
+      parsed = text;
+    }
+  }
+  if (!response.ok) {
+    const detail = isRecord(parsed) && typeof parsed.error === 'string' ? parsed.error : text;
+    throw new Error(`HTTP ${response.status} ${response.statusText}${detail ? `: ${detail}` : ''}`);
+  }
+  return parsed as TData;
+}
+
+function findDisallowedKnowledgeScopeFlag(args: readonly string[]): string | null {
+  const disallowed = [
+    '--space',
+    '--knowledge-space',
+    '--knowledge-space-id',
+    '--knowledgeSpaceId',
+    '--include-all-spaces',
+    '--includeAllSpaces',
+    '--homegraph',
+    '--home-graph',
+  ];
+  for (const token of args) {
+    for (const flag of disallowed) {
+      if (token === flag || token.startsWith(`${flag}=`)) return flag;
+    }
+  }
+  return null;
+}
+
+function formatScopeFlagRejection(flag: string): string {
+  return [
+    `Agent Knowledge is isolated; ${flag} is not accepted.`,
+    'GoodVibes Agent must not use default Knowledge/Wiki, HomeGraph, or Home Assistant spaces.',
+    'Use only /api/goodvibes-agent/knowledge/* Agent-owned routes.',
+  ].join('\n');
+}
+
 function sourceLine(value: unknown): string {
   const record = isRecord(value) ? value : {};
   const title = cleanInline(record.title)
@@ -384,6 +440,19 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
   const [sub = 'status', ...rest] = runtime.cli.commandArgs;
   const normalized = sub.toLowerCase();
   const json = runtime.cli.flags.outputFormat === 'json';
+  const disallowedScopeFlag = findDisallowedKnowledgeScopeFlag(rest);
+  if (disallowedScopeFlag) {
+    const failure = {
+      ok: false,
+      kind: 'agent_knowledge_scope_rejected',
+      error: formatScopeFlagRejection(disallowedScopeFlag),
+      route: '/api/goodvibes-agent/knowledge/*',
+    };
+    return {
+      output: json ? JSON.stringify(failure, null, 2) : failure.error,
+      exitCode: 2,
+    };
+  }
 
   if (normalized === 'status') {
     const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.status, async (connection) => (
@@ -440,7 +509,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     const title = readOptionValue(rest, '--title');
     const tags = readStringList(rest, '--tags');
     const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.ingestUrl, async (connection) => (
-      await createAgentSdk(connection).operator.invoke('knowledge.ingest.url', {
+      await postAgentKnowledgeJson(connection, AGENT_KNOWLEDGE_METHODS.ingestUrl.route, {
         url,
         title,
         tags,

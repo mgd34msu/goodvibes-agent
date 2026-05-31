@@ -22,6 +22,33 @@ function readFlag(args: string[], name: string): string | undefined {
   return index >= 0 ? args[index + 1] : undefined;
 }
 
+function findDisallowedKnowledgeScopeFlag(args: readonly string[]): string | null {
+  const disallowed = [
+    '--space',
+    '--knowledge-space',
+    '--knowledge-space-id',
+    '--knowledgeSpaceId',
+    '--include-all-spaces',
+    '--includeAllSpaces',
+    '--homegraph',
+    '--home-graph',
+  ];
+  for (const token of args) {
+    for (const flag of disallowed) {
+      if (token === flag || token.startsWith(`${flag}=`)) return flag;
+    }
+  }
+  return null;
+}
+
+function printScopeFlagRejection(context: CommandContext, flag: string): void {
+  context.print([
+    `[knowledge] Agent Knowledge is isolated; ${flag} is not accepted.`,
+    '[knowledge] GoodVibes Agent must not use default Knowledge/Wiki, HomeGraph, or Home Assistant spaces.',
+    '[knowledge] Use only /api/goodvibes-agent/knowledge/* Agent-owned routes.',
+  ].join('\n'));
+}
+
 function readStringListFlag(args: string[], name: string): string[] {
   const value = readFlag(args, name);
   if (!value) return [];
@@ -143,6 +170,11 @@ export const knowledgeCommand: SlashCommand = {
     }
     const sub = (args[0] ?? 'status').toLowerCase();
     const rest = args.slice(1);
+    const disallowedScopeFlag = findDisallowedKnowledgeScopeFlag(rest);
+    if (disallowedScopeFlag) {
+      printScopeFlagRejection(context, disallowedScopeFlag);
+      return;
+    }
 
     switch (sub) {
       case 'ask': {
@@ -152,10 +184,6 @@ export const knowledgeCommand: SlashCommand = {
         const query = positionalArgs(rest, valuedFlags).join(' ').trim();
         if (!query) {
           context.print('[knowledge] Usage: /knowledge ask <query> [--limit <n>] [--mode <concise|standard|detailed>]');
-          return;
-        }
-        if (readFlag(rest, '--space') || readFlag(rest, '--knowledge-space')) {
-          context.print('[knowledge] Agent Knowledge is isolated. --space/--knowledge-space is not accepted because Agent must not fall back to default Knowledge/Wiki or HomeGraph.');
           return;
         }
         const requestedMode = readFlag(rest, '--mode') as KnowledgeAskMode | undefined;

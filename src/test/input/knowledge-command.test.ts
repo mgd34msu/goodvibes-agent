@@ -321,7 +321,7 @@ describe('knowledgeCommand', () => {
 
   test('rejects space flags instead of routing Agent Knowledge to HomeGraph/default spaces', async () => {
     await knowledgeCommand.handler(
-      ['ask', 'what', 'does', 'the', 'manual', 'say?', '--space', 'homeassistant:test'],
+      ['ask', 'what', 'does', 'the', 'manual', 'say?', '--space'],
       makeKnowledgeAskCommandContext(printed, {
         query: 'what does the manual say?',
         answer: {
@@ -339,7 +339,24 @@ describe('knowledgeCommand', () => {
 
     const output = printed.join('\n');
     expect(output).toContain('Agent Knowledge is isolated');
-    expect(output).toContain('--space/--knowledge-space is not accepted');
+    expect(output).toContain('--space is not accepted');
+    expect(output).toContain('must not use default Knowledge/Wiki, HomeGraph, or Home Assistant spaces');
     expect(output).not.toContain('This must not render.');
+  });
+
+  test('rejects include-all-spaces on search before querying Agent Knowledge', async () => {
+    await knowledgeCommand.handler(
+      ['search', 'manual', '--includeAllSpaces'],
+      makeKnowledgeCommandContext(root, printed, {
+        getStatus: () => {
+          throw new Error('search must not call knowledge service when includeAllSpaces is rejected');
+        },
+      } as never, memoryRegistry),
+    );
+
+    const output = printed.join('\n');
+    expect(output).toContain('Agent Knowledge is isolated');
+    expect(output).toContain('--includeAllSpaces is not accepted');
+    expect(output).toContain('/api/goodvibes-agent/knowledge/*');
   });
 });

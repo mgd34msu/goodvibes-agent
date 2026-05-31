@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
@@ -50,6 +50,12 @@ afterEach(() => {
 });
 
 describe('Agent Knowledge CLI route isolation', () => {
+  test('implementation does not invoke default knowledge ingest operator method from the CLI', () => {
+    const source = readFileSync(join(process.cwd(), 'src/cli/agent-knowledge-command.ts'), 'utf-8');
+    expect(source).not.toContain("operator.invoke('knowledge.ingest.url'");
+    expect(source).toContain('/api/goodvibes-agent/knowledge/ingest/url');
+  });
+
   test('ingest-url uses the Agent Knowledge route and never the default wiki path', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
@@ -92,6 +98,34 @@ describe('Agent Knowledge CLI route isolation', () => {
         kind: 'agentKnowledge.ingest.url',
         route: '/api/goodvibes-agent/knowledge/ingest/url',
       });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('rejects Knowledge space flags before any daemon request', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      throw new Error('daemon must not be called for rejected Agent Knowledge scope flags');
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleAgentKnowledgeCommand(createRuntime([
+        'search',
+        'what',
+        'is',
+        'Agent?',
+        '--includeAllSpaces',
+      ]));
+      const parsed = JSON.parse(result.output) as unknown;
+
+      expect(result.exitCode).toBe(2);
+      expect(parsed).toMatchObject({
+        ok: false,
+        kind: 'agent_knowledge_scope_rejected',
+        route: '/api/goodvibes-agent/knowledge/*',
+      });
+      expect(result.output).toContain('must not use default Knowledge/Wiki, HomeGraph, or Home Assistant spaces');
     } finally {
       globalThis.fetch = originalFetch;
     }
