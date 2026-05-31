@@ -40,11 +40,24 @@ const packRaw = execSync('npm pack --json --dry-run', {
 
 const [packResult] = JSON.parse(packRaw);
 const filePaths = Array.isArray(packResult.files) ? packResult.files.map((entry) => entry.path) : [];
-const forbiddenPrefixes = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/'];
+const forbiddenPrefixes = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', 'src/daemon/'];
 const forbiddenDocs = ['docs/qemu-sandbox.md', 'docs/cloudflare-batch.md', 'docs/homeassistant-surface.md', 'docs/wrfc/'];
+const forbiddenSourceFiles = new Set([
+  'src/panels/diff-panel.ts',
+  'src/panels/file-explorer-panel.ts',
+  'src/panels/file-preview-panel.ts',
+  'src/panels/git-panel.ts',
+  'src/panels/sandbox-panel.ts',
+  'src/panels/symbol-outline-panel.ts',
+  'src/panels/worktree-panel.ts',
+  'src/panels/wrfc-panel.ts',
+]);
 for (const filePath of filePaths) {
   if (forbiddenPrefixes.some((prefix) => filePath.startsWith(prefix))) {
     throw new Error(`published tarball includes forbidden path: ${filePath}`);
+  }
+  if (forbiddenSourceFiles.has(filePath)) {
+    throw new Error(`published tarball includes copied TUI-only source file: ${filePath}`);
   }
   if (forbiddenDocs.some((docPath) => filePath === docPath || filePath.startsWith(docPath))) {
     throw new Error(`published tarball includes copied TUI-only doc path: ${filePath}`);
