@@ -17,10 +17,12 @@ interface AgentDaemonConnection {
 
 interface AgentKnowledgeFailure {
   readonly ok: false;
-  readonly kind: 'daemon_unavailable' | 'auth_required' | 'daemon_route_unavailable' | 'daemon_error';
+  readonly kind: 'daemon_unavailable' | 'auth_required' | 'version_mismatch' | 'daemon_route_unavailable' | 'daemon_error';
   readonly error: string;
   readonly baseUrl: string;
   readonly route: string;
+  readonly daemonVersion?: string;
+  readonly expectedSdkVersion?: string;
 }
 
 interface AgentKnowledgeSuccess<TData> {
@@ -200,13 +202,28 @@ async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{ r
   }
 }
 
-function classifyKnowledgeError(error: unknown, connection: AgentDaemonConnection, route: string): AgentKnowledgeFailure {
+async function classifyKnowledgeError(error: unknown, connection: AgentDaemonConnection, route: string): Promise<AgentKnowledgeFailure> {
   const message = summarizeError(error);
   const lower = message.toLowerCase();
   if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('auth')) {
     return { ok: false, kind: 'auth_required', error: message, baseUrl: connection.baseUrl, route };
   }
   if (lower.includes('404') || lower.includes('not found')) {
+    const metadata = readPackageMetadata();
+    const daemon = await fetchDaemonStatus(connection);
+    const daemonRecord = isRecord(daemon.body) ? daemon.body : {};
+    const daemonVersion = readString(daemonRecord, 'version') ?? 'unknown';
+    if (daemon.ok && daemonVersion !== metadata.sdkVersion) {
+      return {
+        ok: false,
+        kind: 'version_mismatch',
+        error: `External daemon SDK version ${daemonVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
+        baseUrl: connection.baseUrl,
+        route,
+        daemonVersion,
+        expectedSdkVersion: metadata.sdkVersion,
+      };
+    }
     return { ok: false, kind: 'daemon_route_unavailable', error: message, baseUrl: connection.baseUrl, route };
   }
   if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
@@ -407,6 +424,12 @@ function formatFailure(failure: AgentKnowledgeFailure, json: boolean): string {
     `  ${failure.error}`,
     `  daemon: ${failure.baseUrl}`,
     `  route: ${failure.route}`,
+    failure.kind === 'version_mismatch' && failure.daemonVersion && failure.expectedSdkVersion
+      ? `  versions: daemon=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
+      : null,
+    failure.kind === 'version_mismatch'
+      ? '  next: update/restart the external GoodVibes daemon so /status matches the Agent SDK pin.'
+      : null,
     failure.kind === 'daemon_route_unavailable'
       ? '  next: update/restart the external GoodVibes daemon to the SDK version required by this Agent package.'
       : null,
