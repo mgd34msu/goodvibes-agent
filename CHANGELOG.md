@@ -2,6 +2,14 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.9 - 2026-05-31
+
+- 75e5d4a Align shell surface delegation test
+- a24c581 Use delegation wording in runtime indicator
+- 259a75f Guard Agent knowledge isolation
+- 59b6729 Align task help with Agent policy
+- 0074a76 Classify stale daemon knowledge routes
+
 ## 0.1.8 - 2026-05-31
 
 - 384c85a Remove stale WRFC artifact test
