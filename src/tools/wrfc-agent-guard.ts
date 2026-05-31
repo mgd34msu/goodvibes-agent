@@ -4,6 +4,7 @@ import {
   wrapAnalyzeToolForAgentPolicy,
   wrapRegistryToolForAgentPolicy,
 } from './agent-analysis-registry-policy.ts';
+import { wrapWebSearchToolForAgentPolicy } from './agent-web-search-policy.ts';
 
 type AgentToolArgs = {
   readonly mode?: unknown;
@@ -230,6 +231,8 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapAnalyzeToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'registry') {
       wrapRegistryToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'web_search') {
+      wrapWebSearchToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'control') {
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_CONTROL_TOOL_MODES,
@@ -552,6 +555,17 @@ export {
   wrapAnalyzeToolForAgentPolicy,
   wrapRegistryToolForAgentPolicy,
 } from './agent-analysis-registry-policy.ts';
+
+export {
+  AGENT_MAX_WEB_SEARCH_EVIDENCE_TOP_N,
+  AGENT_MAX_WEB_SEARCH_RESULTS,
+  AGENT_READ_ONLY_WEB_SEARCH_EVIDENCE_EXTRACTS,
+  AGENT_READ_ONLY_WEB_SEARCH_VERBOSITIES,
+  AGENT_WEB_SEARCH_POLICY_DENIAL_MESSAGE,
+  normalizeWebSearchToolInvocationForAgentPolicy,
+  validateWebSearchToolInvocationForAgentPolicy,
+  wrapWebSearchToolForAgentPolicy,
+} from './agent-web-search-policy.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

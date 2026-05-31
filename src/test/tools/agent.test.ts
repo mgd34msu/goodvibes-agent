@@ -37,11 +37,14 @@ import {
   AGENT_READ_ONLY_TASK_TOOL_MODES,
   AGENT_READ_ONLY_TEAM_TOOL_MODES,
   AGENT_READ_ONLY_TOOL_MODES,
+  AGENT_READ_ONLY_WEB_SEARCH_EVIDENCE_EXTRACTS,
+  AGENT_READ_ONLY_WEB_SEARCH_VERBOSITIES,
   AGENT_READ_ONLY_WORKLIST_TOOL_MODES,
   AGENT_REMOTE_MUTATION_DENIAL_MESSAGE,
   AGENT_REGISTRY_CONTENT_DENIAL_MESSAGE,
   AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE,
   AGENT_STATE_MUTATION_DENIAL_MESSAGE,
+  AGENT_WEB_SEARCH_POLICY_DENIAL_MESSAGE,
   installAgentToolPolicyGuard,
   normalizeAgentToolInvocationForAgentPolicy,
   wrapAgentToolForAgentPolicy,
@@ -306,6 +309,32 @@ function makeRegistryTool(): Tool {
         },
       },
       sideEffects: ['read_fs'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
+  };
+}
+
+function makeWebSearchTool(): Tool {
+  return {
+    definition: {
+      name: 'web_search',
+      description: 'web search test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string' },
+          maxResults: { type: 'integer', maximum: 25 },
+          verbosity: { type: 'string', enum: ['urls_only', 'titles', 'snippets', 'evidence', 'full'] },
+          safeSearch: { type: 'string', enum: ['strict', 'moderate', 'off'] },
+          includeEvidence: { type: 'boolean' },
+          evidenceTopN: { type: 'integer', maximum: 10 },
+          evidenceExtract: {
+            type: 'string',
+            enum: ['raw', 'text', 'json', 'markdown', 'readable', 'code_blocks', 'links', 'metadata', 'structured', 'tables', 'pdf', 'summary'],
+          },
+        },
+      },
+      sideEffects: ['network'],
     },
     execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
   };
@@ -1131,6 +1160,58 @@ describe('spawn mode', () => {
     });
     expect(arbitraryPreview.success).toBe(false);
     expect(arbitraryPreview.error).toBe(AGENT_REGISTRY_CONTENT_DENIAL_MESSAGE);
+  });
+
+  test('Agent runtime guard narrows web search to bounded read-only research', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeWebSearchTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const webSearchDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'web_search');
+    expect(webSearchDefinition?.description).toContain('bounded, read-only web research');
+    expect(webSearchDefinition?.sideEffects).toEqual(['network']);
+    const properties = webSearchDefinition?.parameters.properties as Record<string, unknown>;
+    const verbosity = getRecordProperty(properties, 'verbosity');
+    const evidenceExtract = getRecordProperty(properties, 'evidenceExtract');
+    const maxResults = getRecordProperty(properties, 'maxResults');
+    const evidenceTopN = getRecordProperty(properties, 'evidenceTopN');
+    expect(verbosity?.enum).toEqual([...AGENT_READ_ONLY_WEB_SEARCH_VERBOSITIES]);
+    expect(evidenceExtract?.enum).toEqual([...AGENT_READ_ONLY_WEB_SEARCH_EVIDENCE_EXTRACTS]);
+    expect(maxResults?.maximum).toBe(10);
+    expect(evidenceTopN?.maximum).toBe(3);
+
+    const allowed = await registry.execute('call-web-search-snippets', 'web_search', {
+      query: 'goodvibes agent',
+      maxResults: 5,
+      verbosity: 'evidence',
+      safeSearch: 'moderate',
+      includeEvidence: true,
+      evidenceTopN: 3,
+      evidenceExtract: 'readable',
+    });
+    expect(allowed.success).toBe(true);
+
+    const defaultSafeSearch = await registry.execute('call-web-search-default-safe', 'web_search', {
+      query: 'goodvibes agent',
+    });
+    expect(defaultSafeSearch.success).toBe(true);
+    expect(defaultSafeSearch.output).toContain('"safeSearch":"moderate"');
+
+    for (const args of [
+      { query: 'x', verbosity: 'full' },
+      { query: 'x', safeSearch: 'off' },
+      { query: 'x', maxResults: 25 },
+      { query: 'x', includeEvidence: true, evidenceTopN: 10 },
+      { query: 'x', includeEvidence: true, evidenceExtract: 'raw' },
+      { query: 'x', includeEvidence: true, evidenceExtract: 'summary' },
+    ]) {
+      const blocked = await registry.execute(`call-web-search-blocked-${JSON.stringify(args)}`, 'web_search', args);
+      expect(blocked.success).toBe(false);
+      expect(blocked.error).toBe(AGENT_WEB_SEARCH_POLICY_DENIAL_MESSAGE);
+    }
   });
 
   test('Agent runtime guard narrows copied durable workflow tools to read-only inspection', async () => {
