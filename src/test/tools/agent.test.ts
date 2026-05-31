@@ -12,10 +12,12 @@ import {
   AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
   AGENT_CHANNEL_ACTION_DENIAL_MESSAGE,
   AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
+  AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE,
   AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE,
   AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
   AGENT_READ_ONLY_CHANNEL_TOOL_MODES,
+  AGENT_READ_ONLY_FETCH_METHODS,
   AGENT_READ_ONLY_MCP_TOOL_MODES,
   AGENT_READ_ONLY_REMOTE_TOOL_MODES,
   AGENT_READ_ONLY_TOOL_MODES,
@@ -98,6 +100,43 @@ function makeModeTool(name: string, modes: readonly string[]): Tool {
       sideEffects: ['state', 'network'],
     },
     execute: async () => ({ success: true, output: `${name} executed` }),
+  };
+}
+
+function makeFetchModeTool(): Tool {
+  return {
+    definition: {
+      name: 'fetch',
+      description: 'fetch test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          urls: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+                method: { type: 'string', enum: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] },
+                headers: { type: 'object' },
+                body: { type: 'string' },
+                body_base64: { type: 'string' },
+                body_type: { type: 'string' },
+                body_data: { type: 'object' },
+                retry_on_auth: { type: 'boolean' },
+                service: { type: 'string' },
+                auth: { type: 'object' },
+              },
+            },
+          },
+          parallel: { type: 'boolean' },
+          sanitize_mode: { type: 'string', enum: ['none', 'safe-text', 'strict'] },
+          trusted_hosts: { type: 'array', items: { type: 'string' } },
+        },
+      },
+      sideEffects: ['network'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
   };
 }
 
@@ -615,6 +654,64 @@ describe('spawn mode', () => {
       const result = await registry.execute(`call-mcp-blocked-${mode}`, 'mcp', { mode });
       expect(result.success).toBe(false);
       expect(result.error).toBe(AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE);
+    }
+  });
+
+  test('Agent runtime guard narrows fetch to serial unauthenticated read-only HTTP', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeFetchModeTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const fetchDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'fetch');
+    expect(fetchDefinition?.description).toContain('serial, read-only HTTP requests');
+    const properties = fetchDefinition?.parameters.properties as Record<string, unknown>;
+    expect(properties.parallel).toBeUndefined();
+    expect(properties.trusted_hosts).toBeUndefined();
+    const sanitizeModeProperty = getRecordProperty(properties, 'sanitize_mode');
+    expect(sanitizeModeProperty?.enum).toEqual(['safe-text', 'strict']);
+
+    const urlsProperty = getRecordProperty(properties, 'urls');
+    const itemSchema = urlsProperty ? getRecordProperty(urlsProperty, 'items') : undefined;
+    const urlProperties = itemSchema ? getRecordProperty(itemSchema, 'properties') : undefined;
+    expect(urlProperties).toBeDefined();
+    if (!urlProperties) throw new Error('fetch URL properties missing');
+    const methodProperty = getRecordProperty(urlProperties, 'method');
+    expect(methodProperty?.enum).toEqual([...AGENT_READ_ONLY_FETCH_METHODS]);
+    expect(urlProperties.body).toBeUndefined();
+    expect(urlProperties.headers).toBeUndefined();
+    expect(urlProperties.auth).toBeUndefined();
+    expect(urlProperties.service).toBeUndefined();
+
+    for (const method of AGENT_READ_ONLY_FETCH_METHODS) {
+      const result = await registry.execute(`call-fetch-${method}`, 'fetch', {
+        urls: [{ url: 'https://example.com/', method }],
+      });
+      expect(result.success).toBe(true);
+      const normalized = JSON.parse(result.output ?? '{}') as { readonly parallel?: boolean };
+      expect(normalized.parallel).toBe(false);
+    }
+
+    const blockedInputs: ReadonlyArray<Record<string, unknown>> = [
+      { urls: [{ url: 'https://example.com/', method: 'POST' }] },
+      { urls: [{ url: 'https://example.com/', method: 'PUT' }] },
+      { urls: [{ url: 'https://example.com/', method: 'PATCH' }] },
+      { urls: [{ url: 'https://example.com/', method: 'DELETE' }] },
+      { urls: [{ url: 'https://example.com/', body: 'payload' }] },
+      { urls: [{ url: 'https://example.com/', headers: { authorization: 'Bearer secret' } }] },
+      { urls: [{ url: 'https://example.com/', auth: { type: 'bearer', token: 'secret' } }] },
+      { urls: [{ url: 'https://example.com/', service: 'private-api' }] },
+      { urls: [{ url: 'https://example.com/' }], sanitize_mode: 'none' },
+      { urls: [{ url: 'https://example.com/' }], trusted_hosts: ['example.com'] },
+      { urls: [{ url: 'https://example.com/' }], parallel: true },
+    ];
+
+    for (const [index, input] of blockedInputs.entries()) {
+      const result = await registry.execute(`call-fetch-blocked-${index}`, 'fetch', input);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE);
     }
   });
 

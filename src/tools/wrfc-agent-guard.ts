@@ -26,6 +26,14 @@ type ModeToolArgs = {
   readonly [key: string]: unknown;
 };
 
+type FetchToolArgs = {
+  readonly urls?: unknown;
+  readonly parallel?: unknown;
+  readonly sanitize_mode?: unknown;
+  readonly trusted_hosts?: unknown;
+  readonly [key: string]: unknown;
+};
+
 type AgentToolPolicyGuardOptions = {
   readonly getLastUserMessage?: () => string | null;
 };
@@ -51,9 +59,11 @@ const BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET = new Set<string>(BLOCKED_MAIN_CON
 const READ_ONLY_REMOTE_TOOL_MODES = ['pools', 'contracts', 'artifacts', 'review'] as const;
 const READ_ONLY_CHANNEL_TOOL_MODES = ['accounts', 'directory', 'resolve_target', 'capabilities', 'tools', 'agent_tools', 'actions'] as const;
 const READ_ONLY_MCP_TOOL_MODES = ['servers', 'tools', 'schema', 'resources', 'security', 'auth'] as const;
+const READ_ONLY_FETCH_METHODS = ['GET', 'HEAD', 'OPTIONS'] as const;
 const READ_ONLY_REMOTE_TOOL_MODE_SET = new Set<string>(READ_ONLY_REMOTE_TOOL_MODES);
 const READ_ONLY_CHANNEL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CHANNEL_TOOL_MODES);
 const READ_ONLY_MCP_TOOL_MODE_SET = new Set<string>(READ_ONLY_MCP_TOOL_MODES);
+const READ_ONLY_FETCH_METHOD_SET = new Set<string>(READ_ONLY_FETCH_METHODS);
 
 const LOCAL_AGENT_DENIAL = [
   'GoodVibes Agent does not spawn local Engineer/Reviewer/Tester/Verifier roots or run local WRFC chains.',
@@ -91,6 +101,12 @@ const MCP_SECURITY_MUTATION_DENIAL = [
   'MCP security mutations require an explicit Agent approval flow before they can run.',
 ].join(' ');
 
+const FETCH_NETWORK_MUTATION_DENIAL = [
+  'GoodVibes Agent only performs serial, unauthenticated, read-only HTTP fetches from the main conversation.',
+  'Non-read methods, request bodies, custom auth/header/service credentials, trust overrides, raw unsanitized responses, and parallel fetch batches are disabled here.',
+  'Network writes or credentialed external calls require an explicit Agent approval flow before they can run.',
+].join(' ');
+
 export function installAgentToolPolicyGuard(registry: ToolRegistry, options: AgentToolPolicyGuardOptions = {}): void {
   const agentTool = registry.list().find((tool) => tool.definition.name === 'agent');
   if (!agentTool) throw new Error('Agent tool policy guard could not find the agent tool.');
@@ -120,6 +136,8 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
         ].join(' '),
         denial: MCP_SECURITY_MUTATION_DENIAL,
       });
+    } else if (tool.definition.name === 'fetch') {
+      wrapFetchToolForAgentPolicy(tool);
     } else if (BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET.has(tool.definition.name)) {
       wrapBlockedMainConversationToolForAgentPolicy(tool);
     }
@@ -165,6 +183,16 @@ export function wrapExecToolForAgentPolicy(tool: Tool): void {
   };
 }
 
+export function wrapFetchToolForAgentPolicy(tool: Tool): void {
+  narrowFetchToolDefinitionForAgentPolicy(tool);
+  const originalExecute = tool.execute.bind(tool);
+  tool.execute = async (args) => {
+    const denial = validateFetchToolInvocationForAgentPolicy(args as FetchToolArgs);
+    if (denial) return { success: false, error: denial };
+    return originalExecute(normalizeFetchToolInvocationForAgentPolicy(args as FetchToolArgs) as Parameters<Tool['execute']>[0]);
+  };
+}
+
 export function validateExecToolInvocationForAgentPolicy(args: ExecToolArgs): string | null {
   if (args.parallel === true) return BACKGROUND_EXEC_DENIAL;
   if (Array.isArray(args.file_ops) && args.file_ops.length > 0) return BACKGROUND_EXEC_DENIAL;
@@ -185,6 +213,31 @@ export function validateExecToolInvocationForAgentPolicy(args: ExecToolArgs): st
   }
 
   return null;
+}
+
+export function validateFetchToolInvocationForAgentPolicy(args: FetchToolArgs): string | null {
+  if (args.parallel === true) return FETCH_NETWORK_MUTATION_DENIAL;
+  if (args.sanitize_mode === 'none') return FETCH_NETWORK_MUTATION_DENIAL;
+  if (isPresent(args.trusted_hosts)) return FETCH_NETWORK_MUTATION_DENIAL;
+  if (!Array.isArray(args.urls)) return null;
+
+  for (const urlArgs of args.urls) {
+    if (!isRecord(urlArgs)) continue;
+    const method = typeof urlArgs.method === 'string' ? urlArgs.method.toUpperCase() : 'GET';
+    if (!READ_ONLY_FETCH_METHOD_SET.has(method)) return FETCH_NETWORK_MUTATION_DENIAL;
+    if (isPresent(urlArgs.body) || isPresent(urlArgs.body_base64) || isPresent(urlArgs.body_type) || isPresent(urlArgs.body_data)) {
+      return FETCH_NETWORK_MUTATION_DENIAL;
+    }
+    if (isPresent(urlArgs.headers) || isPresent(urlArgs.auth) || isPresent(urlArgs.service) || isPresent(urlArgs.retry_on_auth)) {
+      return FETCH_NETWORK_MUTATION_DENIAL;
+    }
+  }
+
+  return null;
+}
+
+export function normalizeFetchToolInvocationForAgentPolicy(args: FetchToolArgs): FetchToolArgs {
+  return { ...args, parallel: false };
 }
 
 type ModeRestrictedToolPolicy = {
@@ -240,12 +293,22 @@ export const AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE = BACKGROUND_EXEC_DENIAL;
 export const AGENT_READ_ONLY_REMOTE_TOOL_MODES = READ_ONLY_REMOTE_TOOL_MODES;
 export const AGENT_READ_ONLY_CHANNEL_TOOL_MODES = READ_ONLY_CHANNEL_TOOL_MODES;
 export const AGENT_READ_ONLY_MCP_TOOL_MODES = READ_ONLY_MCP_TOOL_MODES;
+export const AGENT_READ_ONLY_FETCH_METHODS = READ_ONLY_FETCH_METHODS;
 export const AGENT_REMOTE_MUTATION_DENIAL_MESSAGE = REMOTE_MUTATION_DENIAL;
 export const AGENT_CHANNEL_ACTION_DENIAL_MESSAGE = CHANNEL_ACTION_DENIAL;
 export const AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE = MCP_SECURITY_MUTATION_DENIAL;
+export const AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE = FETCH_NETWORK_MUTATION_DENIAL;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isPresent(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  if (isRecord(value)) return Object.keys(value).length > 0;
+  return true;
 }
 
 function narrowAgentToolDefinitionForAgentPolicy(tool: Tool): void {
@@ -291,6 +354,47 @@ function narrowExecToolDefinitionForAgentPolicy(tool: Tool): void {
       'GoodVibes Agent requires kill_after:true so until-mode does not promote the process to background.',
     ].join(' ');
   }
+}
+
+function narrowFetchToolDefinitionForAgentPolicy(tool: Tool): void {
+  tool.definition.description = [
+    'Fetch public URLs for GoodVibes Agent with serial, read-only HTTP requests.',
+    'Only GET, HEAD, and OPTIONS are available in the main conversation.',
+    'Credentialed requests, request bodies, trust overrides, raw unsanitized responses, and parallel batches are disabled by Agent policy.',
+  ].join(' ');
+
+  const properties = tool.definition.parameters.properties;
+  if (!isRecord(properties)) return;
+  delete properties.parallel;
+  delete properties.trusted_hosts;
+
+  const sanitizeModeProperty = properties.sanitize_mode;
+  if (isRecord(sanitizeModeProperty)) {
+    sanitizeModeProperty.enum = ['safe-text', 'strict'];
+    sanitizeModeProperty.description = 'Response sanitization mode. Raw unsanitized responses are disabled in GoodVibes Agent.';
+  }
+
+  const urlsProperty = properties.urls;
+  if (!isRecord(urlsProperty)) return;
+  const itemSchema = urlsProperty.items;
+  if (!isRecord(itemSchema)) return;
+  const urlProperties = itemSchema.properties;
+  if (!isRecord(urlProperties)) return;
+
+  const methodProperty = urlProperties.method;
+  if (isRecord(methodProperty)) {
+    methodProperty.enum = [...READ_ONLY_FETCH_METHODS];
+    methodProperty.description = 'Read-only HTTP method. GoodVibes Agent disables POST, PUT, PATCH, and DELETE in the main conversation.';
+  }
+
+  delete urlProperties.headers;
+  delete urlProperties.body;
+  delete urlProperties.body_base64;
+  delete urlProperties.body_type;
+  delete urlProperties.body_data;
+  delete urlProperties.retry_on_auth;
+  delete urlProperties.service;
+  delete urlProperties.auth;
 }
 
 function narrowModeToolDefinitionForAgentPolicy(tool: Tool, allowedModes: readonly string[], description: string): void {
