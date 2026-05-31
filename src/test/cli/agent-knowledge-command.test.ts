@@ -158,7 +158,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         kind: 'agent_knowledge_scope_rejected',
         route: '/api/goodvibes-agent/knowledge/*',
       });
-      expect(result.output).toContain('must not use default Knowledge/Wiki, HomeGraph, or Home Assistant spaces');
+      expect(result.output).toContain('must not use default Knowledge/Wiki or non-Agent product spaces');
     } finally {
       globalThis.fetch = originalFetch;
     }

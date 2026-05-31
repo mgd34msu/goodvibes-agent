@@ -10,7 +10,6 @@ GoodVibes includes a shared channel/runtime layer with current surfaces for:
 - `discord`
 - `ntfy`
 - `webhook`
-- `homeassistant`
 - `telegram`
 - `google-chat`
 - `signal`
@@ -29,24 +28,6 @@ The channel runtime owns:
 - route bindings
 - delivery strategy selection
 - reply rendering and delivery
-
-## Home Assistant
-
-The Home Assistant surface is configured from Agent onboarding or Settings > Surfaces when the user opts into that channel. Agent stores SDK config keys; the external daemon owns the actual Home Assistant API/tool surface, callback verification, account metadata, and channel actions. Agent does not start or own the daemon lifecycle.
-
-Relevant settings:
-
-- `surfaces.homeassistant.enabled`
-- `surfaces.homeassistant.instanceUrl`
-- `surfaces.homeassistant.accessToken`
-- `surfaces.homeassistant.webhookSecret`
-- `surfaces.homeassistant.defaultConversationId`
-- `surfaces.homeassistant.remoteSessionTtlMs`
-- `surfaces.homeassistant.deviceId`
-- `surfaces.homeassistant.deviceName`
-- `surfaces.homeassistant.eventType`
-
-The inbound daemon callback path is `/webhook/homeassistant`. Authenticated Home Assistant Assist clients can also use `GET /api/homeassistant/health`, `POST /api/homeassistant/conversation`, `POST /api/homeassistant/conversation/stream`, and `POST /api/homeassistant/conversation/cancel`. These routes are SDK-owned isolated remote-chat paths with daemon-owned sessions. Responses report `mode: "remote-chat"` and expose `assistant.text` / `assistant.speechText`; Home Assistant clients should not expect `agentId`. Use a `goodvibes://` secret reference or an environment-backed secret for tokens when possible.
 
 ## Shared reply pipeline
 

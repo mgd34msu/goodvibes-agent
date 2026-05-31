@@ -272,7 +272,7 @@ export function buildRoutineSchedulePrompt(routine: AgentRoutineRecord): string 
     '',
     'Operator policy:',
     '- Run this as a serial GoodVibes Agent operator routine.',
-    '- Use isolated Agent Knowledge routes only; never use default Knowledge/Wiki or HomeGraph as fallback.',
+    '- Use isolated Agent Knowledge routes only; never use default Knowledge/Wiki or non-Agent knowledge spaces as fallback.',
     '- Do not perform destructive, costly, externally visible, or secret-handling actions without explicit approval.',
     '- Do not request WRFC unless this scheduled routine explicitly delegates build/fix/review work to GoodVibes TUI.',
     '- Summarize what was checked, what changed, and what still needs user review.',

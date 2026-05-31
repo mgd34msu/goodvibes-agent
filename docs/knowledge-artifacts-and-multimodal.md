@@ -1,6 +1,6 @@
 # Knowledge, Artifacts, and Multimodal
 
-GoodVibes Agent has its own Knowledge/Wiki segment. It must not query or ingest through the default Knowledge/Wiki, HomeGraph, Home Assistant, or copied TUI knowledge spaces.
+GoodVibes Agent has its own Knowledge/Wiki segment. It must not query or ingest through the default Knowledge/Wiki or other product-specific knowledge spaces.
 
 ## Context Layers
 
@@ -25,9 +25,9 @@ POST /api/goodvibes-agent/knowledge/search
 POST /api/goodvibes-agent/knowledge/ingest/url
 ```
 
-If those routes are unavailable, Agent commands fail closed with a structured error. They do not retry against `/api/knowledge/*`, HomeGraph, Home Assistant, or arbitrary knowledge-space selectors.
+If those routes are unavailable, Agent commands fail closed with a structured error. They do not retry against `/api/knowledge/*` or arbitrary knowledge-space selectors.
 
-The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledgeSpaceId`, `--includeAllSpaces`, and HomeGraph/Home Assistant selectors because those would violate the Agent product boundary.
+The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledgeSpaceId`, and `--includeAllSpaces` because those would violate the Agent product boundary.
 
 Agent Knowledge writes are explicit-user-action paths. Slash commands that ingest, import, review issues, reindex, or run consolidation require `--yes`; ask/search/status/list paths remain read-only.
 
@@ -76,7 +76,7 @@ Until that route coverage exists, multimodal outputs should stay in the conversa
 
 Default knowledge refinement route families are not an Agent Knowledge contract. Do not call them from Agent as a substitute for Agent Knowledge repair.
 
-When the SDK exposes Agent-specific refinement routes, they should preserve the same boundary as ask/search/ingest: no default wiki fallback, no HomeGraph fallback, and no client-side contamination filters.
+When the SDK exposes Agent-specific refinement routes, they should preserve the same boundary as ask/search/ingest: no default wiki fallback, no non-Agent knowledge fallback, and no client-side contamination filters.
 
 ## Related Docs
 

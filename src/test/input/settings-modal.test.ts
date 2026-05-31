@@ -5,7 +5,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { SettingsModal, SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../../input/settings-modal.ts';
+import { isAgentHiddenSettingKey, SettingsModal, SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../../input/settings-modal.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
@@ -106,7 +106,7 @@ describe('SettingsModal', () => {
       'Interface',
       'AI Routing',
       'Service & Network',
-      'Surfaces & Cloud',
+      'Surfaces & Integrations',
       'Automation',
       'Runtime & Data',
       'Advanced',
@@ -132,7 +132,7 @@ describe('SettingsModal', () => {
     for (const entries of modal.groups.values()) {
       for (const entry of entries) visibleKeys.add(entry.setting.key);
     }
-    const missing = CONFIG_SCHEMA.map((entry) => entry.key).filter((key) => !visibleKeys.has(key));
+    const missing = CONFIG_SCHEMA.map((entry) => entry.key).filter((key) => !isAgentHiddenSettingKey(key) && !visibleKeys.has(key));
     expect(missing).toEqual([]);
   });
 
@@ -329,37 +329,38 @@ describe('SettingsModal', () => {
     expect(modal.getSelected()?.currentValue).toBe(true);
   });
 
-  test('surfaces category exposes editable Home Assistant settings', () => {
+  test('surfaces category exposes editable Agent-supported channel settings', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     while (modal.currentCategory !== 'surfaces') modal.nextCategory();
 
     const keys = modal.currentItems.map((entry) => entry.setting.key);
-    expect(keys).toContain('surfaces.homeassistant.enabled');
-    expect(keys).toContain('surfaces.homeassistant.instanceUrl');
-    expect(keys).toContain('surfaces.homeassistant.accessToken');
-    expect(keys).toContain('surfaces.homeassistant.webhookSecret');
+    expect(keys).toContain('surfaces.ntfy.enabled');
+    expect(keys).toContain('surfaces.ntfy.baseUrl');
+    expect(keys).toContain('surfaces.ntfy.topic');
+    expect(keys).toContain('surfaces.ntfy.token');
+    expect(keys.some((key) => key.startsWith('surfaces.homeassistant.'))).toBe(false);
 
-    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'surfaces.homeassistant.instanceUrl');
+    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'surfaces.ntfy.baseUrl');
     modal.activateSelected();
     expect(modal.editingMode).toBe(true);
-    modal.editBuffer = 'http://homeassistant.local:8123';
+    modal.editBuffer = 'https://ntfy.example.com';
     expect(modal.commitEdit()).toBe(true);
-    expect(cm.get('surfaces.homeassistant.instanceUrl')).toBe('http://homeassistant.local:8123');
+    expect(cm.get('surfaces.ntfy.baseUrl')).toBe('https://ntfy.example.com');
   });
 
-  test('settings modal stores edited Home Assistant secrets through goodvibes secret refs', async () => {
+  test('settings modal stores edited supported channel secrets through goodvibes secret refs', async () => {
     const secrets = new SecretsManager({ projectRoot: tmpDir, globalHome: tmpDir, configManager: cm });
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry, secrets);
     while (modal.currentCategory !== 'surfaces') modal.nextCategory();
 
-    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'surfaces.homeassistant.accessToken');
+    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'surfaces.ntfy.token');
     modal.activateSelected();
-    modal.editBuffer = 'ha-long-lived-token';
+    modal.editBuffer = 'ntfy-token';
     expect(modal.commitEdit()).toBe(true);
 
-    const secretKey = buildGoodVibesSecretKey('surfaces.homeassistant.accessToken');
-    expect(cm.get('surfaces.homeassistant.accessToken')).toBe(buildGoodVibesSecretRef(secretKey));
-    expect(await secrets.get(secretKey)).toBe('ha-long-lived-token');
+    const secretKey = buildGoodVibesSecretKey('surfaces.ntfy.token');
+    expect(cm.get('surfaces.ntfy.token')).toBe(buildGoodVibesSecretRef(secretKey));
+    expect(await secrets.get(secretKey)).toBe('ntfy-token');
   });
 
   test('close() deactivates modal and clears editing state', () => {

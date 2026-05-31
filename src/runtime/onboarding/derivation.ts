@@ -40,7 +40,6 @@ const PROVIDER_SECRET_ENV_ALIASES = {
   xai: ['XAI_API_KEY'],
   xiaomi: ['XIAOMI_API_KEY'],
   zai: ['ZAI_API_KEY', 'Z_AI_API_KEY'],
-  'cloudflare-ai-gateway': ['CLOUDFLARE_AI_GATEWAY_API_KEY'],
   'vercel-ai-gateway': ['AI_GATEWAY_API_KEY'],
   litellm: ['LITELLM_API_KEY'],
   'copilot-proxy': ['COPILOT_PROXY_API_KEY'],
@@ -55,7 +54,6 @@ const INBOUND_EVENT_SURFACE_KINDS = new Set<string>([
   'discord',
   'google-chat',
   'googleChat',
-  'homeassistant',
   'imessage',
   'mattermost',
   'matrix',
@@ -253,15 +251,6 @@ function hasExternalIntegrations(snapshot: OnboardingSnapshotState): boolean {
     || countConfiguredSurfaceKinds(snapshot) > 0;
 }
 
-function hasCloudflareBatch(snapshot: OnboardingSnapshotState): boolean {
-  return snapshot.config.cloudflare.enabled
-    || snapshot.config.batch.queueBackend === 'cloudflare'
-    || snapshot.config.batch.mode !== 'off'
-    || snapshot.config.cloudflare.accountId.trim().length > 0
-    || snapshot.config.cloudflare.apiTokenRef.trim().length > 0
-    || snapshot.config.cloudflare.workerBaseUrl.trim().length > 0;
-}
-
 function describeLocalTuiOnly(snapshot: OnboardingSnapshotState): string {
   if (!hasAnyServerEnabled(snapshot)) {
     return 'Use GoodVibes Agent in this terminal while connecting only to an externally managed daemon. Agent does not enable service mode, HTTP listeners, external app surfaces, or network setup.';
@@ -295,18 +284,10 @@ function describeExternalIntegrations(snapshot: OnboardingSnapshotState): string
   ]).size;
 
   if (integrationCount === 0) {
-    return 'Enable setup screens for Slack, Discord, Telegram, Home Assistant, Teams, Matrix, and other app surfaces you choose.';
+    return 'Enable setup screens for Slack, Discord, Telegram, Teams, Matrix, and other app surfaces you choose.';
   }
 
   return `Review and configure ${integrationCount} detected external app, service, or surface integration signal(s).`;
-}
-
-function describeCloudflareBatch(snapshot: OnboardingSnapshotState): string {
-  if (hasCloudflareBatch(snapshot)) {
-    return 'Review Cloudflare Workers/Queues batch processing, token storage, and optional remote daemon provisioning settings.';
-  }
-
-  return 'Optionally configure Cloudflare Workers and Queues for explicit or eligible background batch jobs. The external daemon still owns execution.';
 }
 
 function getAcknowledgementAccepted(
@@ -377,12 +358,6 @@ export function deriveStep1Capabilities(
       selected: hasExternalIntegrations(snapshot),
       detail: describeExternalIntegrations(snapshot),
     },
-    {
-      id: 'cloudflare-batch',
-      label: 'Use Cloudflare for batch or remote daemon work',
-      selected: hasCloudflareBatch(snapshot),
-      detail: describeCloudflareBatch(snapshot),
-    },
   ];
 }
 
@@ -397,7 +372,6 @@ export function deriveStep1CapabilityFlags(
   readonly httpListener: boolean;
   readonly web: boolean;
   readonly surfaces: boolean;
-  readonly cloudflare: boolean;
 } {
   return {
     providers: hasConfiguredProviderState(snapshot) || hasCustomizedProviderRouting(snapshot),
@@ -410,7 +384,6 @@ export function deriveStep1CapabilityFlags(
     httpListener: snapshot.bindSettings.httpListenerEnabled,
     web: snapshot.bindSettings.web.enabled,
     surfaces: countConfiguredSurfaceKinds(snapshot) > 0,
-    cloudflare: hasCloudflareBatch(snapshot),
   };
 }
 

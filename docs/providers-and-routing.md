@@ -55,7 +55,6 @@ The runtime also supports a broad compatible/gateway layer. Current built-ins in
 - `xai`
 - `xiaomi`
 - `zai`
-- `cloudflare-ai-gateway`
 - `vercel-ai-gateway`
 - `litellm`
 - `copilot-proxy`

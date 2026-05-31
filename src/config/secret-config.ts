@@ -9,8 +9,6 @@ export const SECRET_CONFIG_KEYS = new Set<ConfigKey>([
   'surfaces.discord.botToken',
   'surfaces.ntfy.token',
   'surfaces.webhook.secret',
-  'surfaces.homeassistant.accessToken',
-  'surfaces.homeassistant.webhookSecret',
   'surfaces.telegram.botToken',
   'surfaces.telegram.webhookSecret',
   'surfaces.googleChat.verificationToken',

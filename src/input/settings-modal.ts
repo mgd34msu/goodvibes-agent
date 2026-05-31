@@ -34,7 +34,7 @@ import {
   type SettingsModalOpenOptions,
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
-import { AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON, isExternalDaemonOwnedSettingKey } from './settings-modal-agent-policy.ts';
+import { AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON, isAgentHiddenSettingKey, isExternalDaemonOwnedSettingKey } from './settings-modal-agent-policy.ts';
 
 export {
   SETTINGS_CATEGORIES,
@@ -51,6 +51,7 @@ export {
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
 export { AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON, isExternalDaemonOwnedSettingKey } from './settings-modal-agent-policy.ts';
+export { isAgentHiddenSettingKey } from './settings-modal-agent-policy.ts';
 
 // ---------------------------------------------------------------------------
 // SettingsModal
@@ -621,6 +622,7 @@ export class SettingsModal {
     }
 
     for (const setting of CONFIG_SCHEMA) {
+      if (isAgentHiddenSettingKey(setting.key)) continue;
       const rawCat = setting.key.split('.')[0] as string;
       const cat = rawCat as SettingsCategory;
       const currentValue = configManager.get(setting.key as ConfigKey);

@@ -6,7 +6,7 @@ GoodVibes Agent is an operator assistant, not a coding TUI clone at the product-
 
 - Normal chat stays in the main Agent conversation.
 - Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`.
-- Agent never falls back to the default Knowledge/Wiki, HomeGraph, Home Assistant, or arbitrary knowledge spaces.
+- Agent never falls back to the default Knowledge/Wiki or arbitrary non-Agent knowledge spaces.
 - Local memory, routines, skills, and personas remain Agent-local until a stable shared registry contract exists.
 - The daemon is external. Agent connects to it and reports health; it does not start, stop, restart, or install it.
 - WRFC is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, review, or WRFC work.
@@ -41,13 +41,13 @@ Local recall capture/add commands are explicit Agent-local memory actions. Delet
 
 `/knowledge ingest-url <url> --yes` ingests into Agent Knowledge through `/api/goodvibes-agent/knowledge/ingest/url`. Knowledge ingestion, imports, issue review, reindex, and consolidation are Agent-owned mutations and require `--yes`.
 
-The Agent command layer rejects flags that would route knowledge work into another space, including `--space`, `--knowledge-space`, `--knowledgeSpaceId`, `--includeAllSpaces`, and HomeGraph/Home Assistant selectors. If Agent Knowledge is unavailable, the command fails closed instead of querying a default store.
+The Agent command layer rejects flags that would route knowledge work into another space, including `--space`, `--knowledge-space`, `--knowledgeSpaceId`, and `--includeAllSpaces`. If Agent Knowledge is unavailable, the command fails closed instead of querying a default store.
 
 ## Planning
 
 `/plan` inspects or seeds Agent workspace planning state. The planning loop belongs to the main Agent conversation: the Agent asks focused questions, records decisions and gaps, and keeps execution separate until the user gives an explicit action.
 
-The SDK project-planning service may still expose a project namespace such as `project:<projectId>` because that is the stable contract shape. In Agent UI and docs this is treated as a planning namespace, not as permission to query default Knowledge/Wiki or HomeGraph.
+The SDK project-planning service may still expose a project namespace such as `project:<projectId>` because that is the stable contract shape. In Agent UI and docs this is treated as a planning namespace, not as permission to query default Knowledge/Wiki or another product knowledge segment.
 
 Use `/workplan` when the work already has concrete tasks and needs durable status tracking rather than another planning interview.
 
@@ -66,7 +66,7 @@ Approvals and automation are safe by default:
 - no chat turn silently runs approval, schedule, or automation mutations;
 - unavailable routes return structured errors rather than fallback behavior.
 
-Routine promotion is the first Agent-owned scheduling bridge: local routines stay local during normal use, and promotion creates a daemon `schedules.create` record only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or HomeGraph fallback. Delivery is opt-in with explicit flags such as `--delivery-surface`, `--delivery-route`, `--delivery-webhook`, or `--delivery-link`; no delivery target is inferred from chat. Confirmed attempts are written to a local redacted receipt log under the Agent home so the operator can review route, daemon, cadence, delivery posture, status, and returned schedule id without scraping daemon internals. `/schedule reconcile` calls public `schedules.list` to compare those receipts with live externally owned daemon schedules.
+Routine promotion is the first Agent-owned scheduling bridge: local routines stay local during normal use, and promotion creates a daemon `schedules.create` record only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or non-Agent knowledge fallback. Delivery is opt-in with explicit flags such as `--delivery-surface`, `--delivery-route`, `--delivery-webhook`, or `--delivery-link`; no delivery target is inferred from chat. Confirmed attempts are written to a local redacted receipt log under the Agent home so the operator can review route, daemon, cadence, delivery posture, status, and returned schedule id without scraping daemon internals. `/schedule reconcile` calls public `schedules.list` to compare those receipts with live externally owned daemon schedules.
 
 ## Related Docs
 

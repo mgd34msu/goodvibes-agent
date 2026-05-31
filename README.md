@@ -81,7 +81,7 @@ Local Agent behavior is editable from the TUI:
 /skills local list
 ```
 
-Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promotion to a daemon schedule is separate and explicit: it calls the public `schedules.create` route on the externally managed daemon only after `--yes`, can include explicit delivery targets such as `--delivery-surface slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and HomeGraph. Use `/schedule reconcile` to compare those local receipts against live externally owned daemon schedules through public `schedules.list`.
+Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promotion to a daemon schedule is separate and explicit: it calls the public `schedules.create` route on the externally managed daemon only after `--yes`, can include explicit delivery targets such as `--delivery-surface slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live externally owned daemon schedules through public `schedules.list`.
 
 ## Daemon Prerequisite
 
@@ -101,7 +101,7 @@ Those commands should return explicit external-daemon guidance instead of mutati
 
 GoodVibes Agent owns the operator assistant surface: serial assistant flow, proactive safe actions, local memory/routines/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
-Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki, HomeGraph, or Home Assistant routes.
+Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
 
 GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, sandbox/QEMU UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public daemon/session contracts; normal assistant chat must not use shared coding sessions.
 

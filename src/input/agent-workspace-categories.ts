@@ -59,7 +59,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'KNOW',
     label: 'Knowledge',
     summary: 'Agent Knowledge/Wiki and source-backed lookup.',
-    detail: 'Agent knowledge calls must use the isolated /api/goodvibes-agent/knowledge routes. Default regular wiki and HomeGraph are not the Agent knowledge environment.',
+    detail: 'Agent knowledge calls must use the isolated /api/goodvibes-agent/knowledge routes. Default regular wiki and non-Agent knowledge segments are not the Agent knowledge environment.',
     actions: [
       { id: 'knowledge-status', label: 'Knowledge status', detail: 'Inspect Agent knowledge readiness and counts.', command: '/knowledge status', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-search', label: 'Search Agent knowledge', detail: 'Search the isolated Agent Knowledge index. Close this workspace and provide an actual query.', command: '/knowledge search <query>', kind: 'command', safety: 'read-only' },

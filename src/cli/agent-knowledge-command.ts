@@ -287,7 +287,7 @@ function findDisallowedKnowledgeScopeFlag(args: readonly string[]): string | nul
 function formatScopeFlagRejection(flag: string): string {
   return [
     `Agent Knowledge is isolated; ${flag} is not accepted.`,
-    'GoodVibes Agent must not use default Knowledge/Wiki, HomeGraph, or Home Assistant spaces.',
+    'GoodVibes Agent must not use default Knowledge/Wiki or non-Agent product spaces.',
     'Use only /api/goodvibes-agent/knowledge/* Agent-owned routes.',
   ].join('\n');
 }

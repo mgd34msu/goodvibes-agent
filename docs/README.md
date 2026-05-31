@@ -17,7 +17,7 @@ Important baseline constraints:
 - Agent depends on `@pellux/goodvibes-sdk@0.33.35`.
 - Agent connects to an externally managed daemon.
 - Agent does not start, stop, restart, install, uninstall, or own daemon/listener/web/service lifecycle.
-- Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`; there is no default Knowledge/Wiki, HomeGraph, or Home Assistant fallback.
+- Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`; there is no default Knowledge/Wiki or non-Agent product fallback.
 - Agent supports isolated runtime homes with `GOODVIBES_AGENT_HOME=<path>` and named profile homes with `goodvibes-agent profiles create <name> --template <starter> --yes` plus `--agent-profile <name>`.
 - Agent ships starter profile templates for household, research, travel, operations, and personal productivity local state; `profiles templates export/import` and `/agent-profile guide` support local custom starters.
 - Local personas, routines, and Agent skills are stored under the Agent surface root and are injected only into the serial Agent conversation.

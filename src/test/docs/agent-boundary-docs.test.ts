@@ -32,7 +32,7 @@ describe('Agent boundary docs', () => {
       '--space <knowledgeSpaceId>',
       'TUI-owned',
       'default Knowledge/Wiki store',
-      'Home Assistant graph',
+      'product-specific graph',
     ] as const;
 
     for (const path of paths) {
@@ -59,6 +59,6 @@ describe('Agent boundary docs', () => {
     expect(coordinatorSource).toContain('Planning namespace:');
     expect(coordinatorSource).not.toContain('Knowledge space:');
     expect(combined).not.toContain('TUI-owned');
-    expect(combined).not.toContain('Home Assistant');
+    expect(combined).not.toContain('non-Agent product setup');
   });
 });

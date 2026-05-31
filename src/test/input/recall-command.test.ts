@@ -256,7 +256,7 @@ describe('recallCommand', () => {
 
     const output = printed.join('\n');
     expect(output).toContain('Agent Memory API is not available');
-    expect(output).toContain('Refusing to use default Knowledge/Wiki or HomeGraph fallback');
+    expect(output).toContain('Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback');
   });
 
   test('captures the latest incident into memory', async () => {

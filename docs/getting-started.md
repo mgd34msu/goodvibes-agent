@@ -71,7 +71,7 @@ Named profiles isolate Agent-local config, sessions, memory, personas, skills, r
 
 ## Local Personas, Routines, And Skills
 
-Personas, routines, and reusable Agent skills are local to GoodVibes Agent. They do not write into default Knowledge/Wiki or HomeGraph.
+Personas, routines, and reusable Agent skills are local to GoodVibes Agent. They do not write into default Knowledge/Wiki or non-Agent knowledge segments.
 
 ```text
 /personas list
@@ -85,7 +85,7 @@ Personas, routines, and reusable Agent skills are local to GoodVibes Agent. They
 /skills local list
 ```
 
-The active persona plus enabled Agent routines and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call to the external daemon, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or HomeGraph.
+The active persona plus enabled Agent routines and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call to the external daemon, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or non-Agent knowledge segments.
 
 ## External Daemon
 
@@ -97,7 +97,7 @@ Start the daemon from GoodVibes TUI or the daemon host before using daemon-backe
 - `/api/goodvibes-agent/knowledge/search`
 - `/api/goodvibes-agent/knowledge/ingest/url`
 
-Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not fall back to default Knowledge/Wiki, HomeGraph, or Home Assistant spaces.
+Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not fall back to default Knowledge/Wiki or other product-specific knowledge spaces.
 
 Agent lifecycle commands that would start or mutate daemon posture are blocked intentionally. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and read-only surface checks for diagnostics.
 

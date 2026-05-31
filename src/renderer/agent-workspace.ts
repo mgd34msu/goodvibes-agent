@@ -184,7 +184,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'knowledge') {
     base.push(
       { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },
-      { text: `Isolation: ${snapshot.knowledgeIsolation}; no default Knowledge/Wiki or HomeGraph fallback`, fg: PALETTE.good },
+      { text: `Isolation: ${snapshot.knowledgeIsolation}; no default Knowledge/Wiki or non-Agent fallback`, fg: PALETTE.good },
       { text: 'Ingest: URL, URL-list, and bookmark imports require explicit --yes and write only to Agent Knowledge.', fg: PALETTE.info },
       { text: 'Review: queue, issues, candidates, reports, reindex, and consolidation stay inside the Agent segment.', fg: PALETTE.muted },
       { text: 'Agent-owned content appears here only after explicit Agent knowledge ingestion.', fg: PALETTE.muted },

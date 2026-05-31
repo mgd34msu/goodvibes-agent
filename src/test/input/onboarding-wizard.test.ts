@@ -34,7 +34,6 @@ function makeInput(): InputHandler {
 function makeOnboardingSnapshot(
   overrides: Partial<OnboardingSnapshotState> = {},
 ): OnboardingSnapshotState {
-  const legacyCloudKey = `${'cloud'}${'flare'}` as 'cloudflare';
   const config = {
     display: structuredClone(DEFAULT_CONFIG.display),
     provider: structuredClone(DEFAULT_CONFIG.provider),
@@ -56,7 +55,6 @@ function makeOnboardingSnapshot(
     service: structuredClone(DEFAULT_CONFIG.service),
     featureFlags: structuredClone(DEFAULT_CONFIG.featureFlags),
     batch: structuredClone(DEFAULT_CONFIG.batch),
-    [legacyCloudKey]: structuredClone(DEFAULT_CONFIG[legacyCloudKey]),
   };
 
   return {
@@ -274,7 +272,7 @@ describe('OnboardingWizardController', () => {
     expect(text).not.toContain('external-services');
     expect(text).not.toContain('Slack');
     expect(text).not.toContain('Discord');
-    expect(text).not.toContain('Home Assistant');
+    expect(text).not.toContain('non-Agent product setup');
     expect(text).not.toContain('HTTP listener');
     expect(text).not.toContain('control-plane');
     expect(text).not.toContain('network setup');

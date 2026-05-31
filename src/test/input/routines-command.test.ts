@@ -263,7 +263,7 @@ describe('/routines command', () => {
         address: 'https://hooks.example.test/routine/secret-token',
       }));
       expect(payload.prompt).toContain('Use isolated Agent Knowledge routes only');
-      expect(payload.prompt).toContain('never use default Knowledge/Wiki or HomeGraph');
+      expect(payload.prompt).toContain('never use default Knowledge/Wiki or non-Agent knowledge spaces');
       const promotionText = out.join('\n');
       const receiptId = promotionText.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
       expect(promotionText).toContain('Created daemon schedule for Agent routine');

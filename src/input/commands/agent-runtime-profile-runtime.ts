@@ -83,7 +83,7 @@ function renderGuide(homeDirectory: string): string {
     '5. Create a runtime profile from the imported starter:',
     '   /agent-profile create <name> --template <imported-id> --yes',
     '',
-    'This writes only Agent-local starter/profile state. It does not mutate the daemon, default wiki, or HomeGraph.',
+    'This writes only Agent-local starter/profile state. It does not mutate the daemon, default wiki, or non-Agent knowledge segments.',
   ].join('\n');
 }
 

@@ -237,14 +237,14 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 38));
 
     expect(output).toContain('/api/goodvibes-agent/knowledge');
-    expect(output).toContain('no default Knowledge/Wiki or HomeGraph fallback');
+    expect(output).toContain('no default Knowledge/Wiki or non-Agent fallback');
     expect(output).toContain('Ingest URL');
     expect(output).toContain('/knowledge ingest-url <url> --yes');
     expect(output).toContain('Review queue');
     expect(output).toContain('/knowledge queue');
     expect(output).toContain('Consolidation review');
     expect(output).not.toContain('/api/knowledge');
-    expect(output).not.toContain('Home Assistant');
+    expect(output).not.toContain('non-Agent product setup');
   });
 
   test('renders voice media browser and node setup posture', () => {

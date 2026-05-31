@@ -295,7 +295,7 @@ describe('knowledgeCommand', () => {
     expect(output).not.toContain('This local snippet should not be rendered.');
   });
 
-  test('refuses default Knowledge/Wiki or HomeGraph fallback when Agent Knowledge is not wired', async () => {
+  test('refuses default Knowledge/Wiki or non-Agent fallback when Agent Knowledge is not wired', async () => {
     const genericKnowledgeApi = createKnowledgeApi({
       getStatus: () => {
         throw new Error('default wiki must not be called');
@@ -333,10 +333,10 @@ describe('knowledgeCommand', () => {
 
     const output = printed.join('\n');
     expect(output).toContain('Agent Knowledge API is not available');
-    expect(output).toContain('Refusing to use default Knowledge/Wiki or HomeGraph fallback');
+    expect(output).toContain('Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback');
   });
 
-  test('rejects space flags instead of routing Agent Knowledge to HomeGraph/default spaces', async () => {
+  test('rejects space flags instead of routing Agent Knowledge to non-Agent/default spaces', async () => {
     await knowledgeCommand.handler(
       ['ask', 'what', 'does', 'the', 'manual', 'say?', '--space'],
       makeKnowledgeAskCommandContext(printed, {
@@ -357,7 +357,7 @@ describe('knowledgeCommand', () => {
     const output = printed.join('\n');
     expect(output).toContain('Agent Knowledge is isolated');
     expect(output).toContain('--space is not accepted');
-    expect(output).toContain('must not use default Knowledge/Wiki, HomeGraph, or Home Assistant spaces');
+    expect(output).toContain('must not use default Knowledge/Wiki or non-Agent product spaces');
     expect(output).not.toContain('This must not render.');
   });
 

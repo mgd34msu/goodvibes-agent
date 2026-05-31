@@ -604,7 +604,7 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual(['/knowledge queue']);
     expect(workspace.status).toContain('/knowledge queue');
     expect(workspace.selectedCategory.detail).toContain('/api/goodvibes-agent/knowledge');
-    expect(workspace.selectedCategory.detail).toContain('Default regular wiki and HomeGraph are not');
+    expect(workspace.selectedCategory.detail).toContain('Default regular wiki and non-Agent knowledge segments are not');
   });
 
   test('does not dispatch Agent Knowledge ingest templates without real target values', () => {

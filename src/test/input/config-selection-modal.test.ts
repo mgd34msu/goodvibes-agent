@@ -5,7 +5,7 @@ import { mkdirSync, rmSync } from 'fs';
 
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerConfigCommand } from '../../input/commands/config.ts';
-import { SettingsModal } from '../../input/settings-modal.ts';
+import { isAgentHiddenSettingKey, SettingsModal } from '../../input/settings-modal.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
@@ -74,9 +74,9 @@ describe('/config fullscreen workspace command', () => {
       expect(registry.get('cfg-old')).toBeUndefined();
 
       const { ctx, calls } = makeContext(dir);
-      await command!.handler(['surfaces.homeassistant.instanceUrl'], ctx);
+      await command!.handler(['surfaces.ntfy.baseUrl'], ctx);
 
-      expect(calls.settingsTargets).toEqual(['surfaces.homeassistant.instanceUrl']);
+      expect(calls.settingsTargets).toEqual(['surfaces.ntfy.baseUrl']);
       expect(calls.printed).toHaveLength(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -102,7 +102,7 @@ describe('/config fullscreen workspace command', () => {
         for (const entry of entries) workspaceKeys.add(entry.setting.key);
       }
 
-      expect(CONFIG_SCHEMA.map((entry) => entry.key).filter((key) => !workspaceKeys.has(key))).toEqual([]);
+      expect(CONFIG_SCHEMA.map((entry) => entry.key).filter((key) => !isAgentHiddenSettingKey(key) && !workspaceKeys.has(key))).toEqual([]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -200,7 +200,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'knowledge search <query> [--limit <n>]',
       'knowledge ingest-url <url> [--title <title>] [--tags a,b] --yes',
     ],
-    summary: 'Call isolated Agent Knowledge/Wiki routes under /api/goodvibes-agent/knowledge. No default wiki or HomeGraph fallback.',
+    summary: 'Call isolated Agent Knowledge/Wiki routes under /api/goodvibes-agent/knowledge. No default wiki or non-Agent fallback.',
     examples: [
       'knowledge status',
       'knowledge ask "What is GoodVibes Agent?"',
@@ -210,12 +210,12 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   ask: {
     usage: ['ask <question> [--limit <n>] [--mode concise|standard|detailed]'],
-    summary: 'Shortcut for isolated Agent Knowledge ask. This never queries default Knowledge/Wiki or HomeGraph.',
+    summary: 'Shortcut for isolated Agent Knowledge ask. This never queries default Knowledge/Wiki or non-Agent knowledge.',
     examples: ['ask "What is GoodVibes Agent?"', 'ask "release checklist" --mode concise'],
   },
   search: {
     usage: ['search <query> [--limit <n>]'],
-    summary: 'Shortcut for isolated Agent Knowledge search. This never queries default Knowledge/Wiki or HomeGraph.',
+    summary: 'Shortcut for isolated Agent Knowledge search. This never queries default Knowledge/Wiki or non-Agent knowledge.',
     examples: ['search "release checklist"', 'search "operator workspace" --limit 5'],
   },
   delegate: {

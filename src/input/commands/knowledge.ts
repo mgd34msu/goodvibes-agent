@@ -12,7 +12,7 @@ type KnowledgeAskMode = NonNullable<KnowledgeAskInput['mode']>;
 function requireAgentKnowledgeApi(context: CommandContext) {
   const knowledgeApi = context.clients?.agentKnowledgeApi;
   if (!knowledgeApi) {
-    context.print('[knowledge] Agent Knowledge API is not available in this runtime. Refusing to use default Knowledge/Wiki or HomeGraph fallback.');
+    context.print('[knowledge] Agent Knowledge API is not available in this runtime. Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback.');
     return null;
   }
   return knowledgeApi;
@@ -45,7 +45,7 @@ function findDisallowedKnowledgeScopeFlag(args: readonly string[]): string | nul
 function printScopeFlagRejection(context: CommandContext, flag: string): void {
   context.print([
     `[knowledge] Agent Knowledge is isolated; ${flag} is not accepted.`,
-    '[knowledge] GoodVibes Agent must not use default Knowledge/Wiki, HomeGraph, or Home Assistant spaces.',
+    '[knowledge] GoodVibes Agent must not use default Knowledge/Wiki or non-Agent product spaces.',
     '[knowledge] Use only /api/goodvibes-agent/knowledge/* Agent-owned routes.',
   ].join('\n'));
 }
@@ -89,7 +89,7 @@ function requireAgentKnowledgeAsk(context: CommandContext): ((input: KnowledgeAs
   const serviceAsk = context.extensions.agentKnowledgeService?.ask?.bind(context.extensions.agentKnowledgeService);
   if (serviceAsk) return serviceAsk;
 
-  context.print('[knowledge] Agent Knowledge ask is not available in this runtime. Refusing to use default Knowledge/Wiki or HomeGraph fallback.');
+  context.print('[knowledge] Agent Knowledge ask is not available in this runtime. Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback.');
   return null;
 }
 
