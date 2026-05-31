@@ -116,6 +116,13 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         const items: SelectionItem[] = [
           { id: '/agent', label: '/agent', detail: 'Open the Agent operator workspace', category: 'Agent Operator' },
           { id: '/home', label: '/home', detail: 'Alias for the Agent operator workspace', category: 'Agent Operator' },
+          { id: '/knowledge', label: '/knowledge', detail: 'Inspect isolated Agent Knowledge status, ask/search, and ingest flows', category: 'Agent Operator' },
+          { id: '/memory', label: '/memory', detail: 'Review local Agent memory records', category: 'Agent Operator' },
+          { id: '/personas', label: '/personas', detail: 'Create, review, and activate local Agent personas', category: 'Agent Operator' },
+          { id: '/agent-skills', label: '/agent-skills', detail: 'Create, review, and enable reusable Agent skills', category: 'Agent Operator' },
+          { id: '/routines', label: '/routines', detail: 'Create, review, start, and promote Agent routines explicitly', category: 'Agent Operator' },
+          { id: '/delegate', label: '/delegate [task]', detail: 'Explicit build/fix/review handoff to GoodVibes TUI', category: 'Agent Operator' },
+          { id: '/pair', label: '/pair', detail: 'Pair companion clients through the external GoodVibes service', category: 'Agent Operator' },
           { id: '/model', label: '/model [id]', detail: 'Select LLM model', category: 'Model & Provider' },
           { id: '/provider', label: '/provider [name]', detail: 'Switch provider', category: 'Model & Provider' },
           { id: '/effort', label: '/effort [level]', detail: 'Reasoning effort (instant/low/medium/high)', category: 'Model & Provider' },
