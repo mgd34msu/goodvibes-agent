@@ -615,6 +615,10 @@ export function getAgentRuntimeProfileTemplate(templateId: AgentRuntimeProfileTe
   return summarizeTemplate(resolveAgentRuntimeProfileTemplate(templateId, baseHomeDirectory));
 }
 
+export function getAgentRuntimeProfileTemplateFile(templateId: AgentRuntimeProfileTemplateId, baseHomeDirectory?: string): AgentRuntimeProfileStarterTemplateFile {
+  return templateFilePayload(resolveAgentRuntimeProfileTemplate(templateId, baseHomeDirectory));
+}
+
 function templateFilePayload(template: AgentRuntimeProfileStarterTemplate): AgentRuntimeProfileStarterTemplateFile {
   return {
     version: 1,

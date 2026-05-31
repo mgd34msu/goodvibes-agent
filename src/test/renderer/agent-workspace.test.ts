@@ -224,10 +224,14 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Runtime profiles under this home: 1');
     expect(output).toContain('Config profiles: 2');
     expect(output).toContain('/profiles');
+    expect(output).toContain('Starter authoring guide');
+    expect(output).toContain('/agent-profile guide');
+    expect(output).toContain('/agent-profile templates');
     expect(output).toContain('/profilesync list');
     expect(output).toContain('/profilesync export <path> --yes');
     expect(output).toContain('/setup transfer export <path> --yes');
-    expect(output).toContain('Starter templates: household, research, travel, operations, personal-productivity.');
+    expect(output).toContain('Starter templates: 5; local custom: 0');
+    expect(output).toContain('Starter authoring: browse, export, edit, import, and create Agent profiles');
     expect(output).toContain('external daemon remains shared');
   });
 

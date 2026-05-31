@@ -46,6 +46,8 @@ Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator
 
 Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps.
 
+Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated runtime profiles from them.
+
 Use isolated Agent runtime profiles when one machine needs separate operator identities or local state:
 
 ```sh

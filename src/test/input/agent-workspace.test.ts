@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
 import { registerAgentWorkspaceRuntimeCommands } from '../../input/commands/agent-workspace-runtime.ts';
+import { registerAgentRuntimeProfileRuntimeCommands } from '../../input/commands/agent-runtime-profile-runtime.ts';
 import { createAgentRuntimeProfile } from '../../agent/runtime-profile.ts';
+import { createShellPathService } from '@/runtime/index.ts';
 
 function commandContext(calls: string[] = []): CommandContext {
   return {
@@ -259,7 +261,53 @@ describe('AgentWorkspace', () => {
     expect(snapshot.activeRuntimeProfile).toBe('(default home)');
     expect(snapshot.runtimeProfileCount).toBe(1);
     expect(snapshot.runtimeProfileRoot).toContain('profile-homes');
+    expect(snapshot.runtimeStarterTemplateCount).toBeGreaterThan(4);
+    expect(snapshot.localStarterTemplateCount).toBe(0);
     expect(snapshot.configProfileCount).toBe(2);
+  });
+
+  test('agent profile command guides starter authoring and imports local starters', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-starter-author-'));
+    const starterPath = join(root, 'starter.json');
+    const calls: string[] = [];
+    const registry = new CommandRegistry();
+    registerAgentRuntimeProfileRuntimeCommands(registry);
+    const ctx = {
+      ...commandContext(),
+      print: (text: string) => calls.push(text),
+      workspace: {
+        shellPaths: createShellPathService({ workingDirectory: root, homeDirectory: root }),
+      },
+    } as unknown as CommandContext;
+
+    expect(await registry.execute('agent-profile', ['guide'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('Agent Starter Authoring Guide');
+    expect(calls.at(-1)).toContain('/agent-profile template export research');
+
+    expect(await registry.execute('agent-profile', ['template', 'export', 'research', './starter.json', '--yes'], ctx)).toBe(true);
+    const exported = JSON.parse(readFileSync(starterPath, 'utf-8')) as {
+      template: {
+        id: string;
+        name: string;
+        description: string;
+      };
+    };
+    exported.template.id = 'lab-operator';
+    exported.template.name = 'Lab Operator';
+    exported.template.description = 'Custom lab operator profile starter.';
+    writeFileSync(starterPath, `${JSON.stringify(exported, null, 2)}\n`, 'utf-8');
+
+    expect(await registry.execute('agent-profile', ['template', 'import', './starter.json', '--yes'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('Agent starter template imported: lab-operator');
+    expect(await registry.execute('agent-profile', ['templates'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('lab-operator');
+    expect(calls.at(-1)).toContain('[local');
+
+    expect(await registry.execute('agent-profile', ['create', 'lab', '--template', 'lab-operator', '--yes'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('Agent runtime profile created: lab');
+    expect(calls.at(-1)).toContain('starter: lab-operator');
+    expect(await registry.execute('agent-profile', ['list'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('starter=lab-operator');
   });
 
   test('does not dispatch profile export templates without real target values', () => {
@@ -274,6 +322,19 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
     expect(workspace.lastActionResult?.kind).toBe('guidance');
     expect(workspace.status).toContain('Placeholder command not dispatched');
+  });
+
+  test('dispatches starter authoring guide from the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-guide');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/agent-profile guide']);
+    expect(workspace.status).toContain('/agent-profile guide');
   });
 
   test('blocks copied TUI-only blocked commands inside the workspace', () => {

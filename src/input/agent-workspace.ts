@@ -4,7 +4,7 @@ import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
-import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles } from '../agent/runtime-profile.ts';
+import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates } from '../agent/runtime-profile.ts';
 
 export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
@@ -97,6 +97,8 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly activeRuntimeProfile: string;
   readonly runtimeProfileCount: number;
   readonly runtimeProfileRoot: string;
+  readonly runtimeStarterTemplateCount: number;
+  readonly localStarterTemplateCount: number;
   readonly configProfileCount: number;
   readonly warnings: readonly string[];
 }
@@ -378,6 +380,13 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return 0;
     }
   })();
+  const runtimeStarterTemplates = (() => {
+    try {
+      return listAgentRuntimeProfileTemplates(context.workspace?.shellPaths?.homeDirectory ?? '');
+    } catch {
+      return [];
+    }
+  })();
   const voiceProviders = (() => {
     try {
       return context.platform?.voiceProviderRegistry?.list?.() ?? [];
@@ -437,6 +446,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     activeRuntimeProfile: inferActiveRuntimeProfile(context.workspace?.shellPaths?.homeDirectory ?? ''),
     runtimeProfileCount: runtimeProfiles.length,
     runtimeProfileRoot: getAgentRuntimeProfilesRoot(context.workspace?.shellPaths?.homeDirectory ?? ''),
+    runtimeStarterTemplateCount: runtimeStarterTemplates.length,
+    localStarterTemplateCount: runtimeStarterTemplates.filter((template) => template.source === 'local').length,
     configProfileCount,
     warnings,
   };
@@ -522,11 +533,13 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Hermes profiles isolate agent state. GoodVibes Agent exposes named runtime homes, config profile pickers, profile-sync bundles, setup transfer bundles, and support bundles while keeping the daemon external.',
     actions: [
       { id: 'profiles-open', label: 'Open config profiles', detail: 'Open the TUI-derived config profile picker for display/provider/behavior profile files.', command: '/profiles', kind: 'command', safety: 'safe' },
+      { id: 'runtime-profile-guide', label: 'Starter authoring guide', detail: 'Open the Agent-local starter authoring flow inside the TUI command surface.', command: '/agent-profile guide', kind: 'command', safety: 'safe' },
+      { id: 'runtime-profile-templates', label: 'Browse starter templates', detail: 'List built-in and local Agent starter templates with persona, skill, routine, and source details.', command: '/agent-profile templates', kind: 'command', safety: 'read-only' },
       { id: 'profile-sync-list', label: 'Profile sync list', detail: 'Inspect saved config profiles available for export/import.', command: '/profilesync list', kind: 'command', safety: 'read-only' },
       { id: 'profile-sync-export', label: 'Export profile sync', detail: 'Export config profiles to a portable bundle. Requires a real path and explicit --yes.', command: '/profilesync export <path> --yes', kind: 'command', safety: 'safe' },
       { id: 'setup-transfer-export', label: 'Export setup transfer', detail: 'Export Agent setup transfer data from the current home. Requires a real path and explicit --yes.', command: '/setup transfer export <path> --yes', kind: 'command', safety: 'safe' },
-      { id: 'runtime-profile-create', label: 'Create runtime profile', detail: 'Use goodvibes-agent profiles templates, then goodvibes-agent profiles create <name> --template <id> --yes. Starters seed local personas, skills, and routines without touching the daemon.', kind: 'guidance', safety: 'safe' },
-      { id: 'runtime-profile-template-edit', label: 'Customize starter', detail: 'Use goodvibes-agent profiles templates export <id> <path> --yes, edit the JSON, then import it with profiles templates import <path> --yes.', kind: 'guidance', safety: 'safe' },
+      { id: 'runtime-profile-create', label: 'Create runtime profile', detail: 'Create an isolated Agent runtime profile from a built-in or local starter. Requires a real name and explicit --yes.', command: '/agent-profile create <name> --template <id> --yes', kind: 'command', safety: 'safe' },
+      { id: 'runtime-profile-template-edit', label: 'Customize starter', detail: 'Export a starter JSON file, edit it, import it as a local starter, then create a profile from it.', command: '/agent-profile template export <id> <path> --yes', kind: 'command', safety: 'safe' },
       { id: 'runtime-profile-switch', label: 'Switch runtime profile', detail: 'Launch goodvibes-agent --agent-profile <name> to use that isolated Agent home. This workspace cannot switch the current process home after startup.', kind: 'guidance', safety: 'safe' },
     ],
   },

@@ -53,6 +53,7 @@ import { registerTtsRuntimeCommands } from './commands/tts-runtime.ts';
 import { registerCloudflareRuntimeCommands } from './commands/cloudflare-runtime.ts';
 import { registerWorkPlanRuntimeCommands } from './commands/work-plan-runtime.ts';
 import { registerAgentWorkspaceRuntimeCommands } from './commands/agent-workspace-runtime.ts';
+import { registerAgentRuntimeProfileRuntimeCommands } from './commands/agent-runtime-profile-runtime.ts';
 import { registerAgentExternalizedTuiCommands } from './commands/agent-externalized-tui.ts';
 import { registerDelegationRuntimeCommands } from './commands/delegation-runtime.ts';
 import { registerPersonasRuntimeCommands } from './commands/personas-runtime.ts';
@@ -67,6 +68,7 @@ import { registerCapabilitiesRuntimeCommands } from './commands/capabilities-run
 export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerShellCoreCommands(registry);
   registerAgentWorkspaceRuntimeCommands(registry);
+  registerAgentRuntimeProfileRuntimeCommands(registry);
   registerCapabilitiesRuntimeCommands(registry);
   registerPersonasRuntimeCommands(registry);
   registerAgentSkillsRuntimeCommands(registry);
