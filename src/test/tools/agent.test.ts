@@ -1,14 +1,19 @@
 import { describe, test, expect, beforeEach, spyOn } from 'bun:test';
-import { createAgentTool, AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
+import { createAgentTool, AgentManager, ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { AgentMessageBus, WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { OrchestrationEvent } from '@/runtime/index.ts';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import {
+  AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
+  AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
   AGENT_READ_ONLY_TOOL_MODES,
+  installAgentToolPolicyGuard,
   normalizeAgentToolInvocationForAgentPolicy,
   wrapAgentToolForAgentPolicy,
 } from '../../tools/wrfc-agent-guard.ts';
@@ -32,7 +37,7 @@ const flushMicrotasks = async () => { await Promise.resolve(); await Promise.res
 
 function makeAgentHarness(options: { readonly guarded?: boolean } = {}) {
   const configDir = join(tmpdir(), `gv-agent-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  const configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir });
+  const configManager = new ConfigManager({ surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT, configDir });
   const runtimeBus = new RuntimeEventBus();
   const messageBus = new AgentMessageBus();
   const manager = new AgentManager({
@@ -53,6 +58,18 @@ function makeAgentHarness(options: { readonly guarded?: boolean } = {}) {
   });
   if (options.guarded) wrapAgentToolForAgentPolicy(agentTool);
   return { agentTool, manager, messageBus, configManager };
+}
+
+function makeNoopTool(name: string): Tool {
+  return {
+    definition: {
+      name,
+      description: `${name} test tool`,
+      parameters: { type: 'object', properties: {} },
+      sideEffects: ['write_fs'],
+    },
+    execute: async () => ({ success: true, output: `${name} executed` }),
+  };
 }
 
 let harness = makeAgentHarness();
@@ -392,6 +409,26 @@ describe('spawn mode', () => {
       mode: 'list',
       status: 'running',
     });
+  });
+
+  test('Agent runtime guard blocks direct coding mutation and local workflow tools', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    for (const name of AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES) registry.register(makeNoopTool(name));
+
+    installAgentToolPolicyGuard(registry);
+
+    for (const name of AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES) {
+      const definition = registry.getToolDefinitions().find((tool) => tool.name === name);
+      expect(definition?.description).toContain('Blocked in GoodVibes Agent main conversation');
+      expect(definition?.sideEffects).toEqual([]);
+
+      const result = await registry.execute(`call-${name}`, name, {});
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE);
+      expect(result.callId).toBe(`call-${name}`);
+    }
   });
 
   test('child spawn inherits and enforces the parent capability ceiling', async () => {

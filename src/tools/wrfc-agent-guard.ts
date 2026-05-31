@@ -10,6 +10,8 @@ type AgentToolPolicyGuardOptions = {
   readonly getLastUserMessage?: () => string | null;
 };
 
+const BLOCKED_MAIN_CONVERSATION_TOOL_NAMES = ['write', 'edit', 'workflow', 'repl'] as const;
+
 const READ_ONLY_AGENT_TOOL_MODES = [
   'status',
   'list',
@@ -23,6 +25,7 @@ const READ_ONLY_AGENT_TOOL_MODES = [
 ] as const;
 
 const READ_ONLY_AGENT_TOOL_MODE_SET = new Set<string>(READ_ONLY_AGENT_TOOL_MODES);
+const BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET = new Set<string>(BLOCKED_MAIN_CONVERSATION_TOOL_NAMES);
 
 const LOCAL_AGENT_DENIAL = [
   'GoodVibes Agent does not spawn local Engineer/Reviewer/Tester/Verifier roots or run local WRFC chains.',
@@ -30,10 +33,21 @@ const LOCAL_AGENT_DENIAL = [
   'For explicit build/fix/review work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract with the full original user ask.',
 ].join(' ');
 
+const LOCAL_CODING_TOOL_DENIAL = [
+  'GoodVibes Agent does not perform direct local file mutation, local WRFC workflow execution, or local sandbox/REPL execution from the main conversation.',
+  'For explicit build/fix/review/code execution work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract with the full original user ask.',
+  'For durable Agent memory, skills, personas, routines, and knowledge, use the Agent-owned commands and isolated Agent Knowledge routes.',
+].join(' ');
+
 export function installAgentToolPolicyGuard(registry: ToolRegistry, options: AgentToolPolicyGuardOptions = {}): void {
   const agentTool = registry.list().find((tool) => tool.definition.name === 'agent');
   if (!agentTool) throw new Error('Agent tool policy guard could not find the agent tool.');
   wrapAgentToolForAgentPolicy(agentTool, options);
+  for (const tool of registry.list()) {
+    if (BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET.has(tool.definition.name)) {
+      wrapBlockedMainConversationToolForAgentPolicy(tool);
+    }
+  }
 }
 
 export function wrapAgentToolForAgentPolicy(tool: Tool, _options: AgentToolPolicyGuardOptions = {}): void {
@@ -55,8 +69,20 @@ export function normalizeAgentToolInvocationForAgentPolicy(args: AgentToolArgs):
   return args;
 }
 
+export function wrapBlockedMainConversationToolForAgentPolicy(tool: Tool): void {
+  tool.definition.description = [
+    `Blocked in GoodVibes Agent main conversation: ${tool.definition.name}.`,
+    'Use explicit GoodVibes TUI build delegation for build/fix/review/code execution work.',
+    'Use Agent-owned local registries and isolated Agent Knowledge routes for Agent memory and knowledge work.',
+  ].join(' ');
+  tool.definition.sideEffects = [];
+  tool.execute = async () => ({ success: false, error: LOCAL_CODING_TOOL_DENIAL });
+}
+
 export const AGENT_LOCAL_SPAWN_DENIAL_MESSAGE = LOCAL_AGENT_DENIAL;
 export const AGENT_READ_ONLY_TOOL_MODES = READ_ONLY_AGENT_TOOL_MODES;
+export const AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES = BLOCKED_MAIN_CONVERSATION_TOOL_NAMES;
+export const AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE = LOCAL_CODING_TOOL_DENIAL;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
