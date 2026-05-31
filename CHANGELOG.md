@@ -2,6 +2,13 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.61 - 2026-05-31
+
+- ff6766d Stop shipping repo-local skills
+- 2eedcf5 Focus primary CLI help on Agent use
+- 0ec6af0 Document Bun trust path for SDK native deps
+- f9a6c76 Surface Agent actions in slash help
+
 ## 0.1.60 - 2026-05-31
 
 - f3f2486 Stop shipping developer guidance in package

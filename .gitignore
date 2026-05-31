@@ -18,6 +18,7 @@ vendor/
 !.goodvibes/skills/
 !.goodvibes/agents/
 !.goodvibes/GOODVIBES.md
+workspace/.goodvibes/
 .codex
 .claude/
 

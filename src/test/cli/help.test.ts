@@ -20,7 +20,7 @@ describe('CLI help/version', () => {
   test('does not advertise copied runtime task submission as an Agent workflow', () => {
     const help = renderGoodVibesHelp();
 
-    expect(help).toContain('tasks                      List/show in-process runtime tasks (read-only)');
+    expect(help).not.toContain('tasks                      ');
     expect(help).toContain('profiles                   Manage isolated Agent runtime profile homes');
     expect(help).toContain('routines                   Inspect local routines and explicitly promote one to a daemon schedule');
     expect(help).not.toContain('capabilities               ');
