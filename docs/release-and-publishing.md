@@ -1,6 +1,6 @@
 # Release And Publishing
 
-GoodVibes Agent `0.1.53` is the current installable public alpha release.
+GoodVibes Agent's current installable public alpha version is recorded in `package.json` and `CHANGELOG.md`.
 
 ## Package Identity
 
