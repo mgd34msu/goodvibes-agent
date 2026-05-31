@@ -8,8 +8,6 @@ goodvibes-agent requires Bun.
 Install Bun first, then install GoodVibes Agent from the npm registry with:
 
   bun add -g @pellux/goodvibes-agent
-
-npm install -g @pellux/goodvibes-agent also works, but Bun must already be installed and available on PATH.
 EOF
   exit 1
 fi

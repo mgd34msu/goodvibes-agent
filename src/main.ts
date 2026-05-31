@@ -767,4 +767,31 @@ async function main() {
 
 }
 
-main().catch(err => logger.error('Fatal error', { error: err }));
+function formatFatalStartupError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+main().catch((err: unknown) => {
+  const detail = formatFatalStartupError(err);
+  try {
+    logger.error('Fatal error', { error: detail });
+  } catch {
+    // Startup diagnostics must never hide the original launch failure.
+  }
+  try {
+    process.stderr.write(`goodvibes-agent failed to launch:\n${detail}\n`);
+  } catch {
+    // Ignore secondary stderr failures during process teardown.
+  }
+  process.exit(1);
+});

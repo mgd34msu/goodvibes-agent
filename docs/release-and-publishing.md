@@ -1,6 +1,6 @@
 # Release And Publishing
 
-GoodVibes Agent `0.1.9` is the current installable public alpha release.
+GoodVibes Agent `0.1.53` is the current installable public alpha release.
 
 ## Package Identity
 
@@ -21,7 +21,7 @@ bun run typecheck
 bun run build
 bun run package:install-check
 bun run publish:check
-npm pack --dry-run
+bun pm pack --dry-run
 git diff --check
 ```
 
@@ -34,6 +34,7 @@ Also run the package install smoke from a packed artifact. It must prove:
 - the Bun shebang survives pack/install
 - `goodvibes-agent --help` works
 - `goodvibes-agent --version` reports the package version
+- the installed TUI launches in a PTY and does not exit immediately
 - daemon-backed commands fail clearly when the external daemon is unavailable or unauthenticated
 - no token value is printed
 

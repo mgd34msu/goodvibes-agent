@@ -27,6 +27,7 @@ The executable is backed by TypeScript-authored source with a Bun shebang. Packa
 - `goodvibes-agent --help`
 - `goodvibes-agent --version`
 - `goodvibes-agent status --json`
+- `goodvibes-agent` launches the TUI in a real PTY
 - `goodvibes-agent smoke --json` when that command is available in the baseline being tested
 
 ## External Daemon Connection
