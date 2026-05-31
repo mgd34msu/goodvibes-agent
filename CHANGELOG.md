@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.29 - 2026-05-31
+
+- 3fafcda Add Agent channel workspace guidance
+
 ## 0.1.28 - 2026-05-31
 
 - 77a9dc4 Add isolated Agent runtime profiles
