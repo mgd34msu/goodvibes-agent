@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.24 - 2026-05-31
+
+- 2375df3 Bound web search tool policy
+
 ## 0.1.23 - 2026-05-31
 
 - 18d7381 Harden analyze and registry tool policy

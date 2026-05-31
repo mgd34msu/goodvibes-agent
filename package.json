@@ -1,6 +1,6 @@
 {
   "name": "@pellux/goodvibes-agent",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "private": false,
   "description": "Near-fork GoodVibes operator assistant with the GoodVibes TUI shell, renderer, input, fullscreen workspace, and daemon-connected Agent product brain.",
   "type": "module",
