@@ -4,6 +4,7 @@ import {
   wrapAnalyzeToolForAgentPolicy,
   wrapRegistryToolForAgentPolicy,
 } from './agent-analysis-registry-policy.ts';
+import { wrapFindToolForAgentPolicy } from './agent-find-policy.ts';
 import { wrapWebSearchToolForAgentPolicy } from './agent-web-search-policy.ts';
 
 type AgentToolArgs = {
@@ -231,6 +232,8 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapAnalyzeToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'registry') {
       wrapRegistryToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'find') {
+      wrapFindToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'web_search') {
       wrapWebSearchToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'control') {
@@ -555,6 +558,14 @@ export {
   wrapAnalyzeToolForAgentPolicy,
   wrapRegistryToolForAgentPolicy,
 } from './agent-analysis-registry-policy.ts';
+
+export {
+  AGENT_FIND_POLICY_DENIAL_MESSAGE,
+  AGENT_READ_ONLY_FIND_OUTPUT_FORMATS,
+  normalizeFindToolInvocationForAgentPolicy,
+  validateFindToolInvocationForAgentPolicy,
+  wrapFindToolForAgentPolicy,
+} from './agent-find-policy.ts';
 
 export {
   AGENT_MAX_WEB_SEARCH_EVIDENCE_TOP_N,

@@ -16,6 +16,7 @@ import {
   AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE,
   AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
   AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE,
+  AGENT_FIND_POLICY_DENIAL_MESSAGE,
   AGENT_INSPECT_WRITE_DENIAL_MESSAGE,
   AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE,
   AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
@@ -24,6 +25,7 @@ import {
   AGENT_READ_ONLY_CHANNEL_TOOL_MODES,
   AGENT_READ_ONLY_CONTROL_TOOL_MODES,
   AGENT_READ_ONLY_FETCH_METHODS,
+  AGENT_READ_ONLY_FIND_OUTPUT_FORMATS,
   AGENT_READ_ONLY_MCP_TOOL_MODES,
   AGENT_READ_ONLY_PACKET_TOOL_MODES,
   AGENT_READ_ONLY_QUERY_TOOL_MODES,
@@ -335,6 +337,61 @@ function makeWebSearchTool(): Tool {
         },
       },
       sideEffects: ['network'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
+  };
+}
+
+function makeFindTool(): Tool {
+  return {
+    definition: {
+      name: 'find',
+      description: 'find test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          queries: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                mode: { type: 'string', enum: ['files', 'content', 'symbols', 'references', 'structural'] },
+                patterns: { type: 'array', items: { type: 'string' } },
+                pattern: { type: 'string' },
+                path: { type: 'string' },
+                follow_symlinks: { type: 'boolean' },
+                include_hidden: { type: 'boolean' },
+                respect_gitignore: { type: 'boolean' },
+              },
+            },
+          },
+          output: {
+            type: 'object',
+            properties: {
+              format: {
+                type: 'string',
+                enum: [
+                  'count_only',
+                  'files_only',
+                  'locations',
+                  'matches',
+                  'context',
+                  'with_stats',
+                  'with_preview',
+                  'signatures',
+                  'full',
+                ],
+              },
+              preview_lines: { type: 'integer' },
+              max_results: { type: 'integer' },
+            },
+          },
+          parallel: { type: 'boolean' },
+        },
+      },
+      sideEffects: ['read_fs'],
+      concurrency: 'parallel',
     },
     execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
   };
@@ -1160,6 +1217,56 @@ describe('spawn mode', () => {
     });
     expect(arbitraryPreview.success).toBe(false);
     expect(arbitraryPreview.error).toBe(AGENT_REGISTRY_CONTENT_DENIAL_MESSAGE);
+  });
+
+  test('Agent runtime guard narrows find to serial gitignore-respecting project search', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeFindTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const findDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'find');
+    expect(findDefinition?.description).toContain('serial, gitignore-respecting');
+    expect(findDefinition?.sideEffects).toEqual(['read_fs']);
+    expect(findDefinition?.concurrency).toBe('serial');
+
+    const properties = findDefinition?.parameters.properties as Record<string, unknown>;
+    expect(properties.parallel).toBeUndefined();
+    const queries = getRecordProperty(properties, 'queries');
+    const itemSchema = queries ? getRecordProperty(queries, 'items') : undefined;
+    const queryProperties = itemSchema ? getRecordProperty(itemSchema, 'properties') : undefined;
+    expect(queryProperties?.follow_symlinks).toBeUndefined();
+    expect(queryProperties?.include_hidden).toBeUndefined();
+    expect(queryProperties?.respect_gitignore).toBeUndefined();
+
+    const output = getRecordProperty(properties, 'output');
+    const outputProperties = output ? getRecordProperty(output, 'properties') : undefined;
+    const format = outputProperties ? getRecordProperty(outputProperties, 'format') : undefined;
+    expect(format?.enum).toEqual([...AGENT_READ_ONLY_FIND_OUTPUT_FORMATS]);
+    expect(outputProperties?.preview_lines).toBeUndefined();
+
+    const allowed = await registry.execute('call-find-content', 'find', {
+      queries: [{ id: 'source', mode: 'content', pattern: 'GoodVibes', path: 'src' }],
+      output: { format: 'context', max_results: 10 },
+    });
+    expect(allowed.success).toBe(true);
+    const normalized = JSON.parse(allowed.output ?? '{}') as { readonly parallel?: boolean };
+    expect(normalized.parallel).toBe(false);
+
+    for (const args of [
+      { queries: [{ id: 'hidden', mode: 'files', patterns: ['**/*'], include_hidden: true }] },
+      { queries: [{ id: 'symlink', mode: 'files', patterns: ['**/*'], follow_symlinks: true }] },
+      { queries: [{ id: 'ignored', mode: 'files', patterns: ['**/*'], respect_gitignore: false }] },
+      { queries: [{ id: 'preview', mode: 'files', patterns: ['**/*'] }], output: { format: 'with_preview' } },
+      { queries: [{ id: 'full', mode: 'symbols', query: 'Agent' }], output: { format: 'full' } },
+      { queries: [{ id: 'parallel', mode: 'content', pattern: 'Agent' }], parallel: true },
+    ] satisfies ReadonlyArray<Record<string, unknown>>) {
+      const blocked = await registry.execute(`call-find-blocked-${JSON.stringify(args)}`, 'find', args);
+      expect(blocked.success).toBe(false);
+      expect(blocked.error).toBe(AGENT_FIND_POLICY_DENIAL_MESSAGE);
+    }
   });
 
   test('Agent runtime guard narrows web search to bounded read-only research', async () => {
