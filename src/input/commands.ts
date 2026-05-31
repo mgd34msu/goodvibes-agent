@@ -1,7 +1,6 @@
 import type { CommandRegistry } from './command-registry.ts';
 import { policyCommand } from './commands/policy.ts';
 import { providerCommand } from './commands/provider.ts';
-import { evalCommand } from './commands/eval.ts';
 import { sessionCommand } from './commands/session.ts';
 import { recallCommand } from './commands/memory.ts';
 import { knowledgeCommand } from './commands/knowledge.ts';
@@ -125,9 +124,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
 
   // ── /provider ─────────────────────────────────────────────────────────────
   registry.register(providerCommand);
-
-  // ── /eval ─────────────────────────────────────────────────────────────────
-  registry.register(evalCommand);
 
   // ── /session ─────────────────────────────────────────────────────────────
   registry.register(sessionCommand);

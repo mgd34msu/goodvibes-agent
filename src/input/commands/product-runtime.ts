@@ -1,9 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
-import { listInstalledEcosystemEntries, loadEcosystemCatalog } from '@/runtime/index.ts';
-import { BUILTIN_SUITES } from '@/runtime/index.ts';
-import { requireEcosystemCatalogPaths, requireReadModels, requireSecretsManager, requireServiceRegistry, requireShellPaths } from './runtime-services.ts';
+import { requireReadModels, requireSecretsManager, requireServiceRegistry, requireShellPaths } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 interface TrustReviewBundle {
@@ -26,29 +24,6 @@ interface TrustReviewBundle {
     readonly allowAll: number;
     readonly blocked: number;
     readonly quarantined: number;
-  };
-}
-
-interface ReleaseBundle {
-  readonly version: 1;
-  readonly capturedAt: number;
-  readonly runtime: {
-    readonly provider: string;
-    readonly model: string;
-    readonly sessionId: string;
-  };
-  readonly evalSuites: readonly string[];
-  readonly incidentCount: number;
-  readonly remote: {
-    readonly pools: number;
-    readonly contracts: number;
-    readonly artifacts: number;
-  };
-  readonly ecosystem: {
-    readonly pluginCatalog: number;
-    readonly skillCatalog: number;
-    readonly installedPlugins: number;
-    readonly installedSkills: number;
   };
 }
 
@@ -109,46 +84,6 @@ function inspectTrustBundle(path: string): string {
     `  configured services: ${parsed.serviceNames.length}`,
     `  plugins: ${parsed.pluginSummary.total}`,
     `  MCP servers: ${parsed.mcpSummary.total}`,
-  ].join('\n');
-}
-
-function buildReleaseBundle(ctx: Parameters<NonNullable<CommandRegistry['register']>>[0]['handler'] extends (args: string[], context: infer C) => unknown ? C : never): ReleaseBundle {
-  const remoteRuntime = ctx.ops.remoteRuntime;
-  const incidents = ctx.extensions.forensicsRegistry?.getAll() ?? [];
-  const ecosystemPaths = requireEcosystemCatalogPaths(ctx);
-  return {
-    version: 1,
-    capturedAt: Date.now(),
-    runtime: {
-      provider: ctx.session.runtime.provider,
-      model: ctx.session.runtime.model,
-      sessionId: ctx.session.runtime.sessionId,
-    },
-    evalSuites: Object.keys(BUILTIN_SUITES),
-    incidentCount: incidents.length,
-    remote: {
-      pools: remoteRuntime?.listPools().length ?? 0,
-      contracts: remoteRuntime?.listContracts().length ?? 0,
-      artifacts: remoteRuntime?.listArtifacts().length ?? 0,
-    },
-    ecosystem: {
-      pluginCatalog: loadEcosystemCatalog('plugin', ecosystemPaths).length,
-      skillCatalog: loadEcosystemCatalog('skill', ecosystemPaths).length,
-      installedPlugins: listInstalledEcosystemEntries('plugin', ecosystemPaths).length,
-      installedSkills: listInstalledEcosystemEntries('skill', ecosystemPaths).length,
-    },
-  };
-}
-
-function inspectReleaseBundle(path: string): string {
-  const parsed = JSON.parse(readFileSync(path, 'utf-8')) as ReleaseBundle;
-  return [
-    'Release Bundle Review',
-    `  provider/model: ${parsed.runtime.provider || '(unset)'}/${parsed.runtime.model || '(unset)'}`,
-    `  eval suites: ${parsed.evalSuites.length}`,
-    `  incidents: ${parsed.incidentCount}`,
-    `  remote pools/contracts/artifacts: ${parsed.remote.pools}/${parsed.remote.contracts}/${parsed.remote.artifacts}`,
-    `  ecosystem catalog plugins/skills: ${parsed.ecosystem.pluginCatalog}/${parsed.ecosystem.skillCatalog}`,
   ].join('\n');
 }
 
@@ -314,65 +249,4 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
     },
   });
 
-  registry.register({
-    name: 'release',
-    description: 'Package certification and release-readiness operations',
-    usage: '[review|checklist|bundle export <path> --yes|bundle inspect <path>]',
-    handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const commandArgs = [...parsed.rest];
-      const shellPaths = requireShellPaths(ctx);
-      const sub = commandArgs[0] ?? 'review';
-      if (sub === 'review') {
-        const bundle = buildReleaseBundle(ctx);
-        ctx.print([
-          'Release Review',
-          `  provider/model: ${bundle.runtime.provider || '(unset)'}/${bundle.runtime.model || '(unset)'}`,
-          `  eval suites: ${bundle.evalSuites.length}`,
-          `  incidents: ${bundle.incidentCount}`,
-          `  remote pools/contracts/artifacts: ${bundle.remote.pools}/${bundle.remote.contracts}/${bundle.remote.artifacts}`,
-          `  ecosystem catalog plugins/skills: ${bundle.ecosystem.pluginCatalog}/${bundle.ecosystem.skillCatalog}`,
-          `  installed plugins/skills: ${bundle.ecosystem.installedPlugins}/${bundle.ecosystem.installedSkills}`,
-        ].join('\n'));
-        return;
-      }
-      if (sub === 'checklist') {
-        ctx.print([
-          'Release Checklist',
-          '  1. Run /setup review and /setup doctor',
-          '  2. Run /security review and /trust review',
-          '  3. Run /policy preflight and /policy simulate',
-          '  4. Run /eval gate <suite> --yes for required certification suites',
-          '  5. Review /incident latest and /bridge status',
-          '  6. Export /release bundle export <path> --yes for release evidence',
-        ].join('\n'));
-        return;
-      }
-      if (sub === 'bundle') {
-        const mode = commandArgs[1];
-        const pathArg = commandArgs[2];
-        if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /release bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
-          return;
-        }
-        if (mode === 'export') {
-          if (!parsed.yes) {
-            requireYesFlag(ctx, `export release bundle to ${pathArg}`, '/release bundle export <path> --yes');
-            return;
-          }
-          const bundle = buildReleaseBundle(ctx);
-          const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
-          mkdirSync(dirname(targetPath), { recursive: true });
-          writeFileSync(targetPath, JSON.stringify(bundle, null, 2) + '\n', 'utf-8');
-          ctx.print(`Release bundle exported to ${targetPath}`);
-          return;
-        }
-        if (mode === 'inspect') {
-          ctx.print(inspectReleaseBundle(shellPaths.resolveWorkspacePath(pathArg!)));
-          return;
-        }
-      }
-      ctx.print('Usage: /release [review|checklist|bundle export <path> --yes|bundle inspect <path>]');
-    },
-  });
 }

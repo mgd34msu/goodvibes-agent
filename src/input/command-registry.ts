@@ -177,7 +177,6 @@ export interface CommandOpsServices
 export interface CommandExtensionRegistryServices {
   readonly toolRegistry: ToolRegistry;
   readonly mcpRegistry: McpRegistry;
-  readonly evalRegistry?: import('../panels/eval-panel.ts').EvalRegistry;
 }
 
 export interface CommandExtensionServices

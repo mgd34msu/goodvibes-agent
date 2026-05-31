@@ -62,8 +62,6 @@ export interface BuiltinPanelDeps {
   dismissPlanning?: () => void;
   /** ForensicsRegistry for the Forensics panel. */
   forensicsRegistry?: import('@/runtime/index.ts').ForensicsRegistry;
-  /** EvalRegistry for the Eval panel. */
-  evalRegistry?: import('../eval-panel.ts').EvalRegistry;
   /** MemoryRegistry for the Memory panel. */
   memoryRegistry?: MemoryRegistry;
   /** Isolated Agent Knowledge service for the Agent Knowledge panel. */

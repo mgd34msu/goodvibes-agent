@@ -65,10 +65,7 @@
     "architecture:check": "bun run scripts/check-architecture.ts",
     "foundation:artifacts": "bun run scripts/export-foundation-artifacts.ts",
     "verification:ledger": "bun run scripts/verification-ledger.ts",
-    "verification:live": "bun run scripts/verify-live.ts",
-    "eval:gate": "bun run scripts/eval-gate.ts",
-    "eval:gate:verbose": "bun run scripts/eval-gate.ts --verbose",
-    "eval:baseline": "bun run scripts/eval-gate.ts --save-baseline"
+    "verification:live": "bun run scripts/verify-live.ts"
   },
   "license": "MIT",
   "repository": {

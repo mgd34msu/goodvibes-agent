@@ -800,7 +800,7 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('verify: /health intelligence');
   });
 
-  test('session and tools commands expose transcript structure and compact tool-surface review', async () => {
+  test('session and tools commands expose transcript structure and tool status', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const session = registry.get('session');
@@ -843,8 +843,8 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await tools!.handler(['review'], ctx as never);
-    expect(out.join('\n')).toContain('Tool Surface Review');
-    expect(out.join('\n')).toContain('Native file tools stay compact by default');
+    expect(out.join('\n')).toContain('Tool Status');
+    expect(out.join('\n')).toContain('Tools are available for the main Agent conversation');
   });
 
   test('experience commands expose remote setup/env, tunnel/bootstrap, runner pools, approval workspace, memory review, and voice review', async () => {
@@ -1732,39 +1732,12 @@ describe('product breadth commands', () => {
     expect(existsSync(exportedPath)).toBe(true);
   });
 
-  test('release command exposes certification review and release bundles', async () => {
+  test('copied developer-only commands are not exposed in the Agent slash surface', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
-    const release = registry.get('release');
-    expect(release).toBeDefined();
-
-    const out: string[] = [];
-    const ctx = makeContext(out);
-
-    await release!.handler(['review'], ctx);
-    expect(out.join('\n')).toContain('Release Review');
-    expect(out.join('\n')).toContain('eval suites:');
-
-    out.length = 0;
-    await release!.handler(['checklist'], ctx);
-    expect(out.join('\n')).toContain('Release Checklist');
-    expect(out.join('\n')).toContain('/eval gate <suite>');
-    expect(out.join('\n')).toContain('/release bundle export <path> --yes');
-
-    const bundlePath = join(root, 'artifacts', 'release-bundle.json');
-    out.length = 0;
-    await release!.handler(['bundle', 'export', bundlePath], ctx);
-    expect(out.join('\n')).toContain('Refusing to export release bundle');
-    expect(existsSync(bundlePath)).toBe(false);
-
-    out.length = 0;
-    await release!.handler(['bundle', 'export', bundlePath, '--yes'], ctx);
-    expect(out.join('\n')).toContain('Release bundle exported');
-    expect(existsSync(bundlePath)).toBe(true);
-
-    out.length = 0;
-    await release!.handler(['bundle', 'inspect', bundlePath], ctx);
-    expect(out.join('\n')).toContain('Release Bundle Review');
+    expect(registry.get('eval')).toBeUndefined();
+    expect(registry.get('release')).toBeUndefined();
+    expect(registry.get('tool')).toBeUndefined();
   });
 
   test('profilesync command exports and imports portable profile bundles', async () => {

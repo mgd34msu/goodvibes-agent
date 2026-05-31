@@ -27,7 +27,6 @@ import { DebugPanel } from '../debug-panel.ts';
 import { IncidentReviewPanel } from '../incident-review-panel.ts';
 import { ForensicsPanel } from '../forensics-panel.ts';
 import { PolicyPanel } from '../policy-panel.ts';
-import { EvalPanel } from '../eval-panel.ts';
 import { createProviderAccountSnapshotQuery } from '../provider-account-snapshot.ts';
 import {
   createEnvironmentVariableQuery,
@@ -335,15 +334,4 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     factory: () => new PolicyPanel(deps.policyRuntimeState),
   });
 
-  if (deps.evalRegistry) {
-    const { evalRegistry } = deps;
-    manager.registerType({
-      id: 'eval',
-      name: 'Eval',
-      icon: 'Y',
-      category: 'monitoring',
-      description: 'Evaluation harness: benchmark suite results, scorecards, and regression gates',
-      factory: () => new EvalPanel(evalRegistry),
-    });
-  }
 }

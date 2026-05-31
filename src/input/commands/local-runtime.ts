@@ -67,7 +67,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'tools',
     aliases: ['t'],
-    description: 'List available tools and review compact native tool capability surfaces',
+    description: 'List available tools and review tool safety/status',
     usage: '[review|panel]',
     handler(args, ctx) {
       const sub = (args[0] ?? '').toLowerCase();
@@ -79,12 +79,11 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         }
         if (sub === 'review') {
           ctx.print([
-            'Tool Surface Review',
-            '  Native file tools stay compact by default.',
-            '  Read/write/edit/notebook capabilities are available through the native tool stack, with detail routed to the tools panel and approval surfaces instead of transcript bloat.',
-            '  Shell and native tool approvals classify work into read, mutation, destructive, dependency, config, notebook, network, remote, and lifecycle risk families.',
-            '  Use /tools panel to inspect risk class, output-policy actions, spill posture, compact summaries, and approval posture for recent calls.',
-            '  Use /approval review shell or /approval review file when you need the action-specific why-prompted posture.',
+            'Tool Status',
+            '  Tools are available for the main Agent conversation.',
+            '  Read-only actions can run directly; writes, destructive changes, network effects, service changes, and external side effects require explicit user intent or approval.',
+            '  Recent tool activity and approval posture are available in the tools and approvals views.',
+            '  Build/fix/review work should be delegated explicitly with /delegate.',
           ].join('\n'));
         }
         return;

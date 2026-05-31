@@ -5,7 +5,6 @@ import { join, resolve } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { ProfileManager } from '@pellux/goodvibes-sdk/platform/profiles';
-import { evalCommand } from '../../input/commands/eval.ts';
 import { registerOperatorRuntimeCommands } from '../../input/commands/operator-runtime.ts';
 import { registerReplayRuntimeCommands } from '../../input/commands/replay-runtime.ts';
 import { registerSessionContentCommands } from '../../input/commands/session-content.ts';
@@ -103,26 +102,6 @@ describe('write/export command confirmation', () => {
       await registry.get('replay')!.handler(['export', 'report.json', '--yes'], ctx);
       expect(replayExport).toHaveBeenCalledTimes(1);
       expect(out.join('\n')).toContain('Report export started');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  test('eval run and gate require --yes before model-costing execution', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-eval-confirm-'));
-    try {
-      const out: string[] = [];
-      const ctx = baseContext(root, out);
-      const baselinePath = join(root, 'baseline.json');
-
-      await evalCommand.handler(['run', 'core-performance'], ctx);
-      expect(out.join('\n')).toContain('Refusing to run eval suite core-performance without --yes');
-
-      out.length = 0;
-      await evalCommand.handler(['gate', 'core-performance', baselinePath], ctx);
-
-      expect(existsSync(baselinePath)).toBe(false);
-      expect(out.join('\n')).toContain('Refusing to run eval gate core-performance without --yes');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

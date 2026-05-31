@@ -1,6 +1,5 @@
 import type { CommandRegistry } from '../command-registry.ts';
 import type { ProfileData } from '@pellux/goodvibes-sdk/platform/profiles';
-import { ToolContractVerifier } from '@/runtime/index.ts';
 import type { ReplaySnapshotInput } from '@/runtime/index.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { registerOperatorPanelCommand } from './operator-panel-runtime.ts';
@@ -279,55 +278,6 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
         'Usage: /ops <subcommand>\n'
         + '  /ops view                              — open the Ops Control panel (Ctrl+O)\n'
         + '  task/agent lifecycle commands are blocked in Agent; use /delegate for explicit build handoff'
-      );
-    },
-  });
-
-  registry.register({
-    name: 'tool',
-    description: 'Tool contract verification — verify registered tool contracts',
-    usage: 'verify <name> | verify-all | contract show <name>',
-    argsHint: 'verify <name> | verify-all | contract show <name>',
-    handler(args, ctx) {
-      const sub = args[0];
-      if (sub === 'verify' && args[1]) {
-        const result = ctx.extensions.toolRegistry.verifyContract(args[1]);
-        if (!result) {
-          ctx.print(`[tool verify] Tool '${args[1]}' is not registered.`);
-          return;
-        }
-        ctx.print(ToolContractVerifier.formatResult(result));
-        return;
-      }
-      if (sub === 'verify-all') {
-        ctx.print(ToolContractVerifier.formatAllResults(ctx.extensions.toolRegistry.verifyAllContracts()));
-        return;
-      }
-      if (sub === 'contract' && args[1] === 'show' && args[2]) {
-        const toolName = args[2];
-        const result = ctx.extensions.toolRegistry.verifyContract(toolName);
-        if (!result) {
-          ctx.print(`[tool contract show] Tool '${toolName}' is not registered.`);
-          return;
-        }
-        const lines: string[] = [ToolContractVerifier.formatResult(result)];
-        const tool = ctx.extensions.toolRegistry.list().find((t) => t.definition.name === toolName);
-        if (tool) {
-          lines.push('');
-          lines.push('Tool Definition:');
-          lines.push(`  Name:        ${tool.definition.name}`);
-          lines.push(`  Description: ${tool.definition.description}`);
-          lines.push(`  Parameters:  ${JSON.stringify(tool.definition.parameters, null, 2).replace(/\n/g, '\n               ')}`);
-        }
-        ctx.print(lines.join('\n'));
-        return;
-      }
-
-      ctx.print(
-        'Usage: /tool <subcommand>\n'
-        + '  /tool verify <name>             — verify contract for a specific registered tool\n'
-        + '  /tool verify-all                — verify contracts for all registered tools\n'
-        + '  /tool contract show <name>      — show full contract details for a tool'
       );
     },
   });
