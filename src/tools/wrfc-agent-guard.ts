@@ -153,6 +153,12 @@ const STATE_MUTATION_DENIAL = [
   'Use Agent-owned memory, skills, personas, routines, and explicit CLI/slash commands for intentional local state changes.',
 ].join(' ');
 
+const SETTINGS_MUTATION_DENIAL = [
+  'GoodVibes Agent does not mutate configuration through model tools in the main conversation.',
+  'Use explicit Agent CLI/slash settings commands for intentional config changes.',
+  'Secrets, tokens, passwords, daemon lifecycle settings, and service exposure settings require explicit user action outside the model tool surface.',
+].join(' ');
+
 const DURABLE_WORKFLOW_MUTATION_DENIAL = [
   'GoodVibes Agent only inspects copied durable workflow tools from the main conversation.',
   'Task, team, worklist, packet, and query creation or lifecycle mutation is disabled here.',
@@ -192,6 +198,8 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapFetchToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'state') {
       wrapStateToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'goodvibes_settings') {
+      wrapBlockedSettingsToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'task') {
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_TASK_TOOL_MODES,
@@ -295,6 +303,21 @@ export function wrapStateToolForAgentPolicy(tool: Tool): void {
     if (denial) return { success: false, error: denial };
     return originalExecute(args);
   };
+}
+
+export function wrapBlockedSettingsToolForAgentPolicy(tool: Tool): void {
+  tool.definition.description = [
+    'Blocked in GoodVibes Agent main conversation: configuration mutation.',
+    'Use explicit Agent CLI/slash settings commands for intentional config changes.',
+    'Daemon lifecycle and service exposure remain externally managed by GoodVibes TUI/daemon.',
+  ].join(' ');
+  tool.definition.sideEffects = [];
+  tool.definition.parameters = {
+    type: 'object',
+    properties: {},
+    additionalProperties: false,
+  };
+  tool.execute = async () => ({ success: false, error: SETTINGS_MUTATION_DENIAL });
 }
 
 export function validateExecToolInvocationForAgentPolicy(args: ExecToolArgs): string | null {
@@ -452,6 +475,7 @@ export const AGENT_CHANNEL_ACTION_DENIAL_MESSAGE = CHANNEL_ACTION_DENIAL;
 export const AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE = MCP_SECURITY_MUTATION_DENIAL;
 export const AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE = FETCH_NETWORK_MUTATION_DENIAL;
 export const AGENT_STATE_MUTATION_DENIAL_MESSAGE = STATE_MUTATION_DENIAL;
+export const AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE = SETTINGS_MUTATION_DENIAL;
 export const AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE = DURABLE_WORKFLOW_MUTATION_DENIAL;
 
 function isRecord(value: unknown): value is Record<string, unknown> {

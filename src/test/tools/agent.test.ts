@@ -33,6 +33,7 @@ import {
   AGENT_READ_ONLY_TOOL_MODES,
   AGENT_READ_ONLY_WORKLIST_TOOL_MODES,
   AGENT_REMOTE_MUTATION_DENIAL_MESSAGE,
+  AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE,
   AGENT_STATE_MUTATION_DENIAL_MESSAGE,
   installAgentToolPolicyGuard,
   normalizeAgentToolInvocationForAgentPolicy,
@@ -187,6 +188,26 @@ function makeStateModeTool(): Tool {
       sideEffects: ['state'],
     },
     execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
+  };
+}
+
+function makeSettingsTool(): Tool {
+  return {
+    definition: {
+      name: 'goodvibes_settings',
+      description: 'settings mutation test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', enum: ['set', 'reset'] },
+          key: { type: 'string' },
+          value: { type: 'string' },
+          confirm: { type: 'boolean' },
+        },
+      },
+      sideEffects: ['state'],
+    },
+    execute: async () => ({ success: true, output: 'settings mutated' }),
   };
 }
 
@@ -855,6 +876,34 @@ describe('spawn mode', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe(AGENT_STATE_MUTATION_DENIAL_MESSAGE);
     }
+  });
+
+  test('Agent runtime guard blocks copied settings mutation tool from the model surface', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeSettingsTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const settingsDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'goodvibes_settings');
+    expect(settingsDefinition?.description).toContain('Blocked in GoodVibes Agent main conversation');
+    expect(settingsDefinition?.sideEffects).toEqual([]);
+    const properties = settingsDefinition?.parameters.properties as Record<string, unknown>;
+    expect(properties.mode).toBeUndefined();
+    expect(properties.key).toBeUndefined();
+    expect(properties.value).toBeUndefined();
+    expect(properties.confirm).toBeUndefined();
+    expect(settingsDefinition?.parameters.additionalProperties).toBe(false);
+
+    const result = await registry.execute('call-settings-blocked', 'goodvibes_settings', {
+      mode: 'set',
+      key: 'controlPlane.enabled',
+      value: true,
+      confirm: true,
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE);
   });
 
   test('Agent runtime guard narrows copied durable workflow tools to read-only inspection', async () => {
