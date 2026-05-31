@@ -81,7 +81,6 @@ for (const requiredPath of [
   'src/main.ts',
   'bin/goodvibes-agent.ts',
   'tsconfig.json',
-  '.goodvibes/GOODVIBES.md',
   'docs/README.md',
   'docs/getting-started.md',
   'docs/deployment-and-services.md',
@@ -96,15 +95,6 @@ const packagedGuidanceChecks: readonly {
   readonly path: string;
   readonly forbidden: readonly string[];
 }[] = [
-  {
-    path: '.goodvibes/GOODVIBES.md',
-    forbidden: [
-      'Every plan must have a multi-agent execution strategy',
-      'NEVER skip WRFC',
-      'ALWAYS work in parallel when implementing a plan',
-      'PRIMARY GOAL: Fully complete and functional code',
-    ],
-  },
   {
     path: '.goodvibes/skills/add-provider/SKILL.md',
     forbidden: [

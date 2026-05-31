@@ -37,7 +37,6 @@ const REQUIRED_TARBALL_PATHS = [
   'src/main.ts',
   'bin/goodvibes-agent.ts',
   'tsconfig.json',
-  '.goodvibes/GOODVIBES.md',
   'docs/README.md',
   'docs/getting-started.md',
   'docs/deployment-and-services.md',
@@ -56,7 +55,6 @@ const PACKAGE_FACING_TEXT_PATHS = [
   'docs/getting-started.md',
   'docs/deployment-and-services.md',
   'docs/release-and-publishing.md',
-  '.goodvibes/GOODVIBES.md',
   '.goodvibes/skills/add-provider/SKILL.md',
 ] as const;
 const PACKAGE_FACING_FORBIDDEN_TEXT = [
