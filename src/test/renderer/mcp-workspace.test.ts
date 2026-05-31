@@ -15,20 +15,20 @@ describe('renderMcpWorkspace', () => {
     expect(lineToString(lines[0])).toContain('MCP Workspace / Servers');
     expect(text).toContain('SERVERS');
     expect(text).toContain('ACTIONS');
-    expect(text).toContain('Add server');
+    expect(text).toContain('Add server preview');
   });
 
-  test('renders the add-server form inside the same workspace body', () => {
+  test('renders the add-server command preview inside the same workspace body', () => {
     const workspace = new McpWorkspace();
     workspace.active = true;
     workspace.openAddForm();
     const lines = renderMcpWorkspace(workspace, 140, 36);
     const text = linesToText(lines).join('\n');
 
-    expect(lineToString(lines[0])).toContain('Edit Server');
-    expect(text).toContain('MCP server form');
+    expect(lineToString(lines[0])).toContain('Command Preview');
+    expect(text).toContain('MCP server command preview');
     expect(text).toContain('Server name');
-    expect(text).toContain('Save and reload');
-    expect(text).toContain('Focus server form');
+    expect(text).toContain('Show save command');
+    expect(text).toContain('Focus server command preview');
   });
 });

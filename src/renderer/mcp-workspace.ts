@@ -82,16 +82,16 @@ function selectedDetailLines(workspace: McpWorkspace, width: number): WorkspaceR
   if (workspace.mode === 'form') {
     const field = workspace.formFields[workspace.formIndex];
     lines.push(
-      workspace.editingServerName ? `Editing server: ${workspace.editingServerName}` : 'Adding an MCP server',
-      'Write a server through the SDK MCP config manager, then reload the live runtime without restarting the TUI.',
+      workspace.editingServerName ? `Previewing server: ${workspace.editingServerName}` : 'Drafting an MCP server command',
+      'Workspace writes/reloads are blocked. Use the generated /mcp add ... --yes command from the prompt.',
       field ? `${field.label}: ${field.help}` : '',
-      'Project scope writes to this workspace. Global scope writes to your user MCP config. External Claude/Desktop config files are shown but not edited here.',
+      'Project/global config locations are shown for review. This workspace does not write or reload MCP config.',
     );
   } else if (workspace.mode === 'delete-confirm') {
     lines.push(
-      `Remove configured server: ${workspace.editingServerName ?? '(unknown)'}`,
-      'This removes the selected writable project/global config entry and reloads MCP runtime state.',
-      'Press y to remove, n or Esc to cancel.',
+      `Removal blocked for server: ${workspace.editingServerName ?? '(unknown)'}`,
+      'Use /mcp remove <server> --scope <project|global> --yes from the prompt for explicit removal.',
+      'Press n or Esc to return.',
     );
   } else {
     const selected = workspace.selectedRow;
@@ -207,19 +207,19 @@ function buildControlRows(workspace: McpWorkspace, width: number, height: number
 }
 
 function footerText(workspace: McpWorkspace): string {
-  if (workspace.mode === 'form') return 'Focus server form · Up/Down field · Left/Right cycle · Type edit · Enter save/cancel row · Esc back';
-  if (workspace.mode === 'delete-confirm') return 'Focus remove confirmation · y confirm · n/Esc cancel';
-  return 'Focus MCP workspace · Up/Down choose · Enter edit/action · a add · d remove · r reload · t tools · Esc close';
+  if (workspace.mode === 'form') return 'Focus server command preview · Up/Down field · Left/Right cycle · Type edit · Enter show command · Esc back';
+  if (workspace.mode === 'delete-confirm') return 'Focus remove guidance · n/Esc cancel';
+  return 'Focus MCP workspace · Up/Down choose · Enter view/action · a draft · d removal command · r reload command · t tools · Esc close';
 }
 
 export function renderMcpWorkspace(workspace: McpWorkspace, width: number, height: number): Line[] {
   const metrics = getFullscreenWorkspaceMetrics({ width, height });
   const connected = workspace.servers.filter((server) => server.connected).length;
-  const stateLabel = workspace.mode === 'browse' ? 'Browse' : workspace.mode === 'form' ? 'Edit Server' : 'Confirm Remove';
+  const stateLabel = workspace.mode === 'browse' ? 'Browse' : workspace.mode === 'form' ? 'Command Preview' : 'Remove Guidance';
   const mainHeader = workspace.mode === 'form'
-    ? 'MCP server form'
+    ? 'MCP server command preview'
     : workspace.mode === 'delete-confirm'
-      ? 'Remove MCP server'
+      ? 'MCP remove command'
       : `Servers ${connected}/${workspace.servers.length} connected · Tools ${workspace.tools.length}`;
 
   return renderFullscreenWorkspace({

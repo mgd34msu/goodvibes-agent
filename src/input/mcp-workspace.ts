@@ -214,7 +214,7 @@ export class McpWorkspace {
   public formIndex = 0;
   public form: McpWorkspaceForm = serverConfigToForm();
   public editingServerName: string | null = null;
-  public status = 'Ready. Add, edit, remove, reload, and inspect MCP servers without restarting the TUI.';
+  public status = 'Ready. Inspect MCP servers and tools. Config writes/reloads require explicit /mcp ... --yes commands.';
   public tools: readonly RegisteredTool[] = [];
   public loadingTools = false;
   public lastError: string | null = null;
@@ -234,7 +234,7 @@ export class McpWorkspace {
     this.formIndex = 0;
     this.lastError = null;
     this.refreshSnapshot();
-    void this.refreshTools();
+    void this.refreshTools(false);
   }
 
   reopen(): void {
@@ -257,8 +257,8 @@ export class McpWorkspace {
   get rows(): readonly McpWorkspaceRow[] {
     return [
       ...this.snapshot.servers.map((server): McpWorkspaceRow => ({ type: 'server', server })),
-      { type: 'action', id: 'add', label: 'Add server', detail: `Write a server through the SDK config manager. Default scope: ${this.form.scope}.` },
-      { type: 'action', id: 'reload', label: 'Reload runtime', detail: 'Reconnect all MCP servers from global, Claude, and project config files.' },
+      { type: 'action', id: 'add', label: 'Add server preview', detail: `Draft server details here, then run /mcp add ... --scope ${this.form.scope} --yes to write config.` },
+      { type: 'action', id: 'reload', label: 'Reload guidance', detail: 'Runtime reload is blocked from the workspace; run /mcp reload --yes explicitly.' },
       { type: 'action', id: 'refresh-tools', label: 'Refresh tools', detail: 'Fetch the currently available MCP tool list from connected servers.' },
       { type: 'action', id: 'config', label: 'Config locations', detail: 'Show SDK-scanned config files and writable project/global paths.' },
     ];
@@ -284,7 +284,7 @@ export class McpWorkspace {
       { id: 'env', label: 'Environment', value: this.form.env, help: 'Comma-separated KEY=VALUE entries. Prefer env var references or secure secrets for sensitive values.', editable: true },
       { id: 'allowedPaths', label: 'Allowed paths', value: this.form.allowedPaths, help: 'Comma-separated path prefixes for filesystem-oriented servers.', editable: true },
       { id: 'allowedHosts', label: 'Allowed hosts', value: this.form.allowedHosts, help: 'Comma-separated hostnames for network-oriented servers.', editable: true },
-      { id: 'save', label: 'Save and reload', value: '', help: 'Write the selected scope config and reconnect the live MCP runtime.', editable: false },
+      { id: 'save', label: 'Show save command', value: '', help: 'No workspace write. Shows the explicit /mcp add ... --yes command to run from the prompt.', editable: false },
       { id: 'cancel', label: 'Cancel', value: '', help: 'Return to the MCP server browser without changing config.', editable: false },
     ];
   }
@@ -306,14 +306,14 @@ export class McpWorkspace {
     this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, this.rows.length - 1));
   }
 
-  async refreshTools(): Promise<void> {
+  async refreshTools(updateStatus = true): Promise<void> {
     if (!this.context) return;
     this.loadingTools = true;
     this.lastError = null;
     try {
       const api = requireMcpApi(this.context);
       this.tools = await api.listAllTools();
-      this.status = `Tool list refreshed: ${this.tools.length} tool(s) available.`;
+      if (updateStatus) this.status = `Tool list refreshed: ${this.tools.length} tool(s) available.`;
     } catch (error) {
       this.lastError = summarizeError(error);
       this.status = `Tool refresh failed: ${this.lastError}`;
@@ -326,20 +326,8 @@ export class McpWorkspace {
   async reloadRuntime(): Promise<void> {
     if (!this.context) return;
     this.lastError = null;
-    try {
-      const api = requireMcpApi(this.context);
-      const roots = requireShellPaths(this.context);
-      const result = await api.reload(roots);
-      this.refreshSnapshot();
-      const connected = this.snapshot.servers.filter((server) => server.connected).length;
-      this.status = `Reloaded MCP runtime: ${connected}/${this.snapshot.servers.length} server(s) connected. Result: +${result.added} ~${result.changed} -${result.removed}, unchanged ${result.unchanged}.`;
-      void this.refreshTools();
-    } catch (error) {
-      this.lastError = summarizeError(error);
-      this.status = `Reload failed: ${this.lastError}`;
-    } finally {
-      this.context?.renderRequest();
-    }
+    this.status = 'MCP runtime reload is blocked in the workspace. Run /mcp reload --yes from the prompt to explicitly reload.';
+    this.context.renderRequest();
   }
 
   openAddForm(): void {
@@ -347,7 +335,7 @@ export class McpWorkspace {
     this.formIndex = 0;
     this.editingServerName = null;
     this.form = serverConfigToForm();
-    this.status = 'Add an MCP server. Choose project or global scope, then save and reload.';
+    this.status = 'Draft an MCP server. Saving from this workspace is blocked; use the shown /mcp add ... --yes command.';
   }
 
   openEditForm(serverName: string): void {
@@ -357,8 +345,8 @@ export class McpWorkspace {
     this.editingServerName = serverName;
     this.form = { ...serverConfigToForm(entry?.server), scope: entry?.source.scope === 'global' ? 'global' : 'project' };
     this.status = entry
-      ? `Editing ${serverName}. Saving writes a ${this.form.scope} config entry and reloads the live runtime.`
-      : `Editing ${serverName}. Runtime status exists, but no launch config was found; enter command details before saving.`;
+      ? `Viewing ${serverName}. Workspace saves are blocked; copy the generated /mcp add ... --yes command if you intend to change it.`
+      : `Viewing ${serverName}. Runtime status exists, but no launch config was found.`;
   }
 
   requestDelete(serverName: string): void {
@@ -366,24 +354,23 @@ export class McpWorkspace {
     this.editingServerName = serverName;
     const entry = this.snapshot.effectiveConfig.servers.find((configEntry) => configEntry.server.name === serverName);
     const scope = entry?.source.scope === 'global' ? 'global' : 'project';
-    this.status = `Remove ${scope} server "${serverName}"? Press y to confirm or n/Esc to cancel.`;
+    this.status = `MCP server removal is blocked in the workspace. Run /mcp remove ${serverName} --scope ${scope} --yes from the prompt.`;
   }
 
   async saveForm(): Promise<void> {
     if (!this.context) return;
     try {
       const server = formToServerConfig(this.form);
-      this.status = `Saving ${server.name} to ${this.form.scope} MCP config and reloading runtime...`;
       this.mode = 'browse';
       this.editingServerName = null;
-      const api = requireMcpApi(this.context);
-      const result = await api.upsertServerConfig(requireShellPaths(this.context), this.form.scope, server);
-      this.refreshSnapshot();
-      this.status = `Saved ${server.name} to ${result.path}. Reload result: +${result.reload.added} ~${result.reload.changed} -${result.reload.removed}, unchanged ${result.reload.unchanged}.`;
-      void this.refreshTools();
+      const args = server.args?.length ? ` ${server.args.join(' ')}` : '';
+      const role = server.role ? ` --role ${server.role}` : '';
+      const trust = server.trustMode ? ` --trust ${server.trustMode}` : '';
+      this.status = `MCP config write blocked here. Run: /mcp add ${server.name} ${server.command}${args} --scope ${this.form.scope}${role}${trust} --yes`;
+      this.context.renderRequest();
     } catch (error) {
       this.lastError = summarizeError(error);
-      this.status = `Save failed: ${this.lastError}`;
+      this.status = `Save command preview failed: ${this.lastError}`;
       this.context.renderRequest();
     }
   }
@@ -391,23 +378,12 @@ export class McpWorkspace {
   async confirmDelete(): Promise<void> {
     if (!this.context || !this.editingServerName) return;
     const name = this.editingServerName;
-    try {
-      const server = this.snapshot.effectiveConfig.servers.find((entry) => entry.server.name === name);
-      const scope = server?.source.scope === 'global' ? 'global' : 'project';
-      const api = requireMcpApi(this.context);
-      const result = await api.removeServerConfig(requireShellPaths(this.context), scope, name);
-      this.mode = 'browse';
-      this.editingServerName = null;
-      this.refreshSnapshot();
-      this.status = result.removed
-        ? `Removed ${scope} server "${name}" from ${result.path}. Reload result: +${result.reload.added} ~${result.reload.changed} -${result.reload.removed}.`
-        : `No ${scope} MCP server named "${name}" exists in ${result.path}.`;
-      void this.refreshTools();
-    } catch (error) {
-      this.lastError = summarizeError(error);
-      this.status = `Remove failed: ${this.lastError}`;
-      this.context.renderRequest();
-    }
+    const server = this.snapshot.effectiveConfig.servers.find((entry) => entry.server.name === name);
+    const scope = server?.source.scope === 'global' ? 'global' : 'project';
+    this.mode = 'browse';
+    this.editingServerName = null;
+    this.status = `MCP removal blocked here. Run: /mcp remove ${name} --scope ${scope} --yes`;
+    this.context.renderRequest();
   }
 
   cancelForm(): void {
