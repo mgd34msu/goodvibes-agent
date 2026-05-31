@@ -45,7 +45,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  subscription               Start/finish/logout provider subscription sessions',
     '  secrets                    List, set, link, delete, and test GoodVibes secret refs',
     '  sessions                   List, show, export, or resume saved sessions',
-    '  tasks                      List/show in-process tasks or submit a non-interactive task',
+    '  tasks                      List/show in-process runtime tasks (read-only)',
     '  pair|qrcode                Print companion pairing payload and QR code',
     '  surfaces                   Inspect/check browser/listener/external surfaces (read-only)',
     '  listener test              Test HTTP listener/webhook readiness',
@@ -198,9 +198,9 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     examples: ['sessions list', 'sessions show latest-session', 'sessions export abc123 session.json'],
   },
   tasks: {
-    usage: ['tasks list', 'tasks show <taskId>', 'tasks submit <prompt>'],
-    summary: 'Inspect runtime tasks or submit a non-interactive task.',
-    examples: ['tasks list', 'tasks submit "check provider readiness"'],
+    usage: ['tasks list', 'tasks show <taskId>'],
+    summary: 'Inspect in-process runtime tasks. Agent blocks copied task submission; use run for one-shot work or delegate for explicit build/fix/review handoff.',
+    examples: ['tasks list', 'tasks show task-123', 'run "check provider readiness"', 'delegate "fix the failing tests"'],
   },
   surfaces: {
     usage: ['surfaces [list]', 'surfaces check', 'surfaces show <surfaceId>'],
