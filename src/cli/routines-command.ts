@@ -100,7 +100,7 @@ async function handleRoutinePromotion(runtime: CliCommandRuntime, args: readonly
     };
     return {
       output: json ? JSON.stringify(failure, null, 2) : [
-        'Usage: goodvibes-agent routines promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--disabled] --yes',
+        'Usage: goodvibes-agent routines promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--delivery-surface <surface[:route[:label]]>|--delivery-route <route[:label]>|--delivery-webhook <url>|--delivery-link <url>] [--disabled] --yes',
         ...parsed.errors.map((error) => `  ${error}`),
       ].join('\n'),
       exitCode: 2,
@@ -237,7 +237,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
     return handleRoutinePromotion(runtime, rest);
   }
   return {
-    output: 'Usage: goodvibes-agent routines [list|enabled|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) --yes]',
+    output: 'Usage: goodvibes-agent routines [list|enabled|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-surface <surface>|--delivery-route <route>|--delivery-webhook <url>] --yes]',
     exitCode: 2,
   };
 }

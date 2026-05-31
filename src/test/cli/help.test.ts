@@ -41,6 +41,8 @@ describe('CLI help/version', () => {
     expect(help).toContain('promote <id>');
     expect(help).toContain('routines receipts');
     expect(help).toContain('routines reconcile');
+    expect(help).toContain('--delivery-surface');
+    expect(help).toContain('--delivery-webhook');
     expect(help).toContain('external daemon schedule');
     expect(help).toContain('Without --yes');
   });

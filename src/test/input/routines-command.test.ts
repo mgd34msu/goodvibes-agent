@@ -226,15 +226,42 @@ describe('/routines command', () => {
 
     try {
       await registry.execute('routines', ['create', '--name', 'Inbox Sweep', '--description', 'Review messages.', '--steps', 'Summarize inbound messages and ask before replies.'], ctx);
-      await registry.execute('schedule', ['promote-routine', 'inbox-sweep', '--cron', '0 9 * * *', '--timezone', 'America/Chicago', '--yes'], ctx);
+      await registry.execute('schedule', [
+        'promote-routine',
+        'inbox-sweep',
+        '--cron',
+        '0 9 * * *',
+        '--timezone',
+        'America/Chicago',
+        '--delivery-webhook',
+        'https://hooks.example.test/routine/secret-token',
+        '--yes',
+      ], ctx);
 
       expect(requests).toHaveLength(1);
       expect(requests[0]!.url).toBe('http://127.0.0.1:3421/api/automation/schedules');
       expect(requests[0]!.method).toBe('POST');
-      const payload = JSON.parse(requests[0]!.body) as { readonly prompt?: string; readonly kind?: string; readonly cron?: string; readonly target?: { readonly kind?: string; readonly surfaceKind?: string } };
+      const payload = JSON.parse(requests[0]!.body) as {
+        readonly prompt?: string;
+        readonly kind?: string;
+        readonly cron?: string;
+        readonly target?: { readonly kind?: string; readonly surfaceKind?: string };
+        readonly delivery?: {
+          readonly mode?: string;
+          readonly targets?: readonly {
+            readonly kind?: string;
+            readonly address?: string;
+          }[];
+        };
+      };
       expect(payload.kind).toBe('cron');
       expect(payload.cron).toBe('0 9 * * *');
       expect(payload.target).toEqual(expect.objectContaining({ kind: 'main', surfaceKind: 'service' }));
+      expect(payload.delivery?.mode).toBe('webhook');
+      expect(payload.delivery?.targets?.[0]).toEqual(expect.objectContaining({
+        kind: 'webhook',
+        address: 'https://hooks.example.test/routine/secret-token',
+      }));
       expect(payload.prompt).toContain('Use isolated Agent Knowledge routes only');
       expect(payload.prompt).toContain('never use default Knowledge/Wiki or HomeGraph');
       const promotionText = out.join('\n');
@@ -251,10 +278,43 @@ describe('/routines command', () => {
       expect(receiptText).toContain('schedule=sched-1');
       expect(receiptText).toContain('Agent routine schedule receipt');
       expect(receiptText).toContain('cadence: cron 0 9 * * * [America/Chicago]');
+      expect(receiptText).toContain('delivery: webhook');
+      expect(receiptText).toContain('delivery target: webhook address=https://hooks.example.test/...');
+      expect(receiptText).not.toContain('secret-token');
       expect(receiptText).toContain('Agent routine schedule reconciliation');
       expect(receiptText).toContain('matched: 1');
       expect(receiptText).toContain('live=sched-1');
       expect(requests.some((request) => request.method === 'GET' && request.url === 'http://127.0.0.1:3421/api/automation/schedules')).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('rejects mixed routine delivery targets from slash commands without daemon calls', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return scheduleResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      await registry.execute('routines', ['create', '--name', 'Inbox Sweep', '--description', 'Review messages.', '--steps', 'Summarize inbound messages and ask before replies.'], ctx);
+      await registry.execute('schedule', [
+        'promote-routine',
+        'inbox-sweep',
+        '--cron',
+        '0 9 * * *',
+        '--delivery-surface',
+        'slack',
+        '--delivery-webhook',
+        'https://hooks.example.test/routine',
+        '--yes',
+      ], ctx);
+
+      expect(out.join('\n')).toContain('Use one delivery target kind per routine promotion command.');
+      expect(calls).toBe(0);
     } finally {
       globalThis.fetch = originalFetch;
     }

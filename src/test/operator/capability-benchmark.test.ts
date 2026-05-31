@@ -14,6 +14,7 @@ describe('operator capability benchmark', () => {
     expect(report.generatedAt).toBe('2026-05-30T12:00:00.000Z');
     expect(report.benchmarkSources.some((source) => source.includes('openclaw'))).toBe(true);
     expect(report.benchmarkSources.some((source) => source.includes('hermes-agent'))).toBe(true);
+    expect(report.benchmarkSources.some((source) => source.includes('@pellux/goodvibes-sdk'))).toBe(true);
     expect(report.capabilities.length).toBeGreaterThanOrEqual(10);
     expect(report.capabilities.some((capability) => capability.id === 'isolated-knowledge-wiki')).toBe(true);
     expect(report.capabilities.some((capability) => capability.id === 'automation-schedules')).toBe(true);
@@ -24,6 +25,9 @@ describe('operator capability benchmark', () => {
     const rendered = renderOperatorCapabilityBenchmark(OPERATOR_CAPABILITY_BENCHMARKS);
 
     expect(rendered).toContain('/api/goodvibes-agent/knowledge/*');
+    expect(rendered).toContain('daemon:');
+    expect(rendered).toContain('schedules.create/list/run/enable/disable/delete');
+    expect(rendered).toContain('explicit delivery target selection');
     expect(rendered).toContain('never falls back to default Knowledge/Wiki, HomeGraph, or Home Assistant routes');
     expect(rendered).toContain('OpenClaw/Hermes');
     expect(rendered).toContain('Explicit build/fix/review/code work is delegated');

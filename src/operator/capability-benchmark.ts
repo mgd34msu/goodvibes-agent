@@ -14,6 +14,7 @@ export interface OperatorCapabilityBenchmark {
   readonly posture: CapabilityPosture;
   readonly competitors: readonly CompetitorProduct[];
   readonly competitorBaseline: string;
+  readonly goodvibesDaemon?: string;
   readonly goodvibesAgent: string;
   readonly configure: readonly string[];
   readonly use: readonly string[];
@@ -43,6 +44,7 @@ export const OPERATOR_CAPABILITY_BENCHMARK_SOURCES = [
   'https://hermes-agent.nousresearch.com/docs/user-guide/features/voice-mode/',
   'https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server/',
   'https://hermes-agent.nousresearch.com/docs/user-guide/profiles/',
+  '@pellux/goodvibes-sdk@0.33.35 public operator contract and /api/goodvibes-agent/knowledge routes',
 ] as const;
 
 export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmark[] = [
@@ -64,6 +66,7 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     posture: 'external-daemon',
     competitors: ['openclaw', 'hermes'],
     competitorBaseline: 'Always-on gateway/service provides channel ingress, sessions, tools, events, and scheduled execution.',
+    goodvibesDaemon: 'Daemon exposes status/auth/control, sessions, companion chat, channels, remote peers, approvals, automation, schedules, artifacts, MCP, providers, voice, media, web search, and isolated Agent Knowledge routes.',
     goodvibesAgent: 'Connects to the GoodVibes daemon owned by GoodVibes TUI/daemon tooling; Agent never starts, stops, or owns daemon lifecycle.',
     configure: ['goodvibes-agent compat', 'goodvibes-agent service check', 'goodvibes-agent control-plane status'],
     use: ['goodvibes-agent status', 'goodvibes-agent doctor'],
@@ -76,6 +79,7 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     posture: 'configurable',
     competitors: ['openclaw', 'hermes'],
     competitorBaseline: 'Messaging gateway for WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat, and related platforms.',
+    goodvibesDaemon: 'Public channel routes include channels.status, channels.capabilities.*, channels.accounts.*, channels.setup.*, channels.directory.*, channels.actions.*, channels.tools.*, channels.targets.resolve, pairing, and companion chat routes.',
     goodvibesAgent: 'Uses GoodVibes daemon channel, companion, pairing, QR, communication, and session surfaces while keeping side effects behind explicit user action. The Agent workspace exposes channel setup, per-channel readiness, default-target posture, and risk labels as a first-class operator area.',
     configure: ['goodvibes-agent pair', 'goodvibes-agent qrcode', 'goodvibes-agent surfaces check', '/agent → Channels'],
     use: ['/agent → Channels', '/communication', '/pair'],
@@ -88,6 +92,7 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     posture: 'ready',
     competitors: ['openclaw', 'hermes'],
     competitorBaseline: 'Persistent memory and knowledge/wiki layers with search, recall, provenance, and freshness checks.',
+    goodvibesDaemon: 'Agent-specific daemon routes cover /api/goodvibes-agent/knowledge/status, ask, search, ingest, source/node/issue/candidate/refinement/report/job/schedule, projection, GraphQL, and usage surfaces.',
     goodvibesAgent: 'Uses only /api/goodvibes-agent/knowledge/*; never falls back to default Knowledge/Wiki, HomeGraph, or Home Assistant routes. The Agent workspace exposes isolated ask/search/status, URL/bookmark ingestion, review queue, and consolidation workflows.',
     configure: ['goodvibes-agent compat', 'goodvibes-agent knowledge status', '/agent → Knowledge'],
     use: ['goodvibes-agent ask <question>', 'goodvibes-agent search <query>', '/knowledge ask <question>', '/knowledge ingest-url <url> --yes', '/knowledge queue'],
@@ -112,11 +117,12 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     posture: 'configurable',
     competitors: ['openclaw', 'hermes'],
     competitorBaseline: 'Cron/scheduler can create, pause, resume, run, remove, and deliver recurring tasks from natural language.',
-    goodvibesAgent: 'Observes public automation/schedule routes, keeps local routines separate from daemon jobs, and promotes a local routine into an external daemon schedules.create record only through an exact user command with --yes.',
-    configure: ['/schedule list', '/routines create ...', '/schedule promote-routine <id> --cron "0 8 * * *" --yes', 'goodvibes-agent routines promote <id> --every 1d --yes'],
-    use: ['/schedule list', '/routines start <id>', '/schedule promote-routine <id> --cron <expr> --yes'],
-    exceedsBy: ['No recursive hidden scheduler creation from model tools', 'explicit confirmation for side effects', 'local routines separate from daemon jobs', 'scheduled prompts preserve isolated Agent Knowledge and forbid default wiki/HomeGraph fallback'],
-    next: ['Add delivery target selection and deeper live run/delivery history for promoted routines.'],
+    goodvibesDaemon: 'Public daemon routes cover automation.integration.snapshot, automation.jobs.*, automation.runs.*, automation.heartbeat.*, scheduler.capacity, schedules.create/list/run/enable/disable/delete, and delivery policy fields.',
+    goodvibesAgent: 'Observes public automation/schedule routes, keeps local routines separate from daemon jobs, and promotes a local routine into an external daemon schedules.create record only through an exact user command with --yes and optional explicit delivery targets.',
+    configure: ['/schedule list', '/routines create ...', '/schedule promote-routine <id> --cron "0 8 * * *" --delivery-surface slack --yes', 'goodvibes-agent routines promote <id> --every 1d --delivery-webhook https://example.test/hook --yes'],
+    use: ['/schedule list', '/routines start <id>', '/schedule promote-routine <id> --cron <expr> [--delivery-surface slack] --yes', '/schedule receipts', '/schedule reconcile'],
+    exceedsBy: ['No recursive hidden scheduler creation from model tools', 'explicit confirmation for side effects', 'local routines separate from daemon jobs', 'explicit delivery target selection', 'redacted promotion receipts', 'scheduled prompts preserve isolated Agent Knowledge and forbid default wiki/HomeGraph fallback'],
+    next: ['Add deeper live run/delivery history for promoted routines and expose delivery attempt errors in the operator workspace.'],
   },
   {
     id: 'tool-gateway-mcp',
@@ -124,6 +130,7 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     posture: 'configurable',
     competitors: ['openclaw', 'hermes'],
     competitorBaseline: 'Broad toolsets, MCP integration, browser/web/media tools, and configurable platform-specific tool availability.',
+    goodvibesDaemon: 'Daemon public routes include mcp.servers/tools/config, artifacts.create/get/list/content, web_search.providers/query, providers/model surfaces, media.analyze/generate/transform, multimodal providers, and channel tool/action registries.',
     goodvibesAgent: 'Uses GoodVibes SDK tool registry, MCP inspection, provider tools, web search, media, plugins, and policy-gated model-visible tools.',
     configure: ['/mcp servers', '/plugin list', 'goodvibes-agent providers', 'goodvibes-agent models'],
     use: ['/mcp tools', '/provider current', 'goodvibes-agent search <query>'],
@@ -136,6 +143,7 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     posture: 'configurable',
     competitors: ['openclaw', 'hermes'],
     competitorBaseline: 'Voice/TTS, mobile nodes, live canvas, browser automation, image/video generation, and multimodal analysis.',
+    goodvibesDaemon: 'Daemon public routes include voice.status/providers/voices/tts/stt/realtime, media providers/analyze/generate/transform, multimodal providers, artifacts, remote.snapshot/peers/work, and channel media-capable surfaces.',
     goodvibesAgent: 'Uses GoodVibes voice/media/browser/node primitives and exposes an Agent workspace for TTS setup, image input, browser/web posture, MCP browser tools, and node/remote inspection.',
     configure: ['/agent → Voice, Media & Nodes', '/config tts', '/voice review', '/mcp servers'],
     use: ['/tts <prompt>', '/image <path> <prompt>', '/remote list'],
@@ -148,6 +156,7 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     posture: 'explicit-delegation',
     competitors: ['openclaw', 'hermes'],
     competitorBaseline: 'Terminal/file/code tools and subagents can execute software tasks directly.',
+    goodvibesDaemon: 'Daemon shared-session routes cover sessions.create/list/get/messages/followUp/steer/close/reopen and task/workflow visibility used by GoodVibes TUI-owned execution.',
     goodvibesAgent: 'Main assistant stays serial. Explicit build/fix/review/code work is delegated to GoodVibes TUI/shared-session contracts; WRFC is opt-in only.',
     configure: ['goodvibes-agent delegate --help', 'goodvibes-agent compat'],
     use: ['goodvibes-agent delegate "fix the failing tests"', 'goodvibes-agent delegate --wrfc "implement and review the feature"'],
@@ -172,6 +181,7 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     posture: 'ready',
     competitors: ['openclaw', 'hermes'],
     competitorBaseline: 'Command approval, DM pairing, sandboxing, allowlists, and safety defaults for exposed channels.',
+    goodvibesDaemon: 'Daemon public routes include approvals.list/claim/approve/deny/cancel, channel policies/allowlists, local auth/session controls, secrets, and route danger metadata in the operator contract.',
     goodvibesAgent: 'Uses daemon approvals, local auth diagnostics, secret refs, explicit confirmation gates, and Agent model-tool policy guards.',
     configure: ['goodvibes-agent auth status', 'goodvibes-agent secrets providers', '/approvals list'],
     use: ['/policy status', '/approvals list', 'goodvibes-agent doctor'],
@@ -218,6 +228,7 @@ export function renderOperatorCapabilityBenchmark(
     lines.push(`${capability.title} [${capability.posture}]`);
     lines.push(`  competitors: ${capability.competitors.join(', ')}`);
     lines.push(`  baseline: ${capability.competitorBaseline}`);
+    if (capability.goodvibesDaemon) lines.push(`  daemon: ${capability.goodvibesDaemon}`);
     lines.push(`  Agent: ${capability.goodvibesAgent}`);
     lines.push(`  configure: ${capability.configure.join(' | ')}`);
     lines.push(`  use: ${capability.use.join(' | ')}`);

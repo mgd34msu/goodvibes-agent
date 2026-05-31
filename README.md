@@ -68,14 +68,14 @@ Local Agent behavior is editable from the TUI:
 /personas use research
 /routines create --name "Evening Review" --description "Review open work before shutdown" --steps "Check work plan, approvals, and Agent Knowledge status before summarizing." --enabled true
 /routines start evening-review
-/schedule promote-routine evening-review --cron "0 17 * * 1-5" --timezone America/Chicago --yes
+/schedule promote-routine evening-review --cron "0 17 * * 1-5" --timezone America/Chicago --delivery-surface slack --yes
 /schedule receipts
 /schedule reconcile
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
 /skills local list
 ```
 
-Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promotion to a daemon schedule is separate and explicit: it calls the public `schedules.create` route on the externally managed daemon only after `--yes`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and HomeGraph. Use `/schedule reconcile` to compare those local receipts against live externally owned daemon schedules through public `schedules.list`.
+Starting a routine records local usage and prints its steps; it does not spawn background agents or daemon automation jobs. Promotion to a daemon schedule is separate and explicit: it calls the public `schedules.create` route on the externally managed daemon only after `--yes`, can include explicit delivery targets such as `--delivery-surface slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and HomeGraph. Use `/schedule reconcile` to compare those local receipts against live externally owned daemon schedules through public `schedules.list`.
 
 ## Daemon Prerequisite
 

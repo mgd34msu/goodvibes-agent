@@ -60,7 +60,7 @@ async function promoteRoutineSchedule(args: readonly string[], ctx: CommandConte
   const parsed = parseRoutineSchedulePromotionArgs(args);
   if (parsed.errors.length > 0) {
     ctx.print([
-      'Usage: /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--disabled] --yes',
+      'Usage: /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--delivery-surface <surface[:route[:label]]>|--delivery-route <route[:label]>|--delivery-webhook <url>|--delivery-link <url>] [--disabled] --yes',
       ...parsed.errors.map((error) => `  ${error}`),
     ].join('\n'));
     return;
@@ -87,8 +87,8 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
     name: 'schedule',
     aliases: ['sched'],
     description: 'Inspect schedules and explicitly promote local Agent routines to daemon schedules',
-    usage: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
-    argsHint: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
+    usage: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-surface slack] --yes',
+    argsHint: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-surface slack] --yes',
     async handler(args, ctx) {
       const sub = args[0];
 
@@ -160,7 +160,7 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         + '  /schedule receipts\n'
         + '  /schedule reconcile\n'
         + '  /schedule receipt <receipt-id>\n'
-        + '  /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) --yes\n'
+        + '  /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-surface <surface>|--delivery-route <route>|--delivery-webhook <url>] --yes\n'
         + '  Local schedule mutations and runs remain blocked.'
       );
     },

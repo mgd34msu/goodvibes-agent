@@ -168,7 +168,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'routines receipts',
       'routines reconcile',
       'routines receipt <receipt-id>',
-      'routines promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--disabled] --yes',
+      'routines promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--delivery-surface <surface[:route[:label]]>|--delivery-route <route[:label]>|--delivery-webhook <url>|--delivery-link <url>] [--disabled] --yes',
     ],
     summary: 'Inspect Agent-local routines, review local promotion receipts, reconcile receipts against live daemon schedules, and explicitly promote a reviewed routine into an external daemon schedule. Without --yes, promote only prints the schedules.create preview.',
     examples: [
@@ -176,7 +176,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'routines show daily-operations-sweep',
       'routines receipts',
       'routines reconcile',
-      'routines promote daily-operations-sweep --cron "0 9 * * *" --timezone America/Chicago --yes',
+      'routines promote daily-operations-sweep --cron "0 9 * * *" --timezone America/Chicago --delivery-surface slack --yes',
       'routines promote weekly-review --every 7d --disabled',
     ],
   },

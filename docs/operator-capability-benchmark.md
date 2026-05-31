@@ -43,19 +43,27 @@ Primary sources used for the benchmark:
 - Hermes Voice: https://hermes-agent.nousresearch.com/docs/user-guide/features/voice-mode/
 - Hermes API Server: https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server/
 - Hermes Profiles: https://hermes-agent.nousresearch.com/docs/user-guide/profiles/
+- GoodVibes daemon: `@pellux/goodvibes-sdk@0.33.35` public operator contract plus `/api/goodvibes-agent/knowledge/*`
+
+The benchmark measures two different GoodVibes layers:
+
+- daemon capability: what the externally owned GoodVibes daemon can already expose through public operator routes;
+- Agent usability: what GoodVibes Agent makes configurable, visible, safe, and usable from day one.
+
+If the daemon already has a route but Agent lacks a good setup/workspace/CLI surface, the gap is treated as an Agent product gap rather than a missing platform capability.
 
 ## Capability Targets
 
 | Area | OpenClaw/Hermes Baseline | GoodVibes Agent Position |
 | --- | --- | --- |
 | Terminal operator UI | Interactive CLI/TUI, commands, sessions | Near-fork GoodVibes TUI compositor/input/fullscreen foundation |
-| Always-on gateway | Gateway/service owns channels, sessions, tools, events | External GoodVibes daemon, never Agent-owned lifecycle |
+| Always-on gateway | Gateway/service owns channels, sessions, tools, events | External GoodVibes daemon exposes sessions, companion chat, channels, remote peers, approvals, automation, schedules, artifacts, MCP, providers, voice, media, web search, and isolated Agent Knowledge; Agent never owns daemon lifecycle |
 | Channels | WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat | GoodVibes daemon channel and companion surfaces with Agent-side policy, a Channels operator workspace, and per-channel readiness/risk labels |
-| Knowledge/memory | Durable memory, semantic search, wiki/claim layers | Isolated Agent Knowledge routes with workspace ask/search/ingest/review flows plus local memory/skills/personas/routines |
+| Knowledge/memory | Durable memory, semantic search, wiki/claim layers | Isolated `/api/goodvibes-agent/knowledge/*` routes with workspace ask/search/ingest/review flows plus local memory/skills/personas/routines |
 | Skills/procedural memory | Skills directories, registries, skill lifecycle | Local Agent skills with review/stale/source/provenance fields |
-| Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Local routines can be explicitly promoted to external daemon `schedules.create` with `--yes`; redacted local promotion receipts are reviewable and can be reconciled with live `schedules.list`; hidden model scheduling and local scheduler spawns are blocked |
-| Tools/MCP | Broad toolsets, MCP, browser, media, terminal, files | GoodVibes SDK tools with Agent policy guards and MCP/provider integrations |
-| Voice/media/canvas/nodes | Voice, TTS, mobile nodes, live canvas, browser automation | GoodVibes media/voice/browser/node primitives with an Agent workspace for setup, image input, browser posture, MCP, and remote/node inspection |
+| Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Local routines can be explicitly promoted to external daemon `schedules.create` with `--yes` and optional explicit delivery targets; redacted local promotion receipts are reviewable and can be reconciled with live `schedules.list`; hidden model scheduling and local scheduler spawns are blocked |
+| Tools/MCP | Broad toolsets, MCP, browser, media, terminal, files | GoodVibes daemon exposes MCP, artifacts, web search, providers, media, multimodal, and channel tool routes; Agent adds policy guards and operator setup surfaces |
+| Voice/media/canvas/nodes | Voice, TTS, mobile nodes, live canvas, browser automation | GoodVibes daemon exposes voice, media, multimodal, artifacts, and remote/node routes; Agent workspace makes setup and posture visible without daemon ownership |
 | Build/code work | Direct terminal/file/code tools and subagents | Explicit delegation to GoodVibes TUI; local WRFC/spawn fanout blocked |
 | Profiles | Independent profiles with own config/memory/skills/gateway | `GOODVIBES_AGENT_HOME` and named `--agent-profile` homes isolate Agent-local state; starter templates seed local personas/skills/routines; starter JSON can be exported/imported for local custom lanes; `/agent-profile guide` brings starter authoring into the Agent workspace; daemon remains external |
 | Security | DM pairing, approvals, sandboxing, allowlists | Daemon approvals, auth diagnostics, secret refs, confirmation gates, model-tool policy |
@@ -66,7 +74,7 @@ GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true fr
 
 - Capability surfaces are discoverable through `goodvibes-agent capabilities`, `/capabilities`, onboarding, and the operator workspace.
 - Agent Knowledge isolation is a release gate, not a convention.
-- Routine-to-schedule promotion preserves Agent Knowledge isolation and uses only public external daemon schedule routes.
+- Routine-to-schedule promotion preserves Agent Knowledge isolation, uses only public external daemon schedule routes, supports explicit delivery targets, and stores redacted receipts.
 - Model-visible tools are policy-gated for serial, non-secret, non-destructive use.
 - Personal assistant state is Agent-local unless an explicit Agent Knowledge ingest route is used.
 - Build work is delegated to the product that owns coding execution instead of turning the personal operator into a second coding TUI.
@@ -78,7 +86,7 @@ GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true fr
 - Artifact and multimodal Agent Knowledge ingest affordances once Agent-specific routes are stable.
 - Visual starter-template editing inside the fullscreen Agent workspace after the command-guided authoring path.
 - Artifact and multimodal Agent Knowledge ingestion when the isolated Agent route accepts artifact-backed media.
-- Live schedule recovery/status correlation for promoted routines.
+- Deeper live run/delivery history and delivery error surfacing for promoted routines.
 - Delegation receipts and artifact review inside the operator workspace.
 - Approval center with route risk labels and saved policy presets.
 - Intent-gated tool exposure so the model sees fewer irrelevant tools per turn while retaining broad capability coverage.

@@ -17,6 +17,8 @@ export const ROUTINE_SCHEDULE_LIST_METHOD = 'schedules.list';
 type ScheduleCreateInput = OperatorMethodInput<'schedules.create'>;
 type ScheduleCreateOutput = OperatorMethodOutput<'schedules.create'>;
 type ScheduleListOutput = OperatorMethodOutput<'schedules.list'>;
+type ScheduleDeliveryInput = NonNullable<ScheduleCreateInput['delivery']>;
+type ScheduleDeliveryTargetInput = ScheduleDeliveryInput['targets'] extends readonly (infer T)[] ? T : never;
 
 export interface AgentDaemonConfigReader {
   get(key: string): unknown;
@@ -35,9 +37,46 @@ export interface RoutineScheduleSpec {
   readonly value: string;
 }
 
+export type RoutineScheduleDeliveryKind = 'webhook' | 'surface' | 'integration' | 'link';
+
+export type RoutineScheduleDeliverySurfaceKind =
+  | 'tui'
+  | 'web'
+  | 'slack'
+  | 'discord'
+  | 'ntfy'
+  | 'webhook'
+  | 'telegram'
+  | 'google-chat'
+  | 'signal'
+  | 'whatsapp'
+  | 'imessage'
+  | 'msteams'
+  | 'bluebubbles'
+  | 'mattermost'
+  | 'matrix'
+  | 'service';
+
+export interface RoutineScheduleDeliveryTargetSpec {
+  readonly kind: RoutineScheduleDeliveryKind;
+  readonly surfaceKind?: RoutineScheduleDeliverySurfaceKind;
+  readonly address?: string;
+  readonly routeId?: string;
+  readonly label?: string;
+}
+
+export interface RoutineScheduleReceiptDeliveryTarget {
+  readonly kind: RoutineScheduleDeliveryKind;
+  readonly surfaceKind?: RoutineScheduleDeliverySurfaceKind;
+  readonly address?: string;
+  readonly routeId?: string;
+  readonly label?: string;
+}
+
 export interface ParsedRoutineSchedulePromotionArgs {
   readonly routineId: string | null;
   readonly schedule: RoutineScheduleSpec | null;
+  readonly deliveryTargets: readonly RoutineScheduleDeliveryTargetSpec[];
   readonly name?: string;
   readonly timezone?: string;
   readonly provider?: string;
@@ -110,6 +149,7 @@ export interface RoutineScheduleReceipt {
     readonly createIfMissing?: boolean;
   };
   readonly deliveryMode?: string;
+  readonly deliveryTargets?: readonly RoutineScheduleReceiptDeliveryTarget[];
   readonly failureKind?: RoutineSchedulePromotionFailure['kind'];
   readonly failureError?: string;
 }
@@ -176,6 +216,24 @@ interface RoutineScheduleReceiptStoreFile {
 }
 
 const RECEIPT_STORE_VERSION = 1;
+const DELIVERY_SURFACE_KINDS: readonly RoutineScheduleDeliverySurfaceKind[] = [
+  'tui',
+  'web',
+  'slack',
+  'discord',
+  'ntfy',
+  'webhook',
+  'telegram',
+  'google-chat',
+  'signal',
+  'whatsapp',
+  'imessage',
+  'msteams',
+  'bluebubbles',
+  'mattermost',
+  'matrix',
+  'service',
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -222,6 +280,99 @@ function normalizeProviderModel(provider: string | undefined, model: string | un
   };
 }
 
+function isDeliverySurfaceKind(value: string): value is RoutineScheduleDeliverySurfaceKind {
+  return DELIVERY_SURFACE_KINDS.includes(value as RoutineScheduleDeliverySurfaceKind);
+}
+
+function parseSurfaceDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
+  const [surfaceKind = '', routeId, label] = raw.split(':');
+  if (!isDeliverySurfaceKind(surfaceKind)) {
+    return `Unsupported delivery surface "${surfaceKind}".`;
+  }
+  return {
+    kind: 'surface',
+    surfaceKind,
+    routeId: routeId?.trim() || undefined,
+    label: label?.trim() || undefined,
+  };
+}
+
+function parseRouteDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
+  const [routeId = '', label] = raw.split(':');
+  const normalizedRouteId = routeId.trim();
+  if (!normalizedRouteId) return '--delivery-route requires a route id.';
+  return {
+    kind: 'surface',
+    routeId: normalizedRouteId,
+    label: label?.trim() || undefined,
+  };
+}
+
+function parseWebhookDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
+  const normalized = raw.trim();
+  if (!normalized) return '--delivery-webhook requires a URL.';
+  try {
+    const url = new URL(normalized);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '--delivery-webhook must be an http(s) URL.';
+  } catch {
+    return '--delivery-webhook must be a valid URL.';
+  }
+  return {
+    kind: 'webhook',
+    address: normalized,
+  };
+}
+
+function parseLinkDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
+  const normalized = raw.trim();
+  if (!normalized) return '--delivery-link requires a URL or label.';
+  return {
+    kind: 'link',
+    address: normalized,
+  };
+}
+
+function validateDeliveryTargets(targets: readonly RoutineScheduleDeliveryTargetSpec[]): string | null {
+  const kinds = new Set(targets.map((target) => target.kind));
+  return kinds.size > 1 ? 'Use one delivery target kind per routine promotion command.' : null;
+}
+
+function deliveryModeFromTargets(targets: readonly RoutineScheduleDeliveryTargetSpec[]): ScheduleDeliveryInput['mode'] {
+  const first = targets[0];
+  return first ? first.kind : 'none';
+}
+
+function toDeliveryTargetInput(target: RoutineScheduleDeliveryTargetSpec): ScheduleDeliveryTargetInput {
+  return {
+    kind: target.kind,
+    surfaceKind: target.surfaceKind,
+    address: target.address,
+    routeId: target.routeId,
+    label: target.label,
+  };
+}
+
+function redactedDeliveryAddress(address: string | undefined): string | undefined {
+  if (!address) return undefined;
+  try {
+    const url = new URL(address);
+    return `${url.protocol}//${url.host}/...`;
+  } catch {
+    return '[redacted]';
+  }
+}
+
+function redactedDeliveryTargets(delivery: ScheduleDeliveryInput | undefined): readonly RoutineScheduleReceiptDeliveryTarget[] | undefined {
+  if (!delivery) return undefined;
+  return delivery.targets.map((target) => ({
+    kind: target.kind as RoutineScheduleDeliveryKind,
+    surfaceKind: typeof target.surfaceKind === 'string' && isDeliverySurfaceKind(target.surfaceKind) ? target.surfaceKind : undefined,
+    address: redactedDeliveryAddress(typeof target.address === 'string' ? target.address : undefined),
+    routeId: typeof target.routeId === 'string' ? target.routeId : undefined,
+    label: typeof target.label === 'string' ? target.label : undefined,
+  }));
+}
+
 function readReceipt(value: unknown): RoutineScheduleReceipt | null {
   if (!isRecord(value)) return null;
   const id = readString(value, 'id')?.trim();
@@ -234,6 +385,23 @@ function readReceipt(value: unknown): RoutineScheduleReceipt | null {
     : null;
   const scheduleValue = readString(value, 'scheduleValue')?.trim();
   const target = isRecord(value.target) ? value.target : {};
+  const deliveryTargets = Array.isArray(value.deliveryTargets)
+    ? value.deliveryTargets.map((target): RoutineScheduleReceiptDeliveryTarget | null => {
+      if (!isRecord(target)) return null;
+      const kind = target.kind === 'webhook' || target.kind === 'surface' || target.kind === 'integration' || target.kind === 'link'
+        ? target.kind
+        : null;
+      if (!kind) return null;
+      const surfaceKind = readString(target, 'surfaceKind') ?? undefined;
+      return {
+        kind,
+        surfaceKind: surfaceKind && isDeliverySurfaceKind(surfaceKind) ? surfaceKind : undefined,
+        address: readString(target, 'address') ?? undefined,
+        routeId: readString(target, 'routeId') ?? undefined,
+        label: readString(target, 'label') ?? undefined,
+      };
+    }).filter((target): target is RoutineScheduleReceiptDeliveryTarget => target !== null)
+    : undefined;
   if (!id || !createdAt || !routineId || !routineName || !status || !scheduleKind || !scheduleValue) return null;
   return {
     id,
@@ -260,6 +428,7 @@ function readReceipt(value: unknown): RoutineScheduleReceipt | null {
       createIfMissing: readBoolean(target, 'createIfMissing'),
     },
     deliveryMode: readString(value, 'deliveryMode') ?? undefined,
+    deliveryTargets,
     failureKind: value.failureKind === 'confirmation_required'
       || value.failureKind === 'auth_required'
       || value.failureKind === 'daemon_unavailable'
@@ -482,6 +651,7 @@ function buildReceipt(
     enabled: preview.payload.enabled !== false,
     target: targetSummary(preview.payload),
     deliveryMode: deliveryMode(preview.payload),
+    deliveryTargets: redactedDeliveryTargets(preview.payload.delivery),
     failureKind: result.ok ? undefined : result.kind,
     failureError: result.ok ? undefined : result.error,
   };
@@ -539,6 +709,7 @@ export class RoutineScheduleReceiptStore {
 export function parseRoutineSchedulePromotionArgs(args: readonly string[]): ParsedRoutineSchedulePromotionArgs {
   let routineId: string | null = null;
   let schedule: RoutineScheduleSpec | null = null;
+  const deliveryTargets: RoutineScheduleDeliveryTargetSpec[] = [];
   let name: string | undefined;
   let timezone: string | undefined;
   let provider: string | undefined;
@@ -593,6 +764,58 @@ export function parseRoutineSchedulePromotionArgs(args: readonly string[]): Pars
       };
       continue;
     }
+    if (optionName === '--delivery-surface' || optionName === '--deliver-surface') {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      const target = parseSurfaceDeliveryTarget(value);
+      if (typeof target === 'string') errors.push(target);
+      else deliveryTargets.push(target);
+      continue;
+    }
+    if (optionName === '--delivery-route' || optionName === '--deliver-route') {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      const target = parseRouteDeliveryTarget(value);
+      if (typeof target === 'string') errors.push(target);
+      else deliveryTargets.push(target);
+      continue;
+    }
+    if (optionName === '--delivery-webhook' || optionName === '--deliver-webhook') {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      const target = parseWebhookDeliveryTarget(value);
+      if (typeof target === 'string') errors.push(target);
+      else deliveryTargets.push(target);
+      continue;
+    }
+    if (optionName === '--delivery-link' || optionName === '--deliver-link') {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      const target = parseLinkDeliveryTarget(value);
+      if (typeof target === 'string') errors.push(target);
+      else deliveryTargets.push(target);
+      continue;
+    }
     if (raw.startsWith('--')) {
       errors.push(`Unknown option: ${raw}`);
       continue;
@@ -606,7 +829,9 @@ export function parseRoutineSchedulePromotionArgs(args: readonly string[]): Pars
 
   if (!routineId) errors.push('Routine id or name is required.');
   if (!schedule) errors.push('Schedule is required: use --cron <expr>, --every <interval>, or --at <iso-time>.');
-  return { routineId, schedule, name, timezone, provider, model, enabled, yes, errors };
+  const deliveryError = validateDeliveryTargets(deliveryTargets);
+  if (deliveryError) errors.push(deliveryError);
+  return { routineId, schedule, deliveryTargets, name, timezone, provider, model, enabled, yes, errors };
 }
 
 export function resolveAgentDaemonConnection(
@@ -669,8 +894,8 @@ export function buildRoutineSchedulePayload(
       createIfMissing: true,
     },
     delivery: {
-      mode: 'none',
-      targets: [],
+      mode: deliveryModeFromTargets(parsed.deliveryTargets),
+      targets: parsed.deliveryTargets.map(toDeliveryTargetInput),
       fallbackTargets: [],
       includeSummary: true,
       includeTranscript: false,
@@ -873,6 +1098,8 @@ export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPr
     : preview.payload.kind === 'every'
       ? String(preview.payload.every)
       : String(preview.payload.at);
+  const delivery = preview.payload.delivery;
+  const deliveryTargetCount = delivery?.targets.length ?? 0;
   return [
     'Daemon schedule preview for Agent routine',
     `  routine: ${preview.routineName} (${preview.routineId})`,
@@ -880,6 +1107,7 @@ export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPr
     `  name: ${String(preview.payload.name ?? '(daemon default)')}`,
     `  schedule: ${preview.payload.kind} ${schedule}`,
     `  enabled: ${preview.payload.enabled === false ? 'no' : 'yes'}`,
+    `  delivery: ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
     '  target: external daemon service/main conversation route',
     '  policy: isolated Agent Knowledge only; no default wiki/HomeGraph fallback; no WRFC unless explicitly delegated',
     '  next: rerun with --yes to create this daemon schedule',
@@ -938,6 +1166,7 @@ export function formatRoutineScheduleReceipt(receipt: RoutineScheduleReceipt): s
     receipt.model ? `  model: ${receipt.model}` : '',
     `  target: ${receipt.target.kind ?? 'unknown'}${receipt.target.surfaceKind ? `/${receipt.target.surfaceKind}` : ''}`,
     receipt.deliveryMode ? `  delivery: ${receipt.deliveryMode}` : '',
+    ...(receipt.deliveryTargets ?? []).map((target) => `  delivery target: ${target.kind}${target.surfaceKind ? `/${target.surfaceKind}` : ''}${target.routeId ? ` route=${target.routeId}` : ''}${target.address ? ` address=${target.address}` : ''}${target.label ? ` label=${target.label}` : ''}`),
     receipt.failureKind ? `  failure: ${receipt.failureKind}` : '',
     receipt.failureError ? `  error: ${receipt.failureError}` : '',
   ].filter((line): line is string => Boolean(line)).join('\n');
