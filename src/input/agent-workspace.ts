@@ -1,8 +1,10 @@
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
+import { basename, sep } from 'node:path';
 import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
+import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles } from '../agent/runtime-profile.ts';
 
 export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
@@ -92,6 +94,10 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly mediaGenerationProviderCount: number;
   readonly browserSurfaceEnabled: boolean;
   readonly browserSurfacePublicBaseUrl: string;
+  readonly activeRuntimeProfile: string;
+  readonly runtimeProfileCount: number;
+  readonly runtimeProfileRoot: string;
+  readonly configProfileCount: number;
   readonly warnings: readonly string[];
 }
 
@@ -304,6 +310,11 @@ function buildChannelStatus(context: CommandContext, spec: AgentWorkspaceChannel
   };
 }
 
+function inferActiveRuntimeProfile(homeDirectory: string): string {
+  const marker = `${sep}.goodvibes${sep}agent${sep}profile-homes${sep}`;
+  return homeDirectory.includes(marker) ? basename(homeDirectory) : '(default home)';
+}
+
 export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): AgentWorkspaceRuntimeSnapshot {
   const host = readConfigString(context, 'controlPlane.host', '127.0.0.1');
   const port = readConfigNumber(context, 'controlPlane.port', 3421);
@@ -351,6 +362,20 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: snapshot.routines.length, enabled: snapshot.enabledRoutines.length };
     } catch {
       return { count: 0, enabled: 0 };
+    }
+  })();
+  const runtimeProfiles = (() => {
+    try {
+      return listAgentRuntimeProfiles(context.workspace?.shellPaths?.homeDirectory ?? '');
+    } catch {
+      return [];
+    }
+  })();
+  const configProfileCount = (() => {
+    try {
+      return context.workspace?.profileManager?.list?.().length ?? 0;
+    } catch {
+      return 0;
     }
   })();
   const voiceProviders = (() => {
@@ -409,6 +434,10 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     mediaGenerationProviderCount: mediaProviders.filter((entry) => entry.capabilities.includes('generate')).length,
     browserSurfaceEnabled: readConfigBoolean(context, 'web.enabled', false),
     browserSurfacePublicBaseUrl: readConfigString(context, 'web.publicBaseUrl', '(not configured)'),
+    activeRuntimeProfile: inferActiveRuntimeProfile(context.workspace?.shellPaths?.homeDirectory ?? ''),
+    runtimeProfileCount: runtimeProfiles.length,
+    runtimeProfileRoot: getAgentRuntimeProfilesRoot(context.workspace?.shellPaths?.homeDirectory ?? ''),
+    configProfileCount,
     warnings,
   };
 }
@@ -483,6 +512,21 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'browser-surface', label: 'Browser surface status', detail: 'Inspect browser/web posture through setup diagnostics without starting listeners or daemon services.', command: '/setup services', kind: 'command', safety: 'read-only' },
       { id: 'mcp-browser', label: 'Browser MCP tools', detail: 'Inspect MCP servers and tools, including browser/automation roles, without mutating server setup.', command: '/mcp servers', kind: 'command', safety: 'read-only' },
       { id: 'node-posture', label: 'Node/remote posture', detail: 'Inspect remote runner/node posture. Dispatch remains blocked unless the task is explicit build delegation to TUI.', command: '/remote list', kind: 'command', safety: 'read-only' },
+    ],
+  },
+  {
+    id: 'profiles',
+    group: 'SETUP',
+    label: 'Profiles & Portability',
+    summary: 'Isolated Agent homes, config profiles, and setup bundles.',
+    detail: 'Hermes profiles isolate agent state. GoodVibes Agent exposes named runtime homes, config profile pickers, profile-sync bundles, setup transfer bundles, and support bundles while keeping the daemon external.',
+    actions: [
+      { id: 'profiles-open', label: 'Open config profiles', detail: 'Open the TUI-derived config profile picker for display/provider/behavior profile files.', command: '/profiles', kind: 'command', safety: 'safe' },
+      { id: 'profile-sync-list', label: 'Profile sync list', detail: 'Inspect saved config profiles available for export/import.', command: '/profilesync list', kind: 'command', safety: 'read-only' },
+      { id: 'profile-sync-export', label: 'Export profile sync', detail: 'Export config profiles to a portable bundle. Requires a real path and explicit --yes.', command: '/profilesync export <path> --yes', kind: 'command', safety: 'safe' },
+      { id: 'setup-transfer-export', label: 'Export setup transfer', detail: 'Export Agent setup transfer data from the current home. Requires a real path and explicit --yes.', command: '/setup transfer export <path> --yes', kind: 'command', safety: 'safe' },
+      { id: 'runtime-profile-create', label: 'Create runtime profile', detail: 'Use the CLI command goodvibes-agent profiles create <name> --yes, then launch with --agent-profile <name>. Runtime profile homes isolate Agent-local state and do not start a daemon.', kind: 'guidance', safety: 'safe' },
+      { id: 'runtime-profile-switch', label: 'Switch runtime profile', detail: 'Launch goodvibes-agent --agent-profile <name> to use that isolated Agent home. This workspace cannot switch the current process home after startup.', kind: 'guidance', safety: 'safe' },
     ],
   },
   {

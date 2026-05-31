@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
 import { registerAgentWorkspaceRuntimeCommands } from '../../input/commands/agent-workspace-runtime.ts';
+import { createAgentRuntimeProfile } from '../../agent/runtime-profile.ts';
 
 function commandContext(calls: string[] = []): CommandContext {
   return {
@@ -220,6 +224,50 @@ describe('AgentWorkspace', () => {
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tts-speak');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.lastActionResult?.kind).toBe('guidance');
+    expect(workspace.status).toContain('Placeholder command not dispatched');
+  });
+
+  test('summarizes runtime and config profile posture', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-profiles-'));
+    createAgentRuntimeProfile(root, 'household');
+    const snapshot = buildAgentWorkspaceRuntimeSnapshot({
+      ...commandContext(),
+      workspace: {
+        shellPaths: {
+          workingDirectory: root,
+          homeDirectory: root,
+        },
+        profileManager: {
+          list: () => [
+            { name: 'operator', timestamp: Date.now() },
+            { name: 'travel', timestamp: Date.now() - 1000 },
+          ],
+        },
+      },
+      platform: {
+        configManager: {
+          get: () => undefined,
+        },
+      },
+    } as unknown as CommandContext);
+
+    expect(snapshot.activeRuntimeProfile).toBe('(default home)');
+    expect(snapshot.runtimeProfileCount).toBe(1);
+    expect(snapshot.runtimeProfileRoot).toContain('profile-homes');
+    expect(snapshot.configProfileCount).toBe(2);
+  });
+
+  test('does not dispatch profile export templates without real target values', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'profile-sync-export');
 
     workspace.activateSelected();
 

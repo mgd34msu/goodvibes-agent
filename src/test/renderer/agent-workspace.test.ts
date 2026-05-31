@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
+import { createAgentRuntimeProfile } from '../../agent/runtime-profile.ts';
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
@@ -25,6 +26,7 @@ function commandContext(): CommandContext {
 function liveCommandContext(): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+  createAgentRuntimeProfile(root, 'household');
   const configValues = new Map<string, unknown>([
     ['controlPlane.host', '127.0.0.1'],
     ['controlPlane.port', 3421],
@@ -90,6 +92,12 @@ function liveCommandContext(): CommandContext {
     },
     workspace: {
       shellPaths,
+      profileManager: {
+        list: () => [
+          { name: 'operator', timestamp: Date.now() },
+          { name: 'travel', timestamp: Date.now() - 1000 },
+        ],
+      },
     },
     platform: {
       configManager: {
@@ -202,6 +210,24 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/image <path> <prompt>');
     expect(output).toContain('/mcp servers');
     expect(output).toContain('/remote list');
+  });
+
+  test('renders profile isolation and bundle workflow posture', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 38));
+
+    expect(output).toContain('Profiles & Portability');
+    expect(output).toContain('Active runtime profile: (default home)');
+    expect(output).toContain('Runtime profiles under this home: 1');
+    expect(output).toContain('Config profiles: 2');
+    expect(output).toContain('/profiles');
+    expect(output).toContain('/profilesync list');
+    expect(output).toContain('/profilesync export <path> --yes');
+    expect(output).toContain('/setup transfer export <path> --yes');
+    expect(output).toContain('external daemon remains shared');
   });
 
   test('renders channel onboarding and delivery safety posture', () => {

@@ -127,6 +127,16 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: 'Node/remote posture is read-only here; build dispatch remains explicit TUI delegation.', fg: PALETTE.good },
       { text: 'Image input uses prompt attachments; media generation/provider setup stays behind explicit commands and configured providers.', fg: PALETTE.muted },
     );
+  } else if (category.id === 'profiles') {
+    base.push(
+      { text: `Active runtime profile: ${snapshot.activeRuntimeProfile}`, fg: PALETTE.info },
+      { text: `Runtime profiles under this home: ${snapshot.runtimeProfileCount}`, fg: PALETTE.info },
+      { text: `Runtime profile root: ${snapshot.runtimeProfileRoot}`, fg: PALETTE.muted },
+      { text: `Config profiles: ${snapshot.configProfileCount}`, fg: PALETTE.info },
+      { text: 'Named runtime profiles isolate Agent-local config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
+      { text: 'The external daemon remains shared unless the daemon host is configured separately.', fg: PALETTE.warn },
+      { text: 'Portable bundles require explicit export/import commands with real paths and --yes.', fg: PALETTE.muted },
+    );
   } else if (category.id === 'memory') {
     base.push(
       { text: `Session memories: ${snapshot.sessionMemoryCount}`, fg: PALETTE.info },
