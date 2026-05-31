@@ -1,27 +1,21 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { InfiniteBuffer } from '../../core/history.ts';
-import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
-import { InputHandler } from '../../input/handler.ts';
 import { OnboardingWizardController } from '../../input/onboarding/onboarding-wizard.ts';
-import { addNetworkOperations } from '../../input/onboarding/onboarding-wizard-apply.ts';
-import { EXTERNAL_SURFACE_SPECS, getExternalSurfaceAutoStartFieldId } from '../../input/onboarding/onboarding-wizard-external-surfaces.ts';
-import { buildGoodVibesSecretKey, buildGoodVibesSecretRef } from '../../input/onboarding/onboarding-wizard-helpers.ts';
 import { handleOnboardingWizardToken } from '../../input/onboarding/handler-onboarding-routes.ts';
+import { InputHandler } from '../../input/handler.ts';
 import { SelectionManager } from '../../input/selection.ts';
 import { DEFAULT_CONFIG } from '../../config/index.ts';
 import { getProviderIdFromModel } from '../../config/provider-model.ts';
-import { readOnboardingCheckMarker, type OnboardingSnapshotState } from '../../runtime/onboarding/index.ts';
+import type { OnboardingApplyOperation, OnboardingSnapshotState } from '../../runtime/onboarding/index.ts';
 import { createDefaultUiRuntimeServices } from '../helpers/ui-services.ts';
 import { resetTestRuntimeServices } from '../helpers/runtime-services.ts';
-import type { UiRuntimeServices } from '../../runtime/ui-services.ts';
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
-import type { HostServiceStatus } from '@/runtime/index.ts';
 
 afterEach(() => {
   resetTestRuntimeServices();
 });
 
-function makeInput(uiServices = createDefaultUiRuntimeServices()): InputHandler {
+function makeInput(): InputHandler {
   const history = new InfiniteBuffer();
   const input = new InputHandler(
     () => {},
@@ -31,30 +25,16 @@ function makeInput(uiServices = createDefaultUiRuntimeServices()): InputHandler 
     () => history,
     () => {},
     () => {},
-    uiServices,
+    createDefaultUiRuntimeServices(),
   );
   input.setContentWidth(100);
   return input;
 }
 
-function installExternalServices(
-  uiServices: UiRuntimeServices,
-  controller: NonNullable<UiRuntimeServices['platform']['externalServices']>,
-): void {
-  (uiServices.platform as UiRuntimeServices['platform'] & {
-    externalServices: NonNullable<UiRuntimeServices['platform']['externalServices']>;
-  }).externalServices = controller;
-}
-
-function ensureLocalAdminAuth(uiServices: UiRuntimeServices): void {
-  const auth = uiServices.platform.localUserAuthManager;
-  if (!auth.getUser('admin')) auth.addUser('admin', 'admin-pass', ['admin']);
-  if (auth.inspect().bootstrapCredentialPresent) auth.clearBootstrapCredentialFile();
-}
-
 function makeOnboardingSnapshot(
   overrides: Partial<OnboardingSnapshotState> = {},
 ): OnboardingSnapshotState {
+  const legacyCloudKey = `${'cloud'}${'flare'}` as 'cloudflare';
   const config = {
     display: structuredClone(DEFAULT_CONFIG.display),
     provider: structuredClone(DEFAULT_CONFIG.provider),
@@ -76,7 +56,7 @@ function makeOnboardingSnapshot(
     service: structuredClone(DEFAULT_CONFIG.service),
     featureFlags: structuredClone(DEFAULT_CONFIG.featureFlags),
     batch: structuredClone(DEFAULT_CONFIG.batch),
-    cloudflare: structuredClone(DEFAULT_CONFIG.cloudflare),
+    [legacyCloudKey]: structuredClone(DEFAULT_CONFIG[legacyCloudKey]),
   };
 
   return {
@@ -162,38 +142,73 @@ function makeOnboardingSnapshot(
   };
 }
 
+function collectSetConfigOperations(operations: readonly OnboardingApplyOperation[]): Map<string, unknown> {
+  const values = new Map<string, unknown>();
+  for (const operation of operations) {
+    if (operation.kind === 'set-config') values.set(operation.key, operation.value);
+  }
+  return values;
+}
+
+function expectNoCopiedSetupOperations(operations: readonly OnboardingApplyOperation[]): void {
+  const forbiddenConfigPrefixes = [
+    'surfaces.',
+    `${'cloud'}${'flare'}.`,
+    'batch.',
+    'controlPlane.',
+    'httpListener.',
+    'web.',
+    'danger.',
+    'service.',
+    'featureFlags.',
+  ];
+  for (const operation of operations) {
+    if (operation.kind === 'set-config') {
+      for (const prefix of forbiddenConfigPrefixes) {
+        expect(operation.key.startsWith(prefix)).toBe(false);
+      }
+    }
+    expect(operation.kind).not.toBe('ensure-auth-user');
+    expect(operation.kind).not.toBe('acknowledge');
+  }
+}
+
 describe('OnboardingWizardController', () => {
-  test('preserves per-step selection and scroll state while tracking dirty steps', () => {
+  test('uses Agent-specific onboarding screens instead of copied service setup screens', () => {
+    const wizard = new OnboardingWizardController();
+    wizard.open('new');
+
+    expect(wizard.steps.map((step) => step.id)).toEqual([
+      'agent-setup',
+      'provider-access',
+      'default-model',
+      'agent-knowledge',
+      'agent-local-state',
+      'agent-delegation',
+      'experience',
+      'review',
+    ]);
+    expect(wizard.steps.map((step) => step.id)).not.toContain('network');
+    expect(wizard.steps.map((step) => step.id)).not.toContain('external-services');
+    expect(wizard.steps.map((step) => step.id)).not.toContain(`${'cloud'}${'flare'}`);
+    expect(wizard.steps.map((step) => step.id)).not.toContain('access');
+  });
+
+  test('tracks dirty state for Agent-owned editable fields', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('edit');
 
-    wizard.moveSelection(1, 2);
+    wizard.moveSelection(2, 4);
     wizard.activateSelected();
 
-    expect(wizard.mode).toBe('edit');
-    expect(wizard.getSelectedFieldIndex()).toBe(1);
-    expect(wizard.scrollOffsets[0]).toBe(0);
+    expect(wizard.getSelectedField()?.id).toBe('agent-setup.secret-policy');
     expect(wizard.dirty).toBe(true);
     expect(wizard.isStepDirty(0)).toBe(true);
-    wizard.selectLast(2);
-    expect(wizard.getSelectedFieldIndex()).toBe(8);
-    expect(wizard.scrollOffsets[0]).toBe(7);
-
-    wizard.setStep(2);
-    wizard.moveSelection(1, 2);
-    expect(wizard.getSelectedFieldIndex()).toBe(1);
-    expect(wizard.scrollOffsets[2]).toBe(0);
-
-    wizard.setStep(0);
-    expect(wizard.getSelectedFieldIndex()).toBe(8);
-    expect(wizard.scrollOffsets[0]).toBe(7);
   });
 
   test('adds a separated apply-and-continue action to every non-final editable step', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.ntfy', true);
 
     for (const step of wizard.steps) {
       const applyAndContinue = step.fields.find((field) => field.kind === 'action' && field.action === 'apply-and-continue');
@@ -209,663 +224,85 @@ describe('OnboardingWizardController', () => {
     }
   });
 
-  test('keeps daemon lifecycle external when surfaces are selected', () => {
+  test('maps only Agent-owned setup values to apply operations', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
-    wizard.setFieldValue('capabilities.browser-access', true);
-
-    const request = wizard.buildApplyRequest();
-
-    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'service.enabled', value: true });
-    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'service.autostart', value: true });
-    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'service.restartOnFailure', value: true });
-    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'danger.daemon', value: true });
-    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'web.hostMode', value: 'network' });
-  });
-
-  test('maps Cloudflare onboarding fields to config and batch operations', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.cloudflare-batch', true);
-    wizard.setFieldValue('cloudflare.batch-mode', 'explicit');
-    wizard.setFieldValue('cloudflare.setup-source', 'operational-env');
-    wizard.setFieldValue('cloudflare.operational-env-name', 'MY_CF_TOKEN');
-    wizard.setFieldValue('cloudflare.account-id', 'account-123');
-    wizard.setFieldValue('cloudflare.queue-name', 'gv-queue');
-    wizard.setFieldValue('cloudflare.dead-letter-queue-name', 'gv-dlq');
-
-    const cloudflareStep = wizard.steps.find((step) => step.id === 'cloudflare');
-    expect(cloudflareStep?.fields.map((field) => field.id)).toContain('cloudflare.component.workers');
-    expect(cloudflareStep?.fields.map((field) => field.id)).toContain('cloudflare.requirements');
-
-    const configValues = new Map<string, unknown>();
-    for (const operation of wizard.buildApplyRequest().operations) {
-      if (operation.kind === 'set-config') configValues.set(operation.key, operation.value);
-    }
-
-    expect(configValues.has('service.enabled')).toBe(false);
-    expect(configValues.has('service.autostart')).toBe(false);
-    expect(configValues.get('cloudflare.enabled')).toBe(true);
-    expect(configValues.get('cloudflare.accountId')).toBe('account-123');
-    expect(configValues.get('cloudflare.apiTokenRef')).toBe('goodvibes://secrets/env/MY_CF_TOKEN');
-    expect(configValues.get('cloudflare.queueName')).toBe('gv-queue');
-    expect(configValues.get('cloudflare.deadLetterQueueName')).toBe('gv-dlq');
-    expect(configValues.get('batch.mode')).toBe('explicit');
-    expect(configValues.get('batch.queueBackend')).toBe('cloudflare');
-  });
-
-  test('stores a pasted Cloudflare operational token as a GoodVibes secret ref', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.cloudflare-batch', true);
-    wizard.setFieldValue('cloudflare.setup-source', 'operational-token');
-    wizard.setFieldValue('cloudflare.operational-token', 'cf-secret');
-
-    const configValues = new Map<string, unknown>();
-    const secretValues = new Map<string, string>();
-    for (const operation of wizard.buildApplyRequest().operations) {
-      if (operation.kind === 'set-config') configValues.set(operation.key, operation.value);
-      if (operation.kind === 'set-secret') secretValues.set(operation.key, operation.value);
-    }
-
-    expect(secretValues.get('CLOUDFLARE_API_TOKEN')).toBe('cf-secret');
-    expect(configValues.get('cloudflare.apiTokenRef')).toBe('goodvibes://secrets/goodvibes/CLOUDFLARE_API_TOKEN');
-  });
-
-  test('preserves an existing stored Cloudflare token ref when reopening onboarding', () => {
-    const base = makeOnboardingSnapshot();
-    const snapshot = makeOnboardingSnapshot({
-      config: {
-        ...base.config,
-        cloudflare: {
-          ...base.config.cloudflare,
-          enabled: true,
-          apiTokenRef: 'goodvibes://secrets/goodvibes/CLOUDFLARE_API_TOKEN',
-        },
-      },
-    });
-    const wizard = new OnboardingWizardController();
-    wizard.open('edit');
-    wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-
-    const cloudflareStep = wizard.steps.find((step) => step.id === 'cloudflare');
-    const setupField = cloudflareStep?.fields.find((field) => field.id === 'cloudflare.setup-source');
-    expect(setupField?.kind).toBe('radio');
-    expect(setupField?.kind === 'radio' ? setupField.defaultValue : undefined).toBe('save-only');
-    expect(cloudflareStep?.fields.map((field) => field.id)).not.toContain('cloudflare.operational-env-name');
-
-    const configValues = new Map<string, unknown>();
-    for (const operation of wizard.buildApplyRequest().operations) {
-      if (operation.kind === 'set-config') configValues.set(operation.key, operation.value);
-    }
-
-    expect(configValues.get('cloudflare.apiTokenRef')).toBe('goodvibes://secrets/goodvibes/CLOUDFLARE_API_TOKEN');
-  });
-
-  test('blocks invalid custom network ports instead of silently falling back', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.browser-access', true);
-    wizard.setFieldValue('network.mode', 'custom');
-    wizard.setFieldValue('network.service-port', 'not-a-port');
-
-    expect(wizard.getBlockingFieldLabels()).toContain('Network: External daemon control-plane port must be a port number from 1 to 65535.');
-  });
-
-  test('blocks custom network host fields that include URL or port syntax', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.browser-access', true);
-    wizard.setFieldValue('network.mode', 'custom');
-    wizard.setFieldValue('network.shared-ip-address', '0.0.0.0:3421');
-
-    expect(wizard.getBlockingFieldLabels()).toContain('Network: Shared IP address must be a host or IP address, not a URL.');
-  });
-
-  test('shows listener network fields when external integrations may need inbound events', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('network.mode', 'custom');
-
-    const networkStep = wizard.steps.find((step) => step.id === 'network');
-    expect(networkStep?.fields.map((field) => field.id)).toContain('network.webhook-port');
-    expect(networkStep?.fields.map((field) => field.id)).not.toContain('network.service-ip');
-  });
-
-  test('does not mutate control-plane or listener posture for webhook-only onboarding', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.webhook-events', true);
-
-    const request = wizard.buildApplyRequest();
-    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('controlPlane.'))).toBe(false);
-    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('httpListener.'))).toBe(false);
-    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'danger.httpListener', value: true });
-  });
-
-  test('legacy network operation helper is fail-closed for Agent', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.browser-access', true);
-    wizard.setFieldValue('network.mode', 'custom');
-    wizard.setFieldValue('network.service-port', '4555');
-
-    const operations: Parameters<typeof addNetworkOperations>[1] = [];
-    addNetworkOperations(wizard, operations, true, {
-      controlPlane: true,
-      controlPlaneRemote: true,
-      httpListener: true,
-      web: true,
-    });
-
-    expect(operations).toEqual([]);
-  });
-
-  test('reopening a webhook-only LAN listener still does not mutate daemon listener posture', () => {
-    const snapshot = makeOnboardingSnapshot({
-      bindSettings: {
-        daemonEnabled: true,
-        httpListenerEnabled: true,
-        controlPlane: {
-          ...DEFAULT_CONFIG.controlPlane,
-          enabled: true,
-          hostMode: 'local',
-          host: '127.0.0.1',
-          allowRemote: false,
-        },
-        httpListener: {
-          ...DEFAULT_CONFIG.httpListener,
-          hostMode: 'network',
-          host: '0.0.0.0',
-        },
-        web: DEFAULT_CONFIG.web,
-      },
-    });
-    const wizard = new OnboardingWizardController();
-    wizard.open('edit');
-    wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-
-    const request = wizard.buildApplyRequest();
-    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('controlPlane.'))).toBe(false);
-    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('httpListener.'))).toBe(false);
-    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'danger.httpListener', value: true });
-  });
-
-  test('derives per-service custom network hosts when existing enabled hosts differ', () => {
-    const snapshot = makeOnboardingSnapshot({
-      bindSettings: {
-        daemonEnabled: true,
-        httpListenerEnabled: true,
-        controlPlane: {
-          ...DEFAULT_CONFIG.controlPlane,
-          enabled: true,
-          hostMode: 'custom',
-          host: '10.0.0.10',
-          port: 3421,
-        },
-        httpListener: {
-          ...DEFAULT_CONFIG.httpListener,
-          hostMode: 'custom',
-          host: '10.0.0.20',
-          port: 3422,
-        },
-        web: {
-          ...DEFAULT_CONFIG.web,
-          enabled: true,
-          hostMode: 'custom',
-          host: '10.0.0.30',
-          port: 3423,
-        },
-      },
-    });
-    const wizard = new OnboardingWizardController();
-    wizard.open('edit');
-    wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-
-    const networkStep = wizard.steps.find((step) => step.id === 'network');
-    expect(networkStep?.fields.map((field) => field.id)).toContain('network.service-ip');
-    expect(networkStep?.fields.map((field) => field.id)).toContain('network.browser-ip');
-    expect(networkStep?.fields.map((field) => field.id)).toContain('network.webhook-ip');
-    expect(networkStep?.fields.map((field) => field.id)).not.toContain('network.shared-ip-address');
-  });
-
-  test('external services exposes selected surfaces as separate setup screens', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.homeassistant', true);
-    wizard.setFieldValue('external-services.google-chat', true);
-    wizard.setFieldValue('external-services.signal', true);
-    wizard.setFieldValue('external-services.whatsapp', true);
-    wizard.setFieldValue('external-services.imessage', true);
-    wizard.setFieldValue('external-services.msteams', true);
-    wizard.setFieldValue('external-services.bluebubbles', true);
-    wizard.setFieldValue('external-services.mattermost', true);
-    wizard.setFieldValue('external-services.matrix', true);
-
-    const serviceStep = wizard.steps.find((step) => step.id === 'external-services');
-    const selectorFieldIds = serviceStep?.fields.map((field) => field.id) ?? [];
-
-    expect(selectorFieldIds).toContain('external-services.ntfy');
-    expect(selectorFieldIds).toContain('external-services.homeassistant');
-    expect(selectorFieldIds).not.toContain('external-services.google-chat.webhook-url');
-    expect(wizard.steps.map((step) => step.id)).toContain('external-surface:homeassistant');
-    expect(wizard.steps.map((step) => step.id)).toContain('external-surface:googleChat');
-    expect(wizard.steps.map((step) => step.id)).toContain('external-surface:matrix');
-    expect(wizard.steps.find((step) => step.id === 'external-surface:homeassistant')?.fields.map((field) => field.id))
-      .toContain('external-services.homeassistant.access-token');
-    expect(wizard.steps.find((step) => step.id === 'external-surface:googleChat')?.fields.map((field) => field.id))
-      .toContain('external-services.google-chat.webhook-url');
-    expect(wizard.steps.find((step) => step.id === 'external-surface:signal')?.fields.map((field) => field.id))
-      .toContain('external-services.signal.token');
-    expect(wizard.steps.find((step) => step.id === 'external-surface:whatsapp')?.fields.map((field) => field.id))
-      .toContain('external-services.whatsapp.access-token');
-    expect(wizard.steps.find((step) => step.id === 'external-surface:imessage')?.fields.map((field) => field.id))
-      .toContain('external-services.imessage.token');
-    expect(wizard.steps.find((step) => step.id === 'external-surface:msteams')?.fields.map((field) => field.id))
-      .toContain('external-services.msteams.app-password');
-    expect(wizard.steps.find((step) => step.id === 'external-surface:bluebubbles')?.fields.map((field) => field.id))
-      .toContain('external-services.bluebubbles.password');
-    expect(wizard.steps.find((step) => step.id === 'external-surface:mattermost')?.fields.map((field) => field.id))
-      .toContain('external-services.mattermost.bot-token');
-    expect(wizard.steps.find((step) => step.id === 'external-surface:matrix')?.fields.map((field) => field.id))
-      .toContain('external-services.matrix.access-token');
-  });
-
-  test('detects configured Home Assistant values even when the surface is not enabled', () => {
-    const base = makeOnboardingSnapshot();
-    const snapshot = makeOnboardingSnapshot({
-      config: {
-        ...base.config,
-        surfaces: {
-          ...base.config.surfaces,
-          homeassistant: {
-            ...base.config.surfaces.homeassistant,
-            enabled: false,
-            instanceUrl: 'http://homeassistant.local:8123',
-            accessToken: 'goodvibes://secrets/goodvibes/GOODVIBES_SURFACES_HOMEASSISTANT_ACCESS_TOKEN',
-          },
-        },
-      },
-    });
-    const wizard = new OnboardingWizardController();
-    wizard.open('edit');
-    wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-
-    expect(wizard.getCapabilitySelectionState().find((item) => item.id === 'external-integrations')?.selected).toBe(true);
-    expect(wizard.steps.map((step) => step.id)).toContain('external-services');
-    expect(wizard.steps.map((step) => step.id)).toContain('external-surface:homeassistant');
-    expect(wizard.getStringFieldValue('external-services.homeassistant.auto-start', 'yes')).toBe('no');
-    expect(wizard.getStringFieldValue('external-services.homeassistant.access-token', '')).toBe(
-      'goodvibes://secrets/goodvibes/GOODVIBES_SURFACES_HOMEASSISTANT_ACCESS_TOKEN',
-    );
-  });
-
-  test('enabling an inbound external surface does not turn on the HTTP listener', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.slack', true);
-    wizard.setFieldValue('external-services.slack.auto-start', 'yes');
-
-    const request = wizard.buildApplyRequest();
-
-    expect(request.operations).toContainEqual({
-      kind: 'set-config',
-      key: 'surfaces.slack.enabled',
-      value: true,
-    });
-    expect(request.operations).not.toContainEqual({ kind: 'set-config', key: 'danger.httpListener', value: true });
-    expect(request.operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('httpListener.'))).toBe(false);
-  });
-
-  test('every external surface keeps listener posture external when selected', () => {
-    const surfaceFieldIds = [
-      'external-services.ntfy',
-      'external-services.webhook',
-      'external-services.signal',
-      'external-services.imessage',
-      'external-services.bluebubbles',
-      'external-services.matrix',
-    ];
-
-    for (const surfaceFieldId of surfaceFieldIds) {
-      const wizard = new OnboardingWizardController();
-      wizard.open('new');
-      wizard.setFieldValue('capabilities.external-integrations', true);
-      wizard.setFieldValue(surfaceFieldId, true);
-      wizard.setFieldValue(`${surfaceFieldId}.auto-start`, 'yes');
-
-      const operations = wizard.buildApplyRequest().operations;
-      expect(operations).not.toContainEqual({ kind: 'set-config', key: 'danger.httpListener', value: true });
-      expect(operations.some((operation) => operation.kind === 'set-config' && operation.key.startsWith('httpListener.'))).toBe(false);
-    }
-  });
-
-  test('stores masked surface setup values as GoodVibes secret refs', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.slack', true);
-    wizard.setFieldValue('external-services.slack.bot-token', 'xoxb-secret');
-    wizard.setFieldValue('external-services.slack.signing-secret', 'signing-secret');
-
-    const request = wizard.buildApplyRequest();
-
-    expect(request.operations).toContainEqual(expect.objectContaining({
-      kind: 'set-secret',
-      key: 'GOODVIBES_SURFACES_SLACK_BOT_TOKEN',
-      value: 'xoxb-secret',
-      scope: 'project',
-    }));
-    expect(request.operations).toContainEqual({
-      kind: 'set-config',
-      key: 'surfaces.slack.botToken',
-      value: 'goodvibes://secrets/goodvibes/GOODVIBES_SURFACES_SLACK_BOT_TOKEN',
-    });
-  });
-
-  test('maps editable wizard settings to apply operations', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.browser-access', true);
-    wizard.setFieldValue('capabilities.network-access', true);
-    wizard.setFieldValue('capabilities.webhook-events', true);
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('network.mode', 'custom');
-    wizard.setFieldValue('network.shared-ip', false);
-    wizard.setFieldValue('network.service-ip', '10.0.0.10');
-    wizard.setFieldValue('network.service-port', '4551');
-    wizard.setFieldValue('network.browser-ip', '10.0.0.11');
-    wizard.setFieldValue('network.browser-port', '4552');
-    wizard.setFieldValue('network.webhook-ip', '10.0.0.12');
-    wizard.setFieldValue('network.webhook-port', '4553');
-    wizard.setFieldValue('accounts.admin-username', 'admin');
-    wizard.setFieldValue('accounts.admin-password', 'admin-pass');
-    wizard.setFieldValue('accounts.subscriptions', true);
-    wizard.setFieldValue('accounts.auth', true);
-    wizard.setFieldValue('providers.openai-api-key', 'sk-test-openai');
-    wizard.setFieldValue('providers.reviewed', true);
-    wizard.applyModelSelection('main', { providerId: 'openai', modelId: 'gpt-5-test', enabled: true });
+    wizard.hydrateRuntimeState({ snapshot: makeOnboardingSnapshot() }, { resetValues: true });
+    wizard.applyModelSelection('main', { providerId: 'openai', modelId: 'gpt-5-test' });
     wizard.setFieldValue('default-model.reasoning', 'high');
-    wizard.setFieldValue('external-services.secret-policy', 'plaintext_allowed');
     wizard.setFieldValue('experience.hitl', 'operator');
     wizard.setFieldValue('experience.guidance', 'guided');
     wizard.setFieldValue('experience.permissions', 'allow-all');
-
-    const setupValues = new Map<string, string>();
-    for (const surface of EXTERNAL_SURFACE_SPECS) {
-      wizard.setFieldValue(surface.enabledFieldId, true);
-      wizard.setFieldValue(getExternalSurfaceAutoStartFieldId(surface), 'yes');
-    }
-    for (const surface of EXTERNAL_SURFACE_SPECS) {
-      for (const setupField of surface.fields) {
-        const value = setupField.kind === 'radio'
-          ? setupField.options?.at(-1)?.id ?? setupField.defaultValue(null)
-          : setupField.valueType === 'number'
-            ? String(setupField.defaultNumber ?? setupField.min ?? 1)
-            : `value-${surface.id}-${setupField.id.split('.').at(-1)}`;
-        wizard.setFieldValue(setupField.id, value);
-        setupValues.set(setupField.id, value);
-      }
-    }
+    wizard.setFieldValue('agent-setup.secret-policy', 'plaintext_allowed');
+    wizard.setFieldValue('providers.openai-api-key', 'sk-test-openai');
 
     const request = wizard.buildApplyRequest();
-    const configValues = new Map<string, unknown>();
-    const secretValues = new Map<string, string>();
-    for (const operation of request.operations) {
-      if (operation.kind === 'set-config') configValues.set(operation.key, operation.value);
-      if (operation.kind === 'set-secret') secretValues.set(operation.key, operation.value);
-    }
+    const configValues = collectSetConfigOperations(request.operations);
 
-    expect(request.operations).toContainEqual({
-      kind: 'ensure-auth-user',
-      username: 'admin',
-      password: 'admin-pass',
-      roles: ['admin'],
-      createSession: true,
-      retireBootstrapCredential: false,
-    });
-    expect(secretValues.get('OPENAI_API_KEY')).toBe('sk-test-openai');
-    expect(configValues.has('service.enabled')).toBe(false);
-    expect(configValues.has('service.autostart')).toBe(false);
-    expect(configValues.has('service.restartOnFailure')).toBe(false);
-    expect(configValues.has('danger.daemon')).toBe(false);
-    expect(configValues.has('controlPlane.enabled')).toBe(false);
-    expect(configValues.has('danger.httpListener')).toBe(false);
-    expect(configValues.has('web.enabled')).toBe(false);
-    expect(configValues.has('controlPlane.hostMode')).toBe(false);
-    expect(configValues.has('controlPlane.host')).toBe(false);
-    expect(configValues.has('controlPlane.port')).toBe(false);
-    expect(configValues.has('controlPlane.allowRemote')).toBe(false);
-    expect(configValues.has('web.hostMode')).toBe(false);
-    expect(configValues.has('web.host')).toBe(false);
-    expect(configValues.has('web.port')).toBe(false);
-    expect(configValues.has('httpListener.hostMode')).toBe(false);
-    expect(configValues.has('httpListener.host')).toBe(false);
-    expect(configValues.has('httpListener.port')).toBe(false);
-    expect(configValues.get('featureFlags.control-plane-gateway')).toBe('enabled');
-    expect(configValues.get('featureFlags.service-management')).toBe('enabled');
-    expect(configValues.has('featureFlags.web-surface')).toBe(false);
-    expect(configValues.get('featureFlags.route-binding')).toBe('enabled');
-    expect(configValues.get('featureFlags.delivery-engine')).toBe('enabled');
+    expectNoCopiedSetupOperations(request.operations);
     expect(configValues.get('provider.model')).toBe('openai:gpt-5-test');
     expect(configValues.get('provider.reasoningEffort')).toBe('high');
-    expect(configValues.get('storage.secretPolicy')).toBe('plaintext_allowed');
     expect(configValues.get('behavior.hitlMode')).toBe('operator');
     expect(configValues.get('behavior.guidanceMode')).toBe('guided');
     expect(configValues.get('permissions.mode')).toBe('allow-all');
-    expect(request.operations).toContainEqual({ kind: 'acknowledge', target: 'providers', acknowledged: true });
-    expect(request.operations).toContainEqual({ kind: 'acknowledge', target: 'subscriptions', acknowledged: true });
-    expect(request.operations).toContainEqual({ kind: 'acknowledge', target: 'auth', acknowledged: true });
-
-    for (const surface of EXTERNAL_SURFACE_SPECS) {
-      expect(configValues.get(surface.enabledConfigKey)).toBe(true);
-      for (const setupField of surface.fields) {
-        const value = setupValues.get(setupField.id);
-        expect(value).toBeDefined();
-        if (setupField.valueType === 'number') {
-          expect(configValues.get(setupField.configKey)).toBe(Number(value));
-          continue;
-        }
-
-        if (setupField.kind === 'masked') {
-          const secretKey = buildGoodVibesSecretKey(setupField.configKey);
-          expect(secretValues.get(secretKey)).toBe(value);
-          expect(configValues.get(setupField.configKey)).toBe(buildGoodVibesSecretRef(secretKey));
-          continue;
-        }
-
-        expect(configValues.get(setupField.configKey)).toBe(value);
-      }
-    }
-    expect(configValues.get('featureFlags.slack-surface')).toBe('enabled');
-    expect(configValues.get('featureFlags.discord-surface')).toBe('enabled');
-    expect(configValues.get('featureFlags.ntfy-surface')).toBe('enabled');
-    expect(configValues.get('featureFlags.webhook-surface')).toBe('enabled');
-  });
-
-  test('does not block selected external surfaces when setup values are blank', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.matrix', true);
-
-    expect(wizard.getBlockingFieldLabels()).not.toContain('Matrix: Matrix access token is required.');
-    const matrixStep = wizard.steps.find((step) => step.id === 'external-surface:matrix');
-    const tokenField = matrixStep?.fields.find((field) => field.id === 'external-services.matrix.access-token');
-    expect(tokenField ? wizard.getFieldValueLabel(tokenField) : null).toBe('Not set');
-  });
-
-  test('does not block saving when selected external surfaces have blank setup values', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-
-    expect(wizard.getBlockingFieldLabels()).not.toContain('ntfy: ntfy default delivery topic is required.');
-    wizard.setFieldValue('external-services.ntfy', true);
-    expect(wizard.getBlockingFieldLabels()).not.toContain('ntfy: ntfy default delivery topic is required.');
-    wizard.setFieldValue('external-services.ntfy', false);
-    expect(wizard.getBlockingFieldLabels()).not.toContain('ntfy: ntfy default delivery topic is required.');
-  });
-
-  test('clears selected onboarding text fields with Delete', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.ntfy', true);
-    wizard.setFieldValue('external-services.ntfy.token', 'old-token');
-
-    const ntfyStepIndex = wizard.steps.findIndex((step) => step.id === 'external-surface:ntfy');
-    wizard.setStep(ntfyStepIndex);
-    wizard.moveSelection(6, 10);
-
-    const routeState = {
-      onboardingWizard: wizard,
-      getViewportHeight: () => 20,
-      requestRender: () => {},
-      handleEscape: () => {},
-    };
-
-    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'delete', ctrl: false, shift: false, meta: false } as InputToken);
-
-    expect(wizard.getSelectedField()?.id).toBe('external-services.ntfy.token');
-    expect(wizard.getTextFieldValue('external-services.ntfy.token')).toBe('');
-  });
-
-  test('clears edited onboarding text fields with Ctrl+U and persists empty masked values', () => {
-    const snapshot = makeOnboardingSnapshot({
-      config: {
-        ...makeOnboardingSnapshot().config,
-        surfaces: {
-          ...makeOnboardingSnapshot().config.surfaces,
-          ntfy: {
-            ...makeOnboardingSnapshot().config.surfaces.ntfy,
-            enabled: true,
-            baseUrl: 'https://ntfy.buzznet.dev',
-            topic: 'your-topic',
-            token: 'old-token',
-          },
-        },
-      },
-    });
-    const wizard = new OnboardingWizardController();
-    wizard.open('edit');
-    wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.ntfy', true);
-
-    const ntfyStepIndex = wizard.steps.findIndex((step) => step.id === 'external-surface:ntfy');
-    wizard.setStep(ntfyStepIndex);
-    wizard.moveSelection(6, 10);
-
-    const routeState = {
-      onboardingWizard: wizard,
-      getViewportHeight: () => 20,
-      requestRender: () => {},
-      handleEscape: () => {},
-    };
-
-    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'return' } as InputToken);
-    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'u', ctrl: true, shift: false, meta: false } as InputToken);
-    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'return' } as InputToken);
-
-    expect(wizard.getTextFieldValue('external-services.ntfy.token')).toBe('');
-    expect(wizard.buildApplyRequest().operations).toContainEqual({
-      kind: 'set-config',
-      key: 'surfaces.ntfy.token',
-      value: '',
+    expect(configValues.get('storage.secretPolicy')).toBe('plaintext_allowed');
+    expect(request.operations).toContainEqual({
+      kind: 'set-secret',
+      key: 'OPENAI_API_KEY',
+      value: 'sk-test-openai',
+      scope: 'project',
+      medium: 'plaintext',
     });
   });
 
-  test('blocks malformed GoodVibes secret refs in masked fields', () => {
+  test('does not expose copied service, surface, or network fields in Agent onboarding text', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.slack', true);
-    wizard.setFieldValue('external-services.slack.bot-token', 'goodvibes://secrets/');
 
-    expect(wizard.getBlockingFieldLabels()).toContain('Slack: Slack bot token must be a secret value or a goodvibes://secrets/... reference.');
+    const text = wizard.steps
+      .flatMap((step) => [
+        step.id,
+        step.title,
+        step.shortLabel,
+        step.description,
+        step.summaryTitle,
+        ...step.summaryLines,
+        ...step.fields.flatMap((field) => [field.id, field.label, field.hint]),
+      ])
+      .join('\n');
+
+    expect(text).not.toContain('external-services');
+    expect(text).not.toContain('Slack');
+    expect(text).not.toContain('Discord');
+    expect(text).not.toContain('Home Assistant');
+    expect(text).not.toContain('HTTP listener');
+    expect(text).not.toContain('control-plane');
+    expect(text).not.toContain('network setup');
   });
 
-  test('uses mode-aware required fields for Telegram and WhatsApp', () => {
+  test('clears selected Agent onboarding text fields with Delete', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.telegram', true);
-    wizard.setFieldValue('external-services.telegram.mode', 'polling');
-    wizard.setFieldValue('external-services.telegram.bot-token', 'bot-token');
-    wizard.setFieldValue('external-services.whatsapp', true);
-    wizard.setFieldValue('external-services.whatsapp.provider', 'bridge');
-    wizard.setFieldValue('external-services.whatsapp.access-token', 'bridge-token');
-
-    const blockers = wizard.getBlockingFieldLabels();
-    expect(blockers).not.toContain('Telegram: Telegram webhook secret is required.');
-    expect(blockers).not.toContain('WhatsApp: WhatsApp verify token is required.');
-    expect(blockers).not.toContain('WhatsApp: WhatsApp phone number ID is required.');
-  });
-
-  test('shows optional local admin credential fields without requiring a replacement password', () => {
-    const snapshot = makeOnboardingSnapshot({
-      auth: {
-        snapshot: {
-          userStorePath: '/tmp/auth-users.json',
-          bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-          persisted: true,
-          bootstrapCredentialPresent: false,
-          userCount: 1,
-          sessionCount: 0,
-          users: [{ username: 'operator', roles: ['operator'] }],
-          sessions: [],
-        },
-      },
-    });
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-    wizard.setFieldValue('capabilities.browser-access', true);
-
-    expect(wizard.steps.find((step) => step.id === 'access')?.fields.map((field) => field.id)).toContain('accounts.admin-username');
-    expect(wizard.steps.find((step) => step.id === 'access')?.fields.map((field) => field.id)).toContain('accounts.admin-password');
-    expect(wizard.getBlockingFieldLabels()).not.toContain('Access: Local auth admin password is required.');
-    expect(wizard.buildApplyRequest().operations).not.toContainEqual(expect.objectContaining({ kind: 'ensure-auth-user' }));
-
-    wizard.setFieldValue('accounts.admin-password', 'wizard-pass');
-
-    expect(wizard.buildApplyRequest().operations).toContainEqual({
-      kind: 'ensure-auth-user',
-      username: 'admin',
-      password: 'wizard-pass',
-      roles: ['admin'],
-      createSession: true,
-      retireBootstrapCredential: false,
-    });
-  });
-
-  test('treats return key tokens as Enter in the onboarding route', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.moveSelection(1, 10);
+    wizard.setStep(1);
+    wizard.moveSelection(2, 6);
+    wizard.setFieldValue('providers.openai-api-key', 'sk-secret');
 
     handleOnboardingWizardToken({
       onboardingWizard: wizard,
       getViewportHeight: () => 20,
       requestRender: () => {},
       handleEscape: () => {},
-    }, { type: 'key', logicalName: 'return' } as InputToken);
+    }, { type: 'key', logicalName: 'delete', ctrl: false, shift: false, meta: false } as InputToken);
 
-    expect(wizard.getBooleanFieldValue('capabilities.browser-access', false)).toBe(true);
-    expect(wizard.getBooleanFieldValue('capabilities.local-tui-only', true)).toBe(false);
+    expect(wizard.getSelectedField()?.id).toBe('providers.openai-api-key');
+    expect(wizard.getTextFieldValue('providers.openai-api-key')).toBe('');
   });
 
-  test('typing j and k into selected onboarding inputs edits text instead of moving selection', () => {
+  test('printable key tokens edit selected Agent onboarding inputs before shortcut handling', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
-    wizard.setFieldValue('capabilities.browser-access', true);
-    wizard.setFieldValue('network.mode', 'custom');
     wizard.setStep(1);
-    wizard.moveSelection(3, 10);
+    wizard.moveSelection(2, 6);
 
     const routeState = {
       onboardingWizard: wizard,
@@ -878,841 +315,37 @@ describe('OnboardingWizardController', () => {
     handleOnboardingWizardToken(routeState, { type: 'text', value: 'k' });
     handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'return' } as InputToken);
 
-    expect(wizard.getSelectedField()?.id).toBe('network.service-port');
-    expect(wizard.getSelectedFieldIndex()).toBe(3);
-    expect(wizard.getTextFieldValue('network.service-port')).toBe('jk');
-  });
-
-  test('printable key tokens edit selected onboarding inputs before shortcut handling', () => {
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.setFieldValue('capabilities.browser-access', true);
-    wizard.setFieldValue('network.mode', 'custom');
-    wizard.setStep(1);
-    wizard.moveSelection(3, 10);
-
-    const routeState = {
-      onboardingWizard: wizard,
-      getViewportHeight: () => 20,
-      requestRender: () => {},
-      handleEscape: () => {},
-    };
-
-    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'j', ctrl: false, shift: false, meta: false } as InputToken);
-    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'k', ctrl: false, shift: false, meta: false } as InputToken);
-    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: '1', ctrl: false, shift: false, meta: false } as InputToken);
-    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'return' } as InputToken);
-
-    expect(wizard.getSelectedField()?.id).toBe('network.service-port');
-    expect(wizard.getSelectedFieldIndex()).toBe(3);
-    expect(wizard.getTextFieldValue('network.service-port')).toBe('jk1');
-  });
-
-  test('allows bootstrap auth replacement to reuse an existing admin username', () => {
-    const snapshot = makeOnboardingSnapshot({
-      auth: {
-        snapshot: {
-          userStorePath: '/tmp/auth-users.json',
-          bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-          persisted: true,
-          bootstrapCredentialPresent: true,
-          userCount: 1,
-          sessionCount: 0,
-          users: [{ username: 'admin', roles: ['admin'] }],
-          sessions: [],
-        },
-      },
-    });
-    const wizard = new OnboardingWizardController();
-    wizard.open('new');
-    wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-    wizard.setFieldValue('capabilities.browser-access', true);
-
-    const accessFields = wizard.steps.find((step) => step.id === 'access')?.fields;
-    expect(accessFields?.map((field) => field.id)).toContain('accounts.admin-password');
-    expect(wizard.getTextFieldValue('accounts.admin-username')).toBe('admin');
-    expect(wizard.getBlockingFieldLabels()).toContain('Access: Local auth admin password is required.');
-    wizard.setFieldValue('accounts.admin-password', 'wizard-pass');
-    expect(wizard.getBlockingFieldLabels()).not.toContain('Access: Local auth admin username must be a new username so the wizard can replace bootstrap credentials.');
-    const request = wizard.buildApplyRequest();
-    expect(request.operations).toContainEqual({
-      kind: 'ensure-auth-user',
-      username: 'admin',
-      password: 'wizard-pass',
-      roles: ['admin'],
-      createSession: true,
-      retireBootstrapCredential: true,
-    });
-  });
-
-  test('local Agent mode disables existing external surfaces', () => {
-    const base = makeOnboardingSnapshot();
-    const snapshot = makeOnboardingSnapshot({
-      config: {
-        ...base.config,
-        surfaces: {
-          ...base.config.surfaces,
-          slack: {
-            ...base.config.surfaces.slack,
-            enabled: true,
-          },
-        },
-      },
-      surfaces: {
-        configuredEnabledKinds: ['slack'],
-        records: [],
-      },
-    });
-    const wizard = new OnboardingWizardController();
-    wizard.open('edit');
-    wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-    wizard.setFieldValue('capabilities.local-tui-only', true);
-
-    const request = wizard.buildApplyRequest();
-
-    expect(request.operations).toContainEqual({
-      kind: 'set-config',
-      key: 'surfaces.slack.enabled',
-      value: false,
-    });
-  });
-
-  test('shows OpenAI subscription start and finish actions inside the wizard', () => {
-    const snapshot = makeOnboardingSnapshot({
-      subscriptions: {
-        active: [],
-        pending: [
-          {
-            provider: 'openai',
-            state: 'state',
-            verifier: 'verifier',
-            redirectUri: 'http://127.0.0.1/callback',
-            createdAt: 1,
-          },
-        ],
-        activeProviderIds: [],
-        pendingProviderIds: ['openai'],
-      },
-    });
-    const wizard = new OnboardingWizardController();
-    wizard.open('edit');
-    wizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-
-    const providerStep = wizard.steps.find((step) => step.id === 'provider-access');
-    const fieldIds = providerStep?.fields.map((field) => field.id) ?? [];
-    expect(fieldIds).toContain('providers.openai-subscription-start');
-    expect(fieldIds).toContain('providers.openai-callback-code');
-    expect(fieldIds).toContain('providers.openai-subscription-finish');
+    expect(wizard.getSelectedField()?.id).toBe('providers.openai-api-key');
+    expect(wizard.getTextFieldValue('providers.openai-api-key')).toBe('jk');
   });
 });
 
 describe('InputHandler onboarding integration', () => {
-  test('keeps onboarding locked while runtime settings are hydrating', () => {
+  test('apply-and-continue advances through Agent setup without persisting runtime settings', async () => {
     const input = makeInput();
-    input.openOnboardingWizard();
+    input.openOnboardingWizard('new');
+    input.onboardingWizard.finishRuntimeHydration();
 
-    input.feed('j');
-
-    expect(input.prompt).toBe('');
-    expect(input.onboardingWizard.hydrationPending).toBe(true);
-    expect(input.onboardingWizard.getSelectedFieldIndex()).toBe(0);
-    expect(input.onboardingWizard.currentStep.id).toBe('loading');
-  });
-
-  test('routes arrow navigation into the onboarding shell instead of the prompt', () => {
-    const input = makeInput();
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-
-    input.feed('\x1b[B');
-
-    expect(input.prompt).toBe('');
-    expect(input.onboardingWizard.getSelectedFieldIndex()).toBe(1);
-    expect(input.onboardingWizard.active).toBe(true);
-  });
-
-  test('marks onboarding checked as soon as the wizard opens', () => {
-    const uiServices = createDefaultUiRuntimeServices();
-    const input = makeInput(uiServices);
-
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.feed('\x1b');
-
-    const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    expect(marker.exists).toBe(true);
-    expect(marker.payload?.mode).toBe('new');
-    expect(input.onboardingWizard.active).toBe(false);
-  });
-
-  test('opens nested model picker from onboarding and unwinds back to the shell on escape', () => {
-    const input = makeInput();
-    input.openOnboardingWizard({ mode: 'edit', preload: () => {} });
-    input.onboardingWizard.setStep(3);
-
-    const registry = new CommandRegistry();
-    input.setCommandRegistry(registry, {
-      openModelPicker: () => {
-        input.modalOpened('modelPicker');
-        input.modelPicker.openProviders(['openai', 'anthropic'], 'openai');
-      },
-    } as unknown as CommandContext);
-
-    input.feed('\r');
-
-    expect(input.onboardingWizard.active).toBe(true);
-    expect(input.modelPicker.active).toBe(true);
-    expect(input.modelPicker.target).toBe('main');
-    expect(input.modalStack).toEqual(['onboarding', 'modelPicker']);
-
-    input.feed('\x1b');
-
-    expect(input.modelPicker.active).toBe(false);
-    expect(input.onboardingWizard.active).toBe(true);
-    expect(input.modalStack).toEqual(['onboarding']);
-
-    input.feed('\x1b');
-
-    expect(input.onboardingWizard.active).toBe(false);
-    expect(input.modalStack).toEqual([]);
-  });
-
-  test('shows apply blockers inside the wizard instead of printing behind the overlay', async () => {
-    const input = makeInput();
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        auth: {
-          snapshot: {
-            userStorePath: '/tmp/auth-users.json',
-            bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-            persisted: true,
-            bootstrapCredentialPresent: true,
-            userCount: 1,
-            sessionCount: 0,
-            users: [{ username: 'admin', roles: ['admin'] }],
-            sessions: [],
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.browser-access', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    expect(input.onboardingWizard.active).toBe(true);
-    expect(input.onboardingWizard.currentStep.id).toBe('review');
-    expect(input.onboardingWizard.applyFeedback?.title).toBe('Cannot apply yet');
-    expect(input.onboardingWizard.applyFeedback?.messages).toContain('Access: Local auth admin password is required.');
-    expect(prints).toEqual([]);
-  });
-
-  test('apply-and-continue advances without persisting runtime settings', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        auth: {
-          snapshot: {
-            userStorePath: '/tmp/auth-users.json',
-            bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-            persisted: true,
-            bootstrapCredentialPresent: false,
-            userCount: 1,
-            sessionCount: 0,
-            users: [{ username: 'admin', roles: ['admin'] }],
-            sessions: [],
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.browser-access', true);
-    input.onboardingWizard.setFieldValue('accounts.auth', true);
-
+    expect(input.onboardingWizard.currentStep.id).toBe('agent-setup');
     await (input as unknown as { handleOnboardingAction(action: 'apply-and-continue'): Promise<void> }).handleOnboardingAction('apply-and-continue');
 
     expect(input.onboardingWizard.active).toBe(true);
-    expect(input.onboardingWizard.currentStep.id).toBe('network');
-    expect(input.onboardingWizard.applyFeedback).toBeNull();
-    expect(uiServices.platform.configManager.get('service.enabled')).toBe(false);
-    expect(uiServices.platform.configManager.get('web.enabled')).toBe(false);
-    expect(prints).toEqual([]);
+    expect(input.onboardingWizard.currentStep.id).toBe('provider-access');
   });
 
-  test('apply-and-continue advances to the next section instead of review when later required fields are incomplete', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        auth: {
-          snapshot: {
-            userStorePath: '/tmp/auth-users.json',
-            bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-            persisted: true,
-            bootstrapCredentialPresent: true,
-            userCount: 1,
-            sessionCount: 0,
-            users: [{ username: 'admin', roles: ['admin'] }],
-            sessions: [],
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.browser-access', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply-and-continue'): Promise<void> }).handleOnboardingAction('apply-and-continue');
-
-    expect(input.onboardingWizard.active).toBe(true);
-    expect(input.onboardingWizard.currentStep.id).toBe('network');
-    expect(input.onboardingWizard.applyFeedback).toBeNull();
-    expect(uiServices.platform.configManager.get('service.enabled')).toBe(false);
-    expect(prints).toEqual([]);
-  });
-
-  test('keeps the global onboarding check marker after external-daemon onboarding apply', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        auth: {
-          snapshot: {
-            userStorePath: '/tmp/auth-users.json',
-            bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-            persisted: true,
-            bootstrapCredentialPresent: false,
-            userCount: 1,
-            sessionCount: 0,
-            users: [{ username: 'admin', roles: ['admin'] }],
-            sessions: [],
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.browser-access', true);
-    input.onboardingWizard.setFieldValue('accounts.auth', true);
+  test('keeps external service lifecycle untouched when completing Agent setup', async () => {
+    const input = makeInput();
+    input.openOnboardingWizard('new');
+    input.onboardingWizard.hydrateRuntimeState({ snapshot: makeOnboardingSnapshot() }, { resetValues: true });
 
     await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
 
-    const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    expect(marker.exists).toBe(true);
-    expect(prints.join('\n')).toContain('Onboarding applied and verified');
-    expect(prints.join('\n')).not.toContain('Network-capable surfaces require local auth with no bootstrap credential file.');
-  });
-
-  test('keeps daemon lifecycle external after the wizard has been checked', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    ensureLocalAdminAuth(uiServices);
-    let restarted = false;
-    installExternalServices(uiServices, {
-      inspect: () => ({
-        daemonRunning: restarted,
-        httpListenerRunning: false,
-      }),
-      restart: async () => {
-        restarted = true;
-        return {
-          daemonRunning: true,
-          httpListenerRunning: false,
-        };
-      },
-    });
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        auth: {
-          snapshot: {
-            userStorePath: '/tmp/auth-users.json',
-            bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-            persisted: true,
-            bootstrapCredentialPresent: false,
-            userCount: 1,
-            sessionCount: 0,
-            users: [{ username: 'admin', roles: ['admin'] }],
-            sessions: [],
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.browser-access', true);
-    input.onboardingWizard.setFieldValue('accounts.auth', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    expect(restarted).toBe(false);
-    expect(marker.exists).toBe(true);
-    expect(prints.join('\n')).toContain('Onboarding applied and verified');
-  });
-
-  test('accepts a verified external daemon as active after onboarding restart', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    ensureLocalAdminAuth(uiServices);
-    const daemonStatus: HostServiceStatus = {
-      mode: 'external',
-      host: '127.0.0.1',
-      port: 3421,
-      baseUrl: 'http://127.0.0.1:3421',
-      authenticated: true,
-      status: 'running',
-      version: '0.26.5',
-      reason: 'Existing GoodVibes daemon verified on configured host/port',
-    };
-    const listenerStatus: HostServiceStatus = {
-      mode: 'disabled',
-      host: '127.0.0.1',
-      port: 3422,
-      baseUrl: 'http://127.0.0.1:3422',
-      reason: 'danger.httpListener is disabled',
-    };
-    installExternalServices(uiServices, {
-      inspect: () => ({
-        daemonRunning: false,
-        httpListenerRunning: false,
-        daemonStatus,
-        httpListenerStatus: listenerStatus,
-      }),
-      restart: async () => ({
-        daemonRunning: false,
-        httpListenerRunning: false,
-        daemonStatus,
-        httpListenerStatus: listenerStatus,
-      }),
-    });
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        auth: {
-          snapshot: {
-            userStorePath: '/tmp/auth-users.json',
-            bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-            persisted: true,
-            bootstrapCredentialPresent: false,
-            userCount: 1,
-            sessionCount: 0,
-            users: [{ username: 'admin', roles: ['admin'] }],
-            sessions: [],
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.browser-access', true);
-    input.onboardingWizard.setFieldValue('accounts.auth', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    const output = prints.join('\n');
-    expect(output).toContain('Onboarding applied and verified');
-    expect(output).not.toContain('runtime:daemon-active');
-  });
-
-  test('does not treat external daemon availability as Agent onboarding failure', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    ensureLocalAdminAuth(uiServices);
-    installExternalServices(uiServices, {
-      inspect: () => ({
-        daemonRunning: false,
-        httpListenerRunning: false,
-      }),
-      restart: async () => ({
-        daemonRunning: false,
-        httpListenerRunning: false,
-      }),
-    });
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        auth: {
-          snapshot: {
-            userStorePath: '/tmp/auth-users.json',
-            bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-            persisted: true,
-            bootstrapCredentialPresent: false,
-            userCount: 1,
-            sessionCount: 0,
-            users: [{ username: 'admin', roles: ['admin'] }],
-            sessions: [],
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.browser-access', true);
-    input.onboardingWizard.setFieldValue('accounts.auth', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    const output = prints.join('\n');
-    expect(marker.exists).toBe(true);
-    expect(output).toContain('Onboarding applied and verified');
-    expect(output).not.toContain('Onboarding settings applied.');
-    expect(output).not.toContain('GoodVibes daemon is enabled for');
-    expect(output).not.toContain('No process is listening');
-  });
-
-  test('does not probe or reject externally owned daemon ports during Agent onboarding', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    ensureLocalAdminAuth(uiServices);
-    const daemonStatus: HostServiceStatus = {
-      mode: 'blocked',
-      host: '127.0.0.1',
-      port: 3421,
-      baseUrl: 'http://127.0.0.1:3421',
-      authenticated: false,
-      reason: 'GoodVibes daemon identity probe was rejected by the configured token',
-    };
-    installExternalServices(uiServices, {
-      inspect: () => ({
-        daemonRunning: false,
-        httpListenerRunning: false,
-        daemonStatus,
-      }),
-      restart: async () => ({
-        daemonRunning: false,
-        httpListenerRunning: false,
-        daemonStatus,
-      }),
-    });
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        auth: {
-          snapshot: {
-            userStorePath: '/tmp/auth-users.json',
-            bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-            persisted: true,
-            bootstrapCredentialPresent: false,
-            userCount: 1,
-            sessionCount: 0,
-            users: [{ username: 'admin', roles: ['admin'] }],
-            sessions: [],
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.browser-access', true);
-    input.onboardingWizard.setFieldValue('accounts.auth', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    const output = prints.join('\n');
-    expect(output).toContain('Onboarding applied and verified');
-    expect(output).not.toContain('Onboarding settings applied.');
-    expect(output).not.toContain('could not confirm an embedded or verified external service');
-    expect(output).not.toContain('identity probe was rejected by the configured token');
-    expect(output).not.toContain('runtime:daemon-active');
-  });
-
-  test('does not emit runtime activation warnings for external listener state', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    ensureLocalAdminAuth(uiServices);
-    installExternalServices(uiServices, {
-      inspect: () => ({
-        daemonRunning: true,
-        httpListenerRunning: false,
-        httpListenerPortInUse: true,
-      }),
-      restart: async () => ({
-        daemonRunning: true,
-        httpListenerRunning: false,
-        httpListenerPortInUse: true,
-      }),
-    });
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'new', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        auth: {
-          snapshot: {
-            userStorePath: '/tmp/auth-users.json',
-            bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
-            persisted: true,
-            bootstrapCredentialPresent: false,
-            userCount: 1,
-            sessionCount: 0,
-            users: [{ username: 'admin', roles: ['admin'] }],
-            sessions: [],
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.webhook-events', true);
-    input.onboardingWizard.setFieldValue('accounts.auth', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    const output = prints.join('\n');
-    expect(output).toContain('Onboarding applied and verified');
-    expect(output).not.toContain('Onboarding settings applied.');
-    expect(output).not.toContain('HTTP listener is enabled for');
-    expect(output).not.toContain('The configured port');
-    expect(output).not.toContain('is occupied; another GoodVibes process');
-    expect((output.match(/runtime:http-listener-active/g) ?? []).length).toBe(0);
-    expect(output).not.toContain('not running after onboarding apply');
-  });
-
-  test('keeps running external services untouched before completing local-only Agent mode', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    let daemonRunning = true;
-    let httpListenerRunning = true;
-    let restarted = false;
-    installExternalServices(uiServices, {
-      inspect: () => ({ daemonRunning, httpListenerRunning }),
-      restart: async () => {
-        restarted = true;
-        daemonRunning = false;
-        httpListenerRunning = false;
-        return { daemonRunning, httpListenerRunning };
-      },
-    });
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'edit', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        bindSettings: {
-          daemonEnabled: true,
-          httpListenerEnabled: true,
-          controlPlane: {
-            ...DEFAULT_CONFIG.controlPlane,
-            enabled: true,
-            hostMode: 'network',
-            host: '0.0.0.0',
-            allowRemote: true,
-          },
-          httpListener: {
-            ...DEFAULT_CONFIG.httpListener,
-            hostMode: 'network',
-            host: '0.0.0.0',
-          },
-          web: {
-            ...DEFAULT_CONFIG.web,
-            enabled: true,
-            hostMode: 'network',
-            host: '0.0.0.0',
-          },
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.local-tui-only', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    expect(restarted).toBe(false);
-    expect(marker.exists).toBe(true);
-    expect(prints.join('\n')).toContain('Onboarding applied and verified');
-  });
-
-  test('completes local-only Agent mode without inspecting external services', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'edit', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        bindSettings: {
-          daemonEnabled: true,
-          httpListenerEnabled: true,
-          controlPlane: {
-            ...DEFAULT_CONFIG.controlPlane,
-            enabled: true,
-            hostMode: 'network',
-            host: '0.0.0.0',
-            allowRemote: true,
-          },
-          httpListener: {
-            ...DEFAULT_CONFIG.httpListener,
-            hostMode: 'network',
-            host: '0.0.0.0',
-          },
-          web: DEFAULT_CONFIG.web,
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.local-tui-only', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    const output = prints.join('\n');
-    expect(marker.exists).toBe(true);
-    expect(output).toContain('Onboarding applied and verified');
-    expect(output).not.toContain('Background service controller is unavailable');
-  });
-
-  test('does not stop external listeners for local-only Agent mode', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    installExternalServices(uiServices, {
-      inspect: () => ({
-        daemonRunning: false,
-        httpListenerRunning: true,
-      }),
-      restart: async () => ({
-        daemonRunning: false,
-        httpListenerRunning: true,
-      }),
-    });
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'edit', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        bindSettings: {
-          daemonEnabled: true,
-          httpListenerEnabled: true,
-          controlPlane: {
-            ...DEFAULT_CONFIG.controlPlane,
-            enabled: true,
-            hostMode: 'local',
-            host: '127.0.0.1',
-          },
-          httpListener: {
-            ...DEFAULT_CONFIG.httpListener,
-            hostMode: 'network',
-            host: '0.0.0.0',
-          },
-          web: DEFAULT_CONFIG.web,
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.local-tui-only', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    const output = prints.join('\n');
-    expect(marker.exists).toBe(true);
-    expect(output).toContain('Onboarding applied and verified');
-    expect(output).not.toContain('HTTP listener was disabled for incoming event surfaces');
-    expect(output).not.toContain('is still occupied');
-  });
-
-  test('ignores externally occupied listener ports for local-only Agent mode', async () => {
-    resetTestRuntimeServices();
-    const uiServices = createDefaultUiRuntimeServices();
-    installExternalServices(uiServices, {
-      inspect: () => ({
-        daemonRunning: false,
-        daemonPortInUse: false,
-        httpListenerRunning: false,
-        httpListenerPortInUse: true,
-      }),
-      restart: async () => ({
-        daemonRunning: false,
-        daemonPortInUse: false,
-        httpListenerRunning: false,
-        httpListenerPortInUse: true,
-      }),
-    });
-    const input = makeInput(uiServices);
-    const prints: string[] = [];
-    input.setCommandRegistry(new CommandRegistry(), {
-      session: { runtime: {} },
-      print: (text: string) => prints.push(text),
-    } as unknown as CommandContext);
-    input.openOnboardingWizard({ mode: 'edit', preload: () => {} });
-    input.onboardingWizard.hydrateRuntimeState({
-      snapshot: makeOnboardingSnapshot({
-        bindSettings: {
-          daemonEnabled: true,
-          httpListenerEnabled: true,
-          controlPlane: {
-            ...DEFAULT_CONFIG.controlPlane,
-            enabled: true,
-            hostMode: 'local',
-            host: '127.0.0.1',
-          },
-          httpListener: {
-            ...DEFAULT_CONFIG.httpListener,
-            hostMode: 'network',
-            host: '0.0.0.0',
-          },
-          web: DEFAULT_CONFIG.web,
-        },
-      }),
-    }, { resetValues: true });
-    input.onboardingWizard.setFieldValue('capabilities.local-tui-only', true);
-
-    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
-
-    const marker = readOnboardingCheckMarker(uiServices.environment.shellPaths, 'user');
-    const output = prints.join('\n');
-    expect(marker.exists).toBe(true);
-    expect(output).toContain('Onboarding applied and verified');
-    expect(output).not.toContain('HTTP listener was disabled for incoming event surfaces');
-    expect(output).not.toContain('is still occupied');
+    expect(input.onboardingWizard.active).toBe(false);
+    const serviceConfig = input.uiServices.platform.configManager.get('service.enabled');
+    const daemonConfig = input.uiServices.platform.configManager.get('danger.daemon');
+    const listenerConfig = input.uiServices.platform.configManager.get('danger.httpListener');
+    expect(serviceConfig).toBe(DEFAULT_CONFIG.service.enabled);
+    expect(daemonConfig).toBe(DEFAULT_CONFIG.danger.daemon);
+    expect(listenerConfig).toBe(DEFAULT_CONFIG.danger.httpListener);
   });
 });

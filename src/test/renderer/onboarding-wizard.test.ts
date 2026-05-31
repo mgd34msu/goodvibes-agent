@@ -35,9 +35,11 @@ describe('renderOnboardingWizard', () => {
     const text = linesToText(renderOnboardingWizard(wizard, 188, 42)).join('\n');
 
     expect(text).toContain('┌─Onboarding Wizard');
-    expect(text).toContain('1. Surfaces');
-    expect(text).not.toContain('Capabilit');
-    expect(text).toContain('Choose what Agent should prepare locally.');
+    expect(text).toContain('1. Agent');
+    expect(text).toContain('Agent setup');
+    expect(text).toContain('Set up the Agent operator workspace');
+    expect(text).not.toContain('1. Surfaces');
+    expect(text).not.toContain('External network setup');
   });
 
   test('shows scroll affordances for the field body when the current step exceeds the visible window', () => {
@@ -59,7 +61,7 @@ describe('renderOnboardingWizard', () => {
     const applyLine = textLines.findIndex((line) => line.includes('Apply & Continue To Next Section'));
     let previousActionLine = -1;
     for (let index = 0; index < applyLine; index += 1) {
-      if (textLines[index]?.includes('Keep Agent local-only')) previousActionLine = index;
+      if (textLines[index]?.includes('Runtime profiles')) previousActionLine = index;
     }
 
     expect(applyLine).toBeGreaterThan(0);
@@ -70,14 +72,12 @@ describe('renderOnboardingWizard', () => {
   test('does not render raw masked edit buffers', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('edit');
-    wizard.setFieldValue('capabilities.external-integrations', true);
-    wizard.setFieldValue('external-services.slack', true);
-    wizard.setStep(wizard.steps.findIndex((step) => step.id === 'external-surface:slack'));
-    wizard.moveSelection(1, getOnboardingWizardVisibleFieldCount(18));
-    wizard.beginEdit('external-services.slack.bot-token');
+    wizard.setStep(wizard.steps.findIndex((step) => step.id === 'provider-access'));
+    wizard.moveSelection(2, getOnboardingWizardVisibleFieldCount(24));
+    wizard.beginEdit('providers.openai-api-key');
     wizard.editBuffer = 'sk-secret-value';
 
-    const text = linesToText(renderOnboardingWizard(wizard, 100, 18)).join('\n');
+    const text = linesToText(renderOnboardingWizard(wizard, 140, 24)).join('\n');
 
     expect(text).not.toContain('sk-secret-value');
     expect(text).toContain('Editing:');

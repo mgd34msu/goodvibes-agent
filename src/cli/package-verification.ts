@@ -109,7 +109,7 @@ function verifyBin(root: string, command: typeof REQUIRED_BIN_COMMANDS[number], 
   };
 }
 
-function npmPackDryRun(root: string): { readonly files: readonly string[]; readonly entryCount: number; readonly unpackedSize: number } {
+function registryPackDryRun(root: string): { readonly files: readonly string[]; readonly entryCount: number; readonly unpackedSize: number } {
   const raw = execSync('npm pack --json --dry-run', {
     cwd: root,
     encoding: 'utf-8',
@@ -156,7 +156,7 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
   const pkg = readPackageJson(root);
   const bin = pkg.bin && typeof pkg.bin === 'object' ? pkg.bin as Record<string, string | undefined> : {};
   const bins = REQUIRED_BIN_COMMANDS.map((command) => verifyBin(root, command, bin[command]));
-  const pack = npmPackDryRun(root);
+  const pack = registryPackDryRun(root);
   const requiredPathsPresent = REQUIRED_TARBALL_PATHS.filter((path) => pack.files.includes(path));
   const forbiddenPaths = pack.files.filter((path) => {
     if (FORBIDDEN_TARBALL_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
@@ -173,10 +173,10 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
     if (!item.hasSourceEntrypoint) issues.push(`bin target does not import the Agent source entrypoint: ${item.command}`);
   }
   for (const path of REQUIRED_TARBALL_PATHS) {
-    if (!pack.files.includes(path)) issues.push(`npm tarball missing required path: ${path}`);
+    if (!pack.files.includes(path)) issues.push(`registry tarball missing required path: ${path}`);
   }
   for (const path of forbiddenPaths) {
-    issues.push(`npm tarball includes forbidden path: ${path}`);
+    issues.push(`registry tarball includes forbidden path: ${path}`);
   }
   for (const failure of packageFacingText.failures) {
     issues.push(failure);

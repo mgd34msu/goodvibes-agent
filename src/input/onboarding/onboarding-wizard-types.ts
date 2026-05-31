@@ -1,31 +1,22 @@
-import { isIP } from 'node:net';
 import type { ModelPickerTarget } from '../model-picker.ts';
 import {
-  deriveOnboardingStepState,
   type OnboardingAcknowledgementReason,
-  type OnboardingAcknowledgementTarget,
   type OnboardingApplyOperation,
   type OnboardingApplyRequest,
   type OnboardingMode,
   type OnboardingSnapshotState,
-  type OnboardingStep1CapabilityId,
-  type OnboardingStep1CapabilityItem,
   type OnboardingStepDerivationState,
 } from '../../runtime/onboarding/index.ts';
 import type { ConfigKey } from '../../config/index.ts';
 
 export type OnboardingWizardMode = OnboardingMode;
 
-export type OnboardingWizardExternalSurfaceStepId = `external-surface:${string}`;
-
 export type OnboardingWizardStepId =
   | 'loading'
-  | 'capabilities'
-  | 'network'
-  | 'access'
-  | 'external-services'
-  | OnboardingWizardExternalSurfaceStepId
-  | 'cloudflare'
+  | 'agent-setup'
+  | 'agent-knowledge'
+  | 'agent-local-state'
+  | 'agent-delegation'
   | 'provider-access'
   | 'default-model'
   | 'experience'
@@ -44,17 +35,6 @@ export type OnboardingWizardFieldKind =
 export type OnboardingWizardAction =
   | 'apply'
   | 'apply-and-continue'
-  | 'select-all-capabilities'
-  | 'clear-capabilities'
-  | 'select-all-external-surfaces'
-  | 'clear-external-surfaces'
-  | 'cloudflare-token-requirements'
-  | 'cloudflare-create-operational-token'
-  | 'cloudflare-discover'
-  | 'cloudflare-validate'
-  | 'cloudflare-provision'
-  | 'cloudflare-verify'
-  | 'cloudflare-disable'
   | 'start-openai-subscription'
   | 'finish-openai-subscription';
 
@@ -90,7 +70,6 @@ interface OnboardingWizardFieldBase {
 export interface OnboardingWizardChecklistFieldDefinition extends OnboardingWizardFieldBase {
   readonly kind: 'checklist';
   readonly defaultValue: boolean;
-  readonly capabilityId?: OnboardingStep1CapabilityId;
 }
 
 export interface OnboardingWizardRadioFieldDefinition extends OnboardingWizardFieldBase {
@@ -123,7 +102,6 @@ export interface OnboardingWizardAcknowledgementFieldDefinition extends Onboardi
   readonly defaultValue: boolean;
   readonly required: boolean;
   readonly reason: OnboardingAcknowledgementReason;
-  readonly target?: OnboardingAcknowledgementTarget;
 }
 
 export interface OnboardingWizardModelPickerFieldDefinition extends OnboardingWizardFieldBase {

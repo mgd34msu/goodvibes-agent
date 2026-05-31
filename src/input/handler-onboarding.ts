@@ -4,30 +4,15 @@ import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
 import { OnboardingWizardController, type OnboardingWizardAction, type OnboardingWizardApplyFeedback } from './onboarding/onboarding-wizard.ts';
-import { handleCloudflareOnboardingActionForHandler, maybeProvisionCloudflareOnFinalApplyForHandler } from './handler-onboarding-cloudflare.ts';
 import { applyOnboardingRequest, collectOnboardingSnapshot, verifyOnboardingRequest } from '../runtime/onboarding/index.ts';
 import type { OnboardingApplyRequest, OnboardingVerificationItem } from '../runtime/onboarding/index.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
 import { captureOnboardingWizardSnapshot, restoreOnboardingWizardSnapshot } from './handler-ui-state.ts';
 import type { InputHandler } from './handler.ts';
-import {
-  formatRuntimeActiveSuccessMessage,
-  getRuntimeEndpointStatus,
-  isRuntimeEndpointActive,
-  isRuntimeEndpointOccupyingConfiguredPort,
-  runtimePortDiagnostic,
-  type OnboardingExternalServiceState,
-  type OnboardingRuntimeEndpoint,
-} from './onboarding/onboarding-runtime-status.ts';
 
 export interface OnboardingRuntimePosture {
-  readonly serviceEnabled: boolean;
-  readonly serviceAutostart: boolean;
-  readonly restartOnFailure: boolean;
-  readonly expectedDaemon: boolean;
-  readonly expectedHttpListener: boolean;
-  readonly serverBacked: boolean;
-  readonly remoteExposure: boolean;
+  readonly externalServiceManaged: true;
+  readonly mutationAllowed: false;
 }
 
 function extractAuthorizationCode(input: string): string | null {
@@ -40,16 +25,6 @@ function extractAuthorizationCode(input: string): string | null {
   } catch {
     return trimmed;
   }
-}
-
-function isLoopbackHostValue(value: string | null | undefined): boolean {
-  const normalized = (value ?? '').trim().toLowerCase();
-  if (normalized.length === 0) return false;
-  return normalized === 'localhost'
-    || normalized === '::1'
-    || normalized === '[::1]'
-    || normalized === '0:0:0:0:0:0:0:1'
-    || /^127(?:\.\d{1,3}){3}$/.test(normalized);
 }
 
 function onboardingVerificationStatusRank(item: OnboardingVerificationItem): number {
@@ -85,53 +60,6 @@ function formatOnboardingApplyCompletionMessage(items: readonly OnboardingVerifi
     `Onboarding settings applied. ${passed} verification item(s) passed; ${warnings.length} warning(s) need attention.`,
     ...warnings.map((warning) => `  warning ${warning.id}: ${warning.message}`),
   ].join('\n');
-}
-
-function getRuntimeEndpointBinding(
-  handler: InputHandler,
-  request: OnboardingApplyRequest,
-  endpoint: OnboardingRuntimeEndpoint,
-): { readonly label: string; readonly host: string; readonly port: number } {
-  const hostKey = endpoint === 'daemon' ? 'controlPlane.host' : 'httpListener.host';
-  const portKey = endpoint === 'daemon' ? 'controlPlane.port' : 'httpListener.port';
-  const fallbackHost = '127.0.0.1';
-  const fallbackPort = endpoint === 'daemon' ? 3421 : 3422;
-  const rawHost = handler.getOnboardingConfigValue(request, hostKey);
-  const rawPort = handler.getOnboardingConfigValue(request, portKey);
-  const parsedPort = typeof rawPort === 'number' ? rawPort : Number(rawPort);
-  return {
-    label: endpoint === 'daemon' ? 'GoodVibes daemon' : 'HTTP listener',
-    host: String(rawHost ?? fallbackHost),
-    port: Number.isFinite(parsedPort) ? parsedPort : fallbackPort,
-  };
-}
-
-function formatRuntimeActiveFailureMessage(
-  handler: InputHandler,
-  request: OnboardingApplyRequest,
-  endpoint: OnboardingRuntimeEndpoint,
-  state: OnboardingExternalServiceState | undefined,
-): string {
-  const binding = getRuntimeEndpointBinding(handler, request, endpoint);
-  const portInUse = endpoint === 'daemon' ? state?.daemonPortInUse : state?.httpListenerPortInUse;
-  const status = getRuntimeEndpointStatus(state, endpoint);
-  const impact = endpoint === 'daemon'
-    ? 'browser, LAN, and service-backed GoodVibes surfaces may be unavailable until the daemon is running there.'
-    : 'incoming webhooks and event surfaces will not receive traffic until the listener is running there.';
-  return `${binding.label} is enabled for ${binding.host}:${binding.port}, but onboarding could not confirm an embedded or verified external service after restart. ${runtimePortDiagnostic(binding, portInUse, status)} Settings were saved; ${impact}`;
-}
-
-function formatRuntimeStoppedFailureMessage(
-  handler: InputHandler,
-  request: OnboardingApplyRequest,
-  endpoint: OnboardingRuntimeEndpoint,
-  state?: OnboardingExternalServiceState,
-): string {
-  const binding = getRuntimeEndpointBinding(handler, request, endpoint);
-  const status = getRuntimeEndpointStatus(state, endpoint);
-  const disabledSurface = endpoint === 'daemon' ? 'server-backed surfaces' : 'incoming event surfaces';
-  const statusDetail = status ? ` ${runtimePortDiagnostic(binding, undefined, status)}` : '';
-  return `${binding.label} was disabled for ${disabledSurface}, but ${binding.host}:${binding.port} is still occupied. Settings were saved; another GoodVibes process or external service may still be running on that port.${statusDetail}`;
 }
 
 function showOnboardingApplyFeedbackForHandler(handler: InputHandler, feedback: OnboardingWizardApplyFeedback): void {
@@ -241,18 +169,6 @@ export async function handleOnboardingActionForHandler(handler: InputHandler, ac
       continueOnboardingSection(handler);
       return;
     }
-    if (action.startsWith('cloudflare-')) {
-      await handleCloudflareOnboardingActionForHandler(handler, action as Extract<OnboardingWizardAction,
-        | 'cloudflare-token-requirements'
-        | 'cloudflare-create-operational-token'
-        | 'cloudflare-discover'
-        | 'cloudflare-validate'
-        | 'cloudflare-provision'
-        | 'cloudflare-verify'
-        | 'cloudflare-disable'
-      >);
-      return;
-    }
     if (action !== 'apply') return;
     if (handler.onboardingApplyPending) return;
     const blockers = handler.onboardingWizard.getBlockingFieldLabels();
@@ -298,8 +214,6 @@ export async function handleOnboardingActionForHandler(handler: InputHandler, ac
             ? { ...item, status: 'warn' }
             : item));
         verificationItems = dedupeOnboardingVerificationItems([...verificationItems, ...runtimeWarnings]);
-        const cloudflareItems = await maybeProvisionCloudflareOnFinalApplyForHandler(handler);
-        verificationItems = dedupeOnboardingVerificationItems([...verificationItems, ...cloudflareItems]);
       }
     } catch (error) {
       showOnboardingApplyFeedbackForHandler(handler, {
@@ -564,44 +478,20 @@ export function getOnboardingConfigValueForHandler(handler: InputHandler, reques
   }
 
 export function getOnboardingRuntimePostureForHandler(handler: InputHandler, request: OnboardingApplyRequest): OnboardingRuntimePosture {
-    const getConfigValue = (key: string): unknown => handler.getOnboardingConfigValue(request, key);
-    const serviceEnabled = getConfigValue('service.enabled') === true;
-    const serviceAutostart = getConfigValue('service.autostart') === true;
-    const restartOnFailure = getConfigValue('service.restartOnFailure') === true;
-    const daemonEnabled = getConfigValue('danger.daemon') === true || getConfigValue('controlPlane.enabled') === true;
-    const listenerEnabled = getConfigValue('danger.httpListener') === true;
-    const webEnabled = getConfigValue('web.enabled') === true;
-    const controlPlaneRemote = getConfigValue('controlPlane.hostMode') === 'network'
-      || (getConfigValue('controlPlane.hostMode') === 'custom'
-        && !isLoopbackHostValue(String(getConfigValue('controlPlane.host') ?? '')))
-      || getConfigValue('controlPlane.allowRemote') === true;
-    const listenerRemote = getConfigValue('httpListener.hostMode') === 'network'
-      || (getConfigValue('httpListener.hostMode') === 'custom'
-        && !isLoopbackHostValue(String(getConfigValue('httpListener.host') ?? '')));
-    const webRemote = getConfigValue('web.hostMode') === 'network'
-      || (getConfigValue('web.hostMode') === 'custom'
-        && !isLoopbackHostValue(String(getConfigValue('web.host') ?? '')));
-    const remoteExposure = controlPlaneRemote || listenerRemote || webRemote;
-
     return {
-      serviceEnabled,
-      serviceAutostart,
-      restartOnFailure,
-      expectedDaemon: daemonEnabled || webEnabled,
-      expectedHttpListener: listenerEnabled,
-      serverBacked: serviceEnabled || daemonEnabled || listenerEnabled || webEnabled,
-      remoteExposure,
+      externalServiceManaged: true,
+      mutationAllowed: false,
     };
   }
 
 export async function restartOnboardingExternalServicesIfNeededForHandler(handler: InputHandler, request: OnboardingApplyRequest): Promise<OnboardingVerificationItem[]> {
     const externalServices = handler.uiServices.platform.externalServices;
     const state = externalServices?.inspect();
-    const daemonStatus = state?.daemonStatus?.reason ?? (state?.daemonRunning ? 'external daemon appears active' : 'external daemon is not verified from this shell');
+    const serviceStatus = state?.daemonStatus?.reason ?? (state?.daemonRunning ? 'external GoodVibes service appears active' : 'external GoodVibes service is not verified from this shell');
     return [{
-      id: 'runtime:external-daemon-owned',
+      id: 'runtime:external-service-owned',
       status: 'pass',
-      message: `GoodVibes Agent did not start, stop, or restart daemon/listener services; daemon lifecycle is external. ${daemonStatus}`,
+      message: `GoodVibes Agent did not start, stop, restart, or reconfigure service lifecycle. ${serviceStatus}`,
       target: 'service',
     }];
   }
@@ -610,11 +500,11 @@ export function verifyOnboardingRuntimePostureForHandler(handler: InputHandler, 
     const externalServices = handler.uiServices.platform.externalServices;
     const externalState = externalServices?.inspect();
     return [{
-      id: 'runtime:external-daemon-owned',
+      id: 'runtime:external-service-owned',
       status: 'pass',
       message: externalState
-        ? 'Daemon/listener lifecycle is externally managed; Agent onboarding did not request service shutdown, startup, restart, or bind changes.'
-        : 'Daemon/listener lifecycle is externally managed; no local service controller is required for Agent onboarding.',
+        ? 'GoodVibes service lifecycle is externally managed; Agent onboarding did not request shutdown, startup, restart, bind, or surface changes.'
+        : 'GoodVibes service lifecycle is externally managed; no local service controller is required for Agent onboarding.',
       target: 'service',
     }];
   }

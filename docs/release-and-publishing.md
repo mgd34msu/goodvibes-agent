@@ -18,7 +18,7 @@ bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 ```
 
-Do not add non-Bun install instructions for this product. The package is hosted on the npm registry, but the supported install and smoke path is Bun.
+Do not add non-Bun install instructions for this product. The package is hosted on the public package registry, but the supported install and smoke path is Bun.
 
 ## Required Gates
 

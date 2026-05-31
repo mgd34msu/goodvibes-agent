@@ -1,7 +1,5 @@
 import type { ModelPickerTarget } from '../model-picker.ts';
-import type { OnboardingStep1CapabilityItem } from '../../runtime/onboarding/index.ts';
-import { DEFAULT_CAPABILITIES, NETWORK_HOST_FIELD_IDS } from './onboarding-wizard-constants.ts';
-import { areSelectionsEqual, clamp, cloneSelection, getExternalSurfaceSetupFieldSpec, isMalformedGoodVibesSecretReferenceValue, isValidHostValue, normalizeText } from './onboarding-wizard-helpers.ts';
+import { areSelectionsEqual, clamp, cloneSelection, isMalformedGoodVibesSecretReferenceValue, normalizeText } from './onboarding-wizard-helpers.ts';
 import type { OnboardingWizardController } from './onboarding-wizard.ts';
 import type { OnboardingWizardFieldDefinition, OnboardingWizardModelSelection, OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
 
@@ -77,53 +75,10 @@ export function getFieldValidationError(
       return `${step.shortLabel}: ${field.label} is required.`;
     }
 
-    if (field.id === 'accounts.admin-username') {
-      const password = normalizeText(controller.getStringFieldValue('accounts.admin-password', ''));
-      if (!required && password.length > 0 && value.length === 0) {
-        return `${step.shortLabel}: ${field.label} is required when setting a local auth password.`;
-      }
-      const existing = controller.runtimeSnapshot?.auth.snapshot.users.find((user) => user.username === value);
-      if ((required || password.length > 0) && existing && !existing.roles.includes('admin')) {
-        return `${step.shortLabel}: ${field.label} must be an existing admin user or a new username.`;
-      }
-    }
-
-    if (field.id === 'accounts.admin-password' && value.length > 0 && value.length < 8) {
-      return `${step.shortLabel}: ${field.label} must be at least 8 characters.`;
-    }
-
     if (field.kind === 'masked' && isMalformedGoodVibesSecretReferenceValue(value)) {
       return `${step.shortLabel}: ${field.label} must be a secret value or a goodvibes://secrets/... reference.`;
     }
 
-    if (NETWORK_HOST_FIELD_IDS.has(field.id)) {
-      if (!isValidHostValue(value)) {
-        return `${step.shortLabel}: ${field.label} must be a host or IP address, not a URL.`;
-      }
-      return null;
-    }
-
-    if (field.id === 'network.service-port' || field.id === 'network.browser-port' || field.id === 'network.webhook-port') {
-      const parsed = controller.parseIntegerFieldValue(field.id, Number.parseInt(field.defaultValue, 10));
-      if (parsed === null || parsed < 1 || parsed > 65535) {
-        return `${step.shortLabel}: ${field.label} must be a port number from 1 to 65535.`;
-      }
-      return null;
-    }
-
-    if (field.kind !== 'text') return null;
-    const setupField = getExternalSurfaceSetupFieldSpec(field.id);
-    if (setupField?.valueType !== 'number') return null;
-    const parsed = controller.parseIntegerFieldValue(field.id, Number.parseInt(field.defaultValue, 10));
-    if (parsed === null) {
-      return `${step.shortLabel}: ${field.label} must be a number.`;
-    }
-    if (setupField.min !== undefined && parsed < setupField.min) {
-      return `${step.shortLabel}: ${field.label} must be at least ${setupField.min}.`;
-    }
-    if (setupField.max !== undefined && parsed > setupField.max) {
-      return `${step.shortLabel}: ${field.label} must be at most ${setupField.max}.`;
-    }
     return null;
   }
 
@@ -339,27 +294,4 @@ export function isFieldSatisfied(controller: OnboardingWizardController, field: 
 
     const selection = controller.getFieldValue(field) as OnboardingWizardModelSelection;
     return selection.providerId.length > 0 || selection.modelId.length > 0;
-  }
-
-export function getCurrentCapabilities(controller: OnboardingWizardController): readonly OnboardingStep1CapabilityItem[] {
-    return controller.runtimeDerived.step1Capabilities.length > 0
-      ? controller.runtimeDerived.step1Capabilities
-      : DEFAULT_CAPABILITIES;
-  }
-
-export function getCapabilitySelectionState(controller: OnboardingWizardController): readonly OnboardingStep1CapabilityItem[] {
-    return controller.getCurrentCapabilities().map((capability) => ({
-      ...capability,
-      selected: controller.toggleState.get(`capabilities.${capability.id}`) ?? capability.selected,
-    }));
-  }
-
-export function hasExistingAccessState(controller: OnboardingWizardController): boolean {
-    const auth = controller.runtimeSnapshot?.auth.snapshot;
-    return controller.mode !== 'new'
-      || (controller.runtimeSnapshot?.subscriptions.active.length ?? 0) > 0
-      || (controller.runtimeSnapshot?.subscriptions.pending.length ?? 0) > 0
-      || (auth?.userCount ?? 0) > 0
-      || (auth?.sessionCount ?? 0) > 0
-      || Boolean(auth?.bootstrapCredentialPresent);
   }

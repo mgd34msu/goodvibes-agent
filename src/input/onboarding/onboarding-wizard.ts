@@ -1,42 +1,18 @@
 import type { ModelPickerTarget } from '../model-picker.ts';
-import type { OnboardingApplyRequest, OnboardingSnapshotState, OnboardingStep1CapabilityId, OnboardingStep1CapabilityItem, OnboardingStepDerivationState } from '../../runtime/onboarding/index.ts';
+import type { OnboardingApplyRequest, OnboardingSnapshotState, OnboardingStepDerivationState } from '../../runtime/onboarding/index.ts';
 import { STEP_ORDER } from './onboarding-wizard-constants.ts';
 import { buildOnboardingApplyRequest } from './onboarding-wizard-apply.ts';
 import { buildOnboardingWizardSteps } from './onboarding-wizard-steps.ts';
 import { buildDefaultDerivedState, clamp, cloneSelection, getRuntimeDerivedState, maskValue, modelSelectionLabel, normalizeText } from './onboarding-wizard-helpers.ts';
 import {
-  clearExternalSurfaces as clearExternalSurfacesForController,
   getBooleanFieldValue as getBooleanFieldValueForController,
-  getDefaultAdminUsername as getDefaultAdminUsernameForController,
-  getNumberFieldValue as getNumberFieldValueForController,
-  getPortFieldValue as getPortFieldValueForController,
   getSelectedSecretMedium as getSelectedSecretMediumForController,
-  getSharedIpDefault as getSharedIpDefaultForController,
-  getSharedIpHostDefault as getSharedIpHostDefaultForController,
   getStringFieldValue as getStringFieldValueForController,
-  hasAdminAuthUser as hasAdminAuthUserForController,
-  hasBootstrapCredentialPresent as hasBootstrapCredentialPresentForController,
-  hasLocalAuthUser as hasLocalAuthUserForController,
-  hasSelectedInboundExternalSurface as hasSelectedInboundExternalSurfaceForController,
-  hasServerCapabilitiesSelected as hasServerCapabilitiesSelectedForController,
-  isCapabilitySelected as isCapabilitySelectedForController,
-  isRequiredExternalSetupField as isRequiredExternalSetupFieldForController,
-  parseIntegerFieldValue as parseIntegerFieldValueForController,
-  requiresAuthBootstrap as requiresAuthBootstrapForController,
-  selectAllExternalSurfaces as selectAllExternalSurfacesForController,
-  selectAllServerCapabilities as selectAllServerCapabilitiesForController,
-  selectLocalTuiOnly as selectLocalTuiOnlyForController,
-  setCapabilityValue as setCapabilityValueForController,
-  shouldEnableBrowserSurface as shouldEnableBrowserSurfaceForController,
-  shouldEnableHttpListener as shouldEnableHttpListenerForController,
-  shouldExposeControlPlaneNetwork as shouldExposeControlPlaneNetworkForController,
-  shouldExposeHttpListenerNetworkFields as shouldExposeHttpListenerNetworkFieldsForController,
-  toggleCapability as toggleCapabilityForController,
 } from './onboarding-wizard-rules.ts';
-import { ensureSelectionVisible as ensureSelectionVisibleForController, getBlockingFieldLabels as getBlockingFieldLabelsForController, getCapabilitySelectionState as getCapabilitySelectionStateForController, getCompletedFieldCount as getCompletedFieldCountForController, getCompletedToggleCount as getCompletedToggleCountForController, getCurrentCapabilities as getCurrentCapabilitiesForController, getFieldById as getFieldByIdForController, getFieldValidationError as getFieldValidationErrorForController, getStepFieldCount as getStepFieldCountForController, getToggleFieldCount as getToggleFieldCountForController, hasExistingAccessState as hasExistingAccessStateForController, isFieldDirty as isFieldDirtyForController, isFieldDirtyByDefinition as isFieldDirtyByDefinitionForController, isFieldSatisfied as isFieldSatisfiedForController, isStepDirty as isStepDirtyForController, recalculateDirtyState as recalculateDirtyStateForController, reconcileStateWithCurrentDefinitions as reconcileStateWithCurrentDefinitionsForController, reconcileStepCursor as reconcileStepCursorForController, resetValuesFromCurrentDefinitions as resetValuesFromCurrentDefinitionsForController } from './onboarding-wizard-state.ts';
+import { ensureSelectionVisible as ensureSelectionVisibleForController, getBlockingFieldLabels as getBlockingFieldLabelsForController, getCompletedFieldCount as getCompletedFieldCountForController, getCompletedToggleCount as getCompletedToggleCountForController, getFieldById as getFieldByIdForController, getFieldValidationError as getFieldValidationErrorForController, getStepFieldCount as getStepFieldCountForController, getToggleFieldCount as getToggleFieldCountForController, isFieldDirty as isFieldDirtyForController, isFieldDirtyByDefinition as isFieldDirtyByDefinitionForController, isFieldSatisfied as isFieldSatisfiedForController, isStepDirty as isStepDirtyForController, recalculateDirtyState as recalculateDirtyStateForController, reconcileStateWithCurrentDefinitions as reconcileStateWithCurrentDefinitionsForController, reconcileStepCursor as reconcileStepCursorForController, resetValuesFromCurrentDefinitions as resetValuesFromCurrentDefinitionsForController } from './onboarding-wizard-state.ts';
 import type { MutableModelSelectionMap, OnboardingWizardAction, OnboardingWizardApplyFeedback, OnboardingWizardFieldDefinition, OnboardingWizardFieldWindow, OnboardingWizardMode, OnboardingWizardModelSelection, OnboardingWizardRuntimeHydration, OnboardingWizardSnapshot, OnboardingWizardStepDefinition, OnboardingWizardStepId } from './onboarding-wizard-types.ts';
 
-export type { OnboardingWizardAcknowledgementFieldDefinition, OnboardingWizardAction, OnboardingWizardActionFieldDefinition, OnboardingWizardApplyFeedback, OnboardingWizardApplyFeedbackSeverity, OnboardingWizardChecklistFieldDefinition, OnboardingWizardExternalSurfaceStepId, OnboardingWizardFieldDefinition, OnboardingWizardFieldKind, OnboardingWizardFieldWindow, OnboardingWizardMaskedFieldDefinition, OnboardingWizardMode, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardModelSelection, OnboardingWizardRadioFieldDefinition, OnboardingWizardRadioOption, OnboardingWizardRuntimeHydration, OnboardingWizardSnapshot, OnboardingWizardStatusFieldDefinition, OnboardingWizardStepDefinition, OnboardingWizardStepId, OnboardingWizardTextFieldDefinition } from './onboarding-wizard-types.ts';
+export type { OnboardingWizardAcknowledgementFieldDefinition, OnboardingWizardAction, OnboardingWizardActionFieldDefinition, OnboardingWizardApplyFeedback, OnboardingWizardApplyFeedbackSeverity, OnboardingWizardChecklistFieldDefinition, OnboardingWizardFieldDefinition, OnboardingWizardFieldKind, OnboardingWizardFieldWindow, OnboardingWizardMaskedFieldDefinition, OnboardingWizardMode, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardModelSelection, OnboardingWizardRadioFieldDefinition, OnboardingWizardRadioOption, OnboardingWizardRuntimeHydration, OnboardingWizardSnapshot, OnboardingWizardStatusFieldDefinition, OnboardingWizardStepDefinition, OnboardingWizardStepId, OnboardingWizardTextFieldDefinition } from './onboarding-wizard-types.ts';
 export { getOnboardingWizardBodyRows, getOnboardingWizardVisibleFieldCount } from './onboarding-wizard-helpers.ts';
 
 export class OnboardingWizardController {
@@ -377,15 +353,6 @@ export class OnboardingWizardController {
     if (!field) return;
     if (field.kind === 'status') return;
 
-    if (field.kind === 'checklist' && field.capabilityId) {
-      this.toggleCapability(field.capabilityId);
-      this.pendingModelPickerTarget = null;
-      this.pendingAction = null;
-      this.applyFeedback = null;
-      this.recalculateDirtyState();
-      return;
-    }
-
     if (field.kind === 'checklist' || field.kind === 'acknowledgement') {
       const current = this.toggleState.get(field.id) ?? field.defaultValue;
       this.toggleState.set(field.id, !current);
@@ -417,42 +384,6 @@ export class OnboardingWizardController {
     }
 
     if (field.kind === 'action') {
-      if (field.action === 'select-all-capabilities') {
-        this.selectAllServerCapabilities();
-        this.pendingAction = null;
-        this.pendingModelPickerTarget = null;
-        this.applyFeedback = null;
-        this.recalculateDirtyState();
-        return;
-      }
-
-      if (field.action === 'clear-capabilities') {
-        this.selectLocalTuiOnly();
-        this.pendingAction = null;
-        this.pendingModelPickerTarget = null;
-        this.applyFeedback = null;
-        this.recalculateDirtyState();
-        return;
-      }
-
-      if (field.action === 'select-all-external-surfaces') {
-        this.selectAllExternalSurfaces();
-        this.pendingAction = null;
-        this.pendingModelPickerTarget = null;
-        this.applyFeedback = null;
-        this.recalculateDirtyState();
-        return;
-      }
-
-      if (field.action === 'clear-external-surfaces') {
-        this.clearExternalSurfaces();
-        this.pendingAction = null;
-        this.pendingModelPickerTarget = null;
-        this.applyFeedback = null;
-        this.recalculateDirtyState();
-        return;
-      }
-
       this.pendingAction = field.action;
       this.pendingModelPickerTarget = null;
       return;
@@ -530,8 +461,7 @@ export class OnboardingWizardController {
 
     if (field.kind === 'checklist' || field.kind === 'acknowledgement') {
       if (typeof value === 'boolean') {
-        if (field.kind === 'checklist' && field.capabilityId) this.setCapabilityValue(field.capabilityId, value);
-        else this.toggleState.set(fieldId, value);
+        this.toggleState.set(fieldId, value);
         this.applyFeedback = null;
         this.recalculateDirtyState();
       }
@@ -608,14 +538,12 @@ export class OnboardingWizardController {
     if (field.kind === 'text') {
       const value = normalizeText(this.getFieldValue(field) as string);
       if (value.length === 0 && field.required === true) return 'Missing';
-      if (value.length === 0 && this.isRequiredExternalSetupField(field.id)) return 'Not set';
       return value.length > 0 ? value : field.placeholder;
     }
 
     if (field.kind === 'masked') {
       const value = normalizeText(this.getFieldValue(field) as string);
       if (value.length === 0 && field.required === true) return 'Missing';
-      if (value.length === 0 && this.isRequiredExternalSetupField(field.id)) return 'Not set';
       return value.length > 0 ? maskValue(value) : field.placeholder;
     }
 
@@ -655,39 +583,9 @@ export class OnboardingWizardController {
     this.applyFeedback = null;
   }
 
-  public getSharedIpDefault(enabled: { readonly controlPlane: boolean; readonly httpListener: boolean; readonly web: boolean }): boolean {
-    return getSharedIpDefaultForController(this, enabled);
-  }
-
-  public getSharedIpHostDefault(enabled: { readonly controlPlane: boolean; readonly httpListener: boolean; readonly web: boolean }): string {
-    return getSharedIpHostDefaultForController(this, enabled);
-  }
-
-  public toggleCapability(capabilityId: OnboardingStep1CapabilityId): void { toggleCapabilityForController(this, capabilityId); }
-  public selectAllServerCapabilities(): void { selectAllServerCapabilitiesForController(this); }
-  public selectLocalTuiOnly(): void { selectLocalTuiOnlyForController(this); }
-  public selectAllExternalSurfaces(): void { selectAllExternalSurfacesForController(this); }
-  public clearExternalSurfaces(): void { clearExternalSurfacesForController(this); }
-  public setCapabilityValue(capabilityId: OnboardingStep1CapabilityId, selected: boolean): void { setCapabilityValueForController(this, capabilityId, selected); }
-  public isCapabilitySelected(capabilityId: OnboardingStep1CapabilityId): boolean { return isCapabilitySelectedForController(this, capabilityId); }
-  public hasServerCapabilitiesSelected(): boolean { return hasServerCapabilitiesSelectedForController(this); }
-  public shouldEnableBrowserSurface(): boolean { return shouldEnableBrowserSurfaceForController(this); }
-  public hasSelectedInboundExternalSurface(): boolean { return hasSelectedInboundExternalSurfaceForController(this); }
-  public isRequiredExternalSetupField(fieldId: string): boolean { return isRequiredExternalSetupFieldForController(this, fieldId); }
   public getSelectedSecretMedium(): 'secure' | 'plaintext' { return getSelectedSecretMediumForController(this); }
-  public shouldEnableHttpListener(): boolean { return shouldEnableHttpListenerForController(this); }
-  public shouldExposeHttpListenerNetworkFields(): boolean { return shouldExposeHttpListenerNetworkFieldsForController(this); }
-  public shouldExposeControlPlaneNetwork(): boolean { return shouldExposeControlPlaneNetworkForController(this); }
-  public requiresAuthBootstrap(): boolean { return requiresAuthBootstrapForController(this); }
-  public hasAdminAuthUser(): boolean { return hasAdminAuthUserForController(this); }
-  public hasLocalAuthUser(): boolean { return hasLocalAuthUserForController(this); }
-  public hasBootstrapCredentialPresent(): boolean { return hasBootstrapCredentialPresentForController(this); }
-  public getDefaultAdminUsername(): string { return getDefaultAdminUsernameForController(this); }
   public getBooleanFieldValue(fieldId: string, fallback: boolean): boolean { return getBooleanFieldValueForController(this, fieldId, fallback); }
   public getStringFieldValue(fieldId: string, fallback: string): string { return getStringFieldValueForController(this, fieldId, fallback); }
-  public parseIntegerFieldValue(fieldId: string, fallback: number): number | null { return parseIntegerFieldValueForController(this, fieldId, fallback); }
-  public getPortFieldValue(fieldId: string, fallback: number): number { return getPortFieldValueForController(this, fieldId, fallback); }
-  public getNumberFieldValue(fieldId: string, fallback: number, min?: number, max?: number): number { return getNumberFieldValueForController(this, fieldId, fallback, min, max); }
 
   public getToggleFieldCount(stepIndex: number): number { return getToggleFieldCountForController(this, stepIndex); }
   public getCompletedToggleCount(stepIndex: number): number { return getCompletedToggleCountForController(this, stepIndex); }
@@ -705,7 +603,4 @@ export class OnboardingWizardController {
   public recalculateDirtyState(): void { recalculateDirtyStateForController(this); }
   public isFieldDirtyByDefinition(field: OnboardingWizardFieldDefinition): boolean { return isFieldDirtyByDefinitionForController(this, field); }
   public isFieldSatisfied(field: OnboardingWizardFieldDefinition): boolean { return isFieldSatisfiedForController(this, field); }
-  public getCurrentCapabilities(): readonly OnboardingStep1CapabilityItem[] { return getCurrentCapabilitiesForController(this); }
-  public getCapabilitySelectionState(): readonly OnboardingStep1CapabilityItem[] { return getCapabilitySelectionStateForController(this); }
-  public hasExistingAccessState(): boolean { return hasExistingAccessStateForController(this); }
 }

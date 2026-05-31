@@ -12,7 +12,7 @@ type PackageJson = {
 };
 
 describe('package CLI install verification', () => {
-  test('package exposes a runnable Agent bin and a safe npm tarball contract', () => {
+  test('package exposes a runnable Agent bin and a safe registry tarball contract', () => {
     const report = verifyPackageCliInstall(resolve(import.meta.dir, '../../..'));
 
     expect(report.packageName).toBe('@pellux/goodvibes-agent');

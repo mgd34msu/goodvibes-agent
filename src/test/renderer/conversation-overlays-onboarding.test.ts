@@ -116,7 +116,7 @@ describe('applyConversationOverlays onboarding shell', () => {
     const input = makeInput();
     wireModelPicker(input);
     input.openOnboardingWizard({ mode: 'edit', preload: () => {} });
-    input.onboardingWizard.setStep(3);
+    input.onboardingWizard.setStep(2);
 
     const primaryField = input.onboardingWizard.currentStep.fields[0]!;
     expect(primaryField.kind).toBe('modelPicker');
@@ -142,7 +142,7 @@ describe('applyConversationOverlays onboarding shell', () => {
     const input = makeInput();
     const commits = wireModelPicker(input);
     input.openOnboardingWizard({ mode: 'edit', preload: () => {} });
-    input.onboardingWizard.setStep(3);
+    input.onboardingWizard.setStep(2);
 
     const primaryField = input.onboardingWizard.currentStep.fields[0]!;
     expect(primaryField.kind).toBe('modelPicker');

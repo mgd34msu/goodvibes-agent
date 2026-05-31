@@ -1,798 +1,461 @@
-import { NETWORK_MODE_OPTIONS, REASONING_OPTIONS, HITL_MODE_OPTIONS, GUIDANCE_MODE_OPTIONS, PERMISSION_MODE_OPTIONS, SECRET_POLICY_OPTIONS } from './onboarding-wizard-constants.ts';
-import { shouldShowCloudflareStep } from './onboarding-wizard-cloudflare.ts';
-import { buildCloudflareStep } from './onboarding-wizard-cloudflare-step.ts';
-import {
-  EXTERNAL_SURFACE_SPECS,
-  getExternalSurfaceAutoStartDefaultValue,
-  getExternalSurfaceAutoStartFieldId,
-  isExternalSurfaceSelectedByDefault,
-  type ExternalSurfaceSpec,
-} from './onboarding-wizard-external-surfaces.ts';
-import { countSelected, modelSelectionLabel, normalizeText } from './onboarding-wizard-helpers.ts';
+import { REASONING_OPTIONS, HITL_MODE_OPTIONS, GUIDANCE_MODE_OPTIONS, PERMISSION_MODE_OPTIONS, SECRET_POLICY_OPTIONS } from './onboarding-wizard-constants.ts';
+import { modelSelectionLabel, normalizeText } from './onboarding-wizard-helpers.ts';
 import type { OnboardingWizardController } from './onboarding-wizard.ts';
-import type { OnboardingWizardAcknowledgementFieldDefinition, OnboardingWizardActionFieldDefinition, OnboardingWizardChecklistFieldDefinition, OnboardingWizardExternalSurfaceStepId, OnboardingWizardFieldDefinition, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardRadioFieldDefinition, OnboardingWizardRadioOption, OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
+import type { OnboardingWizardActionFieldDefinition, OnboardingWizardFieldDefinition, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardRadioFieldDefinition, OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
 
 export function buildOnboardingWizardSteps(controller: OnboardingWizardController): readonly OnboardingWizardStepDefinition[] {
   if (controller.hydrationPending || controller.hydrationError !== null) return [buildLoadingStep(controller)];
 
-  const capabilities = controller.getCapabilitySelectionState();
-  const hasServers = capabilities.some((item) => item.id !== 'local-tui-only' && item.selected);
-  const wantsExternalServices = capabilities.some((item) => item.id === 'external-integrations' && item.selected);
-  const steps: OnboardingWizardStepDefinition[] = [
-    buildCapabilitiesStep(controller),
-  ];
-  if (hasServers) {
-    steps.push(buildNetworkStep(controller));
-  }
-  if (hasServers || controller.hasExistingAccessState()) {
-    steps.push(buildAccessStep(controller));
-  }
-  if (wantsExternalServices) {
-    steps.push(buildExternalServicesStep(controller));
-    for (const surface of getSelectedExternalSurfaceSpecs(controller)) {
-      steps.push(buildExternalSurfaceStep(controller, surface));
-    }
-  }
-  if (shouldShowCloudflareStep(controller)) {
-    steps.push(buildCloudflareStep(controller));
-  }
-  steps.push(buildProviderAccessStep(controller));
-  steps.push(buildDefaultModelStep(controller));
-  steps.push(buildExperienceStep(controller));
-  steps.push(buildReviewStep(controller));
-  return steps.map(addApplyAndContinueAction);
+  return [
+    buildAgentSetupStep(controller),
+    buildProviderAccessStep(controller),
+    buildDefaultModelStep(controller),
+    buildAgentKnowledgeStep(),
+    buildLocalStateStep(),
+    buildDelegationPolicyStep(),
+    buildExperienceStep(controller),
+    buildReviewStep(controller),
+  ].map(addApplyAndContinueAction);
 }
 
 function buildApplyAndContinueAction(step: OnboardingWizardStepDefinition): OnboardingWizardActionFieldDefinition {
-    return {
-      kind: 'action',
-      id: `${step.id}.apply-and-continue`,
-      action: 'apply-and-continue',
-      label: 'Apply & Continue To Next Section',
-      hint: 'Save the current wizard selections in this onboarding session and move to the next section. Settings are persisted on the final Review apply.',
-      defaultValue: 'Apply & next',
-      spacerBeforeRows: 2,
-    };
-  }
+  return {
+    kind: 'action',
+    id: `${step.id}.apply-and-continue`,
+    action: 'apply-and-continue',
+    label: 'Apply & Continue To Next Section',
+    hint: 'Save the current wizard selections in this onboarding session and move to the next section. Settings are persisted on the final Review apply.',
+    defaultValue: 'Apply & next',
+    spacerBeforeRows: 2,
+  };
+}
 
 function addApplyAndContinueAction(step: OnboardingWizardStepDefinition): OnboardingWizardStepDefinition {
-    if (step.id === 'loading' || step.id === 'review') return step;
-    return {
-      ...step,
-      fields: [
-        ...step.fields,
-        buildApplyAndContinueAction(step),
-      ],
-    };
-  }
+  if (step.id === 'loading' || step.id === 'review') return step;
+  return {
+    ...step,
+    fields: [...step.fields, buildApplyAndContinueAction(step)],
+  };
+}
 
 export function buildLoadingStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    const failed = controller.hydrationError !== null;
-    return {
-      id: 'loading',
-      title: failed ? 'Current settings unavailable' : 'Loading current settings',
-      shortLabel: 'Loading',
-      description: failed
-        ? 'The wizard is locked because current runtime settings could not be collected. Close and reopen onboarding after fixing the reported issue.'
-        : 'Collecting the current daemon, listener, provider, subscription, auth, and surface settings before the wizard becomes editable.',
-      summaryTitle: failed ? 'Preload failed' : 'Preload required',
-      summaryLines: [
-        failed
-          ? 'Editable fields remain locked to avoid applying defaults over existing configuration.'
-          : 'Editable fields are locked until runtime settings are loaded.',
-        failed
-          ? controller.hydrationError ?? 'Unknown snapshot failure.'
-          : 'This prevents the wizard from applying defaults over existing configuration.',
-      ],
-      fields: [
-        {
-          kind: 'status',
-          id: 'loading.runtime-snapshot',
-          label: failed ? 'Runtime settings snapshot failed' : 'Runtime settings snapshot',
-          hint: failed
-            ? controller.hydrationError ?? 'The runtime snapshot did not complete.'
-            : 'Waiting for the current GoodVibes configuration and account state.',
-          defaultValue: failed ? 'Locked' : 'Loading',
-        },
-      ],
-    };
-  }
-
-export function buildCapabilitiesStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    const capabilities = controller.getCapabilitySelectionState();
-    const selectedCount = countSelected(capabilities);
-    const fields: OnboardingWizardFieldDefinition[] = [
-      ...capabilities.map((capability) => ({
-        kind: 'checklist' as const,
-        id: `capabilities.${capability.id}`,
-        capabilityId: capability.id,
-        label: capability.label,
-        hint: capability.detail,
-        defaultValue: capability.selected,
-      })),
-      {
-        kind: 'action',
-        id: 'capabilities.select-all',
-        action: 'select-all-capabilities',
-        label: 'Review external-daemon surfaces',
-        hint: 'Review browser, LAN, webhooks/events, and external app surfaces without letting Agent own daemon lifecycle.',
-        defaultValue: 'Action',
-      },
-      {
-        kind: 'action',
-        id: 'capabilities.clear',
-        action: 'clear-capabilities',
-        label: 'Keep Agent local-only',
-        hint: 'Clear external-daemon surfaces and keep Agent work in this terminal conversation.',
-        defaultValue: 'Action',
-      },
-    ];
-
-    return {
-      id: 'capabilities',
-      title: 'Choose Agent surfaces',
-      shortLabel: 'Surfaces',
-      description: 'Choose what Agent should prepare locally. Daemon-backed surfaces are reviewed as external dependencies; Agent does not enable service mode or autostart.',
-      summaryTitle: 'Selected surfaces',
-      summaryLines: [
-        `${selectedCount}/${capabilities.length} surface option(s) selected`,
-        `Mode: ${controller.mode === 'edit' ? 'edit existing shell state' : controller.mode === 'reopen' ? 'reopen review flow' : 'new setup'}`,
-        controller.runtimeSnapshot?.collectionIssues.length
-          ? `${controller.runtimeSnapshot.collectionIssues.length} runtime collection issue(s)`
-          : 'Runtime snapshot collected cleanly',
-      ],
-      fields,
-    };
-  }
-
-export function buildProvidersStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    const providerAck = controller.runtimeDerived.reopenEditAcknowledgements.providers;
-    const activeSubscriptions = controller.runtimeSnapshot?.subscriptions.active ?? [];
-    const pendingSubscriptions = controller.runtimeSnapshot?.subscriptions.pending ?? [];
-    const openAiActive = activeSubscriptions.some((subscription) => subscription.provider === 'openai');
-    const openAiPending = pendingSubscriptions.some((subscription) => subscription.provider === 'openai');
-    const providerSecretCount = controller.runtimeSnapshot?.secrets.records.filter((record) => record.key.endsWith('_API_KEY') || record.key.endsWith('_TOKEN')).length ?? 0;
-    const openAiApiKeyConfigured = controller.runtimeSnapshot?.secrets.records.some((record) => record.key === 'OPENAI_API_KEY') ?? false;
-    const providerReviewField: OnboardingWizardAcknowledgementFieldDefinition = {
-      kind: 'acknowledgement',
-      id: 'providers.reviewed',
-      label: 'Confirm provider access review',
-      hint: providerAck.detail,
-      defaultValue: providerAck.accepted,
-      required: controller.mode !== 'new' && providerAck.required,
-      reason: providerAck.reason,
-      target: 'providers',
-    };
-
-    const fields: OnboardingWizardFieldDefinition[] = [
+  const failed = controller.hydrationError !== null;
+  return {
+    id: 'loading',
+    title: failed ? 'Current settings unavailable' : 'Loading Agent setup',
+    shortLabel: 'Loading',
+    description: failed
+      ? 'The wizard is locked because current Agent settings could not be collected. Close and reopen onboarding after fixing the reported issue.'
+      : 'Collecting current Agent settings before the setup workspace becomes editable.',
+    summaryTitle: failed ? 'Preload failed' : 'Preload required',
+    summaryLines: [
+      failed ? controller.hydrationError ?? 'Unknown snapshot failure.' : 'Editable fields are locked until Agent settings are loaded.',
+      failed ? 'No setup values were changed.' : 'This prevents the wizard from applying defaults over existing Agent configuration.',
+    ],
+    fields: [
       {
         kind: 'status',
-        id: 'providers.openai-subscription',
-        label: 'OpenAI subscription status',
-        hint: openAiActive
-          ? 'An OpenAI subscription session is already available.'
-          : openAiPending
-            ? 'An OpenAI subscription login is pending.'
-            : 'No OpenAI subscription session was found in the current runtime state.',
-        defaultValue: openAiActive ? 'Active' : openAiPending ? 'Pending' : 'Not detected',
+        id: 'loading.runtime-snapshot',
+        label: failed ? 'Agent settings snapshot failed' : 'Agent settings snapshot',
+        hint: failed ? controller.hydrationError ?? 'The setup snapshot did not complete.' : 'Waiting for current Agent account, provider, and local setup state.',
+        defaultValue: failed ? 'Locked' : 'Loading',
+      },
+    ],
+  };
+}
+
+export function buildAgentSetupStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
+  const collectionIssues = controller.runtimeSnapshot?.collectionIssues.length ?? 0;
+  const secretPolicy = controller.runtimeSnapshot?.runtimeDefaults.secretStoragePolicy ?? 'preferred_secure';
+  return {
+    id: 'agent-setup',
+    title: 'Agent setup',
+    shortLabel: 'Agent',
+    description: 'Set up the Agent operator workspace: local identity, provider access, isolated Agent Knowledge, reusable local behavior, and explicit build delegation.',
+    summaryTitle: 'Agent setup posture',
+    summaryLines: [
+      'Agent owns the operator TUI and local behavior registry.',
+      'GoodVibes service lifecycle is external to this product.',
+      `Secret policy: ${controller.getStringFieldValue('agent-setup.secret-policy', secretPolicy)}`,
+      collectionIssues > 0 ? `${collectionIssues} setup snapshot issue(s)` : 'Setup snapshot collected cleanly',
+    ],
+    fields: [
+      {
+        kind: 'status',
+        id: 'agent-setup.identity',
+        label: 'Product identity',
+        hint: 'GoodVibes Agent is a personal operator TUI with Agent-local profiles, memory, skills, personas, routines, and isolated Agent Knowledge.',
+        defaultValue: 'Agent operator',
       },
       {
         kind: 'status',
-        id: 'providers.api-key-inventory',
-        label: 'Provider API key inventory',
-        hint: providerSecretCount > 0
-          ? `${providerSecretCount} provider credential reference(s) were found. Values stay masked.`
-          : 'No provider API key references were detected in the current runtime state.',
-        defaultValue: providerSecretCount > 0 ? `${providerSecretCount} configured` : 'None detected',
+        id: 'agent-setup.connection',
+        label: 'GoodVibes service connection',
+        hint: collectionIssues > 0
+          ? `${collectionIssues} setup snapshot issue(s) were reported. Status and doctor commands show connection details.`
+          : 'Agent connects to an already-running GoodVibes service for companion chat, work plans, approvals, automation, and Agent Knowledge.',
+        defaultValue: collectionIssues > 0 ? `${collectionIssues} issue(s)` : 'External service',
       },
       {
-        kind: 'masked',
-        id: 'providers.openai-api-key',
-        label: 'OpenAI API key',
-        hint: openAiApiKeyConfigured
-          ? 'An OpenAI API key is already stored. Leave blank to keep it; enter a new key to replace it through the secret manager.'
-          : 'Optional: enter an OpenAI API key now. The value is stored through the secret manager, not in config.',
-        placeholder: openAiApiKeyConfigured ? 'already configured' : 'sk-...',
-        defaultValue: '',
+        kind: 'radio',
+        id: 'agent-setup.secret-policy',
+        label: 'Secret storage policy',
+        hint: 'Choose how Agent setup should store provider keys. Secret values are never shown in the wizard.',
+        options: SECRET_POLICY_OPTIONS,
+        defaultValue: secretPolicy,
       },
-      ...(openAiActive ? [] : [
-        {
-          kind: 'action' as const,
-          id: 'providers.openai-subscription-start',
-          action: 'start-openai-subscription' as const,
-          label: openAiPending ? 'Restart OpenAI subscription sign-in' : 'Start OpenAI subscription sign-in',
-          hint: 'Opens the OpenAI sign-in flow from the wizard and records pending login state here.',
-          defaultValue: openAiPending ? 'Restart' : 'Start',
-        },
-        ...(openAiPending ? [
-          {
-            kind: 'text' as const,
-            id: 'providers.openai-authorization-url',
-            label: 'OpenAI authorization URL',
-            hint: 'If the browser did not open, use this URL to continue sign-in without leaving the wizard.',
-            placeholder: 'authorization URL appears after start',
-            defaultValue: '',
-          },
-          {
-            kind: 'text' as const,
-            id: 'providers.openai-callback-code',
-            label: 'OpenAI callback code or URL',
-            hint: 'Paste the callback code or redirected URL after completing browser sign-in.',
-            placeholder: 'code or callback URL',
-            defaultValue: '',
-          },
-          {
-            kind: 'action' as const,
-            id: 'providers.openai-subscription-finish',
-            action: 'finish-openai-subscription' as const,
-            label: 'Finish OpenAI subscription sign-in',
-            hint: 'Completes the pending OpenAI subscription login using the code above.',
-            defaultValue: 'Finish',
-          },
-        ] : []),
-      ]),
-      providerReviewField,
-    ];
-
-    return {
-      id: 'provider-access',
-      title: 'AI provider access',
-      shortLabel: 'Providers',
-      description: 'Review subscription posture and optionally add an OpenAI API key directly through the wizard.',
-      summaryTitle: 'Provider access summary',
-      summaryLines: [
-        `OpenAI subscription: ${openAiActive ? 'active' : openAiPending ? 'pending' : 'not detected'}`,
-        `OpenAI API key: ${openAiApiKeyConfigured ? 'configured' : 'not detected'}`,
-        `Provider credential references: ${providerSecretCount}`,
-        `Review: ${controller.getFieldValueLabel(providerReviewField)}`,
-      ],
-      fields,
-    };
-  }
+      {
+        kind: 'status',
+        id: 'agent-setup.profile-guide',
+        label: 'Runtime profiles',
+        hint: 'Use /agent-profile guide after setup to create household, research, travel, operations, or custom Agent profiles.',
+        defaultValue: 'Local profiles',
+      },
+    ],
+  };
+}
 
 export function buildProviderAccessStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    return buildProvidersStep(controller);
-  }
+  const activeSubscriptions = controller.runtimeSnapshot?.subscriptions.active ?? [];
+  const pendingSubscriptions = controller.runtimeSnapshot?.subscriptions.pending ?? [];
+  const openAiActive = activeSubscriptions.some((subscription) => subscription.provider === 'openai');
+  const openAiPending = pendingSubscriptions.some((subscription) => subscription.provider === 'openai');
+  const providerSecretCount = controller.runtimeSnapshot?.secrets.records.filter((record) => record.key.endsWith('_API_KEY') || record.key.endsWith('_TOKEN')).length ?? 0;
+  const openAiApiKeyConfigured = controller.runtimeSnapshot?.secrets.records.some((record) => record.key === 'OPENAI_API_KEY') ?? false;
+  const fields: OnboardingWizardFieldDefinition[] = [
+    {
+      kind: 'status',
+      id: 'providers.openai-subscription',
+      label: 'OpenAI subscription status',
+      hint: openAiActive
+        ? 'An OpenAI subscription session is already available.'
+        : openAiPending
+          ? 'An OpenAI subscription login is pending.'
+          : 'No OpenAI subscription session was found in the current Agent state.',
+      defaultValue: openAiActive ? 'Active' : openAiPending ? 'Pending' : 'Not detected',
+    },
+    {
+      kind: 'status',
+      id: 'providers.api-key-inventory',
+      label: 'Provider API key inventory',
+      hint: providerSecretCount > 0 ? `${providerSecretCount} provider credential reference(s) were found. Values stay masked.` : 'No provider API key references were detected in the current Agent state.',
+      defaultValue: providerSecretCount > 0 ? `${providerSecretCount} configured` : 'None detected',
+    },
+    {
+      kind: 'masked',
+      id: 'providers.openai-api-key',
+      label: 'OpenAI API key',
+      hint: openAiApiKeyConfigured
+        ? 'An OpenAI API key is already stored. Leave blank to keep it; enter a new key to replace it through the secret manager.'
+        : 'Optional: enter an OpenAI API key now. The value is stored through the secret manager, not in config.',
+      placeholder: openAiApiKeyConfigured ? 'already configured' : 'sk-...',
+      defaultValue: '',
+    },
+    ...(openAiActive ? [] : [
+      {
+        kind: 'action' as const,
+        id: 'providers.openai-subscription-start',
+        action: 'start-openai-subscription' as const,
+        label: openAiPending ? 'Restart OpenAI subscription sign-in' : 'Start OpenAI subscription sign-in',
+        hint: 'Opens the OpenAI sign-in flow from the wizard and records pending login state here.',
+        defaultValue: openAiPending ? 'Restart' : 'Start',
+      },
+      ...(openAiPending ? [
+        {
+          kind: 'text' as const,
+          id: 'providers.openai-authorization-url',
+          label: 'OpenAI authorization URL',
+          hint: 'If the browser did not open, use this URL to continue sign-in without leaving the wizard.',
+          placeholder: 'authorization URL appears after start',
+          defaultValue: '',
+        },
+        {
+          kind: 'text' as const,
+          id: 'providers.openai-callback-code',
+          label: 'OpenAI callback code or URL',
+          hint: 'Paste the callback code or redirected URL after completing browser sign-in.',
+          placeholder: 'code or callback URL',
+          defaultValue: '',
+        },
+        {
+          kind: 'action' as const,
+          id: 'providers.openai-subscription-finish',
+          action: 'finish-openai-subscription' as const,
+          label: 'Finish OpenAI subscription sign-in',
+          hint: 'Completes the pending OpenAI subscription login using the code above.',
+          defaultValue: 'Finish',
+        },
+      ] : []),
+    ]),
+  ];
+
+  return {
+    id: 'provider-access',
+    title: 'AI provider access',
+    shortLabel: 'Providers',
+    description: 'Review provider access for the Agent conversation. Credentials stay masked and are stored through the secret manager.',
+    summaryTitle: 'Provider access summary',
+    summaryLines: [
+      `OpenAI subscription: ${openAiActive ? 'active' : openAiPending ? 'pending' : 'not detected'}`,
+      `OpenAI API key: ${openAiApiKeyConfigured ? 'configured' : 'not detected'}`,
+      `Provider credential references: ${providerSecretCount}`,
+    ],
+    fields,
+  };
+}
 
 export function buildDefaultModelStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    const routing = controller.runtimeSnapshot?.providerRouting;
-    const primarySelectionField: OnboardingWizardModelPickerFieldDefinition = {
-      kind: 'modelPicker',
-      id: 'default-model.primary-model',
-      label: 'Default provider + model',
-      hint: 'Open the nested model picker for the shell’s main routing target.',
-      target: 'main',
-      defaultSelection: {
-        providerId: normalizeText(routing?.primaryProviderId),
-        modelId: normalizeText(routing?.primaryModelId),
-        enabled: true,
-      },
-    };
-    const reasoningField: OnboardingWizardRadioFieldDefinition = {
-      kind: 'radio',
-      id: 'default-model.reasoning',
-      label: 'Reasoning effort',
-      hint: 'Use the shell reasoning default that matches the current provider routing.',
-      options: REASONING_OPTIONS,
-      defaultValue: normalizeText(routing?.primaryReasoningEffort) || 'medium',
-    };
+  const routing = controller.runtimeSnapshot?.providerRouting;
+  const primarySelectionField: OnboardingWizardModelPickerFieldDefinition = {
+    kind: 'modelPicker',
+    id: 'default-model.primary-model',
+    label: 'Default provider + model',
+    hint: 'Open the model picker for the Agent conversation route.',
+    target: 'main',
+    defaultSelection: {
+      providerId: normalizeText(routing?.primaryProviderId),
+      modelId: normalizeText(routing?.primaryModelId),
+      enabled: true,
+    },
+  };
+  const reasoningField: OnboardingWizardRadioFieldDefinition = {
+    kind: 'radio',
+    id: 'default-model.reasoning',
+    label: 'Reasoning effort',
+    hint: 'Choose the default reasoning effort for the serial Agent conversation.',
+    options: REASONING_OPTIONS,
+    defaultValue: normalizeText(routing?.primaryReasoningEffort) || 'medium',
+  };
 
-    return {
-      id: 'default-model',
-      title: 'Default model',
-      shortLabel: 'Model',
-      description: 'Choose the default model routing the shell should use after onboarding.',
-      summaryTitle: 'Default model summary',
-      summaryLines: [
-        `Main: ${modelSelectionLabel(controller.modelSelectionState.get('main') ?? primarySelectionField.defaultSelection)}`,
-        `Reasoning: ${controller.getFieldValueLabel(reasoningField)}`,
-      ],
-      fields: [
-        primarySelectionField,
-        reasoningField,
-      ],
-    };
-  }
+  return {
+    id: 'default-model',
+    title: 'Default model',
+    shortLabel: 'Model',
+    description: 'Choose the default provider, model, and reasoning posture for normal Agent conversation.',
+    summaryTitle: 'Default model summary',
+    summaryLines: [
+      `Main: ${modelSelectionLabel(controller.modelSelectionState.get('main') ?? primarySelectionField.defaultSelection)}`,
+      `Reasoning: ${controller.getFieldValueLabel(reasoningField)}`,
+    ],
+    fields: [primarySelectionField, reasoningField],
+  };
+}
 
-export function buildExternalServicesStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    const selectedCount = EXTERNAL_SURFACE_SPECS
-      .filter((surface) => controller.getBooleanFieldValue(
-        surface.enabledFieldId,
-        isExternalSurfaceSelectedByDefault(surface, controller.runtimeSnapshot),
-      ))
-      .length;
-    const fields: OnboardingWizardFieldDefinition[] = [];
-
-    for (const surface of EXTERNAL_SURFACE_SPECS) {
-      fields.push({
-        kind: 'checklist',
-        id: surface.enabledFieldId,
-        label: surface.label,
-        hint: `${surface.hint} Selecting this opens a dedicated setup screen; auto-start is chosen on that screen.`,
-        defaultValue: isExternalSurfaceSelectedByDefault(surface, controller.runtimeSnapshot),
-      });
-    }
-
-    fields.push(
+export function buildAgentKnowledgeStep(): OnboardingWizardStepDefinition {
+  return {
+    id: 'agent-knowledge',
+    title: 'Agent Knowledge',
+    shortLabel: 'Knowledge',
+    description: 'Agent Knowledge is isolated to the GoodVibes Agent product segment. It never falls back to default Knowledge/Wiki or any non-Agent product segment.',
+    summaryTitle: 'Knowledge isolation',
+    summaryLines: [
+      'Route segment: /api/goodvibes-agent/knowledge/*',
+      'Default wiki fallback: disabled',
+      'Non-Agent route fallback: disabled',
+    ],
+    fields: [
       {
-        kind: 'action',
-        id: 'external-services.select-all',
-        action: 'select-all-external-surfaces',
-        label: 'Select all external surfaces',
-        hint: 'Show setup screens for every supported external surface. Auto-start stays controlled per surface.',
-        defaultValue: 'Action',
+        kind: 'status',
+        id: 'agent-knowledge.route',
+        label: 'Isolated Agent Knowledge route',
+        hint: 'Ask, search, status, and ingest use /api/goodvibes-agent/knowledge/* only.',
+        defaultValue: 'Isolated',
       },
       {
-        kind: 'action',
-        id: 'external-services.clear',
-        action: 'clear-external-surfaces',
-        label: 'Clear all external surfaces',
-        hint: 'Hide all external surface setup screens. The HTTP listener can still be enabled separately by webhook/event settings.',
-        defaultValue: 'Action',
+        kind: 'status',
+        id: 'agent-knowledge.no-default-wiki',
+        label: 'Default Knowledge/Wiki fallback',
+        hint: 'Agent setup and Agent ask/search must not query the default wiki when Agent Knowledge has no answer.',
+        defaultValue: 'Blocked',
       },
       {
-        kind: 'radio',
-        id: 'external-services.secret-policy',
-        label: 'Secret storage policy',
-        hint: 'Choose how selected surface secrets should be stored. Secret values are never shown in the wizard.',
-        options: SECRET_POLICY_OPTIONS,
-        defaultValue: controller.runtimeSnapshot?.runtimeDefaults.secretStoragePolicy ?? 'preferred_secure',
+        kind: 'status',
+        id: 'agent-knowledge.no-non-agent-routes',
+        label: 'Non-Agent route fallback',
+        hint: 'Other product routes are not part of Agent Knowledge.',
+        defaultValue: 'Blocked',
       },
-    );
+    ],
+  };
+}
 
-    return {
-      id: 'external-services',
-      title: 'Choose external surfaces',
-      shortLabel: 'Services',
-      description: 'Select the apps and integration surfaces GoodVibes should prepare. Each selected surface gets its own setup screen and its own auto-start choice.',
-      summaryTitle: 'External surfaces',
-      summaryLines: [
-        `${selectedCount} external surface(s) selected for setup`,
-        `Secret policy: ${controller.getStringFieldValue('external-services.secret-policy', controller.runtimeSnapshot?.runtimeDefaults.secretStoragePolicy ?? 'preferred_secure')}`,
-        selectedCount > 0 ? 'Selected surfaces appear as separate setup screens.' : 'No external surfaces selected.',
-      ],
-      fields,
-    };
-  }
+export function buildLocalStateStep(): OnboardingWizardStepDefinition {
+  return {
+    id: 'agent-local-state',
+    title: 'Local memory and behavior',
+    shortLabel: 'Memory',
+    description: 'Review the Agent-local behavior model. Memory, personas, skills, routines, and runtime profiles stay local until a stable shared registry exists.',
+    summaryTitle: 'Local Agent state',
+    summaryLines: [
+      'Memory/personas/skills/routines: local Agent registries',
+      'Secrets: rejected or stored by secret reference',
+      'Profiles: isolated Agent homes',
+    ],
+    fields: [
+      {
+        kind: 'status',
+        id: 'agent-local-state.memory',
+        label: 'Local memory',
+        hint: 'Use /memory to create, review, stale, search, and delete Agent-local memory records.',
+        defaultValue: 'Local registry',
+      },
+      {
+        kind: 'status',
+        id: 'agent-local-state.personas',
+        label: 'Personas',
+        hint: 'Use /personas to create and activate serial operating modes for the main conversation.',
+        defaultValue: 'Local registry',
+      },
+      {
+        kind: 'status',
+        id: 'agent-local-state.skills',
+        label: 'Skills',
+        hint: 'Use /agent-skills and /skills local to manage reusable Agent procedures.',
+        defaultValue: 'Local registry',
+      },
+      {
+        kind: 'status',
+        id: 'agent-local-state.routines',
+        label: 'Routines',
+        hint: 'Use /routines for reusable local procedures. Starting a routine prints steps in the main conversation and does not spawn hidden work.',
+        defaultValue: 'Local registry',
+      },
+    ],
+  };
+}
 
-function getSelectedExternalSurfaceSpecs(controller: OnboardingWizardController): readonly ExternalSurfaceSpec[] {
-    return EXTERNAL_SURFACE_SPECS.filter((surface) => (
-      controller.getBooleanFieldValue(
-        surface.enabledFieldId,
-        isExternalSurfaceSelectedByDefault(surface, controller.runtimeSnapshot),
-      )
-    ));
-  }
-
-const SURFACE_AUTO_START_OPTIONS: readonly OnboardingWizardRadioOption[] = [
-  {
-    id: 'yes',
-    label: 'Yes',
-    hint: 'Save the surface as enabled; the external daemon/service owner controls actual startup.',
-  },
-  {
-    id: 'no',
-    label: 'No',
-    hint: 'Save these settings but leave the surface idle until it is enabled from Settings > Surfaces.',
-  },
-];
-
-function buildExternalSurfaceStep(
-  controller: OnboardingWizardController,
-  surface: ExternalSurfaceSpec,
-): OnboardingWizardStepDefinition {
-    let setupCount = 0;
-    let setupCompleteCount = 0;
-    const autoStartFieldId = getExternalSurfaceAutoStartFieldId(surface);
-    const autoStartDefault = getExternalSurfaceAutoStartDefaultValue(surface, controller.runtimeSnapshot);
-    const autoStartValue = controller.getStringFieldValue(autoStartFieldId, autoStartDefault);
-    const setupFields = surface.fields.map((setupField): OnboardingWizardFieldDefinition => {
-      const suggested = controller.isRequiredExternalSetupField(setupField.id);
-      if (suggested) {
-        setupCount += 1;
-        if (normalizeText(setupField.defaultValue(controller.runtimeSnapshot)).length > 0
-          || normalizeText(controller.getStringFieldValue(setupField.id, '')).length > 0) {
-          setupCompleteCount += 1;
-        }
-      }
-
-      const hint = suggested
-        ? `${setupField.hint} Recommended because ${surface.label} is selected, but it will not block saving.`
-        : setupField.hint;
-
-      if (setupField.kind === 'radio') {
-        return {
-          kind: 'radio',
-          id: setupField.id,
-          label: setupField.label,
-          hint,
-          options: setupField.options ?? [],
-          defaultValue: setupField.defaultValue(controller.runtimeSnapshot),
-        };
-      }
-
-      return {
-        kind: setupField.kind,
-        id: setupField.id,
-        label: setupField.label,
-        hint,
-        placeholder: setupField.placeholder,
-        defaultValue: setupField.defaultValue(controller.runtimeSnapshot),
-      };
-    });
-    const ntfyTopicSummary = surface.id === 'ntfy'
-      ? [
-          `Chat topic: ${controller.getStringFieldValue('external-services.ntfy.chat-topic', 'goodvibes-chat')}`,
-          `Agent topic: ${controller.getStringFieldValue('external-services.ntfy.agent-topic', 'goodvibes-agent')}`,
-          `Daemon-only remote topic: ${controller.getStringFieldValue('external-services.ntfy.remote-topic', 'goodvibes-ntfy')}`,
-        ]
-      : [];
-    const title = `${surface.label.replace(/ surface$/i, '')} setup`;
-    const setupSummary = setupCount === 0
-      ? 'Suggested setup: none'
-      : `Suggested setup entered: ${setupCompleteCount}/${setupCount}`;
-
-    return {
-      id: `external-surface:${surface.id}` as OnboardingWizardExternalSurfaceStepId,
-      title,
-      shortLabel: surface.label.replace(/ surface$/i, ''),
-      description: `Configure ${surface.label}. Settings are saved either way; Agent does not start or own the external daemon service.`,
-      summaryTitle: `${surface.label} setup`,
-      summaryLines: [
-        `External activation requested: ${autoStartValue === 'yes' ? 'yes' : 'no'}`,
-        ...ntfyTopicSummary,
-        setupSummary,
-        `Secret policy: ${controller.getStringFieldValue('external-services.secret-policy', controller.runtimeSnapshot?.runtimeDefaults.secretStoragePolicy ?? 'preferred_secure')}`,
-        autoStartValue === 'yes'
-          ? 'Agent will save the requested enabled state, but daemon lifecycle remains external.'
-          : 'Enable it later from Settings > Surfaces after the external daemon is ready.',
-      ],
-      fields: [
-        {
-          kind: 'radio',
-          id: autoStartFieldId,
-          label: 'Request external activation',
-          hint: `Yes saves ${surface.enabledConfigKey}. No saves setup values but keeps the surface off until Settings > Surfaces enables it.`,
-          options: SURFACE_AUTO_START_OPTIONS,
-          defaultValue: autoStartDefault,
-        },
-        ...setupFields,
-      ],
-    };
-  }
-
-export function buildAccessStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    const step = buildAccountsStep(controller);
-    return {
-      ...step,
-      id: 'access',
-      title: 'Access and accounts',
-      shortLabel: 'Access',
-    };
-  }
+export function buildDelegationPolicyStep(): OnboardingWizardStepDefinition {
+  return {
+    id: 'agent-delegation',
+    title: 'Build delegation',
+    shortLabel: 'Delegate',
+    description: 'GoodVibes Agent is not the coding TUI. Explicit build, fix, review, or implementation work is delegated to GoodVibes TUI; ordinary assistant work stays serial in this conversation.',
+    summaryTitle: 'Delegation policy',
+    summaryLines: [
+      'Normal chat: main Agent conversation',
+      'Build/fix/review: explicit GoodVibes TUI delegation',
+      'WRFC: only when explicitly requested for build/fix/review',
+    ],
+    fields: [
+      {
+        kind: 'status',
+        id: 'agent-delegation.normal-chat',
+        label: 'Normal assistant work',
+        hint: 'Planning, research, summaries, local memory updates, and safe read-only checks stay in the main Agent conversation.',
+        defaultValue: 'Serial',
+      },
+      {
+        kind: 'status',
+        id: 'agent-delegation.build-work',
+        label: 'Build/fix/review work',
+        hint: 'Use /delegate with the full original task. GoodVibes TUI owns coding execution and WRFC chains.',
+        defaultValue: 'Explicit delegation',
+      },
+      {
+        kind: 'status',
+        id: 'agent-delegation.wrfc',
+        label: 'WRFC policy',
+        hint: 'Agent never uses WRFC by default; request it only for explicit build, fix, review, or implementation work.',
+        defaultValue: 'Explicit only',
+      },
+    ],
+  };
+}
 
 export function buildExperienceStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    return {
-      id: 'experience',
-      title: 'Shell experience',
-      shortLabel: 'Experience',
-      description: 'Tune review noise, guidance, and permission posture for day-to-day use.',
-      summaryTitle: 'Experience posture',
-      summaryLines: [
-        `Human-in-the-Loop (HITL): ${controller.getStringFieldValue('experience.hitl', controller.runtimeSnapshot?.runtimeDefaults.behavior.hitlMode ?? 'balanced')}`,
-        `Guidance: ${controller.getStringFieldValue('experience.guidance', controller.runtimeSnapshot?.runtimeDefaults.behavior.guidanceMode ?? 'minimal')}`,
-        `Permissions: ${controller.getStringFieldValue('experience.permissions', controller.runtimeSnapshot?.runtimeDefaults.permissionsMode ?? 'prompt')}`,
-      ],
-      fields: [
-        {
-          kind: 'radio',
-          id: 'experience.hitl',
-          label: 'Human-in-the-Loop (HITL) mode',
-          hint: 'Choose how much operational activity should be surfaced.',
-          options: HITL_MODE_OPTIONS,
-          defaultValue: controller.runtimeSnapshot?.runtimeDefaults.behavior.hitlMode ?? 'balanced',
-        },
-        {
-          kind: 'radio',
-          id: 'experience.guidance',
-          label: 'Guidance verbosity',
-          hint: 'Choose how much explanation the shell should provide.',
-          options: GUIDANCE_MODE_OPTIONS,
-          defaultValue: controller.runtimeSnapshot?.runtimeDefaults.behavior.guidanceMode ?? 'minimal',
-        },
-        {
-          kind: 'radio',
-          id: 'experience.permissions',
-          label: 'Permission posture',
-          hint: 'Choose how aggressively the shell should ask before powerful actions.',
-          options: PERMISSION_MODE_OPTIONS,
-          defaultValue: controller.runtimeSnapshot?.runtimeDefaults.permissionsMode ?? 'prompt',
-        },
-      ],
-    };
-  }
-
-export function buildNetworkStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    const bindSettings = controller.runtimeSnapshot?.bindSettings;
-    const browserEnabled = controller.shouldEnableBrowserSurface();
-    const listenerEnabled = controller.shouldExposeHttpListenerNetworkFields();
-    const listenerWillApply = controller.shouldEnableHttpListener();
-    const controlPlaneRemote = controller.shouldExposeControlPlaneNetwork();
-    const networkEnabled = {
-      controlPlane: controlPlaneRemote,
-      httpListener: listenerEnabled,
-      web: browserEnabled,
-    };
-    const mode = controller.getStringFieldValue('network.mode', controller.runtimeDerived.step1_5NetworkMode);
-    const custom = mode === 'custom';
-    const fields: OnboardingWizardFieldDefinition[] = [
+  return {
+    id: 'experience',
+    title: 'Assistant experience',
+    shortLabel: 'Behavior',
+    description: 'Tune the Agent conversation style and approval posture for day-to-day operator use.',
+    summaryTitle: 'Experience posture',
+    summaryLines: [
+      `Human-in-the-Loop (HITL): ${controller.getStringFieldValue('experience.hitl', controller.runtimeSnapshot?.runtimeDefaults.behavior.hitlMode ?? 'balanced')}`,
+      `Guidance: ${controller.getStringFieldValue('experience.guidance', controller.runtimeSnapshot?.runtimeDefaults.behavior.guidanceMode ?? 'minimal')}`,
+      `Permissions: ${controller.getStringFieldValue('experience.permissions', controller.runtimeSnapshot?.runtimeDefaults.permissionsMode ?? 'prompt')}`,
+    ],
+    fields: [
       {
         kind: 'radio',
-        id: 'network.mode',
-        label: 'Network mode',
-        hint: 'Choose Local Network for the default LAN setup, or Custom to set IP addresses and ports.',
-        options: NETWORK_MODE_OPTIONS,
-        defaultValue: controller.runtimeDerived.step1_5NetworkMode,
-      },
-    ];
-
-    if (custom) {
-      const sharedIpField: OnboardingWizardChecklistFieldDefinition = {
-        kind: 'checklist',
-        id: 'network.shared-ip',
-        label: 'Use the same IP address for all external daemon surfaces',
-        hint: 'When included, browser, external daemon control plane, and webhook listener network bindings share one IP address in the daemon host configuration.',
-        defaultValue: controller.getSharedIpDefault(networkEnabled),
-      };
-      const sharedIp = controller.getBooleanFieldValue(sharedIpField.id, sharedIpField.defaultValue);
-      fields.push(sharedIpField);
-      if (sharedIp) {
-        fields.push({
-          kind: 'text',
-          id: 'network.shared-ip-address',
-          label: 'Shared IP address',
-          hint: 'IP address used by each enabled service.',
-          placeholder: '0.0.0.0',
-          defaultValue: controller.getSharedIpHostDefault(networkEnabled),
-        });
-      }
-
-      if (controlPlaneRemote) {
-        fields.push({
-          kind: 'text',
-          id: 'network.service-port',
-          label: 'External daemon control-plane port',
-          hint: 'Port exposed by the external daemon control plane.',
-          placeholder: '3421',
-          defaultValue: String(bindSettings?.controlPlane.port ?? 3421),
-        });
-        if (!sharedIp) {
-          fields.push({
-            kind: 'text',
-            id: 'network.service-ip',
-            label: 'External daemon control-plane IP address',
-            hint: 'IP address exposed by the external daemon control plane.',
-            placeholder: '0.0.0.0',
-            defaultValue: normalizeText(bindSettings?.controlPlane.host) || '0.0.0.0',
-          });
-        }
-      }
-
-      if (browserEnabled) {
-        fields.push({
-          kind: 'text',
-          id: 'network.browser-port',
-          label: 'Browser surface port',
-          hint: 'Port for browser access to GoodVibes.',
-          placeholder: '3423',
-          defaultValue: String(bindSettings?.web.port ?? 3423),
-        });
-        if (!sharedIp) {
-          fields.push({
-            kind: 'text',
-            id: 'network.browser-ip',
-            label: 'Browser surface IP address',
-            hint: 'IP address for browser access.',
-            placeholder: '0.0.0.0',
-            defaultValue: normalizeText(bindSettings?.web.host) || '0.0.0.0',
-          });
-        }
-      }
-
-      if (listenerEnabled) {
-        fields.push({
-          kind: 'text',
-          id: 'network.webhook-port',
-          label: 'HTTP listener port',
-          hint: 'Port for incoming webhooks and events.',
-          placeholder: '3422',
-          defaultValue: String(bindSettings?.httpListener.port ?? 3422),
-        });
-        if (!sharedIp) {
-          fields.push({
-            kind: 'text',
-            id: 'network.webhook-ip',
-            label: 'HTTP listener IP address',
-            hint: 'IP address for incoming webhooks and events.',
-            placeholder: '0.0.0.0',
-            defaultValue: normalizeText(bindSettings?.httpListener.host) || '0.0.0.0',
-          });
-        }
-      }
-    }
-
-    return {
-      id: 'network',
-      title: 'Network setup',
-      shortLabel: 'Network',
-      description: 'Review LAN defaults or IP addresses and ports for the external daemon browser, control-plane, and listener surfaces. Agent does not apply daemon bind changes.',
-      summaryTitle: 'Bind posture',
-      summaryLines: [
-        `Mode: ${custom ? 'custom' : 'local network default'}`,
-        `Browser surface: ${browserEnabled ? 'enabled' : 'not selected'}`,
-        `HTTP listener: ${listenerWillApply ? 'enabled' : listenerEnabled ? 'available for selected external apps' : 'not selected'}`,
-      ],
-      fields,
-    };
-  }
-
-export function buildAccountsStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    const subscriptionsAck = controller.runtimeDerived.reopenEditAcknowledgements.subscriptions;
-    const authAck = controller.runtimeDerived.reopenEditAcknowledgements.auth;
-    const auth = controller.runtimeSnapshot?.auth.snapshot;
-    const needsAuthBootstrap = controller.requiresAuthBootstrap();
-    const needsExistingAuthAcknowledgement = controller.hasServerCapabilitiesSelected()
-      && !needsAuthBootstrap
-      && controller.hasLocalAuthUser();
-    const fields: OnboardingWizardFieldDefinition[] = [];
-    const defaultAdminUsername = controller.getDefaultAdminUsername();
-
-    fields.push(
-      {
-        kind: 'text',
-        id: 'accounts.admin-username',
-        label: 'Local auth admin username',
-        hint: needsAuthBootstrap
-          ? 'Required before the external daemon exposes browser, control-plane, or listener surfaces.'
-          : 'Optional. Enter an existing admin username to rotate its password, or a new username to create another admin.',
-        placeholder: defaultAdminUsername,
-        defaultValue: defaultAdminUsername,
-        required: needsAuthBootstrap,
+        id: 'experience.hitl',
+        label: 'Human-in-the-Loop (HITL) mode',
+        hint: 'Choose how much operational activity should be shown.',
+        options: HITL_MODE_OPTIONS,
+        defaultValue: controller.runtimeSnapshot?.runtimeDefaults.behavior.hitlMode ?? 'balanced',
       },
       {
-        kind: 'masked',
-        id: 'accounts.admin-password',
-        label: 'Local auth admin password',
-        hint: needsAuthBootstrap
-          ? controller.hasBootstrapCredentialPresent()
-            ? 'Creates or updates the named local admin, removes the bootstrap credential file, and retires the bootstrap admin when it is a different user.'
-            : 'Creates the first local admin user and an initial session before external daemon network settings are used by the daemon owner.'
-          : 'Optional. Leave blank to keep existing local auth unchanged; enter a password to create or rotate the named admin user.',
-        placeholder: needsAuthBootstrap ? 'password required' : 'leave blank to keep unchanged',
-        defaultValue: '',
-        required: needsAuthBootstrap,
-      },
-    );
-
-    fields.push(
-      {
-        kind: 'acknowledgement',
-        id: 'accounts.subscriptions',
-        label: 'Confirm stored subscription state',
-        hint: subscriptionsAck.detail,
-        defaultValue: subscriptionsAck.accepted,
-        required: controller.mode !== 'new' && subscriptionsAck.required,
-        reason: subscriptionsAck.reason,
-        target: 'subscriptions',
+        kind: 'radio',
+        id: 'experience.guidance',
+        label: 'Guidance verbosity',
+        hint: 'Choose how much explanation the Agent should provide while working.',
+        options: GUIDANCE_MODE_OPTIONS,
+        defaultValue: controller.runtimeSnapshot?.runtimeDefaults.behavior.guidanceMode ?? 'minimal',
       },
       {
-        kind: 'acknowledgement',
-        id: 'accounts.auth',
-        label: 'Confirm local auth posture',
-        hint: authAck.detail,
-        defaultValue: authAck.accepted,
-        required: needsExistingAuthAcknowledgement || (controller.mode !== 'new' && authAck.required),
-        reason: authAck.reason,
-        target: 'auth',
+        kind: 'radio',
+        id: 'experience.permissions',
+        label: 'Permission posture',
+        hint: 'Choose how aggressively the Agent should ask before powerful actions.',
+        options: PERMISSION_MODE_OPTIONS,
+        defaultValue: controller.runtimeSnapshot?.runtimeDefaults.permissionsMode ?? 'prompt',
       },
-      {
-        kind: 'status',
-        id: 'accounts.bootstrap',
-        label: 'Local auth readiness',
-        hint: needsAuthBootstrap
-          ? 'The wizard will create local auth before applying network-accessible settings.'
-          : controller.hasAdminAuthUser()
-            ? 'An existing local auth admin user was detected and will be kept.'
-            : controller.hasLocalAuthUser()
-              ? 'Existing local auth users were detected and will be kept.'
-              : 'No server-backed surface is selected, so local auth is not required.',
-        defaultValue: needsAuthBootstrap
-          ? controller.hasBootstrapCredentialPresent() ? 'Bootstrap replacement required' : 'Local admin required'
-          : controller.hasAdminAuthUser() ? 'Admin detected' : controller.hasLocalAuthUser() ? 'Local auth detected' : 'Not required',
-      },
-      {
-        kind: 'status',
-        id: 'accounts.user-store',
-        label: 'Local auth store path',
-        hint: 'Carry the current auth store location into edit/review mode.',
-        defaultValue: normalizeText(auth?.userStorePath) || 'No local auth store path',
-      },
-    );
-
-    return {
-      id: 'access',
-      title: 'Subscriptions and auth review',
-      shortLabel: 'Accounts',
-      description: needsAuthBootstrap
-        ? 'Create local auth state before external daemon LAN, browser, service, or listener settings are applied by the daemon owner.'
-        : 'Review existing subscription and local auth state. Existing local auth is kept unless you change it elsewhere.',
-      summaryTitle: 'Stored account state',
-      summaryLines: [
-        `Subscriptions: ${controller.runtimeSnapshot?.subscriptions.active.length ?? 0} active / ${controller.runtimeSnapshot?.subscriptions.pending.length ?? 0} pending`,
-        `Auth: ${auth?.userCount ?? 0} users / ${auth?.sessionCount ?? 0} sessions`,
-        needsAuthBootstrap
-          ? controller.hasBootstrapCredentialPresent()
-            ? 'Bootstrap credentials will be replaced before external network settings are used'
-            : 'Local admin will be created before external network settings are used'
-          : controller.hasLocalAuthUser() ? 'Existing local auth will be kept' : 'Local auth is not required for this setup',
-      ],
-      fields,
-    };
-  }
+    ],
+  };
+}
 
 export function buildReviewStep(controller: OnboardingWizardController): OnboardingWizardStepDefinition {
-    const feedback = controller.applyFeedback;
-    const feedbackFields: OnboardingWizardFieldDefinition[] = feedback
-      ? [
-          {
-            kind: 'status',
-            id: 'review.feedback',
-            label: feedback.title,
-            hint: feedback.summary,
-            defaultValue: feedback.severity === 'error' ? 'Needs attention' : feedback.severity === 'warning' ? 'Warning' : 'Info',
-          },
-          ...feedback.messages.slice(0, 8).map((message, index): OnboardingWizardFieldDefinition => ({
-            kind: 'status',
-            id: `review.feedback.${index}`,
-            label: message,
-            hint: message,
-            defaultValue: feedback.severity === 'error' ? 'Error' : feedback.severity === 'warning' ? 'Warning' : 'Info',
-          })),
-        ]
-      : [];
-    const unsavedLabel = controller.dirtyStepCount === 1
-      ? '1 screen has unapplied changes'
-      : `${controller.dirtyStepCount} screens have unapplied changes`;
-
-    return {
-      id: 'review',
-      title: 'Review and apply',
-      shortLabel: 'Review',
-      description: 'Review the selected settings and apply them directly from the wizard.',
-      summaryTitle: 'Review posture',
-      summaryLines: [
-        unsavedLabel,
-        `${controller.buildApplyRequest().operations.length} settings change(s) ready to apply`,
-        feedback ? `Last apply: ${feedback.title}` : 'No apply errors reported',
-        controller.isEditingTextField() ? `Editing: ${controller.editingFieldId}` : 'Ready to apply',
-      ],
-      fields: [
-        ...feedbackFields,
+  const feedback = controller.applyFeedback;
+  const feedbackFields: OnboardingWizardFieldDefinition[] = feedback
+    ? [
         {
           kind: 'status',
-          id: 'review.global-marker',
-          label: 'Global onboarding check',
-          hint: 'Opening this wizard marks onboarding as shown for this user account, so new projects do not reopen it automatically.',
-          defaultValue: 'Already marked as shown',
+          id: 'review.feedback',
+          label: feedback.title,
+          hint: feedback.summary,
+          defaultValue: feedback.severity === 'error' ? 'Needs attention' : feedback.severity === 'warning' ? 'Warning' : 'Info',
         },
-        {
-          kind: 'action',
-          id: 'review.apply',
-          action: 'apply',
-          label: 'Apply settings and verify',
-          hint: 'Persist the wizard settings and verify the resulting runtime state. The global onboarding check was already recorded when the wizard opened.',
-          defaultValue: 'Ready',
-        },
-      ],
-    };
-  }
+        ...feedback.messages.slice(0, 8).map((message, index): OnboardingWizardFieldDefinition => ({
+          kind: 'status',
+          id: `review.feedback.${index}`,
+          label: message,
+          hint: message,
+          defaultValue: feedback.severity === 'error' ? 'Error' : feedback.severity === 'warning' ? 'Warning' : 'Info',
+        })),
+      ]
+    : [];
+  const unsavedLabel = controller.dirtyStepCount === 1
+    ? '1 screen has unapplied changes'
+    : `${controller.dirtyStepCount} screens have unapplied changes`;
+
+  return {
+    id: 'review',
+    title: 'Review and apply',
+    shortLabel: 'Review',
+    description: 'Review Agent-owned settings and apply them directly from the wizard.',
+    summaryTitle: 'Review posture',
+    summaryLines: [
+      unsavedLabel,
+      `${controller.buildApplyRequest().operations.length} Agent setting change(s) ready to apply`,
+      feedback ? `Last apply: ${feedback.title}` : 'No apply errors reported',
+      controller.isEditingTextField() ? `Editing: ${controller.editingFieldId}` : 'Ready to apply',
+    ],
+    fields: [
+      ...feedbackFields,
+      {
+        kind: 'status',
+        id: 'review.global-marker',
+        label: 'Agent setup check',
+        hint: 'Opening this wizard marks Agent setup as shown for this user account, so it does not reopen automatically.',
+        defaultValue: 'Already marked as shown',
+      },
+      {
+        kind: 'action',
+        id: 'review.apply',
+        action: 'apply',
+        label: 'Apply Agent settings and verify',
+        hint: 'Persist the Agent-owned settings and verify that no service lifecycle, non-Agent entrypoint, default wiki, or non-Agent knowledge setup was requested.',
+        defaultValue: 'Ready',
+      },
+    ],
+  };
+}
