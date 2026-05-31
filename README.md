@@ -35,7 +35,7 @@ bun run dev
 Useful checks:
 
 ```sh
-bunx tsc --noEmit
+bun run typecheck
 bun run build
 bun run package:install-check
 bun run publish:check

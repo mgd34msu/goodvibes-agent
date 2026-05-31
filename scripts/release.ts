@@ -109,7 +109,7 @@ if (DRY_RUN) console.log('(dry-run mode — no files will be written)\n');
 
 if (!SKIP_VALIDATION) {
   console.log('\n[1/6] Running typecheck...');
-  run('bunx tsc --noEmit');
+  run('bun run typecheck');
 
   console.log('\n[2/6] Running build...');
   run('bun run build');

@@ -17,7 +17,7 @@ Before any release candidate:
 
 ```sh
 bun install
-bunx tsc --noEmit
+bun run typecheck
 bun run build
 bun run package:install-check
 bun run publish:check

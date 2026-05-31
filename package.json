@@ -40,6 +40,8 @@
     "dev": "bun run src/main.ts",
     "tui": "bun run src/main.ts",
     "dev:watch": "bun --watch src/main.ts",
+    "typecheck": "bunx tsc --noEmit",
+    "check:types": "bun run typecheck",
     "prebuild": "bun run scripts/prebuild.ts",
     "build": "bun build src/main.ts --compile --outfile dist/goodvibes-agent",
     "build:linux-x64": "bun build src/main.ts --compile --target=bun-linux-x64 --outfile dist/goodvibes-agent-linux-x64",

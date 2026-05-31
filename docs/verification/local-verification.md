@@ -76,7 +76,7 @@ For a practical local gate before a release or large config migration:
 ```bash
 bun test src/test/config/goodvibes-home-audit.test.ts src/test/verification/verification-ledger.test.ts
 bun test src/test/input src/test/panels
-bun run tsc --noEmit --pretty false
+bun run typecheck
 bun run build
 bun run smoke:daemon
 bun run verification:live -- --home ~/.goodvibes --out /tmp/goodvibes-live-verification
