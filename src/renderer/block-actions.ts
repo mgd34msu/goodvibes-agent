@@ -12,7 +12,7 @@ const ALL_ACTIONS: BlockAction[] = [
   { id: 'copy',     label: 'Copy',           key: 'c' },
   { id: 'bookmark', label: 'Bookmark',       key: 'b' },
   { id: 'toggle',   label: 'Collapse/Expand',key: 'Tab' },
-  { id: 'apply',    label: 'Apply diff',     key: 'a' },
+  { id: 'apply',    label: 'Diff apply blocked', key: 'a' },
   { id: 'rerun',    label: 'Re-run tool',    key: 'r' },
 ];
 

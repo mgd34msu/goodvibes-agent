@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { copyToClipboard, pasteFromClipboard, pasteImageFromClipboard } from '../utils/clipboard.ts';
 import type { InfiniteBuffer } from '../core/history.ts';
 import type { ConversationManager } from '../core/conversation';
@@ -7,7 +7,6 @@ import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
 import type { CommandContext } from './command-registry.ts';
 import type { BookmarkManager } from '@pellux/goodvibes-sdk/platform/bookmarks';
 import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
-import { analyzePermissionRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { SelectionManager } from './selection.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
@@ -355,59 +354,18 @@ export function handleDiffApply(
   getCallId: () => string,
   category: PermissionCategory,
 ): boolean {
+  void commandContext;
+  void getCallId;
+  void category;
   if (!conversationManager) return false;
   const lineIndex = getScrollTop();
   const diff = conversationManager.getDiffAtLine(lineIndex);
   if (!diff || !diff.filePath) return false;
-  const projectRoot = commandContext?.workspace.shellPaths?.workingDirectory
-    ?? commandContext?.platform.configManager.getWorkingDirectory();
-
-  commandContext?.requestPermission?.({
-    callId: getCallId(),
-    tool: 'edit',
-    args: { path: diff.filePath, original: diff.original, updated: diff.updated },
-    category,
-    analysis: analyzePermissionRequest(
-      'edit',
-      { path: diff.filePath, original: diff.original, updated: diff.updated },
-      category,
-    ),
-  }).then(({ approved }) => {
-    if (!approved) return;
-    if (!projectRoot) {
-      conversationManager.log('[Diff apply failed: missing working directory]', { fg: '#ef4444' });
-      return;
-    }
-    let resolvedPath: string;
-    try {
-      resolvedPath = resolveAndValidatePath(diff.filePath!, projectRoot);
-    } catch (err) {
-      conversationManager.log(`[Diff apply failed: ${err instanceof Error ? err.message : err}]`, { fg: '#ef4444' });
-      return;
-    }
-    try {
-      const content = readFileSync(resolvedPath, 'utf-8');
-      if (diff.original && content.includes(diff.original)) {
-        const occurrenceCount = content.split(diff.original).length - 1;
-        if (occurrenceCount > 1) {
-          conversationManager.log(`[Diff apply failed: pattern found ${occurrenceCount} times in ${diff.filePath} - ambiguous]`, { fg: '#ef4444' });
-        } else {
-          const newContent = content.replace(diff.original, diff.updated);
-          writeFileSync(resolvedPath, newContent, 'utf-8');
-          conversationManager.log(`[Applied diff to ${diff.filePath}]`, { fg: '#22c55e' });
-        }
-      } else {
-        conversationManager.log(`[Diff apply failed: original text not found in ${diff.filePath}]`, { fg: '#ef4444' });
-      }
-    } catch (err) {
-      const msg = summarizeError(err);
-      conversationManager.log(`[Diff apply error: ${msg}]`, { fg: '#ef4444' });
-    }
-    requestRender();
-  }).catch((err) => {
-    conversationManager.log(`[Diff apply error: ${summarizeError(err)}]`, { fg: '#ef4444' });
-    requestRender();
-  });
+  conversationManager.log(
+    `[Diff apply blocked in GoodVibes Agent: ${diff.filePath}. Delegate build/fix work to GoodVibes TUI with /delegate <task>.]`,
+    { fg: '#f59e0b' },
+  );
+  requestRender();
   return true;
 }
 
