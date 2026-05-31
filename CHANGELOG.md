@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.59 - 2026-05-31
+
+- f03ee5f Remove unused coding panel sources
+- 5950687 Remove blocked teamwork command surface
+- e60bf10 Remove noisy Bun preinstall lifecycle
+
 ## 0.1.58 - 2026-05-31
 
 - e137f90 Fail cleanly for non-TTY TUI launch
