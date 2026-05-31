@@ -303,6 +303,76 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
+  test('operates on selected local library records without dispatching commands', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-selected-library-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const personaRegistry = AgentPersonaRegistry.fromShellPaths(shellPaths);
+    personaRegistry.create({
+      name: 'Home Operator',
+      description: 'Home posture.',
+      body: 'Coordinate home tasks.',
+    });
+    personaRegistry.create({
+      name: 'Research Analyst',
+      description: 'Research posture.',
+      body: 'Check sources.',
+    });
+    const skillRegistry = AgentSkillRegistry.fromShellPaths(shellPaths);
+    skillRegistry.create({
+      name: 'Briefing',
+      description: 'Summarize before action.',
+      procedure: 'Inspect state first.',
+    });
+    skillRegistry.create({
+      name: 'Travel Prep',
+      description: 'Prepare travel workflow.',
+      procedure: 'Check itinerary and packing.',
+    });
+    const routineRegistry = AgentRoutineRegistry.fromShellPaths(shellPaths);
+    routineRegistry.create({
+      name: 'Daily Brief',
+      description: 'Daily operator summary.',
+      steps: 'Review current state.',
+    });
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, (command) => dispatched.push(command));
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-next');
+    workspace.activateSelected();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-use');
+    workspace.activateSelected();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-review');
+    workspace.activateSelected();
+
+    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot().activePersona?.name).toBe('Research Analyst');
+    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).get('research-analyst')?.reviewState).toBe('reviewed');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-next');
+    workspace.activateSelected();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-enable');
+    workspace.activateSelected();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-review');
+    workspace.activateSelected();
+
+    expect(AgentSkillRegistry.fromShellPaths(shellPaths).get('travel-prep')?.enabled).toBe(true);
+    expect(AgentSkillRegistry.fromShellPaths(shellPaths).get('travel-prep')?.reviewState).toBe('reviewed');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-start');
+    workspace.activateSelected();
+
+    const routine = AgentRoutineRegistry.fromShellPaths(shellPaths).get('daily-brief');
+    expect(routine?.startCount).toBe(1);
+    expect(dispatched).toEqual([]);
+  });
+
   test('keeps channel delivery safety guidance local', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

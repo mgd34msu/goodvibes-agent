@@ -20,9 +20,21 @@ export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
 export type AgentWorkspaceFocusPane = 'categories' | 'actions';
 
-export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor';
+export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'local-selection' | 'local-operation';
 
 export type AgentWorkspaceLocalEditorKind = 'persona' | 'skill' | 'routine';
+
+export type AgentWorkspaceLocalOperation =
+  | 'persona-use'
+  | 'persona-review'
+  | 'persona-clear'
+  | 'skill-enable'
+  | 'skill-disable'
+  | 'skill-review'
+  | 'routine-start'
+  | 'routine-enable'
+  | 'routine-disable'
+  | 'routine-review';
 
 export interface AgentWorkspaceEditorField {
   readonly id: string;
@@ -48,6 +60,9 @@ export interface AgentWorkspaceAction {
   readonly command?: string;
   readonly targetCategoryId?: string;
   readonly editorKind?: AgentWorkspaceLocalEditorKind;
+  readonly localKind?: AgentWorkspaceLocalEditorKind;
+  readonly selectionDelta?: number;
+  readonly localOperation?: AgentWorkspaceLocalOperation;
   readonly kind: AgentWorkspaceActionKind;
   readonly safety: 'safe' | 'read-only' | 'delegates' | 'blocked';
 }
@@ -515,10 +530,12 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'personas-list', label: 'List personas', detail: 'Print the full local persona library.', command: '/personas list', kind: 'command', safety: 'read-only' },
       { id: 'personas-active', label: 'Show active persona', detail: 'Inspect the active local persona applied to new turns.', command: '/personas active', kind: 'command', safety: 'read-only' },
+      { id: 'personas-prev', label: 'Previous persona', detail: 'Move the local persona selection up without changing active state.', localKind: 'persona', selectionDelta: -1, kind: 'local-selection', safety: 'safe' },
+      { id: 'personas-next', label: 'Next persona', detail: 'Move the local persona selection down without changing active state.', localKind: 'persona', selectionDelta: 1, kind: 'local-selection', safety: 'safe' },
       { id: 'personas-create', label: 'Create persona', detail: 'Open an in-workspace form for a local persona. No placeholder command is dispatched.', editorKind: 'persona', kind: 'editor', safety: 'safe' },
-      { id: 'personas-use', label: 'Use persona', detail: 'Activate a local persona by id or name.', command: '/personas use <id>', kind: 'command', safety: 'safe' },
-      { id: 'personas-review', label: 'Review persona', detail: 'Mark a local persona reviewed after inspecting it.', command: '/personas review <id>', kind: 'command', safety: 'safe' },
-      { id: 'personas-clear', label: 'Clear active persona', detail: 'Return to the default Agent policy without deleting any persona.', command: '/personas clear', kind: 'command', safety: 'safe' },
+      { id: 'personas-use', label: 'Use selected', detail: 'Activate the selected local persona for future main-conversation turns.', localKind: 'persona', localOperation: 'persona-use', kind: 'local-operation', safety: 'safe' },
+      { id: 'personas-review', label: 'Review selected', detail: 'Mark the selected local persona reviewed after inspecting it.', localKind: 'persona', localOperation: 'persona-review', kind: 'local-operation', safety: 'safe' },
+      { id: 'personas-clear', label: 'Clear active persona', detail: 'Return to the default Agent policy without deleting any persona.', localKind: 'persona', localOperation: 'persona-clear', kind: 'local-operation', safety: 'safe' },
     ],
   },
   {
@@ -530,9 +547,12 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'skills-list', label: 'List skills', detail: 'Print the full local Agent skill library.', command: '/agent-skills list', kind: 'command', safety: 'read-only' },
       { id: 'skills-enabled', label: 'Enabled skills', detail: 'Show only skills currently injected into Agent guidance.', command: '/agent-skills enabled', kind: 'command', safety: 'read-only' },
+      { id: 'skills-prev', label: 'Previous skill', detail: 'Move the local skill selection up without changing enabled state.', localKind: 'skill', selectionDelta: -1, kind: 'local-selection', safety: 'safe' },
+      { id: 'skills-next', label: 'Next skill', detail: 'Move the local skill selection down without changing enabled state.', localKind: 'skill', selectionDelta: 1, kind: 'local-selection', safety: 'safe' },
       { id: 'skills-create', label: 'Create skill', detail: 'Open an in-workspace form for a reusable local procedure. No placeholder command is dispatched.', editorKind: 'skill', kind: 'editor', safety: 'safe' },
-      { id: 'skills-enable', label: 'Enable skill', detail: 'Enable a local Agent skill by id or name.', command: '/agent-skills enable <id>', kind: 'command', safety: 'safe' },
-      { id: 'skills-review', label: 'Review skill', detail: 'Mark a local skill reviewed after inspecting it.', command: '/agent-skills review <id>', kind: 'command', safety: 'safe' },
+      { id: 'skills-enable', label: 'Enable selected', detail: 'Enable the selected local Agent skill for future main-conversation guidance.', localKind: 'skill', localOperation: 'skill-enable', kind: 'local-operation', safety: 'safe' },
+      { id: 'skills-disable', label: 'Disable selected', detail: 'Disable the selected local Agent skill without deleting it.', localKind: 'skill', localOperation: 'skill-disable', kind: 'local-operation', safety: 'safe' },
+      { id: 'skills-review', label: 'Review selected', detail: 'Mark the selected local skill reviewed after inspecting it.', localKind: 'skill', localOperation: 'skill-review', kind: 'local-operation', safety: 'safe' },
     ],
   },
   {
@@ -544,8 +564,13 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'routines-list', label: 'List routines', detail: 'Print the full local Agent routine library.', command: '/routines list', kind: 'command', safety: 'read-only' },
       { id: 'routines-enabled', label: 'Enabled routines', detail: 'Show routines available for direct use.', command: '/routines enabled', kind: 'command', safety: 'read-only' },
+      { id: 'routines-prev', label: 'Previous routine', detail: 'Move the local routine selection up without changing enabled state.', localKind: 'routine', selectionDelta: -1, kind: 'local-selection', safety: 'safe' },
+      { id: 'routines-next', label: 'Next routine', detail: 'Move the local routine selection down without changing enabled state.', localKind: 'routine', selectionDelta: 1, kind: 'local-selection', safety: 'safe' },
       { id: 'routines-create', label: 'Create routine', detail: 'Open an in-workspace form for a repeatable local workflow. No placeholder command is dispatched.', editorKind: 'routine', kind: 'editor', safety: 'safe' },
-      { id: 'routines-start', label: 'Start routine', detail: 'Start a local routine in the main conversation without creating a hidden job.', command: '/routines start <id>', kind: 'command', safety: 'safe' },
+      { id: 'routines-start', label: 'Start selected', detail: 'Mark the selected routine started and show it as a main-conversation workflow. This creates no hidden job.', localKind: 'routine', localOperation: 'routine-start', kind: 'local-operation', safety: 'safe' },
+      { id: 'routines-enable', label: 'Enable selected', detail: 'Enable the selected routine for future main-conversation guidance.', localKind: 'routine', localOperation: 'routine-enable', kind: 'local-operation', safety: 'safe' },
+      { id: 'routines-disable', label: 'Disable selected', detail: 'Disable the selected routine without deleting it.', localKind: 'routine', localOperation: 'routine-disable', kind: 'local-operation', safety: 'safe' },
+      { id: 'routines-review', label: 'Review selected', detail: 'Mark the selected local routine reviewed after inspecting it.', localKind: 'routine', localOperation: 'routine-review', kind: 'local-operation', safety: 'safe' },
       { id: 'routines-promote', label: 'Promote to schedule', detail: 'Create an external daemon schedule from a reviewed routine only with real timing and --yes.', command: '/routines promote <id> --cron <expr> --yes', kind: 'command', safety: 'safe' },
       { id: 'routines-receipts', label: 'Promotion receipts', detail: 'Inspect local redacted routine schedule promotion receipts.', command: '/routines receipts', kind: 'command', safety: 'read-only' },
     ],
@@ -671,6 +696,11 @@ export class AgentWorkspace {
   public runtimeSnapshot: AgentWorkspaceRuntimeSnapshot | null = null;
   public lastActionResult: AgentWorkspaceActionResult | null = null;
   public localEditor: AgentWorkspaceLocalEditor | null = null;
+  private readonly selectedLibraryItemIndexes: Record<AgentWorkspaceLocalEditorKind, number> = {
+    persona: 0,
+    skill: 0,
+    routine: 0,
+  };
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
 
@@ -710,6 +740,13 @@ export class AgentWorkspace {
 
   get selectedAction(): AgentWorkspaceAction | null {
     return this.actions[this.selectedActionIndex] ?? null;
+  }
+
+  selectedLocalLibraryItem(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null {
+    const items = this.localLibraryItems(kind);
+    if (items.length === 0) return null;
+    const index = Math.max(0, Math.min(this.selectedLibraryItemIndexes[kind], items.length - 1));
+    return items[index] ?? null;
   }
 
   focusCategories(): void {
@@ -855,6 +892,14 @@ export class AgentWorkspace {
       };
       return;
     }
+    if (action.kind === 'local-selection' && action.localKind) {
+      this.moveLocalLibraryItemSelection(action.localKind, action.selectionDelta ?? 0);
+      return;
+    }
+    if (action.kind === 'local-operation' && action.localOperation) {
+      this.applyLocalLibraryOperation(action.localOperation);
+      return;
+    }
     if (action.kind === 'guidance' || !action.command) {
       if (action.kind === 'workspace' && action.targetCategoryId) {
         const targetIndex = this.categories.findIndex((category) => category.id === action.targetCategoryId);
@@ -948,6 +993,130 @@ export class AgentWorkspace {
   private clampSelection(): void {
     this.selectedCategoryIndex = Math.max(0, Math.min(this.selectedCategoryIndex, this.categories.length - 1));
     this.selectedActionIndex = Math.max(0, Math.min(this.selectedActionIndex, this.actions.length - 1));
+    this.clampLocalLibrarySelection('persona');
+    this.clampLocalLibrarySelection('skill');
+    this.clampLocalLibrarySelection('routine');
+  }
+
+  private localLibraryItems(kind: AgentWorkspaceLocalEditorKind): readonly AgentWorkspaceLocalLibraryItem[] {
+    if (kind === 'persona') return this.runtimeSnapshot?.localPersonas ?? [];
+    if (kind === 'skill') return this.runtimeSnapshot?.localSkills ?? [];
+    return this.runtimeSnapshot?.localRoutines ?? [];
+  }
+
+  private clampLocalLibrarySelection(kind: AgentWorkspaceLocalEditorKind): void {
+    const length = this.localLibraryItems(kind).length;
+    this.selectedLibraryItemIndexes[kind] = length === 0
+      ? 0
+      : Math.max(0, Math.min(this.selectedLibraryItemIndexes[kind], length - 1));
+  }
+
+  private moveLocalLibraryItemSelection(kind: AgentWorkspaceLocalEditorKind, delta: number): void {
+    const items = this.localLibraryItems(kind);
+    if (items.length === 0) {
+      this.status = `No local ${kind} records to select.`;
+      this.lastActionResult = {
+        kind: 'guidance',
+        title: `No ${kind} records`,
+        detail: `Create a local ${kind} before using selection actions.`,
+        safety: 'safe',
+      };
+      return;
+    }
+    this.selectedLibraryItemIndexes[kind] = Math.max(0, Math.min(items.length - 1, this.selectedLibraryItemIndexes[kind] + delta));
+    const selected = this.selectedLocalLibraryItem(kind);
+    this.status = selected ? `Selected ${kind}: ${selected.name}.` : `Selected ${kind} updated.`;
+    this.lastActionResult = {
+      kind: 'guidance',
+      title: selected ? `Selected ${selected.name}` : `Selected ${kind}`,
+      detail: selected ? `${selected.name} (${selected.id}) is now the selected local ${kind}.` : `Selection changed for ${kind}.`,
+      safety: 'safe',
+    };
+  }
+
+  private applyLocalLibraryOperation(operation: AgentWorkspaceLocalOperation): void {
+    const shellPaths = this.context?.workspace?.shellPaths;
+    if (!shellPaths) {
+      this.status = 'Local Agent registry files are unavailable.';
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Local registry unavailable',
+        detail: 'The Agent workspace cannot locate the Agent-local registry files for this runtime.',
+      };
+      return;
+    }
+    try {
+      if (operation === 'persona-clear') {
+        AgentPersonaRegistry.fromShellPaths(shellPaths).clearActive();
+        this.finishLocalOperation('persona', 'Cleared active persona', 'The default Agent policy will apply to future turns.');
+        return;
+      }
+      const selected = this.selectedItemForOperation(operation);
+      if (!selected) {
+        this.status = 'No selected local registry item.';
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: 'Nothing selected',
+          detail: 'Create or select a local library item before running this action.',
+          safety: 'safe',
+        };
+        return;
+      }
+      if (operation === 'persona-use') {
+        AgentPersonaRegistry.fromShellPaths(shellPaths).setActive(selected.id);
+        this.finishLocalOperation('persona', `Using persona ${selected.name}`, `${selected.name} will shape future main-conversation turns.`);
+      } else if (operation === 'persona-review') {
+        AgentPersonaRegistry.fromShellPaths(shellPaths).markReviewed(selected.id);
+        this.finishLocalOperation('persona', `Reviewed persona ${selected.name}`, `${selected.name} is marked reviewed.`);
+      } else if (operation === 'skill-enable') {
+        AgentSkillRegistry.fromShellPaths(shellPaths).setEnabled(selected.id, true);
+        this.finishLocalOperation('skill', `Enabled skill ${selected.name}`, `${selected.name} can now inform main-conversation turns.`);
+      } else if (operation === 'skill-disable') {
+        AgentSkillRegistry.fromShellPaths(shellPaths).setEnabled(selected.id, false);
+        this.finishLocalOperation('skill', `Disabled skill ${selected.name}`, `${selected.name} remains saved but is no longer injected into guidance.`);
+      } else if (operation === 'skill-review') {
+        AgentSkillRegistry.fromShellPaths(shellPaths).markReviewed(selected.id);
+        this.finishLocalOperation('skill', `Reviewed skill ${selected.name}`, `${selected.name} is marked reviewed.`);
+      } else if (operation === 'routine-start') {
+        AgentRoutineRegistry.fromShellPaths(shellPaths).markStarted(selected.id);
+        this.finishLocalOperation('routine', `Started routine ${selected.name}`, `${selected.name} was marked started for this main-conversation workflow. No hidden job was created.`);
+      } else if (operation === 'routine-enable') {
+        AgentRoutineRegistry.fromShellPaths(shellPaths).setEnabled(selected.id, true);
+        this.finishLocalOperation('routine', `Enabled routine ${selected.name}`, `${selected.name} can now inform main-conversation turns.`);
+      } else if (operation === 'routine-disable') {
+        AgentRoutineRegistry.fromShellPaths(shellPaths).setEnabled(selected.id, false);
+        this.finishLocalOperation('routine', `Disabled routine ${selected.name}`, `${selected.name} remains saved but is no longer injected into guidance.`);
+      } else {
+        AgentRoutineRegistry.fromShellPaths(shellPaths).markReviewed(selected.id);
+        this.finishLocalOperation('routine', `Reviewed routine ${selected.name}`, `${selected.name} is marked reviewed.`);
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.status = detail;
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Local registry action failed',
+        detail,
+      };
+    }
+  }
+
+  private selectedItemForOperation(operation: AgentWorkspaceLocalOperation): AgentWorkspaceLocalLibraryItem | null {
+    if (operation.startsWith('persona-')) return this.selectedLocalLibraryItem('persona');
+    if (operation.startsWith('skill-')) return this.selectedLocalLibraryItem('skill');
+    return this.selectedLocalLibraryItem('routine');
+  }
+
+  private finishLocalOperation(kind: AgentWorkspaceLocalEditorKind, title: string, detail: string): void {
+    this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
+    this.clampLocalLibrarySelection(kind);
+    this.status = title;
+    this.lastActionResult = {
+      kind: 'refreshed',
+      title,
+      detail,
+      safety: 'safe',
+    };
   }
 
   private replaceEditorField(index: number, value: string, message: string): void {

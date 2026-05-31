@@ -70,6 +70,8 @@ function buildLeftRows(workspace: AgentWorkspace, height: number): WorkspaceRow[
 function actionCommand(action: AgentWorkspaceAction): string {
   if (action.kind === 'workspace') return action.targetCategoryId ? `open ${action.targetCategoryId}` : '(workspace)';
   if (action.kind === 'editor') return action.editorKind ? `edit ${action.editorKind}` : '(editor)';
+  if (action.kind === 'local-selection') return action.selectionDelta && action.selectionDelta < 0 ? 'select previous' : 'select next';
+  if (action.kind === 'local-operation') return action.localOperation ?? '(local action)';
   return action.command ?? '(guidance)';
 }
 
@@ -106,6 +108,7 @@ function localLibraryLines(
   title: string,
   items: readonly AgentWorkspaceRuntimeSnapshot['localPersonas'][number][],
   emptyText: string,
+  selectedId: string | null,
 ): ContextLine[] {
   const lines: ContextLine[] = [
     { text: title, fg: PALETTE.title, bold: true },
@@ -115,7 +118,9 @@ function localLibraryLines(
     return lines;
   }
   for (const item of items.slice(0, 8)) {
+    const selected = item.id === selectedId;
     const status = [
+      selected ? 'selected' : '',
       item.active ? 'active' : '',
       item.enabled === true ? 'enabled' : item.enabled === false ? 'disabled' : '',
       item.reviewState,
@@ -123,10 +128,11 @@ function localLibraryLines(
     ].filter(Boolean).join(' / ');
     const tags = item.tags.length > 0 ? ` tags=${item.tags.join(',')}` : '';
     const triggers = item.triggers.length > 0 ? ` triggers=${item.triggers.join(',')}` : '';
+    const marker = selected ? `${GLYPHS.navigation.selected} ` : '';
     lines.push({
-      text: `${item.id}: ${item.name} (${status})`,
+      text: `${marker}${item.id}: ${item.name} (${status})`,
       fg: item.reviewState === 'stale' ? PALETTE.warn : PALETTE.info,
-      bold: item.active === true,
+      bold: selected || item.active === true,
     });
     lines.push({ text: `  ${item.description}${tags}${triggers}`, fg: PALETTE.muted });
   }
@@ -136,7 +142,7 @@ function localLibraryLines(
   return lines;
 }
 
-function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
+function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   if (!snapshot) return [{ text: 'Runtime context is not loaded yet.', fg: PALETTE.warn }];
   const base: ContextLine[] = [{ text: 'Live Agent Context', fg: PALETTE.title, bold: true }];
   if (category.id === 'home') {
@@ -220,7 +226,7 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: 'Personas are local behavior profiles for the serial main-conversation assistant, not spawned agents.', fg: PALETTE.good },
       { text: 'Use them for tone, role, domain constraints, tool posture, and repeatable operating preferences.', fg: PALETTE.muted },
       { text: '' },
-      ...localLibraryLines('Persona Library', snapshot.localPersonas, 'No local personas yet. Create one with /personas create ...'),
+      ...localLibraryLines('Persona Library', snapshot.localPersonas, 'No local personas yet. Create one here with Create persona.', workspace.selectedLocalLibraryItem('persona')?.id ?? null),
     );
   } else if (category.id === 'skills') {
     base.push(
@@ -228,7 +234,7 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: 'Skills are reusable local procedures the assistant can apply from the main conversation.', fg: PALETTE.good },
       { text: 'Enabled skills are injected as operating guidance; secret-looking content is rejected.', fg: PALETTE.warn },
       { text: '' },
-      ...localLibraryLines('Skill Library', snapshot.localSkills, 'No local skills yet. Create one with /agent-skills create ...'),
+      ...localLibraryLines('Skill Library', snapshot.localSkills, 'No local skills yet. Create one here with Create skill.', workspace.selectedLocalLibraryItem('skill')?.id ?? null),
     );
   } else if (category.id === 'routines') {
     base.push(
@@ -236,7 +242,7 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: 'Routines are repeatable main-conversation workflows. Starting one does not create hidden jobs.', fg: PALETTE.good },
       { text: 'Scheduling a reviewed routine is explicit and writes to the externally owned daemon only with --yes.', fg: PALETTE.warn },
       { text: '' },
-      ...localLibraryLines('Routine Library', snapshot.localRoutines, 'No local routines yet. Create one with /routines create ...'),
+      ...localLibraryLines('Routine Library', snapshot.localRoutines, 'No local routines yet. Create one here with Create routine.', workspace.selectedLocalLibraryItem('routine')?.id ?? null),
     );
   } else if (category.id === 'work') {
     base.push(
@@ -288,7 +294,7 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
     { text: '' },
     ...(workspace.localEditor ? editorContextLines(workspace.localEditor) : []),
     ...(workspace.localEditor ? [{ text: '' }] : []),
-    ...snapshotLines(category, workspace.runtimeSnapshot),
+    ...snapshotLines(workspace, category, workspace.runtimeSnapshot),
   ];
 
   if (action) {
