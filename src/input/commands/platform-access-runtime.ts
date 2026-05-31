@@ -6,6 +6,7 @@ import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform
 import { handleLocalAuthCommand } from './local-auth-runtime.ts';
 import { buildAuthInspectionSnapshot, inspectProviderAuth } from '@/runtime/index.ts';
 import { requireProfileManager, requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 interface InstallBundle {
   readonly version: 1;
@@ -81,61 +82,79 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
   registry.register({
     name: 'login',
     description: 'Front-door login flow for provider subscriptions and local service sessions',
-    usage: '[provider <name> start|finish <code>|service <daemon|listener> <baseUrl> <username> <password> [secretKey]]',
+    usage: '[provider <name> start|finish <code> --yes|service <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const target = (args[0] ?? '').toLowerCase();
+      const target = (commandArgs[0] ?? '').toLowerCase();
       if (target === 'provider') {
-        const provider = args[1];
-        const mode = args[2]?.toLowerCase();
+        const provider = commandArgs[1];
+        const mode = commandArgs[2]?.toLowerCase();
         if (!provider || !mode) {
-          ctx.print('Usage: /login provider <name> start|finish <code>');
+          ctx.print('Usage: /login provider <name> start|finish <code> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `${mode} provider subscription login for ${provider}`, '/login provider <name> start|finish <code> --yes');
           return;
         }
         if (ctx.executeCommand) {
-          await ctx.executeCommand('subscription', ['login', provider, mode, ...args.slice(3)]);
+          await ctx.executeCommand('subscription', ['login', provider, mode, ...commandArgs.slice(3), '--yes']);
           return;
         }
-        ctx.print(`Use /subscription login ${provider} ${mode}${args[3] ? ` ${args[3]}` : ''}`);
+        ctx.print(`Use /subscription login ${provider} ${mode}${commandArgs[3] ? ` ${commandArgs[3]}` : ''} --yes`);
         return;
       }
       if (target === 'service') {
-        if (ctx.executeCommand) {
-          await ctx.executeCommand('auth', ['login', ...args.slice(1)]);
+        if (!parsed.yes) {
+          requireYesFlag(ctx, 'store a local service session token', '/login service <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes');
           return;
         }
-        ctx.print('Use /auth login <daemon|listener> <baseUrl> <username> <password> [secretKey]');
+        if (ctx.executeCommand) {
+          await ctx.executeCommand('auth', ['login', ...commandArgs.slice(1), '--yes']);
+          return;
+        }
+        ctx.print('Use /auth login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes');
         return;
       }
-      ctx.print('Usage: /login [provider <name> start|finish <code>|service <daemon|listener> <baseUrl> <username> <password> [secretKey]]');
+      ctx.print('Usage: /login [provider <name> start|finish <code> --yes|service <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes]');
     },
   });
 
   registry.register({
     name: 'logout',
     description: 'Front-door logout flow for provider subscription sessions and supported overrides',
-    usage: 'provider <name>',
+    usage: 'provider <name> --yes',
     async handler(args, ctx) {
-      const target = (args[0] ?? '').toLowerCase();
-      if (target !== 'provider' || !args[1]) {
-        ctx.print('Usage: /logout provider <name>');
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
+      const target = (commandArgs[0] ?? '').toLowerCase();
+      if (target !== 'provider' || !commandArgs[1]) {
+        ctx.print('Usage: /logout provider <name> --yes');
+        return;
+      }
+      if (!parsed.yes) {
+        requireYesFlag(ctx, `log out provider subscription ${commandArgs[1]}`, '/logout provider <name> --yes');
         return;
       }
       if (ctx.executeCommand) {
-        await ctx.executeCommand('subscription', ['logout', args[1]]);
+        await ctx.executeCommand('subscription', ['logout', commandArgs[1], '--yes']);
         return;
       }
-      ctx.print(`Use /subscription logout ${args[1]}`);
+      ctx.print(`Use /subscription logout ${commandArgs[1]} --yes`);
     },
   });
 
   registry.register({
     name: 'install',
     description: 'Review install posture and export portable install bundles',
-    usage: '[review|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|bundle export <path> --yes|bundle inspect <path>]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const sub = args[0] ?? 'review';
+      const sub = commandArgs[0] ?? 'review';
       if (sub === 'review') {
         const profiles = requireProfileManager(ctx).list();
         const secretKeys = await requireSecretsManager(ctx).list();
@@ -149,14 +168,18 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         return;
       }
       if (sub === 'bundle') {
-        const mode = args[1];
-        const pathArg = args[2];
+        const mode = commandArgs[1];
+        const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /install bundle ${mode} <path>`);
+          ctx.print(`Usage: /install bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
           return;
         }
         const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export install bundle to ${pathArg}`, '/install bundle export <path> --yes');
+            return;
+          }
           const profiles = requireProfileManager(ctx).list();
           const secretKeys = await requireSecretsManager(ctx).list();
           const bundle: InstallBundle = {
@@ -185,7 +208,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           return;
         }
       }
-      ctx.print('Usage: /install [review|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /install [review|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 
@@ -193,10 +216,12 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
     name: 'update',
     aliases: ['upgrade'],
     description: 'Review update posture, choose release channel guidance, and package portable update bundles',
-    usage: '[review|channel <stable|preview>|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|channel <stable|preview> --yes|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const sub = args[0] ?? 'review';
+      const sub = commandArgs[0] ?? 'review';
       const subscriptions = requireSubscriptionManager(ctx);
       const serviceRegistry = requireServiceRegistry(ctx);
       const secretsManager = requireSecretsManager(ctx);
@@ -216,14 +241,18 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           `  built-in subscription providers: ${builtinProviders.length}${builtinProviders.length > 0 ? ` (${builtinProviders.join(', ')})` : ''}`,
           `  active subscriptions: ${activeSubscriptions.length}${activeSubscriptions.length > 0 ? ` (${activeSubscriptions.join(', ')})` : ''}`,
           `  sandbox profile: ${sandboxProfile}`,
-          '  use /update channel <stable|preview> to change release posture',
+          '  use /update channel <stable|preview> --yes to change release posture',
         ].join('\n'));
         return;
       }
       if (sub === 'channel') {
-        const channel = args[1];
+        const channel = commandArgs[1];
         if (channel !== 'stable' && channel !== 'preview') {
-          ctx.print('Usage: /update channel <stable|preview>');
+          ctx.print('Usage: /update channel <stable|preview> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `set update channel to ${channel}`, '/update channel <stable|preview> --yes');
           return;
         }
         ctx.platform.configManager.setDynamic('release.channel', channel);
@@ -231,14 +260,18 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         return;
       }
       if (sub === 'bundle') {
-        const mode = args[1];
-        const pathArg = args[2];
+        const mode = commandArgs[1];
+        const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /update bundle ${mode} <path>`);
+          ctx.print(`Usage: /update bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
           return;
         }
         const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export update bundle to ${pathArg}`, '/update bundle export <path> --yes');
+            return;
+          }
           const bundle: UpdateBundle = {
             version: 1,
             exportedAt: Date.now(),
@@ -262,17 +295,19 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           return;
         }
       }
-      ctx.print('Usage: /update [review|channel <stable|preview>|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /update [review|channel <stable|preview> --yes|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 
   registry.register({
     name: 'auth',
     description: 'Review auth posture and exchange session login tokens with local services',
-    usage: '[review|show <provider>|repair <provider>|bundle export <path>|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey]|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]',
+    usage: '[review|show <provider>|repair <provider>|bundle export <path> --yes|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const sub = args[0] ?? 'review';
+      const sub = commandArgs[0] ?? 'review';
       const subscriptions = requireSubscriptionManager(ctx);
       const serviceRegistry = requireServiceRegistry(ctx);
       const secretsManager = requireSecretsManager(ctx);
@@ -301,7 +336,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       }
 
       if (sub === 'show') {
-        const provider = args[1];
+        const provider = commandArgs[1];
         if (!provider) {
           ctx.print('Usage: /auth show <provider>');
           return;
@@ -331,7 +366,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       }
 
       if (sub === 'repair') {
-        const provider = args[1];
+        const provider = commandArgs[1];
         if (!provider) {
           ctx.print('Usage: /auth repair <provider>');
           return;
@@ -355,14 +390,18 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       }
 
       if (sub === 'bundle') {
-        const mode = args[1];
-        const pathArg = args[2];
+        const mode = commandArgs[1];
+        const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /auth bundle ${mode} <path>`);
+          ctx.print(`Usage: /auth bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
           return;
         }
         const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export auth review bundle to ${pathArg}`, '/auth bundle export <path> --yes');
+            return;
+          }
           const secretKeys = await secretsManager.list();
           const bundle: AuthReviewBundle = {
             version: 1,
@@ -386,13 +425,17 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       }
 
       if (sub === 'login') {
-        const target = args[1];
-        const baseUrl = args[2];
-        const username = args[3];
-        const password = args[4];
-        const secretKey = args[5] ?? `${target?.toUpperCase() ?? 'SERVICE'}_SESSION_TOKEN`;
+        const target = commandArgs[1];
+        const baseUrl = commandArgs[2];
+        const username = commandArgs[3];
+        const password = commandArgs[4];
+        const secretKey = commandArgs[5] ?? `${target?.toUpperCase() ?? 'SERVICE'}_SESSION_TOKEN`;
         if ((target !== 'daemon' && target !== 'listener') || !baseUrl || !username || !password) {
-          ctx.print('Usage: /auth login <daemon|listener> <baseUrl> <username> <password> [secretKey]');
+          ctx.print('Usage: /auth login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `store ${target} session token`, '/auth login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes');
           return;
         }
         const url = new URL('/login', baseUrl).toString();
@@ -416,7 +459,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         return;
       }
 
-      ctx.print('Usage: /auth [review|show <provider>|bundle export <path>|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey]|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]');
+      ctx.print('Usage: /auth [review|show <provider>|bundle export <path> --yes|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]');
     },
   });
 }

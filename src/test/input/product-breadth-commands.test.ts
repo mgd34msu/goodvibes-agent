@@ -1824,6 +1824,11 @@ describe('product breadth commands', () => {
     const bundlePath = join(root, 'artifacts', 'install.json');
     out.length = 0;
     await install!.handler(['bundle', 'export', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export install bundle');
+    expect(existsSync(bundlePath)).toBe(false);
+
+    out.length = 0;
+    await install!.handler(['bundle', 'export', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Install bundle exported');
     expect(existsSync(bundlePath)).toBe(true);
 
@@ -1847,11 +1852,20 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await update!.handler(['channel', 'preview'], ctx);
+    expect(out.join('\n')).toContain('Refusing to set update channel to preview without --yes.');
+
+    out.length = 0;
+    await update!.handler(['channel', 'preview', '--yes'], ctx);
     expect(out.join('\n')).toContain('Update channel set to preview.');
 
     const bundlePath = join(root, 'artifacts', 'update.json');
     out.length = 0;
     await update!.handler(['bundle', 'export', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export update bundle');
+    expect(existsSync(bundlePath)).toBe(false);
+
+    out.length = 0;
+    await update!.handler(['bundle', 'export', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Update bundle exported');
 
     out.length = 0;
@@ -1890,6 +1904,11 @@ describe('product breadth commands', () => {
     const bundlePath = join(root, 'artifacts', 'auth.json');
     out.length = 0;
     await auth!.handler(['bundle', 'export', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export auth review bundle');
+    expect(existsSync(bundlePath)).toBe(false);
+
+    out.length = 0;
+    await auth!.handler(['bundle', 'export', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Auth review bundle exported');
 
     out.length = 0;
@@ -1916,6 +1935,10 @@ describe('product breadth commands', () => {
     try {
       out.length = 0;
       await auth!.handler(['login', 'daemon', 'http://127.0.0.1:39451', 'admin', 'admin', 'DAEMON_SESSION'], ctx);
+      expect(out.join('\n')).toContain('Refusing to store daemon session token without --yes.');
+
+      out.length = 0;
+      await auth!.handler(['login', 'daemon', 'http://127.0.0.1:39451', 'admin', 'admin', 'DAEMON_SESSION', '--yes'], ctx);
       expect(out.join('\n')).toContain('Stored daemon session token');
     } finally {
       await daemon.stop();
@@ -1935,6 +1958,10 @@ describe('product breadth commands', () => {
     ctx.executeCommand = async (name: string, args: string[]) => registry.execute(name, args, ctx as never);
 
     await login!.handler(['provider', 'openai', 'start', '--manual', '--no-browser'], ctx);
+    expect(out.join('\n')).toContain('Refusing to start provider subscription login for openai without --yes.');
+
+    out.length = 0;
+    await login!.handler(['provider', 'openai', 'start', '--manual', '--no-browser', '--yes'], ctx);
     expect(out.join('\n')).toContain('Subscription OAuth Start: openai');
     expect(out.join('\n')).toContain('source: builtin');
     expect(out.join('\n')).toContain('browser: skipped');
@@ -1944,11 +1971,15 @@ describe('product breadth commands', () => {
       ok: true,
       json: async () => ({ access_token: 'oauth-openai-token', refresh_token: 'oauth-openai-refresh', token_type: 'Bearer', expires_in: 3600 }),
     })) as unknown) as typeof fetch;
-    await login!.handler(['provider', 'openai', 'finish', 'oauth-code-456'], ctx);
+    await login!.handler(['provider', 'openai', 'finish', 'oauth-code-456', '--yes'], ctx);
     expect(out.join('\n')).toContain('Stored subscription session for openai.');
 
     out.length = 0;
     await logout!.handler(['provider', 'openai'], ctx);
+    expect(out.join('\n')).toContain('Refusing to log out provider subscription openai without --yes.');
+
+    out.length = 0;
+    await logout!.handler(['provider', 'openai', '--yes'], ctx);
     expect(out.join('\n')).toContain('Logged out of openai.');
   });
 
@@ -1983,6 +2014,10 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await subscription!.handler(['login', 'openai', 'start', '--manual', '--no-browser'], ctx);
+    expect(out.join('\n')).toContain('Refusing to start provider subscription login for openai without --yes.');
+
+    out.length = 0;
+    await subscription!.handler(['login', 'openai', 'start', '--manual', '--no-browser', '--yes'], ctx);
     expect(out.join('\n')).toContain('Subscription OAuth Start: openai');
     expect(out.join('\n')).toContain('source: builtin');
     expect(out.join('\n')).toContain('browser: skipped');
@@ -1995,6 +2030,10 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await subscription!.handler(['login', 'openai', 'finish', 'oauth-code-123'], ctx);
+    expect(out.join('\n')).toContain('Refusing to finish provider subscription login for openai without --yes.');
+
+    out.length = 0;
+    await subscription!.handler(['login', 'openai', 'finish', 'oauth-code-123', '--yes'], ctx);
     expect(out.join('\n')).toContain('Stored subscription session for openai');
     expect(out.join('\n')).toContain('stored for subscription-backed flows only');
 
@@ -2006,6 +2045,10 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await subscription!.handler(['logout', 'openai'], ctx);
+    expect(out.join('\n')).toContain('Refusing to log out provider subscription openai without --yes.');
+
+    out.length = 0;
+    await subscription!.handler(['logout', 'openai', '--yes'], ctx);
     expect(out.join('\n')).toContain('Logged out of openai');
   });
 

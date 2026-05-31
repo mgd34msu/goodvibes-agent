@@ -110,7 +110,7 @@ describe('SubscriptionPanel', () => {
       expect(panel.handleInput('enter')).toBe(true);
       let text = linesText(panel.render(110, 16));
       expect(text).toContain('Press Enter or X again to sign out openai.');
-      expect(text).toContain('/subscription login <provider> start');
+      expect(text).toContain('/subscription login <provider> start --yes');
       expect(manager.get('openai')).not.toBeNull();
       expect(panel.handleInput('enter')).toBe(true);
       text = linesText(panel.render(110, 16));

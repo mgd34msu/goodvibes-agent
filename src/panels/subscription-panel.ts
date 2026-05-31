@@ -78,8 +78,8 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
   protected override getEmptyStateMessage() { return ' No provider subscriptions are active yet.'; }
   protected override getEmptyStateActions() {
     return [
-      { command: '/subscription login openai start', summary: 'start the first-class OpenAI subscription flow' },
-      { command: '/login provider <name> start', summary: 'use the front-door auth surface for supported providers' },
+      { command: '/subscription login openai start --yes', summary: 'start the first-class OpenAI subscription flow' },
+      { command: '/login provider <name> start --yes', summary: 'use the front-door auth surface for supported providers' },
       { command: '/services auth-review', summary: 'inspect configured service auth posture and stored secrets' },
     ];
   }
@@ -187,7 +187,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
         { label: 'selected', value: (this.rows[this.selectedIndex]?.provider ?? 'none'), valueColor: this.rows[this.selectedIndex] ? C.value : C.dim },
         { label: 'status', value: this.rows[this.selectedIndex] ? statusOf(this.rows[this.selectedIndex]!) : 'n/a', valueColor: this.rows[this.selectedIndex] ? statusColor(statusOf(this.rows[this.selectedIndex]!)) : C.dim },
       ], C),
-      buildGuidanceLine(width, '/subscription login <provider> start', 'start or repair browser login for the selected provider route', C),
+      buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start or repair browser login for the selected provider route', C),
     ];
 
     // Empty state: render posture + base empty state
@@ -205,7 +205,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
         intro,
         sections: [{ lines: [...summaryLines, ...emptyLines] }],
         footerLines: [
-          buildGuidanceLine(width, '/subscription login <provider> start', 'start browser-based provider login from the packaged subscription surface', C),
+          buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start browser-based provider login from the packaged subscription surface', C),
           buildPanelLine(width, [['  Up/Down move  Enter/X sign out selected provider  r refresh', C.dim]]),
         ],
         palette: C,
@@ -240,9 +240,9 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
           detailRows.push(buildPanelLine(width, [[` Press Enter or X again to sign out ${selectedRow.provider}.`, C.warn]]));
         }
       } else if (selectedRow.pending) {
-        detailRows.push(buildPanelLine(width, [[' Login is pending. Finish with /subscription login <provider> finish <code>.', C.warn]]));
+        detailRows.push(buildPanelLine(width, [[' Login is pending. Finish with /subscription login <provider> finish <code> --yes.', C.warn]]));
       } else if (selectedRow.hasOAuthConfig) {
-        detailRows.push(buildPanelLine(width, [[' Ready for login. Start with /subscription login <provider> start.', C.dim]]));
+        detailRows.push(buildPanelLine(width, [[' Ready for login. Start with /subscription login <provider> start --yes.', C.dim]]));
       } else {
         detailRows.push(buildPanelLine(width, [[' Add a provider-specific OAuth config or enable a built-in subscription provider to use subscription login.', C.bad]]));
       }
@@ -255,7 +255,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
       header: headerLines,
       footer: [
         ...detailRows,
-        buildGuidanceLine(width, '/subscription login <provider> start', 'start browser-based provider login from the packaged subscription surface', C),
+        buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start browser-based provider login from the packaged subscription surface', C),
         buildPanelLine(width, [['  Up/Down move  Enter/X sign out selected provider  r refresh', C.dim]]),
       ],
     });

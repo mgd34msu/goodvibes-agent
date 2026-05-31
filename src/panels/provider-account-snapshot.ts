@@ -209,7 +209,7 @@ export async function buildProviderAccountSnapshot(
     }
     if (pending) {
       issues.push('Provider has a pending OAuth login that has not been completed yet.');
-      recommendedActions.push(`Finish /subscription login ${providerId} finish <code> or clear the pending login.`);
+      recommendedActions.push(`Finish /subscription login ${providerId} finish <code> --yes or clear the pending login.`);
     }
     if (hasSubscription && hasApiKey) {
       issues.push('Provider has both subscription and API-key auth paths; routing must remain explicit.');

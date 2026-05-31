@@ -9,6 +9,7 @@ import { inspectProviderAuth } from '@/runtime/index.ts';
 import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 interface SubscriptionBundle {
   readonly version: 1;
@@ -76,14 +77,16 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
     name: 'subscription',
     aliases: ['subs'],
     description: 'Manage provider subscription sessions and, when supported, let them override ambient API keys for matching providers',
-    usage: '[review|list|providers|inspect <provider>|login <provider> start [--no-browser] [--manual]|finish <code-or-url>|logout <provider>|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|list|providers|inspect <provider>|login <provider> start [--no-browser] [--manual] --yes|login <provider> finish <code-or-url> --yes|logout <provider> --yes|bundle export <path> --yes|bundle inspect <path>]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       if (args.length === 0 && ctx.openSubscriptionPanel) {
         ctx.openSubscriptionPanel();
         return;
       }
-      const sub = (args[0] ?? 'review').toLowerCase();
+      const sub = (commandArgs[0] ?? 'review').toLowerCase();
       const manager = requireSubscriptionManager(ctx);
       const services = requireServiceRegistry(ctx);
 
@@ -108,7 +111,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
       }
 
       if (sub === 'inspect') {
-        const provider = args[1];
+        const provider = commandArgs[1];
         if (!provider) {
           ctx.print('Usage: /subscription inspect <provider>');
           return;
@@ -153,10 +156,14 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
       }
 
       if (sub === 'login') {
-        const provider = args[1];
-        const mode = args[2]?.toLowerCase();
+        const provider = commandArgs[1];
+        const mode = commandArgs[2]?.toLowerCase();
         if (!provider || !mode) {
-          ctx.print('Usage: /subscription login <provider> start|finish <code>');
+          ctx.print('Usage: /subscription login <provider> start|finish <code> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `${mode} provider subscription login for ${provider}`, '/subscription login <provider> start|finish <code> --yes');
           return;
         }
         const service = services.get(provider);
@@ -170,7 +177,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
           return;
         }
         if (mode === 'start') {
-          const flags = new Set(args.slice(3));
+          const flags = new Set(commandArgs.slice(3));
           const openBrowser = !flags.has('--no-browser');
           const useManualMode = flags.has('--manual');
           if (provider === 'openai' && resolved.source === 'builtin') {
@@ -240,7 +247,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
                   `  state: ${started.state}`,
                   `  redirectUri: ${started.redirectUri}`,
                   `  browser: ${openBrowser ? (browserOpened ? 'opened' : 'open failed') : 'skipped'}`,
-                  `  next: /subscription login ${provider} finish <code-or-url>`,
+                  `  next: /subscription login ${provider} finish <code-or-url> --yes`,
                   `  listener: ${summarizeError(error)}`,
                   '  authorizationUrl:',
                   `  ${started.authorizationUrl}`,
@@ -256,7 +263,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
               `  state: ${started.state}`,
               `  redirectUri: ${started.redirectUri}`,
               `  browser: ${openBrowser ? (browserOpened ? 'opened' : 'open failed') : 'skipped'}`,
-              `  next: /subscription login ${provider} finish <code-or-url>`,
+              `  next: /subscription login ${provider} finish <code-or-url> --yes`,
               '  authorizationUrl:',
               `  ${started.authorizationUrl}`,
             ].join('\n'));
@@ -316,7 +323,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
                 `  state: ${started.pending.state}`,
                 `  redirectUri: ${activeConfig.redirectUri}`,
                 `  browser: ${openBrowser ? (browserOpened ? 'opened' : 'open failed') : 'skipped'}`,
-                `  next: /subscription login ${provider} finish <code-or-url>`,
+                `  next: /subscription login ${provider} finish <code-or-url> --yes`,
                 `  listener: ${summarizeError(error)}`,
                 '  authorizationUrl:',
                 `  ${started.authorizationUrl}`,
@@ -333,23 +340,23 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
             `  state: ${started.pending.state}`,
             `  redirectUri: ${activeConfig.redirectUri}`,
             `  browser: ${openBrowser ? (browserOpened ? 'opened' : 'open failed') : 'skipped'}`,
-            `  next: /subscription login ${provider} finish <code-or-url>`,
+            `  next: /subscription login ${provider} finish <code-or-url> --yes`,
             '  authorizationUrl:',
             `  ${started.authorizationUrl}`,
           ].join('\n'));
           return;
         }
         if (mode === 'finish') {
-          const codeInput = args[3];
+          const codeInput = commandArgs[3];
           if (!codeInput) {
-            ctx.print(`Usage: /subscription login ${provider} finish <code-or-url>`);
+            ctx.print(`Usage: /subscription login ${provider} finish <code-or-url> --yes`);
             return;
           }
           const code = extractAuthorizationCode(codeInput) ?? codeInput;
           if (provider === 'openai' && resolved.source === 'builtin') {
             const pending = manager.getPending(provider);
             if (!pending) {
-              ctx.print(`No pending OAuth login for ${provider}. Start with /subscription login ${provider} start.`);
+              ctx.print(`No pending OAuth login for ${provider}. Start with /subscription login ${provider} start --yes.`);
               return;
             }
             const token = await exchangeOpenAICodexCode(code, pending.verifier);
@@ -384,14 +391,18 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
           ].join('\n'));
           return;
         }
-        ctx.print('Usage: /subscription login <provider> start|finish <code-or-url>');
+        ctx.print('Usage: /subscription login <provider> start|finish <code-or-url> --yes');
         return;
       }
 
       if (sub === 'logout') {
-        const provider = args[1];
+        const provider = commandArgs[1];
         if (!provider) {
-          ctx.print('Usage: /subscription logout <provider>');
+          ctx.print('Usage: /subscription logout <provider> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `log out provider subscription ${provider}`, '/subscription logout <provider> --yes');
           return;
         }
         const removed = manager.logout(provider);
@@ -402,14 +413,18 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
       }
 
       if (sub === 'bundle') {
-        const mode = args[1]?.toLowerCase();
-        const pathArg = args[2];
+        const mode = commandArgs[1]?.toLowerCase();
+        const pathArg = commandArgs[2];
         if (!mode || !pathArg) {
           ctx.print('Usage: /subscription bundle <export|inspect> <path>');
           return;
         }
         const targetPath = shellPaths.resolveWorkspacePath(pathArg);
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export subscription bundle to ${pathArg}`, '/subscription bundle export <path> --yes');
+            return;
+          }
           const bundle: SubscriptionBundle = {
             version: 1,
             exportedAt: Date.now(),
@@ -428,7 +443,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
         return;
       }
 
-      ctx.print('Usage: /subscription [review|list|providers|inspect <provider>|login <provider> start [--no-browser] [--manual]|finish <code-or-url>|logout <provider>|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /subscription [review|list|providers|inspect <provider>|login <provider> start [--no-browser] [--manual] --yes|login <provider> finish <code-or-url> --yes|logout <provider> --yes|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 }
