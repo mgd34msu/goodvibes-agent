@@ -121,15 +121,20 @@ describe('parseCliFlags', () => {
   // Help text contains precedence note
   // ---------------------------------------------------------------------------
 
-  test('help text includes --daemon-home and --working-dir with precedence note', () => {
+  test('help text keeps advanced daemon diagnostics out of the primary product surface', () => {
     const flags = parseCliFlags(['--help']);
     const helpOutput = renderGoodVibesHelp('goodvibes');
     expect(flags.help).toBe(true);
-    expect(helpOutput).toContain('--daemon-home <dir>');
     expect(helpOutput).toContain('--working-dir <dir>');
     expect(helpOutput).toContain('--output <format>');
     expect(helpOutput).toContain('status');
     expect(helpOutput).toContain('onboarding');
+    expect(helpOutput).toContain('help service');
+    expect(helpOutput).toContain('help surfaces');
+    expect(helpOutput).not.toContain('--daemon-home <dir>');
+    expect(helpOutput).not.toContain('control-plane status');
+    expect(helpOutput).not.toContain('listener test');
+    expect(helpOutput).not.toContain('remote|bridge');
   });
 
   test('command-specific help describes the selected command surface', () => {
