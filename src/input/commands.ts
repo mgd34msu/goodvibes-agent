@@ -22,7 +22,6 @@ import { registerProfileSyncRuntimeCommands } from './commands/profile-sync-runt
 import { registerManagedRuntimeCommands } from './commands/managed-runtime.ts';
 import { registerPlatformAccessRuntimeCommands } from './commands/platform-access-runtime.ts';
 import { registerPlatformServicesRuntimeCommands } from './commands/platform-services-runtime.ts';
-import { registerTeamworkRuntimeCommands } from './commands/teamwork-runtime.ts';
 import { registerMarketplaceRuntimeCommands } from './commands/marketplace-runtime.ts';
 import { registerGuidanceRuntimeCommands } from './commands/guidance-runtime.ts';
 import { registerRemoteRuntimeCommands } from './commands/remote-runtime.ts';
@@ -81,7 +80,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerManagedRuntimeCommands(registry);
   registerPlatformAccessRuntimeCommands(registry);
   registerPlatformServicesRuntimeCommands(registry);
-  registerTeamworkRuntimeCommands(registry);
   registerMarketplaceRuntimeCommands(registry);
   registerGuidanceRuntimeCommands(registry);
   registerRemoteRuntimeCommands(registry);
