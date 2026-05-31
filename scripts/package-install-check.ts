@@ -135,6 +135,7 @@ try {
   }
 
   run('bun', ['add', '-g', tarballPath, '--registry', 'https://registry.npmjs.org'], {
+    cwd: tempRoot,
     env: {
       ...process.env,
       HOME: homeDir,
