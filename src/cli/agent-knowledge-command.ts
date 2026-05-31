@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { createBrowserAgentSdk } from '@pellux/goodvibes-sdk/browser/agent';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { SDK_VERSION, VERSION } from '../version.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
 import { formatJsonOrText, yesNo } from './management.ts';
@@ -149,24 +149,8 @@ function hasFlag(args: readonly string[], flag: string): boolean {
   return args.includes(flag);
 }
 
-function packageJsonPath(): string {
-  return join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
-}
-
 function readPackageMetadata(): { readonly version: string; readonly sdkVersion: string } {
-  try {
-    const parsed = JSON.parse(readFileSync(packageJsonPath(), 'utf-8')) as unknown;
-    if (!isRecord(parsed)) return { version: 'unknown', sdkVersion: 'unknown' };
-    const dependencies = isRecord(parsed.dependencies) ? parsed.dependencies : {};
-    return {
-      version: typeof parsed.version === 'string' ? parsed.version : 'unknown',
-      sdkVersion: typeof dependencies['@pellux/goodvibes-sdk'] === 'string'
-        ? dependencies['@pellux/goodvibes-sdk']
-        : 'unknown',
-    };
-  } catch {
-    return { version: 'unknown', sdkVersion: 'unknown' };
-  }
+  return { version: VERSION, sdkVersion: SDK_VERSION };
 }
 
 function resolveDaemonConnection(runtime: CliCommandRuntime): AgentDaemonConnection {

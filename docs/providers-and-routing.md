@@ -89,9 +89,9 @@ For free-tier synthetic models, the runtime can also cascade to the next-best fr
 
 ## Custom providers
 
-Any OpenAI-compatible API can be added by dropping JSON into:
+Any OpenAI-compatible API can be added by dropping JSON into the Agent provider directory:
 
-- `~/.goodvibes/tui/providers/*.json`
+- `~/.goodvibes/agent/providers/*.json`
 
 Provider JSON is hot-reloaded, so custom provider definitions appear in the model/runtime surfaces without restarting the process.
 

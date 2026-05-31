@@ -36,15 +36,22 @@ function writeTextArtifact(outputDir: string, name: string, value: string): void
 }
 
 export function syncVersionSurfaces(root = ROOT): string {
-  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  const version = pkg.version;
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+    readonly version?: unknown;
+    readonly dependencies?: Record<string, unknown>;
+  };
+  const version = typeof pkg.version === 'string' ? pkg.version : '0.0.0';
+  const sdkVersion = typeof pkg.dependencies?.['@pellux/goodvibes-sdk'] === 'string'
+    ? pkg.dependencies['@pellux/goodvibes-sdk']
+    : 'unknown';
 
   const versionTsPath = join(root, 'src', 'version.ts');
   try {
     let versionTs = readFileSync(versionTsPath, 'utf8');
     versionTs = versionTs.replace(/let _version = '[^']*'/, `let _version = '${version}'`);
+    versionTs = versionTs.replace(/let _sdkVersion = '[^']*'/, `let _sdkVersion = '${sdkVersion}'`);
     writeFileSync(versionTsPath, versionTs);
-    console.log(`prebuild: src/version.ts fallback → ${version}`);
+    console.log(`prebuild: src/version.ts fallback → ${version} / sdk ${sdkVersion}`);
   } catch {
     console.log('prebuild: src/version.ts — not found, skipping');
   }

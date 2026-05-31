@@ -105,6 +105,7 @@ const packagedGuidanceChecks: readonly {
     forbidden: [
       'goodvibes-tui',
       '~/.goodvibes/tui/providers',
+      '~/.goodvibes/daemon/providers',
     ],
   },
 ];

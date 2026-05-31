@@ -7,11 +7,18 @@ import { join } from 'node:path';
 // Uses import.meta.dir (Bun) to locate package.json relative to this file,
 // which is correct regardless of the process working directory.
 let _version = '0.1.9';
+let _sdkVersion = '0.33.35';
 try {
-  const pkg = JSON.parse(readFileSync(join(import.meta.dir, '..', 'package.json'), 'utf-8'));
-  _version = pkg.version ?? _version;
+  const pkg = JSON.parse(readFileSync(join(import.meta.dir, '..', 'package.json'), 'utf-8')) as {
+    readonly version?: unknown;
+    readonly dependencies?: Record<string, unknown>;
+  };
+  _version = typeof pkg.version === 'string' ? pkg.version : _version;
+  const packageSdkVersion = pkg.dependencies?.['@pellux/goodvibes-sdk'];
+  _sdkVersion = typeof packageSdkVersion === 'string' ? packageSdkVersion : _sdkVersion;
 } catch {
   // Compiled binary or missing package.json — use fallback
 }
 
 export const VERSION = _version;
+export const SDK_VERSION = _sdkVersion;

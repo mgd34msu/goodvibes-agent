@@ -2,8 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { verifyPackageCliInstall } from '../../cli/package-verification.ts';
+import { SDK_VERSION, VERSION } from '../../version.ts';
 
 type PackageJson = {
+  readonly version?: string;
+  readonly dependencies?: Record<string, string>;
   readonly scripts?: Record<string, string>;
 };
 
@@ -31,5 +34,13 @@ describe('package CLI install verification', () => {
     const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
     expect(parsed.scripts?.['typecheck']).toBe('bunx tsc --noEmit');
     expect(parsed.scripts?.['check:types']).toBe('bun run typecheck');
+    expect(parsed.scripts?.['audit:home']).toBe('bun run scripts/audit-goodvibes-home.ts');
+  });
+
+  test('compiled metadata fallbacks match package identity and SDK pin', () => {
+    const packagePath = resolve(import.meta.dir, '../../..', 'package.json');
+    const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
+    expect(VERSION).toBe(parsed.version);
+    expect(SDK_VERSION).toBe(parsed.dependencies?.['@pellux/goodvibes-sdk']);
   });
 });

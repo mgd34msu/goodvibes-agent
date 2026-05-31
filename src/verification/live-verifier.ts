@@ -213,6 +213,54 @@ async function fetchCheck(
   }
 }
 
+async function fetchJsonCheck(
+  id: string,
+  title: string,
+  url: string,
+  token: string | undefined,
+  options: {
+    readonly method?: 'GET' | 'POST';
+    readonly body?: unknown;
+    readonly validate: (status: number, body: string) => { status: LiveVerificationStatus; summary: string; detail?: string };
+  },
+): Promise<LiveVerificationCheck> {
+  if (!token) {
+    return {
+      id,
+      title,
+      status: 'skip',
+      summary: 'No daemon bearer token was available.',
+    };
+  }
+  try {
+    const response = await fetch(url, {
+      method: options.method ?? 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: AbortSignal.timeout(5000),
+    });
+    const body = await response.text();
+    const validated = options.validate(response.status, body);
+    return {
+      id,
+      title,
+      ...validated,
+      detail: validated.detail ?? compact(body),
+    };
+  } catch (error) {
+    return {
+      id,
+      title,
+      status: 'fail',
+      summary: 'Request failed.',
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 function countStatuses(checks: readonly LiveVerificationCheck[]): Record<LiveVerificationStatus, number> {
   return checks.reduce<Record<LiveVerificationStatus, number>>(
     (counts, check) => {
@@ -256,7 +304,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
 
   checks.push({
     id: 'compiled-cli-present',
-    title: 'Compiled GoodVibes CLI binary',
+    title: 'Compiled GoodVibes Agent CLI binary',
     status: existsSync(binaryPath) ? 'pass' : 'fail',
     summary: existsSync(binaryPath) ? `Found ${binaryPath}.` : `Missing ${binaryPath}.`,
   });
@@ -264,47 +312,61 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
   if (existsSync(binaryPath)) {
     checks.push(commandCheck(
       'cli-version',
-      'CLI version command',
-      await runCommand(binaryPath, ['version'], projectRoot),
-      'CLI version returned successfully.',
+      'Agent CLI version command',
+      await runCommand(binaryPath, ['--version'], projectRoot),
+      'Agent CLI version returned successfully.',
     ));
     checks.push(commandCheck(
       'cli-status-json',
-      'CLI status JSON command',
-      await runCommand(binaryPath, ['status', '--output', 'json'], projectRoot),
-      'CLI status returned parseable JSON.',
+      'Agent CLI status JSON command',
+      await runCommand(binaryPath, ['status', '--json'], projectRoot),
+      'Agent CLI status returned parseable JSON.',
       { parseJson: true },
     ));
     checks.push(commandCheck(
+      'cli-compat-json',
+      'Agent CLI compatibility JSON command',
+      await runCommand(binaryPath, ['compat', '--json'], projectRoot),
+      'Agent CLI compatibility returned parseable JSON.',
+      { parseJson: true },
+    ));
+    checks.push(commandCheck(
+      'cli-agent-knowledge-status',
+      'Agent Knowledge CLI status command',
+      await runCommand(binaryPath, ['knowledge', 'status', '--json'], projectRoot),
+      'Agent Knowledge status returned parseable JSON.',
+      { parseJson: true, warnOnNonZero: true },
+    ));
+    checks.push(commandCheck(
       'cli-providers',
-      'CLI providers command',
+      'Agent CLI providers command',
       await runCommand(binaryPath, ['providers'], projectRoot),
       'Provider inventory rendered successfully.',
     ));
     checks.push(commandCheck(
       'cli-control-plane-status',
-      'CLI control-plane status command',
+      'Read-only control-plane status command',
       await runCommand(binaryPath, ['control-plane', 'status'], projectRoot),
       'Control-plane status rendered successfully.',
       { warnOnNonZero: true },
     ));
     checks.push(commandCheck(
       'cli-listener-test',
-      'CLI listener readiness command',
+      'Read-only listener readiness command',
       await runCommand(binaryPath, ['listener', 'test'], projectRoot),
       'HTTP listener readiness rendered successfully.',
       { warnOnNonZero: true },
     ));
     checks.push(commandCheck(
       'cli-surfaces-check',
-      'CLI surfaces readiness command',
+      'Read-only surfaces readiness command',
       await runCommand(binaryPath, ['surfaces', 'check'], projectRoot),
       'Surface readiness rendered successfully.',
       { warnOnNonZero: true },
     ));
     checks.push(commandCheck(
       'cli-service-check',
-      'CLI service posture command',
+      'Read-only service posture command',
       await runCommand(binaryPath, ['service', 'check'], projectRoot),
       'Service posture rendered successfully.',
       { warnOnNonZero: true },
@@ -376,6 +438,79 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     },
   ));
 
+  checks.push(await fetchJsonCheck(
+    'agent-knowledge-status',
+    'Agent Knowledge isolated /status',
+    `${daemonBaseUrl}/api/goodvibes-agent/knowledge/status`,
+    token,
+    {
+      validate: (status, body) => {
+        if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/status returned ${status}.` };
+        try {
+          JSON.parse(body);
+          return { status: 'pass', summary: 'Agent Knowledge status route returned parseable JSON.' };
+        } catch {
+          return { status: 'fail', summary: 'Agent Knowledge status was not parseable JSON.' };
+        }
+      },
+    },
+  ));
+
+  checks.push(await fetchJsonCheck(
+    'agent-knowledge-ask-isolated',
+    'Agent Knowledge isolated ask',
+    `${daemonBaseUrl}/api/goodvibes-agent/knowledge/ask`,
+    token,
+    {
+      method: 'POST',
+      body: {
+        query: 'What is GoodVibes Agent?',
+        limit: 5,
+        mode: 'concise',
+        includeSources: true,
+        includeConfidence: true,
+        includeLinkedObjects: true,
+      },
+      validate: (status, body) => {
+        if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/ask returned ${status}.` };
+        try {
+          JSON.parse(body);
+        } catch {
+          return { status: 'fail', summary: 'Agent Knowledge ask was not parseable JSON.' };
+        }
+        const lower = body.toLowerCase();
+        if (lower.includes('home assistant') || lower.includes('homegraph') || lower.includes('home graph')) {
+          return { status: 'fail', summary: 'Agent Knowledge ask returned HomeGraph/Home Assistant contamination.' };
+        }
+        return { status: 'pass', summary: 'Agent Knowledge ask stayed on the isolated Agent route.' };
+      },
+    },
+  ));
+
+  checks.push(await fetchJsonCheck(
+    'agent-knowledge-search-isolated',
+    'Agent Knowledge isolated search',
+    `${daemonBaseUrl}/api/goodvibes-agent/knowledge/search`,
+    token,
+    {
+      method: 'POST',
+      body: { query: 'What is GoodVibes Agent?', limit: 5 },
+      validate: (status, body) => {
+        if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/search returned ${status}.` };
+        try {
+          JSON.parse(body);
+        } catch {
+          return { status: 'fail', summary: 'Agent Knowledge search was not parseable JSON.' };
+        }
+        const lower = body.toLowerCase();
+        if (lower.includes('home assistant') || lower.includes('homegraph') || lower.includes('home graph')) {
+          return { status: 'fail', summary: 'Agent Knowledge search returned HomeGraph/Home Assistant contamination.' };
+        }
+        return { status: 'pass', summary: 'Agent Knowledge search stayed on the isolated Agent route.' };
+      },
+    },
+  ));
+
   const counts = countStatuses(checks);
   const ok = counts.fail === 0 && (!options.strict || counts.warn === 0);
   return {
@@ -392,7 +527,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
 
 export function renderLiveVerificationReportMarkdown(report: LiveVerificationReport): string {
   const lines: string[] = [
-    '# GoodVibes Live Verification',
+    '# GoodVibes Agent Live Verification',
     '',
     `Generated: ${report.generatedAt}`,
     `Home: \`${report.homeDir}\``,
