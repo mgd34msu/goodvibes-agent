@@ -105,11 +105,11 @@ export class WorktreePanel extends ScrollableListPanel<WorktreeStatusRecord> {
         lines: [
           buildPanelLine(width, [[
             summary.pendingCleanup > 0 || summary.discard > 0
-              ? ' Review pending-cleanup and discard-marked worktrees before they drift from orchestrator ownership.'
-              : ' Worktree ownership is healthy. Use the task and session links below for restore, merge, or cleanup review.',
+              ? ' Review pending-cleanup and discard-marked worktrees in GoodVibes TUI before they drift from execution ownership.'
+              : ' Worktree posture is readable here only. Use GoodVibes TUI for restore, merge, or cleanup review.',
             summary.pendingCleanup > 0 || summary.discard > 0 ? C.warn : C.dim,
           ]]),
-          buildPanelLine(width, [['  /worktree task <task-id>  /worktree session <session-id>  /worktree inspect <path>', C.info]]),
+          buildPanelLine(width, [['  Externalized: open GoodVibes TUI in the target workspace for worktree actions.', C.info]]),
         ],
       });
       const selected = this.rows[this.selectedIndex]!;
@@ -122,27 +122,16 @@ export class WorktreePanel extends ScrollableListPanel<WorktreeStatusRecord> {
           buildPanelLine(width, [[' task ', C.label], [selected.taskId ?? 'n/a', C.dim], ['  updated ', C.label], [new Date(selected.updatedAt).toLocaleString(), C.dim]]),
           buildPanelLine(width, [[
             selected.sessionId || selected.taskId
-              ? ' Attached worktree can be resumed from session/task flows and should be merged or cleaned up by the orchestrator.'
-              : ' Unattached worktree detected. Review whether it should be attached, kept, discarded, or cleaned up.',
+              ? ' Attached worktree recovery belongs in GoodVibes TUI with the execution context attached.'
+              : ' Unattached worktree detected. Review attach/keep/discard/cleanup decisions in GoodVibes TUI.',
             selected.sessionId || selected.taskId ? C.info : C.warn,
           ]]),
-          buildPanelLine(width, [[
-            selected.state === 'paused'
-              ? ` Next: /worktree resume ${selected.path}`
-              : selected.state === 'discard' || selected.state === 'pending-cleanup'
-                ? ` Next: /worktree cleanup ${selected.path}`
-                : selected.taskId
-                  ? ` Next: /worktree task ${selected.taskId}`
-                  : selected.sessionId
-                    ? ` Next: /worktree session ${selected.sessionId}`
-                    : ` Next: /worktree inspect ${selected.path}`,
-            C.dim,
-          ]]),
+          buildPanelLine(width, [[' Next: open GoodVibes TUI in the target workspace for worktree recovery.', C.dim]]),
         ],
       };
       const resolvedWorktreesSection = resolvePrimaryScrollableSection(width, height, {
-        intro: 'Orchestrator-owned worktree lifecycle, attachments, pause/resume posture, and cleanup state.',
-        footerLines: [buildPanelLine(width, [[' r refresh  /worktree inspect <path>  /worktree attach|pause|resume|keep|discard|cleanup ', C.dim]])],
+        intro: 'Read-only worktree posture; worktree lifecycle actions are externalized to GoodVibes TUI.',
+        footerLines: [buildPanelLine(width, [[' r refresh  externalized: use GoodVibes TUI for worktree actions ', C.dim]])],
         palette: C,
         beforeSections: sections,
         section: {
@@ -170,10 +159,10 @@ export class WorktreePanel extends ScrollableListPanel<WorktreeStatusRecord> {
     }
 
     const lines = buildPanelWorkspace(width, height, {
-      title: 'Worktree Control Room',
-      intro: 'Orchestrator-owned worktree lifecycle, attachments, pause/resume posture, and cleanup state.',
+      title: 'Externalized Worktree Monitor',
+      intro: 'Read-only worktree posture; worktree lifecycle actions are externalized to GoodVibes TUI.',
       sections,
-      footerLines: [buildPanelLine(width, [[' r refresh  /worktree inspect <path>  /worktree attach|pause|resume|keep|discard|cleanup ', C.dim]])],
+      footerLines: [buildPanelLine(width, [[' r refresh  externalized: use GoodVibes TUI for worktree actions ', C.dim]])],
       palette: C,
     });
     while (lines.length < height) lines.push(createEmptyLine(width));

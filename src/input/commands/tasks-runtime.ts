@@ -116,7 +116,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
             return worktrees.total > 0
               ? [
                   `  worktrees: ${worktrees.total} tracked (${worktrees.active} active / ${worktrees.paused} paused / ${worktrees.pendingCleanup} cleanup)`,
-                  `  worktree next: /worktree task ${task.id}`,
+                  '  worktree next: open GoodVibes TUI in the target workspace for recovery.',
                 ]
               : [];
           })(),

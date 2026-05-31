@@ -200,15 +200,15 @@ export function buildProviderHealthDomainSummaries(
     summary: worktreeSummary.total === 0
       ? 'no persisted worktrees'
       : `${worktreeSummary.total} tracked / ${worktreeIssues} need review`,
-    next: worktreeIssues > 0 ? '/worktree recover <session|task> <id>' : '/worktree review',
+    next: 'externalized to GoodVibes TUI',
     details: [
       worktreeSummary.paused > 0 ? `${worktreeSummary.paused} paused worktree(s)` : '',
       worktreeSummary.pendingCleanup > 0 ? `${worktreeSummary.pendingCleanup} cleanup pending` : '',
       worktreeSummary.discard > 0 ? `${worktreeSummary.discard} marked discard` : '',
     ].filter(Boolean),
     nextSteps: worktreeIssues > 0
-      ? ['/worktree review', '/worktree recover <session|task> <id>']
-      : ['/worktree review'],
+      ? ['Open GoodVibes TUI in the target workspace for recovery', '/delegate <task> for explicit build/fix/review recovery']
+      : ['No Agent worktree action available; use GoodVibes TUI when repository recovery is needed'],
   });
 
   return summaries;

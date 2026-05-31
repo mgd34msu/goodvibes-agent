@@ -276,8 +276,8 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           `  discard: ${summary.discard}`,
           `  cleanup pending: ${summary.pendingCleanup}`,
           ...(issues.length > 0 ? issues.map((issue) => `  issue: ${issue}`) : ['  no active worktree lifecycle issues detected']),
-          '  next: /worktree review',
-          '  next: /worktree recover <session|task> <id>',
+          '  next: worktree recovery is externalized to GoodVibes TUI.',
+          '  next: use /delegate <task> only when the recovery is part of explicit build/fix/review work.',
         ].join('\n'));
         return;
       }
@@ -349,8 +349,8 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  verify: /health maintenance');
         } else if (domain === 'worktrees') {
           lines.push('  domain: worktrees');
-          lines.push('  /worktree review');
-          lines.push('  /worktree recover <session|task> <id>');
+          lines.push('  worktree recovery is externalized to GoodVibes TUI');
+          lines.push('  /delegate <task> when explicit build/fix/review work needs repository recovery');
           lines.push('  verify: /health worktrees');
         } else if (domain === 'intelligence') {
           lines.push('  domain: intelligence');
