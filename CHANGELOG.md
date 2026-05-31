@@ -2,6 +2,13 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.54 - 2026-05-31
+
+- dc1a290 Keep release docs version-neutral
+- 07eb275 Stabilize Bun package install smoke
+- d5da8fb Fix Bun global TUI launch smoke
+- 883a11c Add exact-confirm local library delete flow
+
 ## 0.1.53 - 2026-05-31
 
 - 77ad0cf Add local library edit workspace flow
