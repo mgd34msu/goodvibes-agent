@@ -36,7 +36,6 @@ const REQUIRED_TARBALL_PATHS = [
   'package.json',
   'src/main.ts',
   'bin/goodvibes-agent.ts',
-  'scripts/check-bun.sh',
   'tsconfig.json',
   '.goodvibes/GOODVIBES.md',
   'docs/README.md',

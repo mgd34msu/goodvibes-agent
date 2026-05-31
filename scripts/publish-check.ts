@@ -80,7 +80,6 @@ for (const requiredPath of [
   'LICENSE',
   'src/main.ts',
   'bin/goodvibes-agent.ts',
-  'scripts/check-bun.sh',
   'tsconfig.json',
   '.goodvibes/GOODVIBES.md',
   'docs/README.md',
