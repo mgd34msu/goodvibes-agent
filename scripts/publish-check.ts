@@ -53,6 +53,7 @@ const forbiddenSourceFiles = new Set([
   'src/panels/worktree-panel.ts',
   'src/panels/wrfc-panel.ts',
   'src/input/commands/quit-shared.ts',
+  'src/renderer/git-status.ts',
 ]);
 for (const filePath of filePaths) {
   if (forbiddenPrefixes.some((prefix) => filePath.startsWith(prefix))) {

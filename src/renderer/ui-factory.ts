@@ -2,7 +2,6 @@ import { type Line, type Cell, createEmptyLine, createEmptyCell } from '../types
 import { LAYOUT } from './layout.ts';
 import { VERSION } from '../version.ts';
 import { fitDisplay, getDisplayWidth, truncateDisplay, wrapText, interpolateColor } from '../utils/terminal-width.ts';
-import type { GitHeaderInfo } from './git-status.ts';
 import { renderConversationFragment, renderConversationStatusLine, type ConversationStatusSegment } from './conversation-surface.ts';
 import { GLYPHS } from './ui-primitives.ts';
 
@@ -10,22 +9,6 @@ import { GLYPHS } from './ui-primitives.ts';
 const GRADIENT_CYCLE_FRAMES = 50;
 /** Number of frames before rotating to the next thinking phrase (~30 seconds at 80ms/frame). */
 const PHRASE_ROTATION_FRAMES = 375;
-
-/** Build the git segment string and its display width. Single source of truth for header layout. */
-function buildGitSegment(gitInfo: GitHeaderInfo): { text: string; width: number } {
-  const branch = ` git:${gitInfo.branch}`;
-  if (gitInfo.dirty) {
-    const text = `${branch} * `;
-    return { text, width: getDisplayWidth(text) };
-  }
-  if (gitInfo.ahead > 0 || gitInfo.behind > 0) {
-    const arrows = (gitInfo.ahead > 0 ? ` +${gitInfo.ahead}` : '') + (gitInfo.behind > 0 ? ` -${gitInfo.behind}` : '');
-    const text = `${branch}${arrows} `;
-    return { text, width: getDisplayWidth(text) };
-  }
-  const text = `${branch} `;
-  return { text, width: getDisplayWidth(text) };
-}
 
 /** Format a number: up to 999, then 1.0k, 1.0M, 1.0B, 1.0T */
 function fmtNum(n: number): string {
@@ -40,7 +23,7 @@ function fmtNum(n: number): string {
  * UIFactory - Generates standard UI fragments without needing Ink/React overhead.
  */
 export class UIFactory {
-  public static createHeader(width: number, model: string, provider: string, title?: string, gitInfo?: GitHeaderInfo): Line[] {
+  public static createHeader(width: number, model: string, provider: string, title?: string): Line[] {
     const lines: Line[] = [];
     const CYAN = '#00ffff';
     const GREY = '244';
@@ -56,9 +39,8 @@ export class UIFactory {
     // Optional conversation title — shown after brand/ver, truncated to fit
     if (title) {
       const titleStr = `│ ${title} `;
-      // Reserve space for git info (if present) + model/provider on the right
-      const gitReserved = gitInfo ? buildGitSegment(gitInfo).width : 0;
-      const rightReserved = getDisplayWidth(stats + prov) + gitReserved;
+      // Reserve space for model/provider on the right.
+      const rightReserved = getDisplayWidth(stats + prov);
       const maxTitleW = width - curX - rightReserved - 1;
       let displayTitle: string;
       if (getDisplayWidth(titleStr) <= maxTitleW) {
@@ -76,19 +58,9 @@ export class UIFactory {
       }
       for (const char of displayTitle) { if (curX < width) line[curX++] = { char, fg: TITLE_COLOR, bg: '', bold: false, dim: true, underline: false, italic: false, strikethrough: false }; }
     }
-    // Build git info segment
-    let gitStr = '';
-    let gitFg = '238';
-    if (gitInfo) {
-      gitStr = buildGitSegment(gitInfo).text;
-      if (gitInfo.dirty || gitInfo.ahead > 0 || gitInfo.behind > 0) {
-        gitFg = '220'; // yellow when dirty or out-of-sync
-      }
-    }
     const rightSideText = stats + prov;
-    const rightSideW = getDisplayWidth(rightSideText) + getDisplayWidth(gitStr);
+    const rightSideW = getDisplayWidth(rightSideText);
     let rightX = width - rightSideW;
-    for (const char of gitStr) { if (rightX >= 0 && rightX < width) line[rightX++] = { char, fg: gitFg, bg: '', bold: false, dim: !gitInfo?.dirty && !(gitInfo?.ahead || gitInfo?.behind), underline: false, italic: false, strikethrough: false }; }
     for (const char of stats) { if (rightX < width) line[rightX++] = { char, fg: CYAN, bg: '', bold: true, dim: false, underline: false, italic: false, strikethrough: false }; }
     for (const char of prov) { if (rightX < width) line[rightX++] = { char, fg: GREY, bg: '', bold: false, dim: true, underline: false, italic: false, strikethrough: false }; }
     lines.push(line);
