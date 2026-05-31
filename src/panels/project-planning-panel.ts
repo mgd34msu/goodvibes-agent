@@ -174,11 +174,11 @@ export class ProjectPlanningPanel extends BasePanel {
         lines: [
           buildKeyValueLine(width, [
             { label: 'project', value: this.projectId, valueColor: C.planning },
-            { label: 'space', value: status?.knowledgeSpaceId ?? `project:${this.projectId}`, valueColor: C.value },
-            { label: 'mode', value: 'TUI-owned passive backing store', valueColor: C.info },
+            { label: 'store', value: status?.knowledgeSpaceId ?? `project:${this.projectId}`, valueColor: C.value },
+            { label: 'mode', value: 'Agent-owned workspace planning state', valueColor: C.info },
           ], C),
           buildPanelLine(width, [
-            [' Planning never starts from daemon, webhooks, ntfy, Home Assistant, or companion surfaces.', C.dim],
+            [' Planning stays in the Agent main conversation; build/fix/review execution is delegated explicitly to GoodVibes TUI.', C.dim],
           ]),
         ],
       });
@@ -189,7 +189,7 @@ export class ProjectPlanningPanel extends BasePanel {
           lines: buildEmptyState(
             width,
             'No project planning state has been saved for this workspace.',
-            'Describe the intended change in normal chat to let the TUI start the planning interview. The SDK only stores and evaluates artifacts.',
+            'Describe the intended operator outcome in normal chat to let the Agent start the planning interview. The SDK stores and evaluates artifacts; it does not start execution.',
             [],
             C,
           ),
@@ -227,7 +227,7 @@ export class ProjectPlanningPanel extends BasePanel {
 
       return buildPanelWorkspace(width, height, {
         title: this.loading ? 'Project Planning - loading' : 'Project Planning',
-        intro: 'Passive SDK-backed planning artifacts for the current workspace. Conversation control stays inside this TUI.',
+        intro: 'SDK-backed planning artifacts for the current Agent workspace. Conversation control stays in the main Agent turn.',
         sections: [scroll.section],
         footerLines: this.footerLines(width),
         palette: C,

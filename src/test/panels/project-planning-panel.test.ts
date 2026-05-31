@@ -15,7 +15,7 @@ function makeState(input: Partial<ProjectPlanningState> = {}): ProjectPlanningSt
     projectId: 'proj',
     knowledgeSpaceId: 'project:proj',
     goal: input.goal ?? 'Plan the provider/model workspace.',
-    scope: input.scope ?? 'TUI-only planning surface.',
+    scope: input.scope ?? 'Agent-only planning surface.',
     knownContext: input.knownContext ?? ['Workspace: /tmp/project'],
     openQuestions: input.openQuestions ?? [],
     answeredQuestions: input.answeredQuestions ?? [],
@@ -40,7 +40,7 @@ function makeService(state: ProjectPlanningState | null): ProjectPlanningService
   const language: ProjectPlanningLanguageArtifact = {
     projectId: 'proj',
     knowledgeSpaceId: 'project:proj',
-    terms: [{ term: 'Planning Loop', definition: 'A TUI-owned interview before execution.' }],
+    terms: [{ term: 'Planning Loop', definition: 'An Agent-owned interview before execution.' }],
     ambiguities: [],
     updatedAt: Date.now(),
   };
@@ -94,7 +94,7 @@ describe('ProjectPlanningPanel', () => {
 
     const rendered = text(panel.render(100, 42));
     expect(rendered).toContain('Project Planning');
-    expect(rendered).toContain('TUI-owned passive backing store');
+    expect(rendered).toContain('Agent-owned workspace planning state');
     expect(rendered).toContain('Plan the provider/model workspace');
     expect(rendered).toContain('Planning Loop');
   });

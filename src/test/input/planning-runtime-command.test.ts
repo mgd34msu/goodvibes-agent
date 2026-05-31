@@ -117,8 +117,10 @@ describe('/plan project planning runtime command', () => {
     await registry.execute('plan', ['replace', 'the', 'planning', 'panel'], makeContext(fake.service, out, opened));
 
     expect(opened).toContain('project-planning');
-    expect(out.join('\n')).toContain('Answer in the prompt, or focus the Planning panel');
+    expect(out.join('\n')).toContain('Answer in the prompt, or focus the Planning workspace');
+    expect(fake.state()?.knownContext.join('\n')).toContain('Agent /plan command');
     expect(fake.state()?.metadata?.['active']).toBe(true);
+    expect(fake.state()?.metadata?.['owner']).toBe('agent');
     expect(fake.state()?.openQuestions.length).toBeGreaterThan(0);
   });
 });

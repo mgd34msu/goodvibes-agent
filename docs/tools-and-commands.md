@@ -1,172 +1,71 @@
 # Tools and Commands
 
-## Built-in tools
+GoodVibes Agent is an operator assistant, not a coding TUI clone at the product-policy layer. It keeps the GoodVibes TUI terminal foundation, but its command surface is centered on main-conversation assistant work, isolated Agent Knowledge/Wiki, local memory/skills/personas, daemon observability, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
 
-GoodVibes ships a broad built-in tool set. Current tool families include:
+## Product Boundaries
 
-- file and code operations: `read`, `write`, `edit`, `find`
-- execution and inspection: `exec`, `analyze`, `inspect`
-- network and research: `fetch`, `web_search`
-- orchestration: `agent`, `workflow`, `task`, `team`, `worklist`
-- runtime/control surfaces: `state`, `registry`, `control`, `channel`, `remote`
-- external integration surfaces: `mcp`
-- structured query/eval surfaces: `repl`, `query`, `packet`
+- Normal chat stays in the main Agent conversation.
+- Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`.
+- Agent never falls back to the default Knowledge/Wiki, HomeGraph, Home Assistant, or arbitrary knowledge spaces.
+- Local memory, skills, and personas remain Agent-local until a stable shared registry contract exists.
+- The daemon is external. Agent connects to it and reports health; it does not start, stop, restart, or install it.
+- WRFC is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, review, or WRFC work.
+- Code-building work is delegated to GoodVibes TUI through public shared-session/task contracts.
 
-The tool registry is part of the main runtime and is shared across the TUI, agents, automation, and daemon-backed flows.
+## Operator Commands
 
-## High-value tool families
+High-signal Agent command families:
 
-### File and code work
+- `/help` for registry-driven command discovery.
+- `/status`, `/auth`, and `/compat` for daemon/auth/SDK diagnostics.
+- `/model` and `/provider` for provider/model selection and visibility.
+- `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, and ingest.
+- `/recall`, `/memory`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
+- `/plan` for Agent-owned workspace planning state in the main conversation.
+- `/workplan` for durable task status over public work-plan routes.
+- `/approvals` for pending approval visibility and explicit approval actions.
+- `/automation` and `/schedule` for read-only automation visibility plus narrow explicit-user-action run/pause/resume/cancel/retry flows where implemented.
+- `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
+- `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
 
-- `read` for token-efficient file reading, outlines, symbols, AST views, and paginated batch reads
-- `write` for atomic writes, overwrite modes, and auto-heal pipelines
-- `edit` for structural code edits with validation and rollback
-- `find` for files, content, symbols, references, and structural search
+Copied TUI-era commands that would imply daemon lifecycle ownership, local agent spawning, coding-first execution, sandbox/QEMU ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only until they are intentionally adapted to Agent policy.
 
-### Execution and analysis
+## Agent Knowledge
 
-- `exec` for shell execution, background processes, retries, and process tracking
-- `analyze` for impact, dependencies, dead code, upgrade, semantic diff, and security checks
-- `inspect` for project/frontend/runtime inspection
+`/knowledge ask <query>` asks the isolated Agent Knowledge/Wiki environment for a source-backed answer. The daemon route is `/api/goodvibes-agent/knowledge/ask`.
 
-### Research and retrieval
+`/knowledge search <query>` searches the same isolated Agent environment through `/api/goodvibes-agent/knowledge/search`.
 
-- `fetch` for HTTP retrieval and extraction
-- `web_search` for provider-backed search and evidence shaping
-- `packet` for compact knowledge/context packets
-- `query` and `repl` for bounded query/eval work
+`/knowledge ingest-url <url>` ingests into Agent Knowledge through `/api/goodvibes-agent/knowledge/ingest/url`.
 
-### Coordination and product control
+The Agent command layer rejects flags that would route knowledge work into another space, including `--space`, `--knowledge-space`, `--knowledgeSpaceId`, `--includeAllSpaces`, and HomeGraph/Home Assistant selectors. If Agent Knowledge is unavailable, the command fails closed instead of querying a default store.
 
-- `agent` for in-process agent work
-- `workflow` for WRFC and related execution flows
-- `remote` for distributed runtime control
-- `channel` for channel-aware runtime and delivery surfaces
-- `control` and `state` for product/runtime introspection
+## Planning
 
-## Slash-command families
+`/plan` inspects or seeds Agent workspace planning state. The planning loop belongs to the main Agent conversation: the Agent asks focused questions, records decisions and gaps, and keeps execution separate until the user gives an explicit action.
 
-Representative slash-command families include:
+The SDK project-planning service may still expose a project namespace such as `project:<projectId>` because that is the stable contract shape. In Agent UI and docs this is treated as a planning namespace, not as permission to query default Knowledge/Wiki or HomeGraph.
 
-- `/model`
-- `/settings`
-- `/config`
-- `/recall`
-- `/knowledge`
-- `/remote`
-- `/sandbox` (externalized boundary guidance; GoodVibes TUI owns sandbox/QEMU execution)
-- `/plugin`
-- `/marketplace`
-- `/workflow`
-- `/schedule`
-- `/voice`
-- `/tts`
-- `/cloudflare`
-- `/mcp`
-- `/incident`
-- `/replay`
-- `/eval`
-- `/workplan`
+Use `/workplan` when the work already has concrete tasks and needs durable status tracking rather than another planning interview.
 
-`/model` opens the fullscreen provider/model workspace. The left rail chooses the target route (`Main Chat`, `Helper Model`, `Tool LLM`, or `TTS LLM`), and the main table filters large model catalogs by search, price tier, capability, availability, benchmark sort, and grouping. `/provider` opens the same workspace in provider-first mode so users can choose a provider and then a model for the active target.
+## Delegation
 
-`/plan` now inspects or seeds the TUI-owned project-planning state. The primary planning UX is natural conversation in the TUI; daemon and companion surfaces only get passive SDK storage/evaluation routes. Use `/plan panel` to open the Planning panel, `/plan approve` to record explicit execution approval, or `/plan <goal>` to seed the current workspace planning artifact.
+`/delegate` is for explicit build, fix, review, or implementation work. It sends a single delegated request to GoodVibes TUI/shared-session routes with the original user ask and execution intent. Agent does not create local Engineer/Reviewer/Tester root agents and does not run WRFC by default.
 
-`/paste` (`/clip`) explicitly reads the system clipboard and inserts supported text or image data into the prompt. Use this when terminal paste does not deliver image clipboard contents to the TUI; the command uses the clipboard helper path instead of relying on the terminal paste stream.
+Use WRFC only when the user explicitly asks for WRFC or when the delegated build/fix/review request explicitly calls for it.
 
-`/mcp` opens the fullscreen MCP workspace. `/mcp add <name> <command> [args...] [--scope project|global]` writes a project server to `.goodvibes/mcp.json` or a global server to `~/.config/mcp/mcp.json`, then reloads the live MCP runtime without restarting. Use `/mcp remove <server> [--scope project|global]`, `/mcp reload`, `/mcp config`, and `/mcp tools [server]` for the same operations from the command line.
+## Approvals And Automation
 
-## Operator surfaces
+Approvals and automation are safe by default:
 
-Many commands also have matching panels and control rooms. High-signal examples:
+- list/status views are read-only;
+- mutating routes require exact commands and explicit confirmation such as `--yes`;
+- no chat turn silently runs approval, schedule, or automation mutations;
+- unavailable routes return structured errors rather than fallback behavior.
 
-- provider accounts and health
-- knowledge and memory review
-- remote peers and work queues
-- channels and deliveries
-- MCP trust and reconnect posture
-- approvals, policy, security, and diagnostics
-- tasks, orchestration, worktrees, and agents
-- WRFC chain state and constraint satisfaction
-- project planning readiness, decisions, project language, task graph, verification gates, and agent handoff metadata
-- persistent work-plan task tracking for ongoing local implementation work
-
-## Project planning
-
-Project planning is TUI-owned. When a normal chat turn clearly asks for an implementation plan, dependency graph, verification strategy, or agent handoff, the TUI opens the Planning panel, stores state in the SDK `ProjectPlanningService`, evaluates readiness, and asks one focused planning question before execution.
-
-Planning artifacts are stored in a project knowledge space named `project:<projectId>`, where the project id is derived from the workspace path. The SDK supplies passive daemon routes and operator methods, but daemon/non-TUI surfaces do not enter planning loops.
-
-See [Project planning](project-planning.md) for the panel layout, `/plan` behavior, and route/method list.
-
-`/workplan` is the separate persistent checklist surface. Use it when the work already has concrete tasks and you want durable status tracking rather than another planning interview.
-
-## Knowledge Ask
-
-`/knowledge ask <query>` asks the SDK knowledge/wiki layer for a source-backed semantic answer. Use `--space <knowledgeSpaceId>` to target a specific space such as a Home Assistant graph, `--limit <n>` to bound evidence, and `--mode concise|standard|detailed` to select answer detail.
-
-The TUI displays the SDK-returned answer text, sources, facts, linked objects, gaps, confidence, and synthesized state directly. It does not turn search results into local snippets.
-
-## WRFC constraint visibility
-
-The WRFC panel surfaces constraint state at every level of a running chain:
-
-- Each chain renders a constraint badge (`c:N/M`) colored by aggregate satisfaction status (green = all satisfied, grey = unverified, red = unsatisfied; yellow when some constraints are verified and some are still pending).
-- Expanding a chain shows each constraint with a status marker: `[SAT]` (satisfied), `[UNS CRIT]` / `[UNS MAJOR]` / `[UNS MINOR]` (unsatisfied, severity-tagged), or `[UNV]` (unverified). Inherited constraints are marked with a trailing ` *`.
-- Fix-attempt process-modal rows append `[Nc]` to indicate the number of constraints the fix is targeting.
-- The selected-chain summary line shows satisfied/total/inherited counts.
-- Controller-flagged synthetic issues (raised by the workflow controller rather than a reviewer) render above reviewer issues under a `[CRITICAL]` "Controller flags" header.
-- The agent-detail modal surfaces the `systemPromptAddendum` field from the agent record when it contains a WRFC engineer addendum, so the full constraint injection is visible without leaving the TUI.
-- When constraints are loaded, the system-message router emits a `WORKFLOW_CONSTRAINTS_ENUMERATED` operator-visible message. This is routed through the standard `ui.wrfcMessages` setting (`panel`, `conversation`, or `both`).
-
-The `/wrfc` command opens the chain-status view directly. Constraint counts are also visible in the orchestration panel and in `/wrfc` output without opening the full panel.
-
-## Live TTS commands
-
-`/tts <prompt>` submits a normal chat turn and adds live spoken output for that one turn. Text still renders normally in the transcript. Assistant deltas are chunked at sentence or phrase boundaries and streamed through the configured TTS provider.
-
-`/tts stop` cancels active playback and pending TTS requests without deleting the text response.
-
-`/config tts` opens the TTS category in the fullscreen configuration workspace. It manages the defaults used by spoken-output clients:
-
-- `tts.provider`
-- `tts.voice`
-- `tts.llmProvider`
-- `tts.llmModel`
-
-Use the `tts.provider` row to choose a provider with streaming TTS support, the `tts.voice` row to choose a voice, and the `tts.llmProvider` / `tts.llmModel` rows to choose an optional `/tts` response model override through the fullscreen provider/model workspace. Without that override, `/tts` uses the current chat provider/model. Live local playback requires `mpv` or `ffplay` on `PATH`.
-
-## Cloudflare batch commands
-
-Cloudflare integration is optional and keeps local immediate daemon behavior by default. Select `Use Cloudflare for batch or remote daemon work` in onboarding to configure it visually, or use `/cloudflare` for runtime actions.
-
-High-signal commands:
-
-- `/cloudflare status`
-- `/cloudflare requirements`
-- `/cloudflare create-token --account <account-id> --bootstrap-env <ENV_NAME>`
-- `/cloudflare discover`
-- `/cloudflare validate`
-- `/cloudflare provision --batch-mode explicit`
-- `/cloudflare verify`
-- `/cloudflare disable`
-
-The TUI calls SDK daemon routes only. It does not call Cloudflare APIs directly. See [Cloudflare batch and control plane](cloudflare-batch.md) for token setup, supported components, and provisioning behavior.
-
-## Workflow-oriented commands
-
-Some command families are especially important when you are running GoodVibes as an operational console rather than just a chat surface:
-
-- `/workflow` for WRFC and related execution chains
-- `/schedule` for cron-like and interval-based automation
-- `/hooks` for managed hook inspection and simulation
-- `/remote` for dispatching and recovering distributed work
-- `/sandbox` for explaining the Agent boundary and delegating sandbox/QEMU work to GoodVibes TUI
-
-For the Agent sandbox boundary, see [QEMU sandbox boundary](qemu-sandbox.md). Use the GoodVibes TUI project documentation for actual QEMU setup and execution.
-
-## Related docs
+## Related Docs
 
 - [Getting started](getting-started.md)
 - [Deployment and services](deployment-and-services.md)
-- [Channels, remote runtime, and API](channels-remote-and-api.md)
+- [Knowledge, artifacts, and multimodal](knowledge-artifacts-and-multimodal.md)
+- [Release and publishing](release-and-publishing.md)

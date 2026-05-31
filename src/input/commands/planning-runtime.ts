@@ -43,14 +43,14 @@ function formatNextQuestion(question: ProjectPlanningQuestion | undefined): stri
   if (!question) return 'No next question recorded.';
   const lines = [`Next question: ${question.prompt}`];
   if (question.recommendedAnswer) lines.push(`Recommended answer: ${question.recommendedAnswer}`);
-  lines.push('Answer in the prompt, or focus the Planning panel to choose/type an answer.');
+  lines.push('Answer in the prompt, or focus the Planning workspace to choose/type an answer.');
   return lines.join('\n');
 }
 
 export function registerPlanningRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'plan',
-    description: 'Inspect or seed TUI-owned project planning state',
+    description: 'Inspect or seed Agent workspace planning state',
     usage: '[panel | approve | list | show <id> | mode | explain | override <strategy> | status | clear | <planning goal>]',
     argsHint: '[panel|approve|status|<goal>]',
     async handler(args, ctx) {
@@ -86,7 +86,7 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
           ctx.print(
             `Project planning: ${evaluation.readiness}\n` +
             `Project: ${status.projectId}\n` +
-            `Knowledge space: ${status.knowledgeSpaceId}\n` +
+            `Planning namespace: ${status.knowledgeSpaceId}\n` +
             `Artifacts: ${status.counts.states} state, ${status.counts.decisions} decisions, ${status.counts.languageArtifacts} language\n` +
             formatNextQuestion(evaluation.nextQuestion),
           );
@@ -175,11 +175,11 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
         state: {
           goal: taskDescription,
           knownContext: [
-            `Workspace planning was seeded from the TUI /plan command.`,
+            `Workspace planning was seeded from the Agent /plan command.`,
           ],
           metadata: {
             active: true,
-            owner: 'tui',
+            owner: 'agent',
             source: 'plan-command',
             lastPromptAt: Date.now(),
           },

@@ -1,248 +1,83 @@
 # Knowledge, Artifacts, and Multimodal
 
-## Context layers
+GoodVibes Agent has its own Knowledge/Wiki segment. It must not query or ingest through the default Knowledge/Wiki, HomeGraph, Home Assistant, or copied TUI knowledge spaces.
 
-GoodVibes uses three distinct context layers:
+## Context Layers
 
-- session memory for lightweight current-session notes
-- durable reviewed memory in SQLite for reuse, review, export, and task-time injection
-- a structured knowledge store with sources, nodes, edges, issues, extractions, usage records, consolidation candidates and reports, schedules, GraphQL, and projections
+GoodVibes Agent uses these context layers:
 
-These layers work together rather than collapsing everything into transcript history.
+- current conversation context for the active turn;
+- local Agent memory records for durable but private assistant facts and preferences;
+- local Agent skills and personas for reusable behavior profiles;
+- isolated Agent Knowledge/Wiki for source-backed documents, search, and semantic answers;
+- artifacts for uploaded/generated files that can be referenced by chat, delegation, or future Agent Knowledge ingestion.
 
-## Durable memory
+These layers are intentionally separate. Local memory/skills/personas are not automatically promoted into Agent Knowledge. Agent Knowledge records are not copied into the default wiki. Secrets are rejected or represented only by explicit secret references.
 
-Durable memory records support:
+## Agent Knowledge Boundary
 
-- review state
-- confidence
-- provenance
-- links between records
-- scoped reuse across session, project, and team contexts
-- queue/review/promote workflows
+Agent Knowledge uses only the Agent route family:
 
-Representative record classes include:
+```text
+GET  /api/goodvibes-agent/knowledge/status
+POST /api/goodvibes-agent/knowledge/ask
+POST /api/goodvibes-agent/knowledge/search
+POST /api/goodvibes-agent/knowledge/ingest/url
+```
 
-- decisions
-- constraints
-- incidents
-- patterns
-- facts
-- risks
-- runbooks
-- architecture
-- ownership
+If those routes are unavailable, Agent commands fail closed with a structured error. They do not retry against `/api/knowledge/*`, HomeGraph, Home Assistant, or arbitrary knowledge-space selectors.
 
-## Structured knowledge
-
-The knowledge runtime supports:
-
-- URL ingest
-- bookmark import
-- browser-local history/bookmark ingest, only after explicit user consent
-- URL-list import
-- artifact ingest
-- connector-based ingest
-- search
-- packet building
-- linting
-- reindex
-- projection rendering/materialization
-- scheduled jobs
-- consolidation candidates and reports
-- source-backed semantic ask answers with returned sources, facts, linked objects, gaps, confidence, and synthesized state
-
-The system is designed as a reviewed, self-improving knowledge substrate for future task context.
-
-Regular Knowledge/Wiki and Home Assistant Home Graph are separate runtime instances. Regular knowledge routes use the default Knowledge/Wiki store. Home Graph data is accessed through `/api/homeassistant/home-graph/*` and lives in the Home Graph store. Do not use `includeAllSpaces` as a way to browse Home Graph from the regular Knowledge/Wiki surface; Home Graph has its own browse, map, pages, ask, refinement, and review routes.
+The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledgeSpaceId`, `--includeAllSpaces`, and HomeGraph/Home Assistant selectors because those would violate the Agent product boundary.
 
 ## Semantic Ask
 
-The SDK owns semantic question answering through:
+`/knowledge ask <query>` and `goodvibes-agent ask <query>` render the daemon's Agent Knowledge answer. The default human output is concise:
 
-- `POST /api/knowledge/ask`
-- operator method `knowledge.ask`
-- local TUI command `/knowledge ask <query> [--space <knowledgeSpaceId>] [--limit <n>] [--mode <concise|standard|detailed>]`
+- answer text or a clear no-match state;
+- confidence when present;
+- sources, titles, and URLs when returned;
+- facts, gaps, and refinement task ids only when the Agent Knowledge route returns them.
 
-SDK-owned semantic enrichment supports provider-backed LLM extraction with timeout, abort, and concurrency controls. Broad reindex caps LLM attempts and then continues with deterministic extraction, so hosts should wire the SDK semantic service rather than implementing their own timeout or concurrency shim.
+`--json` preserves the raw structured Agent route response for tooling.
 
-TUI rendering should display the answer object returned by the SDK:
+The command layer does not turn search results into an answer locally and does not apply client-side filters to hide contamination. Isolation must come from the Agent Knowledge route itself.
 
-- `answer.text`
-- `answer.sources`
-- `answer.facts`
-- `answer.linkedObjects`
-- `answer.gaps`
-- `answer.confidence`
-- `answer.synthesized`
+## Search
 
-Do not reformat search results into local answer snippets. The SDK response is the answer contract; the TUI only presents it.
+`/knowledge search <query>` and `goodvibes-agent search <query>` query the isolated Agent Knowledge search route and render bounded results with title, id, type, score, source, URL, and snippets when available. Empty Agent stores return an explicit empty state.
 
-## Durable Refinement
+## Ingest
 
-SDK 0.28.0 adds durable semantic refinement tasks for the base knowledge layer. Refinement records preserve the gap, subject, state, trace, source assessments, blocked reasons, accepted facts, rejected evidence, and follow-up state so clients can explain what the knowledge system attempted instead of only reporting "skipped".
+`/knowledge ingest-url <url>` and `goodvibes-agent knowledge ingest-url <url>` ingest URL sources into Agent Knowledge only. Additional ingest shapes should be added only when the SDK exposes Agent-specific routes for them.
 
-SDK 0.28.1 makes refinement runs budget-aware and non-blocking for user-facing routes. Ask routes should answer from current evidence and return `refinementTaskIds` when repair work is queued or still running. Reindex should queue repair instead of waiting for every repair to finish. Broad `refinement/run` calls cap effective work per run and report truncation or budget exhaustion rather than pinning the daemon. Stale `searching` or `evaluating` tasks older than the SDK recovery window are moved back to a retriable blocked state on the next run.
-
-SDK 0.28.2 fixes the published dist guardrail path for refinement budgets. Runtime dist uses 12 refinement gaps as the default run size and 24 as the maximum effective limit. It also reopens historical `No semantic gap repairer is configured` tasks once the host has wired the SDK web-backed repairer, so old blocked tasks should no longer look like current host composition failures after a run reaches them.
-
-SDK 0.28.3 coalesces overlapping semantic repair runs so repeated or concurrent refinement triggers should be bounded instead of piling up duplicate repair work. Home Graph repair-source metadata now preserves `linkedObjects` through answer rendering.
-
-Daemon routes:
-
-```text
-GET  /api/knowledge/refinement/tasks
-GET  /api/knowledge/refinement/tasks/{id}
-POST /api/knowledge/refinement/run
-POST /api/knowledge/refinement/tasks/{id}/cancel
-```
-
-The list route accepts filters such as `knowledgeSpaceId` or `spaceId`, `state`, `subjectKind`, `subjectId`, `gapId`, and `limit`. `POST /api/knowledge/refinement/run` is admin-gated and accepts `knowledgeSpaceId` or `spaceId`, optional `gapIds`, optional `sourceIds`, `limit`, and `force`.
-
-Use these SDK routes directly for task inspection and manual repair runs. Do not duplicate the refinement state machine in the TUI.
-
-The TUI daemon runtime wires SDK semantic refinement to the SDK web gap repairer. Gap repair uses the configured GoodVibes web search providers for source discovery and the knowledge ingest service for accepted repair sources. If web search providers are unavailable or disabled, tasks may still become blocked by search/provider readiness, but they should not report `No semantic gap repairer is configured`.
-
-## Issue Review
-
-Knowledge issues can be reviewed through the local TUI command and the daemon/operator surfaces:
-
-- `/knowledge review-issue <issueId> <accept|reject|resolve|reopen|edit|forget> [--reviewer <name>] [--value <json-object>]`
-- `POST /api/knowledge/issues/{id}/review`
-- operator method `knowledge.issue.review`
-
-Review actions update the issue state through the SDK. `accept`, `reject`, `resolve`, and `forget` mark the issue resolved; `reopen` and `edit` return it to open. Optional JSON values can supply reviewed source or node facts for SDK-owned application.
-
-## Connectors and extractors
-
-Connectors provide the front door for ingest ideas such as:
-
-- single URLs
-- bookmark exports
-- browser-local history and bookmark profiles
-- URL lists
-- artifacts
-- future source-specific connectors
-
-Built-in extractors cover:
-
-- HTML
-- Readability-backed article extraction for suitable HTML pages
-- text
-- markdown
-- JSON
-- CSV / TSV
-- XML
-- YAML
-- PDF text
-- DOCX
-- XLSX
-- PPTX
-
-## Embeddings and retrieval
-
-The knowledge/memory runtime uses sqlite-vec with a pluggable embedding registry. Current embedding providers include:
-
-- local hashed embeddings
-- OpenAI
-- OpenAI-compatible / LM Studio
-- Gemini
-- Mistral
-- Ollama
-
-The runtime uses these for:
-
-- semantic recall
-- knowledge packet selection
-- review and search support
-
-## GraphQL and projections
-
-The knowledge domain exposes:
-
-- GraphQL schema and execution surfaces
-- projection targets
-- overview pages
-- rollups
-- backlinks
-- source-health views
-- exportable markdown/wiki-style materializations
-
-The canonical store is the structured knowledge database. GraphQL and projections are query and presentation surfaces on top of it.
+Do not map local memory, skills, personas, or default wiki documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
 
 ## Artifacts
 
-Artifacts are first-class runtime objects. The artifact store handles:
+Artifacts are first-class runtime objects for files, images, audio, video, generated outputs, and delegation results. Artifact storage is shared daemon infrastructure, but Agent Knowledge use of artifacts must still go through Agent-specific ingest routes when those are available.
 
-- markdown
-- text
-- JSON
-- CSV
-- spreadsheets
-- PDFs
-- images
-- audio
-- video
-- generated outputs
+Large uploads should use daemon upload bodies rather than JSON inline data:
 
-Artifacts can be:
+- `POST /api/artifacts` with multipart form field `file`;
+- `POST /api/artifacts` with raw binary bodies plus filename metadata;
+- Agent-specific artifact ingest routes once the SDK exposes them.
 
-- ingested
-- stored
-- retrieved
-- delivered through channels
-- reused by knowledge and multimodal pipelines
-
-Large file uploads should use daemon upload bodies rather than JSON inline data:
-
-- `POST /api/artifacts` accepts multipart/form-data with field name `file`.
-- `POST /api/artifacts` accepts raw binary bodies with `Content-Type` set and the filename supplied with `filename` query params or `X-GoodVibes-Filename`.
-- `POST /api/knowledge/ingest/artifact` accepts existing artifact references, daemon-local paths, remote URIs, multipart files, and raw binary uploads.
-- Keep JSON `dataBase64` only for small inline control payloads. PDFs, photos, archives, and large documents should use multipart or raw upload bodies.
-
-The host-side artifact storage cap is configured with `storage.artifacts.maxBytes`. The default is 512 MiB.
+Keep JSON inline payloads for small control data only.
 
 ## Multimodal
 
-The unified multimodal runtime handles:
+The copied GoodVibes runtime contains multimodal primitives for images, audio, video, documents, packet building, and provider routing. In Agent, multimodal analysis should be wired as an operator-assistant capability and should write into Agent Knowledge only through Agent-specific routes.
 
-- image analysis
-- audio analysis through STT-backed paths
-- video analysis through keyframe/transcript fusion
-- document analysis through extractors and packet building
+Until that route coverage exists, multimodal outputs should stay in the conversation, artifacts, local memory, or explicit delegation results rather than being inserted into default Knowledge/Wiki.
 
-It also supports:
+## Refinement
 
-- packet building
-- optional write-back into structured knowledge
-- provider routing across media and voice subsystems
+Default knowledge refinement route families are not an Agent Knowledge contract. Do not call them from Agent as a substitute for Agent Knowledge repair.
 
-## Jobs and schedules
+When the SDK exposes Agent-specific refinement routes, they should preserve the same boundary as ask/search/ingest: no default wiki fallback, no HomeGraph fallback, and no client-side contamination filters.
 
-Knowledge jobs include:
+## Related Docs
 
-- `lint`
-- `reindex`
-- `refresh-stale`
-- `refresh-bookmarks`
-- `rebuild-projections`
-- `knowledge-semantic-self-improvement`
-- `light-consolidation`
-- `deep-consolidation`
-
-These can be run directly or saved as schedules through the runtime.
-
-## High-signal commands
-
-- `/recall add|search|queue|review|explain|promote|capture`
-- `/knowledge status|ask|ingest-url|import-bookmarks|import-urls|search|get|queue|review-issue|candidates|reports|schedules|lint|packet|explain|reindex|consolidate`
-- `/memory-sync`
-- `/handoff`
-- `/session-memory`
-- `/team-memory`
-
-## Related docs
-
-- [Providers and routing](providers-and-routing.md)
-- [Channels, remote runtime, and API](channels-remote-and-api.md)
 - [Tools and commands](tools-and-commands.md)
+- [Getting started](getting-started.md)
+- [Release and publishing](release-and-publishing.md)
