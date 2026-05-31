@@ -20,6 +20,7 @@ import {
 } from '@/runtime/index.ts';
 import { requireProfileManager, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 function buildConfigSnapshot(
   manager: { get: (key: ConfigKey) => unknown },
@@ -39,11 +40,13 @@ export function registerManagedRuntimeCommands(registry: CommandRegistry): void 
   registry.register({
     name: 'managed',
     description: 'Export, inspect, and apply managed settings bundles',
-    usage: '[review|staged|rollback-history|export <profile> <path>|inspect <path>|stage <path>|apply <path> [key ...]|apply-staged [key ...]|rollback <token>|lock <key> <source> <reason...>|unlock <key>]',
+    usage: '[review|staged|rollback-history|export <profile> <path> --yes|inspect <path>|stage <path> --yes|apply <path> [key ...] --yes|apply-staged [key ...] --yes|rollback <token> --yes|lock <key> <source> <reason...> --yes|unlock <key> --yes]',
     handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       const controlPlaneConfigDir = ctx.platform.configManager.getControlPlaneConfigDir();
-      const sub = args[0] ?? 'review';
+      const sub = commandArgs[0] ?? 'review';
       const pm = requireProfileManager(ctx);
       if (sub === 'review') {
         const profiles = pm.list();
@@ -78,11 +81,15 @@ export function registerManagedRuntimeCommands(registry: CommandRegistry): void 
       }
 
       if (sub === 'lock') {
-        const key = args[1] as ConfigKey | undefined;
-        const source = args[2];
-        const reason = args.slice(3).join(' ').trim();
+        const key = commandArgs[1] as ConfigKey | undefined;
+        const source = commandArgs[2];
+        const reason = commandArgs.slice(3).join(' ').trim();
         if (!key || !source || !reason) {
-          ctx.print('Usage: /managed lock <key> <source> <reason...>');
+          ctx.print('Usage: /managed lock <key> <source> <reason...> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `lock managed setting ${key}`, '/managed lock <key> <source> <reason...> --yes');
           return;
         }
         setManagedSettingLock(key, source, reason, controlPlaneConfigDir);
@@ -91,9 +98,13 @@ export function registerManagedRuntimeCommands(registry: CommandRegistry): void 
       }
 
       if (sub === 'unlock') {
-        const key = args[1] as ConfigKey | undefined;
+        const key = commandArgs[1] as ConfigKey | undefined;
         if (!key) {
-          ctx.print('Usage: /managed unlock <key>');
+          ctx.print('Usage: /managed unlock <key> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `unlock managed setting ${key}`, '/managed unlock <key> --yes');
           return;
         }
         ctx.print(clearManagedSettingLock(key, controlPlaneConfigDir) ? `Managed lock cleared for ${key}.` : `No managed lock found for ${key}.`);
@@ -101,10 +112,14 @@ export function registerManagedRuntimeCommands(registry: CommandRegistry): void 
       }
 
       if (sub === 'export') {
-        const profileName = args[1];
-        const pathArg = args[2];
+        const profileName = commandArgs[1];
+        const pathArg = commandArgs[2];
         if (!profileName || !pathArg) {
-          ctx.print('Usage: /managed export <profile> <path>');
+          ctx.print('Usage: /managed export <profile> <path> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `export managed settings profile ${profileName} to ${pathArg}`, '/managed export <profile> <path> --yes');
           return;
         }
         const loaded = pm.load(profileName);
@@ -129,10 +144,14 @@ export function registerManagedRuntimeCommands(registry: CommandRegistry): void 
       }
 
       if (sub === 'apply-staged') {
-        const requestedKeys = args.slice(1).filter((value): value is ConfigKey => CONFIG_KEYS.has(value as ConfigKey));
-        const invalidKeys = args.slice(1).filter((value) => !CONFIG_KEYS.has(value as ConfigKey));
+        const requestedKeys = commandArgs.slice(1).filter((value): value is ConfigKey => CONFIG_KEYS.has(value as ConfigKey));
+        const invalidKeys = commandArgs.slice(1).filter((value) => !CONFIG_KEYS.has(value as ConfigKey));
         if (invalidKeys.length > 0) {
           ctx.print(`Unknown config key(s): ${invalidKeys.join(', ')}`);
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, 'apply staged managed settings', '/managed apply-staged [key ...] --yes');
           return;
         }
         try {
@@ -149,9 +168,13 @@ export function registerManagedRuntimeCommands(registry: CommandRegistry): void 
       }
 
       if (sub === 'rollback') {
-        const token = args[1];
+        const token = commandArgs[1];
         if (!token) {
-          ctx.print('Usage: /managed rollback <token>');
+          ctx.print('Usage: /managed rollback <token> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `rollback managed settings token ${token}`, '/managed rollback <token> --yes');
           return;
         }
         try {
@@ -167,9 +190,9 @@ export function registerManagedRuntimeCommands(registry: CommandRegistry): void 
         return;
       }
 
-      const pathArg = args[1];
+      const pathArg = commandArgs[1];
       if (!pathArg) {
-        ctx.print(`Usage: /managed ${sub} <path>`);
+        ctx.print(`Usage: /managed ${sub} <path>${sub === 'stage' || sub === 'apply' ? ' --yes' : ''}`);
         return;
       }
       const sourcePath = shellPaths.resolveWorkspacePath(pathArg);
@@ -181,16 +204,24 @@ export function registerManagedRuntimeCommands(registry: CommandRegistry): void 
       }
 
       if (sub === 'stage') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `stage managed settings bundle from ${pathArg}`, '/managed stage <path> --yes');
+          return;
+        }
         const stage = stageManagedSettingsBundle(ctx.platform.configManager, bundle, sourcePath);
         ctx.print(`Managed settings bundle staged from ${sourcePath} (${stage.changeCount} changes, risk=${stage.risk}).`);
         return;
       }
 
       if (sub === 'apply') {
-        const requestedKeys = args.slice(2).filter((value): value is ConfigKey => CONFIG_KEYS.has(value as ConfigKey));
-        const invalidKeys = args.slice(2).filter((value) => !CONFIG_KEYS.has(value as ConfigKey));
+        const requestedKeys = commandArgs.slice(2).filter((value): value is ConfigKey => CONFIG_KEYS.has(value as ConfigKey));
+        const invalidKeys = commandArgs.slice(2).filter((value) => !CONFIG_KEYS.has(value as ConfigKey));
         if (invalidKeys.length > 0) {
           ctx.print(`Unknown config key(s): ${invalidKeys.join(', ')}`);
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `apply managed settings bundle from ${pathArg}`, '/managed apply <path> [key ...] --yes');
           return;
         }
         stageManagedSettingsBundle(ctx.platform.configManager, bundle, sourcePath);
@@ -203,7 +234,7 @@ export function registerManagedRuntimeCommands(registry: CommandRegistry): void 
       }
 
       recordSettingsSyncFailure('managed', `unsupported subcommand: ${sub}`, controlPlaneConfigDir);
-      ctx.print('Usage: /managed [review|staged|rollback-history|export <profile> <path>|inspect <path>|stage <path>|apply <path> [key ...]|apply-staged [key ...]|rollback <token>|lock <key> <source> <reason...>|unlock <key>]');
+      ctx.print('Usage: /managed [review|staged|rollback-history|export <profile> <path> --yes|inspect <path>|stage <path> --yes|apply <path> [key ...] --yes|apply-staged [key ...] --yes|rollback <token> --yes|lock <key> <source> <reason...> --yes|unlock <key> --yes]');
     },
   });
 }

@@ -86,7 +86,7 @@ export class SettingsSyncPanel extends ScrollableListPanel<ResolvedEntry> {
         : [buildPanelLine(width, [[' No recent sync or managed-setting failures.', C.dim]])]),
       // Conflicts
       ...(snapshot.conflicts.length > 0
-        ? snapshot.conflicts.map((conflict) => buildPanelLine(width, [[` ${conflict.key}`.padEnd(30), C.value], [` ${conflict.source}`.padEnd(10), C.warn], [` resolve: /settingssync resolve ${conflict.key} local|synced`.slice(0, Math.max(0, width - 42)), C.dim]]))
+        ? snapshot.conflicts.map((conflict) => buildPanelLine(width, [[` ${conflict.key}`.padEnd(30), C.value], [` ${conflict.source}`.padEnd(10), C.warn], [` resolve: /settingssync resolve ${conflict.key} local|synced --yes`.slice(0, Math.max(0, width - 42)), C.dim]]))
         : [buildPanelLine(width, [[' No settings conflicts detected.', C.dim]])]),
       // Rollback History
       ...(snapshot.rollbackHistory.length > 0
@@ -108,7 +108,7 @@ export class SettingsSyncPanel extends ScrollableListPanel<ResolvedEntry> {
             buildPanelLine(width, [[' managed ', C.label], [String(selectedEntry.managedValue ?? '(unset)').slice(0, Math.max(0, width - 11)), C.warn]]),
           ], C)
         : []),
-      buildPanelLine(width, [[' ↑/↓ browse  /settingssync show <key>  /settingssync resolve <key> <local|synced>  /managed apply-staged [key...] ', C.dim]]),
+      buildPanelLine(width, [[' ↑/↓ browse  /settingssync show <key>  mutations require --yes: resolve/apply-staged ', C.dim]]),
     ];
 
     return this.renderList(width, height, {

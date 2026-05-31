@@ -902,6 +902,24 @@ describe('product breadth commands', () => {
     out.length = 0;
     await voice!.handler(['review'], ctx);
     expect(out.join('\n')).toContain('Voice Review');
+
+    out.length = 0;
+    await voice!.handler(['enable'], ctx);
+    expect(out.join('\n')).toContain('Refusing to enable voice surface without --yes.');
+
+    out.length = 0;
+    await voice!.handler(['enable', '--yes'], ctx);
+    expect(out.join('\n')).toContain('Voice surface enabled');
+
+    const voiceBundle = join(root, 'artifacts', 'voice.json');
+    out.length = 0;
+    await voice!.handler(['bundle', 'export', voiceBundle], ctx);
+    expect(out.join('\n')).toContain('Refusing to export voice bundle');
+    expect(existsSync(voiceBundle)).toBe(false);
+
+    out.length = 0;
+    await voice!.handler(['bundle', 'export', voiceBundle, '--yes'], ctx);
+    expect(out.join('\n')).toContain('Voice bundle exported');
   });
 
   test('memory product commands expose sync, handoff, and scoped session/team flows', async () => {
@@ -1716,6 +1734,11 @@ describe('product breadth commands', () => {
     ctx.session.runtime.model = 'openai:changed-model';
     out.length = 0;
     await managed!.handler(['apply', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to apply managed settings bundle');
+    expect(ctx.session.runtime.model).toBe('openai:changed-model');
+
+    out.length = 0;
+    await managed!.handler(['apply', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Managed settings bundle applied');
     expect(ctx.session.runtime.model).toBe('openai:model-1');
 
@@ -1724,11 +1747,20 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await managed!.handler(['rollback', rollbackToken!], ctx);
+    expect(out.join('\n')).toContain('Refusing to rollback managed settings token');
+
+    out.length = 0;
+    await managed!.handler(['rollback', rollbackToken!, '--yes'], ctx);
     expect(out.join('\n')).toContain('Managed rollback');
 
     const syncPath = join(root, 'artifacts', 'settings-sync.json');
     out.length = 0;
     await settingsSync!.handler(['export', syncPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export settings sync bundle');
+    expect(existsSync(syncPath)).toBe(false);
+
+    out.length = 0;
+    await settingsSync!.handler(['export', syncPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Settings sync bundle exported');
 
     out.length = 0;
@@ -1744,10 +1776,18 @@ describe('product breadth commands', () => {
     ctx.session.runtime.model = 'openai:sync-model';
     out.length = 0;
     await settingsSync!.handler(['pull', syncPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to pull settings sync bundle');
+
+    out.length = 0;
+    await settingsSync!.handler(['pull', syncPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Settings sync bundle pulled');
 
     out.length = 0;
     await managed!.handler(['stage', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to stage managed settings bundle');
+
+    out.length = 0;
+    await managed!.handler(['stage', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Managed settings bundle staged');
 
     out.length = 0;
@@ -2280,16 +2320,28 @@ describe('product breadth commands', () => {
     const syncBundlePath = join(root, 'artifacts', 'settings-sync.json');
     out.length = 0;
     await registry.get('settingssync')!.handler(['push', syncBundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to push settings sync bundle');
+
+    out.length = 0;
+    await registry.get('settingssync')!.handler(['push', syncBundlePath, '--yes'], ctx);
     expect(existsSync(syncBundlePath)).toBe(true);
 
     runtimeServices.configManager.setDynamic('provider.model', 'local:local-conflict-model');
     ctx.session.runtime.model = 'local:local-conflict-model';
     out.length = 0;
     await registry.get('settingssync')!.handler(['pull', syncBundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to pull settings sync bundle');
+
+    out.length = 0;
+    await registry.get('settingssync')!.handler(['pull', syncBundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('conflicts');
 
     out.length = 0;
     await registry.get('settingssync')!.handler(['resolve', 'provider.model', 'local'], ctx);
+    expect(out.join('\n')).toContain('Refusing to resolve synced conflict for provider.model without --yes.');
+
+    out.length = 0;
+    await registry.get('settingssync')!.handler(['resolve', 'provider.model', 'local', '--yes'], ctx);
     expect(out.join('\n')).toContain('Resolved synced conflict for provider.model using the local value.');
 
     out.length = 0;

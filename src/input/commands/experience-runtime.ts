@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
 import { requirePanelManager, requireShellPaths } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 interface VoiceBundle {
   readonly version: 1;
@@ -223,10 +224,12 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
   registry.register({
     name: 'voice',
     description: 'Review voice posture and package portable voice-surface metadata',
-    usage: '[review|enable|disable|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const sub = (args[0] ?? 'review').toLowerCase();
+      const sub = (commandArgs[0] ?? 'review').toLowerCase();
       if (sub === 'review') {
         const enabled = Boolean(ctx.platform.configManager.get('ui.voiceEnabled') ?? false);
         ctx.print([
@@ -238,20 +241,28 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         return;
       }
       if (sub === 'enable' || sub === 'disable') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `${sub} voice surface`, `/voice ${sub} --yes`);
+          return;
+        }
         const next = sub === 'enable';
         ctx.platform.configManager.setDynamic('ui.voiceEnabled', next);
         ctx.print(`Voice surface ${next ? 'enabled' : 'disabled'} for this runtime.`);
         return;
       }
       if (sub === 'bundle') {
-        const mode = args[1];
-        const pathArg = args[2];
+        const mode = commandArgs[1];
+        const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /voice bundle ${mode} <path>`);
+          ctx.print(`Usage: /voice bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
           return;
         }
         const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export voice bundle to ${pathArg}`, '/voice bundle export <path> --yes');
+            return;
+          }
           const bundle: VoiceBundle = {
             version: 1,
             exportedAt: Date.now(),
@@ -272,7 +283,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
           return;
         }
       }
-      ctx.print('Usage: /voice [review|enable|disable|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /voice [review|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 }
