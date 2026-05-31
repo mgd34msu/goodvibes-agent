@@ -2,6 +2,14 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.2 - 2026-05-30
+
+- Added `goodvibes-agent compat` for package SDK pin, external daemon version, auth presence, and isolated Agent Knowledge route readiness.
+- Added `goodvibes-agent knowledge ...` commands for the isolated `/api/goodvibes-agent/knowledge/*` environment with no default Knowledge/Wiki or HomeGraph fallback.
+- Added explicit GoodVibes TUI build delegation through `goodvibes-agent delegate` and `/delegate`; WRFC is requested only through explicit `--wrfc`, `/wrfc`, or `/review` delegation.
+- Removed the copied WRFC panel from the default Agent panel registry while preserving explicit TUI delegation for build/fix/review work.
+- Hardened the Agent release helper and CLI help output for the current Agent changelog and command set.
+
 ## 0.1.1 - 2026-05-30
 
 - Reissued the first public alpha package after the initial `0.1.0` registry publish produced an install-blocking npm packument inconsistency.

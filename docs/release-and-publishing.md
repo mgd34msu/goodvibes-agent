@@ -1,6 +1,6 @@
 # Release And Publishing
 
-GoodVibes Agent `0.1.1` is the first installable public alpha release.
+GoodVibes Agent `0.1.2` is the current installable public alpha release.
 
 ## Package Identity
 
