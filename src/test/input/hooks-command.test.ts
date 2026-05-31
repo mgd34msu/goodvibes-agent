@@ -96,7 +96,7 @@ describe('hooks command', () => {
     const out: string[] = [];
     const ctx = makeHookCommandContext(out, hookWorkbench);
 
-    await hooks!.handler(['scaffold', 'guard-edit', 'Pre:tool:*', 'command'], ctx);
+    await hooks!.handler(['scaffold', 'guard-edit', 'Pre:tool:*', 'command', '--yes'], ctx);
     expect(existsSync(configManager.get('tools.hooksFile') as string)).toBe(true);
     expect(out.join('\n')).toContain('Scaffolded managed hook');
     expect(getTestHookDispatcher().listHooks().length).toBe(1);
@@ -115,7 +115,7 @@ describe('hooks command', () => {
     const out: string[] = [];
     const ctx = makeHookCommandContext(out, hookWorkbench);
 
-    await hooks!.handler(['scaffold', 'agent-checker', 'Pre:tool:*', 'agent'], ctx);
+    await hooks!.handler(['scaffold', 'agent-checker', 'Pre:tool:*', 'agent', '--yes'], ctx);
     expect(out.join('\n')).toContain('does not author local agent-spawning hooks');
     expect(getTestHookDispatcher().listHooks()).toHaveLength(0);
 
@@ -133,7 +133,7 @@ describe('hooks command', () => {
     }, null, 2));
 
     out.length = 0;
-    await hooks!.handler(['import', bundlePath, 'replace'], ctx);
+    await hooks!.handler(['import', bundlePath, 'replace', '--yes'], ctx);
     expect(out.join('\n')).toContain('does not import local agent-spawning hooks');
     expect(getTestHookDispatcher().listHooks()).toHaveLength(0);
     expect(existsSync(configManager.get('tools.hooksFile') as string)).toBe(false);
@@ -177,8 +177,42 @@ describe('hooks command', () => {
     expect(out.join('\n')).toContain('hooks: 1');
 
     out.length = 0;
-    await hooks!.handler(['import', bundlePath, 'replace'], ctx);
+    await hooks!.handler(['import', bundlePath, 'replace', '--yes'], ctx);
     expect(out.join('\n')).toContain('Imported managed hooks');
     expect(readFileSync(configManager.get('tools.hooksFile') as string, 'utf-8')).toContain('after-tool');
+  });
+
+  test('requires --yes before mutating managed hook workflows', async () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const hooks = registry.get('hooks');
+    expect(hooks).toBeDefined();
+
+    const bundlePath = join(tempDir, 'incoming-hooks.json');
+    writeFileSync(bundlePath, JSON.stringify({
+      hooks: {
+        'Post:tool:*': [{
+          name: 'after-tool',
+          match: 'Post:tool:*',
+          type: 'command',
+          command: 'echo after',
+          enabled: true,
+        }],
+      },
+    }, null, 2));
+
+    const out: string[] = [];
+    const ctx = makeHookCommandContext(out, hookWorkbench);
+
+    await hooks!.handler(['scaffold', 'guard-edit', 'Pre:tool:*', 'command'], ctx);
+    await hooks!.handler(['chain', 'guard-chain', 'Pre:tool:edit'], ctx);
+    await hooks!.handler(['import', bundlePath, 'replace'], ctx);
+    await hooks!.handler(['reload'], ctx);
+    await hooks!.handler(['export', join(tempDir, 'exported-hooks.json')], ctx);
+
+    expect(getTestHookDispatcher().listHooks()).toHaveLength(0);
+    expect(getTestHookDispatcher().getChains()).toHaveLength(0);
+    expect(existsSync(configManager.get('tools.hooksFile') as string)).toBe(false);
+    expect(out.join('\n')).toContain('without --yes');
   });
 });

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import type { CommandRegistry } from '../command-registry.ts';
 import { requireHookApi } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -26,26 +27,36 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
     name: 'hooks',
     aliases: [],
     description: 'Inspect, author, simulate, and reload managed hook workflows',
-    usage: '[contracts [filter] | reload | scaffold <name> <match> <type> | chain <name> <event1,event2,...> | remove <name> | enable <name> | disable <name> | simulate <eventPath> | inspect <path> | import <path> [merge|replace] | export [path]]',
+    usage: '[contracts [filter] | reload --yes | scaffold <name> <match> <type> --yes | chain <name> <event1,event2,...> --yes | remove <name> --yes | enable <name> --yes | disable <name> --yes | simulate <eventPath> | inspect <path> | import <path> [merge|replace] --yes | export [path] --yes]',
     argsHint: '[subcommand]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const hookApi = requireHookApi(ctx);
       const workbench = hookApi.workbench;
-      if (args.length === 0 && ctx.openHooksPanel) {
+      if (commandArgs.length === 0 && ctx.openHooksPanel) {
         ctx.openHooksPanel();
         return;
       }
 
-      const subcommand = (args[0] ?? 'contracts').toLowerCase();
+      const subcommand = (commandArgs[0] ?? 'contracts').toLowerCase();
       if (subcommand === 'reload') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, 'reload managed hook workflows', '/hooks reload --yes');
+          return;
+        }
         await workbench.reload();
         ctx.print(`Reloaded managed hooks from ${workbench.getFilePath()}`);
         return;
       }
       if (subcommand === 'scaffold') {
-        const [name, match, type] = args.slice(1);
+        const [name, match, type] = commandArgs.slice(1);
         if (!name || !match || !type) {
-          ctx.print('Usage: /hooks scaffold <name> <match> <command|prompt|http|ts>');
+          ctx.print('Usage: /hooks scaffold <name> <match> <command|prompt|http|ts> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `scaffold managed hook ${name}`, '/hooks scaffold <name> <match> <command|prompt|http|ts> --yes');
           return;
         }
         if (type === 'agent') {
@@ -61,10 +72,14 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
       if (subcommand === 'chain') {
-        const name = args[1];
-        const matches = args[2]?.split(',').map((entry) => entry.trim()).filter(Boolean) ?? [];
+        const name = commandArgs[1];
+        const matches = commandArgs[2]?.split(',').map((entry) => entry.trim()).filter(Boolean) ?? [];
         if (!name || matches.length === 0) {
-          ctx.print('Usage: /hooks chain <name> <event1,event2,...>');
+          ctx.print('Usage: /hooks chain <name> <event1,event2,...> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `scaffold managed hook chain ${name}`, '/hooks chain <name> <event1,event2,...> --yes');
           return;
         }
         const chain = await workbench.scaffoldChain(name, matches);
@@ -72,9 +87,13 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
       if (subcommand === 'remove') {
-        const name = args[1];
+        const name = commandArgs[1];
         if (!name) {
-          ctx.print('Usage: /hooks remove <name>');
+          ctx.print('Usage: /hooks remove <name> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `remove managed hook workflow ${name}`, '/hooks remove <name> --yes');
           return;
         }
         const removed = await workbench.remove(name);
@@ -86,9 +105,13 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
       if (subcommand === 'enable' || subcommand === 'disable') {
-        const name = args[1];
+        const name = commandArgs[1];
         if (!name) {
-          ctx.print(`Usage: /hooks ${subcommand} <name>`);
+          ctx.print(`Usage: /hooks ${subcommand} <name> --yes`);
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `${subcommand} managed hook ${name}`, `/hooks ${subcommand} <name> --yes`);
           return;
         }
         const changed = await workbench.toggle(name, subcommand === 'enable');
@@ -100,7 +123,7 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
       if (subcommand === 'simulate') {
-        const eventPath = args[1];
+        const eventPath = commandArgs[1];
         if (!eventPath) {
           ctx.print('Usage: /hooks simulate <eventPath>');
           return;
@@ -116,12 +139,16 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
       if (subcommand === 'export') {
-        const path = await workbench.export(args[1] ?? workbench.getFilePath());
+        if (!parsed.yes) {
+          requireYesFlag(ctx, 'export managed hook workflows', '/hooks export [path] --yes');
+          return;
+        }
+        const path = await workbench.export(commandArgs[1] ?? workbench.getFilePath());
         ctx.print(`Exported managed hooks to ${path}`);
         return;
       }
       if (subcommand === 'inspect') {
-        const path = args[1];
+        const path = commandArgs[1];
         if (!path) {
           ctx.print('Usage: /hooks inspect <path>');
           return;
@@ -136,10 +163,14 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
       if (subcommand === 'import') {
-        const path = args[1];
-        const strategy = args[2] === 'replace' ? 'replace' : 'merge';
+        const path = commandArgs[1];
+        const strategy = commandArgs[2] === 'replace' ? 'replace' : 'merge';
         if (!path) {
-          ctx.print('Usage: /hooks import <path> [merge|replace]');
+          ctx.print('Usage: /hooks import <path> [merge|replace] --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `import managed hook workflows from ${path}`, '/hooks import <path> [merge|replace] --yes');
           return;
         }
         if (fileContainsAgentHookType(path)) {
@@ -151,7 +182,7 @@ export function registerHooksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      const filter = (subcommand === 'contracts' ? args.slice(1) : args).join(' ').trim().toLowerCase();
+      const filter = (subcommand === 'contracts' ? commandArgs.slice(1) : commandArgs).join(' ').trim().toLowerCase();
       const contracts = hookApi.contracts(filter);
 
       if (contracts.length === 0) {
