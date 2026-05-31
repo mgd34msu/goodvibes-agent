@@ -1,18 +1,21 @@
 import type { CommandRegistry } from '../command-registry.ts';
 import { requireWebhookNotifier } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'notify',
     aliases: [],
     description: 'Manage webhook notification URLs (ntfy.sh format)',
-    usage: 'add <url> | remove <url> | list | clear | test',
-    argsHint: 'add|remove|list|clear|test',
+    usage: 'add <url> --yes | remove <url> --yes | list | clear --yes | test --yes',
+    argsHint: 'list|add --yes|remove --yes|test --yes',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const notifications = ctx.platform.configManager.getCategory('notifications');
       const urls: string[] = Array.isArray(notifications.webhookUrls) ? [...notifications.webhookUrls] : [];
       const notifier = requireWebhookNotifier(ctx);
-      const sub = args[0];
+      const sub = commandArgs[0];
 
       if (!sub || sub === 'list') {
         if (urls.length === 0) ctx.print('No webhook URLs configured.\nUse: /notify add <url>');
@@ -21,9 +24,13 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'add') {
-        const url = args[1];
+        const url = commandArgs[1];
         if (!url) {
-          ctx.print('Usage: /notify add <url>\nExample: /notify add https://ntfy.sh/my-topic');
+          ctx.print('Usage: /notify add <url> --yes\nExample: /notify add https://ntfy.sh/my-topic --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `add webhook notification URL ${url}`, '/notify add <url> --yes');
           return;
         }
         try { new URL(url); } catch {
@@ -42,9 +49,13 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'remove') {
-        const url = args[1];
+        const url = commandArgs[1];
         if (!url) {
-          ctx.print('Usage: /notify remove <url>');
+          ctx.print('Usage: /notify remove <url> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `remove webhook notification URL ${url}`, '/notify remove <url> --yes');
           return;
         }
         const next = urls.filter((u) => u !== url);
@@ -59,6 +70,10 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'clear') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, 'clear all webhook notification URLs', '/notify clear --yes');
+          return;
+        }
         ctx.platform.configManager.mergeCategory('notifications', { webhookUrls: [] });
         notifier.setUrls([]);
         ctx.print('All webhook URLs cleared.');
@@ -66,6 +81,10 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'test') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, 'send webhook notification test requests', '/notify test --yes');
+          return;
+        }
         if (urls.length === 0) {
           ctx.print('No webhook URLs configured. Use: /notify add <url>');
           return;
@@ -77,7 +96,7 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      ctx.print('Usage: /notify add <url> | remove <url> | list | clear | test');
+      ctx.print('Usage: /notify add <url> --yes | remove <url> --yes | list | clear --yes | test --yes');
     },
   });
 }

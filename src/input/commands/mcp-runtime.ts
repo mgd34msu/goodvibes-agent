@@ -2,6 +2,7 @@ import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import type { McpConfigScope, McpReloadResult, McpServerConfig } from '@pellux/goodvibes-sdk/platform/mcp';
 import { requireMcpApi, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 const MCP_ROLES = ['general', 'docs', 'filesystem', 'git', 'database', 'browser', 'automation', 'ops', 'remote'] as const;
 const MCP_TRUST_MODES = ['constrained', 'ask-on-risk', 'allow-all', 'blocked'] as const;
@@ -137,11 +138,13 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
     aliases: [],
     description: 'Manage MCP servers and their tools',
     usage: '[add|remove|reload|config|review|tools [<server>]|auth-review|repair [server]]',
-    argsHint: '[add|remove|reload|config|review|tools [server]]',
+    argsHint: '[review|tools|config|add --yes|remove --yes]',
     async handler(args, ctx) {
       const mcpApi = requireMcpApi(ctx);
       const listServerSecurity = () => mcpApi.listServerSecurity();
-      const subcommand = args[0];
+      const confirmation = stripYesFlag(args);
+      const commandArgs = [...confirmation.rest];
+      const subcommand = commandArgs[0];
       if (!subcommand && ctx.openMcpWorkspace) {
         ctx.openMcpWorkspace();
         return;
@@ -161,7 +164,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
       if (subcommand === 'tools') {
-        const filterServer = args[1];
+        const filterServer = commandArgs[1];
         ctx.print('Fetching MCP tool list...');
         let allTools;
         try {
@@ -207,7 +210,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'repair') {
-        const serverName = args[1];
+        const serverName = commandArgs[1];
         const servers = listServerSecurity();
         const selected = serverName ? servers.find((server) => server.name === serverName) : servers.find((server) => !server.connected || server.schemaFreshness === 'quarantined');
         if (!selected) {
@@ -218,7 +221,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         }
         const nextSteps = [
           selected.schemaFreshness === 'quarantined'
-            ? `/mcp quarantine ${selected.name} approve operator`
+            ? `/mcp quarantine ${selected.name} approve operator --yes`
             : null,
           !selected.connected ? '/services auth-review' : null,
           '/mcp review',
@@ -239,12 +242,16 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'trust') {
-        const serverName = args[1];
-        const mode = args[2] as 'constrained' | 'ask-on-risk' | 'allow-all' | 'blocked' | undefined;
+        const serverName = commandArgs[1];
+        const mode = commandArgs[2] as 'constrained' | 'ask-on-risk' | 'allow-all' | 'blocked' | undefined;
         if (serverName && mode) {
           if (mode === 'allow-all') {
             ctx.print(`Use /settings → MCP to explicitly enable allow-all for ${serverName}. Direct CLI escalation is blocked.`);
             ctx.openSettingsModal?.();
+            return;
+          }
+          if (!confirmation.yes) {
+            requireYesFlag(ctx, `change MCP trust mode for ${serverName}`, '/mcp trust <server> <constrained|ask-on-risk|blocked> --yes');
             return;
           }
           mcpApi.setServerTrustMode(serverName, mode);
@@ -258,9 +265,13 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'role') {
-        const serverName = args[1];
-        const role = args[2] as 'general' | 'docs' | 'filesystem' | 'git' | 'database' | 'browser' | 'automation' | 'ops' | 'remote' | undefined;
+        const serverName = commandArgs[1];
+        const role = commandArgs[2] as 'general' | 'docs' | 'filesystem' | 'git' | 'database' | 'browser' | 'automation' | 'ops' | 'remote' | undefined;
         if (serverName && role) {
+          if (!confirmation.yes) {
+            requireYesFlag(ctx, `change MCP role for ${serverName}`, '/mcp role <server> <general|docs|filesystem|git|database|browser|automation|ops|remote> --yes');
+            return;
+          }
           mcpApi.setServerRole(serverName, role);
           ctx.print(`Updated MCP role for ${serverName} to ${role}.`);
           return;
@@ -272,21 +283,25 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'add') {
-        let parsed: ParsedMcpAddArgs;
+        if (!confirmation.yes) {
+          requireYesFlag(ctx, 'add or update an MCP server config', '/mcp add <name> <command> [args...] [--scope project|global] [--role <role>] [--trust <mode>] --yes');
+          return;
+        }
+        let parsedAdd: ParsedMcpAddArgs;
         try {
-          parsed = parseAddServerArgs(args);
+          parsedAdd = parseAddServerArgs(commandArgs);
         } catch (error) {
           ctx.print(summarizeError(error));
           return;
         }
         const shellPaths = requireShellPaths(ctx);
         try {
-          const result = await mcpApi.upsertServerConfig(shellPaths, parsed.scope, parsed.server);
-          const connected = listServerSecurity().find((entry) => entry.name === parsed.server.name)?.connected ?? false;
+          const result = await mcpApi.upsertServerConfig(shellPaths, parsedAdd.scope, parsedAdd.server);
+          const connected = listServerSecurity().find((entry) => entry.name === parsedAdd.server.name)?.connected ?? false;
           ctx.print([
-            `MCP server "${parsed.server.name}" saved to ${parsed.scope} config: ${result.path}.`,
+            `MCP server "${parsedAdd.server.name}" saved to ${parsedAdd.scope} config: ${result.path}.`,
             `Runtime reload: ${connected ? 'connected' : 'server saved; connection needs attention'} (+${result.reload.added} ~${result.reload.changed} -${result.reload.removed}, unchanged ${result.reload.unchanged}).`,
-            `Command: ${parsed.server.command}${parsed.server.args?.length ? ` ${parsed.server.args.join(' ')}` : ''}`,
+            `Command: ${parsedAdd.server.command}${parsedAdd.server.args?.length ? ` ${parsedAdd.server.args.join(' ')}` : ''}`,
             'Next: /mcp tools',
           ].join('\n'));
         } catch (error) {
@@ -296,16 +311,20 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'remove') {
-        const serverName = args[1]?.trim();
+        const serverName = commandArgs[1]?.trim();
         if (!serverName) {
-          ctx.print('Usage: /mcp remove <server> [--scope project|global]');
+          ctx.print('Usage: /mcp remove <server> [--scope project|global] --yes');
+          return;
+        }
+        if (!confirmation.yes) {
+          requireYesFlag(ctx, `remove MCP server ${serverName}`, '/mcp remove <server> [--scope project|global] --yes');
           return;
         }
         let scope: McpConfigScope = 'project';
         try {
-          for (let index = 2; index < args.length; index += 1) {
-            if (args[index] === '--scope') {
-              const value = readFlagValue(args, index, '--scope');
+          for (let index = 2; index < commandArgs.length; index += 1) {
+            if (commandArgs[index] === '--scope') {
+              const value = readFlagValue(commandArgs, index, '--scope');
               if (!isMcpScope(value)) {
                 ctx.print(`Invalid MCP scope "${value}". Expected project or global.`);
                 return;
@@ -331,6 +350,10 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'reload') {
+        if (!confirmation.yes) {
+          requireYesFlag(ctx, 'reload the MCP runtime from config', '/mcp reload --yes');
+          return;
+        }
         try {
           const result = await reloadMcpRuntime(ctx);
           const servers = listServerSecurity();
@@ -356,10 +379,10 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
               return `  - ${server.name}: ${server.command}${server.args?.length ? ` ${server.args.join(' ')}` : ''}  source=${entry.source.scope}/${entry.source.kind}${envKeys.length ? ` envKeys=${envKeys.join(',')}` : ''}`;
             }),
             '',
-            'Add or update from inside the TUI:',
-            '  /mcp add <name> <command> [args...] [--scope project|global] [--role <role>] [--trust <mode>]',
+            'Add or update from inside Agent with explicit confirmation:',
+            '  /mcp add <name> <command> [args...] [--scope project|global] [--role <role>] [--trust <mode>] --yes',
             'Example:',
-            '  /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem . --scope project --role filesystem --trust constrained',
+            '  /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem . --scope project --role filesystem --trust constrained --yes',
           ].join('\n'));
         } catch (error) {
           ctx.print(`MCP config read failed: ${summarizeError(error)}`);
@@ -368,19 +391,27 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'quarantine') {
-        const serverName = args[1];
-        const action = args[2];
+        const serverName = commandArgs[1];
+        const action = commandArgs[2];
         if (!serverName) {
-          ctx.print('Usage: /mcp quarantine <server> [detail]\n       /mcp quarantine <server> approve [operatorId]');
+          ctx.print('Usage: /mcp quarantine <server> [detail] --yes\n       /mcp quarantine <server> approve [operatorId] --yes');
           return;
         }
         if (action === 'approve') {
-          const operatorId = args[3] || 'operator';
+          if (!confirmation.yes) {
+            requireYesFlag(ctx, `approve MCP schema quarantine override for ${serverName}`, '/mcp quarantine <server> approve [operatorId] --yes');
+            return;
+          }
+          const operatorId = commandArgs[3] || 'operator';
           mcpApi.approveSchemaQuarantine(serverName, operatorId);
           ctx.print(`Approved MCP schema quarantine override for ${serverName} as ${operatorId}. Refresh is still recommended.`);
           return;
         }
-        const detail = args.slice(2).join(' ') || 'quarantined by operator';
+        if (!confirmation.yes) {
+          requireYesFlag(ctx, `quarantine MCP server ${serverName}`, '/mcp quarantine <server> [detail] --yes');
+          return;
+        }
+        const detail = commandArgs.slice(2).join(' ') || 'quarantined by operator';
         mcpApi.quarantineSchema(serverName, 'operator_flagged', detail);
         ctx.print(`Quarantined MCP schema for ${serverName}.\nReason: ${detail}`);
         return;
@@ -396,8 +427,8 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
           + '  ~/.config/claude/claude_desktop_config.json  (Claude Desktop)\n'
           + '  .mcp/mcp.json                        (project-local)\n'
           + '  .goodvibes/mcp.json                  (goodvibes project)\n'
-          + '\nAdd one from inside the TUI:\n'
-          + '  /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem . --scope project --role filesystem\n'
+          + '\nAdd one from inside Agent with explicit confirmation:\n'
+          + '  /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem . --scope project --role filesystem --yes\n'
           + '\nFormat: { "servers": [{ "name": "my-server", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"] }] }'
         );
         return;
@@ -416,10 +447,10 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
       if (connected.length > 0) {
         lines.push('');
         lines.push('Run "/mcp tools" to list all tools, or "/mcp tools <server>" for a specific server.');
-        lines.push('Run "/mcp" to open the fullscreen MCP workspace, or "/mcp add <name> <command> [args...] [--scope project|global]" to add/update without restarting.');
-        lines.push('Run "/mcp reload" after editing MCP config outside the TUI.');
-        lines.push('Run "/mcp trust <server> <mode>" to change trust mode, or "/mcp role <server> <role>" to change its coherence role.');
-        lines.push('Run "/mcp quarantine <server> [detail]" to block a server, or "/mcp quarantine <server> approve [operatorId]" to approve a temporary override.');
+        lines.push('Run "/mcp" to open the fullscreen MCP workspace, or "/mcp add <name> <command> [args...] [--scope project|global] --yes" to add/update.');
+        lines.push('Run "/mcp reload --yes" after editing MCP config outside Agent.');
+        lines.push('Run "/mcp trust <server> <mode> --yes" to change trust mode, or "/mcp role <server> <role> --yes" to change its coherence role.');
+        lines.push('Run "/mcp quarantine <server> [detail] --yes" to block a server, or "/mcp quarantine <server> approve [operatorId] --yes" to approve a temporary override.');
         lines.push('Use /settings → MCP to explicitly enable allow-all for a server.');
       }
       if (disconnected.length > 0) {

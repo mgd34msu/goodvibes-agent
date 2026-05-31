@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
 import { requireSecretsManager, requireShellPaths } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 interface SecureStorageBundle {
   readonly version: 1;
@@ -58,11 +59,13 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
   registry.register({
     name: 'storage',
     description: 'Review secure storage posture and export portable storage metadata bundles',
-    usage: '[review|list|delete <key>|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|list|delete <key> --yes|bundle export <path>|bundle inspect <path>]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       const manager = requireSecretsManager(ctx);
-      const sub = args[0] ?? 'review';
+      const sub = commandArgs[0] ?? 'review';
       const review = await manager.inspect();
       const storedKeys = await manager.list();
       const detailedKeys = await manager.listDetailed();
@@ -88,9 +91,13 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
         return;
       }
       if (sub === 'delete') {
-        const key = args[1];
+        const key = commandArgs[1];
         if (!key) {
-          ctx.print('Usage: /storage delete <key>');
+          ctx.print('Usage: /storage delete <key> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `delete secure storage key ${key}`, '/storage delete <key> --yes');
           return;
         }
         await manager.delete(key);
@@ -98,8 +105,8 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
         return;
       }
       if (sub === 'bundle') {
-        const mode = args[1];
-        const pathArg = args[2];
+        const mode = commandArgs[1];
+        const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
           ctx.print(`Usage: /storage bundle ${mode} <path>`);
           return;
@@ -123,7 +130,7 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
           return;
         }
       }
-      ctx.print('Usage: /storage [review|list|delete <key>|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /storage [review|list|delete <key> --yes|bundle export <path>|bundle inspect <path>]');
     },
   });
 

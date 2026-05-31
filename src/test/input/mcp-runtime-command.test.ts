@@ -21,10 +21,33 @@ function makeShellPaths(root: string) {
   };
 }
 
-function makeContext(root: string, out: string[]): CommandContext {
+interface McpCommandCallLog {
+  reloads: number;
+  upserts: number;
+  removes: number;
+  trustChanges: number;
+  roleChanges: number;
+  quarantines: number;
+  quarantineApprovals: number;
+}
+
+function makeCallLog(): McpCommandCallLog {
+  return {
+    reloads: 0,
+    upserts: 0,
+    removes: 0,
+    trustChanges: 0,
+    roleChanges: 0,
+    quarantines: 0,
+    quarantineApprovals: 0,
+  };
+}
+
+function makeContext(root: string, out: string[], callLog = makeCallLog()): CommandContext {
   const shellPaths = makeShellPaths(root);
   let connectedNames: string[] = [];
   const reload = async () => {
+    callLog.reloads += 1;
     const effective = loadMcpEffectiveConfig(shellPaths);
     connectedNames = effective.servers.map((entry) => entry.server.name);
     return {
@@ -39,10 +62,12 @@ function makeContext(root: string, out: string[]): CommandContext {
     getEffectiveConfig: () => loadMcpEffectiveConfig(shellPaths),
     reload,
     async upsertServerConfig(_roots: unknown, scope: 'project' | 'global', server: Parameters<typeof upsertMcpServerConfig>[2]) {
+      callLog.upserts += 1;
       const result = upsertMcpServerConfig(shellPaths, scope, server);
       return { path: result.path, reload: await reload() };
     },
     async removeServerConfig(_roots: unknown, scope: 'project' | 'global', serverName: string) {
+      callLog.removes += 1;
       const result = removeMcpServerConfig(shellPaths, scope, serverName);
       return { path: result.path, removed: result.removed, reload: await reload() };
     },
@@ -60,10 +85,18 @@ function makeContext(root: string, out: string[]): CommandContext {
     listServerNames: () => connectedNames,
     listSandboxBindings: () => [],
     listRecentSecurityDecisions: () => [],
-    setServerTrustMode: () => {},
-    setServerRole: () => {},
-    quarantineSchema: () => {},
-    approveSchemaQuarantine: () => {},
+    setServerTrustMode: () => {
+      callLog.trustChanges += 1;
+    },
+    setServerRole: () => {
+      callLog.roleChanges += 1;
+    },
+    quarantineSchema: () => {
+      callLog.quarantines += 1;
+    },
+    approveSchemaQuarantine: () => {
+      callLog.quarantineApprovals += 1;
+    },
   };
 
   return {
@@ -81,6 +114,25 @@ function makeContext(root: string, out: string[]): CommandContext {
 }
 
 describe('/mcp runtime config commands', () => {
+  test('refuses MCP config mutation without explicit --yes', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    try {
+      const registry = new CommandRegistry();
+      registerMcpRuntimeCommands(registry);
+      const out: string[] = [];
+      const callLog = makeCallLog();
+      const ctx = makeContext(root, out, callLog);
+
+      await registry.get('mcp')!.handler(['add', 'docs', 'node', 'server.js'], ctx);
+
+      expect(callLog.upserts).toBe(0);
+      expect(callLog.reloads).toBe(0);
+      expect(out.join('\n')).toContain('Refusing to add or update an MCP server config without --yes');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('adds project-local MCP server and reloads runtime registry', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
     try {
@@ -102,6 +154,7 @@ describe('/mcp runtime config commands', () => {
         'constrained',
         '--env',
         'FOO=bar',
+        '--yes',
       ], ctx);
 
       const config = JSON.parse(readFileSync(join(root, '.goodvibes', 'mcp.json'), 'utf-8')) as {
@@ -130,8 +183,8 @@ describe('/mcp runtime config commands', () => {
       const out: string[] = [];
       const ctx = makeContext(root, out);
 
-      await registry.get('mcp')!.handler(['add', 'docs', 'node', 'server.js'], ctx);
-      await registry.get('mcp')!.handler(['remove', 'docs'], ctx);
+      await registry.get('mcp')!.handler(['add', 'docs', 'node', 'server.js', '--yes'], ctx);
+      await registry.get('mcp')!.handler(['remove', 'docs', '--yes'], ctx);
 
       const config = JSON.parse(readFileSync(join(root, '.goodvibes', 'mcp.json'), 'utf-8')) as { servers: unknown[] };
       expect(config.servers).toEqual([]);
@@ -158,6 +211,7 @@ describe('/mcp runtime config commands', () => {
         'global',
         '--env',
         'SECRET=hidden',
+        '--yes',
       ], ctx);
       await registry.get('mcp')!.handler(['config'], ctx);
 
@@ -168,6 +222,32 @@ describe('/mcp runtime config commands', () => {
       expect(out.join('\n')).toContain('global config');
       expect(out.join('\n')).toContain('envKeys=SECRET');
       expect(out.join('\n')).not.toContain('hidden');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('refuses MCP trust, role, reload, and quarantine mutation without --yes', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    try {
+      const registry = new CommandRegistry();
+      registerMcpRuntimeCommands(registry);
+      const out: string[] = [];
+      const callLog = makeCallLog();
+      const ctx = makeContext(root, out, callLog);
+
+      await registry.get('mcp')!.handler(['trust', 'docs', 'blocked'], ctx);
+      await registry.get('mcp')!.handler(['role', 'docs', 'docs'], ctx);
+      await registry.get('mcp')!.handler(['reload'], ctx);
+      await registry.get('mcp')!.handler(['quarantine', 'docs', 'review'], ctx);
+      await registry.get('mcp')!.handler(['quarantine', 'docs', 'approve', 'operator'], ctx);
+
+      expect(callLog.trustChanges).toBe(0);
+      expect(callLog.roleChanges).toBe(0);
+      expect(callLog.reloads).toBe(0);
+      expect(callLog.quarantines).toBe(0);
+      expect(callLog.quarantineApprovals).toBe(0);
+      expect(out.join('\n')).toContain('without --yes');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
