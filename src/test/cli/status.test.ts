@@ -132,16 +132,15 @@ describe('CLI status and doctor output', () => {
         },
         managed: {
           platform: 'manual',
-          path: '/project/.goodvibes/agent/service/manual-service.txt',
-          installed: true,
-          autostart: true,
-          running: true,
-          pid: 123,
-          logPath: '/project/.goodvibes/agent/service/manual.log',
-          commandPreview: 'bun run src/daemon/cli.ts',
-          suggestedCommands: ['bun run src/daemon/cli.ts'],
+          path: 'external daemon host',
+          installed: false,
+          autostart: false,
+          running: false,
+          logPath: '/home/test/.goodvibes/daemon/service/manual.log',
+          commandPreview: 'managed outside goodvibes-agent',
+          suggestedCommands: [],
           lastAction: 'status',
-          pidPath: '/project/.goodvibes/agent/service/manual.pid',
+          pidPath: 'external daemon host',
           lastError: null,
         },
         endpoints: [],
@@ -158,15 +157,15 @@ describe('CLI status and doctor output', () => {
     const parsed = JSON.parse(text) as {
       title: string;
       provider: { provider: string };
-      service: { lifecycle: { managed: { running: boolean; pid: number } } };
+      service: { lifecycle: { managed: { running: boolean; commandPreview: string } } };
       surfaces: { controlPlane: { port: number } };
       findings: unknown[];
     };
 
     expect(parsed.title).toBe('GoodVibes Agent status');
     expect(parsed.provider.provider).toBe('openai');
-    expect(parsed.service.lifecycle.managed.running).toBe(true);
-    expect(parsed.service.lifecycle.managed.pid).toBe(123);
+    expect(parsed.service.lifecycle.managed.running).toBe(false);
+    expect(parsed.service.lifecycle.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.surfaces.controlPlane.port).toBe(3421);
     expect(parsed.findings).toBeArray();
   });

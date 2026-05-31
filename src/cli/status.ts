@@ -334,7 +334,6 @@ export function renderCliStatus(options: CliStatusOptions): string {
       `  platform: ${options.service.managed.platform}`,
       `  installed: ${yesNo(options.service.managed.installed)}`,
       `  running: ${yesNo(options.service.managed.running)}`,
-      `  pid: ${options.service.managed.pid ?? 'n/a'}`,
       `  definition: ${options.service.managed.path}`,
       `  log: ${options.service.log.path ?? 'n/a'} (${options.service.log.exists ? 'present' : 'missing'})`,
     ] : []),

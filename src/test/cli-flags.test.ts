@@ -525,19 +525,22 @@ describe('parseCliFlags', () => {
     configManager.setDynamic('service.restartOnFailure', true);
     configManager.setDynamic('service.platform', 'manual');
     configManager.setDynamic('controlPlane.enabled', true);
+    configManager.setDynamic('controlPlane.port', 1);
 
     const text = await captureGoodVibesCliCommand(['service', 'check'], configManager, root);
     expect(text.result).toEqual({ handled: true, exitCode: 1 });
-    expect(text.output).toContain('GoodVibes external daemon service');
+    expect(text.output).toContain('GoodVibes external daemon diagnostics');
     expect(text.output).toContain('Readiness: needs attention');
-    expect(text.output).toContain('External daemon service config is enabled, but no platform service definition is installed.');
+    expect(text.output).toContain('control plane is enabled but not reachable on 127.0.0.1:1.');
+    expect(text.output).not.toContain('goodvibes-daemon');
 
     const json = await captureGoodVibesCliCommand(['service', 'check', '--json'], configManager, root);
     expect(json.result).toEqual({ handled: true, exitCode: 1 });
-    const parsed = JSON.parse(json.output) as { managed: { installed: boolean }; endpoints: Array<{ id: string }>; issues: string[] };
+    const parsed = JSON.parse(json.output) as { managed: { installed: boolean; commandPreview: string }; endpoints: Array<{ id: string }>; issues: string[] };
     expect(parsed.managed.installed).toBe(false);
+    expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
-    expect(parsed.issues).toContain('External daemon service config is enabled, but no platform service definition is installed.');
+    expect(parsed.issues).toContain('control plane is enabled but not reachable on 127.0.0.1:1.');
   });
 
   test('control-plane status returns readiness failures for enabled unreachable network posture', async () => {

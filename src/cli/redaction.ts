@@ -64,7 +64,10 @@ export function redactConfig<T>(config: T): RedactedConfigResult<T> {
 }
 
 export function redactText(input: string): string {
-  let output = input;
+  let output = input.replace(
+    /\b([A-Za-z0-9_]*(?:token|secret|password|api[_-]?key|key)[A-Za-z0-9_]*\s*=\s*)([^ \t\r\n"'`]+)/gi,
+    `$1${REDACTED_VALUE}`,
+  );
   for (const pattern of SECRET_LIKE_TEXT_PATTERNS) {
     output = output.replace(pattern, REDACTED_VALUE);
   }

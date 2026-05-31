@@ -1,10 +1,6 @@
-import { spawnSync } from 'node:child_process';
-import { accessSync, closeSync, constants, existsSync, openSync, readSync, realpathSync, statSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs';
 import net from 'node:net';
-import { basename, delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { PlatformServiceManager } from '@pellux/goodvibes-sdk/platform/daemon';
-import type { ManagedServiceStatus } from '@pellux/goodvibes-sdk/platform/daemon';
+import { isAbsolute, join } from 'node:path';
 import type { ConfigManager } from '../config/index.ts';
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import type { RuntimeEndpointBinding, RuntimeEndpointId } from './endpoints.ts';
@@ -36,6 +32,21 @@ export interface CliServiceLogPosture {
   readonly readError?: string;
 }
 
+export interface CliExternalDaemonLifecyclePosture {
+  readonly platform: 'manual';
+  readonly path: string;
+  readonly installed: false;
+  readonly autostart: false;
+  readonly running: false;
+  readonly logPath?: string;
+  readonly commandPreview: string;
+  readonly suggestedCommands: readonly string[];
+  readonly lastAction: 'status';
+  readonly actionError?: string;
+  readonly pidPath: string;
+  readonly lastError: null;
+}
+
 export interface CliServicePosture {
   readonly config: {
     readonly enabled: boolean;
@@ -43,10 +54,7 @@ export interface CliServicePosture {
     readonly restartOnFailure: boolean;
     readonly daemonEnabled: boolean;
   };
-  readonly managed: ManagedServiceStatus & {
-    readonly pidPath: string;
-    readonly lastError: string | null;
-  };
+  readonly managed: CliExternalDaemonLifecyclePosture;
   readonly endpoints: readonly CliServiceEndpointPosture[];
   readonly log: CliServiceLogPosture;
   readonly issues: readonly string[];
@@ -58,46 +66,9 @@ const ENDPOINTS: readonly { readonly id: RuntimeEndpointId; readonly label: stri
   { id: 'web', label: 'web surface', enabledKey: 'web.enabled' },
 ];
 
-const SOURCE_PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-
-export interface DaemonExecutableResolutionOptions {
-  readonly env?: NodeJS.ProcessEnv;
-  readonly argv?: readonly string[];
-  readonly execPath?: string;
-  readonly packageRoot?: string;
-}
-
-export interface DaemonExecutableResolution {
-  readonly command: string;
-  readonly source: 'env' | 'sibling' | 'package' | 'path' | 'fallback';
-  readonly absolute: boolean;
-}
-
-interface ServiceDefinitionOverride {
-  readonly name: string;
-  readonly description: string;
-  readonly workingDirectory: string;
-  readonly command: string;
-  readonly args: readonly string[];
-  readonly env: Readonly<Record<string, string>>;
-  readonly restartOnFailure: boolean;
-}
-
-interface CliServiceStatusCommandResult {
-  readonly status: number | null;
-  readonly stdout?: string;
-  readonly stderr?: string;
-}
-
-interface CliServiceStatusManager {
-  status(): ManagedServiceStatus;
-}
-
 interface CliServicePostureOptions {
   readonly probe?: boolean;
   readonly logTailBytes?: number;
-  readonly manager?: CliServiceStatusManager;
-  readonly runCommand?: (command: string, args: readonly string[]) => CliServiceStatusCommandResult;
 }
 
 function connectHostForBindHost(host: string): string {
@@ -118,183 +89,6 @@ async function probeTcp(host: string, port: number, timeoutMs = 750): Promise<bo
     socket.once('timeout', () => finish(false));
     socket.once('error', () => finish(false));
   });
-}
-
-function isExecutable(path: string): boolean {
-  try {
-    accessSync(path, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function platformDaemonArtifactName(platform = process.platform, arch = process.arch): string {
-  if (platform === 'linux' && arch === 'x64') return 'goodvibes-daemon-linux-x64';
-  if (platform === 'linux' && arch === 'arm64') return 'goodvibes-daemon-linux-arm64';
-  if (platform === 'darwin' && arch === 'x64') return 'goodvibes-daemon-macos-x64';
-  if (platform === 'darwin' && arch === 'arm64') return 'goodvibes-daemon-macos-arm64';
-  if (platform === 'win32') return 'goodvibes-daemon-windows.exe';
-  return 'goodvibes-daemon';
-}
-
-function executablePathCandidates(path: string): string[] {
-  if (!path.trim() || !isAbsolute(path)) return [];
-  const dir = dirname(path);
-  const name = basename(path);
-  const artifact = platformDaemonArtifactName();
-  const candidates = [
-    join(dir, 'goodvibes-daemon'),
-    join(dir, artifact),
-  ];
-  if (name.startsWith('goodvibes-') && !name.startsWith('goodvibes-daemon-')) {
-    candidates.push(join(dir, name.replace(/^goodvibes-/, 'goodvibes-daemon-')));
-  }
-  if (name === 'goodvibes') candidates.push(join(dir, 'goodvibes-daemon'));
-  return [...new Set(candidates)];
-}
-
-function resolveCommandFromPath(command: string, pathValue: string | undefined): string | null {
-  const pathEntries = (pathValue ?? '').split(delimiter).filter(Boolean);
-  const extensions = process.platform === 'win32'
-    ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
-    : [''];
-  for (const entry of pathEntries) {
-    for (const extension of extensions) {
-      const candidate = join(entry, `${command}${extension}`);
-      if (isExecutable(candidate)) return candidate;
-    }
-  }
-  return null;
-}
-
-function firstExecutable(paths: readonly string[]): string | null {
-  for (const path of paths) {
-    if (isExecutable(path)) return path;
-  }
-  return null;
-}
-
-function packageArtifactForBinWrapper(path: string): string | null {
-  let realPath = path;
-  try {
-    realPath = realpathSync(path);
-  } catch {
-    // Keep the original path if resolving a symlink fails.
-  }
-  if (basename(realPath) !== 'goodvibes-daemon') return null;
-  const binDir = dirname(realPath);
-  if (basename(binDir) !== 'bin') return null;
-  const packageRoot = dirname(binDir);
-  return firstExecutable([
-    join(packageRoot, 'vendor', platformDaemonArtifactName()),
-    join(packageRoot, 'dist', platformDaemonArtifactName()),
-    join(packageRoot, 'dist', 'goodvibes-daemon'),
-  ]);
-}
-
-export function resolveGoodVibesDaemonExecutable(
-  options: DaemonExecutableResolutionOptions = {},
-): DaemonExecutableResolution {
-  const env = options.env ?? process.env;
-  const override = env.GOODVIBES_DAEMON_COMMAND?.trim();
-  if (override) {
-    return { command: override, source: 'env', absolute: isAbsolute(override) };
-  }
-
-  const packageRoot = options.packageRoot ?? SOURCE_PACKAGE_ROOT;
-  const packaged = firstExecutable([
-    join(packageRoot, 'dist', platformDaemonArtifactName()),
-    join(packageRoot, 'dist', 'goodvibes-daemon'),
-    join(packageRoot, 'vendor', platformDaemonArtifactName()),
-    join(packageRoot, 'bin', 'goodvibes-daemon'),
-  ]);
-  if (packaged) return { command: packaged, source: 'package', absolute: true };
-
-  const argv = options.argv ?? process.argv;
-  const execPath = options.execPath ?? process.execPath;
-  const sibling = firstExecutable([
-    ...executablePathCandidates(execPath),
-    ...executablePathCandidates(argv[1] ?? ''),
-  ]);
-  if (sibling) {
-    return {
-      command: packageArtifactForBinWrapper(sibling) ?? sibling,
-      source: 'sibling',
-      absolute: true,
-    };
-  }
-
-  const pathResolved = resolveCommandFromPath('goodvibes-daemon', env.PATH);
-  if (pathResolved) {
-    return {
-      command: packageArtifactForBinWrapper(pathResolved) ?? pathResolved,
-      source: 'path',
-      absolute: true,
-    };
-  }
-
-  return { command: 'goodvibes-daemon', source: 'fallback', absolute: false };
-}
-
-export function getServiceStateRoot(runtime: CliServiceRuntime): string {
-  return join(runtime.homeDirectory, '.goodvibes', 'daemon');
-}
-
-function pidFilePath(runtime: CliServiceRuntime, platform: ManagedServiceStatus['platform']): string {
-  return join(getServiceStateRoot(runtime), 'service', `${platform}.pid`);
-}
-
-function runStatusCommand(
-  command: string,
-  args: readonly string[],
-  options: CliServicePostureOptions,
-): CliServiceStatusCommandResult {
-  if (options.runCommand) return options.runCommand(command, args);
-  return spawnSync(command, [...args], {
-    stdio: 'pipe',
-    encoding: 'utf-8',
-    timeout: 1500,
-  });
-}
-
-function parseSystemdShowValue(lines: readonly string[], key: string): string | null {
-  const prefix = `${key}=`;
-  const match = lines.find((line) => line.startsWith(prefix));
-  return match ? match.slice(prefix.length).trim() : null;
-}
-
-function reconcileSystemdServiceStatus(
-  runtime: CliServiceRuntime,
-  status: ManagedServiceStatus,
-  options: CliServicePostureOptions,
-): ManagedServiceStatus {
-  if (status.platform !== 'systemd') return status;
-
-  const name = String(runtime.configManager.get('service.serviceName') ?? 'goodvibes').trim() || 'goodvibes';
-  const result = runStatusCommand('systemctl', [
-    '--user',
-    'show',
-    `${name}.service`,
-    '--property=LoadState,ActiveState,UnitFileState,MainPID',
-    '--no-page',
-  ], options);
-  if ((result.status ?? 1) !== 0) return status;
-
-  const lines = (result.stdout ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const loadState = parseSystemdShowValue(lines, 'LoadState');
-  const activeState = parseSystemdShowValue(lines, 'ActiveState');
-  const unitFileState = parseSystemdShowValue(lines, 'UnitFileState');
-  const rawPid = Number.parseInt(parseSystemdShowValue(lines, 'MainPID') ?? '', 10);
-  const pid = Number.isFinite(rawPid) && rawPid > 0 ? rawPid : undefined;
-
-  return {
-    ...status,
-    installed: loadState === 'loaded' || status.installed,
-    autostart: unitFileState === 'enabled' || unitFileState === 'linked' || status.autostart,
-    running: activeState === 'active',
-    ...(pid === undefined ? {} : { pid }),
-  };
 }
 
 function readLogPosture(path: string | undefined, tailBytes: number): CliServiceLogPosture {
@@ -338,41 +132,34 @@ function endpointsConflict(a: CliServiceEndpointPosture, b: CliServiceEndpointPo
   return hostA === hostB || hostA === '0.0.0.0' || hostB === '0.0.0.0' || hostA === '::' || hostB === '::';
 }
 
-export function createPlatformServiceManager(runtime: CliServiceRuntime): PlatformServiceManager {
-  const daemonHomeDir = getServiceStateRoot(runtime);
-  const serviceName = String(runtime.configManager.get('service.serviceName') ?? 'goodvibes').trim() || 'goodvibes';
-  const daemonExecutable = resolveGoodVibesDaemonExecutable();
-  const definition: ServiceDefinitionOverride = {
-    name: serviceName,
-    description: 'GoodVibes daemon, control-plane, listener, and web host',
-    workingDirectory: daemonHomeDir,
-    command: daemonExecutable.command,
-    args: [],
-    env: {
-      // The daemon CLI treats this as the GoodVibes home root, not the daemon state directory.
-      GOODVIBES_DAEMON_HOME: runtime.homeDirectory,
-      GOODVIBES_DAEMON_TOKEN: process.env.GOODVIBES_DAEMON_TOKEN ?? '',
-      GOODVIBES_HTTP_TOKEN: process.env.GOODVIBES_HTTP_TOKEN ?? '',
-      NODE_ENV: process.env.NODE_ENV ?? 'production',
-    },
-    restartOnFailure: runtime.configManager.get('service.restartOnFailure') === true,
+function resolveConfiguredLogPath(runtime: CliServiceRuntime): string | undefined {
+  const value = runtime.configManager.get('service.logPath');
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return isAbsolute(trimmed) ? trimmed : join(runtime.homeDirectory, trimmed);
+}
+
+function createExternalDaemonLifecycle(logPath: string | undefined): CliExternalDaemonLifecyclePosture {
+  return {
+    platform: 'manual',
+    path: 'external daemon host',
+    installed: false,
+    autostart: false,
+    running: false,
+    ...(logPath ? { logPath } : {}),
+    commandPreview: 'managed outside goodvibes-agent',
+    suggestedCommands: [],
+    lastAction: 'status',
+    pidPath: 'external daemon host',
+    lastError: null,
   };
-  return new PlatformServiceManager(runtime.configManager, {
-    workingDirectory: runtime.homeDirectory,
-    homeDirectory: runtime.homeDirectory,
-    surfaceRoot: 'daemon',
-    definitionOverride: definition,
-    defaultServiceName: 'goodvibes',
-    defaultServiceDescription: 'GoodVibes daemon, control-plane, listener, and web host',
-  });
 }
 
 export async function buildCliServicePosture(
   runtime: CliServiceRuntime,
   options: CliServicePostureOptions = {},
 ): Promise<CliServicePosture> {
-  const manager = options.manager ?? createPlatformServiceManager(runtime);
-  const status = reconcileSystemdServiceStatus(runtime, manager.status(), options);
   const endpoints = await Promise.all(ENDPOINTS.map(async (endpoint): Promise<CliServiceEndpointPosture> => {
     const enabled = runtime.configManager.get(endpoint.enabledKey as never) === true;
     const binding = resolveRuntimeEndpointBinding(runtime.configManager, endpoint.id);
@@ -405,15 +192,6 @@ export async function buildCliServicePosture(
   if (config.enabled && !config.restartOnFailure) {
     issues.push('External daemon service config has restart-on-failure off.');
   }
-  if (config.enabled && !status.installed) {
-    issues.push('External daemon service config is enabled, but no platform service definition is installed.');
-  }
-  if (config.enabled && !status.running) {
-    issues.push('External daemon service config is enabled, but the managed service is not running.');
-  }
-  if (status.actionError) {
-    issues.push(`Service manager reported an error: ${status.actionError}`);
-  }
   for (const endpoint of endpoints) {
     if (endpoint.enabled && options.probe && endpoint.reachable === false) {
       issues.push(`${endpoint.label} is enabled but not reachable on ${endpoint.binding.host}:${endpoint.binding.port}.`);
@@ -429,18 +207,15 @@ export async function buildCliServicePosture(
       }
     }
   }
-  const log = readLogPosture(status.logPath, options.logTailBytes ?? 4096);
+  const configuredLogPath = resolveConfiguredLogPath(runtime);
+  const log = readLogPosture(configuredLogPath, options.logTailBytes ?? 4096);
   if (log.readError) {
     issues.push(`Service log exists but could not be read: ${log.readError}`);
   }
 
   return {
     config,
-    managed: {
-      ...status,
-      pidPath: pidFilePath(runtime, status.platform),
-      lastError: status.actionError ?? null,
-    },
+    managed: createExternalDaemonLifecycle(configuredLogPath),
     endpoints,
     log,
     issues,
@@ -454,22 +229,14 @@ function yesNo(value: boolean): string {
 export function formatCliServicePosture(posture: CliServicePosture, json = false): string {
   if (json) return JSON.stringify(posture, null, 2);
   return [
-    'GoodVibes external daemon service',
-    `  enabled: ${yesNo(posture.config.enabled)}`,
-    `  autostart: ${yesNo(posture.config.autostart)}`,
-    `  restartOnFailure: ${yesNo(posture.config.restartOnFailure)}`,
+    'GoodVibes external daemon diagnostics',
+    '  lifecycle: managed outside goodvibes-agent',
+    `  service config enabled: ${yesNo(posture.config.enabled)}`,
+    `  autostart config: ${yesNo(posture.config.autostart)}`,
+    `  restartOnFailure config: ${yesNo(posture.config.restartOnFailure)}`,
     `  daemon flag: ${yesNo(posture.config.daemonEnabled)}`,
-    '',
-    'Managed service:',
-    `  platform: ${posture.managed.platform}`,
-    `  installed: ${yesNo(posture.managed.installed)}`,
-    `  running: ${yesNo(posture.managed.running)}`,
-    `  pid: ${posture.managed.pid ?? 'n/a'}`,
-    `  definition: ${posture.managed.path}`,
-    `  pid file: ${posture.managed.pidPath}`,
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),
-    `  command: ${posture.managed.commandPreview}`,
     '',
     'Endpoints:',
     ...posture.endpoints.map((endpoint) =>
