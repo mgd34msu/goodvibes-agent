@@ -20,7 +20,26 @@ export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
 export type AgentWorkspaceFocusPane = 'categories' | 'actions';
 
-export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace';
+export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor';
+
+export type AgentWorkspaceLocalEditorKind = 'persona' | 'skill' | 'routine';
+
+export interface AgentWorkspaceEditorField {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly required: boolean;
+  readonly multiline: boolean;
+  readonly hint: string;
+}
+
+export interface AgentWorkspaceLocalEditor {
+  readonly kind: AgentWorkspaceLocalEditorKind;
+  readonly title: string;
+  readonly fields: readonly AgentWorkspaceEditorField[];
+  readonly selectedFieldIndex: number;
+  readonly message: string;
+}
 
 export interface AgentWorkspaceAction {
   readonly id: string;
@@ -28,6 +47,7 @@ export interface AgentWorkspaceAction {
   readonly detail: string;
   readonly command?: string;
   readonly targetCategoryId?: string;
+  readonly editorKind?: AgentWorkspaceLocalEditorKind;
   readonly kind: AgentWorkspaceActionKind;
   readonly safety: 'safe' | 'read-only' | 'delegates' | 'blocked';
 }
@@ -495,7 +515,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'personas-list', label: 'List personas', detail: 'Print the full local persona library.', command: '/personas list', kind: 'command', safety: 'read-only' },
       { id: 'personas-active', label: 'Show active persona', detail: 'Inspect the active local persona applied to new turns.', command: '/personas active', kind: 'command', safety: 'read-only' },
-      { id: 'personas-create', label: 'Create persona', detail: 'Create a local persona with real name, summary, and instructions. Placeholder commands are never dispatched.', command: '/personas create --name <name> --description <summary> --body <instructions>', kind: 'command', safety: 'safe' },
+      { id: 'personas-create', label: 'Create persona', detail: 'Open an in-workspace form for a local persona. No placeholder command is dispatched.', editorKind: 'persona', kind: 'editor', safety: 'safe' },
       { id: 'personas-use', label: 'Use persona', detail: 'Activate a local persona by id or name.', command: '/personas use <id>', kind: 'command', safety: 'safe' },
       { id: 'personas-review', label: 'Review persona', detail: 'Mark a local persona reviewed after inspecting it.', command: '/personas review <id>', kind: 'command', safety: 'safe' },
       { id: 'personas-clear', label: 'Clear active persona', detail: 'Return to the default Agent policy without deleting any persona.', command: '/personas clear', kind: 'command', safety: 'safe' },
@@ -510,7 +530,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'skills-list', label: 'List skills', detail: 'Print the full local Agent skill library.', command: '/agent-skills list', kind: 'command', safety: 'read-only' },
       { id: 'skills-enabled', label: 'Enabled skills', detail: 'Show only skills currently injected into Agent guidance.', command: '/agent-skills enabled', kind: 'command', safety: 'read-only' },
-      { id: 'skills-create', label: 'Create skill', detail: 'Create a reusable local procedure with real details. Placeholder commands are never dispatched.', command: '/agent-skills create --name <name> --description <summary> --procedure <steps>', kind: 'command', safety: 'safe' },
+      { id: 'skills-create', label: 'Create skill', detail: 'Open an in-workspace form for a reusable local procedure. No placeholder command is dispatched.', editorKind: 'skill', kind: 'editor', safety: 'safe' },
       { id: 'skills-enable', label: 'Enable skill', detail: 'Enable a local Agent skill by id or name.', command: '/agent-skills enable <id>', kind: 'command', safety: 'safe' },
       { id: 'skills-review', label: 'Review skill', detail: 'Mark a local skill reviewed after inspecting it.', command: '/agent-skills review <id>', kind: 'command', safety: 'safe' },
     ],
@@ -524,7 +544,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'routines-list', label: 'List routines', detail: 'Print the full local Agent routine library.', command: '/routines list', kind: 'command', safety: 'read-only' },
       { id: 'routines-enabled', label: 'Enabled routines', detail: 'Show routines available for direct use.', command: '/routines enabled', kind: 'command', safety: 'read-only' },
-      { id: 'routines-create', label: 'Create routine', detail: 'Create a repeatable workflow with real steps. Placeholder commands are never dispatched.', command: '/routines create --name <name> --description <summary> --steps <steps>', kind: 'command', safety: 'safe' },
+      { id: 'routines-create', label: 'Create routine', detail: 'Open an in-workspace form for a repeatable local workflow. No placeholder command is dispatched.', editorKind: 'routine', kind: 'editor', safety: 'safe' },
       { id: 'routines-start', label: 'Start routine', detail: 'Start a local routine in the main conversation without creating a hidden job.', command: '/routines start <id>', kind: 'command', safety: 'safe' },
       { id: 'routines-promote', label: 'Promote to schedule', detail: 'Create an external daemon schedule from a reviewed routine only with real timing and --yes.', command: '/routines promote <id> --cron <expr> --yes', kind: 'command', safety: 'safe' },
       { id: 'routines-receipts', label: 'Promotion receipts', detail: 'Inspect local redacted routine schedule promotion receipts.', command: '/routines receipts', kind: 'command', safety: 'read-only' },
@@ -578,6 +598,70 @@ function parseCommand(command: string): { readonly name: string; readonly args: 
   return { name: parts[0] ?? '', args: parts.slice(1) };
 }
 
+function createLocalEditor(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalEditor {
+  if (kind === 'persona') {
+    return {
+      kind,
+      title: 'Create Persona',
+      selectedFieldIndex: 0,
+      message: 'Enter a local behavior profile for the serial main-conversation assistant.',
+      fields: [
+        { id: 'name', label: 'Name', value: '', required: true, multiline: false, hint: 'Short persona name.' },
+        { id: 'description', label: 'Description', value: '', required: true, multiline: false, hint: 'One-line summary of when to use it.' },
+        { id: 'body', label: 'Instructions', value: '', required: true, multiline: true, hint: 'Operating guidance. Ctrl-J inserts a new line.' },
+        { id: 'tags', label: 'Tags', value: '', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+        { id: 'triggers', label: 'Triggers', value: '', required: false, multiline: false, hint: 'Comma-separated words that suggest this persona.' },
+        { id: 'activate', label: 'Activate now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
+      ],
+    };
+  }
+  if (kind === 'skill') {
+    return {
+      kind,
+      title: 'Create Skill',
+      selectedFieldIndex: 0,
+      message: 'Enter a reusable local procedure the assistant can apply from the main conversation.',
+      fields: [
+        { id: 'name', label: 'Name', value: '', required: true, multiline: false, hint: 'Short skill name.' },
+        { id: 'description', label: 'Description', value: '', required: true, multiline: false, hint: 'One-line summary of the procedure.' },
+        { id: 'procedure', label: 'Procedure', value: '', required: true, multiline: true, hint: 'Reusable steps. Ctrl-J inserts a new line.' },
+        { id: 'triggers', label: 'Triggers', value: '', required: false, multiline: false, hint: 'Comma-separated words that suggest this skill.' },
+        { id: 'tags', label: 'Tags', value: '', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+        { id: 'enabled', label: 'Enable now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
+      ],
+    };
+  }
+  return {
+    kind,
+    title: 'Create Routine',
+    selectedFieldIndex: 0,
+    message: 'Enter a repeatable workflow. It runs in the main conversation unless explicitly promoted to a daemon schedule.',
+    fields: [
+      { id: 'name', label: 'Name', value: '', required: true, multiline: false, hint: 'Short routine name.' },
+      { id: 'description', label: 'Description', value: '', required: true, multiline: false, hint: 'One-line summary of the workflow.' },
+      { id: 'steps', label: 'Steps', value: '', required: true, multiline: true, hint: 'Workflow steps. Ctrl-J inserts a new line.' },
+      { id: 'triggers', label: 'Triggers', value: '', required: false, multiline: false, hint: 'Comma-separated words that suggest this routine.' },
+      { id: 'tags', label: 'Tags', value: '', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+      { id: 'enabled', label: 'Enable now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
+    ],
+  };
+}
+
+function splitList(value: string): string[] {
+  return value.split(',').map((part) => part.trim()).filter(Boolean);
+}
+
+function isAffirmative(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized === '' || normalized === 'yes' || normalized === 'y' || normalized === 'true' || normalized === 'enabled' || normalized === 'on';
+}
+
+function editorCategoryId(kind: AgentWorkspaceLocalEditorKind): string {
+  if (kind === 'persona') return 'personas';
+  if (kind === 'skill') return 'skills';
+  return 'routines';
+}
+
 export class AgentWorkspace {
   public active = false;
   public focusPane: AgentWorkspaceFocusPane = 'actions';
@@ -586,6 +670,7 @@ export class AgentWorkspace {
   public status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
   public runtimeSnapshot: AgentWorkspaceRuntimeSnapshot | null = null;
   public lastActionResult: AgentWorkspaceActionResult | null = null;
+  public localEditor: AgentWorkspaceLocalEditor | null = null;
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
 
@@ -597,6 +682,7 @@ export class AgentWorkspace {
     this.focusPane = 'actions';
     this.status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
     this.lastActionResult = null;
+    this.localEditor = null;
     this.clampSelection();
   }
 
@@ -607,6 +693,7 @@ export class AgentWorkspace {
 
   close(): void {
     this.active = false;
+    this.localEditor = null;
   }
 
   get categories(): readonly AgentWorkspaceCategory[] {
@@ -688,13 +775,86 @@ export class AgentWorkspace {
     };
   }
 
+  cancelLocalEditor(): void {
+    if (!this.localEditor) return;
+    const title = this.localEditor.title;
+    this.localEditor = null;
+    this.status = `${title} cancelled.`;
+    this.lastActionResult = {
+      kind: 'guidance',
+      title: `${title} cancelled`,
+      detail: 'No local Agent registry changes were written.',
+    };
+  }
+
+  moveEditorField(delta: number): void {
+    const editor = this.localEditor;
+    if (!editor) return;
+    const nextIndex = Math.max(0, Math.min(editor.fields.length - 1, editor.selectedFieldIndex + delta));
+    this.localEditor = { ...editor, selectedFieldIndex: nextIndex };
+  }
+
+  appendEditorText(text: string): void {
+    const editor = this.localEditor;
+    if (!editor || text.length === 0) return;
+    const field = editor.fields[editor.selectedFieldIndex];
+    if (!field) return;
+    this.replaceEditorField(editor.selectedFieldIndex, `${field.value}${text}`, editor.message);
+  }
+
+  appendEditorNewline(): void {
+    const editor = this.localEditor;
+    if (!editor) return;
+    const field = editor.fields[editor.selectedFieldIndex];
+    if (!field || !field.multiline) {
+      this.moveEditorField(1);
+      return;
+    }
+    this.replaceEditorField(editor.selectedFieldIndex, `${field.value}\n`, editor.message);
+  }
+
+  editorBackspace(): void {
+    const editor = this.localEditor;
+    if (!editor) return;
+    const field = editor.fields[editor.selectedFieldIndex];
+    if (!field || field.value.length === 0) return;
+    const characters = Array.from(field.value);
+    characters.pop();
+    this.replaceEditorField(editor.selectedFieldIndex, characters.join(''), editor.message);
+  }
+
+  submitEditorFieldOrForm(): void {
+    const editor = this.localEditor;
+    if (!editor) return;
+    if (editor.selectedFieldIndex < editor.fields.length - 1) {
+      this.moveEditorField(1);
+      return;
+    }
+    this.submitLocalEditor();
+  }
+
   activateSelected(): void {
+    if (this.localEditor) {
+      this.submitEditorFieldOrForm();
+      return;
+    }
     if (this.focusPane === 'categories') {
       this.focusActions();
       return;
     }
     const action = this.selectedAction;
     if (!action) return;
+    if (action.kind === 'editor' && action.editorKind) {
+      this.localEditor = createLocalEditor(action.editorKind);
+      this.status = `Editing ${this.localEditor.title}.`;
+      this.lastActionResult = {
+        kind: 'guidance',
+        title: this.localEditor.title,
+        detail: this.localEditor.message,
+        safety: action.safety,
+      };
+      return;
+    }
     if (action.kind === 'guidance' || !action.command) {
       if (action.kind === 'workspace' && action.targetCategoryId) {
         const targetIndex = this.categories.findIndex((category) => category.id === action.targetCategoryId);
@@ -789,6 +949,121 @@ export class AgentWorkspace {
     this.selectedCategoryIndex = Math.max(0, Math.min(this.selectedCategoryIndex, this.categories.length - 1));
     this.selectedActionIndex = Math.max(0, Math.min(this.selectedActionIndex, this.actions.length - 1));
   }
+
+  private replaceEditorField(index: number, value: string, message: string): void {
+    const editor = this.localEditor;
+    if (!editor) return;
+    const fields = editor.fields.map((field, fieldIndex) => fieldIndex === index ? { ...field, value } : field);
+    this.localEditor = { ...editor, fields, message };
+  }
+
+  private editorField(id: string): string {
+    const editor = this.localEditor;
+    return editor?.fields.find((field) => field.id === id)?.value.trim() ?? '';
+  }
+
+  private missingEditorField(): AgentWorkspaceEditorField | null {
+    const editor = this.localEditor;
+    if (!editor) return null;
+    return editor.fields.find((field) => field.required && field.value.trim().length === 0) ?? null;
+  }
+
+  private submitLocalEditor(): void {
+    const editor = this.localEditor;
+    if (!editor) return;
+    const missing = this.missingEditorField();
+    if (missing) {
+      const missingIndex = editor.fields.findIndex((field) => field.id === missing.id);
+      this.localEditor = {
+        ...editor,
+        selectedFieldIndex: Math.max(0, missingIndex),
+        message: `${missing.label} is required before saving.`,
+      };
+      this.status = `${missing.label} is required.`;
+      return;
+    }
+    const shellPaths = this.context?.workspace?.shellPaths;
+    if (!shellPaths) {
+      this.localEditor = { ...editor, message: 'Cannot save because Agent shell paths are unavailable.' };
+      this.status = 'Cannot save local Agent registry item without shell paths.';
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Local registry unavailable',
+        detail: 'The Agent workspace cannot locate the Agent-local registry files for this runtime.',
+      };
+      return;
+    }
+    try {
+      if (editor.kind === 'persona') {
+        const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
+        const created = registry.create({
+          name: this.editorField('name'),
+          description: this.editorField('description'),
+          body: this.editorField('body'),
+          tags: splitList(this.editorField('tags')),
+          triggers: splitList(this.editorField('triggers')),
+          source: 'user',
+          provenance: 'agent-workspace',
+        });
+        if (isAffirmative(this.editorField('activate'))) registry.setActive(created.id);
+        this.finishLocalEditor(editor.kind, created.id, created.name);
+      } else if (editor.kind === 'skill') {
+        const registry = AgentSkillRegistry.fromShellPaths(shellPaths);
+        const created = registry.create({
+          name: this.editorField('name'),
+          description: this.editorField('description'),
+          procedure: this.editorField('procedure'),
+          triggers: splitList(this.editorField('triggers')),
+          tags: splitList(this.editorField('tags')),
+          enabled: isAffirmative(this.editorField('enabled')),
+          source: 'user',
+          provenance: 'agent-workspace',
+        });
+        this.finishLocalEditor(editor.kind, created.id, created.name);
+      } else {
+        const registry = AgentRoutineRegistry.fromShellPaths(shellPaths);
+        const created = registry.create({
+          name: this.editorField('name'),
+          description: this.editorField('description'),
+          steps: this.editorField('steps'),
+          triggers: splitList(this.editorField('triggers')),
+          tags: splitList(this.editorField('tags')),
+          enabled: isAffirmative(this.editorField('enabled')),
+          source: 'user',
+          provenance: 'agent-workspace',
+        });
+        this.finishLocalEditor(editor.kind, created.id, created.name);
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.localEditor = { ...editor, message: detail };
+      this.status = detail;
+      this.lastActionResult = {
+        kind: 'error',
+        title: `${editor.title} failed`,
+        detail,
+      };
+    }
+  }
+
+  private finishLocalEditor(kind: AgentWorkspaceLocalEditorKind, id: string, name: string): void {
+    this.localEditor = null;
+    const categoryId = editorCategoryId(kind);
+    const categoryIndex = this.categories.findIndex((category) => category.id === categoryId);
+    if (categoryIndex >= 0) {
+      this.selectedCategoryIndex = categoryIndex;
+      this.selectedActionIndex = 0;
+    }
+    this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
+    this.status = `Created ${kind}: ${name}.`;
+    this.lastActionResult = {
+      kind: 'refreshed',
+      title: `Created ${kind}`,
+      detail: `${name} (${id}) was saved to the Agent-local ${categoryId} registry.`,
+      safety: 'safe',
+    };
+    this.clampSelection();
+  }
 }
 
 export function handleAgentWorkspaceToken(
@@ -798,6 +1073,21 @@ export function handleAgentWorkspaceToken(
   requestRender: () => void,
 ): boolean {
   if (!workspace.active) return false;
+
+  if (workspace.localEditor) {
+    if (token.type === 'text') {
+      workspace.appendEditorText(token.value);
+    } else if (token.type === 'key') {
+      if (token.logicalName === 'escape') workspace.cancelLocalEditor();
+      else if (token.logicalName === 'enter') workspace.submitEditorFieldOrForm();
+      else if (token.logicalName === 'tab' || token.logicalName === 'down') workspace.moveEditorField(1);
+      else if (token.logicalName === 'up') workspace.moveEditorField(-1);
+      else if (token.logicalName === 'backspace' || token.logicalName === 'delete') workspace.editorBackspace();
+      else if (token.logicalName === 'j' && token.ctrl === true) workspace.appendEditorNewline();
+    }
+    requestRender();
+    return true;
+  }
 
   if (token.type === 'key') {
     if (token.logicalName === 'escape') {

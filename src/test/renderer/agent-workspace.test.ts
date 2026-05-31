@@ -213,6 +213,22 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('open personas');
   });
 
+  test('renders in-workspace local library editor controls', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create');
+    workspace.activateSelected();
+
+    const output = text(renderAgentWorkspace(workspace, 132, 38));
+
+    expect(output).toContain('Create Skill');
+    expect(output).toContain('Name *');
+    expect(output).toContain('Procedure *');
+    expect(output).toContain('Enter next/save');
+    expect(output).toContain('Esc cancel');
+  });
+
   test('renders Agent Knowledge ingest and review workflow without default wiki fallback', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);

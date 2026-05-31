@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,6 +17,18 @@ import type { Line } from '../../types/grid.ts';
 
 function linesText(lines: readonly Line[]): string {
   return lines.map((line) => line.map((cell) => cell.char).join('')).join('\n');
+}
+
+function feedWorkspaceToken(workspace: AgentWorkspace, token: InputToken): void {
+  handleAgentWorkspaceToken(workspace, token, () => undefined, () => undefined);
+}
+
+function feedText(workspace: AgentWorkspace, value: string): void {
+  feedWorkspaceToken(workspace, { type: 'text', value });
+}
+
+function feedKey(workspace: AgentWorkspace, logicalName: string): void {
+  feedWorkspaceToken(workspace, { type: 'key', logicalName, ctrl: false, shift: false, meta: false });
 }
 
 function commandContext(calls: string[] = []): CommandContext {
@@ -198,7 +211,7 @@ describe('AgentWorkspace', () => {
     expect(linesText(renderAgentWorkspace(workspace, 140, 34))).toContain('Morning Brief');
   });
 
-  test('library workspace commands dispatch only concrete actions and block placeholders', () => {
+  test('library workspace actions open editors and dispatch only concrete commands', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -212,12 +225,82 @@ describe('AgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create');
     workspace.activateSelected();
     expect(dispatched).toEqual(['/personas list']);
-    expect(workspace.lastActionResult?.kind).toBe('guidance');
+    expect(workspace.localEditor?.kind).toBe('skill');
+    workspace.cancelLocalEditor();
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipts');
     workspace.activateSelected();
     expect(dispatched).toEqual(['/personas list', '/routines receipts']);
+  });
+
+  test('creates local skill routine and persona records from workspace editors', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-editor-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, (command) => dispatched.push(command));
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create');
+    workspace.activateSelected();
+    feedText(workspace, 'Briefing');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Summarize state before action.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Check daemon status, work plan, approvals, and Agent Knowledge first.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'briefing,setup');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'ops');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    expect(AgentSkillRegistry.fromShellPaths(shellPaths).snapshot().enabledSkills[0]?.name).toBe('Briefing');
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Created skill');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-create');
+    workspace.activateSelected();
+    feedText(workspace, 'Daily Brief');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Review the operator state.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Check calendar, tasks, approvals, and channels.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'weekday');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'home');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    expect(AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot().enabledRoutines[0]?.name).toBe('Daily Brief');
+    expect(workspace.lastActionResult?.title).toBe('Created routine');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-create');
+    workspace.activateSelected();
+    feedText(workspace, 'Research Analyst');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Source-backed answers.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Prefer checked sources and clear unknowns.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'research');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'research');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    const personaSnapshot = AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot();
+    expect(personaSnapshot.activePersona?.name).toBe('Research Analyst');
+    expect(workspace.lastActionResult?.title).toBe('Created persona');
+    expect(dispatched).toEqual([]);
   });
 
   test('keeps channel delivery safety guidance local', () => {

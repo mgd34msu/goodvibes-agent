@@ -3,6 +3,7 @@ import type {
   AgentWorkspaceAction,
   AgentWorkspaceActionResult,
   AgentWorkspaceCategory,
+  AgentWorkspaceLocalEditor,
   AgentWorkspaceRuntimeSnapshot,
 } from '../input/agent-workspace.ts';
 import type { Line } from '../types/grid.ts';
@@ -68,6 +69,7 @@ function buildLeftRows(workspace: AgentWorkspace, height: number): WorkspaceRow[
 
 function actionCommand(action: AgentWorkspaceAction): string {
   if (action.kind === 'workspace') return action.targetCategoryId ? `open ${action.targetCategoryId}` : '(workspace)';
+  if (action.kind === 'editor') return action.editorKind ? `edit ${action.editorKind}` : '(editor)';
   return action.command ?? '(guidance)';
 }
 
@@ -260,6 +262,23 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
   return base;
 }
 
+function editorContextLines(editor: AgentWorkspaceLocalEditor): ContextLine[] {
+  const selected = editor.fields[editor.selectedFieldIndex];
+  const lines: ContextLine[] = [
+    { text: editor.title, fg: PALETTE.title, bold: true },
+    { text: editor.message, fg: editor.message.includes('required') || editor.message.includes('cannot') || editor.message.includes('Cannot') ? PALETTE.warn : PALETTE.info },
+    { text: 'Enter advances fields and saves from the final field. Ctrl-J adds a line inside multiline fields. Esc cancels without writing.', fg: PALETTE.muted },
+  ];
+  if (selected) {
+    lines.push(
+      { text: '' },
+      { text: `Editing: ${selected.label}${selected.required ? ' (required)' : ''}`, fg: PALETTE.title, bold: true },
+      { text: selected.hint, fg: PALETTE.muted },
+    );
+  }
+  return lines;
+}
+
 function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCategory, action: AgentWorkspaceAction | null, width: number): WorkspaceRow[] {
   const lines: ContextLine[] = [
     { text: category.label, fg: PALETTE.title, bold: true },
@@ -267,6 +286,8 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
     { text: '' },
     { text: category.detail, fg: PALETTE.text },
     { text: '' },
+    ...(workspace.localEditor ? editorContextLines(workspace.localEditor) : []),
+    ...(workspace.localEditor ? [{ text: '' }] : []),
     ...snapshotLines(category, workspace.runtimeSnapshot),
   ];
 
@@ -303,7 +324,42 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
   });
 }
 
+function buildEditorRows(editor: AgentWorkspaceLocalEditor, width: number, height: number): WorkspaceRow[] {
+  const rows: WorkspaceRow[] = [
+    { text: editor.title, fg: PALETTE.title, bold: true },
+    { text: editor.message, fg: PALETTE.info },
+    { text: '' },
+  ];
+  for (let index = 0; index < editor.fields.length; index += 1) {
+    const field = editor.fields[index]!;
+    const selected = index === editor.selectedFieldIndex;
+    const marker = selected ? GLYPHS.navigation.selected : ' ';
+    const required = field.required ? ' *' : '';
+    const value = field.value.length > 0 ? field.value : '(empty)';
+    const color = selected ? PALETTE.text : field.value.length > 0 ? PALETTE.info : PALETTE.muted;
+    rows.push({
+      text: `${marker} ${field.label}${required}`,
+      selected,
+      fg: color,
+      bold: selected,
+    });
+    const valueLines = value.split('\n');
+    for (const valueLine of valueLines.slice(0, 4)) {
+      for (const wrapped of wrapText(`  ${valueLine}`, Math.max(1, width - 2))) {
+        rows.push({ text: wrapped, fg: field.value.length > 0 ? PALETTE.text : PALETTE.dim, dim: field.value.length === 0 });
+      }
+    }
+    if (valueLines.length > 4) rows.push({ text: `  ${valueLines.length - 4} more line(s)`, fg: PALETTE.dim, dim: true });
+    rows.push({ text: `  ${field.hint}`, fg: PALETTE.dim, dim: true });
+  }
+  rows.push({ text: '' });
+  rows.push({ text: 'Enter next/save · Up/Down field · Backspace edit · Ctrl-J newline · Esc cancel', fg: PALETTE.muted });
+  while (rows.length < height) rows.push({ text: '', kind: 'empty' });
+  return rows.slice(0, height);
+}
+
 function buildActionRows(workspace: AgentWorkspace, width: number, height: number): WorkspaceRow[] {
+  if (workspace.localEditor) return buildEditorRows(workspace.localEditor, width, height);
   const rows: WorkspaceRow[] = [];
   const labelWidth = Math.min(28, Math.max(16, Math.floor(width * 0.30)));
   const safetyWidth = 10;
@@ -350,6 +406,9 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
 }
 
 function footerText(workspace: AgentWorkspace): string {
+  if (workspace.localEditor) {
+    return `Agent workspace · editing ${workspace.localEditor.kind} · Enter next/save · Ctrl-J newline · Esc cancel`;
+  }
   const focus = workspace.focusPane === 'categories' ? 'categories' : 'actions';
   return `Agent workspace · focus ${focus} · Up/Down navigate · Left/Right pane · Enter open/action · R refresh · Esc close`;
 }
@@ -371,7 +430,7 @@ export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, h
     width,
     height,
     title: 'GoodVibes Agent / Operator Workspace',
-    stateLabel: workspace.focusPane === 'categories' ? 'Categories' : 'Actions',
+    stateLabel: workspace.localEditor ? 'Editor' : workspace.focusPane === 'categories' ? 'Categories' : 'Actions',
     leftHeader: 'Operator Areas',
     mainHeader: `${category.label} · ${category.actions.length} action(s)`,
     leftRows: buildLeftRows(workspace, metrics.bodyRows),
