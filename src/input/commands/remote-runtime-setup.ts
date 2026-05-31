@@ -4,6 +4,7 @@ import { getDefaultAcpAgentCommand } from '@pellux/goodvibes-sdk/platform/acp';
 import type { CommandContext, RemoteCommandService } from '../command-registry.ts';
 import type { RemoteSessionBundle } from '@/runtime/index.ts';
 import { requireShellPaths } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 type RemoteRegistryLike = Pick<RemoteCommandService, 'listContracts' | 'exportSessionBundle' | 'importSessionBundle'>;
 
@@ -33,7 +34,9 @@ export async function handleRemoteSetupCommand(
   activeConnections: ActiveConnectionLike[],
   remoteRegistry: RemoteRegistryLike,
 ): Promise<boolean> {
-  const subcommand = args[0]?.toLowerCase() ?? 'show';
+  const parsed = stripYesFlag(args);
+  const commandArgs = [...parsed.rest];
+  const subcommand = commandArgs[0]?.toLowerCase() ?? 'show';
   if (subcommand === 'setup') {
     const command = getDefaultAcpAgentCommand();
     const danger = ctx.platform.configManager.getCategory('danger');
@@ -50,10 +53,14 @@ export async function handleRemoteSetupCommand(
       '    - use /remote env to export a reusable shell snippet',
       '    - enable danger.daemon / danger.httpListener only when you actually need those remote surfaces',
     ];
-    if (args[1]?.toLowerCase() === 'export') {
-      const pathArg = args[2];
+    if (commandArgs[1]?.toLowerCase() === 'export') {
+      const pathArg = commandArgs[2];
       if (!pathArg) {
-        ctx.print('Usage: /remote setup export <path>');
+        ctx.print('Usage: /remote setup export <path> --yes');
+        return true;
+      }
+      if (!parsed.yes) {
+        requireYesFlag(ctx, `export remote setup bundle to ${pathArg}`, '/remote setup export <path> --yes');
         return true;
       }
       const shellPaths = requireShellPaths(ctx);
@@ -79,10 +86,14 @@ export async function handleRemoteSetupCommand(
       `export ACP_AGENT_CMD='${command.join(' ')}'`,
       `export GOODVIBES_REMOTE_SESSION='${ctx.session.runtime.sessionId}'`,
     ].join('\n');
-    if (args[1]?.toLowerCase() === 'export') {
-      const pathArg = args[2];
+    if (commandArgs[1]?.toLowerCase() === 'export') {
+      const pathArg = commandArgs[2];
       if (!pathArg) {
-        ctx.print('Usage: /remote env export <path>');
+        ctx.print('Usage: /remote env export <path> --yes');
+        return true;
+      }
+      if (!parsed.yes) {
+        requireYesFlag(ctx, `export remote environment snippet to ${pathArg}`, '/remote env export <path> --yes');
         return true;
       }
       const shellPaths = requireShellPaths(ctx);
@@ -97,7 +108,7 @@ export async function handleRemoteSetupCommand(
   }
 
   if (subcommand === 'tunnel') {
-    const mode = args[1]?.toLowerCase() ?? 'review';
+    const mode = commandArgs[1]?.toLowerCase() ?? 'review';
     const lines = [
       'Remote Tunnel Review',
       '  transport: self-hosted ACP / daemon relay',
@@ -106,9 +117,13 @@ export async function handleRemoteSetupCommand(
       '  guidance: forward ACP agent traffic through your chosen self-hosted tunnel or SSH transport',
     ];
     if (mode === 'export') {
-      const pathArg = args[2];
+      const pathArg = commandArgs[2];
       if (!pathArg) {
-        ctx.print('Usage: /remote tunnel export <path>');
+        ctx.print('Usage: /remote tunnel export <path> --yes');
+        return true;
+      }
+      if (!parsed.yes) {
+        requireYesFlag(ctx, `export remote tunnel review to ${pathArg}`, '/remote tunnel export <path> --yes');
         return true;
       }
       const shellPaths = requireShellPaths(ctx);
@@ -123,7 +138,7 @@ export async function handleRemoteSetupCommand(
   }
 
   if (subcommand === 'bootstrap') {
-    const mode = args[1]?.toLowerCase() ?? 'export';
+    const mode = commandArgs[1]?.toLowerCase() ?? 'export';
     const payload = {
       exportedAt: Date.now(),
       sessionId: ctx.session.runtime.sessionId,
@@ -138,7 +153,7 @@ export async function handleRemoteSetupCommand(
       ],
     };
     if (mode === 'inspect') {
-      const pathArg = args[2];
+      const pathArg = commandArgs[2];
       if (!pathArg) {
         ctx.print('Usage: /remote bootstrap inspect <path>');
         return true;
@@ -154,9 +169,13 @@ export async function handleRemoteSetupCommand(
       ].join('\n'));
       return true;
     }
-    const pathArg = args[2] ?? args[1];
+    const pathArg = commandArgs[2] ?? commandArgs[1];
     if (!pathArg || mode !== 'export') {
-      ctx.print('Usage: /remote bootstrap export <path> | /remote bootstrap inspect <path>');
+      ctx.print('Usage: /remote bootstrap export <path> --yes | /remote bootstrap inspect <path>');
+      return true;
+    }
+    if (!parsed.yes) {
+      requireYesFlag(ctx, `export remote bootstrap bundle to ${pathArg}`, '/remote bootstrap export <path> --yes');
       return true;
     }
     const shellPaths = requireShellPaths(ctx);
@@ -168,15 +187,19 @@ export async function handleRemoteSetupCommand(
   }
 
   if (subcommand === 'session') {
-    const mode = args[1]?.toLowerCase();
-    const pathArg = args[2];
+    const mode = commandArgs[1]?.toLowerCase();
+    const pathArg = commandArgs[2];
     if (!mode || !pathArg) {
-      ctx.print('Usage: /remote session <export|inspect|import> <path>');
+      ctx.print('Usage: /remote session <export|inspect|import> <path> [--yes]');
       return true;
     }
     const shellPaths = requireShellPaths(ctx);
     const targetPath = shellPaths.resolveWorkspacePath(pathArg);
     if (mode === 'export') {
+      if (!parsed.yes) {
+        requireYesFlag(ctx, `export remote session bundle to ${pathArg}`, '/remote session export <path> --yes');
+        return true;
+      }
       const exported = await remoteRegistry.exportSessionBundle(targetPath);
       ctx.print(`Exported remote session bundle ${exported.bundle.sessionId} to ${exported.path}`);
       return true;
@@ -187,11 +210,15 @@ export async function handleRemoteSetupCommand(
       return true;
     }
     if (mode === 'import') {
+      if (!parsed.yes) {
+        requireYesFlag(ctx, `import remote session bundle from ${pathArg}`, '/remote session import <path> --yes');
+        return true;
+      }
       const bundle = await remoteRegistry.importSessionBundle(targetPath);
       ctx.print(`Imported remote session bundle ${bundle.sessionId} with ${bundle.contracts.length} contracts.`);
       return true;
     }
-    ctx.print('Usage: /remote session <export|inspect|import> <path>');
+    ctx.print('Usage: /remote session <export|inspect|import> <path> [--yes]');
     return true;
   }
 

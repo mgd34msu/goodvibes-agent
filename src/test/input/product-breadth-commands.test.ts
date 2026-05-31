@@ -687,12 +687,22 @@ describe('product breadth commands', () => {
     const exportPath = join(root, 'artifacts', 'startup-review.json');
     out.length = 0;
     await setup!.handler(['export', exportPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export startup review');
+    expect(existsSync(exportPath)).toBe(false);
+
+    out.length = 0;
+    await setup!.handler(['export', exportPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported startup review');
     expect(readFileSync(exportPath, 'utf-8')).toContain('"providerCount": 1');
 
     const supportDir = join(root, 'artifacts', 'support-bundle');
     out.length = 0;
     await setup!.handler(['support-bundle', supportDir], ctx);
+    expect(out.join('\n')).toContain('Refusing to export setup support bundle');
+    expect(existsSync(join(supportDir, 'startup-review.json'))).toBe(false);
+
+    out.length = 0;
+    await setup!.handler(['support-bundle', supportDir, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported support bundle');
     expect(existsSync(join(supportDir, 'startup-review.json'))).toBe(true);
     expect(existsSync(join(supportDir, 'remote-summary.json'))).toBe(true);
@@ -869,17 +879,52 @@ describe('product breadth commands', () => {
     await remoteSetup!.handler(['review'], ctx);
     expect(out.join('\n')).toContain('Remote Setup Review');
 
+    const remoteSetupPath = join(root, 'artifacts', 'remote-setup.json');
+    out.length = 0;
+    await remoteSetup!.handler(['export', remoteSetupPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export remote setup bundle');
+    expect(existsSync(remoteSetupPath)).toBe(false);
+
+    out.length = 0;
+    await remoteSetup!.handler(['export', remoteSetupPath, '--yes'], ctx);
+    expect(out.join('\n')).toContain('Exported remote setup bundle');
+
     out.length = 0;
     await remoteEnv!.handler(['review'], ctx);
     expect(out.join('\n')).toContain('Remote Environment');
+
+    const remoteEnvPath = join(root, 'artifacts', 'remote-env.sh');
+    out.length = 0;
+    await remoteEnv!.handler(['export', remoteEnvPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export remote environment snippet');
+    expect(existsSync(remoteEnvPath)).toBe(false);
+
+    out.length = 0;
+    await remoteEnv!.handler(['export', remoteEnvPath, '--yes'], ctx);
+    expect(out.join('\n')).toContain('Exported remote environment snippet');
 
     out.length = 0;
     await tunnel!.handler(['review'], ctx);
     expect(out.join('\n')).toContain('Remote Tunnel Review');
 
+    const tunnelPath = join(root, 'artifacts', 'remote-tunnel.txt');
+    out.length = 0;
+    await tunnel!.handler(['export', tunnelPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export remote tunnel review');
+    expect(existsSync(tunnelPath)).toBe(false);
+
+    out.length = 0;
+    await tunnel!.handler(['export', tunnelPath, '--yes'], ctx);
+    expect(out.join('\n')).toContain('Exported remote tunnel review');
+
     const bootstrapPath = join(root, 'artifacts', 'bootstrap.json');
     out.length = 0;
     await bootstrap!.handler(['export', bootstrapPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export remote bootstrap bundle');
+    expect(existsSync(bootstrapPath)).toBe(false);
+
+    out.length = 0;
+    await bootstrap!.handler(['export', bootstrapPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported remote bootstrap bundle');
 
     out.length = 0;
@@ -1260,12 +1305,25 @@ describe('product breadth commands', () => {
     const transferPath = join(root, 'artifacts', 'setup-transfer.json');
 
     await setup!.handler(['transfer', 'export', transferPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export setup transfer bundle');
+    expect(existsSync(transferPath)).toBe(false);
+
+    out.length = 0;
+    await setup!.handler(['transfer', 'export', transferPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported setup transfer bundle');
     expect(existsSync(transferPath)).toBe(true);
 
     out.length = 0;
     await setup!.handler(['transfer', 'inspect', transferPath], ctx);
     expect(out.join('\n')).toContain('Setup Transfer Review');
+
+    out.length = 0;
+    await setup!.handler(['transfer', 'import', transferPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to import setup transfer bundle');
+
+    out.length = 0;
+    await setup!.handler(['transfer', 'import', transferPath, '--yes'], ctx);
+    expect(out.join('\n')).toContain('Imported setup transfer bundle');
 
     out.length = 0;
     await setup!.handler(['link', 'security', 'incident-1'], ctx);

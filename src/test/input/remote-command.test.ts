@@ -374,29 +374,72 @@ describe('remote command', () => {
     out.length = 0;
     const setupBundle = join(dir, 'remote-setup.json');
     await remote!.handler(['setup', 'export', setupBundle], ctx);
+    expect(out.join('\n')).toContain('Refusing to export remote setup bundle');
+    expect(existsSync(setupBundle)).toBe(false);
+
+    out.length = 0;
+    await remote!.handler(['setup', 'export', setupBundle, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported remote setup bundle');
     expect(readFileSync(setupBundle, 'utf-8')).toContain('acpAgentCommand');
 
     out.length = 0;
     await remote!.handler(['env', 'export', envPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export remote environment snippet');
+    expect(existsSync(envPath)).toBe(false);
+
+    out.length = 0;
+    await remote!.handler(['env', 'export', envPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported remote environment snippet');
     expect(readFileSync(envPath, 'utf-8')).toContain('ACP_AGENT_CMD');
 
     out.length = 0;
     const tunnelPath = join(dir, 'remote-tunnel.txt');
     await remote!.handler(['tunnel', 'export', tunnelPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export remote tunnel review');
+    expect(existsSync(tunnelPath)).toBe(false);
+
+    out.length = 0;
+    await remote!.handler(['tunnel', 'export', tunnelPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported remote tunnel review');
     expect(readFileSync(tunnelPath, 'utf-8')).toContain('Remote Tunnel Review');
 
     out.length = 0;
     const bootstrapPath = join(dir, 'remote-bootstrap.json');
     await remote!.handler(['bootstrap', 'export', bootstrapPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export remote bootstrap bundle');
+    expect(existsSync(bootstrapPath)).toBe(false);
+
+    out.length = 0;
+    await remote!.handler(['bootstrap', 'export', bootstrapPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported remote bootstrap bundle');
     expect(readFileSync(bootstrapPath, 'utf-8')).toContain('GOODVIBES_REMOTE_SESSION');
 
     out.length = 0;
     await remote!.handler(['bootstrap', 'inspect', bootstrapPath], ctx);
     expect(out.join('\n')).toContain('Remote Bootstrap Bundle Review');
+
+    out.length = 0;
+    const sessionBundlePath = join(dir, 'remote-session.json');
+    await remote!.handler(['session', 'export', sessionBundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export remote session bundle');
+    expect(existsSync(sessionBundlePath)).toBe(false);
+
+    out.length = 0;
+    await remote!.handler(['session', 'export', sessionBundlePath, '--yes'], ctx);
+    expect(out.join('\n')).toContain('Exported remote session bundle');
+    expect(readFileSync(sessionBundlePath, 'utf-8')).toContain('sessionId');
+
+    out.length = 0;
+    await remote!.handler(['session', 'inspect', sessionBundlePath], ctx);
+    expect(out.join('\n')).toContain('Remote Session Bundle Review');
+
+    out.length = 0;
+    await remote!.handler(['session', 'import', sessionBundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to import remote session bundle');
+
+    out.length = 0;
+    await remote!.handler(['session', 'import', sessionBundlePath, '--yes'], ctx);
+    expect(out.join('\n')).toContain('Imported remote session bundle');
   });
 
   test('manages remote runner pools and pool-aware dispatch from the command surface', async () => {

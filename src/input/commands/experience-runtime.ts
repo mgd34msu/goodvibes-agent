@@ -24,21 +24,27 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
   registry.register({
     name: 'remote-setup',
     description: 'Dedicated front-door for remote setup review and portable setup bundles',
-    usage: '[review|export <path>]',
+    usage: '[review|export <path> --yes]',
     async handler(args, ctx) {
-      const sub = (args[0] ?? 'review').toLowerCase();
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
+      const sub = (commandArgs[0] ?? 'review').toLowerCase();
       if (ctx.executeCommand) {
         if (sub === 'review') {
           await ctx.executeCommand('remote', ['setup']);
           return;
         }
         if (sub === 'export') {
-          const pathArg = args[1];
+          const pathArg = commandArgs[1];
           if (!pathArg) {
-            ctx.print('Usage: /remote-setup export <path>');
+            ctx.print('Usage: /remote-setup export <path> --yes');
             return;
           }
-          await ctx.executeCommand('remote', ['setup', 'export', pathArg]);
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export remote setup bundle to ${pathArg}`, '/remote-setup export <path> --yes');
+            return;
+          }
+          await ctx.executeCommand('remote', ['setup', 'export', pathArg, '--yes']);
           return;
         }
       }
@@ -49,21 +55,27 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
   registry.register({
     name: 'remote-env',
     description: 'Dedicated front-door for remote environment snippets and portable env exports',
-    usage: '[review|export <path>]',
+    usage: '[review|export <path> --yes]',
     async handler(args, ctx) {
-      const sub = (args[0] ?? 'review').toLowerCase();
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
+      const sub = (commandArgs[0] ?? 'review').toLowerCase();
       if (ctx.executeCommand) {
         if (sub === 'review') {
           await ctx.executeCommand('remote', ['env']);
           return;
         }
         if (sub === 'export') {
-          const pathArg = args[1];
+          const pathArg = commandArgs[1];
           if (!pathArg) {
-            ctx.print('Usage: /remote-env export <path>');
+            ctx.print('Usage: /remote-env export <path> --yes');
             return;
           }
-          await ctx.executeCommand('remote', ['env', 'export', pathArg]);
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export remote environment snippet to ${pathArg}`, '/remote-env export <path> --yes');
+            return;
+          }
+          await ctx.executeCommand('remote', ['env', 'export', pathArg, '--yes']);
           return;
         }
       }
@@ -74,21 +86,27 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
   registry.register({
     name: 'tunnel',
     description: 'Dedicated front-door for remote tunnel review and export flows',
-    usage: '[review|export <path>]',
+    usage: '[review|export <path> --yes]',
     async handler(args, ctx) {
-      const sub = (args[0] ?? 'review').toLowerCase();
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
+      const sub = (commandArgs[0] ?? 'review').toLowerCase();
       if (ctx.executeCommand) {
         if (sub === 'review') {
           await ctx.executeCommand('remote', ['tunnel', 'review']);
           return;
         }
         if (sub === 'export') {
-          const pathArg = args[1];
+          const pathArg = commandArgs[1];
           if (!pathArg) {
-            ctx.print('Usage: /tunnel export <path>');
+            ctx.print('Usage: /tunnel export <path> --yes');
             return;
           }
-          await ctx.executeCommand('remote', ['tunnel', 'export', pathArg]);
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export remote tunnel review to ${pathArg}`, '/tunnel export <path> --yes');
+            return;
+          }
+          await ctx.executeCommand('remote', ['tunnel', 'export', pathArg, '--yes']);
           return;
         }
       }
@@ -99,19 +117,29 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
   registry.register({
     name: 'bootstrap',
     description: 'Dedicated front-door for remote bootstrap bundle export and inspection',
-    usage: '[export <path>|inspect <path>]',
+    usage: '[export <path> --yes|inspect <path>]',
     async handler(args, ctx) {
-      const sub = (args[0] ?? '').toLowerCase();
-      const pathArg = args[1];
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
+      const sub = (commandArgs[0] ?? '').toLowerCase();
+      const pathArg = commandArgs[1];
       if (!ctx.executeCommand) {
         ctx.print('Bootstrap controls are not available in this runtime.');
         return;
       }
-      if ((sub === 'export' || sub === 'inspect') && pathArg) {
+      if (sub === 'export' && pathArg) {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `export remote bootstrap bundle to ${pathArg}`, '/bootstrap export <path> --yes');
+          return;
+        }
+        await ctx.executeCommand('remote', ['bootstrap', sub, pathArg, '--yes']);
+        return;
+      }
+      if (sub === 'inspect' && pathArg) {
         await ctx.executeCommand('remote', ['bootstrap', sub, pathArg]);
         return;
       }
-      ctx.print('Usage: /bootstrap [export <path>|inspect <path>]');
+      ctx.print('Usage: /bootstrap [export <path> --yes|inspect <path>]');
     },
   });
 

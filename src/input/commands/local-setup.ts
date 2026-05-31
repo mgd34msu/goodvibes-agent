@@ -16,6 +16,7 @@ import { buildSetupReviewSnapshot, exportSetupSupportBundle } from './local-setu
 import { openOnboardingWizard, requirePanelManager, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 type SetupSnapshot = Awaited<ReturnType<typeof buildSetupReviewSnapshot>>;
 
@@ -24,9 +25,11 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
     name: 'setup',
     aliases: ['startup'],
     description: 'Launch the onboarding wizard and review Agent startup readiness',
-    usage: '[review|doctor|services|hooks|remote|sandbox|onboarding|support-bundle <dir>|export <path>|transfer <export|inspect|import> <path>|link <surface> [target]|open-link <uri>]',
+    usage: '[review|doctor|services|hooks|remote|sandbox|onboarding|support-bundle <dir> --yes|export <path> --yes|transfer <export|inspect|import> <path> [--yes]|link <surface> [target]|open-link <uri>]',
     async handler(args, ctx) {
-      const sub = args[0] ?? 'review';
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
+      const sub = commandArgs[0] ?? 'review';
       let shellPaths: ReturnType<typeof requireShellPaths> | null = null;
       let snapshotPromise: Promise<SetupSnapshot> | null = null;
       const getShellPaths = () => (shellPaths ??= requireShellPaths(ctx));
@@ -134,12 +137,16 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'support-bundle') {
-        const snapshot = await getSnapshot();
-        const dirArg = args[1];
+        const dirArg = commandArgs[1];
         if (!dirArg) {
-          ctx.print('Usage: /setup support-bundle <dir>');
+          ctx.print('Usage: /setup support-bundle <dir> --yes');
           return;
         }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `export setup support bundle to ${dirArg}`, '/setup support-bundle <dir> --yes');
+          return;
+        }
+        const snapshot = await getSnapshot();
         const targetDir = exportSetupSupportBundle(dirArg, snapshot, ctx);
         writeFileSync(join(targetDir, 'remote-summary.json'), JSON.stringify({
           runners: ctx.ops.remoteRuntime?.listContracts() ?? [],
@@ -155,12 +162,16 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'export') {
-        const snapshot = await getSnapshot();
-        const pathArg = args[1];
+        const pathArg = commandArgs[1];
         if (!pathArg) {
-          ctx.print('Usage: /setup export <path>');
+          ctx.print('Usage: /setup export <path> --yes');
           return;
         }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `export startup review to ${pathArg}`, '/setup export <path> --yes');
+          return;
+        }
+        const snapshot = await getSnapshot();
         const targetPath = getShellPaths().resolveWorkspacePath(pathArg);
         mkdirSync(dirname(targetPath), { recursive: true });
         writeFileSync(targetPath, JSON.stringify(snapshot, null, 2) + '\n', 'utf-8');
@@ -169,14 +180,18 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'transfer') {
-        const mode = args[1]?.toLowerCase();
-        const pathArg = args[2];
+        const mode = commandArgs[1]?.toLowerCase();
+        const pathArg = commandArgs[2];
         if (!mode || !pathArg) {
-          ctx.print('Usage: /setup transfer <export|inspect|import> <path>');
+          ctx.print('Usage: /setup transfer <export|inspect|import> <path> [--yes]');
           return;
         }
         const targetPath = getShellPaths().resolveWorkspacePath(pathArg);
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export setup transfer bundle to ${pathArg}`, '/setup transfer export <path> --yes');
+            return;
+          }
           const snapshot = await getSnapshot();
           const bundle = buildSetupTransferBundle(ctx, snapshot);
           ctx.print(`Exported setup transfer bundle to ${exportSetupTransferBundle(ctx, pathArg, bundle)}`);
@@ -192,6 +207,10 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
           return;
         }
         if (mode === 'import') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `import setup transfer bundle from ${pathArg}`, '/setup transfer import <path> --yes');
+            return;
+          }
           try {
             const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as SetupTransferBundle;
             for (const entry of CONFIG_SCHEMA) {
@@ -220,13 +239,13 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
           }
           return;
         }
-        ctx.print('Usage: /setup transfer <export|inspect|import> <path>');
+        ctx.print('Usage: /setup transfer <export|inspect|import> <path> [--yes]');
         return;
       }
 
       if (sub === 'link') {
-        const surface = args[1];
-        const target = args[2];
+        const surface = commandArgs[1];
+        const target = commandArgs[2];
         if (!surface) {
           ctx.print('Usage: /setup link <cockpit|security|remote|knowledge|incident|hooks|orchestration|tasks> [target]');
           return;
@@ -236,7 +255,7 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'open-link') {
-        const link = args[1];
+        const link = commandArgs[1];
         if (!link) {
           ctx.print('Usage: /setup open-link <goodvibes://...>');
           return;
@@ -276,7 +295,7 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
         return;
       }
 
-      ctx.print('Usage: /setup [review|doctor|services|hooks|remote|sandbox|onboarding|support-bundle <dir>|export <path>|transfer <export|inspect|import> <path>|link <surface> [target]|open-link <uri>]');
+      ctx.print('Usage: /setup [review|doctor|services|hooks|remote|sandbox|onboarding|support-bundle <dir> --yes|export <path> --yes|transfer <export|inspect|import> <path> [--yes]|link <surface> [target]|open-link <uri>]');
     },
   });
 }
