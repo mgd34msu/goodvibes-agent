@@ -11,6 +11,7 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import {
   AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
   AGENT_CHANNEL_ACTION_DENIAL_MESSAGE,
+  AGENT_CONTROL_MUTATION_DENIAL_MESSAGE,
   AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE,
   AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
   AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE,
@@ -19,6 +20,7 @@ import {
   AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
   AGENT_READ_ONLY_CHANNEL_TOOL_MODES,
+  AGENT_READ_ONLY_CONTROL_TOOL_MODES,
   AGENT_READ_ONLY_FETCH_METHODS,
   AGENT_READ_ONLY_MCP_TOOL_MODES,
   AGENT_READ_ONLY_PACKET_TOOL_MODES,
@@ -227,6 +229,23 @@ function makeInspectTool(): Tool {
         },
       },
       sideEffects: ['read_fs'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
+  };
+}
+
+function makeControlTool(): Tool {
+  return {
+    definition: {
+      name: 'control',
+      description: 'control test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', enum: ['commands', 'panels', 'subscriptions', 'sandbox-presets', 'restart-daemon'] },
+        },
+      },
+      sideEffects: ['state'],
     },
     execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
   };
@@ -958,6 +977,29 @@ describe('spawn mode', () => {
     });
     expect(write.success).toBe(false);
     expect(write.error).toBe(AGENT_INSPECT_WRITE_DENIAL_MESSAGE);
+  });
+
+  test('Agent runtime guard narrows copied control tool to read-only product-control inspection', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeControlTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const controlDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'control');
+    expect(controlDefinition?.description).toContain('Read-only product-control inspection');
+    expect(controlDefinition?.sideEffects).toEqual([]);
+    const properties = controlDefinition?.parameters.properties as Record<string, unknown>;
+    const modeProperty = getRecordProperty(properties, 'mode');
+    expect(modeProperty?.enum).toEqual([...AGENT_READ_ONLY_CONTROL_TOOL_MODES]);
+
+    const commands = await registry.execute('call-control-commands', 'control', { mode: 'commands' });
+    expect(commands.success).toBe(true);
+
+    const mutation = await registry.execute('call-control-mutation', 'control', { mode: 'restart-daemon' });
+    expect(mutation.success).toBe(false);
+    expect(mutation.error).toBe(AGENT_CONTROL_MUTATION_DENIAL_MESSAGE);
   });
 
   test('Agent runtime guard narrows copied durable workflow tools to read-only inspection', async () => {

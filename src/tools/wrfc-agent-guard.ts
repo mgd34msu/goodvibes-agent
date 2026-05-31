@@ -96,6 +96,7 @@ const READ_ONLY_TEAM_TOOL_MODES = ['list', 'show'] as const;
 const READ_ONLY_WORKLIST_TOOL_MODES = ['list', 'show'] as const;
 const READ_ONLY_PACKET_TOOL_MODES = ['list', 'show'] as const;
 const READ_ONLY_QUERY_TOOL_MODES = ['list', 'show'] as const;
+const READ_ONLY_CONTROL_TOOL_MODES = ['commands', 'panels', 'subscriptions', 'sandbox-presets'] as const;
 const READ_ONLY_REMOTE_TOOL_MODE_SET = new Set<string>(READ_ONLY_REMOTE_TOOL_MODES);
 const READ_ONLY_CHANNEL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CHANNEL_TOOL_MODES);
 const READ_ONLY_MCP_TOOL_MODE_SET = new Set<string>(READ_ONLY_MCP_TOOL_MODES);
@@ -110,6 +111,7 @@ const READ_ONLY_TEAM_TOOL_MODE_SET = new Set<string>(READ_ONLY_TEAM_TOOL_MODES);
 const READ_ONLY_WORKLIST_TOOL_MODE_SET = new Set<string>(READ_ONLY_WORKLIST_TOOL_MODES);
 const READ_ONLY_PACKET_TOOL_MODE_SET = new Set<string>(READ_ONLY_PACKET_TOOL_MODES);
 const READ_ONLY_QUERY_TOOL_MODE_SET = new Set<string>(READ_ONLY_QUERY_TOOL_MODES);
+const READ_ONLY_CONTROL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CONTROL_TOOL_MODES);
 
 const LOCAL_AGENT_DENIAL = [
   'GoodVibes Agent does not spawn local Engineer/Reviewer/Tester/Verifier roots or run local WRFC chains.',
@@ -177,6 +179,12 @@ const DURABLE_WORKFLOW_MUTATION_DENIAL = [
   'Use explicit Agent CLI/slash commands or GoodVibes TUI delegation for intentional workflow changes.',
 ].join(' ');
 
+const CONTROL_MUTATION_DENIAL = [
+  'GoodVibes Agent only inspects copied product-control surfaces from the main conversation.',
+  'Product-control mutation, daemon lifecycle, and service posture changes are disabled here.',
+  'Use explicit Agent CLI/slash commands for Agent-owned changes, and keep daemon lifecycle external.',
+].join(' ');
+
 export function installAgentToolPolicyGuard(registry: ToolRegistry, options: AgentToolPolicyGuardOptions = {}): void {
   const agentTool = registry.list().find((tool) => tool.definition.name === 'agent');
   if (!agentTool) throw new Error('Agent tool policy guard could not find the agent tool.');
@@ -214,6 +222,16 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapBlockedSettingsToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'inspect') {
       wrapInspectToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'control') {
+      wrapModeRestrictedToolForAgentPolicy(tool, {
+        allowedModes: READ_ONLY_CONTROL_TOOL_MODES,
+        modeSet: READ_ONLY_CONTROL_TOOL_MODE_SET,
+        description: [
+          'Read-only product-control inspection for GoodVibes Agent.',
+          'Command, panel, subscription, and sandbox preset catalogs can be inspected, but product-control mutation and daemon lifecycle are external.',
+        ].join(' '),
+        denial: CONTROL_MUTATION_DENIAL,
+      });
     } else if (tool.definition.name === 'task') {
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_TASK_TOOL_MODES,
@@ -505,6 +523,7 @@ export const AGENT_READ_ONLY_TEAM_TOOL_MODES = READ_ONLY_TEAM_TOOL_MODES;
 export const AGENT_READ_ONLY_WORKLIST_TOOL_MODES = READ_ONLY_WORKLIST_TOOL_MODES;
 export const AGENT_READ_ONLY_PACKET_TOOL_MODES = READ_ONLY_PACKET_TOOL_MODES;
 export const AGENT_READ_ONLY_QUERY_TOOL_MODES = READ_ONLY_QUERY_TOOL_MODES;
+export const AGENT_READ_ONLY_CONTROL_TOOL_MODES = READ_ONLY_CONTROL_TOOL_MODES;
 export const AGENT_REMOTE_MUTATION_DENIAL_MESSAGE = REMOTE_MUTATION_DENIAL;
 export const AGENT_CHANNEL_ACTION_DENIAL_MESSAGE = CHANNEL_ACTION_DENIAL;
 export const AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE = MCP_SECURITY_MUTATION_DENIAL;
@@ -513,6 +532,7 @@ export const AGENT_STATE_MUTATION_DENIAL_MESSAGE = STATE_MUTATION_DENIAL;
 export const AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE = SETTINGS_MUTATION_DENIAL;
 export const AGENT_INSPECT_WRITE_DENIAL_MESSAGE = INSPECT_WRITE_DENIAL;
 export const AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE = DURABLE_WORKFLOW_MUTATION_DENIAL;
+export const AGENT_CONTROL_MUTATION_DENIAL_MESSAGE = CONTROL_MUTATION_DENIAL;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -659,6 +679,7 @@ function narrowInspectToolDefinitionForAgentPolicy(tool: Tool): void {
 
 function narrowModeToolDefinitionForAgentPolicy(tool: Tool, allowedModes: readonly string[], description: string): void {
   tool.definition.description = description;
+  tool.definition.sideEffects = [];
 
   const properties = tool.definition.parameters.properties;
   if (!isRecord(properties)) return;
