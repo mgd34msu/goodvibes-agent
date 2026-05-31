@@ -4,9 +4,9 @@
  * Implements the Evaluation Harness commands:
  *
  *   /eval list                    — List all available eval suites
- *   /eval run <suite>             — Run a named suite (or 'all')
+ *   /eval run <suite> --yes       — Run a named suite (or 'all')
  *   /eval compare <baseline-file> — Compare last run against a baseline file
- *   /eval gate <suite>            — Run suite and apply CI gate (exits 1 on regression)
+ *   /eval gate <suite> --yes      — Run suite and apply CI gate (exits 1 on regression)
  */
 
 import type { SlashCommand, CommandContext } from '../command-registry.ts';
@@ -30,7 +30,7 @@ function printSuiteList(context: CommandContext): void {
       context.print(`    - ${s.id}: ${s.name}`);
     }
   }
-  context.print('[eval] Usage: /eval run <suite>  or  /eval run all');
+  context.print('[eval] Usage: /eval run <suite> --yes  or  /eval run all --yes');
 }
 
 function getRegistry(context: CommandContext): EvalRegistry | undefined {
@@ -46,7 +46,8 @@ function handleList(_args: string[], context: CommandContext): void {
 // ── /eval run ────────────────────────────────────────────────────────────────
 
 async function handleRun(args: string[], context: CommandContext): Promise<void> {
-  const suiteName = args[0] ?? 'all';
+  const { rest, yes } = stripYesFlag(args);
+  const suiteName = rest[0] ?? 'all';
   const registry = getRegistry(context);
 
   const suitesToRun =
@@ -58,6 +59,10 @@ async function handleRun(args: string[], context: CommandContext): Promise<void>
 
   if (!suitesToRun) {
     context.print(`[eval] Unknown suite: "${suiteName}". Run /eval list to see available suites.`);
+    return;
+  }
+  if (!yes) {
+    requireYesFlag(context, `run eval suite ${suiteName}`, '/eval run <suite|all> --yes');
     return;
   }
 
@@ -91,7 +96,7 @@ async function handleCompare(args: string[], context: CommandContext): Promise<v
   const suiteResults = registry?.getSuiteResults() ?? [];
 
   if (suiteResults.length === 0) {
-    context.print('[eval] No suite results to compare. Run /eval run <suite> first.');
+    context.print('[eval] No suite results to compare. Run /eval run <suite> --yes first.');
     return;
   }
 
@@ -118,13 +123,17 @@ async function handleGate(args: string[], context: CommandContext): Promise<void
   const projectRoot = requireShellPaths(context).workingDirectory;
 
   if (!suiteName) {
-    context.print('[eval] Usage: /eval gate <suite> [baseline-file] [--save-baseline --yes]');
+    context.print('[eval] Usage: /eval gate <suite> [baseline-file] [--save-baseline] --yes');
     return;
   }
 
   const scenarios = BUILTIN_SUITES[suiteName];
   if (!scenarios) {
     context.print(`[eval] Unknown suite: "${suiteName}". Run /eval list to see available suites.`);
+    return;
+  }
+  if (!yes) {
+    requireYesFlag(context, `run eval gate ${suiteName}`, '/eval gate <suite> [baseline-file] [--save-baseline] --yes');
     return;
   }
 
@@ -144,18 +153,13 @@ async function handleGate(args: string[], context: CommandContext): Promise<void
   context.print(formatGateResult(gate));
 
   if (saveFlag || !baseline) {
-    if (!yes) {
-      const reason = saveFlag ? 'save eval baseline' : 'create missing eval baseline';
-      requireYesFlag(context, reason, '/eval gate <suite> [baseline-file] --save-baseline --yes');
-    } else {
-      const label = suiteName ?? 'latest';
-      const newBaseline = captureBaseline(label, [fresh]);
-      try {
-        await writeBaseline(baselineFile, newBaseline, projectRoot);
-        context.print(`[eval] Baseline saved to ${baselineFile}`);
-      } catch (err) {
-        context.print(`[eval] Warning: could not save baseline: ${summarizeError(err)}`);
-      }
+    const label = suiteName ?? 'latest';
+    const newBaseline = captureBaseline(label, [fresh]);
+    try {
+      await writeBaseline(baselineFile, newBaseline, projectRoot);
+      context.print(`[eval] Baseline saved to ${baselineFile}`);
+    } catch (err) {
+      context.print(`[eval] Warning: could not save baseline: ${summarizeError(err)}`);
     }
   }
 
@@ -172,7 +176,7 @@ export const evalCommand: SlashCommand = {
   name: 'eval',
   description: 'Evaluation harness: run benchmark suites, compare baselines, and gate regressions.',
   usage: '<subcommand> [args]',
-  argsHint: 'list|run <suite>|compare <baseline>|gate <suite>',
+  argsHint: 'list|run <suite> --yes|compare <baseline>|gate <suite> --yes',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
     const [sub, ...rest] = args;
 
@@ -199,10 +203,11 @@ export const evalCommand: SlashCommand = {
         const usage = [
           'Usage: /eval <subcommand>',
           '  list                           — List all available eval suites',
-          '  run <suite|all>                — Run a named suite (or all suites)',
+          '  run <suite|all> --yes          — Run a named suite (or all suites)',
           '  compare [baseline-file]        — Compare last results against baseline',
-          '  gate <suite> [baseline-file]   — Run suite and apply regression gate',
-          '    --save-baseline --yes        — Save fresh run as new baseline',
+          '  gate <suite> [baseline-file] --yes',
+          '                                 — Run suite and apply regression gate',
+          '    --save-baseline              — Save fresh run as new baseline',
         ].join('\n');
         context.print(usage);
         break;

@@ -108,17 +108,21 @@ describe('write/export command confirmation', () => {
     }
   });
 
-  test('eval gate does not create a missing baseline without --save-baseline --yes', async () => {
+  test('eval run and gate require --yes before model-costing execution', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-eval-confirm-'));
     try {
       const out: string[] = [];
       const ctx = baseContext(root, out);
       const baselinePath = join(root, 'baseline.json');
 
+      await evalCommand.handler(['run', 'core-performance'], ctx);
+      expect(out.join('\n')).toContain('Refusing to run eval suite core-performance without --yes');
+
+      out.length = 0;
       await evalCommand.handler(['gate', 'core-performance', baselinePath], ctx);
 
       expect(existsSync(baselinePath)).toBe(false);
-      expect(out.join('\n')).toContain('Refusing to create missing eval baseline without --yes');
+      expect(out.join('\n')).toContain('Refusing to run eval gate core-performance without --yes');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -342,7 +342,7 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
           '  1. Run /setup review and /setup doctor',
           '  2. Run /security review and /trust review',
           '  3. Run /policy preflight and /policy simulate',
-          '  4. Run /eval gate <suite> for required certification suites',
+          '  4. Run /eval gate <suite> --yes for required certification suites',
           '  5. Review /incident latest and /bridge status',
           '  6. Export /release bundle export <path> --yes for release evidence',
         ].join('\n'));
