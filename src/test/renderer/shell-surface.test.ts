@@ -63,7 +63,7 @@ describe('shell surface', () => {
       indicatorFocused: false,
       runningAgentProgress: 'Turn 2',
     });
-    expect(lineToString(result.lines[4])).toContain('1 agent');
+    expect(lineToString(result.lines[4])).toContain('1 delegation');
   });
 
   test('prompt box keeps half-height top and bottom borders', () => {
