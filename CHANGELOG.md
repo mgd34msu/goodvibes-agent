@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.14 - 2026-05-31
+
+- d128004 Block background exec in agent runtime
+
 ## 0.1.13 - 2026-05-31
 
 - 989b048 Block local coding tools in agent runtime
