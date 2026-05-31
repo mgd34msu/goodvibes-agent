@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import {
+  AGENT_ANALYZE_NETWORK_DENIAL_MESSAGE,
   AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
   AGENT_CHANNEL_ACTION_DENIAL_MESSAGE,
   AGENT_CONTROL_MUTATION_DENIAL_MESSAGE,
@@ -19,12 +20,14 @@ import {
   AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE,
   AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
+  AGENT_READ_ONLY_ANALYZE_TOOL_MODES,
   AGENT_READ_ONLY_CHANNEL_TOOL_MODES,
   AGENT_READ_ONLY_CONTROL_TOOL_MODES,
   AGENT_READ_ONLY_FETCH_METHODS,
   AGENT_READ_ONLY_MCP_TOOL_MODES,
   AGENT_READ_ONLY_PACKET_TOOL_MODES,
   AGENT_READ_ONLY_QUERY_TOOL_MODES,
+  AGENT_READ_ONLY_REGISTRY_TOOL_MODES,
   AGENT_READ_ONLY_REMOTE_TOOL_MODES,
   AGENT_READ_ONLY_STATE_ANALYTICS_ACTIONS,
   AGENT_READ_ONLY_STATE_HOOK_ACTIONS,
@@ -36,6 +39,7 @@ import {
   AGENT_READ_ONLY_TOOL_MODES,
   AGENT_READ_ONLY_WORKLIST_TOOL_MODES,
   AGENT_REMOTE_MUTATION_DENIAL_MESSAGE,
+  AGENT_REGISTRY_CONTENT_DENIAL_MESSAGE,
   AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE,
   AGENT_STATE_MUTATION_DENIAL_MESSAGE,
   installAgentToolPolicyGuard,
@@ -246,6 +250,62 @@ function makeControlTool(): Tool {
         },
       },
       sideEffects: ['state'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
+  };
+}
+
+function makeAnalyzeTool(): Tool {
+  return {
+    definition: {
+      name: 'analyze',
+      description: 'analyze test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: {
+            type: 'string',
+            enum: [
+              'impact',
+              'dependencies',
+              'dead_code',
+              'security',
+              'coverage',
+              'bundle',
+              'preview',
+              'diff',
+              'surface',
+              'breaking',
+              'semantic_diff',
+              'upgrade',
+              'permissions',
+              'env_audit',
+              'test_find',
+            ],
+          },
+          packages: { type: 'array', items: { type: 'string' } },
+        },
+      },
+      sideEffects: ['read_fs', 'network'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
+  };
+}
+
+function makeRegistryTool(): Tool {
+  return {
+    definition: {
+      name: 'registry',
+      description: 'registry test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', enum: ['search', 'recommend', 'dependencies', 'preview', 'content'] },
+          path: { type: 'string' },
+          query: { type: 'string' },
+        },
+      },
+      sideEffects: ['read_fs'],
     },
     execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
   };
@@ -1000,6 +1060,77 @@ describe('spawn mode', () => {
     const mutation = await registry.execute('call-control-mutation', 'control', { mode: 'restart-daemon' });
     expect(mutation.success).toBe(false);
     expect(mutation.error).toBe(AGENT_CONTROL_MUTATION_DENIAL_MESSAGE);
+  });
+
+  test('Agent runtime guard narrows analyze to local static analysis modes', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeAnalyzeTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const analyzeDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'analyze');
+    expect(analyzeDefinition?.description).toContain('local, static project analysis');
+    expect(analyzeDefinition?.sideEffects).toEqual(['read_fs']);
+    const properties = analyzeDefinition?.parameters.properties as Record<string, unknown>;
+    const modeProperty = getRecordProperty(properties, 'mode');
+    expect(modeProperty?.enum).toEqual([...AGENT_READ_ONLY_ANALYZE_TOOL_MODES]);
+    expect(properties.packages).toBeUndefined();
+
+    const security = await registry.execute('call-analyze-security', 'analyze', { mode: 'security' });
+    expect(security.success).toBe(true);
+
+    for (const mode of ['upgrade', 'semantic_diff'] as const) {
+      const blocked = await registry.execute(`call-analyze-${mode}`, 'analyze', { mode });
+      expect(blocked.success).toBe(false);
+      expect(blocked.error).toBe(AGENT_ANALYZE_NETWORK_DENIAL_MESSAGE);
+    }
+  });
+
+  test('Agent runtime guard narrows registry to discovery and bounded previews', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeRegistryTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const registryDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'registry');
+    expect(registryDefinition?.description).toContain('Discover and preview GoodVibes Agent skills');
+    expect(registryDefinition?.sideEffects).toEqual(['read_fs']);
+    const properties = registryDefinition?.parameters.properties as Record<string, unknown>;
+    const modeProperty = getRecordProperty(properties, 'mode');
+    expect(modeProperty?.enum).toEqual([...AGENT_READ_ONLY_REGISTRY_TOOL_MODES]);
+
+    const search = await registry.execute('call-registry-search', 'registry', { mode: 'search', query: 'setup' });
+    expect(search.success).toBe(true);
+
+    const previewSkill = await registry.execute('call-registry-preview-skill', 'registry', {
+      mode: 'preview',
+      path: '.goodvibes/skills/setup/SKILL.md',
+    });
+    expect(previewSkill.success).toBe(true);
+
+    const previewAgent = await registry.execute('call-registry-preview-agent', 'registry', {
+      mode: 'preview',
+      path: '/tmp/example/.goodvibes/agents/reviewer/AGENT.md',
+    });
+    expect(previewAgent.success).toBe(true);
+
+    const content = await registry.execute('call-registry-content', 'registry', {
+      mode: 'content',
+      path: '.goodvibes/skills/setup/SKILL.md',
+    });
+    expect(content.success).toBe(false);
+    expect(content.error).toBe(AGENT_REGISTRY_CONTENT_DENIAL_MESSAGE);
+
+    const arbitraryPreview = await registry.execute('call-registry-arbitrary-preview', 'registry', {
+      mode: 'preview',
+      path: '.goodvibes/secrets/token.md',
+    });
+    expect(arbitraryPreview.success).toBe(false);
+    expect(arbitraryPreview.error).toBe(AGENT_REGISTRY_CONTENT_DENIAL_MESSAGE);
   });
 
   test('Agent runtime guard narrows copied durable workflow tools to read-only inspection', async () => {

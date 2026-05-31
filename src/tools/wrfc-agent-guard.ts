@@ -1,5 +1,9 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import {
+  wrapAnalyzeToolForAgentPolicy,
+  wrapRegistryToolForAgentPolicy,
+} from './agent-analysis-registry-policy.ts';
 
 type AgentToolArgs = {
   readonly mode?: unknown;
@@ -222,6 +226,10 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapBlockedSettingsToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'inspect') {
       wrapInspectToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'analyze') {
+      wrapAnalyzeToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'registry') {
+      wrapRegistryToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'control') {
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_CONTROL_TOOL_MODES,
@@ -533,6 +541,17 @@ export const AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE = SETTINGS_MUTATION_DENIAL;
 export const AGENT_INSPECT_WRITE_DENIAL_MESSAGE = INSPECT_WRITE_DENIAL;
 export const AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE = DURABLE_WORKFLOW_MUTATION_DENIAL;
 export const AGENT_CONTROL_MUTATION_DENIAL_MESSAGE = CONTROL_MUTATION_DENIAL;
+
+export {
+  AGENT_ANALYZE_NETWORK_DENIAL_MESSAGE,
+  AGENT_READ_ONLY_ANALYZE_TOOL_MODES,
+  AGENT_READ_ONLY_REGISTRY_TOOL_MODES,
+  AGENT_REGISTRY_CONTENT_DENIAL_MESSAGE,
+  validateAnalyzeToolInvocationForAgentPolicy,
+  validateRegistryToolInvocationForAgentPolicy,
+  wrapAnalyzeToolForAgentPolicy,
+  wrapRegistryToolForAgentPolicy,
+} from './agent-analysis-registry-policy.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
