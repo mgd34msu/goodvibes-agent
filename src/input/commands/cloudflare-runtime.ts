@@ -89,7 +89,7 @@ export function registerCloudflareRuntimeCommands(registry: CommandRegistry): vo
           }
           const bootstrapToken = getFlag(parsed, 'bootstrap-token') || readTokenEnv(parsed, 'bootstrap-env');
           if (!bootstrapToken) {
-            ctx.print('Usage: /cloudflare create-token --account <account-id> --bootstrap-token <token> or --bootstrap-env <env-name>');
+            ctx.print('Usage: /cloudflare create-token --account <account-id> (--bootstrap-token <token> | --bootstrap-env <env-name>) --yes');
             return;
           }
           const result = await client.createOperationalToken({

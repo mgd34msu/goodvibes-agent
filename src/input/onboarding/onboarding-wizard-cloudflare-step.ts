@@ -380,8 +380,8 @@ export function buildCloudflareStep(controller: OnboardingWizardController): Onb
       {
         kind: 'radio',
         id: 'cloudflare.provision-on-apply',
-        label: 'Provision Cloudflare on final apply',
-        hint: 'If yes, final Apply calls SDK daemon routes to create/update resources and verify them. Failure is reported as a warning; settings still save.',
+        label: 'Final apply Cloudflare provisioning',
+        hint: 'Agent onboarding saves config only. Run /cloudflare provision [flags] --yes explicitly for resource changes.',
         options: CLOUDFLARE_PROVISION_OPTIONS,
         defaultValue: 'no',
       },
@@ -404,8 +404,8 @@ export function buildCloudflareStep(controller: OnboardingWizardController): Onb
         kind: 'action',
         id: 'cloudflare.create-token',
         action: 'cloudflare-create-operational-token',
-        label: 'Create operational token from bootstrap token',
-        hint: 'Uses a pasted or environment bootstrap token once. The SDK stores the generated operational token as a goodvibes:// secret.',
+        label: 'Show create-token command',
+        hint: 'Token creation is side-effecting. The wizard shows the explicit /cloudflare create-token ... --yes path instead of running it.',
         defaultValue: 'Action',
       },
       {
@@ -428,8 +428,8 @@ export function buildCloudflareStep(controller: OnboardingWizardController): Onb
         kind: 'action',
         id: 'cloudflare.provision',
         action: 'cloudflare-provision',
-        label: 'Provision and verify now',
-        hint: 'Calls the daemon SDK route immediately with the current wizard values. This creates/updates selected Cloudflare resources.',
+        label: 'Show provision command',
+        hint: 'Provisioning is side-effecting. The wizard shows the explicit /cloudflare provision ... --yes path instead of running it.',
         defaultValue: 'Action',
       },
       {
@@ -444,8 +444,8 @@ export function buildCloudflareStep(controller: OnboardingWizardController): Onb
         kind: 'action',
         id: 'cloudflare.disable',
         action: 'cloudflare-disable',
-        label: 'Disable Cloudflare integration',
-        hint: 'Calls the daemon SDK route to disable local Cloudflare usage and return the batch queue backend to local behavior.',
+        label: 'Show disable command',
+        hint: 'Disabling persists config changes. The wizard shows the explicit /cloudflare disable ... --yes path instead of running it.',
         defaultValue: 'Action',
       },
     );

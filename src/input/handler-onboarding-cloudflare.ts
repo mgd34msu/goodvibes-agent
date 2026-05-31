@@ -4,9 +4,6 @@ import {
   type CloudflareComponentSelection,
   type CloudflareDaemonClient,
   type CloudflareDiscoverResult,
-  type CloudflareOperationalTokenResult,
-  type CloudflareProvisionRequest,
-  type CloudflareProvisionResult,
   type CloudflareTokenRequirementsResult,
   type CloudflareValidateResult,
   type CloudflareVerifyResult,
@@ -16,7 +13,6 @@ import type { InputHandler } from './handler.ts';
 import type { OnboardingWizardAction, OnboardingWizardApplyFeedback } from './onboarding/onboarding-wizard.ts';
 import {
   buildCloudflareApiTokenRef,
-  buildCloudflareProvisionRequest,
   getCloudflareBatchMode,
   getCloudflareComponentSelection,
   getCloudflareSetupSource,
@@ -113,26 +109,6 @@ function formatCloudflareDiscovery(result: CloudflareDiscoverResult): string[] {
   ];
 }
 
-function formatCloudflareTokenCreate(result: CloudflareOperationalTokenResult): string[] {
-  return [
-    `token: ${result.tokenName}${result.tokenId ? ` (${result.tokenId})` : ''}`,
-    `account: ${result.accountId}`,
-    `stored ref: ${result.apiTokenRef ?? 'not stored'}`,
-    `permissions: ${result.permissions.length}`,
-    'Delete or expire the temporary bootstrap token in Cloudflare after confirming the operational token works.',
-  ];
-}
-
-function formatCloudflareProvision(result: CloudflareProvisionResult): string[] {
-  return [
-    `result: ${result.ok ? 'ok' : 'needs attention'}`,
-    ...(result.worker ? [`worker: ${result.worker.name}${result.worker.baseUrl ? ` at ${result.worker.baseUrl}` : ''}`] : []),
-    ...(result.queues ? [`queue: ${result.queues.queueName}; DLQ: ${result.queues.deadLetterQueueName}`] : []),
-    ...result.steps.map((step) => `${step.status}: ${step.name}${step.message ? ` - ${step.message}` : ''}`),
-    ...(result.verification ? formatCloudflareVerify(result.verification).map((line) => `verify ${line}`) : []),
-  ];
-}
-
 function formatCloudflareVerify(result: CloudflareVerifyResult): string[] {
   return [
     `worker health: ${result.workerHealth.ok ? 'ok' : 'failed'} (HTTP ${result.workerHealth.status})${result.workerHealth.error ? ` - ${result.workerHealth.error}` : ''}`,
@@ -171,40 +147,6 @@ function getCloudflareApiTokenRefFromWizard(handler: InputHandler): string {
   return wizard.runtimeSnapshot?.config.cloudflare.apiTokenRef ?? '';
 }
 
-async function createCloudflareOperationalTokenForHandler(handler: InputHandler): Promise<CloudflareOperationalTokenResult> {
-  const wizard = handler.onboardingWizard;
-  const bootstrapToken = getCloudflareBootstrapTokenFromWizard(handler);
-  if (!bootstrapToken) {
-    throw new Error('A bootstrap token is required. Paste it in the wizard or select an environment variable that is set in this TUI process.');
-  }
-  const accountId = wizard.getStringFieldValue('cloudflare.account-id', wizard.runtimeSnapshot?.config.cloudflare.accountId ?? '');
-  const zoneId = wizard.getStringFieldValue('cloudflare.zone-id', wizard.runtimeSnapshot?.config.cloudflare.zoneId ?? '');
-  const zoneName = wizard.getStringFieldValue('cloudflare.zone-name', wizard.runtimeSnapshot?.config.cloudflare.zoneName ?? '');
-  return await getCloudflareDaemonClientForHandler(handler).createOperationalToken({
-    components: getCloudflareComponentSelection(wizard),
-    bootstrapToken,
-    ...(accountId ? { accountId } : {}),
-    ...(zoneId ? { zoneId } : {}),
-    ...(zoneName ? { zoneName } : {}),
-    storeApiToken: true,
-    persistConfig: true,
-  });
-}
-
-async function buildCloudflareProvisionInputForHandler(handler: InputHandler): Promise<CloudflareProvisionRequest> {
-  const input = buildCloudflareProvisionRequest(handler.onboardingWizard, { includeTransientSecrets: true });
-  const setupSource = getCloudflareSetupSource(handler.onboardingWizard);
-  if (setupSource === 'bootstrap-token' || setupSource === 'bootstrap-env') {
-    const tokenResult = await createCloudflareOperationalTokenForHandler(handler);
-    if (tokenResult.apiTokenRef) {
-      const withoutInlineToken = { ...input };
-      delete withoutInlineToken.apiToken;
-      return { ...withoutInlineToken, apiTokenRef: tokenResult.apiTokenRef };
-    }
-  }
-  return input;
-}
-
 function buildCloudflareDiscoveryInputForHandler(handler: InputHandler): Parameters<CloudflareDaemonClient['discover']>[0] {
   const wizard = handler.onboardingWizard;
   const accountId = wizard.getStringFieldValue('cloudflare.account-id', wizard.runtimeSnapshot?.config.cloudflare.accountId ?? '');
@@ -221,6 +163,34 @@ function buildCloudflareDiscoveryInputForHandler(handler: InputHandler): Paramet
     ...(zoneName ? { zoneName } : {}),
     ...(apiToken ? { apiToken } : apiTokenRef ? { apiTokenRef } : {}),
   };
+}
+
+function blockedCloudflareMutationLines(action: CloudflareOnboardingAction): string[] {
+  switch (action) {
+    case 'cloudflare-create-operational-token':
+      return [
+        'Creating and storing Cloudflare tokens is a side-effecting operation.',
+        'Run /cloudflare create-token [flags] --yes from the main prompt when you explicitly want that mutation.',
+      ];
+    case 'cloudflare-provision':
+      return [
+        'Provisioning creates or updates Cloudflare resources.',
+        'Run /cloudflare provision [flags] --yes from the main prompt when you explicitly want that mutation.',
+      ];
+    case 'cloudflare-disable':
+      return [
+        'Disabling Cloudflare changes persisted daemon integration config.',
+        'Run /cloudflare disable [flags] --yes from the main prompt when you explicitly want that mutation.',
+      ];
+    default:
+      return [];
+  }
+}
+
+function isBlockedCloudflareMutation(action: CloudflareOnboardingAction): boolean {
+  return action === 'cloudflare-create-operational-token'
+    || action === 'cloudflare-provision'
+    || action === 'cloudflare-disable';
 }
 
 function buildCloudflareValidateInputForHandler(handler: InputHandler): Parameters<CloudflareDaemonClient['validate']>[0] {
@@ -244,6 +214,16 @@ export async function handleCloudflareOnboardingActionForHandler(
   handler.onboardingWizard.clearApplyFeedback();
   handler.requestRender();
   try {
+    if (isBlockedCloudflareMutation(action)) {
+      setCloudflareWizardStatusForHandler(
+        handler,
+        'Cloudflare mutation requires explicit command',
+        blockedCloudflareMutationLines(action),
+        'warning',
+      );
+      return;
+    }
+
     const client = getCloudflareDaemonClientForHandler(handler);
     if (action === 'cloudflare-token-requirements') {
       const result = await client.tokenRequirements({
@@ -251,13 +231,6 @@ export async function handleCloudflareOnboardingActionForHandler(
         includeBootstrap: true,
       });
       setCloudflareWizardStatusForHandler(handler, 'Cloudflare token requirements', formatCloudflareRequirements(result));
-      return;
-    }
-
-    if (action === 'cloudflare-create-operational-token') {
-      const result = await createCloudflareOperationalTokenForHandler(handler);
-      setCloudflareWizardStatusForHandler(handler, 'Cloudflare operational token created', formatCloudflareTokenCreate(result));
-      await handler.refreshOnboardingHydration({ preserveValues: true, targetStepId: 'cloudflare' });
       return;
     }
 
@@ -293,19 +266,6 @@ export async function handleCloudflareOnboardingActionForHandler(
       return;
     }
 
-    if (action === 'cloudflare-provision') {
-      const input = await buildCloudflareProvisionInputForHandler(handler);
-      const result = await client.provision(input);
-      setCloudflareWizardStatusForHandler(
-        handler,
-        result.ok ? 'Cloudflare provisioning completed' : 'Cloudflare provisioning needs attention',
-        formatCloudflareProvision(result),
-        result.ok ? 'info' : 'warning',
-      );
-      await handler.refreshOnboardingHydration({ preserveValues: true, targetStepId: 'cloudflare' });
-      return;
-    }
-
     if (action === 'cloudflare-verify') {
       const result = await client.verify({
         workerBaseUrl: handler.onboardingWizard.getStringFieldValue('cloudflare.worker-base-url', handler.onboardingWizard.runtimeSnapshot?.config.cloudflare.workerBaseUrl ?? ''),
@@ -318,22 +278,6 @@ export async function handleCloudflareOnboardingActionForHandler(
         result.ok ? 'info' : 'warning',
       );
       return;
-    }
-
-    if (action === 'cloudflare-disable') {
-      const result = await client.disable({
-        accountId: handler.onboardingWizard.getStringFieldValue('cloudflare.account-id', handler.onboardingWizard.runtimeSnapshot?.config.cloudflare.accountId ?? ''),
-        apiTokenRef: getCloudflareApiTokenRefFromWizard(handler),
-        workerName: handler.onboardingWizard.getStringFieldValue('cloudflare.worker-name', handler.onboardingWizard.runtimeSnapshot?.config.cloudflare.workerName ?? 'goodvibes-batch-worker'),
-        persistConfig: true,
-      });
-      setCloudflareWizardStatusForHandler(
-        handler,
-        result.ok ? 'Cloudflare integration disabled' : 'Cloudflare disable needs attention',
-        result.steps.map((step) => `${step.status}: ${step.name}${step.message ? ` - ${step.message}` : ''}`),
-        result.ok ? 'info' : 'warning',
-      );
-      await handler.refreshOnboardingHydration({ preserveValues: true, targetStepId: 'cloudflare' });
     }
   } catch (error) {
     setCloudflareWizardStatusForHandler(handler, 'Cloudflare action failed', [normalizeCloudflareActionError(error)], 'error');
@@ -365,27 +309,14 @@ export async function maybeProvisionCloudflareOnFinalApplyForHandler(handler: In
     }];
   }
 
-  try {
-    const client = getCloudflareDaemonClientForHandler(handler);
-    const result = await client.provision(await buildCloudflareProvisionInputForHandler(handler));
-    handler.onboardingWizard.textState.set('cloudflare.action-status', [
-      result.ok ? 'Cloudflare provisioning completed during final apply.' : 'Cloudflare provisioning needs attention after final apply.',
-      ...formatCloudflareProvision(result),
-    ].join('\n'));
-    return [{
-      id: 'cloudflare:provision',
-      status: result.ok ? 'pass' : 'warn',
-      message: result.ok
-        ? 'Cloudflare resources were provisioned and verified through the daemon SDK route.'
-        : 'Cloudflare provisioning returned warnings or failed verification. Settings were saved; rerun the Cloudflare wizard action after correcting token/resource issues.',
-      target: 'cloudflare',
-    }];
-  } catch (error) {
-    return [{
-      id: 'cloudflare:provision',
-      status: 'warn',
-      message: `Cloudflare provisioning did not complete: ${normalizeCloudflareActionError(error)} Settings were saved; retry from the Cloudflare wizard or /cloudflare command.`,
-      target: 'cloudflare',
-    }];
-  }
+  handler.onboardingWizard.textState.set('cloudflare.action-status', [
+    'Cloudflare provisioning was not run during final apply.',
+    'GoodVibes Agent requires an explicit /cloudflare provision [flags] --yes command for Cloudflare resource mutations.',
+  ].join('\n'));
+  return [{
+    id: 'cloudflare:provision',
+    status: 'warn',
+    message: 'Cloudflare settings were saved, but provisioning was blocked because Agent onboarding cannot create/update Cloudflare resources. Run /cloudflare provision [flags] --yes explicitly.',
+    target: 'cloudflare',
+  }];
 }

@@ -41,15 +41,15 @@ Use `/cloudflare` for runtime inspection and daemon actions:
 /cloudflare status
 /cloudflare setup
 /cloudflare requirements [--all|--component queues]
-/cloudflare create-token --account <account-id> --bootstrap-env <ENV_NAME>
+/cloudflare create-token --account <account-id> --bootstrap-env <ENV_NAME> --yes
 /cloudflare discover --token-env CLOUDFLARE_API_TOKEN
 /cloudflare validate --token-env CLOUDFLARE_API_TOKEN
-/cloudflare provision --account <account-id> --batch-mode explicit --tunnel-token-ref goodvibes://secrets/goodvibes/CLOUDFLARE_TUNNEL_TOKEN
+/cloudflare provision --account <account-id> --batch-mode explicit --tunnel-token-ref goodvibes://secrets/goodvibes/CLOUDFLARE_TUNNEL_TOKEN --yes
 /cloudflare verify
-/cloudflare disable
+/cloudflare disable --yes
 ```
 
-`/cloudflare setup` opens onboarding in edit mode. All other subcommands call SDK-owned daemon routes under local daemon admin/auth.
+`/cloudflare setup` opens onboarding in edit mode. The onboarding workspace saves configuration only; Cloudflare token creation, provisioning, and disabling require the explicit `/cloudflare ... --yes` commands above. Other read-only subcommands call SDK-owned daemon routes under local daemon admin/auth.
 
 `/cloudflare provision` accepts the same major SDK daemon fields the onboarding screen exposes, including `--tunnel-name`, `--tunnel-id`, `--tunnel-service-url`, `--tunnel-token-ref`, `--access-app-id`, `--access-service-token-id`, `--access-service-token-ref`, `--kv-namespace-name`, `--kv-namespace-id`, `--do-namespace-name`, `--do-namespace-id`, `--r2-bucket-name`, `--secrets-store-name`, `--secrets-store-id`, `--operator-token-ref`, and `--worker-client-token-ref`.
 

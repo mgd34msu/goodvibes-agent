@@ -66,12 +66,7 @@ export const CLOUDFLARE_PROVISION_OPTIONS: readonly OnboardingWizardRadioOption[
   {
     id: 'no',
     label: 'No, save configuration only',
-    hint: 'Final Apply saves the settings. Use the Cloudflare command or this wizard later to provision resources.',
-  },
-  {
-    id: 'yes',
-    label: 'Yes, create or update Cloudflare resources',
-    hint: 'Final Apply asks the daemon SDK route to create/update selected Cloudflare resources and verify the Worker when possible.',
+    hint: 'Final Apply saves the settings. Run /cloudflare provision [flags] --yes explicitly when you want resource changes.',
   },
 ];
 
