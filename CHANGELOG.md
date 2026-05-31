@@ -2,6 +2,13 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.5 - 2026-05-31
+
+- Hardened package-facing release checks so shipped docs and Agent guidance cannot reintroduce default Knowledge/Wiki, HomeGraph, Home Assistant, copied TUI daemon, or copied WRFC-first policy text.
+- Removed the generic default `knowledgeApi` client from the active Agent command context so slash commands must use the isolated Agent Knowledge API.
+- Changed CLI `knowledge ingest-url` to post directly to `/api/goodvibes-agent/knowledge/ingest/url` instead of invoking the generic knowledge operator method.
+- Rejected `--space`, `--knowledge-space`, `--knowledgeSpaceId`, `--includeAllSpaces`, and HomeGraph-style flags in CLI and slash Agent Knowledge commands before any daemon call.
+
 ## 0.1.4 - 2026-05-31
 
 - Hardened Agent Knowledge route isolation for CLI JSON output and diagnostics: Agent status, ask, search, and ingest-url now report explicit `agentKnowledge.*` identities and `/api/goodvibes-agent/knowledge/*` routes.
