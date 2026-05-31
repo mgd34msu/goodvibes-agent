@@ -140,6 +140,35 @@ describe('AgentWorkspace', () => {
     expect(JSON.stringify(snapshot.channels)).not.toContain('DISCORD_BOT_TOKEN');
   });
 
+  test('exposes Agent Knowledge review queue without default wiki fallback', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-queue');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/knowledge queue']);
+    expect(workspace.status).toContain('/knowledge queue');
+    expect(workspace.selectedCategory.detail).toContain('/api/goodvibes-agent/knowledge');
+    expect(workspace.selectedCategory.detail).toContain('Default regular wiki and HomeGraph are not');
+  });
+
+  test('does not dispatch Agent Knowledge ingest templates without real target values', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-ingest-url');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.lastActionResult?.kind).toBe('guidance');
+    expect(workspace.status).toContain('Placeholder command not dispatched');
+  });
+
   test('blocks copied TUI-only blocked commands inside the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

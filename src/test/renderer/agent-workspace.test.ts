@@ -148,6 +148,24 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/personas');
   });
 
+  test('renders Agent Knowledge ingest and review workflow without default wiki fallback', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 38));
+
+    expect(output).toContain('/api/goodvibes-agent/knowledge');
+    expect(output).toContain('no default Knowledge/Wiki or HomeGraph fallback');
+    expect(output).toContain('Ingest URL');
+    expect(output).toContain('/knowledge ingest-url <url> --yes');
+    expect(output).toContain('Review queue');
+    expect(output).toContain('/knowledge queue');
+    expect(output).toContain('Consolidation review');
+    expect(output).not.toContain('/api/knowledge');
+    expect(output).not.toContain('Home Assistant');
+  });
+
   test('renders channel onboarding and delivery safety posture', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);

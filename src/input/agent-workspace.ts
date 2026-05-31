@@ -417,7 +417,11 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent knowledge calls must use the isolated /api/goodvibes-agent/knowledge routes. Default regular wiki and HomeGraph are not the Agent knowledge environment.',
     actions: [
       { id: 'knowledge-status', label: 'Knowledge status', detail: 'Inspect Agent knowledge readiness and counts.', command: '/knowledge status', kind: 'command', safety: 'read-only' },
-      { id: 'knowledge-open', label: 'Open knowledge surface', detail: 'Open the knowledge panel/surface when available.', command: '/knowledge', kind: 'command', safety: 'read-only' },
+      { id: 'knowledge-search', label: 'Search Agent knowledge', detail: 'Search the isolated Agent Knowledge index. Close this workspace and provide an actual query.', command: '/knowledge search <query>', kind: 'command', safety: 'read-only' },
+      { id: 'knowledge-ingest-url', label: 'Ingest URL', detail: 'Ingest a URL into Agent Knowledge only. Requires an explicit --yes command with a real URL.', command: '/knowledge ingest-url <url> --yes', kind: 'command', safety: 'safe' },
+      { id: 'knowledge-import-bookmarks', label: 'Import bookmarks', detail: 'Import a browser bookmark export into Agent Knowledge only. Requires an explicit --yes command with a real path.', command: '/knowledge import-bookmarks <path> --yes', kind: 'command', safety: 'safe' },
+      { id: 'knowledge-review-queue', label: 'Review queue', detail: 'Inspect source/node/issue review work before accepting, rejecting, or resolving anything.', command: '/knowledge queue', kind: 'command', safety: 'read-only' },
+      { id: 'knowledge-consolidation', label: 'Consolidation review', detail: 'Inspect consolidation candidates and reports before running Agent Knowledge mutations.', command: '/knowledge candidates', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-ask', label: 'Ask Agent knowledge', detail: 'Close this workspace and run /knowledge ask <question> or ask normally in chat.', kind: 'guidance', safety: 'read-only' },
     ],
   },

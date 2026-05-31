@@ -51,7 +51,7 @@ Primary sources used for the benchmark:
 | Terminal operator UI | Interactive CLI/TUI, commands, sessions | Near-fork GoodVibes TUI compositor/input/fullscreen foundation |
 | Always-on gateway | Gateway/service owns channels, sessions, tools, events | External GoodVibes daemon, never Agent-owned lifecycle |
 | Channels | WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat | GoodVibes daemon channel and companion surfaces with Agent-side policy, a Channels operator workspace, and per-channel readiness/risk labels |
-| Knowledge/memory | Durable memory, semantic search, wiki/claim layers | Isolated Agent Knowledge routes plus local memory/skills/personas/routines |
+| Knowledge/memory | Durable memory, semantic search, wiki/claim layers | Isolated Agent Knowledge routes with workspace ask/search/ingest/review flows plus local memory/skills/personas/routines |
 | Skills/procedural memory | Skills directories, registries, skill lifecycle | Local Agent skills with review/stale/source/provenance fields |
 | Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Guarded automation/schedule routes plus local routines; hidden model scheduling blocked |
 | Tools/MCP | Broad toolsets, MCP, browser, media, terminal, files | GoodVibes SDK tools with Agent policy guards and MCP/provider integrations |
@@ -74,7 +74,7 @@ GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true fr
 ## Current Gaps To Close
 
 - Live daemon account health and last delivery errors in the Channels workspace once a stable read-only route is available.
-- Richer Agent Knowledge ingest/review workspace for URLs, bookmarks, artifacts, issue queues, and consolidation.
+- Artifact and multimodal Agent Knowledge ingest affordances once Agent-specific routes are stable.
 - Profile-aware onboarding summaries and profile export/import shortcuts from the Agent workspace.
 - Voice/media/browser/node setup workspaces.
 - Delegation receipts and artifact review inside the operator workspace.
