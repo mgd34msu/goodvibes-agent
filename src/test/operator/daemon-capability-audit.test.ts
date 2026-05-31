@@ -2,7 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import {
   AGENT_KNOWLEDGE_STATUS_ROUTE,
   buildDaemonCapabilityAuditAreas,
+  buildDaemonCapabilityGapReport,
   renderDaemonCapabilityAudit,
+  renderDaemonCapabilityGaps,
   type DaemonCapabilityAuditSuccess,
 } from '../../operator/daemon-capability-audit.ts';
 
@@ -108,6 +110,66 @@ describe('daemon capability audit', () => {
     expect(rendered).toContain('Agent Knowledge: ready /api/goodvibes-agent/knowledge/status');
     expect(rendered).toContain('isolation: default Knowledge/Wiki fallback no; HomeGraph fallback no');
     expect(rendered).toContain('route risk:');
+    expect(rendered).not.toContain('/api/knowledge/status');
+    expect(rendered).not.toContain('/api/homegraph');
+  });
+
+  test('builds daemon-measured gap report without default knowledge fallback', () => {
+    const areas = buildDaemonCapabilityAuditAreas(
+      new Set<string>([
+        'automation.integration.snapshot',
+        'automation.jobs.list',
+        'schedules.delete',
+      ]),
+      false,
+      [
+        {
+          id: 'automation.integration.snapshot',
+          access: 'authenticated',
+          http: { method: 'GET', path: '/api/automation' },
+        },
+        {
+          id: 'automation.jobs.list',
+          access: 'authenticated',
+          http: { method: 'GET', path: '/api/automation/jobs' },
+        },
+        {
+          id: 'schedules.delete',
+          access: 'authenticated',
+          dangerous: true,
+          http: { method: 'DELETE', path: '/api/automation/schedules/{scheduleId}' },
+        },
+      ],
+    );
+    const audit: DaemonCapabilityAuditSuccess = {
+      ok: true,
+      kind: 'daemon.capabilities.audit',
+      baseUrl: 'http://127.0.0.1:3421',
+      daemonVersion: '0.33.30',
+      expectedSdkVersion: '0.33.35',
+      daemonCompatible: false,
+      methodCatalogRoute: '/api/control-plane/methods',
+      methodCount: 3,
+      agentKnowledgeRoute: AGENT_KNOWLEDGE_STATUS_ROUTE,
+      agentKnowledgeRouteReady: false,
+      defaultKnowledgeFallback: false,
+      homeGraphFallback: false,
+      warnings: [],
+      areas,
+    };
+
+    const report = buildDaemonCapabilityGapReport(audit);
+    const rendered = renderDaemonCapabilityGaps(report);
+
+    expect(report.kind).toBe('daemon.capabilities.gaps');
+    expect(report.defaultKnowledgeFallback).toBe(false);
+    expect(report.homeGraphFallback).toBe(false);
+    expect(report.gaps.some((gap) => gap.kind === 'version_mismatch' && gap.severity === 'blocker')).toBe(true);
+    expect(report.gaps.some((gap) => gap.kind === 'agent_route_missing' && gap.detail === AGENT_KNOWLEDGE_STATUS_ROUTE)).toBe(true);
+    expect(report.gaps.some((gap) => gap.kind === 'route_risk_review' && gap.detail.includes('schedules.delete'))).toBe(true);
+    expect(report.gaps.some((gap) => gap.kind === 'agent_ux_gap')).toBe(true);
+    expect(rendered).toContain('GoodVibes daemon capability gaps');
+    expect(rendered).toContain('isolation: default Knowledge/Wiki fallback no; HomeGraph fallback no');
     expect(rendered).not.toContain('/api/knowledge/status');
     expect(rendered).not.toContain('/api/homegraph');
   });

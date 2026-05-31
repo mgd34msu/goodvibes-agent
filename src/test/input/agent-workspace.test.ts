@@ -129,6 +129,20 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/capabilities daemon knowledge');
   });
 
+  test('dispatches daemon capability gap plan from the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'capabilities');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'capabilities-daemon-gaps');
+
+    workspace.activateSelected();
+
+    expect(workspace.selectedAction?.detail).toContain('platform gaps');
+    expect(dispatched).toEqual(['/capabilities daemon gaps']);
+    expect(workspace.status).toContain('/capabilities daemon gaps');
+  });
+
   test('keeps channel delivery safety guidance local', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

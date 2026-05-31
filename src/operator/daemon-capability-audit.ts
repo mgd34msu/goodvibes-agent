@@ -15,6 +15,13 @@ export type DaemonCapabilityAuditFailureKind =
 
 export type DaemonCapabilityCoverage = 'ready' | 'partial' | 'missing';
 export type DaemonCapabilityRouteCoverage = 'ready' | 'missing' | 'not_checked';
+export type DaemonCapabilityGapKind =
+  | 'version_mismatch'
+  | 'agent_route_missing'
+  | 'required_method_missing'
+  | 'route_risk_review'
+  | 'agent_ux_gap';
+export type DaemonCapabilityGapSeverity = 'blocker' | 'high' | 'medium' | 'low';
 
 export interface DaemonCapabilityRequirement {
   readonly id: string;
@@ -65,6 +72,32 @@ export interface DaemonCapabilityAuditSuccess {
   readonly homeGraphFallback: false;
   readonly warnings: readonly string[];
   readonly areas: readonly DaemonCapabilityAuditArea[];
+}
+
+export interface DaemonCapabilityGap {
+  readonly id: string;
+  readonly kind: DaemonCapabilityGapKind;
+  readonly severity: DaemonCapabilityGapSeverity;
+  readonly areaId?: string;
+  readonly title: string;
+  readonly detail: string;
+  readonly action: string;
+}
+
+export interface DaemonCapabilityGapReport {
+  readonly ok: true;
+  readonly kind: 'daemon.capabilities.gaps';
+  readonly baseUrl: string;
+  readonly daemonVersion: string;
+  readonly expectedSdkVersion: string;
+  readonly daemonCompatible: boolean;
+  readonly methodCatalogRoute: typeof DAEMON_METHOD_CATALOG_ROUTE;
+  readonly agentKnowledgeRoute: typeof AGENT_KNOWLEDGE_STATUS_ROUTE;
+  readonly agentKnowledgeRouteReady: boolean;
+  readonly defaultKnowledgeFallback: false;
+  readonly homeGraphFallback: false;
+  readonly gapCount: number;
+  readonly gaps: readonly DaemonCapabilityGap[];
 }
 
 export interface DaemonCapabilityAuditFailure {
@@ -529,6 +562,163 @@ export function filterDaemonCapabilityAuditAreas(
       || area.missingOptionalMethodIds.some((methodId) => methodId.includes(normalized))
       || area.agentRoutes.some((route) => route.route.toLowerCase().includes(normalized));
   });
+}
+
+function gapToken(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'gap';
+}
+
+function gapSeverityRank(severity: DaemonCapabilityGapSeverity): number {
+  if (severity === 'blocker') return 0;
+  if (severity === 'high') return 1;
+  if (severity === 'medium') return 2;
+  return 3;
+}
+
+function sortCapabilityGaps(gaps: readonly DaemonCapabilityGap[]): readonly DaemonCapabilityGap[] {
+  return [...gaps].sort((left, right) => {
+    const severityDelta = gapSeverityRank(left.severity) - gapSeverityRank(right.severity);
+    if (severityDelta !== 0) return severityDelta;
+    return left.id.localeCompare(right.id);
+  });
+}
+
+export function buildDaemonCapabilityGapReport(
+  audit: DaemonCapabilityAuditSuccess,
+  areas: readonly DaemonCapabilityAuditArea[] = audit.areas,
+): DaemonCapabilityGapReport {
+  const gaps: DaemonCapabilityGap[] = [];
+
+  if (!audit.daemonCompatible) {
+    gaps.push({
+      id: 'daemon-version-mismatch',
+      kind: 'version_mismatch',
+      severity: audit.agentKnowledgeRouteReady ? 'high' : 'blocker',
+      title: 'Daemon SDK version does not match Agent SDK pin',
+      detail: `Agent expects ${audit.expectedSdkVersion}; daemon reports ${audit.daemonVersion}.`,
+      action: 'Update/restart the externally owned GoodVibes daemon before release validation; Agent will not start it.',
+    });
+  }
+
+  for (const area of areas) {
+    if (area.missingRequiredMethodIds.length > 0) {
+      gaps.push({
+        id: `${area.id}-missing-required-methods`,
+        kind: 'required_method_missing',
+        severity: 'high',
+        areaId: area.id,
+        title: `${area.title} missing required daemon methods`,
+        detail: area.missingRequiredMethodIds.join(', '),
+        action: 'Keep the Agent surface read-only or blocked for this area until the public daemon route contract is present.',
+      });
+    }
+
+    for (const route of area.agentRoutes) {
+      if (route.coverage !== 'missing') continue;
+      gaps.push({
+        id: `${area.id}-missing-${gapToken(route.route)}`,
+        kind: 'agent_route_missing',
+        severity: route.route === AGENT_KNOWLEDGE_STATUS_ROUTE ? 'blocker' : 'high',
+        areaId: area.id,
+        title: `${area.title} missing Agent route`,
+        detail: route.route,
+        action: 'Fail closed for this product segment. Do not query default Knowledge/Wiki, HomeGraph, or Home Assistant routes.',
+      });
+    }
+
+    if (area.routeRisk.dangerousMethodIds.length > 0) {
+      gaps.push({
+        id: `${area.id}-dangerous-route-review`,
+        kind: 'route_risk_review',
+        severity: 'medium',
+        areaId: area.id,
+        title: `${area.title} has dangerous daemon routes`,
+        detail: area.routeRisk.dangerousMethodIds.join(', '),
+        action: 'Keep these routes behind exact commands, confirmation, and concise approval UX; never trigger them from ordinary chat.',
+      });
+    }
+
+    for (const next of area.next) {
+      gaps.push({
+        id: `${area.id}-agent-ux-${gapToken(next)}`,
+        kind: 'agent_ux_gap',
+        severity: area.coverage === 'ready' ? 'medium' : 'low',
+        areaId: area.id,
+        title: `${area.title} Agent UX gap`,
+        detail: next,
+        action: 'Build a first-class Agent workspace, command, or setup flow on top of the existing daemon capability.',
+      });
+    }
+  }
+
+  const sortedGaps = sortCapabilityGaps(gaps);
+  return {
+    ok: true,
+    kind: 'daemon.capabilities.gaps',
+    baseUrl: audit.baseUrl,
+    daemonVersion: audit.daemonVersion,
+    expectedSdkVersion: audit.expectedSdkVersion,
+    daemonCompatible: audit.daemonCompatible,
+    methodCatalogRoute: audit.methodCatalogRoute,
+    agentKnowledgeRoute: audit.agentKnowledgeRoute,
+    agentKnowledgeRouteReady: audit.agentKnowledgeRouteReady,
+    defaultKnowledgeFallback: false,
+    homeGraphFallback: false,
+    gapCount: sortedGaps.length,
+    gaps: sortedGaps,
+  };
+}
+
+export function filterDaemonCapabilityGaps(
+  gaps: readonly DaemonCapabilityGap[],
+  query: string | undefined,
+): readonly DaemonCapabilityGap[] {
+  const normalized = query?.trim().toLowerCase();
+  if (!normalized) return gaps;
+  return gaps.filter((gap) => {
+    return gap.id.includes(normalized)
+      || gap.kind.includes(normalized)
+      || gap.severity.includes(normalized)
+      || gap.title.toLowerCase().includes(normalized)
+      || gap.detail.toLowerCase().includes(normalized)
+      || gap.action.toLowerCase().includes(normalized)
+      || Boolean(gap.areaId?.includes(normalized));
+  });
+}
+
+export function renderDaemonCapabilityGaps(
+  report: DaemonCapabilityGapReport,
+  gaps: readonly DaemonCapabilityGap[] = report.gaps,
+): string {
+  const lines: string[] = [
+    'GoodVibes daemon capability gaps',
+    `  daemon: ${report.baseUrl}`,
+    `  SDK: Agent expects ${report.expectedSdkVersion}; daemon reports ${report.daemonVersion}`,
+    `  compatibility: ${report.daemonCompatible ? 'matched' : 'mismatch'}`,
+    `  Agent Knowledge: ${report.agentKnowledgeRouteReady ? 'ready' : 'missing'} ${report.agentKnowledgeRoute}`,
+    '  isolation: default Knowledge/Wiki fallback no; HomeGraph fallback no',
+    `  gaps: ${gaps.length}/${report.gapCount}`,
+    '',
+  ];
+
+  if (gaps.length === 0) {
+    lines.push('No daemon capability gaps matched this query.');
+    return lines.join('\n');
+  }
+
+  for (const gap of gaps) {
+    lines.push(`${gap.title} [${gap.severity}; ${gap.kind}]`);
+    if (gap.areaId) lines.push(`  area: ${gap.areaId}`);
+    lines.push(`  detail: ${gap.detail}`);
+    lines.push(`  action: ${gap.action}`);
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
 }
 
 export function renderDaemonCapabilityAudit(

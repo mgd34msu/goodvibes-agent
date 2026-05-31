@@ -18,7 +18,7 @@ High-signal Agent command families:
 
 - `/help` for registry-driven command discovery.
 - `/status`, `/auth`, and `/compat` for daemon/auth/SDK diagnostics.
-- `/capabilities` for the OpenClaw/Hermes benchmark; `/capabilities daemon` checks the live GoodVibes daemon method catalog plus isolated Agent Knowledge route coverage.
+- `/capabilities` for the OpenClaw/Hermes benchmark; `/capabilities daemon` checks the live GoodVibes daemon method catalog plus isolated Agent Knowledge route coverage; `/capabilities daemon gaps` turns live daemon coverage into a prioritized platform-vs-Agent gap plan.
 - `/model` and `/provider` for provider/model selection and visibility.
 - `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, and ingest.
 - `goodvibes-agent ask <question>` and `goodvibes-agent search <query>` are CLI shortcuts for the same isolated Agent Knowledge routes.

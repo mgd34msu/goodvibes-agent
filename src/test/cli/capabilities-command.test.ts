@@ -211,4 +211,71 @@ describe('CLI capabilities command', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test('daemon gap report classifies live coverage without default knowledge fallback', async () => {
+    const requests: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input) => {
+      const url = inputUrl(input);
+      requests.push(url);
+      if (url.endsWith('/api/goodvibes-agent/knowledge/status')) {
+        return new Response(JSON.stringify({ error: 'not found' }), { status: 404 });
+      }
+      if (url.endsWith('/status')) {
+        return new Response(JSON.stringify({ version: '0.33.30' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/api/control-plane/methods')) {
+        return new Response(JSON.stringify({
+          methods: [
+            {
+              id: 'automation.integration.snapshot',
+              access: 'authenticated',
+              http: { method: 'GET', path: '/api/automation' },
+            },
+            {
+              id: 'schedules.delete',
+              access: 'authenticated',
+              dangerous: true,
+              http: { method: 'DELETE', path: '/api/automation/schedules/{scheduleId}' },
+            },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'unexpected route' }), { status: 404 });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleCapabilitiesCommand(makeDaemonRuntime(['capabilities', 'daemon', 'gaps', '--json']));
+      const parsed = JSON.parse(result.output) as {
+        readonly ok?: boolean;
+        readonly kind?: string;
+        readonly defaultKnowledgeFallback?: boolean;
+        readonly homeGraphFallback?: boolean;
+        readonly gaps?: readonly {
+          readonly kind?: string;
+          readonly severity?: string;
+          readonly detail?: string;
+        }[];
+      };
+
+      expect(result.exitCode).toBe(0);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.kind).toBe('daemon.capabilities.gaps');
+      expect(parsed.defaultKnowledgeFallback).toBe(false);
+      expect(parsed.homeGraphFallback).toBe(false);
+      expect(parsed.gaps?.some((gap) => gap.kind === 'version_mismatch' && gap.severity === 'blocker')).toBe(true);
+      expect(parsed.gaps?.some((gap) => gap.kind === 'agent_route_missing' && gap.detail === '/api/goodvibes-agent/knowledge/status')).toBe(true);
+      expect(parsed.gaps?.some((gap) => gap.kind === 'route_risk_review' && gap.detail?.includes('schedules.delete'))).toBe(true);
+      expect(requests.some((url) => url.includes('/api/knowledge'))).toBe(false);
+      expect(requests.some((url) => url.includes('/api/homegraph'))).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

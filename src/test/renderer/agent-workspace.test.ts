@@ -206,6 +206,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/api/goodvibes-agent/knowledge/status');
     expect(output).toContain('no default Knowledge/Wiki, HomeGraph, or Home Assistant route');
     expect(output).toContain('/capabilities daemon');
+    expect(output).toContain('/capabilities daemon gaps');
     expect(output).toContain('/capabilities daemon knowledge');
     expect(output).toContain('/capabilities daemon channels');
     expect(output).toContain('/capabilities daemon automation');

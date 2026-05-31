@@ -17,6 +17,7 @@ goodvibes-agent --help
 goodvibes-agent status
 goodvibes-agent capabilities
 goodvibes-agent capabilities daemon
+goodvibes-agent capabilities daemon gaps
 ```
 
 If Bun reports untrusted lifecycle dependencies, trust only the package and dependencies required by this package:
@@ -45,7 +46,7 @@ bun run publish:check
 
 Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen surface for setup, status, live daemon capability coverage, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
-Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps. Use `goodvibes-agent capabilities daemon` or `/capabilities daemon` for a live read-only audit of the GoodVibes daemon method catalog, route risk posture, and isolated Agent Knowledge route coverage.
+Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps. Use `goodvibes-agent capabilities daemon` or `/capabilities daemon` for a live read-only audit of the GoodVibes daemon method catalog, route risk posture, and isolated Agent Knowledge route coverage. Use `goodvibes-agent capabilities daemon gaps` or `/capabilities daemon gaps` to turn that live daemon audit into a prioritized gap plan that separates missing daemon routes from Agent UX work.
 
 Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated runtime profiles from them.
 
@@ -87,9 +88,10 @@ To verify what the running daemon can expose for the Agent/OpenClaw/Hermes capab
 ```sh
 goodvibes-agent capabilities daemon
 goodvibes-agent capabilities daemon --json
+goodvibes-agent capabilities daemon gaps
 ```
 
-This audit checks `/api/control-plane/methods` and `/api/goodvibes-agent/knowledge/status`. It does not query default Knowledge/Wiki or HomeGraph.
+This audit checks `/api/control-plane/methods` and `/api/goodvibes-agent/knowledge/status`. The gap plan is derived from the same read-only calls. Neither command queries default Knowledge/Wiki or HomeGraph.
 
 Agent intentionally blocks daemon lifecycle commands:
 
