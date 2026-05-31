@@ -2,6 +2,13 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.60 - 2026-05-31
+
+- f3f2486 Stop shipping developer guidance in package
+- 80c273e Remove developer debug surface
+- e2d058f Remove code intelligence command surface
+- acb3eeb Remove coding intelligence render dependencies
+
 ## 0.1.59 - 2026-05-31
 
 - f03ee5f Remove unused coding panel sources
