@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.37 - 2026-05-31
+
+- 656b6f4 Add Agent routine daemon schedule promotion
+
 ## 0.1.36 - 2026-05-31
 
 - 9de2f5e Add guided Agent starter authoring
