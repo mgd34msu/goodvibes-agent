@@ -355,25 +355,3 @@ export function renderGoodVibesCommandHelp(topic: string, binary = 'goodvibes-ag
     ] : []),
   ].join('\n');
 }
-
-export function renderGoodVibesDaemonHelp(binary = 'goodvibes-daemon'): string {
-  return [
-    `Usage: ${binary} [OPTIONS]`,
-    '',
-    'Unavailable in GoodVibes Agent.',
-    '',
-    'GoodVibes Agent connects to an already-running GoodVibes daemon. It does not start, install, restart, or own daemon/listener lifecycle.',
-    'Use GoodVibes TUI or your daemon host tooling to manage the daemon, then connect with goodvibes-agent.',
-    '',
-    'Options:',
-    '      --daemon-home <dir>        Override daemon home',
-    '      --working-dir <dir>        Override working directory',
-    '  -C, --cd <dir>                 Alias for --working-dir',
-    '      --provider <id>            Override provider',
-    '  -m, --model <registryKey>      Override model. provider:model infers --provider',
-    '      --hostname <host>          Hostname hint for printed connection info',
-    '      --port <port>              Control-plane port override when supported',
-    '  -h, --help                     Print help',
-    '  -v, --version                  Print version',
-  ].join('\n');
-}

@@ -2,10 +2,9 @@
  * m-5: registerDiscoveredProviders idempotency test.
  *
  * Verifies that calling registerDiscoveredProviders() twice with overlapping
- * servers does not duplicate providers in the registry. This guards against
- * the race in src/daemon/cli.ts where loadPersistedProviders() registers
- * providers and the background scan() may return overlapping results shortly
- * after, causing double-registration.
+ * servers does not duplicate providers in the registry. This guards the
+ * provider registry used by the Agent shell when persisted provider setup and
+ * live discovery return overlapping results.
  */
 
 import { describe, expect, test } from 'bun:test';

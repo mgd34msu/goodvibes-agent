@@ -65,7 +65,7 @@ describe('parseCliFlags', () => {
   // Env var precedence (flags win, env is fallback)
   // ---------------------------------------------------------------------------
   // parseCliFlags itself does not read env vars — it only returns parsed flag
-  // values. The caller (daemon/cli.ts main()) is responsible for setting env
+  // values. The shell entrypoint is responsible for setting env
   // vars from the returned flags and then calling resolveDaemonCliOwnership()
   // which reads the env vars with ?? fallback. These tests confirm the flag
   // parser returns correct values so the caller can honour the precedence:

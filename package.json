@@ -18,7 +18,6 @@
     "!src/test",
     "!src/**/*.test.ts",
     "!src/**/__tests__",
-    "!src/daemon/**",
     "!src/panels/diff-panel.ts",
     "!src/panels/file-explorer-panel.ts",
     "!src/panels/file-preview-panel.ts",
