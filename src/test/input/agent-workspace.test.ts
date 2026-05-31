@@ -373,6 +373,88 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
+  test('edits selected local library records from workspace editors without dispatching commands', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-edit-library-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const personaRegistry = AgentPersonaRegistry.fromShellPaths(shellPaths);
+    const persona = personaRegistry.create({
+      name: 'Home Operator',
+      description: 'Home posture.',
+      body: 'Coordinate home tasks.',
+      tags: ['home'],
+      triggers: ['house'],
+    });
+    personaRegistry.setActive(persona.id);
+    const skillRegistry = AgentSkillRegistry.fromShellPaths(shellPaths);
+    const skill = skillRegistry.create({
+      name: 'Briefing',
+      description: 'Summarize before action.',
+      procedure: 'Inspect state first.',
+      enabled: true,
+    });
+    const routineRegistry = AgentRoutineRegistry.fromShellPaths(shellPaths);
+    const routine = routineRegistry.create({
+      name: 'Daily Brief',
+      description: 'Daily operator summary.',
+      steps: 'Review current state.',
+      enabled: true,
+    });
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, (command) => dispatched.push(command));
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-edit');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.title).toBe('Edit Persona');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, ' Include errands.');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    const updatedPersona = AgentPersonaRegistry.fromShellPaths(shellPaths).get(persona.id);
+    expect(updatedPersona?.body).toContain('Include errands.');
+    expect(updatedPersona?.reviewState).toBe('fresh');
+    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot().activePersonaId).toBe(persona.id);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-edit');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.recordId).toBe(skill.id);
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, ' Then summarize risks.');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    const updatedSkill = AgentSkillRegistry.fromShellPaths(shellPaths).get(skill.id);
+    expect(updatedSkill?.procedure).toContain('Then summarize risks.');
+    expect(updatedSkill?.enabled).toBe(true);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-edit');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.recordId).toBe(routine.id);
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, ' Report blockers.');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    const updatedRoutine = AgentRoutineRegistry.fromShellPaths(shellPaths).get(routine.id);
+    expect(updatedRoutine?.steps).toContain('Report blockers.');
+    expect(updatedRoutine?.enabled).toBe(true);
+    expect(dispatched).toEqual([]);
+  });
+
   test('keeps channel delivery safety guidance local', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
