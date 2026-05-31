@@ -35,8 +35,8 @@ describe('renderOnboardingWizard', () => {
     const text = linesToText(renderOnboardingWizard(wizard, 188, 42)).join('\n');
 
     expect(text).toContain('┌─Onboarding Wizard');
-    expect(text).toContain('1. Capabilities');
-    expect(text).not.toContain('Capabilit…');
+    expect(text).toContain('1. Surfaces');
+    expect(text).not.toContain('Capabilit');
     expect(text).toContain('Choose what Agent should prepare locally.');
   });
 

@@ -130,12 +130,12 @@ export function buildCapabilitiesStep(controller: OnboardingWizardController): O
 
     return {
       id: 'capabilities',
-      title: 'Choose GoodVibes surfaces',
-      shortLabel: 'Capabilities',
+      title: 'Choose Agent surfaces',
+      shortLabel: 'Surfaces',
       description: 'Choose what Agent should prepare locally. Daemon-backed surfaces are reviewed as external dependencies; Agent does not enable service mode or autostart.',
       summaryTitle: 'Selected surfaces',
       summaryLines: [
-        `${selectedCount}/${capabilities.length} option(s) selected`,
+        `${selectedCount}/${capabilities.length} surface option(s) selected`,
         `Mode: ${controller.mode === 'edit' ? 'edit existing shell state' : controller.mode === 'reopen' ? 'reopen review flow' : 'new setup'}`,
         controller.runtimeSnapshot?.collectionIssues.length
           ? `${controller.runtimeSnapshot.collectionIssues.length} runtime collection issue(s)`
