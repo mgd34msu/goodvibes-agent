@@ -168,7 +168,7 @@ const rules: readonly Rule[] = [
   },
   {
     name: 'no-main-git-worktree-header-posture',
-    files: expandTargets(['src/main.ts']),
+    files: expandTargets(['src/main.ts', 'src/runtime/bootstrap.ts', 'src/runtime/bootstrap-shell.ts']),
     pattern: /\b(GitStatusProvider|gitStatusProvider|lastGitInfoRef|readModels\.worktrees|worktreeSnapshot|worktreeCount|worktreePaths)\b/,
     message: 'Agent main shell must not surface coding-TUI git/worktree header posture; explicit build work belongs to delegated GoodVibes TUI sessions',
   },

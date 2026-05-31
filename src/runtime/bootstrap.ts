@@ -16,8 +16,6 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { InputHistory } from '../input/input-history.ts';
-import type { GitStatusProvider } from '../renderer/git-status.ts';
-import type { GitHeaderInfo } from '../renderer/git-status.ts';
 import type { SelectionManager } from '../input/selection.ts';
 import type { Compositor } from '../renderer/compositor.ts';
 
@@ -81,10 +79,6 @@ export type BootstrapContext = RuntimeContext & {
   uiServices: UiRuntimeServices;
   /** Persists and navigates input history across sessions. */
   inputHistory: InputHistory;
-  /** Provides git branch/dirty state for the header. */
-  gitStatusProvider: GitStatusProvider;
-  /** Mutable ref so async git refreshes propagate without closure capture issues. */
-  lastGitInfoRef: { value: GitHeaderInfo | undefined };
   /** Unsubscribe functions owned by bootstrap (cleared on shutdown). */
   bootstrapUnsubs: Array<() => void>;
   /** Ref holding the periodic agent-status interval (use ref — not local var — to keep shutdown in sync). */
@@ -291,9 +285,7 @@ export async function bootstrapRuntime(
   systemMessageRouterRef.value = systemMessageRouter;
   const commandRegistry = shell.commandRegistry;
   const commandContext = shell.commandContext;
-  const gitStatusProvider = shell.gitStatusProvider;
   const inputHistory = shell.inputHistory;
-  const lastGitInfoRef = shell.lastGitInfoRef;
   const pluginCommandRegistry = {
     register(command: {
       readonly name: string;
@@ -507,8 +499,6 @@ export async function bootstrapRuntime(
     commandContext,
     uiServices,
     inputHistory,
-    gitStatusProvider,
-    lastGitInfoRef,
     bootstrapUnsubs,
     agentStatusIntervalRef,
     orchestratorRefs,

@@ -11,8 +11,6 @@ import type { OpsControlPlane } from '@/runtime/index.ts';
 import { CommandRegistry } from '../input/command-registry.ts';
 import { registerBuiltinCommands } from '../input/commands.ts';
 import { InputHistory } from '../input/input-history.ts';
-import { GitStatusProvider } from '../renderer/git-status.ts';
-import type { GitHeaderInfo } from '../renderer/git-status.ts';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import { registerBuiltinPanels } from '../panels/builtin-panels.ts';
 import { SystemMessagesPanel } from '../panels/system-messages-panel.ts';
@@ -38,8 +36,6 @@ import { createKnowledgeApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 export interface BootstrapShellState {
   readonly commandRegistry: CommandRegistry;
   readonly commandContext: CommandContext;
-  readonly gitStatusProvider: GitStatusProvider;
-  readonly lastGitInfoRef: { value: GitHeaderInfo | undefined };
   readonly inputHistory: InputHistory;
   readonly systemMessageRouter: SystemMessageRouter;
 }
@@ -260,13 +256,6 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
   });
   commandContextRef = commandContext;
 
-  const gitStatusProvider = new GitStatusProvider(services.workingDirectory);
-  const lastGitInfoRef = { value: undefined as GitHeaderInfo | undefined };
-  gitStatusProvider.getStatus().then((info) => {
-    lastGitInfoRef.value = info;
-    requestRender();
-  }).catch(() => { /* non-fatal */ });
-
   const saveHistory = configManager.get('behavior.saveHistory') as boolean;
   const inputHistory = new InputHistory({
     historyPath: services.shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'input-history.json'),
@@ -276,8 +265,6 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
   return {
     commandRegistry,
     commandContext,
-    gitStatusProvider,
-    lastGitInfoRef,
     inputHistory,
     systemMessageRouter,
   };
