@@ -1,5 +1,6 @@
 import type { KnowledgeService } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { CommandContext, SlashCommand } from '../command-registry.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 const KNOWLEDGE_REVIEW_ACTIONS = ['accept', 'reject', 'resolve', 'reopen', 'edit', 'forget'] as const;
 
@@ -158,7 +159,7 @@ export const knowledgeCommand: SlashCommand = {
   aliases: ['know', 'kb'],
   description: 'Agent Knowledge/Wiki: isolated Agent-owned sources, graph, review queue, and compact prompt packets.',
   usage: '<subcommand> [args]',
-  argsHint: 'status|ask|ingest-url|import-bookmarks|import-urls|list|search|get|queue|review-issue|candidates|reports|schedules|lint|packet|explain|reindex|consolidate',
+  argsHint: 'status|ask|ingest-url --yes|import-bookmarks --yes|list|search|get|queue|review-issue --yes',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
     const knowledge = requireAgentKnowledgeApi(context);
     if (!knowledge) {
@@ -169,7 +170,8 @@ export const knowledgeCommand: SlashCommand = {
       return;
     }
     const sub = (args[0] ?? 'status').toLowerCase();
-    const rest = args.slice(1);
+    const confirmation = stripYesFlag(args.slice(1));
+    const rest = [...confirmation.rest];
     const disallowedScopeFlag = findDisallowedKnowledgeScopeFlag(rest);
     if (disallowedScopeFlag) {
       printScopeFlagRejection(context, disallowedScopeFlag);
@@ -219,7 +221,11 @@ export const knowledgeCommand: SlashCommand = {
       case 'ingest-url': {
         const [url] = positionalArgs(rest, ['--title', '--tags', '--folder']);
         if (!url) {
-          context.print('[knowledge] Usage: /knowledge ingest-url <url> [--title <title>] [--tags <a,b>] [--folder <path>]');
+          context.print('[knowledge] Usage: /knowledge ingest-url <url> [--title <title>] [--tags <a,b>] [--folder <path>] --yes');
+          return;
+        }
+        if (!confirmation.yes) {
+          requireYesFlag(context, `ingest URL into Agent Knowledge ${url}`, '/knowledge ingest-url <url> [--title <title>] [--tags <a,b>] [--folder <path>] --yes');
           return;
         }
         const result = await knowledge.ingest.url({
@@ -240,7 +246,11 @@ export const knowledgeCommand: SlashCommand = {
       case 'import-bookmarks': {
         const [path] = positionalArgs(rest);
         if (!path) {
-          context.print('[knowledge] Usage: /knowledge import-bookmarks <path>');
+          context.print('[knowledge] Usage: /knowledge import-bookmarks <path> --yes');
+          return;
+        }
+        if (!confirmation.yes) {
+          requireYesFlag(context, `import bookmark file into Agent Knowledge ${path}`, '/knowledge import-bookmarks <path> --yes');
           return;
         }
         const result = await knowledge.ingest.bookmarksFile({ path, sessionId: context.session.runtime.sessionId });
@@ -254,7 +264,11 @@ export const knowledgeCommand: SlashCommand = {
       case 'import-urls': {
         const [path] = positionalArgs(rest);
         if (!path) {
-          context.print('[knowledge] Usage: /knowledge import-urls <path>');
+          context.print('[knowledge] Usage: /knowledge import-urls <path> --yes');
+          return;
+        }
+        if (!confirmation.yes) {
+          requireYesFlag(context, `import URL list into Agent Knowledge ${path}`, '/knowledge import-urls <path> --yes');
           return;
         }
         const result = await knowledge.ingest.urlsFile({ path, sessionId: context.session.runtime.sessionId });
@@ -401,7 +415,11 @@ export const knowledgeCommand: SlashCommand = {
         const [issueId, actionValue] = positionalArgs(rest, ['--reviewer', '--value']);
         const action = actionValue?.toLowerCase();
         if (!issueId || !action || !KNOWLEDGE_REVIEW_ACTIONS.includes(action as KnowledgeReviewAction)) {
-          context.print('[knowledge] Usage: /knowledge review-issue <issueId> <accept|reject|resolve|reopen|edit|forget> [--reviewer <name>] [--value <json-object>]');
+          context.print('[knowledge] Usage: /knowledge review-issue <issueId> <accept|reject|resolve|reopen|edit|forget> [--reviewer <name>] [--value <json-object>] --yes');
+          return;
+        }
+        if (!confirmation.yes) {
+          requireYesFlag(context, `review Agent Knowledge issue ${issueId}`, '/knowledge review-issue <issueId> <action> [--reviewer <name>] [--value <json-object>] --yes');
           return;
         }
         const value = readJsonObjectFlag(rest, '--value');
@@ -513,6 +531,10 @@ export const knowledgeCommand: SlashCommand = {
       }
 
       case 'reindex': {
+        if (!confirmation.yes) {
+          requireYesFlag(context, 'reindex Agent Knowledge', '/knowledge reindex --yes');
+          return;
+        }
         const result = await knowledge.status.reindex();
         context.print([
           '[knowledge] Reindex complete',
@@ -525,6 +547,10 @@ export const knowledgeCommand: SlashCommand = {
       }
 
       case 'consolidate': {
+        if (!confirmation.yes) {
+          requireYesFlag(context, 'run Agent Knowledge consolidation', '/knowledge consolidate [light|deep] --yes');
+          return;
+        }
         const mode = (positionalArgs(rest)[0] ?? 'light').toLowerCase();
         const jobId = mode === 'deep' ? 'knowledge-deep-consolidation' : 'knowledge-light-consolidation';
         const run = await knowledge.jobs.run(jobId, { mode: 'inline' });
@@ -537,22 +563,22 @@ export const knowledgeCommand: SlashCommand = {
           'Usage: /knowledge <subcommand>',
           '  status',
           '  ask <query> [--limit <n>] [--mode <concise|standard|detailed>]',
-          '  ingest-url <url> [--title <title>] [--tags <a,b>] [--folder <path>]',
-          '  import-bookmarks <path>',
-          '  import-urls <path>',
+          '  ingest-url <url> [--title <title>] [--tags <a,b>] [--folder <path>] --yes',
+          '  import-bookmarks <path> --yes',
+          '  import-urls <path> --yes',
           '  list [--kind <sources|nodes|issues>] [--limit <n>]',
           '  search <query> [--limit <n>]',
           '  get <id>',
           '  queue [limit]',
-          '  review-issue <issueId> <accept|reject|resolve|reopen|edit|forget> [--reviewer <name>] [--value <json-object>]',
+          '  review-issue <issueId> <accept|reject|resolve|reopen|edit|forget> [--reviewer <name>] [--value <json-object>] --yes',
           '  candidates [limit]',
           '  reports [limit]',
           '  schedules',
           '  lint',
           '  packet <task...> [--scope <path> ...]',
           '  explain <task...> [--scope <path> ...]',
-          '  reindex',
-          '  consolidate [light|deep]',
+          '  reindex --yes',
+          '  consolidate [light|deep] --yes',
         ].join('\n'));
     }
   },

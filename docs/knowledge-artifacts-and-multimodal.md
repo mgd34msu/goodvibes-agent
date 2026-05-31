@@ -29,6 +29,8 @@ If those routes are unavailable, Agent commands fail closed with a structured er
 
 The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledgeSpaceId`, `--includeAllSpaces`, and HomeGraph/Home Assistant selectors because those would violate the Agent product boundary.
 
+Agent Knowledge writes are explicit-user-action paths. Slash commands that ingest, import, review issues, reindex, or run consolidation require `--yes`; ask/search/status/list paths remain read-only.
+
 ## Semantic Ask
 
 `/knowledge ask <query>` and `goodvibes-agent ask <query>` render the daemon's Agent Knowledge answer. The default human output is concise:

@@ -150,6 +150,14 @@ describe('knowledgeCommand', () => {
       makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
     );
 
+    expect(printed.join('\n')).toContain('Refusing to ingest URL into Agent Knowledge');
+
+    printed = [];
+    await knowledgeCommand.handler(
+      ['ingest-url', `${baseUrl}/docs`, '--tags', 'example,docs', '--yes'],
+      makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
+    );
+
     expect(printed.join('\n')).toContain('Ingested');
 
     printed = [];
@@ -185,6 +193,15 @@ describe('knowledgeCommand', () => {
 
     await knowledgeCommand.handler(
       ['review-issue', 'issue-1', 'resolve', '--reviewer', 'test'],
+      makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
+    );
+
+    expect(printed.join('\n')).toContain('Refusing to review Agent Knowledge issue issue-1 without --yes');
+    expect(knowledgeStore.getIssue('issue-1')?.status).toBe('open');
+
+    printed = [];
+    await knowledgeCommand.handler(
+      ['review-issue', 'issue-1', 'resolve', '--reviewer', 'test', '--yes'],
       makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
     );
 
@@ -358,5 +375,60 @@ describe('knowledgeCommand', () => {
     expect(output).toContain('Agent Knowledge is isolated');
     expect(output).toContain('--includeAllSpaces is not accepted');
     expect(output).toContain('/api/goodvibes-agent/knowledge/*');
+  });
+
+  test('refuses Agent Knowledge maintenance mutations without --yes', async () => {
+    let reindexed = false;
+    let ranJob = false;
+    const context = {
+      ...makeKnowledgeAskCommandContext(printed, {
+        query: '',
+        answer: {
+          text: '',
+          mode: 'standard',
+          confidence: 0,
+          synthesized: false,
+          sources: [],
+          facts: [],
+          linkedObjects: [],
+          gaps: [],
+        },
+      }),
+      clients: {
+        agentKnowledgeApi: {
+          status: {
+            reindex: async () => {
+              reindexed = true;
+              return { status: { sourceCount: 0, nodeCount: 0, edgeCount: 0, issueCount: 0 } };
+            },
+          },
+          jobs: {
+            run: async () => {
+              ranJob = true;
+              return { id: 'run-1', status: 'completed' };
+            },
+          },
+        },
+      },
+    } as unknown as CommandContext;
+
+    await knowledgeCommand.handler(['reindex'], context);
+    expect(reindexed).toBe(false);
+    expect(printed.join('\n')).toContain('Refusing to reindex Agent Knowledge without --yes');
+
+    printed.length = 0;
+    await knowledgeCommand.handler(['consolidate', 'deep'], context);
+    expect(ranJob).toBe(false);
+    expect(printed.join('\n')).toContain('Refusing to run Agent Knowledge consolidation without --yes');
+
+    printed.length = 0;
+    await knowledgeCommand.handler(['reindex', '--yes'], context);
+    expect(reindexed).toBe(true);
+    expect(printed.join('\n')).toContain('Reindex complete');
+
+    printed.length = 0;
+    await knowledgeCommand.handler(['consolidate', 'deep', '--yes'], context);
+    expect(ranJob).toBe(true);
+    expect(printed.join('\n')).toContain('Consolidation run run-1 finished');
   });
 });

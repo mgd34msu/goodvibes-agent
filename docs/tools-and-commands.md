@@ -37,7 +37,7 @@ Copied TUI-era commands that would imply daemon lifecycle ownership, local agent
 
 `/knowledge search <query>` searches the same isolated Agent environment through `/api/goodvibes-agent/knowledge/search`.
 
-`/knowledge ingest-url <url>` ingests into Agent Knowledge through `/api/goodvibes-agent/knowledge/ingest/url`.
+`/knowledge ingest-url <url> --yes` ingests into Agent Knowledge through `/api/goodvibes-agent/knowledge/ingest/url`. Knowledge ingestion, imports, issue review, reindex, and consolidation are Agent-owned mutations and require `--yes`.
 
 The Agent command layer rejects flags that would route knowledge work into another space, including `--space`, `--knowledge-space`, `--knowledgeSpaceId`, `--includeAllSpaces`, and HomeGraph/Home Assistant selectors. If Agent Knowledge is unavailable, the command fails closed instead of querying a default store.
 
