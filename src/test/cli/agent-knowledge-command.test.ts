@@ -52,6 +52,7 @@ afterEach(() => {
 describe('Agent Knowledge CLI route isolation', () => {
   test('implementation does not invoke default knowledge ingest operator method from the CLI', () => {
     const source = readFileSync(join(process.cwd(), 'src/cli/agent-knowledge-command.ts'), 'utf-8');
+    expect(source).toContain("@pellux/goodvibes-sdk/browser/agent");
     expect(source).not.toContain("operator.invoke('knowledge.ingest.url'");
     expect(source).toContain('/api/goodvibes-agent/knowledge/ingest/url');
   });
@@ -154,6 +155,97 @@ describe('Agent Knowledge CLI route isolation', () => {
         ok: true,
         kind: 'agentKnowledge.status',
         route: '/api/goodvibes-agent/knowledge/status',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('ask uses only the Agent Knowledge route', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return new Response(JSON.stringify({
+        query: 'What is GoodVibes Agent?',
+        answer: {
+          text: 'No Agent-owned knowledge has been ingested yet.',
+          mode: 'standard',
+          confidence: 0,
+          synthesized: false,
+          sources: [],
+          facts: [],
+          linkedObjects: [],
+          gaps: [],
+        },
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleAgentKnowledgeCommand(createRuntime([
+        'ask',
+        'What',
+        'is',
+        'GoodVibes',
+        'Agent?',
+      ]));
+      const parsed = JSON.parse(result.output) as unknown;
+
+      expect(result.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ask');
+      expect(requests[0]?.url).not.toContain('/api/knowledge/');
+      expect(parsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.ask',
+        route: '/api/goodvibes-agent/knowledge/ask',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('search uses only the Agent Knowledge route', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return new Response(JSON.stringify({
+        query: 'GoodVibes Agent',
+        results: [],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleAgentKnowledgeCommand(createRuntime([
+        'search',
+        'GoodVibes',
+        'Agent',
+      ]));
+      const parsed = JSON.parse(result.output) as unknown;
+
+      expect(result.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/search');
+      expect(requests[0]?.url).not.toContain('/api/knowledge/');
+      expect(parsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.search',
+        route: '/api/goodvibes-agent/knowledge/search',
       });
     } finally {
       globalThis.fetch = originalFetch;
