@@ -88,6 +88,13 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
       { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
     );
+  } else if (category.id === 'channels') {
+    base.push(
+      { text: `External daemon: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
+      { text: 'Pairing: use /pair or /qrcode for companion setup.', fg: PALETTE.info },
+      { text: 'Channel posture: inspect via /communication and /setup review.', fg: PALETTE.muted },
+      { text: 'Safety: external delivery, unknown senders, and public exposure require explicit policy and user action.', fg: PALETTE.warn },
+    );
   } else if (category.id === 'knowledge') {
     base.push(
       { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },

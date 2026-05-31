@@ -43,7 +43,7 @@ Primary sources used for the benchmark:
 | --- | --- | --- |
 | Terminal operator UI | Interactive CLI/TUI, commands, sessions | Near-fork GoodVibes TUI compositor/input/fullscreen foundation |
 | Always-on gateway | Gateway/service owns channels, sessions, tools, events | External GoodVibes daemon, never Agent-owned lifecycle |
-| Channels | WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat | GoodVibes daemon channel and companion surfaces with Agent-side policy |
+| Channels | WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat | GoodVibes daemon channel and companion surfaces with Agent-side policy and a Channels operator workspace |
 | Knowledge/memory | Durable memory, semantic search, wiki/claim layers | Isolated Agent Knowledge routes plus local memory/skills/personas/routines |
 | Skills/procedural memory | Skills directories, registries, skill lifecycle | Local Agent skills with review/stale/source/provenance fields |
 | Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Guarded automation/schedule routes plus local routines; hidden model scheduling blocked |
@@ -66,7 +66,7 @@ GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true fr
 
 ## Current Gaps To Close
 
-- Agent-first channel onboarding workspace for pairing, account visibility, delivery defaults, and channel safety.
+- Per-channel account readiness, delivery defaults, and risk labels in the Channels workspace detail pane.
 - Richer Agent Knowledge ingest/review workspace for URLs, bookmarks, artifacts, issue queues, and consolidation.
 - Profile-aware onboarding summaries and profile export/import shortcuts from the Agent workspace.
 - Voice/media/browser/node setup workspaces.

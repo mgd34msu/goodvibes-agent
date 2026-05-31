@@ -193,6 +193,19 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     ],
   },
   {
+    id: 'channels',
+    group: 'SETUP',
+    label: 'Channels',
+    summary: 'Companion pairing, channel posture, and delivery safety.',
+    detail: 'Agent uses externally owned daemon channel surfaces. Pairing, account inspection, and readiness checks are visible here; inbound delivery and public channel exposure stay policy-gated.',
+    actions: [
+      { id: 'pair', label: 'Pair companion', detail: 'Open the TUI-derived QR pairing surface for companion app setup.', command: '/pair', kind: 'command', safety: 'safe' },
+      { id: 'communication', label: 'Communication routes', detail: 'Inspect structured communication routes and recent activity.', command: '/communication', kind: 'command', safety: 'read-only' },
+      { id: 'setup-review', label: 'Channel setup review', detail: 'Review setup posture without starting listeners or mutating daemon surface state.', command: '/setup review', kind: 'command', safety: 'read-only' },
+      { id: 'channel-safety', label: 'Delivery safety', detail: 'External messages, channel DMs, and public delivery targets require explicit user action and daemon-side policy. Agent will not silently send or expose channels from this workspace.', kind: 'guidance', safety: 'blocked' },
+    ],
+  },
+  {
     id: 'knowledge',
     group: 'KNOW',
     label: 'Knowledge',

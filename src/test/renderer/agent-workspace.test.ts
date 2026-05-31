@@ -138,6 +138,22 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/personas');
   });
 
+  test('renders channel onboarding and delivery safety posture', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 34));
+
+    expect(output).toContain('Channels');
+    expect(output).toContain('Pair companion');
+    expect(output).toContain('/pair');
+    expect(output).toContain('/communication');
+    expect(output).toContain('external delivery');
+    expect(output).toContain('explicit policy and user');
+    expect(output).toContain('action.');
+  });
+
   test('renders action feedback and refresh affordance', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);

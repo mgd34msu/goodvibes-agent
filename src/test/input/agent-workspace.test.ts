@@ -82,6 +82,33 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/routines');
   });
 
+  test('dispatches channel pairing through the command router', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'pair');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/pair']);
+    expect(workspace.status).toContain('/pair');
+  });
+
+  test('keeps channel delivery safety guidance local', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-safety');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.lastActionResult?.kind).toBe('guidance');
+    expect(workspace.status).toContain('will not silently send');
+  });
+
   test('blocks copied TUI-only blocked commands inside the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
