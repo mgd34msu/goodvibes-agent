@@ -20,6 +20,12 @@ type ExecToolArgs = {
   readonly [key: string]: unknown;
 };
 
+type ModeToolArgs = {
+  readonly mode?: unknown;
+  readonly createIfMissing?: unknown;
+  readonly [key: string]: unknown;
+};
+
 type AgentToolPolicyGuardOptions = {
   readonly getLastUserMessage?: () => string | null;
 };
@@ -42,6 +48,11 @@ const READ_ONLY_AGENT_TOOL_MODES = [
 const READ_ONLY_AGENT_TOOL_MODE_SET = new Set<string>(READ_ONLY_AGENT_TOOL_MODES);
 const BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET = new Set<string>(BLOCKED_MAIN_CONVERSATION_TOOL_NAMES);
 
+const READ_ONLY_REMOTE_TOOL_MODES = ['pools', 'contracts', 'artifacts', 'review'] as const;
+const READ_ONLY_CHANNEL_TOOL_MODES = ['accounts', 'directory', 'resolve_target', 'capabilities', 'tools', 'agent_tools', 'actions'] as const;
+const READ_ONLY_REMOTE_TOOL_MODE_SET = new Set<string>(READ_ONLY_REMOTE_TOOL_MODES);
+const READ_ONLY_CHANNEL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CHANNEL_TOOL_MODES);
+
 const LOCAL_AGENT_DENIAL = [
   'GoodVibes Agent does not spawn local Engineer/Reviewer/Tester/Verifier roots or run local WRFC chains.',
   'Keep ordinary assistant work serial in the main conversation.',
@@ -60,6 +71,18 @@ const BACKGROUND_EXEC_DENIAL = [
   'For long-running build/fix/review work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract.',
 ].join(' ');
 
+const REMOTE_MUTATION_DENIAL = [
+  'GoodVibes Agent only inspects remote runner pools, contracts, artifacts, and review summaries from the main conversation.',
+  'Remote pool creation, assignment, unassignment, and artifact import are disabled here.',
+  'Use explicit GoodVibes TUI delegation or a future Agent approval flow for remote execution changes.',
+].join(' ');
+
+const CHANNEL_ACTION_DENIAL = [
+  'GoodVibes Agent only inspects channel accounts, directories, capabilities, tools, and actions from the main conversation.',
+  'Channel account actions, tool runs, operator action runs, authorization, and target auto-creation are disabled here.',
+  'External channel side effects require an explicit Agent approval flow before they can run.',
+].join(' ');
+
 export function installAgentToolPolicyGuard(registry: ToolRegistry, options: AgentToolPolicyGuardOptions = {}): void {
   const agentTool = registry.list().find((tool) => tool.definition.name === 'agent');
   if (!agentTool) throw new Error('Agent tool policy guard could not find the agent tool.');
@@ -67,6 +90,18 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
   for (const tool of registry.list()) {
     if (tool.definition.name === 'exec') {
       wrapExecToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'remote') {
+      wrapModeRestrictedToolForAgentPolicy(tool, {
+        allowedModes: READ_ONLY_REMOTE_TOOL_MODES,
+        modeSet: READ_ONLY_REMOTE_TOOL_MODE_SET,
+        description: [
+          'Read-only remote runner inspection for GoodVibes Agent.',
+          'Pool creation, runner assignment, unassignment, and artifact import are disabled in the main conversation.',
+        ].join(' '),
+        denial: REMOTE_MUTATION_DENIAL,
+      });
+    } else if (tool.definition.name === 'channel') {
+      wrapChannelToolForAgentPolicy(tool);
     } else if (BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET.has(tool.definition.name)) {
       wrapBlockedMainConversationToolForAgentPolicy(tool);
     }
@@ -134,11 +169,60 @@ export function validateExecToolInvocationForAgentPolicy(args: ExecToolArgs): st
   return null;
 }
 
+type ModeRestrictedToolPolicy = {
+  readonly allowedModes: readonly string[];
+  readonly modeSet: ReadonlySet<string>;
+  readonly description: string;
+  readonly denial: string;
+};
+
+export function wrapModeRestrictedToolForAgentPolicy(tool: Tool, policy: ModeRestrictedToolPolicy): void {
+  narrowModeToolDefinitionForAgentPolicy(tool, policy.allowedModes, policy.description);
+  const originalExecute = tool.execute.bind(tool);
+  tool.execute = async (args) => {
+    const denial = validateModeRestrictedToolInvocationForAgentPolicy(args as ModeToolArgs, policy.modeSet, policy.denial);
+    if (denial) return { success: false, error: denial };
+    return originalExecute(args);
+  };
+}
+
+export function wrapChannelToolForAgentPolicy(tool: Tool): void {
+  narrowModeToolDefinitionForAgentPolicy(tool, READ_ONLY_CHANNEL_TOOL_MODES, [
+    'Read-only channel inspection for GoodVibes Agent.',
+    'Running channel tools/actions, account lifecycle actions, authorization, and target creation are disabled in the main conversation.',
+  ].join(' '));
+  const originalExecute = tool.execute.bind(tool);
+  tool.execute = async (args) => {
+    const denial = validateModeRestrictedToolInvocationForAgentPolicy(args as ModeToolArgs, READ_ONLY_CHANNEL_TOOL_MODE_SET, CHANNEL_ACTION_DENIAL)
+      ?? validateChannelToolInvocationForAgentPolicy(args as ModeToolArgs);
+    if (denial) return { success: false, error: denial };
+    return originalExecute(args);
+  };
+}
+
+export function validateModeRestrictedToolInvocationForAgentPolicy(
+  args: ModeToolArgs,
+  modeSet: ReadonlySet<string>,
+  denial: string,
+): string | null {
+  if (typeof args.mode === 'string' && !modeSet.has(args.mode)) return denial;
+  return null;
+}
+
+export function validateChannelToolInvocationForAgentPolicy(args: ModeToolArgs): string | null {
+  if (args.mode === 'resolve_target' && args.createIfMissing === true) return CHANNEL_ACTION_DENIAL;
+  return null;
+}
+
 export const AGENT_LOCAL_SPAWN_DENIAL_MESSAGE = LOCAL_AGENT_DENIAL;
 export const AGENT_READ_ONLY_TOOL_MODES = READ_ONLY_AGENT_TOOL_MODES;
 export const AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES = BLOCKED_MAIN_CONVERSATION_TOOL_NAMES;
 export const AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE = LOCAL_CODING_TOOL_DENIAL;
 export const AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE = BACKGROUND_EXEC_DENIAL;
+export const AGENT_READ_ONLY_REMOTE_TOOL_MODES = READ_ONLY_REMOTE_TOOL_MODES;
+export const AGENT_READ_ONLY_CHANNEL_TOOL_MODES = READ_ONLY_CHANNEL_TOOL_MODES;
+export const AGENT_REMOTE_MUTATION_DENIAL_MESSAGE = REMOTE_MUTATION_DENIAL;
+export const AGENT_CHANNEL_ACTION_DENIAL_MESSAGE = CHANNEL_ACTION_DENIAL;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -186,6 +270,26 @@ function narrowExecToolDefinitionForAgentPolicy(tool: Tool): void {
       'Pattern-based early termination.',
       'GoodVibes Agent requires kill_after:true so until-mode does not promote the process to background.',
     ].join(' ');
+  }
+}
+
+function narrowModeToolDefinitionForAgentPolicy(tool: Tool, allowedModes: readonly string[], description: string): void {
+  tool.definition.description = description;
+
+  const properties = tool.definition.parameters.properties;
+  if (!isRecord(properties)) return;
+  const modeProperty = properties.mode;
+  if (isRecord(modeProperty)) {
+    modeProperty.enum = [...allowedModes];
+    modeProperty.description = 'Read-only modes allowed by GoodVibes Agent main-conversation policy.';
+  }
+
+  if (tool.definition.name === 'channel') {
+    delete properties.accountAction;
+    delete properties.toolId;
+    delete properties.actionId;
+    delete properties.actorId;
+    delete properties.createIfMissing;
   }
 }
 

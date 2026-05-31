@@ -10,10 +10,14 @@ import { tmpdir } from 'node:os';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import {
   AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
+  AGENT_CHANNEL_ACTION_DENIAL_MESSAGE,
   AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
   AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
+  AGENT_READ_ONLY_CHANNEL_TOOL_MODES,
+  AGENT_READ_ONLY_REMOTE_TOOL_MODES,
   AGENT_READ_ONLY_TOOL_MODES,
+  AGENT_REMOTE_MUTATION_DENIAL_MESSAGE,
   installAgentToolPolicyGuard,
   normalizeAgentToolInvocationForAgentPolicy,
   wrapAgentToolForAgentPolicy,
@@ -68,6 +72,28 @@ function makeNoopTool(name: string): Tool {
       description: `${name} test tool`,
       parameters: { type: 'object', properties: {} },
       sideEffects: ['write_fs'],
+    },
+    execute: async () => ({ success: true, output: `${name} executed` }),
+  };
+}
+
+function makeModeTool(name: string, modes: readonly string[]): Tool {
+  return {
+    definition: {
+      name,
+      description: `${name} mode test tool`,
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', enum: [...modes] },
+          createIfMissing: { type: 'boolean' },
+          actionId: { type: 'string' },
+          toolId: { type: 'string' },
+          accountAction: { type: 'string' },
+          actorId: { type: 'string' },
+        },
+      },
+      sideEffects: ['state', 'network'],
     },
     execute: async () => ({ success: true, output: `${name} executed` }),
   };
@@ -475,6 +501,82 @@ describe('spawn mode', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe(AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE);
     }
+  });
+
+  test('Agent runtime guard narrows remote runner tool to read-only modes', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeModeTool('remote', ['create-pool', 'pools', 'assign', 'unassign', 'contracts', 'artifacts', 'review', 'import-artifact']));
+
+    installAgentToolPolicyGuard(registry);
+
+    const remoteDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'remote');
+    expect(remoteDefinition?.description).toContain('Read-only remote runner inspection');
+    const properties = remoteDefinition?.parameters.properties as Record<string, unknown>;
+    const modeProperty = getRecordProperty(properties, 'mode');
+    expect(modeProperty?.enum).toEqual([...AGENT_READ_ONLY_REMOTE_TOOL_MODES]);
+
+    for (const mode of AGENT_READ_ONLY_REMOTE_TOOL_MODES) {
+      const result = await registry.execute(`call-remote-${mode}`, 'remote', { mode });
+      expect(result.success).toBe(true);
+    }
+
+    const blockedModes = ['create-pool', 'assign', 'unassign', 'import-artifact'] as const;
+    for (const mode of blockedModes) {
+      const result = await registry.execute(`call-remote-blocked-${mode}`, 'remote', { mode });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(AGENT_REMOTE_MUTATION_DENIAL_MESSAGE);
+    }
+  });
+
+  test('Agent runtime guard narrows channel tool to read-only inspection', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeModeTool('channel', [
+      'accounts',
+      'account_action',
+      'directory',
+      'resolve_target',
+      'capabilities',
+      'tools',
+      'agent_tools',
+      'run_tool',
+      'actions',
+      'run_action',
+      'authorize',
+    ]));
+
+    installAgentToolPolicyGuard(registry);
+
+    const channelDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'channel');
+    expect(channelDefinition?.description).toContain('Read-only channel inspection');
+    const properties = channelDefinition?.parameters.properties as Record<string, unknown>;
+    const modeProperty = getRecordProperty(properties, 'mode');
+    expect(modeProperty?.enum).toEqual([...AGENT_READ_ONLY_CHANNEL_TOOL_MODES]);
+    expect(properties.createIfMissing).toBeUndefined();
+    expect(properties.actionId).toBeUndefined();
+    expect(properties.toolId).toBeUndefined();
+
+    for (const mode of AGENT_READ_ONLY_CHANNEL_TOOL_MODES) {
+      const result = await registry.execute(`call-channel-${mode}`, 'channel', { mode });
+      expect(result.success).toBe(true);
+    }
+
+    const blockedModes = ['account_action', 'run_tool', 'run_action', 'authorize'] as const;
+    for (const mode of blockedModes) {
+      const result = await registry.execute(`call-channel-blocked-${mode}`, 'channel', { mode });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(AGENT_CHANNEL_ACTION_DENIAL_MESSAGE);
+    }
+
+    const createTarget = await registry.execute('call-channel-create-target', 'channel', {
+      mode: 'resolve_target',
+      createIfMissing: true,
+    });
+    expect(createTarget.success).toBe(false);
+    expect(createTarget.error).toBe(AGENT_CHANNEL_ACTION_DENIAL_MESSAGE);
   });
 
   test('child spawn inherits and enforces the parent capability ceiling', async () => {
