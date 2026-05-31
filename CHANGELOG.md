@@ -5,7 +5,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 ## 0.1.56 - 2026-05-31
 
 - a0b54e8 Document Bun global PATH setup
-- f845cca Rename onboarding capabilities step
+- f845cca Rename onboarding setup step
 - 4462e52 Clarify Bun-only install path
 
 ## 0.1.55 - 2026-05-31
@@ -194,7 +194,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 - d20a93e Allow explicit recall review without yes
 - 601f41c Require confirmation for eval execution
-- f41befb Block Cloudflare onboarding mutations
+- f41befb Block copied infrastructure onboarding mutations
 - 79071ec Block implicit block file saves
 - 40aca02 Block inline diff file edits in Agent
 - 854eda8 Block MCP workspace config mutations
@@ -268,21 +268,21 @@ All notable changes to GoodVibes Agent will be recorded here.
 - Added `LICENSE` to the explicit package file contract and release verification so registry tarballs cannot omit license text.
 - Prevented the operator workspace from dispatching placeholder delegation commands such as `/delegate --wrfc <task>`; those actions now provide guidance until the user supplies real task text.
 - Added local Agent routines with `/routines`: create/list/search/show/enable/disable/start/review/stale/delete, secret-looking value rejection, enabled routine prompt injection, and operator workspace status. Starting a routine stays in the main conversation and does not create hidden background jobs.
-- Removed copied TUI release, UAT, and WRFC artifact docs from the Agent source tree and updated remaining source docs so channel, Cloudflare, voice, Home Assistant, and panel guidance speaks in Agent/external-daemon terms.
+- Removed copied TUI release, UAT, and WRFC artifact docs from the Agent source tree and updated remaining source docs so channel, voice, integration, and panel guidance speaks in Agent/external-daemon terms.
 
 ## 0.1.6 - 2026-05-31
 
 - Made the publish helper use exported `NODE_AUTH_TOKEN` or `NPM_TOKEN` automatically by writing a temporary npm user config for publish commands.
-- Rewrote source docs for tools, commands, knowledge, artifacts, and multimodal behavior so they describe Agent-only Knowledge/Wiki and never teach default Knowledge/Wiki or HomeGraph fallback.
+- Rewrote source docs for tools, commands, knowledge, artifacts, and multimodal behavior so they describe Agent-only Knowledge/Wiki and never teach default Knowledge/Wiki or non-Agent graph fallback.
 - Updated `/plan` command and Planning panel language from copied TUI-owned wording to Agent-owned workspace planning state.
 - Added regression tests that keep source docs and active planning surfaces aligned with Agent Knowledge isolation and Agent product language.
 
 ## 0.1.5 - 2026-05-31
 
-- Hardened package-facing release checks so shipped docs and Agent guidance cannot reintroduce default Knowledge/Wiki, HomeGraph, Home Assistant, copied TUI daemon, or copied WRFC-first policy text.
+- Hardened package-facing release checks so shipped docs and Agent guidance cannot reintroduce default Knowledge/Wiki, non-Agent graph, copied daemon, or copied WRFC-first policy text.
 - Removed the generic default `knowledgeApi` client from the active Agent command context so slash commands must use the isolated Agent Knowledge API.
 - Changed CLI `knowledge ingest-url` to post directly to `/api/goodvibes-agent/knowledge/ingest/url` instead of invoking the generic knowledge operator method.
-- Rejected `--space`, `--knowledge-space`, `--knowledgeSpaceId`, `--includeAllSpaces`, and HomeGraph-style flags in CLI and slash Agent Knowledge commands before any daemon call.
+- Rejected default-space and broad cross-space query flags in CLI and slash Agent Knowledge commands before any daemon call.
 
 ## 0.1.4 - 2026-05-31
 
@@ -294,12 +294,12 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 - Added local Agent personas with `/personas`: create/list/search/show/use/review/stale/delete, secret-looking value rejection, active persona prompt injection, and operator workspace status.
 - Added local Agent skills with `/agent-skills` and `/skills local`: create/list/search/show/enable/disable/review/stale/delete, secret-looking value rejection, enabled skill prompt injection, and operator workspace status.
-- Kept persona and skill state Agent-local with no default Knowledge/Wiki or HomeGraph fallback.
+- Kept persona and skill state Agent-local with no default Knowledge/Wiki or non-Agent graph fallback.
 
 ## 0.1.2 - 2026-05-30
 
 - Added `goodvibes-agent compat` for package SDK pin, external daemon version, auth presence, and isolated Agent Knowledge route readiness.
-- Added `goodvibes-agent knowledge ...` commands for the isolated `/api/goodvibes-agent/knowledge/*` environment with no default Knowledge/Wiki or HomeGraph fallback.
+- Added `goodvibes-agent knowledge ...` commands for the isolated `/api/goodvibes-agent/knowledge/*` environment with no default Knowledge/Wiki or non-Agent graph fallback.
 - Added explicit GoodVibes TUI build delegation through `goodvibes-agent delegate` and `/delegate`; WRFC is requested only through explicit `--wrfc`, `/wrfc`, or `/review` delegation.
 - Removed the copied WRFC panel from the default Agent panel registry while preserving explicit TUI delegation for build/fix/review work.
 - Hardened the Agent release helper and CLI help output for the current Agent changelog and command set.

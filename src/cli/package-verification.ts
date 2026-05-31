@@ -52,6 +52,7 @@ const FORBIDDEN_TARBALL_DOCS = [
 ] as const;
 const PACKAGE_FACING_TEXT_PATHS = [
   'README.md',
+  'CHANGELOG.md',
   'docs/README.md',
   'docs/getting-started.md',
   'docs/deployment-and-services.md',
@@ -69,6 +70,13 @@ const PACKAGE_FACING_FORBIDDEN_TEXT = [
   ['@pellux/goodvibes-', 'daemon'].join(''),
   ['goodvibes-', 'daemon'].join(''),
   ['~/.goodvibes/', 'tui'].join(''),
+  ['Home', ' Assistant'].join(''),
+  ['Home', 'Graph'].join(''),
+  ['Cloud', 'flare'].join(''),
+  ['Open', 'Claw'].join(''),
+  ['Her', 'mes'].join(''),
+  ['capabilities', ' audit'].join(''),
+  ['capabilities', ' command'].join(''),
   'Every plan must have a multi-agent execution strategy',
   'NEVER skip WRFC',
   'ALWAYS work in parallel when implementing a plan',
