@@ -1,109 +1,79 @@
 # Project Planning
 
-GoodVibes Agent owns the active planning loop for operator work. The SDK provides passive storage and readiness evaluation only.
+GoodVibes Agent owns the active planning loop for operator work. Planning is part of the Agent main conversation, not a hidden worker flow and not a default Knowledge/Wiki query.
 
 ## Boundary
 
 The Agent owns:
 
-- natural-language planning intent detection in the main terminal conversation
-- the relentless planning interview loop
-- one-question-at-a-time clarification
-- the project planning panel
-- execution approval
-- delegation metadata and future assignment UX
+- natural-language planning intent detection in the main terminal conversation;
+- one-question-at-a-time clarification;
+- the Agent-owned planning loop;
+- the planning panel or fullscreen planning view;
+- explicit execution approval;
+- delegation metadata when work needs GoodVibes TUI.
 
-The SDK owns:
+The SDK/runtime owns durable storage and route contracts:
 
-- durable project-scoped planning artifacts in SDK planning namespaces such as `project:<projectId>`
-- readiness evaluation and next-question hints
-- project-language records
-- decision records
-- task, dependency, verification, and assignment metadata
-- passive daemon routes and operator methods
+- planning namespaces such as `project:<projectId>`;
+- readiness evaluation and next-question hints;
+- decision records;
+- task, dependency, verification, and assignment metadata;
+- passive operator methods.
 
-Daemon, web, webhook, ntfy, Slack, Discord, and companion surfaces do not enter the Agent planning loop. They can use SDK routes as storage/evaluation APIs where appropriate, but conversation control stays in the Agent surface. Agent planning state is not default Knowledge/Wiki, product-specific graph data, or an arbitrary knowledge space.
+Other surfaces can store or inspect planning artifacts, but conversation control stays in Agent. Agent planning state is not default Knowledge/Wiki, another product segment, or arbitrary wiki data.
 
 ## Agent Behavior
 
-The Agent derives a stable `projectId` from the workspace path and passes it to the SDK `ProjectPlanningService`. Planning artifacts are stored under the matching SDK planning namespace, so unrelated workspaces do not share planning state.
+The Agent derives a stable `projectId` from the workspace path and passes it to the SDK planning service. Planning artifacts are stored under the matching planning namespace so unrelated workspaces do not share state.
 
-Normal conversation can start planning when the user uses planning language such as implementation plan, execution strategy, dependency graph, verification gates, or delegation handoff. The Agent then:
+Normal conversation can start planning when the user asks for an execution strategy, dependency graph, verification gates, or delegation handoff. The Agent then:
 
-- opens the `Planning` panel
-- persists the current planning state through the SDK
-- records active open questions and user answers
-- calls SDK readiness evaluation for gaps and the suggested next question
-- injects a planning-only system instruction for that turn so the assistant asks one focused question instead of executing
+- opens the planning surface;
+- persists the current planning state through public SDK/runtime seams;
+- records active open questions and user answers;
+- calls readiness evaluation for gaps and the suggested next question;
+- asks one focused question instead of executing prematurely.
 
 The planning loop can be paused with natural language such as "stop planning" or "pause planning".
 
-## Planning Panel
+## Planning Surface
 
-Open the panel through the panel picker or with `/plan panel`.
+The planning surface shows:
 
-The panel shows:
+- workspace project id and planning namespace;
+- readiness and approval state;
+- goal, scope, known context, and current next question;
+- blocking or advisory readiness gaps;
+- task graph and verification gates;
+- delegation candidates;
+- durable decisions;
+- project language and ambiguity resolutions.
 
-- workspace project id and planning namespace
-- readiness and approval state
-- goal, scope, known context, and current next question
-- blocking/advisory readiness gaps
-- task graph and verification gates
-- agent handoff candidates
-- durable decisions
-- project language and ambiguity resolutions
-
-Panel keys:
-
-- `r` refreshes SDK-backed planning artifacts.
-- `a` marks the current structurally ready plan as approved for execution.
-- Up/Down chooses available answer actions when a question is active, or scrolls panel content when there is no active answer list.
-- Type while the panel is focused to draft a custom answer.
-- `Enter` submits the selected or drafted answer through the normal planning chat path.
-- The answer list includes a dismiss action that pauses planning for the workspace and returns focus to normal chat.
+Keyboard behavior should match the rest of the Agent TUI: predictable focus, scroll, submit, dismiss, and return-to-chat behavior.
 
 ## `/plan`
 
-`/plan` is retained as a command surface for inspection and seeding, but it is no longer the primary planning UX.
+`/plan` remains a command surface for inspection and seeding:
 
-- `/plan` prints current project-planning readiness and opens the panel.
-- `/plan panel` opens the panel.
-- `/plan approve` records explicit execution approval.
-- `/plan <goal>` seeds project planning state.
-- `/plan list` and `/plan show <id>` still inspect older execution-plan records.
-- `/plan mode|explain|override|status|clear` still route to the adaptive runtime controls.
+- `/plan` prints current planning readiness and opens the planning surface;
+- `/plan panel` opens the planning surface;
+- `/plan approve` records explicit execution approval;
+- `/plan <goal>` seeds Agent workspace planning state;
+- `/plan list` and `/plan show <id>` inspect older execution-plan records.
 
-Use natural language such as "stop planning" or the panel dismiss action when the Agent has entered planning but the current work should continue as normal chat.
+Use natural language or the surface dismiss action when planning should pause and normal chat should continue.
 
 ## Work Plan
 
-GoodVibes also has a lightweight persistent work-plan tracker for concrete tasks. It is separate from the planning interview state and is intended for visible, durable checklists while work is in progress.
+The work-plan tracker is for concrete, durable task state after work becomes actionable. It is separate from the planning interview loop.
 
-Commands:
+Use `/workplan` when the work already has tasks and needs status tracking. Use `/delegate` when explicit build/fix/review work should go to GoodVibes TUI.
 
-- `/workplan` or `/workplan panel`
-- `/workplan add <title> [--owner name] [--source label] [--notes text]`
-- `/workplan list`
-- `/workplan done|start|block|fail|cancel|pending <id>`
-- `/workplan remove <id>`
-- `/workplan clear-done`
+## Agent Knowledge Boundary
 
-Agent stores work-plan state under its Agent-owned runtime home and renders it in the `Work Plan` panel.
+Planning may link to Agent Knowledge evidence, but it must not query or ingest through default Knowledge/Wiki. Source-backed facts for Agent belong under:
 
-## SDK Routes And Operator Methods
-
-Agent does not need to call daemon routes for its own local planning loop, but the SDK exposes passive routes and methods:
-
-- `GET /api/projects/planning/status`
-- `GET|POST /api/projects/planning/state`
-- `POST /api/projects/planning/evaluate`
-- `GET|POST /api/projects/planning/decisions`
-- `GET|POST /api/projects/planning/language`
-- `projectPlanning.status`
-- `projectPlanning.state.get`
-- `projectPlanning.state.upsert`
-- `projectPlanning.evaluate`
-- `projectPlanning.decisions.list`
-- `projectPlanning.decisions.record`
-- `projectPlanning.language.get`
-- `projectPlanning.language.upsert`
+```text
+/api/goodvibes-agent/knowledge/*
+```

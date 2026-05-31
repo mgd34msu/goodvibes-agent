@@ -1,129 +1,49 @@
-# Channels, Remote Runtime, and API
+# Channels, Remote Access, and API
 
-## Channels
+GoodVibes Agent can be reached from terminal-first and companion surfaces, but the Agent product does not own transport hosting. It connects to the already-running GoodVibes runtime and uses public operator routes for status, sessions, artifacts, approvals, automation, and Agent Knowledge.
 
-GoodVibes includes a shared channel/runtime layer with current surfaces for:
+## Channel Posture
 
-- `tui`
-- `web`
-- `slack`
-- `discord`
-- `ntfy`
-- `webhook`
-- `telegram`
-- `google-chat`
-- `signal`
-- `whatsapp`
-- `imessage`
-- `msteams`
-- `bluebubbles`
-- `mattermost`
-- `matrix`
+Channel setup is explicit. Agent can inspect channel readiness and guide pairing, but it must not silently expose a new public surface or send messages to people without a user action.
 
-The channel runtime owns:
+Agent channel UX should show:
 
-- inbound adapters
-- setup and account metadata
-- doctor hooks
-- route bindings
-- delivery strategy selection
-- reply rendering and delivery
+- which channels are enabled by the owning runtime;
+- whether account/token setup is present without printing secret values;
+- the default target, if configured;
+- delivery risk and public exposure warnings;
+- the command or workspace action needed to review pairing.
 
-## Shared reply pipeline
+Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved runtime request.
 
-The same runtime pipeline is used to render and deliver:
+## Companion And Session Routes
 
-- progress updates
-- reasoning updates
-- tool output
-- final replies
+Normal assistant chat uses companion chat routes. Build/fix/review delegation uses shared-session or task routes only when the user explicitly asks for implementation work.
 
-That keeps Agent, web, webhook, and channel-native surfaces aligned around the same runtime events.
+Do not use shared coding sessions for ordinary chat. Do not create local background workers for routine assistant work.
 
-## Daemon and control plane
+## Remote Access
 
-The daemon is the backend surface for:
+Remote-node and peer capability is runtime-owned. In Agent, remote commands are read-only unless a future Agent-safe route is designed and reviewed. The current Agent behavior should guide the user toward:
 
-- tasks
-- sessions
-- control-plane snapshots and messages
-- method catalog
-- SSE and WebSocket event streams
-- knowledge
-- voice
-- web search
-- artifacts
-- multimodal
-- channel status and delivery surfaces
-- remote peers and node-host contracts
+- inspecting remote support state;
+- checking routes and peer readiness;
+- delegating explicit build/fix/review work to GoodVibes TUI when a remote runtime is actually needed.
 
-Key entrypoints include:
+Agent should not start remote runners, manage peer lifecycle, or fan out hidden local agents from the main conversation.
 
-- `GET /status`
-- `GET /api/control-plane`
-- `GET /api/control-plane/web`
-- `GET /api/control-plane/methods`
-- `GET /api/control-plane/events/catalog`
-- `GET /api/control-plane/events`
-- `GET /api/control-plane/ws`
-- `POST /task`
-- `GET /api/tasks`
+## Public API Use
 
-The control-plane method catalog is the canonical external-client contract. External clients can use it to inspect method metadata, scopes, schemas, and transport information.
+Use public SDK/operator routes only. For Agent Knowledge, the only valid family is:
 
-## Knowledge, media, and search APIs
+```text
+/api/goodvibes-agent/knowledge/*
+```
 
-The daemon also exposes dedicated product-domain APIs for:
+If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default Knowledge/Wiki, another product segment, or private runtime files.
 
-- knowledge status, ingest, search, packets, jobs, schedules, projections, GraphQL, and reports
-- voice status, providers, voices, TTS, streaming TTS, STT, and realtime sessions
-- web-search providers and queries
-- artifacts and artifact content
-- multimodal status, providers, analyze, packet, and writeback
+## Related Docs
 
-These surfaces are what make future web clients and companion apps straightforward to build without duplicating runtime logic.
-
-Streaming TTS is exposed at `POST /api/voice/tts/stream` and returns raw binary audio. The existing `POST /api/voice/tts` JSON synthesis route is unchanged.
-
-## Remote runtime
-
-The remote runtime is a distributed peer system with:
-
-- pair request and challenge verification
-- scoped peer tokens
-- heartbeat
-- work pull / claim / lease / complete
-- remote invoke
-- disconnect, revoke, and rotate flows
-- node-host contract inspection
-
-Key remote API paths include:
-
-- `POST /api/remote/pair/request`
-- `POST /api/remote/pair/verify`
-- `POST /api/remote/heartbeat`
-- `POST /api/remote/work/pull`
-- `POST /api/remote/work/{workId}/complete`
-- `GET /api/remote/peers`
-- `GET /api/remote/work`
-- `GET /api/remote/node-host/contract`
-
-## High-signal commands
-
-- `/remote`
-- `/remote show <runner>`
-- `/remote support [runner]`
-- `/remote recover [runner]`
-- `/remote dispatch ...`
-- `/remote dispatch-pool <pool> ...`
-- `/remote export <runner> [path] --yes`
-- `/remote artifact show <id>`
-- `/remote artifact export <id> [path] --yes`
-- `/remote import <path> --yes`
-- `/remote setup`
-
-## Related docs
-
-- [Deployment and services](deployment-and-services.md)
+- [Getting started](getting-started.md)
 - [Knowledge, artifacts, and multimodal](knowledge-artifacts-and-multimodal.md)
 - [Tools and commands](tools-and-commands.md)

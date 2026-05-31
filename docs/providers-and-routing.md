@@ -1,149 +1,46 @@
 # Providers and Routing
 
-## Provider model
+GoodVibes Agent uses the provider/model configuration exposed by the external GoodVibes runtime. The Agent TUI should make the active route easy to see and easy to change, but it should not duplicate provider hosting logic.
 
-GoodVibes has a layered provider system:
+## Agent Expectations
 
-- native runtime providers
-- compatible/gateway providers
-- synthetic failover groups
-- local discovered providers
-- search providers
-- voice providers
-- media and multimodal providers
+Provider and model state should be visible in:
 
-All of these flow into the same runtime routing, picker, metadata, and health surfaces.
+- the shell footer/status rows;
+- `/status`;
+- `/model` and `/provider`;
+- the Agent operator workspace setup checklist;
+- the TTS configuration workspace when spoken turns are used.
 
-## Native chat/runtime providers
+When a selected model is provider-qualified, Agent keeps the runtime provider row and raw model id separate. For example, `openai-subscriber` plus `openai:gpt-5.5` should route as provider `openai-subscriber` and model `gpt-5.5` where the public route expects provider/model fields.
 
-Current built-in native providers include:
+## Local Provider Definitions
 
-- `openai`
-- `anthropic`
-- `openai-codex`
-- `gemini`
-- `amazon-bedrock`
-- `amazon-bedrock-mantle`
-- `anthropic-vertex`
-- `github-copilot`
-
-## Compatible and gateway providers
-
-The runtime also supports a broad compatible/gateway layer. Current built-ins include:
-
-- `openrouter`
-- `aihubmix`
-- `groq`
-- `cerebras`
-- `mistral`
-- `ollama-cloud`
-- `huggingface`
-- `nvidia`
-- `llm7`
-- `deepseek`
-- `fireworks`
-- `microsoft-foundry`
-- `minimax`
-- `moonshot`
-- `qianfan`
-- `qwen`
-- `sglang`
-- `stepfun`
-- `together`
-- `venice`
-- `volcengine`
-- `xai`
-- `xiaomi`
-- `zai`
-- `vercel-ai-gateway`
-- `litellm`
-- `copilot-proxy`
-
-## Local discovery
-
-At startup, GoodVibes can discover local inference servers and register them automatically as OpenAI-compatible providers. Discovery covers:
-
-- Ollama
-- LM Studio
-- vLLM
-- llama.cpp / LocalAI
-- Text Generation Inference
-- Jan
-- GPT4All
-- KoboldCpp
-- Aphrodite
-
-## Synthetic failover
-
-The `synthetic` provider groups the same model across multiple backends under a single selectable entry.
-
-Key properties:
-
-- rate-limit and transient-error failover across backends
-- free / paid / subscription boundary preservation
-- model grouping with provider counts in the picker
-- benchmark-aware ranking from the catalog
-
-For free-tier synthetic models, the runtime can also cascade to the next-best free model when every backend for the current synthetic model is exhausted.
-
-## Custom providers
-
-Any OpenAI-compatible API can be added by dropping JSON into the Agent provider directory:
-
-- `~/.goodvibes/agent/providers/*.json`
-
-Provider JSON is hot-reloaded, so custom provider definitions appear in the model/runtime surfaces without restarting the process.
-
-## Daemon OpenAI-Compatible API
-
-SDK 0.28.0 exposes a daemon-hosted OpenAI-compatible surface for local clients that can speak the OpenAI REST shape but need GoodVibes provider routing:
+Agent-owned provider definitions live under the Agent surface root when supported by the copied GoodVibes provider registry:
 
 ```text
-GET  /v1/models
-POST /v1/chat/completions
+~/.goodvibes/agent/providers/*.json
 ```
 
-Use the normal daemon base URL and bearer token. Model ids include `goodvibes/current`, `goodvibes/default`, provider-qualified registry keys such as `openai:gpt-5.5`, and unambiguous plain model ids. Chat completions accept standard `messages`, optional `tools`, `max_tokens` or `max_completion_tokens`, and `stream: true` for SSE chunks.
+These files are local configuration. They are not Agent Knowledge records and should not be copied into wiki/search state.
 
-This surface is a compatibility adapter over the current GoodVibes provider registry. It does not replace native TUI routing, model pickers, or provider health surfaces.
+## Discovery And Health
 
-## Search providers
+Provider discovery and health are runtime-owned. Agent can display discovered provider status, model context information, and route failures. It should not hide provider failures behind fallback wording that makes a failed chat or knowledge request look successful.
 
-Built-in search surfaces include:
+## Search, Voice, And Media Providers
 
-- `duckduckgo`
-- `searxng`
-- `brave`
-- `exa`
-- `firecrawl`
-- `tavily`
-- `perplexity`
+Search, voice, media, and multimodal providers are valid Agent capabilities when they are presented as assistant features:
 
-The search runtime exposes normalized results, evidence shaping, verbosity controls, optional source fetches, and provider selection behind a single `web_search` surface.
+- research and source lookup;
+- live spoken turns;
+- image/document analysis;
+- artifact creation and review.
 
-## Voice providers
+Outputs that should become durable knowledge must go through Agent Knowledge routes. No provider output should be inserted into default Knowledge/Wiki or another product segment by Agent.
 
-Current voice providers include:
-
-- `openai` for `tts`, `stt`, and `realtime`
-- `elevenlabs` for `tts`, `tts-stream`, `stt`, and `realtime`
-- `deepgram` for `stt`
-- `google` for `stt`
-- `microsoft`
-- `vydra`
-
-The Agent `/tts` command uses providers that advertise `tts-stream` for live local playback. Configure defaults through `/config tts`: `tts.provider` chooses the streaming provider, `tts.voice` chooses a provider voice, and `tts.llmProvider` / `tts.llmModel` optionally override the response model. `/tts` uses the active chat model by default when the TTS LLM override is empty. See [Voice and live TTS](voice-and-live-tts.md) for command usage and playback requirements.
-
-## Media and multimodal providers
-
-Current media and multimodal coverage includes:
-
-- image understanding: OpenAI, Gemini, Anthropic, and local OpenAI-compatible multimodal backends
-- generation providers: BytePlus, Runway, Alibaba, Fal, and Comfy
-- unified multimodal runtime for image, audio, video, and document analysis
-
-## Related docs
+## Related Docs
 
 - [Getting started](getting-started.md)
 - [Knowledge, artifacts, and multimodal](knowledge-artifacts-and-multimodal.md)
-- [Channels, remote runtime, and API](channels-remote-and-api.md)
+- [Voice and live TTS](voice-and-live-tts.md)

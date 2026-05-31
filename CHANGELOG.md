@@ -2,11 +2,17 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.63 - 2026-05-31
+
+- Rewrote the remaining repo docs that still read like copied runtime/API notes into Agent-facing product docs.
+- Clarified channel, provider, planning, voice, tools, and Agent Knowledge boundaries around external runtime usage and no default Knowledge/Wiki fallback.
+- Kept the shipped package focused on the Agent TUI while preserving non-packaged foundation docs as Agent-specific references.
+
 ## 0.1.62 - 2026-05-31
 
 - Tightened primary CLI help around Agent workflows instead of advanced runtime diagnostics.
 - Reworded onboarding, workspace, and routine schedule surfaces toward Agent/operator language.
-- Kept schedule promotion explicit while removing stale daemon-schedule wording from user-facing flows.
+- Kept schedule promotion explicit while removing stale runtime-schedule wording from user-facing flows.
 
 ## 0.1.61 - 2026-05-31
 
@@ -123,7 +129,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 ## 0.1.37 - 2026-05-31
 
-- 656b6f4 Add Agent routine daemon schedule promotion
+- 656b6f4 Add Agent routine runtime schedule promotion
 
 ## 0.1.36 - 2026-05-31
 
@@ -222,7 +228,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 ## 0.1.12 - 2026-05-31
 
-- 1843a77 Handle external daemon SDK mismatch in live verification
+- 1843a77 Handle external runtime SDK mismatch in live verification
 - 2b1a3f4 Align agent-owned test paths
 
 ## 0.1.11 - 2026-05-31
@@ -264,7 +270,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 - 6b57500 Hide local agent activity in Agent UI
 - 7166188 Add Agent Knowledge CLI shortcuts
 - 386c19d Align service diagnostics with Agent boundaries
-- e8b19db Lock daemon-owned settings in Agent
+- e8b19db Lock runtime-owned settings in Agent
 
 ## 0.1.9 - 2026-05-31
 
@@ -272,7 +278,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 - a24c581 Use delegation wording in runtime indicator
 - 259a75f Guard Agent knowledge isolation
 - 59b6729 Align task help with Agent policy
-- 0074a76 Classify stale daemon knowledge routes
+- 0074a76 Classify stale runtime knowledge routes
 
 ## 0.1.8 - 2026-05-31
 
@@ -303,7 +309,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 - Added `LICENSE` to the explicit package file contract and release verification so registry tarballs cannot omit license text.
 - Prevented the operator workspace from dispatching placeholder delegation commands such as `/delegate --wrfc <task>`; those actions now provide guidance until the user supplies real task text.
 - Added local Agent routines with `/routines`: create/list/search/show/enable/disable/start/review/stale/delete, secret-looking value rejection, enabled routine prompt injection, and operator workspace status. Starting a routine stays in the main conversation and does not create hidden background jobs.
-- Removed copied TUI release, UAT, and WRFC artifact docs from the Agent source tree and updated remaining source docs so channel, voice, integration, and panel guidance speaks in Agent/external-daemon terms.
+- Removed copied TUI release, UAT, and WRFC artifact docs from the Agent source tree and updated remaining source docs so channel, voice, integration, and panel guidance speaks in Agent/external-runtime terms.
 
 ## 0.1.6 - 2026-05-31
 
@@ -314,10 +320,10 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 ## 0.1.5 - 2026-05-31
 
-- Hardened package-facing release checks so shipped docs and Agent guidance cannot reintroduce default Knowledge/Wiki, non-Agent graph, copied daemon, or copied WRFC-first policy text.
+- Hardened package-facing release checks so shipped docs and Agent guidance cannot reintroduce default Knowledge/Wiki, non-Agent graph, copied runtime-hosting, or copied WRFC-first policy text.
 - Removed the generic default `knowledgeApi` client from the active Agent command context so slash commands must use the isolated Agent Knowledge API.
 - Changed CLI `knowledge ingest-url` to post directly to `/api/goodvibes-agent/knowledge/ingest/url` instead of invoking the generic knowledge operator method.
-- Rejected default-space and broad cross-space query flags in CLI and slash Agent Knowledge commands before any daemon call.
+- Rejected default-space and broad cross-space query flags in CLI and slash Agent Knowledge commands before any runtime call.
 
 ## 0.1.4 - 2026-05-31
 
@@ -333,7 +339,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 ## 0.1.2 - 2026-05-30
 
-- Added `goodvibes-agent compat` for package SDK pin, external daemon version, auth presence, and isolated Agent Knowledge route readiness.
+- Added `goodvibes-agent compat` for package SDK pin, external runtime version, auth presence, and isolated Agent Knowledge route readiness.
 - Added `goodvibes-agent knowledge ...` commands for the isolated `/api/goodvibes-agent/knowledge/*` environment with no default Knowledge/Wiki or non-Agent graph fallback.
 - Added explicit GoodVibes TUI build delegation through `goodvibes-agent delegate` and `/delegate`; WRFC is requested only through explicit `--wrfc`, `/wrfc`, or `/review` delegation.
 - Removed the copied WRFC panel from the default Agent panel registry while preserving explicit TUI delegation for build/fix/review work.
@@ -342,7 +348,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 ## 0.1.1 - 2026-05-30
 
 - Reissued the first public alpha package after the initial `0.1.0` registry publish produced an install-blocking npm packument inconsistency.
-- Kept the same Agent runtime boundary and TUI-derived shell foundation: external daemon only, serial/proactive Agent policy, and explicit GoodVibes TUI delegation for build/fix/review work.
+- Kept the same Agent runtime boundary and TUI-derived shell foundation: external runtime only, serial/proactive Agent policy, and explicit GoodVibes TUI delegation for build/fix/review work.
 
 ## 0.1.0 - 2026-05-28
 
@@ -351,7 +357,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 - Preserved Agent product policy: serial/proactive main conversation by default, no local Agent-owned WRFC/spawn fanout, and explicit GoodVibes TUI delegation for build/fix/review work.
 - Moved Agent-owned runtime state to `.goodvibes/agent` surface roots.
 - Updated packaged Agent guidance, reviewer persona, and provider skill to avoid copied TUI WRFC/multi-agent defaults.
-- Kept daemon lifecycle external: Agent connects to an already-running GoodVibes daemon and blocks daemon/service ownership commands.
+- Kept runtime lifecycle external: Agent connects to an already-running GoodVibes runtime and blocks runtime/service ownership commands.
 - Pinned `@pellux/goodvibes-sdk` to `0.33.35`.
 
 ## 0.0.0 - Private Baseline
@@ -359,8 +365,8 @@ All notable changes to GoodVibes Agent will be recorded here.
 - Copied the GoodVibes terminal foundation as a near-fork starting point for the Agent product.
 - Renamed package identity to `@pellux/goodvibes-agent` and exposed one executable, `goodvibes-agent`.
 - Pinned `@pellux/goodvibes-sdk` to `0.33.35`.
-- Removed packaged daemon binaries and blocked Agent-owned daemon/service lifecycle commands.
-- Limited package-facing docs to Agent install, external-daemon deployment, and release guidance.
+- Removed packaged runtime-host binaries and blocked Agent-owned runtime/service lifecycle commands.
+- Limited package-facing docs to Agent install, external-runtime deployment, and release guidance.
 - Replaced copied coding-first orchestration policy with Agent serial/proactive policy and explicit GoodVibes TUI build delegation.
 - Added the first Agent operator workspace on the copied fullscreen workspace foundation, exposed through `/agent`, `/home`, and `/operator`.
 
