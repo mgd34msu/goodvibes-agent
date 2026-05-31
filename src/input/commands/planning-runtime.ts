@@ -6,6 +6,7 @@ import type {
 } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { CommandRegistry } from '../command-registry.ts';
 import { requirePlanManager, requireSessionLineageTracker } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 function recordNextQuestion(
   state: Partial<ProjectPlanningState>,
@@ -51,15 +52,21 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'plan',
     description: 'Inspect or seed Agent workspace planning state',
-    usage: '[panel | approve | list | show <id> | mode | explain | override <strategy> | status | clear | <planning goal>]',
+    usage: '[panel | approve --yes | list | show <id> | mode | explain | override <strategy> --yes | status | clear --yes | <planning goal>]',
     argsHint: '[panel|approve|status|<goal>]',
     async handler(args, ctx) {
       const planManager = requirePlanManager(ctx);
       const sessionLineageTracker = requireSessionLineageTracker(ctx);
       const plannerSubs = ['mode', 'explain', 'override', 'status', 'clear'];
       if (args.length > 0 && plannerSubs.includes(args[0].toLowerCase())) {
+        const parsed = stripYesFlag(args);
+        const subcommand = parsed.rest[0]?.toLowerCase() ?? '';
+        if ((subcommand === 'override' || subcommand === 'clear') && !parsed.yes) {
+          requireYesFlag(ctx, `${subcommand} planner runtime state`, `/plan ${subcommand}${subcommand === 'override' ? ' <strategy>' : ''} --yes`);
+          return;
+        }
         const result = ctx.ops.planRuntime
-          ? ctx.ops.planRuntime(args[0], args.slice(1))
+          ? ctx.ops.planRuntime(parsed.rest[0] ?? args[0], parsed.rest.slice(1))
           : { ok: false, output: 'Plan runtime bridge is not available in this runtime.' };
         ctx.print(result.output);
         return;
@@ -109,6 +116,11 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
       }
 
       if (args[0] === 'approve') {
+        const parsed = stripYesFlag(args);
+        if (!parsed.yes) {
+          requireYesFlag(ctx, 'approve project planning state for execution', '/plan approve --yes');
+          return;
+        }
         if (!projectPlanningService || !projectId) {
           ctx.print('Project planning service is not available in this runtime.');
           return;

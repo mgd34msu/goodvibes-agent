@@ -161,7 +161,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
     name: 'mode',
     aliases: ['hitl'],
     description: 'Manage HITL UX notification mode (quiet/balanced/operator)',
-    usage: '[quiet|balanced|operator|show|set-domain <domain> <verbosity>]',
+    usage: '[quiet|balanced|operator --yes|show|set-domain <domain> <verbosity> --yes]',
     argsHint: '[preset|show|set-domain]',
     handler(args, ctx) {
       const mgr = ctx.ops.modeManager;
@@ -169,9 +169,15 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
         ctx.print('Interaction mode manager is not available in this runtime.');
         return;
       }
-      const sub = args[0] ?? 'show';
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
+      const sub = commandArgs[0] ?? 'show';
 
       if (sub === 'quiet' || sub === 'balanced' || sub === 'operator') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `set HITL mode to ${sub}`, '/mode <quiet|balanced|operator> --yes');
+          return;
+        }
         const newMode = sub as 'quiet' | 'balanced' | 'operator';
         mgr.setHITLMode(newMode);
         try {
@@ -214,14 +220,18 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
       }
 
       if (sub === 'set-domain') {
-        const domain = args[1];
-        const verbosity = args[2];
+        const domain = commandArgs[1];
+        const verbosity = commandArgs[2];
         if (!domain || !verbosity) {
-          ctx.print('Usage: /mode set-domain <domain> <minimal|normal|verbose>');
+          ctx.print('Usage: /mode set-domain <domain> <minimal|normal|verbose> --yes');
           return;
         }
         if (verbosity !== 'minimal' && verbosity !== 'normal' && verbosity !== 'verbose') {
           ctx.print(`Invalid verbosity "${verbosity}". Valid values: minimal, normal, verbose`);
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `set HITL verbosity for ${domain}`, '/mode set-domain <domain> <minimal|normal|verbose> --yes');
           return;
         }
         mgr.setDomainVerbosity(domain, verbosity as 'minimal' | 'normal' | 'verbose');
@@ -230,13 +240,13 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
       }
 
       ctx.print(
-        'Usage: /mode [quiet|balanced|operator|show|set-domain <domain> <verbosity>]\n'
+        'Usage: /mode [quiet|balanced|operator --yes|show|set-domain <domain> <verbosity> --yes]\n'
         + '  /mode                          — show current mode and settings\n'
         + '  /mode show                     — show current mode and settings\n'
-        + '  /mode quiet                    — suppress all non-critical notifications\n'
-        + '  /mode balanced                 — surface warnings, batch info noise (default)\n'
-        + '  /mode operator                 — full verbosity, no suppression\n'
-        + '  /mode set-domain <d> <v>       — per-domain verbosity override (minimal|normal|verbose)'
+        + '  /mode quiet --yes              — suppress all non-critical notifications\n'
+        + '  /mode balanced --yes           — surface warnings, batch info noise (default)\n'
+        + '  /mode operator --yes           — full verbosity, no suppression\n'
+        + '  /mode set-domain <d> <v> --yes — per-domain verbosity override (minimal|normal|verbose)'
       );
     },
   });

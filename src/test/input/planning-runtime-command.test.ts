@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, mock, test } from 'bun:test';
 import {
   evaluateProjectPlanningReadiness,
   type ProjectPlanningEvaluation,
@@ -7,6 +7,7 @@ import {
 } from '@pellux/goodvibes-sdk/platform/knowledge';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerPlanningRuntimeCommands } from '../../input/commands/planning-runtime.ts';
+import type { PlanRuntimeService } from '../../runtime/index.ts';
 
 function makeState(input: Partial<ProjectPlanningState> = {}): ProjectPlanningState {
   const now = Date.now();
@@ -68,7 +69,12 @@ function makeService(initial: ProjectPlanningState | null = null): {
   };
 }
 
-function makeContext(service: ProjectPlanningService, out: string[], opened: string[]): CommandContext {
+function makeContext(
+  service: ProjectPlanningService,
+  out: string[],
+  opened: string[],
+  planRuntime?: PlanRuntimeService,
+): CommandContext {
   return {
     print: (message: string) => out.push(message),
     showPanel: (panelId: string) => { opened.push(panelId); },
@@ -97,6 +103,7 @@ function makeContext(service: ProjectPlanningService, out: string[], opened: str
         list: () => [],
         toMarkdown: () => '',
       },
+      ...(planRuntime ? { planRuntime } : {}),
     },
     provider: {},
     platform: {},
@@ -122,5 +129,64 @@ describe('/plan project planning runtime command', () => {
     expect(fake.state()?.metadata?.['active']).toBe(true);
     expect(fake.state()?.metadata?.['owner']).toBe('agent');
     expect(fake.state()?.openQuestions.length).toBeGreaterThan(0);
+  });
+
+  test('/plan approve requires --yes before approving execution state', async () => {
+    const registry = new CommandRegistry();
+    registerPlanningRuntimeCommands(registry);
+    const out: string[] = [];
+    const opened: string[] = [];
+    const fake = makeService(makeState({ executionApproved: false }));
+    const ctx = makeContext(fake.service, out, opened);
+
+    await registry.execute('plan', ['approve'], ctx);
+
+    expect(fake.state()?.executionApproved).toBe(false);
+    expect(opened).toHaveLength(0);
+    expect(out.join('\n')).toContain('Refusing to approve project planning state for execution without --yes');
+
+    out.length = 0;
+    await registry.execute('plan', ['approve', '--yes'], ctx);
+
+    expect(fake.state()?.executionApproved).toBe(true);
+    expect(fake.state()?.metadata?.['approvedFrom']).toBe('plan-command');
+    expect(opened).toContain('project-planning');
+    expect(out.join('\n')).toContain('Project planning approved');
+  });
+
+  test('/plan override and clear require --yes before calling the planner runtime bridge', async () => {
+    const registry = new CommandRegistry();
+    registerPlanningRuntimeCommands(registry);
+    const out: string[] = [];
+    const opened: string[] = [];
+    const fake = makeService();
+    const planRuntime = mock((subcommand: string, args: string[]) => ({
+      ok: true,
+      output: `runtime:${subcommand}:${args.join(',')}`,
+    }));
+    const ctx = makeContext(fake.service, out, opened, planRuntime);
+
+    await registry.execute('plan', ['override', 'serial'], ctx);
+
+    expect(planRuntime).toHaveBeenCalledTimes(0);
+    expect(out.join('\n')).toContain('Refusing to override planner runtime state without --yes');
+
+    out.length = 0;
+    await registry.execute('plan', ['override', 'serial', '--yes'], ctx);
+
+    expect(planRuntime).toHaveBeenCalledWith('override', ['serial']);
+    expect(out.join('\n')).toContain('runtime:override:serial');
+
+    out.length = 0;
+    await registry.execute('plan', ['clear'], ctx);
+
+    expect(planRuntime).toHaveBeenCalledTimes(1);
+    expect(out.join('\n')).toContain('Refusing to clear planner runtime state without --yes');
+
+    out.length = 0;
+    await registry.execute('plan', ['clear', '--yes'], ctx);
+
+    expect(planRuntime).toHaveBeenCalledWith('clear', []);
+    expect(planRuntime).toHaveBeenCalledTimes(2);
   });
 });

@@ -77,6 +77,21 @@ describe('Cloudflare runtime commands', () => {
           worker: { name: 'goodvibes-batch-worker', baseUrl: 'https://worker.example.dev' },
         }, { status: 202 });
       }
+      if (href.endsWith('/api/cloudflare/token/create')) {
+        return Response.json({
+          ok: true,
+          tokenName: 'goodvibes-agent-token',
+          tokenId: 'token-1',
+          accountId: 'acc-1',
+          apiTokenRef: 'secret://cloudflare/agent-token',
+        }, { status: 202 });
+      }
+      if (href.endsWith('/api/cloudflare/disable')) {
+        return Response.json({
+          ok: true,
+          steps: [{ name: 'worker-cron', status: 'ok', message: 'disabled' }],
+        }, { status: 202 });
+      }
       return Response.json({
         enabled: false,
         ready: false,
@@ -138,6 +153,21 @@ describe('Cloudflare runtime commands', () => {
       'https://daemon.example.com',
     ], ctx);
 
+    expect(requests).toHaveLength(0);
+    expect(out.join('\n')).toContain('Refusing to provision Cloudflare resources and persist config without --yes');
+
+    out.length = 0;
+    await registry.execute('cloudflare', [
+      'provision',
+      '--account',
+      'acc-1',
+      '--batch-mode',
+      'explicit',
+      '--daemon-url',
+      'https://daemon.example.com',
+      '--yes',
+    ], ctx);
+
     expect(out.join('\n')).toContain('Cloudflare Provisioning');
     expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/cloudflare/provision');
     expect(requests[0]?.body).toMatchObject({
@@ -148,6 +178,65 @@ describe('Cloudflare runtime commands', () => {
       verify: true,
       storeApiToken: true,
       enableWorkersDev: true,
+    });
+  });
+
+  test('/cloudflare create-token requires --yes before creating a stored operational token', async () => {
+    const registry = new CommandRegistry();
+    registerCloudflareRuntimeCommands(registry);
+    const out: string[] = [];
+    const ctx = makeContext({ out });
+
+    await registry.execute('cloudflare', [
+      'create-token',
+      '--account',
+      'acc-1',
+      '--bootstrap-token',
+      'temporary-bootstrap',
+    ], ctx);
+
+    expect(requests).toHaveLength(0);
+    expect(out.join('\n')).toContain('Refusing to create and store a Cloudflare operational token without --yes');
+
+    out.length = 0;
+    await registry.execute('cloudflare', [
+      'create-token',
+      '--account',
+      'acc-1',
+      '--bootstrap-token',
+      'temporary-bootstrap',
+      '--yes',
+    ], ctx);
+
+    expect(out.join('\n')).toContain('Cloudflare Operational Token Created');
+    expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/cloudflare/token/create');
+    expect(requests[0]?.body).toMatchObject({
+      accountId: 'acc-1',
+      bootstrapToken: 'temporary-bootstrap',
+      persistConfig: true,
+      storeApiToken: true,
+    });
+  });
+
+  test('/cloudflare disable requires --yes before persisting disabled integration config', async () => {
+    const registry = new CommandRegistry();
+    registerCloudflareRuntimeCommands(registry);
+    const out: string[] = [];
+    const ctx = makeContext({ out });
+
+    await registry.execute('cloudflare', ['disable', '--worker-name', 'agent-worker'], ctx);
+
+    expect(requests).toHaveLength(0);
+    expect(out.join('\n')).toContain('Refusing to disable Cloudflare integration and persist config without --yes');
+
+    out.length = 0;
+    await registry.execute('cloudflare', ['disable', '--worker-name', 'agent-worker', '--yes'], ctx);
+
+    expect(out.join('\n')).toContain('Cloudflare Disabled');
+    expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/cloudflare/disable');
+    expect(requests[0]?.body).toMatchObject({
+      workerName: 'agent-worker',
+      persistConfig: true,
     });
   });
 });

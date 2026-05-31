@@ -11,6 +11,7 @@ import {
 } from '../../runtime/cloudflare-control-plane.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 interface ParsedCloudflareArgs {
   readonly positional: readonly string[];
@@ -22,10 +23,12 @@ export function registerCloudflareRuntimeCommands(registry: CommandRegistry): vo
     name: 'cloudflare',
     aliases: ['cf'],
     description: 'Inspect and manage optional Cloudflare batch/control-plane integration through daemon SDK routes',
-    usage: '[status|setup|requirements|create-token|discover|validate|provision|verify|disable] [flags]',
+    usage: '[status|setup|requirements|create-token --yes|discover|validate|provision --yes|verify|disable --yes] [flags]',
     async handler(args, ctx) {
-      const subcommand = (args[0] ?? 'status').toLowerCase();
-      const parsed = parseCloudflareArgs(args.slice(1));
+      const confirmation = stripYesFlag(args);
+      const commandArgs = [...confirmation.rest];
+      const subcommand = (commandArgs[0] ?? 'status').toLowerCase();
+      const parsed = parseCloudflareArgs(commandArgs.slice(1));
       if (subcommand === 'setup' || subcommand === 'onboarding') {
         ctx.openOnboardingWizard?.({ mode: 'edit', reset: true });
         ctx.print('Opening onboarding wizard. Select the Cloudflare batch capability to configure Cloudflare.');
@@ -80,6 +83,10 @@ export function registerCloudflareRuntimeCommands(registry: CommandRegistry): vo
         }
 
         if (subcommand === 'create-token') {
+          if (!confirmation.yes) {
+            requireYesFlag(ctx, 'create and store a Cloudflare operational token', '/cloudflare create-token [flags] --yes');
+            return;
+          }
           const bootstrapToken = getFlag(parsed, 'bootstrap-token') || readTokenEnv(parsed, 'bootstrap-env');
           if (!bootstrapToken) {
             ctx.print('Usage: /cloudflare create-token --account <account-id> --bootstrap-token <token> or --bootstrap-env <env-name>');
@@ -141,6 +148,10 @@ export function registerCloudflareRuntimeCommands(registry: CommandRegistry): vo
         }
 
         if (subcommand === 'provision') {
+          if (!confirmation.yes) {
+            requireYesFlag(ctx, 'provision Cloudflare resources and persist config', '/cloudflare provision [flags] --yes');
+            return;
+          }
           const result = await client.provision({
             ...cloudflareAuthInput(parsed),
             components: componentsFromArgs(parsed),
@@ -212,6 +223,10 @@ export function registerCloudflareRuntimeCommands(registry: CommandRegistry): vo
         }
 
         if (subcommand === 'disable') {
+          if (!confirmation.yes) {
+            requireYesFlag(ctx, 'disable Cloudflare integration and persist config', '/cloudflare disable [flags] --yes');
+            return;
+          }
           const result = await client.disable({
             ...cloudflareAuthInput(parsed),
             ...optionalString('workerName', getFlag(parsed, 'worker-name')),
@@ -227,7 +242,7 @@ export function registerCloudflareRuntimeCommands(registry: CommandRegistry): vo
           return;
         }
 
-        ctx.print('Usage: /cloudflare [status|setup|requirements|create-token|discover|validate|provision|verify|disable] [flags]');
+        ctx.print('Usage: /cloudflare [status|setup|requirements|create-token --yes|discover|validate|provision --yes|verify|disable --yes] [flags]');
       } catch (error) {
         ctx.print(`Cloudflare ${subcommand} failed: ${formatCloudflareError(error)}`);
       }

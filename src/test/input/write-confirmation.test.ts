@@ -10,6 +10,7 @@ import { registerOperatorRuntimeCommands } from '../../input/commands/operator-r
 import { registerReplayRuntimeCommands } from '../../input/commands/replay-runtime.ts';
 import { registerSessionContentCommands } from '../../input/commands/session-content.ts';
 import { registerSessionWorkflowCommands } from '../../input/commands/session-workflow.ts';
+import type { ShellModeManagerService } from '../../runtime/index.ts';
 
 function makeShellPaths(root: string) {
   return {
@@ -257,6 +258,66 @@ describe('write/export command confirmation', () => {
       out.length = 0;
       await registry.get('profiles')!.handler(['delete', 'demo', '--yes'], ctx);
       expect(profileManager.list().some((profile) => profile.name === 'demo')).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('mode preset and domain overrides require --yes before writing interaction state', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-mode-confirm-'));
+    try {
+      const registry = new CommandRegistry();
+      registerOperatorRuntimeCommands(registry);
+      const out: string[] = [];
+      const setMode = mock((mode: Parameters<ShellModeManagerService['setHITLMode']>[0]) => mode);
+      const setDomainVerbosity = mock((
+        domain: Parameters<ShellModeManagerService['setDomainVerbosity']>[0],
+        verbosity: Parameters<ShellModeManagerService['setDomainVerbosity']>[1],
+      ) => `${domain}:${verbosity}`);
+      const preset: ReturnType<ShellModeManagerService['getHITLPreset']> = {
+        name: 'balanced',
+        description: 'Balanced interaction mode',
+        defaultDomainVerbosity: 'normal',
+        quietWhileTyping: true,
+        batchWindowMs: 500,
+      };
+      const modeManager: ShellModeManagerService = {
+        getHITLMode: () => 'balanced',
+        getHITLPreset: () => preset,
+        listHITLPresets: () => [preset],
+        setHITLMode: setMode,
+        setDomainVerbosity,
+        getDomainOverrides: () => ({}),
+      };
+      const configManager = new ConfigManager({
+        surfaceRoot: 'agent',
+        workingDir: root,
+        homeDir: root,
+        configDir: join(root, '.goodvibes', 'agent'),
+      });
+      const ctx = {
+        ...baseContext(root, out),
+        platform: { configManager },
+        ops: { modeManager },
+      } as unknown as CommandContext;
+
+      await registry.get('mode')!.handler(['quiet'], ctx);
+      expect(setMode).toHaveBeenCalledTimes(0);
+      expect(out.join('\n')).toContain('Refusing to set HITL mode to quiet without --yes');
+
+      out.length = 0;
+      await registry.get('mode')!.handler(['quiet', '--yes'], ctx);
+      expect(setMode).toHaveBeenCalledWith('quiet');
+      expect(out.join('\n')).toContain('HITL mode set to: balanced');
+
+      out.length = 0;
+      await registry.get('mode')!.handler(['set-domain', 'automation', 'minimal'], ctx);
+      expect(setDomainVerbosity).toHaveBeenCalledTimes(0);
+      expect(out.join('\n')).toContain('Refusing to set HITL verbosity for automation without --yes');
+
+      out.length = 0;
+      await registry.get('mode')!.handler(['set-domain', 'automation', 'minimal', '--yes'], ctx);
+      expect(setDomainVerbosity).toHaveBeenCalledWith('automation', 'minimal');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
