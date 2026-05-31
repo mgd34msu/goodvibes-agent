@@ -73,7 +73,7 @@ describe('KnowledgePanel', () => {
     expect(text).toContain('2');
     expect(text).toContain('knowledge-agent.sqlite');
     expect(text).toContain('isolated Agent store');
-    expect(text).toContain('no default Knowledge/Wiki or HomeGraph fallback');
+    expect(text).toContain('no default Knowledge/Wiki or non-Agent fallback');
     panel.onDestroy();
   });
 

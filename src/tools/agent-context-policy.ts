@@ -10,7 +10,7 @@ export function wrapBlockedContextToolForAgentPolicy(tool: Tool): void {
   tool.definition.description = [
     'Blocked in GoodVibes Agent main conversation: copied runtime context.',
     'Use explicit Agent CLI/slash status, compat, setup, and Agent Knowledge commands for product-scoped context.',
-    'Default Knowledge/Wiki, HomeGraph, and copied TUI runtime assumptions are not Agent fallbacks.',
+    'Default Knowledge/Wiki, non-Agent knowledge segments, and copied TUI runtime assumptions are not Agent fallbacks.',
   ].join(' ');
   tool.definition.sideEffects = [];
   tool.definition.parameters = {

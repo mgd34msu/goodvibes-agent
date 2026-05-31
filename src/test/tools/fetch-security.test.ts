@@ -389,7 +389,7 @@ describe('classifyHostTrustTier — unknown tier', () => {
     expect(result.tier).toBe('unknown');
   });
 
-  it('classifies 1.1.1.1 (Cloudflare DNS) as unknown (public IP)', () => {
+  it('classifies 1.1.1.1 as unknown (public IP)', () => {
     const result = classifyHostTrustTier('1.1.1.1', {});
     expect(result.tier).toBe('unknown');
   });
@@ -399,7 +399,7 @@ describe('classifyHostTrustTier — unknown tier', () => {
     expect(result.tier).toBe('unknown');
   });
 
-  it('does NOT block decimal IP 16843009 (= 1.1.1.1, public Cloudflare DNS)', () => {
+  it('does NOT block decimal IP 16843009 (= 1.1.1.1, public DNS)', () => {
     // Validates that the decimal-integer IP check only blocks private ranges,
     // not all numeric strings. 16843009 == 0x01010101 == 1.1.1.1.
     const result = classifyHostTrustTier('16843009', {});

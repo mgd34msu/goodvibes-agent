@@ -75,6 +75,6 @@ describe('AgentRoutineRegistry', () => {
     expect(prompt).toContain('same serial assistant conversation');
     expect(prompt).toContain('Do not start hidden background jobs');
     expect(prompt).not.toContain('/api/knowledge');
-    expect(prompt).not.toContain('HomeGraph');
+    expect(prompt).not.toContain('non-Agent knowledge fallback');
   });
 });

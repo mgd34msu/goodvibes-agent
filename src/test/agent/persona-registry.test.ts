@@ -64,7 +64,7 @@ describe('AgentPersonaRegistry', () => {
     })).toThrow('secret-looking');
   });
 
-  test('builds active persona prompt without default knowledge or HomeGraph coupling', () => {
+  test('builds active persona prompt without default or non-Agent knowledge coupling', () => {
     const { registry, paths } = tempRegistry();
     registry.create({
       name: 'Home Operator',
@@ -79,6 +79,6 @@ describe('AgentPersonaRegistry', () => {
     expect(prompt).toContain('Home Operator');
     expect(prompt).toContain('same serial assistant conversation');
     expect(prompt).not.toContain('/api/knowledge');
-    expect(prompt).not.toContain('HomeGraph');
+    expect(prompt).not.toContain('non-Agent knowledge fallback');
   });
 });

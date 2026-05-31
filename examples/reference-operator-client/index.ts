@@ -28,7 +28,7 @@ export async function runReferenceOperatorClientExample(): Promise<void> {
       getConversationTitle: () => 'reference-operator-client',
     });
 
-    const transport = createDirectTransport(runtimeServices);
+    const transport = createDirectTransport(runtimeServices as unknown as Parameters<typeof createDirectTransport>[0]);
     const session = await transport.operator.sessions.ensureSession({
       sessionId: 'reference-operator-session',
       title: 'Reference Operator Session',

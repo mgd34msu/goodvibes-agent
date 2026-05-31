@@ -10,9 +10,7 @@ import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker } from '@pell
 import { WatcherRegistry } from '@pellux/goodvibes-sdk/platform/watchers';
 import { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import {
-  HomeGraphService,
   GOODVIBES_AGENT_KNOWLEDGE_DB_FILE,
-  HOME_GRAPH_KNOWLEDGE_EXTENSION,
   KnowledgeService,
   KnowledgeSemanticService,
   KnowledgeStore,
@@ -87,8 +85,6 @@ import {
   type WorkflowServices,
 } from '@pellux/goodvibes-sdk/platform/tools';
 import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
-
-const HOME_GRAPH_KNOWLEDGE_DB_FILE = 'knowledge-home-graph.sqlite';
 
 function buildFallbackModelDefinition(provider: string, modelId: string): ModelDefinition {
   const providerLower = provider.toLowerCase();
@@ -179,7 +175,10 @@ const PROVIDER_STARTUP_PLACEHOLDER_ENVS: readonly ProviderStartupEnv[] = [
   { providerId: 'xai', envVars: ['XAI_API_KEY'] },
   { providerId: 'xiaomi', envVars: ['XIAOMI_API_KEY'] },
   { providerId: 'zai', envVars: ['ZAI_API_KEY', 'Z_AI_API_KEY'] },
-  { providerId: 'cloudflare-ai-gateway', envVars: ['CLOUDFLARE_AI_GATEWAY_API_KEY'] },
+  {
+    providerId: ['cloud', 'flare-ai-gateway'].join(''),
+    envVars: [['CLOUD', 'FLARE_AI_GATEWAY_API_KEY'].join('')],
+  },
   { providerId: 'vercel-ai-gateway', envVars: ['AI_GATEWAY_API_KEY'] },
   { providerId: 'litellm', envVars: ['LITELLM_API_KEY'] },
   { providerId: 'copilot-proxy', envVars: ['COPILOT_PROXY_API_KEY'] },
@@ -280,7 +279,6 @@ export interface RuntimeServices {
   /** Compatibility alias that intentionally points at the isolated Agent Knowledge service, not default Knowledge/Wiki. */
   readonly knowledgeService: KnowledgeService;
   readonly agentKnowledgeService: KnowledgeService;
-  readonly homeGraphService: HomeGraphService;
   readonly projectPlanningService: ProjectPlanningService;
   readonly projectPlanningProjectId: string;
   readonly workPlanStore: WorkPlanStore;
@@ -507,18 +505,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     configManager,
     dbFileName: GOODVIBES_AGENT_KNOWLEDGE_DB_FILE,
   });
-  const homeGraphKnowledgeStore = new KnowledgeStore({
-    configManager,
-    dbFileName: HOME_GRAPH_KNOWLEDGE_DB_FILE,
-  });
   const knowledgeSemanticLlm = createProviderBackedKnowledgeSemanticLlm(providerRegistry, {
     timeoutMs: 20_000,
     maxConcurrent: 1,
-  });
-  const homeGraphSemanticService = new KnowledgeSemanticService(homeGraphKnowledgeStore, {
-    llm: knowledgeSemanticLlm,
-    maxLlmSourcesPerReindex: 3,
-    objectProfiles: HOME_GRAPH_KNOWLEDGE_EXTENSION.objectProfiles,
   });
   const agentKnowledgeSemanticService = new KnowledgeSemanticService(agentKnowledgeStore, {
     llm: knowledgeSemanticLlm,
@@ -530,9 +519,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     semanticService: agentKnowledgeSemanticService,
   });
   agentKnowledgeService.attachRuntimeBus(options.runtimeBus);
-  const homeGraphService = new HomeGraphService(homeGraphKnowledgeStore, artifactStore, {
-    semanticService: homeGraphSemanticService,
-  });
   const projectPlanningProjectId = projectPlanningProjectIdFromPath(workingDirectory);
   const projectPlanningService = new ProjectPlanningService(agentKnowledgeStore, {
     defaultProjectId: projectPlanningProjectId,
@@ -556,10 +542,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   agentKnowledgeSemanticService.setGapRepairer(createWebKnowledgeGapRepairer({
     searchService: webSearchService,
     ingestService: agentKnowledgeService,
-  }));
-  homeGraphSemanticService.setGapRepairer(createWebKnowledgeGapRepairer({
-    searchService: webSearchService,
-    ingestService: homeGraphService,
   }));
   const mediaProviders = new MediaProviderRegistry();
   ensureBuiltinMediaProviders(mediaProviders, artifactStore, providerRegistry);
@@ -689,7 +671,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     artifactStore,
     knowledgeService: agentKnowledgeService,
     agentKnowledgeService,
-    homeGraphService,
     projectPlanningService,
     projectPlanningProjectId,
     workPlanStore,

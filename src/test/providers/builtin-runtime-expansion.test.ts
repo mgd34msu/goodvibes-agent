@@ -94,7 +94,6 @@ describe('provider runtime expansion', () => {
       'xai',
       'xiaomi',
       'zai',
-      'cloudflare-ai-gateway',
       'vercel-ai-gateway',
       'litellm',
       'copilot-proxy',
@@ -110,7 +109,6 @@ describe('provider runtime expansion', () => {
     expect(providerRegistry.getRegistered('volcano-engine').name).toBe('volcengine');
     expect(providerRegistry.getRegistered('x-ai').name).toBe('xai');
     expect(providerRegistry.getRegistered('z-ai').name).toBe('zai');
-    expect(providerRegistry.getRegistered('cloudflare-gateway').name).toBe('cloudflare-ai-gateway');
     expect(providerRegistry.getRegistered('ai-gateway').name).toBe('vercel-ai-gateway');
   });
 

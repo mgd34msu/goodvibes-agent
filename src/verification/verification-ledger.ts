@@ -30,7 +30,6 @@ export interface VerificationLedger {
 const EXTERNAL_SLASH_COMMANDS = new Set([
   'auth',
   'bridge',
-  'cloudflare',
   'health',
   'listener',
   'login',
@@ -71,14 +70,12 @@ const ONBOARDING_CAPABILITIES = [
   'network-access',
   'webhook-events',
   'external-integrations',
-  'cloudflare-batch',
 ] as const;
 
 const EXTERNAL_SURFACES = [
   'bluebubbles',
   'discord',
   'googleChat',
-  'homeassistant',
   'imessage',
   'matrix',
   'mattermost',
@@ -185,9 +182,9 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Onboarding capability bundles',
       total: ONBOARDING_CAPABILITIES.length,
       localSignalVerified: ONBOARDING_CAPABILITIES.length,
-      localBehaviorVerified: 5,
-      externalOutcomeRequired: 1,
-      notes: 'Wizard state derivation/apply can be local; Cloudflare provisioning remains external.',
+      localBehaviorVerified: ONBOARDING_CAPABILITIES.length,
+      externalOutcomeRequired: 0,
+      notes: 'Wizard state derivation/apply is local; daemon-backed outcomes stay external to Agent ownership.',
     },
   ];
 

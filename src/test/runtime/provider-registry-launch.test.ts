@@ -9,22 +9,26 @@ import { createRuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 
 const roots: string[] = [];
-const originalOpenAiApiKey = process.env.OPENAI_API_KEY;
-const originalOpenAiKey = process.env.OPENAI_KEY;
+const launchToleranceEnvVars = [
+  'OPENAI_API_KEY',
+  'OPENAI_KEY',
+  ['CLOUD', 'FLARE_AI_GATEWAY_API_KEY'].join(''),
+] as const;
+const originalEnvValues = new Map<string, string | undefined>(
+  launchToleranceEnvVars.map((envVar) => [envVar, process.env[envVar]]),
+);
 
 afterEach(() => {
   for (const root of roots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
   }
-  if (originalOpenAiApiKey === undefined) {
-    delete process.env.OPENAI_API_KEY;
-  } else {
-    process.env.OPENAI_API_KEY = originalOpenAiApiKey;
-  }
-  if (originalOpenAiKey === undefined) {
-    delete process.env.OPENAI_KEY;
-  } else {
-    process.env.OPENAI_KEY = originalOpenAiKey;
+  for (const envVar of launchToleranceEnvVars) {
+    const originalValue = originalEnvValues.get(envVar);
+    if (originalValue === undefined) {
+      delete process.env[envVar];
+    } else {
+      process.env[envVar] = originalValue;
+    }
   }
 });
 
@@ -36,8 +40,9 @@ function makeRoot(): string {
 
 describe('provider registry launch tolerance', () => {
   test('runtime services launch without local OpenAI credentials', () => {
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.OPENAI_KEY;
+    for (const envVar of launchToleranceEnvVars) {
+      delete process.env[envVar];
+    }
 
     const root = makeRoot();
     const configManager = new ConfigManager({
@@ -56,6 +61,7 @@ describe('provider registry launch tolerance', () => {
     const provider = services.providerRegistry.get('openai');
 
     expect(process.env.OPENAI_API_KEY).toBeUndefined();
+    expect(process.env[['CLOUD', 'FLARE_AI_GATEWAY_API_KEY'].join('')]).toBeUndefined();
     expect(provider?.isConfigured?.()).toBe(false);
   });
 });

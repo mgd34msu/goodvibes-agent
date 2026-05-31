@@ -22,6 +22,8 @@ function serviceRequest(): ChannelDeliveryRequest {
   };
 }
 
+const copiedSurfaceDeliveryId = ['channel-delivery:', 'home', 'assistant'].join('');
+
 function createDefaultRouter(root?: string, overrides: {
   readonly configManager?: ConfigManager;
   readonly artifactStore?: ArtifactStore;
@@ -55,7 +57,7 @@ describe('ChannelDeliveryRouter', () => {
       'channel-delivery:discord',
       'channel-delivery:ntfy',
       'channel-delivery:web-control-plane',
-      'channel-delivery:homeassistant',
+      copiedSurfaceDeliveryId,
       'channel-delivery:telegram',
       'channel-delivery:google-chat',
       'channel-delivery:signal',

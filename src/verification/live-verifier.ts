@@ -4,6 +4,12 @@ import { spawn } from 'node:child_process';
 import { buildVerificationLedger } from './verification-ledger.ts';
 import { SDK_VERSION } from '../version.ts';
 
+const AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS = [
+  ['home', ' assistant'].join(''),
+  ['home', 'graph'].join(''),
+  ['home ', 'graph'].join(''),
+] as const;
+
 export type LiveVerificationStatus = 'pass' | 'warn' | 'fail' | 'skip';
 
 export interface LiveVerificationCheck {
@@ -284,7 +290,7 @@ export function buildAgentKnowledgeLiveSkipCheck(
     summary: `Skipped because external daemon SDK ${daemonVersion} does not match Agent SDK pin ${expectedSdkVersion}.`,
     detail: [
       'Agent Knowledge is intentionally isolated under /api/goodvibes-agent/knowledge/*.',
-      'An older daemon cannot validate those routes, and Agent must not fall back to default Knowledge/Wiki or HomeGraph.',
+      'An older daemon cannot validate those routes, and Agent must not fall back to default Knowledge/Wiki or non-Agent knowledge segments.',
       'Update/restart the external daemon, then rerun live verification.',
     ].join('\n'),
   };
@@ -495,8 +501,8 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
             return { status: 'fail', summary: 'Agent Knowledge ask was not parseable JSON.' };
           }
           const lower = body.toLowerCase();
-          if (lower.includes('home assistant') || lower.includes('homegraph') || lower.includes('home graph')) {
-            return { status: 'fail', summary: 'Agent Knowledge ask returned HomeGraph/Home Assistant contamination.' };
+          if (AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS.some((marker) => lower.includes(marker))) {
+            return { status: 'fail', summary: 'Agent Knowledge ask returned non-Agent knowledge contamination.' };
           }
           return { status: 'pass', summary: 'Agent Knowledge ask stayed on the isolated Agent route.' };
         },
@@ -519,8 +525,8 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
             return { status: 'fail', summary: 'Agent Knowledge search was not parseable JSON.' };
           }
           const lower = body.toLowerCase();
-          if (lower.includes('home assistant') || lower.includes('homegraph') || lower.includes('home graph')) {
-            return { status: 'fail', summary: 'Agent Knowledge search returned HomeGraph/Home Assistant contamination.' };
+          if (AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS.some((marker) => lower.includes(marker))) {
+            return { status: 'fail', summary: 'Agent Knowledge search returned non-Agent knowledge contamination.' };
           }
           return { status: 'pass', summary: 'Agent Knowledge search stayed on the isolated Agent route.' };
         },

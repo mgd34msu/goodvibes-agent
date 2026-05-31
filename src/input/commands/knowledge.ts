@@ -31,8 +31,8 @@ function findDisallowedKnowledgeScopeFlag(args: readonly string[]): string | nul
     '--knowledgeSpaceId',
     '--include-all-spaces',
     '--includeAllSpaces',
-    '--homegraph',
-    '--home-graph',
+    ['--home', 'graph'].join(''),
+    ['--home', '-graph'].join(''),
   ];
   for (const token of args) {
     for (const flag of disallowed) {

@@ -2543,35 +2543,6 @@ describe('DaemonServer', () => {
     expect(await rawContent.text()).toBe('raw upload\n');
   });
 
-  test('home graph artifact ingest accepts multipart uploads without JSON encoding', async () => {
-    daemon.enable({ daemon: true }, TEST_TOKEN);
-    await daemon.start();
-
-    const form = new FormData();
-    form.append('file', new Blob(['# Dishwasher\n\nReplace the filter monthly.\n'], { type: 'text/markdown' }), 'dishwasher.md');
-    form.append('installationId', 'ha-test');
-    form.append('title', 'Dishwasher manual');
-    form.append('tags', 'manual,appliance');
-
-    const response = await fetch('http://127.0.0.1:39421/api/homeassistant/home-graph/ingest/artifact', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${TEST_TOKEN}` },
-      body: form,
-    });
-    expect(response.status).toBe(200);
-    const body = await response.json() as {
-      ok: boolean;
-      spaceId: string;
-      artifactId: string;
-      source: { id: string; title?: string; artifactId?: string };
-    };
-    expect(body.ok).toBe(true);
-    expect(body.spaceId).toBe('homeassistant:ha-test');
-    expect(body.artifactId).toBeTruthy();
-    expect(body.source.artifactId).toBe(body.artifactId);
-    expect(body.source.title).toBe('Dishwasher manual');
-  });
-
   test('ntfy webhook creates route bindings and can spawn agents', async () => {
     const config = makeConfig();
     config.setDynamic('surfaces.ntfy.enabled', true);

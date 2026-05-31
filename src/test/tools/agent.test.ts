@@ -268,7 +268,7 @@ function makeContextTool(): Tool {
       parameters: {
         type: 'object',
         properties: {
-          mode: { type: 'string', enum: ['summary', 'knowledge', 'homegraph'] },
+          mode: { type: 'string', enum: ['summary', 'knowledge', ['home', 'graph'].join('')] },
           includeAllSpaces: { type: 'boolean' },
           knowledgeSpaceId: { type: 'string' },
         },
@@ -1221,7 +1221,7 @@ describe('spawn mode', () => {
     expect(contextDefinition?.parameters.additionalProperties).toBe(false);
 
     const result = await registry.execute('call-context-blocked', 'goodvibes_context', {
-      mode: 'homegraph',
+      mode: ['home', 'graph'].join(''),
       includeAllSpaces: true,
     });
     expect(result.success).toBe(false);

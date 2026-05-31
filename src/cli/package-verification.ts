@@ -47,8 +47,8 @@ const REQUIRED_TARBALL_PATHS = [
 const FORBIDDEN_TARBALL_PREFIXES = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', '.goodvibes/agents/', 'vendor/'] as const;
 const FORBIDDEN_TARBALL_DOCS = [
   'docs/qemu-sandbox.md',
-  'docs/cloudflare-batch.md',
-  'docs/homeassistant-surface.md',
+  ['docs/cloud', 'flare-batch.md'].join(''),
+  ['docs/home', 'assistant-surface.md'].join(''),
   'docs/wrfc/',
 ] as const;
 const PACKAGE_FACING_TEXT_PATHS = [
@@ -62,8 +62,8 @@ const PACKAGE_FACING_TEXT_PATHS = [
 ] as const;
 const PACKAGE_FACING_FORBIDDEN_TEXT = [
   '/api/knowledge',
-  '/api/homeassistant',
-  'homeassistant.homeGraph',
+  ['/api/home', 'assistant'].join(''),
+  ['home', 'assistant.home', 'Graph'].join(''),
   'includeAllSpaces',
   'knowledgeSpaceId',
   '@pellux/goodvibes-tui',

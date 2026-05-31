@@ -55,7 +55,7 @@ describe('AgentSkillRegistry', () => {
     })).toThrow('secret-looking');
   });
 
-  test('builds enabled skill prompt without default knowledge or HomeGraph coupling', () => {
+  test('builds enabled skill prompt without default or non-Agent knowledge coupling', () => {
     const { registry, paths } = tempRegistry();
     registry.create({
       name: 'Approval Review',
@@ -71,6 +71,6 @@ describe('AgentSkillRegistry', () => {
     expect(prompt).toContain('Approval Review');
     expect(prompt).toContain('same serial assistant conversation');
     expect(prompt).not.toContain('/api/knowledge');
-    expect(prompt).not.toContain('HomeGraph');
+    expect(prompt).not.toContain('non-Agent knowledge fallback');
   });
 });

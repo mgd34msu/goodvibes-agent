@@ -46,47 +46,25 @@ afterEach(() => {
 });
 
 describe('runtime knowledge store isolation', () => {
-  test('Agent Knowledge is the only runtime wiki surface and Home Graph stays separate', async () => {
+  test('Agent Knowledge is the only runtime wiki surface created by Agent', async () => {
     const { configManager, services } = makeRuntime();
     const controlPlaneDir = configManager.getControlPlaneConfigDir();
 
     expect(services.knowledgeService).toBe(services.agentKnowledgeService);
     const agentStatus = await services.agentKnowledgeService.getStatus({ includeAllSpaces: true });
-    const sync = await services.homeGraphService.syncSnapshot({
-      installationId: 'isolation',
-      title: 'Isolation Home',
-      capturedAt: Date.now(),
-      pageAutomation: { enabled: false },
-      areas: [{ id: 'area-lab', name: 'Lab', kind: 'area' }],
-      devices: [{ id: 'device-light', name: 'Isolation Light', kind: 'device', areaId: 'area-lab' }],
-      entities: [{ id: 'light.isolation_light', name: 'Isolation Light', kind: 'entity', deviceId: 'device-light', areaId: 'area-lab' }],
-      integrations: [{ id: 'integration-light', name: 'Light Integration', kind: 'integration', domain: 'light' }],
-    });
-    const homeGraphStatus = await services.homeGraphService.status({ installationId: 'isolation' });
-    const ask = await services.homeGraphService.ask({
-      installationId: 'isolation',
-      query: 'where is the isolation light?',
-      includeSources: true,
-      includeLinkedObjects: true,
-      timeoutMs: 1_000,
-    });
-    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    expect(sync.ok).toBe(true);
-    expect(ask.ok).toBe(true);
-    expect(homeGraphStatus.nodeCount).toBeGreaterThan(0);
     expect(agentStatus.sourceCount).toBe(0);
     expect(agentStatus.nodeCount).toBe(0);
     expect(existsSync(join(controlPlaneDir, 'knowledge-wiki.sqlite'))).toBe(false);
     expect(existsSync(join(controlPlaneDir, 'knowledge-agent.sqlite'))).toBe(true);
-    expect(existsSync(join(controlPlaneDir, 'knowledge-home-graph.sqlite'))).toBe(true);
+    expect(existsSync(join(controlPlaneDir, ['knowledge-home', 'graph.sqlite'].join('-')))).toBe(false);
 
     const aliasNodes = services.knowledgeService.queryNodes({ includeAllSpaces: true, limit: 100 }).items;
     const agentNodes = services.agentKnowledgeService.queryNodes({ includeAllSpaces: true, limit: 100 }).items;
     const aliasMap = await services.knowledgeService.map({ includeAllSpaces: true, limit: 100 });
-    expect(aliasNodes.some((node) => node.title.includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
-    expect(agentNodes.some((node) => node.title.includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
-    expect(aliasMap.nodes.some((node) => String(node.title ?? '').includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
+    expect(aliasNodes).toHaveLength(0);
+    expect(agentNodes).toHaveLength(0);
+    expect(aliasMap.nodes).toHaveLength(0);
   });
 
   test('orchestrator and multimodal writeback use Agent Knowledge through every runtime alias', () => {

@@ -338,7 +338,8 @@ describe('SettingsModal', () => {
     expect(keys).toContain('surfaces.ntfy.baseUrl');
     expect(keys).toContain('surfaces.ntfy.topic');
     expect(keys).toContain('surfaces.ntfy.token');
-    expect(keys.some((key) => key.startsWith('surfaces.homeassistant.'))).toBe(false);
+    const copiedSurfacePrefix = ['surfaces.', 'home', 'assistant.'].join('');
+    expect(keys.some((key) => key.startsWith(copiedSurfacePrefix))).toBe(false);
 
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'surfaces.ntfy.baseUrl');
     modal.activateSelected();

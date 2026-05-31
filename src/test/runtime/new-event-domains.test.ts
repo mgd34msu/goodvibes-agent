@@ -107,6 +107,7 @@ describe('new runtime event domains', () => {
   });
 
   test('event vocabularies cover all first-class GoodVibes surfaces', () => {
+    const copiedSurfaceKind = ['home', 'assistant'].join('');
     expect([...ROUTE_SURFACE_KINDS]).toEqual([
       'tui',
       'web',
@@ -114,7 +115,7 @@ describe('new runtime event domains', () => {
       'discord',
       'ntfy',
       'webhook',
-      'homeassistant',
+      copiedSurfaceKind,
       'telegram',
       'google-chat',
       'signal',

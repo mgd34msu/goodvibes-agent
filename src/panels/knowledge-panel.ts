@@ -233,7 +233,7 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
       buildPanelLine(width, [
         ['  route ', C.label],
         ['/api/goodvibes-agent/knowledge/*', C.info],
-        ['  isolated: no default Knowledge/Wiki or HomeGraph fallback', C.dim],
+        ['  isolated: no default Knowledge/Wiki or non-Agent fallback', C.dim],
       ]),
     ];
     if (this.agentKnowledgeLoading && !this.agentKnowledgeStatus) {
@@ -283,7 +283,7 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
 
     if (this.records.length === 0) this.refresh();
 
-    const intro = 'Isolated Agent Knowledge plus local non-secret memory review. This surface never falls back to default Knowledge/Wiki or HomeGraph.';
+    const intro = 'Isolated Agent Knowledge plus local non-secret memory review. This surface never falls back to default Knowledge/Wiki or non-Agent knowledge segments.';
     const records = this.registry.search({ limit: 200 });
     const agentKnowledgeHeader = this.buildAgentKnowledgeHeader(width);
 

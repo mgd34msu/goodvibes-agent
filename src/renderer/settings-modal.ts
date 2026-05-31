@@ -28,7 +28,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   provider: 'Default model routing for normal chat turns, embeddings, reasoning effort, and persistent system prompt file.',
   subscriptions: 'Provider subscription login state and routing posture. Active sessions can be reviewed or signed out here; API keys remain managed through secrets.',
   behavior: 'Day-to-day shell behavior: approval posture, compaction, history, guidance, notifications, stale-context warnings, return context, and Human-in-the-Loop mode.',
-  storage: 'Local storage posture, including secret storage policy and maximum artifact size for knowledge/home graph/document ingestion.',
+  storage: 'Local storage posture, including secret storage policy and maximum artifact size for Agent Knowledge, artifacts, and document ingestion.',
   permissions: 'Permission mode and tool-class policy. These settings decide whether the shell prompts before read/write/exec/network/agent actions.',
   orchestration: 'Agent orchestration limits and recursion controls.',
   wrfc: 'WRFC is external to normal Agent operation. Review these copied compatibility values only for explicit GoodVibes TUI build delegation.',
