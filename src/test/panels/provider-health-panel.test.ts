@@ -138,18 +138,6 @@ function createPanel(runtimeBus = new RuntimeEventBus()): ProviderHealthPanel {
           work: [],
         },
       }),
-      intelligence: createStaticUiReadModel({
-        diagnosticsStatus: 'ready',
-        symbolSearchStatus: 'ready',
-        completionsStatus: 'ready',
-        hoverStatus: 'ready',
-        errorCount: 0,
-        warningCount: 0,
-        totalRequests: 12,
-        avgLatencyMs: 72,
-        hover: { active: false, filePath: undefined },
-        diagnostics: new Map(),
-      }),
       continuity: createStaticUiReadModel({
         sessionId: '',
         status: 'idle',

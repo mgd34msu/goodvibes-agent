@@ -72,7 +72,6 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
       const llmMessages = ctx.session.conversationManager.getMessagesForLLM();
       const readModels = requireReadModels(ctx);
       const session = readModels.session.getSnapshot();
-      const intelligence = readModels.intelligence.getSnapshot();
       const mcp = readModels.mcp.getSnapshot();
       const health = readModels.health.getSnapshot();
       const marketplace = readModels.marketplace.getSnapshot();
@@ -89,7 +88,7 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
         denialCount: session.denialCount,
         authRequiredMcpCount: mcp.servers.filter((server) => server.status === 'auth_required').length,
         degradedProviderCount: health.providerProblems.length,
-        intelligenceUnavailable: intelligence.diagnosticsStatus === 'unavailable' && intelligence.symbolSearchStatus === 'unavailable',
+        intelligenceUnavailable: false,
         recommendations: marketplace.recommendations,
       }, maintenance, guidanceOptions);
 

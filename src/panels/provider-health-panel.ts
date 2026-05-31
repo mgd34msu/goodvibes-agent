@@ -14,7 +14,6 @@ import {
 } from './provider-health-domains.ts';
 import type {
   UiContinuitySnapshot,
-  UiIntelligenceSnapshot,
   UiLocalAuthSnapshot,
   UiProvidersSnapshot,
   UiReadModel,
@@ -53,7 +52,6 @@ export interface ProviderHealthPanelDeps {
   readonly localAuth: UiReadModel<UiLocalAuthSnapshot>;
   readonly settings: UiReadModel<UiSettingsSnapshot>;
   readonly remote: UiReadModel<UiRemoteSnapshot>;
-  readonly intelligence: UiReadModel<UiIntelligenceSnapshot>;
   readonly continuity: UiReadModel<UiContinuitySnapshot>;
 }
 
@@ -430,7 +428,6 @@ export class ProviderHealthPanel extends BasePanel {
       this.deps.localAuth,
       this.deps.settings,
       this.deps.remote,
-      this.deps.intelligence,
       this.deps.continuity,
     ] as const) {
       this._unsubs.push(readModel.subscribe(() => this._markDirtyAndRender()));
@@ -591,7 +588,6 @@ export class ProviderHealthPanel extends BasePanel {
       settings: this.deps.settings.getSnapshot(),
       remote: this.deps.remote.getSnapshot(),
       security: this.deps.security.getSnapshot(),
-      intelligence: this.deps.intelligence.getSnapshot(),
       continuity: this.deps.continuity.getSnapshot(),
       session: this.deps.session.getSnapshot(),
     })) {

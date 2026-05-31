@@ -2,7 +2,6 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { evaluateSessionMaintenance } from '@/runtime/index.ts';
 import type {
   UiContinuitySnapshot,
-  UiIntelligenceSnapshot,
   UiLocalAuthSnapshot,
   UiRemoteSnapshot,
   UiSecuritySnapshot,
@@ -25,7 +24,6 @@ export interface ProviderHealthDomainInputs {
   readonly settings: UiSettingsSnapshot;
   readonly remote: UiRemoteSnapshot;
   readonly security: UiSecuritySnapshot;
-  readonly intelligence: UiIntelligenceSnapshot;
   readonly continuity: UiContinuitySnapshot;
   readonly session: UiSessionSnapshot;
 }
@@ -40,7 +38,6 @@ export function buildProviderHealthDomainSummaries(
     settings,
     remote,
     security,
-    intelligence,
     continuity,
     session,
   } = input;
@@ -126,30 +123,6 @@ export function buildProviderHealthDomainSummaries(
     nextSteps: degradedServers.length > 0
       ? ['/mcp review', '/mcp auth-review', '/mcp repair']
       : ['/mcp review'],
-  });
-
-  const intelligenceIssues = [
-    intelligence.diagnosticsStatus,
-    intelligence.symbolSearchStatus,
-    intelligence.completionsStatus,
-    intelligence.hoverStatus,
-  ].filter((status) => status !== 'ready').length;
-  summaries.push({
-    name: 'intelligence',
-    level: intelligenceIssues > 0 ? 'warn' : 'good',
-    summary: intelligenceIssues > 0
-      ? `${intelligenceIssues} readiness surface(s) degraded`
-      : `ready (${intelligence.totalRequests} req / ${Math.round(intelligence.avgLatencyMs)}ms avg)`,
-    next: intelligenceIssues > 0 ? '/intelligence repair' : '/intelligence review',
-    details: [
-      intelligence.diagnosticsStatus !== 'ready' ? `diagnostics=${intelligence.diagnosticsStatus}` : '',
-      intelligence.symbolSearchStatus !== 'ready' ? `symbols=${intelligence.symbolSearchStatus}` : '',
-      intelligence.completionsStatus !== 'ready' ? `completions=${intelligence.completionsStatus}` : '',
-      intelligence.hoverStatus !== 'ready' ? `hover=${intelligence.hoverStatus}` : '',
-    ].filter(Boolean),
-    nextSteps: intelligenceIssues > 0
-      ? ['/intelligence diagnostics', '/intelligence repair', '/health intelligence']
-      : ['/intelligence review'],
   });
 
   const maintenance = evaluateSessionMaintenance({

@@ -283,7 +283,6 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
         localAuth: ui.readModels.localAuth,
         settings: ui.readModels.settings,
         remote: ui.readModels.remote,
-        intelligence: ui.readModels.intelligence,
         continuity: ui.readModels.continuity,
       },
       deps.requestRender,

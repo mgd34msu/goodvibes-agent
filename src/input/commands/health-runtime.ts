@@ -23,7 +23,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
     name: 'health',
     aliases: ['doctor'],
     description: 'Health workspace for startup posture, service readiness, provider health, and Agent continuity',
-    usage: '[open|review|setup|services|provider|accounts|auth|settings|intelligence|remote|mcp|continuity|maintenance|repair [domain]]',
+    usage: '[open|review|setup|services|provider|accounts|auth|settings|remote|mcp|continuity|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
       const readModels = requireReadModels(ctx);
@@ -106,32 +106,6 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           '  next: /settingssync panel',
           '  next: /settingssync show <key>',
           '  next: /managed staged',
-        ].join('\n'));
-        return;
-      }
-
-      if (sub === 'intelligence') {
-        const intelligence = readModels.intelligence.getSnapshot();
-        const issues: string[] = [];
-        if (intelligence.diagnosticsStatus !== 'ready') issues.push(`diagnostics=${intelligence.diagnosticsStatus}`);
-        if (intelligence.symbolSearchStatus !== 'ready') issues.push(`symbols=${intelligence.symbolSearchStatus}`);
-        if (intelligence.completionsStatus !== 'ready') issues.push(`completions=${intelligence.completionsStatus}`);
-        if (intelligence.hoverStatus !== 'ready') issues.push(`hover=${intelligence.hoverStatus}`);
-        ctx.print([
-          'Health Review: Intelligence',
-          `  diagnostics: ${intelligence.diagnosticsStatus}`,
-          `  symbols: ${intelligence.symbolSearchStatus}`,
-          `  completions: ${intelligence.completionsStatus}`,
-          `  hover: ${intelligence.hoverStatus}`,
-          `  errors: ${intelligence.errorCount}`,
-          `  warnings: ${intelligence.warningCount}`,
-          `  requests: ${intelligence.totalRequests}`,
-          `  avg latency: ${Math.round(intelligence.avgLatencyMs)}ms`,
-          ...(issues.length > 0
-            ? issues.map((issue) => `  issue: ${issue}`)
-            : ['  no active intelligence readiness issues detected']),
-          '  next: /intelligence review',
-          '  next: /setup review',
         ].join('\n'));
         return;
       }
@@ -294,15 +268,8 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /compact');
           lines.push('  /panel tokens');
           lines.push('  verify: /health maintenance');
-        } else if (domain === 'intelligence') {
-          lines.push('  domain: intelligence');
-          lines.push('  /intelligence review');
-          lines.push('  /intelligence symbols <file>');
-          lines.push('  /intelligence definition <file> <line> <column>');
-          lines.push('  /setup review');
-          lines.push('  verify: /health intelligence');
         } else {
-          lines.push('  domains: settings, auth, accounts, services, remote, mcp, continuity, maintenance, intelligence');
+          lines.push('  domains: settings, auth, accounts, services, remote, mcp, continuity, maintenance');
           lines.push('  use: /health repair <domain>');
         }
         ctx.print(lines.join('\n'));
@@ -361,7 +328,6 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         '  /health accounts',
         '  /health auth',
         '  /health settings',
-        '  /health intelligence',
         '  /health remote',
         '  /health maintenance',
         '  /health repair <domain>',

@@ -43,7 +43,6 @@ import { registerHealthRuntimeCommands } from './commands/health-runtime.ts';
 import { registerSettingsSyncRuntimeCommands } from './commands/settings-sync-runtime.ts';
 import { registerProviderAccountsRuntimeCommands } from './commands/provider-accounts-runtime.ts';
 import { registerLocalAuthRuntimeCommands } from './commands/local-auth-runtime.ts';
-import { registerIntelligenceRuntimeCommands } from './commands/intelligence-runtime.ts';
 import { registerConversationRuntimeCommands } from './commands/conversation-runtime.ts';
 import { registerQrcodeRuntimeCommands } from './commands/qrcode-runtime.ts';
 import { registerOnboardingRuntimeCommands } from './commands/onboarding-runtime.ts';
@@ -99,7 +98,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerSettingsSyncRuntimeCommands(registry);
   registerProviderAccountsRuntimeCommands(registry);
   registerLocalAuthRuntimeCommands(registry);
-  registerIntelligenceRuntimeCommands(registry);
   registerConversationRuntimeCommands(registry);
   registerQrcodeRuntimeCommands(registry);
   registerOnboardingRuntimeCommands(registry);

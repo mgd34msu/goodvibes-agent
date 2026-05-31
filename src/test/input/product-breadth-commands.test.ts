@@ -706,10 +706,8 @@ describe('product breadth commands', () => {
     registerBuiltinCommands(registry);
     const health = registry.get('health');
     const guidance = registry.get('guidance');
-    const intelligence = registry.get('intelligence');
     expect(health).toBeDefined();
     expect(guidance).toBeDefined();
-    expect(intelligence).toBeDefined();
 
     const out: string[] = [];
     const ctx = makeContext(out);
@@ -737,24 +735,6 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toMatch(/Maintenance:/);
 
     out.length = 0;
-    await intelligence!.handler(['review'], ctx as never);
-    expect(out.join('\n')).toContain('Intelligence Review');
-    expect(out.join('\n')).toContain('/intelligence symbols <file>');
-
-    out.length = 0;
-    await intelligence!.handler(['diagnostics'], ctx as never);
-    expect(out.join('\n')).toContain('Intelligence Diagnostics');
-
-    out.length = 0;
-    await intelligence!.handler(['repair'], ctx as never);
-    expect(out.join('\n')).toContain('Intelligence Repair');
-    expect(out.join('\n')).toContain('verify: /health intelligence');
-
-    out.length = 0;
-    await health!.handler(['intelligence'], ctx as never);
-    expect(out.join('\n')).toContain('Health Review: Intelligence');
-
-    out.length = 0;
     await health!.handler(['mcp'], ctx as never);
     expect(out.join('\n')).toContain('Health Review: MCP');
 
@@ -762,33 +742,7 @@ describe('product breadth commands', () => {
     await health!.handler(['continuity'], ctx as never);
     expect(out.join('\n')).toContain('Health Review: Continuity');
 
-    const intelligenceFile = join(root, 'src', 'intel-fixture.txt');
-    mkdirSync(dirname(intelligenceFile), { recursive: true });
-    writeFileSync(intelligenceFile, 'plain text fixture\n', 'utf-8');
-
-    out.length = 0;
-    await intelligence!.handler(['symbols', intelligenceFile], ctx as never);
-    expect(out.join('\n')).toContain('Intelligence Symbols:');
-
-    out.length = 0;
-    await intelligence!.handler(['outline', intelligenceFile], ctx as never);
-    expect(out.join('\n')).toContain('Intelligence Outline:');
-
-    out.length = 0;
-    await intelligence!.handler(['definition', intelligenceFile, '1', '1'], ctx as never);
-    expect(out.join('\n')).toContain('Intelligence Definition:');
-
-    out.length = 0;
-    await intelligence!.handler(['references', intelligenceFile, '1', '1'], ctx as never);
-    expect(out.join('\n')).toContain('Intelligence References:');
-
-    out.length = 0;
-    await intelligence!.handler(['hover', intelligenceFile, '1', '1'], ctx as never);
-    expect(out.join('\n')).toContain('Intelligence Hover:');
-
-    out.length = 0;
-    await health!.handler(['repair', 'intelligence'], ctx as never);
-    expect(out.join('\n')).toContain('verify: /health intelligence');
+    expect(registry.get('intelligence')).toBeUndefined();
   });
 
   test('session and tools commands expose transcript structure and tool status', async () => {
