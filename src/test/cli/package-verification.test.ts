@@ -7,6 +7,7 @@ import { SDK_VERSION, VERSION } from '../../version.ts';
 type PackageJson = {
   readonly version?: string;
   readonly dependencies?: Record<string, string>;
+  readonly engines?: Record<string, string>;
   readonly scripts?: Record<string, string>;
 };
 
@@ -34,6 +35,13 @@ describe('package CLI install verification', () => {
     const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
     expect(parsed.scripts?.['typecheck']).toBe('bunx tsc --noEmit');
     expect(parsed.scripts?.['check:types']).toBe('bun run typecheck');
+  });
+
+  test('package metadata advertises Bun as the runtime, not Node', () => {
+    const packagePath = resolve(import.meta.dir, '../../..', 'package.json');
+    const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
+    expect(parsed.engines?.bun).toBe('>=1.3.10');
+    expect(parsed.engines?.node).toBeUndefined();
   });
 
   test('compiled metadata fallbacks match package identity and SDK pin', () => {
