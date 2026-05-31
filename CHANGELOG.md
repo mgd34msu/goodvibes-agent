@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.31 - 2026-05-31
+
+- 2bc4887 Expand Agent Knowledge workspace flows
+
 ## 0.1.30 - 2026-05-31
 
 - 6a1c818 Add channel readiness to Agent workspace
