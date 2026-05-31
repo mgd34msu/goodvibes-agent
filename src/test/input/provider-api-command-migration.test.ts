@@ -1,13 +1,14 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { DiscoveredServer } from '@pellux/goodvibes-sdk/platform/discovery';
 import { HelperModel } from '@pellux/goodvibes-sdk/platform/config';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { registerLocalProviderRuntimeCommands } from '../../input/commands/local-provider-runtime.ts';
 import { registerLocalRuntimeCommands } from '../../input/commands/local-runtime.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type {
   ProviderApi,
   ProviderApiBenchmarkRecord,
@@ -238,6 +239,44 @@ describe('provider command provider-api migration', () => {
       { key: 'provider.model', value: 'anthropic:claude-sonnet' },
     ]);
     expect(printed.join('\n')).toContain('Switched to provider: anthropic (model: claude-sonnet)');
+  });
+
+  test('/provider add requires explicit confirmation before writing local provider config', async () => {
+    const registry = new CommandRegistry();
+    registerLocalProviderRuntimeCommands(registry);
+    const { context, printed } = createCommandContext({
+      providerApi: createProviderApiStub(),
+    });
+    const providerFile = context.workspace.shellPaths.resolveUserPath(
+      GOODVIBES_AGENT_SURFACE_ROOT,
+      'providers',
+      'local.json',
+    );
+
+    await registry.execute('provider', ['add', 'local', 'http://127.0.0.1:1/v1'], context);
+
+    expect(existsSync(providerFile)).toBe(false);
+    expect(printed.join('\n')).toContain('Refusing to add custom provider local without --yes.');
+  });
+
+  test('/provider remove requires explicit confirmation before deleting local provider config', async () => {
+    const registry = new CommandRegistry();
+    registerLocalProviderRuntimeCommands(registry);
+    const { context, printed } = createCommandContext({
+      providerApi: createProviderApiStub(),
+    });
+    const providerFile = context.workspace.shellPaths.resolveUserPath(
+      GOODVIBES_AGENT_SURFACE_ROOT,
+      'providers',
+      'local.json',
+    );
+    mkdirSync(dirname(providerFile), { recursive: true });
+    writeFileSync(providerFile, JSON.stringify({ name: 'local' }), 'utf-8');
+
+    await registry.execute('provider', ['remove', 'local'], context);
+
+    expect(existsSync(providerFile)).toBe(true);
+    expect(printed.join('\n')).toContain('Refusing to remove custom provider local without --yes.');
   });
 
   test('refresh-models, pin, and unpin route through providerApi without raw stores', async () => {

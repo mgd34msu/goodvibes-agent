@@ -7,6 +7,7 @@ import type { CustomProviderConfig } from '@pellux/goodvibes-sdk/platform/provid
 import { requireProviderApi, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 function isValidProviderName(name: string): boolean {
   return /^[a-zA-Z0-9_-]+$/.test(name);
@@ -17,17 +18,23 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
     name: 'provider',
     aliases: ['p'],
     description: 'Switch provider or manage custom providers (add/remove)',
-    usage: '[add <name> <baseURL> [apiKey] | remove <name> | <provider-name>]',
-    argsHint: '[add|remove|name]',
+    usage: '[add <name> <baseURL> [apiKey] --yes | remove <name> --yes | <provider-name>]',
+    argsHint: '[name|add --yes|remove --yes]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      if (args[0] === 'add') {
-        const addArgs = args.slice(1);
+      if (commandArgs[0] === 'add') {
+        const addArgs = commandArgs.slice(1);
         if (addArgs.length < 2) {
-          ctx.print('Usage: /provider add <name> <baseURL> [apiKey]\nExample: /provider add my-server http://192.168.0.85:8001/v1');
+          ctx.print('Usage: /provider add <name> <baseURL> [apiKey] --yes\nExample: /provider add my-server http://192.168.0.85:8001/v1 --yes');
           return;
         }
         const [name, baseURL, apiKey] = addArgs;
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `add custom provider ${name}`, '/provider add <name> <baseURL> [apiKey] --yes');
+          return;
+        }
         if (!isValidProviderName(name)) {
           ctx.print('Error: Provider name must contain only letters, numbers, hyphens, and underscores.');
           return;
@@ -42,7 +49,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
         const providersDir = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'providers');
         const providerFile = join(providersDir, `${name}.json`);
         if (existsSync(providerFile)) {
-          ctx.print(`Error: Provider '${name}' already exists at ${providerFile}\nRemove it first with: /provider remove ${name}`);
+          ctx.print(`Error: Provider '${name}' already exists at ${providerFile}\nRemove it first with: /provider remove ${name} --yes`);
           return;
         }
 
@@ -111,10 +118,14 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
         return;
       }
 
-      if (args[0] === 'remove' || args[0] === 'rm') {
-        const name = args[1];
+      if (commandArgs[0] === 'remove' || commandArgs[0] === 'rm') {
+        const name = commandArgs[1];
         if (!name) {
-          ctx.print('Usage: /provider remove <name>');
+          ctx.print('Usage: /provider remove <name> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `remove custom provider ${name}`, '/provider remove <name> --yes');
           return;
         }
         if (!isValidProviderName(name)) {
@@ -135,7 +146,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
         return;
       }
 
-      if (args.length === 0) {
+      if (commandArgs.length === 0) {
         if (ctx.openProviderPicker) {
           ctx.openProviderPicker();
           return;
@@ -145,7 +156,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
         return;
       }
 
-      const providerName = args[0];
+      const providerName = commandArgs[0];
       const providerApi = requireProviderApi(ctx);
       const selectable = await providerApi.listModels({
         providerId: providerName,
