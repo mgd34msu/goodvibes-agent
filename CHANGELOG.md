@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.7 - 2026-05-31
+
+- Replaced active planning-loop output and tests that still described planning as TUI-owned with Agent-owned planning state and planning namespace language.
+- Added `LICENSE` to the explicit package file contract and release verification so npm tarballs cannot omit license text.
+- Prevented the operator workspace from dispatching placeholder delegation commands such as `/delegate --wrfc <task>`; those actions now provide guidance until the user supplies real task text.
+
 ## 0.1.6 - 2026-05-31
 
 - Made the publish helper use exported `NODE_AUTH_TOKEN` or `NPM_TOKEN` automatically by writing a temporary npm user config for publish commands.
