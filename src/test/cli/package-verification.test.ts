@@ -34,7 +34,6 @@ describe('package CLI install verification', () => {
     const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
     expect(parsed.scripts?.['typecheck']).toBe('bunx tsc --noEmit');
     expect(parsed.scripts?.['check:types']).toBe('bun run typecheck');
-    expect(parsed.scripts?.['audit:home']).toBe('bun run scripts/audit-goodvibes-home.ts');
   });
 
   test('compiled metadata fallbacks match package identity and SDK pin', () => {

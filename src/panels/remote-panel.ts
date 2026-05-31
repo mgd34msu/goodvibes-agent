@@ -204,8 +204,8 @@ export class RemotePanel extends BasePanel {
       ]));
     }
     postureLines.push(
-      buildGuidanceLine(width, '/remote recover', 'resume remote state with runner, capability, and disconnect recovery hints', C),
-      buildGuidanceLine(width, '/remote capabilities', 'inspect transport support before routing remote work or reattaching a session', C),
+      buildGuidanceLine(width, '/remote recover', 'resume remote state with runner support and disconnect recovery hints', C),
+      buildGuidanceLine(width, '/remote support', 'inspect transport support before routing remote work or reattaching a session', C),
     );
 
     const footerLines = [

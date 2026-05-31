@@ -46,7 +46,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
     name: 'remote',
     aliases: [],
     description: 'Inspect, dispatch, and review self-hosted remote runners and artifacts',
-    usage: '[list | show [agentId] | supervisor [runnerId] | capabilities [runnerId] | recover [runnerId] | setup [export <path> --yes] | env [export <path> --yes] | tunnel [review|export <path> --yes] | bootstrap [export <path> --yes|inspect <path>] | session <export|inspect|import> <path> [--yes] | pool <list|show|create|assign|unassign> ... | dispatch [template] <description> | dispatch-pool <pool> [template] <description> | contract [agentId] | cancel <agentId> | export <agentId> [path] --yes | artifact list | artifact show <id> | artifact export <id> [path] --yes | review <id> | rerun-local <id> | import <path> --yes]',
+    usage: '[list | show [agentId] | supervisor [runnerId] | support [runnerId] | recover [runnerId] | setup [export <path> --yes] | env [export <path> --yes] | tunnel [review|export <path> --yes] | bootstrap [export <path> --yes|inspect <path>] | session <export|inspect|import> <path> [--yes] | pool <list|show|create|assign|unassign> ... | dispatch [template] <description> | dispatch-pool <pool> [template] <description> | contract [agentId] | cancel <agentId> | export <agentId> [path] --yes | artifact list | artifact show <id> | artifact export <id> [path] --yes | review <id> | rerun-local <id> | import <path> --yes]',
     async handler(args, ctx) {
       if (args.length === 0) {
         if (ctx.openRemotePanel) {
@@ -131,7 +131,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           `  messageCount: ${selected.messageCount}`,
           `  errorCount: ${selected.errorCount}`,
           ...(selected.lastError ? [`  lastError: ${selected.lastError}`] : []),
-          '  capabilities:',
+          '  runner support:',
           ...selected.capabilities.map((capability) => `    ${capability.id}: ${capability.supported ? 'yes' : 'no'} (${capability.detail})`),
           '  recovery:',
           ...selected.recovery.map((action) => `    ${action.command} — ${action.reason}`),
@@ -139,7 +139,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      if (subcommand === 'capabilities') {
+      if (subcommand === 'support') {
         const snapshot = peerSnapshot.supervisor;
         const runnerId = args[1];
         const selected = runnerId
@@ -150,14 +150,14 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           return;
         }
         ctx.print([
-          `Remote Capabilities ${selected.runnerId}`,
+          `Remote Support ${selected.runnerId}`,
           `  label: ${selected.label}`,
           `  transport: ${selected.transportState}`,
           `  executionProtocol: ${selected.negotiation.executionProtocol}`,
           `  reviewMode: ${selected.negotiation.reviewMode}`,
           `  communicationLane: ${selected.negotiation.communicationLane}`,
           `  trustClass: ${selected.negotiation.trustClass}`,
-          '  capabilities:',
+          '  runner support:',
           ...selected.capabilities.map((capability) => (
             `    ${capability.id}: ${capability.supported ? 'supported' : 'missing'} — ${capability.detail}`
           )),

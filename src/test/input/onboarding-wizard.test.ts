@@ -209,7 +209,7 @@ describe('OnboardingWizardController', () => {
     }
   });
 
-  test('keeps daemon lifecycle external when capabilities are selected', () => {
+  test('keeps daemon lifecycle external when surfaces are selected', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
     wizard.setFieldValue('capabilities.browser-access', true);

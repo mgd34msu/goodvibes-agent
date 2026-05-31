@@ -5,6 +5,16 @@ import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates } from '../agent/runtime-profile.ts';
+import {
+  buildAgentWorkspaceChannels,
+  type AgentWorkspaceChannelStatus,
+} from './agent-workspace-channels.ts';
+import {
+  buildAgentWorkspaceSetupChecklist,
+  type AgentWorkspaceSetupChecklistItem,
+} from './agent-workspace-setup.ts';
+
+export type { AgentWorkspaceChannelRisk, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
 
 export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
@@ -31,20 +41,6 @@ export interface AgentWorkspaceCategory {
 }
 
 export type AgentWorkspaceCommandDispatcher = (command: string) => void;
-
-export type AgentWorkspaceChannelRisk = 'dm' | 'group' | 'public' | 'webhook' | 'bridge';
-
-export interface AgentWorkspaceChannelStatus {
-  readonly id: string;
-  readonly label: string;
-  readonly enabled: boolean;
-  readonly ready: boolean;
-  readonly missingConfigCount: number;
-  readonly defaultTarget: 'configured' | 'missing' | 'not-required';
-  readonly delivery: 'disabled' | 'blocked' | 'explicit-target' | 'default-ready';
-  readonly risk: AgentWorkspaceChannelRisk;
-  readonly riskLabel: string;
-}
 
 export type AgentWorkspaceActionResultKind = 'guidance' | 'blocked' | 'dispatched' | 'refreshed' | 'error';
 
@@ -100,138 +96,9 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly runtimeStarterTemplateCount: number;
   readonly localStarterTemplateCount: number;
   readonly configProfileCount: number;
+  readonly setupChecklist: readonly AgentWorkspaceSetupChecklistItem[];
   readonly warnings: readonly string[];
 }
-
-interface AgentWorkspaceChannelSpec {
-  readonly id: string;
-  readonly label: string;
-  readonly enabledKey: string;
-  readonly requiredKeys: readonly string[];
-  readonly defaultTargetKeys: readonly string[];
-  readonly risk: AgentWorkspaceChannelRisk;
-  readonly riskLabel: string;
-}
-
-const AGENT_WORKSPACE_CHANNEL_SPECS: readonly AgentWorkspaceChannelSpec[] = [
-  {
-    id: 'slack',
-    label: 'Slack',
-    enabledKey: 'surfaces.slack.enabled',
-    requiredKeys: ['surfaces.slack.botToken', 'surfaces.slack.signingSecret'],
-    defaultTargetKeys: ['surfaces.slack.defaultChannel'],
-    risk: 'group',
-    riskLabel: 'workspace/group channel',
-  },
-  {
-    id: 'discord',
-    label: 'Discord',
-    enabledKey: 'surfaces.discord.enabled',
-    requiredKeys: ['surfaces.discord.botToken', 'surfaces.discord.publicKey', 'surfaces.discord.applicationId'],
-    defaultTargetKeys: ['surfaces.discord.defaultChannelId'],
-    risk: 'group',
-    riskLabel: 'server/channel delivery',
-  },
-  {
-    id: 'telegram',
-    label: 'Telegram',
-    enabledKey: 'surfaces.telegram.enabled',
-    requiredKeys: ['surfaces.telegram.botToken'],
-    defaultTargetKeys: ['surfaces.telegram.defaultChatId'],
-    risk: 'dm',
-    riskLabel: 'bot DM/group delivery',
-  },
-  {
-    id: 'ntfy',
-    label: 'ntfy',
-    enabledKey: 'surfaces.ntfy.enabled',
-    requiredKeys: ['surfaces.ntfy.baseUrl', 'surfaces.ntfy.chatTopic', 'surfaces.ntfy.agentTopic'],
-    defaultTargetKeys: ['surfaces.ntfy.topic'],
-    risk: 'public',
-    riskLabel: 'topic-based public/private feed',
-  },
-  {
-    id: 'googleChat',
-    label: 'Google Chat',
-    enabledKey: 'surfaces.googleChat.enabled',
-    requiredKeys: ['surfaces.googleChat.webhookUrl', 'surfaces.googleChat.verificationToken'],
-    defaultTargetKeys: ['surfaces.googleChat.spaceId'],
-    risk: 'group',
-    riskLabel: 'space delivery',
-  },
-  {
-    id: 'signal',
-    label: 'Signal',
-    enabledKey: 'surfaces.signal.enabled',
-    requiredKeys: ['surfaces.signal.bridgeUrl', 'surfaces.signal.account'],
-    defaultTargetKeys: ['surfaces.signal.defaultRecipient'],
-    risk: 'bridge',
-    riskLabel: 'private bridge delivery',
-  },
-  {
-    id: 'whatsapp',
-    label: 'WhatsApp',
-    enabledKey: 'surfaces.whatsapp.enabled',
-    requiredKeys: ['surfaces.whatsapp.accessToken', 'surfaces.whatsapp.verifyToken', 'surfaces.whatsapp.phoneNumberId'],
-    defaultTargetKeys: ['surfaces.whatsapp.defaultRecipient'],
-    risk: 'dm',
-    riskLabel: 'phone-number delivery',
-  },
-  {
-    id: 'imessage',
-    label: 'iMessage',
-    enabledKey: 'surfaces.imessage.enabled',
-    requiredKeys: ['surfaces.imessage.bridgeUrl', 'surfaces.imessage.account'],
-    defaultTargetKeys: ['surfaces.imessage.defaultChatId'],
-    risk: 'bridge',
-    riskLabel: 'Apple bridge delivery',
-  },
-  {
-    id: 'bluebubbles',
-    label: 'BlueBubbles',
-    enabledKey: 'surfaces.bluebubbles.enabled',
-    requiredKeys: ['surfaces.bluebubbles.serverUrl', 'surfaces.bluebubbles.password'],
-    defaultTargetKeys: ['surfaces.bluebubbles.defaultChatGuid'],
-    risk: 'bridge',
-    riskLabel: 'iMessage bridge delivery',
-  },
-  {
-    id: 'msteams',
-    label: 'Microsoft Teams',
-    enabledKey: 'surfaces.msteams.enabled',
-    requiredKeys: ['surfaces.msteams.appId', 'surfaces.msteams.appPassword'],
-    defaultTargetKeys: ['surfaces.msteams.defaultConversationId', 'surfaces.msteams.defaultChannelId'],
-    risk: 'group',
-    riskLabel: 'tenant/channel delivery',
-  },
-  {
-    id: 'mattermost',
-    label: 'Mattermost',
-    enabledKey: 'surfaces.mattermost.enabled',
-    requiredKeys: ['surfaces.mattermost.baseUrl', 'surfaces.mattermost.botToken'],
-    defaultTargetKeys: ['surfaces.mattermost.defaultChannelId'],
-    risk: 'group',
-    riskLabel: 'team/channel delivery',
-  },
-  {
-    id: 'matrix',
-    label: 'Matrix',
-    enabledKey: 'surfaces.matrix.enabled',
-    requiredKeys: ['surfaces.matrix.homeserverUrl', 'surfaces.matrix.accessToken'],
-    defaultTargetKeys: ['surfaces.matrix.defaultRoomId'],
-    risk: 'group',
-    riskLabel: 'room delivery',
-  },
-  {
-    id: 'webhook',
-    label: 'Webhook',
-    enabledKey: 'surfaces.webhook.enabled',
-    requiredKeys: ['surfaces.webhook.defaultTarget'],
-    defaultTargetKeys: ['surfaces.webhook.defaultTarget'],
-    risk: 'webhook',
-    riskLabel: 'external HTTP delivery',
-  },
-];
 
 function readConfigString(context: CommandContext, key: string, fallback: string): string {
   try {
@@ -268,48 +135,6 @@ function readConfigBoolean(context: CommandContext, key: string, fallback: boole
   } catch {
     return fallback;
   }
-}
-
-function hasConfigValue(context: CommandContext, key: string): boolean {
-  try {
-    const configManager = context.platform?.configManager as unknown as AgentWorkspaceConfigReader | undefined;
-    const value = configManager?.get(key);
-    if (typeof value === 'string') return value.trim().length > 0;
-    if (typeof value === 'number') return Number.isFinite(value);
-    if (typeof value === 'boolean') return value;
-    return value !== null && value !== undefined;
-  } catch {
-    return false;
-  }
-}
-
-function buildChannelStatus(context: CommandContext, spec: AgentWorkspaceChannelSpec): AgentWorkspaceChannelStatus {
-  const enabled = readConfigBoolean(context, spec.enabledKey, false);
-  const missingConfigCount = spec.requiredKeys.filter((key) => !hasConfigValue(context, key)).length;
-  const defaultTarget = spec.defaultTargetKeys.length === 0
-    ? 'not-required'
-    : spec.defaultTargetKeys.some((key) => hasConfigValue(context, key))
-      ? 'configured'
-      : 'missing';
-  const ready = enabled && missingConfigCount === 0;
-  const delivery = !enabled
-    ? 'disabled'
-    : !ready
-      ? 'blocked'
-      : defaultTarget === 'configured'
-        ? 'default-ready'
-        : 'explicit-target';
-  return {
-    id: spec.id,
-    label: spec.label,
-    enabled,
-    ready,
-    missingConfigCount,
-    defaultTarget,
-    delivery,
-    risk: spec.risk,
-    riskLabel: spec.riskLabel,
-  };
 }
 
 function inferActiveRuntimeProfile(homeDirectory: string): string {
@@ -408,6 +233,24 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const ttsVoice = readConfigString(context, 'tts.voice', '(voice default)');
   const ttsLlmProvider = readConfigString(context, 'tts.llmProvider', '');
   const ttsLlmModel = readConfigString(context, 'tts.llmModel', '');
+  const daemonBaseUrl = `http://${host}:${port}`;
+  const channels = buildAgentWorkspaceChannels(context);
+  const setupChecklist = buildAgentWorkspaceSetupChecklist({
+    provider,
+    model,
+    daemonBaseUrl,
+    sessionMemoryCount,
+    routineCount: routineSnapshot.count,
+    enabledRoutineCount: routineSnapshot.enabled,
+    skillCount: skillSnapshot.count,
+    enabledSkillCount: skillSnapshot.enabled,
+    activePersonaName: personaSnapshot.activeName,
+    readyChannelCount: channels.filter((channel) => channel.ready).length,
+    voiceProviderCount: voiceProviders.length,
+    mediaProviderCount: mediaProviders.length,
+    runtimeProfileCount: runtimeProfiles.length,
+    runtimeStarterTemplateCount: runtimeStarterTemplates.length,
+  });
 
   return {
     provider,
@@ -416,7 +259,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     sessionId: context.session?.runtime?.sessionId ?? 'unknown',
     workingDirectory: context.workspace?.shellPaths?.workingDirectory ?? 'unavailable',
     homeDirectory: context.workspace?.shellPaths?.homeDirectory ?? 'unavailable',
-    daemonBaseUrl: `http://${host}:${port}`,
+    daemonBaseUrl,
     daemonOwnership: 'external',
     sessionMemoryCount,
     localRoutineCount: routineSnapshot.count,
@@ -429,7 +272,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     knowledgeIsolation: 'agent-only',
     executionPolicy: 'serial-proactive',
     wrfcPolicy: 'explicit-build-delegation-only',
-    channels: AGENT_WORKSPACE_CHANNEL_SPECS.map((spec) => buildChannelStatus(context, spec)),
+    channels,
     voiceProviderCount: voiceProviders.length,
     voiceStreamingProviderCount: voiceProviders.filter((entry) => entry.capabilities.includes('tts-stream')).length,
     voiceSttProviderCount: voiceProviders.filter((entry) => entry.capabilities.includes('stt')).length,
@@ -449,6 +292,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     runtimeStarterTemplateCount: runtimeStarterTemplates.length,
     localStarterTemplateCount: runtimeStarterTemplates.filter((template) => template.source === 'local').length,
     configProfileCount,
+    setupChecklist,
     warnings,
   };
 }
@@ -514,7 +358,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'SETUP',
     label: 'Voice, Media & Nodes',
     summary: 'Voice, TTS, image input, browser surface, and node/remote posture.',
-    detail: 'Voice, media, browser, and node surfaces are first-class operator capabilities. Agent uses the GoodVibes voice/media/provider/browser/remote bones while keeping daemon ownership external and side effects explicit.',
+    detail: 'Voice, media, browser, and node surfaces are first-class operator surfaces. Agent uses the GoodVibes voice/media/provider/browser/remote bones while keeping daemon ownership external and side effects explicit.',
     actions: [
       { id: 'tts-config', label: 'Configure live TTS', detail: 'Open the TUI-derived config workspace at the TTS settings group.', command: '/config tts', kind: 'command', safety: 'safe' },
       { id: 'tts-provider', label: 'Choose TTS provider', detail: 'Open provider/model routing for spoken responses through the settings flow.', command: '/config tts.provider', kind: 'command', safety: 'safe' },

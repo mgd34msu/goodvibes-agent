@@ -63,7 +63,6 @@
     "build:all": "bun run scripts/build.ts --all",
     "perf:check": "bun run scripts/perf-check.ts",
     "architecture:check": "bun run scripts/check-architecture.ts",
-    "audit:home": "bun run scripts/audit-goodvibes-home.ts",
     "foundation:artifacts": "bun run scripts/export-foundation-artifacts.ts",
     "verification:ledger": "bun run scripts/verification-ledger.ts",
     "verification:live": "bun run scripts/verify-live.ts",

@@ -41,7 +41,6 @@ All notable changes to GoodVibes Agent will be recorded here.
 ## 0.1.38 - 2026-05-31
 
 - 072503c Add routine schedule promotion receipts
-- 5bb9801 Update automation capability benchmark
 
 ## 0.1.37 - 2026-05-31
 
@@ -85,8 +84,6 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 ## 0.1.27 - 2026-05-31
 
-- b5be172 Add capabilities CLI handler
-- cafe1fb Add Agent capability benchmark surface
 
 ## 0.1.26 - 2026-05-31
 

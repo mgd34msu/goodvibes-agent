@@ -131,7 +131,7 @@ Key remote API paths include:
 
 - `/remote`
 - `/remote show <runner>`
-- `/remote capabilities [runner]`
+- `/remote support [runner]`
 - `/remote recover [runner]`
 - `/remote dispatch ...`
 - `/remote dispatch-pool <pool> ...`

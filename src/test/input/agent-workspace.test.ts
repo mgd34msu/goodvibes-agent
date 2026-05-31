@@ -146,6 +146,41 @@ describe('AgentWorkspace', () => {
     expect(JSON.stringify(snapshot.channels)).not.toContain('DISCORD_BOT_TOKEN');
   });
 
+  test('builds a first-run setup checklist from live Agent state', () => {
+    const configValues = new Map<string, unknown>([
+      ['controlPlane.host', '127.0.0.1'],
+      ['controlPlane.port', 3421],
+      ['surfaces.slack.enabled', true],
+      ['surfaces.slack.botToken', 'goodvibes://secrets/goodvibes/SLACK_BOT_TOKEN'],
+      ['surfaces.slack.signingSecret', 'goodvibes://secrets/goodvibes/SLACK_SIGNING_SECRET'],
+      ['surfaces.slack.defaultChannel', '#ops'],
+    ]);
+    const snapshot = buildAgentWorkspaceRuntimeSnapshot({
+      ...commandContext(),
+      session: {
+        runtime: {
+          model: 'openai:gpt-5.5',
+          provider: 'openai-subscriber',
+          sessionId: 'agent-session-1',
+        },
+        sessionMemoryStore: { list: () => [{ id: 'mem-1' }] },
+      },
+      platform: {
+        configManager: {
+          get: (key: string) => configValues.get(key),
+        },
+      },
+    } as unknown as CommandContext);
+    const byId = new Map(snapshot.setupChecklist.map((item) => [item.id, item]));
+
+    expect(byId.get('daemon')?.status).toBe('ready');
+    expect(byId.get('provider-model')?.status).toBe('ready');
+    expect(byId.get('agent-knowledge')?.status).toBe('recommended');
+    expect(byId.get('memory')?.status).toBe('ready');
+    expect(byId.get('channels')?.status).toBe('ready');
+    expect(JSON.stringify(snapshot.setupChecklist)).not.toContain('SLACK_BOT_TOKEN');
+  });
+
   test('exposes Agent Knowledge review queue without default wiki fallback', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

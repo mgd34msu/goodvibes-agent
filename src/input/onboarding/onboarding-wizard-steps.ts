@@ -114,7 +114,7 @@ export function buildCapabilitiesStep(controller: OnboardingWizardController): O
         kind: 'action',
         id: 'capabilities.select-all',
         action: 'select-all-capabilities',
-        label: 'Review external-daemon capabilities',
+        label: 'Review external-daemon surfaces',
         hint: 'Review browser, LAN, webhooks/events, and external app surfaces without letting Agent own daemon lifecycle.',
         defaultValue: 'Action',
       },
@@ -123,17 +123,17 @@ export function buildCapabilitiesStep(controller: OnboardingWizardController): O
         id: 'capabilities.clear',
         action: 'clear-capabilities',
         label: 'Keep Agent local-only',
-        hint: 'Clear external-daemon capabilities and keep Agent work in this terminal conversation.',
+        hint: 'Clear external-daemon surfaces and keep Agent work in this terminal conversation.',
         defaultValue: 'Action',
       },
     ];
 
     return {
       id: 'capabilities',
-      title: 'Choose GoodVibes capabilities',
+      title: 'Choose GoodVibes surfaces',
       shortLabel: 'Capabilities',
-      description: 'Choose what Agent should prepare locally. Daemon-backed capabilities are reviewed as external dependencies; Agent does not enable service mode or autostart.',
-      summaryTitle: 'Selected capabilities',
+      description: 'Choose what Agent should prepare locally. Daemon-backed surfaces are reviewed as external dependencies; Agent does not enable service mode or autostart.',
+      summaryTitle: 'Selected surfaces',
       summaryLines: [
         `${selectedCount}/${capabilities.length} option(s) selected`,
         `Mode: ${controller.mode === 'edit' ? 'edit existing shell state' : controller.mode === 'reopen' ? 'reopen review flow' : 'new setup'}`,
@@ -327,7 +327,7 @@ export function buildExternalServicesStep(controller: OnboardingWizardController
         id: 'external-services.clear',
         action: 'clear-external-surfaces',
         label: 'Clear all external surfaces',
-        hint: 'Hide all external surface setup screens. The HTTP listener can still be enabled separately by webhook/event capabilities.',
+        hint: 'Hide all external surface setup screens. The HTTP listener can still be enabled separately by webhook/event settings.',
         defaultValue: 'Action',
       },
       {
@@ -705,7 +705,7 @@ export function buildAccountsStep(controller: OnboardingWizardController): Onboa
             ? 'An existing local auth admin user was detected and will be kept.'
             : controller.hasLocalAuthUser()
               ? 'Existing local auth users were detected and will be kept.'
-              : 'No server-backed capability is selected, so local auth is not required.',
+              : 'No server-backed surface is selected, so local auth is not required.',
         defaultValue: needsAuthBootstrap
           ? controller.hasBootstrapCredentialPresent() ? 'Bootstrap replacement required' : 'Local admin required'
           : controller.hasAdminAuthUser() ? 'Admin detected' : controller.hasLocalAuthUser() ? 'Local auth detected' : 'Not required',

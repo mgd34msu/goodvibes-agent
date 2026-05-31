@@ -160,6 +160,23 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('serial-proactive');
   });
 
+  test('renders setup checklist in the setup workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
+
+    expect(output).toContain('Setup Checklist');
+    expect(output).toContain('READY Provider and model -> /model');
+    expect(output).toContain('RECOMMENDED Agent Knowledge -> /knowledge status');
+    expect(output).toContain('READY Persona -> /personas');
+    expect(output).toContain('READY Skills -> /agent-skills');
+    expect(output).toContain('READY Routines -> /routines');
+    expect(output).toContain('READY Channels -> /pair');
+    expect(output).not.toContain('SLACK_BOT_TOKEN');
+  });
+
   test('renders local persona posture in the memory workspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);

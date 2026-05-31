@@ -72,6 +72,33 @@ function actionCommand(action: AgentWorkspaceAction): string {
 
 type ContextLine = { readonly text: string; readonly fg?: string; readonly bold?: boolean; readonly dim?: boolean };
 
+function setupStatusColor(status: AgentWorkspaceRuntimeSnapshot['setupChecklist'][number]['status']): string {
+  if (status === 'ready') return PALETTE.good;
+  if (status === 'recommended') return PALETTE.warn;
+  if (status === 'blocked') return PALETTE.bad;
+  return PALETTE.muted;
+}
+
+function setupChecklistLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const readyCount = snapshot.setupChecklist.filter((item) => item.status === 'ready').length;
+  const recommendedCount = snapshot.setupChecklist.filter((item) => item.status === 'recommended').length;
+  const blockedCount = snapshot.setupChecklist.filter((item) => item.status === 'blocked').length;
+  const lines: ContextLine[] = [
+    { text: 'Setup Checklist', fg: PALETTE.title, bold: true },
+    { text: `${readyCount}/${snapshot.setupChecklist.length} ready; ${recommendedCount} recommended; ${blockedCount} blocked`, fg: blockedCount > 0 ? PALETTE.warn : PALETTE.info },
+  ];
+  for (const item of snapshot.setupChecklist) {
+    const command = item.command ? ` -> ${item.command}` : '';
+    lines.push({
+      text: `${item.status.toUpperCase()} ${item.label}${command}`,
+      fg: setupStatusColor(item.status),
+      bold: item.status === 'blocked',
+    });
+    lines.push({ text: `  ${item.detail}`, fg: PALETTE.muted });
+  }
+  return lines;
+}
+
 function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   if (!snapshot) return [{ text: 'Runtime context is not loaded yet.', fg: PALETTE.warn }];
   const base: ContextLine[] = [{ text: 'Live Agent Context', fg: PALETTE.title, bold: true }];
@@ -87,14 +114,8 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: `Daemon ownership: ${snapshot.daemonOwnership}; Agent never starts or restarts it`, fg: PALETTE.good },
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
       { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
-    );
-  } else if (category.id === 'capabilities') {
-    base.push(
-      { text: `External daemon: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
-      { text: 'Live audit source: /api/control-plane/methods plus /api/goodvibes-agent/knowledge/status.', fg: PALETTE.info },
-      { text: 'Isolation: no default Knowledge/Wiki, HomeGraph, or Home Assistant route is used for Agent Knowledge coverage.', fg: PALETTE.good },
-      { text: 'Readiness meaning: daemon route coverage is platform capability; missing Agent UX remains a product gap to close here.', fg: PALETTE.muted },
-      { text: 'Use filtered audits for knowledge, channels, automation, voice/media/nodes, providers, MCP/tools, approvals, or sessions.', fg: PALETTE.muted },
+      { text: '' },
+      ...setupChecklistLines(snapshot),
     );
   } else if (category.id === 'channels') {
     const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
@@ -275,10 +296,17 @@ function footerText(workspace: AgentWorkspace): string {
 }
 
 export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, height: number): Line[] {
-  const layoutOptions = { width, height, leftWidth: width < 90 ? undefined : 30, contextRatio: 0.62, minContextRows: 10 };
-  const metrics = getFullscreenWorkspaceMetrics(layoutOptions);
   const category = workspace.selectedCategory;
   const action = workspace.selectedAction;
+  const setupCategory = category.id === 'setup';
+  const layoutOptions = {
+    width,
+    height,
+    leftWidth: width < 90 ? undefined : 30,
+    contextRatio: setupCategory ? 0.86 : 0.62,
+    minContextRows: setupCategory ? 18 : 10,
+  };
+  const metrics = getFullscreenWorkspaceMetrics(layoutOptions);
 
   return renderFullscreenWorkspace({
     width,

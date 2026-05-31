@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
-import { auditGoodVibesHome } from '../config/goodvibes-home-audit.ts';
 import { buildVerificationLedger } from './verification-ledger.ts';
 import { SDK_VERSION } from '../version.ts';
 
@@ -307,20 +306,6 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     status: ledger.totals.localSignalPercent >= 90 ? 'pass' : 'fail',
     summary: `${ledger.totals.localSignalPercent}% local verification signal across ${ledger.totals.total} inventory items.`,
     detail: `${ledger.totals.localBehaviorPercent}% local behavior verified; ${ledger.totals.externalOutcomeRequired} item(s) require external outcomes.`,
-  });
-
-  const audit = await auditGoodVibesHome({ homeDir });
-  const staleCandidates = audit.settings?.staleCandidates?.length ?? 0;
-  checks.push({
-    id: 'goodvibes-home-audit',
-    title: 'GoodVibes home ownership/settings audit',
-    status: audit.findings.length === 0 && staleCandidates === 0 ? 'pass' : 'warn',
-    summary: audit.findings.length === 0
-      ? 'No ownership, stale-setting, or secret-permission findings.'
-      : `${audit.findings.length} audit finding(s).`,
-    detail: audit.findings.length === 0
-      ? `${audit.settings?.recognizedKeyCount ?? 0} current schema key(s), ${staleCandidates} stale candidate(s).`
-      : audit.findings.map((finding) => `${finding.severity}: ${finding.message}`).join('\n'),
   });
 
   checks.push({

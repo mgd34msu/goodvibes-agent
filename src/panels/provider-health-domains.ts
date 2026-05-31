@@ -104,7 +104,7 @@ export function buildProviderHealthDomainSummaries(
           .slice(0, 3)
           .map((entry) => `${entry.runnerId}: transport=${entry.transportState} heartbeat=${entry.heartbeat.status}${entry.lastError ? ` error=${entry.lastError}` : ''}`),
     nextSteps: remote.supervisor.degradedConnections > 0
-      ? ['/remote supervisor', '/remote recover <runnerId>', '/remote capabilities']
+      ? ['/remote supervisor', '/remote recover <runnerId>', '/remote support']
       : ['/remote supervisor'],
   });
 
