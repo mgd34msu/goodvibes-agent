@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.18 - 2026-05-31
+
+- 1fd7729 Restrict state tool mutations in agent runtime
+
 ## 0.1.17 - 2026-05-31
 
 - f148186 Restrict fetch side effects in agent runtime
