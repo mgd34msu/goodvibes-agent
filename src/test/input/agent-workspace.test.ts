@@ -101,6 +101,34 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/pair');
   });
 
+  test('dispatches live daemon capability audit from the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'capabilities');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'capabilities-daemon');
+
+    workspace.activateSelected();
+
+    expect(workspace.selectedCategory.detail).toContain('/api/goodvibes-agent/knowledge');
+    expect(workspace.selectedAction?.detail).toContain('Does not query default Knowledge/Wiki or HomeGraph');
+    expect(dispatched).toEqual(['/capabilities daemon']);
+    expect(workspace.status).toContain('/capabilities daemon');
+  });
+
+  test('dispatches filtered daemon capability audit from the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'capabilities');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'capabilities-daemon-knowledge');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/capabilities daemon knowledge']);
+    expect(workspace.status).toContain('/capabilities daemon knowledge');
+  });
+
   test('keeps channel delivery safety guidance local', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

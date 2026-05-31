@@ -78,7 +78,7 @@ Use `goodvibes-agent capabilities daemon` for the live read-only daemon audit. I
 
 GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true from day one:
 
-- Capability surfaces are discoverable through `goodvibes-agent capabilities`, `/capabilities`, onboarding, and the operator workspace.
+- Capability surfaces are discoverable through `goodvibes-agent capabilities`, `goodvibes-agent capabilities daemon`, `/capabilities`, `/capabilities daemon`, onboarding, and the operator workspace.
 - Agent Knowledge isolation is a release gate, not a convention.
 - Routine-to-schedule promotion preserves Agent Knowledge isolation, uses only public external daemon schedule routes, supports explicit delivery targets, and stores redacted receipts.
 - Model-visible tools are policy-gated for serial, non-secret, non-destructive use.

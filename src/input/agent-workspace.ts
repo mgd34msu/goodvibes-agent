@@ -481,6 +481,20 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     ],
   },
   {
+    id: 'capabilities',
+    group: 'SETUP',
+    label: 'Capabilities',
+    summary: 'OpenClaw/Hermes benchmark and live daemon coverage.',
+    detail: 'Use this area to measure both layers: what GoodVibes Agent makes usable, and what the externally owned GoodVibes daemon actually exposes through public routes. Agent Knowledge is checked only through /api/goodvibes-agent/knowledge/*.',
+    actions: [
+      { id: 'capabilities-benchmark', label: 'Benchmark report', detail: 'Show the OpenClaw/Hermes parity benchmark with Agent posture, setup commands, usage paths, and remaining product gaps.', command: '/capabilities', kind: 'command', safety: 'read-only' },
+      { id: 'capabilities-daemon', label: 'Live daemon audit', detail: 'Inspect the public daemon method catalog plus isolated Agent Knowledge route coverage. Does not query default Knowledge/Wiki or HomeGraph.', command: '/capabilities daemon', kind: 'command', safety: 'read-only' },
+      { id: 'capabilities-daemon-knowledge', label: 'Knowledge coverage', detail: 'Filter the live daemon audit to the isolated Agent Knowledge segment.', command: '/capabilities daemon knowledge', kind: 'command', safety: 'read-only' },
+      { id: 'capabilities-daemon-channels', label: 'Channel coverage', detail: 'Filter the live daemon audit to channel and delivery gateway route coverage.', command: '/capabilities daemon channels', kind: 'command', safety: 'read-only' },
+      { id: 'capabilities-daemon-automation', label: 'Automation coverage', detail: 'Filter the live daemon audit to automation, schedule, run, and capacity route coverage.', command: '/capabilities daemon automation', kind: 'command', safety: 'read-only' },
+    ],
+  },
+  {
     id: 'channels',
     group: 'SETUP',
     label: 'Channels',

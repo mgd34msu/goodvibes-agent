@@ -88,6 +88,14 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
       { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
     );
+  } else if (category.id === 'capabilities') {
+    base.push(
+      { text: `External daemon: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
+      { text: 'Live audit source: /api/control-plane/methods plus /api/goodvibes-agent/knowledge/status.', fg: PALETTE.info },
+      { text: 'Isolation: no default Knowledge/Wiki, HomeGraph, or Home Assistant route is used for Agent Knowledge coverage.', fg: PALETTE.good },
+      { text: 'Readiness meaning: daemon route coverage is platform capability; missing Agent UX remains a product gap to close here.', fg: PALETTE.muted },
+      { text: 'Use filtered audits for knowledge, channels, automation, voice/media/nodes, providers, MCP/tools, approvals, or sessions.', fg: PALETTE.muted },
+    );
   } else if (category.id === 'channels') {
     const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
     const readyCount = snapshot.channels.filter((channel) => channel.ready).length;

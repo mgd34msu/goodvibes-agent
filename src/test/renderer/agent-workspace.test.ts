@@ -193,6 +193,25 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('Home Assistant');
   });
 
+  test('renders daemon capability audit workflow without default knowledge fallback', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'capabilities');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 38));
+
+    expect(output).toContain('Capabilities');
+    expect(output).toContain('OpenClaw/Hermes benchmark and live daemon coverage');
+    expect(output).toContain('/api/control-plane/methods');
+    expect(output).toContain('/api/goodvibes-agent/knowledge/status');
+    expect(output).toContain('no default Knowledge/Wiki, HomeGraph, or Home Assistant route');
+    expect(output).toContain('/capabilities daemon');
+    expect(output).toContain('/capabilities daemon knowledge');
+    expect(output).toContain('/capabilities daemon channels');
+    expect(output).toContain('/capabilities daemon automation');
+    expect(output).not.toContain('/api/knowledge/status');
+  });
+
   test('renders voice media browser and node setup posture', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
