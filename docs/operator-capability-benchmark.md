@@ -30,11 +30,18 @@ Inside the TUI:
 Primary sources used for the benchmark:
 
 - OpenClaw README: https://github.com/openclaw/openclaw/blob/main/README.md
+- OpenClaw Docs: https://docs.openclaw.ai/
+- OpenClaw Features: https://docs.openclaw.ai/concepts/features
 - OpenClaw FAQ: https://docs.openclaw.ai/help/faq
 - OpenClaw Memory: https://docs.openclaw.ai/concepts/memory
 - Hermes README: https://github.com/NousResearch/hermes-agent
+- Hermes Features Overview: https://hermes-agent.nousresearch.com/docs/user-guide/features/overview/
 - Hermes Tools: https://hermes-agent.nousresearch.com/docs/user-guide/features/tools/
+- Hermes Skills: https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/
 - Hermes Cron: https://hermes-agent.nousresearch.com/docs/user-guide/features/cron/
+- Hermes MCP: https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp/
+- Hermes Voice: https://hermes-agent.nousresearch.com/docs/user-guide/features/voice-mode/
+- Hermes API Server: https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server/
 - Hermes Profiles: https://hermes-agent.nousresearch.com/docs/user-guide/profiles/
 
 ## Capability Targets
@@ -43,7 +50,7 @@ Primary sources used for the benchmark:
 | --- | --- | --- |
 | Terminal operator UI | Interactive CLI/TUI, commands, sessions | Near-fork GoodVibes TUI compositor/input/fullscreen foundation |
 | Always-on gateway | Gateway/service owns channels, sessions, tools, events | External GoodVibes daemon, never Agent-owned lifecycle |
-| Channels | WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat | GoodVibes daemon channel and companion surfaces with Agent-side policy and a Channels operator workspace |
+| Channels | WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat | GoodVibes daemon channel and companion surfaces with Agent-side policy, a Channels operator workspace, and per-channel readiness/risk labels |
 | Knowledge/memory | Durable memory, semantic search, wiki/claim layers | Isolated Agent Knowledge routes plus local memory/skills/personas/routines |
 | Skills/procedural memory | Skills directories, registries, skill lifecycle | Local Agent skills with review/stale/source/provenance fields |
 | Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Guarded automation/schedule routes plus local routines; hidden model scheduling blocked |
@@ -66,7 +73,7 @@ GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true fr
 
 ## Current Gaps To Close
 
-- Per-channel account readiness, delivery defaults, and risk labels in the Channels workspace detail pane.
+- Live daemon account health and last delivery errors in the Channels workspace once a stable read-only route is available.
 - Richer Agent Knowledge ingest/review workspace for URLs, bookmarks, artifacts, issue queues, and consolidation.
 - Profile-aware onboarding summaries and profile export/import shortcuts from the Agent workspace.
 - Voice/media/browser/node setup workspaces.

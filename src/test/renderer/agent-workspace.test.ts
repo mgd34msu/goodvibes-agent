@@ -25,6 +25,16 @@ function commandContext(): CommandContext {
 function liveCommandContext(): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+  const configValues = new Map<string, unknown>([
+    ['controlPlane.host', '127.0.0.1'],
+    ['controlPlane.port', 3421],
+    ['surfaces.slack.enabled', true],
+    ['surfaces.slack.botToken', 'goodvibes://secrets/goodvibes/SLACK_BOT_TOKEN'],
+    ['surfaces.slack.signingSecret', 'goodvibes://secrets/goodvibes/SLACK_SIGNING_SECRET'],
+    ['surfaces.slack.defaultChannel', 'ops-alerts'],
+    ['surfaces.telegram.enabled', true],
+    ['surfaces.telegram.botToken', 'goodvibes://secrets/goodvibes/TELEGRAM_BOT_TOKEN'],
+  ]);
   const personas = AgentPersonaRegistry.fromShellPaths(shellPaths);
   personas.create({
     name: 'Research Analyst',
@@ -76,7 +86,7 @@ function liveCommandContext(): CommandContext {
     },
     platform: {
       configManager: {
-        get: (key: string) => key === 'controlPlane.port' ? 3421 : key === 'controlPlane.host' ? '127.0.0.1' : undefined,
+        get: (key: string) => configValues.get(key),
       },
     },
   } as unknown as CommandContext;
@@ -152,6 +162,13 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('external delivery');
     expect(output).toContain('explicit policy and user');
     expect(output).toContain('action.');
+    expect(output).toContain('Readiness: 2/13 ready; 2 enabled; 1 default target(s) configured.');
+    expect(output).toContain('Slack: enabled; ready; default configured; delivery default-ready; risk workspace/group channel.');
+    expect(output).toContain('Telegram: enabled; ready; default missing; delivery explicit-target; risk bot DM/group delivery.');
+    expect(output).toContain('Disabled channels: Discord, ntfy');
+    expect(output).toContain('WhatsApp');
+    expect(output).not.toContain('SLACK_BOT_TOKEN');
+    expect(output).not.toContain('TELEGRAM_BOT_TOKEN');
   });
 
   test('renders action feedback and refresh affordance', () => {

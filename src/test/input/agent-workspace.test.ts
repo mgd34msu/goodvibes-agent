@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
-import { AgentWorkspace, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
+import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
 import { registerAgentWorkspaceRuntimeCommands } from '../../input/commands/agent-workspace-runtime.ts';
 
 function commandContext(calls: string[] = []): CommandContext {
@@ -107,6 +107,37 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
     expect(workspace.lastActionResult?.kind).toBe('guidance');
     expect(workspace.status).toContain('will not silently send');
+  });
+
+  test('summarizes channel readiness without exposing secret config values', () => {
+    const configValues = new Map<string, unknown>([
+      ['surfaces.slack.enabled', true],
+      ['surfaces.slack.botToken', 'goodvibes://secrets/goodvibes/SLACK_BOT_TOKEN'],
+      ['surfaces.slack.signingSecret', 'goodvibes://secrets/goodvibes/SLACK_SIGNING_SECRET'],
+      ['surfaces.slack.defaultChannel', '#ops'],
+      ['surfaces.discord.enabled', true],
+      ['surfaces.discord.botToken', 'goodvibes://secrets/goodvibes/DISCORD_BOT_TOKEN'],
+    ]);
+    const snapshot = buildAgentWorkspaceRuntimeSnapshot({
+      ...commandContext(),
+      platform: {
+        configManager: {
+          get: (key: string) => configValues.get(key),
+        },
+      },
+    } as unknown as CommandContext);
+
+    const slack = snapshot.channels.find((channel) => channel.id === 'slack');
+    const discord = snapshot.channels.find((channel) => channel.id === 'discord');
+
+    expect(snapshot.channels).toHaveLength(13);
+    expect(slack?.ready).toBe(true);
+    expect(slack?.defaultTarget).toBe('configured');
+    expect(slack?.delivery).toBe('default-ready');
+    expect(discord?.ready).toBe(false);
+    expect(discord?.missingConfigCount).toBe(2);
+    expect(JSON.stringify(snapshot.channels)).not.toContain('SLACK_BOT_TOKEN');
+    expect(JSON.stringify(snapshot.channels)).not.toContain('DISCORD_BOT_TOKEN');
   });
 
   test('blocks copied TUI-only blocked commands inside the workspace', () => {

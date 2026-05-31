@@ -89,12 +89,26 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
     );
   } else if (category.id === 'channels') {
+    const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
+    const readyCount = snapshot.channels.filter((channel) => channel.ready).length;
+    const configuredDefaults = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
+    const disabledChannels = snapshot.channels.filter((channel) => !channel.enabled).map((channel) => channel.label).join(', ');
     base.push(
       { text: `External daemon: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
+      { text: `Readiness: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} default target(s) configured.`, fg: PALETTE.info },
+      { text: `Disabled channels: ${disabledChannels || 'none'}.`, fg: PALETTE.dim },
       { text: 'Pairing: use /pair or /qrcode for companion setup.', fg: PALETTE.info },
       { text: 'Channel posture: inspect via /communication and /setup review.', fg: PALETTE.muted },
       { text: 'Safety: external delivery, unknown senders, and public exposure require explicit policy and user action.', fg: PALETTE.warn },
     );
+    for (const channel of snapshot.channels) {
+      const enabled = channel.enabled ? 'enabled' : 'disabled';
+      const ready = channel.ready ? 'ready' : `${channel.missingConfigCount} missing`;
+      base.push({
+        text: `${channel.label}: ${enabled}; ${ready}; default ${channel.defaultTarget}; delivery ${channel.delivery}; risk ${channel.riskLabel}.`,
+        fg: channel.ready ? PALETTE.good : channel.enabled ? PALETTE.warn : PALETTE.dim,
+      });
+    }
   } else if (category.id === 'knowledge') {
     base.push(
       { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },
@@ -229,7 +243,8 @@ function footerText(workspace: AgentWorkspace): string {
 }
 
 export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, height: number): Line[] {
-  const metrics = getFullscreenWorkspaceMetrics({ width, height, leftWidth: width < 90 ? undefined : 30, contextRatio: 0.48, minContextRows: 8 });
+  const layoutOptions = { width, height, leftWidth: width < 90 ? undefined : 30, contextRatio: 0.62, minContextRows: 10 };
+  const metrics = getFullscreenWorkspaceMetrics(layoutOptions);
   const category = workspace.selectedCategory;
   const action = workspace.selectedAction;
 
@@ -244,5 +259,8 @@ export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, h
     contextRows: buildContextRows(workspace, category, action, metrics.contextWidth),
     controlRows: buildActionRows(workspace, metrics.contextWidth, metrics.controlRows),
     footer: footerText(workspace),
+    leftWidth: layoutOptions.leftWidth,
+    contextRatio: layoutOptions.contextRatio,
+    minContextRows: layoutOptions.minContextRows,
   });
 }

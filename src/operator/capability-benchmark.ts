@@ -30,11 +30,18 @@ export interface OperatorCapabilityBenchmarkReport {
 
 export const OPERATOR_CAPABILITY_BENCHMARK_SOURCES = [
   'https://github.com/openclaw/openclaw/blob/main/README.md',
+  'https://docs.openclaw.ai/',
+  'https://docs.openclaw.ai/concepts/features',
   'https://docs.openclaw.ai/help/faq',
   'https://docs.openclaw.ai/concepts/memory',
   'https://github.com/NousResearch/hermes-agent',
+  'https://hermes-agent.nousresearch.com/docs/user-guide/features/overview/',
   'https://hermes-agent.nousresearch.com/docs/user-guide/features/tools/',
+  'https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/',
   'https://hermes-agent.nousresearch.com/docs/user-guide/features/cron/',
+  'https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp/',
+  'https://hermes-agent.nousresearch.com/docs/user-guide/features/voice-mode/',
+  'https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server/',
   'https://hermes-agent.nousresearch.com/docs/user-guide/profiles/',
 ] as const;
 
@@ -69,11 +76,11 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     posture: 'configurable',
     competitors: ['openclaw', 'hermes'],
     competitorBaseline: 'Messaging gateway for WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat, and related platforms.',
-    goodvibesAgent: 'Uses GoodVibes daemon channel, companion, pairing, QR, communication, and session surfaces while keeping side effects behind explicit user action. The Agent workspace exposes channel setup and safety as a first-class operator area.',
+    goodvibesAgent: 'Uses GoodVibes daemon channel, companion, pairing, QR, communication, and session surfaces while keeping side effects behind explicit user action. The Agent workspace exposes channel setup, per-channel readiness, default-target posture, and risk labels as a first-class operator area.',
     configure: ['goodvibes-agent pair', 'goodvibes-agent qrcode', 'goodvibes-agent surfaces check', '/agent → Channels'],
     use: ['/agent → Channels', '/communication', '/pair'],
-    exceedsBy: ['Agent-owned safety policy over shared channel routes', 'read-only inspection by default', 'explicit approval path for external side effects', 'channel setup discoverable from the fullscreen operator workspace'],
-    next: ['Add per-channel account readiness, delivery defaults, and risk labels directly in the Channels workspace detail pane.'],
+    exceedsBy: ['Agent-owned safety policy over shared channel routes', 'read-only inspection by default', 'explicit approval path for external side effects', 'channel setup discoverable from the fullscreen operator workspace', 'per-channel readiness and delivery defaults shown without leaking token values'],
+    next: ['Pull live daemon account health and last delivery errors into the Channels workspace when a stable read-only route is available.'],
   },
   {
     id: 'isolated-knowledge-wiki',
