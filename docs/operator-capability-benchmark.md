@@ -15,6 +15,9 @@ Use the live benchmark from the package:
 goodvibes-agent capabilities
 goodvibes-agent capabilities --json
 goodvibes-agent capabilities hermes
+goodvibes-agent capabilities daemon
+goodvibes-agent capabilities daemon --json
+goodvibes-agent capabilities daemon knowledge
 ```
 
 Inside the TUI:
@@ -23,6 +26,7 @@ Inside the TUI:
 /capabilities
 /capabilities openclaw
 /capabilities knowledge
+/capabilities daemon
 ```
 
 ## Research Baseline
@@ -51,6 +55,8 @@ The benchmark measures two different GoodVibes layers:
 - Agent usability: what GoodVibes Agent makes configurable, visible, safe, and usable from day one.
 
 If the daemon already has a route but Agent lacks a good setup/workspace/CLI surface, the gap is treated as an Agent product gap rather than a missing platform capability.
+
+Use `goodvibes-agent capabilities daemon` for the live read-only daemon audit. It checks the public control-plane method catalog and the isolated Agent Knowledge status route. It intentionally does not call default `/api/knowledge/*`, HomeGraph, or Home Assistant routes.
 
 ## Capability Targets
 

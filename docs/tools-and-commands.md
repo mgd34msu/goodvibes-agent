@@ -18,6 +18,7 @@ High-signal Agent command families:
 
 - `/help` for registry-driven command discovery.
 - `/status`, `/auth`, and `/compat` for daemon/auth/SDK diagnostics.
+- `/capabilities` for the OpenClaw/Hermes benchmark; `/capabilities daemon` checks the live GoodVibes daemon method catalog plus isolated Agent Knowledge route coverage.
 - `/model` and `/provider` for provider/model selection and visibility.
 - `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, and ingest.
 - `goodvibes-agent ask <question>` and `goodvibes-agent search <query>` are CLI shortcuts for the same isolated Agent Knowledge routes.
@@ -71,6 +72,7 @@ Routine promotion is the first Agent-owned scheduling bridge: local routines sta
 ## Related Docs
 
 - [Getting started](getting-started.md)
+- [Operator capability benchmark](operator-capability-benchmark.md)
 - [Deployment and services](deployment-and-services.md)
 - [Knowledge, artifacts, and multimodal](knowledge-artifacts-and-multimodal.md)
 - [Release and publishing](release-and-publishing.md)

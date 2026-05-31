@@ -42,7 +42,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  routines                   Inspect local routines and explicitly promote one to a daemon schedule',
     '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
     '  compat                     Inspect Agent SDK pin, daemon version, and Agent knowledge route readiness',
-    '  capabilities               Show OpenClaw/Hermes capability parity and Agent readiness',
+    '  capabilities               Show OpenClaw/Hermes benchmark and live daemon coverage',
     '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
     '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
     '  delegate                   Explicitly delegate build/fix/review work to GoodVibes TUI',
@@ -102,6 +102,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `  ${binary} routines promote daily-operations-sweep --cron "0 9 * * *" --timezone America/Chicago --yes`,
     `  ${binary} compat`,
     `  ${binary} capabilities`,
+    `  ${binary} capabilities daemon`,
     `  ${binary} knowledge status`,
     `  ${binary} knowledge ask "What is GoodVibes Agent?"`,
     `  ${binary} ask "What is GoodVibes Agent?"`,
@@ -196,9 +197,9 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     examples: ['compat', 'compat --json'],
   },
   capabilities: {
-    usage: ['capabilities [openclaw|hermes|query]', 'capabilities --json'],
-    summary: 'Show the OpenClaw/Hermes capability benchmark, Agent readiness, configuration commands, usage paths, and next product gaps.',
-    examples: ['capabilities', 'capabilities hermes', 'capabilities knowledge --json'],
+    usage: ['capabilities [openclaw|hermes|query]', 'capabilities daemon [query]', 'capabilities --json'],
+    summary: 'Show the OpenClaw/Hermes capability benchmark, Agent readiness, and live GoodVibes daemon method coverage.',
+    examples: ['capabilities', 'capabilities hermes', 'capabilities daemon', 'capabilities daemon knowledge --json'],
   },
   knowledge: {
     usage: [

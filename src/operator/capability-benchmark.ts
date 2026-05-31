@@ -211,6 +211,7 @@ export function filterOperatorCapabilities(
     if (capability.posture.includes(normalized)) return true;
     if (capability.competitors.some((competitor) => competitor === normalized)) return true;
     return capability.goodvibesAgent.toLowerCase().includes(normalized)
+      || capability.goodvibesDaemon?.toLowerCase().includes(normalized) === true
       || capability.competitorBaseline.toLowerCase().includes(normalized);
   });
 }

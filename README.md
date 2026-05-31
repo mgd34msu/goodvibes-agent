@@ -16,6 +16,7 @@ bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent status
 goodvibes-agent capabilities
+goodvibes-agent capabilities daemon
 ```
 
 If Bun reports untrusted lifecycle dependencies, trust only the package and dependencies required by this package:
@@ -44,7 +45,7 @@ bun run publish:check
 
 Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen surface for setup, status, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
-Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps.
+Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps. Use `goodvibes-agent capabilities daemon` or `/capabilities daemon` for a live read-only audit of the GoodVibes daemon method catalog and isolated Agent Knowledge route coverage.
 
 Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated runtime profiles from them.
 
@@ -80,6 +81,15 @@ Starting a routine records local usage and prints its steps; it does not spawn b
 ## Daemon Prerequisite
 
 Start or restart the daemon from GoodVibes TUI or the daemon host before launching Agent. Agent status and companion/knowledge routes connect to that external daemon, normally on `http://127.0.0.1:3421`.
+
+To verify what the running daemon can expose for the Agent/OpenClaw/Hermes capability benchmark:
+
+```sh
+goodvibes-agent capabilities daemon
+goodvibes-agent capabilities daemon --json
+```
+
+This audit checks `/api/control-plane/methods` and `/api/goodvibes-agent/knowledge/status`. It does not query default Knowledge/Wiki or HomeGraph.
 
 Agent intentionally blocks daemon lifecycle commands:
 
