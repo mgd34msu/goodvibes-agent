@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
+import { registerLocalRuntimeCommands } from '../../input/commands/local-runtime.ts';
 import { registerNotifyRuntimeCommands } from '../../input/commands/notify-runtime.ts';
 import { registerPlatformServicesRuntimeCommands } from '../../input/commands/platform-services-runtime.ts';
 
@@ -19,6 +20,7 @@ function makeShellPaths(root: string) {
 
 interface SideEffectCalls {
   secretDeletes: number;
+  secretWrites: number;
   notificationConfigWrites: number;
   notificationUrlWrites: number;
   notificationTests: number;
@@ -27,6 +29,7 @@ interface SideEffectCalls {
 function makeCalls(): SideEffectCalls {
   return {
     secretDeletes: 0,
+    secretWrites: 0,
     notificationConfigWrites: 0,
     notificationUrlWrites: 0,
     notificationTests: 0,
@@ -51,6 +54,10 @@ function makeContext(root: string, out: string[], calls: SideEffectCalls): Comma
     }),
     list: async () => ['OPENAI_API_KEY'],
     listDetailed: async () => [{ key: 'OPENAI_API_KEY', source: 'goodvibes' }],
+    set: async () => {
+      calls.secretWrites += 1;
+    },
+    get: async () => null,
     delete: async () => {
       calls.secretDeletes += 1;
     },
@@ -137,6 +144,33 @@ describe('side-effecting slash command confirmation', () => {
       expect(calls.notificationUrlWrites).toBe(0);
       expect(calls.notificationTests).toBe(0);
       expect(out.join('\n')).toContain('without --yes');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('secret set, link, and delete require --yes', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-side-effects-'));
+    try {
+      const registry = new CommandRegistry();
+      registerLocalRuntimeCommands(registry);
+      const out: string[] = [];
+      const calls = makeCalls();
+      const ctx = makeContext(root, out, calls);
+
+      await registry.get('secrets')!.handler(['set', 'OPENAI_API_KEY', 'secret-value'], ctx);
+      await registry.get('secrets')!.handler(['link', 'OPENAI_API_KEY', 'goodvibes://secrets/env/OPENAI_API_KEY'], ctx);
+      await registry.get('secrets')!.handler(['delete', 'OPENAI_API_KEY'], ctx);
+
+      expect(calls.secretWrites).toBe(0);
+      expect(calls.secretDeletes).toBe(0);
+      expect(out.join('\n')).toContain('without --yes');
+
+      out.length = 0;
+      await registry.get('secrets')!.handler(['link', 'OPENAI_API_KEY', 'goodvibes://secrets/env/OPENAI_API_KEY', '--yes'], ctx);
+      await registry.get('secrets')!.handler(['delete', 'OPENAI_API_KEY', '--yes'], ctx);
+      expect(calls.secretWrites).toBe(1);
+      expect(calls.secretDeletes).toBe(1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

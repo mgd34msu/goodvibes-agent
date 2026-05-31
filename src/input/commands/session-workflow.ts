@@ -8,6 +8,7 @@ import type { SessionReturnContextSummary } from '@/runtime/index.ts';
 import { formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
 import { requirePanelManager, requireProviderApi, requireSessionManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 function parseTranscriptKind(raw: string | undefined): TranscriptEventKind | 'all' {
   const normalized = (raw ?? 'all').toLowerCase().replace(/-/g, '_');
@@ -414,9 +415,14 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
   }
 
   if (sub === 'delete') {
-    const target = args[1];
+    const parsed = stripYesFlag(args);
+    const target = parsed.rest[1];
     if (!target) {
-      ctx.print('Usage: /session delete <session-id>');
+      ctx.print('Usage: /session delete <session-id> --yes');
+      return true;
+    }
+    if (!parsed.yes) {
+      requireYesFlag(ctx, `delete saved session ${target}`, '/session delete <session-id> --yes');
       return true;
     }
     const sessions = sm.list();
@@ -446,12 +452,12 @@ export function registerSessionWorkflowCommands(registry: CommandRegistry): void
     name: 'session',
     aliases: ['sess'],
     description: 'Manage sessions, resume posture, and transcript structure',
-    usage: '[list | rename <name> | resume <id|name> | fork | save | info <id> | events [kind] | groups [kind] | hotspots | export <id> [format] | search <query> | delete <id>]',
+    usage: '[list | rename <name> | resume <id|name> | fork | save | info <id> | events [kind] | groups [kind] | hotspots | export <id> [format] | search <query> | delete <id> --yes]',
     argsHint: '<list|rename|resume|fork|save|info|events|groups|hotspots|export|search|delete>',
     async handler(args, ctx) {
       const handled = await handleSessionWorkflowCommand(args, ctx);
       if (!handled) {
-        ctx.print('Unknown subcommand: ' + (args[0] ?? '') + '\nUsage: /session [list | rename <name> | resume <id> | fork [name] | save [name] | info [id] | events [kind] | groups [kind] | hotspots | export <id> [format] | search <query> | delete <id>]');
+        ctx.print('Unknown subcommand: ' + (args[0] ?? '') + '\nUsage: /session [list | rename <name> | resume <id> | fork [name] | save [name] | info [id] | events [kind] | groups [kind] | hotspots | export <id> [format] | search <query> | delete <id> --yes]');
       }
     },
   });

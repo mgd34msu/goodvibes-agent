@@ -49,7 +49,7 @@ describe('renderSessionPickerModal', () => {
     const footer = lineToString(lines[lines.length - 1]);
     expect(footer).toContain('Navigate');
     expect(footer).toContain('Load');
-    expect(footer).toContain('Delete');
+    expect(footer).toContain('/session delete');
     expect(footer).toContain('Esc');
   });
 
@@ -82,14 +82,12 @@ describe('renderSessionPickerModal', () => {
     expect(texts).toContain('Deleted: alpha-session');
   });
 
-  test('delete confirmation guidance is displayed when armed', () => {
+  test('delete command guidance is displayed through status message', () => {
     const modal = makeModal();
-    modal.deleteConfirmationTarget = 'alpha-session';
-    modal.statusMessage = 'Press d again to delete alpha-session.';
+    modal.statusMessage = 'Deletion requires an explicit command: /session delete alpha-session --yes';
     const lines = renderSessionPickerModal(modal, W);
     const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Deletion is armed for alpha-session');
-    expect(texts).toContain('Arm / Delete');
+    expect(texts).toContain('/session delete alpha-session --yes');
   });
 
   test('works at narrow terminal width', () => {

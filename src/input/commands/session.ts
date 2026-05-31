@@ -352,7 +352,7 @@ export const sessionCommand: SlashCommand = {
         if (!handled) {
           const usage = [
             'Usage: /session <subcommand>',
-            '  list | rename <name> | resume <id|name> | fork [name] | save [name] | info [id] | export <id> [format] | search <query> | delete <id>',
+            '  list | rename <name> | resume <id|name> | fork [name] | save [name] | info [id] | export <id> [format] | search <query> | delete <id> --yes',
             '                                 — Session continuity, export, resume, and pruning',
             '  graph [--session <sid>] [--format text|json]',
             '                                 — Display the cross-session task dependency graph',

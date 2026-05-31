@@ -95,33 +95,27 @@ describe('SessionPickerModal', () => {
     expect(sel!.name).toBe('b');
   });
 
-  test('deleteSelected removes session file and refreshes list', () => {
+  test('deleteSelected requires explicit slash command and does not remove files', () => {
     sm.save('mysession', [{ role: 'user', content: 'hi' }], META);
     modal = new SessionPickerModal(sm);
-    // Directly inject the session manager by testing with real data
-    // We need to replace modal's sessions list with what sm.list() returns
     const sessions = sm.list();
     modal.sessions = sessions;
     modal.selectedIndex = 0;
 
-    const firstAttempt = modal.deleteSelected();
-    expect(firstAttempt).toBe(false);
-    expect(modal.statusMessage).toContain('Press d again to delete');
-
-    const deleted = modal.deleteSelected();
-    // Check that the file is gone
-    expect(deleted).toBe(true);
-    expect(existsSync(sessions[0].filePath)).toBe(false);
+    const result = modal.deleteSelected();
+    expect(result).toBe(false);
+    expect(modal.statusMessage).toContain('/session delete mysession --yes');
+    expect(existsSync(sessions[0].filePath)).toBe(true);
   });
 
-  test('moving selection clears pending delete confirmation', () => {
+  test('moving selection clears stale delete guidance state', () => {
     modal = new SessionPickerModal(sm);
     modal.sessions = [
       { name: 'a', title: 'A', model: '', provider: '', timestamp: 1, messageCount: 2, filePath: '/a' },
       { name: 'b', title: 'B', model: '', provider: '', timestamp: 2, messageCount: 3, filePath: '/b' },
     ];
     modal.selectedIndex = 0;
-    modal.deleteSelected();
+    modal.deleteConfirmationTarget = 'a';
     expect(modal.deleteConfirmationTarget).toBe('a');
     modal.moveDown();
     expect(modal.deleteConfirmationTarget).toBeNull();

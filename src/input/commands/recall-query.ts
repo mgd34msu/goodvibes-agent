@@ -2,6 +2,7 @@ import type { CommandContext } from '../command-registry.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemorySearchFilter } from '@pellux/goodvibes-sdk/platform/state';
 import { VALID_CLASSES, VALID_SCOPES, isValidClass, isValidScope } from './recall-shared.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 export function getMemoryApi(context: CommandContext): MemoryApi | null {
   const memoryApi = context.clients?.agentKnowledgeApi?.memory;
@@ -159,9 +160,14 @@ export async function handleRecallLink(args: string[], context: CommandContext):
   if (!memory) {
     return;
   }
-  const [fromId, toId, relation] = args;
+  const parsed = stripYesFlag(args);
+  const [fromId, toId, relation] = parsed.rest;
   if (!fromId || !toId || !relation) {
-    context.print('[recall] Usage: /recall link <fromId> <toId> <relation>');
+    context.print('[recall] Usage: /recall link <fromId> <toId> <relation> --yes');
+    return;
+  }
+  if (!parsed.yes) {
+    requireYesFlag(context, `link memory records ${fromId} and ${toId}`, '/recall link <fromId> <toId> <relation> --yes');
     return;
   }
   const link = await memory.link(fromId, toId, relation);
@@ -177,9 +183,14 @@ export function handleRecallRemove(args: string[], context: CommandContext): voi
   if (!memory) {
     return;
   }
-  const id = args[0];
+  const parsed = stripYesFlag(args);
+  const id = parsed.rest[0];
   if (!id) {
-    context.print('[recall] Usage: /recall remove <id>');
+    context.print('[recall] Usage: /recall remove <id> --yes');
+    return;
+  }
+  if (!parsed.yes) {
+    requireYesFlag(context, `delete durable memory record ${id}`, '/recall remove <id> --yes');
     return;
   }
   const removed = memory.delete(id);

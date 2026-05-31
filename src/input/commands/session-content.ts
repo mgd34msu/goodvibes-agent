@@ -1,5 +1,5 @@
 import { join, resolve } from 'path';
-import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import type { CommandRegistry } from '../command-registry.ts';
 import type { SelectionItem } from '../selection-modal.ts';
@@ -235,34 +235,21 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       const sessionManager = requireSessionManager(ctx);
       const sessions = sessionManager.list();
       if (ctx.openSelection) {
-        const deleteAction = new Map([['d', 'delete' as const]]);
         const items: SelectionItem[] = sessions.length === 0
           ? [{ id: '_empty', label: 'No saved sessions', detail: 'Use /save [name] to save' }]
-          : sessions.map(s => ({ id: s.name, label: s.name, detail: s.title || '(untitled)', actions: '[d] delete' }));
-        ctx.openSelection('Sessions', items, { allowSearch: true, customActions: deleteAction }, (result) => {
+          : sessions.map(s => ({ id: s.name, label: s.name, detail: s.title || '(untitled)', actions: 'Enter to load' }));
+        ctx.openSelection('Sessions', items, { allowSearch: true }, (result) => {
           if (!result) return;
-          if (result.action === 'delete') {
-            try {
-              const sessionInfo = sessions.find(s => s.name === result.item.id);
-              if (sessionInfo) {
-                unlinkSync(sessionInfo.filePath);
-                ctx.print(`Session deleted: ${result.item.id}`);
-              }
-            } catch (e) {
-              ctx.print(`Failed to delete session: ${summarizeError(e)}`);
-            }
-          } else {
-            try {
-              const { meta, messages } = sessionManager.load(result.item.id);
-              ctx.session.conversationManager.resetAll();
-              ctx.session.conversationManager.fromJSON({ messages: messages as never[] });
-              if (meta.title) ctx.session.conversationManager.title = meta.title;
-              ctx.session.conversationManager.rebuildHistory();
-              ctx.renderRequest();
-              ctx.print(`Session loaded: ${result.item.id} (${messages.length} messages)`);
-            } catch (e) {
-              ctx.print(`Failed to load session: ${summarizeError(e)}`);
-            }
+          try {
+            const { meta, messages } = sessionManager.load(result.item.id);
+            ctx.session.conversationManager.resetAll();
+            ctx.session.conversationManager.fromJSON({ messages: messages as never[] });
+            if (meta.title) ctx.session.conversationManager.title = meta.title;
+            ctx.session.conversationManager.rebuildHistory();
+            ctx.renderRequest();
+            ctx.print(`Session loaded: ${result.item.id} (${messages.length} messages)`);
+          } catch (e) {
+            ctx.print(`Failed to load session: ${summarizeError(e)}`);
           }
         });
         return;
@@ -277,7 +264,7 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
     name: 'template',
     aliases: ['tmpl'],
     description: 'Manage and use prompt templates',
-    usage: 'save <name> | use <name> [args] | list | edit <name> | delete <name>',
+    usage: 'save <name> --yes | use <name> [args] | list | edit <name> | delete <name> --yes',
     argsHint: '<save|use|list|edit|delete> [name]',
     handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);
@@ -285,28 +272,24 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
         projectRoot: shellPaths.workingDirectory,
         homeDirectory: shellPaths.homeDirectory,
       });
-      const sub = args[0];
-      const rest = args.slice(1);
+      const parsed = stripYesFlag(args);
+      const sub = parsed.rest[0];
+      const rest = parsed.rest.slice(1);
       if (!sub || sub === 'list') {
         const templates = templateManager.list();
         if (ctx.openSelection) {
-          const actions = new Map([['d', 'delete' as const], ['e', 'edit' as const]]);
+          const actions = new Map([['e', 'edit' as const]]);
           const items: SelectionItem[] = templates.length === 0
-            ? [{ id: '_empty', label: 'No templates saved', detail: 'Use /template save <name>' }]
-            : templates.map(t => ({ id: t.name, label: t.name, detail: t.preview, category: t.scope === 'project' ? 'project' : 'global', actions: '[d] delete  [e] edit' }));
+            ? [{ id: '_empty', label: 'No templates saved', detail: 'Use /template save <name> --yes' }]
+            : templates.map(t => ({ id: t.name, label: t.name, detail: t.preview, category: t.scope === 'project' ? 'project' : 'global', actions: '[e] edit' }));
           ctx.openSelection('Templates', items, { allowSearch: true, customActions: actions }, (result) => {
             if (!result) return;
-            if (result.action === 'delete') {
-              const deleted = templateManager.delete(result.item.id);
-              ctx.print(deleted ? `Template deleted: ${result.item.id}` : `Template not found: ${result.item.id}`);
+            const content = templateManager.load(result.item.id);
+            if (content !== null) {
+              if (result.action === 'edit') ctx.print(`Template: ${result.item.id}\n\n${content}`);
+              else ctx.submitInput?.(content);
             } else {
-              const content = templateManager.load(result.item.id);
-              if (content !== null) {
-                if (result.action === 'edit') ctx.print(`Template: ${result.item.id}\n\n${content}`);
-                else ctx.submitInput?.(content);
-              } else {
-                ctx.print(`Template not found: ${result.item.id}`);
-              }
+              ctx.print(`Template not found: ${result.item.id}`);
             }
           });
           return;
@@ -317,7 +300,11 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       if (sub === 'save') {
         const name = rest[0];
         if (!name) {
-          ctx.print('Usage: /template save <name>');
+          ctx.print('Usage: /template save <name> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `save prompt template ${name}`, '/template save <name> --yes');
           return;
         }
         try {
@@ -355,20 +342,24 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       if (sub === 'delete') {
         const name = rest[0];
         if (!name) {
-          ctx.print('Usage: /template delete <name>');
+          ctx.print('Usage: /template delete <name> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `delete prompt template ${name}`, '/template delete <name> --yes');
           return;
         }
         ctx.print(templateManager.delete(name) ? `Template deleted: ${name}` : `Template not found: ${name}`);
         return;
       }
-      ctx.print(`Unknown subcommand: ${sub}\nUsage: /template save|use|list|edit|delete`);
+      ctx.print(`Unknown subcommand: ${sub}\nUsage: /template save <name> --yes | use <name> | list | edit <name> | delete <name> --yes`);
     },
   });
 
   registry.register({
     name: 'memory',
     description: 'Manage session memories (pinned across context compaction)',
-    usage: '[list|add <text>|remove <id>]',
+    usage: '[list|add <text>|remove <id> --yes]',
     argsHint: '[list|add|remove]',
     handler(args, ctx) {
       const sub = args[0] ?? 'list';
@@ -386,15 +377,20 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
         const id = requireSessionMemoryStore(ctx).add(text);
         ctx.print(`Memory added: [${id}] ${text}`);
       } else if (sub === 'remove') {
-        const id = args[1];
+        const parsed = stripYesFlag(args);
+        const id = parsed.rest[1];
         if (!id) {
-          ctx.print('Usage: /memory remove <id>');
+          ctx.print('Usage: /memory remove <id> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `remove session memory ${id}`, '/memory remove <id> --yes');
           return;
         }
         const store = requireSessionMemoryStore(ctx);
         ctx.print(store.remove(id) ? `Memory removed: [${id}]` : `Memory not found: ${id}`);
       } else {
-        ctx.print('Usage: /memory [list|add <text>|remove <id>]\n  /memory              — list all session memories\n  /memory list         — list all session memories\n  /memory add <text>   — add a memory without sending a message\n  /memory remove <id>  — remove a specific memory');
+        ctx.print('Usage: /memory [list|add <text>|remove <id> --yes]\n  /memory                    — list all session memories\n  /memory list               — list all session memories\n  /memory add <text>         — add a memory without sending a message\n  /memory remove <id> --yes  — remove a specific memory');
       }
     },
   });

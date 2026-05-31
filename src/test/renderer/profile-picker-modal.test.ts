@@ -49,8 +49,7 @@ describe('renderProfilePickerModal', () => {
     const texts = linesToText(lines).join('\n');
     expect(texts).toContain('Navigate');
     expect(texts).toContain('Load');
-    expect(texts).toContain('Arm/Delete');
-    expect(texts).toContain('Save curr');
+    expect(texts).toContain('/profiles save');
   });
 
   test('shows profile names in list', () => {
@@ -72,7 +71,7 @@ describe('renderProfilePickerModal', () => {
     const lines = renderProfilePickerModal(modal, W);
     const texts = linesToText(lines).join('\n');
     expect(texts).toContain('No saved profiles');
-    expect(texts).toContain('[s]');
+    expect(texts).toContain('/profiles save <name> --yes');
   });
 
   test('status message is displayed when set', () => {
@@ -83,12 +82,12 @@ describe('renderProfilePickerModal', () => {
     expect(texts).toContain('Loaded profile: work-profile');
   });
 
-  test('delete confirmation guidance is displayed when armed', () => {
+  test('delete command guidance is displayed through status message', () => {
     const modal = makeModal();
-    modal.deleteConfirmationTarget = 'work-profile';
+    modal.statusMessage = 'Deletion requires an explicit command: /profiles delete work-profile --yes';
     const lines = renderProfilePickerModal(modal, W);
     const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Press [d] again to permanently delete work-profile');
+    expect(texts).toContain('/profiles delete work-profile --yes');
   });
 
   test('works at narrow terminal width', () => {

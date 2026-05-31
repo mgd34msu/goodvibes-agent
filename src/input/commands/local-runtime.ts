@@ -8,6 +8,7 @@ import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 import { BUILTIN_SECRET_PROVIDER_SOURCES, describeSecretRef, isSecretRefInput, resolveSecretRef } from '@pellux/goodvibes-sdk/platform/config';
 import { openCommandPanel, requireBookmarkManager, requireProviderApi, requireSecretsManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 function isGoodVibesSecretRefInput(value: string): boolean {
   const normalized = value.trim();
@@ -143,16 +144,17 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'secrets',
     description: 'Manage hierarchy-aware secrets, external secret refs, and secure/plaintext storage policy controls',
-    usage: 'set <KEY> <value> [--user|--project] [--secure|--plaintext] | link <KEY> <secret-ref> [--user|--project] [--secure|--plaintext] | get <KEY> | test <secret-ref> | providers | list | delete <KEY> [--user|--project] [--secure|--plaintext]',
+    usage: 'set <KEY> <value> [--user|--project] [--secure|--plaintext] --yes | link <KEY> <secret-ref> [--user|--project] [--secure|--plaintext] --yes | get <KEY> | test <secret-ref> | providers | list | delete <KEY> [--user|--project] [--secure|--plaintext] --yes',
     argsHint: '<set|link|get|test|providers|list|delete> [KEY]',
     async handler(args, ctx) {
       const mgr = requireSecretsManager(ctx);
-      const [sub, ...rest] = args;
+      const parsed = stripYesFlag(args);
+      const [sub, ...rest] = parsed.rest;
       if (!sub || sub === 'list') {
         const records = await mgr.listDetailed();
         const storedRecords = records.filter((record) => record.source !== 'env');
         ctx.print(storedRecords.length === 0
-          ? '[secrets] No secrets stored. Use: /secrets set <KEY> <value>'
+          ? '[secrets] No secrets stored. Use: /secrets set <KEY> <value> --yes'
           : [
             '[secrets] Stored keys:',
             ...storedRecords.map((record) => `  ${record.key} (${record.source}${record.refSource ? `, ref:${record.refSource}` : ''}${record.overriddenByEnv ? ', env override' : ''})`),
@@ -165,11 +167,11 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
           ...BUILTIN_SECRET_PROVIDER_SOURCES.map((source) => `  ${source}`),
           '',
           'Examples:',
-          '  /secrets link OPENAI_API_KEY goodvibes://secrets/env/OPENAI_API_KEY',
-          '  /secrets link SLACK_BOT_TOKEN goodvibes://secrets/bitwarden?item=GoodVibes%20Slack&field=password&sessionEnv=BW_SESSION',
-          '  /secrets link SLACK_BOT_TOKEN goodvibes://secrets/vaultwarden?item=GoodVibes%20Slack&field=password&server=https%3A%2F%2Fvault.example.test',
-          '  /secrets link STRIPE_TOKEN goodvibes://secrets/bws/00000000-0000-0000-0000-000000000000?field=value&accessTokenEnv=BWS_ACCESS_TOKEN',
-          '  /secrets link OPENAI_API_KEY goodvibes://secrets/1password?vault=Private&item=GoodVibes%20OpenAI&field=API%20Key',
+          '  /secrets link OPENAI_API_KEY goodvibes://secrets/env/OPENAI_API_KEY --yes',
+          '  /secrets link SLACK_BOT_TOKEN goodvibes://secrets/bitwarden?item=GoodVibes%20Slack&field=password&sessionEnv=BW_SESSION --yes',
+          '  /secrets link SLACK_BOT_TOKEN goodvibes://secrets/vaultwarden?item=GoodVibes%20Slack&field=password&server=https%3A%2F%2Fvault.example.test --yes',
+          '  /secrets link STRIPE_TOKEN goodvibes://secrets/bws/00000000-0000-0000-0000-000000000000?field=value&accessTokenEnv=BWS_ACCESS_TOKEN --yes',
+          '  /secrets link OPENAI_API_KEY goodvibes://secrets/1password?vault=Private&item=GoodVibes%20OpenAI&field=API%20Key --yes',
         ].join('\n'));
         return;
       }
@@ -196,10 +198,14 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         const valueParts = rest.filter((value) => !value.startsWith('--'));
         const [key, ...rawValueParts] = valueParts;
         if (!key || valueParts.length === 0) {
-          ctx.print(`[secrets] Usage: /secrets ${sub} <KEY> <${sub === 'link' ? 'secret-ref' : 'value'}> [--user|--project] [--secure|--plaintext]`);
+          ctx.print(`[secrets] Usage: /secrets ${sub} <KEY> <${sub === 'link' ? 'secret-ref' : 'value'}> [--user|--project] [--secure|--plaintext] --yes`);
           return;
         }
         const value = rawValueParts.join(' ');
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `${sub === 'link' ? 'link secret reference for' : 'store secret value for'} ${key}`, `/secrets ${sub} <KEY> <${sub === 'link' ? 'secret-ref' : 'value'}> [--user|--project] [--secure|--plaintext] --yes`);
+          return;
+        }
         if (sub === 'link' && !isGoodVibesSecretRefInput(value)) {
           ctx.print('[secrets] Invalid secret reference. Use /secrets providers for examples.');
           return;
@@ -230,7 +236,11 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         const flags = new Set(rest.filter((value) => value.startsWith('--')));
         const [key] = rest.filter((value) => !value.startsWith('--'));
         if (!key) {
-          ctx.print('[secrets] Usage: /secrets delete <KEY> [--user|--project] [--secure|--plaintext]');
+          ctx.print('[secrets] Usage: /secrets delete <KEY> [--user|--project] [--secure|--plaintext] --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `delete secret ${key}`, '/secrets delete <KEY> [--user|--project] [--secure|--plaintext] --yes');
           return;
         }
         await mgr.delete(key, {
@@ -240,7 +250,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         ctx.print(`[secrets] Deleted: ${key}`);
         return;
       }
-      ctx.print('[secrets] Usage: /secrets set <KEY> <value> [--user|--project] [--secure|--plaintext] | link <KEY> <secret-ref> [--user|--project] [--secure|--plaintext] | get <KEY> | test <secret-ref> | providers | list | delete <KEY> [--user|--project] [--secure|--plaintext]');
+      ctx.print('[secrets] Usage: /secrets set <KEY> <value> [--user|--project] [--secure|--plaintext] --yes | link <KEY> <secret-ref> [--user|--project] [--secure|--plaintext] --yes | get <KEY> | test <secret-ref> | providers | list | delete <KEY> [--user|--project] [--secure|--plaintext] --yes');
     },
   });
 

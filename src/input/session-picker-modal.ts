@@ -2,10 +2,9 @@
  * SessionPickerModal — state management for the /sessions picker modal.
  *
  * Lists sessions from SessionManager.list(), tracks selected index,
- * and handles load/delete actions.
+ * and handles load actions.
  */
 
-import { unlinkSync } from 'node:fs';
 import type { SessionInfo, SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 import type { ConversationManager } from '../core/conversation';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
@@ -90,37 +89,12 @@ export class SessionPickerModal {
     }
   }
 
-  /**
-   * Delete the currently selected session from disk.
-   * Refreshes the list after deletion.
-   */
   deleteSelected(): boolean {
     const session = this.getSelected();
     if (!session) return false;
-    if (this.deleteConfirmationTarget !== session.name) {
-      this.deleteConfirmationTarget = session.name;
-      this.statusMessage = `Press d again to delete ${session.name}.`;
-      return false;
-    }
-
-    try {
-      // Delete directly via filePath so it works with any session directory
-      unlinkSync(session.filePath);
-      // Reload list from the global session manager (removes the deleted entry)
-      this.sessions = this.sessionManager.list();
-      // Adjust selection
-      if (this.selectedIndex >= this.sessions.length) {
-        this.selectedIndex = Math.max(0, this.sessions.length - 1);
-      }
-      this._clampScroll();
-      this.deleteConfirmationTarget = null;
-      this.statusMessage = `Deleted: ${session.name}`;
-      return true;
-    } catch (e) {
-      this.deleteConfirmationTarget = null;
-      this.statusMessage = `Error: ${summarizeError(e)}`;
-      return false;
-    }
+    this.deleteConfirmationTarget = null;
+    this.statusMessage = `Deletion requires an explicit command: /session delete ${session.name} --yes`;
+    return false;
   }
 
   private _clampScroll(): void {

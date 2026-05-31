@@ -4,7 +4,7 @@
  *
  * Shows a list of saved profiles with:
  *   - name, timestamp (formatted), settings preview
- * Footer hints: [Up/Down] Navigate  [Enter] Load  [d] Arm/Delete  [s] Save current  [Esc] Close
+ * Footer hints: [Up/Down] Navigate  [Enter] Load  [Esc] Close
  */
 
 import type { Line } from '../types/grid.ts';
@@ -51,7 +51,7 @@ export function renderProfilePickerModal(
     });
     sections.push({
       type: 'text',
-      content: 'Press [s] to save the current settings as a profile.',
+      content: 'Use /profiles save <name> --yes to save the current settings as a profile.',
       style: { fg: '240', dim: true },
     });
   } else {
@@ -107,14 +107,6 @@ export function renderProfilePickerModal(
       style: { fg: '#00ffcc' },
     });
   }
-  if (modal.deleteConfirmationTarget) {
-    sections.push({
-      type: 'text',
-      content: `Press [d] again to permanently delete ${modal.deleteConfirmationTarget}.`,
-      style: { fg: '#f59e0b', dim: true },
-    });
-  }
-
   return ModalFactory.createModal(
     {
       title: 'Profiles',
@@ -122,7 +114,7 @@ export function renderProfilePickerModal(
       margin: boxMargin,
       targetContentRows,
       sections,
-      hints: ['[Up/Down] Navigate', '[Enter] Load', '[d] Arm/Delete', '[s] Save current', '[Esc] Close'],
+      hints: ['[Up/Down] Navigate', '[Enter] Load', '/profiles save|delete --yes', '[Esc] Close'],
     },
     width,
   );

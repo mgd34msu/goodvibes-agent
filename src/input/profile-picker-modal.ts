@@ -2,7 +2,7 @@
  * ProfilePickerModal — state management for the /profiles picker modal.
  *
  * Lists profiles from ProfileManager.list(), tracks selected index,
- * and handles load/delete/save actions.
+ * and handles load actions.
  */
 
 import type { ProfileInfo, ProfileData, ProfileManager } from '@pellux/goodvibes-sdk/platform/profiles';
@@ -141,39 +141,12 @@ export class ProfilePickerModal {
     }
   }
 
-  /**
-   * Delete the selected profile from disk.
-   * Refreshes the list after deletion.
-   */
   deleteSelected(): boolean {
     const profile = this.getSelected();
     if (!profile) return false;
-    if (this.deleteConfirmationTarget !== profile.name) {
-      this.deleteConfirmationTarget = profile.name;
-      this.statusMessage = `Press delete again to remove profile: ${profile.name}`;
-      return false;
-    }
-
-    try {
-      const deleted = this.profileManager.delete(profile.name);
-      if (!deleted) {
-        this.statusMessage = `Profile not found: ${profile.name}`;
-        this.deleteConfirmationTarget = null;
-        return false;
-      }
-      this.profiles = this.profileManager.list();
-      if (this.selectedIndex >= this.profiles.length) {
-        this.selectedIndex = Math.max(0, this.profiles.length - 1);
-      }
-      this._clampScroll();
-      this.deleteConfirmationTarget = null;
-      this.statusMessage = `Deleted: ${profile.name}`;
-      return true;
-    } catch (e) {
-      this.deleteConfirmationTarget = null;
-      this.statusMessage = `Error: ${summarizeError(e)}`;
-      return false;
-    }
+    this.deleteConfirmationTarget = null;
+    this.statusMessage = `Deletion requires an explicit command: /profiles delete ${profile.name} --yes`;
+    return false;
   }
 
   /**
@@ -184,7 +157,16 @@ export class ProfilePickerModal {
       this.statusMessage = 'Profile name cannot be empty';
       return false;
     }
+    void configManager;
+    this.statusMessage = `Saving requires an explicit command: /profiles save ${name} --yes`;
+    return false;
+  }
 
+  public saveCurrentAsConfirmed(name: string, configManager: ConfigManager): boolean {
+    if (!name || !name.trim()) {
+      this.statusMessage = 'Profile name cannot be empty';
+      return false;
+    }
     try {
       const all = configManager.getAll();
       const data: ProfileData = {

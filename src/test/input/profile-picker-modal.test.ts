@@ -107,10 +107,10 @@ describe('ProfilePickerModal', () => {
     expect(modal.selectedIndex).toBe(0);
   });
 
-  test('saveCurrentAs saves a profile', () => {
+  test('saveCurrentAs requires explicit slash command', () => {
     const result = modal.saveCurrentAs('my-profile', cm);
-    expect(result).toBe(true);
-    expect(modal.statusMessage).toContain('my-profile');
+    expect(result).toBe(false);
+    expect(modal.statusMessage).toContain('/profiles save my-profile --yes');
   });
 
   test('saveCurrentAs with empty name returns false', () => {
@@ -119,16 +119,15 @@ describe('ProfilePickerModal', () => {
     expect(modal.statusMessage).toBeTruthy();
   });
 
-  test('deleteSelected requires confirmation before removal', () => {
+  test('deleteSelected requires explicit slash command before removal', () => {
     pm.save('test-profile', { display: {}, behavior: {} });
-    // We can't easily inject pm into the modal since it uses getProfileManager(),
-    // so test the interface with manually set profiles
-    modal.profiles = [{ name: 'nonexistent-xyz', timestamp: 1, filePath: '/nonexistent' }];
+    modal.profiles = pm.list();
     modal.selectedIndex = 0;
-    const first = modal.deleteSelected();
-    expect(first).toBe(false);
-    expect(modal.deleteConfirmationTarget).toBe('nonexistent-xyz');
-    expect(modal.statusMessage).toContain('Press delete again');
+    const result = modal.deleteSelected();
+    expect(result).toBe(false);
+    expect(modal.deleteConfirmationTarget).toBeNull();
+    expect(modal.statusMessage).toContain('/profiles delete test-profile --yes');
+    expect(pm.list().some((profile) => profile.name === 'test-profile')).toBe(true);
   });
 
   test('loadSelected on missing profile returns false with status message', () => {

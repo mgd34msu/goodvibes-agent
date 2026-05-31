@@ -4,7 +4,7 @@
  *
  * Shows a list of saved sessions with:
  *   - name, timestamp (formatted), message count
- * Footer hints: [Enter] Load  [d] Delete  [Esc] Close
+ * Footer hints: [Enter] Load  [Esc] Close
  */
 
 import type { Line } from '../types/grid.ts';
@@ -105,14 +105,6 @@ export function renderSessionPickerModal(
     });
   }
 
-  if (modal.deleteConfirmationTarget) {
-    sections.push({
-      type: 'text',
-      content: `Deletion is armed for ${modal.deleteConfirmationTarget}. Move selection or press Esc to cancel.`,
-      style: { fg: '244', dim: true },
-    });
-  }
-
   return ModalFactory.createModal(
     {
       title: 'Sessions',
@@ -120,7 +112,7 @@ export function renderSessionPickerModal(
       margin: boxMargin,
       targetContentRows,
       sections,
-      hints: ['[\u2191\u2193] Navigate', '[Enter] Load', '[d] Arm / Delete', '[Esc] Close'],
+      hints: ['[\u2191\u2193] Navigate', '[Enter] Load', 'Delete: /session delete <id> --yes', '[Esc] Close'],
     },
     width,
   );

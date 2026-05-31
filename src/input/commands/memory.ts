@@ -7,10 +7,10 @@
  *   /recall add <class> <summary> --detail <text> --tags <tag,tag>
  *   /recall search [query]                  — Search memory records
  *   /recall search --cls <class>            — Filter by class
- *   /recall link <fromId> <toId> <relation> — Link two records
+ *   /recall link <fromId> <toId> <relation> --yes — Link two records
  *   /recall get <id>                        — Show a single record with provenance
  *   /recall list [class]                    — List all records (optionally by class)
- *   /recall remove <id>                     — Delete a record
+ *   /recall remove <id> --yes               — Delete a record
  */
 
 import type { SlashCommand, CommandContext } from '../command-registry.ts';
@@ -128,7 +128,7 @@ export const recallCommand: SlashCommand = {
           '  search [query] [--semantic] [--cls <class>] [--scope <scope>] [--limit <n>]  — Full-text or sqlite-vec semantic search',
           '  vector [status|doctor|rebuild]                  — Inspect or rebuild the sqlite-vec memory index',
           '  get <id>                                       — Show record with provenance + links',
-          '  link <fromId> <toId> <relation>               — Create a directed relation between records',
+          '  link <fromId> <toId> <relation> --yes         — Create a directed relation between records',
           '  queue [limit]                                  — Show the operator review queue',
           '  review <id> <state> [--confidence <n>] [--by <name>] [--reason <text>]',
           '  stale <id> [reason...]                          — Mark a record stale with an operator reason',
@@ -141,7 +141,7 @@ export const recallCommand: SlashCommand = {
           '  handoff-inspect <path>                         — Inspect a handoff bundle before import',
           '  handoff-import <path> --yes                     — Import a handoff bundle into durable memory',
           '  list [class] [--scope <scope>]                 — List all records grouped by class',
-          '  remove <id>                                    — Delete a record',
+          '  remove <id> --yes                              — Delete a record',
         ].join('\n');
         context.print(usage);
         break;
