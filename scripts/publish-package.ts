@@ -2,6 +2,7 @@
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { buildNpmPublishAuthEnv } from './npm-auth.ts';
 import { syncProjectSurfaces } from './project-surfaces.ts';
 import { withWorkspaceLock } from './workspace-lock.ts';
 
@@ -71,11 +72,16 @@ try {
     const args = dryRun
       ? ['pack', '--json']
       : ['publish', '--access', 'public', '--registry', registry];
+    const publishAuth = buildNpmPublishAuthEnv({
+      env: process.env,
+      registry,
+      tempRoot,
+    });
 
     execFileSync('npm', args, {
       cwd: stageDir,
       stdio: 'inherit',
-      env: process.env,
+      env: publishAuth.env,
     });
   });
 } finally {

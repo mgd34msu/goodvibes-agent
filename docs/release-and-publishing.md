@@ -25,6 +25,8 @@ npm pack --dry-run
 git diff --check
 ```
 
+`bun run publish:package` publishes from a staged package directory. If `NPM_CONFIG_USERCONFIG` is already set, npm uses it. Otherwise the script creates a temporary 0600 npm userconfig from `NODE_AUTH_TOKEN` or `NPM_TOKEN`, uses it for that publish command, and removes it with the staging directory.
+
 Also run the package install smoke from a packed artifact. It must prove:
 
 - the installed command is on `PATH`
