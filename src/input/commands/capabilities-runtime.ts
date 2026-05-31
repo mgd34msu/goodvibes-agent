@@ -9,15 +9,18 @@ import {
   buildDaemonCapabilityRouteRiskReport,
   fetchLiveDaemonCapabilityAudit,
   fetchLiveDaemonCapabilityInventory,
+  fetchLiveDaemonCapabilityUxCoverage,
   filterDaemonCapabilityAuditAreas,
   filterDaemonCapabilityGaps,
   filterDaemonCapabilityInventoryGroups,
   filterDaemonCapabilityRouteRiskAreas,
+  filterDaemonCapabilityUxGroups,
   renderDaemonCapabilityAudit,
   renderDaemonCapabilityFailure,
   renderDaemonCapabilityGaps,
   renderDaemonCapabilityInventory,
   renderDaemonCapabilityRouteRisk,
+  renderDaemonCapabilityUxCoverage,
 } from '../../operator/daemon-capability-audit.ts';
 import { resolveAgentDaemonConnection } from '../../agent/routine-schedule-promotion.ts';
 
@@ -59,6 +62,17 @@ export function registerCapabilitiesRuntimeCommands(registry: CommandRegistry): 
           const query = args.slice(2).join(' ').trim() || undefined;
           const groups = filterDaemonCapabilityInventoryGroups(inventory.groups, query);
           ctx.print(renderDaemonCapabilityInventory(inventory, groups));
+          return;
+        }
+        if (args[1] === 'coverage' || args[1] === 'ux' || args[1] === 'surface') {
+          const coverage = await fetchLiveDaemonCapabilityUxCoverage(connection);
+          if (!coverage.ok) {
+            ctx.print(renderDaemonCapabilityFailure(coverage));
+            return;
+          }
+          const query = args.slice(2).join(' ').trim() || undefined;
+          const groups = filterDaemonCapabilityUxGroups(coverage.groups, query);
+          ctx.print(renderDaemonCapabilityUxCoverage(coverage, groups));
           return;
         }
         const query = args.slice(1).join(' ').trim() || undefined;

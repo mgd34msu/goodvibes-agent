@@ -209,6 +209,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/capabilities daemon gaps');
     expect(output).toContain('/capabilities daemon risk');
     expect(output).toContain('/capabilities daemon inventory');
+    expect(output).toContain('/capabilities daemon coverage');
     expect(output).toContain('/capabilities daemon knowledge');
     expect(output).toContain('/capabilities daemon channels');
     expect(output).toContain('/capabilities daemon automation');

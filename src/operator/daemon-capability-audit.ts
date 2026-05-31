@@ -182,6 +182,60 @@ export interface DaemonCapabilityInventoryReport {
   readonly groups: readonly DaemonCapabilityInventoryGroup[];
 }
 
+export type DaemonCapabilityUxCoverage =
+  | 'usable'
+  | 'read_only'
+  | 'explicit_confirmation'
+  | 'blocked'
+  | 'not_surfaced';
+
+export interface DaemonCapabilityUxMethod {
+  readonly id: string;
+  readonly title?: string;
+  readonly category: string;
+  readonly access: string;
+  readonly httpMethod: string;
+  readonly path?: string;
+  readonly dangerous: boolean;
+  readonly readOnly: boolean;
+  readonly mutating: boolean;
+  readonly uxCoverage: DaemonCapabilityUxCoverage;
+  readonly surface: string;
+  readonly next: string;
+}
+
+export interface DaemonCapabilityUxGroup {
+  readonly category: string;
+  readonly methodCount: number;
+  readonly usableMethodCount: number;
+  readonly readOnlyMethodCount: number;
+  readonly explicitConfirmationMethodCount: number;
+  readonly blockedMethodCount: number;
+  readonly notSurfacedMethodCount: number;
+  readonly methods: readonly DaemonCapabilityUxMethod[];
+}
+
+export interface DaemonCapabilityUxCoverageReport {
+  readonly ok: true;
+  readonly kind: 'daemon.capabilities.ux_coverage';
+  readonly baseUrl: string;
+  readonly daemonVersion: string;
+  readonly expectedSdkVersion: string;
+  readonly daemonCompatible: boolean;
+  readonly methodCatalogRoute: typeof DAEMON_METHOD_CATALOG_ROUTE;
+  readonly methodCount: number;
+  readonly agentKnowledgeRoute: typeof AGENT_KNOWLEDGE_STATUS_ROUTE;
+  readonly agentKnowledgeRouteReady: boolean;
+  readonly defaultKnowledgeFallback: false;
+  readonly homeGraphFallback: false;
+  readonly usableMethodCount: number;
+  readonly readOnlyMethodCount: number;
+  readonly explicitConfirmationMethodCount: number;
+  readonly blockedMethodCount: number;
+  readonly notSurfacedMethodCount: number;
+  readonly groups: readonly DaemonCapabilityUxGroup[];
+}
+
 export interface DaemonCapabilityAuditFailure {
   readonly ok: false;
   readonly kind: DaemonCapabilityAuditFailureKind;
@@ -455,6 +509,167 @@ function compareInventoryGroups(left: DaemonCapabilityInventoryGroup, right: Dae
   const countDelta = right.methodCount - left.methodCount;
   if (countDelta !== 0) return countDelta;
   return left.category.localeCompare(right.category);
+}
+
+function compareUxGroups(left: DaemonCapabilityUxGroup, right: DaemonCapabilityUxGroup): number {
+  const gapDelta = right.notSurfacedMethodCount + right.blockedMethodCount
+    - (left.notSurfacedMethodCount + left.blockedMethodCount);
+  if (gapDelta !== 0) return gapDelta;
+  const countDelta = right.methodCount - left.methodCount;
+  if (countDelta !== 0) return countDelta;
+  return left.category.localeCompare(right.category);
+}
+
+const USABLE_METHOD_SURFACES = new Map<string, string>([
+  ['control.status', 'status / smoke / compat'],
+  ['control.auth.current', 'auth / status / smoke'],
+  ['control.methods.list', 'capabilities daemon inventory / coverage / risk'],
+  ['control.contract', 'compat / capability checks'],
+  ['control.snapshot', 'status / capability checks'],
+  ['companion.chat.sessions.create', 'chat session management'],
+  ['companion.chat.sessions.get', 'chat session management'],
+  ['companion.chat.sessions.list', 'chat session management'],
+  ['companion.chat.sessions.update', 'chat session management'],
+  ['companion.chat.messages.create', 'normal assistant chat'],
+  ['companion.chat.messages.list', 'normal assistant chat'],
+  ['sessions.messages.create', 'explicit build delegation to GoodVibes TUI'],
+  ['sessions.list', 'delegations status'],
+  ['tasks.list', 'delegations status'],
+  ['projectPlanning.workPlan.snapshot', 'workplan'],
+  ['approvals.list', 'approvals / approval risk'],
+  ['automation.integration.snapshot', 'automation status'],
+  ['automation.jobs.list', 'automation jobs'],
+  ['automation.runs.list', 'automation runs'],
+  ['automation.heartbeat.list', 'automation heartbeat'],
+  ['schedules.list', 'schedules'],
+  ['scheduler.capacity', 'automation capacity'],
+  ['providers.list', 'provider/model setup'],
+  ['providers.get', 'provider/model setup'],
+  ['providers.usage.get', 'provider usage'],
+  ['accounts.snapshot', 'provider account posture'],
+  ['channels.status', 'channel onboarding/status'],
+  ['channels.capabilities.list', 'channel onboarding/status'],
+  ['channels.accounts.list', 'channel onboarding/status'],
+  ['channels.setup.get', 'channel onboarding/status'],
+  ['channels.doctor.get', 'channel diagnostics'],
+  ['channels.actions.list', 'channel capabilities'],
+  ['channels.tools.list', 'channel capabilities'],
+  ['channels.targets.resolve', 'routine delivery planning'],
+  ['channels.policies.list', 'channel safety posture'],
+  ['mcp.config.get', 'MCP setup/status'],
+  ['mcp.servers.list', 'MCP setup/status'],
+  ['mcp.tools.list', 'MCP setup/status'],
+  ['web_search.providers.list', 'research/tool readiness'],
+  ['web_search.query', 'research/tool readiness'],
+  ['voice.status', 'voice setup/status'],
+  ['voice.providers.list', 'voice setup/status'],
+  ['voice.voices.list', 'voice setup/status'],
+  ['media.providers.list', 'media setup/status'],
+  ['multimodal.providers.list', 'multimodal setup/status'],
+  ['remote.snapshot', 'remote/node setup'],
+  ['remote.peers.list', 'remote/node setup'],
+  ['remote.work.list', 'remote work status'],
+  ['remote.node_host.contract', 'remote/node setup'],
+]);
+
+const EXPLICIT_CONFIRMATION_METHOD_SURFACES = new Map<string, string>([
+  ['approvals.approve', 'approvals approve --yes'],
+  ['approvals.deny', 'approvals deny --yes'],
+  ['approvals.cancel', 'approvals cancel --yes'],
+  ['automation.jobs.run', 'automation jobs run --yes'],
+  ['automation.jobs.pause', 'automation jobs pause --yes'],
+  ['automation.jobs.resume', 'automation jobs resume --yes'],
+  ['automation.runs.cancel', 'automation runs cancel --yes'],
+  ['automation.runs.retry', 'automation runs retry --yes'],
+  ['schedules.run', 'schedules run --yes'],
+]);
+
+const READ_ONLY_CATEGORY_SURFACES = new Map<string, string>([
+  ['approvals', 'approvals / approval risk'],
+  ['artifacts', 'artifact-aware chat and receipts'],
+  ['automation', 'automation status'],
+  ['channels', 'channel onboarding/status'],
+  ['companion', 'chat session management'],
+  ['control', 'status / capabilities'],
+  ['mcp', 'MCP setup/status'],
+  ['media', 'media setup/status'],
+  ['multimodal', 'multimodal setup/status'],
+  ['projectPlanning', 'workplan'],
+  ['providers', 'provider/model setup'],
+  ['remote', 'remote/node setup'],
+  ['schedules', 'schedules'],
+  ['scheduler', 'automation capacity'],
+  ['sessions', 'delegations status'],
+  ['tasks', 'delegations status'],
+  ['voice', 'voice setup/status'],
+  ['web_search', 'research/tool readiness'],
+]);
+
+function isDefaultKnowledgeMethod(method: DaemonCapabilityInventoryMethod): boolean {
+  return method.id.startsWith('knowledge.');
+}
+
+function isHomeGraphMethod(method: DaemonCapabilityInventoryMethod): boolean {
+  return method.id.startsWith('homeassistant.') || method.id.toLowerCase().includes('homegraph');
+}
+
+function classifyDaemonMethodUx(method: DaemonCapabilityInventoryMethod): DaemonCapabilityUxMethod {
+  const explicitSurface = EXPLICIT_CONFIRMATION_METHOD_SURFACES.get(method.id);
+  if (explicitSurface) {
+    return {
+      ...method,
+      uxCoverage: 'explicit_confirmation',
+      surface: explicitSurface,
+      next: 'Already exposed only through exact user commands plus confirmation.',
+    };
+  }
+
+  const usableSurface = USABLE_METHOD_SURFACES.get(method.id);
+  if (usableSurface) {
+    return {
+      ...method,
+      uxCoverage: 'usable',
+      surface: usableSurface,
+      next: 'Keep this route covered by command/help/workspace smoke as the daemon contract evolves.',
+    };
+  }
+
+  if (isDefaultKnowledgeMethod(method)) {
+    return {
+      ...method,
+      uxCoverage: 'blocked',
+      surface: 'blocked for Agent Knowledge',
+      next: 'Do not use default Knowledge/Wiki as an Agent fallback; use /api/goodvibes-agent/knowledge/* only.',
+    };
+  }
+
+  if (isHomeGraphMethod(method)) {
+    return {
+      ...method,
+      uxCoverage: 'blocked',
+      surface: 'blocked for Agent product boundary',
+      next: 'Do not use HomeGraph or Home Assistant routes as Agent Knowledge fallback.',
+    };
+  }
+
+  const readOnlySurface = READ_ONLY_CATEGORY_SURFACES.get(method.category);
+  if (method.readOnly && readOnlySurface) {
+    return {
+      ...method,
+      uxCoverage: 'read_only',
+      surface: readOnlySurface,
+      next: 'Visible through read-only posture, inventory, or status surfaces; add focused UX if this becomes user-facing.',
+    };
+  }
+
+  return {
+    ...method,
+    uxCoverage: 'not_surfaced',
+    surface: 'daemon inventory only',
+    next: method.mutating || method.dangerous
+      ? 'Design an exact command, approval posture, and confirmation flow before exposing this side effect.'
+      : 'Add a focused Agent command or workspace card if this daemon capability is part of the product surface.',
+  };
 }
 
 function daemonVersionFromStatus(body: unknown): string {
@@ -739,6 +954,97 @@ export function buildDaemonCapabilityInventoryReport(
 export type DaemonCapabilityInventoryResult =
   | DaemonCapabilityInventoryReport
   | DaemonCapabilityAuditFailure;
+
+export type DaemonCapabilityUxCoverageResult =
+  | DaemonCapabilityUxCoverageReport
+  | DaemonCapabilityAuditFailure;
+
+export function buildDaemonCapabilityUxCoverageReport(
+  inventory: DaemonCapabilityInventoryReport,
+): DaemonCapabilityUxCoverageReport {
+  const methods = inventory.groups
+    .flatMap((group) => group.methods)
+    .map(classifyDaemonMethodUx);
+
+  const groupsByCategory = new Map<string, DaemonCapabilityUxMethod[]>();
+  for (const method of methods) {
+    const existing = groupsByCategory.get(method.category) ?? [];
+    existing.push(method);
+    groupsByCategory.set(method.category, existing);
+  }
+
+  const groups = [...groupsByCategory.entries()].map(([category, categoryMethods]): DaemonCapabilityUxGroup => ({
+    category,
+    methodCount: categoryMethods.length,
+    usableMethodCount: categoryMethods.filter((method) => method.uxCoverage === 'usable').length,
+    readOnlyMethodCount: categoryMethods.filter((method) => method.uxCoverage === 'read_only').length,
+    explicitConfirmationMethodCount: categoryMethods.filter((method) => method.uxCoverage === 'explicit_confirmation').length,
+    blockedMethodCount: categoryMethods.filter((method) => method.uxCoverage === 'blocked').length,
+    notSurfacedMethodCount: categoryMethods.filter((method) => method.uxCoverage === 'not_surfaced').length,
+    methods: categoryMethods,
+  })).sort(compareUxGroups);
+
+  return {
+    ok: true,
+    kind: 'daemon.capabilities.ux_coverage',
+    baseUrl: inventory.baseUrl,
+    daemonVersion: inventory.daemonVersion,
+    expectedSdkVersion: inventory.expectedSdkVersion,
+    daemonCompatible: inventory.daemonCompatible,
+    methodCatalogRoute: inventory.methodCatalogRoute,
+    methodCount: inventory.methodCount,
+    agentKnowledgeRoute: inventory.agentKnowledgeRoute,
+    agentKnowledgeRouteReady: inventory.agentKnowledgeRouteReady,
+    defaultKnowledgeFallback: false,
+    homeGraphFallback: false,
+    usableMethodCount: methods.filter((method) => method.uxCoverage === 'usable').length,
+    readOnlyMethodCount: methods.filter((method) => method.uxCoverage === 'read_only').length,
+    explicitConfirmationMethodCount: methods.filter((method) => method.uxCoverage === 'explicit_confirmation').length,
+    blockedMethodCount: methods.filter((method) => method.uxCoverage === 'blocked').length,
+    notSurfacedMethodCount: methods.filter((method) => method.uxCoverage === 'not_surfaced').length,
+    groups,
+  };
+}
+
+export function filterDaemonCapabilityUxGroups(
+  groups: readonly DaemonCapabilityUxGroup[],
+  query: string | undefined,
+): readonly DaemonCapabilityUxGroup[] {
+  const normalized = query?.trim().toLowerCase();
+  if (!normalized) return groups;
+  return groups.flatMap((group): DaemonCapabilityUxGroup[] => {
+    const categoryMatches = group.category.toLowerCase().includes(normalized);
+    const methods = categoryMatches
+      ? group.methods
+      : group.methods.filter((method) => {
+          return method.id.toLowerCase().includes(normalized)
+            || method.title?.toLowerCase().includes(normalized) === true
+            || method.uxCoverage.includes(normalized)
+            || method.surface.toLowerCase().includes(normalized)
+            || method.next.toLowerCase().includes(normalized)
+            || method.path?.toLowerCase().includes(normalized) === true;
+        });
+    if (methods.length === 0) return [];
+    return [{
+      category: group.category,
+      methodCount: methods.length,
+      usableMethodCount: methods.filter((method) => method.uxCoverage === 'usable').length,
+      readOnlyMethodCount: methods.filter((method) => method.uxCoverage === 'read_only').length,
+      explicitConfirmationMethodCount: methods.filter((method) => method.uxCoverage === 'explicit_confirmation').length,
+      blockedMethodCount: methods.filter((method) => method.uxCoverage === 'blocked').length,
+      notSurfacedMethodCount: methods.filter((method) => method.uxCoverage === 'not_surfaced').length,
+      methods,
+    }];
+  });
+}
+
+export async function fetchLiveDaemonCapabilityUxCoverage(
+  connection: AgentDaemonConnection,
+): Promise<DaemonCapabilityUxCoverageResult> {
+  const inventory = await fetchLiveDaemonCapabilityInventory(connection);
+  if (!inventory.ok) return inventory;
+  return buildDaemonCapabilityUxCoverageReport(inventory);
+}
 
 export async function fetchLiveDaemonCapabilityInventory(
   connection: AgentDaemonConnection,
@@ -1111,6 +1417,54 @@ export function renderDaemonCapabilityInventory(
     lines.push(`  ${group.readOnlyMethodCount} read-only; ${group.mutatingMethodCount} mutating; ${group.dangerousMethodCount} dangerous; ${group.authenticatedMethodCount} authenticated`);
     const visibleMethods = group.methods.slice(0, 12);
     for (const method of visibleMethods) lines.push(renderInventoryMethod(method));
+    if (group.methods.length > visibleMethods.length) {
+      lines.push(`    ... ${group.methods.length - visibleMethods.length} more; use --json or a narrower query for the full list.`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+function renderUxMethod(method: DaemonCapabilityUxMethod): string {
+  const route = method.path ? ` ${method.httpMethod} ${method.path}` : ` ${method.httpMethod}`;
+  return `    ${method.id} [${method.uxCoverage}]${route} -> ${method.surface}`;
+}
+
+export function renderDaemonCapabilityUxCoverage(
+  report: DaemonCapabilityUxCoverageReport,
+  groups: readonly DaemonCapabilityUxGroup[] = report.groups,
+): string {
+  const lines: string[] = [
+    'GoodVibes daemon-to-Agent UX coverage',
+    `  daemon: ${report.baseUrl}`,
+    `  SDK: Agent expects ${report.expectedSdkVersion}; daemon reports ${report.daemonVersion}`,
+    `  compatibility: ${report.daemonCompatible ? 'matched' : 'mismatch'}`,
+    `  method catalog: ${report.methodCount} methods from ${report.methodCatalogRoute}`,
+    `  Agent Knowledge: ${report.agentKnowledgeRouteReady ? 'ready' : 'missing'} ${report.agentKnowledgeRoute}`,
+    '  isolation: default Knowledge/Wiki fallback no; HomeGraph fallback no',
+    `  totals: ${report.usableMethodCount} usable; ${report.readOnlyMethodCount} read-only observable; ${report.explicitConfirmationMethodCount} explicit-confirmation; ${report.blockedMethodCount} blocked; ${report.notSurfacedMethodCount} not surfaced`,
+    '',
+  ];
+
+  if (groups.length === 0) {
+    lines.push('No daemon UX coverage rows matched this query.');
+    return lines.join('\n');
+  }
+
+  for (const group of groups) {
+    lines.push(`${group.category} (${group.methodCount})`);
+    lines.push(`  ${group.usableMethodCount} usable; ${group.readOnlyMethodCount} read-only; ${group.explicitConfirmationMethodCount} explicit-confirmation; ${group.blockedMethodCount} blocked; ${group.notSurfacedMethodCount} not surfaced`);
+    const priorityMethods = group.methods
+      .filter((method) => method.uxCoverage === 'not_surfaced' || method.uxCoverage === 'blocked')
+      .slice(0, 12);
+    const visibleMethods = priorityMethods.length > 0 ? priorityMethods : group.methods.slice(0, 12);
+    for (const method of visibleMethods) {
+      lines.push(renderUxMethod(method));
+      if (method.uxCoverage === 'not_surfaced' || method.uxCoverage === 'blocked') {
+        lines.push(`      next: ${method.next}`);
+      }
+    }
     if (group.methods.length > visibleMethods.length) {
       lines.push(`    ... ${group.methods.length - visibleMethods.length} more; use --json or a narrower query for the full list.`);
     }

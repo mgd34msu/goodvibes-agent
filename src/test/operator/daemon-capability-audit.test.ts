@@ -5,10 +5,12 @@ import {
   buildDaemonCapabilityGapReport,
   buildDaemonCapabilityInventoryReport,
   buildDaemonCapabilityRouteRiskReport,
+  buildDaemonCapabilityUxCoverageReport,
   renderDaemonCapabilityInventory,
   renderDaemonCapabilityAudit,
   renderDaemonCapabilityGaps,
   renderDaemonCapabilityRouteRisk,
+  renderDaemonCapabilityUxCoverage,
   type DaemonCapabilityAuditSuccess,
 } from '../../operator/daemon-capability-audit.ts';
 
@@ -293,5 +295,56 @@ describe('daemon capability audit', () => {
     expect(rendered).toContain('dangerous');
     expect(rendered).not.toContain('/api/knowledge');
     expect(rendered).not.toContain('/api/homegraph');
+  });
+
+  test('maps full daemon inventory to Agent UX coverage without default knowledge fallback', () => {
+    const inventory = buildDaemonCapabilityInventoryReport(
+      { baseUrl: 'http://127.0.0.1:3421', token: 'token', tokenPath: '/tmp/token.json' },
+      '0.33.35',
+      true,
+      [
+        {
+          id: 'channels.status',
+          category: 'channels',
+          access: 'authenticated',
+          http: { method: 'GET', path: '/api/channels/status' },
+        },
+        {
+          id: 'approvals.approve',
+          category: 'approvals',
+          access: 'authenticated',
+          http: { method: 'POST', path: '/api/approvals/123/approve' },
+        },
+        {
+          id: 'knowledge.ask',
+          category: 'knowledge',
+          access: 'authenticated',
+          http: { method: 'POST', path: '/api/knowledge/ask' },
+        },
+        {
+          id: 'custom.admin.mutate',
+          category: 'custom',
+          access: 'admin',
+          dangerous: true,
+          http: { method: 'POST', path: '/api/custom/mutate' },
+        },
+      ],
+    );
+
+    const report = buildDaemonCapabilityUxCoverageReport(inventory);
+    const rendered = renderDaemonCapabilityUxCoverage(report);
+
+    expect(report.kind).toBe('daemon.capabilities.ux_coverage');
+    expect(report.defaultKnowledgeFallback).toBe(false);
+    expect(report.homeGraphFallback).toBe(false);
+    expect(report.usableMethodCount).toBe(1);
+    expect(report.explicitConfirmationMethodCount).toBe(1);
+    expect(report.blockedMethodCount).toBe(1);
+    expect(report.notSurfacedMethodCount).toBe(1);
+    expect(report.groups.flatMap((group) => group.methods).find((method) => method.id === 'knowledge.ask')?.uxCoverage).toBe('blocked');
+    expect(rendered).toContain('GoodVibes daemon-to-Agent UX coverage');
+    expect(rendered).toContain('knowledge.ask [blocked]');
+    expect(rendered).toContain('custom.admin.mutate [not_surfaced]');
+    expect(rendered).toContain('default Knowledge/Wiki fallback no');
   });
 });

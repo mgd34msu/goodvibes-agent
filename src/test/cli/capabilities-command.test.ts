@@ -445,4 +445,98 @@ describe('CLI capabilities command', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test('daemon coverage maps every method to Agent UX posture without default knowledge fallback', async () => {
+    const requests: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input) => {
+      const url = inputUrl(input);
+      requests.push(url);
+      if (url.endsWith('/api/goodvibes-agent/knowledge/status')) {
+        return new Response(JSON.stringify({ sourceCount: 0 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/status')) {
+        return new Response(JSON.stringify({ version: '0.33.35' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/api/control-plane/methods')) {
+        return new Response(JSON.stringify({
+          methods: [
+            {
+              id: 'channels.status',
+              category: 'channels',
+              access: 'authenticated',
+              http: { method: 'GET', path: '/api/channels/status' },
+            },
+            {
+              id: 'approvals.approve',
+              category: 'approvals',
+              access: 'authenticated',
+              http: { method: 'POST', path: '/api/approvals/123/approve' },
+            },
+            {
+              id: 'knowledge.ask',
+              category: 'knowledge',
+              access: 'authenticated',
+              http: { method: 'POST', path: '/api/knowledge/ask' },
+            },
+            {
+              id: 'custom.admin.mutate',
+              category: 'custom',
+              access: 'admin',
+              dangerous: true,
+              http: { method: 'POST', path: '/api/custom/mutate' },
+            },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'unexpected route' }), { status: 404 });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleCapabilitiesCommand(makeDaemonRuntime(['capabilities', 'daemon', 'coverage', '--json']));
+      const parsed = JSON.parse(result.output) as {
+        readonly ok?: boolean;
+        readonly kind?: string;
+        readonly defaultKnowledgeFallback?: boolean;
+        readonly homeGraphFallback?: boolean;
+        readonly usableMethodCount?: number;
+        readonly explicitConfirmationMethodCount?: number;
+        readonly blockedMethodCount?: number;
+        readonly notSurfacedMethodCount?: number;
+        readonly groups?: readonly {
+          readonly methods?: readonly {
+            readonly id?: string;
+            readonly uxCoverage?: string;
+          }[];
+        }[];
+      };
+      const methods = parsed.groups?.flatMap((group) => group.methods ?? []) ?? [];
+
+      expect(result.exitCode).toBe(0);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.kind).toBe('daemon.capabilities.ux_coverage');
+      expect(parsed.defaultKnowledgeFallback).toBe(false);
+      expect(parsed.homeGraphFallback).toBe(false);
+      expect(parsed.usableMethodCount).toBe(1);
+      expect(parsed.explicitConfirmationMethodCount).toBe(1);
+      expect(parsed.blockedMethodCount).toBe(1);
+      expect(parsed.notSurfacedMethodCount).toBe(1);
+      expect(methods.find((method) => method.id === 'knowledge.ask')?.uxCoverage).toBe('blocked');
+      expect(methods.find((method) => method.id === 'custom.admin.mutate')?.uxCoverage).toBe('not_surfaced');
+      expect(requests.some((url) => url.includes('/api/control-plane/methods'))).toBe(true);
+      expect(requests.some((url) => url.includes('/api/knowledge'))).toBe(false);
+      expect(requests.some((url) => url.includes('/api/homegraph'))).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

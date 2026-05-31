@@ -20,6 +20,7 @@ goodvibes-agent capabilities daemon --json
 goodvibes-agent capabilities daemon gaps
 goodvibes-agent capabilities daemon risk
 goodvibes-agent capabilities daemon inventory
+goodvibes-agent capabilities daemon coverage
 goodvibes-agent capabilities daemon knowledge
 ```
 
@@ -32,6 +33,7 @@ Inside the TUI:
 /capabilities daemon
 /capabilities daemon gaps
 /capabilities daemon inventory
+/capabilities daemon coverage
 /approval risk
 ```
 
@@ -62,7 +64,7 @@ The benchmark measures two different GoodVibes layers:
 
 If the daemon already has a route but Agent lacks a good setup/workspace/CLI surface, the gap is treated as an Agent product gap rather than a missing platform capability.
 
-Use `goodvibes-agent capabilities daemon` for the live read-only daemon audit. It checks the public control-plane method catalog, route risk posture, and the isolated Agent Knowledge status route. Use `goodvibes-agent capabilities daemon inventory` for the full public daemon method inventory grouped by category, access, HTTP method, and dangerous flag. Use `goodvibes-agent capabilities daemon gaps` to convert that daemon-measured audit into a prioritized gap plan with `version_mismatch`, `agent_route_missing`, `required_method_missing`, `route_risk_review`, and `agent_ux_gap` rows. Use `goodvibes-agent capabilities daemon risk` or `/approval risk` for a route-risk-aware approval-center view over read-only, mutating, dangerous, and authenticated route metadata. These commands intentionally avoid default `/api/knowledge/*`, HomeGraph, and Home Assistant routes.
+Use `goodvibes-agent capabilities daemon` for the live read-only daemon audit. It checks the public control-plane method catalog, route risk posture, and the isolated Agent Knowledge status route. Use `goodvibes-agent capabilities daemon inventory` for the full public daemon method inventory grouped by category, access, HTTP method, and dangerous flag. Use `goodvibes-agent capabilities daemon coverage` to map every public daemon method to Agent UX posture: usable, read-only observable, explicit-confirmation, blocked by product boundary, or not surfaced yet. Use `goodvibes-agent capabilities daemon gaps` to convert that daemon-measured audit into a prioritized gap plan with `version_mismatch`, `agent_route_missing`, `required_method_missing`, `route_risk_review`, and `agent_ux_gap` rows. Use `goodvibes-agent capabilities daemon risk` or `/approval risk` for a route-risk-aware approval-center view over read-only, mutating, dangerous, and authenticated route metadata. These commands intentionally avoid default `/api/knowledge/*`, HomeGraph, and Home Assistant routes.
 
 ## Capability Targets
 
@@ -84,7 +86,7 @@ Use `goodvibes-agent capabilities daemon` for the live read-only daemon audit. I
 
 GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true from day one:
 
-- Capability surfaces are discoverable through `goodvibes-agent capabilities`, `goodvibes-agent capabilities daemon`, `goodvibes-agent capabilities daemon inventory`, `goodvibes-agent capabilities daemon gaps`, `goodvibes-agent capabilities daemon risk`, `/capabilities`, `/capabilities daemon`, `/approval risk`, onboarding, and the operator workspace.
+- Capability surfaces are discoverable through `goodvibes-agent capabilities`, `goodvibes-agent capabilities daemon`, `goodvibes-agent capabilities daemon inventory`, `goodvibes-agent capabilities daemon coverage`, `goodvibes-agent capabilities daemon gaps`, `goodvibes-agent capabilities daemon risk`, `/capabilities`, `/capabilities daemon`, `/approval risk`, onboarding, and the operator workspace.
 - Agent Knowledge isolation is a release gate, not a convention.
 - Routine-to-schedule promotion preserves Agent Knowledge isolation, uses only public external daemon schedule routes, supports explicit delivery targets, and stores redacted receipts.
 - Model-visible tools are policy-gated for serial, non-secret, non-destructive use.

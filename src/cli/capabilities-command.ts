@@ -10,20 +10,23 @@ import {
   buildDaemonCapabilityRouteRiskReport,
   fetchLiveDaemonCapabilityAudit,
   fetchLiveDaemonCapabilityInventory,
+  fetchLiveDaemonCapabilityUxCoverage,
   filterDaemonCapabilityAuditAreas,
   filterDaemonCapabilityGaps,
   filterDaemonCapabilityInventoryGroups,
   filterDaemonCapabilityRouteRiskAreas,
+  filterDaemonCapabilityUxGroups,
   renderDaemonCapabilityAudit,
   renderDaemonCapabilityFailure,
   renderDaemonCapabilityGaps,
   renderDaemonCapabilityInventory,
   renderDaemonCapabilityRouteRisk,
+  renderDaemonCapabilityUxCoverage,
 } from '../operator/daemon-capability-audit.ts';
 import { resolveAgentDaemonConnection } from '../agent/routine-schedule-promotion.ts';
 
 interface CapabilityCommandArgs {
-  readonly mode: 'benchmark' | 'daemon' | 'daemon-gaps' | 'daemon-risk' | 'daemon-inventory';
+  readonly mode: 'benchmark' | 'daemon' | 'daemon-gaps' | 'daemon-risk' | 'daemon-inventory' | 'daemon-ux';
   readonly query: string | undefined;
 }
 
@@ -45,6 +48,10 @@ function readCapabilityArgs(args: readonly string[]): CapabilityCommandArgs {
     if (values[1] === 'inventory' || values[1] === 'methods' || values[1] === 'routes') {
       const query = values.slice(2).join(' ').trim();
       return { mode: 'daemon-inventory', query: query.length > 0 ? query : undefined };
+    }
+    if (values[1] === 'coverage' || values[1] === 'ux' || values[1] === 'surface') {
+      const query = values.slice(2).join(' ').trim();
+      return { mode: 'daemon-ux', query: query.length > 0 ? query : undefined };
     }
     const query = values.slice(1).join(' ').trim();
     return { mode: 'daemon', query: query.length > 0 ? query : undefined };
@@ -129,6 +136,25 @@ export async function handleCapabilitiesCommand(runtime: CliCommandRuntime): Pro
       output: runtime.cli.flags.outputFormat === 'json'
         ? JSON.stringify({ ...inventory, matchedGroupCount: groups.length, groups }, null, 2)
         : renderDaemonCapabilityInventory(inventory, groups),
+      exitCode: 0,
+    };
+  }
+  if (args.mode === 'daemon-ux') {
+    const connection = resolveAgentDaemonConnection(runtime.configManager, runtime.homeDirectory);
+    const coverage = await fetchLiveDaemonCapabilityUxCoverage(connection);
+    if (!coverage.ok) {
+      return {
+        output: runtime.cli.flags.outputFormat === 'json'
+          ? JSON.stringify(coverage, null, 2)
+          : renderDaemonCapabilityFailure(coverage),
+        exitCode: coverage.kind === 'auth_required' || coverage.kind === 'daemon_unavailable' ? 1 : 2,
+      };
+    }
+    const groups = filterDaemonCapabilityUxGroups(coverage.groups, args.query);
+    return {
+      output: runtime.cli.flags.outputFormat === 'json'
+        ? JSON.stringify({ ...coverage, matchedGroupCount: groups.length, groups }, null, 2)
+        : renderDaemonCapabilityUxCoverage(coverage, groups),
       exitCode: 0,
     };
   }

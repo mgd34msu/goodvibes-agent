@@ -157,6 +157,20 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/capabilities daemon inventory');
   });
 
+  test('dispatches daemon UX coverage matrix from the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'capabilities');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'capabilities-daemon-coverage');
+
+    workspace.activateSelected();
+
+    expect(workspace.selectedAction?.detail).toContain('usable, read-only, explicit confirmation, blocked, or not surfaced');
+    expect(dispatched).toEqual(['/capabilities daemon coverage']);
+    expect(workspace.status).toContain('/capabilities daemon coverage');
+  });
+
   test('dispatches approval route risk review from the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
