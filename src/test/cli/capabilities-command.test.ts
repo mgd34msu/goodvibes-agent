@@ -351,4 +351,98 @@ describe('CLI capabilities command', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test('daemon inventory reports every public method group without default knowledge fallback', async () => {
+    const requests: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input) => {
+      const url = inputUrl(input);
+      requests.push(url);
+      if (url.endsWith('/api/goodvibes-agent/knowledge/status')) {
+        return new Response(JSON.stringify({ sourceCount: 0 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/status')) {
+        return new Response(JSON.stringify({ version: '0.33.35' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/api/control-plane/methods')) {
+        return new Response(JSON.stringify({
+          methods: [
+            {
+              id: 'channels.status',
+              title: 'Channel status',
+              category: 'channels',
+              access: 'authenticated',
+              invokable: true,
+              http: { method: 'GET', path: '/api/channels/status' },
+            },
+            {
+              id: 'channels.authorize',
+              category: 'channels',
+              access: 'authenticated',
+              invokable: true,
+              dangerous: true,
+              http: { method: 'POST', path: '/api/channels/authorize' },
+            },
+            {
+              id: 'providers.list',
+              access: 'anonymous',
+              http: { method: 'GET', path: '/api/providers' },
+            },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'unexpected route' }), { status: 404 });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleCapabilitiesCommand(makeDaemonRuntime(['capabilities', 'daemon', 'inventory', 'channels', '--json']));
+      const parsed = JSON.parse(result.output) as {
+        readonly ok?: boolean;
+        readonly kind?: string;
+        readonly methodCount?: number;
+        readonly matchedGroupCount?: number;
+        readonly defaultKnowledgeFallback?: boolean;
+        readonly homeGraphFallback?: boolean;
+        readonly mutatingMethodCount?: number;
+        readonly dangerousMethodCount?: number;
+        readonly groups?: readonly {
+          readonly category?: string;
+          readonly methodCount?: number;
+          readonly methods?: readonly {
+            readonly id?: string;
+            readonly dangerous?: boolean;
+            readonly httpMethod?: string;
+            readonly mutating?: boolean;
+          }[];
+        }[];
+      };
+
+      expect(result.exitCode).toBe(0);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.kind).toBe('daemon.capabilities.inventory');
+      expect(parsed.methodCount).toBe(3);
+      expect(parsed.matchedGroupCount).toBe(1);
+      expect(parsed.defaultKnowledgeFallback).toBe(false);
+      expect(parsed.homeGraphFallback).toBe(false);
+      expect(parsed.mutatingMethodCount).toBe(1);
+      expect(parsed.dangerousMethodCount).toBe(1);
+      expect(parsed.groups?.[0]?.category).toBe('channels');
+      expect(parsed.groups?.[0]?.methodCount).toBe(2);
+      expect(parsed.groups?.[0]?.methods?.some((method) => method.id === 'channels.authorize' && method.httpMethod === 'POST' && method.mutating === true && method.dangerous === true)).toBe(true);
+      expect(requests.some((url) => url.includes('/api/control-plane/methods'))).toBe(true);
+      expect(requests.some((url) => url.includes('/api/knowledge'))).toBe(false);
+      expect(requests.some((url) => url.includes('/api/homegraph'))).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

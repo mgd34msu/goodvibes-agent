@@ -8,12 +8,15 @@ import {
   buildDaemonCapabilityGapReport,
   buildDaemonCapabilityRouteRiskReport,
   fetchLiveDaemonCapabilityAudit,
+  fetchLiveDaemonCapabilityInventory,
   filterDaemonCapabilityAuditAreas,
   filterDaemonCapabilityGaps,
+  filterDaemonCapabilityInventoryGroups,
   filterDaemonCapabilityRouteRiskAreas,
   renderDaemonCapabilityAudit,
   renderDaemonCapabilityFailure,
   renderDaemonCapabilityGaps,
+  renderDaemonCapabilityInventory,
   renderDaemonCapabilityRouteRisk,
 } from '../../operator/daemon-capability-audit.ts';
 import { resolveAgentDaemonConnection } from '../../agent/routine-schedule-promotion.ts';
@@ -45,6 +48,17 @@ export function registerCapabilitiesRuntimeCommands(registry: CommandRegistry): 
           const query = args.slice(2).join(' ').trim() || undefined;
           const areas = filterDaemonCapabilityRouteRiskAreas(report.areas, query);
           ctx.print(renderDaemonCapabilityRouteRisk(report, areas));
+          return;
+        }
+        if (args[1] === 'inventory' || args[1] === 'methods' || args[1] === 'routes') {
+          const inventory = await fetchLiveDaemonCapabilityInventory(connection);
+          if (!inventory.ok) {
+            ctx.print(renderDaemonCapabilityFailure(inventory));
+            return;
+          }
+          const query = args.slice(2).join(' ').trim() || undefined;
+          const groups = filterDaemonCapabilityInventoryGroups(inventory.groups, query);
+          ctx.print(renderDaemonCapabilityInventory(inventory, groups));
           return;
         }
         const query = args.slice(1).join(' ').trim() || undefined;

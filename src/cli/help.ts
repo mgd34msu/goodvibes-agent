@@ -105,6 +105,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `  ${binary} capabilities daemon`,
     `  ${binary} capabilities daemon gaps`,
     `  ${binary} capabilities daemon risk`,
+    `  ${binary} capabilities daemon inventory`,
     `  ${binary} knowledge status`,
     `  ${binary} knowledge ask "What is GoodVibes Agent?"`,
     `  ${binary} ask "What is GoodVibes Agent?"`,
@@ -199,9 +200,9 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     examples: ['compat', 'compat --json'],
   },
   capabilities: {
-    usage: ['capabilities [openclaw|hermes|query]', 'capabilities daemon [query]', 'capabilities daemon gaps [query]', 'capabilities daemon risk [query]', 'capabilities --json'],
-    summary: 'Show the OpenClaw/Hermes capability benchmark, Agent readiness, live GoodVibes daemon method coverage, and daemon-measured product gaps.',
-    examples: ['capabilities', 'capabilities hermes', 'capabilities daemon', 'capabilities daemon gaps', 'capabilities daemon risk --json', 'capabilities daemon knowledge --json'],
+    usage: ['capabilities [openclaw|hermes|query]', 'capabilities daemon [query]', 'capabilities daemon gaps [query]', 'capabilities daemon risk [query]', 'capabilities daemon inventory [query]', 'capabilities --json'],
+    summary: 'Show the OpenClaw/Hermes capability benchmark, Agent readiness, live GoodVibes daemon method coverage, route risk, and daemon-measured product gaps.',
+    examples: ['capabilities', 'capabilities hermes', 'capabilities daemon', 'capabilities daemon gaps', 'capabilities daemon risk --json', 'capabilities daemon inventory channels --json'],
   },
   knowledge: {
     usage: [

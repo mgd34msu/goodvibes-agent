@@ -3,7 +3,9 @@ import {
   AGENT_KNOWLEDGE_STATUS_ROUTE,
   buildDaemonCapabilityAuditAreas,
   buildDaemonCapabilityGapReport,
+  buildDaemonCapabilityInventoryReport,
   buildDaemonCapabilityRouteRiskReport,
+  renderDaemonCapabilityInventory,
   renderDaemonCapabilityAudit,
   renderDaemonCapabilityGaps,
   renderDaemonCapabilityRouteRisk,
@@ -246,5 +248,50 @@ describe('daemon capability audit', () => {
     expect(rendered).toContain('channels.policies.audit');
     expect(rendered).toContain('ordinary chat never triggers mutating routes');
     expect(rendered).not.toContain('/api/knowledge/status');
+  });
+
+  test('builds full daemon inventory report without default knowledge fallback', () => {
+    const report = buildDaemonCapabilityInventoryReport(
+      { baseUrl: 'http://127.0.0.1:3421', token: 'token', tokenPath: '/tmp/token.json' },
+      '0.33.35',
+      true,
+      [
+        {
+          id: 'channels.status',
+          category: 'channels',
+          access: 'authenticated',
+          invokable: true,
+          http: { method: 'GET', path: '/api/channels/status' },
+        },
+        {
+          id: 'channels.authorize',
+          category: 'channels',
+          access: 'authenticated',
+          invokable: true,
+          dangerous: true,
+          http: { method: 'POST', path: '/api/channels/authorize' },
+        },
+        {
+          id: 'providers.list',
+          access: 'anonymous',
+          http: { method: 'GET', path: '/api/providers' },
+        },
+      ],
+    );
+    const rendered = renderDaemonCapabilityInventory(report);
+
+    expect(report.kind).toBe('daemon.capabilities.inventory');
+    expect(report.methodCount).toBe(3);
+    expect(report.readOnlyMethodCount).toBe(2);
+    expect(report.mutatingMethodCount).toBe(1);
+    expect(report.dangerousMethodCount).toBe(1);
+    expect(report.defaultKnowledgeFallback).toBe(false);
+    expect(report.homeGraphFallback).toBe(false);
+    expect(report.groups[0]?.category).toBe('channels');
+    expect(rendered).toContain('GoodVibes daemon method inventory');
+    expect(rendered).toContain('channels.authorize');
+    expect(rendered).toContain('dangerous');
+    expect(rendered).not.toContain('/api/knowledge');
+    expect(rendered).not.toContain('/api/homegraph');
   });
 });

@@ -135,6 +135,53 @@ export interface DaemonCapabilityRouteRiskReport {
   readonly areas: readonly DaemonCapabilityRouteRiskArea[];
 }
 
+export interface DaemonCapabilityInventoryMethod {
+  readonly id: string;
+  readonly title?: string;
+  readonly category: string;
+  readonly access: string;
+  readonly invokable: boolean | null;
+  readonly dangerous: boolean;
+  readonly httpMethod: string;
+  readonly path?: string;
+  readonly readOnly: boolean;
+  readonly mutating: boolean;
+}
+
+export interface DaemonCapabilityInventoryGroup {
+  readonly category: string;
+  readonly methodCount: number;
+  readonly readOnlyMethodCount: number;
+  readonly mutatingMethodCount: number;
+  readonly authenticatedMethodCount: number;
+  readonly dangerousMethodCount: number;
+  readonly methods: readonly DaemonCapabilityInventoryMethod[];
+}
+
+export interface DaemonCapabilityInventoryReport {
+  readonly ok: true;
+  readonly kind: 'daemon.capabilities.inventory';
+  readonly baseUrl: string;
+  readonly daemonVersion: string;
+  readonly expectedSdkVersion: string;
+  readonly daemonCompatible: boolean;
+  readonly methodCatalogRoute: typeof DAEMON_METHOD_CATALOG_ROUTE;
+  readonly methodCount: number;
+  readonly agentKnowledgeRoute: typeof AGENT_KNOWLEDGE_STATUS_ROUTE;
+  readonly agentKnowledgeRouteReady: boolean;
+  readonly defaultKnowledgeFallback: false;
+  readonly homeGraphFallback: false;
+  readonly readOnlyMethodCount: number;
+  readonly mutatingMethodCount: number;
+  readonly authenticatedMethodCount: number;
+  readonly dangerousMethodCount: number;
+  readonly accessCounts: readonly {
+    readonly access: string;
+    readonly count: number;
+  }[];
+  readonly groups: readonly DaemonCapabilityInventoryGroup[];
+}
+
 export interface DaemonCapabilityAuditFailure {
   readonly ok: false;
   readonly kind: DaemonCapabilityAuditFailureKind;
@@ -380,6 +427,36 @@ function readMethodSummaries(body: unknown): readonly DaemonMethodSummary[] {
   });
 }
 
+function normalizeMethodCategory(method: DaemonMethodSummary): string {
+  const category = method.category?.trim();
+  if (category) return category;
+  const [prefix] = method.id.split('.');
+  return prefix || 'uncategorized';
+}
+
+function normalizeAccess(method: DaemonMethodSummary): string {
+  const access = method.access?.trim();
+  return access || 'unknown';
+}
+
+function normalizeHttpMethod(method: DaemonMethodSummary): string {
+  return method.http?.method?.trim().toUpperCase() || 'UNKNOWN';
+}
+
+function isReadOnlyHttpMethod(httpMethod: string): boolean {
+  return httpMethod === 'GET' || httpMethod === 'HEAD';
+}
+
+function compareInventoryMethods(left: DaemonCapabilityInventoryMethod, right: DaemonCapabilityInventoryMethod): number {
+  return left.id.localeCompare(right.id);
+}
+
+function compareInventoryGroups(left: DaemonCapabilityInventoryGroup, right: DaemonCapabilityInventoryGroup): number {
+  const countDelta = right.methodCount - left.methodCount;
+  if (countDelta !== 0) return countDelta;
+  return left.category.localeCompare(right.category);
+}
+
 function daemonVersionFromStatus(body: unknown): string {
   if (!isRecord(body)) return 'unknown';
   return readString(body, 'version')
@@ -580,6 +657,116 @@ export async function fetchLiveDaemonCapabilityAudit(
       warnings,
       areas: buildDaemonCapabilityAuditAreas(methodIds, agentKnowledge.ok, methodSummaries),
     };
+  } catch (error) {
+    return failureFromThrown(error, connection, daemonVersion === 'unknown' ? DAEMON_STATUS_ROUTE : DAEMON_METHOD_CATALOG_ROUTE);
+  }
+}
+
+export function buildDaemonCapabilityInventoryReport(
+  connection: AgentDaemonConnection,
+  daemonVersion: string,
+  agentKnowledgeRouteReady: boolean,
+  methodSummaries: readonly DaemonMethodSummary[],
+): DaemonCapabilityInventoryReport {
+  const methods = methodSummaries.map((method): DaemonCapabilityInventoryMethod => {
+    const httpMethod = normalizeHttpMethod(method);
+    const readOnly = isReadOnlyHttpMethod(httpMethod);
+    return {
+      id: method.id,
+      title: method.title,
+      category: normalizeMethodCategory(method),
+      access: normalizeAccess(method),
+      invokable: typeof method.invokable === 'boolean' ? method.invokable : null,
+      dangerous: method.dangerous === true,
+      httpMethod,
+      path: method.http?.path,
+      readOnly,
+      mutating: httpMethod !== 'UNKNOWN' && !readOnly,
+    };
+  }).sort(compareInventoryMethods);
+
+  const groupsByCategory = new Map<string, DaemonCapabilityInventoryMethod[]>();
+  for (const method of methods) {
+    const existing = groupsByCategory.get(method.category) ?? [];
+    existing.push(method);
+    groupsByCategory.set(method.category, existing);
+  }
+
+  const groups = [...groupsByCategory.entries()].map(([category, categoryMethods]): DaemonCapabilityInventoryGroup => ({
+    category,
+    methodCount: categoryMethods.length,
+    readOnlyMethodCount: categoryMethods.filter((method) => method.readOnly).length,
+    mutatingMethodCount: categoryMethods.filter((method) => method.mutating).length,
+    authenticatedMethodCount: categoryMethods.filter((method) => method.access === 'authenticated').length,
+    dangerousMethodCount: categoryMethods.filter((method) => method.dangerous).length,
+    methods: categoryMethods,
+  })).sort(compareInventoryGroups);
+
+  const accessEntries = new Map<string, number>();
+  for (const method of methods) {
+    accessEntries.set(method.access, (accessEntries.get(method.access) ?? 0) + 1);
+  }
+  const accessCounts = [...accessEntries.entries()]
+    .map(([access, count]) => ({ access, count }))
+    .sort((left, right) => {
+      const countDelta = right.count - left.count;
+      if (countDelta !== 0) return countDelta;
+      return left.access.localeCompare(right.access);
+    });
+
+  return {
+    ok: true,
+    kind: 'daemon.capabilities.inventory',
+    baseUrl: connection.baseUrl,
+    daemonVersion,
+    expectedSdkVersion: SDK_VERSION,
+    daemonCompatible: daemonVersion === SDK_VERSION,
+    methodCatalogRoute: DAEMON_METHOD_CATALOG_ROUTE,
+    methodCount: methods.length,
+    agentKnowledgeRoute: AGENT_KNOWLEDGE_STATUS_ROUTE,
+    agentKnowledgeRouteReady,
+    defaultKnowledgeFallback: false,
+    homeGraphFallback: false,
+    readOnlyMethodCount: methods.filter((method) => method.readOnly).length,
+    mutatingMethodCount: methods.filter((method) => method.mutating).length,
+    authenticatedMethodCount: methods.filter((method) => method.access === 'authenticated').length,
+    dangerousMethodCount: methods.filter((method) => method.dangerous).length,
+    accessCounts,
+    groups,
+  };
+}
+
+export type DaemonCapabilityInventoryResult =
+  | DaemonCapabilityInventoryReport
+  | DaemonCapabilityAuditFailure;
+
+export async function fetchLiveDaemonCapabilityInventory(
+  connection: AgentDaemonConnection,
+): Promise<DaemonCapabilityInventoryResult> {
+  let daemonVersion = 'unknown';
+  try {
+    const status = await fetchJson(connection, DAEMON_STATUS_ROUTE);
+    if (status.ok) {
+      daemonVersion = daemonVersionFromStatus(status.body);
+    } else if (status.status === 401 || status.status === 403) {
+      return failureFromResponse(status, connection, DAEMON_STATUS_ROUTE, daemonVersion);
+    }
+
+    const methods = await fetchJson(connection, DAEMON_METHOD_CATALOG_ROUTE);
+    if (!methods.ok) return failureFromResponse(methods, connection, DAEMON_METHOD_CATALOG_ROUTE, daemonVersion);
+
+    const agentKnowledge = await fetchJson(connection, AGENT_KNOWLEDGE_STATUS_ROUTE);
+    if (!agentKnowledge.ok) {
+      const failure = failureFromResponse(agentKnowledge, connection, AGENT_KNOWLEDGE_STATUS_ROUTE, daemonVersion);
+      if (failure.kind === 'auth_required') return failure;
+    }
+
+    return buildDaemonCapabilityInventoryReport(
+      connection,
+      daemonVersion,
+      agentKnowledge.ok,
+      readMethodSummaries(methods.body),
+    );
   } catch (error) {
     return failureFromThrown(error, connection, daemonVersion === 'unknown' ? DAEMON_STATUS_ROUTE : DAEMON_METHOD_CATALOG_ROUTE);
   }
@@ -851,6 +1038,82 @@ export function renderDaemonCapabilityRouteRisk(
       lines.push(`  dangerous methods: ${area.dangerousMethodIds.join(', ')}`);
     }
     lines.push('  approval posture: read-only by default; exact command and confirmation required for side effects.');
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+export function filterDaemonCapabilityInventoryGroups(
+  groups: readonly DaemonCapabilityInventoryGroup[],
+  query: string | undefined,
+): readonly DaemonCapabilityInventoryGroup[] {
+  const normalized = query?.trim().toLowerCase();
+  if (!normalized) return groups;
+  return groups.flatMap((group): DaemonCapabilityInventoryGroup[] => {
+    const categoryMatches = group.category.toLowerCase().includes(normalized);
+    const methods = categoryMatches
+      ? group.methods
+      : group.methods.filter((method) => {
+          return method.id.toLowerCase().includes(normalized)
+            || method.title?.toLowerCase().includes(normalized) === true
+            || method.access.toLowerCase().includes(normalized)
+            || method.httpMethod.toLowerCase().includes(normalized)
+            || method.path?.toLowerCase().includes(normalized) === true;
+        });
+    if (methods.length === 0) return [];
+    return [{
+      category: group.category,
+      methodCount: methods.length,
+      readOnlyMethodCount: methods.filter((method) => method.readOnly).length,
+      mutatingMethodCount: methods.filter((method) => method.mutating).length,
+      authenticatedMethodCount: methods.filter((method) => method.access === 'authenticated').length,
+      dangerousMethodCount: methods.filter((method) => method.dangerous).length,
+      methods,
+    }];
+  });
+}
+
+function renderInventoryMethod(method: DaemonCapabilityInventoryMethod): string {
+  const risk = method.dangerous
+    ? ' dangerous'
+    : method.mutating
+      ? ' mutating'
+      : ' read-only';
+  const route = method.path ? ` ${method.httpMethod} ${method.path}` : ` ${method.httpMethod}`;
+  return `    ${method.id} [${method.access};${risk}]${route}`;
+}
+
+export function renderDaemonCapabilityInventory(
+  report: DaemonCapabilityInventoryReport,
+  groups: readonly DaemonCapabilityInventoryGroup[] = report.groups,
+): string {
+  const lines: string[] = [
+    'GoodVibes daemon method inventory',
+    `  daemon: ${report.baseUrl}`,
+    `  SDK: Agent expects ${report.expectedSdkVersion}; daemon reports ${report.daemonVersion}`,
+    `  compatibility: ${report.daemonCompatible ? 'matched' : 'mismatch'}`,
+    `  method catalog: ${report.methodCount} methods from ${report.methodCatalogRoute}`,
+    `  Agent Knowledge: ${report.agentKnowledgeRouteReady ? 'ready' : 'missing'} ${report.agentKnowledgeRoute}`,
+    '  isolation: default Knowledge/Wiki fallback no; HomeGraph fallback no',
+    `  totals: ${report.readOnlyMethodCount} read-only; ${report.mutatingMethodCount} mutating; ${report.dangerousMethodCount} dangerous; ${report.authenticatedMethodCount} authenticated`,
+    `  access: ${report.accessCounts.map((entry) => `${entry.access} ${entry.count}`).join('; ') || 'none'}`,
+    '',
+  ];
+
+  if (groups.length === 0) {
+    lines.push('No daemon methods matched this query.');
+    return lines.join('\n');
+  }
+
+  for (const group of groups) {
+    lines.push(`${group.category} (${group.methodCount})`);
+    lines.push(`  ${group.readOnlyMethodCount} read-only; ${group.mutatingMethodCount} mutating; ${group.dangerousMethodCount} dangerous; ${group.authenticatedMethodCount} authenticated`);
+    const visibleMethods = group.methods.slice(0, 12);
+    for (const method of visibleMethods) lines.push(renderInventoryMethod(method));
+    if (group.methods.length > visibleMethods.length) {
+      lines.push(`    ... ${group.methods.length - visibleMethods.length} more; use --json or a narrower query for the full list.`);
+    }
     lines.push('');
   }
 

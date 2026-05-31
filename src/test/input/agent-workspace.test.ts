@@ -143,6 +143,20 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/capabilities daemon gaps');
   });
 
+  test('dispatches full daemon method inventory from the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'capabilities');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'capabilities-daemon-inventory');
+
+    workspace.activateSelected();
+
+    expect(workspace.selectedAction?.detail).toContain('every public daemon method');
+    expect(dispatched).toEqual(['/capabilities daemon inventory']);
+    expect(workspace.status).toContain('/capabilities daemon inventory');
+  });
+
   test('dispatches approval route risk review from the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
