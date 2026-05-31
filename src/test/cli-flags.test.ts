@@ -182,6 +182,14 @@ describe('parseCliFlags', () => {
     const listener = parseGoodVibesCli(['listener', 'test']);
     expect(listener.command).toBe('listener');
     expect(listener.commandArgs).toEqual(['test']);
+
+    const ask = parseGoodVibesCli(['ask', 'What', 'is', 'GoodVibes', 'Agent?']);
+    expect(ask.command).toBe('ask');
+    expect(ask.commandArgs).toEqual(['What', 'is', 'GoodVibes', 'Agent?']);
+
+    const search = parseGoodVibesCli(['search', 'release', 'checklist']);
+    expect(search.command).toBe('search');
+    expect(search.commandArgs).toEqual(['release', 'checklist']);
   });
 
   test('passes command-specific options through to command handlers', () => {

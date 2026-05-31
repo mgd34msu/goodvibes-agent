@@ -553,6 +553,21 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
   };
 }
 
+export async function handleAgentKnowledgeShortcutCommand(
+  runtime: CliCommandRuntime,
+  subcommand: 'ask' | 'search',
+): Promise<CliCommandOutput> {
+  return handleAgentKnowledgeCommand({
+    ...runtime,
+    cli: {
+      ...runtime.cli,
+      command: 'knowledge',
+      rawCommand: 'knowledge',
+      commandArgs: [subcommand, ...runtime.cli.commandArgs],
+    },
+  });
+}
+
 export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
   const connection = resolveDaemonConnection(runtime);
   const metadata = readPackageMetadata();

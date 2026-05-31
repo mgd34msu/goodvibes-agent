@@ -20,6 +20,7 @@ High-signal Agent command families:
 - `/status`, `/auth`, and `/compat` for daemon/auth/SDK diagnostics.
 - `/model` and `/provider` for provider/model selection and visibility.
 - `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, and ingest.
+- `goodvibes-agent ask <question>` and `goodvibes-agent search <query>` are CLI shortcuts for the same isolated Agent Knowledge routes.
 - `/recall`, `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.

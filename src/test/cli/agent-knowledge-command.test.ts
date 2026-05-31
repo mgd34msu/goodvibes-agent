@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
-import { handleAgentKnowledgeCommand } from '../../cli/agent-knowledge-command.ts';
+import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand } from '../../cli/agent-knowledge-command.ts';
 import { parseGoodVibesCli } from '../../cli/parser.ts';
 
 const roots: string[] = [];
@@ -15,7 +15,7 @@ interface CapturedRequest {
   readonly body: string | null;
 }
 
-function createRuntime(commandArgs: readonly string[]) {
+function createRuntimeForArgv(argv: readonly string[]) {
   const root = mkdtempSync(join(tmpdir(), 'gv-agent-knowledge-cli-'));
   roots.push(root);
   const workingDirectory = join(root, 'workspace');
@@ -32,11 +32,15 @@ function createRuntime(commandArgs: readonly string[]) {
     homeDir: homeDirectory,
   });
   return {
-    cli: parseGoodVibesCli(['knowledge', ...commandArgs, '--json']),
+    cli: parseGoodVibesCli([...argv, '--json']),
     configManager,
     workingDirectory,
     homeDirectory,
   };
+}
+
+function createRuntime(commandArgs: readonly string[]) {
+  return createRuntimeForArgv(['knowledge', ...commandArgs]);
 }
 
 function readSdkPin(): string {
@@ -207,6 +211,53 @@ describe('Agent Knowledge CLI route isolation', () => {
       ]));
       const parsed = JSON.parse(result.output) as unknown;
 
+      expect(result.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ask');
+      expect(requests[0]?.url).not.toContain('/api/knowledge/');
+      expect(parsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.ask',
+        route: '/api/goodvibes-agent/knowledge/ask',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('top-level ask shortcut uses only the Agent Knowledge route', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return new Response(JSON.stringify({
+        query: 'What is GoodVibes Agent?',
+        answer: {
+          text: 'No Agent-owned knowledge has been ingested yet.',
+          mode: 'standard',
+          confidence: 0,
+          synthesized: false,
+          sources: [],
+          facts: [],
+          linkedObjects: [],
+          gaps: [],
+        },
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) satisfies typeof fetch;
+
+    try {
+      const runtime = createRuntimeForArgv(['ask', 'What', 'is', 'GoodVibes', 'Agent?']);
+      const result = await handleAgentKnowledgeShortcutCommand(runtime, 'ask');
+      const parsed = JSON.parse(result.output) as unknown;
+
+      expect(runtime.cli.command).toBe('ask');
       expect(result.exitCode).toBe(0);
       expect(requests).toHaveLength(1);
       expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ask');

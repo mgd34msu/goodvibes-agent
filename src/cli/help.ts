@@ -41,6 +41,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
     '  compat                     Inspect Agent SDK pin, daemon version, and Agent knowledge route readiness',
     '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
+    '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
     '  delegate                   Explicitly delegate build/fix/review work to GoodVibes TUI',
     '  subscription               Start/finish/logout provider subscription sessions',
     '  secrets                    List, set, link, delete, and test GoodVibes secret refs',
@@ -95,6 +96,8 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `  ${binary} compat`,
     `  ${binary} knowledge status`,
     `  ${binary} knowledge ask "What is GoodVibes Agent?"`,
+    `  ${binary} ask "What is GoodVibes Agent?"`,
+    `  ${binary} search "release checklist"`,
     `  ${binary} delegate --wrfc "fix the failing tests in ~/work/project"`,
     `  ${binary} surfaces`,
     `  ${binary} surfaces check`,
@@ -173,6 +176,16 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'knowledge search "release checklist"',
       'knowledge ingest-url https://example.com/page --title "Reference"',
     ],
+  },
+  ask: {
+    usage: ['ask <question> [--limit <n>] [--mode concise|standard|detailed]'],
+    summary: 'Shortcut for isolated Agent Knowledge ask. This never queries default Knowledge/Wiki or HomeGraph.',
+    examples: ['ask "What is GoodVibes Agent?"', 'ask "release checklist" --mode concise'],
+  },
+  search: {
+    usage: ['search <query> [--limit <n>]'],
+    summary: 'Shortcut for isolated Agent Knowledge search. This never queries default Knowledge/Wiki or HomeGraph.',
+    examples: ['search "release checklist"', 'search "operator workspace" --limit 5'],
   },
   delegate: {
     usage: ['delegate [--wrfc] <build/fix/review task>'],
