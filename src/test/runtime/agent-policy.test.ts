@@ -9,6 +9,7 @@ import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createRuntimeServices } from '../../runtime/services.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
+import { registerControlRoomRuntimeCommands } from '../../input/commands/control-room-runtime.ts';
 import { registerDelegationRuntimeCommands } from '../../input/commands/delegation-runtime.ts';
 import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
 
@@ -112,6 +113,39 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(manager.removeJob).toHaveBeenCalledTimes(0);
     expect(manager.setEnabled).toHaveBeenCalledTimes(0);
     expect(manager.runNow).toHaveBeenCalledTimes(0);
+  });
+
+  test('orchestration command is read-only and does not cancel local Agent graphs', () => {
+    const registry = new CommandRegistry();
+    registerControlRoomRuntimeCommands(registry);
+    const orchestration = registry.get('orchestration');
+    expect(orchestration).toBeDefined();
+
+    const out: string[] = [];
+    const manager = {
+      cancelGraph: mock(() => []),
+      cancelSubtree: mock(() => []),
+    };
+    const ctx = {
+      ops: { agentManager: manager },
+      platform: {
+        readModels: {
+          orchestration: {
+            getSnapshot: () => ({ graphs: [] }),
+          },
+        },
+      },
+      print: (text: string) => out.push(text),
+    } as unknown as CommandContext;
+
+    orchestration!.handler(['cancel', 'graph', 'graph-1'], ctx);
+    orchestration!.handler(['cancel', 'subtree', 'agent-1'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('orchestration is read-only');
+    expect(text).toContain('use /delegate');
+    expect(manager.cancelGraph).toHaveBeenCalledTimes(0);
+    expect(manager.cancelSubtree).toHaveBeenCalledTimes(0);
   });
 
   test('delegate command submits one shared-session request without eating --wrfc task text', async () => {

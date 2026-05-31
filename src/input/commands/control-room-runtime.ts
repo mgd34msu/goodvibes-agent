@@ -23,8 +23,8 @@ export function registerControlRoomRuntimeCommands(registry: CommandRegistry): v
   registry.register({
     name: 'orchestration',
     aliases: ['orch'],
-    description: 'Inspect orchestration graphs and cancel active graphs or subtrees',
-    usage: '[show [graphId] | cancel graph <graphId> | cancel subtree <agentId>]',
+    description: 'Inspect orchestration graphs; local Agent graph cancellation is blocked',
+    usage: '[show [graphId]]',
     handler(args, ctx) {
       const graphs = [...requireReadModels(ctx).orchestration.getSnapshot().graphs];
       if (args.length === 0) {
@@ -66,32 +66,11 @@ export function registerControlRoomRuntimeCommands(registry: CommandRegistry): v
       }
 
       if (subcommand === 'cancel') {
-        const mode = args[1]?.toLowerCase();
-        const target = args[2];
-        const manager = ctx.ops.agentManager;
-        if (!manager) {
-          ctx.print('Agent manager is not available in this runtime.');
-          return;
-        }
-        if (!mode || !target) {
-          ctx.print('Usage: /orchestration cancel graph <graphId> | /orchestration cancel subtree <agentId>');
-          return;
-        }
-        if (mode === 'graph') {
-          const cancelled = manager.cancelGraph(target);
-          ctx.print(cancelled.length > 0
-            ? `Cancelled ${cancelled.length} agent${cancelled.length !== 1 ? 's' : ''} in graph ${target}.`
-            : `No cancellable agents found in graph ${target}.`);
-          return;
-        }
-        if (mode === 'subtree') {
-          const cancelled = manager.cancelSubtree(target);
-          ctx.print(cancelled.length > 0
-            ? `Cancelled ${cancelled.length} agent${cancelled.length !== 1 ? 's' : ''} in subtree rooted at ${target}.`
-            : `No cancellable agents found in subtree rooted at ${target}.`);
-          return;
-        }
-        ctx.print(`Unknown orchestration cancel target: ${mode}`);
+        ctx.print([
+          'GoodVibes Agent orchestration is read-only.',
+          'Local graph/subtree cancellation belongs to the copied coding runtime and is blocked here.',
+          'For explicit build/fix/review work, use /delegate so GoodVibes TUI owns the execution chain.',
+        ].join('\n'));
         return;
       }
 
