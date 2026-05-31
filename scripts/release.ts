@@ -139,9 +139,8 @@ const changelogPath = join(root, 'CHANGELOG.md');
 const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
 const newSection = [
-  `## [${next}] — ${today}`,
+  `## ${next} - ${today}`,
   '',
-  '### Changes',
   ...(() => {
     try {
       const log = execSync('git log --oneline $(git describe --tags --abbrev=0 HEAD^)..HEAD 2>/dev/null || git log --oneline -20', { cwd: root, encoding: 'utf8' }).trim();
@@ -156,20 +155,12 @@ const newSection = [
 if (!DRY_RUN) {
   let changelog = readFileSync(changelogPath, 'utf8');
 
-  // Insert new section after the first "---" separator
-  const insertMarker = '---';
-  const markerIdx = changelog.indexOf(insertMarker);
-  if (markerIdx === -1) {
-    console.error('Error: could not find --- separator in CHANGELOG.md');
-    process.exit(1);
+  const firstReleaseHeading = changelog.search(/^## /m);
+  if (firstReleaseHeading === -1) {
+    changelog = `${changelog.trimEnd()}\n\n${newSection}\n`;
+  } else {
+    changelog = `${changelog.slice(0, firstReleaseHeading)}${newSection}\n${changelog.slice(firstReleaseHeading)}`;
   }
-
-  const afterMarker = markerIdx + insertMarker.length;
-  changelog =
-    changelog.slice(0, afterMarker) +
-    '\n\n' +
-    newSection +
-    changelog.slice(afterMarker).replace(/^\n+/, '\n');
 
   writeFileSync(changelogPath, changelog);
   console.log(`CHANGELOG.md: prepended section for ${next}`);
