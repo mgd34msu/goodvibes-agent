@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.19 - 2026-05-31
+
+- a4255d5 Restrict durable workflow tool mutations in agent runtime
+
 ## 0.1.18 - 2026-05-31
 
 - 1fd7729 Restrict state tool mutations in agent runtime
