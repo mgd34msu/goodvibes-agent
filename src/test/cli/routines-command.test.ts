@@ -93,6 +93,56 @@ function scheduleResponse(): Response {
   });
 }
 
+function schedulesListResponse(): Response {
+  return new Response(JSON.stringify({
+    jobs: [
+      {
+        id: 'sched-cli-1',
+        name: 'Agent routine: Daily Operations Sweep',
+        labels: [],
+        createdAt: 1,
+        updatedAt: 1,
+        status: 'enabled',
+        enabled: true,
+        schedule: { kind: 'cron', expression: '0 8 * * *' },
+        execution: { prompt: 'routine prompt', target: { kind: 'main' } },
+        delivery: {
+          mode: 'none',
+          targets: [],
+          fallbackTargets: [],
+          includeSummary: true,
+          includeTranscript: false,
+          includeLinks: true,
+        },
+        failure: {
+          action: 'retry',
+          maxConsecutiveFailures: 3,
+          cooldownMs: 3600000,
+          retryPolicy: { maxAttempts: 2, delayMs: 60000, strategy: 'exponential' },
+        },
+        source: {
+          id: 'source-sched-cli-1',
+          kind: 'schedule',
+          label: 'schedule',
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 1,
+          metadata: {},
+        },
+        nextRunAt: 1_700_000_000_000,
+        runCount: 2,
+        successCount: 2,
+        failureCount: 0,
+        deleteAfterRun: false,
+      },
+    ],
+    runs: [],
+  }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
@@ -136,6 +186,7 @@ describe('routines CLI command', () => {
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : '',
       });
+      if ((init?.method ?? 'GET') === 'GET') return schedulesListResponse();
       return scheduleResponse();
     }) satisfies typeof fetch;
 
@@ -161,6 +212,13 @@ describe('routines CLI command', () => {
       expect(receipt.exitCode).toBe(0);
       expect(receipt.output).toContain('Agent routine schedule receipt');
       expect(receipt.output).toContain('cadence: cron 0 8 * * *');
+
+      const reconciled = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'reconcile']) });
+      expect(reconciled.exitCode).toBe(0);
+      expect(reconciled.output).toContain('Agent routine schedule reconciliation');
+      expect(reconciled.output).toContain('matched: 1');
+      expect(reconciled.output).toContain('live=sched-cli-1');
+      expect(requests.some((request) => request.method === 'GET' && request.url === 'http://127.0.0.1:3421/api/automation/schedules')).toBe(true);
     } finally {
       globalThis.fetch = originalFetch;
     }

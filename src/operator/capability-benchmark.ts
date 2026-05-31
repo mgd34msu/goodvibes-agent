@@ -116,7 +116,7 @@ export const OPERATOR_CAPABILITY_BENCHMARKS: readonly OperatorCapabilityBenchmar
     configure: ['/schedule list', '/routines create ...', '/schedule promote-routine <id> --cron "0 8 * * *" --yes', 'goodvibes-agent routines promote <id> --every 1d --yes'],
     use: ['/schedule list', '/routines start <id>', '/schedule promote-routine <id> --cron <expr> --yes'],
     exceedsBy: ['No recursive hidden scheduler creation from model tools', 'explicit confirmation for side effects', 'local routines separate from daemon jobs', 'scheduled prompts preserve isolated Agent Knowledge and forbid default wiki/HomeGraph fallback'],
-    next: ['Add delivery target selection and live schedule recovery/status correlation for promoted routines.'],
+    next: ['Add delivery target selection and deeper live run/delivery history for promoted routines.'],
   },
   {
     id: 'tool-gateway-mcp',

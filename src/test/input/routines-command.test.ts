@@ -92,6 +92,56 @@ function scheduleResponse(): Response {
   });
 }
 
+function schedulesListResponse(): Response {
+  return new Response(JSON.stringify({
+    jobs: [
+      {
+        id: 'sched-1',
+        name: 'Agent routine: Inbox Sweep',
+        labels: [],
+        createdAt: 1,
+        updatedAt: 1,
+        status: 'enabled',
+        enabled: true,
+        schedule: { kind: 'cron', expression: '0 9 * * *', timezone: 'America/Chicago' },
+        execution: { prompt: 'routine prompt', target: { kind: 'main' } },
+        delivery: {
+          mode: 'none',
+          targets: [],
+          fallbackTargets: [],
+          includeSummary: true,
+          includeTranscript: false,
+          includeLinks: true,
+        },
+        failure: {
+          action: 'retry',
+          maxConsecutiveFailures: 3,
+          cooldownMs: 3600000,
+          retryPolicy: { maxAttempts: 2, delayMs: 60000, strategy: 'exponential' },
+        },
+        source: {
+          id: 'source-sched-1',
+          kind: 'schedule',
+          label: 'schedule',
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 1,
+          metadata: {},
+        },
+        nextRunAt: 1_700_000_000_000,
+        runCount: 3,
+        successCount: 2,
+        failureCount: 1,
+        deleteAfterRun: false,
+      },
+    ],
+    runs: [],
+  }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
 describe('/routines command', () => {
   test('creates, lists, enables, starts, shows, and disables a local routine', async () => {
     const { registry, out, ctx } = commandHarness();
@@ -170,6 +220,7 @@ describe('/routines command', () => {
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : '',
       });
+      if ((init?.method ?? 'GET') === 'GET') return schedulesListResponse();
       return scheduleResponse();
     }) satisfies typeof fetch;
 
@@ -193,12 +244,17 @@ describe('/routines command', () => {
 
       await registry.execute('schedule', ['receipts'], ctx);
       await registry.execute('schedule', ['receipt', receiptId!], ctx);
+      await registry.execute('schedule', ['reconcile'], ctx);
 
       const receiptText = out.join('\n');
       expect(receiptText).toContain('Agent routine schedule receipts');
       expect(receiptText).toContain('schedule=sched-1');
       expect(receiptText).toContain('Agent routine schedule receipt');
       expect(receiptText).toContain('cadence: cron 0 9 * * * [America/Chicago]');
+      expect(receiptText).toContain('Agent routine schedule reconciliation');
+      expect(receiptText).toContain('matched: 1');
+      expect(receiptText).toContain('live=sched-1');
+      expect(requests.some((request) => request.method === 'GET' && request.url === 'http://127.0.0.1:3421/api/automation/schedules')).toBe(true);
     } finally {
       globalThis.fetch = originalFetch;
     }

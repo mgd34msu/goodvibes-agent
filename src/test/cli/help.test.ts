@@ -40,6 +40,7 @@ describe('CLI help/version', () => {
     const help = renderGoodVibesCommandHelp('routines');
     expect(help).toContain('promote <id>');
     expect(help).toContain('routines receipts');
+    expect(help).toContain('routines reconcile');
     expect(help).toContain('external daemon schedule');
     expect(help).toContain('Without --yes');
   });

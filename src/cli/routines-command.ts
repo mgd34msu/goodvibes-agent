@@ -2,6 +2,7 @@ import { createShellPathService } from '@/runtime/index.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
+  formatRoutineScheduleCorrelation,
   formatRoutineScheduleReceipt,
   formatRoutineScheduleReceipts,
   formatRoutineScheduleFailure,
@@ -9,6 +10,7 @@ import {
   formatRoutineScheduleSuccess,
   parseRoutineSchedulePromotionArgs,
   promoteRoutineToDaemonSchedule,
+  reconcileRoutineScheduleReceipts,
   resolveAgentDaemonConnection,
   RoutineScheduleReceiptStore,
 } from '../agent/routine-schedule-promotion.ts';
@@ -199,6 +201,17 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       exitCode: 0,
     };
   }
+  if (normalized === 'reconcile' || normalized === 'sync' || normalized === 'status') {
+    const store = routineReceiptStore(runtime);
+    const result = await reconcileRoutineScheduleReceipts(
+      resolveAgentDaemonConnection(runtime.configManager, runtime.homeDirectory),
+      store.snapshot(),
+    );
+    return {
+      output: jsonOrText(runtime, result, formatRoutineScheduleCorrelation(result)),
+      exitCode: result.ok ? 0 : 1,
+    };
+  }
   if (normalized === 'receipt') {
     const id = rest[0];
     if (!id) return { output: 'Usage: goodvibes-agent routines receipt <receipt-id>', exitCode: 2 };
@@ -224,7 +237,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
     return handleRoutinePromotion(runtime, rest);
   }
   return {
-    output: 'Usage: goodvibes-agent routines [list|enabled|show <id>|receipts|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) --yes]',
+    output: 'Usage: goodvibes-agent routines [list|enabled|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) --yes]',
     exitCode: 2,
   };
 }

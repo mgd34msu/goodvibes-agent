@@ -39,6 +39,8 @@ Once the TUI opens, run `/agent`, `/home`, or `/operator` to open the Agent oper
 
 Use `/agent-profile guide` inside that workspace to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
+Use `/schedule receipts` to review redacted local routine promotion history and `/schedule reconcile` to compare those receipts with live externally owned daemon schedules through public `schedules.list`.
+
 ## Isolated Agent Profiles
 
 Use a separate Agent home when you want isolated local state:

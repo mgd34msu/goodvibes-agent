@@ -25,7 +25,7 @@ High-signal Agent command families:
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
 - `/approvals` for pending approval visibility and explicit approval actions.
-- `/automation` and `/schedule` for automation visibility plus narrow explicit-user-action flows, including `/schedule promote-routine <routine> --cron <expr> --yes` for external daemon schedule creation and `/schedule receipts` for redacted local promotion history.
+- `/automation` and `/schedule` for automation visibility plus narrow explicit-user-action flows, including `/schedule promote-routine <routine> --cron <expr> --yes` for external daemon schedule creation, `/schedule receipts` for redacted local promotion history, and `/schedule reconcile` for live read-only receipt-to-daemon schedule correlation.
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
 
@@ -66,7 +66,7 @@ Approvals and automation are safe by default:
 - no chat turn silently runs approval, schedule, or automation mutations;
 - unavailable routes return structured errors rather than fallback behavior.
 
-Routine promotion is the first Agent-owned scheduling bridge: local routines stay local during normal use, and promotion creates a daemon `schedules.create` record only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or HomeGraph fallback. Confirmed attempts are written to a local redacted receipt log under the Agent home so the operator can review route, daemon, cadence, status, and returned schedule id without scraping daemon internals.
+Routine promotion is the first Agent-owned scheduling bridge: local routines stay local during normal use, and promotion creates a daemon `schedules.create` record only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or HomeGraph fallback. Confirmed attempts are written to a local redacted receipt log under the Agent home so the operator can review route, daemon, cadence, status, and returned schedule id without scraping daemon internals. `/schedule reconcile` calls public `schedules.list` to compare those receipts with live externally owned daemon schedules.
 
 ## Related Docs
 

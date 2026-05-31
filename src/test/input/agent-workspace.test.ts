@@ -350,6 +350,19 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/schedule receipts');
   });
 
+  test('automation workspace dispatches routine schedule reconciliation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-reconcile');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/schedule reconcile']);
+    expect(workspace.status).toContain('/schedule reconcile');
+  });
+
   test('blocks copied TUI-only blocked commands inside the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

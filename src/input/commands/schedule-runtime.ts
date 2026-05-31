@@ -7,6 +7,7 @@ import type { AutomationScheduleDefinition } from '@pellux/goodvibes-sdk/platfor
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
+  formatRoutineScheduleCorrelation,
   formatRoutineScheduleReceipt,
   formatRoutineScheduleReceipts,
   formatRoutineScheduleFailure,
@@ -14,6 +15,7 @@ import {
   formatRoutineScheduleSuccess,
   parseRoutineSchedulePromotionArgs,
   promoteRoutineToDaemonSchedule,
+  reconcileRoutineScheduleReceipts,
   resolveAgentDaemonConnection,
   RoutineScheduleReceiptStore,
 } from '../../agent/routine-schedule-promotion.ts';
@@ -85,8 +87,8 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
     name: 'schedule',
     aliases: ['sched'],
     description: 'Inspect schedules and explicitly promote local Agent routines to daemon schedules',
-    usage: 'list | receipts | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
-    argsHint: 'list | receipts | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
+    usage: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
+    argsHint: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
     async handler(args, ctx) {
       const sub = args[0];
 
@@ -97,6 +99,14 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
 
       if (sub === 'receipts' || sub === 'history') {
         ctx.print(formatRoutineScheduleReceipts(RoutineScheduleReceiptStore.fromShellPaths(requireShellPaths(ctx)).snapshot()));
+        return;
+      }
+
+      if (sub === 'reconcile' || sub === 'sync' || sub === 'status') {
+        const shellPaths = requireShellPaths(ctx);
+        const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+        const result = await reconcileRoutineScheduleReceipts(connection, RoutineScheduleReceiptStore.fromShellPaths(shellPaths).snapshot());
+        ctx.print(formatRoutineScheduleCorrelation(result));
         return;
       }
 
@@ -148,6 +158,7 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         'Usage:\n'
         + '  /schedule list\n'
         + '  /schedule receipts\n'
+        + '  /schedule reconcile\n'
         + '  /schedule receipt <receipt-id>\n'
         + '  /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) --yes\n'
         + '  Local schedule mutations and runs remain blocked.'

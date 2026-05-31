@@ -1,6 +1,7 @@
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
+  formatRoutineScheduleCorrelation,
   formatRoutineScheduleReceipt,
   formatRoutineScheduleReceipts,
   formatRoutineScheduleFailure,
@@ -8,6 +9,7 @@ import {
   formatRoutineScheduleSuccess,
   parseRoutineSchedulePromotionArgs,
   promoteRoutineToDaemonSchedule,
+  reconcileRoutineScheduleReceipts,
   resolveAgentDaemonConnection,
   RoutineScheduleReceiptStore,
 } from '../../agent/routine-schedule-promotion.ts';
@@ -167,6 +169,13 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       ctx.print(formatRoutineScheduleReceipts(receiptStoreFromContext(ctx).snapshot()));
       return;
     }
+    if (sub === 'reconcile' || sub === 'sync' || sub === 'status') {
+      const shellPaths = requireShellPaths(ctx);
+      const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+      const result = await reconcileRoutineScheduleReceipts(connection, receiptStoreFromContext(ctx).snapshot());
+      ctx.print(formatRoutineScheduleCorrelation(result));
+      return;
+    }
     if (sub === 'receipt') {
       const id = args[1];
       if (!id) {
@@ -275,7 +284,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       ctx.print(`Deleted Agent routine ${removed.id}: ${removed.name}`);
       return;
     }
-    ctx.print('Usage: /routines [list|enabled|search|show|receipts|receipt|create|update|enable|disable|start|review|stale|promote|delete]');
+    ctx.print('Usage: /routines [list|enabled|search|show|receipts|reconcile|receipt|create|update|enable|disable|start|review|stale|promote|delete]');
   } catch (error) {
     printError(ctx, error);
   }
@@ -286,7 +295,7 @@ export function registerRoutinesRuntimeCommands(registry: CommandRegistry): void
     name: 'routines',
     aliases: ['routine'],
     description: 'Manage local GoodVibes Agent routines',
-    usage: '[list|enabled|search <query>|show <id>|create --name <name> --description <summary> --steps <steps>|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> --yes|delete <id> --yes]',
+    usage: '[list|enabled|search <query>|show <id>|receipts|reconcile|receipt <id>|create --name <name> --description <summary> --steps <steps>|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> --yes|delete <id> --yes]',
     handler: runRoutinesRuntimeCommand,
   });
 }

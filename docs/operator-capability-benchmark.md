@@ -53,7 +53,7 @@ Primary sources used for the benchmark:
 | Channels | WhatsApp, Telegram, Slack, Discord, Signal, iMessage, web chat | GoodVibes daemon channel and companion surfaces with Agent-side policy, a Channels operator workspace, and per-channel readiness/risk labels |
 | Knowledge/memory | Durable memory, semantic search, wiki/claim layers | Isolated Agent Knowledge routes with workspace ask/search/ingest/review flows plus local memory/skills/personas/routines |
 | Skills/procedural memory | Skills directories, registries, skill lifecycle | Local Agent skills with review/stale/source/provenance fields |
-| Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Local routines can be explicitly promoted to external daemon `schedules.create` with `--yes`; redacted local promotion receipts are reviewable; hidden model scheduling and local scheduler spawns are blocked |
+| Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Local routines can be explicitly promoted to external daemon `schedules.create` with `--yes`; redacted local promotion receipts are reviewable and can be reconciled with live `schedules.list`; hidden model scheduling and local scheduler spawns are blocked |
 | Tools/MCP | Broad toolsets, MCP, browser, media, terminal, files | GoodVibes SDK tools with Agent policy guards and MCP/provider integrations |
 | Voice/media/canvas/nodes | Voice, TTS, mobile nodes, live canvas, browser automation | GoodVibes media/voice/browser/node primitives with an Agent workspace for setup, image input, browser posture, MCP, and remote/node inspection |
 | Build/code work | Direct terminal/file/code tools and subagents | Explicit delegation to GoodVibes TUI; local WRFC/spawn fanout blocked |

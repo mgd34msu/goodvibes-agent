@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname, join } from 'node:path';
 import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
 import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
+import { formatEveryInterval } from '@pellux/goodvibes-sdk/platform/automation';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
@@ -11,9 +12,11 @@ import type { AgentRoutineRecord } from './routine-registry.ts';
 
 export const ROUTINE_SCHEDULE_ROUTE = '/api/automation/schedules';
 export const ROUTINE_SCHEDULE_METHOD = 'schedules.create';
+export const ROUTINE_SCHEDULE_LIST_METHOD = 'schedules.list';
 
 type ScheduleCreateInput = OperatorMethodInput<'schedules.create'>;
 type ScheduleCreateOutput = OperatorMethodOutput<'schedules.create'>;
+type ScheduleListOutput = OperatorMethodOutput<'schedules.list'>;
 
 export interface AgentDaemonConfigReader {
   get(key: string): unknown;
@@ -116,6 +119,57 @@ export interface RoutineScheduleReceiptSnapshot {
   readonly receipts: readonly RoutineScheduleReceipt[];
 }
 
+export interface RoutineScheduleLiveRecord {
+  readonly id: string;
+  readonly name: string;
+  readonly status?: string;
+  readonly enabled?: boolean;
+  readonly scheduleKind?: RoutineScheduleKind;
+  readonly scheduleValue?: string;
+  readonly timezone?: string;
+  readonly nextRunAt?: number;
+  readonly lastRunAt?: number;
+  readonly runCount?: number;
+  readonly successCount?: number;
+  readonly failureCount?: number;
+}
+
+export interface RoutineScheduleCorrelation {
+  readonly receipt: RoutineScheduleReceipt;
+  readonly liveStatus: 'matched' | 'missing' | 'failed-receipt';
+  readonly matchReason: 'schedule-id' | 'name-and-cadence' | 'failed-receipt' | 'not-found';
+  readonly schedule?: RoutineScheduleLiveRecord;
+}
+
+export interface RoutineScheduleCorrelationSuccess {
+  readonly ok: true;
+  readonly kind: typeof ROUTINE_SCHEDULE_LIST_METHOD;
+  readonly route: typeof ROUTINE_SCHEDULE_ROUTE;
+  readonly baseUrl: string;
+  readonly scheduleCount: number;
+  readonly receiptCount: number;
+  readonly correlations: readonly RoutineScheduleCorrelation[];
+}
+
+export interface RoutineScheduleCorrelationFailure {
+  readonly ok: false;
+  readonly kind:
+    | 'auth_required'
+    | 'daemon_unavailable'
+    | 'version_mismatch'
+    | 'daemon_route_unavailable'
+    | 'daemon_error';
+  readonly error: string;
+  readonly route: typeof ROUTINE_SCHEDULE_ROUTE;
+  readonly baseUrl?: string;
+  readonly daemonVersion?: string;
+  readonly expectedSdkVersion?: string;
+}
+
+export type RoutineScheduleCorrelationResult =
+  | RoutineScheduleCorrelationSuccess
+  | RoutineScheduleCorrelationFailure;
+
 interface RoutineScheduleReceiptStoreFile {
   readonly version: 1;
   readonly receipts: readonly RoutineScheduleReceipt[];
@@ -135,6 +189,11 @@ function readString(record: Record<string, unknown>, key: string): string | null
 function readBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
   const value = record[key];
   return typeof value === 'boolean' ? value : undefined;
+}
+
+function readNumber(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function nowIso(): string {
@@ -268,6 +327,128 @@ function deliveryMode(payload: ScheduleCreateInput): string | undefined {
 
 function resultScheduleRecord(result: RoutineSchedulePromotionResult): Record<string, unknown> {
   return result.ok && isRecord(result.schedule) ? result.schedule : {};
+}
+
+function normalizeForMatch(value: string | undefined): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+function isoTime(value: string): string | null {
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
+
+function readLiveScheduleDefinition(value: unknown): {
+  readonly kind?: RoutineScheduleKind;
+  readonly value?: string;
+  readonly timezone?: string;
+} {
+  if (!isRecord(value)) return {};
+  if (value.kind === 'cron') {
+    return {
+      kind: 'cron',
+      value: readString(value, 'expression') ?? undefined,
+      timezone: readString(value, 'timezone') ?? undefined,
+    };
+  }
+  if (value.kind === 'every') {
+    const intervalMs = readNumber(value, 'intervalMs');
+    return {
+      kind: 'every',
+      value: intervalMs === undefined ? undefined : formatEveryInterval(intervalMs),
+    };
+  }
+  if (value.kind === 'at') {
+    const at = readNumber(value, 'at');
+    return {
+      kind: 'at',
+      value: at === undefined ? undefined : new Date(at).toISOString(),
+    };
+  }
+  return {};
+}
+
+function readLiveScheduleRecord(value: unknown): RoutineScheduleLiveRecord | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value, 'id')?.trim();
+  const name = readString(value, 'name')?.trim();
+  if (!id || !name) return null;
+  const schedule = readLiveScheduleDefinition(value.schedule);
+  return {
+    id,
+    name,
+    status: readString(value, 'status') ?? undefined,
+    enabled: readBoolean(value, 'enabled'),
+    scheduleKind: schedule.kind,
+    scheduleValue: schedule.value,
+    timezone: schedule.timezone,
+    nextRunAt: readNumber(value, 'nextRunAt'),
+    lastRunAt: readNumber(value, 'lastRunAt'),
+    runCount: readNumber(value, 'runCount'),
+    successCount: readNumber(value, 'successCount'),
+    failureCount: readNumber(value, 'failureCount'),
+  };
+}
+
+function readLiveSchedules(output: ScheduleListOutput): readonly RoutineScheduleLiveRecord[] {
+  const record: Record<string, unknown> = isRecord(output) ? output : {};
+  const jobs: readonly unknown[] = Array.isArray(record.jobs) ? record.jobs : [];
+  return jobs.map(readLiveScheduleRecord).filter((schedule): schedule is RoutineScheduleLiveRecord => schedule !== null);
+}
+
+function cadenceMatches(receipt: RoutineScheduleReceipt, schedule: RoutineScheduleLiveRecord): boolean {
+  if (receipt.scheduleKind !== schedule.scheduleKind) return false;
+  if (receipt.scheduleKind === 'at') {
+    const left = isoTime(receipt.scheduleValue);
+    const right = schedule.scheduleValue ? isoTime(schedule.scheduleValue) : null;
+    return Boolean(left && right && left === right);
+  }
+  return normalizeForMatch(receipt.scheduleValue) === normalizeForMatch(schedule.scheduleValue);
+}
+
+function findScheduleForReceipt(
+  receipt: RoutineScheduleReceipt,
+  schedules: readonly RoutineScheduleLiveRecord[],
+): { readonly reason: RoutineScheduleCorrelation['matchReason']; readonly schedule?: RoutineScheduleLiveRecord } {
+  if (receipt.scheduleId) {
+    const byId = schedules.find((schedule) => schedule.id === receipt.scheduleId);
+    if (byId) return { reason: 'schedule-id', schedule: byId };
+  }
+  const byNameAndCadence = schedules.find((schedule) => (
+    normalizeForMatch(schedule.name) === normalizeForMatch(receipt.scheduleName)
+    && cadenceMatches(receipt, schedule)
+  ));
+  return byNameAndCadence
+    ? { reason: 'name-and-cadence', schedule: byNameAndCadence }
+    : { reason: 'not-found' };
+}
+
+function correlateReceipts(
+  receipts: readonly RoutineScheduleReceipt[],
+  schedules: readonly RoutineScheduleLiveRecord[],
+): readonly RoutineScheduleCorrelation[] {
+  return receipts.map((receipt) => {
+    if (receipt.status === 'failed') {
+      return {
+        receipt,
+        liveStatus: 'failed-receipt',
+        matchReason: 'failed-receipt',
+      };
+    }
+    const match = findScheduleForReceipt(receipt, schedules);
+    return match.schedule
+      ? {
+        receipt,
+        liveStatus: 'matched',
+        matchReason: match.reason,
+        schedule: match.schedule,
+      }
+      : {
+        receipt,
+        liveStatus: 'missing',
+        matchReason: 'not-found',
+      };
+  });
 }
 
 function buildReceipt(
@@ -593,6 +774,38 @@ async function classifyScheduleError(
   return { ok: false, kind: 'daemon_error', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
 }
 
+async function classifyScheduleListError(
+  error: unknown,
+  connection: AgentDaemonConnection,
+): Promise<RoutineScheduleCorrelationFailure> {
+  const message = summarizeError(error);
+  const lower = message.toLowerCase();
+  if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('auth')) {
+    return { ok: false, kind: 'auth_required', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  }
+  if (lower.includes('404') || lower.includes('not found')) {
+    const daemon = await fetchDaemonStatus(connection);
+    const record = isRecord(daemon.body) ? daemon.body : {};
+    const daemonVersion = readString(record, 'version') ?? 'unknown';
+    if (daemon.ok && daemonVersion !== SDK_VERSION) {
+      return {
+        ok: false,
+        kind: 'version_mismatch',
+        error: `External daemon SDK version ${daemonVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.list is unavailable.`,
+        route: ROUTINE_SCHEDULE_ROUTE,
+        baseUrl: connection.baseUrl,
+        daemonVersion,
+        expectedSdkVersion: SDK_VERSION,
+      };
+    }
+    return { ok: false, kind: 'daemon_route_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  }
+  if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
+    return { ok: false, kind: 'daemon_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  }
+  return { ok: false, kind: 'daemon_error', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+}
+
 export async function promoteRoutineToDaemonSchedule(
   connection: AgentDaemonConnection,
   preview: RoutineSchedulePromotionPreview,
@@ -620,6 +833,37 @@ export async function promoteRoutineToDaemonSchedule(
     };
   } catch (error) {
     return classifyScheduleError(error, connection);
+  }
+}
+
+export async function reconcileRoutineScheduleReceipts(
+  connection: AgentDaemonConnection,
+  snapshot: RoutineScheduleReceiptSnapshot,
+): Promise<RoutineScheduleCorrelationResult> {
+  if (!connection.token) {
+    return {
+      ok: false,
+      kind: 'auth_required',
+      error: `No daemon operator token found at ${connection.tokenPath}`,
+      route: ROUTINE_SCHEDULE_ROUTE,
+      baseUrl: connection.baseUrl,
+    };
+  }
+  try {
+    const sdk = createBrowserGoodVibesSdk({ baseUrl: connection.baseUrl, authToken: connection.token });
+    const output = await sdk.operator.invoke(ROUTINE_SCHEDULE_LIST_METHOD, {});
+    const schedules = readLiveSchedules(output);
+    return {
+      ok: true,
+      kind: ROUTINE_SCHEDULE_LIST_METHOD,
+      route: ROUTINE_SCHEDULE_ROUTE,
+      baseUrl: connection.baseUrl,
+      scheduleCount: schedules.length,
+      receiptCount: snapshot.receipts.length,
+      correlations: correlateReceipts(snapshot.receipts, schedules),
+    };
+  } catch (error) {
+    return classifyScheduleListError(error, connection);
   }
 }
 
@@ -696,6 +940,59 @@ export function formatRoutineScheduleReceipt(receipt: RoutineScheduleReceipt): s
     receipt.deliveryMode ? `  delivery: ${receipt.deliveryMode}` : '',
     receipt.failureKind ? `  failure: ${receipt.failureKind}` : '',
     receipt.failureError ? `  error: ${receipt.failureError}` : '',
+  ].filter((line): line is string => Boolean(line)).join('\n');
+}
+
+export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelationResult, limit = 10): string {
+  if (!result.ok) {
+    return [
+      `Daemon schedule reconciliation error: ${result.kind}`,
+      `  ${result.error}`,
+      result.baseUrl ? `  daemon: ${result.baseUrl}` : null,
+      `  route: ${ROUTINE_SCHEDULE_LIST_METHOD} ${result.route}`,
+      result.kind === 'auth_required'
+        ? '  next: pair/authenticate with the externally managed GoodVibes daemon, then retry.'
+        : null,
+      result.kind === 'daemon_unavailable'
+        ? '  next: start/restart the external GoodVibes daemon from TUI or daemon host tooling; Agent does not own daemon lifecycle.'
+        : null,
+      result.kind === 'version_mismatch' || result.kind === 'daemon_route_unavailable'
+        ? '  next: update/restart the external GoodVibes daemon so public schedules.list is available.'
+        : null,
+    ].filter((line): line is string => Boolean(line)).join('\n');
+  }
+  const correlations = result.correlations.slice(0, Math.max(1, limit));
+  if (result.receiptCount === 0) {
+    return [
+      'Agent routine schedule reconciliation',
+      `  daemon: ${result.baseUrl}`,
+      `  route: ${result.kind} ${result.route}`,
+      `  live schedules: ${result.scheduleCount}`,
+      '  No local routine promotion receipts exist yet.',
+      '  Create one with /schedule promote-routine <routine-id> --cron <expr> --yes.',
+    ].join('\n');
+  }
+  const matched = result.correlations.filter((entry) => entry.liveStatus === 'matched').length;
+  const missing = result.correlations.filter((entry) => entry.liveStatus === 'missing').length;
+  const failed = result.correlations.filter((entry) => entry.liveStatus === 'failed-receipt').length;
+  return [
+    'Agent routine schedule reconciliation',
+    `  daemon: ${result.baseUrl}`,
+    `  route: ${result.kind} ${result.route}`,
+    `  receipts: ${result.receiptCount}; live schedules: ${result.scheduleCount}; matched: ${matched}; missing: ${missing}; failed receipts: ${failed}`,
+    ...correlations.map((entry) => {
+      const receipt = entry.receipt;
+      const schedule = entry.schedule;
+      const live = schedule
+        ? ` live=${schedule.id} status=${schedule.status ?? (schedule.enabled === false ? 'paused' : 'enabled')}`
+        : '';
+      const runs = schedule && schedule.runCount !== undefined
+        ? ` runs=${schedule.runCount}/${schedule.successCount ?? 0}/${schedule.failureCount ?? 0}`
+        : '';
+      const next = schedule?.nextRunAt ? ` next=${new Date(schedule.nextRunAt).toISOString()}` : '';
+      return `  ${receipt.id}  ${entry.liveStatus}  reason=${entry.matchReason}  routine=${receipt.routineId}  receiptSchedule=${receipt.scheduleId ?? '(none)'}${live}${runs}${next}`;
+    }),
+    result.correlations.length > correlations.length ? `  ...${result.correlations.length - correlations.length} more` : '',
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
