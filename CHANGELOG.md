@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.34 - 2026-05-31
+
+- 28838cc Add curated Agent profile starters
+
 ## 0.1.33 - 2026-05-31
 
 - bfe0127 Add profile portability workspace coverage
