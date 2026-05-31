@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.49 - 2026-05-31
+
+- 445e694 Show isolated Agent Knowledge in TUI panel
+- 632d951 Add agent-local registry tool
+- 4832355 Make agent setup workspace actionable
+
 ## 0.1.48 - 2026-05-31
 
 - 67f8ce0 Remove audit remnants and surface setup checklist
