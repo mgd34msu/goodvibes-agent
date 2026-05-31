@@ -269,7 +269,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
   registry.register({
     name: 'auth',
     description: 'Review auth posture and exchange session login tokens with local services',
-    usage: '[review|show <provider>|repair <provider>|bundle export <path>|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey]|local <review|panel|add-user|delete-user|rotate-password|revoke-session|clear-bootstrap-file>]',
+    usage: '[review|show <provider>|repair <provider>|bundle export <path>|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey]|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]',
     async handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);
       const sub = args[0] ?? 'review';
@@ -416,7 +416,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         return;
       }
 
-      ctx.print('Usage: /auth [review|show <provider>|bundle export <path>|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey]|local <review|panel|add-user|delete-user|rotate-password|revoke-session|clear-bootstrap-file>]');
+      ctx.print('Usage: /auth [review|show <provider>|bundle export <path>|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey]|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]');
     },
   });
 }

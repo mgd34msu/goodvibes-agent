@@ -1,13 +1,16 @@
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { openCommandPanel, requireLocalUserAuthManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 function formatRoles(roles: readonly string[]): string {
   return roles.length > 0 ? roles.join(', ') : '(none)';
 }
 
 export function handleLocalAuthCommand(args: string[], ctx: CommandContext): void {
-  const sub = (args[0] ?? 'review').toLowerCase();
+  const parsed = stripYesFlag(args);
+  const commandArgs = [...parsed.rest];
+  const sub = (commandArgs[0] ?? 'review').toLowerCase();
   const auth = requireLocalUserAuthManager(ctx);
   if (sub === 'panel' || sub === 'open') {
     openCommandPanel(ctx, 'local-auth');
@@ -15,11 +18,15 @@ export function handleLocalAuthCommand(args: string[], ctx: CommandContext): voi
   }
 
   if (sub === 'add-user') {
-    const username = args[1];
-    const password = args[2];
-    const roles = args[3]?.split(',').map((value) => value.trim()).filter(Boolean) ?? ['admin'];
+    const username = commandArgs[1];
+    const password = commandArgs[2];
+    const roles = commandArgs[3]?.split(',').map((value) => value.trim()).filter(Boolean) ?? ['admin'];
     if (!username || !password) {
-      ctx.print('Usage: /auth local add-user <username> <password> [roles]');
+      ctx.print('Usage: /auth local add-user <username> <password> [roles] --yes');
+      return;
+    }
+    if (!parsed.yes) {
+      requireYesFlag(ctx, `add local auth user ${username}`, '/auth local add-user <username> <password> [roles] --yes');
       return;
     }
     try {
@@ -32,9 +39,13 @@ export function handleLocalAuthCommand(args: string[], ctx: CommandContext): voi
   }
 
   if (sub === 'delete-user') {
-    const username = args[1];
+    const username = commandArgs[1];
     if (!username) {
-      ctx.print('Usage: /auth local delete-user <username>');
+      ctx.print('Usage: /auth local delete-user <username> --yes');
+      return;
+    }
+    if (!parsed.yes) {
+      requireYesFlag(ctx, `delete local auth user ${username}`, '/auth local delete-user <username> --yes');
       return;
     }
     try {
@@ -47,10 +58,14 @@ export function handleLocalAuthCommand(args: string[], ctx: CommandContext): voi
   }
 
   if (sub === 'rotate-password') {
-    const username = args[1];
-    const password = args[2];
+    const username = commandArgs[1];
+    const password = commandArgs[2];
     if (!username || !password) {
-      ctx.print('Usage: /auth local rotate-password <username> <password>');
+      ctx.print('Usage: /auth local rotate-password <username> <password> --yes');
+      return;
+    }
+    if (!parsed.yes) {
+      requireYesFlag(ctx, `rotate password for local auth user ${username}`, '/auth local rotate-password <username> <password> --yes');
       return;
     }
     try {
@@ -63,9 +78,13 @@ export function handleLocalAuthCommand(args: string[], ctx: CommandContext): voi
   }
 
   if (sub === 'revoke-session') {
-    const token = args[1];
+    const token = commandArgs[1];
     if (!token) {
-      ctx.print('Usage: /auth local revoke-session <token-or-fingerprint>');
+      ctx.print('Usage: /auth local revoke-session <token-or-fingerprint> --yes');
+      return;
+    }
+    if (!parsed.yes) {
+      requireYesFlag(ctx, 'revoke local auth session', '/auth local revoke-session <token-or-fingerprint> --yes');
       return;
     }
     ctx.print(auth.revokeSession(token) ? `Revoked session ${token.slice(0, 12)}…` : `Unknown session token or fingerprint: ${token}`);
@@ -73,6 +92,10 @@ export function handleLocalAuthCommand(args: string[], ctx: CommandContext): voi
   }
 
   if (sub === 'clear-bootstrap-file') {
+    if (!parsed.yes) {
+      requireYesFlag(ctx, 'clear the local auth bootstrap credential file', '/auth local clear-bootstrap-file --yes');
+      return;
+    }
     ctx.print(auth.clearBootstrapCredentialFile()
       ? 'Removed bootstrap credential file.'
       : 'No bootstrap credential file was present.');
@@ -97,7 +120,7 @@ export function registerLocalAuthRuntimeCommands(registry: CommandRegistry): voi
     name: 'local-auth',
     aliases: ['auth-local'],
     description: 'Inspect and manage local daemon/listener auth users, sessions, and bootstrap credentials',
-    usage: '[review|panel|add-user <username> <password> [roles]|delete-user <username>|rotate-password <username> <password>|revoke-session <token-or-fingerprint>|clear-bootstrap-file]',
+    usage: '[review|panel|add-user <username> <password> [roles] --yes|delete-user <username> --yes|rotate-password <username> <password> --yes|revoke-session <token-or-fingerprint> --yes|clear-bootstrap-file --yes]',
     handler(args, ctx) {
       handleLocalAuthCommand(args, ctx);
     },

@@ -54,13 +54,13 @@ export function buildProviderHealthDomainSummaries(
     summary: auth.bootstrapCredentialPresent
       ? 'bootstrap credential file still present'
       : `${auth.userCount} users / ${auth.sessionCount} sessions`,
-    next: auth.bootstrapCredentialPresent ? '/auth local clear-bootstrap-file' : '/auth local review',
+    next: auth.bootstrapCredentialPresent ? '/auth local clear-bootstrap-file --yes' : '/auth local review',
     details: [
       auth.bootstrapCredentialPresent ? 'bootstrap credential file should be cleared after rotation' : `${auth.userCount} local auth users configured`,
       auth.userCount <= 1 ? 'only one local auth user configured' : `${auth.sessionCount} active local auth sessions`,
     ].filter(Boolean),
     nextSteps: auth.bootstrapCredentialPresent
-      ? ['/auth local review', '/auth local rotate-password <user> <password>', '/auth local clear-bootstrap-file']
+      ? ['/auth local review', '/auth local rotate-password <user> <password> --yes', '/auth local clear-bootstrap-file --yes']
       : ['/auth local review'],
   });
 

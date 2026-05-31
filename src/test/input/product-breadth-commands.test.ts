@@ -513,8 +513,34 @@ describe('product breadth commands', () => {
     const exported = join(root, 'artifacts', 'services.json');
     out.length = 0;
     await command!.handler(['export', exported], ctx);
+    expect(out.join('\n')).toContain('Refusing to export services config');
+    expect(existsSync(exported)).toBe(false);
+
+    out.length = 0;
+    await command!.handler(['export', exported, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported services config');
     expect(existsSync(exported)).toBe(true);
+
+    const replacement = join(root, 'artifacts', 'replacement-services.json');
+    writeFileSync(replacement, JSON.stringify({
+      gitlab: {
+        name: 'gitlab',
+        baseUrl: 'https://gitlab.com',
+        authType: 'bearer',
+        tokenKey: 'GITLAB_TOKEN',
+      },
+    }, null, 2));
+    const serviceConfigPath = join(root, '.goodvibes', 'agent', 'services.json');
+
+    out.length = 0;
+    await command!.handler(['import', replacement], ctx);
+    expect(out.join('\n')).toContain('Refusing to import services config');
+    expect(readFileSync(serviceConfigPath, 'utf-8')).not.toContain('gitlab');
+
+    out.length = 0;
+    await command!.handler(['import', replacement, '--yes'], ctx);
+    expect(out.join('\n')).toContain('Imported services config');
+    expect(readFileSync(serviceConfigPath, 'utf-8')).toContain('gitlab');
   });
 
   test('accounts and health commands surface provider route posture and fallback risk', async () => {
@@ -2285,6 +2311,30 @@ describe('product breadth commands', () => {
     await auth!.handler(['local', 'review'], ctx);
     expect(out.join('\n')).toContain('Local Auth Review');
     expect(out.join('\n')).toContain('bootstrap file');
+
+    out.length = 0;
+    await auth!.handler(['local', 'add-user', 'alice', 'secret-pass'], ctx);
+    expect(out.join('\n')).toContain('Refusing to add local auth user alice without --yes.');
+
+    out.length = 0;
+    await auth!.handler(['local', 'review'], ctx);
+    expect(out.join('\n')).not.toContain('user: alice');
+
+    out.length = 0;
+    await auth!.handler(['local', 'add-user', 'alice', 'secret-pass', 'admin', '--yes'], ctx);
+    expect(out.join('\n')).toContain('Added local auth user alice');
+
+    out.length = 0;
+    await auth!.handler(['local', 'delete-user', 'alice'], ctx);
+    expect(out.join('\n')).toContain('Refusing to delete local auth user alice without --yes.');
+
+    out.length = 0;
+    await auth!.handler(['local', 'review'], ctx);
+    expect(out.join('\n')).toContain('user: alice');
+
+    out.length = 0;
+    await auth!.handler(['local', 'delete-user', 'alice', '--yes'], ctx);
+    expect(out.join('\n')).toContain('Deleted local auth user alice.');
 
     out.length = 0;
     await auth!.handler(['repair', 'openai'], ctx);

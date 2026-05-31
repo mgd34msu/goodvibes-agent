@@ -229,7 +229,7 @@ describe('TasksPanel', () => {
       bootstrapCredentialPath: join(root, '.goodvibes', 'tui', 'auth-bootstrap.txt'),
     })).render(120, 18));
     expect(authText).toContain('Local auth posture');
-    expect(authText).toContain('/auth local rotate-password <user> <password>');
+    expect(authText).toContain('/auth local rotate-password <user> <password> --yes');
 
     const settingsText = linesText(new SettingsSyncPanel(createConfigManager()).render(120, 20));
     expect(settingsText).toContain('Settings posture');

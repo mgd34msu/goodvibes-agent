@@ -5,15 +5,18 @@ import type { SelectionAction, SelectionItem } from '../selection-modal.ts';
 import { openCommandPanel, requireServiceRegistry, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 export function registerServicesRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'services',
     aliases: ['svc'],
     description: 'Manage API service configurations',
-    usage: '[open|list|inspect <name>|test <name>|resolve <name>|auth <name>|auth-review|doctor|export <path>|import <path>]',
+    usage: '[open|list|inspect <name>|test <name>|resolve <name>|auth <name>|auth-review|doctor|export <path> --yes|import <path> --yes]',
     async handler(args, ctx) {
-      const sub = args[0] ?? 'open';
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
+      const sub = commandArgs[0] ?? 'open';
       const shellPaths = requireShellPaths(ctx);
       if (sub === 'open' || sub === 'panel') {
         openCommandPanel(ctx, 'services');
@@ -23,7 +26,7 @@ export function registerServicesRuntimeCommands(registry: CommandRegistry): void
       const all = svcRegistry.getAll();
       const keys = Object.keys(all);
       if (sub === 'inspect') {
-        const name = args[1];
+        const name = commandArgs[1];
         if (!name) {
           ctx.print('Usage: /services inspect <name>');
           return;
@@ -47,7 +50,7 @@ export function registerServicesRuntimeCommands(registry: CommandRegistry): void
         return;
       }
       if (sub === 'test') {
-        const name = args[1];
+        const name = commandArgs[1];
         if (!name) {
           ctx.print('Usage: /services test <name>');
           return;
@@ -63,7 +66,7 @@ export function registerServicesRuntimeCommands(registry: CommandRegistry): void
         return;
       }
       if (sub === 'resolve') {
-        const name = args[1];
+        const name = commandArgs[1];
         if (!name) {
           ctx.print('Usage: /services resolve <name>');
           return;
@@ -80,7 +83,7 @@ export function registerServicesRuntimeCommands(registry: CommandRegistry): void
         return;
       }
       if (sub === 'auth') {
-        const name = args[1];
+        const name = commandArgs[1];
         if (!name) {
           ctx.print('Usage: /services auth <name>');
           return;
@@ -141,9 +144,13 @@ export function registerServicesRuntimeCommands(registry: CommandRegistry): void
         return;
       }
       if (sub === 'export') {
-        const pathArg = args[1];
+        const pathArg = commandArgs[1];
         if (!pathArg) {
-          ctx.print('Usage: /services export <path>');
+          ctx.print('Usage: /services export <path> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `export services config to ${pathArg}`, '/services export <path> --yes');
           return;
         }
         const targetPath = shellPaths.resolveWorkspacePath(pathArg);
@@ -153,9 +160,13 @@ export function registerServicesRuntimeCommands(registry: CommandRegistry): void
         return;
       }
       if (sub === 'import') {
-        const pathArg = args[1];
+        const pathArg = commandArgs[1];
         if (!pathArg) {
-          ctx.print('Usage: /services import <path>');
+          ctx.print('Usage: /services import <path> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `import services config from ${pathArg}`, '/services import <path> --yes');
           return;
         }
         const sourcePath = shellPaths.resolveWorkspacePath(pathArg);

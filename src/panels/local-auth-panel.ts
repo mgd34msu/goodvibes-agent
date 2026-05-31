@@ -81,7 +81,7 @@ export class LocalAuthPanel extends ScrollableListPanel<LocalAuthUser> {
         ...(issueMessages.length > 0
           ? issueMessages.map((issue) => buildPanelLine(width, [[` issue: ${issue}`.slice(0, Math.max(0, width)), C.warn]]))
           : [buildPanelLine(width, [[' local auth posture looks healthy.', C.good]])]),
-        buildGuidanceLine(width, '/auth local rotate-password <user> <password>', 'rotate bootstrap/default credentials and revoke older sessions as needed', C),
+        buildGuidanceLine(width, '/auth local rotate-password <user> <password> --yes', 'rotate bootstrap/default credentials and revoke older sessions as needed', C),
       ], C),
     ];
 
@@ -104,8 +104,8 @@ export class LocalAuthPanel extends ScrollableListPanel<LocalAuthUser> {
       footerLines.push(
         ...buildDetailBlock(width, 'Selected user', [
           buildPanelLine(width, [[' username ', C.label], [selected.username, C.value], ['  roles ', C.label], [formatRoles(selected.roles).slice(0, Math.max(0, width - 23)), C.info]]),
-          buildPanelLine(width, [[` next: /auth local rotate-password ${selected.username} <password>`.slice(0, Math.max(0, width)), C.dim]]),
-          buildPanelLine(width, [[` next: /auth local delete-user ${selected.username}`.slice(0, Math.max(0, width)), C.dim]]),
+          buildPanelLine(width, [[` next: /auth local rotate-password ${selected.username} <password> --yes`.slice(0, Math.max(0, width)), C.dim]]),
+          buildPanelLine(width, [[` next: /auth local delete-user ${selected.username} --yes`.slice(0, Math.max(0, width)), C.dim]]),
         ], C),
       );
     }
@@ -119,7 +119,7 @@ export class LocalAuthPanel extends ScrollableListPanel<LocalAuthUser> {
         ])),
       );
     }
-    footerLines.push(buildPanelLine(width, [[' /auth local review  /auth local add-user  /auth local rotate-password  /auth local revoke-session ', C.dim]]));
+    footerLines.push(buildPanelLine(width, [[' /auth local review  mutations require --yes: add-user rotate-password revoke-session ', C.dim]]));
 
     return this.renderList(width, height, {
       title: 'Local Auth Control Room',
