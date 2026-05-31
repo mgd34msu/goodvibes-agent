@@ -12,9 +12,6 @@ import { ThinkingPanel } from '../../panels/thinking-panel.ts';
 import { ContextVisualizerPanel } from '../../panels/context-visualizer-panel.ts';
 import { CostTrackerPanel } from '../../panels/cost-tracker-panel.ts';
 import { DebugPanel } from '../../panels/debug-panel.ts';
-import { SymbolOutlinePanel } from '../../panels/symbol-outline-panel.ts';
-import { FileExplorerPanel } from '../../panels/file-explorer-panel.ts';
-import { FilePreviewPanel } from '../../panels/file-preview-panel.ts';
 import { OpsStrategyPanel } from '../../panels/ops-strategy-panel.ts';
 import { AgentLogsPanel } from '../../panels/agent-logs-panel.ts';
 import { AgentInspectorPanel } from '../../panels/agent-inspector-panel.ts';
@@ -152,40 +149,6 @@ describe('workspace panel migrations', () => {
     expect(lines.every((line) => line.length === 80)).toBe(true);
     expect(linesText(lines)).toContain('API Debug');
     expect(linesText(lines)).toContain('No calls yet');
-  });
-
-  test('SymbolOutlinePanel renders shared workspace empty state cleanly', async () => {
-    const panel = new SymbolOutlinePanel();
-    const lines = panel.render(80, 20);
-    expect(lines).toHaveLength(20);
-    expect(lines.every((line) => line.length === 80)).toBe(true);
-    expect(linesText(lines)).toContain('Symbols');
-    expect(linesText(lines)).toContain('No file loaded');
-  });
-
-  test('FileExplorerPanel renders shared workspace surface cleanly', async () => {
-    const panel = new FileExplorerPanel('/definitely/not/a/real/path', '/tmp/goodvibes-test');
-    const lines = panel.render(80, 20);
-    expect(lines).toHaveLength(20);
-    expect(lines.every((line) => line.length === 80)).toBe(true);
-    expect(linesText(lines)).toContain('Explorer');
-  });
-
-  test('FileExplorerPanel supports explicit search focus from top navigation', async () => {
-    const panel = new FileExplorerPanel('/definitely/not/a/real/path', '/tmp/goodvibes-test');
-    panel.handleInput('up');
-    panel.handleInput('r');
-    const text = linesText(panel.render(80, 20));
-    expect(text).toContain('/ r█');
-  });
-
-  test('FilePreviewPanel renders shared workspace empty state cleanly', async () => {
-    const panel = new FilePreviewPanel();
-    const lines = panel.render(80, 20);
-    expect(lines).toHaveLength(20);
-    expect(lines.every((line) => line.length === 80)).toBe(true);
-    expect(linesText(lines)).toContain('Preview');
-    expect(linesText(lines)).toContain('No file open');
   });
 
   test('OpsStrategyPanel renders shared workspace empty state cleanly', async () => {
