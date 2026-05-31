@@ -20,8 +20,6 @@ import { registerBuiltinCommands } from './input/commands.ts';
 import { ScheduleManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { InputHistory } from './input/input-history.ts';
 import { getTierPromptSupplement, getTierForContextWindow } from '@pellux/goodvibes-sdk/platform/providers';
-import { GitStatusProvider } from './renderer/git-status.ts';
-import type { GitHeaderInfo } from './renderer/git-status.ts';
 import { createShellLayout } from './renderer/layout-engine.ts';
 import { buildShellFooter, estimateShellFooterHeight } from './renderer/shell-surface.ts';
 import { buildConversationViewport } from './renderer/conversation-layout.ts';
@@ -92,8 +90,6 @@ async function main() {
     commandRegistry,
     inputHistory,
     hookDispatcher,
-    gitStatusProvider,
-    lastGitInfoRef,
     bootstrapUnsubs,
     agentStatusIntervalRef,
     orchestratorRefs,
@@ -132,15 +128,12 @@ async function main() {
     const sessionSnapshot = uiServices.readModels.session.getSnapshot();
     const tasksSnapshot = uiServices.readModels.tasks.getSnapshot();
     const remoteSnapshot = uiServices.readModels.remote.getSnapshot();
-    const worktreeSnapshot = uiServices.readModels.worktrees.getSnapshot();
     return {
       pendingApprovals: sessionSnapshot.pendingApproval ? 1 : 0,
       activeTasks: tasksSnapshot.tasks.filter((task) => task.status === 'running' || task.status === 'queued').length,
       blockedTasks: tasksSnapshot.tasks.filter((task) => task.status === 'blocked').length,
       remoteContracts: remoteSnapshot.contracts.length,
       remoteRunners: remoteSnapshot.contracts.slice(0, 4).map((contract) => contract.runnerId),
-      worktreeCount: worktreeSnapshot.records.length,
-      worktreePaths: worktreeSnapshot.records.slice(0, 3).map((record) => record.path),
       openPanels: panelManager.getAllOpen().map((panel) => panel.id),
     };
   };
@@ -478,7 +471,7 @@ async function main() {
     const currentModel = providerRegistry.getCurrentModel();
     const sessionSnapshot = uiServices.readModels.session.getSnapshot();
 
-    const headerLines = UIFactory.createHeader(width, currentModel.id, currentModel.provider, conversation.title || undefined, lastGitInfoRef.value);
+    const headerLines = UIFactory.createHeader(width, currentModel.id, currentModel.provider, conversation.title || undefined);
     const runningAgentCount = 0;
     const runningProcessCount = processManager.list().filter((p) => !p.status.startsWith('done')).length;
     const cw = getPromptContentWidth();
@@ -677,8 +670,6 @@ async function main() {
   });
 
   // --- Streaming speed + tool preview wiring ---
-  const refreshGit = () => gitStatusProvider.refresh().then((info) => { lastGitInfoRef.value = info; render(); }).catch(() => { /* non-fatal */ });
-  // Refresh git status after each turn completes or after tool results arrive
   unsubs.push(uiServices.events.turns.on('TURN_COMPLETED', () => {
     // Auto-save after every LLM turn so kills don't lose the session
     try {
@@ -694,13 +685,6 @@ async function main() {
       );
       hookDispatcher.fire({ path: 'Lifecycle:session:save' as HookEventPath, phase: 'Lifecycle' as HookPhase, category: 'session' as HookCategory, specific: 'save', sessionId: runtime.sessionId, timestamp: Date.now(), payload: { sessionId: runtime.sessionId } }).catch((err: unknown) => logger.debug('hook fire error', { error: summarizeError(err) }));
     } catch (e) { logger.debug('auto-save on turn:complete failed', { error: summarizeError(e) }); }
-    refreshGit();
-  }));
-  unsubs.push(uiServices.events.tools.on('TOOL_SUCCEEDED', () => {
-    refreshGit();
-  }));
-  unsubs.push(uiServices.events.tools.on('TOOL_FAILED', () => {
-    refreshGit();
   }));
 
   unsubs.push(uiServices.events.turns.on('STREAM_START', () => {

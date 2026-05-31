@@ -167,6 +167,12 @@ const rules: readonly Rule[] = [
     message: 'Agent may copy/adapt TUI source, but runtime imports from goodvibes-tui/src are forbidden',
   },
   {
+    name: 'no-main-git-worktree-header-posture',
+    files: expandTargets(['src/main.ts']),
+    pattern: /\b(GitStatusProvider|gitStatusProvider|lastGitInfoRef|readModels\.worktrees|worktreeSnapshot|worktreeCount|worktreePaths)\b/,
+    message: 'Agent main shell must not surface coding-TUI git/worktree header posture; explicit build work belongs to delegated GoodVibes TUI sessions',
+  },
+  {
     name: 'no-default-browser-knowledge-client',
     files: nonTestFiles,
     pattern: /@pellux\/goodvibes-sdk\/browser\/knowledge|createBrowserKnowledgeSdk/,
