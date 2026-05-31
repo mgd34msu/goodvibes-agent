@@ -42,7 +42,7 @@ const REQUIRED_TARBALL_PATHS = [
   'docs/deployment-and-services.md',
   'docs/release-and-publishing.md',
 ] as const;
-const FORBIDDEN_TARBALL_PREFIXES = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', '.goodvibes/agents/', 'vendor/'] as const;
+const FORBIDDEN_TARBALL_PREFIXES = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/', 'vendor/'] as const;
 const FORBIDDEN_TARBALL_DOCS = [
   ['docs/cloud', 'flare-batch.md'].join(''),
   ['docs/home', 'assistant-surface.md'].join(''),
@@ -55,7 +55,6 @@ const PACKAGE_FACING_TEXT_PATHS = [
   'docs/getting-started.md',
   'docs/deployment-and-services.md',
   'docs/release-and-publishing.md',
-  '.goodvibes/skills/add-provider/SKILL.md',
 ] as const;
 const PACKAGE_FACING_FORBIDDEN_TEXT = [
   ['/api/', 'knowledge'].join(''),

@@ -12,7 +12,6 @@
   "files": [
     "bin",
     "LICENSE",
-    ".goodvibes/skills",
     "src",
     "!src/test",
     "!src/**/*.test.ts",
