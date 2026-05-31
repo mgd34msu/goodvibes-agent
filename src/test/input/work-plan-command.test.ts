@@ -70,4 +70,34 @@ describe('workplan command', () => {
     expect(out.join('\n')).toContain('Ship persistent plan');
     expect(out.join('\n')).toContain('done');
   });
+
+  test('requires --yes for destructive work plan cleanup', async () => {
+    const registry = new CommandRegistry();
+    registerWorkPlanRuntimeCommands(registry);
+    const command = registry.get('workplan');
+    expect(command).toBeDefined();
+    const store = new WorkPlanStore({
+      homeDirectory: mkdtempSync(join(tmpdir(), 'gv-work-plan-command-')),
+      projectId: 'project:command',
+      projectRoot: '/tmp/command',
+    });
+    const out: string[] = [];
+    const opened: string[] = [];
+    const ctx = makeContext(out, opened, store);
+
+    await command!.handler(['add', 'Clean', 'this', 'up'], ctx);
+    const item = store.listItems()[0]!;
+
+    await command!.handler(['remove', item.id], ctx);
+    expect(store.listItems()).toHaveLength(1);
+    expect(out.join('\n')).toContain(`Refusing to remove work plan item ${item.id} without --yes`);
+
+    await command!.handler(['done', item.id], ctx);
+    await command!.handler(['clear-done'], ctx);
+    expect(store.listItems()).toHaveLength(1);
+    expect(out.join('\n')).toContain('Refusing to clear completed work plan items without --yes');
+
+    await command!.handler(['clear-done', '--yes'], ctx);
+    expect(store.listItems()).toHaveLength(0);
+  });
 });
