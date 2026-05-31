@@ -208,9 +208,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Local routines: 1; enabled: 1');
     expect(output).toContain('Local skills: 1; enabled: 1');
     expect(output).toContain('Local personas: 1; active: Research Analyst');
-    expect(output).toContain('/routines');
-    expect(output).toContain('/agent-skills');
-    expect(output).toContain('/personas');
+    expect(output).toContain('open routines');
+    expect(output).toContain('open skills');
+    expect(output).toContain('open personas');
   });
 
   test('renders Agent Knowledge ingest and review workflow without default wiki fallback', () => {

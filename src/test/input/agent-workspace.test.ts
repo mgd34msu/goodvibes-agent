@@ -6,8 +6,17 @@ import { CommandRegistry, type CommandContext } from '../../input/command-regist
 import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
 import { registerAgentWorkspaceRuntimeCommands } from '../../input/commands/agent-workspace-runtime.ts';
 import { registerAgentRuntimeProfileRuntimeCommands } from '../../input/commands/agent-runtime-profile-runtime.ts';
+import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
+import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { createAgentRuntimeProfile } from '../../agent/runtime-profile.ts';
+import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import type { Line } from '../../types/grid.ts';
+
+function linesText(lines: readonly Line[]): string {
+  return lines.map((line) => line.map((cell) => cell.char).join('')).join('\n');
+}
 
 function commandContext(calls: string[] = []): CommandContext {
   return {
@@ -49,7 +58,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/model');
   });
 
-  test('dispatches local persona library through the command router', () => {
+  test('opens local persona library workspace from memory', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -58,11 +67,12 @@ describe('AgentWorkspace', () => {
 
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/personas']);
-    expect(workspace.status).toContain('/personas');
+    expect(dispatched).toEqual([]);
+    expect(workspace.selectedCategory.id).toBe('personas');
+    expect(workspace.status).toContain('Opened Personas');
   });
 
-  test('dispatches local skill library through the command router', () => {
+  test('opens local skill library workspace from memory', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -71,11 +81,12 @@ describe('AgentWorkspace', () => {
 
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/agent-skills']);
-    expect(workspace.status).toContain('/agent-skills');
+    expect(dispatched).toEqual([]);
+    expect(workspace.selectedCategory.id).toBe('skills');
+    expect(workspace.status).toContain('Opened Skills');
   });
 
-  test('dispatches local routine library through the command router', () => {
+  test('opens local routine library workspace from memory', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -84,8 +95,9 @@ describe('AgentWorkspace', () => {
 
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/routines']);
-    expect(workspace.status).toContain('/routines');
+    expect(dispatched).toEqual([]);
+    expect(workspace.selectedCategory.id).toBe('routines');
+    expect(workspace.status).toContain('Opened Routines');
   });
 
   test('dispatches channel pairing through the command router', () => {
@@ -116,19 +128,96 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('Opened Setup');
   });
 
-  test('setup workspace keeps skills and routines as direct actions', () => {
+  test('setup workspace keeps personas skills and routines as direct workspaces', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-personas');
+    workspace.activateSelected();
+    expect(workspace.selectedCategory.id).toBe('personas');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-skills');
     workspace.activateSelected();
-    expect(dispatched).toEqual(['/agent-skills']);
+    expect(workspace.selectedCategory.id).toBe('skills');
 
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-routines');
     workspace.activateSelected();
-    expect(dispatched).toEqual(['/agent-skills', '/routines']);
+    expect(workspace.selectedCategory.id).toBe('routines');
+    expect(dispatched).toEqual([]);
+  });
+
+  test('renders local persona skill and routine library workspaces from live Agent state', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-local-libraries-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const persona = AgentPersonaRegistry.fromShellPaths(shellPaths).create({
+      name: 'Household Operator',
+      description: 'Coordinates home, schedule, and device requests.',
+      body: 'Prefer concise proactive execution with explicit approval for external sends.',
+      tags: ['home'],
+    });
+    AgentPersonaRegistry.fromShellPaths(shellPaths).setActive(persona.id);
+    AgentSkillRegistry.fromShellPaths(shellPaths).create({
+      name: 'Trip Prep',
+      description: 'Prepare reusable travel checklists and reminders.',
+      procedure: 'Gather dates, destination, reservations, packing, and reminders.',
+      tags: ['travel'],
+      enabled: true,
+    });
+    AgentRoutineRegistry.fromShellPaths(shellPaths).create({
+      name: 'Morning Brief',
+      description: 'Review calendar, weather, work plan, and pending approvals.',
+      steps: 'Check calendar, weather, work plan, approvals, and reminders.',
+      triggers: ['weekday'],
+      enabled: true,
+    });
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+    const snapshot = buildAgentWorkspaceRuntimeSnapshot(ctx);
+
+    expect(snapshot.localPersonas[0]?.name).toBe('Household Operator');
+    expect(snapshot.localPersonas[0]?.active).toBe(true);
+    expect(snapshot.localSkills[0]?.enabled).toBe(true);
+    expect(snapshot.localRoutines[0]?.name).toBe('Morning Brief');
+
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
+    expect(linesText(renderAgentWorkspace(workspace, 140, 34))).toContain('Household Operator');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    expect(linesText(renderAgentWorkspace(workspace, 140, 34))).toContain('Trip Prep');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    expect(linesText(renderAgentWorkspace(workspace, 140, 34))).toContain('Morning Brief');
+  });
+
+  test('library workspace commands dispatch only concrete actions and block placeholders', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-list');
+    workspace.activateSelected();
+    expect(dispatched).toEqual(['/personas list']);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create');
+    workspace.activateSelected();
+    expect(dispatched).toEqual(['/personas list']);
+    expect(workspace.lastActionResult?.kind).toBe('guidance');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipts');
+    workspace.activateSelected();
+    expect(dispatched).toEqual(['/personas list', '/routines receipts']);
   });
 
   test('keeps channel delivery safety guidance local', () => {

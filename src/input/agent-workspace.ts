@@ -1,9 +1,9 @@
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import { basename, sep } from 'node:path';
 import type { CommandContext } from './command-registry.ts';
-import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
-import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
-import { AgentSkillRegistry } from '../agent/skill-registry.ts';
+import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
+import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
+import { AgentSkillRegistry, type AgentSkillRecord } from '../agent/skill-registry.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates } from '../agent/runtime-profile.ts';
 import {
   buildAgentWorkspaceChannels,
@@ -53,6 +53,19 @@ export interface AgentWorkspaceActionResult {
   readonly safety?: AgentWorkspaceAction['safety'];
 }
 
+export interface AgentWorkspaceLocalLibraryItem {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly reviewState: string;
+  readonly source: string;
+  readonly tags: readonly string[];
+  readonly triggers: readonly string[];
+  readonly active?: boolean;
+  readonly enabled?: boolean;
+  readonly startCount?: number;
+}
+
 type AgentWorkspaceConfigReader = {
   get(key: string): unknown;
 };
@@ -69,10 +82,13 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly sessionMemoryCount: number;
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
+  readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];
   readonly localSkillCount: number;
   readonly enabledSkillCount: number;
+  readonly localSkills: readonly AgentWorkspaceLocalLibraryItem[];
   readonly localPersonaCount: number;
   readonly activePersonaName: string;
+  readonly localPersonas: readonly AgentWorkspaceLocalLibraryItem[];
   readonly knowledgeRoute: '/api/goodvibes-agent/knowledge';
   readonly knowledgeIsolation: 'agent-only';
   readonly executionPolicy: 'serial-proactive';
@@ -143,6 +159,46 @@ function inferActiveRuntimeProfile(homeDirectory: string): string {
   return homeDirectory.includes(marker) ? basename(homeDirectory) : '(default home)';
 }
 
+function summarizePersonaItem(persona: AgentPersonaRecord, activePersonaId: string | null): AgentWorkspaceLocalLibraryItem {
+  return {
+    id: persona.id,
+    name: persona.name,
+    description: persona.description,
+    reviewState: persona.reviewState,
+    source: persona.source,
+    tags: persona.tags,
+    triggers: persona.triggers,
+    active: persona.id === activePersonaId,
+  };
+}
+
+function summarizeSkillItem(skill: AgentSkillRecord): AgentWorkspaceLocalLibraryItem {
+  return {
+    id: skill.id,
+    name: skill.name,
+    description: skill.description,
+    reviewState: skill.reviewState,
+    source: skill.source,
+    tags: skill.tags,
+    triggers: skill.triggers,
+    enabled: skill.enabled,
+  };
+}
+
+function summarizeRoutineItem(routine: AgentRoutineRecord): AgentWorkspaceLocalLibraryItem {
+  return {
+    id: routine.id,
+    name: routine.name,
+    description: routine.description,
+    reviewState: routine.reviewState,
+    source: routine.source,
+    tags: routine.tags,
+    triggers: routine.triggers,
+    enabled: routine.enabled,
+    startCount: routine.startCount,
+  };
+}
+
 export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): AgentWorkspaceRuntimeSnapshot {
   const host = readConfigString(context, 'controlPlane.host', '127.0.0.1');
   const port = readConfigNumber(context, 'controlPlane.port', 3421);
@@ -165,31 +221,43 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const personaSnapshot = (() => {
     try {
       const shellPaths = context.workspace?.shellPaths;
-      if (!shellPaths) return { count: 0, activeName: '(none)' };
+      if (!shellPaths) return { count: 0, activeName: '(none)', items: [] };
       const snapshot = AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot();
-      return { count: snapshot.personas.length, activeName: snapshot.activePersona?.name ?? '(none)' };
+      return {
+        count: snapshot.personas.length,
+        activeName: snapshot.activePersona?.name ?? '(none)',
+        items: snapshot.personas.map((persona) => summarizePersonaItem(persona, snapshot.activePersonaId)),
+      };
     } catch {
-      return { count: 0, activeName: '(unavailable)' };
+      return { count: 0, activeName: '(unavailable)', items: [] };
     }
   })();
   const skillSnapshot = (() => {
     try {
       const shellPaths = context.workspace?.shellPaths;
-      if (!shellPaths) return { count: 0, enabled: 0 };
+      if (!shellPaths) return { count: 0, enabled: 0, items: [] };
       const snapshot = AgentSkillRegistry.fromShellPaths(shellPaths).snapshot();
-      return { count: snapshot.skills.length, enabled: snapshot.enabledSkills.length };
+      return {
+        count: snapshot.skills.length,
+        enabled: snapshot.enabledSkills.length,
+        items: snapshot.skills.map(summarizeSkillItem),
+      };
     } catch {
-      return { count: 0, enabled: 0 };
+      return { count: 0, enabled: 0, items: [] };
     }
   })();
   const routineSnapshot = (() => {
     try {
       const shellPaths = context.workspace?.shellPaths;
-      if (!shellPaths) return { count: 0, enabled: 0 };
+      if (!shellPaths) return { count: 0, enabled: 0, items: [] };
       const snapshot = AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot();
-      return { count: snapshot.routines.length, enabled: snapshot.enabledRoutines.length };
+      return {
+        count: snapshot.routines.length,
+        enabled: snapshot.enabledRoutines.length,
+        items: snapshot.routines.map(summarizeRoutineItem),
+      };
     } catch {
-      return { count: 0, enabled: 0 };
+      return { count: 0, enabled: 0, items: [] };
     }
   })();
   const runtimeProfiles = (() => {
@@ -265,10 +333,13 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     sessionMemoryCount,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
+    localRoutines: routineSnapshot.items,
     localSkillCount: skillSnapshot.count,
     enabledSkillCount: skillSnapshot.enabled,
+    localSkills: skillSnapshot.items,
     localPersonaCount: personaSnapshot.count,
     activePersonaName: personaSnapshot.activeName,
+    localPersonas: personaSnapshot.items,
     knowledgeRoute: '/api/goodvibes-agent/knowledge',
     knowledgeIsolation: 'agent-only',
     executionPolicy: 'serial-proactive',
@@ -329,9 +400,9 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'setup-provider-model', label: 'Provider and model', detail: 'Choose the provider/model route for normal assistant chat.', command: '/model', kind: 'command', safety: 'safe' },
       { id: 'setup-agent-knowledge', label: 'Agent Knowledge', detail: 'Inspect the isolated Agent Knowledge store before ingesting source-backed material.', command: '/knowledge status', kind: 'command', safety: 'read-only' },
       { id: 'setup-runtime-profiles', label: 'Runtime profiles', detail: 'Browse starter templates for isolated Agent homes and operator identities.', command: '/agent-profile templates', kind: 'command', safety: 'read-only' },
-      { id: 'setup-personas', label: 'Personas', detail: 'Create or select the active local Agent persona.', command: '/personas', kind: 'command', safety: 'safe' },
-      { id: 'setup-skills', label: 'Skills', detail: 'Create, review, and enable reusable local Agent skills.', command: '/agent-skills', kind: 'command', safety: 'safe' },
-      { id: 'setup-routines', label: 'Routines', detail: 'Create, review, and enable local Agent routines before any explicit schedule promotion.', command: '/routines', kind: 'command', safety: 'safe' },
+      { id: 'setup-personas', label: 'Personas', detail: 'Create or select the active local Agent persona.', targetCategoryId: 'personas', kind: 'workspace', safety: 'safe' },
+      { id: 'setup-skills', label: 'Skills', detail: 'Create, review, and enable reusable local Agent skills.', targetCategoryId: 'skills', kind: 'workspace', safety: 'safe' },
+      { id: 'setup-routines', label: 'Routines', detail: 'Create, review, and enable local Agent routines before any explicit schedule promotion.', targetCategoryId: 'routines', kind: 'workspace', safety: 'safe' },
       { id: 'setup-memory', label: 'Local memory', detail: 'Inspect local/session memory; secrets stay rejected or redacted.', command: '/memory', kind: 'command', safety: 'read-only' },
       { id: 'setup-channels', label: 'Channels', detail: 'Open companion pairing and channel readiness setup.', command: '/pair', kind: 'command', safety: 'safe' },
       { id: 'setup-voice-media', label: 'Voice and media', detail: 'Open TTS/media settings for voice and image-capable Agent flows.', command: '/config tts', kind: 'command', safety: 'safe' },
@@ -410,9 +481,53 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Memory, routines, skills, and personas stay Agent-local until stable shared daemon registry contracts exist. Secrets must not be stored as memory.',
     actions: [
       { id: 'memory', label: 'Open memory', detail: 'Inspect local/session memory commands and surfaces.', command: '/memory', kind: 'command', safety: 'read-only' },
-      { id: 'routines', label: 'Routine library', detail: 'Create, review, enable, and start local Agent routines in the main conversation.', command: '/routines', kind: 'command', safety: 'safe' },
-      { id: 'skills', label: 'Local skill library', detail: 'Create, review, and enable local Agent reusable procedures.', command: '/agent-skills', kind: 'command', safety: 'safe' },
-      { id: 'personas', label: 'Persona library', detail: 'Use local Agent personas to shape serial assistant behavior without spawning background agents.', command: '/personas', kind: 'command', safety: 'safe' },
+      { id: 'personas', label: 'Persona library', detail: 'Open the local persona workspace for active role selection and review.', targetCategoryId: 'personas', kind: 'workspace', safety: 'safe' },
+      { id: 'skills', label: 'Local skill library', detail: 'Open the local skill workspace for reusable procedures and review.', targetCategoryId: 'skills', kind: 'workspace', safety: 'safe' },
+      { id: 'routines', label: 'Routine library', detail: 'Open the local routine workspace for repeatable workflows and schedule promotion review.', targetCategoryId: 'routines', kind: 'workspace', safety: 'safe' },
+    ],
+  },
+  {
+    id: 'personas',
+    group: 'LEARN',
+    label: 'Personas',
+    summary: 'Local behavior profiles for the main assistant.',
+    detail: 'Personas shape the serial Agent in the main conversation. They are not background agents and they never spawn specialist roots.',
+    actions: [
+      { id: 'personas-list', label: 'List personas', detail: 'Print the full local persona library.', command: '/personas list', kind: 'command', safety: 'read-only' },
+      { id: 'personas-active', label: 'Show active persona', detail: 'Inspect the active local persona applied to new turns.', command: '/personas active', kind: 'command', safety: 'read-only' },
+      { id: 'personas-create', label: 'Create persona', detail: 'Create a local persona with real name, summary, and instructions. Placeholder commands are never dispatched.', command: '/personas create --name <name> --description <summary> --body <instructions>', kind: 'command', safety: 'safe' },
+      { id: 'personas-use', label: 'Use persona', detail: 'Activate a local persona by id or name.', command: '/personas use <id>', kind: 'command', safety: 'safe' },
+      { id: 'personas-review', label: 'Review persona', detail: 'Mark a local persona reviewed after inspecting it.', command: '/personas review <id>', kind: 'command', safety: 'safe' },
+      { id: 'personas-clear', label: 'Clear active persona', detail: 'Return to the default Agent policy without deleting any persona.', command: '/personas clear', kind: 'command', safety: 'safe' },
+    ],
+  },
+  {
+    id: 'skills',
+    group: 'LEARN',
+    label: 'Skills',
+    summary: 'Reusable local procedures the assistant can apply on demand.',
+    detail: 'Skills are local, reviewable procedures. Enabled skills inform the main conversation; secret-looking content is rejected.',
+    actions: [
+      { id: 'skills-list', label: 'List skills', detail: 'Print the full local Agent skill library.', command: '/agent-skills list', kind: 'command', safety: 'read-only' },
+      { id: 'skills-enabled', label: 'Enabled skills', detail: 'Show only skills currently injected into Agent guidance.', command: '/agent-skills enabled', kind: 'command', safety: 'read-only' },
+      { id: 'skills-create', label: 'Create skill', detail: 'Create a reusable local procedure with real details. Placeholder commands are never dispatched.', command: '/agent-skills create --name <name> --description <summary> --procedure <steps>', kind: 'command', safety: 'safe' },
+      { id: 'skills-enable', label: 'Enable skill', detail: 'Enable a local Agent skill by id or name.', command: '/agent-skills enable <id>', kind: 'command', safety: 'safe' },
+      { id: 'skills-review', label: 'Review skill', detail: 'Mark a local skill reviewed after inspecting it.', command: '/agent-skills review <id>', kind: 'command', safety: 'safe' },
+    ],
+  },
+  {
+    id: 'routines',
+    group: 'LEARN',
+    label: 'Routines',
+    summary: 'Repeatable workflows for the main conversation.',
+    detail: 'Routines run in the main conversation by default. Promotion to an external daemon schedule requires a real schedule command and --yes.',
+    actions: [
+      { id: 'routines-list', label: 'List routines', detail: 'Print the full local Agent routine library.', command: '/routines list', kind: 'command', safety: 'read-only' },
+      { id: 'routines-enabled', label: 'Enabled routines', detail: 'Show routines available for direct use.', command: '/routines enabled', kind: 'command', safety: 'read-only' },
+      { id: 'routines-create', label: 'Create routine', detail: 'Create a repeatable workflow with real steps. Placeholder commands are never dispatched.', command: '/routines create --name <name> --description <summary> --steps <steps>', kind: 'command', safety: 'safe' },
+      { id: 'routines-start', label: 'Start routine', detail: 'Start a local routine in the main conversation without creating a hidden job.', command: '/routines start <id>', kind: 'command', safety: 'safe' },
+      { id: 'routines-promote', label: 'Promote to schedule', detail: 'Create an external daemon schedule from a reviewed routine only with real timing and --yes.', command: '/routines promote <id> --cron <expr> --yes', kind: 'command', safety: 'safe' },
+      { id: 'routines-receipts', label: 'Promotion receipts', detail: 'Inspect local redacted routine schedule promotion receipts.', command: '/routines receipts', kind: 'command', safety: 'read-only' },
     ],
   },
   {

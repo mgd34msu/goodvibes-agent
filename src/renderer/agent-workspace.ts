@@ -100,6 +100,40 @@ function setupChecklistLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLi
   return lines;
 }
 
+function localLibraryLines(
+  title: string,
+  items: readonly AgentWorkspaceRuntimeSnapshot['localPersonas'][number][],
+  emptyText: string,
+): ContextLine[] {
+  const lines: ContextLine[] = [
+    { text: title, fg: PALETTE.title, bold: true },
+  ];
+  if (items.length === 0) {
+    lines.push({ text: emptyText, fg: PALETTE.warn });
+    return lines;
+  }
+  for (const item of items.slice(0, 8)) {
+    const status = [
+      item.active ? 'active' : '',
+      item.enabled === true ? 'enabled' : item.enabled === false ? 'disabled' : '',
+      item.reviewState,
+      item.startCount !== undefined ? `starts ${item.startCount}` : '',
+    ].filter(Boolean).join(' / ');
+    const tags = item.tags.length > 0 ? ` tags=${item.tags.join(',')}` : '';
+    const triggers = item.triggers.length > 0 ? ` triggers=${item.triggers.join(',')}` : '';
+    lines.push({
+      text: `${item.id}: ${item.name} (${status})`,
+      fg: item.reviewState === 'stale' ? PALETTE.warn : PALETTE.info,
+      bold: item.active === true,
+    });
+    lines.push({ text: `  ${item.description}${tags}${triggers}`, fg: PALETTE.muted });
+  }
+  if (items.length > 8) {
+    lines.push({ text: `${items.length - 8} more item(s). Open the library command for the full list.`, fg: PALETTE.dim });
+  }
+  return lines;
+}
+
 function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   if (!snapshot) return [{ text: 'Runtime context is not loaded yet.', fg: PALETTE.warn }];
   const base: ContextLine[] = [{ text: 'Live Agent Context', fg: PALETTE.title, bold: true }];
@@ -177,6 +211,30 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: `Local personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
       { text: 'Durable memory, routines, skills, and personas remain Agent-local until shared registry contracts exist.', fg: PALETTE.good },
       { text: 'Secrets are rejected/redacted; store secret references instead of secret values.', fg: PALETTE.warn },
+    );
+  } else if (category.id === 'personas') {
+    base.push(
+      { text: `Personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
+      { text: 'Personas are local behavior profiles for the serial main-conversation assistant, not spawned agents.', fg: PALETTE.good },
+      { text: 'Use them for tone, role, domain constraints, tool posture, and repeatable operating preferences.', fg: PALETTE.muted },
+      { text: '' },
+      ...localLibraryLines('Persona Library', snapshot.localPersonas, 'No local personas yet. Create one with /personas create ...'),
+    );
+  } else if (category.id === 'skills') {
+    base.push(
+      { text: `Skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}`, fg: PALETTE.info },
+      { text: 'Skills are reusable local procedures the assistant can apply from the main conversation.', fg: PALETTE.good },
+      { text: 'Enabled skills are injected as operating guidance; secret-looking content is rejected.', fg: PALETTE.warn },
+      { text: '' },
+      ...localLibraryLines('Skill Library', snapshot.localSkills, 'No local skills yet. Create one with /agent-skills create ...'),
+    );
+  } else if (category.id === 'routines') {
+    base.push(
+      { text: `Routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
+      { text: 'Routines are repeatable main-conversation workflows. Starting one does not create hidden jobs.', fg: PALETTE.good },
+      { text: 'Scheduling a reviewed routine is explicit and writes to the externally owned daemon only with --yes.', fg: PALETTE.warn },
+      { text: '' },
+      ...localLibraryLines('Routine Library', snapshot.localRoutines, 'No local routines yet. Create one with /routines create ...'),
     );
   } else if (category.id === 'work') {
     base.push(
