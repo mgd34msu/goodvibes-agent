@@ -4,6 +4,7 @@ import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { listInstalledEcosystemEntries, loadEcosystemCatalog } from '@/runtime/index.ts';
 import { BUILTIN_SUITES } from '@/runtime/index.ts';
 import { requireEcosystemCatalogPaths, requireReadModels, requireSecretsManager, requireServiceRegistry, requireShellPaths } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 interface TrustReviewBundle {
   readonly version: 1;
@@ -155,23 +156,29 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
   registry.register({
     name: 'trust',
     description: 'Review trust posture and export portable trust bundles',
-    usage: '[review|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|bundle export <path> --yes|bundle inspect <path>]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const sub = args[0] ?? 'review';
+      const sub = commandArgs[0] ?? 'review';
       if (sub === 'review') {
         const bundle = await buildTrustReviewBundle(ctx);
         ctx.print(formatTrustReview(bundle));
         return;
       }
       if (sub === 'bundle') {
-        const mode = args[1];
-        const pathArg = args[2];
+        const mode = commandArgs[1];
+        const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /trust bundle ${mode} <path>`);
+          ctx.print(`Usage: /trust bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
           return;
         }
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export trust bundle to ${pathArg}`, '/trust bundle export <path> --yes');
+            return;
+          }
           const bundle = await buildTrustReviewBundle(ctx);
           const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
           mkdirSync(dirname(targetPath), { recursive: true });
@@ -184,21 +191,23 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
           return;
         }
       }
-      ctx.print('Usage: /trust [review|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /trust [review|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
   registry.register({
     name: 'bridge',
     description: 'Review and operate self-hosted bridge and remote runner flows',
-    usage: '[status|pools|assign <pool> <runner>|runner <id>|review <artifactId>|export <artifactId> [path]|import <path>]',
+    usage: '[status|pools|assign <pool> <runner> --yes|runner <id>|review <artifactId>|export <artifactId> [path] --yes|import <path> --yes]',
     async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       if (!ctx.ops.remoteRuntime) {
         ctx.print('Remote runner registry is not available in this runtime.');
         return;
       }
       const remoteRegistry = ctx.ops.remoteRuntime;
-      const sub = args[0] ?? 'status';
+      const sub = commandArgs[0] ?? 'status';
       if (sub === 'status') {
         const remote = requireReadModels(ctx).remote.getSnapshot();
         ctx.print([
@@ -217,10 +226,14 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
         return;
       }
       if (sub === 'assign') {
-        const poolId = args[1];
-        const runnerId = args[2];
+        const poolId = commandArgs[1];
+        const runnerId = commandArgs[2];
         if (!poolId || !runnerId) {
-          ctx.print('Usage: /bridge assign <pool> <runner>');
+          ctx.print('Usage: /bridge assign <pool> <runner> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `assign bridge runner ${runnerId} to pool ${poolId}`, '/bridge assign <pool> <runner> --yes');
           return;
         }
         const pool = remoteRegistry.assignRunnerToPool(poolId, runnerId);
@@ -232,7 +245,7 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
         return;
       }
       if (sub === 'runner') {
-        const runnerId = args[1];
+        const runnerId = commandArgs[1];
         if (!runnerId) {
           ctx.print('Usage: /bridge runner <id>');
           return;
@@ -253,7 +266,7 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
         return;
       }
       if (sub === 'review') {
-        const artifactId = args[1];
+        const artifactId = commandArgs[1];
         if (!artifactId) {
           ctx.print('Usage: /bridge review <artifactId>');
           return;
@@ -263,14 +276,18 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
         return;
       }
       if (sub === 'export') {
-        const artifactId = args[1];
+        const artifactId = commandArgs[1];
         if (!artifactId) {
-          ctx.print('Usage: /bridge export <artifactId> [path]');
+          ctx.print('Usage: /bridge export <artifactId> [path] --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `export bridge artifact ${artifactId}`, '/bridge export <artifactId> [path] --yes');
           return;
         }
         const exported = await remoteRegistry.exportArtifact(
           artifactId,
-          args[2] ? shellPaths.resolveWorkspacePath(args[2]) : undefined,
+          commandArgs[2] ? shellPaths.resolveWorkspacePath(commandArgs[2]) : undefined,
         );
         if (!exported) {
           ctx.print(`Unknown remote artifact: ${artifactId}`);
@@ -280,26 +297,32 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
         return;
       }
       if (sub === 'import') {
-        const pathArg = args[1];
+        const pathArg = commandArgs[1];
         if (!pathArg) {
-          ctx.print('Usage: /bridge import <path>');
+          ctx.print('Usage: /bridge import <path> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `import bridge artifact from ${pathArg}`, '/bridge import <path> --yes');
           return;
         }
         const artifact = await remoteRegistry.importArtifact(shellPaths.resolveWorkspacePath(pathArg));
         ctx.print(`Imported remote bridge artifact ${artifact.id} for runner ${artifact.runnerId}.`);
         return;
       }
-      ctx.print('Usage: /bridge [status|pools|assign <pool> <runner>|runner <id>|review <artifactId>|export <artifactId> [path]|import <path>]');
+      ctx.print('Usage: /bridge [status|pools|assign <pool> <runner> --yes|runner <id>|review <artifactId>|export <artifactId> [path] --yes|import <path> --yes]');
     },
   });
 
   registry.register({
     name: 'release',
     description: 'Package certification and release-readiness operations',
-    usage: '[review|checklist|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|checklist|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const sub = args[0] ?? 'review';
+      const sub = commandArgs[0] ?? 'review';
       if (sub === 'review') {
         const bundle = buildReleaseBundle(ctx);
         ctx.print([
@@ -321,18 +344,22 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
           '  3. Run /policy preflight and /policy simulate',
           '  4. Run /eval gate <suite> for required certification suites',
           '  5. Review /incident latest and /bridge status',
-          '  6. Export /release bundle export <path> for release evidence',
+          '  6. Export /release bundle export <path> --yes for release evidence',
         ].join('\n'));
         return;
       }
       if (sub === 'bundle') {
-        const mode = args[1];
-        const pathArg = args[2];
+        const mode = commandArgs[1];
+        const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /release bundle ${mode} <path>`);
+          ctx.print(`Usage: /release bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
           return;
         }
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export release bundle to ${pathArg}`, '/release bundle export <path> --yes');
+            return;
+          }
           const bundle = buildReleaseBundle(ctx);
           const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
           mkdirSync(dirname(targetPath), { recursive: true });
@@ -345,7 +372,7 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
           return;
         }
       }
-      ctx.print('Usage: /release [review|checklist|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /release [review|checklist|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 }

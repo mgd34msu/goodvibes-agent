@@ -59,7 +59,7 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
   registry.register({
     name: 'storage',
     description: 'Review secure storage posture and export portable storage metadata bundles',
-    usage: '[review|list|delete <key> --yes|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|list|delete <key> --yes|bundle export <path> --yes|bundle inspect <path>]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
@@ -108,11 +108,15 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
         const mode = commandArgs[1];
         const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /storage bundle ${mode} <path>`);
+          ctx.print(`Usage: /storage bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
           return;
         }
-        const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export secure storage metadata bundle to ${pathArg}`, '/storage bundle export <path> --yes');
+            return;
+          }
+          const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
           const bundle: SecureStorageBundle = {
             version: 1,
             exportedAt: Date.now(),
@@ -125,12 +129,13 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
           return;
         }
         if (mode === 'inspect') {
+          const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
           const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as SecureStorageBundle;
           ctx.print(inspectStorageBundle(bundle));
           return;
         }
       }
-      ctx.print('Usage: /storage [review|list|delete <key> --yes|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /storage [review|list|delete <key> --yes|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 
@@ -138,10 +143,12 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
     name: 'helpers',
     aliases: ['integration-api'],
     description: 'Review local integration helper API surfaces for remote clients and future web frontends',
-    usage: '[review|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const sub = args[0] ?? 'review';
+      const sub = commandArgs[0] ?? 'review';
       const review = ctx.extensions.integrationHelpers?.buildReview();
       if (!review) {
         ctx.print('Integration helper service unavailable in this runtime.');
@@ -163,14 +170,18 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
         return;
       }
       if (sub === 'bundle') {
-        const mode = args[1];
-        const pathArg = args[2];
+        const mode = commandArgs[1];
+        const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /helpers bundle ${mode} <path>`);
+          ctx.print(`Usage: /helpers bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
           return;
         }
-        const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export integration helper bundle to ${pathArg}`, '/helpers bundle export <path> --yes');
+            return;
+          }
+          const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
           const bundle: IntegrationHelperBundle = {
             version: 1,
             exportedAt: Date.now(),
@@ -183,12 +194,13 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
           return;
         }
         if (mode === 'inspect') {
+          const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
           const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as IntegrationHelperBundle;
           ctx.print(inspectIntegrationHelperBundle(bundle));
           return;
         }
       }
-      ctx.print('Usage: /helpers [review|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /helpers [review|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 
@@ -196,10 +208,12 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
     name: 'deeplink',
     aliases: ['link'],
     description: 'Review and package deep-link entrypoints for setup and operator surfaces',
-    usage: '[review|open <surface> [target]|bundle export <path>|bundle inspect <path>]',
+    usage: '[review|open <surface> [target]|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
-      const sub = args[0] ?? 'review';
+      const sub = commandArgs[0] ?? 'review';
       const links = [
         buildSetupLink('cockpit'),
         buildSetupLink('security'),
@@ -213,8 +227,8 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
         return;
       }
       if (sub === 'open') {
-        const surface = args[1];
-        const target = args[2];
+        const surface = commandArgs[1];
+        const target = commandArgs[2];
         if (!surface) {
           ctx.print('Usage: /deeplink open <surface> [target]');
           return;
@@ -223,14 +237,18 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
         return;
       }
       if (sub === 'bundle') {
-        const mode = args[1];
-        const pathArg = args[2];
+        const mode = commandArgs[1];
+        const pathArg = commandArgs[2];
         if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /deeplink bundle ${mode} <path>`);
+          ctx.print(`Usage: /deeplink bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
           return;
         }
-        const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
         if (mode === 'export') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `export deep link bundle to ${pathArg}`, '/deeplink bundle export <path> --yes');
+            return;
+          }
+          const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
           const bundle: DeepLinkBundle = {
             version: 1,
             exportedAt: Date.now(),
@@ -242,12 +260,13 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
           return;
         }
         if (mode === 'inspect') {
+          const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
           const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as DeepLinkBundle;
           ctx.print(inspectDeepLinkBundle(bundle));
           return;
         }
       }
-      ctx.print('Usage: /deeplink [review|open <surface> [target]|bundle export <path>|bundle inspect <path>]');
+      ctx.print('Usage: /deeplink [review|open <surface> [target]|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 }

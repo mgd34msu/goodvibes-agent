@@ -990,11 +990,21 @@ describe('product breadth commands', () => {
 
     const exportPath = join(root, 'artifacts', 'memory.json');
     await memorySync!.handler(['export', exportPath, 'project'], ctx);
+    expect(out.join('\n')).toContain('Refusing to export durable memory bundle');
+    expect(existsSync(exportPath)).toBe(false);
+
+    out.length = 0;
+    await memorySync!.handler(['export', exportPath, 'project', '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported');
 
     out.length = 0;
     const handoffPath = join(root, 'artifacts', 'handoff.json');
     await handoff!.handler(['export', handoffPath, 'team'], ctx);
+    expect(out.join('\n')).toContain('Refusing to export memory handoff bundle');
+    expect(existsSync(handoffPath)).toBe(false);
+
+    out.length = 0;
+    await handoff!.handler(['export', handoffPath, 'team', '--yes'], ctx);
     expect(out.join('\n')).toContain('handoff bundle');
 
     out.length = 0;
@@ -1004,6 +1014,11 @@ describe('product breadth commands', () => {
     out.length = 0;
     const teamPath = join(root, 'artifacts', 'team-handoff.json');
     await teamMemory!.handler(['export', teamPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export team memory handoff bundle');
+    expect(existsSync(teamPath)).toBe(false);
+
+    out.length = 0;
+    await teamMemory!.handler(['export', teamPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('handoff bundle');
   });
 
@@ -1409,6 +1424,11 @@ describe('product breadth commands', () => {
     const bundlePath = join(root, 'artifacts', 'trust-bundle.json');
     out.length = 0;
     await trust!.handler(['bundle', 'export', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export trust bundle');
+    expect(existsSync(bundlePath)).toBe(false);
+
+    out.length = 0;
+    await trust!.handler(['bundle', 'export', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Trust bundle exported');
     expect(existsSync(bundlePath)).toBe(true);
 
@@ -1690,6 +1710,10 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await bridge!.handler(['import', importedArtifactPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to import bridge artifact');
+
+    out.length = 0;
+    await bridge!.handler(['import', importedArtifactPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Imported remote bridge artifact');
 
     out.length = 0;
@@ -1699,6 +1723,11 @@ describe('product breadth commands', () => {
     const exportedPath = join(root, 'artifacts', 'bridge-export.json');
     out.length = 0;
     await bridge!.handler(['export', 'artifact:agent-remote:1', exportedPath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export bridge artifact');
+    expect(existsSync(exportedPath)).toBe(false);
+
+    out.length = 0;
+    await bridge!.handler(['export', 'artifact:agent-remote:1', exportedPath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported remote bridge artifact');
     expect(existsSync(exportedPath)).toBe(true);
   });
@@ -1720,10 +1749,16 @@ describe('product breadth commands', () => {
     await release!.handler(['checklist'], ctx);
     expect(out.join('\n')).toContain('Release Checklist');
     expect(out.join('\n')).toContain('/eval gate <suite>');
+    expect(out.join('\n')).toContain('/release bundle export <path> --yes');
 
     const bundlePath = join(root, 'artifacts', 'release-bundle.json');
     out.length = 0;
     await release!.handler(['bundle', 'export', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export release bundle');
+    expect(existsSync(bundlePath)).toBe(false);
+
+    out.length = 0;
+    await release!.handler(['bundle', 'export', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Release bundle exported');
     expect(existsSync(bundlePath)).toBe(true);
 
@@ -1750,6 +1785,11 @@ describe('product breadth commands', () => {
     const bundlePath = join(root, 'artifacts', 'profiles.json');
     out.length = 0;
     await profilesync!.handler(['export', bundlePath], ctx);
+    expect(out.join('\n')).toContain('Refusing to export profile sync bundle');
+    expect(existsSync(bundlePath)).toBe(false);
+
+    out.length = 0;
+    await profilesync!.handler(['export', bundlePath, '--yes'], ctx);
     expect(out.join('\n')).toContain('Profile sync bundle exported');
     expect(existsSync(bundlePath)).toBe(true);
 
@@ -1759,6 +1799,10 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await profilesync!.handler(['import', bundlePath, 'team'], ctx);
+    expect(out.join('\n')).toContain('Refusing to import profile sync bundle');
+
+    out.length = 0;
+    await profilesync!.handler(['import', bundlePath, 'team', '--yes'], ctx);
     expect(out.join('\n')).toContain('Profile sync bundle imported');
 
     out.length = 0;
@@ -2199,8 +2243,24 @@ describe('product breadth commands', () => {
     out.length = 0;
     const storageBundle = join(root, 'artifacts', 'storage-bundle.json');
     await storage!.handler(['bundle', 'export', storageBundle], ctx);
+    expect(out.join('\n')).toContain('Refusing to export secure storage metadata bundle');
+    expect(existsSync(storageBundle)).toBe(false);
+
+    out.length = 0;
+    await storage!.handler(['bundle', 'export', storageBundle, '--yes'], ctx);
     expect(out.join('\n')).toContain('Secure storage bundle exported');
     expect(existsSync(storageBundle)).toBe(true);
+
+    out.length = 0;
+    const helperBundle = join(root, 'artifacts', 'helpers-bundle.json');
+    await helpers!.handler(['bundle', 'export', helperBundle], ctx);
+    expect(out.join('\n')).toContain('Refusing to export integration helper bundle');
+    expect(existsSync(helperBundle)).toBe(false);
+
+    out.length = 0;
+    await helpers!.handler(['bundle', 'export', helperBundle, '--yes'], ctx);
+    expect(out.join('\n')).toContain('Integration helper bundle exported');
+    expect(existsSync(helperBundle)).toBe(true);
 
     out.length = 0;
     await deeplink!.handler(['review'], ctx);
@@ -2210,6 +2270,11 @@ describe('product breadth commands', () => {
     out.length = 0;
     const deeplinkBundle = join(root, 'artifacts', 'deeplink-bundle.json');
     await deeplink!.handler(['bundle', 'export', deeplinkBundle], ctx);
+    expect(out.join('\n')).toContain('Refusing to export deep link bundle');
+    expect(existsSync(deeplinkBundle)).toBe(false);
+
+    out.length = 0;
+    await deeplink!.handler(['bundle', 'export', deeplinkBundle, '--yes'], ctx);
     expect(out.join('\n')).toContain('Deep link bundle exported');
     expect(existsSync(deeplinkBundle)).toBe(true);
   });

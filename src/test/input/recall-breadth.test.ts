@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -133,6 +133,11 @@ describe('recall command breadth', () => {
     const exportPath = join(dir, 'knowledge', 'team-bundle.json');
 
     recallCommand.handler(['export', exportPath, '--scope', 'team'], context);
+    expect(printed.join('\n')).toContain('Refusing to export durable memory bundle');
+    expect(existsSync(exportPath)).toBe(false);
+
+    printed.length = 0;
+    recallCommand.handler(['export', exportPath, '--scope', 'team', '--yes'], context);
     const bundleText = readFileSync(exportPath, 'utf-8');
     expect(bundleText).toContain('"scope": "team"');
     expect(bundleText).toContain('"recordCount": 1');
@@ -149,6 +154,11 @@ describe('recall command breadth', () => {
     try {
       const importContext = makeBaseContext(importRegistry, importPrinted);
       await recallCommand.handler(['import', exportPath], importContext);
+      expect(importRegistry.getAll()).toHaveLength(0);
+      expect(importPrinted.some((line) => line.includes('Refusing to import durable memory bundle'))).toBe(true);
+
+      importPrinted.length = 0;
+      await recallCommand.handler(['import', exportPath, '--yes'], importContext);
       expect(importRegistry.getAll()).toHaveLength(1);
       expect(importRegistry.getAll()[0]?.scope).toBe('team');
       expect(importPrinted.some((line) => line.includes('Imported bundle'))).toBe(true);
@@ -164,6 +174,11 @@ describe('recall command breadth', () => {
     const handoffPath = join(dir, 'handoff', 'team.json');
 
     recallCommand.handler(['handoff-export', handoffPath, '--scope', 'team'], context);
+    expect(printed.join('\n')).toContain('Refusing to export memory handoff bundle');
+    expect(existsSync(handoffPath)).toBe(false);
+
+    printed.length = 0;
+    recallCommand.handler(['handoff-export', handoffPath, '--scope', 'team', '--yes'], context);
     expect(readFileSync(handoffPath, 'utf-8')).toContain('"scope": "team"');
 
     printed.length = 0;
@@ -182,6 +197,11 @@ describe('recall command breadth', () => {
     try {
       const importContext = makeBaseContext(importRegistry, importPrinted);
       await recallCommand.handler(['handoff-import', handoffPath], importContext);
+      expect(importRegistry.getAll()).toHaveLength(0);
+      expect(importPrinted.some((line) => line.includes('Refusing to import durable memory bundle'))).toBe(true);
+
+      importPrinted.length = 0;
+      await recallCommand.handler(['handoff-import', handoffPath, '--yes'], importContext);
       expect(importRegistry.getAll()).toHaveLength(1);
       expect(importPrinted.some((line) => line.includes('Imported bundle'))).toBe(true);
     } finally {

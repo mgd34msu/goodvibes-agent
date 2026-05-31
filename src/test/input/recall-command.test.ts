@@ -339,7 +339,15 @@ describe('recallCommand', () => {
       forensicsRegistry,
       shellPaths,
     }));
+    expect(printed.some((line) => line.includes('Refusing to export memory handoff bundle'))).toBe(true);
+    expect(existsSync(bundlePath)).toBe(false);
 
+    printed.length = 0;
+    await recallCommand.handler(['handoff-export', bundlePath, '--scope', 'team', '--yes'], makeRecallCommandContext(printed, {
+      memoryRegistry: registry,
+      forensicsRegistry,
+      shellPaths,
+    }));
     expect(printed.some((line) => line.includes('Exported team handoff bundle'))).toBe(true);
     expect(existsSync(bundlePath)).toBe(true);
     expect(readFileSync(bundlePath, 'utf-8')).toContain('"scope": "team"');

@@ -4,6 +4,7 @@ import type { CommandRegistry } from '../command-registry.ts';
 import type { ProfileBundleEntry, ProfileSyncBundle } from '@/runtime/index.ts';
 import { recordSettingsSyncEvent, recordSettingsSyncFailure } from '@/runtime/index.ts';
 import { requireProfileManager, requireShellPaths } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 function inspectProfileSyncBundle(bundle: ProfileSyncBundle): string {
   return [
@@ -18,11 +19,13 @@ export function registerProfileSyncRuntimeCommands(registry: CommandRegistry): v
   registry.register({
     name: 'profilesync',
     description: 'Export, import, and inspect profile sync bundles',
-    usage: '[list|export <path>|inspect <path>|import <path> [prefix]]',
+    usage: '[list|export <path> --yes|inspect <path>|import <path> [prefix] --yes]',
     handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       const controlPlaneConfigDir = ctx.platform.configManager.getControlPlaneConfigDir();
-      const sub = args[0] ?? 'list';
+      const sub = commandArgs[0] ?? 'list';
       const pm = requireProfileManager(ctx);
       if (sub === 'list') {
         const profiles = pm.list();
@@ -34,14 +37,18 @@ export function registerProfileSyncRuntimeCommands(registry: CommandRegistry): v
         return;
       }
 
-      const pathArg = args[1];
+      const pathArg = commandArgs[1];
       if (!pathArg) {
-        ctx.print(`Usage: /profilesync ${sub} <path>${sub === 'import' ? ' [prefix]' : ''}`);
+        ctx.print(`Usage: /profilesync ${sub} <path>${sub === 'import' ? ' [prefix]' : ''}${sub === 'export' || sub === 'import' ? ' --yes' : ''}`);
         return;
       }
       const targetPath = shellPaths.resolveWorkspacePath(pathArg);
 
       if (sub === 'export') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `export profile sync bundle to ${pathArg}`, '/profilesync export <path> --yes');
+          return;
+        }
         const profiles = pm.list().map((profile) => {
           const loaded = pm.load(profile.name);
           return {
@@ -75,8 +82,12 @@ export function registerProfileSyncRuntimeCommands(registry: CommandRegistry): v
       }
 
       if (sub === 'import') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `import profile sync bundle from ${pathArg}`, '/profilesync import <path> [prefix] --yes');
+          return;
+        }
         const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as ProfileSyncBundle;
-        const prefix = args[2]?.trim() ?? '';
+        const prefix = commandArgs[2]?.trim() ?? '';
         for (const entry of bundle.profiles) {
           const name = prefix ? `${prefix}-${entry.name}` : entry.name;
           pm.save(name, entry.data);
@@ -93,7 +104,7 @@ export function registerProfileSyncRuntimeCommands(registry: CommandRegistry): v
       }
 
       recordSettingsSyncFailure('profiles', `unsupported subcommand: ${sub}`, controlPlaneConfigDir);
-      ctx.print('Usage: /profilesync [list|export <path>|inspect <path>|import <path> [prefix]]');
+      ctx.print('Usage: /profilesync [list|export <path> --yes|inspect <path>|import <path> [prefix] --yes]');
     },
   });
 }

@@ -6,23 +6,30 @@ import { VALID_CLASSES, VALID_SCOPES, isValidClass, isValidScope, resolveBundleP
 import { requireShellPaths } from './runtime-services.ts';
 import { getMemoryApi } from './recall-query.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 export function handleRecallExport(args: string[], context: CommandContext): void {
+  const parsed = stripYesFlag(args);
+  const commandArgs = [...parsed.rest];
   const memory = getMemoryApi(context);
   if (!memory) {
     return;
   }
 
-  const pathArg = args[0];
+  const pathArg = commandArgs[0];
   if (!pathArg) {
-    context.print('[recall] Usage: /recall export <path> [--scope <scope>] [--cls <class>]');
+    context.print('[recall] Usage: /recall export <path> [--scope <scope>] [--cls <class>] --yes');
+    return;
+  }
+  if (!parsed.yes) {
+    requireYesFlag(context, `export durable memory bundle to ${pathArg}`, '/recall export <path> [--scope <scope>] [--cls <class>] --yes');
     return;
   }
 
   const filter: MemorySearchFilter = {};
-  const scopeIdx = args.indexOf('--scope');
-  if (scopeIdx !== -1 && args[scopeIdx + 1]) {
-    const scope = args[scopeIdx + 1];
+  const scopeIdx = commandArgs.indexOf('--scope');
+  if (scopeIdx !== -1 && commandArgs[scopeIdx + 1]) {
+    const scope = commandArgs[scopeIdx + 1];
     if (!isValidScope(scope)) {
       context.print(`[recall] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
       return;
@@ -30,9 +37,9 @@ export function handleRecallExport(args: string[], context: CommandContext): voi
     filter.scope = scope;
   }
 
-  const clsIdx = args.indexOf('--cls');
-  if (clsIdx !== -1 && args[clsIdx + 1]) {
-    const cls = args[clsIdx + 1];
+  const clsIdx = commandArgs.indexOf('--cls');
+  if (clsIdx !== -1 && commandArgs[clsIdx + 1]) {
+    const cls = commandArgs[clsIdx + 1];
     if (!isValidClass(cls)) {
       context.print(`[recall] Unknown class "${cls}". Valid: ${VALID_CLASSES.join(', ')}`);
       return;
@@ -48,14 +55,20 @@ export function handleRecallExport(args: string[], context: CommandContext): voi
 }
 
 export async function handleRecallImport(args: string[], context: CommandContext): Promise<void> {
+  const parsed = stripYesFlag(args);
+  const commandArgs = [...parsed.rest];
   const memory = getMemoryApi(context);
   if (!memory) {
     return;
   }
 
-  const pathArg = args[0];
+  const pathArg = commandArgs[0];
   if (!pathArg) {
-    context.print('[recall] Usage: /recall import <path>');
+    context.print('[recall] Usage: /recall import <path> --yes');
+    return;
+  }
+  if (!parsed.yes) {
+    requireYesFlag(context, `import durable memory bundle from ${pathArg}`, '/recall import <path> --yes');
     return;
   }
 
@@ -85,17 +98,23 @@ function inspectBundle(bundle: MemoryBundle): string {
 }
 
 export function handleRecallHandoffExport(args: string[], context: CommandContext): void {
+  const parsed = stripYesFlag(args);
+  const commandArgs = [...parsed.rest];
   const memory = getMemoryApi(context);
   if (!memory) {
     return;
   }
-  const pathArg = args[0];
+  const pathArg = commandArgs[0];
   if (!pathArg) {
-    context.print('[recall] Usage: /recall handoff-export <path> [--scope <scope>]');
+    context.print('[recall] Usage: /recall handoff-export <path> [--scope <scope>] --yes');
     return;
   }
-  const scopeIdx = args.indexOf('--scope');
-  const scopeRaw = scopeIdx !== -1 ? args[scopeIdx + 1] : 'team';
+  if (!parsed.yes) {
+    requireYesFlag(context, `export memory handoff bundle to ${pathArg}`, '/recall handoff-export <path> [--scope <scope>] --yes');
+    return;
+  }
+  const scopeIdx = commandArgs.indexOf('--scope');
+  const scopeRaw = scopeIdx !== -1 ? commandArgs[scopeIdx + 1] : 'team';
   if (!scopeRaw || !isValidScope(scopeRaw)) {
     context.print(`[recall] Unknown scope "${scopeRaw ?? ''}". Valid: ${VALID_SCOPES.join(', ')}`);
     return;
@@ -123,10 +142,12 @@ export function handleRecallHandoffInspect(args: string[], context: CommandConte
 }
 
 export async function handleRecallHandoffImport(args: string[], context: CommandContext): Promise<void> {
-  const pathArg = args[0];
+  const parsed = stripYesFlag(args);
+  const commandArgs = [...parsed.rest];
+  const pathArg = commandArgs[0];
   if (!pathArg) {
-    context.print('[recall] Usage: /recall handoff-import <path>');
+    context.print('[recall] Usage: /recall handoff-import <path> --yes');
     return;
   }
-  await handleRecallImport([pathArg], context);
+  await handleRecallImport([pathArg, ...(parsed.yes ? ['--yes'] : [])], context);
 }
