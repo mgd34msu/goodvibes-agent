@@ -1,6 +1,5 @@
 /**
- * OrchestrationPanel — displays task graphs, node contracts, recursion guards,
- * and WRFC-visible orchestration state.
+ * OrchestrationPanel — displays task graphs, node contracts, and recursion guards.
  *
  * Migrated (Wave B2): extends ScrollableListPanel<OrchestrationGraphRecord>.
  * Navigation (up/down/j/k) is handled by the base class.
@@ -102,7 +101,7 @@ export class OrchestrationPanel extends ScrollableListPanel<OrchestrationGraphRe
   // ---------------------------------------------------------------------------
 
   public render(width: number, height: number): Line[] {
-    const intro = 'Task graphs, node contracts, recursion guards, and WRFC-visible orchestration state.';
+    const intro = 'Read-only task graph posture, node contracts, and recursion guard state. Agent does not start local worker chains.';
 
     if (!this.readModel) {
       this.needsRender = false;
@@ -134,7 +133,7 @@ export class OrchestrationPanel extends ScrollableListPanel<OrchestrationGraphRe
         { label: 'failed', value: String(snapshot.totalFailedGraphs), valueColor: snapshot.totalFailedGraphs > 0 ? C.failed : C.dim },
         { label: 'guards', value: String(snapshot.recursionGuardTrips), valueColor: snapshot.recursionGuardTrips > 0 ? C.blocked : C.dim },
       ], C),
-      buildGuidanceLine(width, '/orchestration', 'inspect recursive execution posture, graph health, and node contract flow', C),
+      buildGuidanceLine(width, '/orchestration', 'inspect graph health without spawning local workers', C),
     ];
     if (graphs.length === 0) {
       this.needsRender = false;
@@ -148,7 +147,7 @@ export class OrchestrationPanel extends ScrollableListPanel<OrchestrationGraphRe
             ...buildEmptyState(
               width,
               this.getEmptyStateMessage(),
-              'Graphs, nodes, child contracts, and recursion guard trips will appear here as orchestration starts.',
+              'Graphs, nodes, child contracts, and recursion guard trips appear here only if a runtime record already exists.',
               [
                 { command: '/tasks', summary: 'create or inspect task flows that feed orchestration graphs' },
                 { command: '/communication', summary: 'review structured agent communication alongside graph execution' },

@@ -11,6 +11,7 @@ import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import { classifyBindPosture, isNetworkFacing } from './network-posture.ts';
 import type { CliCommandRuntime } from './management.ts';
 import { extractAuthorizationCode, formatJsonOrText, hasCommandFlag, openBrowser, probeTcp, readAuthPaths, runNonInteractiveAgent, urlHostForBindHost, withRuntimeServices, yesNo } from './management.ts';
+import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 
 export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<string> {
   return await withRuntimeServices(runtime, async (services) => {
@@ -370,13 +371,14 @@ export async function renderControlPlaneStatus(runtime: CliCommandRuntime): Prom
 
 export async function renderPairing(runtime: CliCommandRuntime): Promise<string> {
   const daemonHomeDir = join(runtime.homeDirectory, '.goodvibes', 'daemon');
-  const tokenRecord = getOrCreateCompanionToken('tui', { daemonHomeDir });
+  const tokenRecord = getOrCreateCompanionToken(GOODVIBES_AGENT_PAIRING_SURFACE, { daemonHomeDir });
   const binding = resolveRuntimeEndpointBinding(runtime.configManager, 'controlPlane');
   const daemonUrl = `http://${urlHostForBindHost(binding.host)}:${binding.port}`;
   const info = buildCompanionConnectionInfo({
     daemonUrl,
     token: tokenRecord.token,
     username: 'admin',
+    surface: GOODVIBES_AGENT_PAIRING_SURFACE,
   });
   const payload = encodeConnectionPayload(info);
   const qr = renderQrToString(generateQrMatrix(payload));

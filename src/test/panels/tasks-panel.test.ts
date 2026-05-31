@@ -161,7 +161,7 @@ describe('TasksPanel', () => {
     expect(initial).toContain('blocked 1');
     expect(initial).toContain('failed 1');
     expect(initial).toContain('completed 1');
-    expect(initial).toContain('/teamwork review');
+    expect(initial).toContain('/delegate <task>');
     expect(initial).toContain('Queued task');
     expect(initial).toContain('Status: queued');
 
@@ -172,7 +172,7 @@ describe('TasksPanel', () => {
     expect(second).toContain('Children: blocked-1');
     expect(second).toContain('Correlation:');
     expect(second).toContain('Worktrees:');
-    expect(second).toContain('/worktree recover task running-1');
+    expect(second).toContain('Worktree lifecycle is externalized');
     expect(second).toContain('running');
 
     panel.handleInput('end');

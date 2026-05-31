@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { getOrCreateCompanionToken } from '@pellux/goodvibes-sdk/platform/pairing';
 import type { ConfigManager } from '../config/index.ts';
+import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 
 export const CLOUDFLARE_COMPONENT_IDS = [
   'workers',
@@ -296,7 +297,7 @@ export function buildDefaultCloudflareDaemonBaseUrl(configManager: Pick<ConfigMa
 
 function readDaemonToken(homeDirectory: string): string {
   const daemonHomeDir = join(homeDirectory, '.goodvibes', 'daemon');
-  return getOrCreateCompanionToken('tui', { daemonHomeDir }).token;
+  return getOrCreateCompanionToken(GOODVIBES_AGENT_PAIRING_SURFACE, { daemonHomeDir }).token;
 }
 
 async function readJsonResponse<T>(response: Response): Promise<T> {

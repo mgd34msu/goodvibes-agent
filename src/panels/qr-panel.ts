@@ -7,6 +7,7 @@ import {
 } from './polish.ts';
 import { renderQrMatrix, generateQrMatrix } from '../renderer/qr-renderer.ts';
 import { encodeConnectionPayload } from '@pellux/goodvibes-sdk/platform/pairing';
+import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 
 const C = {
   ...DEFAULT_PANEL_PALETTE,
@@ -32,7 +33,7 @@ export interface QrPanelConnectionInfo {
   readonly password?: string;
   /** SDK/surface version (defaults to '0.0.0' if omitted) */
   readonly version?: string;
-  /** Surface identifier (defaults to 'tui' if omitted) */
+  /** Surface identifier (defaults to GoodVibes Agent if omitted) */
   readonly surface?: string;
 }
 
@@ -139,7 +140,7 @@ export class QrPanel extends BasePanel {
       username: this.connectionInfo.username,
       ...(this.connectionInfo.password !== undefined ? { password: this.connectionInfo.password } : {}),
       version: this.connectionInfo.version ?? '0.0.0',
-      surface: this.connectionInfo.surface ?? 'tui',
+      surface: this.connectionInfo.surface ?? GOODVIBES_AGENT_PAIRING_SURFACE,
     });
     const matrix = generateQrMatrix(payload);
     const qrLines = renderQrMatrix(matrix.modules, width, { fg: C.qrFg, bg: C.qrBg });

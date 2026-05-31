@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry } from '../../input/command-registry.ts';
@@ -27,6 +28,7 @@ import { MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/stat
 import { SystemMessagesPanel } from '../../panels/system-messages-panel.ts';
 import { createOrchestrationReadModel } from '../helpers/ui-read-models.ts';
 import { listHookPointContracts } from '@pellux/goodvibes-sdk/platform/hooks';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 type CommandContextOverrides =
   Omit<Partial<CommandContext>, 'session' | 'provider' | 'workspace' | 'platform' | 'ops' | 'extensions'> & {
@@ -48,7 +50,7 @@ describe('operator surfaces gate', () => {
 
   beforeEach(() => {
     policyRuntimeState = new PolicyRuntimeState();
-    configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir: join(tmpdir(), `gv-operator-surfaces-${Date.now()}-${Math.random().toString(36).slice(2)}`) });
+    configManager = new ConfigManager({ surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,  configDir: join(tmpdir(), `gv-operator-surfaces-${Date.now()}-${Math.random().toString(36).slice(2)}`) });
     configManager.set('orchestration.maxActiveAgents', 8);
     configManager.set('orchestration.maxDepth', 1);
     configManager.set('orchestration.recursionEnabled', true);
@@ -61,6 +63,21 @@ describe('operator surfaces gate', () => {
       getConversationTitle: () => 'operator-surfaces',
     });
   });
+
+  function walkProductionSource(dir: string): string[] {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === 'test') continue;
+        files.push(...walkProductionSource(fullPath));
+        continue;
+      }
+      if (entry.isFile() && fullPath.endsWith('.ts')) files.push(fullPath);
+    }
+    return files;
+  }
 
   function makeCommandContext(
     sessionId: string,
@@ -105,6 +122,7 @@ describe('operator surfaces gate', () => {
       extensions: {
         toolRegistry: new ToolRegistry(),
         mcpRegistry: runtimeServices.mcpRegistry,
+        agentKnowledgeService: runtimeServices.agentKnowledgeService,
         knowledgeService: runtimeServices.knowledgeService,
         hookWorkbench: runtimeServices.hookWorkbench,
         pluginManager: runtimeServices.pluginManager,
@@ -118,6 +136,10 @@ describe('operator surfaces gate', () => {
           remoteSupervisor: runtimeServices.remoteSupervisor,
         }),
         providerApi: createRuntimeProviderApi(runtimeServices),
+        agentKnowledgeApi: createRuntimeKnowledgeApi({
+          knowledgeService: runtimeServices.agentKnowledgeService,
+          memoryRegistry: runtimeServices.memoryRegistry,
+        }),
         knowledgeApi: createRuntimeKnowledgeApi(runtimeServices),
         hookApi: createRuntimeHookApi({
           dispatcher: {
@@ -209,6 +231,25 @@ describe('operator surfaces gate', () => {
     expect(ids).not.toContain('explorer');
     expect(ids).not.toContain('preview');
     expect(ids).not.toContain('symbols');
+  });
+
+  test('production runtime source does not advertise itself as the TUI surface', () => {
+    const root = join(process.cwd(), 'src');
+    expect(statSync(root).isDirectory()).toBe(true);
+    const leaks = walkProductionSource(root).flatMap((filePath) => {
+      const content = readFileSync(filePath, 'utf8');
+      const markers = [
+        "surface: 'tui'",
+        'surface: "tui"',
+        "surfaceKind: 'tui'",
+        "surfaceId: 'surface:tui'",
+        "getOrCreateCompanionToken('tui'",
+      ];
+      return markers
+        .filter((marker) => content.includes(marker))
+        .map((marker) => `${filePath.replace(`${root}/`, 'src/')}: ${marker}`);
+    });
+    expect(leaks).toEqual([]);
   });
 
   test('command registry exposes the provider, policy, and session control surfaces', () => {

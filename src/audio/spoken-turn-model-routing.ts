@@ -2,6 +2,7 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { ModelDefinition, ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
 import type { Orchestrator, OrchestratorUserInputOptions } from '../core/orchestrator.ts';
+import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 
 const SPOKEN_TURN_SOURCE = 'tts';
 
@@ -27,7 +28,7 @@ export function createSpokenTurnInputOptions(): OrchestratorUserInputOptions {
   return {
     origin: {
       source: SPOKEN_TURN_SOURCE,
-      surface: 'tui',
+      surface: GOODVIBES_AGENT_PAIRING_SURFACE,
       metadata: { spokenOutput: true },
     },
   };

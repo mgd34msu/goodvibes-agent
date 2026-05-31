@@ -54,6 +54,7 @@ import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/ter
 import { ProjectPlanningCoordinator } from './planning/project-planning-coordinator.ts';
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { summarizeRunningAgents } from './renderer/process-summary.ts';
+import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 
 const ALT_SCREEN_ENTER = '\x1b[?1049h';
 const ALT_SCREEN_EXIT  = '\x1b[?1049l';
@@ -320,7 +321,7 @@ async function main() {
               inputOptions = {
                 origin: {
                   source: 'project-planning',
-                  surface: 'tui',
+                  surface: GOODVIBES_AGENT_PAIRING_SURFACE,
                   metadata: {
                     projectId: ctx.services.projectPlanningProjectId,
                     knowledgeSpaceId: planning.state.knowledgeSpaceId,

@@ -14,6 +14,7 @@ import {
   buildCompanionConnectionInfo,
 } from '@pellux/goodvibes-sdk/platform/pairing';
 import { copyToClipboard } from '../../utils/clipboard.ts';
+import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../../config/surface.ts';
 
 function getLocalNetworkIp(): string {
   const nets = networkInterfaces();
@@ -51,7 +52,7 @@ export function registerSessionPanels(manager: PanelManager, deps: ResolvedBuilt
     factory: () => {
       if (!deps.daemonHomeDir) throw new Error('daemonHomeDir must be provided to the session panel factory via BuiltinPanelDeps');
       const daemonHomeDir = deps.daemonHomeDir;
-      const tokenRecord = getOrCreateCompanionToken('tui', { daemonHomeDir });
+      const tokenRecord = getOrCreateCompanionToken(GOODVIBES_AGENT_PAIRING_SURFACE, { daemonHomeDir });
       const daemonPort = deps.configManager.get('controlPlane.port');
       const daemonHost = String(process.env['GOODVIBES_DAEMON_HOST'] ?? getLocalNetworkIp());
       const daemonUrl = `http://${daemonHost}:${daemonPort}`;
@@ -60,7 +61,7 @@ export function registerSessionPanels(manager: PanelManager, deps: ResolvedBuilt
         daemonUrl,
         token: tokenRecord.token,
         password: bootstrapPassword,
-        surface: 'tui',
+        surface: GOODVIBES_AGENT_PAIRING_SURFACE,
       });
       const regenerate = (): typeof connectionInfo => {
         const newRecord = regenerateCompanionToken({ daemonHomeDir });
@@ -68,7 +69,7 @@ export function registerSessionPanels(manager: PanelManager, deps: ResolvedBuilt
           daemonUrl,
           token: newRecord.token,
           password: bootstrapPassword,
-          surface: 'tui',
+          surface: GOODVIBES_AGENT_PAIRING_SURFACE,
         });
       };
       return new QrPanel(connectionInfo, regenerate, copyToClipboard);

@@ -179,7 +179,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
   protected override getEmptyStateActions() {
     return [
       { command: '/tasks create', summary: 'create a tracked task from the shell' },
-      { command: '/orchestration', summary: 'review graph-native task execution and WRFC flows' },
+      { command: '/delegate <task>', summary: 'send explicit build/fix/review work to GoodVibes TUI' },
     ];
   }
 
@@ -276,8 +276,8 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
       ]));
     }
     postureLines.push(
-      buildGuidanceLine(width, '/teamwork review', 'inspect task-family posture, archetype metadata, and recovery options for active work', C),
-      buildGuidanceLine(width, '/worktree task <task-id>', 'review worktree ownership, restore, and merge posture for the selected task', C),
+      buildGuidanceLine(width, '/tasks', 'inspect local runtime task posture without starting background agents', C),
+      buildGuidanceLine(width, '/delegate <task>', 'delegate explicit build/fix/review work to GoodVibes TUI when code execution is required', C),
     );
 
     const detailRows: Line[] = [];
@@ -354,7 +354,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
           [String(attachedWorktrees.paused), attachedWorktrees.paused > 0 ? C.blocked : C.dim],
         ]));
         detailRows.push(buildPanelLine(width, [[
-          `  Next: /worktree task ${selected.id}  /worktree recover task ${selected.id}`,
+          '  Worktree lifecycle is externalized; open GoodVibes TUI in the target workspace for recovery.',
           C.dim,
         ]]));
         for (const record of attachedWorktrees.records.slice(0, 2)) {
