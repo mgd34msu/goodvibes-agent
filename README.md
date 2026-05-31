@@ -43,6 +43,15 @@ bun run publish:check
 
 Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen surface for setup, status, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
+Local Agent behavior is editable from the TUI:
+
+```text
+/personas create --name Research --description "Source-backed research" --body "Check sources, call out uncertainty, keep answers concise."
+/personas use research
+/agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
+/skills local list
+```
+
 ## Daemon Prerequisite
 
 Start or restart the daemon from GoodVibes TUI or the daemon host before launching Agent. Agent status and companion/knowledge routes connect to that external daemon, normally on `http://127.0.0.1:3421`.
@@ -59,7 +68,7 @@ Those commands should return explicit external-daemon guidance instead of mutati
 
 ## Product Boundary
 
-GoodVibes Agent owns the operator assistant surface: serial assistant flow, proactive safe actions, local memory/skills/personas until stable shared registries exist, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
+GoodVibes Agent owns the operator assistant surface: serial assistant flow, proactive safe actions, local memory/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki, HomeGraph, or Home Assistant routes.
 

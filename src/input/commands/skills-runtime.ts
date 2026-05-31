@@ -12,15 +12,20 @@ import {
   upsertEcosystemCatalogEntry,
 } from '@/runtime/index.ts';
 import { requireEcosystemCatalogPaths, requirePanelManager, requireShellPaths } from './runtime-services.ts';
+import { runAgentSkillsRuntimeCommand } from './agent-skills-runtime.ts';
 
 export function registerSkillsRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'skills',
     aliases: ['skill'],
     description: 'Inspect installed skill packs',
-    usage: '[open|list|show <name>|origins|browse [query]|installed|catalog-review <id>|publish-local <id> <path> <summary...>|unpublish <id>|install-hint <catalog-id>|install <id> [project|user]|update <id> [project|user]|uninstall <id> [project|user]]',
+    usage: '[open|local ...|list|show <name>|origins|browse [query]|installed|catalog-review <id>|publish-local <id> <path> <summary...>|unpublish <id>|install-hint <catalog-id>|install <id> [project|user]|update <id> [project|user]|uninstall <id> [project|user]]',
     async handler(args, ctx) {
       const sub = args[0] ?? 'open';
+      if (sub === 'local' || sub === 'agent') {
+        await runAgentSkillsRuntimeCommand(args.slice(1), ctx);
+        return;
+      }
       if (sub === 'open' || sub === 'panel') {
         if (ctx.showPanel) ctx.showPanel('skills');
         else {
@@ -215,7 +220,7 @@ export function registerSkillsRuntimeCommands(registry: CommandRegistry): void {
         ctx.print(result.ok ? `Uninstalled curated skill ${entryId} from ${result.removedPath}` : `Error: ${result.error}`);
         return;
       }
-      ctx.print('Usage: /skills [open|list|show <name>|origins|browse [query]|installed|catalog-review <id>|publish-local <id> <path> <summary...>|unpublish <id>|install-hint <catalog-id>|install <id> [project|user]|update <id> [project|user]|uninstall <id> [project|user]]');
+      ctx.print('Usage: /skills [open|local ...|list|show <name>|origins|browse [query]|installed|catalog-review <id>|publish-local <id> <path> <summary...>|unpublish <id>|install-hint <catalog-id>|install <id> [project|user]|update <id> [project|user]|uninstall <id> [project|user]]');
     },
   });
 }

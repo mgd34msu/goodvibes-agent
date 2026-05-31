@@ -92,123 +92,125 @@ function printError(ctx: CommandContext, error: unknown): void {
   ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
 }
 
+export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
+  const sub = (args[0] ?? 'list').toLowerCase();
+  const skillRegistry = registryFromContext(ctx);
+  try {
+    if (sub === 'list' || sub === 'open') {
+      ctx.print(renderList('Agent Skills', skillRegistry, skillRegistry.list()));
+      return;
+    }
+    if (sub === 'enabled') {
+      const snapshot = skillRegistry.snapshot();
+      ctx.print(renderList('Enabled Agent Skills', skillRegistry, snapshot.enabledSkills));
+      return;
+    }
+    if (sub === 'search') {
+      const query = args.slice(1).join(' ').trim();
+      ctx.print(renderList(query ? `Agent Skills matching "${query}"` : 'Agent Skills', skillRegistry, skillRegistry.search(query)));
+      return;
+    }
+    if (sub === 'show') {
+      const id = args[1];
+      if (!id) {
+        ctx.print('Usage: /agent-skills show <id>');
+        return;
+      }
+      const skill = skillRegistry.get(id);
+      ctx.print(skill ? renderSkill(skill) : `Unknown Agent skill: ${id}`);
+      return;
+    }
+    if (sub === 'create') {
+      const parsed = parseSkillArgs(args.slice(1));
+      const procedure = parsed.flags.get('procedure')?.trim() || parsed.rest.join(' ').trim();
+      const skill = skillRegistry.create({
+        name: requiredFlag(parsed.flags, 'name'),
+        description: requiredFlag(parsed.flags, 'description'),
+        procedure,
+        triggers: splitList(parsed.flags.get('triggers')),
+        tags: splitList(parsed.flags.get('tags')),
+        enabled: parsed.flags.get('enabled') === 'true',
+        source: 'user',
+        provenance: 'slash-command',
+      });
+      ctx.print(`Created Agent skill ${skill.id}: ${skill.name}`);
+      return;
+    }
+    if (sub === 'update') {
+      const id = args[1];
+      if (!id) {
+        ctx.print('Usage: /agent-skills update <id> [--name ...] [--description ...] [--procedure ...]');
+        return;
+      }
+      const parsed = parseSkillArgs(args.slice(2));
+      const updated = skillRegistry.update(id, {
+        name: parsed.flags.get('name'),
+        description: parsed.flags.get('description'),
+        procedure: parsed.flags.get('procedure'),
+        triggers: parsed.flags.has('triggers') ? splitList(parsed.flags.get('triggers')) : undefined,
+        tags: parsed.flags.has('tags') ? splitList(parsed.flags.get('tags')) : undefined,
+        provenance: 'slash-command',
+      });
+      ctx.print(`Updated Agent skill ${updated.id}: ${updated.name}`);
+      return;
+    }
+    if (sub === 'enable' || sub === 'disable') {
+      const id = args[1];
+      if (!id) {
+        ctx.print(`Usage: /agent-skills ${sub} <id>`);
+        return;
+      }
+      const skill = skillRegistry.setEnabled(id, sub === 'enable');
+      ctx.print(`${sub === 'enable' ? 'Enabled' : 'Disabled'} Agent skill ${skill.id}: ${skill.name}`);
+      return;
+    }
+    if (sub === 'review') {
+      const id = args[1];
+      if (!id) {
+        ctx.print('Usage: /agent-skills review <id>');
+        return;
+      }
+      const skill = skillRegistry.markReviewed(id);
+      ctx.print(`Reviewed Agent skill ${skill.id}.`);
+      return;
+    }
+    if (sub === 'stale') {
+      const id = args[1];
+      if (!id) {
+        ctx.print('Usage: /agent-skills stale <id> <reason...>');
+        return;
+      }
+      const skill = skillRegistry.markStale(id, args.slice(2).join(' '));
+      ctx.print(`Marked Agent skill ${skill.id} stale.`);
+      return;
+    }
+    if (sub === 'delete' || sub === 'remove') {
+      const parsed = parseSkillArgs(args.slice(1));
+      const id = parsed.rest[0];
+      if (!id) {
+        ctx.print('Usage: /agent-skills delete <id> --yes');
+        return;
+      }
+      if (!parsed.yes) {
+        ctx.print(`Refusing to delete Agent skill ${id} without --yes.`);
+        return;
+      }
+      const removed = skillRegistry.deleteSkill(id);
+      ctx.print(`Deleted Agent skill ${removed.id}: ${removed.name}`);
+      return;
+    }
+    ctx.print('Usage: /agent-skills [list|enabled|search|show|create|update|enable|disable|review|stale|delete]');
+  } catch (error) {
+    printError(ctx, error);
+  }
+}
+
 export function registerAgentSkillsRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'agent-skills',
     aliases: ['askills', 'local-skills'],
     description: 'Manage local GoodVibes Agent skills',
     usage: '[list|enabled|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps>|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes]',
-    async handler(args, ctx) {
-      const sub = (args[0] ?? 'list').toLowerCase();
-      const skillRegistry = registryFromContext(ctx);
-      try {
-        if (sub === 'list' || sub === 'open') {
-          ctx.print(renderList('Agent Skills', skillRegistry, skillRegistry.list()));
-          return;
-        }
-        if (sub === 'enabled') {
-          const snapshot = skillRegistry.snapshot();
-          ctx.print(renderList('Enabled Agent Skills', skillRegistry, snapshot.enabledSkills));
-          return;
-        }
-        if (sub === 'search') {
-          const query = args.slice(1).join(' ').trim();
-          ctx.print(renderList(query ? `Agent Skills matching "${query}"` : 'Agent Skills', skillRegistry, skillRegistry.search(query)));
-          return;
-        }
-        if (sub === 'show') {
-          const id = args[1];
-          if (!id) {
-            ctx.print('Usage: /agent-skills show <id>');
-            return;
-          }
-          const skill = skillRegistry.get(id);
-          ctx.print(skill ? renderSkill(skill) : `Unknown Agent skill: ${id}`);
-          return;
-        }
-        if (sub === 'create') {
-          const parsed = parseSkillArgs(args.slice(1));
-          const procedure = parsed.flags.get('procedure')?.trim() || parsed.rest.join(' ').trim();
-          const skill = skillRegistry.create({
-            name: requiredFlag(parsed.flags, 'name'),
-            description: requiredFlag(parsed.flags, 'description'),
-            procedure,
-            triggers: splitList(parsed.flags.get('triggers')),
-            tags: splitList(parsed.flags.get('tags')),
-            enabled: parsed.flags.get('enabled') === 'true',
-            source: 'user',
-            provenance: 'slash-command',
-          });
-          ctx.print(`Created Agent skill ${skill.id}: ${skill.name}`);
-          return;
-        }
-        if (sub === 'update') {
-          const id = args[1];
-          if (!id) {
-            ctx.print('Usage: /agent-skills update <id> [--name ...] [--description ...] [--procedure ...]');
-            return;
-          }
-          const parsed = parseSkillArgs(args.slice(2));
-          const updated = skillRegistry.update(id, {
-            name: parsed.flags.get('name'),
-            description: parsed.flags.get('description'),
-            procedure: parsed.flags.get('procedure'),
-            triggers: parsed.flags.has('triggers') ? splitList(parsed.flags.get('triggers')) : undefined,
-            tags: parsed.flags.has('tags') ? splitList(parsed.flags.get('tags')) : undefined,
-            provenance: 'slash-command',
-          });
-          ctx.print(`Updated Agent skill ${updated.id}: ${updated.name}`);
-          return;
-        }
-        if (sub === 'enable' || sub === 'disable') {
-          const id = args[1];
-          if (!id) {
-            ctx.print(`Usage: /agent-skills ${sub} <id>`);
-            return;
-          }
-          const skill = skillRegistry.setEnabled(id, sub === 'enable');
-          ctx.print(`${sub === 'enable' ? 'Enabled' : 'Disabled'} Agent skill ${skill.id}: ${skill.name}`);
-          return;
-        }
-        if (sub === 'review') {
-          const id = args[1];
-          if (!id) {
-            ctx.print('Usage: /agent-skills review <id>');
-            return;
-          }
-          const skill = skillRegistry.markReviewed(id);
-          ctx.print(`Reviewed Agent skill ${skill.id}.`);
-          return;
-        }
-        if (sub === 'stale') {
-          const id = args[1];
-          if (!id) {
-            ctx.print('Usage: /agent-skills stale <id> <reason...>');
-            return;
-          }
-          const skill = skillRegistry.markStale(id, args.slice(2).join(' '));
-          ctx.print(`Marked Agent skill ${skill.id} stale.`);
-          return;
-        }
-        if (sub === 'delete' || sub === 'remove') {
-          const parsed = parseSkillArgs(args.slice(1));
-          const id = parsed.rest[0];
-          if (!id) {
-            ctx.print('Usage: /agent-skills delete <id> --yes');
-            return;
-          }
-          if (!parsed.yes) {
-            ctx.print(`Refusing to delete Agent skill ${id} without --yes.`);
-            return;
-          }
-          const removed = skillRegistry.deleteSkill(id);
-          ctx.print(`Deleted Agent skill ${removed.id}: ${removed.name}`);
-          return;
-        }
-        ctx.print('Usage: /agent-skills [list|enabled|search|show|create|update|enable|disable|review|stale|delete]');
-      } catch (error) {
-        printError(ctx, error);
-      }
-    },
+    handler: runAgentSkillsRuntimeCommand,
   });
 }

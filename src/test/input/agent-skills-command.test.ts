@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerAgentSkillsRuntimeCommands } from '../../input/commands/agent-skills-runtime.ts';
+import { registerSkillsRuntimeCommands } from '../../input/commands/skills-runtime.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
 function commandHarness(): {
@@ -64,5 +65,25 @@ describe('/agent-skills command', () => {
     expect(text).toContain('Refusing to delete Agent skill ops without --yes');
     expect(text).toContain('Deleted Agent skill ops');
     expect(text).toContain('secret-looking');
+  });
+
+  test('/skills local routes to Agent-local skills', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skill-local-alias-'));
+    const registry = new CommandRegistry();
+    registerSkillsRuntimeCommands(registry);
+    const out: string[] = [];
+    const ctx = {
+      print: (text: string) => out.push(text),
+      workspace: {
+        shellPaths: createShellPathService({ workingDirectory: root, homeDirectory: root }),
+      },
+    } as unknown as CommandContext;
+
+    await registry.execute('skills', ['local', 'create', '--name', 'Prep', '--description', 'Prepare context.', '--procedure', 'Read current state first.'], ctx);
+    await registry.execute('skills', ['local', 'list'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Created Agent skill prep');
+    expect(text).toContain('Prep - Prepare context.');
   });
 });

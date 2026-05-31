@@ -37,6 +37,21 @@ bun run dev
 
 Once the TUI opens, run `/agent`, `/home`, or `/operator` to open the Agent operator workspace. That fullscreen workspace is the current front door for setup/config, knowledge status, local memory and skills, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
 
+## Local Personas And Skills
+
+Personas and reusable Agent skills are local to GoodVibes Agent. They do not write into default Knowledge/Wiki or HomeGraph.
+
+```text
+/personas list
+/personas create --name Research --description "Source-backed research" --body "Check sources, call out uncertainty, keep answers concise."
+/personas use research
+/agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
+/agent-skills enabled
+/skills local list
+```
+
+The active persona and enabled Agent skills are injected into the main serial assistant conversation. They do not spawn background agents.
+
 ## External Daemon
 
 Start the daemon from GoodVibes TUI or the daemon host before using daemon-backed Agent features. Agent expects the daemon to expose the public operator/Agent routes, including:
