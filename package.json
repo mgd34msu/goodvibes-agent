@@ -12,7 +12,6 @@
   "files": [
     "bin",
     "LICENSE",
-    ".goodvibes/agents",
     ".goodvibes/skills",
     ".goodvibes/GOODVIBES.md",
     "src",

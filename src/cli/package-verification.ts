@@ -44,7 +44,7 @@ const REQUIRED_TARBALL_PATHS = [
   'docs/deployment-and-services.md',
   'docs/release-and-publishing.md',
 ] as const;
-const FORBIDDEN_TARBALL_PREFIXES = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', 'vendor/'] as const;
+const FORBIDDEN_TARBALL_PREFIXES = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', '.goodvibes/agents/', 'vendor/'] as const;
 const FORBIDDEN_TARBALL_DOCS = [
   'docs/qemu-sandbox.md',
   'docs/cloudflare-batch.md',
@@ -58,7 +58,6 @@ const PACKAGE_FACING_TEXT_PATHS = [
   'docs/deployment-and-services.md',
   'docs/release-and-publishing.md',
   '.goodvibes/GOODVIBES.md',
-  '.goodvibes/agents/reviewer.md',
   '.goodvibes/skills/add-provider/SKILL.md',
 ] as const;
 const PACKAGE_FACING_FORBIDDEN_TEXT = [
