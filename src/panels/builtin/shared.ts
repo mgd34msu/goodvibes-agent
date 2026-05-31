@@ -55,9 +55,9 @@ export interface BuiltinPanelDeps {
   resumeSession?: (sessionId: string) => void;
   /** Request a shell repaint directly rather than routing through a retired event path. */
   requestRender?: () => void;
-  /** Submit a Planning panel answer through the normal TUI chat/planning coordinator path. */
+  /** Submit a Planning panel answer through the normal Agent chat/planning coordinator path. */
   submitPlanningAnswer?: (answer: string) => void;
-  /** Pause the TUI-owned planning loop and return focus to normal prompt input. */
+  /** Pause the Agent-owned planning loop and return focus to normal prompt input. */
   dismissPlanning?: () => void;
   /** ForensicsRegistry for the Forensics panel. */
   forensicsRegistry?: import('@/runtime/index.ts').ForensicsRegistry;
@@ -96,9 +96,9 @@ export interface BuiltinPanelDeps {
   adaptivePlanner?: AdaptivePlanner;
   /** Passive SDK-backed project planning artifact service. */
   projectPlanningService?: ProjectPlanningService;
-  /** Stable workspace project id for project:<projectId> planning spaces. */
+  /** Stable workspace project id for project:<projectId> planning namespaces. */
   projectPlanningProjectId?: string;
-  /** TUI-owned persistent work plan store. */
+  /** Agent-owned persistent work plan store. */
   workPlanStore?: import('../../work-plans/work-plan-store.ts').WorkPlanStore;
   /** Shared system-messages panel instance attached from boot so low-priority chatter stays out of conversation. */
   systemMessagesPanel?: import('../system-messages-panel.ts').SystemMessagesPanel;

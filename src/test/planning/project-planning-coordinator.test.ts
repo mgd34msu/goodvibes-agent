@@ -81,7 +81,7 @@ describe('project planning coordinator', () => {
     expect(state).toBeNull();
   });
 
-  test('starts a TUI-owned planning loop and persists SDK-backed state', async () => {
+  test('starts an Agent-owned planning loop and persists SDK-backed state', async () => {
     let opened = 0;
     const fake = makeService();
     const coordinator = new ProjectPlanningCoordinator({
@@ -97,9 +97,11 @@ describe('project planning coordinator', () => {
     expect(result).not.toBeNull();
     expect(opened).toBe(1);
     expect(fake.state?.goal).toContain('implementation plan');
-    expect(fake.state?.metadata?.['owner']).toBe('tui');
+    expect(fake.state?.metadata?.['owner']).toBe('agent');
     expect(result?.handledLocally).toBe(true);
-    expect(result?.systemMessage).toContain('TUI-owned project planning loop');
+    expect(result?.systemMessage).toContain('Agent-owned planning loop');
+    expect(result?.systemMessage).toContain('Planning namespace:');
+    expect(result?.systemMessage).not.toContain('Knowledge space:');
     expect(result?.evaluation.nextQuestion?.prompt).toBeTruthy();
   });
 

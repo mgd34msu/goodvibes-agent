@@ -1,34 +1,34 @@
 # Project Planning
 
-GoodVibes TUI owns the active project-planning loop. The SDK provides passive storage and readiness evaluation only.
+GoodVibes Agent owns the active planning loop for operator work. The SDK provides passive storage and readiness evaluation only.
 
 ## Boundary
 
-The TUI owns:
+The Agent owns:
 
 - natural-language planning intent detection in the main terminal conversation
 - the relentless planning interview loop
 - one-question-at-a-time clarification
 - the project planning panel
 - execution approval
-- agent handoff metadata and future agent assignment UX
+- delegation metadata and future assignment UX
 
 The SDK owns:
 
-- durable project-scoped planning artifacts in knowledge spaces named `project:<projectId>`
+- durable project-scoped planning artifacts in SDK planning namespaces such as `project:<projectId>`
 - readiness evaluation and next-question hints
 - project-language records
 - decision records
-- task, dependency, verification, and agent-assignment metadata
+- task, dependency, verification, and assignment metadata
 - passive daemon routes and operator methods
 
-Daemon, web, webhook, ntfy, Home Assistant, Slack, Discord, and companion surfaces do not enter planning loops. They can use the SDK routes as storage/evaluation APIs, but conversation control stays in the TUI.
+Daemon, web, webhook, ntfy, Slack, Discord, and companion surfaces do not enter the Agent planning loop. They can use SDK routes as storage/evaluation APIs where appropriate, but conversation control stays in the Agent surface. Agent planning state is not default Knowledge/Wiki, product-specific graph data, or an arbitrary knowledge space.
 
-## TUI Behavior
+## Agent Behavior
 
-The TUI derives a stable `projectId` from the workspace path and passes it to the SDK `ProjectPlanningService`. Planning artifacts are stored under the matching `project:<projectId>` knowledge space, so unrelated workspaces do not share planning state.
+The Agent derives a stable `projectId` from the workspace path and passes it to the SDK `ProjectPlanningService`. Planning artifacts are stored under the matching SDK planning namespace, so unrelated workspaces do not share planning state.
 
-Normal conversation can start planning when the user uses planning language such as implementation plan, execution strategy, dependency graph, verification gates, or agent handoff. The TUI then:
+Normal conversation can start planning when the user uses planning language such as implementation plan, execution strategy, dependency graph, verification gates, or delegation handoff. The Agent then:
 
 - opens the `Planning` panel
 - persists the current planning state through the SDK
@@ -44,7 +44,7 @@ Open the panel through the panel picker or with `/plan panel`.
 
 The panel shows:
 
-- workspace project id and knowledge space
+- workspace project id and planning namespace
 - readiness and approval state
 - goal, scope, known context, and current next question
 - blocking/advisory readiness gaps
@@ -73,11 +73,11 @@ Panel keys:
 - `/plan list` and `/plan show <id>` still inspect older execution-plan records.
 - `/plan mode|explain|override|status|clear` still route to the adaptive runtime controls.
 
-Use natural language such as "stop planning" or the panel dismiss action when the TUI has entered planning but the current work should continue as normal chat.
+Use natural language such as "stop planning" or the panel dismiss action when the Agent has entered planning but the current work should continue as normal chat.
 
 ## Work Plan
 
-GoodVibes also has a lightweight persistent work-plan tracker for concrete implementation tasks. It is separate from the planning interview state and is intended for visible, durable checklists while work is in progress.
+GoodVibes also has a lightweight persistent work-plan tracker for concrete tasks. It is separate from the planning interview state and is intended for visible, durable checklists while work is in progress.
 
 Commands:
 
@@ -88,11 +88,11 @@ Commands:
 - `/workplan remove <id>`
 - `/workplan clear-done`
 
-The TUI stores work-plan state under `~/.goodvibes/tui/work-plans/` and renders it in the `Work Plan` panel.
+Agent stores work-plan state under its Agent-owned runtime home and renders it in the `Work Plan` panel.
 
 ## SDK Routes And Operator Methods
 
-The TUI does not need to call daemon routes for its own local planning loop, but the updated SDK exposes passive routes and methods:
+Agent does not need to call daemon routes for its own local planning loop, but the SDK exposes passive routes and methods:
 
 - `GET /api/projects/planning/status`
 - `GET|POST /api/projects/planning/state`

@@ -36,11 +36,16 @@ describe('Agent boundary docs', () => {
   test('active planning source uses Agent-owned product language', () => {
     const commandSource = readRepoFile('src/input/commands/planning-runtime.ts');
     const panelSource = readRepoFile('src/panels/project-planning-panel.ts');
-    const combined = `${commandSource}\n${panelSource}`;
+    const coordinatorSource = readRepoFile('src/planning/project-planning-coordinator.ts');
+    const docsSource = readRepoFile('docs/project-planning.md');
+    const combined = `${commandSource}\n${panelSource}\n${coordinatorSource}\n${docsSource}`;
 
     expect(combined).toContain('Agent workspace planning state');
     expect(combined).toContain('Agent-owned workspace planning state');
     expect(combined).toContain('Agent main conversation');
+    expect(combined).toContain('Agent-owned planning loop');
+    expect(coordinatorSource).toContain('Planning namespace:');
+    expect(coordinatorSource).not.toContain('Knowledge space:');
     expect(combined).not.toContain('TUI-owned');
     expect(combined).not.toContain('Home Assistant');
   });
