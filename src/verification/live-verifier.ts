@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { auditGoodVibesHome } from '../config/goodvibes-home-audit.ts';
 import { buildVerificationLedger } from './verification-ledger.ts';
+import { SDK_VERSION } from '../version.ts';
 
 export type LiveVerificationStatus = 'pass' | 'warn' | 'fail' | 'skip';
 
@@ -271,6 +272,25 @@ function countStatuses(checks: readonly LiveVerificationCheck[]): Record<LiveVer
   );
 }
 
+export function buildAgentKnowledgeLiveSkipCheck(
+  id: string,
+  title: string,
+  daemonVersion: string,
+  expectedSdkVersion = SDK_VERSION,
+): LiveVerificationCheck {
+  return {
+    id,
+    title,
+    status: 'skip',
+    summary: `Skipped because external daemon SDK ${daemonVersion} does not match Agent SDK pin ${expectedSdkVersion}.`,
+    detail: [
+      'Agent Knowledge is intentionally isolated under /api/goodvibes-agent/knowledge/*.',
+      'An older daemon cannot validate those routes, and Agent must not fall back to default Knowledge/Wiki or HomeGraph.',
+      'Update/restart the external daemon, then rerun live verification.',
+    ].join('\n'),
+  };
+}
+
 export async function buildLiveVerificationReport(options: LiveVerificationOptions): Promise<LiveVerificationReport> {
   const homeDir = resolve(options.homeDir);
   const projectRoot = resolve(options.projectRoot);
@@ -278,6 +298,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
   const daemonBaseUrl = resolveDaemonBaseUrl(homeDir, options.daemonBaseUrl);
   const token = options.token ?? readDaemonToken(homeDir);
   const checks: LiveVerificationCheck[] = [];
+  let daemonSdkVersion: string | null = null;
 
   const ledger = buildVerificationLedger(projectRoot);
   checks.push({
@@ -328,7 +349,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
       'Agent CLI compatibility JSON command',
       await runCommand(binaryPath, ['compat', '--json'], projectRoot),
       'Agent CLI compatibility returned parseable JSON.',
-      { parseJson: true },
+      { parseJson: true, warnOnNonZero: true },
     ));
     checks.push(commandCheck(
       'cli-agent-knowledge-status',
@@ -392,6 +413,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
         const version = typeof parsed.sdkVersion === 'string'
           ? parsed.sdkVersion
           : typeof parsed.version === 'string' ? parsed.version : 'unknown';
+        daemonSdkVersion = version;
         return { status: 'pass', summary: `/status returned 200, version ${version}.` };
       } catch {
         return { status: 'warn', summary: '/status returned 200 but was not parseable JSON.' };
@@ -438,78 +460,88 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     },
   ));
 
-  checks.push(await fetchJsonCheck(
-    'agent-knowledge-status',
-    'Agent Knowledge isolated /status',
-    `${daemonBaseUrl}/api/goodvibes-agent/knowledge/status`,
-    token,
-    {
-      validate: (status, body) => {
-        if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/status returned ${status}.` };
-        try {
-          JSON.parse(body);
-          return { status: 'pass', summary: 'Agent Knowledge status route returned parseable JSON.' };
-        } catch {
-          return { status: 'fail', summary: 'Agent Knowledge status was not parseable JSON.' };
-        }
+  const daemonVersionMismatch = daemonSdkVersion !== null && daemonSdkVersion !== 'unknown' && daemonSdkVersion !== SDK_VERSION;
+  if (daemonVersionMismatch) {
+    const mismatchedDaemonVersion = daemonSdkVersion ?? 'unknown';
+    checks.push(
+      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-status', 'Agent Knowledge isolated /status', mismatchedDaemonVersion),
+      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-ask-isolated', 'Agent Knowledge isolated ask', mismatchedDaemonVersion),
+      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-search-isolated', 'Agent Knowledge isolated search', mismatchedDaemonVersion),
+    );
+  } else {
+    checks.push(await fetchJsonCheck(
+      'agent-knowledge-status',
+      'Agent Knowledge isolated /status',
+      `${daemonBaseUrl}/api/goodvibes-agent/knowledge/status`,
+      token,
+      {
+        validate: (status, body) => {
+          if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/status returned ${status}.` };
+          try {
+            JSON.parse(body);
+            return { status: 'pass', summary: 'Agent Knowledge status route returned parseable JSON.' };
+          } catch {
+            return { status: 'fail', summary: 'Agent Knowledge status was not parseable JSON.' };
+          }
+        },
       },
-    },
-  ));
+    ));
 
-  checks.push(await fetchJsonCheck(
-    'agent-knowledge-ask-isolated',
-    'Agent Knowledge isolated ask',
-    `${daemonBaseUrl}/api/goodvibes-agent/knowledge/ask`,
-    token,
-    {
-      method: 'POST',
-      body: {
-        query: 'What is GoodVibes Agent?',
-        limit: 5,
-        mode: 'concise',
-        includeSources: true,
-        includeConfidence: true,
-        includeLinkedObjects: true,
+    checks.push(await fetchJsonCheck(
+      'agent-knowledge-ask-isolated',
+      'Agent Knowledge isolated ask',
+      `${daemonBaseUrl}/api/goodvibes-agent/knowledge/ask`,
+      token,
+      {
+        method: 'POST',
+        body: {
+          query: 'What is GoodVibes Agent?',
+          limit: 5,
+          mode: 'concise',
+          includeSources: true,
+          includeConfidence: true,
+          includeLinkedObjects: true,
+        },
+        validate: (status, body) => {
+          if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/ask returned ${status}.` };
+          try {
+            JSON.parse(body);
+          } catch {
+            return { status: 'fail', summary: 'Agent Knowledge ask was not parseable JSON.' };
+          }
+          const lower = body.toLowerCase();
+          if (lower.includes('home assistant') || lower.includes('homegraph') || lower.includes('home graph')) {
+            return { status: 'fail', summary: 'Agent Knowledge ask returned HomeGraph/Home Assistant contamination.' };
+          }
+          return { status: 'pass', summary: 'Agent Knowledge ask stayed on the isolated Agent route.' };
+        },
       },
-      validate: (status, body) => {
-        if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/ask returned ${status}.` };
-        try {
-          JSON.parse(body);
-        } catch {
-          return { status: 'fail', summary: 'Agent Knowledge ask was not parseable JSON.' };
-        }
-        const lower = body.toLowerCase();
-        if (lower.includes('home assistant') || lower.includes('homegraph') || lower.includes('home graph')) {
-          return { status: 'fail', summary: 'Agent Knowledge ask returned HomeGraph/Home Assistant contamination.' };
-        }
-        return { status: 'pass', summary: 'Agent Knowledge ask stayed on the isolated Agent route.' };
-      },
-    },
-  ));
+    ));
 
-  checks.push(await fetchJsonCheck(
-    'agent-knowledge-search-isolated',
-    'Agent Knowledge isolated search',
-    `${daemonBaseUrl}/api/goodvibes-agent/knowledge/search`,
-    token,
-    {
-      method: 'POST',
-      body: { query: 'What is GoodVibes Agent?', limit: 5 },
-      validate: (status, body) => {
-        if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/search returned ${status}.` };
-        try {
-          JSON.parse(body);
-        } catch {
-          return { status: 'fail', summary: 'Agent Knowledge search was not parseable JSON.' };
-        }
-        const lower = body.toLowerCase();
-        if (lower.includes('home assistant') || lower.includes('homegraph') || lower.includes('home graph')) {
-          return { status: 'fail', summary: 'Agent Knowledge search returned HomeGraph/Home Assistant contamination.' };
-        }
-        return { status: 'pass', summary: 'Agent Knowledge search stayed on the isolated Agent route.' };
+    checks.push(await fetchJsonCheck(
+      'agent-knowledge-search-isolated',
+      'Agent Knowledge isolated search',
+      `${daemonBaseUrl}/api/goodvibes-agent/knowledge/search`,
+      token,
+      {
+        method: 'POST',
+        body: { query: 'What is GoodVibes Agent?', limit: 5 },
+        validate: (status, body) => {
+          if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/search returned ${status}.` };
+          try {
+            JSON.parse(body);
+          } catch {
+            return { status: 'fail', summary: 'Agent Knowledge search was not parseable JSON.' };
+          }
+          const lower = body.toLowerCase();
+          if (lower.includes('home assistant') || lower.includes('homegraph') || lower.includes('home graph')) {
+            return { status: 'fail', summary: 'Agent Knowledge search returned HomeGraph/Home Assistant contamination.' };
+          }
+          return { status: 'pass', summary: 'Agent Knowledge search stayed on the isolated Agent route.' };
+        },
       },
-    },
-  ));
+    ));
+  }
 
   const counts = countStatuses(checks);
   const ok = counts.fail === 0 && (!options.strict || counts.warn === 0);

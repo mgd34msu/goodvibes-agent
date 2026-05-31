@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { LiveVerificationReport } from '../../verification/live-verifier.ts';
-import { renderLiveVerificationReportMarkdown } from '../../verification/live-verifier.ts';
+import { buildAgentKnowledgeLiveSkipCheck, renderLiveVerificationReportMarkdown } from '../../verification/live-verifier.ts';
 
 describe('live verification report', () => {
   it('renders summary counts and check rows', () => {
@@ -36,5 +36,19 @@ describe('live verification report', () => {
     expect(markdown).toContain('| CLI surfaces readiness command | warn | Web surface is not reachable. |');
     expect(markdown).toContain('web enabled but not reachable');
     expect(markdown).toContain('Result: PASS');
+  });
+
+  it('skips Agent Knowledge route validation when the external daemon SDK is older than the Agent pin', () => {
+    const check = buildAgentKnowledgeLiveSkipCheck(
+      'agent-knowledge-status',
+      'Agent Knowledge isolated /status',
+      '0.33.30',
+      '0.33.35',
+    );
+
+    expect(check.status).toBe('skip');
+    expect(check.summary).toContain('external daemon SDK 0.33.30');
+    expect(check.summary).toContain('Agent SDK pin 0.33.35');
+    expect(check.detail).toContain('must not fall back to default Knowledge/Wiki or HomeGraph');
   });
 });
