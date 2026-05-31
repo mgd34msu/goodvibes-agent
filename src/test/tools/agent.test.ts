@@ -14,6 +14,7 @@ import {
   AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE,
   AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
   AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE,
+  AGENT_INSPECT_WRITE_DENIAL_MESSAGE,
   AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE,
   AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
@@ -208,6 +209,26 @@ function makeSettingsTool(): Tool {
       sideEffects: ['state'],
     },
     execute: async () => ({ success: true, output: 'settings mutated' }),
+  };
+}
+
+function makeInspectTool(): Tool {
+  return {
+    definition: {
+      name: 'inspect',
+      description: 'inspect test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', enum: ['project', 'api', 'scaffold'] },
+          projectRoot: { type: 'string' },
+          moduleName: { type: 'string' },
+          dryRun: { type: 'boolean' },
+        },
+      },
+      sideEffects: ['read_fs'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
   };
 }
 
@@ -904,6 +925,39 @@ describe('spawn mode', () => {
     });
     expect(result.success).toBe(false);
     expect(result.error).toBe(AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE);
+  });
+
+  test('Agent runtime guard keeps inspect scaffold dry-run-only from the model surface', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeInspectTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const inspectDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'inspect');
+    expect(inspectDefinition?.description).toContain('Scaffold mode is dry-run-only');
+    const properties = inspectDefinition?.parameters.properties as Record<string, unknown>;
+    expect(properties.dryRun).toBeUndefined();
+
+    const plan = await registry.execute('call-inspect-scaffold-plan', 'inspect', {
+      mode: 'scaffold',
+      moduleName: 'agent-surface',
+    });
+    expect(plan.success).toBe(true);
+    const normalized = JSON.parse(plan.output ?? '{}') as { readonly dryRun?: boolean };
+    expect(normalized.dryRun).toBe(true);
+
+    const project = await registry.execute('call-inspect-project', 'inspect', { mode: 'project' });
+    expect(project.success).toBe(true);
+
+    const write = await registry.execute('call-inspect-scaffold-write', 'inspect', {
+      mode: 'scaffold',
+      moduleName: 'agent-surface',
+      dryRun: false,
+    });
+    expect(write.success).toBe(false);
+    expect(write.error).toBe(AGENT_INSPECT_WRITE_DENIAL_MESSAGE);
   });
 
   test('Agent runtime guard narrows copied durable workflow tools to read-only inspection', async () => {

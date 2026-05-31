@@ -54,6 +54,12 @@ type StateToolArgs = {
   readonly [key: string]: unknown;
 };
 
+type InspectToolArgs = {
+  readonly mode?: unknown;
+  readonly dryRun?: unknown;
+  readonly [key: string]: unknown;
+};
+
 type AgentToolPolicyGuardOptions = {
   readonly getLastUserMessage?: () => string | null;
 };
@@ -159,6 +165,12 @@ const SETTINGS_MUTATION_DENIAL = [
   'Secrets, tokens, passwords, daemon lifecycle settings, and service exposure settings require explicit user action outside the model tool surface.',
 ].join(' ');
 
+const INSPECT_WRITE_DENIAL = [
+  'GoodVibes Agent only uses inspect scaffold mode for dry-run planning from the main conversation.',
+  'File scaffolding and code creation are disabled in the Agent model tool surface.',
+  'Delegate explicit build/implement/fix/review work to GoodVibes TUI instead.',
+].join(' ');
+
 const DURABLE_WORKFLOW_MUTATION_DENIAL = [
   'GoodVibes Agent only inspects copied durable workflow tools from the main conversation.',
   'Task, team, worklist, packet, and query creation or lifecycle mutation is disabled here.',
@@ -200,6 +212,8 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapStateToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'goodvibes_settings') {
       wrapBlockedSettingsToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'inspect') {
+      wrapInspectToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'task') {
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_TASK_TOOL_MODES,
@@ -320,6 +334,17 @@ export function wrapBlockedSettingsToolForAgentPolicy(tool: Tool): void {
   tool.execute = async () => ({ success: false, error: SETTINGS_MUTATION_DENIAL });
 }
 
+export function wrapInspectToolForAgentPolicy(tool: Tool): void {
+  narrowInspectToolDefinitionForAgentPolicy(tool);
+  const originalExecute = tool.execute.bind(tool);
+  tool.execute = async (args) => {
+    const inspectArgs = args as InspectToolArgs;
+    const denial = validateInspectToolInvocationForAgentPolicy(inspectArgs);
+    if (denial) return { success: false, error: denial };
+    return originalExecute(normalizeInspectToolInvocationForAgentPolicy(inspectArgs) as Parameters<Tool['execute']>[0]);
+  };
+}
+
 export function validateExecToolInvocationForAgentPolicy(args: ExecToolArgs): string | null {
   if (args.parallel === true) return BACKGROUND_EXEC_DENIAL;
   if (Array.isArray(args.file_ops) && args.file_ops.length > 0) return BACKGROUND_EXEC_DENIAL;
@@ -404,6 +429,16 @@ export function validateStateToolInvocationForAgentPolicy(args: StateToolArgs): 
   return null;
 }
 
+export function validateInspectToolInvocationForAgentPolicy(args: InspectToolArgs): string | null {
+  if (args.mode === 'scaffold' && args.dryRun === false) return INSPECT_WRITE_DENIAL;
+  return null;
+}
+
+export function normalizeInspectToolInvocationForAgentPolicy(args: InspectToolArgs): InspectToolArgs {
+  if (args.mode !== 'scaffold') return args;
+  return { ...args, dryRun: true };
+}
+
 type ModeRestrictedToolPolicy = {
   readonly allowedModes: readonly string[];
   readonly modeSet: ReadonlySet<string>;
@@ -476,6 +511,7 @@ export const AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE = MCP_SECURITY_MUTATION_
 export const AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE = FETCH_NETWORK_MUTATION_DENIAL;
 export const AGENT_STATE_MUTATION_DENIAL_MESSAGE = STATE_MUTATION_DENIAL;
 export const AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE = SETTINGS_MUTATION_DENIAL;
+export const AGENT_INSPECT_WRITE_DENIAL_MESSAGE = INSPECT_WRITE_DENIAL;
 export const AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE = DURABLE_WORKFLOW_MUTATION_DENIAL;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -608,6 +644,17 @@ function narrowStateToolDefinitionForAgentPolicy(tool: Tool): void {
   narrowStringEnumProperty(properties, 'hookAction', READ_ONLY_STATE_HOOK_ACTIONS, 'Read-only hook action allowed by GoodVibes Agent.');
   narrowStringEnumProperty(properties, 'modeAction', READ_ONLY_STATE_MODE_ACTIONS, 'Read-only mode actions allowed by GoodVibes Agent.');
   narrowStringEnumProperty(properties, 'analyticsAction', READ_ONLY_STATE_ANALYTICS_ACTIONS, 'Read-only analytics actions allowed by GoodVibes Agent.');
+}
+
+function narrowInspectToolDefinitionForAgentPolicy(tool: Tool): void {
+  tool.definition.description = [
+    'Inspect and analyze project structure for GoodVibes Agent.',
+    'Scaffold mode is dry-run-only in the main conversation; code creation must be delegated to GoodVibes TUI.',
+  ].join(' ');
+
+  const properties = tool.definition.parameters.properties;
+  if (!isRecord(properties)) return;
+  delete properties.dryRun;
 }
 
 function narrowModeToolDefinitionForAgentPolicy(tool: Tool, allowedModes: readonly string[], description: string): void {
