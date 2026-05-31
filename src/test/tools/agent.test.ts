@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
+  AGENT_READ_ONLY_TOOL_MODES,
   normalizeAgentToolInvocationForAgentPolicy,
   wrapAgentToolForAgentPolicy,
 } from '../../tools/wrfc-agent-guard.ts';
@@ -350,6 +351,34 @@ describe('spawn mode', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('does not spawn local');
+    expect(guarded.manager.list()).toHaveLength(0);
+  });
+
+  test('Agent runtime guard narrows the advertised agent tool schema to read-only modes', () => {
+    const guarded = makeAgentHarness({ guarded: true });
+    const mode = guarded.agentTool.definition.parameters.properties;
+    expect(guarded.agentTool.definition.description).toContain('Read-only local Agent inspection');
+    expect(guarded.agentTool.definition.sideEffects).toEqual([]);
+    expect(typeof mode).toBe('object');
+    expect(mode).not.toBeNull();
+    const modeProperty = (mode as Record<string, unknown>).mode;
+    expect(typeof modeProperty).toBe('object');
+    expect(modeProperty).not.toBeNull();
+    const enumValues = (modeProperty as Record<string, unknown>).enum;
+    expect(enumValues).toEqual([...AGENT_READ_ONLY_TOOL_MODES]);
+    expect(enumValues).not.toContain('spawn');
+    expect(enumValues).not.toContain('batch-spawn');
+  });
+
+  test('Agent runtime guard blocks copied local agent mutation modes beyond spawn', async () => {
+    const guarded = makeAgentHarness({ guarded: true });
+    const result = await guarded.agentTool.execute({
+      mode: 'cancel',
+      agentId: 'agent-local',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(AGENT_LOCAL_SPAWN_DENIAL_MESSAGE);
     expect(guarded.manager.list()).toHaveLength(0);
   });
 
