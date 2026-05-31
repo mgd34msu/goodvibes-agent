@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.23 - 2026-05-31
+
+- 18d7381 Harden analyze and registry tool policy
+
 ## 0.1.22 - 2026-05-31
 
 - 07e4445 Mark control tool read-only in agent runtime
