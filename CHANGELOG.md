@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.16 - 2026-05-31
+
+- bea1197 Restrict MCP tool mutations in agent runtime
+
 ## 0.1.15 - 2026-05-31
 
 - 67de700 Restrict remote and channel tools in agent runtime
