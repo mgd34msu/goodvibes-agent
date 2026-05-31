@@ -21,6 +21,7 @@ import { beginOpenAICodexLogin, exchangeOpenAICodexCode } from '@pellux/goodvibe
 import { inspectProviderAuth } from '@/runtime/index.ts';
 import { getOrCreateCompanionToken, buildCompanionConnectionInfo, encodeConnectionPayload, formatConnectionBlock } from '@pellux/goodvibes-sdk/platform/pairing';
 import { generateQrMatrix, renderQrToString } from '@pellux/goodvibes-sdk/platform/pairing';
+import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
 import type { GoodVibesCliParseResult } from './types.ts';
 import { formatProviderAuthRoute, summarizeProviderAuthRoutes } from './provider-auth-routes.ts';
 import { classifyProviderSetup } from './provider-classification.ts';
@@ -31,6 +32,7 @@ import { handleServiceCommand } from './service-command.ts';
 import { handleBundleCommand } from './bundle-command.ts';
 import { buildListenerTestResult, formatListenerTestResult, handleSurfacesCommand } from './surface-command.ts';
 import { buildControlPlaneStatusResult, formatControlPlaneStatus, handleSecrets, handleSessions, handleTasks, renderPairing, renderRemote, renderSubscriptions, renderWeb } from './management-commands.ts';
+import { handleAgentKnowledgeCommand, handleCompatCommand } from './agent-knowledge-command.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export interface CliCommandRuntime {
@@ -287,6 +289,14 @@ export function readAuthPaths(runtime: CliCommandRuntime) {
     operatorTokenPath,
     operatorTokenPresent: existsSync(operatorTokenPath),
   };
+}
+
+function createCliLocalUserAuthManager(runtime: CliCommandRuntime): UserAuthManager {
+  const paths = readAuthPaths(runtime);
+  return new UserAuthManager({
+    bootstrapFilePath: paths.userStorePath,
+    bootstrapCredentialPath: paths.bootstrapCredentialPath,
+  });
 }
 
 export async function runNonInteractiveAgent(runtime: CliCommandRuntime): Promise<number> {
@@ -574,7 +584,7 @@ async function renderModels(runtime: CliCommandRuntime): Promise<string> {
 }
 
 async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
-  return await withRuntimeServices(runtime, (services) => {
+  const localUserAuthManager = createCliLocalUserAuthManager(runtime);
     const [sub = 'status', ...rawRest] = runtime.cli.commandArgs;
     const rest = commandValues(rawRest);
     if (sub === 'add-user' || sub === 'add') {
@@ -583,13 +593,13 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
       const password = readPassword(rawRest);
       if (!password) return 'Usage: goodvibes auth add-user <username> [--password <value>|--password-stdin] [--role <role>]';
       const roles = readOptionValues(rawRest, '--role').filter((role) => role.length > 0);
-      const user = services.localUserAuthManager.addUser(username, password, roles.length > 0 ? roles : ['user']);
+      const user = localUserAuthManager.addUser(username, password, roles.length > 0 ? roles : ['user']);
       return `Auth user added: ${user.username} (${user.roles.join(', ') || 'no roles'})`;
     }
     if (sub === 'delete-user' || sub === 'remove-user') {
       const username = rest[0];
       if (!username) return 'Usage: goodvibes auth delete-user <username>';
-      return services.localUserAuthManager.deleteUser(username)
+      return localUserAuthManager.deleteUser(username)
         ? `Auth user deleted: ${username}`
         : `No auth user found: ${username}`;
     }
@@ -598,31 +608,31 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
       if (!username) return 'Usage: goodvibes auth rotate-password <username> [--password <value>|--password-stdin]';
       const password = readPassword(rawRest);
       if (!password) return 'Usage: goodvibes auth rotate-password <username> [--password <value>|--password-stdin]';
-      services.localUserAuthManager.rotatePassword(username, password);
+      localUserAuthManager.rotatePassword(username, password);
       return `Auth password rotated: ${username}`;
     }
     if (sub === 'revoke-session') {
       const token = rest[0];
       if (!token) return 'Usage: goodvibes auth revoke-session <token-or-fingerprint>';
-      return services.localUserAuthManager.revokeSession(token)
+      return localUserAuthManager.revokeSession(token)
         ? 'Auth session revoked.'
         : 'No auth session found.';
     }
     if (sub === 'revoke-sessions') {
       const username = rest[0];
       if (!username) return 'Usage: goodvibes auth revoke-sessions <username>';
-      const count = services.localUserAuthManager.revokeSessionsForUser(username);
+      const count = localUserAuthManager.revokeSessionsForUser(username);
       return `Auth sessions revoked for ${username}: ${count}`;
     }
     if (sub === 'clear-bootstrap') {
-      return services.localUserAuthManager.clearBootstrapCredentialFile()
+      return localUserAuthManager.clearBootstrapCredentialFile()
         ? 'Bootstrap credential file removed.'
         : 'Bootstrap credential file was already absent.';
     }
     if (sub !== 'status' && sub !== 'list' && sub !== 'users' && sub !== 'sessions') {
       return 'Usage: goodvibes auth [status|users|sessions|add-user|delete-user|rotate-password|revoke-session|revoke-sessions|clear-bootstrap]';
     }
-    const snapshot = services.localUserAuthManager.inspect();
+    const snapshot = localUserAuthManager.inspect();
     const paths = readAuthPaths(runtime);
     const value = {
       ...paths,
@@ -652,7 +662,6 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
       `  bootstrap credential: ${paths.bootstrapCredentialPresent ? 'present' : 'missing'} (${paths.bootstrapCredentialPath})`,
       `  operator tokens: ${paths.operatorTokenPresent ? 'present' : 'missing'} (${paths.operatorTokenPath})`,
     ].join('\n'));
-  });
 }
 
 
@@ -683,6 +692,16 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
         const output = await renderAuth(runtime);
         console.log(output);
         return { handled: true, exitCode: exitCodeForText(output) };
+      }
+      case 'compat': {
+        const result = await handleCompatCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'knowledge': {
+        const result = await handleAgentKnowledgeCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
       }
       case 'subscription': {
         const output = await renderSubscriptions(runtime);

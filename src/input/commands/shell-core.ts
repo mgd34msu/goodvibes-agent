@@ -2,7 +2,6 @@ import type { CommandRegistry } from '../command-registry.ts';
 import type { SelectionItem } from '../selection-modal.ts';
 import { EFFORT_DESCRIPTIONS } from '@pellux/goodvibes-sdk/platform/providers';
 import { REASONING_BUDGET_MAP } from '@pellux/goodvibes-sdk/platform/providers';
-import { executeWriteQuit } from './quit-shared.ts';
 import { compactConversation, requireKeybindingsManager, requireProviderApi } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
@@ -159,7 +158,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/secrets', label: '/secrets set|link|get|test|list|delete', detail: 'Manage encrypted and provider-backed secrets', category: 'Tools & System' },
           { id: '/help', label: '/help', detail: 'This help', category: 'Tools & System' },
           { id: '/quit', label: '/quit', detail: 'Exit', category: 'Tools & System' },
-          { id: '/wq', label: '/wq', detail: 'Commit all git changes and then exit', category: 'Tools & System' },
+          { id: '/wq', label: '/wq', detail: 'Blocked in Agent; git commit/exit belongs to GoodVibes TUI', category: 'Tools & System' },
         ];
         ctx.openSelection('Help  —  Commands', items, { allowSearch: true }, (result) => {
           if (!result) return;
@@ -173,7 +172,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Use /help to open the help modal. Commands: /agent, /model, /provider, /config, /template, /tools, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /debug, /quit, /wq');
+      ctx.print('Use /help to open the help modal. Commands: /agent, /model, /provider, /config, /template, /tools, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /debug, /quit');
     },
   });
 
@@ -225,9 +224,13 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'wq',
     aliases: [':wq'],
-    description: 'Commit all git changes and then exit',
-    async handler(_args, ctx) {
-      await executeWriteQuit(ctx);
+    description: 'Blocked in Agent; git commit/exit is owned by GoodVibes TUI',
+    handler(_args, ctx) {
+      ctx.print([
+        'Blocked: /wq is not available in GoodVibes Agent.',
+        'Git commit, worktree, and coding-session exit flows belong to GoodVibes TUI.',
+        'No files, commits, or repository state were changed.',
+      ].join('\n'));
     },
   });
 

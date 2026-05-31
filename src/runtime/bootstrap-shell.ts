@@ -33,6 +33,7 @@ import type { TaskManager } from '@/runtime/index.ts';
 import type { UiRuntimeServices } from './ui-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { createKnowledgeApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 
 export interface BootstrapShellState {
   readonly commandRegistry: CommandRegistry;
@@ -208,7 +209,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     memoryRegistry: services.memoryRegistry,
     integrationHelpers: services.integrationHelpers,
     automationManager: services.automationManager,
-    knowledgeService: services.knowledgeService,
+    knowledgeService: services.agentKnowledgeService,
     projectPlanningService: services.projectPlanningService,
     projectPlanningProjectId: services.projectPlanningProjectId,
     workPlanStore: services.workPlanStore,
@@ -238,7 +239,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     sessionOrchestration: services.sessionOrchestration,
     operatorClient: directTransport.operator,
     peerClient: directTransport.peer,
-    knowledgeApi,
+    knowledgeApi: createKnowledgeApi(services.agentKnowledgeService, { memoryRegistry: services.memoryRegistry }),
     hookApi,
     mcpApi,
     opsApi,
