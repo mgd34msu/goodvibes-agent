@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.41 - 2026-05-31
+
+- c108e13 Add live daemon capability audit
+
 ## 0.1.40 - 2026-05-31
 
 - 329dc13 Add routine schedule delivery targets
