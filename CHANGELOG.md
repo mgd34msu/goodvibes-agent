@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.45 - 2026-05-31
+
+- 0aa4b3e Add daemon route risk approval review
+
 ## 0.1.44 - 2026-05-31
 
 - fdee09e Add daemon capability gap report
