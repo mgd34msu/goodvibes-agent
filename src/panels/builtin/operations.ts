@@ -23,7 +23,6 @@ import { RemotePanel } from '../remote-panel.ts';
 import { ProviderStatsPanel } from '../provider-stats-panel.ts';
 import { ProviderHealthPanel } from '../provider-health-panel.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
-import { DebugPanel } from '../debug-panel.ts';
 import { IncidentReviewPanel } from '../incident-review-panel.ts';
 import { ForensicsPanel } from '../forensics-panel.ts';
 import { PolicyPanel } from '../policy-panel.ts';
@@ -289,19 +288,6 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
       },
       deps.requestRender,
     ),
-  });
-
-  manager.registerType({
-    id: 'debug',
-    name: 'Debug',
-    icon: 'B',
-    category: 'monitoring',
-    description: 'API debug panel: per-call log with model, provider, tokens, latency, status, and error history',
-    factory: () => {
-      const panel = new DebugPanel(ui.events.turns, deps.requestRender);
-      if (deps.orchestrator) panel.wireOrchestrator(deps.orchestrator);
-      return panel;
-    },
   });
 
   if (deps.forensicsRegistry) {

@@ -120,7 +120,6 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/provider', label: '/provider [name]', detail: 'Switch provider', category: 'Model & Provider' },
           { id: '/effort', label: '/effort [level]', detail: 'Reasoning effort (instant/low/medium/high)', category: 'Model & Provider' },
           { id: '/config', label: '/config [category|key]', detail: 'Open fullscreen configuration workspace', category: 'Config & Display' },
-          { id: '/debug', label: '/debug', detail: 'Toggle debug mode', category: 'Config & Display' },
           { id: '/expand', label: '/expand [type]', detail: 'Expand blocks (all|thinking|tool|code)', category: 'Config & Display' },
           { id: '/collapse', label: '/collapse [type]', detail: 'Collapse blocks', category: 'Config & Display' },
           { id: '/bookmarks', label: '/bookmarks', detail: 'List bookmarked blocks', category: 'Config & Display' },
@@ -172,7 +171,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Use /help to open the help modal. Commands: /agent, /model, /provider, /config, /template, /tools, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /debug, /quit');
+      ctx.print('Use /help to open the help modal. Commands: /agent, /model, /provider, /config, /template, /tools, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
     },
   });
 
@@ -231,16 +230,6 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         'Git commit, worktree, and coding-session exit flows belong to GoodVibes TUI.',
         'No files, commits, or repository state were changed.',
       ].join('\n'));
-    },
-  });
-
-  registry.register({
-    name: 'debug',
-    aliases: [],
-    description: 'Toggle debug mode',
-    handler(_args, ctx) {
-      ctx.session.runtime.debugMode = !ctx.session.runtime.debugMode;
-      ctx.print(`Debug mode: ${ctx.session.runtime.debugMode ? 'ON' : 'OFF'}`);
     },
   });
 

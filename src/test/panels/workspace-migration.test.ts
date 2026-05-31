@@ -11,7 +11,6 @@ import { SessionBrowserPanel } from '../../panels/session-browser-panel.ts';
 import { ThinkingPanel } from '../../panels/thinking-panel.ts';
 import { ContextVisualizerPanel } from '../../panels/context-visualizer-panel.ts';
 import { CostTrackerPanel } from '../../panels/cost-tracker-panel.ts';
-import { DebugPanel } from '../../panels/debug-panel.ts';
 import { OpsStrategyPanel } from '../../panels/ops-strategy-panel.ts';
 import { AgentLogsPanel } from '../../panels/agent-logs-panel.ts';
 import { AgentInspectorPanel } from '../../panels/agent-inspector-panel.ts';
@@ -140,15 +139,6 @@ describe('workspace panel migrations', () => {
     expect(lines.every((line) => line.length === 80)).toBe(true);
     expect(linesText(lines)).toContain('Cost Tracker');
     expect(linesText(lines)).toContain('No delegated agent cost records');
-  });
-
-  test('DebugPanel renders shared workspace empty state cleanly', async () => {
-    const panel = new DebugPanel(createUiRuntimeEvents(runtimeBus).turns);
-    const lines = panel.render(80, 20);
-    expect(lines).toHaveLength(20);
-    expect(lines.every((line) => line.length === 80)).toBe(true);
-    expect(linesText(lines)).toContain('API Debug');
-    expect(linesText(lines)).toContain('No calls yet');
   });
 
   test('OpsStrategyPanel renders shared workspace empty state cleanly', async () => {
