@@ -137,7 +137,7 @@ export function handleBookmarkForHandler(handler: InputHandler): void {
   }
 
   /**
-   * handleBlockSave - Ctrl+S: Save nearest block content to a file.
+   * handleBlockSave - Ctrl+S: Explain that implicit block file saves are blocked.
    */
 export function handleBlockSaveForHandler(handler: InputHandler): void {
     handleBlockSave(handler.conversationManager, handler.getScrollTop, handler.requestRender, handler.uiServices.shell.bookmarkManager);

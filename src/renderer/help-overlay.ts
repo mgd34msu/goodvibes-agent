@@ -223,7 +223,7 @@ export function renderShortcutsOverlay(
     row('Tab', 'Collapse/expand block'),
     row(kb('bookmark'), 'Bookmark block'),
     row(kb('block-copy'), 'Copy block to clipboard'),
-    row(kb('block-save'), 'Save block to file'),
+    row(kb('block-save'), 'Block save blocked; use /share --yes'),
     row(kb('copy-selection'), 'Copy selection'),
     row('F2', 'Process monitor'),
     row('?', 'Help overlay'),

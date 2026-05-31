@@ -68,7 +68,7 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'search':                'Toggle conversation search',
   'block-copy':            'Copy nearest block to clipboard',
   'bookmark':              'Bookmark / unbookmark nearest block',
-  'block-save':            'Save nearest block to file',
+  'block-save':            'Block file save blocked; use /share --yes',
   'delete-word':           'Delete word backward',
   'apply-diff-line-start': 'Apply nearest diff / move to line start',
   'next-error-line-end':   'Navigate to next error / move to line end',

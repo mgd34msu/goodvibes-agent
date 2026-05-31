@@ -295,6 +295,7 @@ export function handleBlockSave(
   requestRender: () => void,
   bookmarkManager: BookmarkManager,
 ): void {
+  void bookmarkManager;
   if (!conversationManager) return;
   const lineIndex = getScrollTop();
   const content = conversationManager.getBlockContentAtLine(lineIndex);
@@ -303,17 +304,7 @@ export function handleBlockSave(
     requestRender();
     return;
   }
-  const nearest = conversationManager.findNearestBlock(lineIndex);
-  const label = nearest?.type ?? 'block';
-  try {
-    const filePath = bookmarkManager.saveToFile(content, label);
-    const homePath = process.env.HOME || process.env.USERPROFILE || '';
-    const displayPath = homePath ? filePath.replace(homePath, '~') : filePath;
-    conversationManager.log(`[Saved to: ${displayPath}]`, { fg: '#22c55e' });
-  } catch (err) {
-    const msg = summarizeError(err);
-    conversationManager.log(`[Save failed: ${msg}]`, { fg: '#ef4444' });
-  }
+  conversationManager.log('[Block save blocked in GoodVibes Agent: use /share <html|json|md> <path> --yes or copy the block explicitly.]', { fg: '#f59e0b' });
   requestRender();
 }
 
