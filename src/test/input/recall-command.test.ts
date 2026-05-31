@@ -384,14 +384,8 @@ describe('recallCommand', () => {
       forensicsRegistry,
     }));
 
-    expect(printed.some((line) => line.includes('Refusing to review durable memory record mem-1 without --yes'))).toBe(true);
-
-    printed.length = 0;
-    await recallCommand.handler(['stale', 'mem-1', 'operator', 'revalidation', 'needed', '--yes'], makeRecallCommandContext(printed, {
-      memoryRegistry: registry,
-      forensicsRegistry,
-    }));
-
     expect(printed.some((line) => line.includes('Reviewed mem-1: stale'))).toBe(true);
+    expect(registry.get('mem-1')?.reviewState).toBe('stale');
+    expect(registry.get('mem-1')?.staleReason).toContain('operator revalidation needed');
   });
 });

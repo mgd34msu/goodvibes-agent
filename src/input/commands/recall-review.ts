@@ -27,14 +27,9 @@ export function handleRecallReview(args: string[], context: CommandContext): voi
     return;
   }
 
-  const parsed = stripYesFlag(args);
-  const [id, stateRaw, ...rest] = parsed.rest;
+  const [id, stateRaw, ...rest] = args;
   if (!id || !stateRaw || !isValidReviewState(stateRaw)) {
-    context.print(`[recall] Usage: /recall review <id> <${VALID_REVIEW_STATES.join('|')}> [--confidence <0-100>] [--by <name>] [--reason <text>] --yes`);
-    return;
-  }
-  if (!parsed.yes) {
-    requireYesFlag(context, `review durable memory record ${id}`, '/recall review <id> <state> [--confidence <0-100>] [--by <name>] [--reason <text>] --yes');
+    context.print(`[recall] Usage: /recall review <id> <${VALID_REVIEW_STATES.join('|')}> [--confidence <0-100>] [--by <name>] [--reason <text>]`);
     return;
   }
 
