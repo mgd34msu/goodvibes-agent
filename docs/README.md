@@ -7,7 +7,6 @@ GoodVibes Agent is a near-fork of the GoodVibes terminal foundation with a diffe
 Current package docs:
 
 - [Getting Started](getting-started.md)
-- [Operator Capability Benchmark](operator-capability-benchmark.md)
 - [Deployment And Services](deployment-and-services.md)
 - [Release And Publishing](release-and-publishing.md)
 
@@ -19,7 +18,6 @@ Important baseline constraints:
 - Agent connects to an externally managed daemon.
 - Agent does not start, stop, restart, install, uninstall, or own daemon/listener/web/service lifecycle.
 - Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`; there is no default Knowledge/Wiki, HomeGraph, or Home Assistant fallback.
-- Agent exposes `goodvibes-agent capabilities` and `/capabilities` to compare OpenClaw/Hermes capability targets against current Agent readiness and configuration paths.
 - Agent supports isolated runtime homes with `GOODVIBES_AGENT_HOME=<path>` and named profile homes with `goodvibes-agent profiles create <name> --template <starter> --yes` plus `--agent-profile <name>`.
 - Agent ships starter profile templates for household, research, travel, operations, and personal productivity local state; `profiles templates export/import` and `/agent-profile guide` support local custom starters.
 - Local personas, routines, and Agent skills are stored under the Agent surface root and are injected only into the serial Agent conversation.

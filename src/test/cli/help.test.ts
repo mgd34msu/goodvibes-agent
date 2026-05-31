@@ -21,9 +21,9 @@ describe('CLI help/version', () => {
     const help = renderGoodVibesHelp();
 
     expect(help).toContain('tasks                      List/show in-process runtime tasks (read-only)');
-    expect(help).toContain('capabilities               Show OpenClaw/Hermes benchmark and live daemon coverage');
     expect(help).toContain('profiles                   Manage isolated Agent runtime profile homes');
     expect(help).toContain('routines                   Inspect local routines and explicitly promote one to a daemon schedule');
+    expect(help).not.toContain('capabilities               ');
     expect(help).toContain('--agent-profile <name>');
     expect(help).not.toContain('tasks submit <prompt>');
     expect(help).not.toContain('submit a non-interactive task');

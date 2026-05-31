@@ -33,7 +33,6 @@ import { handleBundleCommand } from './bundle-command.ts';
 import { buildListenerTestResult, formatListenerTestResult, handleSurfacesCommand } from './surface-command.ts';
 import { buildControlPlaneStatusResult, formatControlPlaneStatus, handleSecrets, handleSessions, handleTasks, renderPairing, renderRemote, renderSubscriptions, renderWeb } from './management-commands.ts';
 import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand, handleCompatCommand, handleDelegateCommand } from './agent-knowledge-command.ts';
-import { handleCapabilitiesCommand } from './capabilities-command.ts';
 import { handleProfilesCommand } from './profiles-command.ts';
 import { handleRoutinesCommand } from './routines-command.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
@@ -698,11 +697,6 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
       }
       case 'compat': {
         const result = await handleCompatCommand(runtime);
-        console.log(result.output);
-        return { handled: true, exitCode: result.exitCode };
-      }
-      case 'capabilities': {
-        const result = await handleCapabilitiesCommand(runtime);
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }

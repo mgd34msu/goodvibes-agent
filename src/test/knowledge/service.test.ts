@@ -169,7 +169,7 @@ describe('KnowledgeService', () => {
 
   test('ingests local artifacts with structured extraction and emits knowledge events', async () => {
     const csvPath = join(root, 'research.csv');
-    writeFileSync(csvPath, 'project,owner\nGoodVibes,buzzkill\nOpenClaw,community\n');
+    writeFileSync(csvPath, 'project,owner\nGoodVibes,buzzkill\nExampleAgent,community\n');
 
     const runtimeBus = new RuntimeEventBus();
     const events: string[] = [];

@@ -938,70 +938,11 @@ describe('product breadth commands', () => {
     out.length = 0;
     await approval!.handler(['matrix'], ctx);
     expect(out.join('\n')).toContain('Approval Matrix');
-    expect(out.join('\n')).toContain('/approval risk');
 
     out.length = 0;
     await approval!.handler(['review', 'sandbox'], ctx);
     expect(out.join('\n')).toContain('Approval Review: sandbox');
     expect(out.join('\n')).toContain('sandbox');
-
-    const approvalRequests: string[] = [];
-    globalThis.fetch = (async (input) => {
-      const url = typeof input === 'string'
-        ? input
-        : input instanceof URL
-          ? input.toString()
-          : input.url;
-      approvalRequests.push(url);
-      if (url.endsWith('/api/goodvibes-agent/knowledge/status')) {
-        return new Response(JSON.stringify({ sourceCount: 0 }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
-      if (url.endsWith('/status')) {
-        return new Response(JSON.stringify({ version: '0.33.35' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
-      if (url.endsWith('/api/control-plane/methods')) {
-        return new Response(JSON.stringify({
-          methods: [
-            {
-              id: 'approvals.list',
-              access: 'authenticated',
-              http: { method: 'GET', path: '/api/approvals' },
-            },
-            {
-              id: 'approvals.approve',
-              access: 'authenticated',
-              http: { method: 'POST', path: '/api/approvals/{requestId}/approve' },
-            },
-            {
-              id: 'channels.policies.audit',
-              access: 'authenticated',
-              dangerous: true,
-              http: { method: 'POST', path: '/api/channels/policies/audit' },
-            },
-          ],
-        }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
-      return new Response(JSON.stringify({ error: 'unexpected route' }), { status: 404 });
-    }) satisfies typeof fetch;
-
-    out.length = 0;
-    await approval!.handler(['risk'], ctx);
-    const approvalRiskOutput = out.join('\n');
-    expect(approvalRiskOutput).toContain('GoodVibes daemon route risk review');
-    expect(approvalRiskOutput).toContain('channels.policies.audit');
-    expect(approvalRiskOutput).toContain('ordinary chat never triggers mutating routes');
-    expect(approvalRequests.some((url) => url.includes('/api/control-plane/methods'))).toBe(true);
-    expect(approvalRequests.some((url) => url.includes('/api/knowledge'))).toBe(false);
-    expect(approvalRequests.some((url) => url.includes('/api/homegraph'))).toBe(false);
 
     out.length = 0;
     await voice!.handler(['review'], ctx);

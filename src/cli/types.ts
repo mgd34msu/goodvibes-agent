@@ -13,7 +13,6 @@ export type GoodVibesCliCommand =
   | 'routines'
   | 'auth'
   | 'compat'
-  | 'capabilities'
   | 'knowledge'
   | 'ask'
   | 'search'

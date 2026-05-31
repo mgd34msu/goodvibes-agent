@@ -42,7 +42,6 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  routines                   Inspect local routines and explicitly promote one to a daemon schedule',
     '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
     '  compat                     Inspect Agent SDK pin, daemon version, and Agent knowledge route readiness',
-    '  capabilities               Show OpenClaw/Hermes benchmark and live daemon coverage',
     '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
     '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
     '  delegate                   Explicitly delegate build/fix/review work to GoodVibes TUI',
@@ -101,12 +100,6 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `  ${binary} --agent-profile household`,
     `  ${binary} routines promote daily-operations-sweep --cron "0 9 * * *" --timezone America/Chicago --yes`,
     `  ${binary} compat`,
-    `  ${binary} capabilities`,
-    `  ${binary} capabilities daemon`,
-    `  ${binary} capabilities daemon gaps`,
-    `  ${binary} capabilities daemon risk`,
-    `  ${binary} capabilities daemon inventory`,
-    `  ${binary} capabilities daemon coverage`,
     `  ${binary} knowledge status`,
     `  ${binary} knowledge ask "What is GoodVibes Agent?"`,
     `  ${binary} ask "What is GoodVibes Agent?"`,
@@ -199,11 +192,6 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     usage: ['compat', 'compat --json'],
     summary: 'Inspect package SDK pin, live daemon version, and Agent-specific knowledge route readiness.',
     examples: ['compat', 'compat --json'],
-  },
-  capabilities: {
-    usage: ['capabilities [openclaw|hermes|query]', 'capabilities daemon [query]', 'capabilities daemon gaps [query]', 'capabilities daemon risk [query]', 'capabilities daemon inventory [query]', 'capabilities daemon coverage [query]', 'capabilities --json'],
-    summary: 'Show the OpenClaw/Hermes capability benchmark, Agent readiness, live GoodVibes daemon method coverage, route risk, and daemon-measured product gaps.',
-    examples: ['capabilities', 'capabilities hermes', 'capabilities daemon', 'capabilities daemon gaps', 'capabilities daemon risk --json', 'capabilities daemon inventory channels --json', 'capabilities daemon coverage not_surfaced'],
   },
   knowledge: {
     usage: [

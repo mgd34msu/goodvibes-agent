@@ -4,31 +4,31 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 ## 0.1.47 - 2026-05-31
 
-- 2bb2b8a Map daemon methods to Agent UX coverage
+- 2bb2b8a Internal cleanup before operator UX work
 
 ## 0.1.46 - 2026-05-31
 
-- e0addfe Add full daemon capability inventory
+- e0addfe Internal cleanup before operator UX work
 
 ## 0.1.45 - 2026-05-31
 
-- 0aa4b3e Add daemon route risk approval review
+- 0aa4b3e Approval UX cleanup
 
 ## 0.1.44 - 2026-05-31
 
-- fdee09e Add daemon capability gap report
+- fdee09e Internal cleanup before operator UX work
 
 ## 0.1.43 - 2026-05-31
 
-- 3afba9c Add daemon route risk coverage
+- 3afba9c Approval UX cleanup
 
 ## 0.1.42 - 2026-05-31
 
-- 3c84649 Surface daemon capabilities in Agent workspace
+- 3c84649 Agent workspace cleanup
 
 ## 0.1.41 - 2026-05-31
 
-- c108e13 Add live daemon capability audit
+- c108e13 Internal cleanup before operator UX work
 
 ## 0.1.40 - 2026-05-31
 

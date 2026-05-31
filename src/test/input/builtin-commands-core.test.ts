@@ -17,8 +17,8 @@ describe('input/registerBuiltinCommands shell core extraction', () => {
     expect(registry.get('quit')?.name).toBe('quit');
     expect(registry.get('wq')?.name).toBe('wq');
     expect(registry.get('effort')?.name).toBe('effort');
-    expect(registry.get('capabilities')?.name).toBe('capabilities');
-    expect(registry.get('caps')?.name).toBe('capabilities');
+    expect(registry.get('capabilities')).toBeUndefined();
+    expect(registry.get('caps')).toBeUndefined();
     expect(registry.get('lines')).toBeUndefined();
   });
 });

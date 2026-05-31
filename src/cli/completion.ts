@@ -15,7 +15,6 @@ const COMMANDS = [
   'routines',
   'auth',
   'compat',
-  'capabilities',
   'knowledge',
   'ask',
   'search',

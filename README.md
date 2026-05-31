@@ -15,12 +15,8 @@ Install the public alpha package with Bun:
 bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent status
-goodvibes-agent capabilities
-goodvibes-agent capabilities daemon
-goodvibes-agent capabilities daemon gaps
-goodvibes-agent capabilities daemon risk
-goodvibes-agent capabilities daemon inventory
-goodvibes-agent capabilities daemon coverage
+goodvibes-agent profiles templates
+goodvibes-agent knowledge status
 ```
 
 If Bun reports untrusted lifecycle dependencies, trust only the package and dependencies required by this package:
@@ -47,9 +43,7 @@ bun run package:install-check
 bun run publish:check
 ```
 
-Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen surface for setup, status, live daemon capability coverage, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
-
-Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps. Use `goodvibes-agent capabilities daemon` or `/capabilities daemon` for a live read-only audit of the GoodVibes daemon method catalog, route risk posture, and isolated Agent Knowledge route coverage. Use `goodvibes-agent capabilities daemon inventory` for the full public daemon method inventory grouped by category, access, HTTP posture, and dangerous flags. Use `goodvibes-agent capabilities daemon coverage` to map every daemon method to Agent UX posture: usable, read-only observable, explicit-confirmation, blocked, or not surfaced. Use `goodvibes-agent capabilities daemon gaps` or `/capabilities daemon gaps` to turn that live daemon audit into a prioritized gap plan that separates missing daemon routes from Agent UX work. Use `goodvibes-agent capabilities daemon risk` or `/approval risk` for route-risk-aware approval posture without mutating approval state.
+Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen surface for setup, status, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
 Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated runtime profiles from them.
 
@@ -86,19 +80,6 @@ Starting a routine records local usage and prints its steps; it does not spawn b
 
 Start or restart the daemon from GoodVibes TUI or the daemon host before launching Agent. Agent status and companion/knowledge routes connect to that external daemon, normally on `http://127.0.0.1:3421`.
 
-To verify what the running daemon can expose for the Agent/OpenClaw/Hermes capability benchmark:
-
-```sh
-goodvibes-agent capabilities daemon
-goodvibes-agent capabilities daemon --json
-goodvibes-agent capabilities daemon gaps
-goodvibes-agent capabilities daemon risk
-goodvibes-agent capabilities daemon inventory
-goodvibes-agent capabilities daemon coverage
-```
-
-This audit checks `/api/control-plane/methods` and `/api/goodvibes-agent/knowledge/status`. The gap plan, route-risk review, and full method inventory are derived from read-only daemon calls. None of these commands query default Knowledge/Wiki or HomeGraph.
-
 Agent intentionally blocks daemon lifecycle commands:
 
 ```sh
@@ -122,7 +103,6 @@ GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding 
 Package-facing docs are intentionally narrow during the near-fork baseline:
 
 - [Getting Started](docs/getting-started.md)
-- [Operator Capability Benchmark](docs/operator-capability-benchmark.md)
 - [Deployment And Services](docs/deployment-and-services.md)
 - [Release And Publishing](docs/release-and-publishing.md)
 

@@ -193,44 +193,6 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('Home Assistant');
   });
 
-  test('renders daemon capability audit workflow without default knowledge fallback', () => {
-    const workspace = new AgentWorkspace();
-    workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'capabilities');
-
-    const output = text(renderAgentWorkspace(workspace, 132, 38));
-
-    expect(output).toContain('Capabilities');
-    expect(output).toContain('OpenClaw/Hermes benchmark and live daemon coverage');
-    expect(output).toContain('/api/control-plane/methods');
-    expect(output).toContain('/api/goodvibes-agent/knowledge/status');
-    expect(output).toContain('no default Knowledge/Wiki, HomeGraph, or Home Assistant route');
-    expect(output).toContain('/capabilities daemon');
-    expect(output).toContain('/capabilities daemon gaps');
-    expect(output).toContain('/capabilities daemon risk');
-    expect(output).toContain('/capabilities daemon inventory');
-    expect(output).toContain('/capabilities daemon coverage');
-    expect(output).toContain('/capabilities daemon knowledge');
-    expect(output).toContain('/capabilities daemon channels');
-    expect(output).toContain('/capabilities daemon automation');
-    expect(output).not.toContain('/api/knowledge/status');
-  });
-
-  test('renders approval route risk review as read-only work posture', () => {
-    const workspace = new AgentWorkspace();
-    workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approval-risk');
-
-    const output = text(renderAgentWorkspace(workspace, 132, 38));
-
-    expect(output).toContain('Work & Approvals');
-    expect(output).toContain('Route risk review');
-    expect(output).toContain('/approval risk');
-    expect(output).toContain('without approving, denying, or mutating');
-    expect(output).toContain('requests.');
-  });
-
   test('renders voice media browser and node setup posture', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);

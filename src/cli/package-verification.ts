@@ -41,7 +41,6 @@ const REQUIRED_TARBALL_PATHS = [
   '.goodvibes/GOODVIBES.md',
   'docs/README.md',
   'docs/getting-started.md',
-  'docs/operator-capability-benchmark.md',
   'docs/deployment-and-services.md',
   'docs/release-and-publishing.md',
 ] as const;

@@ -481,24 +481,6 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     ],
   },
   {
-    id: 'capabilities',
-    group: 'SETUP',
-    label: 'Capabilities',
-    summary: 'OpenClaw/Hermes benchmark and live daemon coverage.',
-    detail: 'Use this area to measure both layers: what GoodVibes Agent makes usable, and what the externally owned GoodVibes daemon actually exposes through public routes. Agent Knowledge is checked only through /api/goodvibes-agent/knowledge/*.',
-    actions: [
-      { id: 'capabilities-benchmark', label: 'Benchmark report', detail: 'Show the OpenClaw/Hermes parity benchmark with Agent posture, setup commands, usage paths, and remaining product gaps.', command: '/capabilities', kind: 'command', safety: 'read-only' },
-      { id: 'capabilities-daemon', label: 'Live daemon audit', detail: 'Inspect the public daemon method catalog plus isolated Agent Knowledge route coverage. Does not query default Knowledge/Wiki or HomeGraph.', command: '/capabilities daemon', kind: 'command', safety: 'read-only' },
-      { id: 'capabilities-daemon-gaps', label: 'Daemon gap plan', detail: 'Classify live daemon coverage into platform gaps, Agent route gaps, route-risk reviews, and Agent UX work without querying default Knowledge/Wiki or HomeGraph.', command: '/capabilities daemon gaps', kind: 'command', safety: 'read-only' },
-      { id: 'capabilities-daemon-risk', label: 'Route risk review', detail: 'Inspect daemon read-only, mutating, dangerous, and authenticated route metadata for approval-center planning.', command: '/capabilities daemon risk', kind: 'command', safety: 'read-only' },
-      { id: 'capabilities-daemon-inventory', label: 'Full method inventory', detail: 'List every public daemon method by category, HTTP posture, access, and dangerous flag without querying default Knowledge/Wiki or HomeGraph.', command: '/capabilities daemon inventory', kind: 'command', safety: 'read-only' },
-      { id: 'capabilities-daemon-coverage', label: 'UX coverage matrix', detail: 'Map every public daemon method to Agent UX coverage: usable, read-only, explicit confirmation, blocked, or not surfaced.', command: '/capabilities daemon coverage', kind: 'command', safety: 'read-only' },
-      { id: 'capabilities-daemon-knowledge', label: 'Knowledge coverage', detail: 'Filter the live daemon audit to the isolated Agent Knowledge segment.', command: '/capabilities daemon knowledge', kind: 'command', safety: 'read-only' },
-      { id: 'capabilities-daemon-channels', label: 'Channel coverage', detail: 'Filter the live daemon audit to channel and delivery gateway route coverage.', command: '/capabilities daemon channels', kind: 'command', safety: 'read-only' },
-      { id: 'capabilities-daemon-automation', label: 'Automation coverage', detail: 'Filter the live daemon audit to automation, schedule, run, and capacity route coverage.', command: '/capabilities daemon automation', kind: 'command', safety: 'read-only' },
-    ],
-  },
-  {
     id: 'channels',
     group: 'SETUP',
     label: 'Channels',
@@ -532,7 +514,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'SETUP',
     label: 'Voice, Media & Nodes',
     summary: 'Voice, TTS, image input, browser surface, and node/remote posture.',
-    detail: 'Hermes and OpenClaw expose voice, media, browser, and node surfaces as first-class operator capabilities. Agent uses the GoodVibes voice/media/provider/browser/remote bones while keeping daemon ownership external and side effects explicit.',
+    detail: 'Voice, media, browser, and node surfaces are first-class operator capabilities. Agent uses the GoodVibes voice/media/provider/browser/remote bones while keeping daemon ownership external and side effects explicit.',
     actions: [
       { id: 'tts-config', label: 'Configure live TTS', detail: 'Open the TUI-derived config workspace at the TTS settings group.', command: '/config tts', kind: 'command', safety: 'safe' },
       { id: 'tts-provider', label: 'Choose TTS provider', detail: 'Open provider/model routing for spoken responses through the settings flow.', command: '/config tts.provider', kind: 'command', safety: 'safe' },
@@ -548,7 +530,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'SETUP',
     label: 'Profiles & Portability',
     summary: 'Isolated Agent homes, config profiles, and setup bundles.',
-    detail: 'Hermes profiles isolate agent state. GoodVibes Agent exposes named runtime homes, config profile pickers, profile-sync bundles, setup transfer bundles, and support bundles while keeping the daemon external.',
+    detail: 'Profiles isolate agent state. GoodVibes Agent exposes named runtime homes, config profile pickers, profile-sync bundles, setup transfer bundles, and support bundles while keeping the daemon external.',
     actions: [
       { id: 'profiles-open', label: 'Open config profiles', detail: 'Open the TUI-derived config profile picker for display/provider/behavior profile files.', command: '/profiles', kind: 'command', safety: 'safe' },
       { id: 'runtime-profile-guide', label: 'Starter authoring guide', detail: 'Open the Agent-local starter authoring flow inside the TUI command surface.', command: '/agent-profile guide', kind: 'command', safety: 'safe' },
@@ -584,7 +566,6 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'workplan', label: 'Open work plan', detail: 'Open the workspace-scoped work plan panel.', command: '/workplan panel', kind: 'command', safety: 'read-only' },
       { id: 'workplan-list', label: 'List work plan', detail: 'Print a concise work plan summary.', command: '/workplan list', kind: 'command', safety: 'read-only' },
       { id: 'approvals', label: 'Review approvals', detail: 'Open/read approval posture. This workspace does not approve or deny requests.', command: '/approval open', kind: 'command', safety: 'read-only' },
-      { id: 'approval-risk', label: 'Route risk review', detail: 'Inspect daemon route risk and dangerous method metadata without approving, denying, or mutating requests.', command: '/approval risk', kind: 'command', safety: 'read-only' },
     ],
   },
   {
