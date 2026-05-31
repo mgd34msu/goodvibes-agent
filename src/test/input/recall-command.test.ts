@@ -325,6 +325,15 @@ describe('recallCommand', () => {
       forensicsRegistry,
     }));
 
+    expect(printed.some((line) => line.includes('Refusing to promote durable memory record mem-1 to team scope without --yes'))).toBe(true);
+    expect(registry.get('mem-1')?.scope).toBe('project');
+
+    printed.length = 0;
+    await recallCommand.handler(['promote', 'mem-1', 'team', '--yes'], makeRecallCommandContext(printed, {
+      memoryRegistry: registry,
+      forensicsRegistry,
+    }));
+
     expect(printed.some((line) => line.includes('Promoted mem-1 to team scope'))).toBe(true);
 
     const dir = mkdtempSync(join(tmpdir(), 'gv-memory-handoff-'));
@@ -371,6 +380,14 @@ describe('recallCommand', () => {
 
     printed.length = 0;
     await recallCommand.handler(['stale', 'mem-1', 'operator', 'revalidation', 'needed'], makeRecallCommandContext(printed, {
+      memoryRegistry: registry,
+      forensicsRegistry,
+    }));
+
+    expect(printed.some((line) => line.includes('Refusing to review durable memory record mem-1 without --yes'))).toBe(true);
+
+    printed.length = 0;
+    await recallCommand.handler(['stale', 'mem-1', 'operator', 'revalidation', 'needed', '--yes'], makeRecallCommandContext(printed, {
       memoryRegistry: registry,
       forensicsRegistry,
     }));

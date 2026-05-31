@@ -31,6 +31,8 @@ High-signal Agent command families:
 
 Copied TUI-era commands that would imply daemon lifecycle ownership, local agent spawning, coding-first execution, sandbox/QEMU ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only until they are intentionally adapted to Agent policy.
 
+Local recall capture/add commands are explicit Agent-local memory actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
+
 ## Agent Knowledge
 
 `/knowledge ask <query>` asks the isolated Agent Knowledge/Wiki environment for a source-backed answer. The daemon route is `/api/goodvibes-agent/knowledge/ask`.

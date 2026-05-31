@@ -1,6 +1,7 @@
 import type { CommandContext } from '../command-registry.ts';
 import { VALID_REVIEW_STATES, VALID_SCOPES, isValidReviewState, isValidScope } from './recall-shared.ts';
 import { getMemoryApi } from './recall-query.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 export function handleRecallQueue(args: string[], context: CommandContext): void {
   const memory = getMemoryApi(context);
@@ -26,9 +27,14 @@ export function handleRecallReview(args: string[], context: CommandContext): voi
     return;
   }
 
-  const [id, stateRaw, ...rest] = args;
+  const parsed = stripYesFlag(args);
+  const [id, stateRaw, ...rest] = parsed.rest;
   if (!id || !stateRaw || !isValidReviewState(stateRaw)) {
-    context.print(`[recall] Usage: /recall review <id> <${VALID_REVIEW_STATES.join('|')}> [--confidence <0-100>] [--by <name>] [--reason <text>]`);
+    context.print(`[recall] Usage: /recall review <id> <${VALID_REVIEW_STATES.join('|')}> [--confidence <0-100>] [--by <name>] [--reason <text>] --yes`);
+    return;
+  }
+  if (!parsed.yes) {
+    requireYesFlag(context, `review durable memory record ${id}`, '/recall review <id> <state> [--confidence <0-100>] [--by <name>] [--reason <text>] --yes');
     return;
   }
 
@@ -83,10 +89,15 @@ export function handleRecallPromote(args: string[], context: CommandContext): vo
   if (!memory) {
     return;
   }
-  const id = args[0];
-  const scope = args[1];
+  const parsed = stripYesFlag(args);
+  const id = parsed.rest[0];
+  const scope = parsed.rest[1];
   if (!id || !scope || !isValidScope(scope)) {
-    context.print(`[recall] Usage: /recall promote <id> <${VALID_SCOPES.join('|')}>`);
+    context.print(`[recall] Usage: /recall promote <id> <${VALID_SCOPES.join('|')}> --yes`);
+    return;
+  }
+  if (!parsed.yes) {
+    requireYesFlag(context, `promote durable memory record ${id} to ${scope} scope`, '/recall promote <id> <scope> --yes');
     return;
   }
   const record = memory.update(id, { scope });
