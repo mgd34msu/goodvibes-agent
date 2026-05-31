@@ -8,7 +8,6 @@ import type {
   UiSecuritySnapshot,
   UiSessionSnapshot,
   UiSettingsSnapshot,
-  UiWorktreeSnapshot,
 } from '../runtime/ui-read-models.ts';
 
 export interface HealthDomainSummary {
@@ -28,7 +27,6 @@ export interface ProviderHealthDomainInputs {
   readonly security: UiSecuritySnapshot;
   readonly intelligence: UiIntelligenceSnapshot;
   readonly continuity: UiContinuitySnapshot;
-  readonly worktrees: UiWorktreeSnapshot;
   readonly session: UiSessionSnapshot;
 }
 
@@ -44,7 +42,6 @@ export function buildProviderHealthDomainSummaries(
     security,
     intelligence,
     continuity,
-    worktrees,
     session,
   } = input;
 
@@ -190,25 +187,6 @@ export function buildProviderHealthDomainSummaries(
     nextSteps: continuity.recoveryFilePresent
       ? ['/session list', '/session resume <id>', '/health continuity']
       : ['/session list'],
-  });
-
-  const worktreeSummary = worktrees.summary;
-  const worktreeIssues = worktreeSummary.discard + worktreeSummary.pendingCleanup + worktreeSummary.paused;
-  summaries.push({
-    name: 'worktrees',
-    level: worktreeIssues > 0 ? 'warn' : worktreeSummary.total > 0 ? 'good' : 'info',
-    summary: worktreeSummary.total === 0
-      ? 'no persisted worktrees'
-      : `${worktreeSummary.total} tracked / ${worktreeIssues} need review`,
-    next: 'externalized to GoodVibes TUI',
-    details: [
-      worktreeSummary.paused > 0 ? `${worktreeSummary.paused} paused worktree(s)` : '',
-      worktreeSummary.pendingCleanup > 0 ? `${worktreeSummary.pendingCleanup} cleanup pending` : '',
-      worktreeSummary.discard > 0 ? `${worktreeSummary.discard} marked discard` : '',
-    ].filter(Boolean),
-    nextSteps: worktreeIssues > 0
-      ? ['Open GoodVibes TUI in the target workspace for recovery', '/delegate <task> for explicit build/fix/review recovery']
-      : ['No Agent worktree action available; use GoodVibes TUI when repository recovery is needed'],
   });
 
   return summaries;

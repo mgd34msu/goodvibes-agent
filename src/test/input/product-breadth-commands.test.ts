@@ -2422,12 +2422,6 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Health Review: Remote');
 
     out.length = 0;
-    await health!.handler(['worktrees'], ctx);
-    expect(out.join('\n')).toContain('Health Review: Worktrees');
-    expect(out.join('\n')).toContain('worktree recovery is externalized to GoodVibes TUI');
-    expect(out.join('\n')).not.toContain('/worktree recover');
-
-    out.length = 0;
     await health!.handler(['repair', 'remote'], ctx);
     expect(out.join('\n')).toContain('Health Repair');
     expect(out.join('\n')).toContain('/remote supervisor');
@@ -2435,11 +2429,6 @@ describe('product breadth commands', () => {
     out.length = 0;
     await health!.handler(['repair', 'accounts'], ctx);
     expect(out.join('\n')).toContain('/accounts review');
-
-    out.length = 0;
-    await health!.handler(['repair', 'worktrees'], ctx);
-    expect(out.join('\n')).toContain('worktree recovery is externalized to GoodVibes TUI');
-    expect(out.join('\n')).not.toContain('/worktree review');
 
     out.length = 0;
     await remote!.handler(['recover'], ctx);

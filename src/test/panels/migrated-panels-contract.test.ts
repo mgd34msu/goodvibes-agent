@@ -39,7 +39,6 @@ import { AutomationControlPanel } from '../../panels/automation-control-panel.ts
 import { ApprovalPanel } from '../../panels/approval-panel.ts';
 import { CommunicationPanel } from '../../panels/communication-panel.ts';
 import { AgentLogsPanel } from '../../panels/agent-logs-panel.ts';
-import { WorktreePanel } from '../../panels/worktree-panel.ts';
 import { ControlPlanePanel } from '../../panels/control-plane-panel.ts';
 import { ProviderAccountsPanel } from '../../panels/provider-accounts-panel.ts';
 import { MemoryPanel } from '../../panels/memory-panel.ts';
@@ -47,9 +46,6 @@ import { KnowledgePanel } from '../../panels/knowledge-panel.ts';
 import { MarketplacePanel } from '../../panels/marketplace-panel.ts';
 import { SystemMessagesPanel } from '../../panels/system-messages-panel.ts';
 import { OrchestrationPanel } from '../../panels/orchestration-panel.ts';
-import { GitPanel } from '../../panels/git-panel.ts';
-import { DiffPanel } from '../../panels/diff-panel.ts';
-import { WrfcPanel } from '../../panels/wrfc-panel.ts';
 import { TokenBudgetPanel } from '../../panels/token-budget-panel.ts';
 import { ContextVisualizerPanel } from '../../panels/context-visualizer-panel.ts';
 import { PlanDashboardPanel } from '../../panels/plan-dashboard-panel.ts';
@@ -152,11 +148,6 @@ const EMPTY_AGENT_DEPS = {
   workingDirectory: '/tmp',
 } as unknown as import('../../panels/agent-logs-panel.ts').AgentLogsPanelDeps;
 
-const EMPTY_WORKTREE_REGISTRY = {
-  list: async () => [],
-  subscribe: (_cb: () => void) => () => {},
-} as unknown as import('@/runtime/index.ts').WorktreeRegistry;
-
 const EMPTY_POLICY_RUNTIME_STATE = {
   getSnapshot: () => ({ recentPermissionAudit: [] }),
 } as unknown as import('@/runtime/index.ts').PolicyRuntimeState;
@@ -245,21 +236,11 @@ const EMPTY_PROJECT_PLANNING_SERVICE = {
   upsertState: async () => ({ ok: true, projectId: 'proj', knowledgeSpaceId: 'project:proj', state: null }),
 } as unknown as import('@pellux/goodvibes-sdk/platform/knowledge').ProjectPlanningService;
 
-const EMPTY_WORKFLOW_EVENT_FEED = {
-  on: (_event: string, _cb: unknown) => () => {},
-  onEnvelope: (_event: string, _cb: unknown) => () => {},
-  emit: () => {},
-} as unknown as import('../../runtime/ui-events.ts').UiEventFeed<never>;
-
 const EMPTY_TURN_EVENT_FEED = {
   on: (_event: string, _cb: unknown) => () => {},
   onEnvelope: (_event: string, _cb: unknown) => () => {},
   emit: () => {},
 } as unknown as import('../../runtime/ui-events.ts').UiEventFeed<never>;
-
-const EMPTY_WRFC_DEPS = {
-  controller: { listChains: () => [] },
-} as unknown as import('../../panels/wrfc-panel.ts').WrfcPanelDeps;
 
 const EMPTY_SERVICES_SUBSCRIPTION_QUERY = {
   list: () => [],
@@ -377,11 +358,6 @@ const PANELS: PanelEntry[] = [
     hasSelectionGutter: true, // I5: non-color selection affordance
   },
   {
-    label: 'WorktreePanel',
-    factory: () => new WorktreePanel(EMPTY_WORKTREE_REGISTRY),
-    hasSelectionGutter: true, // I5: non-color selection affordance
-  },
-  {
     label: 'ControlPlanePanel (no readModel)',
     factory: () => new ControlPlanePanel(),
     hasSelectionGutter: true, // I5: non-color selection affordance
@@ -390,19 +366,6 @@ const PANELS: PanelEntry[] = [
     label: 'ProviderAccountsPanel',
     factory: () => new ProviderAccountsPanel(EMPTY_PROVIDER_ACCOUNTS_DEPS),
     hasSelectionGutter: true, // I5: non-color selection affordance
-  },
-  // Wave C trackedRender adoptions
-  {
-    label: 'GitPanel (no commits)',
-    factory: () => new GitPanel('/tmp'),
-  },
-  {
-    label: 'DiffPanel (no entries)',
-    factory: () => new DiffPanel('/tmp'),
-  },
-  {
-    label: 'WrfcPanel (no chains)',
-    factory: () => new WrfcPanel(EMPTY_WORKFLOW_EVENT_FEED as never, EMPTY_WRFC_DEPS),
   },
   {
     label: 'TokenBudgetPanel (no history)',

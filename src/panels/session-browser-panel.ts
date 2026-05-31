@@ -68,9 +68,6 @@ function formatReturnContextLines(returnContext: SessionInfo['returnContext']): 
   if (returnContext.remoteRunners?.length) {
     lines.push(`remote runners: ${returnContext.remoteRunners.join(', ')}`);
   }
-  if (returnContext.worktreePaths?.length) {
-    lines.push(`worktrees: ${returnContext.worktreePaths.join(', ')}`);
-  }
   if (returnContext.openPanels?.length) {
     lines.push(`open panels: ${returnContext.openPanels.join(', ')}`);
   }
@@ -263,8 +260,6 @@ export class SessionBrowserPanel extends BasePanel {
             buildPanelLine(width, [
               [' Remote ', DEFAULT_PANEL_PALETTE.label],
               [String(selected.returnContext?.remoteRunners?.length ?? 0), (selected.returnContext?.remoteRunners?.length ?? 0) > 0 ? DEFAULT_PANEL_PALETTE.info : DEFAULT_PANEL_PALETTE.dim],
-              ['   Worktrees ', DEFAULT_PANEL_PALETTE.label],
-              [String(selected.returnContext?.worktreePaths?.length ?? 0), (selected.returnContext?.worktreePaths?.length ?? 0) > 0 ? DEFAULT_PANEL_PALETTE.info : DEFAULT_PANEL_PALETTE.dim],
               ['   Panels ', DEFAULT_PANEL_PALETTE.label],
               [String(selected.returnContext?.openPanels?.length ?? 0), (selected.returnContext?.openPanels?.length ?? 0) > 0 ? DEFAULT_PANEL_PALETTE.good : DEFAULT_PANEL_PALETTE.dim],
             ]),

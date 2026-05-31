@@ -5,7 +5,6 @@ import type { CommandRegistry } from '../command-registry.ts';
 import { buildSetupReviewSnapshot } from './local-setup-review.ts';
 import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
 import { getSettingsControlPlaneSnapshot } from '@/runtime/index.ts';
-import { listPersistedWorktreeMeta, summarizeWorktreeOwnership } from '@/runtime/index.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
 import {
   openCommandPanel,
@@ -24,7 +23,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
     name: 'health',
     aliases: ['doctor'],
     description: 'Health workspace for startup posture, service readiness, provider health, and Agent continuity',
-    usage: '[open|review|setup|services|provider|accounts|auth|settings|intelligence|remote|mcp|continuity|worktrees|maintenance|repair [domain]]',
+    usage: '[open|review|setup|services|provider|accounts|auth|settings|intelligence|remote|mcp|continuity|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
       const readModels = requireReadModels(ctx);
@@ -236,29 +235,6 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      if (sub === 'worktrees') {
-        const summary = readModels.worktrees.getSnapshot().summary;
-        const issues: string[] = [];
-        if (summary.discard > 0) issues.push(`${summary.discard} worktree(s) marked discard still tracked`);
-        if (summary.pendingCleanup > 0) issues.push(`${summary.pendingCleanup} worktree(s) awaiting cleanup`);
-        if ('kept' in summary && typeof (summary as { kept?: number }).kept === 'number' && (summary as { kept?: number }).kept! > 0) {
-          // read-model summary may include kept in some implementations; ignored in rendering below if absent
-        }
-        if (summary.paused > 0) issues.push(`${summary.paused} paused worktree(s) may need resume or merge review`);
-        ctx.print([
-          'Health Review: Worktrees',
-          `  total: ${summary.total}`,
-          `  active: ${summary.active}`,
-          `  paused: ${summary.paused}`,
-          `  discard: ${summary.discard}`,
-          `  cleanup pending: ${summary.pendingCleanup}`,
-          ...(issues.length > 0 ? issues.map((issue) => `  issue: ${issue}`) : ['  no active worktree lifecycle issues detected']),
-          '  next: worktree recovery is externalized to GoodVibes TUI.',
-          '  next: use /delegate <task> only when the recovery is part of explicit build/fix/review work.',
-        ].join('\n'));
-        return;
-      }
-
       if (sub === 'repair') {
         const domain = (args[1] ?? 'review').toLowerCase();
         const lines = ['Health Repair'];
@@ -318,11 +294,6 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /compact');
           lines.push('  /panel tokens');
           lines.push('  verify: /health maintenance');
-        } else if (domain === 'worktrees') {
-          lines.push('  domain: worktrees');
-          lines.push('  worktree recovery is externalized to GoodVibes TUI');
-          lines.push('  /delegate <task> when explicit build/fix/review work needs repository recovery');
-          lines.push('  verify: /health worktrees');
         } else if (domain === 'intelligence') {
           lines.push('  domain: intelligence');
           lines.push('  /intelligence review');
@@ -331,7 +302,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /setup review');
           lines.push('  verify: /health intelligence');
         } else {
-          lines.push('  domains: settings, auth, accounts, services, remote, mcp, continuity, maintenance, worktrees, intelligence');
+          lines.push('  domains: settings, auth, accounts, services, remote, mcp, continuity, maintenance, intelligence');
           lines.push('  use: /health repair <domain>');
         }
         ctx.print(lines.join('\n'));
@@ -393,7 +364,6 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         '  /health intelligence',
         '  /health remote',
         '  /health maintenance',
-        '  /health worktrees',
         '  /health repair <domain>',
         '  /setup onboarding',
       ].join('\n'));

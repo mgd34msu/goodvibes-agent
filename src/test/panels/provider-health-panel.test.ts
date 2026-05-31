@@ -159,16 +159,6 @@ function createPanel(runtimeBus = new RuntimeEventBus()): ProviderHealthPanel {
         recoveryFile: null,
         returnContext: undefined,
       }),
-      worktrees: createStaticUiReadModel({
-        summary: {
-          total: 0,
-          active: 0,
-          paused: 0,
-          pendingCleanup: 0,
-          discard: 0,
-        },
-        records: [],
-      }),
     },
   );
 }

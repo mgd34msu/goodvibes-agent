@@ -1,7 +1,6 @@
 import type { CommandRegistry } from '../command-registry.ts';
 import type { RuntimeTask, TaskLifecycleState } from '@/runtime/index.ts';
-import { reviewWorktreeAttachments } from '@/runtime/index.ts';
-import { requireOperatorClient, requirePanelManager, requireShellPaths } from './runtime-services.ts';
+import { requireOperatorClient, requirePanelManager } from './runtime-services.ts';
 
 const BLOCKED_TASK_MUTATIONS: ReadonlySet<string> = new Set([
   'create',
@@ -108,18 +107,6 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
           `  parent: ${task.parentTaskId ?? 'none'}`,
           `  children: ${task.childTaskIds.join(', ') || '(none)'}`,
           `  correlationId: ${task.correlationId ?? 'n/a'}`,
-          ...(() => {
-            const shellPaths = requireShellPaths(ctx);
-            const worktrees = reviewWorktreeAttachments('task', task.id, {
-              workingDirectory: shellPaths.workingDirectory,
-            });
-            return worktrees.total > 0
-              ? [
-                  `  worktrees: ${worktrees.total} tracked (${worktrees.active} active / ${worktrees.paused} paused / ${worktrees.pendingCleanup} cleanup)`,
-                  '  worktree next: open GoodVibes TUI in the target workspace for recovery.',
-                ]
-              : [];
-          })(),
           `  summary: ${summarizeTaskResult(task)}`,
         ].join('\n'));
         return;

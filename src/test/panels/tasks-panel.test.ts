@@ -7,14 +7,13 @@ import { createInitialTasksState } from '@/runtime/index.ts';
 import { TasksPanel } from '../../panels/tasks-panel.ts';
 import { PanelManager } from '../../panels/panel-manager.ts';
 import type { Line } from '../../types/grid.ts';
-import type { UiWorktreeSnapshot } from '../../runtime/ui-read-models.ts';
 import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createTestProviderRegistry } from '../helpers/test-managers.ts';
-import { createStaticUiReadModel, createTasksReadModel } from '../helpers/ui-read-models.ts';
+import { createTasksReadModel } from '../helpers/ui-read-models.ts';
 import { buildProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
 
 function linesText(lines: Line[]): string {
@@ -54,24 +53,6 @@ describe('TasksPanel', () => {
   test('renders task summaries and selection detail from the runtime store', () => {
     const store = createRuntimeStore();
     const now = Date.now();
-    const worktrees = createStaticUiReadModel<UiWorktreeSnapshot>({
-      summary: {
-        total: 1,
-        active: 0,
-        paused: 1,
-        pendingCleanup: 0,
-        discard: 0,
-      },
-      records: [{
-        path: join(root, '.goodvibes', '.worktrees', 'agent-running'),
-        kind: 'agent',
-        state: 'paused',
-        ownerId: 'agent-running',
-        taskId: 'running-1',
-        sessionId: 'sess-1',
-        updatedAt: now,
-      }],
-    });
     store.setState((state) => ({
       ...state,
       tasks: {
@@ -153,7 +134,7 @@ describe('TasksPanel', () => {
       },
     }));
 
-    const panel = new TasksPanel(createTasksReadModel(store), worktrees);
+    const panel = new TasksPanel(createTasksReadModel(store));
     const initial = linesText(panel.render(120, 24));
     expect(initial).toContain('Task posture');
     expect(initial).toContain('queued 1');
@@ -171,8 +152,6 @@ describe('TasksPanel', () => {
     expect(second).toContain('Owner: agent-orchestrator');
     expect(second).toContain('Children: blocked-1');
     expect(second).toContain('Correlation:');
-    expect(second).toContain('Worktrees:');
-    expect(second).toContain('Worktree lifecycle is externalized');
     expect(second).toContain('running');
 
     panel.handleInput('end');

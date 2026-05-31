@@ -2,8 +2,7 @@ import type { Line } from '../types/grid.ts';
 import { createEmptyLine } from '../types/grid.ts';
 import { ScrollableListPanel } from './scrollable-list-panel.ts';
 import type { RuntimeTask, TaskLifecycleState } from '@/runtime/index.ts';
-import type { ManagedWorktreeMeta } from '@/runtime/index.ts';
-import type { UiReadModel, UiTasksSnapshot, UiWorktreeSnapshot } from '../runtime/ui-read-models.ts';
+import type { UiReadModel, UiTasksSnapshot } from '../runtime/ui-read-models.ts';
 import {
   buildDetailBlock,
   buildEmptyState,
@@ -112,56 +111,16 @@ function parseTaskDescriptor(description: string): TaskDescriptorMeta | null {
   }
 }
 
-interface TaskWorktreeAttachmentReview {
-  readonly total: number;
-  readonly active: number;
-  readonly paused: number;
-  readonly kept: number;
-  readonly discard: number;
-  readonly pendingCleanup: number;
-  readonly records: readonly ManagedWorktreeMeta[];
-}
-
-function reviewTaskWorktreeAttachments(
-  taskId: string,
-  worktrees?: UiReadModel<UiWorktreeSnapshot>,
-): TaskWorktreeAttachmentReview {
-  const records = (worktrees?.getSnapshot().records ?? []).filter((record) => record.taskId === taskId);
-  return records.reduce<TaskWorktreeAttachmentReview>((summary, record) => ({
-    total: summary.total + 1,
-    active: summary.active + (record.state === 'active' ? 1 : 0),
-    paused: summary.paused + (record.state === 'paused' ? 1 : 0),
-    kept: summary.kept + (record.state === 'kept' ? 1 : 0),
-    discard: summary.discard + (record.state === 'discard' ? 1 : 0),
-    pendingCleanup: summary.pendingCleanup + (record.state === 'pending-cleanup' ? 1 : 0),
-    records: [...summary.records, record],
-  }), {
-    total: 0,
-    active: 0,
-    paused: 0,
-    kept: 0,
-    discard: 0,
-    pendingCleanup: 0,
-    records: [],
-  });
-}
-
 export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
   private readonly readModel?: UiReadModel<UiTasksSnapshot>;
-  private readonly worktrees?: UiReadModel<UiWorktreeSnapshot>;
   private readonly unsubscribers: readonly (() => void)[];
 
-  public constructor(
-    readModel: UiReadModel<UiTasksSnapshot> | undefined,
-    worktrees?: UiReadModel<UiWorktreeSnapshot>,
-  ) {
+  public constructor(readModel: UiReadModel<UiTasksSnapshot> | undefined) {
     super('tasks', 'Tasks', 'J', 'monitoring');
     this.showSelectionGutter = true; // I5: non-color selection affordance
     this.readModel = readModel;
-    this.worktrees = worktrees;
     this.unsubscribers = [
       readModel?.subscribe(() => this.markDirty()),
-      worktrees?.subscribe(() => this.markDirty()),
     ].filter((unsubscribe): unsubscribe is () => void => Boolean(unsubscribe));
   }
 
@@ -342,27 +301,6 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
           ['  Children: ', C.label],
           [selected.childTaskIds.length > 0 ? selected.childTaskIds.join(', ') : 'none', C.dim],
         ]));
-      }
-      const attachedWorktrees = reviewTaskWorktreeAttachments(selected.id, this.worktrees);
-      if (attachedWorktrees.total > 0) {
-        detailRows.push(buildPanelLine(width, [
-          ['  Worktrees: ', C.label],
-          [`${attachedWorktrees.total} tracked`, C.info],
-          ['  Active: ', C.label],
-          [String(attachedWorktrees.active), attachedWorktrees.active > 0 ? C.running : C.dim],
-          ['  Paused: ', C.label],
-          [String(attachedWorktrees.paused), attachedWorktrees.paused > 0 ? C.blocked : C.dim],
-        ]));
-        detailRows.push(buildPanelLine(width, [[
-          '  Worktree lifecycle is externalized; open GoodVibes TUI in the target workspace for recovery.',
-          C.dim,
-        ]]));
-        for (const record of attachedWorktrees.records.slice(0, 2)) {
-          detailRows.push(buildPanelLine(width, [[
-            `  ${record.state.padEnd(15)} ${record.path}`.slice(0, Math.max(0, width - 2)),
-            record.state === 'active' ? C.running : record.state === 'paused' ? C.blocked : C.dim,
-          ]]));
-        }
       }
       if (selected.retryPolicy) {
         detailRows.push(buildPanelLine(width, [

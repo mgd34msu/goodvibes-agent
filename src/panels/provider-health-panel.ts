@@ -22,7 +22,6 @@ import type {
   UiSecuritySnapshot,
   UiSessionSnapshot,
   UiSettingsSnapshot,
-  UiWorktreeSnapshot,
 } from '../runtime/ui-read-models.ts';
 import { evaluateSessionMaintenance } from '@/runtime/index.ts';
 import {
@@ -56,7 +55,6 @@ export interface ProviderHealthPanelDeps {
   readonly remote: UiReadModel<UiRemoteSnapshot>;
   readonly intelligence: UiReadModel<UiIntelligenceSnapshot>;
   readonly continuity: UiReadModel<UiContinuitySnapshot>;
-  readonly worktrees: UiReadModel<UiWorktreeSnapshot>;
 }
 
 // Colors
@@ -434,7 +432,6 @@ export class ProviderHealthPanel extends BasePanel {
       this.deps.remote,
       this.deps.intelligence,
       this.deps.continuity,
-      this.deps.worktrees,
     ] as const) {
       this._unsubs.push(readModel.subscribe(() => this._markDirtyAndRender()));
     }
@@ -524,7 +521,7 @@ export class ProviderHealthPanel extends BasePanel {
   // -------------------------------------------------------------------------
 
   override render(width: number, height: number): Line[] {
-    const intro = 'Cross-domain health workspace for providers, auth, settings, remote, MCP, continuity, worktrees, and maintenance posture.';
+    const intro = 'Cross-domain health workspace for providers, auth, settings, remote, MCP, continuity, and maintenance posture.';
 
     const knownSet = new Set([
       ...this.deps.providers.getSnapshot().providerIds,
@@ -596,7 +593,6 @@ export class ProviderHealthPanel extends BasePanel {
       security: this.deps.security.getSnapshot(),
       intelligence: this.deps.intelligence.getSnapshot(),
       continuity: this.deps.continuity.getSnapshot(),
-      worktrees: this.deps.worktrees.getSnapshot(),
       session: this.deps.session.getSnapshot(),
     })) {
       domainLines.push(buildPanelLine(width, [

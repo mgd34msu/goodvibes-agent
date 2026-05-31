@@ -323,7 +323,7 @@ const CHANGE_GLYPH: Record<ChangeKind, string> = {
  *
  * Format examples:
  *   +  fn  renderDiffView
- *   ~  method  DiffPanel.showDiff  (signature changed)
+ *   ~  method  renderSummary  (signature changed)
  *   -  class  OldWidget
  *   +  import  ./utils  { A, B }
  *   ~  import  ./types  (+NewType, -OldType)

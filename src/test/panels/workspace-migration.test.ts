@@ -12,7 +12,6 @@ import { ThinkingPanel } from '../../panels/thinking-panel.ts';
 import { ContextVisualizerPanel } from '../../panels/context-visualizer-panel.ts';
 import { CostTrackerPanel } from '../../panels/cost-tracker-panel.ts';
 import { DebugPanel } from '../../panels/debug-panel.ts';
-import { WrfcPanel } from '../../panels/wrfc-panel.ts';
 import { SymbolOutlinePanel } from '../../panels/symbol-outline-panel.ts';
 import { FileExplorerPanel } from '../../panels/file-explorer-panel.ts';
 import { FilePreviewPanel } from '../../panels/file-preview-panel.ts';
@@ -33,14 +32,6 @@ function linesText(lines: Line[]): string {
 
 function createRuntimeBusStub(): RuntimeEventBus {
   return new RuntimeEventBus();
-}
-
-function createWrfcPanel(runtimeBus: RuntimeEventBus): WrfcPanel {
-  return new WrfcPanel(createUiRuntimeEvents(runtimeBus).workflows, {
-    controller: {
-      listChains: () => [],
-    },
-  });
 }
 
 function createAgentLogsPanel(runtimeBus: RuntimeEventBus): AgentLogsPanel {
@@ -161,15 +152,6 @@ describe('workspace panel migrations', () => {
     expect(lines.every((line) => line.length === 80)).toBe(true);
     expect(linesText(lines)).toContain('API Debug');
     expect(linesText(lines)).toContain('No calls yet');
-  });
-
-  test('WrfcPanel renders shared workspace empty state cleanly', async () => {
-    const panel = createWrfcPanel(runtimeBus);
-    const lines = panel.render(80, 20);
-    expect(lines).toHaveLength(20);
-    expect(lines.every((line) => line.length === 80)).toBe(true);
-    expect(linesText(lines)).toContain('WRFC Chain Monitor');
-    expect(linesText(lines)).toContain('No WRFC chains yet');
   });
 
   test('SymbolOutlinePanel renders shared workspace empty state cleanly', async () => {

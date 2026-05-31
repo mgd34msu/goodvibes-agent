@@ -76,9 +76,6 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
           options.conversation.log(`Resume: Remote re-entry -> /remote recover ${meta.returnContext.remoteRunners![0]}`, { fg: '244' });
         }
-        if ((meta.returnContext.worktreePaths?.length ?? 0) > 0) {
-          options.conversation.log('Resume: Worktree re-entry -> /worktree review', { fg: '244' });
-        }
         if (returnContextMode === 'assisted') {
           const helperModel = new HelperModel({
             configManager: options.configManager,
