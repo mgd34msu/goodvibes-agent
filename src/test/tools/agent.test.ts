@@ -12,9 +12,11 @@ import {
   AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
   AGENT_CHANNEL_ACTION_DENIAL_MESSAGE,
   AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
+  AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE,
   AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
   AGENT_READ_ONLY_CHANNEL_TOOL_MODES,
+  AGENT_READ_ONLY_MCP_TOOL_MODES,
   AGENT_READ_ONLY_REMOTE_TOOL_MODES,
   AGENT_READ_ONLY_TOOL_MODES,
   AGENT_REMOTE_MUTATION_DENIAL_MESSAGE,
@@ -577,6 +579,43 @@ describe('spawn mode', () => {
     });
     expect(createTarget.success).toBe(false);
     expect(createTarget.error).toBe(AGENT_CHANNEL_ACTION_DENIAL_MESSAGE);
+  });
+
+  test('Agent runtime guard narrows MCP tool to read-only security inspection', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeModeTool('mcp', [
+      'servers',
+      'tools',
+      'schema',
+      'resources',
+      'security',
+      'auth',
+      'approve-quarantine',
+      'set-trust',
+      'set-role',
+    ]));
+
+    installAgentToolPolicyGuard(registry);
+
+    const mcpDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'mcp');
+    expect(mcpDefinition?.description).toContain('Read-only MCP inspection');
+    const properties = mcpDefinition?.parameters.properties as Record<string, unknown>;
+    const modeProperty = getRecordProperty(properties, 'mode');
+    expect(modeProperty?.enum).toEqual([...AGENT_READ_ONLY_MCP_TOOL_MODES]);
+
+    for (const mode of AGENT_READ_ONLY_MCP_TOOL_MODES) {
+      const result = await registry.execute(`call-mcp-${mode}`, 'mcp', { mode });
+      expect(result.success).toBe(true);
+    }
+
+    const blockedModes = ['approve-quarantine', 'set-trust', 'set-role'] as const;
+    for (const mode of blockedModes) {
+      const result = await registry.execute(`call-mcp-blocked-${mode}`, 'mcp', { mode });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE);
+    }
   });
 
   test('child spawn inherits and enforces the parent capability ceiling', async () => {

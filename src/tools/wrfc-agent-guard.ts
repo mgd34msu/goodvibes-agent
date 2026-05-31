@@ -50,8 +50,10 @@ const BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET = new Set<string>(BLOCKED_MAIN_CON
 
 const READ_ONLY_REMOTE_TOOL_MODES = ['pools', 'contracts', 'artifacts', 'review'] as const;
 const READ_ONLY_CHANNEL_TOOL_MODES = ['accounts', 'directory', 'resolve_target', 'capabilities', 'tools', 'agent_tools', 'actions'] as const;
+const READ_ONLY_MCP_TOOL_MODES = ['servers', 'tools', 'schema', 'resources', 'security', 'auth'] as const;
 const READ_ONLY_REMOTE_TOOL_MODE_SET = new Set<string>(READ_ONLY_REMOTE_TOOL_MODES);
 const READ_ONLY_CHANNEL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CHANNEL_TOOL_MODES);
+const READ_ONLY_MCP_TOOL_MODE_SET = new Set<string>(READ_ONLY_MCP_TOOL_MODES);
 
 const LOCAL_AGENT_DENIAL = [
   'GoodVibes Agent does not spawn local Engineer/Reviewer/Tester/Verifier roots or run local WRFC chains.',
@@ -83,6 +85,12 @@ const CHANNEL_ACTION_DENIAL = [
   'External channel side effects require an explicit Agent approval flow before they can run.',
 ].join(' ');
 
+const MCP_SECURITY_MUTATION_DENIAL = [
+  'GoodVibes Agent only inspects MCP servers, tools, schemas, resources, security, and auth state from the main conversation.',
+  'MCP quarantine approval, trust changes, and role changes are disabled here.',
+  'MCP security mutations require an explicit Agent approval flow before they can run.',
+].join(' ');
+
 export function installAgentToolPolicyGuard(registry: ToolRegistry, options: AgentToolPolicyGuardOptions = {}): void {
   const agentTool = registry.list().find((tool) => tool.definition.name === 'agent');
   if (!agentTool) throw new Error('Agent tool policy guard could not find the agent tool.');
@@ -102,6 +110,16 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       });
     } else if (tool.definition.name === 'channel') {
       wrapChannelToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'mcp') {
+      wrapModeRestrictedToolForAgentPolicy(tool, {
+        allowedModes: READ_ONLY_MCP_TOOL_MODES,
+        modeSet: READ_ONLY_MCP_TOOL_MODE_SET,
+        description: [
+          'Read-only MCP inspection for GoodVibes Agent.',
+          'Quarantine approval, trust mutation, and role mutation are disabled in the main conversation.',
+        ].join(' '),
+        denial: MCP_SECURITY_MUTATION_DENIAL,
+      });
     } else if (BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET.has(tool.definition.name)) {
       wrapBlockedMainConversationToolForAgentPolicy(tool);
     }
@@ -221,8 +239,10 @@ export const AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE = LOCAL_CODING_TOOL_DEN
 export const AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE = BACKGROUND_EXEC_DENIAL;
 export const AGENT_READ_ONLY_REMOTE_TOOL_MODES = READ_ONLY_REMOTE_TOOL_MODES;
 export const AGENT_READ_ONLY_CHANNEL_TOOL_MODES = READ_ONLY_CHANNEL_TOOL_MODES;
+export const AGENT_READ_ONLY_MCP_TOOL_MODES = READ_ONLY_MCP_TOOL_MODES;
 export const AGENT_REMOTE_MUTATION_DENIAL_MESSAGE = REMOTE_MUTATION_DENIAL;
 export const AGENT_CHANNEL_ACTION_DENIAL_MESSAGE = CHANNEL_ACTION_DENIAL;
+export const AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE = MCP_SECURITY_MUTATION_DENIAL;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
