@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.32 - 2026-05-31
+
+- 8af3cbd Add voice media node workspace coverage
+
 ## 0.1.31 - 2026-05-31
 
 - 2bc4887 Expand Agent Knowledge workspace flows
