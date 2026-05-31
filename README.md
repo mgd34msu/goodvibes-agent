@@ -45,7 +45,7 @@ bun run publish:check
 
 Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen surface for setup, status, live daemon capability coverage, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
-Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps. Use `goodvibes-agent capabilities daemon` or `/capabilities daemon` for a live read-only audit of the GoodVibes daemon method catalog and isolated Agent Knowledge route coverage.
+Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps. Use `goodvibes-agent capabilities daemon` or `/capabilities daemon` for a live read-only audit of the GoodVibes daemon method catalog, route risk posture, and isolated Agent Knowledge route coverage.
 
 Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated runtime profiles from them.
 

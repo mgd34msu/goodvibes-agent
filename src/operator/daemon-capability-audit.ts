@@ -41,6 +41,12 @@ export interface DaemonCapabilityAuditArea {
     readonly route: string;
     readonly coverage: DaemonCapabilityRouteCoverage;
   }[];
+  readonly routeRisk: {
+    readonly readOnlyMethodCount: number;
+    readonly mutatingMethodCount: number;
+    readonly authenticatedMethodCount: number;
+    readonly dangerousMethodIds: readonly string[];
+  };
   readonly next: readonly string[];
 }
 
@@ -75,12 +81,13 @@ export type DaemonCapabilityAuditResult =
   | DaemonCapabilityAuditSuccess
   | DaemonCapabilityAuditFailure;
 
-interface DaemonMethodSummary {
+export interface DaemonMethodSummary {
   readonly id: string;
   readonly title?: string;
   readonly category?: string;
   readonly invokable?: boolean;
   readonly access?: string;
+  readonly dangerous?: boolean;
   readonly http?: {
     readonly method?: string;
     readonly path?: string;
@@ -294,6 +301,7 @@ function readMethodSummaries(body: unknown): readonly DaemonMethodSummary[] {
       category: readString(value, 'category') ?? undefined,
       access: readString(value, 'access') ?? undefined,
       invokable: typeof value.invokable === 'boolean' ? value.invokable : undefined,
+      dangerous: typeof value.dangerous === 'boolean' ? value.dangerous : undefined,
       http: httpRecord
         ? {
             method: readString(httpRecord, 'method') ?? undefined,
@@ -389,7 +397,9 @@ function failureFromThrown(error: unknown, connection: AgentDaemonConnection, ro
 export function buildDaemonCapabilityAuditAreas(
   methodIds: ReadonlySet<string>,
   agentKnowledgeRouteReady: boolean | null,
+  methodSummaries: readonly DaemonMethodSummary[] = [],
 ): readonly DaemonCapabilityAuditArea[] {
+  const methodsById = new Map(methodSummaries.map((method) => [method.id, method]));
   return DAEMON_CAPABILITY_REQUIREMENTS.map((requirement) => {
     const presentRequiredMethodIds = requirement.requiredMethodIds.filter((methodId) => methodIds.has(methodId));
     const missingRequiredMethodIds = requirement.requiredMethodIds.filter((methodId) => !methodIds.has(methodId));
@@ -404,6 +414,23 @@ export function buildDaemonCapabilityAuditAreas(
           : 'missing',
     } satisfies DaemonCapabilityAuditArea['agentRoutes'][number]));
     const missingAgentRoutes = agentRoutes.filter((route) => route.coverage === 'missing');
+    const areaMethodIds = [...requirement.requiredMethodIds, ...requirement.optionalMethodIds];
+    const areaMethods = areaMethodIds.flatMap((methodId): DaemonMethodSummary[] => {
+      const method = methodsById.get(methodId);
+      return method ? [method] : [];
+    });
+    const readOnlyMethodCount = areaMethods.filter((method) => {
+      const verb = method.http?.method?.toUpperCase();
+      return verb === 'GET' || verb === 'HEAD';
+    }).length;
+    const mutatingMethodCount = areaMethods.filter((method) => {
+      const verb = method.http?.method?.toUpperCase();
+      return Boolean(verb) && verb !== 'GET' && verb !== 'HEAD';
+    }).length;
+    const authenticatedMethodCount = areaMethods.filter((method) => method.access === 'authenticated').length;
+    const dangerousMethodIds = areaMethods
+      .filter((method) => method.dangerous === true)
+      .map((method) => method.id);
     const requiredCount = requirement.requiredMethodIds.length + requirement.requiredAgentRoutes.length;
     const presentRequiredCount = presentRequiredMethodIds.length
       + agentRoutes.filter((route) => route.coverage === 'ready').length;
@@ -423,6 +450,12 @@ export function buildDaemonCapabilityAuditAreas(
       presentOptionalMethodIds,
       missingOptionalMethodIds,
       agentRoutes,
+      routeRisk: {
+        readOnlyMethodCount,
+        mutatingMethodCount,
+        authenticatedMethodCount,
+        dangerousMethodIds,
+      },
       next: requirement.next,
     };
   });
@@ -472,7 +505,7 @@ export async function fetchLiveDaemonCapabilityAudit(
       defaultKnowledgeFallback: false,
       homeGraphFallback: false,
       warnings,
-      areas: buildDaemonCapabilityAuditAreas(methodIds, agentKnowledge.ok),
+      areas: buildDaemonCapabilityAuditAreas(methodIds, agentKnowledge.ok, methodSummaries),
     };
   } catch (error) {
     return failureFromThrown(error, connection, daemonVersion === 'unknown' ? DAEMON_STATUS_ROUTE : DAEMON_METHOD_CATALOG_ROUTE);
@@ -527,6 +560,10 @@ export function renderDaemonCapabilityAudit(
     if (optionalTotal > 0) {
       lines.push(`  optional methods: ${area.presentOptionalMethodIds.length}/${optionalTotal}`);
       if (area.missingOptionalMethodIds.length > 0) lines.push(`  missing optional: ${area.missingOptionalMethodIds.join(', ')}`);
+    }
+    lines.push(`  route risk: ${area.routeRisk.readOnlyMethodCount} read-only; ${area.routeRisk.mutatingMethodCount} mutating; ${area.routeRisk.dangerousMethodIds.length} dangerous; ${area.routeRisk.authenticatedMethodCount} authenticated`);
+    if (area.routeRisk.dangerousMethodIds.length > 0) {
+      lines.push(`  dangerous methods: ${area.routeRisk.dangerousMethodIds.join(', ')}`);
     }
     for (const route of area.agentRoutes) lines.push(`  route: ${route.route} [${route.coverage}]`);
     lines.push(`  next: ${area.next.join(' | ')}`);

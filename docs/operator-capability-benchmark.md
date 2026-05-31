@@ -56,7 +56,7 @@ The benchmark measures two different GoodVibes layers:
 
 If the daemon already has a route but Agent lacks a good setup/workspace/CLI surface, the gap is treated as an Agent product gap rather than a missing platform capability.
 
-Use `goodvibes-agent capabilities daemon` for the live read-only daemon audit. It checks the public control-plane method catalog and the isolated Agent Knowledge status route. It intentionally does not call default `/api/knowledge/*`, HomeGraph, or Home Assistant routes.
+Use `goodvibes-agent capabilities daemon` for the live read-only daemon audit. It checks the public control-plane method catalog, route risk posture, and the isolated Agent Knowledge status route. It intentionally does not call default `/api/knowledge/*`, HomeGraph, or Home Assistant routes.
 
 ## Capability Targets
 

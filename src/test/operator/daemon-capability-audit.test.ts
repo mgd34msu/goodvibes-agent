@@ -34,6 +34,49 @@ describe('daemon capability audit', () => {
     expect(knowledge?.agentRoutes[0]?.coverage).toBe('missing');
   });
 
+  test('summarizes read-only, mutating, authenticated, and dangerous route posture', () => {
+    const areas = buildDaemonCapabilityAuditAreas(
+      new Set<string>([
+        'automation.integration.snapshot',
+        'automation.jobs.list',
+        'automation.jobs.run',
+        'schedules.delete',
+      ]),
+      true,
+      [
+        {
+          id: 'automation.integration.snapshot',
+          access: 'authenticated',
+          http: { method: 'GET', path: '/api/automation' },
+        },
+        {
+          id: 'automation.jobs.list',
+          access: 'authenticated',
+          http: { method: 'GET', path: '/api/automation/jobs' },
+        },
+        {
+          id: 'automation.jobs.run',
+          access: 'authenticated',
+          http: { method: 'POST', path: '/api/automation/jobs/{jobId}/run' },
+        },
+        {
+          id: 'schedules.delete',
+          access: 'authenticated',
+          dangerous: true,
+          http: { method: 'DELETE', path: '/api/automation/schedules/{scheduleId}' },
+        },
+      ],
+    );
+    const automation = areas.find((area) => area.id === 'automation-schedules');
+
+    expect(automation?.routeRisk).toEqual({
+      readOnlyMethodCount: 2,
+      mutatingMethodCount: 2,
+      authenticatedMethodCount: 4,
+      dangerousMethodIds: ['schedules.delete'],
+    });
+  });
+
   test('renders daemon capability audit with isolation statement', () => {
     const areas = buildDaemonCapabilityAuditAreas(new Set<string>([
       'control.status',
@@ -64,6 +107,7 @@ describe('daemon capability audit', () => {
     expect(rendered).toContain('GoodVibes daemon capability audit');
     expect(rendered).toContain('Agent Knowledge: ready /api/goodvibes-agent/knowledge/status');
     expect(rendered).toContain('isolation: default Knowledge/Wiki fallback no; HomeGraph fallback no');
+    expect(rendered).toContain('route risk:');
     expect(rendered).not.toContain('/api/knowledge/status');
     expect(rendered).not.toContain('/api/homegraph');
   });
