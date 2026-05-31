@@ -149,6 +149,19 @@ function hasFlag(args: readonly string[], flag: string): boolean {
   return args.includes(flag);
 }
 
+function stripCommandFlag(args: readonly string[], flag: string): { readonly rest: readonly string[]; readonly present: boolean } {
+  const rest: string[] = [];
+  let present = false;
+  for (const arg of args) {
+    if (arg === flag) {
+      present = true;
+      continue;
+    }
+    rest.push(arg);
+  }
+  return { rest, present };
+}
+
 function readPackageMetadata(): { readonly version: string; readonly sdkVersion: string } {
   return { version: VERSION, sdkVersion: SDK_VERSION };
 }
@@ -444,7 +457,9 @@ async function runKnowledgeCall<TData>(
 }
 
 export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
-  const [sub = 'status', ...rest] = runtime.cli.commandArgs;
+  const [sub = 'status', ...rawRest] = runtime.cli.commandArgs;
+  const confirmation = stripCommandFlag(rawRest, '--yes');
+  const rest = confirmation.rest;
   const normalized = sub.toLowerCase();
   const json = runtime.cli.flags.outputFormat === 'json';
   const disallowedScopeFlag = findDisallowedKnowledgeScopeFlag(rest);
@@ -512,7 +527,19 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
   if (normalized === 'ingest-url') {
     const values = commandValues(rest);
     const url = values[0];
-    if (!url) return { output: 'Usage: goodvibes-agent knowledge ingest-url <url> [--title <title>] [--tags a,b]', exitCode: 2 };
+    if (!url) return { output: 'Usage: goodvibes-agent knowledge ingest-url <url> [--title <title>] [--tags a,b] --yes', exitCode: 2 };
+    if (!confirmation.present) {
+      const failure = {
+        ok: false,
+        kind: 'confirmation_required',
+        error: `Refusing to ingest URL into Agent Knowledge ${url} without --yes.`,
+        route: AGENT_KNOWLEDGE_METHODS.ingestUrl.route,
+      };
+      return {
+        output: json ? JSON.stringify(failure, null, 2) : `${failure.error}\nUsage: goodvibes-agent knowledge ingest-url <url> [--title <title>] [--tags a,b] --yes`,
+        exitCode: 2,
+      };
+    }
     const title = readOptionValue(rest, '--title');
     const tags = readStringList(rest, '--tags');
     const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.ingestUrl, async (connection) => (
@@ -532,7 +559,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
   }
 
   return {
-    output: 'Usage: goodvibes-agent knowledge [status|ask <question>|search <query>|ingest-url <url>]',
+    output: 'Usage: goodvibes-agent knowledge [status|ask <question>|search <query>|ingest-url <url> --yes]',
     exitCode: 2,
   };
 }

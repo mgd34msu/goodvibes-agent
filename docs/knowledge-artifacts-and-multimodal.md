@@ -50,7 +50,7 @@ The command layer does not turn search results into an answer locally and does n
 
 ## Ingest
 
-`/knowledge ingest-url <url>` and `goodvibes-agent knowledge ingest-url <url>` ingest URL sources into Agent Knowledge only. Additional ingest shapes should be added only when the SDK exposes Agent-specific routes for them.
+`/knowledge ingest-url <url> --yes` and `goodvibes-agent knowledge ingest-url <url> --yes` ingest URL sources into Agent Knowledge only. Additional ingest shapes should be added only when the SDK exposes Agent-specific routes for them.
 
 Do not map local memory, routines, skills, personas, or default wiki documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
 

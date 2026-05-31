@@ -167,14 +167,14 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'knowledge status',
       'knowledge ask <question> [--limit <n>] [--mode concise|standard|detailed]',
       'knowledge search <query> [--limit <n>]',
-      'knowledge ingest-url <url> [--title <title>] [--tags a,b]',
+      'knowledge ingest-url <url> [--title <title>] [--tags a,b] --yes',
     ],
     summary: 'Call isolated Agent Knowledge/Wiki routes under /api/goodvibes-agent/knowledge. No default wiki or HomeGraph fallback.',
     examples: [
       'knowledge status',
       'knowledge ask "What is GoodVibes Agent?"',
       'knowledge search "release checklist"',
-      'knowledge ingest-url https://example.com/page --title "Reference"',
+      'knowledge ingest-url https://example.com/page --title "Reference" --yes',
     ],
   },
   ask: {

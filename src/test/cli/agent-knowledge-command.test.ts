@@ -102,12 +102,31 @@ describe('Agent Knowledge CLI route isolation', () => {
       ]));
       const parsed = JSON.parse(result.output) as unknown;
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
+      expect(requests).toHaveLength(0);
+      expect(parsed).toMatchObject({
+        ok: false,
+        kind: 'confirmation_required',
+        route: '/api/goodvibes-agent/knowledge/ingest/url',
+      });
+
+      const confirmed = await handleAgentKnowledgeCommand(createRuntime([
+        'ingest-url',
+        'https://example.test/agent-manual',
+        '--title',
+        'Agent Manual',
+        '--tags',
+        'agent,manual',
+        '--yes',
+      ]));
+      const confirmedParsed = JSON.parse(confirmed.output) as unknown;
+
+      expect(confirmed.exitCode).toBe(0);
       expect(requests).toHaveLength(1);
       expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/url');
       expect(requests[0]?.url).not.toContain('/api/knowledge/');
       expect(requests[0]?.body).toContain('"title":"Agent Manual"');
-      expect(parsed).toMatchObject({
+      expect(confirmedParsed).toMatchObject({
         ok: true,
         kind: 'agentKnowledge.ingest.url',
         route: '/api/goodvibes-agent/knowledge/ingest/url',
