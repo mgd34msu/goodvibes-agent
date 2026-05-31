@@ -2,15 +2,19 @@ import type { Line } from '../types/grid.ts';
 import { ScrollableListPanel } from './scrollable-list-panel.ts';
 import { type ConfirmState, handleConfirmInput, renderConfirmLines } from './confirm-state.ts';
 import type { MemoryClass, MemoryRecord, MemoryRegistry, MemoryReviewState } from '@pellux/goodvibes-sdk/platform/state';
+import type { KnowledgeStatus } from '@pellux/goodvibes-sdk/platform/knowledge';
 import {
   buildBodyText,
-  buildEmptyState,
   buildGuidanceLine,
   buildKeyValueLine,
   buildPanelLine,
   buildPanelWorkspace,
   DEFAULT_PANEL_PALETTE,
 } from './polish.ts';
+
+export interface AgentKnowledgePanelService {
+  readonly getStatus: () => Promise<KnowledgeStatus & { readonly note?: string }>;
+}
 
 function summarize(records: MemoryRecord[], cls: MemoryClass): MemoryRecord[] {
   return records.filter((record) => record.cls === cls).slice(0, 3);
@@ -42,19 +46,25 @@ function formatConfidence(confidence: number): string {
 
 export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
   private readonly registry: MemoryRegistry;
+  private readonly agentKnowledgeService: AgentKnowledgePanelService | null;
   private unsubscribe?: () => void;
   private records: MemoryRecord[] = [];
+  private agentKnowledgeStatus: (KnowledgeStatus & { readonly note?: string }) | null = null;
+  private agentKnowledgeError: string | null = null;
+  private agentKnowledgeLoading = false;
   // I1: confirm for destructive review-state mutations
   private confirm: ConfirmState<{ id: string; action: 'stale' | 'contradicted' }> | null = null;
 
-  public constructor(registry: MemoryRegistry) {
+  public constructor(registry: MemoryRegistry, agentKnowledgeService: AgentKnowledgePanelService | null = null) {
     super('knowledge', 'Knowledge', 'K', 'agent');
     this.registry = registry;
+    this.agentKnowledgeService = agentKnowledgeService;
   }
 
   public override onActivate(): void {
     super.onActivate();
     this.refresh();
+    this.refreshAgentKnowledgeStatus();
     this.unsubscribe = this.registry.subscribe(() => {
       this.refresh();
       this.markDirty();
@@ -89,12 +99,13 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
   }
 
   protected override getPalette() { return C; }
-  protected override getEmptyStateMessage() { return 'No durable project knowledge'; }
+  protected override getEmptyStateMessage() { return 'No Agent Knowledge sources or local memory review records'; }
   protected override getEmptyStateActions() {
     return [
-      { command: '/recall add fact <summary>', summary: 'capture a durable fact directly' },
-      { command: '/recall capture incident latest', summary: 'promote the latest incident into project memory' },
-      { command: '/recall capture policy', summary: 'store the current policy posture as durable evidence' },
+      { command: '/knowledge status', summary: 'inspect the isolated Agent Knowledge store' },
+      { command: '/knowledge ingest-url <url> --yes', summary: 'ingest source-backed material into Agent Knowledge only' },
+      { command: '/knowledge queue', summary: 'review Agent Knowledge issues' },
+      { command: '/recall add fact <summary>', summary: 'capture a local non-secret memory record when appropriate' },
     ];
   }
 
@@ -198,6 +209,64 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
     this.clampSelection();
   }
 
+  private refreshAgentKnowledgeStatus(): void {
+    if (!this.agentKnowledgeService || this.agentKnowledgeLoading) return;
+    this.agentKnowledgeLoading = true;
+    this.agentKnowledgeError = null;
+    this.agentKnowledgeService.getStatus()
+      .then((status) => {
+        this.agentKnowledgeStatus = status;
+        this.agentKnowledgeError = null;
+      })
+      .catch((error: unknown) => {
+        this.agentKnowledgeError = error instanceof Error ? error.message : String(error);
+      })
+      .finally(() => {
+        this.agentKnowledgeLoading = false;
+        this.markDirty();
+      });
+  }
+
+  private buildAgentKnowledgeHeader(width: number): Line[] {
+    const lines: Line[] = [
+      buildPanelLine(width, [[' Agent Knowledge Segment', C.label]]),
+      buildPanelLine(width, [
+        ['  route ', C.label],
+        ['/api/goodvibes-agent/knowledge/*', C.info],
+        ['  isolated: no default Knowledge/Wiki or HomeGraph fallback', C.dim],
+      ]),
+    ];
+    if (this.agentKnowledgeLoading && !this.agentKnowledgeStatus) {
+      lines.push(buildPanelLine(width, [['  loading isolated Agent Knowledge status...', C.dim]]));
+    } else if (this.agentKnowledgeStatus) {
+      const status = this.agentKnowledgeStatus;
+      lines.push(buildKeyValueLine(width, [
+        { label: 'Ready', value: status.ready ? 'yes' : 'no', valueColor: status.ready ? C.good : C.warn },
+        { label: 'Sources', value: String(status.sourceCount), valueColor: status.sourceCount > 0 ? C.info : C.dim },
+        { label: 'Nodes', value: String(status.nodeCount), valueColor: status.nodeCount > 0 ? C.info : C.dim },
+        { label: 'Issues', value: String(status.issueCount), valueColor: status.issueCount > 0 ? C.warn : C.good },
+      ], C));
+      const note = status.note ? `  note: ${status.note}` : '';
+      lines.push(buildPanelLine(width, [['  storage: ', C.label], [status.storagePath, C.dim], [note, C.dim]]));
+    } else {
+      lines.push(buildPanelLine(width, [['  status: not loaded; /knowledge status uses the same isolated route.', C.dim]]));
+    }
+    if (this.agentKnowledgeError) {
+      lines.push(...buildBodyText(width, `Agent Knowledge status warning: ${this.agentKnowledgeError}`, C, C.warn));
+    }
+    lines.push(buildPanelLine(width, [
+      ['  actions ', C.label],
+      ['/knowledge status', C.value],
+      [' | ', C.dim],
+      ['/knowledge ingest-url <url> --yes', C.value],
+      [' | ', C.dim],
+      ['/knowledge search <query>', C.value],
+      [' | ', C.dim],
+      ['/knowledge queue', C.value],
+    ]));
+    return lines;
+  }
+
   public render(width: number, height: number): Line[] {
     this.clampSelection();
 
@@ -214,12 +283,14 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
 
     if (this.records.length === 0) this.refresh();
 
-    const intro = 'Typed project knowledge, reviewed evidence, and operator-governed memory across session, project, and team scopes.';
+    const intro = 'Isolated Agent Knowledge plus local non-secret memory review. This surface never falls back to default Knowledge/Wiki or HomeGraph.';
     const records = this.registry.search({ limit: 200 });
+    const agentKnowledgeHeader = this.buildAgentKnowledgeHeader(width);
 
     if (records.length === 0) {
       return this.renderList(width, height, {
         title: 'Knowledge Control Room',
+        header: agentKnowledgeHeader,
         footer: [buildPanelLine(width, [[' Review keys: Up/Down move  r/Enter review  s stale  c contradicted  f fresh', C.dim]])],
       });
     }
@@ -334,11 +405,11 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
 
     return this.renderList(width, height, {
       title: 'Knowledge Control Room',
-      header: [...classLines, ...reviewLines],
+      header: [...agentKnowledgeHeader, ...classLines, ...reviewLines],
       footer: [
+        buildPanelLine(width, [['  Up/Down move  r/Enter reviewed  s stale  c contradicted  f fresh', C.dim]]),
         ...(selectedLines.length > 0 ? selectedLines : []),
         ...recentSummaryLines,
-        buildPanelLine(width, [['  Up/Down move  r/Enter reviewed  s stale  c contradicted  f fresh', C.dim]]),
       ],
     });
   }

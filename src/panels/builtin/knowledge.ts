@@ -6,14 +6,14 @@ import type { ResolvedBuiltinPanelDeps } from './shared.ts';
 export function registerKnowledgePanels(manager: PanelManager, deps: ResolvedBuiltinPanelDeps): void {
   if (!deps.memoryRegistry) return;
 
-  const { memoryRegistry } = deps;
+  const { agentKnowledgeService, memoryRegistry } = deps;
   manager.registerType({
     id: 'knowledge',
     name: 'Knowledge',
     icon: 'K',
     category: 'agent',
-    description: 'Structured project knowledge: risks, runbooks, architecture notes, incidents, and durable facts',
-    factory: () => new KnowledgePanel(memoryRegistry),
+    description: 'Isolated Agent Knowledge plus local non-secret memory review',
+    factory: () => new KnowledgePanel(memoryRegistry, agentKnowledgeService ?? null),
   });
   manager.registerType({
     id: 'memory',

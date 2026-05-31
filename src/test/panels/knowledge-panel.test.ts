@@ -39,8 +39,42 @@ describe('KnowledgePanel', () => {
     const panel = new KnowledgePanel(registry);
     const text = linesText(panel.render(120, 12));
     expect(text).toContain('Knowledge Control Room');
-    expect(text).toContain('No durable project knowledge');
+    expect(text).toContain('Agent Knowledge Segment');
+    expect(text).toContain('/api/goodvibes-agent/knowledge/*');
+    expect(text).toContain('No Agent Knowledge sources or local memory review records');
     expect(text).toContain('Suggested next steps');
+  });
+
+  test('renders isolated Agent Knowledge status when service is available', async () => {
+    const panel = new KnowledgePanel(registry, {
+      getStatus: async () => ({
+        ready: true,
+        storagePath: 'knowledge-agent.sqlite',
+        sourceCount: 2,
+        nodeCount: 4,
+        edgeCount: 3,
+        issueCount: 1,
+        extractionCount: 2,
+        jobRunCount: 0,
+        usageCount: 0,
+        candidateCount: 0,
+        reportCount: 0,
+        scheduleCount: 0,
+        note: 'isolated Agent store',
+      }),
+    });
+    panel.onActivate();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const text = linesText(panel.render(140, 18));
+
+    expect(text).toContain('Ready');
+    expect(text).toContain('Sources');
+    expect(text).toContain('2');
+    expect(text).toContain('knowledge-agent.sqlite');
+    expect(text).toContain('isolated Agent store');
+    expect(text).toContain('no default Knowledge/Wiki or HomeGraph fallback');
+    panel.onDestroy();
   });
 
   test('renders knowledge counts and summaries', async () => {

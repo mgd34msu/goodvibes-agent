@@ -135,6 +135,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     sandboxSessionRegistry: services.sandboxSessionRegistry,
     systemMessagesPanel,
     memoryRegistry: services.memoryRegistry,
+    agentKnowledgeService: services.agentKnowledgeService,
     uiServices,
     pluginManager: services.pluginManager,
     hookDispatcher: services.hookDispatcher,

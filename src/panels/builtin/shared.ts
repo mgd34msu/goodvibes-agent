@@ -21,6 +21,7 @@ import type { SessionMemoryStore } from '@pellux/goodvibes-sdk/platform/core';
 import type { ExecutionPlanManager } from '@pellux/goodvibes-sdk/platform/core';
 import type { AdaptivePlanner } from '@pellux/goodvibes-sdk/platform/core';
 import type { ProjectPlanningService } from '@pellux/goodvibes-sdk/platform/knowledge';
+import type { KnowledgeService } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { ApiTokenAuditor } from '@pellux/goodvibes-sdk/platform/security';
 import type { ComponentHealthMonitor } from '../../runtime/perf/panel-health-monitor.ts';
 import type { WorktreeRegistry } from '@/runtime/index.ts';
@@ -65,6 +66,8 @@ export interface BuiltinPanelDeps {
   evalRegistry?: import('../eval-panel.ts').EvalRegistry;
   /** MemoryRegistry for the Memory panel. */
   memoryRegistry?: MemoryRegistry;
+  /** Isolated Agent Knowledge service for the Agent Knowledge panel. */
+  agentKnowledgeService?: Pick<KnowledgeService, 'getStatus'>;
   /** Shared policy runtime state for governance/policy diagnostics. */
   policyRuntimeState?: import('@/runtime/index.ts').PolicyRuntimeState;
   /** Approval broker for control-plane/operator panels. */
