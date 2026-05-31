@@ -1,5 +1,6 @@
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { CommandContext } from './command-registry.ts';
+import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 
 export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
@@ -51,6 +52,8 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly daemonBaseUrl: string;
   readonly daemonOwnership: 'external';
   readonly sessionMemoryCount: number;
+  readonly localPersonaCount: number;
+  readonly activePersonaName: string;
   readonly knowledgeRoute: '/api/goodvibes-agent/knowledge';
   readonly knowledgeIsolation: 'agent-only';
   readonly executionPolicy: 'serial-proactive';
@@ -98,6 +101,16 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return 0;
     }
   })();
+  const personaSnapshot = (() => {
+    try {
+      const shellPaths = context.workspace?.shellPaths;
+      if (!shellPaths) return { count: 0, activeName: '(none)' };
+      const snapshot = AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot();
+      return { count: snapshot.personas.length, activeName: snapshot.activePersona?.name ?? '(none)' };
+    } catch {
+      return { count: 0, activeName: '(unavailable)' };
+    }
+  })();
   const warnings: string[] = [];
   if (provider === 'unknown' || model === 'unknown') warnings.push('Provider/model unavailable in this runtime context.');
   if (!context.executeCommand) warnings.push('Command dispatch is unavailable; workspace actions will show guidance only.');
@@ -112,6 +125,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     daemonBaseUrl: `http://${host}:${port}`,
     daemonOwnership: 'external',
     sessionMemoryCount,
+    localPersonaCount: personaSnapshot.count,
+    activePersonaName: personaSnapshot.activeName,
     knowledgeRoute: '/api/goodvibes-agent/knowledge',
     knowledgeIsolation: 'agent-only',
     executionPolicy: 'serial-proactive',
@@ -168,7 +183,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'memory', label: 'Open memory', detail: 'Inspect local/session memory commands and surfaces.', command: '/memory', kind: 'command', safety: 'read-only' },
       { id: 'skills', label: 'Open skills', detail: 'Inspect discovered skills and skill catalog state.', command: '/skills open', kind: 'command', safety: 'read-only' },
-      { id: 'personas', label: 'Persona library', detail: 'Use local Agent personas to shape serial assistant behavior without spawning background agents.', kind: 'guidance', safety: 'safe' },
+      { id: 'personas', label: 'Persona library', detail: 'Use local Agent personas to shape serial assistant behavior without spawning background agents.', command: '/personas', kind: 'command', safety: 'safe' },
     ],
   },
   {

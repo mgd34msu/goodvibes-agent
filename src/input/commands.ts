@@ -55,6 +55,7 @@ import { registerWorkPlanRuntimeCommands } from './commands/work-plan-runtime.ts
 import { registerAgentWorkspaceRuntimeCommands } from './commands/agent-workspace-runtime.ts';
 import { registerAgentExternalizedTuiCommands } from './commands/agent-externalized-tui.ts';
 import { registerDelegationRuntimeCommands } from './commands/delegation-runtime.ts';
+import { registerPersonasRuntimeCommands } from './commands/personas-runtime.ts';
 
 /**
  * registerBuiltinCommands - Register all built-in slash commands into the registry.
@@ -63,6 +64,7 @@ import { registerDelegationRuntimeCommands } from './commands/delegation-runtime
 export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerShellCoreCommands(registry);
   registerAgentWorkspaceRuntimeCommands(registry);
+  registerPersonasRuntimeCommands(registry);
   registerDelegationRuntimeCommands(registry);
   registerConfigCommand(registry);
   registerOperatorRuntimeCommands(registry);

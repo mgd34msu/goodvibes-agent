@@ -1,0 +1,68 @@
+import { describe, expect, test } from 'bun:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
+import { registerPersonasRuntimeCommands } from '../../input/commands/personas-runtime.ts';
+import { createShellPathService } from '@/runtime/index.ts';
+
+function commandHarness(): {
+  readonly registry: CommandRegistry;
+  readonly out: string[];
+  readonly ctx: CommandContext;
+} {
+  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-persona-command-'));
+  const registry = new CommandRegistry();
+  registerPersonasRuntimeCommands(registry);
+  const out: string[] = [];
+  const ctx = {
+    print: (text: string) => out.push(text),
+    workspace: {
+      shellPaths: createShellPathService({ workingDirectory: root, homeDirectory: root }),
+    },
+  } as unknown as CommandContext;
+  return { registry, out, ctx };
+}
+
+describe('/personas command', () => {
+  test('creates, lists, shows, activates, and clears a local persona', async () => {
+    const { registry, out, ctx } = commandHarness();
+
+    await registry.execute('personas', [
+      'create',
+      '--name',
+      'Travel Planner',
+      '--description',
+      'Plans practical travel.',
+      '--body',
+      'Compare options, constraints, and next actions.',
+      '--tags',
+      'travel,planning',
+    ], ctx);
+    await registry.execute('personas', ['list'], ctx);
+    await registry.execute('personas', ['use', 'travel-planner'], ctx);
+    await registry.execute('personas', ['active'], ctx);
+    await registry.execute('personas', ['clear'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Created Agent persona travel-planner');
+    expect(text).toContain('Travel Planner - Plans practical travel.');
+    expect(text).toContain('Active Agent persona: Travel Planner');
+    expect(text).toContain('Compare options');
+    expect(text).toContain('Cleared active Agent persona');
+  });
+
+  test('requires explicit delete confirmation and rejects secret-looking content', async () => {
+    const { registry, out, ctx } = commandHarness();
+
+    await registry.execute('personas', ['create', '--name', 'Ops', '--description', 'Ops behavior.', '--body', 'Inspect then act.'], ctx);
+    await registry.execute('personas', ['delete', 'ops'], ctx);
+    await registry.execute('personas', ['delete', 'ops', '--yes'], ctx);
+    await registry.execute('personas', ['create', '--name', 'Bad', '--description', 'Bad.', '--body', 'api_key=secret-value'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Refusing to delete Agent persona ops without --yes');
+    expect(text).toContain('Deleted Agent persona ops');
+    expect(text).toContain('secret-looking');
+  });
+});

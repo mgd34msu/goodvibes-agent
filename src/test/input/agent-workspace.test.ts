@@ -43,6 +43,19 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/model');
   });
 
+  test('dispatches local persona library through the command router', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/personas']);
+    expect(workspace.status).toContain('/personas');
+  });
+
   test('blocks copied TUI-only blocked commands inside the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

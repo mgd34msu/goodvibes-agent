@@ -1,8 +1,13 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import type { Line } from '../../types/grid.ts';
+import { createShellPathService } from '@/runtime/index.ts';
 
 function text(lines: readonly Line[]): string {
   return lines.map((line) => line.map((cell) => cell.char ?? ' ').join('').trimEnd()).join('\n');
@@ -16,6 +21,15 @@ function commandContext(): CommandContext {
 }
 
 function liveCommandContext(): CommandContext {
+  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
+  const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+  const personas = AgentPersonaRegistry.fromShellPaths(shellPaths);
+  personas.create({
+    name: 'Research Analyst',
+    description: 'Source-backed research posture.',
+    body: 'Prefer checked sources and clear unknowns.',
+  });
+  personas.setActive('research-analyst');
   return {
     executeCommand: async () => true,
     print: () => undefined,
@@ -42,10 +56,7 @@ function liveCommandContext(): CommandContext {
       },
     },
     workspace: {
-      shellPaths: {
-        workingDirectory: '/workspace/agent',
-        homeDirectory: '/home/agent',
-      },
+      shellPaths,
     },
     platform: {
       configManager: {
@@ -94,6 +105,17 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('openai-subscriber / GPT-5.5');
     expect(output).toContain('agent-session-1');
     expect(output).toContain('serial-proactive');
+  });
+
+  test('renders local persona posture in the memory workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 34));
+
+    expect(output).toContain('Local personas: 1; active: Research Analyst');
+    expect(output).toContain('/personas');
   });
 
   test('renders action feedback and refresh affordance', () => {

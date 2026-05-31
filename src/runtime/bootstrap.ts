@@ -42,6 +42,7 @@ import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { buildActivePersonaPrompt } from '../agent/persona-registry.ts';
 
 const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '## GoodVibes Agent Operator Policy',
@@ -50,7 +51,7 @@ const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '- WRFC is never the default Agent reasoning path. Do not create local WRFC chains for planning, research, operations, knowledge, memory, configuration, approvals, automation observability, or ordinary assistant work.',
   '- GoodVibes Agent is not the coding TUI. Do not use the `agent` tool to spawn local Engineer, Reviewer, Tester, Verifier, or batch-spawn roots from Agent.',
   '- When the user explicitly asks to build, implement, fix, patch, or review code, preserve the full original user ask and delegate one build request to GoodVibes TUI through the public shared-session/build-delegation contract. Include clear executionIntent and request WRFC only for explicit build/fix/review work or when the user explicitly asks for WRFC/agent review.',
-  '- Do not narrow explicit build/fix/review requests into design-only, read-only, or no-write work unless the user explicitly requested that limitation. TUI owns file edits, git/worktree work, sandbox/QEMU UX, and any WRFC owner chain.',
+  '- Do not narrow explicit build/fix/review requests into design-only, read-only, or no-write work unless the user explicitly requested that limitation. TUI owns file edits, git/worktree work, sandbox/QEMU UX, and the WRFC owner chain.',
   '- If a stable public delegation route is unavailable, say that the task needs GoodVibes TUI delegation and report the missing route instead of pretending to implement it locally or spawning sibling local agents.',
 ].join('\n');
 
@@ -205,7 +206,12 @@ export async function bootstrapRuntime(
       const contextWindow = providerRegistry.getContextWindowForModel(currentModel);
       const tier = getTierForContextWindow(contextWindow);
       const supplement = getTierPromptSupplement(tier);
-      return joinPromptParts(runtime.systemPrompt, GOODVIBES_AGENT_OPERATOR_POLICY, supplement);
+      return joinPromptParts(
+        runtime.systemPrompt,
+        GOODVIBES_AGENT_OPERATOR_POLICY,
+        buildActivePersonaPrompt(services.shellPaths),
+        supplement,
+      );
     },
     hookDispatcher,
     flagManager: services.featureFlags,
