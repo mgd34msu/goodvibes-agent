@@ -1,20 +1,9 @@
 /**
  * /session command handler — Multi-session Orchestration.
  *
- * Implements session and workflow commands:
- *
- *   /session link-task <taskId> [--session <sessionId>] [--depends-on <ref>] [--label <label>]
- *     — Register a task as a global cross-session ref, optionally linking it to a
- *       dependency.
- *
- *   /session handoff <taskId> --to <sessionId> [--session <sessionId>] [--reason <reason>]
- *     — Initiate a task handoff from the current session to another.
- *
- *   /session graph [--session <sessionId>] [--format text|json]
- *     — Display the cross-session task dependency graph.
- *
- *   /session cancel <taskId|--scope session> [--session <sessionId>] [--scope task|subtree|session]
- *     — Cancel tasks with configurable scope semantics.
+ * Implements read-only session graph inspection plus session continuity commands.
+ * Copied local task graph mutation commands are blocked in Agent; explicit
+ * build/fix/review handoff must use `/delegate` so GoodVibes TUI owns execution.
  */
 
 import type { SlashCommand, CommandContext } from '../command-registry.ts';
@@ -70,6 +59,14 @@ function fmtRef(ref: CrossSessionTaskRef): string {
   const key = `${ref.sessionId.slice(0, 8)}...:${ref.taskId.slice(0, 8)}...`;
   const label = ref.label ? ` [${ref.label}]` : '';
   return `${statusBadge(ref.status)} ${key}${label}  "${ref.title}"`;
+}
+
+function printSessionGraphMutationBlocked(context: CommandContext): void {
+  context.print([
+    '[session] Local cross-session task graph mutation is blocked in GoodVibes Agent.',
+    '[session] Use /session graph for read-only inspection.',
+    '[session] Use /delegate <task> for explicit build/fix/review handoff to GoodVibes TUI.',
+  ].join('\n'));
 }
 
 // ── /session link-task ────────────────────────────────────────────────────────
@@ -192,7 +189,7 @@ function handleGraph(args: string[], context: CommandContext): void {
     if (filterSession) {
       context.print(`[session] No tasks registered for session ${filterSession.slice(0, 8)}...`);
     } else {
-      context.print('[session] Task graph is empty. Use /session link-task to register tasks.');
+      context.print('[session] Task graph is empty. Local task graph mutation is blocked in Agent; use /delegate for explicit build/fix/review handoff.');
     }
     return;
   }
@@ -324,21 +321,21 @@ function handleCancel(args: string[], context: CommandContext): void {
 export const sessionCommand: SlashCommand = {
   name: 'session',
   aliases: ['sess'],
-  description: 'Multi-session orchestration: link tasks, handoff, view graph, and cancel across sessions.',
+  description: 'Session continuity and read-only cross-session graph inspection.',
   usage: '<subcommand> [args]',
-  argsHint: 'link-task|handoff|graph|cancel',
+  argsHint: 'list|resume|save|graph',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
     const [sub, ...rest] = args;
 
     switch (sub) {
       case 'link-task':
       case 'link':
-        handleLinkTask(rest, context);
+        printSessionGraphMutationBlocked(context);
         break;
 
       case 'handoff':
       case 'ho':
-        handleHandoff(rest, context);
+        printSessionGraphMutationBlocked(context);
         break;
 
       case 'graph':
@@ -347,7 +344,7 @@ export const sessionCommand: SlashCommand = {
         break;
 
       case 'cancel':
-        handleCancel(rest, context);
+        printSessionGraphMutationBlocked(context);
         break;
 
       default: {
@@ -357,14 +354,10 @@ export const sessionCommand: SlashCommand = {
             'Usage: /session <subcommand>',
             '  list | rename <name> | resume <id|name> | fork [name] | save [name] | info [id] | export <id> [format] | search <query> | delete <id>',
             '                                 — Session continuity, export, resume, and pruning',
-            '  link-task <taskId> [--session <sid>] [--depends-on <sid:taskId>] [--label <label>]',
-            '                                 — Register a task in the cross-session graph',
-            '  handoff <taskId> --to <sid>  [--session <sid>] [--reason <reason>]',
-            '                                 — Hand a task off to another session',
             '  graph [--session <sid>] [--format text|json]',
             '                                 — Display the cross-session task dependency graph',
-            '  cancel <taskId> [--scope task|subtree|session] [--session <sid>] [--reason <reason>]',
-            '                                 — Cancel tasks with scoped semantics',
+            '  link-task | handoff | cancel',
+            '                                 — Blocked in Agent; use /delegate for explicit build/fix/review handoff',
           ].join('\n');
           context.print(usage);
         }

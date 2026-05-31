@@ -12,6 +12,7 @@ import { registerBuiltinCommands } from '../../input/commands.ts';
 import { registerControlRoomRuntimeCommands } from '../../input/commands/control-room-runtime.ts';
 import { registerDelegationRuntimeCommands } from '../../input/commands/delegation-runtime.ts';
 import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
+import { sessionCommand } from '../../input/commands/session.ts';
 
 describe('Agent operator policy hidden spawn gates', () => {
   let root = '';
@@ -146,6 +147,41 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(text).toContain('use /delegate');
     expect(manager.cancelGraph).toHaveBeenCalledTimes(0);
     expect(manager.cancelSubtree).toHaveBeenCalledTimes(0);
+  });
+
+  test('session graph mutation commands are blocked and do not touch local orchestration state', async () => {
+    const out: string[] = [];
+    const orchestration = {
+      linkTask: mock(() => ({ ok: true })),
+      initiateHandoff: mock(() => ({ ok: true, handoffId: 'handoff-1' })),
+      cancel: mock(() => ({ ok: true, cancelled: [], skipped: [] })),
+      snapshot: mock(() => ({ refs: {}, dependencies: {}, handoffs: {} })),
+      getDependencies: mock(() => []),
+      getDependents: mock(() => []),
+      getHandoffs: mock(() => []),
+    };
+    const ctx = {
+      session: {
+        runtime: {
+          sessionId: 'agent-session-1',
+        },
+      },
+      workspace: {
+        sessionOrchestration: orchestration,
+      },
+      print: (text: string) => out.push(text),
+    } as unknown as CommandContext;
+
+    await sessionCommand.handler(['link-task', 'task-1'], ctx);
+    await sessionCommand.handler(['handoff', 'task-1', '--to', 'session-2'], ctx);
+    await sessionCommand.handler(['cancel', 'task-1'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Local cross-session task graph mutation is blocked');
+    expect(text).toContain('Use /delegate');
+    expect(orchestration.linkTask).toHaveBeenCalledTimes(0);
+    expect(orchestration.initiateHandoff).toHaveBeenCalledTimes(0);
+    expect(orchestration.cancel).toHaveBeenCalledTimes(0);
   });
 
   test('delegate command submits one shared-session request without eating --wrfc task text', async () => {
