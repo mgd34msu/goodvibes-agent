@@ -106,7 +106,7 @@ const READ_ONLY_TEAM_TOOL_MODES = ['list', 'show'] as const;
 const READ_ONLY_WORKLIST_TOOL_MODES = ['list', 'show'] as const;
 const READ_ONLY_PACKET_TOOL_MODES = ['list', 'show'] as const;
 const READ_ONLY_QUERY_TOOL_MODES = ['list', 'show'] as const;
-const READ_ONLY_CONTROL_TOOL_MODES = ['commands', 'panels', 'subscriptions', 'sandbox-presets'] as const;
+const READ_ONLY_CONTROL_TOOL_MODES = ['commands', 'panels', 'subscriptions'] as const;
 const READ_ONLY_REMOTE_TOOL_MODE_SET = new Set<string>(READ_ONLY_REMOTE_TOOL_MODES);
 const READ_ONLY_CHANNEL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CHANNEL_TOOL_MODES);
 const READ_ONLY_MCP_TOOL_MODE_SET = new Set<string>(READ_ONLY_MCP_TOOL_MODES);
@@ -130,7 +130,7 @@ const LOCAL_AGENT_DENIAL = [
 ].join(' ');
 
 const LOCAL_CODING_TOOL_DENIAL = [
-  'GoodVibes Agent does not perform direct local file mutation, local WRFC workflow execution, or local sandbox/REPL execution from the main conversation.',
+  'GoodVibes Agent does not perform direct local file mutation, local WRFC workflow execution, or local runtime-isolation execution from the main conversation.',
   'For explicit build/fix/review/code execution work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract with the full original user ask.',
   'For durable Agent memory, skills, personas, routines, and knowledge, use the Agent-owned commands and isolated Agent Knowledge routes.',
 ].join(' ');
@@ -250,7 +250,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
         modeSet: READ_ONLY_CONTROL_TOOL_MODE_SET,
         description: [
           'Read-only product-control inspection for GoodVibes Agent.',
-          'Command, panel, subscription, and sandbox preset catalogs can be inspected, but product-control mutation and daemon lifecycle are external.',
+          'Command, panel, and subscription catalogs can be inspected, but product-control mutation and daemon lifecycle are external.',
         ].join(' '),
         denial: CONTROL_MUTATION_DENIAL,
       });

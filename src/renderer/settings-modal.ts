@@ -45,7 +45,6 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   telemetry: 'Telemetry payload policy.',
   cache: 'Provider and model cache behavior, TTL, and hit-rate monitoring.',
   mcp: 'MCP server trust and scope review. Trust changes can expose local files, tools, databases, browsers, or remote automation depending on the server.',
-  sandbox: 'Sandbox/QEMU execution is externalized to GoodVibes TUI for delegated build/runtime isolation. Agent does not start sandbox sessions.',
   surfaces: 'External app surfaces such as Slack, Discord, ntfy, Telegram, webhooks, chat bridges, and messaging providers.',
   release: 'Release-channel preference.',
   danger: 'High-impact daemon and listener switches. Agent renders daemon-owned switches read-only; use GoodVibes TUI or the daemon host to change them.',

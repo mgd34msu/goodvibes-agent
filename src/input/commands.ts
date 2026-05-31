@@ -52,7 +52,6 @@ import { registerTtsRuntimeCommands } from './commands/tts-runtime.ts';
 import { registerWorkPlanRuntimeCommands } from './commands/work-plan-runtime.ts';
 import { registerAgentWorkspaceRuntimeCommands } from './commands/agent-workspace-runtime.ts';
 import { registerAgentRuntimeProfileRuntimeCommands } from './commands/agent-runtime-profile-runtime.ts';
-import { registerAgentExternalizedTuiCommands } from './commands/agent-externalized-tui.ts';
 import { registerDelegationRuntimeCommands } from './commands/delegation-runtime.ts';
 import { registerPersonasRuntimeCommands } from './commands/personas-runtime.ts';
 import { registerAgentSkillsRuntimeCommands } from './commands/agent-skills-runtime.ts';
@@ -73,7 +72,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerConfigCommand(registry);
   registerOperatorRuntimeCommands(registry);
   registerIntegrationRuntimeCommands(registry);
-  registerAgentExternalizedTuiCommands(registry);
   registerNotifyRuntimeCommands(registry);
   registerReplayRuntimeCommands(registry);
   registerShareRuntimeCommands(registry);

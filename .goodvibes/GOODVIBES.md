@@ -22,7 +22,7 @@ GoodVibes Agent is a proactive personal operator assistant built on the GoodVibe
 ## Product Boundaries
 
 - Agent connects to an already-running GoodVibes daemon. It does not start, restart, install, or own daemon/listener services.
-- GoodVibes TUI owns coding execution, file edits, git/worktree lifecycle, sandbox/QEMU UX, and WRFC owner chains.
+- GoodVibes TUI owns coding execution, file edits, git/worktree lifecycle, runtime-isolation UX, and WRFC owner chains.
 - Agent owns personal operator flow, setup/config surfaces, local memory, local skills, local personas, Agent knowledge, status/approval/automation observability, and explicit delegation receipts.
 
 ## Engineering Rules

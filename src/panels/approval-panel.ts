@@ -20,10 +20,9 @@ const APPROVAL_ROWS = [
   ['network', 'why prompted: external hosts, fetch scope, egress policy', 'review via /approval review network'],
   ['delegate', 'why prompted: recursive agents, spawn ceilings, write-set inheritance', 'review via /approval review delegate'],
   ['mcp', 'why prompted: trust escalation, host scope, path scope, coherence mismatch', 'review via /mcp trust and /security'],
-  ['remote', 'why prompted: runner trust, remote write scope, artifact requirements', 'review via /remote and delegated TUI sandbox context'],
+  ['remote', 'why prompted: runner trust, remote write scope, artifact requirements', 'review via /remote and delegated TUI execution context'],
   ['hook', 'why prompted: deny/mutate authority, blocking behavior, runner provenance', 'review via /hooks and /security'],
   ['plugin', 'why prompted: install/update lifecycle, provenance, capability grants', 'review via /marketplace and /security'],
-  ['sandbox', 'why prompted: WSL/VM isolation changes alter host risk posture', 'delegate sandbox changes to GoodVibes TUI'],
 ] as const;
 
 type ApprovalRow = (typeof APPROVAL_ROWS)[number];

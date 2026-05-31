@@ -200,7 +200,6 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         ['remote', 'Remote dispatch approval with trust/artifact review.'],
         ['hook', 'Hook execution approval with deny/mutate authority review.'],
         ['plugin', 'Plugin lifecycle approval with provenance and capability review.'],
-        ['sandbox', 'Sandbox isolation/policy change approval with WSL/VM review.'],
       ] as const;
       if (sub === 'matrix') {
         ctx.print([
@@ -213,13 +212,13 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         const kind = (args[1] ?? '').toLowerCase();
         const entry = matrix.find(([id]) => id === kind);
         if (!entry) {
-          ctx.print('Usage: /approval review <shell|file|network|delegate|mcp|remote|hook|plugin|sandbox>');
+          ctx.print('Usage: /approval review <shell|file|network|delegate|mcp|remote|hook|plugin>');
           return;
         }
         ctx.print([
           `Approval Review: ${entry[0]}`,
           `  ${entry[1]}`,
-          '  Related surfaces: /security, /policy preflight, /trust, /sandbox, /mcp',
+          '  Related surfaces: /security, /policy preflight, /trust, /mcp',
         ].join('\n'));
         return;
       }
@@ -298,7 +297,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
             enabled: Boolean(ctx.platform.configManager.get('ui.voiceEnabled')),
             notes: [
               'Voice is optional and local-first.',
-              'Secure sandbox mode and operator review remain the primary control surfaces.',
+              'Operator review remains the primary control surface for risky actions.',
             ],
           };
           mkdirSync(dirname(targetPath), { recursive: true });

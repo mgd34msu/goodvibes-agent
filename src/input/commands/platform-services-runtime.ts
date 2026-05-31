@@ -220,7 +220,6 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
         buildSetupLink('remote'),
         buildSetupLink('knowledge'),
         buildSetupLink('marketplace'),
-        buildSetupLink('sandbox'),
       ];
       if (sub === 'review') {
         ctx.print(['Deep Link Review', ...links.map((link) => `  ${link}`)].join('\n'));

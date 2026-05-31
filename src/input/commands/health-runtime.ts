@@ -1,5 +1,4 @@
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
-import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { evaluateSessionMaintenance, formatSessionMaintenanceLines } from '@/runtime/index.ts';
 import { estimateConversationTokens } from '@pellux/goodvibes-sdk/platform/core';
 import type { CommandRegistry } from '../command-registry.ts';
@@ -20,26 +19,12 @@ import {
   requireSessionMemoryStore,
 } from './runtime-services.ts';
 
-function renderSandboxHealthSummary(configManager: ConfigManager): string[] {
-  const backend = String(configManager.get('sandbox.vmBackend') ?? 'local');
-  const imagePath = String(configManager.get('sandbox.qemuImagePath') ?? '').trim();
-  const wrapperPath = String(configManager.get('sandbox.qemuExecWrapper') ?? '').trim();
-  const lines = [
-    `  backend: ${backend}`,
-    `  qemu image: ${imagePath || '(not configured)'}`,
-    `  qemu wrapper: ${wrapperPath || '(not configured)'}`,
-  ];
-  if (backend === 'qemu' && !imagePath) lines.push('  issue: qemu backend selected without qemuImagePath');
-  if (backend === 'qemu' && !wrapperPath) lines.push('  issue: qemu backend selected without qemuExecWrapper');
-  return lines;
-}
-
 export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'health',
     aliases: ['doctor'],
-    description: 'Health workspace for startup posture, service readiness, sandbox posture, and provider health',
-    usage: '[open|review|setup|services|sandbox|provider|accounts|auth|settings|intelligence|remote|mcp|continuity|worktrees|maintenance|repair [domain]]',
+    description: 'Health workspace for startup posture, service readiness, provider health, and Agent continuity',
+    usage: '[open|review|setup|services|provider|accounts|auth|settings|intelligence|remote|mcp|continuity|worktrees|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
       const readModels = requireReadModels(ctx);
@@ -68,14 +53,6 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           `  configured: ${keys.length}`,
           `  issues: ${issues.length}`,
           ...(issues.length > 0 ? issues.map((issue) => `  ${issue}`) : ['  all configured services passed readiness checks']),
-        ].join('\n'));
-        return;
-      }
-
-      if (sub === 'sandbox') {
-        ctx.print([
-          'Health Review: Sandbox',
-          ...renderSandboxHealthSummary(ctx.platform.configManager),
         ].join('\n'));
         return;
       }
@@ -316,12 +293,6 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /services auth-review');
           lines.push('  /health services');
           lines.push('  verify: /health services');
-        } else if (domain === 'sandbox') {
-          lines.push('  domain: sandbox');
-          lines.push('  /sandbox');
-          lines.push('  delegate sandbox/QEMU setup and execution to GoodVibes TUI');
-          lines.push('  /health sandbox');
-          lines.push('  verify: /health sandbox');
         } else if (domain === 'remote') {
           lines.push('  domain: remote');
           lines.push('  /remote supervisor');
@@ -360,7 +331,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /setup review');
           lines.push('  verify: /health intelligence');
         } else {
-          lines.push('  domains: settings, auth, accounts, services, sandbox, remote, mcp, continuity, maintenance, worktrees, intelligence');
+          lines.push('  domains: settings, auth, accounts, services, remote, mcp, continuity, maintenance, worktrees, intelligence');
           lines.push('  use: /health repair <domain>');
         }
         ctx.print(lines.join('\n'));
@@ -409,8 +380,6 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         `  managed locks: ${settingsSnapshot.managedLockCount}`,
         `  local auth users: ${readModels.localAuth.getSnapshot().userCount}`,
         `  remote runners: ${snapshot.remoteRunnerCount}`,
-        ...renderSandboxHealthSummary(ctx.platform.configManager),
-        '',
         ...formatSessionMaintenanceLines(maintenance, 'guided').map((line) => `  ${line}`),
         ...(snapshot.issues.length > 0 ? ['', ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`)] : []),
         ...(snapshot.serviceIssues.length > 0 ? ['', ...snapshot.serviceIssues.map((issue) => `  service: ${issue}`)] : []),
@@ -418,7 +387,6 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         'Next steps:',
         '  /health open',
         '  /health services',
-        '  /health sandbox',
         '  /health accounts',
         '  /health auth',
         '  /health settings',

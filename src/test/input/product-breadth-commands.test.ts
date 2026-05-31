@@ -664,7 +664,6 @@ describe('product breadth commands', () => {
     await setup!.handler(['review'], ctx);
     expect(out.join('\n')).toContain('Startup Readiness Review');
     expect(out.join('\n')).toContain('skills discovered:');
-    expect(out.join('\n')).toContain('sandbox/QEMU: externalized to GoodVibes TUI for delegated build/runtime isolation');
 
     out.length = 0;
     await setup!.handler(['doctor'], ctx);
@@ -677,12 +676,6 @@ describe('product breadth commands', () => {
     expect(onboarding.mode).toBe('edit');
     expect(onboarding.modalStack).toEqual(['onboarding']);
     expect(out.join('\n')).toContain('Opening onboarding wizard.');
-
-    out.length = 0;
-    await setup!.handler(['sandbox'], ctx);
-    expect(out.join('\n')).toContain('Setup Sandbox');
-    expect(out.join('\n')).toContain('owner: GoodVibes TUI');
-    expect(out.join('\n')).toContain('sandbox/QEMU setup and runtime isolation are coding/build execution surfaces');
 
     const exportPath = join(root, 'artifacts', 'startup-review.json');
     out.length = 0;
@@ -706,8 +699,6 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Exported support bundle');
     expect(existsSync(join(supportDir, 'startup-review.json'))).toBe(true);
     expect(existsSync(join(supportDir, 'remote-summary.json'))).toBe(true);
-    expect(existsSync(join(supportDir, 'sandbox-externalized.txt'))).toBe(true);
-    expect(existsSync(join(supportDir, 'qemu-wrapper.template.sh'))).toBe(false);
   });
 
   test('health and guidance commands surface maintenance posture', async () => {
@@ -940,9 +931,8 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Approval Matrix');
 
     out.length = 0;
-    await approval!.handler(['review', 'sandbox'], ctx);
-    expect(out.join('\n')).toContain('Approval Review: sandbox');
-    expect(out.join('\n')).toContain('sandbox');
+    await approval!.handler(['review', 'delegate'], ctx);
+    expect(out.join('\n')).toContain('Approval Review: delegate');
 
     out.length = 0;
     await voice!.handler(['review'], ctx);
@@ -2107,23 +2097,6 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Logged out of openai.');
   });
 
-  test('sandbox command is externalized to GoodVibes TUI and does not run local sandbox workflows', async () => {
-    const registry = new CommandRegistry();
-    registerBuiltinCommands(registry);
-    const sandbox = registry.get('sandbox');
-    expect(sandbox).toBeDefined();
-
-    const out: string[] = [];
-    const ctx = makeContext(out);
-
-    await sandbox!.handler(['probe'], ctx);
-    const text = out.join('\n');
-    expect(text).toContain('sandbox is externalized in GoodVibes Agent.');
-    expect(text).toContain('owner: GoodVibes TUI');
-    expect(text).toContain('result: blocked here');
-    expect(ctx.workspace.sandboxSessionRegistry?.list()).toHaveLength(0);
-  });
-
   test('subscription command manages oauth-backed provider sessions and logout', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
@@ -2176,18 +2149,10 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Logged out of openai');
   });
 
-  test('sandbox command blocks copied isolation mutations', async () => {
+  test('copied runtime-isolation placeholder command is not registered', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
-    const sandbox = registry.get('sandbox');
-    expect(sandbox).toBeDefined();
-
-    const out: string[] = [];
-    const ctx = makeContext(out);
-
-    await sandbox!.handler(['review'], ctx);
-    expect(out.join('\n')).toContain('sandbox is externalized in GoodVibes Agent.');
-    expect(out.join('\n')).toContain('no local files, config, worktrees, sandbox sessions, or repository state were changed');
+    expect(registry.get('sandbox')).toBeUndefined();
   });
 
   test('storage and deeplink commands expose platform-service breadth', async () => {
@@ -2385,15 +2350,14 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('task/agent lifecycle commands are blocked in Agent');
   });
 
-  test('health command exposes unified setup, service, sandbox, and provider surfaces', async () => {
+  test('health command exposes unified setup, service, and provider surfaces', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const health = registry.get('health');
     const remote = registry.get('remote');
-    const worktree = registry.get('worktree');
     expect(health).toBeDefined();
     expect(remote).toBeDefined();
-    expect(worktree).toBeDefined();
+    expect(registry.get('worktree')).toBeUndefined();
 
     const out: string[] = [];
     const ctx = makeContext(out);
@@ -2405,10 +2369,6 @@ describe('product breadth commands', () => {
     out.length = 0;
     await health!.handler(['services'], ctx);
     expect(out.join('\n')).toContain('Health Review: Services');
-
-    out.length = 0;
-    await health!.handler(['sandbox'], ctx);
-    expect(out.join('\n')).toContain('Health Review: Sandbox');
 
     out.length = 0;
     await health!.handler(['auth'], ctx);
@@ -2477,11 +2437,6 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('/accounts review');
 
     out.length = 0;
-    await health!.handler(['repair', 'sandbox'], ctx);
-    expect(out.join('\n')).toContain('/sandbox');
-    expect(out.join('\n')).toContain('GoodVibes TUI');
-
-    out.length = 0;
     await health!.handler(['repair', 'worktrees'], ctx);
     expect(out.join('\n')).toContain('worktree recovery is externalized to GoodVibes TUI');
     expect(out.join('\n')).not.toContain('/worktree review');
@@ -2490,11 +2445,7 @@ describe('product breadth commands', () => {
     await remote!.handler(['recover'], ctx);
     expect(out.join('\n')).toContain('No remote supervisor sessions are currently tracked.');
 
-    out.length = 0;
-    await worktree!.handler(['attach', '/tmp/demo-worktree', 'session', 'demo-session'], ctx);
-    expect(out.join('\n')).toContain('worktree is externalized in GoodVibes Agent.');
-    expect(out.join('\n')).toContain('owner: GoodVibes TUI');
-    expect(out.join('\n')).toContain('result: blocked here');
+    expect(registry.get('worktree')).toBeUndefined();
   });
 
   test('auth command exposes local admin management surface', async () => {

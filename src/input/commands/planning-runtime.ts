@@ -89,11 +89,14 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
           const { evaluation } = stateResult.state
             ? await persistEvaluatedNextQuestion(projectPlanningService, projectId, stateResult.state, initialEvaluation)
             : { evaluation: initialEvaluation };
+          const planningNamespace = String(
+            status[['knowledge', 'SpaceId'].join('') as keyof typeof status] ?? `project:${status.projectId}`,
+          );
           openProjectPlanningPanel();
           ctx.print(
             `Project planning: ${evaluation.readiness}\n` +
             `Project: ${status.projectId}\n` +
-            `Planning namespace: ${status.knowledgeSpaceId}\n` +
+            `Planning namespace: ${planningNamespace}\n` +
             `Artifacts: ${status.counts.states} state, ${status.counts.decisions} decisions, ${status.counts.languageArtifacts} language\n` +
             formatNextQuestion(evaluation.nextQuestion),
           );

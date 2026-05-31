@@ -25,9 +25,6 @@ export interface SetupReviewSnapshot {
   readonly quarantinedMcpCount: number;
   readonly elevatedMcpCount: number;
   readonly remoteRunnerCount: number;
-  readonly sandboxReplIsolation: string;
-  readonly sandboxMcpIsolation: string;
-  readonly sandboxSecureModeReady: boolean;
   readonly issues: Array<{ severity: 'pass' | 'warn' | 'fail'; area: string; message: string }>;
   readonly services: string[];
 }

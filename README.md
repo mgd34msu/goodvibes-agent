@@ -103,7 +103,7 @@ GoodVibes Agent owns the operator assistant surface: serial assistant flow, proa
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
 
-GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, sandbox/QEMU UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public daemon/session contracts; normal assistant chat must not use shared coding sessions.
+GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, runtime-isolation UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public daemon/session contracts; normal assistant chat must not use shared coding sessions.
 
 ## Package Docs
 

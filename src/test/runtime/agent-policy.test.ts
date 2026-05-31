@@ -316,41 +316,14 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(out.join('\n')).toContain('WRFC requested');
   });
 
-  test('copied TUI coding commands are externalized and do not mutate local Agent state', async () => {
+  test('copied TUI coding commands are not registered in Agent runtime', () => {
     const services = makeRuntimeServices();
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
-    const git = registry.get('git');
-    const diff = registry.get('diff');
-    const worktree = registry.get('worktree');
-    const sandbox = registry.get('sandbox');
-    expect(git).toBeDefined();
-    expect(diff).toBeDefined();
-    expect(worktree).toBeDefined();
-    expect(sandbox).toBeDefined();
-
-    const out: string[] = [];
-    const ctx = {
-      print: (text: string) => out.push(text),
-      workspace: {
-        sandboxSessionRegistry: services.sandboxSessionRegistry,
-        worktreeRegistry: services.worktreeRegistry,
-      },
-      platform: {
-        configManager: services.configManager,
-      },
-    } as unknown as CommandContext;
-
-    await git!.handler(['status'], ctx);
-    await diff!.handler(['working'], ctx);
-    await worktree!.handler(['attach', '/tmp/agent-worktree', 'session', 'session-1'], ctx);
-    await sandbox!.handler(['session', 'start', 'eval-py'], ctx);
-
-    const text = out.join('\n');
-    expect(text).toContain('git is externalized in GoodVibes Agent.');
-    expect(text).toContain('diff is externalized in GoodVibes Agent.');
-    expect(text).toContain('worktree is externalized in GoodVibes Agent.');
-    expect(text).toContain('sandbox is externalized in GoodVibes Agent.');
+    expect(registry.get('git')).toBeUndefined();
+    expect(registry.get('diff')).toBeUndefined();
+    expect(registry.get('worktree')).toBeUndefined();
+    expect(registry.get('sandbox')).toBeUndefined();
     expect(existsSync(join(root, '.git'))).toBe(false);
     expect(services.sandboxSessionRegistry.list()).toHaveLength(0);
   });

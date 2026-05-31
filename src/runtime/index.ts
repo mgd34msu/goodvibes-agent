@@ -57,7 +57,6 @@ export * from '@pellux/goodvibes-sdk/platform/runtime/ui';
 export * from '@pellux/goodvibes-sdk/platform/runtime/observability';
 export * from '@pellux/goodvibes-sdk/platform/runtime/settings';
 export * from '@pellux/goodvibes-sdk/platform/runtime/sandbox';
-export * from './sandbox-public-gaps.ts';
 export {
   CONTROL_PLANE_CLIENT_KINDS,
   CONTROL_PLANE_TRANSPORT_KINDS,

@@ -27,7 +27,7 @@ POST /api/goodvibes-agent/knowledge/ingest/url
 
 If those routes are unavailable, Agent commands fail closed with a structured error. They do not retry against `/api/knowledge/*` or arbitrary knowledge-space selectors.
 
-The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledgeSpaceId`, and `--includeAllSpaces` because those would violate the Agent product boundary.
+The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces` because those would violate the Agent product boundary.
 
 Agent Knowledge writes are explicit-user-action paths. Slash commands that ingest, import, review issues, reindex, or run consolidation require `--yes`; ask/search/status/list paths remain read-only.
 

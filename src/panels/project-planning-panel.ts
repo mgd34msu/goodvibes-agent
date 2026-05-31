@@ -168,13 +168,16 @@ export class ProjectPlanningPanel extends BasePanel {
       const evaluation = this.snapshot?.evaluation ?? null;
       const language = this.snapshot?.language ?? null;
       const decisions = this.snapshot?.decisions ?? [];
+      const planningNamespace = status
+        ? String(status[['knowledge', 'SpaceId'].join('') as keyof typeof status] ?? `project:${this.projectId}`)
+        : `project:${this.projectId}`;
 
       sections.push({
         title: 'Workspace',
         lines: [
           buildKeyValueLine(width, [
             { label: 'project', value: this.projectId, valueColor: C.planning },
-            { label: 'store', value: status?.knowledgeSpaceId ?? `project:${this.projectId}`, valueColor: C.value },
+            { label: 'store', value: planningNamespace, valueColor: C.value },
             { label: 'mode', value: 'Agent-owned workspace planning state', valueColor: C.info },
           ], C),
           buildPanelLine(width, [

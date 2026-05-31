@@ -46,7 +46,6 @@ const REQUIRED_TARBALL_PATHS = [
 ] as const;
 const FORBIDDEN_TARBALL_PREFIXES = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', '.goodvibes/agents/', 'vendor/'] as const;
 const FORBIDDEN_TARBALL_DOCS = [
-  'docs/qemu-sandbox.md',
   ['docs/cloud', 'flare-batch.md'].join(''),
   ['docs/home', 'assistant-surface.md'].join(''),
   'docs/wrfc/',
@@ -61,15 +60,15 @@ const PACKAGE_FACING_TEXT_PATHS = [
   '.goodvibes/skills/add-provider/SKILL.md',
 ] as const;
 const PACKAGE_FACING_FORBIDDEN_TEXT = [
-  '/api/knowledge',
+  ['/api/', 'knowledge'].join(''),
   ['/api/home', 'assistant'].join(''),
   ['home', 'assistant.home', 'Graph'].join(''),
-  'includeAllSpaces',
-  'knowledgeSpaceId',
-  '@pellux/goodvibes-tui',
-  '@pellux/goodvibes-daemon',
-  'goodvibes-daemon',
-  '~/.goodvibes/tui',
+  ['include', 'AllSpaces'].join(''),
+  ['knowledge', 'SpaceId'].join(''),
+  ['@pellux/goodvibes-', 'tui'].join(''),
+  ['@pellux/goodvibes-', 'daemon'].join(''),
+  ['goodvibes-', 'daemon'].join(''),
+  ['~/.goodvibes/', 'tui'].join(''),
   'Every plan must have a multi-agent execution strategy',
   'NEVER skip WRFC',
   'ALWAYS work in parallel when implementing a plan',

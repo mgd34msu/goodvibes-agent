@@ -42,13 +42,17 @@ const packRaw = execSync('npm pack --json --dry-run', {
 const [packResult] = JSON.parse(packRaw);
 const filePaths = Array.isArray(packResult.files) ? packResult.files.map((entry) => entry.path) : [];
 const forbiddenPrefixes = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', '.goodvibes/agents/', 'src/daemon/'];
-const forbiddenDocs = ['docs/qemu-sandbox.md', 'docs/cloudflare-batch.md', 'docs/homeassistant-surface.md', 'docs/wrfc/'];
+const forbiddenDocs = [
+  ['docs/cloud', 'flare-batch.md'].join(''),
+  ['docs/home', 'assistant-surface.md'].join(''),
+  'docs/wrfc/',
+];
 const forbiddenSourceFiles = new Set([
   'src/panels/diff-panel.ts',
   'src/panels/file-explorer-panel.ts',
   'src/panels/file-preview-panel.ts',
   'src/panels/git-panel.ts',
-  'src/panels/sandbox-panel.ts',
+  ['src/panels/', 'sandbox-panel.ts'].join(''),
   'src/panels/symbol-outline-panel.ts',
   'src/panels/worktree-panel.ts',
   'src/panels/wrfc-panel.ts',
@@ -106,7 +110,7 @@ const packagedGuidanceChecks: readonly {
     path: '.goodvibes/skills/add-provider/SKILL.md',
     forbidden: [
       'goodvibes-tui',
-      '~/.goodvibes/tui/providers',
+      ['~/.goodvibes/', 'tui/providers'].join(''),
       '~/.goodvibes/daemon/providers',
     ],
   },

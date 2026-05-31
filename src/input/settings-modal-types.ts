@@ -44,7 +44,6 @@ export type SettingsCategory =
   | 'runtime'
   | 'telemetry'
   | 'cache'
-  | 'sandbox'
   | 'mcp'
   | 'flags'
   | 'release'
@@ -61,7 +60,7 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Service & Network', categories: ['service', 'network', 'controlPlane', 'httpListener', 'web'] },
   { label: 'Surfaces & Integrations', categories: ['surfaces', 'mcp'] },
   { label: 'Automation', categories: ['batch', 'automation', 'watchers', 'orchestration', 'wrfc'] },
-  { label: 'Runtime & Data', categories: ['storage', 'sandbox', 'runtime', 'cache', 'telemetry'] },
+  { label: 'Runtime & Data', categories: ['storage', 'runtime', 'cache', 'telemetry'] },
   { label: 'Advanced', categories: ['flags', 'release', 'danger'] },
 ];
 

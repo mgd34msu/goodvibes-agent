@@ -29,7 +29,7 @@ High-signal Agent command families:
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
 
-Copied TUI-era commands that would imply daemon lifecycle ownership, local agent spawning, coding-first execution, sandbox/QEMU ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only until they are intentionally adapted to Agent policy.
+Copied TUI-era commands that would imply daemon lifecycle ownership, local agent spawning, coding-first execution, runtime-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only until they are intentionally adapted to Agent policy.
 
 Local recall capture/add commands are explicit Agent-local memory actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
 
@@ -41,7 +41,7 @@ Local recall capture/add commands are explicit Agent-local memory actions. Delet
 
 `/knowledge ingest-url <url> --yes` ingests into Agent Knowledge through `/api/goodvibes-agent/knowledge/ingest/url`. Knowledge ingestion, imports, issue review, reindex, and consolidation are Agent-owned mutations and require `--yes`.
 
-The Agent command layer rejects flags that would route knowledge work into another space, including `--space`, `--knowledge-space`, `--knowledgeSpaceId`, and `--includeAllSpaces`. If Agent Knowledge is unavailable, the command fails closed instead of querying a default store.
+The Agent command layer rejects flags that would route knowledge work into another space, including `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces`. If Agent Knowledge is unavailable, the command fails closed instead of querying a default store.
 
 ## Planning
 

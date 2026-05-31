@@ -76,7 +76,6 @@ export function renderHelpOverlay(
     ['subscription', '',           'Review provider logins and subscriptions'],
     ['marketplace',  'open',       'Browse plugins, skills, and packs'],
     ['remote',       'setup',      'Review remote, bridge, and tunnel flows'],
-    ['sandbox',      'review',     'Inspect secure execution posture'],
     ['security',     '',           'Security review workspace'],
     ['policy',       '',           'Simulation, lint, and preflight review'],
     ['incident',     '',           'Incident workspace and export flows'],
@@ -116,7 +115,7 @@ export function renderHelpOverlay(
 
   if (commands && commands.length > 0) {
     commandRows.push('', '  Available Slash Commands', '  ' + '\u2500'.repeat(40));
-    const preferred = ['setup', 'cockpit', 'settings', 'provider', 'subscription', 'marketplace', 'remote', 'sandbox', 'security', 'policy', 'incident', 'knowledge', 'hooks', 'orchestration', 'communication', 'tasks'];
+    const preferred = ['setup', 'cockpit', 'settings', 'provider', 'subscription', 'marketplace', 'remote', 'security', 'policy', 'incident', 'knowledge', 'hooks', 'orchestration', 'communication', 'tasks'];
     const seen = new Set<string>();
     for (const name of preferred) {
       const cmd = commands.find((entry) => entry.name === name);

@@ -25,7 +25,6 @@ interface UpdateBundle {
   readonly appVersion: string;
   readonly updateChannel: 'stable' | 'preview';
   readonly subscriptionProviders: readonly string[];
-  readonly sandboxProfile: string;
   readonly notes: readonly string[];
 }
 
@@ -61,7 +60,6 @@ function inspectUpdateBundle(bundle: UpdateBundle): string {
     `  appVersion: ${bundle.appVersion}`,
     `  updateChannel: ${bundle.updateChannel}`,
     `  subscriptionProviders: ${bundle.subscriptionProviders.length}`,
-    `  sandboxProfile: ${bundle.sandboxProfile}`,
     `  notes: ${bundle.notes.length}`,
   ].join('\n');
 }
@@ -226,11 +224,6 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       const serviceRegistry = requireServiceRegistry(ctx);
       const secretsManager = requireSecretsManager(ctx);
       const builtinProviders = listBuiltinSubscriptionProviders().map((entry) => entry.provider);
-      const sandboxProfile = [
-        `${ctx.platform.configManager.get('sandbox.replIsolation')}`,
-        `${ctx.platform.configManager.get('sandbox.mcpIsolation')}`,
-        `${ctx.platform.configManager.get('sandbox.vmBackend')}`,
-      ].join('/');
       const activeSubscriptions = subscriptions.list().map((entry) => entry.provider);
       if (sub === 'review') {
         const channel = ctx.platform.configManager.get('release.channel');
@@ -240,7 +233,6 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           `  channel: ${channel}`,
           `  built-in subscription providers: ${builtinProviders.length}${builtinProviders.length > 0 ? ` (${builtinProviders.join(', ')})` : ''}`,
           `  active subscriptions: ${activeSubscriptions.length}${activeSubscriptions.length > 0 ? ` (${activeSubscriptions.join(', ')})` : ''}`,
-          `  sandbox profile: ${sandboxProfile}`,
           '  use /update channel <stable|preview> --yes to change release posture',
         ].join('\n'));
         return;
@@ -278,9 +270,8 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
             appVersion: VERSION,
             updateChannel: ctx.platform.configManager.get('release.channel') as 'stable' | 'preview',
             subscriptionProviders: [...new Set([...builtinProviders, ...activeSubscriptions])],
-            sandboxProfile,
             notes: [
-              'Preview channel is recommended only when operator review and sandbox isolation are enabled.',
+              'Preview channel is recommended only when operator review is enabled.',
               'OAuth-backed provider subscriptions survive channel changes and continue to apply to supported provider surfaces.',
             ],
           };

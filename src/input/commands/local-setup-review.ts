@@ -2,7 +2,6 @@ import { dirname, join, resolve } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import type { CommandContext } from '../command-registry.ts';
 import { discoverSkills } from '../../panels/skills-panel.ts';
-import { buildSandboxReview, isRunningInWsl } from '@/runtime/index.ts';
 import { getPluginDirectories } from '../../plugins/loader';
 import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import type { SetupReviewSnapshot } from './local-setup-transfer.ts';
@@ -37,10 +36,6 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
   const subscriptionManager = requireSubscriptionManager(ctx);
   const activeSubscriptionCount = subscriptionManager.list().length;
   const pendingSubscriptionCount = subscriptionManager.listPending().length;
-  const sandboxReplIsolation = String(ctx.platform.configManager.get('sandbox.replIsolation'));
-  const sandboxMcpIsolation = String(ctx.platform.configManager.get('sandbox.mcpIsolation'));
-  const sandboxReview = buildSandboxReview(ctx.platform.configManager);
-  const sandboxSecureModeReady = sandboxReview.host.secureSandboxReady;
   const quarantinedPluginCount = plugins.filter((plugin) => plugin.quarantined).length;
   const quarantinedMcpCount = mcpServers.filter((server) => server.schemaFreshness === 'quarantined').length;
   const elevatedMcpCount = mcpServers.filter((server) => server.trustMode === 'allow-all').length;
@@ -96,15 +91,6 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
       area: 'remote',
       message: remoteRunnerCount > 0 ? `${remoteRunnerCount} remote runner contract(s)` : 'no remote runner contracts registered',
     },
-    {
-      severity: sandboxSecureModeReady || `${ctx.platform.configManager.get('sandbox.vmBackend')}` === 'local' ? 'pass' : 'warn',
-      area: 'sandbox',
-      message: `${ctx.platform.configManager.get('sandbox.vmBackend')}` === 'local'
-        ? 'local mode (virtualization disabled by default)'
-        : sandboxSecureModeReady
-          ? `QEMU enabled: REPL=${sandboxReplIsolation}, MCP=${sandboxMcpIsolation}`
-          : 'QEMU sandboxing requires running GoodVibes inside WSL on Windows',
-    },
   ];
 
   return {
@@ -126,47 +112,9 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
     quarantinedMcpCount,
     elevatedMcpCount,
     remoteRunnerCount,
-    sandboxReplIsolation,
-    sandboxMcpIsolation,
-    sandboxSecureModeReady,
     issues,
     services,
   };
-}
-
-export function renderSetupSandboxReview(ctx: CommandContext, snapshot: SetupReviewSnapshot): string {
-  const backend = `${ctx.platform.configManager.get('sandbox.vmBackend')}`;
-  const image = String(ctx.platform.configManager.get('sandbox.qemuImagePath') ?? '').trim();
-  const wrapper = String(ctx.platform.configManager.get('sandbox.qemuExecWrapper') ?? '').trim();
-  const host = String(ctx.platform.configManager.get('sandbox.qemuGuestHost') ?? '').trim();
-  const workspace = String(ctx.platform.configManager.get('sandbox.qemuWorkspacePath') ?? '').trim();
-  const lines = [
-    'Setup Sandbox Review',
-    `  backend: ${backend}`,
-    `  repl isolation: ${snapshot.sandboxReplIsolation}`,
-    `  mcp isolation: ${snapshot.sandboxMcpIsolation}`,
-    `  secure mode ready: ${snapshot.sandboxSecureModeReady ? 'yes' : 'no'}`,
-    `  qemu image: ${image || '(not configured)'}`,
-    `  qemu wrapper: ${wrapper || '(not configured)'}`,
-    `  guest host: ${host || '(not configured)'}`,
-    `  guest workspace: ${workspace || '(not configured)'}`,
-    '',
-    '  next:',
-  ];
-  if (backend === 'local') {
-    lines.push('    sandbox/QEMU setup is externalized to GoodVibes TUI');
-    lines.push('    use GoodVibes TUI for coding/runtime isolation work');
-  } else if (!image || !wrapper) {
-    lines.push('    sandbox/QEMU setup is externalized to GoodVibes TUI');
-    lines.push('    use GoodVibes TUI for coding/runtime isolation work');
-  } else {
-    lines.push('    sandbox sessions are blocked in Agent');
-    lines.push('    delegate build/fix/review work to GoodVibes TUI');
-  }
-  if (process.platform === 'win32' && !isRunningInWsl()) {
-    lines.push('    Run GoodVibes inside WSL before enabling QEMU sandboxing.');
-  }
-  return lines.join('\n');
 }
 
 export function exportSetupSupportBundle(
@@ -186,14 +134,5 @@ export function exportSetupSupportBundle(
   if (existsSync(hooksPath)) {
     writeFileSync(join(targetDir, 'hooks.managed.json'), readFileSync(hooksPath, 'utf-8'), 'utf-8');
   }
-  writeFileSync(
-    join(targetDir, 'sandbox-externalized.txt'),
-    [
-      'GoodVibes Agent does not ship or manage QEMU sandbox wrappers.',
-      'Delegate build, fix, review, and runtime-isolation work to GoodVibes TUI.',
-      '',
-    ].join('\n'),
-    'utf-8',
-  );
   return targetDir;
 }

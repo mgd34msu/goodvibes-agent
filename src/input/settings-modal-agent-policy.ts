@@ -3,6 +3,7 @@ export const AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON = 'GoodVibes Agent connec
 const AGENT_HIDDEN_SETTING_PREFIXES = [
   ['cloud', 'flare.'].join(''),
   ['surfaces.', 'home', 'assistant.'].join(''),
+  'sandbox.',
 ] as const;
 
 const EXTERNAL_DAEMON_SETTING_PREFIXES = [

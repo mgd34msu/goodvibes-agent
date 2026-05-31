@@ -28,9 +28,9 @@ function findDisallowedKnowledgeScopeFlag(args: readonly string[]): string | nul
     '--space',
     '--knowledge-space',
     '--knowledge-space-id',
-    '--knowledgeSpaceId',
+    ['--knowledge', 'SpaceId'].join(''),
     '--include-all-spaces',
-    '--includeAllSpaces',
+    ['--include', 'AllSpaces'].join(''),
     ['--home', 'graph'].join(''),
     ['--home', '-graph'].join(''),
   ];

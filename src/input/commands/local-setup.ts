@@ -25,7 +25,7 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
     name: 'setup',
     aliases: ['startup'],
     description: 'Launch the onboarding wizard and review Agent startup readiness',
-    usage: '[review|doctor|services|hooks|remote|sandbox|onboarding|support-bundle <dir> --yes|export <path> --yes|transfer <export|inspect|import> <path> [--yes]|link <surface> [target]|open-link <uri>]',
+    usage: '[review|doctor|services|hooks|remote|onboarding|support-bundle <dir> --yes|export <path> --yes|transfer <export|inspect|import> <path> [--yes]|link <surface> [target]|open-link <uri>]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
@@ -58,7 +58,6 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
           `  mcp quarantined: ${snapshot.quarantinedMcpCount}`,
           `  mcp elevated: ${snapshot.elevatedMcpCount}`,
           `  remote runners: ${snapshot.remoteRunnerCount}`,
-          '  sandbox/QEMU: externalized to GoodVibes TUI for delegated build/runtime isolation',
           '',
           `  service ids: ${snapshot.services.join(', ') || '(none)'}`,
           `  plugin dirs: ${snapshot.pluginDirectories.join(', ') || '(none)'}`,
@@ -71,7 +70,6 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
         ctx.print([
           'Startup Doctor',
           ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`),
-          '  [INFO] sandbox: GoodVibes Agent does not own sandbox/QEMU setup; delegate build/runtime isolation to GoodVibes TUI.',
           ...(snapshot.serviceIssues.length > 0
             ? ['', '  Service issues:', ...snapshot.serviceIssues.map((issue) => `    - ${issue}`)]
             : []),
@@ -115,17 +113,6 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
           'Startup Remote',
           `  runner contracts: ${snapshot.remoteRunnerCount}`,
           ...runners.map((runner) => `  ${runner.id}  [${runner.trustClass}]  ${runner.label}`),
-        ].join('\n'));
-        return;
-      }
-
-      if (sub === 'sandbox') {
-        ctx.print([
-          'Setup Sandbox',
-          '  status: externalized',
-          '  owner: GoodVibes TUI',
-          '  reason: sandbox/QEMU setup and runtime isolation are coding/build execution surfaces.',
-          '  result: no local Agent sandbox settings, files, or sessions were changed.',
         ].join('\n'));
         return;
       }
@@ -295,7 +282,7 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
         return;
       }
 
-      ctx.print('Usage: /setup [review|doctor|services|hooks|remote|sandbox|onboarding|support-bundle <dir> --yes|export <path> --yes|transfer <export|inspect|import> <path> [--yes]|link <surface> [target]|open-link <uri>]');
+      ctx.print('Usage: /setup [review|doctor|services|hooks|remote|onboarding|support-bundle <dir> --yes|export <path> --yes|transfer <export|inspect|import> <path> [--yes]|link <surface> [target]|open-link <uri>]');
     },
   });
 }

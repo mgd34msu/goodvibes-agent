@@ -267,7 +267,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
           ctx.print(`  Remote re-entry: /remote recover ${meta.returnContext.remoteRunners![0]}`);
         }
         if ((meta.returnContext.worktreePaths?.length ?? 0) > 0) {
-          ctx.print('  Worktree re-entry: open GoodVibes TUI in the target workspace; Agent /worktree is externalized.');
+          ctx.print('  Worktree re-entry: open GoodVibes TUI in the target workspace; delegate explicit build/fix/review recovery from Agent.');
         }
         if (returnContextMode === 'assisted') {
           const helperModel = providerApi.createHelperModel(ctx.platform.configManager);

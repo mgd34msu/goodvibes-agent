@@ -265,10 +265,10 @@ describe('operator surfaces gate', () => {
     expect(registry.get('communication')).toBeDefined();
     expect(registry.get('security')).toBeDefined();
     expect(registry.get('marketplace')).toBeDefined();
-    expect(registry.get('sandbox')).toBeDefined();
-    expect(registry.get('git')).toBeDefined();
-    expect(registry.get('diff')).toBeDefined();
-    expect(registry.get('worktree')).toBeDefined();
+    expect(registry.get('sandbox')).toBeUndefined();
+    expect(registry.get('git')).toBeUndefined();
+    expect(registry.get('diff')).toBeUndefined();
+    expect(registry.get('worktree')).toBeUndefined();
     expect(registry.get('approval')).toBeDefined();
     expect(registry.get('subscription')).toBeDefined();
     expect(registry.get('storage')).toBeDefined();

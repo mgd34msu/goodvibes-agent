@@ -15,7 +15,6 @@ const ORCHESTRATION_COMMANDS = new Set([
   'tasks',
   'bridge',
   'teleport',
-  'sandbox',
 ]);
 
 export function routeSubmissionIntent(input: SubmissionRouterInput): SubmissionIntent {
