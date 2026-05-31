@@ -23,6 +23,7 @@ import {
 } from './index.ts';
 import { buildCliServicePosture } from './service-posture.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { resolveAgentRuntimeProfileHome } from '../agent/runtime-profile.ts';
 
 type ShellEntrypointOwnership = {
   readonly workingDirectory: string;
@@ -41,10 +42,17 @@ export type PreparedShellCliRuntime = {
   readonly bootstrapHomeDirectory: string;
 };
 
-function resolveShellEntrypointOwnership(roots: ShellEntrypointRoots, workingDirOverride?: string): ShellEntrypointOwnership {
+function resolveShellEntrypointOwnership(
+  roots: ShellEntrypointRoots,
+  workingDirOverride?: string,
+  agentProfile?: string,
+): ShellEntrypointOwnership {
+  const homeDirectory = agentProfile
+    ? resolveAgentRuntimeProfileHome(roots.homeDirectory, agentProfile).homeDirectory
+    : roots.homeDirectory;
   return {
     workingDirectory: workingDirOverride ?? roots.defaultWorkingDirectory,
-    homeDirectory: roots.homeDirectory,
+    homeDirectory,
   };
 }
 
@@ -86,10 +94,21 @@ export async function prepareShellCliRuntime(
     process.exit(2);
   }
 
+  let ownership: ShellEntrypointOwnership;
+  try {
+    ownership = resolveShellEntrypointOwnership(
+      roots,
+      cli.flags.workingDir ?? (cli.command === 'tui' ? cli.commandArgs[0] : undefined),
+      cli.command === 'profiles' ? undefined : cli.flags.agentProfile,
+    );
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(2);
+  }
   const {
     workingDirectory: bootstrapWorkingDir,
     homeDirectory: bootstrapHomeDirectory,
-  } = resolveShellEntrypointOwnership(roots, cli.flags.workingDir ?? (cli.command === 'tui' ? cli.commandArgs[0] : undefined));
+  } = ownership;
   configureActivityLogger(join(bootstrapWorkingDir, '.goodvibes', 'logs'));
   const configManager = new ConfigManager({
     workingDir: bootstrapWorkingDir,

@@ -25,6 +25,8 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   model: 'models',
   providers: 'providers',
   provider: 'providers',
+  profiles: 'profiles',
+  profile: 'profiles',
   auth: 'auth',
   compat: 'compat',
   compatibility: 'compat',
@@ -73,6 +75,7 @@ function createDefaultFlags(): GoodVibesCliFlags {
   return {
     provider: undefined,
     model: undefined,
+    agentProfile: undefined,
     daemonHome: undefined,
     workingDir: undefined,
     help: false,
@@ -277,6 +280,12 @@ export function parseGoodVibesCli(
         flags = withFlag(flags, 'model', consumed.value);
         flags = withFlag(flags, 'provider', inferProviderFromModel(consumed.value, flags.provider));
       }
+      continue;
+    }
+    if (name === '--agent-profile') {
+      const consumed = getValue(argv, index, inlineValue, name, errors);
+      index = consumed.nextIndex;
+      if (consumed.value !== undefined) flags = withFlag(flags, 'agentProfile', consumed.value);
       continue;
     }
     if (name === '--daemon-home') {

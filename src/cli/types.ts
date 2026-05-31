@@ -9,6 +9,7 @@ export type GoodVibesCliCommand =
   | 'onboarding'
   | 'models'
   | 'providers'
+  | 'profiles'
   | 'auth'
   | 'compat'
   | 'capabilities'
@@ -42,6 +43,7 @@ export interface CliCommandOutput {
 export interface GoodVibesCliFlags {
   readonly provider: string | undefined;
   readonly model: string | undefined;
+  readonly agentProfile: string | undefined;
   readonly daemonHome: string | undefined;
   readonly workingDir: string | undefined;
   readonly help: boolean;

@@ -1,6 +1,6 @@
 # Getting Started
 
-GoodVibes Agent `0.1.9` is the current installable public alpha of the personal operator assistant built on the GoodVibes TUI foundation.
+GoodVibes Agent is the installable public alpha of the personal operator assistant built on the GoodVibes TUI foundation.
 
 ## Requirements
 
@@ -36,6 +36,24 @@ bun run dev
 `bun run dev` starts the Agent TUI. The same entrypoint backs the installed `goodvibes-agent` command.
 
 Once the TUI opens, run `/agent`, `/home`, or `/operator` to open the Agent operator workspace. That fullscreen workspace is the current front door for setup/config, knowledge status, local memory and skills, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
+
+## Isolated Agent Profiles
+
+Use a separate Agent home when you want isolated local state:
+
+```sh
+GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
+```
+
+Use named runtime profiles for repeatable local identities:
+
+```sh
+goodvibes-agent profiles create household --yes
+goodvibes-agent --agent-profile household status
+goodvibes-agent --agent-profile household
+```
+
+Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. They do not start or isolate the external daemon by themselves.
 
 ## Local Personas, Routines, And Skills
 

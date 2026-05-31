@@ -47,6 +47,11 @@ describe('parseCliFlags', () => {
     expect(flags.workingDir).toBe('/custom/workspace');
   });
 
+  test('parses --agent-profile=<name>', () => {
+    const flags = parseCliFlags(['--agent-profile=household']);
+    expect(flags.agentProfile).toBe('household');
+  });
+
   test('parses both --daemon-home and --working-dir together', () => {
     const flags = parseCliFlags([
       '--daemon-home=/home/daemon',

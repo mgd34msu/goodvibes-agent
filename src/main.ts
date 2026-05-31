@@ -70,7 +70,7 @@ async function main() {
   const stdin = process.stdin;
   const { cli, configManager, bootstrapWorkingDir, bootstrapHomeDirectory } = await prepareShellCliRuntime(process.argv.slice(2), {
     defaultWorkingDirectory: process.env['GOODVIBES_WORKING_DIR'] ?? process.cwd(),
-    homeDirectory: homedir(),
+    homeDirectory: process.env['GOODVIBES_AGENT_HOME'] ?? homedir(),
   }, 'goodvibes-agent');
 
   const ctx: BootstrapContext = await bootstrapRuntime(stdout, {
@@ -267,7 +267,7 @@ async function main() {
 
   const submitInput = (text: string, content?: ContentPart[], options: { readonly spokenOutput?: boolean } = {}) => {
     input.clearModalStack();
-    scrollLocked = true; // Re-lock on any user input
+    scrollLocked = true; // Re-lock on user input
     const AT_MODEL_RE = /@model:([^\s]+)/g;
     let processedText = text;
     let atModelMatch: RegExpExecArray | null;

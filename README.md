@@ -46,6 +46,16 @@ Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator
 
 Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps.
 
+Use isolated Agent runtime profiles when one machine needs separate operator identities or local state:
+
+```sh
+goodvibes-agent profiles create household --yes
+goodvibes-agent --agent-profile household status
+GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
+```
+
+Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. The daemon is still external and shared unless your daemon host is separately configured otherwise.
+
 Local Agent behavior is editable from the TUI:
 
 ```text

@@ -50,7 +50,7 @@ Primary sources used for the benchmark:
 | Tools/MCP | Broad toolsets, MCP, browser, media, terminal, files | GoodVibes SDK tools with Agent policy guards and MCP/provider integrations |
 | Voice/media/canvas/nodes | Voice, TTS, mobile nodes, live canvas, browser automation | GoodVibes media/voice/browser primitives copied in; Agent-first setup still being wired |
 | Build/code work | Direct terminal/file/code tools and subagents | Explicit delegation to GoodVibes TUI; local WRFC/spawn fanout blocked |
-| Profiles | Independent profiles with own config/memory/skills/gateway | Agent surface root, homes, bundles, sessions; named profiles are next |
+| Profiles | Independent profiles with own config/memory/skills/gateway | `GOODVIBES_AGENT_HOME` and named `--agent-profile` homes isolate Agent-local state; daemon remains external |
 | Security | DM pairing, approvals, sandboxing, allowlists | Daemon approvals, auth diagnostics, secret refs, confirmation gates, model-tool policy |
 
 ## Exceed Targets
@@ -68,7 +68,7 @@ GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true fr
 
 - Agent-first channel onboarding workspace for pairing, account visibility, delivery defaults, and channel safety.
 - Richer Agent Knowledge ingest/review workspace for URLs, bookmarks, artifacts, issue queues, and consolidation.
-- Named Agent profiles with isolated local registries and command aliases.
+- Profile-aware onboarding summaries and profile export/import shortcuts from the Agent workspace.
 - Voice/media/browser/node setup workspaces.
 - Delegation receipts and artifact review inside the operator workspace.
 - Approval center with route risk labels and saved policy presets.
