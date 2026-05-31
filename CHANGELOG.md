@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.47 - 2026-05-31
+
+- 2bb2b8a Map daemon methods to Agent UX coverage
+
 ## 0.1.46 - 2026-05-31
 
 - e0addfe Add full daemon capability inventory
