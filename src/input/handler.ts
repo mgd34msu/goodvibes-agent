@@ -238,6 +238,7 @@ export class InputHandler {
       agentManager: uiServices.agents.agentManager,
       processManager: uiServices.shell.processManager,
       wrfcController: uiServices.agents.wrfcController,
+      agentEntries: 'hidden',
     });
     this.liveTailModal = new LiveTailModal({
       agentManager: uiServices.agents.agentManager,

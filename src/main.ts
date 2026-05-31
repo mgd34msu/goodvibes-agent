@@ -53,7 +53,6 @@ import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './au
 import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/terminal-output-guard.ts';
 import { ProjectPlanningCoordinator } from './planning/project-planning-coordinator.ts';
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
-import { summarizeRunningAgents } from './renderer/process-summary.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 
 const ALT_SCREEN_ENTER = '\x1b[?1049h';
@@ -478,15 +477,9 @@ async function main() {
     // Cache the current model for consistent values across the entire render frame
     const currentModel = providerRegistry.getCurrentModel();
     const sessionSnapshot = uiServices.readModels.session.getSnapshot();
-    const agentSnapshot = uiServices.readModels.agents.getSnapshot();
 
     const headerLines = UIFactory.createHeader(width, currentModel.id, currentModel.provider, conversation.title || undefined, lastGitInfoRef.value);
-    const managerAgents = agentManager.list().filter(
-      (a) => a.status === 'running' || a.status === 'pending',
-    );
-    const runtimeAgents = agentSnapshot.active;
-    const runningAgentSummary = summarizeRunningAgents(managerAgents, runtimeAgents, ctx.services.wrfcController.listChains());
-    const runningAgentCount = runningAgentSummary.count;
+    const runningAgentCount = 0;
     const runningProcessCount = processManager.list().filter((p) => !p.status.startsWith('done')).length;
     const cw = getPromptContentWidth();
     const promptInfo = input.getWrappedPromptInfo(cw);
@@ -533,7 +526,7 @@ async function main() {
       runningAgentCount,
       runningProcessCount,
       indicatorFocused: input.indicatorFocused,
-      runningAgentProgress: runningAgentSummary.progress,
+      runningAgentProgress: undefined,
       composerMode: composerState.modeLabel,
       composerStatus: composerState.statusLabel,
       composerFlags: composerState.flags,

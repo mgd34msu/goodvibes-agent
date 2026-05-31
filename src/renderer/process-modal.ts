@@ -45,6 +45,12 @@ export interface ProcessModalDeps {
   readonly agentManager: Pick<AgentManager, 'list' | 'getStatus'>;
   readonly processManager: Pick<ProcessManager, 'list' | 'getStatus' | 'stop'>;
   readonly wrfcController: Pick<WrfcController, 'getChain'> & Partial<Pick<WrfcController, 'listChains'>>;
+  /**
+   * GoodVibes Agent must not present local AgentManager records as an owned
+   * execution lane. Tests for copied TUI primitives can opt into read-only
+   * display, but product runtime should keep this hidden.
+   */
+  readonly agentEntries: 'hidden' | 'read-only';
 }
 
 type WrfcChainLike = {
@@ -504,14 +510,17 @@ export class ProcessModal {
     const now = Date.now();
     const result: ProcessEntry[] = [];
 
-    // Agents — only show active (pending/running), grouped by stable parent/child hierarchy.
-    result.push(...buildAgentEntries(
-      manager.list(),
-      this.deps,
-      now,
-      (key) => this.groupOrder.get(key),
-      (key) => this.ensureGroupOrder(key),
-    ));
+    // Local AgentManager activity is hidden in the Agent product. Build/fix/review
+    // execution belongs to explicit GoodVibes TUI delegation, not a local lane.
+    if (this.deps.agentEntries === 'read-only') {
+      result.push(...buildAgentEntries(
+        manager.list(),
+        this.deps,
+        now,
+        (key) => this.groupOrder.get(key),
+        (key) => this.ensureGroupOrder(key),
+      ));
+    }
 
     // Background exec processes — only show running
     const pm = this.deps.processManager;

@@ -85,6 +85,7 @@ function createProcessModal(): ProcessModal {
       getChain: (id: string) => wrfcChains.get(id) as never ?? null,
       listChains: () => Array.from(wrfcChains.values()) as never,
     },
+    agentEntries: 'read-only',
   });
 }
 
@@ -118,6 +119,28 @@ describe('ProcessModal state', () => {
     expect(modal.entries.length).toBe(1);
     expect(modal.entries[0].type).toBe('agent');
     expect(modal.entries[0].label).toContain('Build the feature');
+  });
+
+  test('refresh() hides AgentManager entries when product policy disables local agent activity', () => {
+    seedAgent('Hidden local agent task');
+    const modal = new ProcessModal({
+      agentManager: {
+        list: () => Array.from(agents.values()),
+        getStatus: (id: string) => agents.get(id) ?? null,
+      },
+      processManager: {
+        list: () => Array.from(processes.values()),
+        getStatus: (id: string) => processes.get(id),
+        stop: () => false,
+      },
+      wrfcController: {
+        getChain: (id: string) => wrfcChains.get(id) as never ?? null,
+        listChains: () => Array.from(wrfcChains.values()) as never,
+      },
+      agentEntries: 'hidden',
+    });
+    modal.refresh();
+    expect(modal.entries).toEqual([]);
   });
 
   test('refresh() skips completed agents', () => {

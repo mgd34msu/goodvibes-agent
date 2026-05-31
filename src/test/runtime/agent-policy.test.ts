@@ -103,6 +103,14 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(offenders).toEqual([]);
   });
 
+  test('main Agent footer does not count local AgentManager records as product activity', () => {
+    const srcRoot = join(import.meta.dir, '../..');
+    const mainSource = readFileSync(join(srcRoot, 'main.ts'), 'utf8');
+    expect(mainSource).not.toContain('summarizeRunningAgents(');
+    expect(mainSource).not.toContain('readModels.agents.getSnapshot()');
+    expect(mainSource).toContain('runningAgentCount = 0');
+  });
+
   test('shared-session task continuation fails closed instead of spawning a local agent', async () => {
     const services = makeRuntimeServices();
     await services.sessionBroker.start();
