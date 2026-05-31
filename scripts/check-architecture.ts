@@ -161,6 +161,18 @@ const rules: readonly Rule[] = [
     message: 'future server surfaces must not depend on TUI shell modules',
   },
   {
+    name: 'no-goodvibes-tui-runtime-imports',
+    files: nonTestFiles,
+    pattern: /from ['"][^'"]*goodvibes-tui\/src|import\([^)]*goodvibes-tui\/src/,
+    message: 'Agent may copy/adapt TUI source, but runtime imports from goodvibes-tui/src are forbidden',
+  },
+  {
+    name: 'no-default-browser-knowledge-client',
+    files: nonTestFiles,
+    pattern: /@pellux\/goodvibes-sdk\/browser\/knowledge|createBrowserKnowledgeSdk/,
+    message: 'Agent client code must use the isolated browser/agent Knowledge seam, not the default browser/knowledge seam',
+  },
+  {
     name: 'no-raw-generic-object-contract-schemas',
     files: expandTargets([
       'src/control-plane/operator-contract-schemas-admin.ts',
@@ -246,6 +258,26 @@ const requiredSnippets: Array<{ file: string; snippets: readonly string[]; messa
       '@pellux/goodvibes-sdk/platform/control-plane',
     ],
     message: 'foundation artifacts must be generated from SDK control-plane surfaces',
+  },
+  {
+    file: 'src/runtime/services.ts',
+    snippets: ['knowledgeService: agentKnowledgeService,'],
+    message: 'runtime knowledgeService compatibility alias must point at isolated Agent Knowledge',
+  },
+  {
+    file: 'src/runtime/bootstrap-shell.ts',
+    snippets: ['createKnowledgeApi(services.agentKnowledgeService'],
+    message: 'slash-command Knowledge API must be backed by isolated Agent Knowledge',
+  },
+  {
+    file: 'src/cli/agent-knowledge-command.ts',
+    snippets: ['@pellux/goodvibes-sdk/browser/agent'],
+    message: 'CLI Knowledge commands must use the isolated browser/agent SDK seam',
+  },
+  {
+    file: 'src/cli/agent-knowledge-command.ts',
+    snippets: ['/api/goodvibes-agent/knowledge/status'],
+    message: 'CLI Knowledge commands must target Agent-specific daemon routes',
   },
 ];
 
