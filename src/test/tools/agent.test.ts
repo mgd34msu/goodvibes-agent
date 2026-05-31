@@ -11,6 +11,7 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import {
   AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
   AGENT_CHANNEL_ACTION_DENIAL_MESSAGE,
+  AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE,
   AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
   AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE,
   AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE,
@@ -19,13 +20,18 @@ import {
   AGENT_READ_ONLY_CHANNEL_TOOL_MODES,
   AGENT_READ_ONLY_FETCH_METHODS,
   AGENT_READ_ONLY_MCP_TOOL_MODES,
+  AGENT_READ_ONLY_PACKET_TOOL_MODES,
+  AGENT_READ_ONLY_QUERY_TOOL_MODES,
   AGENT_READ_ONLY_REMOTE_TOOL_MODES,
   AGENT_READ_ONLY_STATE_ANALYTICS_ACTIONS,
   AGENT_READ_ONLY_STATE_HOOK_ACTIONS,
   AGENT_READ_ONLY_STATE_MEMORY_ACTIONS,
   AGENT_READ_ONLY_STATE_MODE_ACTIONS,
   AGENT_READ_ONLY_STATE_TOOL_MODES,
+  AGENT_READ_ONLY_TASK_TOOL_MODES,
+  AGENT_READ_ONLY_TEAM_TOOL_MODES,
   AGENT_READ_ONLY_TOOL_MODES,
+  AGENT_READ_ONLY_WORKLIST_TOOL_MODES,
   AGENT_REMOTE_MUTATION_DENIAL_MESSAGE,
   AGENT_STATE_MUTATION_DENIAL_MESSAGE,
   installAgentToolPolicyGuard,
@@ -181,6 +187,31 @@ function makeStateModeTool(): Tool {
       sideEffects: ['state'],
     },
     execute: async (args) => ({ success: true, output: JSON.stringify(args) }),
+  };
+}
+
+function makeDurableModeTool(name: string, modes: readonly string[], extraProperties: readonly string[]): Tool {
+  const properties: Record<string, unknown> = {
+    mode: { type: 'string', enum: [...modes] },
+    view: { type: 'string' },
+    taskId: { type: 'string' },
+    teamId: { type: 'string' },
+    worklistId: { type: 'string' },
+    packetId: { type: 'string' },
+    queryId: { type: 'string' },
+  };
+  for (const key of extraProperties) properties[key] = { type: 'string' };
+  return {
+    definition: {
+      name,
+      description: `${name} durable workflow test tool`,
+      parameters: {
+        type: 'object',
+        properties,
+      },
+      sideEffects: ['workflow', 'state'],
+    },
+    execute: async () => ({ success: true, output: `${name} executed` }),
   };
 }
 
@@ -823,6 +854,105 @@ describe('spawn mode', () => {
       const result = await registry.execute(`call-state-blocked-${index}`, 'state', input);
       expect(result.success).toBe(false);
       expect(result.error).toBe(AGENT_STATE_MUTATION_DENIAL_MESSAGE);
+    }
+  });
+
+  test('Agent runtime guard narrows copied durable workflow tools to read-only inspection', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeDurableModeTool('task', ['create', 'list', 'show', 'status', 'depend', 'cancel', 'handoff', 'handoffs'], [
+      'title',
+      'label',
+      'status',
+      'dependsOnSessionId',
+      'dependsOnTaskId',
+      'reason',
+      'toSessionId',
+    ]));
+    registry.register(makeDurableModeTool('team', ['create', 'list', 'show', 'add-member', 'remove-member', 'set-lanes', 'delete'], [
+      'name',
+      'summary',
+      'memberId',
+      'role',
+      'lanes',
+    ]));
+    registry.register(makeDurableModeTool('worklist', ['create', 'list', 'show', 'add-item', 'complete-item', 'reopen-item', 'remove-item'], [
+      'title',
+      'itemId',
+      'text',
+      'owner',
+      'priority',
+    ]));
+    registry.register(makeDurableModeTool('packet', ['create', 'list', 'show', 'revise', 'publish'], [
+      'title',
+      'summary',
+      'goals',
+      'constraints',
+      'risks',
+      'audience',
+    ]));
+    registry.register(makeDurableModeTool('query', ['ask', 'list', 'show', 'answer', 'close'], [
+      'prompt',
+      'askedBy',
+      'target',
+      'answer',
+      'resolution',
+    ]));
+
+    installAgentToolPolicyGuard(registry);
+
+    const expectations = [
+      {
+        name: 'task',
+        allowedModes: AGENT_READ_ONLY_TASK_TOOL_MODES,
+        blockedModes: ['create', 'status', 'depend', 'cancel', 'handoff'] as const,
+        removed: ['title', 'label', 'status', 'dependsOnSessionId', 'dependsOnTaskId', 'reason', 'toSessionId'] as const,
+      },
+      {
+        name: 'team',
+        allowedModes: AGENT_READ_ONLY_TEAM_TOOL_MODES,
+        blockedModes: ['create', 'add-member', 'remove-member', 'set-lanes', 'delete'] as const,
+        removed: ['name', 'summary', 'memberId', 'role', 'lanes'] as const,
+      },
+      {
+        name: 'worklist',
+        allowedModes: AGENT_READ_ONLY_WORKLIST_TOOL_MODES,
+        blockedModes: ['create', 'add-item', 'complete-item', 'reopen-item', 'remove-item'] as const,
+        removed: ['title', 'itemId', 'text', 'owner', 'priority'] as const,
+      },
+      {
+        name: 'packet',
+        allowedModes: AGENT_READ_ONLY_PACKET_TOOL_MODES,
+        blockedModes: ['create', 'revise', 'publish'] as const,
+        removed: ['title', 'summary', 'goals', 'constraints', 'risks', 'audience'] as const,
+      },
+      {
+        name: 'query',
+        allowedModes: AGENT_READ_ONLY_QUERY_TOOL_MODES,
+        blockedModes: ['ask', 'answer', 'close'] as const,
+        removed: ['prompt', 'askedBy', 'target', 'answer', 'resolution'] as const,
+      },
+    ] as const;
+
+    for (const expectation of expectations) {
+      const definition = registry.getToolDefinitions().find((tool) => tool.name === expectation.name);
+      expect(definition?.description).toContain('GoodVibes Agent');
+      const properties = definition?.parameters.properties as Record<string, unknown>;
+      const modeProperty = getRecordProperty(properties, 'mode');
+      expect(modeProperty?.enum).toEqual([...expectation.allowedModes]);
+      for (const key of expectation.removed) expect(properties[key]).toBeUndefined();
+
+      for (const mode of expectation.allowedModes) {
+        const result = await registry.execute(`call-${expectation.name}-${mode}`, expectation.name, { mode });
+        expect(result.success).toBe(true);
+      }
+
+      for (const mode of expectation.blockedModes) {
+        const result = await registry.execute(`call-${expectation.name}-blocked-${mode}`, expectation.name, { mode });
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE);
+      }
     }
   });
 

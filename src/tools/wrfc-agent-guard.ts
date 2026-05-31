@@ -85,6 +85,11 @@ const READ_ONLY_STATE_MEMORY_ACTIONS = ['list', 'get'] as const;
 const READ_ONLY_STATE_HOOK_ACTIONS = ['list'] as const;
 const READ_ONLY_STATE_MODE_ACTIONS = ['get', 'list'] as const;
 const READ_ONLY_STATE_ANALYTICS_ACTIONS = ['summary', 'query', 'dashboard'] as const;
+const READ_ONLY_TASK_TOOL_MODES = ['list', 'show', 'handoffs'] as const;
+const READ_ONLY_TEAM_TOOL_MODES = ['list', 'show'] as const;
+const READ_ONLY_WORKLIST_TOOL_MODES = ['list', 'show'] as const;
+const READ_ONLY_PACKET_TOOL_MODES = ['list', 'show'] as const;
+const READ_ONLY_QUERY_TOOL_MODES = ['list', 'show'] as const;
 const READ_ONLY_REMOTE_TOOL_MODE_SET = new Set<string>(READ_ONLY_REMOTE_TOOL_MODES);
 const READ_ONLY_CHANNEL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CHANNEL_TOOL_MODES);
 const READ_ONLY_MCP_TOOL_MODE_SET = new Set<string>(READ_ONLY_MCP_TOOL_MODES);
@@ -94,6 +99,11 @@ const READ_ONLY_STATE_MEMORY_ACTION_SET = new Set<string>(READ_ONLY_STATE_MEMORY
 const READ_ONLY_STATE_HOOK_ACTION_SET = new Set<string>(READ_ONLY_STATE_HOOK_ACTIONS);
 const READ_ONLY_STATE_MODE_ACTION_SET = new Set<string>(READ_ONLY_STATE_MODE_ACTIONS);
 const READ_ONLY_STATE_ANALYTICS_ACTION_SET = new Set<string>(READ_ONLY_STATE_ANALYTICS_ACTIONS);
+const READ_ONLY_TASK_TOOL_MODE_SET = new Set<string>(READ_ONLY_TASK_TOOL_MODES);
+const READ_ONLY_TEAM_TOOL_MODE_SET = new Set<string>(READ_ONLY_TEAM_TOOL_MODES);
+const READ_ONLY_WORKLIST_TOOL_MODE_SET = new Set<string>(READ_ONLY_WORKLIST_TOOL_MODES);
+const READ_ONLY_PACKET_TOOL_MODE_SET = new Set<string>(READ_ONLY_PACKET_TOOL_MODES);
+const READ_ONLY_QUERY_TOOL_MODE_SET = new Set<string>(READ_ONLY_QUERY_TOOL_MODES);
 
 const LOCAL_AGENT_DENIAL = [
   'GoodVibes Agent does not spawn local Engineer/Reviewer/Tester/Verifier roots or run local WRFC chains.',
@@ -143,6 +153,12 @@ const STATE_MUTATION_DENIAL = [
   'Use Agent-owned memory, skills, personas, routines, and explicit CLI/slash commands for intentional local state changes.',
 ].join(' ');
 
+const DURABLE_WORKFLOW_MUTATION_DENIAL = [
+  'GoodVibes Agent only inspects copied durable workflow tools from the main conversation.',
+  'Task, team, worklist, packet, and query creation or lifecycle mutation is disabled here.',
+  'Use explicit Agent CLI/slash commands or GoodVibes TUI delegation for intentional workflow changes.',
+].join(' ');
+
 export function installAgentToolPolicyGuard(registry: ToolRegistry, options: AgentToolPolicyGuardOptions = {}): void {
   const agentTool = registry.list().find((tool) => tool.definition.name === 'agent');
   if (!agentTool) throw new Error('Agent tool policy guard could not find the agent tool.');
@@ -176,6 +192,46 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapFetchToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'state') {
       wrapStateToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'task') {
+      wrapModeRestrictedToolForAgentPolicy(tool, {
+        allowedModes: READ_ONLY_TASK_TOOL_MODES,
+        modeSet: READ_ONLY_TASK_TOOL_MODE_SET,
+        description: 'Read-only task/workflow inspection for GoodVibes Agent. Task creation, status changes, dependencies, cancellation, and handoff mutation are disabled in the main conversation.',
+        denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
+        removedProperties: ['title', 'label', 'status', 'dependsOnSessionId', 'dependsOnTaskId', 'reason', 'toSessionId'],
+      });
+    } else if (tool.definition.name === 'team') {
+      wrapModeRestrictedToolForAgentPolicy(tool, {
+        allowedModes: READ_ONLY_TEAM_TOOL_MODES,
+        modeSet: READ_ONLY_TEAM_TOOL_MODE_SET,
+        description: 'Read-only team inspection for GoodVibes Agent. Team creation, membership changes, lane changes, and deletion are disabled in the main conversation.',
+        denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
+        removedProperties: ['name', 'summary', 'memberId', 'role', 'lanes'],
+      });
+    } else if (tool.definition.name === 'worklist') {
+      wrapModeRestrictedToolForAgentPolicy(tool, {
+        allowedModes: READ_ONLY_WORKLIST_TOOL_MODES,
+        modeSet: READ_ONLY_WORKLIST_TOOL_MODE_SET,
+        description: 'Read-only worklist inspection for GoodVibes Agent. Worklist creation and item lifecycle changes are disabled in the main conversation.',
+        denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
+        removedProperties: ['title', 'itemId', 'text', 'owner', 'priority'],
+      });
+    } else if (tool.definition.name === 'packet') {
+      wrapModeRestrictedToolForAgentPolicy(tool, {
+        allowedModes: READ_ONLY_PACKET_TOOL_MODES,
+        modeSet: READ_ONLY_PACKET_TOOL_MODE_SET,
+        description: 'Read-only operator packet inspection for GoodVibes Agent. Packet creation, revision, and publishing are disabled in the main conversation.',
+        denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
+        removedProperties: ['title', 'summary', 'goals', 'constraints', 'risks', 'audience'],
+      });
+    } else if (tool.definition.name === 'query') {
+      wrapModeRestrictedToolForAgentPolicy(tool, {
+        allowedModes: READ_ONLY_QUERY_TOOL_MODES,
+        modeSet: READ_ONLY_QUERY_TOOL_MODE_SET,
+        description: 'Read-only operator query inspection for GoodVibes Agent. Asking, answering, and closing copied workflow queries are disabled in the main conversation.',
+        denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
+        removedProperties: ['prompt', 'askedBy', 'target', 'answer', 'resolution'],
+      });
     } else if (BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET.has(tool.definition.name)) {
       wrapBlockedMainConversationToolForAgentPolicy(tool);
     }
@@ -330,10 +386,12 @@ type ModeRestrictedToolPolicy = {
   readonly modeSet: ReadonlySet<string>;
   readonly description: string;
   readonly denial: string;
+  readonly removedProperties?: readonly string[];
 };
 
 export function wrapModeRestrictedToolForAgentPolicy(tool: Tool, policy: ModeRestrictedToolPolicy): void {
   narrowModeToolDefinitionForAgentPolicy(tool, policy.allowedModes, policy.description);
+  if (policy.removedProperties) removeToolDefinitionProperties(tool, policy.removedProperties);
   const originalExecute = tool.execute.bind(tool);
   tool.execute = async (args) => {
     const denial = validateModeRestrictedToolInvocationForAgentPolicy(args as ModeToolArgs, policy.modeSet, policy.denial);
@@ -384,11 +442,17 @@ export const AGENT_READ_ONLY_STATE_MEMORY_ACTIONS = READ_ONLY_STATE_MEMORY_ACTIO
 export const AGENT_READ_ONLY_STATE_HOOK_ACTIONS = READ_ONLY_STATE_HOOK_ACTIONS;
 export const AGENT_READ_ONLY_STATE_MODE_ACTIONS = READ_ONLY_STATE_MODE_ACTIONS;
 export const AGENT_READ_ONLY_STATE_ANALYTICS_ACTIONS = READ_ONLY_STATE_ANALYTICS_ACTIONS;
+export const AGENT_READ_ONLY_TASK_TOOL_MODES = READ_ONLY_TASK_TOOL_MODES;
+export const AGENT_READ_ONLY_TEAM_TOOL_MODES = READ_ONLY_TEAM_TOOL_MODES;
+export const AGENT_READ_ONLY_WORKLIST_TOOL_MODES = READ_ONLY_WORKLIST_TOOL_MODES;
+export const AGENT_READ_ONLY_PACKET_TOOL_MODES = READ_ONLY_PACKET_TOOL_MODES;
+export const AGENT_READ_ONLY_QUERY_TOOL_MODES = READ_ONLY_QUERY_TOOL_MODES;
 export const AGENT_REMOTE_MUTATION_DENIAL_MESSAGE = REMOTE_MUTATION_DENIAL;
 export const AGENT_CHANNEL_ACTION_DENIAL_MESSAGE = CHANNEL_ACTION_DENIAL;
 export const AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE = MCP_SECURITY_MUTATION_DENIAL;
 export const AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE = FETCH_NETWORK_MUTATION_DENIAL;
 export const AGENT_STATE_MUTATION_DENIAL_MESSAGE = STATE_MUTATION_DENIAL;
+export const AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE = DURABLE_WORKFLOW_MUTATION_DENIAL;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -540,6 +604,12 @@ function narrowModeToolDefinitionForAgentPolicy(tool: Tool, allowedModes: readon
     delete properties.actorId;
     delete properties.createIfMissing;
   }
+}
+
+function removeToolDefinitionProperties(tool: Tool, keys: readonly string[]): void {
+  const properties = tool.definition.parameters.properties;
+  if (!isRecord(properties)) return;
+  for (const key of keys) delete properties[key];
 }
 
 function narrowStringEnumProperty(
