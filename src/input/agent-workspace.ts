@@ -1,4 +1,5 @@
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
+import type { ShellPathService } from '@/runtime/index.ts';
 import { basename, sep } from 'node:path';
 import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
@@ -29,15 +30,18 @@ export type AgentWorkspaceLocalOperation =
   | 'persona-use'
   | 'persona-review'
   | 'persona-clear'
+  | 'persona-delete'
   | 'skill-edit'
   | 'skill-enable'
   | 'skill-disable'
   | 'skill-review'
+  | 'skill-delete'
   | 'routine-edit'
   | 'routine-start'
   | 'routine-enable'
   | 'routine-disable'
-  | 'routine-review';
+  | 'routine-review'
+  | 'routine-delete';
 
 export interface AgentWorkspaceEditorField {
   readonly id: string;
@@ -50,7 +54,7 @@ export interface AgentWorkspaceEditorField {
 
 export interface AgentWorkspaceLocalEditor {
   readonly kind: AgentWorkspaceLocalEditorKind;
-  readonly mode: 'create' | 'update';
+  readonly mode: 'create' | 'update' | 'delete';
   readonly recordId?: string;
   readonly title: string;
   readonly fields: readonly AgentWorkspaceEditorField[];
@@ -542,6 +546,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'personas-use', label: 'Use selected', detail: 'Activate the selected local persona for future main-conversation turns.', localKind: 'persona', localOperation: 'persona-use', kind: 'local-operation', safety: 'safe' },
       { id: 'personas-review', label: 'Review selected', detail: 'Mark the selected local persona reviewed after inspecting it.', localKind: 'persona', localOperation: 'persona-review', kind: 'local-operation', safety: 'safe' },
       { id: 'personas-clear', label: 'Clear active persona', detail: 'Return to the default Agent policy without deleting any persona.', localKind: 'persona', localOperation: 'persona-clear', kind: 'local-operation', safety: 'safe' },
+      { id: 'personas-delete', label: 'Delete selected', detail: 'Open a confirmation form before deleting the selected local persona.', localKind: 'persona', localOperation: 'persona-delete', kind: 'local-operation', safety: 'safe' },
     ],
   },
   {
@@ -560,6 +565,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'skills-enable', label: 'Enable selected', detail: 'Enable the selected local Agent skill for future main-conversation guidance.', localKind: 'skill', localOperation: 'skill-enable', kind: 'local-operation', safety: 'safe' },
       { id: 'skills-disable', label: 'Disable selected', detail: 'Disable the selected local Agent skill without deleting it.', localKind: 'skill', localOperation: 'skill-disable', kind: 'local-operation', safety: 'safe' },
       { id: 'skills-review', label: 'Review selected', detail: 'Mark the selected local skill reviewed after inspecting it.', localKind: 'skill', localOperation: 'skill-review', kind: 'local-operation', safety: 'safe' },
+      { id: 'skills-delete', label: 'Delete selected', detail: 'Open a confirmation form before deleting the selected local Agent skill.', localKind: 'skill', localOperation: 'skill-delete', kind: 'local-operation', safety: 'safe' },
     ],
   },
   {
@@ -579,6 +585,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'routines-enable', label: 'Enable selected', detail: 'Enable the selected routine for future main-conversation guidance.', localKind: 'routine', localOperation: 'routine-enable', kind: 'local-operation', safety: 'safe' },
       { id: 'routines-disable', label: 'Disable selected', detail: 'Disable the selected routine without deleting it.', localKind: 'routine', localOperation: 'routine-disable', kind: 'local-operation', safety: 'safe' },
       { id: 'routines-review', label: 'Review selected', detail: 'Mark the selected local routine reviewed after inspecting it.', localKind: 'routine', localOperation: 'routine-review', kind: 'local-operation', safety: 'safe' },
+      { id: 'routines-delete', label: 'Delete selected', detail: 'Open a confirmation form before deleting the selected local Agent routine.', localKind: 'routine', localOperation: 'routine-delete', kind: 'local-operation', safety: 'safe' },
       { id: 'routines-promote', label: 'Promote to schedule', detail: 'Create an external daemon schedule from a reviewed routine only with real timing and --yes.', command: '/routines promote <id> --cron <expr> --yes', kind: 'command', safety: 'safe' },
       { id: 'routines-receipts', label: 'Promotion receipts', detail: 'Inspect local redacted routine schedule promotion receipts.', command: '/routines receipts', kind: 'command', safety: 'read-only' },
     ],
@@ -736,6 +743,21 @@ function createRoutineUpdateEditor(record: AgentRoutineRecord): AgentWorkspaceLo
       { id: 'triggers', label: 'Triggers', value: record.triggers.join(', '), required: false, multiline: false, hint: 'Comma-separated words that suggest this routine.' },
       { id: 'tags', label: 'Tags', value: record.tags.join(', '), required: false, multiline: false, hint: 'Comma-separated optional tags.' },
       { id: 'enabled', label: 'Enabled', value: record.enabled ? 'yes' : 'no', required: false, multiline: false, hint: 'yes/no.' },
+    ],
+  };
+}
+
+function createDeleteEditor(kind: AgentWorkspaceLocalEditorKind, item: AgentWorkspaceLocalLibraryItem): AgentWorkspaceLocalEditor {
+  const label = kind[0]!.toUpperCase() + kind.slice(1);
+  return {
+    kind,
+    mode: 'delete',
+    recordId: item.id,
+    title: `Delete ${label}`,
+    selectedFieldIndex: 0,
+    message: `Type ${item.id} exactly to delete ${item.name}. This only changes the Agent-local registry.`,
+    fields: [
+      { id: 'confirm', label: 'Confirm id', value: '', required: true, multiline: false, hint: `Type ${item.id} exactly.` },
     ],
   };
 }
@@ -1148,6 +1170,8 @@ export class AgentWorkspace {
       } else if (operation === 'persona-review') {
         AgentPersonaRegistry.fromShellPaths(shellPaths).markReviewed(selected.id);
         this.finishLocalOperation('persona', `Reviewed persona ${selected.name}`, `${selected.name} is marked reviewed.`);
+      } else if (operation === 'persona-delete') {
+        this.openDeleteEditor('persona', selected);
       } else if (operation === 'skill-edit') {
         const skill = AgentSkillRegistry.fromShellPaths(shellPaths).get(selected.id);
         if (!skill) throw new Error(`Unknown skill: ${selected.id}`);
@@ -1168,6 +1192,8 @@ export class AgentWorkspace {
       } else if (operation === 'skill-review') {
         AgentSkillRegistry.fromShellPaths(shellPaths).markReviewed(selected.id);
         this.finishLocalOperation('skill', `Reviewed skill ${selected.name}`, `${selected.name} is marked reviewed.`);
+      } else if (operation === 'skill-delete') {
+        this.openDeleteEditor('skill', selected);
       } else if (operation === 'routine-edit') {
         const routine = AgentRoutineRegistry.fromShellPaths(shellPaths).get(selected.id);
         if (!routine) throw new Error(`Unknown routine: ${selected.id}`);
@@ -1188,9 +1214,11 @@ export class AgentWorkspace {
       } else if (operation === 'routine-disable') {
         AgentRoutineRegistry.fromShellPaths(shellPaths).setEnabled(selected.id, false);
         this.finishLocalOperation('routine', `Disabled routine ${selected.name}`, `${selected.name} remains saved but is no longer injected into guidance.`);
-      } else {
+      } else if (operation === 'routine-review') {
         AgentRoutineRegistry.fromShellPaths(shellPaths).markReviewed(selected.id);
         this.finishLocalOperation('routine', `Reviewed routine ${selected.name}`, `${selected.name} is marked reviewed.`);
+      } else {
+        this.openDeleteEditor('routine', selected);
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -1217,6 +1245,17 @@ export class AgentWorkspace {
       kind: 'refreshed',
       title,
       detail,
+      safety: 'safe',
+    };
+  }
+
+  private openDeleteEditor(kind: AgentWorkspaceLocalEditorKind, selected: AgentWorkspaceLocalLibraryItem): void {
+    this.localEditor = createDeleteEditor(kind, selected);
+    this.status = `Confirm deletion for ${selected.name}.`;
+    this.lastActionResult = {
+      kind: 'guidance',
+      title: this.localEditor.title,
+      detail: this.localEditor.message,
       safety: 'safe',
     };
   }
@@ -1265,6 +1304,10 @@ export class AgentWorkspace {
       return;
     }
     try {
+      if (editor.mode === 'delete') {
+        this.submitLocalDeleteEditor(shellPaths, editor);
+        return;
+      }
       if (editor.kind === 'persona') {
         const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
         if (editor.mode === 'update' && editor.recordId) {
@@ -1358,6 +1401,29 @@ export class AgentWorkspace {
     }
   }
 
+  private submitLocalDeleteEditor(shellPaths: ShellPathService, editor: AgentWorkspaceLocalEditor): void {
+    const expectedId = editor.recordId ?? '';
+    const confirmedId = this.editorField('confirm');
+    if (!expectedId || confirmedId !== expectedId) {
+      this.localEditor = {
+        ...editor,
+        message: `Deletion not confirmed. Type ${expectedId} exactly, then press Enter.`,
+      };
+      this.status = 'Deletion not confirmed.';
+      return;
+    }
+    if (editor.kind === 'persona') {
+      const removed = AgentPersonaRegistry.fromShellPaths(shellPaths).deletePersona(expectedId);
+      this.finishLocalDelete(editor.kind, removed.id, removed.name);
+    } else if (editor.kind === 'skill') {
+      const removed = AgentSkillRegistry.fromShellPaths(shellPaths).deleteSkill(expectedId);
+      this.finishLocalDelete(editor.kind, removed.id, removed.name);
+    } else {
+      const removed = AgentRoutineRegistry.fromShellPaths(shellPaths).deleteRoutine(expectedId);
+      this.finishLocalDelete(editor.kind, removed.id, removed.name);
+    }
+  }
+
   private finishLocalEditor(kind: AgentWorkspaceLocalEditorKind, id: string, name: string, verb: 'Created' | 'Updated'): void {
     this.localEditor = null;
     const categoryId = editorCategoryId(kind);
@@ -1372,6 +1438,25 @@ export class AgentWorkspace {
       kind: 'refreshed',
       title: `${verb} ${kind}`,
       detail: `${name} (${id}) was saved to the Agent-local ${categoryId} registry.`,
+      safety: 'safe',
+    };
+    this.clampSelection();
+  }
+
+  private finishLocalDelete(kind: AgentWorkspaceLocalEditorKind, id: string, name: string): void {
+    this.localEditor = null;
+    const categoryId = editorCategoryId(kind);
+    const categoryIndex = this.categories.findIndex((category) => category.id === categoryId);
+    if (categoryIndex >= 0) {
+      this.selectedCategoryIndex = categoryIndex;
+      this.selectedActionIndex = 0;
+    }
+    this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
+    this.status = `Deleted ${kind}: ${name}.`;
+    this.lastActionResult = {
+      kind: 'refreshed',
+      title: `Deleted ${kind}`,
+      detail: `${name} (${id}) was removed from the Agent-local ${categoryId} registry.`,
       safety: 'safe',
     };
     this.clampSelection();

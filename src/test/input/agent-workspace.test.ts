@@ -455,6 +455,63 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
+  test('deletes selected local library records only after exact typed confirmation', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-delete-library-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const personaRegistry = AgentPersonaRegistry.fromShellPaths(shellPaths);
+    const persona = personaRegistry.create({
+      name: 'Temporary Persona',
+      description: 'Temporary posture.',
+      body: 'Temporary guidance.',
+    });
+    personaRegistry.setActive(persona.id);
+    const skill = AgentSkillRegistry.fromShellPaths(shellPaths).create({
+      name: 'Temporary Skill',
+      description: 'Temporary procedure.',
+      procedure: 'Temporary steps.',
+    });
+    const routine = AgentRoutineRegistry.fromShellPaths(shellPaths).create({
+      name: 'Temporary Routine',
+      description: 'Temporary workflow.',
+      steps: 'Temporary routine steps.',
+    });
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, (command) => dispatched.push(command));
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-delete');
+    workspace.activateSelected();
+    feedText(workspace, 'wrong-id');
+    feedKey(workspace, 'enter');
+    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).get(persona.id)).not.toBeNull();
+    expect(workspace.localEditor?.message).toContain('Deletion not confirmed');
+    while (workspace.localEditor?.fields[0]?.value) feedKey(workspace, 'backspace');
+    feedText(workspace, persona.id);
+    feedKey(workspace, 'enter');
+    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).get(persona.id)).toBeNull();
+    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot().activePersonaId).toBeNull();
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-delete');
+    workspace.activateSelected();
+    feedText(workspace, skill.id);
+    feedKey(workspace, 'enter');
+    expect(AgentSkillRegistry.fromShellPaths(shellPaths).get(skill.id)).toBeNull();
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-delete');
+    workspace.activateSelected();
+    feedText(workspace, routine.id);
+    feedKey(workspace, 'enter');
+    expect(AgentRoutineRegistry.fromShellPaths(shellPaths).get(routine.id)).toBeNull();
+    expect(dispatched).toEqual([]);
+  });
+
   test('keeps channel delivery safety guidance local', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
