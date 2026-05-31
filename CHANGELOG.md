@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.27 - 2026-05-31
+
+- b5be172 Add capabilities CLI handler
+- cafe1fb Add Agent capability benchmark surface
+
 ## 0.1.26 - 2026-05-31
 
 - dfb6147 Harden Agent read tool policy
