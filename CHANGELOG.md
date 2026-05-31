@@ -2,6 +2,29 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.8 - 2026-05-31
+
+- 384c85a Remove stale WRFC artifact test
+- 6230c64 Remove copied TUI historical docs
+- 9065f4d Add local Agent routines
+- e90d579 Lock Agent Knowledge CLI routes
+- 1b05f97 Guard agent runtime policy boundaries
+- 86f4bd1 Block agent cancellation from activity UI
+- 22d6a1d Block remote runner cancellation from agent
+- 9553688 Drop local agent records from saved sessions
+- f4b6f9d Block local session graph mutations
+- e372c44 Make orchestration command read-only
+- 7bb908c Narrow local agent tool to read-only modes
+- e8ed9c6 Verify packed global install smoke
+- fdc956b Forbid packaged local agent definitions
+- 881a18f Exclude local review agents from package
+- 649cac7 Improve full test failure reporting
+- 9982abc Remove default wiki from Agent runtime
+- f625ac6 Make ops command view only
+- af86ce5 Block copied CLI task submission
+- 567e07c Externalize worktree recovery guidance
+- 0fb2aa3 Block local runtime task mutations
+
 ## 0.1.7 - 2026-05-31
 
 - Replaced active planning-loop output and tests that still described planning as TUI-owned with Agent-owned planning state and planning namespace language.
