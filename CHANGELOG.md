@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.13 - 2026-05-31
+
+- 989b048 Block local coding tools in agent runtime
+
 ## 0.1.12 - 2026-05-31
 
 - 1843a77 Handle external daemon SDK mismatch in live verification
