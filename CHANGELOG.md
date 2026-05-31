@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.12 - 2026-05-31
+
+- 1843a77 Handle external daemon SDK mismatch in live verification
+- 2b1a3f4 Align agent-owned test paths
+
 ## 0.1.11 - 2026-05-31
 
 - d20a93e Allow explicit recall review without yes
