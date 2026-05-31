@@ -7,18 +7,20 @@ import { exportToMarkdown } from '@pellux/goodvibes-sdk/platform/export';
 import { TemplateManager, parseTemplateArgs } from '@pellux/goodvibes-sdk/platform/templates';
 import { requireSessionManager, requireSessionMemoryStore, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 export function registerSessionContentCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'export',
     description: 'Export conversation to a Markdown file',
-    usage: '[format] [path]',
+    usage: '[format] [path] --yes',
     argsHint: '[markdown] [path]',
     async handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);
+      const { rest, yes } = stripYesFlag(args);
       let format = 'markdown';
       let outPath: string | undefined;
-      for (const arg of args) {
+      for (const arg of rest) {
         if (arg === 'markdown' || arg === 'md' || arg === 'text' || arg === 'txt') {
           format = arg === 'md' ? 'markdown' : arg === 'txt' ? 'text' : arg;
         } else {
@@ -32,6 +34,10 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       const resolvedPath = shellPaths.resolveWorkspacePath(outPath);
       if (!shellPaths.isWithinWorkingDirectory(resolvedPath)) {
         ctx.print('Error: Export path must be within the current directory.');
+        return;
+      }
+      if (!yes) {
+        requireYesFlag(ctx, `export conversation to ${resolvedPath}`, '/export [format] [path] --yes');
         return;
       }
 

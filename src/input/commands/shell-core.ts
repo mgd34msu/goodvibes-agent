@@ -127,7 +127,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/clear', label: '/clear', detail: 'Clear display (keep context)', category: 'Conversation' },
           { id: '/reset', label: '/reset', detail: 'Clear display + context', category: 'Conversation' },
           { id: '/compact', label: '/compact', detail: 'Summarize to free context', category: 'Conversation' },
-          { id: '/export', label: '/export [file]', detail: 'Export as markdown', category: 'Conversation' },
+          { id: '/export', label: '/export [file] --yes', detail: 'Export as markdown', category: 'Conversation' },
           { id: '/title', label: '/title [text]', detail: 'Show or set title', category: 'Conversation' },
           { id: '/save', label: '/save [name]', detail: 'Save session', category: 'Conversation' },
           { id: '/load', label: '/load <name>', detail: 'Load session', category: 'Conversation' },

@@ -3,13 +3,16 @@ import { scan, persistProviders } from '@pellux/goodvibes-sdk/platform/discovery
 import { requireProviderApi, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 export function registerDiscoveryRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'scan',
     aliases: [],
     description: 'Scan localhost and LAN for local LLM servers',
-    async handler(_args, ctx) {
+    usage: '[--yes]',
+    async handler(args, ctx) {
+      const { yes } = stripYesFlag(args);
       ctx.print('Scanning for local LLM servers...');
       ctx.renderRequest();
 
@@ -33,18 +36,24 @@ export function registerDiscoveryRuntimeCommands(registry: CommandRegistry): voi
         ctx.print(lines.join('\n'));
       }
 
-      try {
-        await requireProviderApi(ctx).registerDiscoveredProviders(result.servers);
-      } catch (err) {
-        ctx.print(`[Scan] Warning: failed to register some providers: ${summarizeError(err)}`);
-      }
-
       if (result.servers.length > 0) {
+        if (!yes) {
+          requireYesFlag(ctx, 'persist discovered local provider configuration', '/scan --yes');
+          ctx.print('[Scan] Discovery results were not saved. Rerun /scan --yes to register and persist providers.');
+          ctx.renderRequest();
+          return;
+        }
+        try {
+          await requireProviderApi(ctx).registerDiscoveredProviders(result.servers);
+        } catch (err) {
+          ctx.print(`[Scan] Warning: failed to register some providers: ${summarizeError(err)}`);
+        }
         const shellPaths = requireShellPaths(ctx);
         persistProviders({
           homeDirectory: shellPaths.homeDirectory,
           surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
         }, result.servers);
+        ctx.print('[Scan] Discovered providers registered and persisted.');
       }
       ctx.renderRequest();
     },

@@ -135,9 +135,10 @@ Key remote API paths include:
 - `/remote recover [runner]`
 - `/remote dispatch ...`
 - `/remote dispatch-pool <pool> ...`
-- `/remote export <runner>`
+- `/remote export <runner> [path] --yes`
 - `/remote artifact show <id>`
-- `/remote import <path>`
+- `/remote artifact export <id> [path] --yes`
+- `/remote import <path> --yes`
 - `/remote setup`
 
 ## Related docs

@@ -18,6 +18,7 @@ import type { EvalRegistry } from '../../panels/eval-panel.ts';
 import { formatSuiteResult, formatGateResult } from '@/runtime/index.ts';
 import { requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 // ── Subcommand helpers ────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ async function handleCompare(args: string[], context: CommandContext): Promise<v
   const baseline = await loadBaseline(baselineFile, projectRoot);
   if (!baseline) {
     context.print(`[eval] Baseline file not found: ${baselineFile}`);
-    context.print('[eval] Tip: run /eval gate <suite> to create a baseline.');
+    context.print('[eval] Tip: run /eval gate <suite> [baseline-file] --save-baseline --yes to create a baseline.');
     return;
   }
 
@@ -109,13 +110,15 @@ async function handleCompare(args: string[], context: CommandContext): Promise<v
 // ── /eval gate ────────────────────────────────────────────────────────────────
 
 async function handleGate(args: string[], context: CommandContext): Promise<void> {
-  const suiteName = args[0];
-  const baselineFile = args[1] ?? '.goodvibes/eval/baseline.json';
-  const saveFlag = args.includes('--save-baseline');
+  const { rest, yes } = stripYesFlag(args);
+  const positional = rest.filter((arg) => arg !== '--save-baseline');
+  const suiteName = positional[0];
+  const baselineFile = positional[1] ?? '.goodvibes/eval/baseline.json';
+  const saveFlag = rest.includes('--save-baseline');
   const projectRoot = requireShellPaths(context).workingDirectory;
 
   if (!suiteName) {
-    context.print('[eval] Usage: /eval gate <suite> [baseline-file] [--save-baseline]');
+    context.print('[eval] Usage: /eval gate <suite> [baseline-file] [--save-baseline --yes]');
     return;
   }
 
@@ -141,13 +144,18 @@ async function handleGate(args: string[], context: CommandContext): Promise<void
   context.print(formatGateResult(gate));
 
   if (saveFlag || !baseline) {
-    const label = args[0] ?? 'latest';
-    const newBaseline = captureBaseline(label, [fresh]);
-    try {
-      await writeBaseline(baselineFile, newBaseline, projectRoot);
-      context.print(`[eval] Baseline saved to ${baselineFile}`);
-    } catch (err) {
-      context.print(`[eval] Warning: could not save baseline: ${summarizeError(err)}`);
+    if (!yes) {
+      const reason = saveFlag ? 'save eval baseline' : 'create missing eval baseline';
+      requireYesFlag(context, reason, '/eval gate <suite> [baseline-file] --save-baseline --yes');
+    } else {
+      const label = suiteName ?? 'latest';
+      const newBaseline = captureBaseline(label, [fresh]);
+      try {
+        await writeBaseline(baselineFile, newBaseline, projectRoot);
+        context.print(`[eval] Baseline saved to ${baselineFile}`);
+      } catch (err) {
+        context.print(`[eval] Warning: could not save baseline: ${summarizeError(err)}`);
+      }
     }
   }
 
@@ -194,7 +202,7 @@ export const evalCommand: SlashCommand = {
           '  run <suite|all>                — Run a named suite (or all suites)',
           '  compare [baseline-file]        — Compare last results against baseline',
           '  gate <suite> [baseline-file]   — Run suite and apply regression gate',
-          '    --save-baseline              — Save fresh run as new baseline',
+          '    --save-baseline --yes        — Save fresh run as new baseline',
         ].join('\n');
         context.print(usage);
         break;

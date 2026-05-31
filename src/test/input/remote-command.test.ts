@@ -253,11 +253,33 @@ describe('remote command', () => {
     const ctx = createRemoteCommandContext(store, out);
 
     await remote!.handler(['export', agent.id, path], ctx);
+    expect(existsSync(path)).toBe(false);
+    expect(out.join('\n')).toContain('Refusing to export remote review artifact');
+
+    out.length = 0;
+    await remote!.handler(['export', agent.id, path, '--yes'], ctx);
     expect(existsSync(path)).toBe(true);
+    expect(out.join('\n')).toContain('Exported remote review artifact');
+    const artifactId = out.join('\n').match(/artifact:[^\s]+/)?.[0];
+    expect(artifactId).toBeDefined();
+
+    const artifactPath = join(dir, 'review-artifact-copy.json');
+    out.length = 0;
+    await remote!.handler(['artifact', 'export', artifactId!, artifactPath], ctx);
+    expect(existsSync(artifactPath)).toBe(false);
+    expect(out.join('\n')).toContain('Refusing to export remote review artifact');
+
+    out.length = 0;
+    await remote!.handler(['artifact', 'export', artifactId!, artifactPath, '--yes'], ctx);
+    expect(existsSync(artifactPath)).toBe(true);
     expect(out.join('\n')).toContain('Exported remote review artifact');
 
     out.length = 0;
     await remote!.handler(['import', path], ctx);
+    expect(out.join('\n')).toContain('Refusing to import remote review artifact');
+
+    out.length = 0;
+    await remote!.handler(['import', path, '--yes'], ctx);
     expect(out.join('\n')).toContain('Imported remote review artifact');
   });
 
@@ -335,7 +357,7 @@ describe('remote command', () => {
     }));
 
     out.length = 0;
-    await remote!.handler(['export', agent.id], ctx);
+    await remote!.handler(['export', agent.id, '--yes'], ctx);
     expect(out.join('\n')).toContain('Exported remote review artifact');
 
     const artifactId = out.join('\n').match(/artifact:[^\s]+/)?.[0];

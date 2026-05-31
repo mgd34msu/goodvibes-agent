@@ -4,6 +4,7 @@ import { AGENT_TEMPLATES } from '@pellux/goodvibes-sdk/platform/tools';
 import { handleRemoteSetupCommand } from './remote-runtime-setup.ts';
 import { handleRemotePoolCommand } from './remote-runtime-pool.ts';
 import { requirePeerClient } from './runtime-services.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 type RemoteConnectionLike = { agentId: string };
 type RemoteCancelContext = Pick<CommandContext, 'print'>;
@@ -45,7 +46,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
     name: 'remote',
     aliases: [],
     description: 'Inspect, dispatch, and review self-hosted remote runners and artifacts',
-    usage: '[list | show [agentId] | supervisor [runnerId] | capabilities [runnerId] | recover [runnerId] | setup [export <path> --yes] | env [export <path> --yes] | tunnel [review|export <path> --yes] | bootstrap [export <path> --yes|inspect <path>] | session <export|inspect|import> <path> [--yes] | pool <list|show|create|assign|unassign> ... | dispatch [template] <description> | dispatch-pool <pool> [template] <description> | contract [agentId] | cancel <agentId> | export <agentId> [path] | artifact list | artifact show <id> | artifact export <id> [path] | review <id> | rerun-local <id> | import <path>]',
+    usage: '[list | show [agentId] | supervisor [runnerId] | capabilities [runnerId] | recover [runnerId] | setup [export <path> --yes] | env [export <path> --yes] | tunnel [review|export <path> --yes] | bootstrap [export <path> --yes|inspect <path>] | session <export|inspect|import> <path> [--yes] | pool <list|show|create|assign|unassign> ... | dispatch [template] <description> | dispatch-pool <pool> [template] <description> | contract [agentId] | cancel <agentId> | export <agentId> [path] --yes | artifact list | artifact show <id> | artifact export <id> [path] --yes | review <id> | rerun-local <id> | import <path> --yes]',
     async handler(args, ctx) {
       if (args.length === 0) {
         if (ctx.openRemotePanel) {
@@ -310,9 +311,14 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'export') {
-        const agentId = args[1];
+        const { rest, yes } = stripYesFlag(args);
+        const agentId = rest[1];
         if (!agentId) {
-          ctx.print('Usage: /remote export <agentId> [path]');
+          ctx.print('Usage: /remote export <agentId> [path] --yes');
+          return;
+        }
+        if (!yes) {
+          requireYesFlag(ctx, `export remote review artifact for ${agentId}`, '/remote export <agentId> [path] --yes');
           return;
         }
         const artifact = remoteRunners.captureArtifactForRunner(agentId);
@@ -320,7 +326,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           ctx.print(`Remote artifact export failed for ${agentId}.`);
           return;
         }
-        const exported = await remoteRunners.exportArtifact(artifact.id, args[2]);
+        const exported = await remoteRunners.exportArtifact(artifact.id, rest[2]);
         if (!exported) {
           ctx.print(`Remote artifact export failed for ${agentId}.`);
           return;
@@ -356,12 +362,17 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           return;
         }
         if (mode === 'export') {
-          const artifactId = args[2];
+          const { rest, yes } = stripYesFlag(args);
+          const artifactId = rest[2];
           if (!artifactId) {
-            ctx.print('Usage: /remote artifact export <artifactId> [path]');
+            ctx.print('Usage: /remote artifact export <artifactId> [path] --yes');
             return;
           }
-          const exported = await remoteRunners.exportArtifact(artifactId, args[3]);
+          if (!yes) {
+            requireYesFlag(ctx, `export remote review artifact ${artifactId}`, '/remote artifact export <artifactId> [path] --yes');
+            return;
+          }
+          const exported = await remoteRunners.exportArtifact(artifactId, rest[3]);
           if (!exported) {
             ctx.print(`Unknown remote artifact: ${artifactId}`);
             return;
@@ -400,9 +411,14 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (subcommand === 'import') {
-        const path = args[1];
+        const { rest, yes } = stripYesFlag(args);
+        const path = rest[1];
         if (!path) {
-          ctx.print('Usage: /remote import <path>');
+          ctx.print('Usage: /remote import <path> --yes');
+          return;
+        }
+        if (!yes) {
+          requireYesFlag(ctx, `import remote review artifact from ${path}`, '/remote import <path> --yes');
           return;
         }
         const artifact = await remoteRunners.importArtifact(path);
