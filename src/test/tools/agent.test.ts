@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import {
   AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
+  AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
   AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE,
   AGENT_LOCAL_SPAWN_DENIAL_MESSAGE,
   AGENT_READ_ONLY_TOOL_MODES,
@@ -70,6 +71,12 @@ function makeNoopTool(name: string): Tool {
     },
     execute: async () => ({ success: true, output: `${name} executed` }),
   };
+}
+
+function getRecordProperty(record: Record<string, unknown>, key: string): Record<string, unknown> | undefined {
+  const value = record[key];
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
 }
 
 let harness = makeAgentHarness();
@@ -428,6 +435,45 @@ describe('spawn mode', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe(AGENT_MAIN_CONVERSATION_TOOL_DENIAL_MESSAGE);
       expect(result.callId).toBe(`call-${name}`);
+    }
+  });
+
+  test('Agent runtime guard narrows exec to foreground serial commands', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeNoopTool('exec'));
+
+    installAgentToolPolicyGuard(registry);
+
+    const execDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'exec');
+    expect(execDefinition?.description).toContain('foreground shell commands serially');
+    const properties = execDefinition?.parameters.properties as Record<string, unknown>;
+    expect(properties.parallel).toBeUndefined();
+    expect(properties.file_ops).toBeUndefined();
+    const commandsProperty = getRecordProperty(properties, 'commands');
+    const itemSchema = commandsProperty ? getRecordProperty(commandsProperty, 'items') : undefined;
+    const commandProperties = itemSchema ? getRecordProperty(itemSchema, 'properties') : undefined;
+    expect(commandProperties?.background).toBeUndefined();
+
+    const foreground = await registry.execute('call-exec-foreground', 'exec', {
+      commands: [{ cmd: 'echo hello' }],
+    });
+    expect(foreground.success).toBe(true);
+    expect(foreground.output).toBe('exec executed');
+
+    const blockedInputs: ReadonlyArray<Record<string, unknown>> = [
+      { commands: [{ cmd: 'sleep 100', background: true }] },
+      { commands: [{ cmd: 'bg_status process-1' }] },
+      { commands: [{ cmd: 'long setup', until: { pattern: 'ready' } }] },
+      { commands: [{ cmd: 'echo ok' }], parallel: true },
+      { commands: [{ cmd: 'echo ok' }], file_ops: [{ op: 'delete', source: 'tmp.txt' }] },
+    ];
+
+    for (const [index, input] of blockedInputs.entries()) {
+      const result = await registry.execute(`call-exec-blocked-${index}`, 'exec', input);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE);
     }
   });
 
