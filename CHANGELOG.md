@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.26 - 2026-05-31
+
+- dfb6147 Harden Agent read tool policy
+
 ## 0.1.25 - 2026-05-31
 
 - cba5f6d Harden Agent find tool policy
