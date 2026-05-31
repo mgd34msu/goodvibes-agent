@@ -3,8 +3,18 @@ import { ToolContractVerifier } from '@/runtime/index.ts';
 import type { ReplaySnapshotInput } from '@/runtime/index.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { registerOperatorPanelCommand } from './operator-panel-runtime.ts';
-import { requireOpsApi, requireProfileManager, requireReplayEngine } from './runtime-services.ts';
+import { requireProfileManager, requireReplayEngine } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+
+function printOpsMutationBlocked(print: (text: string) => void, target: string): void {
+  print([
+    `[Ops] ${target} mutation is blocked in GoodVibes Agent.`,
+    '  policy: Agent does not control copied local task/agent lifecycle from the operator surface.',
+    '  normal work: continue in the main conversation.',
+    '  build/fix/review: use /delegate <task> for explicit GoodVibes TUI handoff.',
+    '  result: no local task or agent state was changed.',
+  ].join('\n'));
+}
 
 export function registerOperatorRuntimeCommands(registry: CommandRegistry): void {
   registerOperatorPanelCommand(registry);
@@ -175,9 +185,9 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
 
   registry.register({
     name: 'ops',
-    description: 'Operator Control Plane: view audit log, cancel/pause/resume/retry tasks and agents',
-    usage: 'view | task <cancel|pause|resume|retry> <id> [note] | agent cancel <id> [note]',
-    argsHint: '[view|task|agent]',
+    description: 'Operator Control Plane: view Agent operator posture without local task/agent lifecycle mutations',
+    usage: '[view]',
+    argsHint: '[view]',
     handler(args, ctx) {
       const sub = args[0];
 
@@ -188,57 +198,19 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
       }
 
       if (sub === 'task') {
-        const action = args[1];
-        const taskId = args[2];
-        const note = args.slice(3).join(' ') || undefined;
-        if (!action || !taskId) {
-          ctx.print('Usage: /ops task <cancel|pause|resume|retry> <task-id> [note]');
-          return;
-        }
-        const opsApi = requireOpsApi(ctx);
-        try {
-          switch (action) {
-            case 'cancel': opsApi.tasks.cancel(taskId, note); break;
-            case 'pause': opsApi.tasks.pause(taskId, note); break;
-            case 'resume': opsApi.tasks.resume(taskId, note); break;
-            case 'retry': opsApi.tasks.retry(taskId, note); break;
-            default:
-              ctx.print(`Unknown task action "${action}". Use: cancel, pause, resume, retry`);
-              return;
-          }
-          ctx.print(`[Ops] Task ${taskId}: ${action} dispatched.`);
-        } catch (e) {
-          ctx.print(`[Ops] Error: ${summarizeError(e)}`);
-        }
+        printOpsMutationBlocked(ctx.print, 'Task');
         return;
       }
 
       if (sub === 'agent') {
-        const action = args[1];
-        const agentId = args[2];
-        const note = args.slice(3).join(' ') || undefined;
-        if (action !== 'cancel' || !agentId) {
-          ctx.print('Usage: /ops agent cancel <agent-id> [note]');
-          return;
-        }
-        const opsApi = requireOpsApi(ctx);
-        try {
-          opsApi.agents.cancel(agentId, note);
-          ctx.print(`[Ops] Agent ${agentId}: cancel dispatched.`);
-        } catch (e) {
-          ctx.print(`[Ops] Error: ${summarizeError(e)}`);
-        }
+        printOpsMutationBlocked(ctx.print, 'Agent');
         return;
       }
 
       ctx.print(
         'Usage: /ops <subcommand>\n'
         + '  /ops view                              — open the Ops Control panel (Ctrl+O)\n'
-        + '  /ops task cancel <id> [note]           — cancel a task\n'
-        + '  /ops task pause  <id> [note]           — pause a task\n'
-        + '  /ops task resume <id> [note]           — resume a blocked task\n'
-        + '  /ops task retry  <id> [note]           — retry a failed task\n'
-        + '  /ops agent cancel <id> [note]          — cancel a running agent'
+        + '  task/agent lifecycle commands are blocked in Agent; use /delegate for explicit build handoff'
       );
     },
   });

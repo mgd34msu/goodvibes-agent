@@ -2063,6 +2063,28 @@ describe('product breadth commands', () => {
     expect(created).toHaveLength(0);
   });
 
+  test('ops command is view-only and blocks copied task or agent lifecycle mutations', async () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const ops = registry.get('ops');
+    expect(ops).toBeDefined();
+
+    const out: string[] = [];
+    const ctx = makeContext(out);
+
+    await ops!.handler(['task', 'cancel', 'task-1'], ctx);
+    expect(out.join('\n')).toContain('[Ops] Task mutation is blocked in GoodVibes Agent.');
+    expect(out.join('\n')).toContain('no local task or agent state was changed');
+
+    out.length = 0;
+    await ops!.handler(['agent', 'cancel', 'agent-1'], ctx);
+    expect(out.join('\n')).toContain('[Ops] Agent mutation is blocked in GoodVibes Agent.');
+
+    out.length = 0;
+    await ops!.handler(['help'], ctx);
+    expect(out.join('\n')).toContain('task/agent lifecycle commands are blocked in Agent');
+  });
+
   test('health command exposes unified setup, service, sandbox, and provider surfaces', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
