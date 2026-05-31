@@ -32,6 +32,42 @@ interface AgentKnowledgeSuccess<TData> {
 
 type AgentKnowledgeResult<TData> = AgentKnowledgeSuccess<TData> | AgentKnowledgeFailure;
 
+interface DaemonCallMethod {
+  readonly kind: string;
+  readonly route: string;
+}
+
+const AGENT_KNOWLEDGE_METHODS = {
+  status: {
+    kind: 'agentKnowledge.status',
+    route: '/api/goodvibes-agent/knowledge/status',
+  },
+  ask: {
+    kind: 'agentKnowledge.ask',
+    route: '/api/goodvibes-agent/knowledge/ask',
+  },
+  search: {
+    kind: 'agentKnowledge.search',
+    route: '/api/goodvibes-agent/knowledge/search',
+  },
+  ingestUrl: {
+    kind: 'agentKnowledge.ingest.url',
+    route: '/api/goodvibes-agent/knowledge/ingest/url',
+  },
+} as const;
+
+const DELEGATION_METHOD = {
+  kind: 'sessions.messages.create',
+  route: 'sessions.messages.create',
+} as const;
+
+interface DelegationResult {
+  readonly sessionId: string;
+  readonly message: unknown;
+  readonly task: string;
+  readonly wrfcRequested: boolean;
+}
+
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -323,7 +359,7 @@ function formatFailure(failure: AgentKnowledgeFailure, json: boolean): string {
 
 async function runKnowledgeCall<TData>(
   runtime: CliCommandRuntime,
-  route: string,
+  method: DaemonCallMethod,
   call: (connection: AgentDaemonConnection) => Promise<TData>,
 ): Promise<AgentKnowledgeResult<TData>> {
   const connection = resolveDaemonConnection(runtime);
@@ -333,14 +369,14 @@ async function runKnowledgeCall<TData>(
       kind: 'auth_required',
       error: `No daemon operator token found at ${connection.tokenPath}`,
       baseUrl: connection.baseUrl,
-      route,
+      route: method.route,
     };
   }
   try {
     const data = await call(connection);
-    return { ok: true, kind: route, route, data };
+    return { ok: true, kind: method.kind, route: method.route, data };
   } catch (error) {
-    return classifyKnowledgeError(error, connection, route);
+    return classifyKnowledgeError(error, connection, method.route);
   }
 }
 
@@ -350,7 +386,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
   const json = runtime.cli.flags.outputFormat === 'json';
 
   if (normalized === 'status') {
-    const result = await runKnowledgeCall(runtime, 'knowledge.status', async (connection) => (
+    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.status, async (connection) => (
       await createAgentSdk(connection).knowledge.status()
     ));
     if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
@@ -366,7 +402,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     const mode = readOptionValue(rest, '--mode');
     const selectedMode = mode === 'concise' || mode === 'standard' || mode === 'detailed' ? mode : 'standard';
     const limit = readPositiveInt(rest, '--limit', 8);
-    const result = await runKnowledgeCall(runtime, 'knowledge.ask', async (connection) => (
+    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.ask, async (connection) => (
       await createAgentSdk(connection).knowledge.ask({
         query,
         limit,
@@ -387,7 +423,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     const query = commandValues(rest).join(' ').trim();
     if (!query) return { output: 'Usage: goodvibes-agent knowledge search <query> [--limit <n>]', exitCode: 2 };
     const limit = readPositiveInt(rest, '--limit', 10);
-    const result = await runKnowledgeCall(runtime, 'knowledge.search', async (connection) => (
+    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.search, async (connection) => (
       await createAgentSdk(connection).knowledge.search({ query, limit })
     ));
     if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
@@ -403,7 +439,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     if (!url) return { output: 'Usage: goodvibes-agent knowledge ingest-url <url> [--title <title>] [--tags a,b]', exitCode: 2 };
     const title = readOptionValue(rest, '--title');
     const tags = readStringList(rest, '--tags');
-    const result = await runKnowledgeCall(runtime, 'knowledge.ingest.url', async (connection) => (
+    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.ingestUrl, async (connection) => (
       await createAgentSdk(connection).operator.invoke('knowledge.ingest.url', {
         url,
         title,
@@ -432,7 +468,7 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
   const daemonRecord = isRecord(daemon.body) ? daemon.body : {};
   const daemonVersion = readString(daemonRecord, 'version') ?? 'unknown';
   const versionCompatible = daemon.ok && daemonVersion === metadata.sdkVersion;
-  const knowledgeRoute = await runKnowledgeCall(runtime, 'knowledge.status', async (routeConnection) => (
+  const knowledgeRoute = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.status, async (routeConnection) => (
     await createAgentSdk(routeConnection).knowledge.status()
   ));
   const knowledgeRouteReady = knowledgeRoute.ok;
@@ -482,7 +518,7 @@ export async function handleDelegateCommand(runtime: CliCommandRuntime): Promise
       exitCode: 2,
     };
   }
-  const result = await runKnowledgeCall(runtime, 'sessions.messages.create', async (connection) => {
+  const result = await runKnowledgeCall<DelegationResult>(runtime, DELEGATION_METHOD, async (connection) => {
     const sdk = createAgentSdk(connection);
     const created = await sdk.operator.invoke('sessions.create', {
       title: `Agent delegation: ${task.slice(0, 72)}`,

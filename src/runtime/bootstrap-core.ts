@@ -242,7 +242,7 @@ export async function initializeBootstrapCore(
     webSearchService: services.webSearchService,
     channelRegistry: services.channelPlugins,
     remoteRunnerRegistry: services.remoteRunnerRegistry,
-    knowledgeService: services.knowledgeService,
+    knowledgeService: services.agentKnowledgeService,
     archetypeLoader: services.archetypeLoader,
     configManager,
     providerRegistry: services.providerRegistry,

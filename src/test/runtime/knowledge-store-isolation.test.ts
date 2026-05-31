@@ -6,6 +6,7 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 const roots: string[] = [];
 
@@ -20,7 +21,7 @@ function makeRuntime() {
   roots.push(root);
 
   const configManager = new ConfigManager({
-    surfaceRoot: 'tui',
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     configDir,
     workingDir,
     homeDir,
@@ -86,5 +87,22 @@ describe('runtime knowledge store isolation', () => {
     expect(regularNodes.some((node) => node.title.includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
     expect(agentNodes.some((node) => node.title.includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
     expect(regularMap.nodes.some((node) => String(node.title ?? '').includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
+  });
+
+  test('orchestrator and multimodal writeback use Agent Knowledge instead of regular wiki', () => {
+    const { services } = makeRuntime();
+    const orchestrator = services.agentOrchestrator as unknown as {
+      readonly toolDeps?: {
+        readonly knowledgeService?: object;
+      };
+    };
+    const multimodal = services.multimodalService as unknown as {
+      readonly knowledgeService?: object;
+    };
+
+    expect(orchestrator.toolDeps?.knowledgeService).toBe(services.agentKnowledgeService);
+    expect(orchestrator.toolDeps?.knowledgeService).not.toBe(services.knowledgeService);
+    expect(multimodal.knowledgeService).toBe(services.agentKnowledgeService);
+    expect(multimodal.knowledgeService).not.toBe(services.knowledgeService);
   });
 });

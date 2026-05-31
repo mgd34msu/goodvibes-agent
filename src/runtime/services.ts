@@ -473,7 +473,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   }));
   const mediaProviders = new MediaProviderRegistry();
   ensureBuiltinMediaProviders(mediaProviders, artifactStore, providerRegistry);
-  const multimodalService = new MultimodalService(artifactStore, mediaProviders, voiceService, knowledgeService);
+  const multimodalService = new MultimodalService(artifactStore, mediaProviders, voiceService, agentKnowledgeService);
   const pluginManager = new PluginManager({
     pathOptions: {
       cwd: shellPaths.workingDirectory,
@@ -560,7 +560,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     webSearchService,
     channelRegistry: channelPlugins,
     remoteRunnerRegistry,
-    knowledgeService,
+    knowledgeService: agentKnowledgeService,
     memoryRegistry,
     archetypeLoader,
     configManager,
