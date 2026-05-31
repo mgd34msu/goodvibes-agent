@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.43 - 2026-05-31
+
+- 3afba9c Add daemon route risk coverage
+
 ## 0.1.42 - 2026-05-31
 
 - 3c84649 Surface daemon capabilities in Agent workspace
