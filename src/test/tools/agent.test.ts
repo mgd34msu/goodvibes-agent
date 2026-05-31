@@ -13,6 +13,7 @@ import {
   AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
   AGENT_CHANNEL_ACTION_DENIAL_MESSAGE,
   AGENT_CONTROL_MUTATION_DENIAL_MESSAGE,
+  AGENT_CONTEXT_TOOL_DENIAL_MESSAGE,
   AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE,
   AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
   AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE,
@@ -256,6 +257,25 @@ function makeSettingsTool(): Tool {
       sideEffects: ['state'],
     },
     execute: async () => ({ success: true, output: 'settings mutated' }),
+  };
+}
+
+function makeContextTool(): Tool {
+  return {
+    definition: {
+      name: 'goodvibes_context',
+      description: 'runtime context test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', enum: ['summary', 'knowledge', 'homegraph'] },
+          includeAllSpaces: { type: 'boolean' },
+          knowledgeSpaceId: { type: 'string' },
+        },
+      },
+      sideEffects: ['read_fs'],
+    },
+    execute: async () => ({ success: true, output: 'copied context exposed' }),
   };
 }
 
@@ -1180,6 +1200,32 @@ describe('spawn mode', () => {
     });
     expect(result.success).toBe(false);
     expect(result.error).toBe(AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE);
+  });
+
+  test('Agent runtime guard blocks copied runtime context tool from the model surface', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeContextTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const contextDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'goodvibes_context');
+    expect(contextDefinition?.description).toContain('Blocked in GoodVibes Agent main conversation');
+    expect(contextDefinition?.description).toContain('Agent Knowledge');
+    expect(contextDefinition?.sideEffects).toEqual([]);
+    const properties = contextDefinition?.parameters.properties as Record<string, unknown>;
+    expect(properties.mode).toBeUndefined();
+    expect(properties.includeAllSpaces).toBeUndefined();
+    expect(properties.knowledgeSpaceId).toBeUndefined();
+    expect(contextDefinition?.parameters.additionalProperties).toBe(false);
+
+    const result = await registry.execute('call-context-blocked', 'goodvibes_context', {
+      mode: 'homegraph',
+      includeAllSpaces: true,
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(AGENT_CONTEXT_TOOL_DENIAL_MESSAGE);
   });
 
   test('Agent runtime guard keeps inspect scaffold dry-run-only from the model surface', async () => {

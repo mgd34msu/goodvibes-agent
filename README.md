@@ -15,6 +15,7 @@ Install the public alpha package with Bun:
 bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent status
+goodvibes-agent capabilities
 ```
 
 If Bun reports untrusted lifecycle dependencies, trust only the package and dependencies required by this package:
@@ -42,6 +43,8 @@ bun run publish:check
 ```
 
 Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen surface for setup, status, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
+
+Use `goodvibes-agent capabilities` or `/capabilities` to inspect the OpenClaw/Hermes benchmark, current Agent posture, configuration commands, usage paths, and remaining gaps.
 
 Local Agent behavior is editable from the TUI:
 
@@ -81,6 +84,7 @@ GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding 
 Package-facing docs are intentionally narrow during the near-fork baseline:
 
 - [Getting Started](docs/getting-started.md)
+- [Operator Capability Benchmark](docs/operator-capability-benchmark.md)
 - [Deployment And Services](docs/deployment-and-services.md)
 - [Release And Publishing](docs/release-and-publishing.md)
 

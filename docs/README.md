@@ -7,6 +7,7 @@ GoodVibes Agent is a near-fork of the GoodVibes terminal foundation with a diffe
 Current package docs:
 
 - [Getting Started](getting-started.md)
+- [Operator Capability Benchmark](operator-capability-benchmark.md)
 - [Deployment And Services](deployment-and-services.md)
 - [Release And Publishing](release-and-publishing.md)
 
@@ -18,6 +19,7 @@ Important baseline constraints:
 - Agent connects to an externally managed daemon.
 - Agent does not start, stop, restart, install, uninstall, or own daemon/listener/web/service lifecycle.
 - Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`; there is no default Knowledge/Wiki, HomeGraph, or Home Assistant fallback.
+- Agent exposes `goodvibes-agent capabilities` and `/capabilities` to compare OpenClaw/Hermes capability targets against current Agent readiness and configuration paths.
 - Local personas, routines, and Agent skills are stored under the Agent surface root and are injected only into the serial Agent conversation.
 - Normal assistant chat is not coding-session delegation.
 - Build/fix/review delegation to GoodVibes TUI must be explicit; WRFC is not the default Agent behavior.

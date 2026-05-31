@@ -4,6 +4,9 @@ import {
   wrapAnalyzeToolForAgentPolicy,
   wrapRegistryToolForAgentPolicy,
 } from './agent-analysis-registry-policy.ts';
+import {
+  wrapBlockedContextToolForAgentPolicy,
+} from './agent-context-policy.ts';
 import { wrapFindToolForAgentPolicy } from './agent-find-policy.ts';
 import { wrapReadToolForAgentPolicy } from './agent-read-policy.ts';
 import { wrapWebSearchToolForAgentPolicy } from './agent-web-search-policy.ts';
@@ -227,6 +230,8 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapFetchToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'state') {
       wrapStateToolForAgentPolicy(tool);
+    } else if (tool.definition.name === 'goodvibes_context') {
+      wrapBlockedContextToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'goodvibes_settings') {
       wrapBlockedSettingsToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'inspect') {
@@ -550,6 +555,11 @@ export const AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE = SETTINGS_MUTATION_DENIAL;
 export const AGENT_INSPECT_WRITE_DENIAL_MESSAGE = INSPECT_WRITE_DENIAL;
 export const AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE = DURABLE_WORKFLOW_MUTATION_DENIAL;
 export const AGENT_CONTROL_MUTATION_DENIAL_MESSAGE = CONTROL_MUTATION_DENIAL;
+
+export {
+  AGENT_CONTEXT_TOOL_DENIAL_MESSAGE,
+  wrapBlockedContextToolForAgentPolicy,
+} from './agent-context-policy.ts';
 
 export {
   AGENT_ANALYZE_NETWORK_DENIAL_MESSAGE,

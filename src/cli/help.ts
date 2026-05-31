@@ -40,6 +40,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  providers                  List/inspect/use provider config/auth posture',
     '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
     '  compat                     Inspect Agent SDK pin, daemon version, and Agent knowledge route readiness',
+    '  capabilities               Show OpenClaw/Hermes capability parity and Agent readiness',
     '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
     '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
     '  delegate                   Explicitly delegate build/fix/review work to GoodVibes TUI',
@@ -94,6 +95,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `  ${binary} models use openai:gpt-5.2`,
     `  ${binary} providers inspect openai`,
     `  ${binary} compat`,
+    `  ${binary} capabilities`,
     `  ${binary} knowledge status`,
     `  ${binary} knowledge ask "What is GoodVibes Agent?"`,
     `  ${binary} ask "What is GoodVibes Agent?"`,
@@ -161,6 +163,11 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     usage: ['compat', 'compat --json'],
     summary: 'Inspect package SDK pin, live daemon version, and Agent-specific knowledge route readiness.',
     examples: ['compat', 'compat --json'],
+  },
+  capabilities: {
+    usage: ['capabilities [openclaw|hermes|query]', 'capabilities --json'],
+    summary: 'Show the OpenClaw/Hermes capability benchmark, Agent readiness, configuration commands, usage paths, and next product gaps.',
+    examples: ['capabilities', 'capabilities hermes', 'capabilities knowledge --json'],
   },
   knowledge: {
     usage: [

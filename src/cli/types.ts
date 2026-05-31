@@ -11,6 +11,7 @@ export type GoodVibesCliCommand =
   | 'providers'
   | 'auth'
   | 'compat'
+  | 'capabilities'
   | 'knowledge'
   | 'ask'
   | 'search'
