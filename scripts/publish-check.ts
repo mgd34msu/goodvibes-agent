@@ -41,7 +41,7 @@ const packRaw = execSync('npm pack --json --dry-run', {
 
 const [packResult] = JSON.parse(packRaw);
 const filePaths = Array.isArray(packResult.files) ? packResult.files.map((entry) => entry.path) : [];
-const forbiddenPrefixes = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', 'src/daemon/'];
+const forbiddenPrefixes = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', '.goodvibes/agents/', 'src/daemon/'];
 const forbiddenDocs = ['docs/qemu-sandbox.md', 'docs/cloudflare-batch.md', 'docs/homeassistant-surface.md', 'docs/wrfc/'];
 const forbiddenSourceFiles = new Set([
   'src/panels/diff-panel.ts',
@@ -98,14 +98,6 @@ const packagedGuidanceChecks: readonly {
       'NEVER skip WRFC',
       'ALWAYS work in parallel when implementing a plan',
       'PRIMARY GOAL: Fully complete and functional code',
-    ],
-  },
-  {
-    path: '.goodvibes/agents/reviewer.md',
-    forbidden: [
-      'You are a code reviewer for the WRFC',
-      'ReviewerReport',
-      '"wrfcId"',
     ],
   },
   {
