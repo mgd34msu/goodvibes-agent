@@ -88,7 +88,6 @@ import {
 } from '@pellux/goodvibes-sdk/platform/tools';
 import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
 
-const REGULAR_KNOWLEDGE_DB_FILE = 'knowledge-wiki.sqlite';
 const HOME_GRAPH_KNOWLEDGE_DB_FILE = 'knowledge-home-graph.sqlite';
 
 function buildFallbackModelDefinition(provider: string, modelId: string): ModelDefinition {
@@ -170,6 +169,7 @@ export interface RuntimeServices {
   readonly automationManager: AutomationManager;
   readonly gatewayMethods: GatewayMethodCatalog;
   readonly artifactStore: ArtifactStore;
+  /** Compatibility alias that intentionally points at the isolated Agent Knowledge service, not default Knowledge/Wiki. */
   readonly knowledgeService: KnowledgeService;
   readonly agentKnowledgeService: KnowledgeService;
   readonly homeGraphService: HomeGraphService;
@@ -395,10 +395,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       ].join(' '));
     },
   });
-  const knowledgeStore = new KnowledgeStore({
-    configManager,
-    dbFileName: REGULAR_KNOWLEDGE_DB_FILE,
-  });
   const agentKnowledgeStore = new KnowledgeStore({
     configManager,
     dbFileName: GOODVIBES_AGENT_KNOWLEDGE_DB_FILE,
@@ -411,10 +407,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     timeoutMs: 20_000,
     maxConcurrent: 1,
   });
-  const knowledgeSemanticService = new KnowledgeSemanticService(knowledgeStore, {
-    llm: knowledgeSemanticLlm,
-    maxLlmSourcesPerReindex: 3,
-  });
   const homeGraphSemanticService = new KnowledgeSemanticService(homeGraphKnowledgeStore, {
     llm: knowledgeSemanticLlm,
     maxLlmSourcesPerReindex: 3,
@@ -424,12 +416,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     llm: knowledgeSemanticLlm,
     maxLlmSourcesPerReindex: 3,
   });
-  const knowledgeService = new KnowledgeService(knowledgeStore, artifactStore, undefined, {
-    memoryRegistry,
-    runtimeBus: options.runtimeBus,
-    semanticService: knowledgeSemanticService,
-  });
-  knowledgeService.attachRuntimeBus(options.runtimeBus);
   const agentKnowledgeService = new KnowledgeService(agentKnowledgeStore, artifactStore, undefined, {
     memoryRegistry,
     runtimeBus: options.runtimeBus,
@@ -459,10 +445,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     serviceRegistry,
     featureFlags,
   });
-  knowledgeSemanticService.setGapRepairer(createWebKnowledgeGapRepairer({
-    searchService: webSearchService,
-    ingestService: knowledgeService,
-  }));
   agentKnowledgeSemanticService.setGapRepairer(createWebKnowledgeGapRepairer({
     searchService: webSearchService,
     ingestService: agentKnowledgeService,
@@ -597,7 +579,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     automationManager,
     gatewayMethods,
     artifactStore,
-    knowledgeService,
+    knowledgeService: agentKnowledgeService,
     agentKnowledgeService,
     homeGraphService,
     projectPlanningService,

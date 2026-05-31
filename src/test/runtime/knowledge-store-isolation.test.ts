@@ -46,11 +46,11 @@ afterEach(() => {
 });
 
 describe('runtime knowledge store isolation', () => {
-  test('regular Knowledge/Wiki, Agent knowledge, and Home Graph use separate sqlite stores', async () => {
+  test('Agent Knowledge is the only runtime wiki surface and Home Graph stays separate', async () => {
     const { configManager, services } = makeRuntime();
     const controlPlaneDir = configManager.getControlPlaneConfigDir();
 
-    await services.knowledgeService.getStatus({ includeAllSpaces: true });
+    expect(services.knowledgeService).toBe(services.agentKnowledgeService);
     const agentStatus = await services.agentKnowledgeService.getStatus({ includeAllSpaces: true });
     const sync = await services.homeGraphService.syncSnapshot({
       installationId: 'isolation',
@@ -77,19 +77,19 @@ describe('runtime knowledge store isolation', () => {
     expect(homeGraphStatus.nodeCount).toBeGreaterThan(0);
     expect(agentStatus.sourceCount).toBe(0);
     expect(agentStatus.nodeCount).toBe(0);
-    expect(existsSync(join(controlPlaneDir, 'knowledge-wiki.sqlite'))).toBe(true);
+    expect(existsSync(join(controlPlaneDir, 'knowledge-wiki.sqlite'))).toBe(false);
     expect(existsSync(join(controlPlaneDir, 'knowledge-agent.sqlite'))).toBe(true);
     expect(existsSync(join(controlPlaneDir, 'knowledge-home-graph.sqlite'))).toBe(true);
 
-    const regularNodes = services.knowledgeService.queryNodes({ includeAllSpaces: true, limit: 100 }).items;
+    const aliasNodes = services.knowledgeService.queryNodes({ includeAllSpaces: true, limit: 100 }).items;
     const agentNodes = services.agentKnowledgeService.queryNodes({ includeAllSpaces: true, limit: 100 }).items;
-    const regularMap = await services.knowledgeService.map({ includeAllSpaces: true, limit: 100 });
-    expect(regularNodes.some((node) => node.title.includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
+    const aliasMap = await services.knowledgeService.map({ includeAllSpaces: true, limit: 100 });
+    expect(aliasNodes.some((node) => node.title.includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
     expect(agentNodes.some((node) => node.title.includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
-    expect(regularMap.nodes.some((node) => String(node.title ?? '').includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
+    expect(aliasMap.nodes.some((node) => String(node.title ?? '').includes('Isolation Light') || node.id.includes('isolation'))).toBe(false);
   });
 
-  test('orchestrator and multimodal writeback use Agent Knowledge instead of regular wiki', () => {
+  test('orchestrator and multimodal writeback use Agent Knowledge through every runtime alias', () => {
     const { services } = makeRuntime();
     const orchestrator = services.agentOrchestrator as unknown as {
       readonly toolDeps?: {
@@ -101,9 +101,9 @@ describe('runtime knowledge store isolation', () => {
     };
 
     expect(orchestrator.toolDeps?.knowledgeService).toBe(services.agentKnowledgeService);
-    expect(orchestrator.toolDeps?.knowledgeService).not.toBe(services.knowledgeService);
+    expect(orchestrator.toolDeps?.knowledgeService).toBe(services.knowledgeService);
     expect(multimodal.knowledgeService).toBe(services.agentKnowledgeService);
-    expect(multimodal.knowledgeService).not.toBe(services.knowledgeService);
+    expect(multimodal.knowledgeService).toBe(services.knowledgeService);
   });
 
   test('project planning and work plans store artifacts in Agent Knowledge only', async () => {
@@ -122,7 +122,7 @@ describe('runtime knowledge store isolation', () => {
       connectorId: 'goodvibes-project-planning',
       limit: 100,
     }).items;
-    const regularSources = services.knowledgeService.querySources({
+    const aliasSources = services.knowledgeService.querySources({
       includeAllSpaces: true,
       connectorId: 'goodvibes-project-planning',
       limit: 100,
@@ -130,6 +130,7 @@ describe('runtime knowledge store isolation', () => {
 
     expect(agentSources).toHaveLength(1);
     expect(agentSources[0]?.title).toBe('Project Work Plan');
-    expect(regularSources).toHaveLength(0);
+    expect(aliasSources).toHaveLength(1);
+    expect(aliasSources[0]?.id).toBe(agentSources[0]?.id);
   });
 });
