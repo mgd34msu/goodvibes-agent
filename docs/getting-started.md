@@ -28,7 +28,7 @@ goodvibes-agent --help
 If Bun requires lifecycle trust:
 
 ```sh
-bun pm trust -g @pellux/goodvibes-agent @pellux/goodvibes-sdk core-js tree-sitter-css tree-sitter-javascript tree-sitter-json tree-sitter-python tree-sitter-typescript
+bun pm trust -g @pellux/goodvibes-agent @pellux/goodvibes-sdk core-js
 ```
 
 ## Run From Source
