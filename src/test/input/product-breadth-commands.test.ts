@@ -862,7 +862,8 @@ describe('product breadth commands', () => {
 
     out.length = 0;
     await memoryReview!.handler(['queue', '5'], ctx);
-    expect(out.join('\n')).toContain('Knowledge review queue is empty');
+    expect(out.join('\n')).toContain('Agent Knowledge API is not available');
+    expect(out.join('\n')).toContain('Refusing to use default Knowledge/Wiki or HomeGraph fallback');
 
     out.length = 0;
     await approval!.handler(['matrix'], ctx);

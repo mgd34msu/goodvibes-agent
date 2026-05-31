@@ -2,7 +2,7 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
-## Unreleased
+## 0.1.3 - 2026-05-31
 
 - Added local Agent personas with `/personas`: create/list/search/show/use/review/stale/delete, secret-looking value rejection, active persona prompt injection, and operator workspace status.
 - Added local Agent skills with `/agent-skills` and `/skills local`: create/list/search/show/enable/disable/review/stale/delete, secret-looking value rejection, enabled skill prompt injection, and operator workspace status.
