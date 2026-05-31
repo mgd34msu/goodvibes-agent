@@ -1681,8 +1681,17 @@ describe('product breadth commands', () => {
       }),
     } as never;
 
+    runtimeServices.agentManager.spawn({
+      mode: 'spawn',
+      task: 'Copied local agent record that must not be persisted by Agent session save',
+      template: 'general',
+      tools: [],
+    });
+
     await session!.handler(['save', 'resume-demo'], ctx);
     expect(out.join('\n')).toContain('Session saved:');
+    const savedSession = readFileSync(join(root, '.goodvibes', 'agent', 'sessions', 'resume-demo.jsonl'), 'utf-8');
+    expect(savedSession).not.toContain('agent_record');
 
     out.length = 0;
     await session!.handler(['list'], ctx);

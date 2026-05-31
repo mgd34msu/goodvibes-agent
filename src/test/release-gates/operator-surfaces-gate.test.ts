@@ -496,7 +496,7 @@ describe('operator surfaces gate', () => {
     expect(printed.join('\n')).toContain('Engineer');
   });
 
-  test('orchestration cancel graph cancels active agents in the target graph', async () => {
+  test('orchestration cancel graph is blocked and leaves local agents untouched', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const orchestration = registry.get('orchestration');
@@ -516,9 +516,10 @@ describe('operator surfaces gate', () => {
       },
     }));
 
-    expect(manager.getStatus(a.id)?.status).toBe('cancelled');
-    expect(manager.getStatus(b.id)?.status).toBe('cancelled');
-    expect(printed.join('\n')).toContain('Cancelled 2 agents in graph cohort:alpha.');
+    expect(manager.getStatus(a.id)?.status).toBe('pending');
+    expect(manager.getStatus(b.id)?.status).toBe('pending');
+    expect(printed.join('\n')).toContain('GoodVibes Agent orchestration is read-only.');
+    expect(printed.join('\n')).toContain('use /delegate');
   });
 
   test('mcp command opens the fullscreen mcp workspace when no subcommand is supplied', async () => {

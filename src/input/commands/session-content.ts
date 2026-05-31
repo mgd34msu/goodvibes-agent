@@ -113,14 +113,8 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
         timestamp: Date.now(),
       };
       try {
-        const agentManager = ctx.ops.agentManager;
-        if (!agentManager) {
-          ctx.print('Agent manager is not available in this runtime.');
-          return;
-        }
-        const agentRecords = agentManager.exportState();
-        const { filePath, sanitizedName } = sessionManager.save(rawName, messages, meta, agentRecords);
-        ctx.print(`Session saved: ${rawName}${sanitizedName !== rawName ? ` (saved as "${sanitizedName}")` : ''}${agentRecords.length > 0 ? ` [${agentRecords.length} agent records]` : ''}\n  → ${filePath}`);
+        const { filePath, sanitizedName } = sessionManager.save(rawName, messages, meta);
+        ctx.print(`Session saved: ${rawName}${sanitizedName !== rawName ? ` (saved as "${sanitizedName}")` : ''}\n  → ${filePath}`);
       } catch (e) {
         ctx.print(`Failed to save session: ${summarizeError(e)}`);
       }
@@ -140,19 +134,12 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       const sessionManager = requireSessionManager(ctx);
       try {
         const { meta, messages, agentRecords } = sessionManager.load(args[0]);
-        const agentManager = ctx.ops.agentManager;
-        if (!agentManager) {
-          ctx.print('Agent manager is not available in this runtime.');
-          return;
-        }
         ctx.session.conversationManager.resetAll();
         ctx.session.conversationManager.fromJSON({ messages: messages as never[] });
         if (meta.title) ctx.session.conversationManager.title = meta.title;
         ctx.session.conversationManager.rebuildHistory();
-        agentManager.clear();
-        if (agentRecords.length > 0) agentManager.importState(agentRecords);
         ctx.renderRequest();
-        ctx.print(`Session loaded: ${args[0]} (${messages.length} messages)${agentRecords.length > 0 ? ` [${agentRecords.length} agent records restored]` : ''}`);
+        ctx.print(`Session loaded: ${args[0]} (${messages.length} messages)${agentRecords.length > 0 ? ` [ignored ${agentRecords.length} copied local agent record${agentRecords.length !== 1 ? 's' : ''}]` : ''}`);
       } catch (e) {
         ctx.print(`Failed to load session: ${summarizeError(e)}`);
       }
