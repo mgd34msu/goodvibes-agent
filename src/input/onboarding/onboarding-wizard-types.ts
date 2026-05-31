@@ -14,8 +14,12 @@ export type OnboardingWizardMode = OnboardingMode;
 export type OnboardingWizardStepId =
   | 'loading'
   | 'agent-setup'
+  | 'agent-communication'
+  | 'agent-tools'
   | 'agent-knowledge'
   | 'agent-local-state'
+  | 'agent-automation'
+  | 'agent-voice-media'
   | 'agent-delegation'
   | 'provider-access'
   | 'default-model'

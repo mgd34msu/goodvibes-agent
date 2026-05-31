@@ -10,8 +10,12 @@ export function buildOnboardingWizardSteps(controller: OnboardingWizardControlle
     buildAgentSetupStep(controller),
     buildProviderAccessStep(controller),
     buildDefaultModelStep(controller),
+    buildCommunicationStep(),
+    buildToolsStep(),
     buildAgentKnowledgeStep(),
     buildLocalStateStep(),
+    buildAutomationStep(),
+    buildVoiceMediaStep(),
     buildDelegationPolicyStep(),
     buildExperienceStep(controller),
     buildReviewStep(controller),
@@ -35,6 +39,96 @@ function addApplyAndContinueAction(step: OnboardingWizardStepDefinition): Onboar
   return {
     ...step,
     fields: [...step.fields, buildApplyAndContinueAction(step)],
+  };
+}
+
+export function buildCommunicationStep(): OnboardingWizardStepDefinition {
+  return {
+    id: 'agent-communication',
+    title: 'Channels and notifications',
+    shortLabel: 'Channels',
+    description: 'Prepare the Agent for companion pairing, messaging-channel awareness, notification delivery, and safe outbound communication without owning daemon listeners.',
+    summaryTitle: 'Communication posture',
+    summaryLines: [
+      'Companion chat: paired through the external GoodVibes service',
+      'Channel accounts: inspect readiness before using them',
+      'Outbound messages: explicit user action only',
+    ],
+    fields: [
+      {
+        kind: 'status',
+        id: 'agent-communication.companion',
+        label: 'Companion pairing',
+        hint: 'Use /pair from the Agent workspace to pair companion clients through the already-running service.',
+        defaultValue: 'External service route',
+      },
+      {
+        kind: 'status',
+        id: 'agent-communication.channels',
+        label: 'Messaging channels',
+        hint: 'Use the Channels workspace to inspect account readiness, delivery posture, and recent communication without changing listener or service lifecycle.',
+        defaultValue: 'Inspectable',
+      },
+      {
+        kind: 'status',
+        id: 'agent-communication.notifications',
+        label: 'Notification delivery',
+        hint: 'Routine, approval, and work-plan notifications require an explicit delivery target and command; Agent never silently sends external messages.',
+        defaultValue: 'Explicit only',
+      },
+      {
+        kind: 'status',
+        id: 'agent-communication.inbound-policy',
+        label: 'Inbound command policy',
+        hint: 'Incoming channel commands stay constrained by daemon-side policy, allowlists, and account posture.',
+        defaultValue: 'Policy gated',
+      },
+    ],
+  };
+}
+
+export function buildToolsStep(): OnboardingWizardStepDefinition {
+  return {
+    id: 'agent-tools',
+    title: 'Tools and MCP',
+    shortLabel: 'Tools',
+    description: 'Review tool access for the Agent operator: MCP servers, browser/media helpers, safe read-only inspection, and explicit approval before side effects.',
+    summaryTitle: 'Tool posture',
+    summaryLines: [
+      'MCP and tools: inspect before use',
+      'Read/search/summarize: safe by default',
+      'Writes, installs, external sends, and service changes: require explicit user action',
+    ],
+    fields: [
+      {
+        kind: 'status',
+        id: 'agent-tools.mcp',
+        label: 'MCP servers and tools',
+        hint: 'Use /mcp servers and the Agent workspace Tools area to inspect connected servers, roles, and tool readiness.',
+        defaultValue: 'Inspectable',
+      },
+      {
+        kind: 'status',
+        id: 'agent-tools.browser-media',
+        label: 'Browser and media helpers',
+        hint: 'Browser, image, audio, and file helpers are capability surfaces. Agent uses them only when the current task needs them and policy allows it.',
+        defaultValue: 'Task scoped',
+      },
+      {
+        kind: 'status',
+        id: 'agent-tools.approval-boundary',
+        label: 'Power action boundary',
+        hint: 'Workspace writes, package installs, external sends, account changes, and service changes require an explicit command or confirmation.',
+        defaultValue: 'Approval required',
+      },
+      {
+        kind: 'status',
+        id: 'agent-tools.no-hidden-work',
+        label: 'Hidden work policy',
+        hint: 'Tool use stays visible in the main Agent conversation or explicit command surface; no hidden background work is started from onboarding.',
+        defaultValue: 'Visible',
+      },
+    ],
   };
 }
 
@@ -319,6 +413,96 @@ export function buildLocalStateStep(): OnboardingWizardStepDefinition {
         label: 'Routines',
         hint: 'Use /routines for reusable local procedures. Starting a routine prints steps in the main conversation and does not spawn hidden work.',
         defaultValue: 'Local registry',
+      },
+    ],
+  };
+}
+
+export function buildAutomationStep(): OnboardingWizardStepDefinition {
+  return {
+    id: 'agent-automation',
+    title: 'Routines and automation',
+    shortLabel: 'Routines',
+    description: 'Set the Agent automation posture: local routines run in the main conversation, while daemon schedules remain externally owned and explicit.',
+    summaryTitle: 'Routine and schedule posture',
+    summaryLines: [
+      'Local routines: reusable main-conversation workflows',
+      'Daemon schedules: explicit promotion only',
+      'Runs/cancels/retries: command-confirmed side effects',
+    ],
+    fields: [
+      {
+        kind: 'status',
+        id: 'agent-automation.local-routines',
+        label: 'Local routine library',
+        hint: 'Use /routines or the Agent workspace to create, review, enable, and start local routines without spawning hidden jobs.',
+        defaultValue: 'Local registry',
+      },
+      {
+        kind: 'status',
+        id: 'agent-automation.schedule-observability',
+        label: 'Schedule observability',
+        hint: 'Use /schedule list, /schedule reconcile, and automation views to inspect externally owned jobs and runs.',
+        defaultValue: 'Read first',
+      },
+      {
+        kind: 'status',
+        id: 'agent-automation.schedule-promotion',
+        label: 'Routine-to-schedule promotion',
+        hint: 'Creating daemon schedules from routines requires a reviewed routine, a real timing expression, optional delivery target, and explicit confirmation.',
+        defaultValue: 'Explicit command',
+      },
+      {
+        kind: 'status',
+        id: 'agent-automation.mutations',
+        label: 'Automation mutations',
+        hint: 'Run, pause, resume, cancel, retry, approve, and deny actions are never inferred from chat; they require exact commands and confirmation.',
+        defaultValue: 'Confirmed only',
+      },
+    ],
+  };
+}
+
+export function buildVoiceMediaStep(): OnboardingWizardStepDefinition {
+  return {
+    id: 'agent-voice-media',
+    title: 'Voice and media',
+    shortLabel: 'Voice',
+    description: 'Prepare voice, speech, image input, and media understanding as Agent operator surfaces rather than daemon lifecycle features.',
+    summaryTitle: 'Voice and media posture',
+    summaryLines: [
+      'Voice and speech: optional operator surfaces',
+      'Image/audio inputs: explicit attachment workflows',
+      'Media generation and playback: provider-backed and policy-gated',
+    ],
+    fields: [
+      {
+        kind: 'status',
+        id: 'agent-voice-media.voice',
+        label: 'Voice interaction',
+        hint: 'Use the voice/media workspace and TTS settings to configure spoken responses for the Agent conversation.',
+        defaultValue: 'Optional',
+      },
+      {
+        kind: 'status',
+        id: 'agent-voice-media.attachments',
+        label: 'Image and audio input',
+        hint: 'Attach files explicitly to a prompt or command. Agent does not ingest media into Knowledge without an Agent Knowledge ingest action.',
+        defaultValue: 'Explicit input',
+      },
+      {
+        kind: 'status',
+        id: 'agent-voice-media.output',
+        label: 'Generated media and playback',
+        hint: 'Media output uses configured providers and visible command/turn flow; external publication still requires explicit approval.',
+        defaultValue: 'Policy gated',
+      },
+      {
+        kind: 'status',
+        id: 'agent-voice-media.nodes',
+        label: 'Node and device posture',
+        hint: 'Remote devices and nodes are inspected as capability surfaces. Agent does not own runner topology or launch service processes from onboarding.',
+        defaultValue: 'External',
       },
     ],
   };

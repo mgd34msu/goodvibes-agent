@@ -180,8 +180,12 @@ describe('OnboardingWizardController', () => {
       'agent-setup',
       'provider-access',
       'default-model',
+      'agent-communication',
+      'agent-tools',
       'agent-knowledge',
       'agent-local-state',
+      'agent-automation',
+      'agent-voice-media',
       'agent-delegation',
       'experience',
       'review',
@@ -272,10 +276,42 @@ describe('OnboardingWizardController', () => {
     expect(text).not.toContain('external-services');
     expect(text).not.toContain('Slack');
     expect(text).not.toContain('Discord');
+    expect(text).not.toContain('Home Assistant');
+    expect(text).not.toContain('HomeGraph');
+    expect(text).not.toContain(`${'Cloud'}${'flare'}`);
     expect(text).not.toContain('non-Agent product setup');
     expect(text).not.toContain('HTTP listener');
     expect(text).not.toContain('control-plane');
     expect(text).not.toContain('network setup');
+  });
+
+  test('onboards day-one personal operator surfaces without daemon ownership', () => {
+    const wizard = new OnboardingWizardController();
+    wizard.open('new');
+
+    const byId = new Map(wizard.steps.map((step) => [step.id, step]));
+    expect(byId.get('agent-communication')?.summaryLines).toContain('Outbound messages: explicit user action only');
+    expect(byId.get('agent-tools')?.summaryLines).toContain('MCP and tools: inspect before use');
+    expect(byId.get('agent-automation')?.summaryLines).toContain('Local routines: reusable main-conversation workflows');
+    expect(byId.get('agent-voice-media')?.summaryLines).toContain('Voice and speech: optional operator surfaces');
+
+    const text = wizard.steps
+      .flatMap((step) => [
+        step.id,
+        step.title,
+        step.description,
+        ...step.summaryLines,
+        ...step.fields.flatMap((field) => [field.id, field.label, field.hint, field.defaultValue]),
+      ])
+      .join('\n');
+
+    expect(text).toContain('companion clients');
+    expect(text).toContain('MCP servers');
+    expect(text).toContain('local routines');
+    expect(text).toContain('image');
+    expect(text).toContain('Agent Knowledge');
+    expect(text).not.toContain('Default Knowledge/Wiki fallback: enabled');
+    expect(text).not.toContain('start services');
   });
 
   test('clears selected Agent onboarding text fields with Delete', () => {
