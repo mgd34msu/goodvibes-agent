@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.50 - 2026-05-31
+
+- bdb654a Improve local library workspaces
+
 ## 0.1.49 - 2026-05-31
 
 - 445e694 Show isolated Agent Knowledge in TUI panel
