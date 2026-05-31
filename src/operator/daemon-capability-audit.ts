@@ -49,6 +49,9 @@ export interface DaemonCapabilityAuditArea {
     readonly coverage: DaemonCapabilityRouteCoverage;
   }[];
   readonly routeRisk: {
+    readonly readOnlyMethodIds: readonly string[];
+    readonly mutatingMethodIds: readonly string[];
+    readonly authenticatedMethodIds: readonly string[];
     readonly readOnlyMethodCount: number;
     readonly mutatingMethodCount: number;
     readonly authenticatedMethodCount: number;
@@ -98,6 +101,38 @@ export interface DaemonCapabilityGapReport {
   readonly homeGraphFallback: false;
   readonly gapCount: number;
   readonly gaps: readonly DaemonCapabilityGap[];
+}
+
+export interface DaemonCapabilityRouteRiskArea {
+  readonly areaId: string;
+  readonly title: string;
+  readonly coverage: DaemonCapabilityCoverage;
+  readonly readOnlyMethodIds: readonly string[];
+  readonly mutatingMethodIds: readonly string[];
+  readonly authenticatedMethodIds: readonly string[];
+  readonly readOnlyMethodCount: number;
+  readonly mutatingMethodCount: number;
+  readonly authenticatedMethodCount: number;
+  readonly dangerousMethodIds: readonly string[];
+}
+
+export interface DaemonCapabilityRouteRiskReport {
+  readonly ok: true;
+  readonly kind: 'daemon.capabilities.route_risk';
+  readonly baseUrl: string;
+  readonly daemonVersion: string;
+  readonly expectedSdkVersion: string;
+  readonly daemonCompatible: boolean;
+  readonly methodCatalogRoute: typeof DAEMON_METHOD_CATALOG_ROUTE;
+  readonly agentKnowledgeRoute: typeof AGENT_KNOWLEDGE_STATUS_ROUTE;
+  readonly agentKnowledgeRouteReady: boolean;
+  readonly defaultKnowledgeFallback: false;
+  readonly homeGraphFallback: false;
+  readonly totalReadOnlyMethodCount: number;
+  readonly totalMutatingMethodCount: number;
+  readonly totalAuthenticatedMethodCount: number;
+  readonly totalDangerousMethodCount: number;
+  readonly areas: readonly DaemonCapabilityRouteRiskArea[];
 }
 
 export interface DaemonCapabilityAuditFailure {
@@ -452,15 +487,17 @@ export function buildDaemonCapabilityAuditAreas(
       const method = methodsById.get(methodId);
       return method ? [method] : [];
     });
-    const readOnlyMethodCount = areaMethods.filter((method) => {
+    const readOnlyMethodIds = areaMethods.filter((method) => {
       const verb = method.http?.method?.toUpperCase();
       return verb === 'GET' || verb === 'HEAD';
-    }).length;
-    const mutatingMethodCount = areaMethods.filter((method) => {
+    }).map((method) => method.id);
+    const mutatingMethodIds = areaMethods.filter((method) => {
       const verb = method.http?.method?.toUpperCase();
       return Boolean(verb) && verb !== 'GET' && verb !== 'HEAD';
-    }).length;
-    const authenticatedMethodCount = areaMethods.filter((method) => method.access === 'authenticated').length;
+    }).map((method) => method.id);
+    const authenticatedMethodIds = areaMethods
+      .filter((method) => method.access === 'authenticated')
+      .map((method) => method.id);
     const dangerousMethodIds = areaMethods
       .filter((method) => method.dangerous === true)
       .map((method) => method.id);
@@ -484,9 +521,12 @@ export function buildDaemonCapabilityAuditAreas(
       missingOptionalMethodIds,
       agentRoutes,
       routeRisk: {
-        readOnlyMethodCount,
-        mutatingMethodCount,
-        authenticatedMethodCount,
+        readOnlyMethodIds,
+        mutatingMethodIds,
+        authenticatedMethodIds,
+        readOnlyMethodCount: readOnlyMethodIds.length,
+        mutatingMethodCount: mutatingMethodIds.length,
+        authenticatedMethodCount: authenticatedMethodIds.length,
         dangerousMethodIds,
       },
       next: requirement.next,
@@ -715,6 +755,102 @@ export function renderDaemonCapabilityGaps(
     if (gap.areaId) lines.push(`  area: ${gap.areaId}`);
     lines.push(`  detail: ${gap.detail}`);
     lines.push(`  action: ${gap.action}`);
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+export function buildDaemonCapabilityRouteRiskReport(
+  audit: DaemonCapabilityAuditSuccess,
+  areas: readonly DaemonCapabilityAuditArea[] = audit.areas,
+): DaemonCapabilityRouteRiskReport {
+  const riskAreas = areas.map((area): DaemonCapabilityRouteRiskArea => ({
+    areaId: area.id,
+    title: area.title,
+    coverage: area.coverage,
+    readOnlyMethodIds: area.routeRisk.readOnlyMethodIds,
+    mutatingMethodIds: area.routeRisk.mutatingMethodIds,
+    authenticatedMethodIds: area.routeRisk.authenticatedMethodIds,
+    readOnlyMethodCount: area.routeRisk.readOnlyMethodCount,
+    mutatingMethodCount: area.routeRisk.mutatingMethodCount,
+    authenticatedMethodCount: area.routeRisk.authenticatedMethodCount,
+    dangerousMethodIds: area.routeRisk.dangerousMethodIds,
+  }));
+  const readOnlyMethodIds = new Set(riskAreas.flatMap((area) => area.readOnlyMethodIds));
+  const mutatingMethodIds = new Set(riskAreas.flatMap((area) => area.mutatingMethodIds));
+  const authenticatedMethodIds = new Set(riskAreas.flatMap((area) => area.authenticatedMethodIds));
+  const dangerousMethodIds = new Set(riskAreas.flatMap((area) => area.dangerousMethodIds));
+
+  return {
+    ok: true,
+    kind: 'daemon.capabilities.route_risk',
+    baseUrl: audit.baseUrl,
+    daemonVersion: audit.daemonVersion,
+    expectedSdkVersion: audit.expectedSdkVersion,
+    daemonCompatible: audit.daemonCompatible,
+    methodCatalogRoute: audit.methodCatalogRoute,
+    agentKnowledgeRoute: audit.agentKnowledgeRoute,
+    agentKnowledgeRouteReady: audit.agentKnowledgeRouteReady,
+    defaultKnowledgeFallback: false,
+    homeGraphFallback: false,
+    totalReadOnlyMethodCount: readOnlyMethodIds.size,
+    totalMutatingMethodCount: mutatingMethodIds.size,
+    totalAuthenticatedMethodCount: authenticatedMethodIds.size,
+    totalDangerousMethodCount: dangerousMethodIds.size,
+    areas: riskAreas,
+  };
+}
+
+export function filterDaemonCapabilityRouteRiskAreas(
+  areas: readonly DaemonCapabilityRouteRiskArea[],
+  query: string | undefined,
+): readonly DaemonCapabilityRouteRiskArea[] {
+  const normalized = query?.trim().toLowerCase();
+  if (!normalized) return areas;
+  return areas.filter((area) => {
+    return area.areaId.includes(normalized)
+      || area.title.toLowerCase().includes(normalized)
+      || area.coverage.includes(normalized)
+      || area.dangerousMethodIds.some((methodId) => methodId.includes(normalized));
+  });
+}
+
+export function renderDaemonCapabilityRouteRisk(
+  report: DaemonCapabilityRouteRiskReport,
+  areas: readonly DaemonCapabilityRouteRiskArea[] = report.areas,
+): string {
+  const lines: string[] = [
+    'GoodVibes daemon route risk review',
+    `  daemon: ${report.baseUrl}`,
+    `  SDK: Agent expects ${report.expectedSdkVersion}; daemon reports ${report.daemonVersion}`,
+    `  compatibility: ${report.daemonCompatible ? 'matched' : 'mismatch'}`,
+    `  method catalog: ${report.methodCatalogRoute}`,
+    `  Agent Knowledge: ${report.agentKnowledgeRouteReady ? 'ready' : 'missing'} ${report.agentKnowledgeRoute}`,
+    '  isolation: default Knowledge/Wiki fallback no; HomeGraph fallback no',
+    `  totals: ${report.totalReadOnlyMethodCount} read-only; ${report.totalMutatingMethodCount} mutating; ${report.totalDangerousMethodCount} dangerous; ${report.totalAuthenticatedMethodCount} authenticated`,
+    '  policy: exact command plus confirmation for side effects; ordinary chat never triggers mutating routes',
+    '',
+  ];
+
+  const visibleAreas = areas.filter((area) => {
+    return area.readOnlyMethodCount > 0
+      || area.mutatingMethodCount > 0
+      || area.authenticatedMethodCount > 0
+      || area.dangerousMethodIds.length > 0;
+  });
+  if (visibleAreas.length === 0) {
+    lines.push('No route risk metadata matched this query.');
+    return lines.join('\n');
+  }
+
+  for (const area of visibleAreas) {
+    lines.push(`${area.title} [${area.coverage}]`);
+    lines.push(`  methods: ${area.readOnlyMethodCount} read-only; ${area.mutatingMethodCount} mutating; ${area.dangerousMethodIds.length} dangerous; ${area.authenticatedMethodCount} authenticated`);
+    if (area.dangerousMethodIds.length > 0) {
+      lines.push(`  dangerous methods: ${area.dangerousMethodIds.join(', ')}`);
+    }
+    lines.push('  approval posture: read-only by default; exact command and confirmation required for side effects.');
     lines.push('');
   }
 

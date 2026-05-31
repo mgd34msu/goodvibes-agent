@@ -490,6 +490,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'capabilities-benchmark', label: 'Benchmark report', detail: 'Show the OpenClaw/Hermes parity benchmark with Agent posture, setup commands, usage paths, and remaining product gaps.', command: '/capabilities', kind: 'command', safety: 'read-only' },
       { id: 'capabilities-daemon', label: 'Live daemon audit', detail: 'Inspect the public daemon method catalog plus isolated Agent Knowledge route coverage. Does not query default Knowledge/Wiki or HomeGraph.', command: '/capabilities daemon', kind: 'command', safety: 'read-only' },
       { id: 'capabilities-daemon-gaps', label: 'Daemon gap plan', detail: 'Classify live daemon coverage into platform gaps, Agent route gaps, route-risk reviews, and Agent UX work without querying default Knowledge/Wiki or HomeGraph.', command: '/capabilities daemon gaps', kind: 'command', safety: 'read-only' },
+      { id: 'capabilities-daemon-risk', label: 'Route risk review', detail: 'Inspect daemon read-only, mutating, dangerous, and authenticated route metadata for approval-center planning.', command: '/capabilities daemon risk', kind: 'command', safety: 'read-only' },
       { id: 'capabilities-daemon-knowledge', label: 'Knowledge coverage', detail: 'Filter the live daemon audit to the isolated Agent Knowledge segment.', command: '/capabilities daemon knowledge', kind: 'command', safety: 'read-only' },
       { id: 'capabilities-daemon-channels', label: 'Channel coverage', detail: 'Filter the live daemon audit to channel and delivery gateway route coverage.', command: '/capabilities daemon channels', kind: 'command', safety: 'read-only' },
       { id: 'capabilities-daemon-automation', label: 'Automation coverage', detail: 'Filter the live daemon audit to automation, schedule, run, and capacity route coverage.', command: '/capabilities daemon automation', kind: 'command', safety: 'read-only' },
@@ -581,6 +582,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'workplan', label: 'Open work plan', detail: 'Open the workspace-scoped work plan panel.', command: '/workplan panel', kind: 'command', safety: 'read-only' },
       { id: 'workplan-list', label: 'List work plan', detail: 'Print a concise work plan summary.', command: '/workplan list', kind: 'command', safety: 'read-only' },
       { id: 'approvals', label: 'Review approvals', detail: 'Open/read approval posture. This workspace does not approve or deny requests.', command: '/approval open', kind: 'command', safety: 'read-only' },
+      { id: 'approval-risk', label: 'Route risk review', detail: 'Inspect daemon route risk and dangerous method metadata without approving, denying, or mutating requests.', command: '/approval risk', kind: 'command', safety: 'read-only' },
     ],
   },
   {

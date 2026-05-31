@@ -18,7 +18,7 @@ High-signal Agent command families:
 
 - `/help` for registry-driven command discovery.
 - `/status`, `/auth`, and `/compat` for daemon/auth/SDK diagnostics.
-- `/capabilities` for the OpenClaw/Hermes benchmark; `/capabilities daemon` checks the live GoodVibes daemon method catalog plus isolated Agent Knowledge route coverage; `/capabilities daemon gaps` turns live daemon coverage into a prioritized platform-vs-Agent gap plan.
+- `/capabilities` for the OpenClaw/Hermes benchmark; `/capabilities daemon` checks the live GoodVibes daemon method catalog plus isolated Agent Knowledge route coverage; `/capabilities daemon gaps` turns live daemon coverage into a prioritized platform-vs-Agent gap plan; `/approval risk` shows the same daemon route risk metadata as an approval-center view.
 - `/model` and `/provider` for provider/model selection and visibility.
 - `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, and ingest.
 - `goodvibes-agent ask <question>` and `goodvibes-agent search <query>` are CLI shortcuts for the same isolated Agent Knowledge routes.
@@ -26,6 +26,7 @@ High-signal Agent command families:
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
 - `/approvals` for pending approval visibility and explicit approval actions.
+- `/approval risk` for read-only daemon route risk review; it does not approve, deny, cancel, or run anything.
 - `/automation` and `/schedule` for automation visibility plus narrow explicit-user-action flows, including `/schedule promote-routine <routine> --cron <expr> [--delivery-surface slack] --yes` for external daemon schedule creation, `/schedule receipts` for redacted local promotion history, and `/schedule reconcile` for live read-only receipt-to-daemon schedule correlation.
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.

@@ -278,4 +278,77 @@ describe('CLI capabilities command', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test('daemon route risk report uses catalog metadata without default knowledge fallback', async () => {
+    const requests: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input) => {
+      const url = inputUrl(input);
+      requests.push(url);
+      if (url.endsWith('/api/goodvibes-agent/knowledge/status')) {
+        return new Response(JSON.stringify({ sourceCount: 0 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/status')) {
+        return new Response(JSON.stringify({ version: '0.33.35' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/api/control-plane/methods')) {
+        return new Response(JSON.stringify({
+          methods: [
+            {
+              id: 'approvals.list',
+              access: 'authenticated',
+              http: { method: 'GET', path: '/api/approvals' },
+            },
+            {
+              id: 'approvals.approve',
+              access: 'authenticated',
+              http: { method: 'POST', path: '/api/approvals/{id}/approve' },
+            },
+            {
+              id: 'channels.policies.audit',
+              access: 'authenticated',
+              dangerous: true,
+              http: { method: 'POST', path: '/api/channels/policies/audit' },
+            },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'unexpected route' }), { status: 404 });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleCapabilitiesCommand(makeDaemonRuntime(['capabilities', 'daemon', 'risk', '--json']));
+      const parsed = JSON.parse(result.output) as {
+        readonly ok?: boolean;
+        readonly kind?: string;
+        readonly defaultKnowledgeFallback?: boolean;
+        readonly homeGraphFallback?: boolean;
+        readonly totalMutatingMethodCount?: number;
+        readonly totalDangerousMethodCount?: number;
+        readonly areas?: readonly { readonly dangerousMethodIds?: readonly string[] }[];
+      };
+
+      expect(result.exitCode).toBe(0);
+      expect(parsed.ok).toBe(true);
+      expect(parsed.kind).toBe('daemon.capabilities.route_risk');
+      expect(parsed.defaultKnowledgeFallback).toBe(false);
+      expect(parsed.homeGraphFallback).toBe(false);
+      expect(parsed.totalMutatingMethodCount).toBe(2);
+      expect(parsed.totalDangerousMethodCount).toBe(1);
+      expect(parsed.areas?.some((area) => area.dangerousMethodIds?.includes('channels.policies.audit'))).toBe(true);
+      expect(requests.some((url) => url.includes('/api/knowledge'))).toBe(false);
+      expect(requests.some((url) => url.includes('/api/homegraph'))).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

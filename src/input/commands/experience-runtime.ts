@@ -3,6 +3,14 @@ import { dirname, resolve } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
 import { requirePanelManager, requireShellPaths } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
+import { resolveAgentDaemonConnection } from '../../agent/routine-schedule-promotion.ts';
+import {
+  buildDaemonCapabilityRouteRiskReport,
+  fetchLiveDaemonCapabilityAudit,
+  filterDaemonCapabilityRouteRiskAreas,
+  renderDaemonCapabilityFailure,
+  renderDaemonCapabilityRouteRisk,
+} from '../../operator/daemon-capability-audit.ts';
 
 interface VoiceBundle {
   readonly version: 1;
@@ -178,8 +186,8 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
     name: 'approval',
     aliases: ['approvals'],
     description: 'Review action-specific approval classes and the specialized security UX matrix',
-    usage: '[matrix|review <kind>]',
-    handler(args, ctx) {
+    usage: '[matrix|risk|review <kind>]',
+    async handler(args, ctx) {
       const sub = (args[0] ?? 'matrix').toLowerCase();
       if (sub === 'open' || sub === 'panel') {
         if (ctx.showPanel) ctx.showPanel('approval');
@@ -205,7 +213,23 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         ctx.print([
           'Approval Matrix',
           ...matrix.map(([kind, summary]) => `  ${kind.padEnd(10)} ${summary}`),
+          '',
+          'Live daemon route risk: /approval risk',
         ].join('\n'));
+        return;
+      }
+      if (sub === 'risk' || sub === 'route-risk') {
+        const shellPaths = requireShellPaths(ctx);
+        const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+        const audit = await fetchLiveDaemonCapabilityAudit(connection);
+        if (!audit.ok) {
+          ctx.print(renderDaemonCapabilityFailure(audit));
+          return;
+        }
+        const report = buildDaemonCapabilityRouteRiskReport(audit);
+        const query = args.slice(1).join(' ').trim() || undefined;
+        const areas = filterDaemonCapabilityRouteRiskAreas(report.areas, query);
+        ctx.print(renderDaemonCapabilityRouteRisk(report, areas));
         return;
       }
       if (sub === 'review') {
@@ -222,7 +246,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         ].join('\n'));
         return;
       }
-      ctx.print('Usage: /approval [open|matrix|review <kind>]');
+      ctx.print('Usage: /approval [open|matrix|risk|review <kind>]');
     },
   });
 

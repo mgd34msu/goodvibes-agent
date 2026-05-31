@@ -143,6 +143,20 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/capabilities daemon gaps');
   });
 
+  test('dispatches approval route risk review from the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approval-risk');
+
+    workspace.activateSelected();
+
+    expect(workspace.selectedAction?.detail).toContain('without approving');
+    expect(dispatched).toEqual(['/approval risk']);
+    expect(workspace.status).toContain('/approval risk');
+  });
+
   test('keeps channel delivery safety guidance local', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

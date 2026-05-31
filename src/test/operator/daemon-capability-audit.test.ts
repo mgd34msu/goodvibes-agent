@@ -3,8 +3,10 @@ import {
   AGENT_KNOWLEDGE_STATUS_ROUTE,
   buildDaemonCapabilityAuditAreas,
   buildDaemonCapabilityGapReport,
+  buildDaemonCapabilityRouteRiskReport,
   renderDaemonCapabilityAudit,
   renderDaemonCapabilityGaps,
+  renderDaemonCapabilityRouteRisk,
   type DaemonCapabilityAuditSuccess,
 } from '../../operator/daemon-capability-audit.ts';
 
@@ -71,9 +73,17 @@ describe('daemon capability audit', () => {
     );
     const automation = areas.find((area) => area.id === 'automation-schedules');
 
-    expect(automation?.routeRisk).toEqual({
+    expect(automation?.routeRisk).toMatchObject({
+      readOnlyMethodIds: ['automation.integration.snapshot', 'automation.jobs.list'],
       readOnlyMethodCount: 2,
+      mutatingMethodIds: ['automation.jobs.run', 'schedules.delete'],
       mutatingMethodCount: 2,
+      authenticatedMethodIds: [
+        'automation.integration.snapshot',
+        'automation.jobs.list',
+        'automation.jobs.run',
+        'schedules.delete',
+      ],
       authenticatedMethodCount: 4,
       dangerousMethodIds: ['schedules.delete'],
     });
@@ -172,5 +182,69 @@ describe('daemon capability audit', () => {
     expect(rendered).toContain('isolation: default Knowledge/Wiki fallback no; HomeGraph fallback no');
     expect(rendered).not.toContain('/api/knowledge/status');
     expect(rendered).not.toContain('/api/homegraph');
+  });
+
+  test('builds route-risk report for approval-center posture', () => {
+    const areas = buildDaemonCapabilityAuditAreas(
+      new Set<string>([
+        'approvals.list',
+        'approvals.approve',
+        'approvals.deny',
+        'channels.policies.audit',
+      ]),
+      true,
+      [
+        {
+          id: 'approvals.list',
+          access: 'authenticated',
+          http: { method: 'GET', path: '/api/approvals' },
+        },
+        {
+          id: 'approvals.approve',
+          access: 'authenticated',
+          http: { method: 'POST', path: '/api/approvals/{id}/approve' },
+        },
+        {
+          id: 'approvals.deny',
+          access: 'authenticated',
+          http: { method: 'POST', path: '/api/approvals/{id}/deny' },
+        },
+        {
+          id: 'channels.policies.audit',
+          access: 'authenticated',
+          dangerous: true,
+          http: { method: 'POST', path: '/api/channels/policies/audit' },
+        },
+      ],
+    );
+    const audit: DaemonCapabilityAuditSuccess = {
+      ok: true,
+      kind: 'daemon.capabilities.audit',
+      baseUrl: 'http://127.0.0.1:3421',
+      daemonVersion: '0.33.35',
+      expectedSdkVersion: '0.33.35',
+      daemonCompatible: true,
+      methodCatalogRoute: '/api/control-plane/methods',
+      methodCount: 4,
+      agentKnowledgeRoute: AGENT_KNOWLEDGE_STATUS_ROUTE,
+      agentKnowledgeRouteReady: true,
+      defaultKnowledgeFallback: false,
+      homeGraphFallback: false,
+      warnings: [],
+      areas,
+    };
+
+    const report = buildDaemonCapabilityRouteRiskReport(audit);
+    const rendered = renderDaemonCapabilityRouteRisk(report);
+
+    expect(report.kind).toBe('daemon.capabilities.route_risk');
+    expect(report.totalReadOnlyMethodCount).toBe(1);
+    expect(report.totalMutatingMethodCount).toBe(3);
+    expect(report.totalDangerousMethodCount).toBe(1);
+    expect(report.defaultKnowledgeFallback).toBe(false);
+    expect(rendered).toContain('GoodVibes daemon route risk review');
+    expect(rendered).toContain('channels.policies.audit');
+    expect(rendered).toContain('ordinary chat never triggers mutating routes');
+    expect(rendered).not.toContain('/api/knowledge/status');
   });
 });

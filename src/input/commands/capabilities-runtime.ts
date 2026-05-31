@@ -6,12 +6,15 @@ import {
 } from '../../operator/capability-benchmark.ts';
 import {
   buildDaemonCapabilityGapReport,
+  buildDaemonCapabilityRouteRiskReport,
   fetchLiveDaemonCapabilityAudit,
   filterDaemonCapabilityAuditAreas,
   filterDaemonCapabilityGaps,
+  filterDaemonCapabilityRouteRiskAreas,
   renderDaemonCapabilityAudit,
   renderDaemonCapabilityFailure,
   renderDaemonCapabilityGaps,
+  renderDaemonCapabilityRouteRisk,
 } from '../../operator/daemon-capability-audit.ts';
 import { resolveAgentDaemonConnection } from '../../agent/routine-schedule-promotion.ts';
 
@@ -35,6 +38,13 @@ export function registerCapabilitiesRuntimeCommands(registry: CommandRegistry): 
           const query = args.slice(2).join(' ').trim() || undefined;
           const gaps = filterDaemonCapabilityGaps(report.gaps, query);
           ctx.print(renderDaemonCapabilityGaps(report, gaps));
+          return;
+        }
+        if (args[1] === 'risk' || args[1] === 'route-risk') {
+          const report = buildDaemonCapabilityRouteRiskReport(audit);
+          const query = args.slice(2).join(' ').trim() || undefined;
+          const areas = filterDaemonCapabilityRouteRiskAreas(report.areas, query);
+          ctx.print(renderDaemonCapabilityRouteRisk(report, areas));
           return;
         }
         const query = args.slice(1).join(' ').trim() || undefined;
