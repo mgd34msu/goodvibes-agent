@@ -2,6 +2,13 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.6 - 2026-05-31
+
+- Made the publish helper use exported `NODE_AUTH_TOKEN` or `NPM_TOKEN` automatically by writing a temporary npm user config for publish commands.
+- Rewrote source docs for tools, commands, knowledge, artifacts, and multimodal behavior so they describe Agent-only Knowledge/Wiki and never teach default Knowledge/Wiki or HomeGraph fallback.
+- Updated `/plan` command and Planning panel language from copied TUI-owned wording to Agent-owned workspace planning state.
+- Added regression tests that keep source docs and active planning surfaces aligned with Agent Knowledge isolation and Agent product language.
+
 ## 0.1.5 - 2026-05-31
 
 - Hardened package-facing release checks so shipped docs and Agent guidance cannot reintroduce default Knowledge/Wiki, HomeGraph, Home Assistant, copied TUI daemon, or copied WRFC-first policy text.
