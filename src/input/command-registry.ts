@@ -20,6 +20,7 @@ import type { OperatorClient } from '@/runtime/index.ts';
 import type { PeerClient } from '@/runtime/index.ts';
 import type { DirectTransport } from '@/runtime/index.ts';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
+import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type {
   CommandWorkspaceShellServices,
 } from '@/runtime/index.ts';
@@ -163,6 +164,7 @@ export interface CommandPlatformConfigServices {
   readonly configManager: ConfigManager;
   readonly voiceProviderRegistry?: VoiceProviderRegistry;
   readonly voiceService?: VoiceService;
+  readonly mediaProviderRegistry?: MediaProviderRegistry;
 }
 
 export interface CommandPlatformServices
@@ -256,7 +258,7 @@ export class CommandRegistry {
   }
 
   /**
-   * get - Look up a command by its primary name or any alias. O(1) for both.
+   * get - Look up a command by its primary name or alias. O(1) for both.
    */
   get(name: string): SlashCommand | undefined {
     return this.commands.get(name) ?? this.aliasIndex.get(name);

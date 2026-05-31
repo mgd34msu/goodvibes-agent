@@ -79,6 +79,19 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly executionPolicy: 'serial-proactive';
   readonly wrfcPolicy: 'explicit-build-delegation-only';
   readonly channels: readonly AgentWorkspaceChannelStatus[];
+  readonly voiceProviderCount: number;
+  readonly voiceStreamingProviderCount: number;
+  readonly voiceSttProviderCount: number;
+  readonly voiceRealtimeProviderCount: number;
+  readonly ttsProvider: string;
+  readonly ttsVoice: string;
+  readonly ttsResponseModel: string;
+  readonly voiceSurfaceEnabled: boolean;
+  readonly mediaProviderCount: number;
+  readonly mediaUnderstandingProviderCount: number;
+  readonly mediaGenerationProviderCount: number;
+  readonly browserSurfaceEnabled: boolean;
+  readonly browserSurfacePublicBaseUrl: string;
   readonly warnings: readonly string[];
 }
 
@@ -340,9 +353,27 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: 0, enabled: 0 };
     }
   })();
+  const voiceProviders = (() => {
+    try {
+      return context.platform?.voiceProviderRegistry?.list?.() ?? [];
+    } catch {
+      return [];
+    }
+  })();
+  const mediaProviders = (() => {
+    try {
+      return context.platform?.mediaProviderRegistry?.list?.() ?? [];
+    } catch {
+      return [];
+    }
+  })();
   const warnings: string[] = [];
   if (provider === 'unknown' || model === 'unknown') warnings.push('Provider/model unavailable in this runtime context.');
   if (!context.executeCommand) warnings.push('Command dispatch is unavailable; workspace actions will show guidance only.');
+  const ttsProvider = readConfigString(context, 'tts.provider', '(provider default)');
+  const ttsVoice = readConfigString(context, 'tts.voice', '(voice default)');
+  const ttsLlmProvider = readConfigString(context, 'tts.llmProvider', '');
+  const ttsLlmModel = readConfigString(context, 'tts.llmModel', '');
 
   return {
     provider,
@@ -365,6 +396,19 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     executionPolicy: 'serial-proactive',
     wrfcPolicy: 'explicit-build-delegation-only',
     channels: AGENT_WORKSPACE_CHANNEL_SPECS.map((spec) => buildChannelStatus(context, spec)),
+    voiceProviderCount: voiceProviders.length,
+    voiceStreamingProviderCount: voiceProviders.filter((entry) => entry.capabilities.includes('tts-stream')).length,
+    voiceSttProviderCount: voiceProviders.filter((entry) => entry.capabilities.includes('stt')).length,
+    voiceRealtimeProviderCount: voiceProviders.filter((entry) => entry.capabilities.includes('realtime')).length,
+    ttsProvider,
+    ttsVoice,
+    ttsResponseModel: ttsLlmProvider && ttsLlmModel ? `${ttsLlmProvider}/${ttsLlmModel}` : '(chat route)',
+    voiceSurfaceEnabled: readConfigBoolean(context, 'ui.voiceEnabled', false),
+    mediaProviderCount: mediaProviders.length,
+    mediaUnderstandingProviderCount: mediaProviders.filter((entry) => entry.capabilities.includes('understand')).length,
+    mediaGenerationProviderCount: mediaProviders.filter((entry) => entry.capabilities.includes('generate')).length,
+    browserSurfaceEnabled: readConfigBoolean(context, 'web.enabled', false),
+    browserSurfacePublicBaseUrl: readConfigString(context, 'web.publicBaseUrl', '(not configured)'),
     warnings,
   };
 }
@@ -423,6 +467,22 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'knowledge-review-queue', label: 'Review queue', detail: 'Inspect source/node/issue review work before accepting, rejecting, or resolving anything.', command: '/knowledge queue', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-consolidation', label: 'Consolidation review', detail: 'Inspect consolidation candidates and reports before running Agent Knowledge mutations.', command: '/knowledge candidates', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-ask', label: 'Ask Agent knowledge', detail: 'Close this workspace and run /knowledge ask <question> or ask normally in chat.', kind: 'guidance', safety: 'read-only' },
+    ],
+  },
+  {
+    id: 'voice-media',
+    group: 'SETUP',
+    label: 'Voice, Media & Nodes',
+    summary: 'Voice, TTS, image input, browser surface, and node/remote posture.',
+    detail: 'Hermes and OpenClaw expose voice, media, browser, and node surfaces as first-class operator capabilities. Agent uses the GoodVibes voice/media/provider/browser/remote bones while keeping daemon ownership external and side effects explicit.',
+    actions: [
+      { id: 'tts-config', label: 'Configure live TTS', detail: 'Open the TUI-derived config workspace at the TTS settings group.', command: '/config tts', kind: 'command', safety: 'safe' },
+      { id: 'tts-provider', label: 'Choose TTS provider', detail: 'Open provider/model routing for spoken responses through the settings flow.', command: '/config tts.provider', kind: 'command', safety: 'safe' },
+      { id: 'tts-speak', label: 'Speak a prompt', detail: 'Submit a normal assistant turn and play the reply through configured live TTS. Close this workspace and provide real prompt text.', command: '/tts <prompt>', kind: 'command', safety: 'safe' },
+      { id: 'image-attach', label: 'Attach image input', detail: 'Attach an image to the next assistant turn. Close this workspace and provide a real path and prompt.', command: '/image <path> <prompt>', kind: 'command', safety: 'safe' },
+      { id: 'browser-surface', label: 'Browser surface status', detail: 'Inspect browser/web posture through setup diagnostics without starting listeners or daemon services.', command: '/setup services', kind: 'command', safety: 'read-only' },
+      { id: 'mcp-browser', label: 'Browser MCP tools', detail: 'Inspect MCP servers and tools, including browser/automation roles, without mutating server setup.', command: '/mcp servers', kind: 'command', safety: 'read-only' },
+      { id: 'node-posture', label: 'Node/remote posture', detail: 'Inspect remote runner/node posture. Dispatch remains blocked unless the task is explicit build delegation to TUI.', command: '/remote list', kind: 'command', safety: 'read-only' },
     ],
   },
   {

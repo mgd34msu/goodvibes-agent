@@ -55,7 +55,7 @@ Primary sources used for the benchmark:
 | Skills/procedural memory | Skills directories, registries, skill lifecycle | Local Agent skills with review/stale/source/provenance fields |
 | Scheduling | Natural-language cron, run/pause/resume/edit/remove, delivery | Guarded automation/schedule routes plus local routines; hidden model scheduling blocked |
 | Tools/MCP | Broad toolsets, MCP, browser, media, terminal, files | GoodVibes SDK tools with Agent policy guards and MCP/provider integrations |
-| Voice/media/canvas/nodes | Voice, TTS, mobile nodes, live canvas, browser automation | GoodVibes media/voice/browser primitives copied in; Agent-first setup still being wired |
+| Voice/media/canvas/nodes | Voice, TTS, mobile nodes, live canvas, browser automation | GoodVibes media/voice/browser/node primitives with an Agent workspace for setup, image input, browser posture, MCP, and remote/node inspection |
 | Build/code work | Direct terminal/file/code tools and subagents | Explicit delegation to GoodVibes TUI; local WRFC/spawn fanout blocked |
 | Profiles | Independent profiles with own config/memory/skills/gateway | `GOODVIBES_AGENT_HOME` and named `--agent-profile` homes isolate Agent-local state; daemon remains external |
 | Security | DM pairing, approvals, sandboxing, allowlists | Daemon approvals, auth diagnostics, secret refs, confirmation gates, model-tool policy |
@@ -76,7 +76,7 @@ GoodVibes Agent should exceed OpenClaw/Hermes by making these properties true fr
 - Live daemon account health and last delivery errors in the Channels workspace once a stable read-only route is available.
 - Artifact and multimodal Agent Knowledge ingest affordances once Agent-specific routes are stable.
 - Profile-aware onboarding summaries and profile export/import shortcuts from the Agent workspace.
-- Voice/media/browser/node setup workspaces.
+- Artifact and multimodal Agent Knowledge ingestion when the isolated Agent route accepts artifact-backed media.
 - Delegation receipts and artifact review inside the operator workspace.
 - Approval center with route risk labels and saved policy presets.
 - Intent-gated tool exposure so the model sees fewer irrelevant tools per turn while retaining broad capability coverage.

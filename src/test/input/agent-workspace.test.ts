@@ -169,6 +169,65 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('Placeholder command not dispatched');
   });
 
+  test('summarizes voice and media provider coverage in the runtime snapshot', () => {
+    const snapshot = buildAgentWorkspaceRuntimeSnapshot({
+      ...commandContext(),
+      platform: {
+        configManager: {
+          get: (key: string) => new Map<string, unknown>([
+            ['tts.provider', 'elevenlabs'],
+            ['tts.voice', 'voice-operator'],
+            ['tts.llmProvider', 'openai-subscriber'],
+            ['tts.llmModel', 'gpt-5.5'],
+            ['ui.voiceEnabled', true],
+            ['web.enabled', true],
+            ['web.publicBaseUrl', 'https://agent.example.test'],
+          ]).get(key),
+        },
+        voiceProviderRegistry: {
+          list: () => [
+            { id: 'elevenlabs', label: 'ElevenLabs', capabilities: ['tts-stream', 'stt', 'realtime'] },
+            { id: 'deepgram', label: 'Deepgram', capabilities: ['stt'] },
+          ],
+        },
+        mediaProviderRegistry: {
+          list: () => [
+            { id: 'builtin:image-understanding', label: 'Image Understanding', capabilities: ['understand'] },
+            { id: 'fal', label: 'Fal', capabilities: ['generate'] },
+          ],
+        },
+      },
+    } as unknown as CommandContext);
+
+    expect(snapshot.voiceProviderCount).toBe(2);
+    expect(snapshot.voiceStreamingProviderCount).toBe(1);
+    expect(snapshot.voiceSttProviderCount).toBe(2);
+    expect(snapshot.voiceRealtimeProviderCount).toBe(1);
+    expect(snapshot.ttsProvider).toBe('elevenlabs');
+    expect(snapshot.ttsVoice).toBe('voice-operator');
+    expect(snapshot.ttsResponseModel).toBe('openai-subscriber/gpt-5.5');
+    expect(snapshot.voiceSurfaceEnabled).toBe(true);
+    expect(snapshot.mediaProviderCount).toBe(2);
+    expect(snapshot.mediaUnderstandingProviderCount).toBe(1);
+    expect(snapshot.mediaGenerationProviderCount).toBe(1);
+    expect(snapshot.browserSurfaceEnabled).toBe(true);
+    expect(snapshot.browserSurfacePublicBaseUrl).toBe('https://agent.example.test');
+  });
+
+  test('does not dispatch voice media command templates without real target values', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tts-speak');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.lastActionResult?.kind).toBe('guidance');
+    expect(workspace.status).toContain('Placeholder command not dispatched');
+  });
+
   test('blocks copied TUI-only blocked commands inside the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

@@ -117,6 +117,16 @@ function snapshotLines(category: AgentWorkspaceCategory, snapshot: AgentWorkspac
       { text: 'Review: queue, issues, candidates, reports, reindex, and consolidation stay inside the Agent segment.', fg: PALETTE.muted },
       { text: 'Agent-owned content appears here only after explicit Agent knowledge ingestion.', fg: PALETTE.muted },
     );
+  } else if (category.id === 'voice-media') {
+    base.push(
+      { text: `Voice providers: ${snapshot.voiceProviderCount}; streaming TTS: ${snapshot.voiceStreamingProviderCount}; STT: ${snapshot.voiceSttProviderCount}; realtime: ${snapshot.voiceRealtimeProviderCount}.`, fg: PALETTE.info },
+      { text: `Voice surface: ${snapshot.voiceSurfaceEnabled ? 'enabled' : 'disabled'}; use /voice review for portable voice posture.`, fg: snapshot.voiceSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: `TTS config: provider ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}; response model ${snapshot.ttsResponseModel}.`, fg: PALETTE.info },
+      { text: `Media providers: ${snapshot.mediaProviderCount}; understanding: ${snapshot.mediaUnderstandingProviderCount}; generation: ${snapshot.mediaGenerationProviderCount}.`, fg: PALETTE.info },
+      { text: `Browser surface: ${snapshot.browserSurfaceEnabled ? 'enabled' : 'disabled'}; public base URL ${snapshot.browserSurfacePublicBaseUrl}.`, fg: snapshot.browserSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: 'Node/remote posture is read-only here; build dispatch remains explicit TUI delegation.', fg: PALETTE.good },
+      { text: 'Image input uses prompt attachments; media generation/provider setup stays behind explicit commands and configured providers.', fg: PALETTE.muted },
+    );
   } else if (category.id === 'memory') {
     base.push(
       { text: `Session memories: ${snapshot.sessionMemoryCount}`, fg: PALETTE.info },

@@ -34,6 +34,13 @@ function liveCommandContext(): CommandContext {
     ['surfaces.slack.defaultChannel', 'ops-alerts'],
     ['surfaces.telegram.enabled', true],
     ['surfaces.telegram.botToken', 'goodvibes://secrets/goodvibes/TELEGRAM_BOT_TOKEN'],
+    ['tts.provider', 'elevenlabs'],
+    ['tts.voice', 'voice-operator'],
+    ['tts.llmProvider', 'openai-subscriber'],
+    ['tts.llmModel', 'gpt-5.5'],
+    ['ui.voiceEnabled', true],
+    ['web.enabled', true],
+    ['web.publicBaseUrl', 'https://agent.example.test'],
   ]);
   const personas = AgentPersonaRegistry.fromShellPaths(shellPaths);
   personas.create({
@@ -87,6 +94,18 @@ function liveCommandContext(): CommandContext {
     platform: {
       configManager: {
         get: (key: string) => configValues.get(key),
+      },
+      voiceProviderRegistry: {
+        list: () => [
+          { id: 'elevenlabs', label: 'ElevenLabs', capabilities: ['tts-stream', 'stt', 'realtime'] },
+          { id: 'deepgram', label: 'Deepgram', capabilities: ['stt'] },
+        ],
+      },
+      mediaProviderRegistry: {
+        list: () => [
+          { id: 'builtin:image-understanding', label: 'Image Understanding', capabilities: ['understand'] },
+          { id: 'fal', label: 'Fal', capabilities: ['generate'] },
+        ],
       },
     },
   } as unknown as CommandContext;
@@ -164,6 +183,25 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Consolidation review');
     expect(output).not.toContain('/api/knowledge');
     expect(output).not.toContain('Home Assistant');
+  });
+
+  test('renders voice media browser and node setup posture', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 38));
+
+    expect(output).toContain('Voice, Media & Nodes');
+    expect(output).toContain('Voice providers: 2; streaming TTS: 1; STT: 2; realtime: 1.');
+    expect(output).toContain('Voice surface: enabled');
+    expect(output).toContain('TTS config: provider elevenlabs; voice voice-operator; response model openai-subscriber/gpt-5.5.');
+    expect(output).toContain('Media providers: 2; understanding: 1; generation: 1.');
+    expect(output).toContain('Browser surface: enabled; public base URL https://agent.example.test.');
+    expect(output).toContain('/config tts');
+    expect(output).toContain('/image <path> <prompt>');
+    expect(output).toContain('/mcp servers');
+    expect(output).toContain('/remote list');
   });
 
   test('renders channel onboarding and delivery safety posture', () => {
