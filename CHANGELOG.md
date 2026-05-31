@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.52 - 2026-05-31
+
+- e543fa5 Add selected local library actions
+
 ## 0.1.51 - 2026-05-31
 
 - 6a8e8a6 Add local library workspace editors
