@@ -106,7 +106,12 @@
   },
   "trustedDependencies": [
     "@pellux/goodvibes-sdk",
-    "core-js"
+    "core-js",
+    "tree-sitter-css",
+    "tree-sitter-javascript",
+    "tree-sitter-json",
+    "tree-sitter-python",
+    "tree-sitter-typescript"
   ],
   "overrides": {
     "minimatch": "^10.2.5"
