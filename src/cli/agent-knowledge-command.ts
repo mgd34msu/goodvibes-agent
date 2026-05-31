@@ -73,6 +73,15 @@ function commandValues(args: readonly string[]): string[] {
   return values;
 }
 
+function delegationTaskValues(args: readonly string[]): string[] {
+  const values: string[] = [];
+  for (const token of args) {
+    if (token === '--wrfc') continue;
+    if (!token.startsWith('--')) values.push(token);
+  }
+  return values;
+}
+
 function readOptionValue(args: readonly string[], name: string): string | undefined {
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index]!;
@@ -96,6 +105,10 @@ function readStringList(args: readonly string[], name: string): readonly string[
   const raw = readOptionValue(args, name);
   if (!raw) return [];
   return raw.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
+function hasFlag(args: readonly string[], flag: string): boolean {
+  return args.includes(flag);
 }
 
 function packageJsonPath(): string {
@@ -278,6 +291,23 @@ function formatIngest(data: unknown, url: string): string {
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
+function buildDelegationBody(task: string, wrfcRequested: boolean): string {
+  return [
+    'GoodVibes Agent explicit build delegation.',
+    '',
+    'Original user ask:',
+    task,
+    '',
+    'Agent policy:',
+    '- GoodVibes Agent is not the coding TUI.',
+    '- Preserve the full original ask.',
+    '- GoodVibes TUI owns file edits, git/worktree flows, sandbox/QEMU UX, and any WRFC owner chain.',
+    wrfcRequested
+      ? '- WRFC was explicitly requested by the Agent user for this build/fix/review delegation.'
+      : '- WRFC was not explicitly requested; do not turn this into WRFC solely because it came from Agent.',
+  ].join('\n');
+}
+
 function formatFailure(failure: AgentKnowledgeFailure, json: boolean): string {
   if (json) return JSON.stringify(failure, null, 2);
   return [
@@ -440,5 +470,56 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
   return {
     output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text,
     exitCode: value.ok ? 0 : 1,
+  };
+}
+
+export async function handleDelegateCommand(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
+  const wrfcRequested = hasFlag(runtime.cli.commandArgs, '--wrfc');
+  const task = delegationTaskValues(runtime.cli.commandArgs).join(' ').trim();
+  if (!task) {
+    return {
+      output: 'Usage: goodvibes-agent delegate [--wrfc] <build/fix/review task>',
+      exitCode: 2,
+    };
+  }
+  const result = await runKnowledgeCall(runtime, 'sessions.messages.create', async (connection) => {
+    const sdk = createAgentSdk(connection);
+    const created = await sdk.operator.invoke('sessions.create', {
+      title: `Agent delegation: ${task.slice(0, 72)}`,
+      surfaceKind: 'goodvibes-agent',
+      surfaceId: 'goodvibes-agent-cli',
+    });
+    const sessionId = isRecord(created.session) && typeof created.session.id === 'string'
+      ? created.session.id
+      : null;
+    if (!sessionId) throw new Error('sessions.create returned no session id.');
+    const message = await sdk.operator.invoke('sessions.messages.create', {
+      sessionId,
+      body: buildDelegationBody(task, wrfcRequested),
+      surfaceKind: 'goodvibes-agent',
+      surfaceId: 'goodvibes-agent-cli',
+      kind: 'task',
+      routing: {
+        executionIntent: {
+          riskClass: 'elevated',
+          requiresApproval: true,
+          networkPolicy: 'inherit',
+          filesystemPolicy: 'workspace-write',
+        },
+      },
+    });
+    return { sessionId, message, task, wrfcRequested };
+  });
+  if (!result.ok) return { output: formatFailure(result, runtime.cli.flags.outputFormat === 'json'), exitCode: 1 };
+  const text = [
+    'Delegation submitted to GoodVibes TUI/shared-session routes.',
+    `  session: ${result.data.sessionId}`,
+    `  mode: ${result.data.wrfcRequested ? 'WRFC requested' : 'direct build delegation'}`,
+    `  task: ${result.data.task}`,
+    '  next: check GoodVibes TUI shared-session/task status for the result.',
+  ].join('\n');
+  return {
+    output: formatJsonOrText(runtime.cli)(result, text),
+    exitCode: 0,
   };
 }

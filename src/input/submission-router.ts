@@ -8,7 +8,7 @@ export interface SubmissionRouterInput {
 }
 
 const PLAN_COMMANDS = new Set(['plan']);
-const DELEGATION_COMMANDS = new Set(['review', 'wrfc', 'teamwork', 'agents', 'remote']);
+const DELEGATION_COMMANDS = new Set(['delegate', 'build', 'review', 'wrfc', 'teamwork', 'agents', 'remote']);
 const PANEL_COMMANDS = new Set(['panel']);
 const ORCHESTRATION_COMMANDS = new Set([
   'orchestration',

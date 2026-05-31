@@ -9,6 +9,7 @@ import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createRuntimeServices } from '../../runtime/services.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
+import { registerDelegationRuntimeCommands } from '../../input/commands/delegation-runtime.ts';
 import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
 
 describe('Agent operator policy hidden spawn gates', () => {
@@ -111,6 +112,77 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(manager.removeJob).toHaveBeenCalledTimes(0);
     expect(manager.setEnabled).toHaveBeenCalledTimes(0);
     expect(manager.runNow).toHaveBeenCalledTimes(0);
+  });
+
+  test('delegate command submits one shared-session request without eating --wrfc task text', async () => {
+    const registry = new CommandRegistry();
+    registerDelegationRuntimeCommands(registry);
+    const delegate = registry.get('delegate');
+    expect(delegate).toBeDefined();
+
+    const ensured: unknown[] = [];
+    const submitted: unknown[] = [];
+    const operator = {
+      sessions: {
+        ensureSession: mock(async (input: unknown) => {
+          ensured.push(input);
+          return { id: 'session-delegate' };
+        }),
+        submitMessage: mock(async (input: unknown) => {
+          submitted.push(input);
+          return {};
+        }),
+      },
+    } as unknown as NonNullable<NonNullable<CommandContext['clients']>['operator']>;
+    const out: string[] = [];
+    const ctx = {
+      clients: { operator },
+      session: {
+        conversationManager: {},
+        runtime: {
+          model: '',
+          provider: '',
+          debugMode: false,
+          systemPrompt: '',
+          reasoningEffort: '',
+          sessionId: 'agent-session-1',
+        },
+      },
+      print: (text: string) => out.push(text),
+    } as unknown as CommandContext;
+
+    await delegate!.handler(['--wrfc', 'fix', 'the', 'tests'], ctx);
+
+    expect(operator.sessions.ensureSession).toHaveBeenCalledTimes(1);
+    expect(operator.sessions.submitMessage).toHaveBeenCalledTimes(1);
+    expect(ensured[0]).toMatchObject({
+      participant: {
+        surfaceKind: 'service',
+        surfaceId: 'goodvibes-agent',
+        externalId: 'agent-session-1',
+      },
+      metadata: {
+        originSurface: 'goodvibes-agent',
+        task: 'fix the tests',
+        wrfcRequested: true,
+      },
+    });
+    expect(submitted[0]).toMatchObject({
+      sessionId: 'session-delegate',
+      surfaceKind: 'service',
+      surfaceId: 'goodvibes-agent',
+      metadata: {
+        kind: 'task',
+        task: 'fix the tests',
+        wrfcRequested: true,
+      },
+      routing: {
+        executionIntent: {
+          filesystemPolicy: 'workspace-write',
+        },
+      },
+    });
+    expect(out.join('\n')).toContain('WRFC requested');
   });
 
   test('copied TUI coding commands are externalized and do not mutate local Agent state', async () => {

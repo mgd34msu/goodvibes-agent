@@ -41,6 +41,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
   '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
   '  compat                     Inspect Agent SDK pin, daemon version, and Agent knowledge route readiness',
   '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
+  '  delegate                   Explicitly delegate build/fix/review work to GoodVibes TUI',
   '  subscription               Start/finish/logout provider subscription sessions',
     '  secrets                    List, set, link, delete, and test GoodVibes secret refs',
     '  sessions                   List, show, export, or resume saved sessions',
@@ -94,6 +95,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
   `  ${binary} compat`,
   `  ${binary} knowledge status`,
   `  ${binary} knowledge ask "What is GoodVibes Agent?"`,
+  `  ${binary} delegate --wrfc "fix the failing tests in ~/work/project"`,
   `  ${binary} surfaces`,
     `  ${binary} surfaces check`,
     `  ${binary} service check`,
@@ -170,6 +172,14 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'knowledge ask "What is GoodVibes Agent?"',
       'knowledge search "release checklist"',
       'knowledge ingest-url https://example.com/page --title "Reference"',
+    ],
+  },
+  delegate: {
+    usage: ['delegate [--wrfc] <build/fix/review task>'],
+    summary: 'Create one shared-session task request for GoodVibes TUI. WRFC is requested only with --wrfc.',
+    examples: [
+      'delegate "fix the failing tests in this repo"',
+      'delegate --wrfc "implement the settings screen and review it"',
     ],
   },
   subscription: {

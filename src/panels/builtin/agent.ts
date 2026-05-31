@@ -3,7 +3,6 @@ import { AgentLogsPanel } from '../agent-logs-panel.ts';
 import { ContextVisualizerPanel } from '../context-visualizer-panel.ts';
 import { ThinkingPanel } from '../thinking-panel.ts';
 import { ToolInspectorPanel } from '../tool-inspector-panel.ts';
-import { WrfcPanel } from '../wrfc-panel.ts';
 import { SchedulePanel } from '../schedule-panel.ts';
 import { ProjectPlanningPanel } from '../project-planning-panel.ts';
 import { WorkPlanPanel } from '../work-plan-panel.ts';
@@ -64,19 +63,6 @@ export function registerAgentPanels(manager: PanelManager, deps: ResolvedBuiltin
         agentManager: ui.agents.agentManager,
         workingDirectory: ui.environment.workingDirectory,
       });
-    },
-  });
-
-  manager.registerType({
-    id: 'wrfc',
-    name: 'WRFC',
-    icon: 'W',
-    category: 'agent',
-    description: 'WRFC chain view: write, review, fix, and confirm cycle status',
-    preload: true,
-    factory: () => {
-      const ui = requireUiServices(deps);
-      return new WrfcPanel(ui.events.workflows, { controller: ui.agents.wrfcController });
     },
   });
 

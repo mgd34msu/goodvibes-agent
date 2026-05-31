@@ -203,7 +203,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent does not become the coding TUI. Build, implement, fix, patch, and review work must be handed to GoodVibes TUI with the full original ask and WRFC only when explicitly requested.',
     actions: [
       { id: 'delegate-guidance', label: 'Delegation rule', detail: 'For build/fix/review work, delegate one request to GoodVibes TUI instead of spawning local Engineer/Reviewer/Tester roots.', kind: 'guidance', safety: 'delegates' },
-      { id: 'review-command', label: 'Review delegation command', detail: 'Use /review or /wrfc only when the user explicitly asks for code review/build execution.', command: '/review', kind: 'command', safety: 'delegates' },
+      { id: 'review-command', label: 'Review delegation command', detail: 'Use /delegate --wrfc only when the user explicitly asks for code review/build execution.', command: '/delegate --wrfc <task>', kind: 'command', safety: 'delegates' },
       { id: 'remote-policy', label: 'Remote runner policy', detail: 'Remote dispatch/rerun is blocked in Agent; TUI owns runner topology for delegated build work.', command: '/remote dispatch', kind: 'command', safety: 'blocked' },
     ],
   },

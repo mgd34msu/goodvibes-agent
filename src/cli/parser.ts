@@ -31,6 +31,8 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   knowledge: 'knowledge',
   know: 'knowledge',
   kb: 'knowledge',
+  delegate: 'delegate',
+  build: 'delegate',
   subscription: 'subscription',
   subscriptions: 'subscription',
   secrets: 'secrets',

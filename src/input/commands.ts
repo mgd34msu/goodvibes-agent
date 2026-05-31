@@ -54,6 +54,7 @@ import { registerCloudflareRuntimeCommands } from './commands/cloudflare-runtime
 import { registerWorkPlanRuntimeCommands } from './commands/work-plan-runtime.ts';
 import { registerAgentWorkspaceRuntimeCommands } from './commands/agent-workspace-runtime.ts';
 import { registerAgentExternalizedTuiCommands } from './commands/agent-externalized-tui.ts';
+import { registerDelegationRuntimeCommands } from './commands/delegation-runtime.ts';
 
 /**
  * registerBuiltinCommands - Register all built-in slash commands into the registry.
@@ -62,6 +63,7 @@ import { registerAgentExternalizedTuiCommands } from './commands/agent-externali
 export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerShellCoreCommands(registry);
   registerAgentWorkspaceRuntimeCommands(registry);
+  registerDelegationRuntimeCommands(registry);
   registerConfigCommand(registry);
   registerOperatorRuntimeCommands(registry);
   registerIntegrationRuntimeCommands(registry);

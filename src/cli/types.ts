@@ -12,6 +12,7 @@ export type GoodVibesCliCommand =
   | 'auth'
   | 'compat'
   | 'knowledge'
+  | 'delegate'
   | 'subscription'
   | 'secrets'
   | 'sessions'
