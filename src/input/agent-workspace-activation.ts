@@ -1,4 +1,5 @@
 import { createLocalEditor, createProfileEditor } from './agent-workspace-editors.ts';
+import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
 import { createRoutineScheduleEditor } from './agent-workspace-routine-schedule-editor.ts';
 import { parseSlashCommand } from './slash-command-parser.ts';
 import type {
@@ -131,6 +132,8 @@ function createWorkspaceEditor(
   editorKind: AgentWorkspaceCategory['actions'][number]['editorKind'],
 ): AgentWorkspaceLocalEditor {
   if (editorKind === 'profile') return createProfileEditor(workspace.runtimeSnapshot?.runtimeStarterTemplates ?? []);
+  if (editorKind === 'knowledge-ask') return createAgentKnowledgeQueryEditor('ask');
+  if (editorKind === 'knowledge-search') return createAgentKnowledgeQueryEditor('search');
   if (editorKind === 'routine-schedule') return createRoutineScheduleEditor(workspace.selectedLocalLibraryItem('routine'));
   return createLocalEditor(editorKind ?? 'memory');
 }

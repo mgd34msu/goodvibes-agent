@@ -1,5 +1,6 @@
 import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor, AgentWorkspaceLocalLibraryItem } from './agent-workspace-types.ts';
 import { isAffirmative } from './agent-workspace-editors.ts';
+import { quoteSlashCommandArg } from './slash-command-parser.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 type RoutineScheduleKind = 'cron' | 'every' | 'at';
@@ -86,16 +87,16 @@ export function buildAgentRoutineScheduleEditorSubmission(
   const parts = [
     '/schedule',
     'promote-routine',
-    quoteCommandArg(readField('routineId')),
+    quoteSlashCommandArg(readField('routineId')),
     `--${scheduleKind}`,
-    quoteCommandArg(readField('scheduleValue')),
+    quoteSlashCommandArg(readField('scheduleValue')),
   ];
   const timezone = readField('timezone');
-  if (timezone.length > 0) parts.push('--timezone', quoteCommandArg(timezone));
+  if (timezone.length > 0) parts.push('--timezone', quoteSlashCommandArg(timezone));
   const scheduleName = readField('scheduleName');
-  if (scheduleName.length > 0) parts.push('--name', quoteCommandArg(scheduleName));
+  if (scheduleName.length > 0) parts.push('--name', quoteSlashCommandArg(scheduleName));
   const deliveryChannel = readField('deliveryChannel');
-  if (deliveryChannel.length > 0) parts.push('--delivery-channel', quoteCommandArg(deliveryChannel));
+  if (deliveryChannel.length > 0) parts.push('--delivery-channel', quoteSlashCommandArg(deliveryChannel));
   if (isOptionalAffirmative(readField('disabled'))) parts.push('--disabled');
   parts.push('--yes');
   const command = parts.join(' ');
@@ -123,9 +124,4 @@ function readScheduleKind(value: string): RoutineScheduleKind | null {
 function isOptionalAffirmative(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   return normalized === 'yes' || normalized === 'y' || normalized === 'true' || normalized === 'enabled' || normalized === 'on';
-}
-
-function quoteCommandArg(value: string): string {
-  if (/^[A-Za-z0-9._/:=@,+-]+$/.test(value)) return value;
-  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }

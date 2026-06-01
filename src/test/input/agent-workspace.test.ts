@@ -964,6 +964,34 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });
 
+  test('queries Agent Knowledge from workspace forms without placeholder commands', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-search');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-search');
+    feedText(workspace, 'GoodVibes Agent setup');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/knowledge search "GoodVibes Agent setup"']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-ask');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-ask');
+    feedText(workspace, 'What should Agent remember?');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/knowledge search "GoodVibes Agent setup"',
+      '/knowledge ask "What should Agent remember?"',
+    ]);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.status).toBe('Opening Agent Knowledge ask.');
+  });
+
   test('summarizes voice and media provider coverage in the runtime snapshot', () => {
     const keys = ['ELEVENLABS_API_KEY', 'XI_API_KEY', 'FAL_KEY', 'FAL_API_KEY'] as const;
     const previous = new Map(keys.map((key) => [key, process.env[key]] as const));

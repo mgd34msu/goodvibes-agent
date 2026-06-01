@@ -424,6 +424,8 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('/api/goodvibes-agent/knowledge');
     expect(output).toContain('no default Knowledge/Wiki or non-Agent fallback');
+    expect(output).toContain('Search Agent knowledge');
+    expect(output).toContain('edit knowledge-search');
     expect(output).toContain('Ingest URL');
     expect(output).toContain('edit knowledge-url');
     expect(output).toContain('in-workspace form');
@@ -431,10 +433,35 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/knowledge queue');
     expect(output).toContain('Source library');
     expect(output).toContain('/knowledge list --kind sources');
+    expect(output).toContain('Ask Agent knowledge');
+    expect(output).toContain('edit knowledge-ask');
+    expect(output).not.toContain('/knowledge search <query>');
     expect(output).not.toContain('Consolidation review');
     expect(output).not.toContain('/knowledge candidates');
     expect(output).not.toContain('/api/knowledge');
     expect(output).not.toContain('non-Agent product setup');
+  });
+
+  test('renders Agent Knowledge query forms with focused input fields', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-search');
+    workspace.activateSelected();
+    const searchOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(searchOutput).toContain('Search Agent Knowledge');
+    expect(searchOutput).toContain('Search query *');
+    expect(searchOutput).toContain('Results come from Agent-owned sources only');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-ask');
+    workspace.activateSelected();
+    const askOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(askOutput).toContain('Ask Agent Knowledge');
+    expect(askOutput).toContain('Question *');
+    expect(askOutput).toContain('fails closed instead of using');
+    expect(askOutput).toContain('another wiki');
   });
 
   test('renders routine schedule promotion as an in-workspace form', () => {

@@ -53,3 +53,8 @@ export function tokenizeSlashCommand(command: string): readonly string[] {
   if (current.length > 0) tokens.push(current);
   return tokens;
 }
+
+export function quoteSlashCommandArg(value: string): string {
+  if (/^[A-Za-z0-9._/:=@,+-]+$/.test(value)) return value;
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
