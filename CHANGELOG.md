@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.90 - 2026-06-01
+
+- 19f67ea Polish Agent command guidance
+
 ## 0.1.89 - 2026-06-01
 
 - 6be201c Fix Agent workspace command targets
