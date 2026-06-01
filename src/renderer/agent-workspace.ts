@@ -196,10 +196,10 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `GoodVibes runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
       { text: `Runtime owner: ${snapshot.daemonOwnership}; Agent connects but never starts or restarts it`, fg: PALETTE.good },
+      ...setupChecklistLines(snapshot),
+      { text: '' },
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
       { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
-      { text: '' },
-      ...setupChecklistLines(snapshot),
     );
   } else if (category.id === 'channels') {
     const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
@@ -283,10 +283,11 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `Active Agent profile: ${snapshot.activeRuntimeProfile}`, fg: PALETTE.info },
       { text: `Agent profiles under this home: ${snapshot.runtimeProfileCount}`, fg: PALETTE.info },
-      { text: `Agent profile root: ${snapshot.runtimeProfileRoot}`, fg: PALETTE.muted },
       { text: `Starter templates: ${snapshot.runtimeStarterTemplateCount}; local custom: ${snapshot.localStarterTemplateCount}`, fg: PALETTE.info },
       { text: `Config profiles: ${snapshot.configProfileCount}`, fg: PALETTE.info },
       { text: `Starter ids: ${snapshot.runtimeStarterTemplates.map((template) => template.id).join(', ') || 'none'}`, fg: PALETTE.info },
+      { text: 'Starter Templates', fg: PALETTE.title, bold: true },
+      { text: `Agent profile root: ${snapshot.runtimeProfileRoot}`, fg: PALETTE.muted },
       { text: '' },
       ...profileLines(snapshot),
       { text: '' },
