@@ -150,18 +150,11 @@ export function createBootstrapCommandActions(
   | 'exit'
   | 'reloadSystemPrompt'
   | 'showPanel'
-  | 'openForensicsPanel'
-  | 'openIncidentPanel'
   | 'openPolicyPanel'
-  | 'openHooksPanel'
-  | 'openCommunicationPanel'
-  | 'openOrchestrationPanel'
-  | 'openCockpitPanel'
   | 'openMcpWorkspace'
   | 'openAgentWorkspace'
   | 'openSecurityPanel'
   | 'openKnowledgePanel'
-  | 'openRemotePanel'
   | 'openSubscriptionPanel'
 > {
   const {
@@ -244,26 +237,8 @@ export function createBootstrapCommandActions(
     exit: () => unwiredShellAction('exit'),
     reloadSystemPrompt: loadSystemPrompt,
     showPanel,
-    openForensicsPanel: () => {
-      showPanel('forensics');
-    },
-    openIncidentPanel: () => {
-      showPanel('incident');
-    },
     openPolicyPanel: () => {
       showPanel('policy');
-    },
-    openHooksPanel: () => {
-      showPanel('hooks');
-    },
-    openCommunicationPanel: () => {
-      showPanel('communication');
-    },
-    openOrchestrationPanel: () => {
-      showPanel('orchestration');
-    },
-    openCockpitPanel: () => {
-      showPanel('cockpit');
     },
     openMcpWorkspace: () => unwiredShellAction('openMcpWorkspace'),
     openAgentWorkspace: () => unwiredShellAction('openAgentWorkspace'),
@@ -272,9 +247,6 @@ export function createBootstrapCommandActions(
     },
     openKnowledgePanel: () => {
       showPanel('knowledge');
-    },
-    openRemotePanel: () => {
-      showPanel('remote');
     },
     openSubscriptionPanel: () => {
       showPanel('subscription');

@@ -130,10 +130,12 @@ const tempRoot = mkdtempSync(join(tmpdir(), 'goodvibes-agent-install-check-'));
 try {
   const packDir = join(tempRoot, 'pack');
   const bunInstallDir = join(tempRoot, 'bun');
+  const bunCacheDir = join(tempRoot, 'bun-cache');
   const homeDir = join(tempRoot, 'home');
   const workspaceDir = join(tempRoot, 'workspace');
   mkdirSync(packDir, { recursive: true });
   mkdirSync(bunInstallDir, { recursive: true });
+  mkdirSync(bunCacheDir, { recursive: true });
   mkdirSync(homeDir, { recursive: true });
   mkdirSync(workspaceDir, { recursive: true });
 
@@ -149,6 +151,7 @@ try {
       ...process.env,
       HOME: homeDir,
       BUN_INSTALL: bunInstallDir,
+      BUN_CACHE_DIR: bunCacheDir,
     },
     timeoutMs: BUN_GLOBAL_INSTALL_TIMEOUT_MS,
   });
@@ -172,6 +175,7 @@ try {
     ...process.env,
     HOME: homeDir,
     BUN_INSTALL: bunInstallDir,
+    BUN_CACHE_DIR: bunCacheDir,
     GOODVIBES_WORKING_DIR: workspaceDir,
     PATH: `${join(bunInstallDir, 'bin')}:${process.env.PATH ?? ''}`,
   };

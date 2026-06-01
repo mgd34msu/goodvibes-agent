@@ -108,19 +108,11 @@ export interface CommandShellUiOpeners {
   showPanel?: (panelId: string, pane?: 'top' | 'bottom') => void;
   focusPanels?: () => void;
   focusPrompt?: () => void;
-  openOpsPanel?: () => void;
-  openCockpitPanel?: () => void;
-  openOrchestrationPanel?: () => void;
-  openForensicsPanel?: () => void;
-  openIncidentPanel?: () => void;
   openPolicyPanel?: () => void;
-  openHooksPanel?: () => void;
-  openCommunicationPanel?: () => void;
   openMcpWorkspace?: () => void;
   openAgentWorkspace?: () => void;
   openSecurityPanel?: () => void;
   openKnowledgePanel?: () => void;
-  openRemotePanel?: () => void;
   openSubscriptionPanel?: () => void;
 }
 

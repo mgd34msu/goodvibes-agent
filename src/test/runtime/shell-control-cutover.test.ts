@@ -263,7 +263,6 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
       'src/runtime/bootstrap.ts',
       'src/panels/provider-stats-panel.ts',
       'src/panels/provider-health-panel.ts',
-      'src/panels/ops-strategy-panel.ts',
     ];
     const legacyTokens = [
       "providers:changed",

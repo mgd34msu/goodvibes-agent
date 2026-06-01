@@ -71,4 +71,13 @@ describe('package CLI install verification', () => {
 
     expect(hiddenCommandSources).toEqual([]);
   });
+
+  test('panel sources are product-owned instead of hidden behind package exclusions', () => {
+    const packagePath = resolve(import.meta.dir, '../../..', 'package.json');
+    const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
+    const hiddenPanelSources = (parsed.files ?? [])
+      .filter((entry) => entry.startsWith('!src/panels/') && entry.endsWith('.ts'));
+
+    expect(hiddenPanelSources).toEqual([]);
+  });
 });

@@ -553,19 +553,10 @@ export async function bootstrapRuntime(
   };
 
   // ── Phase 12b: Operator intervention wiring (feature-gated) ──────────────
-  // Wire the OpsControlPlane into CommandContext when the feature flag is enabled.
-  // The store and task manager are created unconditionally so they reflect the
-  // real runtime state (tasks registered before the flag check are visible).
+  // Keep the copied control-plane state internal. GoodVibes Agent does not
+  // expose the copied local ops-control panel; operator control is surfaced
+  // through Agent-owned status, approvals, automation, and delegation flows.
   ctx.commandContext.ops.acpManager = acpManager;
-  if (opsControlPlane) {
-    ctx.commandContext.openOpsPanel = () => {
-      if (ctx.commandContext.showPanel) ctx.commandContext.showPanel('ops-control');
-      else {
-        panelManager.open('ops-control');
-        requestRender();
-      }
-    };
-  }
 
   // Wire exit from options if provided; otherwise main.ts binds the shell bridge.
   if (options?.exit) {

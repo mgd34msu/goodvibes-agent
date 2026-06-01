@@ -172,9 +172,8 @@ describe('TasksPanel', () => {
     expect(manager.getRegisteredTypes().some((entry) => entry.id === 'tasks')).toBe(true);
   });
 
-  test('provider accounts and settings sync panels render posture-first summaries', async () => {
+  test('provider accounts panel renders posture-first summaries', async () => {
     const { ProviderAccountsPanel } = await import('../../panels/provider-accounts-panel.ts');
-    const { SettingsSyncPanel } = await import('../../panels/settings-sync-panel.ts');
 
     const accountsPanel = new ProviderAccountsPanel({
       providerAccounts: {
@@ -200,10 +199,5 @@ describe('TasksPanel', () => {
     const accountsText = linesText(accountsPanel.render(120, 18));
     expect(accountsText).toContain('Provider posture');
     expect(accountsText).toContain('/accounts repair <provider>');
-
-    const settingsText = linesText(new SettingsSyncPanel(createConfigManager()).render(120, 20));
-    expect(settingsText).toContain('Settings posture');
-    expect(settingsText).toContain('/settingssync conflicts');
-    expect(settingsText).toContain('/managed review');
   });
 });
