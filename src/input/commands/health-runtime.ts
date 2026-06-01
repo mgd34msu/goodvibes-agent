@@ -8,7 +8,6 @@ import { getSettingsControlPlaneSnapshot } from '@/runtime/index.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
 import {
   openCommandPanel,
-  requireLocalUserAuthManager,
   requireOperatorClient,
   requireProviderApi,
   requireReadModels,
@@ -78,12 +77,13 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       if (sub === 'auth') {
         const auth = readModels.localAuth.getSnapshot();
         ctx.print([
-          'Health Review: Local Auth',
-          `  users: ${auth.userCount}`,
-          `  sessions: ${auth.sessionCount}`,
-          `  bootstrap file: ${auth.bootstrapCredentialPresent ? 'present' : 'cleared'}`,
-          ...(auth.userCount <= 1 ? ['  issue: only one local auth user configured'] : []),
-          ...(auth.bootstrapCredentialPresent ? ['  issue: bootstrap credential file still present; rotate or clear it when no longer needed'] : []),
+          'Health Review: Runtime Auth',
+          '  owner: external GoodVibes runtime host',
+          `  compatibility users visible: ${auth.userCount}`,
+          `  compatibility sessions visible: ${auth.sessionCount}`,
+          `  bootstrap file signal: ${auth.bootstrapCredentialPresent ? 'present' : 'cleared'}`,
+          '  Agent action: review provider/subscription auth only; do not mutate runtime auth users or bootstrap credentials.',
+          ...(auth.bootstrapCredentialPresent ? ['  issue: bootstrap cleanup belongs to the runtime-owning TUI or host tooling'] : []),
         ].join('\n'));
         return;
       }
@@ -222,13 +222,11 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           ));
           lines.push('  verify: /health settings');
         } else if (domain === 'auth') {
-          const auth = requireLocalUserAuthManager(ctx).inspect();
           lines.push('  domain: auth');
-          lines.push(...(
-            auth.bootstrapCredentialPresent
-              ? ['  /auth local review', '  /auth local rotate-password admin <password> --yes', '  /auth local clear-bootstrap-file --yes']
-              : ['  /auth local review']
-          ));
+          lines.push('  /auth review');
+          lines.push('  /providers');
+          lines.push('  /subscription providers');
+          lines.push('  runtime auth users/bootstrap cleanup: use the runtime-owning GoodVibes TUI or host tooling');
           lines.push('  verify: /health auth');
         } else if (domain === 'accounts') {
           lines.push('  domain: accounts');
@@ -316,7 +314,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         `  account issues: ${accountSnapshot.issueCount}`,
         `  settings conflicts: ${settingsSnapshot.conflicts.length}`,
         `  managed locks: ${settingsSnapshot.managedLockCount}`,
-        `  local auth users: ${readModels.localAuth.getSnapshot().userCount}`,
+        `  runtime auth owner: external`,
         `  remote workers: ${snapshot.remoteRunnerCount}`,
         ...formatSessionMaintenanceLines(maintenance, 'guided').map((line) => `  ${line}`),
         ...(snapshot.issues.length > 0 ? ['', ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`)] : []),

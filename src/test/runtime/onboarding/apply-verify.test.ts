@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
-import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
 import { listAgentRuntimeProfiles, resolveAgentRuntimeProfileHome } from '../../../agent/runtime-profile.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../../config/surface.ts';
 import { SecretsManager } from '../../../config/secrets.ts';
@@ -236,23 +235,12 @@ describe('onboarding apply and verify helpers', () => {
     expect(configManager.get('display.stream')).toBe(true);
   });
 
-  test('stores wizard secrets through SecretsManager and verifies local auth bootstrap', async () => {
+  test('stores wizard secrets through SecretsManager without runtime auth ownership', async () => {
     const secrets = new SecretsManager({ projectRoot: shellPaths.workingDirectory, globalHome: join(root, 'home'), configManager });
-    const auth = new UserAuthManager({
-      bootstrapFilePath: join(root, 'home', 'auth-bootstrap.json'),
-      bootstrapCredentialPath: join(root, 'home', 'auth-bootstrap-password.txt'),
-    });
     const request = {
       mode: 'new' as const,
       source: 'wizard',
       operations: [
-        {
-          kind: 'ensure-auth-user' as const,
-          username: 'admin',
-          password: 'admin-pass',
-          roles: ['admin'],
-          createSession: true,
-        },
         {
           kind: 'set-secret' as const,
           key: 'GOODVIBES_SURFACES_SLACK_BOT_TOKEN',
@@ -274,7 +262,6 @@ describe('onboarding apply and verify helpers', () => {
       shellPaths,
       acknowledgementScope: 'project' as const,
       secrets,
-      auth,
     };
     const applied = await applyOnboardingRequest(deps, request);
     const verification = await verifyOnboardingRequest(deps, request);
@@ -283,8 +270,6 @@ describe('onboarding apply and verify helpers', () => {
     expect(verification.ok).toBe(true);
     expect(await secrets.get('GOODVIBES_SURFACES_SLACK_BOT_TOKEN')).toBe('xoxb-secret');
     expect(configManager.get('surfaces.slack.botToken')).toBe('goodvibes://secrets/goodvibes/GOODVIBES_SURFACES_SLACK_BOT_TOKEN');
-    expect(auth.inspect().userCount).toBe(1);
-    expect(auth.inspect().sessionCount).toBe(1);
   });
 
   test('applies secret storage policy before secrets entered in the same wizard run', async () => {
@@ -357,109 +342,13 @@ describe('onboarding apply and verify helpers', () => {
     expect(await secrets.get('GOODVIBES_OUTER_SECRET')).toBe('inner-value');
   });
 
-  test('replaces SDK bootstrap credentials with wizard-created auth before server exposure', async () => {
-    const auth = new UserAuthManager({
-      bootstrapFilePath: join(root, 'home', 'auth-bootstrap.json'),
-      bootstrapCredentialPath: join(root, 'home', 'auth-bootstrap-password.txt'),
-    });
-    expect(auth.inspect().bootstrapCredentialPresent).toBe(true);
-
+  test('blocks copied runtime auth user onboarding before applying later operations', async () => {
     const applied = await applyOnboardingRequest(
       {
         clock: () => 100,
         config: configManager,
         shellPaths,
         acknowledgementScope: 'project',
-        auth,
-      },
-      {
-        mode: 'new',
-        source: 'wizard',
-        operations: [
-          {
-            kind: 'ensure-auth-user',
-            username: 'goodvibes-admin',
-            password: 'wizard-pass',
-            roles: ['admin'],
-            createSession: true,
-            retireBootstrapCredential: true,
-          },
-        ],
-      },
-    );
-
-    const snapshot = auth.inspect();
-    expect(applied.ok).toBe(true);
-    expect(snapshot.bootstrapCredentialPresent).toBe(false);
-    expect(snapshot.users.map((user) => user.username)).toEqual(['goodvibes-admin']);
-    expect(snapshot.sessionCount).toBe(1);
-  });
-
-  test('replaces SDK bootstrap credentials while reusing an existing admin username', async () => {
-    const auth = new UserAuthManager({
-      bootstrapFilePath: join(root, 'home', 'auth-bootstrap.json'),
-      bootstrapCredentialPath: join(root, 'home', 'auth-bootstrap-password.txt'),
-    });
-    const originalBootstrap = readFileSync(join(root, 'home', 'auth-bootstrap-password.txt'), 'utf-8');
-    const originalPassword = originalBootstrap.split('\n')
-      .find((line) => line.startsWith('password='))
-      ?.slice('password='.length) ?? '';
-    expect(auth.inspect().users.map((user) => user.username)).toEqual(['admin']);
-    expect(auth.inspect().bootstrapCredentialPresent).toBe(true);
-
-    const applied = await applyOnboardingRequest(
-      {
-        clock: () => 100,
-        config: configManager,
-        shellPaths,
-        acknowledgementScope: 'project',
-        auth,
-      },
-      {
-        mode: 'new',
-        source: 'wizard',
-        operations: [
-          {
-            kind: 'ensure-auth-user',
-            username: 'admin',
-            password: 'wizard-pass',
-            roles: ['admin'],
-            createSession: true,
-            retireBootstrapCredential: true,
-          },
-        ],
-      },
-    );
-
-    const snapshot = auth.inspect();
-    expect(applied.ok).toBe(true);
-    expect(snapshot.bootstrapCredentialPresent).toBe(false);
-    expect(snapshot.users.map((user) => user.username)).toEqual(['admin']);
-    expect(snapshot.sessionCount).toBe(1);
-    expect(auth.authenticate('admin', 'wizard-pass')).not.toBeNull();
-    expect(auth.authenticate('admin', originalPassword)).toBeNull();
-  });
-
-  test('rolls back bootstrap auth replacement when a later apply operation fails', async () => {
-    const auth = new UserAuthManager({
-      bootstrapFilePath: join(root, 'home', 'auth-bootstrap.json'),
-      bootstrapCredentialPath: join(root, 'home', 'auth-bootstrap-password.txt'),
-    });
-
-    const applied = await applyOnboardingRequest(
-      {
-        clock: () => 100,
-        config: {
-          get: configManager.get.bind(configManager),
-          getRaw: configManager.getRaw.bind(configManager),
-          load: configManager.load.bind(configManager),
-          setDynamic: () => {
-            throw new Error('simulated config write failure');
-          },
-        },
-        shellPaths,
-        acknowledgementScope: 'project',
-        auth,
       },
       {
         mode: 'new',
@@ -482,12 +371,40 @@ describe('onboarding apply and verify helpers', () => {
       },
     );
 
-    const snapshot = auth.inspect();
     expect(applied.ok).toBe(false);
     expect(applied.applied).toEqual([]);
-    expect(snapshot.bootstrapCredentialPresent).toBe(true);
-    expect(snapshot.users.map((user) => user.username)).toEqual(['admin']);
-    expect(snapshot.sessionCount).toBe(0);
+    expect(applied.errors.map((error) => error.message).join('\n')).toContain(
+      'Runtime auth user/session administration is external to GoodVibes Agent onboarding.',
+    );
+    expect(configManager.get('display.stream')).toBe(true);
+
+    const verification = await verifyOnboardingRequest(
+      {
+        clock: () => 100,
+        config: configManager,
+        shellPaths,
+        acknowledgementScope: 'project',
+      },
+      {
+        mode: 'new',
+        source: 'wizard',
+        operations: [
+          {
+            kind: 'ensure-auth-user',
+            username: 'goodvibes-admin',
+            password: 'wizard-pass',
+            roles: ['admin'],
+            createSession: true,
+            retireBootstrapCredential: true,
+          },
+        ],
+      },
+    );
+
+    expect(verification.ok).toBe(false);
+    expect(verification.items[0]?.message).toContain(
+      'Runtime auth user/session administration is external to GoodVibes Agent onboarding.',
+    );
   });
 
   test('rolls back earlier secret writes when a later apply operation fails', async () => {
@@ -533,47 +450,6 @@ describe('onboarding apply and verify helpers', () => {
     expect(applied.applied).toEqual([]);
     expect(await secrets.get('GOODVIBES_ROLLBACK_SECRET')).toBeNull();
     expect(configManager.get('display.stream')).toBe(true);
-  });
-
-  test('prevalidates existing auth users that lack required admin role', async () => {
-    const auth = new UserAuthManager({
-      bootstrapFilePath: join(root, 'home', 'auth-bootstrap.json'),
-      bootstrapCredentialPath: join(root, 'home', 'auth-bootstrap-password.txt'),
-      users: [
-        {
-          username: 'operator',
-          passwordHash: UserAuthManager.hashPassword('operator-pass'),
-          roles: ['operator'],
-        },
-      ],
-    });
-
-    const applied = await applyOnboardingRequest(
-      {
-        clock: () => 100,
-        config: configManager,
-        shellPaths,
-        acknowledgementScope: 'project',
-        auth,
-      },
-      {
-        mode: 'new',
-        source: 'wizard',
-        operations: [
-          {
-            kind: 'ensure-auth-user',
-            username: 'operator',
-            password: 'operator-pass',
-            roles: ['admin'],
-            createSession: true,
-          },
-        ],
-      },
-    );
-
-    expect(applied.ok).toBe(false);
-    expect(applied.applied).toEqual([]);
-    expect(auth.inspect().sessionCount).toBe(0);
   });
 
   test('round-trips persisted acknowledgement state back into reopen hydration', async () => {

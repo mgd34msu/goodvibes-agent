@@ -62,22 +62,6 @@ function setNestedValue(root: Record<string, unknown>, key: string, value: unkno
 
 type RollbackAction = () => Promise<void> | void;
 
-interface BootstrapCredential {
-  readonly username: string;
-  readonly password: string;
-}
-
-interface PersistedAuthUser {
-  readonly username: string;
-  readonly passwordHash: string;
-  readonly roles?: readonly string[];
-}
-
-interface MutableAuthManager {
-  readonly users?: Map<string, PersistedAuthUser>;
-  readonly sessions?: Map<string, { readonly token: string; readonly username: string; readonly expiresAt: number }>;
-}
-
 function restoreFile(path: string, previous: string | null, reload?: () => void): void {
   if (previous === null) {
     if (existsSync(path)) unlinkSync(path);
@@ -86,31 +70,6 @@ function restoreFile(path: string, previous: string | null, reload?: () => void)
     writeFileSync(path, previous, 'utf-8');
   }
   reload?.();
-}
-
-function parseBootstrapCredential(content: string | null): BootstrapCredential | null {
-  if (content === null) return null;
-  let username = '';
-  let password = '';
-  for (const rawLine of content.split('\n')) {
-    const line = rawLine.trim();
-    if (line.startsWith('username=')) username = line.slice('username='.length);
-    if (line.startsWith('password=')) password = line.slice('password='.length);
-  }
-  return username.length > 0 && password.length > 0 ? { username, password } : null;
-}
-
-function parsePersistedAuthUsers(content: string): readonly PersistedAuthUser[] {
-  const parsed = JSON.parse(content) as unknown;
-  if (!isPlainObject(parsed) || parsed.version !== 1 || !Array.isArray(parsed.users)) {
-    throw new Error('Expected a version 1 local auth user store.');
-  }
-  return parsed.users.filter((user): user is PersistedAuthUser => (
-    isPlainObject(user)
-    && typeof user.username === 'string'
-    && typeof user.passwordHash === 'string'
-    && (user.roles === undefined || (Array.isArray(user.roles) && user.roles.every((role) => typeof role === 'string')))
-  ));
 }
 
 function snapshotFileRollback(path: string, reload?: () => void): RollbackAction {
@@ -227,18 +186,10 @@ function validateSecretOperation(
 }
 
 function validateAuthOperation(
-  deps: OnboardingApplyDependencies,
-  operation: Extract<OnboardingApplyOperation, { kind: 'ensure-auth-user' }>,
+  _deps: OnboardingApplyDependencies,
+  _operation: Extract<OnboardingApplyOperation, { kind: 'ensure-auth-user' }>,
 ): void {
-  if (!deps.auth) throw new Error('Local auth management is unavailable.');
-  if (operation.username.trim().length === 0) throw new Error('Local auth username is required.');
-  if (operation.password.length === 0) throw new Error(`Local auth password for ${operation.username} is required.`);
-  const username = operation.username.trim();
-  const existing = deps.auth.inspect().users.find((user) => user.username === username);
-  const requiredRoles = operation.roles ?? ['admin'];
-  if (existing && !requiredRoles.every((role) => existing.roles.includes(role))) {
-    throw new Error(`Existing local auth user ${username} is missing required role(s): ${requiredRoles.join(', ')}.`);
-  }
+  throw new Error('Runtime auth user/session administration is external to GoodVibes Agent onboarding.');
 }
 
 function validateAcknowledgementOperation(
@@ -313,44 +264,6 @@ async function applySecretOperation(
   };
 }
 
-function applyAuthOperation(
-  deps: OnboardingApplyDependencies,
-  operation: Extract<OnboardingApplyOperation, { kind: 'ensure-auth-user' }>,
-): OnboardingAppliedOperation {
-  validateAuthOperation(deps, operation);
-  const auth = deps.auth!;
-  const username = operation.username.trim();
-  const before = auth.inspect();
-  const existing = before.users.find((user) => user.username === username);
-  const bootstrapCredential = before.bootstrapCredentialPresent
-    ? parseBootstrapCredential(readFileSync(before.bootstrapCredentialPath, 'utf-8'))
-    : null;
-
-  if (existing) {
-    auth.rotatePassword(username, operation.password);
-  } else {
-    auth.addUser(username, operation.password, operation.roles ?? ['admin']);
-  }
-
-  if (operation.retireBootstrapCredential) {
-    if (bootstrapCredential && bootstrapCredential.username !== username && auth.getUser(bootstrapCredential.username)) {
-      auth.deleteUser(bootstrapCredential.username);
-    }
-    auth.clearBootstrapCredentialFile();
-  }
-
-  if (operation.createSession ?? true) {
-    auth.createSession(username);
-  }
-
-  return {
-    kind: operation.kind,
-    summary: existing
-      ? `Updated local auth user ${username}.`
-      : `Created local auth user ${username}.`,
-  };
-}
-
 async function buildSecretRollbackAction(
   deps: OnboardingApplyDependencies,
   operation: Extract<OnboardingApplyOperation, { kind: 'set-secret' }>,
@@ -366,67 +279,6 @@ async function buildSecretRollbackAction(
   }));
   return () => {
     for (const snapshot of snapshots) restoreFile(snapshot.path, snapshot.previous);
-  };
-}
-
-function buildAuthRollbackAction(
-  deps: OnboardingApplyDependencies,
-  operation: Extract<OnboardingApplyOperation, { kind: 'ensure-auth-user' }>,
-): RollbackAction {
-  validateAuthOperation(deps, operation);
-  const auth = deps.auth!;
-  const mutable = auth as unknown as MutableAuthManager;
-  const username = operation.username.trim();
-  const before = auth.inspect();
-  const existingUser = before.users.find((user) => user.username === username);
-  const existingSessionFingerprints = new Set(before.sessions
-    .filter((session) => session.username === username)
-    .map((session) => session.tokenFingerprint));
-  const userStoreSnapshot = existsSync(before.userStorePath) ? readFileSync(before.userStorePath, 'utf-8') : null;
-  const bootstrapCredentialSnapshot = existsSync(before.bootstrapCredentialPath)
-    ? readFileSync(before.bootstrapCredentialPath, 'utf-8')
-    : null;
-  const bootstrapCredential = parseBootstrapCredential(bootstrapCredentialSnapshot);
-  const beforeSessions = mutable.sessions instanceof Map
-    ? [...mutable.sessions.entries()].map(([token, session]) => [token, { ...session }] as const)
-    : [];
-
-  return () => {
-    for (const session of auth.inspect().sessions) {
-      if (session.username === username && !existingSessionFingerprints.has(session.tokenFingerprint)) {
-        auth.revokeSession(session.tokenFingerprint);
-      }
-    }
-
-    if (bootstrapCredential && !auth.getUser(bootstrapCredential.username)) {
-      auth.addUser(bootstrapCredential.username, bootstrapCredential.password, ['admin']);
-    }
-
-    if (!existingUser && auth.getUser(username)) {
-      try {
-        auth.deleteUser(username);
-      } catch (error) {
-        if (mutable.users instanceof Map) mutable.users.delete(username);
-        else throw error;
-      }
-    }
-
-    restoreFile(before.bootstrapCredentialPath, bootstrapCredentialSnapshot);
-    restoreFile(before.userStorePath, userStoreSnapshot);
-
-    if (mutable.users instanceof Map) {
-      if (userStoreSnapshot === null) {
-        if (before.users.length === 0) mutable.users.clear();
-      } else {
-        mutable.users.clear();
-        for (const user of parsePersistedAuthUsers(userStoreSnapshot)) mutable.users.set(user.username, user);
-      }
-    }
-
-    if (mutable.sessions instanceof Map) {
-      mutable.sessions.clear();
-      for (const [token, session] of beforeSessions) mutable.sessions.set(token, session);
-    }
   };
 }
 
@@ -453,7 +305,8 @@ async function buildRollbackAction(
   }
 
   if (operation.kind === 'ensure-auth-user') {
-    return buildAuthRollbackAction(deps, operation);
+    validateAuthOperation(deps, operation);
+    return () => {};
   }
 
   if (operation.kind === 'acknowledge') {
@@ -633,8 +486,7 @@ export async function applyOnboardingRequest(
         }
 
         if (operation.kind === 'ensure-auth-user') {
-          applied.push(applyAuthOperation(deps, operation));
-          rollbacks.push(rollback);
+          validateAuthOperation(deps, operation);
           continue;
         }
 

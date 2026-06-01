@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import net from 'node:net';
 import { spawn } from 'node:child_process';
@@ -21,7 +21,6 @@ import { beginOpenAICodexLogin, exchangeOpenAICodexCode } from '@pellux/goodvibe
 import { inspectProviderAuth } from '@/runtime/index.ts';
 import { getOrCreateCompanionToken, buildCompanionConnectionInfo, encodeConnectionPayload, formatConnectionBlock } from '@pellux/goodvibes-sdk/platform/pairing';
 import { generateQrMatrix, renderQrToString } from '@pellux/goodvibes-sdk/platform/pairing';
-import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
 import type { GoodVibesCliParseResult } from './types.ts';
 import { formatProviderAuthRoute, summarizeProviderAuthRoutes } from './provider-auth-routes.ts';
 import { classifyProviderSetup } from './provider-classification.ts';
@@ -60,7 +59,7 @@ export function formatJsonOrText(cli: GoodVibesCliParseResult): Formatter {
 }
 
 function exitCodeForText(output: string): number {
-  if (output.startsWith('Usage:') || output.startsWith('Invalid ')) return 2;
+  if (output.startsWith('Usage:') || output.startsWith('Invalid ') || output.startsWith('Unsupported:')) return 2;
   if (output.startsWith('Session not found:') || output.startsWith('Unknown task:') || output.startsWith('Task submit failed ')) return 1;
   if (output.startsWith('No stored ') || output.startsWith('No pending ') || output.startsWith('No model ') || output.startsWith('No provider ') || output.startsWith('No auth ')) return 1;
   if (output.startsWith('Unknown ')) return 1;
@@ -74,57 +73,8 @@ function splitCommandOption(token: string): { readonly name: string; readonly va
   return { name: token.slice(0, index), value: token.slice(index + 1) };
 }
 
-function readOptionValue(args: readonly string[], name: string): string | undefined {
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index]!;
-    const split = splitCommandOption(token);
-    if (split.name !== name) continue;
-    if (split.value !== undefined) return split.value;
-    const next = args[index + 1];
-    if (next === undefined || next.startsWith('--')) return undefined;
-    return next;
-  }
-  return undefined;
-}
-
-function readOptionValues(args: readonly string[], name: string): string[] {
-  const values: string[] = [];
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index]!;
-    const split = splitCommandOption(token);
-    if (split.name !== name) continue;
-    if (split.value !== undefined) {
-      values.push(split.value);
-      continue;
-    }
-    const next = args[index + 1];
-    if (next !== undefined && !next.startsWith('--')) values.push(next);
-  }
-  return values;
-}
-
 export function hasCommandFlag(args: readonly string[], name: string): boolean {
   return args.some((arg) => splitCommandOption(arg).name === name);
-}
-
-function commandValues(args: readonly string[]): string[] {
-  const values: string[] = [];
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index]!;
-    if (!token.startsWith('--')) {
-      values.push(token);
-      continue;
-    }
-    if (!token.includes('=') && args[index + 1] && !args[index + 1]!.startsWith('--')) index += 1;
-  }
-  return values;
-}
-
-function readPassword(args: readonly string[]): string | null {
-  const explicit = readOptionValue(args, '--password');
-  if (explicit !== undefined) return explicit;
-  if (hasCommandFlag(args, '--password-stdin')) return readFileSync(0, 'utf-8').trimEnd();
-  return process.env.GOODVIBES_AUTH_PASSWORD ?? null;
 }
 
 export function extractAuthorizationCode(input: string): string {
@@ -289,14 +239,6 @@ export function readAuthPaths(runtime: CliCommandRuntime) {
     operatorTokenPath,
     operatorTokenPresent: existsSync(operatorTokenPath),
   };
-}
-
-function createCliLocalUserAuthManager(runtime: CliCommandRuntime): UserAuthManager {
-  const paths = readAuthPaths(runtime);
-  return new UserAuthManager({
-    bootstrapFilePath: paths.userStorePath,
-    bootstrapCredentialPath: paths.bootstrapCredentialPath,
-  });
 }
 
 export async function runNonInteractiveAgent(runtime: CliCommandRuntime): Promise<number> {
@@ -584,84 +526,60 @@ async function renderModels(runtime: CliCommandRuntime): Promise<string> {
 }
 
 async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
-  const localUserAuthManager = createCliLocalUserAuthManager(runtime);
-    const [sub = 'status', ...rawRest] = runtime.cli.commandArgs;
-    const rest = commandValues(rawRest);
-    if (sub === 'add-user' || sub === 'add') {
-      const username = rest[0];
-      if (!username) return 'Usage: goodvibes auth add-user <username> [--password <value>|--password-stdin] [--role <role>]';
-      const password = readPassword(rawRest);
-      if (!password) return 'Usage: goodvibes auth add-user <username> [--password <value>|--password-stdin] [--role <role>]';
-      const roles = readOptionValues(rawRest, '--role').filter((role) => role.length > 0);
-      const user = localUserAuthManager.addUser(username, password, roles.length > 0 ? roles : ['user']);
-      return `Auth user added: ${user.username} (${user.roles.join(', ') || 'no roles'})`;
-    }
-    if (sub === 'delete-user' || sub === 'remove-user') {
-      const username = rest[0];
-      if (!username) return 'Usage: goodvibes auth delete-user <username>';
-      return localUserAuthManager.deleteUser(username)
-        ? `Auth user deleted: ${username}`
-        : `No auth user found: ${username}`;
-    }
-    if (sub === 'rotate-password' || sub === 'passwd') {
-      const username = rest[0];
-      if (!username) return 'Usage: goodvibes auth rotate-password <username> [--password <value>|--password-stdin]';
-      const password = readPassword(rawRest);
-      if (!password) return 'Usage: goodvibes auth rotate-password <username> [--password <value>|--password-stdin]';
-      localUserAuthManager.rotatePassword(username, password);
-      return `Auth password rotated: ${username}`;
-    }
-    if (sub === 'revoke-session') {
-      const token = rest[0];
-      if (!token) return 'Usage: goodvibes auth revoke-session <token-or-fingerprint>';
-      return localUserAuthManager.revokeSession(token)
-        ? 'Auth session revoked.'
-        : 'No auth session found.';
-    }
-    if (sub === 'revoke-sessions') {
-      const username = rest[0];
-      if (!username) return 'Usage: goodvibes auth revoke-sessions <username>';
-      const count = localUserAuthManager.revokeSessionsForUser(username);
-      return `Auth sessions revoked for ${username}: ${count}`;
-    }
-    if (sub === 'clear-bootstrap') {
-      return localUserAuthManager.clearBootstrapCredentialFile()
-        ? 'Bootstrap credential file removed.'
-        : 'Bootstrap credential file was already absent.';
-    }
-    if (sub !== 'status' && sub !== 'list' && sub !== 'users' && sub !== 'sessions') {
-      return 'Usage: goodvibes auth [status|users|sessions|add-user|delete-user|rotate-password|revoke-session|revoke-sessions|clear-bootstrap]';
-    }
-    const snapshot = localUserAuthManager.inspect();
-    const paths = readAuthPaths(runtime);
-    const value = {
-      ...paths,
-      users: snapshot.users.map((user) => ({ username: user.username, roles: user.roles })),
-      sessions: snapshot.sessions.length,
-      permissionMode: runtime.configManager.get('permissions.mode'),
-    };
-    if (sub === 'users') {
-      return formatJsonOrText(runtime.cli)(value.users, [
-        `GoodVibes auth users (${value.users.length})`,
-        ...value.users.map((user) => `  ${user.username} (${user.roles.join(', ') || 'no roles'})`),
-      ].join('\n'));
-    }
-    if (sub === 'sessions') {
-      return formatJsonOrText(runtime.cli)(snapshot.sessions, [
-        `GoodVibes auth sessions (${snapshot.sessions.length})`,
-        ...snapshot.sessions.map((session) => `  ${session.username} expires=${new Date(session.expiresAt).toISOString()} fingerprint=${session.tokenFingerprint}`),
-      ].join('\n'));
-    }
+  const [sub = 'status'] = runtime.cli.commandArgs;
+  const blocked = new Set([
+    'add-user',
+    'add',
+    'delete-user',
+    'remove-user',
+    'rotate-password',
+    'passwd',
+    'revoke-session',
+    'revoke-sessions',
+    'clear-bootstrap',
+  ]);
+  if (blocked.has(sub)) {
+    return [
+      'Unsupported: runtime auth user/session administration is external to GoodVibes Agent.',
+      'GoodVibes Agent connects to an already-running runtime and does not create, delete, rotate, revoke, or clear runtime users, sessions, or bootstrap credentials.',
+      'Use the runtime-owning GoodVibes TUI or host tooling for runtime auth administration.',
+    ].join('\n');
+  }
+  if (sub !== 'status' && sub !== 'review' && sub !== 'list' && sub !== 'users' && sub !== 'sessions') {
+    return 'Usage: goodvibes-agent auth [status|review|users|sessions]';
+  }
+  const paths = readAuthPaths(runtime);
+  const value = {
+    authOwner: 'external-runtime',
+    operatorTokenPresent: paths.operatorTokenPresent,
+    operatorTokenPath: paths.operatorTokenPath,
+    compatibilityUserStorePresent: paths.userStorePresent,
+    compatibilityUserStorePath: paths.userStorePath,
+    compatibilityBootstrapCredentialPresent: paths.bootstrapCredentialPresent,
+    compatibilityBootstrapCredentialPath: paths.bootstrapCredentialPath,
+    permissionMode: runtime.configManager.get('permissions.mode'),
+  };
+  if (sub === 'users' || sub === 'sessions') {
     return formatJsonOrText(runtime.cli)(value, [
-      'GoodVibes auth',
-      `  permission mode: ${String(value.permissionMode)}`,
-      `  users: ${value.users.length}`,
-      ...value.users.map((user) => `    ${user.username} (${user.roles.join(', ') || 'no roles'})`),
-      `  sessions: ${value.sessions}`,
-      `  user store: ${paths.userStorePresent ? 'present' : 'missing'} (${paths.userStorePath})`,
-      `  bootstrap credential: ${paths.bootstrapCredentialPresent ? 'present' : 'missing'} (${paths.bootstrapCredentialPath})`,
-      `  operator tokens: ${paths.operatorTokenPresent ? 'present' : 'missing'} (${paths.operatorTokenPath})`,
+      `GoodVibes Agent auth ${sub}`,
+      '  owner: external GoodVibes runtime',
+      `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'}`,
+      `  operator token path: ${paths.operatorTokenPath}`,
+      `  ${sub}: managed by the runtime-owning TUI or host tooling`,
+      '  Agent does not enumerate or mutate runtime users/sessions from the local CLI.',
     ].join('\n'));
+  }
+  return formatJsonOrText(runtime.cli)(value, [
+    'GoodVibes Agent auth',
+    '  owner: external GoodVibes runtime',
+    `  permission mode: ${String(value.permissionMode)}`,
+    `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'} (${paths.operatorTokenPath})`,
+    `  compatibility user store: ${paths.userStorePresent ? 'present' : 'missing'} (${paths.userStorePath})`,
+    `  compatibility bootstrap credential: ${paths.bootstrapCredentialPresent ? 'present' : 'missing'} (${paths.bootstrapCredentialPath})`,
+    '  runtime user/session administration: external',
+    '  next: goodvibes-agent providers',
+    '  next: goodvibes-agent subscription providers',
+  ].join('\n'));
 }
 
 

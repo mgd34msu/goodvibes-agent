@@ -500,23 +500,23 @@ export function deriveReopenEditAcknowledgementState(
         snapshot,
         'auth',
         'bootstrap-credential',
-        'The local auth bootstrap credential file is still present.',
+        'An external runtime bootstrap credential signal is still visible to Agent.',
       )
     : authSessionCount > 0
       ? buildRequiredAcknowledgement(
           snapshot,
           'auth',
           'active-sessions',
-          `${authSessionCount} local auth session(s) are currently active.`,
+          `${authSessionCount} external runtime auth session signal(s) are currently visible.`,
         )
       : authUserCount > 0
         ? buildRequiredAcknowledgement(
             snapshot,
             'auth',
             'auth-state',
-            `${authUserCount} local auth user(s) are already configured.`,
+            `${authUserCount} external runtime auth user signal(s) are already visible.`,
           )
-        : buildNotNeededAcknowledgement(snapshot, 'auth', 'No local auth state needs confirmation.');
+        : buildNotNeededAcknowledgement(snapshot, 'auth', 'No external runtime auth signal needs confirmation.');
 
   return {
     providers,

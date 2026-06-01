@@ -2,7 +2,6 @@ import type { PanelManager } from '../panel-manager.ts';
 import { ApprovalPanel } from '../approval-panel.ts';
 import { AutomationControlPanel } from '../automation-control-panel.ts';
 import { SubscriptionPanel } from '../subscription-panel.ts';
-import { LocalAuthPanel } from '../local-auth-panel.ts';
 import { ProviderAccountsPanel } from '../provider-accounts-panel.ts';
 import { SecurityPanel } from '../security-panel.ts';
 import { TasksPanel } from '../tasks-panel.ts';
@@ -57,15 +56,6 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     category: 'monitoring',
     description: 'OAuth-backed provider subscriptions and supported provider override posture',
     factory: () => new SubscriptionPanel(deps.serviceRegistry, deps.subscriptionManager),
-  });
-
-  manager.registerType({
-    id: 'local-auth',
-    name: 'Local Auth',
-    icon: 'U',
-    category: 'monitoring',
-    description: 'Local runtime auth users, bootstrap posture, and active sessions',
-    factory: () => new LocalAuthPanel(deps.localUserAuthManager),
   });
 
   manager.registerType({

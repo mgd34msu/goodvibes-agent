@@ -50,7 +50,7 @@ export interface CliStatusSnapshot {
     readonly permissionLabel: string;
     readonly secretPolicy: unknown;
     readonly secretPolicyLabel: string;
-    readonly localUsers: CliAuthStatus | null;
+    readonly runtimeAuthSignal: CliAuthStatus | null;
   };
   readonly runtimeConnection: {
     readonly enabled: unknown;
@@ -182,13 +182,13 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
 
   if (networkFacingSurfaces.length > 0 && options.auth?.userStorePresent !== true) {
     findings.push({
-      id: 'network-endpoint-without-local-users',
+      id: 'network-endpoint-without-runtime-auth-signal',
       area: 'auth',
       severity: 'risk',
-      summary: 'Network-facing runtime endpoints are enabled before local users are configured.',
-      cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but no local auth user store was found.`,
-      impact: 'Remote access paths may be unusable or unsafe until local admin auth is configured.',
-      action: 'Create/verify a local admin user before exposing GoodVibes on the network.',
+      summary: 'Network-facing runtime endpoints are enabled without a visible runtime auth signal.',
+      cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but Agent cannot see runtime auth state from its local compatibility files.`,
+      impact: 'Remote access paths may be unusable or unsafe unless the external runtime owner configured auth.',
+      action: 'Review runtime auth from the owning GoodVibes TUI or host tooling; Agent will not create local runtime users.',
     });
   }
 
@@ -200,7 +200,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       summary: 'A bootstrap credential is still present while network-facing surfaces are enabled.',
       cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound and auth-bootstrap.txt exists.`,
       impact: 'Bootstrap credentials should be treated as temporary setup material, not long-lived network access credentials.',
-      action: 'Replace bootstrap auth with a named admin user and retire the bootstrap credential.',
+      action: 'Use the runtime-owning GoodVibes TUI or host tooling to replace bootstrap auth and retire the bootstrap credential.',
     });
   }
 
@@ -264,7 +264,7 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
       permissionLabel: permissionModeLabel(config.get('permissions.mode')),
       secretPolicy: config.get('storage.secretPolicy'),
       secretPolicyLabel: secretPolicyLabel(config.get('storage.secretPolicy')),
-      localUsers: options.auth ?? null,
+      runtimeAuthSignal: options.auth ?? null,
     },
     runtimeConnection: {
       enabled: config.get('service.enabled'),
@@ -317,8 +317,8 @@ export function renderCliStatus(options: CliStatusOptions): string {
     `  permissions: ${permissionModeLabel(config.get('permissions.mode'))} (${String(config.get('permissions.mode'))})`,
     `  secretPolicy: ${secretPolicyLabel(config.get('storage.secretPolicy'))} (${String(config.get('storage.secretPolicy'))})`,
     options.auth
-      ? `  localUsers: ${options.auth.userStorePresent ? 'present' : 'missing'} (${options.auth.userStorePath})`
-      : '  localUsers: unknown',
+      ? `  runtimeAuthSignal: ${options.auth.userStorePresent ? 'present' : 'missing'} (${options.auth.userStorePath})`
+      : '  runtimeAuthSignal: unknown',
     options.auth
       ? `  bootstrapCredential: ${options.auth.bootstrapCredentialPresent ? 'present' : 'missing'} (${options.auth.bootstrapCredentialPath})`
       : '  bootstrapCredential: unknown',

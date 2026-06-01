@@ -383,17 +383,7 @@ export interface OnboardingApplyDependencies {
   readonly clock?: () => number;
   readonly config: Pick<ConfigManager, 'get' | 'getRaw' | 'load' | 'setDynamic'>;
   readonly secrets?: Pick<SecretsManager, 'delete' | 'get' | 'inspect' | 'set'>;
-  readonly auth?: Pick<
-    UserAuthManager,
-    'addUser'
-    | 'clearBootstrapCredentialFile'
-    | 'createSession'
-    | 'deleteUser'
-    | 'getUser'
-    | 'inspect'
-    | 'revokeSession'
-    | 'rotatePassword'
-  >;
+  readonly auth?: Pick<UserAuthManager, 'inspect'>;
   readonly shellPaths: OnboardingShellPaths;
   readonly acknowledgementScope?: OnboardingStateScope;
 }

@@ -7,7 +7,6 @@ import { createInitialTasksState } from '@/runtime/index.ts';
 import { TasksPanel } from '../../panels/tasks-panel.ts';
 import { PanelManager } from '../../panels/panel-manager.ts';
 import type { Line } from '../../types/grid.ts';
-import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
@@ -173,9 +172,8 @@ describe('TasksPanel', () => {
     expect(manager.getRegisteredTypes().some((entry) => entry.id === 'tasks')).toBe(true);
   });
 
-  test('provider accounts, local auth, and settings sync panels render posture-first summaries', async () => {
+  test('provider accounts and settings sync panels render posture-first summaries', async () => {
     const { ProviderAccountsPanel } = await import('../../panels/provider-accounts-panel.ts');
-    const { LocalAuthPanel } = await import('../../panels/local-auth-panel.ts');
     const { SettingsSyncPanel } = await import('../../panels/settings-sync-panel.ts');
 
     const accountsPanel = new ProviderAccountsPanel({
@@ -202,13 +200,6 @@ describe('TasksPanel', () => {
     const accountsText = linesText(accountsPanel.render(120, 18));
     expect(accountsText).toContain('Provider posture');
     expect(accountsText).toContain('/accounts repair <provider>');
-
-    const authText = linesText(new LocalAuthPanel(new UserAuthManager({
-      bootstrapFilePath: join(root, '.goodvibes', 'tui', 'auth-users.json'),
-      bootstrapCredentialPath: join(root, '.goodvibes', 'tui', 'auth-bootstrap.txt'),
-    })).render(120, 18));
-    expect(authText).toContain('Local auth posture');
-    expect(authText).toContain('/auth local rotate-password <user> <password> --yes');
 
     const settingsText = linesText(new SettingsSyncPanel(createConfigManager()).render(120, 20));
     expect(settingsText).toContain('Settings posture');

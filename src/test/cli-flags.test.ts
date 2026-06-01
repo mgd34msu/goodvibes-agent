@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../config/index.ts';
@@ -199,14 +199,41 @@ describe('parseCliFlags', () => {
   });
 
   test('passes command-specific options through to command handlers', () => {
-    const auth = parseGoodVibesCli(['auth', 'add-user', 'alice', '--password-stdin', '--role', 'admin']);
+    const auth = parseGoodVibesCli(['auth', 'users', '--json']);
     expect(auth.errors).toEqual([]);
     expect(auth.command).toBe('auth');
-    expect(auth.commandArgs).toEqual(['add-user', 'alice', '--password-stdin', '--role', 'admin']);
+    expect(auth.commandArgs).toEqual(['users']);
+    expect(auth.flags.outputFormat).toBe('json');
 
     const subscription = parseGoodVibesCli(['subscription', 'login', 'openai', 'start', '--manual']);
     expect(subscription.errors).toEqual([]);
     expect(subscription.commandArgs).toEqual(['login', 'openai', 'start', '--manual']);
+  });
+
+  test('blocks copied auth user administration instead of creating a local runtime user store', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-auth-block-'));
+    try {
+      const configManager = new ConfigManager({
+        surfaceRoot: 'agent',
+        workingDir: root,
+        homeDir: root,
+        configDir: join(root, '.goodvibes', 'agent'),
+      });
+      const result = await captureGoodVibesCliCommand([
+        'auth',
+        'add-user',
+        'alice',
+        '--password',
+        'secret',
+      ], configManager, root);
+
+      expect(result.result.handled).toBe(true);
+      expect(result.result.exitCode).toBe(2);
+      expect(result.output).toContain('Unsupported: runtime auth user/session administration is external to GoodVibes Agent.');
+      expect(existsSync(join(root, '.goodvibes', 'agent', 'auth-users.json'))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test('does not expose copied lifecycle and transport words as Agent CLI commands', () => {

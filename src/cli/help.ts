@@ -38,7 +38,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  providers                  List/inspect/use provider config/auth posture',
     '  profiles                   Manage isolated Agent profile homes',
     '  routines                   Inspect local routines and explicitly promote one to an external schedule',
-    '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
+    '  auth                       Inspect Agent auth posture and external runtime token state',
     '  compat                     Inspect Agent SDK pin, runtime version, and Agent knowledge route readiness',
     '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
     '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
@@ -170,9 +170,9 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     examples: ['models current', 'models openai', 'models use openai:gpt-5.4'],
   },
   auth: {
-    usage: ['auth status', 'auth users', 'auth sessions', 'auth add-user <username>', 'auth clear-bootstrap'],
-    summary: 'Inspect and manage local admin users, bootstrap auth, and local sessions.',
-    examples: ['auth', 'auth add-user admin --password-stdin', 'auth clear-bootstrap'],
+    usage: ['auth', 'auth status', 'auth review', 'auth users', 'auth sessions'],
+    summary: 'Inspect Agent auth posture and external runtime token state. Runtime user/session administration belongs to the runtime-owning TUI or host tooling.',
+    examples: ['auth', 'auth status', 'auth users'],
   },
   compat: {
     usage: ['compat', 'compat --json'],

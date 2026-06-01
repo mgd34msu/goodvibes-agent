@@ -44,18 +44,19 @@ export function buildProviderHealthDomainSummaries(
 
   summaries.push({
     name: 'auth',
-    level: auth.bootstrapCredentialPresent || auth.userCount <= 1 ? 'warn' : 'good',
+    level: auth.bootstrapCredentialPresent ? 'warn' : 'info',
     summary: auth.bootstrapCredentialPresent
-      ? 'bootstrap credential file still present'
-      : `${auth.userCount} users / ${auth.sessionCount} sessions`,
-    next: auth.bootstrapCredentialPresent ? '/auth local clear-bootstrap-file --yes' : '/auth local review',
+      ? 'external runtime bootstrap credential visible in local compatibility state'
+      : 'runtime auth administration belongs to the external runtime owner',
+    next: '/auth review',
     details: [
-      auth.bootstrapCredentialPresent ? 'bootstrap credential file should be cleared after rotation' : `${auth.userCount} local auth users configured`,
-      auth.userCount <= 1 ? 'only one local auth user configured' : `${auth.sessionCount} active local auth sessions`,
+      'GoodVibes Agent does not create, delete, rotate, revoke, or clear runtime auth users or sessions.',
+      `${auth.userCount} compatibility user record(s) and ${auth.sessionCount} session record(s) are visible for diagnostics only.`,
+      auth.bootstrapCredentialPresent ? 'Runtime bootstrap cleanup must be done from the runtime-owning TUI or host tooling.' : '',
     ].filter(Boolean),
     nextSteps: auth.bootstrapCredentialPresent
-      ? ['/auth local review', '/auth local rotate-password <user> <password> --yes', '/auth local clear-bootstrap-file --yes']
-      : ['/auth local review'],
+      ? ['/auth review', '/providers', '/subscription providers']
+      : ['/auth review', '/providers'],
   });
 
   const settingIssueCount = settings.conflictCount + settings.recentFailureCount + (settings.hasStagedManagedBundle ? 1 : 0);

@@ -606,7 +606,7 @@ describe('onboarding derivation helpers', () => {
       required: true,
       accepted: false,
       reason: 'bootstrap-credential',
-      detail: 'The local auth bootstrap credential file is still present.',
+      detail: 'An external runtime bootstrap credential signal is still visible to Agent.',
     });
   });
 

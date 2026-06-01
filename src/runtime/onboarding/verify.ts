@@ -116,36 +116,14 @@ async function verifySecretOperation(
 }
 
 function verifyAuthOperation(
-  deps: OnboardingVerificationDependencies,
+  _deps: OnboardingVerificationDependencies,
   operation: Extract<OnboardingApplyOperation, { kind: 'ensure-auth-user' }>,
 ): OnboardingVerificationItem {
-  if (!deps.auth) {
-    return {
-      id: `auth:${operation.username}`,
-      status: 'fail',
-      message: 'Local auth manager is unavailable.',
-      target: operation.username,
-    };
-  }
-
-  const snapshot = deps.auth.inspect();
   const username = operation.username.trim();
-  const user = snapshot.users.find((entry) => entry.username === username);
-  const requiredRoles = operation.roles ?? ['admin'];
-  const userExists = Boolean(user) && requiredRoles.every((role) => user!.roles.includes(role));
-  const sessionExists = operation.createSession === false
-    ? true
-    : snapshot.sessions.some((session) => session.username === username);
-  const bootstrapRetired = operation.retireBootstrapCredential
-    ? snapshot.bootstrapCredentialPresent === false
-    : true;
-  const ok = userExists && sessionExists && bootstrapRetired;
   return {
     id: `auth:${username}`,
-    status: ok ? 'pass' : 'fail',
-    message: ok
-      ? `${username} local auth user has required role(s) and session state.`
-      : `${username} local auth user/session/role/bootstrap state was not created.`,
+    status: 'fail',
+    message: 'Runtime auth user/session administration is external to GoodVibes Agent onboarding.',
     target: username,
   };
 }

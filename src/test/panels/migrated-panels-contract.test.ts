@@ -33,7 +33,6 @@ import { SecurityPanel } from '../../panels/security-panel.ts';
 import { SettingsSyncPanel } from '../../panels/settings-sync-panel.ts';
 import { SubscriptionPanel } from '../../panels/subscription-panel.ts';
 import { PluginsPanel } from '../../panels/plugins-panel.ts';
-import { LocalAuthPanel } from '../../panels/local-auth-panel.ts';
 import { OpsControlPanel } from '../../panels/ops-control-panel.ts';
 import { AutomationControlPanel } from '../../panels/automation-control-panel.ts';
 import { ApprovalPanel } from '../../panels/approval-panel.ts';
@@ -123,19 +122,6 @@ const EMPTY_PLUGIN_MANAGER = {
   getAll: () => [],
   subscribe: (_cb: () => void) => () => {},
 } as unknown as import('@pellux/goodvibes-sdk/platform/plugins').PluginManagerObserver;
-
-const EMPTY_LOCAL_AUTH_MANAGER = {
-  inspect: () => ({
-    userStorePath: '/tmp/gv-test-users',
-    bootstrapCredentialPath: '/tmp/gv-test-bootstrap',
-    persisted: false,
-    bootstrapCredentialPresent: false,
-    userCount: 0,
-    sessionCount: 0,
-    users: [],
-    sessions: [],
-  }),
-} as unknown as import('../../runtime/ui-service-queries.ts').LocalAuthInspectionQuery;
 
 const EMPTY_OPS_EVENT_FEED = {
   on: (_event: string, _cb: unknown) => () => {},
@@ -320,11 +306,6 @@ const PANELS: PanelEntry[] = [
   {
     label: 'PluginsPanel',
     factory: () => new PluginsPanel(EMPTY_PLUGIN_MANAGER),
-    hasSelectionGutter: true, // I5: non-color selection affordance
-  },
-  {
-    label: 'LocalAuthPanel',
-    factory: () => new LocalAuthPanel(EMPTY_LOCAL_AUTH_MANAGER),
     hasSelectionGutter: true, // I5: non-color selection affordance
   },
   {

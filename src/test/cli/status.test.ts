@@ -115,7 +115,7 @@ describe('CLI status and doctor output', () => {
       },
     });
 
-    expect(findings.map((finding) => finding.id)).toContain('network-endpoint-without-local-users');
+    expect(findings.map((finding) => finding.id)).toContain('network-endpoint-without-runtime-auth-signal');
     expect(findings.map((finding) => finding.id)).toContain('network-endpoint-with-bootstrap-credential');
   });
 

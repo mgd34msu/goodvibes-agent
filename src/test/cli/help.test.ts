@@ -24,7 +24,10 @@ describe('CLI help/version', () => {
     expect(help).not.toContain('tasks                      ');
     expect(help).toContain('profiles                   Manage isolated Agent profile homes');
     expect(help).toContain('routines                   Inspect local routines and explicitly promote one to an external schedule');
+    expect(help).toContain('auth                       Inspect Agent auth posture and external runtime token state');
     expect(help).not.toContain('capabilities               ');
+    expect(help).not.toContain('auth add-user');
+    expect(help).not.toContain('clear-bootstrap');
     expect(help).toContain('--agent-profile <name>');
     expect(help).not.toContain('tasks submit <prompt>');
     expect(help).not.toContain('submit a non-interactive task');
@@ -64,5 +67,13 @@ describe('CLI help/version', () => {
     expect(help).toContain('--delivery-webhook');
     expect(help).toContain('GoodVibes schedule');
     expect(help).toContain('Without --yes');
+  });
+
+  test('auth help keeps runtime user administration external', () => {
+    const help = renderGoodVibesCommandHelp('auth');
+    expect(help).toContain('external runtime token state');
+    expect(help).toContain('runtime-owning TUI or host tooling');
+    expect(help).not.toContain('auth add-user');
+    expect(help).not.toContain('auth clear-bootstrap');
   });
 });

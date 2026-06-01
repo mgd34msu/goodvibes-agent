@@ -2,7 +2,6 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
 import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
-import { handleLocalAuthCommand } from './local-auth-runtime.ts';
 import { buildAuthInspectionSnapshot, inspectProviderAuth } from '@/runtime/index.ts';
 import { requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
@@ -113,7 +112,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
   registry.register({
     name: 'auth',
     description: 'Review auth posture and exchange session login tokens with local services',
-    usage: '[review|show <provider>|repair <provider>|bundle export <path> --yes|bundle inspect <path>|login <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]',
+    usage: '[review|show <provider>|repair <provider>|bundle export <path> --yes|bundle inspect <path>|login <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
@@ -123,7 +122,12 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       const serviceRegistry = requireServiceRegistry(ctx);
       const secretsManager = requireSecretsManager(ctx);
       if (sub === 'local') {
-        handleLocalAuthCommand(args.slice(1), ctx);
+        ctx.print([
+          'Local runtime auth management is external to GoodVibes Agent.',
+          'Agent connects to an already-running GoodVibes runtime and does not create, delete, rotate, revoke, or clear runtime auth users, sessions, or bootstrap credentials.',
+          'Use the runtime-owning GoodVibes TUI or host tooling for runtime auth administration.',
+          'Agent auth commands available here: /auth review, /auth show <provider>, /auth repair <provider>, /auth login <runtime|listener> ... --yes.',
+        ].join('\n'));
         return;
       }
       if (sub === 'review') {
@@ -270,7 +274,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         return;
       }
 
-      ctx.print('Usage: /auth [review|show <provider>|bundle export <path> --yes|bundle inspect <path>|login <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]');
+      ctx.print('Usage: /auth [review|show <provider>|bundle export <path> --yes|bundle inspect <path>|login <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes]');
     },
   });
 }
