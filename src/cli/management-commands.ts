@@ -14,6 +14,7 @@ import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 
 export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<string> {
   return await withRuntimeServices(runtime, async (services) => {
+    const binary = runtime.cli.binary;
     const [sub = 'list', ...rest] = runtime.cli.commandArgs;
     const subscriptions = services.subscriptionManager.list();
     const pending = services.subscriptionManager.listPending();
@@ -26,7 +27,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
     }
     if (sub === 'inspect' || sub === 'show') {
       const provider = rest[0];
-      if (!provider) return 'Usage: goodvibes subscription inspect <provider>';
+      if (!provider) return `Usage: ${binary} subscription inspect <provider>`;
       const resolved = getSubscriptionProviderConfig(provider, services.serviceRegistry.get(provider));
       if (!resolved && !services.subscriptionManager.get(provider) && !services.subscriptionManager.getPending(provider)) {
         return `No stored or available subscription provider named ${provider}.`;
@@ -59,7 +60,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
     if (sub === 'login' || sub === 'start') {
       const provider = sub === 'start' ? rest[0] : rest[0];
       const mode = sub === 'start' ? 'start' : rest[1]?.toLowerCase();
-      if (!provider || mode !== 'start') return 'Usage: goodvibes subscription login <provider> start [--open]';
+      if (!provider || mode !== 'start') return `Usage: ${binary} subscription login <provider> start [--open]`;
       const resolved = getSubscriptionProviderConfig(provider, services.serviceRegistry.get(provider));
       if (!resolved) return `No subscription provider found: ${provider}`;
       if (provider === 'openai' && resolved.source === 'builtin') {
@@ -78,7 +79,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
           `  state: ${started.state}`,
           `  redirectUri: ${started.redirectUri}`,
           ...(openResult ? [`  open: ${openResult}`] : []),
-          `  next: goodvibes subscription login ${provider} finish <code-or-url>`,
+          `  next: ${binary} subscription login ${provider} finish <code-or-url>`,
           '  authorizationUrl:',
           `  ${started.authorizationUrl}`,
         ].join('\n');
@@ -91,7 +92,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
         `  state: ${started.pending.state}`,
         `  redirectUri: ${started.pending.redirectUri}`,
         ...(openResult ? [`  open: ${openResult}`] : []),
-        `  next: goodvibes subscription login ${provider} finish <code-or-url>`,
+        `  next: ${binary} subscription login ${provider} finish <code-or-url>`,
         '  authorizationUrl:',
         `  ${started.authorizationUrl}`,
       ].join('\n');
@@ -99,7 +100,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
     if (sub === 'finish' || (sub === 'login' && rest[1]?.toLowerCase() === 'finish')) {
       const provider = sub === 'finish' ? rest[0] : rest[0];
       const codeInput = sub === 'finish' ? rest[1] : rest[2];
-      if (!provider || !codeInput) return 'Usage: goodvibes subscription login <provider> finish <code-or-url>';
+      if (!provider || !codeInput) return `Usage: ${binary} subscription login <provider> finish <code-or-url>`;
       const resolved = getSubscriptionProviderConfig(provider, services.serviceRegistry.get(provider));
       if (!resolved) return `No subscription provider found: ${provider}`;
       const code = extractAuthorizationCode(codeInput);
@@ -127,7 +128,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
     }
     if (sub === 'refresh') {
       const provider = rest[0];
-      if (!provider) return 'Usage: goodvibes subscription refresh <provider>';
+      if (!provider) return `Usage: ${binary} subscription refresh <provider>`;
       const resolved = getSubscriptionProviderConfig(provider, services.serviceRegistry.get(provider));
       if (!resolved) return `No subscription provider found: ${provider}`;
       const record = await services.subscriptionManager.refreshOAuthToken(provider, resolved.oauth);
@@ -135,12 +136,12 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
     }
     if (sub === 'logout' || sub === 'remove') {
       const provider = rest[0];
-      if (!provider) return 'Usage: goodvibes subscription logout <provider>';
+      if (!provider) return `Usage: ${binary} subscription logout <provider>`;
       const removed = services.subscriptionManager.logout(provider);
       return removed ? `Subscription removed: ${provider}` : `No stored subscription session existed for ${provider}.`;
     }
     if (sub !== 'list' && sub !== 'status' && sub !== 'review') {
-      return 'Usage: goodvibes subscription [list|providers|inspect <provider>|login <provider> start|finish <code-or-url>|refresh <provider>|logout <provider>]';
+      return `Usage: ${binary} subscription [list|providers|inspect <provider>|login <provider> start|finish <code-or-url>|refresh <provider>|logout <provider>]`;
     }
     const value = {
       subscriptions: subscriptions.map((sub) => ({
@@ -180,7 +181,7 @@ export async function handleSecrets(runtime: CliCommandRuntime): Promise<string>
   if (sub === 'test') {
     const ref = rest.join(' ').trim();
     if (!ref || !ref.startsWith('goodvibes://secrets/') || !isSecretRefInput(ref)) {
-      return 'Usage: goodvibes secrets test goodvibes://secrets/<source>/...';
+      return `Usage: ${runtime.cli.binary} secrets test goodvibes://secrets/<source>/...`;
     }
     const resolved = await resolveSecretRef(ref, { resolveLocalSecret: (key) => secrets.get(key) });
     const value = { ref: describeSecretRef(ref), resolved: Boolean(resolved.value) };
@@ -191,7 +192,7 @@ export async function handleSecrets(runtime: CliCommandRuntime): Promise<string>
     const values = rest.filter((arg) => !arg.startsWith('--'));
     const [key, ...rawValueParts] = values;
     const value = rawValueParts.join(' ');
-    if (!key || !value) return `Usage: goodvibes secrets ${sub} <KEY> <value> [--user|--project] [--secure|--plaintext]`;
+    if (!key || !value) return `Usage: ${runtime.cli.binary} secrets ${sub} <KEY> <value> [--user|--project] [--secure|--plaintext]`;
     if (sub === 'link' && (!value.startsWith('goodvibes://secrets/') || !isSecretRefInput(value))) {
       return 'Invalid secret reference. Use goodvibes://secrets/<source>/...';
     }
@@ -203,7 +204,7 @@ export async function handleSecrets(runtime: CliCommandRuntime): Promise<string>
   }
   if (sub === 'delete') {
     const key = rest.find((arg) => !arg.startsWith('--'));
-    if (!key) return 'Usage: goodvibes secrets delete <KEY> [--user|--project] [--secure|--plaintext]';
+    if (!key) return `Usage: ${runtime.cli.binary} secrets delete <KEY> [--user|--project] [--secure|--plaintext]`;
     const flags = new Set(rest.filter((arg) => arg.startsWith('--')));
     await secrets.delete(key, {
       scope: flags.has('--user') ? 'user' : flags.has('--project') ? 'project' : undefined,
@@ -226,6 +227,7 @@ export async function handleSecrets(runtime: CliCommandRuntime): Promise<string>
 
 export async function handleSessions(runtime: CliCommandRuntime): Promise<string | null> {
   return await withRuntimeServices(runtime, (services) => {
+    const binary = runtime.cli.binary;
     const [sub = 'list', ...rest] = runtime.cli.commandArgs;
     const sessions = services.sessionManager.list();
     if (sub === 'list') {
@@ -237,7 +239,7 @@ export async function handleSessions(runtime: CliCommandRuntime): Promise<string
     }
     if (sub === 'show' || sub === 'info') {
       const target = rest.join(' ').trim();
-      if (!target) return 'Usage: goodvibes sessions show <id|name>';
+      if (!target) return `Usage: ${binary} sessions show <id|name>`;
       const found = sessions.find((session) => session.name === target || session.name.startsWith(target) || session.title.toLowerCase() === target.toLowerCase());
       if (!found) return `Session not found: ${target}`;
       return formatJsonOrText(runtime.cli)(found, [
@@ -252,7 +254,7 @@ export async function handleSessions(runtime: CliCommandRuntime): Promise<string
     if (sub === 'export') {
       const target = rest[0];
       const outputPath = rest[1];
-      if (!target) return 'Usage: goodvibes sessions export <id|name> [path]';
+      if (!target) return `Usage: ${binary} sessions export <id|name> [path]`;
       const found = sessions.find((session) => session.name === target || session.name.startsWith(target) || session.title.toLowerCase() === target.toLowerCase());
       if (!found) return `Session not found: ${target}`;
       const data = services.sessionManager.load(found.name);
@@ -267,9 +269,9 @@ export async function handleSessions(runtime: CliCommandRuntime): Promise<string
     }
     if (sub === 'resume') {
       const target = rest.join(' ').trim();
-      return target ? null : 'Usage: goodvibes sessions resume <id|name>';
+      return target ? null : `Usage: ${binary} sessions resume <id|name>`;
     }
-    return 'Usage: goodvibes sessions list|show <id>|export <id> [path]|resume <id>';
+    return `Usage: ${binary} sessions list|show <id>|export <id> [path]|resume <id>`;
   });
 }
 
@@ -291,11 +293,11 @@ export async function handleTasks(runtime: CliCommandRuntime): Promise<string> {
         : ['GoodVibes tasks', ...tasks.map((task) => `  ${task.id} ${task.status} ${task.kind} ${task.title}`)].join('\n');
     }
     if (sub === 'show') {
-      if (!rest[0]) return 'Usage: goodvibes tasks show <taskId>';
+      if (!rest[0]) return `Usage: ${runtime.cli.binary} tasks show <taskId>`;
       const task = tasks.find((candidate) => candidate.id === rest[0]);
       return task ? JSON.stringify(task, null, 2) : `Unknown task: ${rest[0] ?? ''}`;
     }
-    return 'Usage: goodvibes tasks list|show <taskId>';
+    return `Usage: ${runtime.cli.binary} tasks list|show <taskId>`;
   });
 }
 

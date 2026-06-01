@@ -125,7 +125,7 @@ export async function handleBundleCommand(runtime: CliCommandRuntime): Promise<C
 
   if (sub === 'inspect') {
     const path = rest[0];
-    if (!path) return { output: 'Usage: goodvibes bundle inspect <path>', exitCode: 2 };
+    if (!path) return { output: `Usage: ${runtime.cli.binary} bundle inspect <path>`, exitCode: 2 };
     const sourcePath = shellPaths.resolveWorkspacePath(path);
     const parsed = readJsonFile(sourcePath);
     if (!parsed.ok) return { output: `Invalid bundle JSON: ${parsed.error}`, exitCode: 1 };
@@ -199,7 +199,7 @@ export async function handleBundleCommand(runtime: CliCommandRuntime): Promise<C
 
   if (sub === 'import') {
     const path = rest[0];
-    if (!path) return { output: 'Usage: goodvibes bundle import <path>', exitCode: 2 };
+    if (!path) return { output: `Usage: ${runtime.cli.binary} bundle import <path>`, exitCode: 2 };
     const sourcePath = shellPaths.resolveWorkspacePath(path);
     const parsed = readJsonFile(sourcePath);
     if (!parsed.ok) return { output: `Invalid bundle JSON: ${parsed.error}`, exitCode: 1 };
@@ -223,5 +223,5 @@ export async function handleBundleCommand(runtime: CliCommandRuntime): Promise<C
     };
   }
 
-  return { output: 'Usage: goodvibes bundle export [path]|inspect <path>|import <path>', exitCode: 2 };
+  return { output: `Usage: ${runtime.cli.binary} bundle export [path]|inspect <path>|import <path>`, exitCode: 2 };
 }

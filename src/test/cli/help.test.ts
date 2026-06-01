@@ -76,4 +76,18 @@ describe('CLI help/version', () => {
     expect(help).not.toContain('auth add-user');
     expect(help).not.toContain('auth clear-bootstrap');
   });
+
+  test('package-facing help uses the Agent executable for command guidance', () => {
+    const help = [
+      renderGoodVibesHelp(),
+      renderGoodVibesCommandHelp('subscription'),
+      renderGoodVibesCommandHelp('bundle'),
+    ].join('\n');
+
+    expect(help).toContain('goodvibes-agent subscription login openai start --open');
+    expect(help).toContain('goodvibes-agent bundle export goodvibes-agent-bundle.json');
+    expect(help).not.toContain('Usage: goodvibes subscription');
+    expect(help).not.toContain('next: goodvibes subscription');
+    expect(help).not.toContain('Usage: goodvibes bundle');
+  });
 });

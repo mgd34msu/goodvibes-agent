@@ -244,7 +244,7 @@ export function readAuthPaths(runtime: CliCommandRuntime) {
 export async function runNonInteractiveAgent(runtime: CliCommandRuntime): Promise<number> {
   const prompt = runtime.cli.flags.prompt ?? runtime.cli.positionals.join(' ').trim();
   if (!prompt) {
-    console.error('Usage: goodvibes run|exec [prompt]');
+    console.error(`Usage: ${runtime.cli.binary} run|exec [prompt]`);
     return 2;
   }
 
@@ -329,6 +329,7 @@ export async function runNonInteractiveAgent(runtime: CliCommandRuntime): Promis
 
 async function renderProviders(runtime: CliCommandRuntime): Promise<string> {
   return await withRuntimeServices(runtime, async (services) => {
+    const binary = runtime.cli.binary;
     const [sub = 'list', ...rest] = runtime.cli.commandArgs;
     const snapshots = await listProviderRuntimeSnapshots(services.providerRegistry);
     const current = services.providerRegistry.getCurrentModel();
@@ -354,7 +355,7 @@ async function renderProviders(runtime: CliCommandRuntime): Promise<string> {
     }
     if (sub === 'use' || sub === 'set') {
       const provider = rest[0];
-      if (!provider) return 'Usage: goodvibes providers use <provider> [modelRegistryKey]';
+      if (!provider) return `Usage: ${binary} providers use <provider> [modelRegistryKey]`;
       const providerModels = services.providerRegistry
         .getSelectableModels()
         .filter((model) => model.provider === provider || model.registryKey.startsWith(`${provider}:`));
@@ -377,7 +378,7 @@ async function renderProviders(runtime: CliCommandRuntime): Promise<string> {
     }
     if (sub === 'inspect' || sub === 'show') {
       const provider = rest[0];
-      if (!provider) return 'Usage: goodvibes providers inspect <provider>';
+      if (!provider) return `Usage: ${binary} providers inspect <provider>`;
       const snapshot = snapshots.find((candidate) => candidate.providerId === provider);
       if (!snapshot) return `No provider found: ${provider}`;
       const setup = classifyProviderSetup({
@@ -404,7 +405,7 @@ async function renderProviders(runtime: CliCommandRuntime): Promise<string> {
         `  detail: ${snapshot.runtime.auth?.detail ?? snapshot.runtime.notes?.join('; ') ?? ''}`,
       ].join('\n'));
     }
-    if (sub !== 'list') return 'Usage: goodvibes providers [list|current|inspect <provider>|use <provider> [modelRegistryKey]]';
+    if (sub !== 'list') return `Usage: ${binary} providers [list|current|inspect <provider>|use <provider> [modelRegistryKey]]`;
     const value = snapshots.map((snapshot) => ({
       ...classifyProviderSetup({
         providerId: snapshot.providerId,
@@ -433,6 +434,7 @@ async function renderProviders(runtime: CliCommandRuntime): Promise<string> {
 
 async function renderModels(runtime: CliCommandRuntime): Promise<string> {
   return await withRuntimeServices(runtime, async (services) => {
+    const binary = runtime.cli.binary;
     const [subOrFilter, ...rest] = runtime.cli.commandArgs;
     const current = services.providerRegistry.getCurrentModel().registryKey;
     const providerSnapshots = await listProviderRuntimeSnapshots(services.providerRegistry);
@@ -469,7 +471,7 @@ async function renderModels(runtime: CliCommandRuntime): Promise<string> {
     }
     if (subOrFilter === 'use' || subOrFilter === 'set') {
       const modelKey = rest[0];
-      if (!modelKey) return 'Usage: goodvibes models use <registryKey>';
+      if (!modelKey) return `Usage: ${binary} models use <registryKey>`;
       const model = services.providerRegistry
         .getSelectableModels()
         .find((candidate) => candidate.registryKey === modelKey || candidate.id === modelKey);
@@ -485,7 +487,7 @@ async function renderModels(runtime: CliCommandRuntime): Promise<string> {
     }
     if (subOrFilter === 'pin' || subOrFilter === 'unpin') {
       const modelKey = rest[0];
-      if (!modelKey) return `Usage: goodvibes models ${subOrFilter} <registryKey>`;
+      if (!modelKey) return `Usage: ${binary} models ${subOrFilter} <registryKey>`;
       if (subOrFilter === 'pin') await services.favoritesStore.pinModel(modelKey);
       else await services.favoritesStore.unpinModel(modelKey);
       return `Model ${subOrFilter === 'pin' ? 'pinned' : 'unpinned'}: ${modelKey}`;

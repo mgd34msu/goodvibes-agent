@@ -222,7 +222,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     ],
   },
   subscription: {
-    usage: ['subscription list', 'subscription providers', 'subscription inspect <provider>', 'subscription login <provider> start|finish', 'subscription logout <provider>'],
+    usage: ['subscription list', 'subscription providers', 'subscription inspect <provider>', 'subscription login <provider> start [--open]', 'subscription login <provider> finish <code-or-url>', 'subscription logout <provider>'],
     summary: 'Manage OAuth/subscription-backed provider sessions such as OpenAI subscription access.',
     examples: ['subscription providers', 'subscription login openai start --open', 'subscription inspect openai'],
   },
