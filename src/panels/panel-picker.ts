@@ -1,11 +1,10 @@
 import type { PanelRegistration, PanelCategory } from './types.ts';
 
 /** Display order for panel categories. */
-const CATEGORY_ORDER: PanelCategory[] = ['development', 'agent', 'monitoring', 'session', 'ai'];
+const CATEGORY_ORDER: PanelCategory[] = ['agent', 'monitoring', 'session', 'ai'];
 
 /** Human-readable labels for each category. */
 const CATEGORY_LABELS: Record<PanelCategory, string> = {
-  development: 'Development',
   agent:       'Agent',
   monitoring:  'Monitoring',
   session:     'Session',

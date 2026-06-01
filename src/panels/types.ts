@@ -1,7 +1,7 @@
 import type { Line } from '../types/grid.ts';
 import type { ComponentResourceContract, ComponentHealthState } from '../runtime/perf/panel-contracts.ts';
 
-export type PanelCategory = 'development' | 'agent' | 'monitoring' | 'session' | 'ai';
+export type PanelCategory = 'agent' | 'monitoring' | 'session' | 'ai';
 
 export interface Panel {
   id: string;

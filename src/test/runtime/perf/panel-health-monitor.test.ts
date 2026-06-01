@@ -68,7 +68,7 @@ describe('ComponentHealthMonitor: contract enforcement', () => {
   });
 
   test('registered panel is permitted within rate budget', () => {
-    monitor.register('panel-a', 'development'); // 10 updates/s
+    monitor.register('panel-a', 'agent'); // 10 updates/s
     // 5 requests over 1 second — within budget
     const { permitted, suppressed } = simulateRequests(monitor, 'panel-a', 5, 1000, 200);
     expect(permitted).toBe(5);
@@ -127,7 +127,7 @@ describe('ComponentHealthMonitor: render cost enforcement', () => {
   });
 
   test('cheap renders do not degrade panel', () => {
-    monitor.register('cheap', 'development', { maxRenderMs: 20, degradeAfterViolations: 3 });
+    monitor.register('cheap', 'agent', { maxRenderMs: 20, maxUpdatesPerSecond: 20, degradeAfterViolations: 3 });
     for (let i = 0; i < 10; i++) {
       monitor.canRender('cheap', 5000 + i * 100);
       monitor.recordRender('cheap', 5, 5000 + i * 100 + 3);
@@ -138,8 +138,9 @@ describe('ComponentHealthMonitor: render cost enforcement', () => {
   });
 
   test('expensive renders escalate panel health', () => {
-    monitor.register('expensive', 'development', {
+    monitor.register('expensive', 'agent', {
       maxRenderMs: 5,
+      maxUpdatesPerSecond: 100,
       degradeAfterViolations: 3,
       degradedIntervalMs: 500,
     });
@@ -186,7 +187,7 @@ describe('ComponentHealthMonitor: render storm containment', () => {
       degradeAfterViolations: 3,
       degradedIntervalMs: 1000,
     });
-    monitor.register('calm-panel', 'development', {
+    monitor.register('calm-panel', 'agent', {
       maxUpdatesPerSecond: 10,
       throttleIntervalMs: 100,
       degradeAfterViolations: 10,
@@ -266,7 +267,7 @@ describe('ComponentHealthMonitor: render storm containment', () => {
     }
 
     // A freshly registered sixth panel is unaffected
-    monitor.register('clean', 'development');
+    monitor.register('clean', 'agent');
     expect(monitor.canRender('clean', 10500)).toBe(true);
   });
 
@@ -312,7 +313,7 @@ describe('PanelResourcesPanel: diagnostics snapshot', () => {
 
   test('refresh builds snapshot from shared monitor state', () => {
     const monitor = new ComponentHealthMonitor();
-    monitor.register('diag-panel-1', 'development');
+    monitor.register('diag-panel-1', 'agent');
     monitor.register('diag-panel-2', 'monitoring');
 
     // Simulate some renders
@@ -339,7 +340,7 @@ describe('PanelResourcesPanel: diagnostics snapshot', () => {
       degradedIntervalMs: 200,
     });
     // Calm panel — stays healthy
-    monitor.register('calm-diag', 'development');
+    monitor.register('calm-diag', 'agent');
 
     // Storm heavy panel
     for (let i = 0; i < 20; i++) {

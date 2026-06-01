@@ -70,8 +70,8 @@ describe('PanelListPanel', () => {
   beforeEach(() => {
     mgr.destroyAll();
     // Register panels in two categories so we can test filtering and navigation.
-    mgr.registerType(makeReg({ id: 'alpha', name: 'Alpha Panel', category: 'development', description: 'The alpha panel' }));
-    mgr.registerType(makeReg({ id: 'beta',  name: 'Beta Panel',  category: 'development', description: 'The beta panel' }));
+    mgr.registerType(makeReg({ id: 'alpha', name: 'Alpha Panel', category: 'agent', description: 'The alpha panel' }));
+    mgr.registerType(makeReg({ id: 'beta',  name: 'Beta Panel',  category: 'agent', description: 'The beta panel' }));
     mgr.registerType(makeReg({ id: 'gamma', name: 'Gamma Panel', category: 'session',     description: 'The gamma panel' }));
     mgr.registerType(makeReg({ id: 'delta', name: 'Delta Panel', category: 'session',     description: 'A unique tag: xyz' }));
     panel = new PanelListPanel(mgr);

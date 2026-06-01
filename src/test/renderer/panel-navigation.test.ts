@@ -68,7 +68,7 @@ describe('panel navigation chrome', () => {
     const picker = new PanelPicker();
     picker.open([
       makeRegistration('cockpit', 'Cockpit', 'monitoring', 'Unified operator cockpit'),
-      makeRegistration('git', 'Git', 'development', 'Git status and branch review'),
+      makeRegistration('state', 'State', 'agent', 'Agent state review'),
     ]);
     picker.moveDown();
     const lines = renderPanelPickerOverlay(picker, 100);

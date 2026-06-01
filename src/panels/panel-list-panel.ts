@@ -65,9 +65,8 @@ const C = {
   intro:       '#94a3b8',
 } as const;
 
-const CATEGORY_ORDER: PanelCategory[] = ['development', 'agent', 'monitoring', 'session', 'ai'];
+const CATEGORY_ORDER: PanelCategory[] = ['agent', 'monitoring', 'session', 'ai'];
 const CATEGORY_LABELS: Record<PanelCategory, string> = {
-  development: 'Development',
   agent:       'Agent',
   monitoring:  'Monitoring',
   session:     'Session',
