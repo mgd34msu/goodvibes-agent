@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { verifyPackageCliInstall } from '../../cli/package-verification.ts';
 import { SDK_VERSION, VERSION } from '../../version.ts';
@@ -9,6 +9,7 @@ type PackageJson = {
   readonly dependencies?: Record<string, string>;
   readonly engines?: Record<string, string>;
   readonly scripts?: Record<string, string>;
+  readonly files?: readonly string[];
 };
 
 describe('package CLI install verification', () => {
@@ -48,5 +49,17 @@ describe('package CLI install verification', () => {
     const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
     expect(VERSION).toBe(parsed.version);
     expect(SDK_VERSION).toBe(parsed.dependencies?.['@pellux/goodvibes-sdk']);
+  });
+
+  test('package file exclusions do not carry stale concrete paths', () => {
+    const root = resolve(import.meta.dir, '../../..');
+    const packagePath = resolve(root, 'package.json');
+    const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
+    const staleConcreteExclusions = (parsed.files ?? [])
+      .filter((entry) => entry.startsWith('!'))
+      .map((entry) => entry.slice(1))
+      .filter((entry) => !entry.includes('*') && !existsSync(resolve(root, entry)));
+
+    expect(staleConcreteExclusions).toEqual([]);
   });
 });
