@@ -4,8 +4,6 @@ export { BasePanel } from './base-panel.ts';
 export { PanelManager } from './panel-manager.ts';
 export { TokenBudgetPanel } from './token-budget-panel.ts';
 export { CostTrackerPanel } from './cost-tracker-panel.ts';
-export { AgentInspectorPanel } from './agent-inspector-panel.ts';
-export { AgentLogsPanel } from './agent-logs-panel.ts';
 export { ProviderHealthPanel } from './provider-health-panel.ts';
 export { ProviderHealthTracker } from './provider-health-tracker.ts';
 export type { ProviderHealth, ProviderStatus } from './provider-health-tracker.ts';

@@ -1,5 +1,4 @@
 import type { PanelManager } from '../panel-manager.ts';
-import { AgentLogsPanel } from '../agent-logs-panel.ts';
 import { ContextVisualizerPanel } from '../context-visualizer-panel.ts';
 import { ThinkingPanel } from '../thinking-panel.ts';
 import { ToolInspectorPanel } from '../tool-inspector-panel.ts';
@@ -48,22 +47,6 @@ export function registerAgentPanels(manager: PanelManager, deps: ResolvedBuiltin
       deps.contextWindow,
       requireUiServices(deps).readModels.session,
     ),
-  });
-
-  manager.registerType({
-    id: 'agent-logs',
-    name: 'Agents',
-    icon: 'A',
-    category: 'agent',
-    description: 'View-only stream for explicit delegated build/review session records',
-    preload: true,
-    factory: () => {
-      const ui = requireUiServices(deps);
-      return new AgentLogsPanel(ui.events.agents, {
-        agentManager: ui.agents.agentManager,
-        workingDirectory: ui.environment.workingDirectory,
-      });
-    },
   });
 
   manager.registerType({

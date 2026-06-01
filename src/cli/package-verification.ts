@@ -50,6 +50,12 @@ const FORBIDDEN_TARBALL_DOCS = [
   ['docs/home', 'assistant-surface.md'].join(''),
   'docs/wrfc/',
 ] as const;
+const FORBIDDEN_TARBALL_FILES = new Set([
+  'src/panels/agent-inspector-panel.ts',
+  'src/panels/agent-inspector-shared.ts',
+  'src/panels/agent-logs-panel.ts',
+  'src/panels/agent-logs-shared.ts',
+]);
 const PACKAGE_FACING_TEXT_PATHS = [
   'README.md',
   'CHANGELOG.md',
@@ -216,6 +222,7 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
   const requiredPathsPresent = REQUIRED_TARBALL_PATHS.filter((path) => pack.files.includes(path));
   const forbiddenPaths = pack.files.filter((path) => {
     if (FORBIDDEN_TARBALL_PREFIXES.some((prefix) => path.startsWith(prefix))) return true;
+    if (FORBIDDEN_TARBALL_FILES.has(path)) return true;
     return FORBIDDEN_TARBALL_DOCS.some((docPath) => path === docPath || path.startsWith(docPath));
   });
   const issues: string[] = [];
