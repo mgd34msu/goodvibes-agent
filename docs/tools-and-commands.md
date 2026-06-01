@@ -20,7 +20,7 @@ High-signal Agent command families:
 - `/health` and `/auth` for runtime/auth/SDK diagnostics inside the TUI.
 - `goodvibes-agent status` and `goodvibes-agent compat` for CLI diagnostics.
 - `/model` and `/provider` for provider/model selection and visibility.
-- `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, and ingest.
+- `/knowledge` and `goodvibes-agent knowledge` for isolated Agent Knowledge/Wiki ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
 - `goodvibes-agent ask <question>` and `goodvibes-agent search <query>` are CLI shortcuts for the same isolated Agent Knowledge routes.
 - `/recall`, `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.
@@ -42,6 +42,10 @@ Local recall capture/add commands are explicit Agent-local memory actions. Delet
 `/knowledge search <query>` searches the same isolated Agent environment through `/api/goodvibes-agent/knowledge/search`.
 
 `/knowledge ingest-url <url> --yes` ingests into Agent Knowledge through `/api/goodvibes-agent/knowledge/ingest/url`. Knowledge ingestion, imports, issue review, reindex, and consolidation are Agent-owned mutations and require `--yes`.
+
+`goodvibes-agent knowledge list --kind sources|nodes|issues`, `goodvibes-agent knowledge get <id>`, `goodvibes-agent knowledge connectors`, and `goodvibes-agent knowledge map` are read-only CLI inspection paths over the same isolated Agent route family.
+
+`goodvibes-agent knowledge import-urls <path> --yes`, `goodvibes-agent knowledge import-bookmarks <path> --yes`, and `goodvibes-agent knowledge reindex --yes` are confirmed Agent Knowledge maintenance paths. They call only `/api/goodvibes-agent/knowledge/*`.
 
 The Agent command layer rejects flags that would route knowledge work into another space, including `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces`. If Agent Knowledge is unavailable, the command fails closed instead of querying a default store.
 

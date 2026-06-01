@@ -193,6 +193,202 @@ describe('Agent Knowledge CLI route isolation', () => {
     }
   });
 
+  test('list/get/connectors use isolated Agent Knowledge read routes', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      const url = inputUrl(input);
+      requests.push({
+        url,
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      if (url.includes('/sources')) {
+        return new Response(JSON.stringify({
+          sources: [{
+            id: 'src-agent',
+            connectorId: 'manual',
+            sourceType: 'url',
+            title: 'Agent Manual',
+            canonicalUri: 'https://example.test/agent',
+            tags: [],
+            status: 'ready',
+            metadata: {},
+            createdAt: 1,
+            updatedAt: 1,
+          }],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.includes('/items/src-agent')) {
+        return new Response(JSON.stringify({
+          source: {
+            id: 'src-agent',
+            connectorId: 'manual',
+            sourceType: 'url',
+            title: 'Agent Manual',
+            canonicalUri: 'https://example.test/agent',
+            tags: [],
+            status: 'ready',
+            metadata: {},
+            createdAt: 1,
+            updatedAt: 1,
+          },
+          relatedEdges: [],
+          linkedSources: [],
+          linkedNodes: [],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.includes('/connectors')) {
+        return new Response(JSON.stringify({
+          connectors: [{
+            id: 'url',
+            displayName: 'URL',
+            description: 'Ingest one URL into Agent Knowledge.',
+            sourceType: 'url',
+          }],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected route ${url}`);
+    }) satisfies typeof fetch;
+
+    try {
+      const sources = await handleAgentKnowledgeCommand(createRuntime(['list', '--kind', 'sources', '--limit', '2']));
+      const sourceParsed = JSON.parse(sources.output) as unknown;
+      const item = await handleAgentKnowledgeCommand(createRuntime(['get', 'src-agent']));
+      const itemParsed = JSON.parse(item.output) as unknown;
+      const connectors = await handleAgentKnowledgeCommand(createRuntime(['connectors']));
+      const connectorParsed = JSON.parse(connectors.output) as unknown;
+
+      expect(sources.exitCode).toBe(0);
+      expect(item.exitCode).toBe(0);
+      expect(connectors.exitCode).toBe(0);
+      expect(requests.map((request) => request.url)).toEqual([
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/sources?limit=2',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/items/src-agent',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors',
+      ]);
+      expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
+      expect(sourceParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.sources.list',
+        route: '/api/goodvibes-agent/knowledge/sources',
+      });
+      expect(itemParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.item.get',
+        route: '/api/goodvibes-agent/knowledge/items/{id}',
+      });
+      expect(connectorParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.connectors.list',
+        route: '/api/goodvibes-agent/knowledge/connectors',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('import-urls and reindex require confirmation and use isolated Agent Knowledge routes', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      if (inputUrl(input).includes('/ingest/urls')) {
+        return new Response(JSON.stringify({
+          imported: 1,
+          failed: 0,
+          sources: [],
+          errors: [],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (inputUrl(input).includes('/reindex')) {
+        return new Response(JSON.stringify({
+          status: {
+            ready: true,
+            storagePath: 'knowledge-agent.sqlite',
+            sourceCount: 1,
+            nodeCount: 1,
+            edgeCount: 0,
+            issueCount: 0,
+            extractionCount: 1,
+            jobRunCount: 0,
+            usageCount: 0,
+            candidateCount: 0,
+            reportCount: 0,
+            scheduleCount: 0,
+          },
+          issues: [],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected route ${inputUrl(input)}`);
+    }) satisfies typeof fetch;
+
+    try {
+      const preview = await handleAgentKnowledgeCommand(createRuntime(['import-urls', '/tmp/links.txt']));
+      const previewParsed = JSON.parse(preview.output) as unknown;
+      expect(preview.exitCode).toBe(2);
+      expect(requests).toHaveLength(0);
+      expect(previewParsed).toMatchObject({
+        ok: false,
+        kind: 'confirmation_required',
+        route: '/api/goodvibes-agent/knowledge/ingest/urls',
+      });
+
+      const imported = await handleAgentKnowledgeCommand(createRuntime(['import-urls', '/tmp/links.txt', '--yes']));
+      const importedParsed = JSON.parse(imported.output) as unknown;
+      expect(imported.exitCode).toBe(0);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/urls');
+      expect(requests[0]?.body).toContain('"path":"/tmp/links.txt"');
+      expect(importedParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.ingest.urls',
+        route: '/api/goodvibes-agent/knowledge/ingest/urls',
+      });
+
+      const reindexPreview = await handleAgentKnowledgeCommand(createRuntime(['reindex']));
+      const reindexPreviewParsed = JSON.parse(reindexPreview.output) as unknown;
+      expect(reindexPreview.exitCode).toBe(2);
+      expect(requests).toHaveLength(1);
+      expect(reindexPreviewParsed).toMatchObject({
+        ok: false,
+        kind: 'confirmation_required',
+        route: '/api/goodvibes-agent/knowledge/reindex',
+      });
+
+      const reindex = await handleAgentKnowledgeCommand(createRuntime(['reindex', '--yes']));
+      const reindexParsed = JSON.parse(reindex.output) as unknown;
+      expect(reindex.exitCode).toBe(0);
+      expect(requests[1]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/reindex');
+      expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
+      expect(reindexParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.reindex',
+        route: '/api/goodvibes-agent/knowledge/reindex',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test('ask uses only the Agent Knowledge route', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;

@@ -22,7 +22,15 @@ Agent Knowledge uses only the Agent route family:
 GET  /api/goodvibes-agent/knowledge/status
 POST /api/goodvibes-agent/knowledge/ask
 POST /api/goodvibes-agent/knowledge/search
+GET  /api/goodvibes-agent/knowledge/sources
+GET  /api/goodvibes-agent/knowledge/nodes
+GET  /api/goodvibes-agent/knowledge/issues
+GET  /api/goodvibes-agent/knowledge/items/{id}
+GET  /api/goodvibes-agent/knowledge/connectors
 POST /api/goodvibes-agent/knowledge/ingest/url
+POST /api/goodvibes-agent/knowledge/ingest/urls
+POST /api/goodvibes-agent/knowledge/ingest/bookmarks
+POST /api/goodvibes-agent/knowledge/reindex
 ```
 
 If those routes are unavailable, Agent commands fail closed with a structured error. They do not retry against `/api/knowledge/*` or arbitrary knowledge-space selectors.
@@ -46,9 +54,24 @@ The command layer does not turn search results into an answer locally and does n
 
 `/knowledge search <query>` and `goodvibes-agent search <query>` query the isolated Agent Knowledge search route and render bounded results with title, id, type, score, source, URL, and snippets when available. Empty Agent stores return an explicit empty state.
 
+Read-only inspection is available from both TUI slash commands and CLI commands:
+
+- `goodvibes-agent knowledge list --kind sources|nodes|issues`
+- `goodvibes-agent knowledge get <id>`
+- `goodvibes-agent knowledge connectors`
+- `goodvibes-agent knowledge map`
+
 ## Ingest
 
-`/knowledge ingest-url <url> --yes` and `goodvibes-agent knowledge ingest-url <url> --yes` ingest URL sources into Agent Knowledge only. Additional ingest shapes should be added only when the SDK exposes Agent-specific routes for them.
+`/knowledge ingest-url <url> --yes` and `goodvibes-agent knowledge ingest-url <url> --yes` ingest URL sources into Agent Knowledge only.
+
+The CLI also exposes the Agent-specific batch routes:
+
+- `goodvibes-agent knowledge import-urls <path> --yes`
+- `goodvibes-agent knowledge import-bookmarks <path> --yes`
+- `goodvibes-agent knowledge reindex --yes`
+
+All of these commands target `/api/goodvibes-agent/knowledge/*`; none of them call default Knowledge/Wiki.
 
 Do not map local memory, routines, skills, personas, or default wiki documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
 

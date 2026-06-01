@@ -17,6 +17,8 @@ goodvibes-agent --help
 goodvibes-agent status
 goodvibes-agent profiles templates
 goodvibes-agent knowledge status
+goodvibes-agent knowledge list --kind sources
+goodvibes-agent knowledge import-urls ./agent-sources.txt --yes
 ```
 
 If `goodvibes-agent` is not found after installation, add Bun's global bin directory to `PATH`:
@@ -94,6 +96,8 @@ Agent reports unavailable, unauthenticated, or incompatible runtime state throug
 GoodVibes Agent owns the operator assistant TUI: serial assistant flow, proactive safe actions, local memory/routines/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
+
+Agent Knowledge CLI commands can ask/search, inspect sources/nodes/issues, inspect connectors, ingest a URL, import URL/bookmark files, and reindex the Agent segment. Confirmed mutations require `--yes`.
 
 GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, execution isolation UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public runtime/session contracts; normal assistant chat must not use shared coding sessions.
 
