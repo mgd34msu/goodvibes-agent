@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.95 - 2026-06-01
+
+- a3b0dea Remove copied foundation examples
+
 ## 0.1.94 - 2026-06-01
 
 - ae6fa3e Polish Agent runtime status labels
