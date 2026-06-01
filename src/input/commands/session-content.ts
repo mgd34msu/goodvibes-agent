@@ -260,8 +260,9 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
   });
 
   registry.register({
-    name: 'memory',
-    description: 'Manage session memories (pinned across context compaction)',
+    name: 'session-memory',
+    aliases: ['smemory'],
+    description: 'Manage conversation-pinned memories used during context compaction',
     usage: '[list|add <text>|remove <id> --yes]',
     argsHint: '[list|add|remove]',
     handler(args, ctx) {
@@ -269,12 +270,12 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       if (sub === 'list' || args.length === 0) {
         const memories = requireSessionMemoryStore(ctx).list();
         ctx.print(memories.length === 0
-          ? 'No session memories. Use !# prefix or /memory add <text> to create one.'
-          : [`Session Memories (${memories.length}):`, ...memories.map(m => `  [${m.id}] ${m.text}`)].join('\n'));
+          ? 'No conversation-pinned memories. Use !# prefix or /session-memory add <text> to create one.'
+          : [`Conversation-Pinned Memories (${memories.length}):`, ...memories.map(m => `  [${m.id}] ${m.text}`)].join('\n'));
       } else if (sub === 'add') {
         const text = args.slice(1).join(' ').trim();
         if (!text) {
-          ctx.print('Usage: /memory add <text>');
+          ctx.print('Usage: /session-memory add <text>');
           return;
         }
         const id = requireSessionMemoryStore(ctx).add(text);
@@ -283,17 +284,17 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
         const parsed = stripYesFlag(args);
         const id = parsed.rest[1];
         if (!id) {
-          ctx.print('Usage: /memory remove <id> --yes');
+          ctx.print('Usage: /session-memory remove <id> --yes');
           return;
         }
         if (!parsed.yes) {
-          requireYesFlag(ctx, `remove session memory ${id}`, '/memory remove <id> --yes');
+          requireYesFlag(ctx, `remove conversation-pinned memory ${id}`, '/session-memory remove <id> --yes');
           return;
         }
         const store = requireSessionMemoryStore(ctx);
         ctx.print(store.remove(id) ? `Memory removed: [${id}]` : `Memory not found: ${id}`);
       } else {
-        ctx.print('Usage: /memory [list|add <text>|remove <id> --yes]\n  /memory                    — list all session memories\n  /memory list               — list all session memories\n  /memory add <text>         — add a memory without sending a message\n  /memory remove <id> --yes  — remove a specific memory');
+        ctx.print('Usage: /session-memory [list|add <text>|remove <id> --yes]\n  /session-memory                    — list conversation-pinned memories\n  /session-memory list               — list conversation-pinned memories\n  /session-memory add <text>         — add a memory without sending a message\n  /session-memory remove <id> --yes  — remove a specific memory');
       }
     },
   });

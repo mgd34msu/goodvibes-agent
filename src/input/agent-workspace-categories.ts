@@ -34,7 +34,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'setup-personas', label: 'Personas', detail: 'Create or select the active local Agent persona.', targetCategoryId: 'personas', kind: 'workspace', safety: 'safe' },
       { id: 'setup-skills', label: 'Skills', detail: 'Create, review, and enable reusable local Agent skills.', targetCategoryId: 'skills', kind: 'workspace', safety: 'safe' },
       { id: 'setup-routines', label: 'Routines', detail: 'Create, review, and enable local Agent routines before any explicit schedule promotion.', targetCategoryId: 'routines', kind: 'workspace', safety: 'safe' },
-      { id: 'setup-memory', label: 'Local memory', detail: 'Inspect local/session memory; secrets stay rejected or redacted.', command: '/memory', kind: 'command', safety: 'read-only' },
+      { id: 'setup-memory', label: 'Local memory', detail: 'Inspect Agent-local memory; secrets stay rejected or redacted.', command: '/memory', kind: 'command', safety: 'read-only' },
       { id: 'setup-channels', label: 'Channels', detail: 'Open companion pairing and channel readiness setup.', command: '/pair', kind: 'command', safety: 'safe' },
       { id: 'setup-voice-media', label: 'Voice and media', detail: 'Open TTS/media settings for voice and image-capable Agent flows.', command: '/config tts', kind: 'command', safety: 'safe' },
       { id: 'provider', label: 'Provider status', detail: 'Review provider/model posture.', command: '/provider', kind: 'command', safety: 'read-only' },

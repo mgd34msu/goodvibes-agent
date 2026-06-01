@@ -140,6 +140,17 @@ describe('Agent command interface', () => {
     expect(registry.get('skill')?.name).toBe('agent-skills');
   });
 
+  test('routes /memory to Agent-local durable memory instead of session-pinned compaction memory', () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+
+    expect(registry.get('memory')?.description).toContain('Agent-local memory');
+    expect(registry.get('memory')?.description).not.toContain('session memories');
+    expect(registry.get('mem')?.name).toBe('memory');
+    expect(registry.get('session-memory')?.description).toContain('conversation-pinned memories');
+    expect(registry.get('smemory')?.name).toBe('session-memory');
+  });
+
   test('visible Agent guidance does not advertise hidden copied TUI lifecycle commands', () => {
     const visibleGuidanceFiles = [
       'src/input/agent-workspace-setup.ts',

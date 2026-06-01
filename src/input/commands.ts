@@ -1,4 +1,5 @@
 import type { CommandRegistry } from './command-registry.ts';
+import type { CommandContext } from './command-registry.ts';
 import { policyCommand } from './commands/policy.ts';
 import { sessionCommand } from './commands/session.ts';
 import { recallCommand } from './commands/memory.ts';
@@ -34,6 +35,19 @@ import { registerDelegationRuntimeCommands } from './commands/delegation-runtime
 import { registerPersonasRuntimeCommands } from './commands/personas-runtime.ts';
 import { registerAgentSkillsRuntimeCommands } from './commands/agent-skills-runtime.ts';
 import { registerRoutinesRuntimeCommands } from './commands/routines-runtime.ts';
+
+function registerAgentMemoryCommand(registry: CommandRegistry): void {
+  registry.register({
+    name: 'memory',
+    aliases: ['mem'],
+    description: 'Agent-local memory: add, search, review, stale, and delete durable memory records',
+    usage: '<list|add|search|queue|review|stale|remove> [args]',
+    argsHint: 'list|add|search|queue|review|stale|remove',
+    handler: async (args: string[], context: CommandContext): Promise<void> => {
+      await recallCommand.handler(args.length === 0 ? ['list'] : args, context);
+    },
+  });
+}
 
 /**
  * registerBuiltinCommands - Register all built-in slash commands into the registry.
@@ -71,6 +85,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerPlanningRuntimeCommands(registry);
   registerScheduleRuntimeCommands(registry);
   registerSessionContentCommands(registry);
+  registerAgentMemoryCommand(registry);
 
   // ── /policy ───────────────────────────────────────────────────────────────
   registry.register(policyCommand);
