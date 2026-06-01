@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.93 - 2026-06-01
+
+- 7f802e5 Add external runtime URL override
+
 ## 0.1.92 - 2026-06-01
 
 - f52b62e Fix copied CLI executable guidance
