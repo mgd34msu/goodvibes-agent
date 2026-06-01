@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.107 - Unreleased
+
+- Add `goodvibes-agent launch` and `goodvibes-agent start` as explicit aliases for starting the Agent TUI.
+- Document the Bun global install path with `goodvibes-agent launch` as the first interactive smoke.
+
 ## 0.1.106 - 2026-06-01
 
 - b67a2fe Polish Agent setup entrypoint

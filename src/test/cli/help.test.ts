@@ -32,12 +32,16 @@ describe('CLI help/version', () => {
     expect(help).toContain('--agent-profile <name>');
     expect(help).not.toContain('tasks submit <prompt>');
     expect(help).not.toContain('submit a non-interactive task');
+    expect(help).toContain('tui|launch [path]');
+    expect(help).toContain('goodvibes-agent launch');
   });
 
   test('shell completion advertises product commands instead of runtime lifecycle commands', () => {
     const completion = renderCompletion('bash', 'goodvibes-agent');
 
     expect(completion).toContain('tui');
+    expect(completion).toContain('launch');
+    expect(completion).toContain('start');
     expect(completion).toContain('profiles');
     expect(completion).toContain('knowledge');
     expect(completion).toContain('delegate');

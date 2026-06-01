@@ -14,6 +14,7 @@ Install the public alpha package with Bun:
 ```sh
 bun add -g --trust @pellux/goodvibes-agent
 goodvibes-agent --help
+goodvibes-agent launch
 goodvibes-agent status
 goodvibes-agent profiles templates
 goodvibes-agent personas list
@@ -30,6 +31,8 @@ If `goodvibes-agent` is not found after installation, add Bun's global bin direc
 export PATH="$(bun pm bin -g):$PATH"
 goodvibes-agent --help
 ```
+
+`goodvibes-agent` and `goodvibes-agent launch` both start the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
 
 `--trust` lets Bun run the package lifecycle scripts required by the shipped SDK and parser dependencies during global install. A healthy install should report no pending lifecycle scripts:
 

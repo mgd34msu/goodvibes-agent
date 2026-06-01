@@ -29,7 +29,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `       ${binary} [OPTIONS] <COMMAND> [ARGS]`,
     '',
     'Commands:',
-    '  tui [path]                 Start the interactive Agent terminal UI (default)',
+    '  tui|launch [path]          Start the interactive Agent terminal UI (default)',
     '  run|exec [prompt]          Run non-interactively with text/json/stream-json output',
     '  status                     Print config, provider, auth, and setup posture',
     '  doctor                     Print status plus setup warnings',
@@ -81,6 +81,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '',
     'Examples:',
     `  ${binary}`,
+    `  ${binary} launch`,
     `  ${binary} --no-alt-screen`,
     `  ${binary} --cd ~/work/project --model openai:gpt-5.2`,
     `  ${binary} setup`,
@@ -119,9 +120,9 @@ type CommandHelp = {
 
 const COMMAND_HELP: Record<string, CommandHelp> = {
   tui: {
-    usage: ['tui [path]', '[prompt]'],
+    usage: ['tui [path]', 'launch [path]', '[prompt]'],
     summary: 'Start the interactive Agent terminal UI. A prompt starts Agent with that prompt seeded.',
-    examples: ['', 'tui ~/work/project', '"summarize current tasks"'],
+    examples: ['', 'launch', 'tui ~/work/project', '"summarize current tasks"'],
   },
   run: {
     usage: ['run [prompt] [--output text|json|stream-json]', 'exec [prompt]'],

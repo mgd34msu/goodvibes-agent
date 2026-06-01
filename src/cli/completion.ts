@@ -1,5 +1,7 @@
 const COMMANDS = [
   'tui',
+  'launch',
+  'start',
   'run',
   'exec',
   'onboarding',

@@ -257,6 +257,16 @@ describe('parseCliFlags', () => {
     expect(parseGoodVibesCli(['bundle']).command).toBe('bundle');
   });
 
+  test('launch and start aliases open the Agent TUI', () => {
+    for (const token of ['launch', 'start'] as const) {
+      const parsed = parseGoodVibesCli([token]);
+      expect(parsed.command).toBe('tui');
+      expect(parsed.rawCommand).toBe(token);
+      expect(parsed.commandArgs).toEqual([]);
+      expect(parsed.positionals).toEqual([]);
+    }
+  });
+
   test('parses --cd, --no-alt-screen, completion, and port flags without exposing serve command', () => {
     const flags = parseGoodVibesCli([
       'serve',

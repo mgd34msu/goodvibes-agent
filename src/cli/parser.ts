@@ -8,6 +8,8 @@ import type {
 const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   tui: 'tui',
   app: 'tui',
+  launch: 'tui',
+  start: 'tui',
   run: 'run',
   exec: 'run',
   e: 'run',
