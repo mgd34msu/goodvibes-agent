@@ -55,6 +55,55 @@ import { registerPersonasRuntimeCommands } from './commands/personas-runtime.ts'
 import { registerAgentSkillsRuntimeCommands } from './commands/agent-skills-runtime.ts';
 import { registerRoutinesRuntimeCommands } from './commands/routines-runtime.ts';
 
+const HIDDEN_COPIED_TUI_COMMANDS = [
+  'bootstrap',
+  'branch',
+  'bridge',
+  'cockpit',
+  'communication',
+  'deeplink',
+  'forensics',
+  'fork',
+  'guidance',
+  'handoff',
+  'helpers',
+  'hooks',
+  'incident',
+  'incident-review',
+  'install',
+  'managed',
+  'marketplace',
+  'merge',
+  'memory-review',
+  'memory-sync',
+  'ops',
+  'orchestration',
+  'panel',
+  'plugin',
+  'profilesync',
+  'provider-opt',
+  'remote',
+  'remote-env',
+  'remote-setup',
+  'replay',
+  'scan',
+  'services',
+  'setup',
+  'settingssync',
+  'share',
+  'skills',
+  'storage',
+  'team-memory',
+  'teleport',
+  'template',
+  'tools',
+  'tunnel',
+  'update',
+  'worker-pool',
+  'wrfc',
+  'wq',
+] as const;
+
 /**
  * registerBuiltinCommands - Register all built-in slash commands into the registry.
  * Call once during application startup.
@@ -126,4 +175,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   // ── /knowledge ───────────────────────────────────────────────────────────
   registry.register(knowledgeCommand);
 
+  for (const commandName of HIDDEN_COPIED_TUI_COMMANDS) {
+    registry.unregister(commandName);
+  }
 }

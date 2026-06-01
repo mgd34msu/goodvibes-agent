@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.70 - 2026-05-31
+
+- Removed copied TUI coding, runtime lifecycle, and developer-maintenance slash commands from the visible Agent command registry.
+- Focused `/help` on Agent operator workflows instead of conversation branching, templates, tool inspection, or blocked TUI exit commands.
+- Added regression coverage so copied TUI commands stay hidden while Agent knowledge, memory, skills, personas, routines, delegation, schedule, secrets, and work-plan commands remain available.
+
 ## 0.1.69 - 2026-05-31
 
 - Made the first-run onboarding detail area wrap selected-row guidance across multiple lines instead of hiding setup context behind single-line truncation.

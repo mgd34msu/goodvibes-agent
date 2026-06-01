@@ -8,7 +8,7 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'welcome',
     aliases: ['guide'],
-    description: 'Open the product entry surface for the onboarding wizard, security, marketplace, remote, and operator workflows',
+    description: 'Open the Agent setup workspace',
     usage: '[open|print]',
     handler(args, ctx) {
       const sub = args[0] ?? 'open';
@@ -22,14 +22,15 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
       }
       if (sub === 'print') {
         ctx.print([
-          'Welcome To GoodVibes',
+          'Welcome To GoodVibes Agent',
           '  /onboarding         - open the onboarding wizard with current settings preloaded',
-          '  /setup onboarding   - open the same onboarding wizard from setup workflows',
-          '  /health review      - unified startup, service, provider, and operator posture',
-          '  /marketplace open   - browse curated plugins, skills, hook packs, and policy packs',
-          '  /remote setup       - review bridge, tunnel, env, and bootstrap flows',
-          '  /security           - review trust posture, policy pressure, and incidents',
-          '  /cockpit            - unified operator control room',
+          '  /agent              - open the Agent operator workspace',
+          '  /knowledge          - inspect isolated Agent Knowledge status, ask, and search',
+          '  /memory             - manage local Agent memory',
+          '  /personas           - manage local Agent personas',
+          '  /agent-skills       - manage reusable local Agent skills',
+          '  /routines           - manage local Agent routines',
+          '  /delegate           - explicitly hand build/fix/review work to GoodVibes TUI',
         ].join('\n'));
         return;
       }

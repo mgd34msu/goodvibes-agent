@@ -151,20 +151,12 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/undo', label: '/undo', detail: 'Remove last turn', category: 'Conversation' },
           { id: '/redo', label: '/redo', detail: 'Restore undone turn', category: 'Conversation' },
           { id: '/retry', label: '/retry [text]', detail: 'Re-send last message', category: 'Conversation' },
-          { id: '/fork', label: '/fork [name]', detail: 'Snapshot conversation as a named branch', category: 'Conversation' },
-          { id: '/branch', label: '/branch [name]', detail: 'List branches or switch to one', category: 'Conversation' },
-          { id: '/merge', label: '/merge <name>', detail: 'Append messages from a branch', category: 'Conversation' },
-          { id: '/template', label: '/template', detail: 'Browse templates', category: 'Templates' },
-          { id: '/template save', label: '/template save <name> --yes', detail: 'Save prompt as template', category: 'Templates' },
-          { id: '/template use', label: '/template use <name>', detail: 'Execute template', category: 'Templates' },
-          { id: '/tools', label: '/tools', detail: 'List available tools', category: 'Tools & System' },
           { id: '/paste', label: '/paste', detail: 'Insert clipboard text or image into the prompt', category: 'Tools & System' },
           { id: '/shortcuts', label: '/shortcuts', detail: 'View keyboard shortcuts reference', category: 'Tools & System' },
           { id: '/commands', label: '/commands', detail: 'Browse all commands in a scrollable list', category: 'Tools & System' },
           { id: '/secrets', label: '/secrets set|link|get|test|list|delete', detail: 'Manage encrypted and provider-backed secrets', category: 'Tools & System' },
           { id: '/help', label: '/help', detail: 'This help', category: 'Tools & System' },
           { id: '/quit', label: '/quit', detail: 'Exit', category: 'Tools & System' },
-          { id: '/wq', label: '/wq', detail: 'Blocked in Agent; git commit/exit belongs to GoodVibes TUI', category: 'Tools & System' },
         ];
         ctx.openSelection('Help  —  Commands', items, { allowSearch: true }, (result) => {
           if (!result) return;
@@ -178,7 +170,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Use /help to open the help modal. Commands: /agent, /model, /provider, /config, /template, /tools, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
+      ctx.print('Use /help to open the help modal. Commands: /agent, /knowledge, /memory, /personas, /agent-skills, /routines, /delegate, /model, /provider, /config, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
     },
   });
 

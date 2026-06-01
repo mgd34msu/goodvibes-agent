@@ -2,12 +2,15 @@ import { describe, expect, test } from 'bun:test';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 
-const hiddenCopiedBreadthCommands = [
+const hiddenCopiedCommands = [
+  'bootstrap',
+  'branch',
   'bridge',
   'cockpit',
   'communication',
   'deeplink',
   'forensics',
+  'fork',
   'guidance',
   'handoff',
   'helpers',
@@ -17,12 +20,15 @@ const hiddenCopiedBreadthCommands = [
   'install',
   'managed',
   'marketplace',
+  'merge',
   'memory-review',
   'memory-sync',
   'ops',
   'orchestration',
+  'panel',
   'plugin',
   'profilesync',
+  'provider-opt',
   'remote',
   'remote-env',
   'remote-setup',
@@ -41,54 +47,50 @@ const hiddenCopiedBreadthCommands = [
   'tunnel',
   'update',
   'worker-pool',
+  'wrfc',
+  'wq',
 ] as const;
 
-const visibleAgentBreadthCommands = [
+const expectedAgentCommands = [
   'agent',
   'agent-profile',
   'agent-skills',
-  'approval',
   'auth',
-  'health',
+  'config',
+  'delegate',
+  'help',
   'knowledge',
-  'login',
-  'logout',
-  'mcp',
   'memory',
-  'notify',
+  'model',
   'onboarding',
   'personas',
-  'policy',
   'provider',
-  'qrcode',
-  'recall',
   'routines',
   'schedule',
   'secrets',
-  'security',
-  'subscription',
-  'tasks',
-  'trust',
-  'voice',
+  'sessions',
   'workplan',
 ] as const;
 
-describe('product breadth commands', () => {
-  test('does not expose copied TUI breadth commands as Agent product workflows', () => {
+describe('Agent command surface', () => {
+  test('hides copied TUI coding/lifecycle/developer commands from the Agent slash registry', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
+    const names = new Set(registry.list().map((command) => command.name));
 
-    for (const commandName of hiddenCopiedBreadthCommands) {
+    for (const commandName of hiddenCopiedCommands) {
+      expect(names.has(commandName)).toBe(false);
       expect(registry.get(commandName)).toBeUndefined();
     }
   });
 
-  test('keeps Agent operator breadth commands visible', () => {
+  test('keeps first-class Agent operator commands available', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
+    const names = new Set(registry.list().map((command) => command.name));
 
-    for (const commandName of visibleAgentBreadthCommands) {
-      expect(registry.get(commandName)?.name).toBe(commandName);
+    for (const commandName of expectedAgentCommands) {
+      expect(names.has(commandName)).toBe(true);
     }
   });
 });
