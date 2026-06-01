@@ -232,21 +232,6 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     summary: 'Inspect in-process runtime tasks. Agent blocks copied task submission; use run for one-shot work or delegate for explicit build/fix/review handoff.',
     examples: ['tasks list', 'tasks show task-123', 'run "check provider readiness"', 'delegate "fix the failing tests"'],
   },
-  surfaces: {
-    usage: ['surfaces [list]', 'surfaces check', 'surfaces show <surfaceId>'],
-    summary: 'Inspect advanced browser, channel, and runtime connection surfaces. Agent does not mutate runtime connection posture.',
-    examples: ['surfaces', 'surfaces check', 'surfaces show slack'],
-  },
-  listener: {
-    usage: ['listener test'],
-    summary: 'Check advanced inbound webhook readiness, network posture, auth, and enabled channel requirements.',
-    examples: ['listener test', 'listener test --json'],
-  },
-  'control-plane': {
-    usage: ['control-plane status'],
-    summary: 'Inspect advanced runtime API reachability, local auth, bootstrap credentials, and operator tokens.',
-    examples: ['control-plane status', 'control-plane status --json'],
-  },
   bundle: {
     usage: ['bundle export [path]', 'bundle inspect <path>', 'bundle import <path>'],
     summary: 'Export, inspect, or import setup/profile/trust/support bundle data.',
@@ -257,30 +242,10 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     summary: 'Print companion pairing connection details and a QR code.',
     examples: ['pair', 'qrcode'],
   },
-  web: {
-    usage: ['web [--open]'],
-    summary: 'Show the configured browser surface URL, bind address, and enablement state.',
-    examples: ['web', 'web --open', 'web --hostname 0.0.0.0 --port 3423'],
-  },
-  service: {
-    usage: ['service status', 'service check'],
-    summary: 'Inspect the externally owned GoodVibes runtime service posture. Agent does not install, start, stop, restart, or uninstall the runtime.',
-    examples: ['service status', 'service check --json'],
-  },
   completion: {
     usage: ['completion <bash|zsh|fish>'],
     summary: 'Generate shell completion scripts.',
     examples: ['completion bash', 'completion zsh'],
-  },
-  serve: {
-    usage: ['serve [--hostname <host>] [--port <port>]', 'daemon [--hostname <host>] [--port <port>]'],
-    summary: 'Unavailable in GoodVibes Agent. Agent connects to an already-running GoodVibes runtime owned by GoodVibes TUI/host tooling.',
-    examples: [],
-  },
-  remote: {
-    usage: ['remote', 'bridge'],
-    summary: 'Inspect remote runner/node posture and bridge readiness.',
-    examples: ['remote', 'bridge'],
   },
 };
 
@@ -295,16 +260,8 @@ const HELP_ALIASES: Record<string, string> = {
   secret: 'secrets',
   session: 'sessions',
   task: 'tasks',
-  surface: 'surfaces',
-  webhook: 'listener',
-  controlplane: 'control-plane',
-  cp: 'control-plane',
   qrcode: 'pair',
   qr: 'pair',
-  daemon: 'serve',
-  server: 'serve',
-  services: 'service',
-  bridge: 'remote',
 };
 
 function normalizeHelpTopic(topic: string): string {

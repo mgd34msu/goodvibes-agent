@@ -8,9 +8,8 @@ import { inspectProviderAuth } from '@/runtime/index.ts';
 import { getOrCreateCompanionToken, buildCompanionConnectionInfo, encodeConnectionPayload, formatConnectionBlock } from '@pellux/goodvibes-sdk/platform/pairing';
 import { generateQrMatrix, renderQrToString } from '@pellux/goodvibes-sdk/platform/pairing';
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
-import { classifyBindPosture, isNetworkFacing } from './network-posture.ts';
 import type { CliCommandRuntime } from './management.ts';
-import { extractAuthorizationCode, formatJsonOrText, hasCommandFlag, openBrowser, probeTcp, readAuthPaths, urlHostForBindHost, withRuntimeServices, yesNo } from './management.ts';
+import { extractAuthorizationCode, formatJsonOrText, hasCommandFlag, openBrowser, urlHostForBindHost, withRuntimeServices, yesNo } from './management.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 
 export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<string> {
@@ -300,71 +299,6 @@ export async function handleTasks(runtime: CliCommandRuntime): Promise<string> {
   });
 }
 
-export interface ControlPlaneStatusResult {
-  readonly enabled: unknown;
-  readonly hostMode: string;
-  readonly configuredHost: string;
-  readonly host: string;
-  readonly port: number;
-  readonly posture: ReturnType<typeof classifyBindPosture>;
-  readonly reachable: boolean;
-  readonly auth: ReturnType<typeof readAuthPaths>;
-  readonly service: {
-    readonly enabled: unknown;
-    readonly autostart: unknown;
-    readonly restartOnFailure: unknown;
-  };
-  readonly issues: readonly string[];
-}
-
-export async function buildControlPlaneStatusResult(runtime: CliCommandRuntime): Promise<ControlPlaneStatusResult> {
-  const binding = resolveRuntimeEndpointBinding(runtime.configManager, 'controlPlane');
-  const enabled = runtime.configManager.get('controlPlane.enabled');
-  const reachable = enabled === true ? await probeTcp(binding.host, binding.port) : false;
-  const auth = readAuthPaths(runtime);
-  const service = {
-    enabled: runtime.configManager.get('service.enabled'),
-    autostart: runtime.configManager.get('service.autostart'),
-    restartOnFailure: runtime.configManager.get('service.restartOnFailure'),
-  };
-  const issues: string[] = [];
-  if (enabled === true && !reachable) issues.push(`Runtime API is enabled but not reachable on ${binding.host}:${binding.port}.`);
-  if (enabled === true && service.enabled !== true) issues.push('Runtime API is enabled on the external runtime config, but Agent service ownership is disabled.');
-  if (enabled === true && service.autostart !== true) issues.push('Runtime API is enabled on the external runtime config, but autostart is off.');
-  if (enabled === true && service.restartOnFailure !== true) issues.push('Runtime API is enabled on the external runtime config, but restart-on-failure is off.');
-  if (isNetworkFacing(enabled, binding) && !auth.userStorePresent) issues.push('Network-facing Runtime API has no local auth user store.');
-  if (isNetworkFacing(enabled, binding) && auth.bootstrapCredentialPresent) issues.push('Network-facing Runtime API still has a bootstrap credential file.');
-  return {
-    enabled,
-    ...binding,
-    posture: classifyBindPosture(binding),
-    reachable,
-    auth,
-    service,
-    issues,
-  };
-}
-
-export function formatControlPlaneStatus(runtime: CliCommandRuntime, value: ControlPlaneStatusResult): string {
-  return formatJsonOrText(runtime.cli)(value, [
-    'GoodVibes runtime API status',
-    `  enabled: ${yesNo(value.enabled)}`,
-    `  bind: ${value.hostMode} ${value.host}:${value.port}`,
-    `  bind posture: ${value.posture.label}`,
-    `  reachable: ${yesNo(value.reachable)}`,
-    `  service: enabled=${yesNo(value.service.enabled)} autostart=${yesNo(value.service.autostart)} restartOnFailure=${yesNo(value.service.restartOnFailure)}`,
-    `  local auth users: ${value.auth.userStorePresent ? 'present' : 'missing'}`,
-    `  bootstrap credential: ${value.auth.bootstrapCredentialPresent ? 'present' : 'missing'}`,
-    `  operator tokens: ${value.auth.operatorTokenPresent ? 'present' : 'missing'}`,
-    value.issues.length === 0 ? '  readiness: ready' : '  readiness: needs attention',
-    ...value.issues.map((issue) => `    - ${issue}`),
-  ].join('\n'));
-}
-
-export async function renderControlPlaneStatus(runtime: CliCommandRuntime): Promise<string> {
-  return formatControlPlaneStatus(runtime, await buildControlPlaneStatusResult(runtime));
-}
-
 export async function renderPairing(runtime: CliCommandRuntime): Promise<string> {
   const daemonHomeDir = join(runtime.homeDirectory, '.goodvibes', 'daemon');
   const tokenRecord = getOrCreateCompanionToken(GOODVIBES_AGENT_PAIRING_SURFACE, { daemonHomeDir });
@@ -379,46 +313,4 @@ export async function renderPairing(runtime: CliCommandRuntime): Promise<string>
   const payload = encodeConnectionPayload(info);
   const qr = renderQrToString(generateQrMatrix(payload));
   return [formatConnectionBlock(info, payload), '', qr].join('\n');
-}
-
-export async function renderRemote(runtime: CliCommandRuntime, label: 'remote' | 'bridge'): Promise<string> {
-  return await withRuntimeServices(runtime, (services) => {
-    const pools = services.remoteRunnerRegistry.listPools?.() ?? [];
-    const contracts = services.remoteRunnerRegistry.listContracts();
-    const artifacts = services.remoteRunnerRegistry.listArtifacts();
-    const value = {
-      pools: pools.length,
-      contracts: contracts.length,
-      artifacts: artifacts.length,
-      remoteFetchPrivateHosts: runtime.configManager.get('network.remoteFetch.allowPrivateHosts'),
-    };
-    return formatJsonOrText(runtime.cli)(value, [
-      `GoodVibes ${label} status`,
-      `  runner pools: ${value.pools}`,
-      `  contracts: ${value.contracts}`,
-      `  review artifacts: ${value.artifacts}`,
-      `  private-host remote fetch: ${yesNo(value.remoteFetchPrivateHosts)}`,
-    ].join('\n'));
-  });
-}
-
-export function renderWeb(runtime: CliCommandRuntime): string {
-  const binding = resolveRuntimeEndpointBinding(runtime.configManager, 'web');
-  const publicBaseUrl = String(runtime.configManager.get('web.publicBaseUrl') ?? '');
-  const hasEndpointOverride = runtime.cli.flags.hostname !== undefined || runtime.cli.flags.port !== undefined;
-  const url = !hasEndpointOverride && publicBaseUrl
-    ? publicBaseUrl
-    : `http://${urlHostForBindHost(binding.host)}:${binding.port}`;
-  const value = {
-    enabled: runtime.configManager.get('web.enabled'),
-    ...binding,
-    url,
-  };
-  return formatJsonOrText(runtime.cli)(value, [
-    'GoodVibes web',
-    `  enabled: ${yesNo(value.enabled)}`,
-    `  bind: ${value.hostMode} ${value.host}:${value.port}`,
-    `  url: ${value.url}`,
-    ...(runtime.cli.flags.open ? [`  open: ${openBrowser(value.url)}`] : []),
-  ].join('\n'));
 }

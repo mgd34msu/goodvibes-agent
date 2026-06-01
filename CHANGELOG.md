@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.72 - 2026-05-31
+
+- Removed copied runtime lifecycle and transport words from the Agent CLI parser, command handler, detailed help, and package exports.
+- Replaced package-facing deployment/service docs with runtime-connection docs focused on the external runtime prerequisite and Agent product boundary.
+- Added regression coverage so hidden lifecycle words are treated as normal TUI prompts instead of supported Agent commands.
+
 ## 0.1.71 - 2026-05-31
 
 - Stopped importing copied TUI slash-command modules that do not belong to the Agent product surface.

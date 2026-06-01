@@ -57,6 +57,8 @@ const forbiddenSourceFiles = new Set([
   'src/panels/worktree-panel.ts',
   'src/panels/wrfc-panel.ts',
   'src/input/commands/quit-shared.ts',
+  'src/cli/service-command.ts',
+  'src/cli/surface-command.ts',
   'src/renderer/git-status.ts',
 ]);
 for (const filePath of filePaths) {
@@ -83,7 +85,7 @@ for (const requiredPath of [
   'tsconfig.json',
   'docs/README.md',
   'docs/getting-started.md',
-  'docs/deployment-and-services.md',
+  'docs/runtime-connection.md',
   'docs/release-and-publishing.md',
 ]) {
   if (!filePaths.includes(requiredPath)) {

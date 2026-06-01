@@ -5,7 +5,7 @@
 
 GoodVibes Agent is the personal operator assistant TUI for GoodVibes. It is built for day-to-day operator work: chat, setup, local profiles, routines, skills, personas, isolated Agent Knowledge, status review, approvals, automation visibility, and explicit build delegation.
 
-The Agent product connects to an already-running GoodVibes runtime. It does not install, start, stop, restart, or own runtime connectivity or service lifecycle.
+The Agent product connects to an already-running GoodVibes runtime. It does not install, start, stop, restart, or own runtime hosting.
 
 ## Install
 
@@ -87,7 +87,7 @@ Starting a routine records local usage and prints its steps; it does not spawn b
 
 Start or restart the GoodVibes runtime from GoodVibes TUI or the owning host before launching Agent. Agent status and companion/knowledge routes connect to that external runtime, normally on `http://127.0.0.1:3421`.
 
-Agent reports unavailable, unauthenticated, or incompatible runtime state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status surfaces. It does not provide runtime lifecycle setup commands.
+Agent reports unavailable, unauthenticated, or incompatible runtime state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. It does not provide runtime hosting commands.
 
 ## Product Boundary
 
@@ -102,7 +102,7 @@ GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding 
 Package-facing docs:
 
 - [Getting Started](docs/getting-started.md)
-- [Deployment And Services](docs/deployment-and-services.md)
+- [Runtime Connection](docs/runtime-connection.md)
 - [Release And Publishing](docs/release-and-publishing.md)
 
 The package-facing Agent documentation is limited to the docs listed above.

@@ -229,7 +229,7 @@ describe('ProviderCapabilityRegistry.getRouteExplanation', () => {
     // Use a model with streaming override would require custom setup; use GLOBAL_DEFAULTS path
     // Patch: create a registry and pass a provider with streaming: false
     const reg = new ProviderCapabilityRegistry();
-    // We test via canHandle rejection collection indirectly: any provider whose
+    // We test via canHandle rejection collection indirectly: providers whose
     // resolved capability has streaming=false will produce this code
     const cap = makeCapability({ streaming: false });
     const rejections = (reg as unknown as ProviderCapabilityRegistryTestAccess)._collectRejections(cap, { requiresStreaming: true });

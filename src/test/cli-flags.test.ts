@@ -189,10 +189,6 @@ describe('parseCliFlags', () => {
     expect(onboarding.command).toBe('onboarding');
     expect(onboarding.commandArgs).toEqual(['status']);
 
-    const listener = parseGoodVibesCli(['listener', 'test']);
-    expect(listener.command).toBe('listener');
-    expect(listener.commandArgs).toEqual(['test']);
-
     const ask = parseGoodVibesCli(['ask', 'What', 'is', 'GoodVibes', 'Agent?']);
     expect(ask.command).toBe('ask');
     expect(ask.commandArgs).toEqual(['What', 'is', 'GoodVibes', 'Agent?']);
@@ -213,13 +209,19 @@ describe('parseCliFlags', () => {
     expect(subscription.commandArgs).toEqual(['login', 'openai', 'start', '--manual']);
   });
 
-  test('parses GoodVibes-specific command names', () => {
-    for (const command of ['surfaces', 'control-plane', 'bundle', 'remote', 'bridge', 'service'] as const) {
-      expect(parseGoodVibesCli([command]).command).toBe(command);
+  test('does not expose copied lifecycle and transport words as Agent CLI commands', () => {
+    for (const token of ['serve', 'daemon', 'server', 'web', 'service', 'services', 'surfaces', 'surface', 'listener', 'http-listener', 'webhook', 'control-plane', 'controlplane', 'cp', 'remote', 'bridge'] as const) {
+      const parsed = parseGoodVibesCli([token]);
+      expect(parsed.command).toBe('tui');
+      expect(parsed.rawCommand).toBeUndefined();
+      expect(parsed.positionals).toEqual([token]);
+      expect(parsed.commandArgs).toEqual([]);
     }
+
+    expect(parseGoodVibesCli(['bundle']).command).toBe('bundle');
   });
 
-  test('parses --cd, --no-alt-screen, completion, and port flags', () => {
+  test('parses --cd, --no-alt-screen, completion, and port flags without exposing serve command', () => {
     const flags = parseGoodVibesCli([
       'serve',
       '--cd',
@@ -231,7 +233,8 @@ describe('parseCliFlags', () => {
       '3421',
     ]);
 
-    expect(flags.command).toBe('serve');
+    expect(flags.command).toBe('tui');
+    expect(flags.positionals).toEqual(['serve']);
     expect(flags.flags.workingDir).toBe('/workspace');
     expect(flags.flags.noAltScreen).toBe(true);
     expect(flags.flags.hostname).toBe('0.0.0.0');
@@ -285,7 +288,7 @@ describe('parseCliFlags', () => {
     expect(reloaded.getCategory('featureFlags')).toEqual({});
   });
 
-  test('applies endpoint flags for CLI commands without persisting settings', () => {
+  test('does not apply endpoint flags for removed lifecycle CLI words', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-endpoint-'));
     const configDir = join(root, '.goodvibes', 'tui');
     const configManager = new ConfigManager({ surfaceRoot: 'tui', configDir, workingDir: root });
@@ -294,149 +297,12 @@ describe('parseCliFlags', () => {
     const errors = applyRuntimeCommandEndpointFlagOverrides(configManager, cli.command, cli.flags);
 
     expect(errors).toEqual([]);
-    expect(configManager.get('web.hostMode')).toBe('network');
-    expect(configManager.get('web.host')).toBe('0.0.0.0');
-    expect(configManager.get('web.port')).toBe(4568);
-    expect(existsSync(join(configDir, 'settings.json'))).toBe(false);
-  });
-
-  test('surface enable is blocked because Agent does not own runtime surface posture', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-surface-web-'));
-    const configManager = new ConfigManager({
-      surfaceRoot: 'tui',
-      configDir: join(root, '.goodvibes', 'tui'),
-      workingDir: root,
-    });
-    const text = await captureGoodVibesCliCommand(['surfaces', 'enable', 'web'], configManager, root);
-
-    expect(text.result).toEqual({ handled: true, exitCode: 2 });
-    expect(text.output).toContain('GoodVibes Agent does not mutate runtime, listener, web, or channel surface posture.');
-    expect(configManager.get('web.enabled')).not.toBe(true);
-    expect(configManager.get('controlPlane.enabled')).not.toBe(true);
-    expect(configManager.get('danger.daemon')).not.toBe(true);
-    expect(configManager.get('service.enabled')).not.toBe(true);
-  });
-
-  test('surface enable JSON reports the external lifecycle block without mutating config', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-surface-local-web-'));
-    const configManager = new ConfigManager({
-      surfaceRoot: 'tui',
-      configDir: join(root, '.goodvibes', 'tui'),
-      workingDir: root,
-    });
-    const text = await captureGoodVibesCliCommand(['surfaces', 'enable', 'web', '--hostname', '127.0.0.1', '--port', '4568', '--json'], configManager, root);
-    const parsed = JSON.parse(text.output) as {
-      ok: boolean;
-      kind: string;
-      action: string;
-      target: string;
-      error: string;
-    };
-
-    expect(text.result).toEqual({ handled: true, exitCode: 2 });
-    expect(parsed).toMatchObject({
-      ok: false,
-      kind: 'daemon_lifecycle_external',
-      action: 'surfaces.enable',
-      target: 'web',
-    });
-    expect(parsed.error).toContain('GoodVibes Agent does not mutate');
-    expect(configManager.get('web.enabled')).not.toBe(true);
+    expect(cli.command).toBe('tui');
+    expect(cli.positionals).toEqual(['web']);
+    expect(configManager.get('web.hostMode')).toBe('local');
+    expect(configManager.get('web.host')).toBe('127.0.0.1');
     expect(configManager.get('web.port')).not.toBe(4568);
-  });
-
-  test('external surface enable is blocked and does not enable listener service posture', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-surface-slack-'));
-    const configManager = new ConfigManager({
-      surfaceRoot: 'tui',
-      configDir: join(root, '.goodvibes', 'tui'),
-      workingDir: root,
-    });
-    const text = await captureGoodVibesCliCommand(['surfaces', 'enable', 'slack'], configManager, root);
-
-    expect(text.result).toEqual({ handled: true, exitCode: 2 });
-    expect(text.output).toContain('GoodVibes Agent does not mutate runtime, listener, web, or channel surface posture.');
-    expect(configManager.get('surfaces.slack.enabled')).not.toBe(true);
-    expect(configManager.get('danger.httpListener')).not.toBe(true);
-    expect(configManager.get('service.enabled')).not.toBe(true);
-    expect(configManager.getCategory('featureFlags')).toEqual({});
-  });
-
-  test('listener test reports readiness issues for network webhook posture', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-listener-readiness-'));
-    const configManager = new ConfigManager({
-      surfaceRoot: 'tui',
-      configDir: join(root, '.goodvibes', 'tui'),
-      workingDir: root,
-    });
-    configManager.setDynamic('danger.httpListener', true);
-    configManager.setDynamic('httpListener.hostMode', 'network');
-    configManager.setDynamic('httpListener.host', '0.0.0.0');
-    configManager.setDynamic('service.enabled', false);
-    configManager.setDynamic('service.autostart', false);
-    configManager.setDynamic('service.restartOnFailure', false);
-    configManager.setDynamic('surfaces.slack.enabled', true);
-
-    const text = await captureGoodVibesCliCommand(['listener', 'test'], configManager, root);
-    expect(text.result).toEqual({ handled: true, exitCode: 1 });
-    expect(text.output).toContain('bind posture: Local Network');
-    expect(text.output).toContain('readiness: needs attention');
-    expect(text.output).toContain('HTTP listener is enabled on the external runtime config, but Agent service ownership is disabled.');
-    expect(text.output).toContain('Network-facing listener has no local auth user store.');
-    expect(text.output).toContain('Slack is enabled but missing surfaces.slack.signingSecret, surfaces.slack.botToken.');
-
-    const json = await captureGoodVibesCliCommand(['listener', 'test', '--json'], configManager, root);
-    expect(json.result).toEqual({ handled: true, exitCode: 1 });
-    const parsed = JSON.parse(json.output) as { issues: string[]; posture: { kind: string }; surfaces: Array<{ id: string; ready: boolean }> };
-    expect(parsed.posture.kind).toBe('local-network');
-    expect(parsed.issues).toContain('HTTP listener is enabled on the external runtime config, but Agent service ownership is disabled.');
-    expect(parsed.surfaces.find((surface) => surface.id === 'slack')?.ready).toBe(false);
-  });
-
-  test('surfaces check returns failure when enabled surfaces are not ready', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-surfaces-check-'));
-    const configManager = new ConfigManager({
-      surfaceRoot: 'tui',
-      configDir: join(root, '.goodvibes', 'tui'),
-      workingDir: root,
-    });
-    configManager.setDynamic('danger.httpListener', true);
-    configManager.setDynamic('surfaces.slack.enabled', true);
-
-    const text = await captureGoodVibesCliCommand(['surfaces', 'check'], configManager, root);
-    expect(text.result).toEqual({ handled: true, exitCode: 1 });
-    expect(text.output).toContain('Readiness: needs attention');
-    expect(text.output).toContain('Slack is enabled but missing surfaces.slack.signingSecret, surfaces.slack.botToken.');
-
-    const json = await captureGoodVibesCliCommand(['surfaces', 'check', '--json'], configManager, root);
-    expect(json.result).toEqual({ handled: true, exitCode: 1 });
-    const parsed = JSON.parse(json.output) as { readinessIssues: string[] };
-    expect(parsed.readinessIssues.some((issue) => issue.includes('Slack is enabled but missing'))).toBe(true);
-  });
-
-  test('surfaces check reports disabled feature gates for configured surfaces', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-surfaces-feature-gates-'));
-    const configManager = new ConfigManager({
-      surfaceRoot: 'tui',
-      configDir: join(root, '.goodvibes', 'tui'),
-      workingDir: root,
-    });
-    configManager.setDynamic('danger.httpListener', true);
-    configManager.setDynamic('surfaces.ntfy.enabled', true);
-    configManager.setDynamic('surfaces.ntfy.baseUrl', 'https://ntfy.example.test');
-    configManager.setDynamic('surfaces.ntfy.topic', 'goodvibes');
-    configManager.setDynamic('surfaces.ntfy.chatTopic', 'custom-chat');
-    configManager.setDynamic('surfaces.ntfy.agentTopic', 'custom-agent');
-    configManager.setDynamic('surfaces.ntfy.remoteTopic', 'custom-remote');
-
-    const text = await captureGoodVibesCliCommand(['surfaces', 'check', 'ntfy'], configManager, root);
-    expect(text.result).toEqual({ handled: true, exitCode: 1 });
-    expect(text.output).toContain('ntfy is enabled but feature gates are disabled:');
-    expect(text.output).toContain('ntfy-surface');
-    expect(text.output).toContain('chat: custom-chat');
-    expect(text.output).toContain('agent: custom-agent');
-    expect(text.output).toContain('runtime-only remote: custom-remote');
-    expect(text.output).not.toContain('Web surface is enabled');
+    expect(existsSync(join(configDir, 'settings.json'))).toBe(false);
   });
 
   test('bundle inspect resolves relative paths from the GoodVibes working directory', async () => {
@@ -518,61 +384,6 @@ describe('parseCliFlags', () => {
     expect(importedConfig.get('surfaces.slack.defaultChannel')).toBe('goodvibes-alerts');
   });
 
-  test('service check reports lifecycle posture with failing readiness exit code', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-service-check-'));
-    const configManager = new ConfigManager({
-      surfaceRoot: 'tui',
-      configDir: join(root, '.goodvibes', 'tui'),
-      workingDir: root,
-    });
-    configManager.setDynamic('service.enabled', true);
-    configManager.setDynamic('service.autostart', true);
-    configManager.setDynamic('service.restartOnFailure', true);
-    configManager.setDynamic('service.platform', 'manual');
-    configManager.setDynamic('controlPlane.enabled', true);
-    configManager.setDynamic('controlPlane.port', 1);
-
-    const text = await captureGoodVibesCliCommand(['service', 'check'], configManager, root);
-    expect(text.result).toEqual({ handled: true, exitCode: 1 });
-    expect(text.output).toContain('GoodVibes external runtime diagnostics');
-    expect(text.output).toContain('Readiness: needs attention');
-    expect(text.output).toContain('runtime API is enabled but not reachable on 127.0.0.1:1.');
-    expect(text.output).not.toContain('goodvibes-daemon');
-
-    const json = await captureGoodVibesCliCommand(['service', 'check', '--json'], configManager, root);
-    expect(json.result).toEqual({ handled: true, exitCode: 1 });
-    const parsed = JSON.parse(json.output) as { managed: { installed: boolean; commandPreview: string }; endpoints: Array<{ id: string }>; issues: string[] };
-    expect(parsed.managed.installed).toBe(false);
-    expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
-    expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
-    expect(parsed.issues).toContain('runtime API is enabled but not reachable on 127.0.0.1:1.');
-  });
-
-  test('control-plane status returns readiness failures for enabled unreachable network posture', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-control-plane-check-'));
-    const configManager = new ConfigManager({
-      surfaceRoot: 'tui',
-      configDir: join(root, '.goodvibes', 'tui'),
-      workingDir: root,
-    });
-    configManager.setDynamic('controlPlane.enabled', true);
-    configManager.setDynamic('controlPlane.hostMode', 'network');
-    configManager.setDynamic('controlPlane.host', '0.0.0.0');
-    configManager.setDynamic('service.enabled', false);
-
-    const text = await captureGoodVibesCliCommand(['control-plane', 'status'], configManager, root);
-    expect(text.result).toEqual({ handled: true, exitCode: 1 });
-    expect(text.output).toContain('bind posture: Local Network');
-    expect(text.output).toContain('readiness: needs attention');
-    expect(text.output).toContain('Runtime API is enabled on the external runtime config, but Agent service ownership is disabled.');
-    expect(text.output).toContain('Network-facing Runtime API has no local auth user store.');
-
-    const json = await captureGoodVibesCliCommand(['control-plane', 'status', '--json'], configManager, root);
-    expect(json.result).toEqual({ handled: true, exitCode: 1 });
-    const parsed = JSON.parse(json.output) as { posture: { kind: string }; issues: string[] };
-    expect(parsed.posture.kind).toBe('local-network');
-    expect(parsed.issues).toContain('Runtime API is enabled on the external runtime config, but Agent service ownership is disabled.');
-  });
 
   test('providers and models commands surface setup posture through CLI output', async () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-provider-posture-'));

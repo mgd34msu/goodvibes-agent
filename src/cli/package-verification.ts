@@ -39,7 +39,7 @@ const REQUIRED_TARBALL_PATHS = [
   'tsconfig.json',
   'docs/README.md',
   'docs/getting-started.md',
-  'docs/deployment-and-services.md',
+  'docs/runtime-connection.md',
   'docs/release-and-publishing.md',
 ] as const;
 const FORBIDDEN_TARBALL_PREFIXES = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/', 'vendor/'] as const;
@@ -53,7 +53,7 @@ const PACKAGE_FACING_TEXT_PATHS = [
   'CHANGELOG.md',
   'docs/README.md',
   'docs/getting-started.md',
-  'docs/deployment-and-services.md',
+  'docs/runtime-connection.md',
   'docs/release-and-publishing.md',
 ] as const;
 const PACKAGE_FACING_FORBIDDEN_TEXT = [
@@ -75,8 +75,15 @@ const PACKAGE_FACING_FORBIDDEN_TEXT = [
   ['capabilities', ' command'].join(''),
   ['near', '-fork'].join(''),
   ['goodvibes-agent', 'serve'].join(' '),
-  ['goodvibes-agent', 'service start'].join(' '),
-  ['goodvibes-agent', 'surfaces enable'].join(' '),
+  ['goodvibes-agent', 'service'].join(' '),
+  ['goodvibes-agent', 'services'].join(' '),
+  ['goodvibes-agent', 'surfaces'].join(' '),
+  ['goodvibes-agent', 'surface'].join(' '),
+  ['goodvibes-agent', 'listener'].join(' '),
+  ['goodvibes-agent', 'control-plane'].join(' '),
+  ['goodvibes-agent', 'remote'].join(' '),
+  ['goodvibes-agent', 'bridge'].join(' '),
+  ['goodvibes-agent', 'web'].join(' '),
   'Every plan must have a multi-agent execution strategy',
   'NEVER skip WRFC',
   'ALWAYS work in parallel when implementing a plan',
@@ -92,6 +99,7 @@ const PACKAGE_FACING_REQUIRED_TEXT: readonly {
   { path: 'README.md', required: ['/api/goodvibes-agent/knowledge'] },
   { path: 'docs/README.md', required: ['/api/goodvibes-agent/knowledge'] },
   { path: 'docs/getting-started.md', required: ['/api/goodvibes-agent/knowledge'] },
+  { path: 'docs/runtime-connection.md', required: ['/api/goodvibes-agent/knowledge'] },
   { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge'] },
 ];
 

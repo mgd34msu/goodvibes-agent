@@ -28,10 +28,8 @@ import { classifyProviderSetup } from './provider-classification.ts';
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import { applyRuntimeEndpointFlagOverrides } from './config-overrides.ts';
 import type { RuntimeEndpointId } from './endpoints.ts';
-import { handleServiceCommand } from './service-command.ts';
 import { handleBundleCommand } from './bundle-command.ts';
-import { buildListenerTestResult, formatListenerTestResult, handleSurfacesCommand } from './surface-command.ts';
-import { buildControlPlaneStatusResult, formatControlPlaneStatus, handleSecrets, handleSessions, handleTasks, renderPairing, renderRemote, renderSubscriptions, renderWeb } from './management-commands.ts';
+import { handleSecrets, handleSessions, handleTasks, renderPairing, renderSubscriptions } from './management-commands.ts';
 import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand, handleCompatCommand, handleDelegateCommand } from './agent-knowledge-command.ts';
 import { handleProfilesCommand } from './profiles-command.ts';
 import { handleRoutinesCommand } from './routines-command.ts';
@@ -672,14 +670,6 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
     switch (runtime.cli.command) {
       case 'run':
         return { handled: true, exitCode: await runNonInteractiveAgent(runtime) };
-      case 'web':
-        console.log(renderWeb(runtime));
-        return { handled: true, exitCode: 0 };
-      case 'service': {
-        const result = await handleServiceCommand(runtime);
-        console.log(result.output);
-        return { handled: true, exitCode: result.exitCode };
-      }
       case 'providers': {
         const output = await renderProviders(runtime);
         console.log(output);
@@ -747,21 +737,6 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
         if (output) console.log(output);
         return { handled: true, exitCode: exitCodeForText(output) };
       }
-      case 'surfaces': {
-        const result = await handleSurfacesCommand(runtime);
-        console.log(result.output);
-        return { handled: true, exitCode: result.exitCode };
-      }
-      case 'listener': {
-        const result = await buildListenerTestResult(runtime);
-        console.log(formatListenerTestResult(runtime, result));
-        return { handled: true, exitCode: result.issues.length > 0 ? 1 : 0 };
-      }
-      case 'control-plane': {
-        const result = await buildControlPlaneStatusResult(runtime);
-        console.log(formatControlPlaneStatus(runtime, result));
-        return { handled: true, exitCode: result.issues.length > 0 ? 1 : 0 };
-      }
       case 'pair':
         console.log(await renderPairing(runtime));
         return { handled: true, exitCode: 0 };
@@ -770,12 +745,6 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }
-      case 'remote':
-        console.log(await renderRemote(runtime, 'remote'));
-        return { handled: true, exitCode: 0 };
-      case 'bridge':
-        console.log(await renderRemote(runtime, 'bridge'));
-        return { handled: true, exitCode: 0 };
       default:
         return { handled: false, exitCode: 0 };
     }

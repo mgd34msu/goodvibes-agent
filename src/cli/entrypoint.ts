@@ -88,12 +88,6 @@ export async function prepareShellCliRuntime(
     process.exit(0);
   }
 
-  if (cli.command === 'serve') {
-    console.error(`${binary} connects to an already-running GoodVibes runtime and does not start or own runtime lifecycle.`);
-    console.error('Start or manage the runtime from GoodVibes TUI or host tooling, then run this Agent against it.');
-    process.exit(2);
-  }
-
   let ownership: ShellEntrypointOwnership;
   try {
     ownership = resolveShellEntrypointOwnership(

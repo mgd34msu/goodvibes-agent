@@ -163,7 +163,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         summary: issue,
         cause: 'The service lifecycle inspection found a mismatch between configured service/surface state and observed host state.',
         impact: 'Runtime API, listener, or web availability may not match the configuration.',
-        action: 'Use goodvibes-agent service check for read-only detail, then manage the runtime from GoodVibes TUI or your host tooling.',
+        action: 'Use Agent status and doctor diagnostics here, then manage the runtime from GoodVibes TUI or your host tooling.',
       });
     }
   }

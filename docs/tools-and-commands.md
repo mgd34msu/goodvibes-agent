@@ -71,6 +71,6 @@ Routine promotion is an explicit scheduling bridge: local routines stay local du
 ## Related Docs
 
 - [Getting started](getting-started.md)
-- [Deployment and services](deployment-and-services.md)
+- [Runtime connection](runtime-connection.md)
 - [Knowledge, artifacts, and multimodal](knowledge-artifacts-and-multimodal.md)
 - [Release and publishing](release-and-publishing.md)

@@ -2,7 +2,7 @@
 // useConfirmState<T> — reusable inline y/n confirmation helper
 //
 // Pattern (chosen over ConfirmableListPanel base class):
-//   - Composable: any panel holds a ConfirmState field, not a new base class
+//   - Composable: each panel holds a ConfirmState field, not a new base class
 //   - Identical y/n UX everywhere: y confirms, n/Esc cancels, any other key
 //     is absorbed (does nothing) while confirm is active
 //   - Render: caller calls renderConfirmLines(width, state) to get the two

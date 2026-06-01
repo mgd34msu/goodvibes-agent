@@ -150,10 +150,6 @@ export function applyRuntimeCommandEndpointFlagOverrides(
   flags: Pick<GoodVibesCliFlags, 'hostname' | 'port'>,
 ): readonly string[] {
   if (flags.hostname === undefined && flags.port === undefined) return [];
-  if (command === 'web') return applyRuntimeEndpointFlagOverrides(configManager, 'web', flags);
-  if (command === 'listener') return applyRuntimeEndpointFlagOverrides(configManager, 'httpListener', flags);
-  if (command === 'control-plane' || command === 'pair' || command === 'serve') {
-    return applyRuntimeEndpointFlagOverrides(configManager, 'controlPlane', flags);
-  }
+  if (command === 'pair') return applyRuntimeEndpointFlagOverrides(configManager, 'controlPlane', flags);
   return [];
 }
