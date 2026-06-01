@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.87 - 2026-06-01
+
+- cd0d9fc Improve Agent TUI startup diagnostics
+
 ## 0.1.86 - 2026-06-01
 
 - aac1849 Retry npm publish verification
