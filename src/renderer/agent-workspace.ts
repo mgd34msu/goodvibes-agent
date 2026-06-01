@@ -196,8 +196,8 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     );
   } else if (category.id === 'setup') {
     base.push(
-      { text: `GoodVibes runtime: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
-      { text: `Runtime owner: ${snapshot.runtimeOwnership}; Agent connects but never starts or restarts it`, fg: PALETTE.good },
+      { text: `Connection: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
+      { text: 'Agent role: interactive operator TUI; setup changes here are Agent-local.', fg: PALETTE.good },
       ...setupChecklistLines(snapshot),
       { text: '' },
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },

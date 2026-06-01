@@ -325,8 +325,9 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 44));
 
     expect(output).toContain('Setup Checklist');
-    expect(output).toContain('GoodVibes runtime: http://127.0.0.1:3421');
-    expect(output).toContain('Runtime owner: external');
+    expect(output).toContain('Connection: http://127.0.0.1:3421');
+    expect(output).toContain('Agent role: interactive operator TUI');
+    expect(output).toContain('setup changes here are Agent-local');
     expect(output).toContain('READY Provider and model -> /model');
     expect(output).toContain('RECOMMENDED Agent Knowledge -> /knowledge status');
     expect(output).toContain('READY Persona -> /personas');
@@ -492,7 +493,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Agent Profiles');
     expect(output).toContain('household starter=none');
     expect(output).toContain('Starter Templates');
-    expect(output).toContain('runtime external');
+    expect(output).toContain('separate assistants for household');
   });
 
   test('renders channel onboarding and delivery safety posture', () => {

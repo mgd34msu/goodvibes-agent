@@ -7,6 +7,8 @@ GoodVibes Agent is the personal operator assistant TUI for GoodVibes. It is buil
 
 The Agent product connects to an already-running GoodVibes runtime. It does not install, start, stop, restart, or own runtime hosting.
 
+Most work happens in the interactive TUI. The installed CLI exists to launch that TUI, inspect setup, and script local Agent libraries when that is useful.
+
 ## Install
 
 Install the public alpha package with Bun:
@@ -32,7 +34,7 @@ export PATH="$(bun pm bin -g):$PATH"
 goodvibes-agent --help
 ```
 
-`goodvibes-agent` and `goodvibes-agent launch` both start the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
+`goodvibes-agent`, `goodvibes-agent launch`, and `goodvibes-agent start` all start the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
 
 `--trust` lets Bun run the package lifecycle scripts required by the shipped SDK and parser dependencies during global install. A healthy install should report no pending lifecycle scripts:
 
@@ -65,7 +67,7 @@ bun run package:install-check
 bun run publish:check
 ```
 
-After setup has been shown once, the Agent TUI opens directly into the operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. It is the Agent-first fullscreen workspace for setup, status, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
+After setup has been shown once, the Agent TUI opens directly into the operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. It is the Agent-first fullscreen workspace for setup, model/provider selection, isolated Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
 Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
 

@@ -24,7 +24,7 @@ describe('CLI help/version', () => {
     expect(help).not.toContain('tasks                      ');
     expect(help).toContain('profiles                   Manage isolated Agent profile homes');
     expect(help).toContain('routines                   Inspect local routines and explicitly promote one to an external schedule');
-    expect(help).toContain('auth                       Inspect Agent auth posture and external runtime token state');
+    expect(help).toContain('auth                       Inspect Agent auth posture and connection token state');
     expect(help).toContain('--runtime-url <url>');
     expect(help).not.toContain('capabilities               ');
     expect(help).not.toContain('auth add-user');
@@ -32,8 +32,11 @@ describe('CLI help/version', () => {
     expect(help).toContain('--agent-profile <name>');
     expect(help).not.toContain('tasks submit <prompt>');
     expect(help).not.toContain('submit a non-interactive task');
-    expect(help).toContain('tui|launch [path]');
+    expect(help).toContain('Primary use:');
+    expect(help).toContain('Inside the TUI:');
+    expect(help).toContain('tui|launch|start [path]');
     expect(help).toContain('goodvibes-agent launch');
+    expect(help).toContain('goodvibes-agent start');
   });
 
   test('shell completion advertises product commands instead of runtime lifecycle commands', () => {
@@ -80,10 +83,18 @@ describe('CLI help/version', () => {
 
   test('auth help keeps runtime user administration external', () => {
     const help = renderGoodVibesCommandHelp('auth');
-    expect(help).toContain('external runtime token state');
+    expect(help).toContain('connection token state');
     expect(help).toContain('runtime-owning TUI or host tooling');
     expect(help).not.toContain('auth add-user');
     expect(help).not.toContain('auth clear-bootstrap');
+  });
+
+  test('start command help aliases to the TUI launcher', () => {
+    const help = renderGoodVibesCommandHelp('start');
+
+    expect(help).toContain('GoodVibes tui');
+    expect(help).toContain('goodvibes-agent start [path]');
+    expect(help).toContain('interactive Agent terminal UI');
   });
 
   test('package-facing help uses the Agent executable for command guidance', () => {

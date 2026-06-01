@@ -24,7 +24,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'SETUP',
     label: 'Setup',
     summary: 'Configuration, auth, provider, and onboarding workspaces.',
-    detail: 'Agent connects to an existing GoodVibes runtime and owns local assistant configuration only. Runtime lifecycle and connectivity posture remain external.',
+    detail: 'Use this to configure the assistant: provider/model, setup checklist, Agent Knowledge, local behavior, channels, and voice/media. Agent-local setup changes happen here; runtime hosting is not managed here.',
     actions: [
       { id: 'config', label: 'Open settings', detail: 'Open the fullscreen Agent settings workspace.', command: '/config', kind: 'command', safety: 'safe' },
       { id: 'setup', label: 'Run setup', detail: 'Review Agent settings in the fullscreen setup flow.', command: '/setup', kind: 'command', safety: 'safe' },
@@ -90,7 +90,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'SETUP',
     label: 'Profiles',
     summary: 'Isolated Agent homes, config profiles, and setup bundles.',
-    detail: 'Profiles isolate Agent state. GoodVibes Agent exposes named homes, starter templates, and config profile pickers while keeping the shared runtime external.',
+    detail: 'Profiles isolate Agent state. Named homes and starter templates let one install behave like separate assistants for household, research, travel, operations, or personal workflows.',
     actions: [
       { id: 'profiles-open', label: 'Open config profiles', detail: 'Open the config profile picker for display/provider/behavior profile files.', command: '/profiles', kind: 'command', safety: 'safe' },
       { id: 'runtime-profile-guide', label: 'Starter authoring guide', detail: 'Open the Agent-local starter authoring flow inside the Agent TUI.', command: '/agent-profile guide', kind: 'command', safety: 'safe' },

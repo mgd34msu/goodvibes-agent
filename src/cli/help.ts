@@ -28,8 +28,23 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `Usage: ${binary} [OPTIONS] [PROMPT]`,
     `       ${binary} [OPTIONS] <COMMAND> [ARGS]`,
     '',
+    'Primary use:',
+    `  ${binary}                 Launch the interactive Agent TUI`,
+    `  ${binary} launch          Launch the same Agent TUI explicitly`,
+    `  ${binary} start           Launch the same Agent TUI explicitly`,
+    `  ${binary} setup           Open first-run Agent setup`,
+    '',
+    'Inside the TUI:',
+    '  /agent                    Open the operator workspace',
+    '  /setup                    Open setup/config flows',
+    '  /model                    Choose provider and model',
+    '  /knowledge                Use isolated Agent Knowledge',
+    '  /personas, /skills        Tune local Agent behavior',
+    '  /routines                 Run local routines in the main conversation',
+    '  /delegate                 Explicitly hand build/fix/review work to GoodVibes TUI',
+    '',
     'Commands:',
-    '  tui|launch [path]          Start the interactive Agent terminal UI (default)',
+    '  tui|launch|start [path]    Start the interactive Agent terminal UI (default)',
     '  run|exec [prompt]          Run non-interactively with text/json/stream-json output',
     '  status                     Print config, provider, auth, and setup posture',
     '  doctor                     Print status plus setup warnings',
@@ -41,7 +56,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  skills                     Manage local Agent skills and skill bundles',
     '  memory                     Manage Agent-owned durable memory records',
     '  routines                   Inspect local routines and explicitly promote one to an external schedule',
-    '  auth                       Inspect Agent auth posture and external runtime token state',
+    '  auth                       Inspect Agent auth posture and connection token state',
     '  compat                     Inspect Agent SDK pin, runtime version, and Agent knowledge route readiness',
     '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
     '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
@@ -120,9 +135,9 @@ type CommandHelp = {
 
 const COMMAND_HELP: Record<string, CommandHelp> = {
   tui: {
-    usage: ['tui [path]', 'launch [path]', '[prompt]'],
+    usage: ['tui [path]', 'launch [path]', 'start [path]', '[prompt]'],
     summary: 'Start the interactive Agent terminal UI. A prompt starts Agent with that prompt seeded.',
-    examples: ['', 'launch', 'tui ~/work/project', '"summarize current tasks"'],
+    examples: ['', 'launch', 'start', 'tui ~/work/project', '"summarize current tasks"'],
   },
   run: {
     usage: ['run [prompt] [--output text|json|stream-json]', 'exec [prompt]'],
@@ -255,7 +270,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   auth: {
     usage: ['auth', 'auth status', 'auth review', 'auth users', 'auth sessions'],
-    summary: 'Inspect Agent auth posture and external runtime token state. Runtime user/session administration belongs to the runtime-owning TUI or host tooling.',
+    summary: 'Inspect Agent auth posture and connection token state. Runtime user/session administration belongs to the runtime-owning TUI or host tooling.',
     examples: ['auth', 'auth status', 'auth users'],
   },
   compat: {
@@ -344,6 +359,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
 
 const HELP_ALIASES: Record<string, string> = {
   app: 'tui',
+  start: 'tui',
   exec: 'run',
   onboarding: 'setup',
   provider: 'providers',

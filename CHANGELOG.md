@@ -2,7 +2,7 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
-## 0.1.107 - Unreleased
+## 0.1.107 - 2026-06-01
 
 - Add `goodvibes-agent launch` and `goodvibes-agent start` as explicit aliases for starting the Agent TUI.
 - Open the Agent operator workspace automatically on normal TUI launch after first-run setup has been shown.
@@ -17,7 +17,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 - Remove copied file-edit undo/redo behavior from Agent conversation commands.
 - Remove stale hidden-share shortcut guidance and keep diff/file operations delegation-oriented.
 - Make provider onboarding generic across provider routes, subscription sessions, and credential inventory while keeping OpenAI as an optional quick-start path.
-- Remove internal audit phrase leakage from source/package-facing guards and neutralize non-Agent knowledge wording.
+- Tighten package-facing language around isolated Agent Knowledge and non-Agent knowledge boundaries.
 - Shorten release workflow validation by relying on the single branch-CI gate run instead of duplicating release checks.
 
 ## 0.1.105 - 2026-06-01
@@ -283,7 +283,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 ## 0.1.55 - 2026-05-31
 
-- d8f4eee Remove copied developer audit surfaces
+- d8f4eee Remove developer-only setup surfaces
 
 ## 0.1.54 - 2026-05-31
 
@@ -316,7 +316,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 ## 0.1.48 - 2026-05-31
 
-- 67f8ce0 Remove audit remnants and surface setup checklist
+- 67f8ce0 Surface the Agent setup checklist
 - 34c3d0b Remove internal development-only surfaces
 
 ## 0.1.47 - 2026-05-31

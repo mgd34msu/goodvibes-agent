@@ -10,6 +10,8 @@ GoodVibes Agent is the installable public alpha of the personal operator assista
 
 Agent does not launch the runtime for you.
 
+Use the interactive TUI first. CLI subcommands are secondary support paths for install checks, setup inspection, and scriptable local Agent libraries.
+
 ## Install From Package
 
 ```sh
@@ -53,9 +55,9 @@ bun run dev
 
 `bun run dev` starts the Agent TUI. The same entrypoint backs the installed `goodvibes-agent` command.
 
-`goodvibes-agent` and `goodvibes-agent launch` both start the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
+`goodvibes-agent`, `goodvibes-agent launch`, and `goodvibes-agent start` all start the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
 
-After setup has been shown once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, knowledge status, local memory and skills, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
+After setup has been shown once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, provider/model selection, Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
 
 Use `/agent-profile guide` inside that workspace to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
