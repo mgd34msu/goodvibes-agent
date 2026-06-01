@@ -1,8 +1,32 @@
 import { describe, expect, test } from 'bun:test';
 import { buildCliDoctorFindings, renderCliStatus } from '../../cli/status.ts';
 import type { CliStatusOptions } from '../../cli/status.ts';
+import type { CliExternalRuntimeSnapshot } from '../../cli/external-runtime.ts';
 
 type ConfigValues = Record<string, unknown>;
+
+function makeExternalRuntime(overrides: Partial<CliExternalRuntimeSnapshot> = {}): CliExternalRuntimeSnapshot {
+  return {
+    baseUrl: 'http://127.0.0.1:3421',
+    statusCode: 200,
+    reachable: true,
+    version: '0.33.35',
+    expectedVersion: '0.33.35',
+    compatible: true,
+    operatorToken: {
+      present: true,
+      path: '/home/test/.goodvibes/daemon/operator-tokens.json',
+    },
+    agentKnowledge: {
+      route: '/api/goodvibes-agent/knowledge/status',
+      ready: true,
+      kind: 'ok',
+      statusCode: 200,
+    },
+    error: null,
+    ...overrides,
+  };
+}
 
 function makeOptions(overrides: ConfigValues = {}): CliStatusOptions {
   const values: ConfigValues = {
@@ -49,6 +73,7 @@ function makeOptions(overrides: ConfigValues = {}): CliStatusOptions {
       operatorTokenPath: '/home/test/.goodvibes/daemon/operator-tokens.json',
       operatorTokenPresent: true,
     },
+    externalRuntime: makeExternalRuntime(),
   };
 }
 
@@ -96,6 +121,40 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('Enable service mode');
     expect(text).not.toContain('Enable service.autostart');
     expect(text).not.toContain('Enable service.restartOnFailure');
+  });
+
+  test('status foregrounds live external runtime and Agent Knowledge readiness', () => {
+    const text = renderCliStatus(makeOptions());
+
+    expect(text).toContain('External Runtime:');
+    expect(text).toContain('baseUrl: http://127.0.0.1:3421');
+    expect(text).toContain('reachable: yes (HTTP 200)');
+    expect(text).toContain('sdk: 0.33.35 expected 0.33.35');
+    expect(text).toContain('Agent Knowledge: ready');
+    expect(text).toContain('External Runtime Ownership:');
+    expect(text).toContain('owner: external GoodVibes runtime host');
+  });
+
+  test('doctor warns when live external runtime or Agent Knowledge is unavailable without suggesting fallback wiki use', () => {
+    const findings = buildCliDoctorFindings({
+      ...makeOptions(),
+      externalRuntime: makeExternalRuntime({
+        reachable: true,
+        compatible: true,
+        agentKnowledge: {
+          route: '/api/goodvibes-agent/knowledge/status',
+          ready: false,
+          kind: 'route_unavailable',
+          statusCode: 404,
+        },
+        error: 'HTTP 404',
+      }),
+    });
+    const text = findings.map((finding) => `${finding.summary}\n${finding.impact}\n${finding.action}`).join('\n');
+
+    expect(findings.map((finding) => finding.id)).toContain('agent-knowledge-route-not-ready');
+    expect(text).toContain('Agent Knowledge ask/search will not use any fallback wiki or HomeGraph segment');
+    expect(text).not.toContain('default Knowledge');
   });
 
   test('network auth posture is flagged when LAN runtime endpoints have no local users or bootstrap is still present', () => {
@@ -157,6 +216,7 @@ describe('CLI status and doctor output', () => {
     const parsed = JSON.parse(text) as {
       title: string;
       provider: { provider: string };
+      externalRuntime: { reachable: boolean; agentKnowledge: { ready: boolean } };
       runtimeConnection: { lifecycle: { managed: { running: boolean; commandPreview: string } } };
       runtimeEndpoints: { controlPlane: { port: number } };
       findings: unknown[];
@@ -164,6 +224,8 @@ describe('CLI status and doctor output', () => {
 
     expect(parsed.title).toBe('GoodVibes Agent status');
     expect(parsed.provider.provider).toBe('openai');
+    expect(parsed.externalRuntime.reachable).toBe(true);
+    expect(parsed.externalRuntime.agentKnowledge.ready).toBe(true);
     expect(parsed.runtimeConnection.lifecycle.managed.running).toBe(false);
     expect(parsed.runtimeConnection.lifecycle.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.runtimeEndpoints.controlPlane.port).toBe(3421);

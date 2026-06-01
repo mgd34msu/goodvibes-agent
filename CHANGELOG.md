@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## Unreleased
+
+- Foregrounded live external-runtime reachability, SDK compatibility, operator-token state, and isolated Agent Knowledge readiness in `status`/`doctor` output.
+- Removed the deprecated `actions/cache@v4` setup step so future CI/CD runs avoid Node 20 deprecation annotations from the shared workflow setup action.
+
 ## 0.1.83 - 2026-06-01
 
 - f5099c1 Hide runtime-owned settings from Agent workspace

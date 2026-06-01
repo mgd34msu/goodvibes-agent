@@ -22,6 +22,7 @@ import {
   renderOnboardingCliStatus,
 } from './index.ts';
 import { buildCliServicePosture } from './service-posture.ts';
+import { inspectCliExternalRuntime } from './external-runtime.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { resolveAgentRuntimeProfileHome } from '../agent/runtime-profile.ts';
 
@@ -147,6 +148,10 @@ export async function prepareShellCliRuntime(
       workingDirectory: bootstrapWorkingDir,
       homeDirectory: bootstrapHomeDirectory,
     });
+    const externalRuntime = await inspectCliExternalRuntime({
+      configManager,
+      homeDirectory: bootstrapHomeDirectory,
+    });
     const statusOptions = {
       configManager,
       workingDirectory: bootstrapWorkingDir,
@@ -161,6 +166,7 @@ export async function prepareShellCliRuntime(
         operatorTokenPresent: existsSync(operatorTokenPath),
       },
       service,
+      externalRuntime,
       doctor: cli.command === 'doctor',
       outputFormat: cli.flags.outputFormat,
     };

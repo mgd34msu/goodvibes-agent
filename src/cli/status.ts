@@ -4,6 +4,7 @@ import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import { isNetworkFacing } from './network-posture.ts';
 import type { GoodVibesCliOutputFormat } from './types.ts';
 import type { CliServicePosture } from './service-posture.ts';
+import type { CliExternalRuntimeSnapshot } from './external-runtime.ts';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
 
 export interface CliStatusOptions {
@@ -13,6 +14,7 @@ export interface CliStatusOptions {
   readonly onboardingMarkers?: OnboardingCheckMarkersState;
   readonly auth?: CliAuthStatus;
   readonly service?: CliServicePosture;
+  readonly externalRuntime?: CliExternalRuntimeSnapshot;
   readonly doctor?: boolean;
   readonly outputFormat?: GoodVibesCliOutputFormat;
 }
@@ -58,6 +60,7 @@ export interface CliStatusSnapshot {
     readonly restartOnFailure: unknown;
     readonly lifecycle?: CliServicePosture;
   };
+  readonly externalRuntime: CliExternalRuntimeSnapshot | null;
   readonly runtimeEndpoints: {
     readonly controlPlane: ReturnType<typeof resolveRuntimeEndpointBinding> & { readonly enabled: unknown };
     readonly httpListener: ReturnType<typeof resolveRuntimeEndpointBinding> & { readonly enabled: unknown };
@@ -116,6 +119,54 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
   ].filter(([, enabled, binding]) => isNetworkFacing(enabled, binding as typeof controlPlaneBinding));
 
   const findings: CliDoctorFinding[] = [];
+
+  if (options.externalRuntime) {
+    if (!options.externalRuntime.reachable) {
+      findings.push({
+        id: 'external-runtime-unreachable',
+        area: 'runtime',
+        severity: 'warning',
+        summary: 'External GoodVibes runtime is not reachable.',
+        cause: `Agent could not reach ${options.externalRuntime.baseUrl}${options.externalRuntime.error ? `: ${options.externalRuntime.error}` : '.'}`,
+        impact: 'Companion chat, isolated Agent Knowledge, approvals, automation status, and build delegation cannot work until the external runtime is available.',
+        action: 'Start or repair the runtime-owning GoodVibes TUI/host, then rerun goodvibes-agent status.',
+      });
+    } else if (!options.externalRuntime.compatible) {
+      findings.push({
+        id: 'external-runtime-version-mismatch',
+        area: 'runtime',
+        severity: 'warning',
+        summary: 'External GoodVibes runtime SDK version does not match Agent.',
+        cause: `Runtime reports SDK ${options.externalRuntime.version}; Agent expects ${options.externalRuntime.expectedVersion}.`,
+        impact: 'Agent-only routes, especially isolated Agent Knowledge, may be missing or incompatible.',
+        action: 'Update/restart the runtime-owning GoodVibes TUI/host so /status matches this Agent package SDK pin.',
+      });
+    }
+
+    if (!options.externalRuntime.operatorToken.present) {
+      findings.push({
+        id: 'external-runtime-token-missing',
+        area: 'auth',
+        severity: 'warning',
+        summary: 'External runtime operator token is missing.',
+        cause: `No operator token was found at ${options.externalRuntime.operatorToken.path}.`,
+        impact: 'Agent can inspect only unauthenticated routes and cannot use protected runtime APIs.',
+        action: 'Pair or provision access through the runtime-owning GoodVibes TUI/host, then rerun goodvibes-agent auth.',
+      });
+    }
+
+    if (options.externalRuntime.reachable && options.externalRuntime.operatorToken.present && !options.externalRuntime.agentKnowledge.ready) {
+      findings.push({
+        id: 'agent-knowledge-route-not-ready',
+        area: 'runtime',
+        severity: 'warning',
+        summary: 'Isolated Agent Knowledge route is not ready.',
+        cause: `${options.externalRuntime.agentKnowledge.route} returned ${options.externalRuntime.agentKnowledge.kind}${options.externalRuntime.agentKnowledge.statusCode === null ? '' : ` (${options.externalRuntime.agentKnowledge.statusCode})`}.`,
+        impact: 'Agent Knowledge ask/search will not use any fallback wiki or HomeGraph segment; it will fail closed until the Agent route is available.',
+        action: 'Update/restart the external runtime to the Agent-compatible SDK and verify goodvibes-agent compat.',
+      });
+    }
+  }
 
   if (serverBackedEnabled && !serviceEnabled) {
     findings.push({
@@ -272,6 +323,7 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
       restartOnFailure: config.get('service.restartOnFailure'),
       ...(options.service ? { lifecycle: options.service } : {}),
     },
+    externalRuntime: options.externalRuntime ?? null,
     runtimeEndpoints: {
       controlPlane: { enabled: config.get('controlPlane.enabled'), ...controlPlaneBinding },
       httpListener: { enabled: config.get('danger.httpListener'), ...httpListenerBinding },
@@ -300,6 +352,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
   const webBinding = snapshot.runtimeEndpoints.web;
   const marker = options.onboardingMarkers?.effective;
   const findings = snapshot.findings;
+  const externalRuntime = snapshot.externalRuntime;
 
   if (options.outputFormat === 'json') return JSON.stringify(snapshot, null, 2);
 
@@ -326,7 +379,21 @@ export function renderCliStatus(options: CliStatusOptions): string {
       ? `  operatorTokens: ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
       : '  operatorTokens: unknown',
     '',
-    'External Runtime Connection:',
+    'External Runtime:',
+    ...(externalRuntime ? [
+      `  baseUrl: ${externalRuntime.baseUrl}`,
+      `  reachable: ${yesNo(externalRuntime.reachable)}${externalRuntime.statusCode === null ? '' : ` (HTTP ${externalRuntime.statusCode})`}`,
+      `  sdk: ${externalRuntime.version} expected ${externalRuntime.expectedVersion}`,
+      `  compatible: ${yesNo(externalRuntime.compatible)}`,
+      `  operatorToken: ${externalRuntime.operatorToken.present ? 'present' : 'missing'} (${externalRuntime.operatorToken.path})`,
+      `  Agent Knowledge: ${externalRuntime.agentKnowledge.ready ? 'ready' : `not ready (${externalRuntime.agentKnowledge.kind})`}`,
+      ...(externalRuntime.error ? [`  error: ${externalRuntime.error}`] : []),
+    ] : [
+      '  live check: unavailable',
+    ]),
+    '',
+    'External Runtime Ownership:',
+    `  owner: external GoodVibes runtime host`,
     `  hostConfigEnabled: ${yesNo(serviceEnabled)}`,
     `  hostAutostart: ${yesNo(serviceAutostart)}`,
     `  hostRestartOnFailure: ${yesNo(restartOnFailure)}`,
