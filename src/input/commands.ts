@@ -1,46 +1,27 @@
 import type { CommandRegistry } from './command-registry.ts';
 import { policyCommand } from './commands/policy.ts';
-import { providerCommand } from './commands/provider.ts';
 import { sessionCommand } from './commands/session.ts';
 import { recallCommand } from './commands/memory.ts';
 import { knowledgeCommand } from './commands/knowledge.ts';
 import { registerShellCoreCommands } from './commands/shell-core.ts';
 import { registerConfigCommand } from './commands/config.ts';
 import { registerSessionWorkflowCommands } from './commands/session-workflow.ts';
-import { registerDiscoveryRuntimeCommands } from './commands/discovery-runtime.ts';
 import { registerPlanningRuntimeCommands } from './commands/planning-runtime.ts';
 import { registerScheduleRuntimeCommands } from './commands/schedule-runtime.ts';
-import { registerBranchRuntimeCommands } from './commands/branch-runtime.ts';
 import { registerOperatorRuntimeCommands } from './commands/operator-runtime.ts';
-import { registerIntegrationRuntimeCommands } from './commands/integration-runtime.ts';
 import { registerNotifyRuntimeCommands } from './commands/notify-runtime.ts';
-import { registerReplayRuntimeCommands } from './commands/replay-runtime.ts';
-import { registerShareRuntimeCommands } from './commands/share-runtime.ts';
-import { registerLocalSetupCommands } from './commands/local-setup.ts';
 import { registerProductRuntimeCommands } from './commands/product-runtime.ts';
-import { registerProfileSyncRuntimeCommands } from './commands/profile-sync-runtime.ts';
-import { registerManagedRuntimeCommands } from './commands/managed-runtime.ts';
 import { registerPlatformAccessRuntimeCommands } from './commands/platform-access-runtime.ts';
-import { registerPlatformServicesRuntimeCommands } from './commands/platform-services-runtime.ts';
-import { registerMarketplaceRuntimeCommands } from './commands/marketplace-runtime.ts';
 import { registerGuidanceRuntimeCommands } from './commands/guidance-runtime.ts';
-import { registerRemoteRuntimeCommands } from './commands/remote-runtime.ts';
-import { registerTeleportRuntimeCommands } from './commands/teleport-runtime.ts';
 import { registerSubscriptionRuntimeCommands } from './commands/subscription-runtime.ts';
-import { registerHooksRuntimeCommands } from './commands/hooks-runtime.ts';
-import { registerControlRoomRuntimeCommands } from './commands/control-room-runtime.ts';
+import { registerSecurityRuntimeCommands } from './commands/security-runtime.ts';
 import { registerMcpRuntimeCommands } from './commands/mcp-runtime.ts';
 import { registerSessionContentCommands } from './commands/session-content.ts';
 import { registerLocalRuntimeCommands } from './commands/local-runtime.ts';
 import { registerExperienceRuntimeCommands } from './commands/experience-runtime.ts';
-import { registerIncidentRuntimeCommands } from './commands/incident-runtime.ts';
-import { registerMemoryProductRuntimeCommands } from './commands/memory-product-runtime.ts';
-import { registerSkillsRuntimeCommands } from './commands/skills-runtime.ts';
-import { registerServicesRuntimeCommands } from './commands/services-runtime.ts';
 import { registerTasksRuntimeCommands } from './commands/tasks-runtime.ts';
 import { registerLocalProviderRuntimeCommands } from './commands/local-provider-runtime.ts';
 import { registerHealthRuntimeCommands } from './commands/health-runtime.ts';
-import { registerSettingsSyncRuntimeCommands } from './commands/settings-sync-runtime.ts';
 import { registerProviderAccountsRuntimeCommands } from './commands/provider-accounts-runtime.ts';
 import { registerLocalAuthRuntimeCommands } from './commands/local-auth-runtime.ts';
 import { registerConversationRuntimeCommands } from './commands/conversation-runtime.ts';
@@ -54,55 +35,6 @@ import { registerDelegationRuntimeCommands } from './commands/delegation-runtime
 import { registerPersonasRuntimeCommands } from './commands/personas-runtime.ts';
 import { registerAgentSkillsRuntimeCommands } from './commands/agent-skills-runtime.ts';
 import { registerRoutinesRuntimeCommands } from './commands/routines-runtime.ts';
-
-const HIDDEN_COPIED_TUI_COMMANDS = [
-  'bootstrap',
-  'branch',
-  'bridge',
-  'cockpit',
-  'communication',
-  'deeplink',
-  'forensics',
-  'fork',
-  'guidance',
-  'handoff',
-  'helpers',
-  'hooks',
-  'incident',
-  'incident-review',
-  'install',
-  'managed',
-  'marketplace',
-  'merge',
-  'memory-review',
-  'memory-sync',
-  'ops',
-  'orchestration',
-  'panel',
-  'plugin',
-  'profilesync',
-  'provider-opt',
-  'remote',
-  'remote-env',
-  'remote-setup',
-  'replay',
-  'scan',
-  'services',
-  'setup',
-  'settingssync',
-  'share',
-  'skills',
-  'storage',
-  'team-memory',
-  'teleport',
-  'template',
-  'tools',
-  'tunnel',
-  'update',
-  'worker-pool',
-  'wrfc',
-  'wq',
-] as const;
 
 /**
  * registerBuiltinCommands - Register all built-in slash commands into the registry.
@@ -118,33 +50,17 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerDelegationRuntimeCommands(registry);
   registerConfigCommand(registry);
   registerOperatorRuntimeCommands(registry);
-  registerIntegrationRuntimeCommands(registry);
   registerNotifyRuntimeCommands(registry);
-  registerReplayRuntimeCommands(registry);
-  registerShareRuntimeCommands(registry);
-  registerLocalSetupCommands(registry);
   registerProductRuntimeCommands(registry);
-  registerProfileSyncRuntimeCommands(registry);
-  registerManagedRuntimeCommands(registry);
   registerPlatformAccessRuntimeCommands(registry);
-  registerPlatformServicesRuntimeCommands(registry);
-  registerMarketplaceRuntimeCommands(registry);
   registerGuidanceRuntimeCommands(registry);
-  registerRemoteRuntimeCommands(registry);
-  registerTeleportRuntimeCommands(registry);
   registerSubscriptionRuntimeCommands(registry);
-  registerHooksRuntimeCommands(registry);
-  registerControlRoomRuntimeCommands(registry);
+  registerSecurityRuntimeCommands(registry);
   registerMcpRuntimeCommands(registry);
-  registerIncidentRuntimeCommands(registry);
-  registerMemoryProductRuntimeCommands(registry);
-  registerSkillsRuntimeCommands(registry);
   registerExperienceRuntimeCommands(registry);
-  registerServicesRuntimeCommands(registry);
   registerTasksRuntimeCommands(registry);
   registerLocalProviderRuntimeCommands(registry);
   registerHealthRuntimeCommands(registry);
-  registerSettingsSyncRuntimeCommands(registry);
   registerProviderAccountsRuntimeCommands(registry);
   registerLocalAuthRuntimeCommands(registry);
   registerConversationRuntimeCommands(registry);
@@ -154,17 +70,12 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerWorkPlanRuntimeCommands(registry);
   registerLocalRuntimeCommands(registry);
   registerSessionWorkflowCommands(registry);
-  registerDiscoveryRuntimeCommands(registry);
   registerPlanningRuntimeCommands(registry);
   registerScheduleRuntimeCommands(registry);
-  registerBranchRuntimeCommands(registry);
   registerSessionContentCommands(registry);
 
   // ── /policy ───────────────────────────────────────────────────────────────
   registry.register(policyCommand);
-
-  // ── /provider ─────────────────────────────────────────────────────────────
-  registry.register(providerCommand);
 
   // ── /session ─────────────────────────────────────────────────────────────
   registry.register(sessionCommand);
@@ -174,8 +85,4 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
 
   // ── /knowledge ───────────────────────────────────────────────────────────
   registry.register(knowledgeCommand);
-
-  for (const commandName of HIDDEN_COPIED_TUI_COMMANDS) {
-    registry.unregister(commandName);
-  }
 }

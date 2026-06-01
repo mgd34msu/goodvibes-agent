@@ -1,25 +1,11 @@
 import type { CommandRegistry } from '../command-registry.ts';
 import type { ProfileData } from '@pellux/goodvibes-sdk/platform/profiles';
-import type { ReplaySnapshotInput } from '@/runtime/index.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
-import { registerOperatorPanelCommand } from './operator-panel-runtime.ts';
-import { requireProfileManager, requireReplayEngine } from './runtime-services.ts';
+import { requireProfileManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
-function printOpsMutationBlocked(print: (text: string) => void, target: string): void {
-  print([
-    `[Ops] ${target} mutation is blocked in GoodVibes Agent.`,
-    '  policy: Agent does not control copied local task/agent lifecycle from the operator surface.',
-    '  normal work: continue in the main conversation.',
-    '  build/fix/review: use /delegate <task> for explicit GoodVibes TUI handoff.',
-    '  result: no local task or agent state was changed.',
-  ].join('\n'));
-}
-
 export function registerOperatorRuntimeCommands(registry: CommandRegistry): void {
-  registerOperatorPanelCommand(registry);
-
   registry.register({
     name: 'settings',
     aliases: ['cfg-ui'],
@@ -246,136 +232,6 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
         + '  /mode balanced --yes           — surface warnings, batch info noise (default)\n'
         + '  /mode operator --yes           — full verbosity, no suppression\n'
         + '  /mode set-domain <d> <v> --yes — per-domain verbosity override (minimal|normal|verbose)'
-      );
-    },
-  });
-
-  registry.register({
-    name: 'ops',
-    description: 'Operator runtime status: view Agent posture without local task/agent lifecycle mutations',
-    usage: '[view]',
-    argsHint: '[view]',
-    handler(args, ctx) {
-      const sub = args[0];
-
-      if (sub === 'view' || sub === undefined) {
-        if (ctx.openOpsPanel) ctx.openOpsPanel();
-        else ctx.print('Operator runtime status panel is not available. Enable the operator-control-plane feature flag.');
-        return;
-      }
-
-      if (sub === 'task') {
-        printOpsMutationBlocked(ctx.print, 'Task');
-        return;
-      }
-
-      if (sub === 'agent') {
-        printOpsMutationBlocked(ctx.print, 'Agent');
-        return;
-      }
-
-      ctx.print(
-        'Usage: /ops <subcommand>\n'
-        + '  /ops view                              — open the Ops Control panel (Ctrl+O)\n'
-        + '  task/agent lifecycle commands are blocked in Agent; use /delegate for explicit build handoff'
-      );
-    },
-  });
-
-  registry.register({
-    name: 'forensics',
-    aliases: ['foren'],
-    description: 'Failure Forensics: view, inspect, and export auto-classified failure reports',
-    usage: '[latest | show <id> | export <id>]',
-    argsHint: '[latest|show|export]',
-    handler(args, ctx) {
-      const sub = args[0];
-      if (sub === undefined || sub === 'view') {
-        if (ctx.openForensicsPanel) ctx.openForensicsPanel();
-        else ctx.print('Forensics panel is not available.');
-        return;
-      }
-      if (sub === 'latest') {
-        if (!ctx.extensions.forensicsRegistry) {
-          ctx.print('[Forensics] Registry not active.');
-          return;
-        }
-        const report = ctx.extensions.forensicsRegistry.latest();
-        if (!report) {
-          ctx.print('[Forensics] No failure reports recorded this session.');
-          return;
-        }
-        const lines: string[] = [
-          `[Forensics] Latest failure report (id: ${report.id})`,
-          `  Time:           ${new Date(report.generatedAt).toISOString()}`,
-          `  Classification: ${report.classification}`,
-          `  Summary:        ${report.summary}`,
-        ];
-        if (report.errorMessage) lines.push(`  Error:          ${report.errorMessage}`);
-        if (report.stopReason) lines.push(`  Stop reason:    ${report.stopReason}`);
-        if (report.taskId) lines.push(`  Task ID:        ${report.taskId}`);
-        if (report.turnId) lines.push(`  Turn ID:        ${report.turnId}`);
-        if (report.causalChain.length > 0) {
-          lines.push('  Causal chain:');
-          for (const entry of report.causalChain) {
-            const marker = entry.isRootCause ? '  ● ' : '  · ';
-            lines.push(`  ${marker}${entry.description}`);
-          }
-        }
-        if (report.jumpLinks.length > 0) {
-          lines.push('  Jump links:');
-          for (const link of report.jumpLinks) {
-            lines.push(`    [${link.kind}] ${link.label} → ${link.target}${link.args ? ` (${link.args})` : ''}`);
-          }
-        }
-        lines.push(`  Use "/forensics show ${report.id}" for full JSON.`);
-        ctx.print(lines.join('\n'));
-        return;
-      }
-      if (sub === 'show') {
-        const id = args[1];
-        if (!id) {
-          ctx.print('Usage: /forensics show <id>');
-          return;
-        }
-        if (!ctx.extensions.forensicsRegistry) {
-          ctx.print('[Forensics] Registry not active.');
-          return;
-        }
-        const json = ctx.extensions.forensicsRegistry.exportAsJson(id);
-        if (!json) {
-          ctx.print(`[Forensics] No report found with id "${id}". Use /forensics latest to see the most recent.`);
-          return;
-        }
-        ctx.print(json);
-        return;
-      }
-      if (sub === 'export') {
-        const id = args[1];
-        if (!id) {
-          ctx.print('Usage: /forensics export <id>');
-          return;
-        }
-        if (!ctx.extensions.forensicsRegistry) {
-          ctx.print('[Forensics] Registry not active.');
-          return;
-        }
-        const json = ctx.extensions.forensicsRegistry.exportBundleAsJson(id, {
-          replaySnapshot: requireReplayEngine(ctx).getSnapshot() as ReplaySnapshotInput,
-        });
-        if (!json) {
-          ctx.print(`[Forensics] No report found with id "${id}".`);
-          return;
-        }
-        ctx.print(`[Forensics] Incident bundle ${id}:\n${json}`);
-        return;
-      }
-      ctx.print(
-        'Usage: /forensics <subcommand>\n'
-        + '  /forensics             — open the Forensics panel\n'
-        + '  /forensics latest      — print the most recent failure report summary\n'
-        + '  /forensics show <id>   — show full JSON for a specific report\n'
-        + '  /forensics export <id> — export incident bundle JSON to the conversation'
       );
     },
   });

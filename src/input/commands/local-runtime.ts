@@ -6,7 +6,7 @@ import type { SelectionItem } from '../selection-modal.ts';
 import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
 import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 import { BUILTIN_SECRET_PROVIDER_SOURCES, describeSecretRef, isSecretRefInput, resolveSecretRef } from '@pellux/goodvibes-sdk/platform/config';
-import { openCommandPanel, requireBookmarkManager, requireProviderApi, requireSecretsManager } from './runtime-services.ts';
+import { requireBookmarkManager, requireProviderApi, requireSecretsManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
@@ -50,62 +50,6 @@ function toggleBlocks(typeFilter: string, collapsed: boolean, ctx: CommandContex
 }
 
 export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
-  registry.register({
-    name: 'incident-review',
-    aliases: [],
-    description: 'Alias for /incident open',
-    usage: '',
-    handler(_args, ctx) {
-      if (ctx.openIncidentPanel) {
-        ctx.openIncidentPanel();
-        return;
-      }
-      ctx.print('Incident panel is not available in this runtime.');
-    },
-  });
-
-  registry.register({
-    name: 'tools',
-    aliases: ['t'],
-    description: 'List available tools and review tool safety/status',
-    usage: '[review|panel]',
-    handler(args, ctx) {
-      const sub = (args[0] ?? '').toLowerCase();
-      if (sub === 'panel' || sub === 'review') {
-        try {
-          openCommandPanel(ctx, 'tools');
-        } catch {
-          // Panel registry may be unavailable in lightweight command-only contexts.
-        }
-        if (sub === 'review') {
-          ctx.print([
-            'Tool Status',
-            '  Tools are available for the main Agent conversation.',
-            '  Read-only actions can run directly; writes, destructive changes, network effects, service changes, and external side effects require explicit user intent or approval.',
-            '  Recent tool activity and approval posture are available in the tools and approvals views.',
-            '  Build/fix/review work should be delegated explicitly with /delegate.',
-          ].join('\n'));
-        }
-        return;
-      }
-      const tools = ctx.extensions.toolRegistry.list();
-      if (ctx.openSelection) {
-        const items: SelectionItem[] = tools.map(t => ({
-          id: t.definition.name,
-          label: t.definition.name,
-          detail: typeof t.definition.description === 'string' ? t.definition.description.slice(0, 50) : '',
-        }));
-        ctx.openSelection('Available Tools', items, { allowSearch: true }, (result) => {
-          if (!result) return;
-          const tool = tools.find(t2 => t2.definition.name === result.item.id);
-          if (tool) ctx.print(`Tool: ${tool.definition.name}\n  ${tool.definition.description ?? ''}`);
-        });
-        return;
-      }
-      ctx.print(['Available tools:', ...tools.map(t => `  • ${t.definition.name}`)].join('\n'));
-    },
-  });
-
   registry.register({ name: 'expand', description: 'Expand blocks by type', usage: '[all|thinking|tool|code]', argsHint: '[all|thinking|tool|code]', handler(args, ctx) { toggleBlocks(args[0] || 'all', false, ctx); } });
   registry.register({ name: 'collapse', description: 'Collapse blocks by type', usage: '[all|thinking|tool|code]', argsHint: '[all|thinking|tool|code]', handler(args, ctx) { toggleBlocks(args[0] || 'all', true, ctx); } });
 

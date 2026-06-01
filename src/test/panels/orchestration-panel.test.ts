@@ -114,7 +114,7 @@ describe('OrchestrationPanel', () => {
     expect(text).toContain('parent-only');
   });
 
-  test('is registered as a built-in panel when a runtime store is provided', () => {
+  test('is not registered as an Agent built-in panel', () => {
     const manager = new PanelManager();
     const root = process.cwd();
     const services = createRuntimeServices({
@@ -138,6 +138,6 @@ describe('OrchestrationPanel', () => {
       sandboxSessionRegistry: services.sandboxSessionRegistry,
       systemMessagesPanel: new SystemMessagesPanel(services.configManager, services.componentHealthMonitor),
     });
-    expect(manager.getRegisteredTypes().some((entry) => entry.id === 'orchestration')).toBe(true);
+    expect(manager.getRegisteredTypes().some((entry) => entry.id === 'orchestration')).toBe(false);
   });
 });

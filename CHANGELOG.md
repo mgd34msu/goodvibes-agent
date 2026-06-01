@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.71 - 2026-05-31
+
+- Stopped importing copied TUI slash-command modules that do not belong to the Agent product surface.
+- Trimmed the built-in panel registry to Agent-relevant approval, automation, auth, provider, security, task, and policy views.
+- Reduced package contents so hidden copied command and panel modules are not shipped with the installed Agent TUI.
+
 ## 0.1.70 - 2026-05-31
 
 - Removed copied TUI coding, runtime lifecycle, and developer-maintenance slash commands from the visible Agent command registry.

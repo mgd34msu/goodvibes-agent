@@ -167,38 +167,10 @@ describe('write/export command confirmation', () => {
     }
   });
 
-  test('template save and delete require --yes before writing template state', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-template-confirm-'));
-    try {
-      const registry = new CommandRegistry();
-      registerSessionContentCommands(registry);
-      const out: string[] = [];
-      const ctx = {
-        ...baseContext(root, out),
-        session: {
-          conversationManager: {
-            getLastUserMessage: () => 'template body',
-          },
-        },
-      } as unknown as CommandContext;
-
-      await registry.get('template')!.handler(['save', 'demo'], ctx);
-      expect(out.join('\n')).toContain('Refusing to save prompt template demo without --yes');
-
-      out.length = 0;
-      await registry.get('template')!.handler(['save', 'demo', '--yes'], ctx);
-      expect(out.join('\n')).toContain('Template saved: demo');
-
-      out.length = 0;
-      await registry.get('template')!.handler(['delete', 'demo'], ctx);
-      expect(out.join('\n')).toContain('Refusing to delete prompt template demo without --yes');
-
-      out.length = 0;
-      await registry.get('template')!.handler(['delete', 'demo', '--yes'], ctx);
-      expect(out.join('\n')).toContain('Template deleted: demo');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+  test('copied prompt template write command is not registered in Agent', () => {
+    const registry = new CommandRegistry();
+    registerSessionContentCommands(registry);
+    expect(registry.get('template')).toBeUndefined();
   });
 
   test('profile save and delete commands require --yes before writing profile state', async () => {

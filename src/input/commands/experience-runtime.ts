@@ -3,7 +3,6 @@ import { dirname, resolve } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
 import { requirePanelManager, requireShellPaths } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
-import { resolveAgentDaemonConnection } from '../../agent/routine-schedule-promotion.ts';
 
 interface VoiceBundle {
   readonly version: 1;
@@ -22,159 +21,6 @@ function inspectVoiceBundle(bundle: VoiceBundle): string {
 }
 
 export function registerExperienceRuntimeCommands(registry: CommandRegistry): void {
-  registry.register({
-    name: 'remote-setup',
-    description: 'Dedicated front-door for remote setup review and portable setup bundles',
-    usage: '[review|export <path> --yes]',
-    async handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const commandArgs = [...parsed.rest];
-      const sub = (commandArgs[0] ?? 'review').toLowerCase();
-      if (ctx.executeCommand) {
-        if (sub === 'review') {
-          await ctx.executeCommand('remote', ['setup']);
-          return;
-        }
-        if (sub === 'export') {
-          const pathArg = commandArgs[1];
-          if (!pathArg) {
-            ctx.print('Usage: /remote-setup export <path> --yes');
-            return;
-          }
-          if (!parsed.yes) {
-            requireYesFlag(ctx, `export remote setup bundle to ${pathArg}`, '/remote-setup export <path> --yes');
-            return;
-          }
-          await ctx.executeCommand('remote', ['setup', 'export', pathArg, '--yes']);
-          return;
-        }
-      }
-      ctx.print('Remote setup controls are not available in this runtime.');
-    },
-  });
-
-  registry.register({
-    name: 'remote-env',
-    description: 'Dedicated front-door for remote environment snippets and portable env exports',
-    usage: '[review|export <path> --yes]',
-    async handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const commandArgs = [...parsed.rest];
-      const sub = (commandArgs[0] ?? 'review').toLowerCase();
-      if (ctx.executeCommand) {
-        if (sub === 'review') {
-          await ctx.executeCommand('remote', ['env']);
-          return;
-        }
-        if (sub === 'export') {
-          const pathArg = commandArgs[1];
-          if (!pathArg) {
-            ctx.print('Usage: /remote-env export <path> --yes');
-            return;
-          }
-          if (!parsed.yes) {
-            requireYesFlag(ctx, `export remote environment snippet to ${pathArg}`, '/remote-env export <path> --yes');
-            return;
-          }
-          await ctx.executeCommand('remote', ['env', 'export', pathArg, '--yes']);
-          return;
-        }
-      }
-      ctx.print('Remote environment controls are not available in this runtime.');
-    },
-  });
-
-  registry.register({
-    name: 'tunnel',
-    description: 'Dedicated front-door for remote tunnel review and export flows',
-    usage: '[review|export <path> --yes]',
-    async handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const commandArgs = [...parsed.rest];
-      const sub = (commandArgs[0] ?? 'review').toLowerCase();
-      if (ctx.executeCommand) {
-        if (sub === 'review') {
-          await ctx.executeCommand('remote', ['tunnel', 'review']);
-          return;
-        }
-        if (sub === 'export') {
-          const pathArg = commandArgs[1];
-          if (!pathArg) {
-            ctx.print('Usage: /tunnel export <path> --yes');
-            return;
-          }
-          if (!parsed.yes) {
-            requireYesFlag(ctx, `export remote tunnel review to ${pathArg}`, '/tunnel export <path> --yes');
-            return;
-          }
-          await ctx.executeCommand('remote', ['tunnel', 'export', pathArg, '--yes']);
-          return;
-        }
-      }
-      ctx.print('Tunnel controls are not available in this runtime.');
-    },
-  });
-
-  registry.register({
-    name: 'bootstrap',
-    description: 'Dedicated front-door for remote bootstrap bundle export and inspection',
-    usage: '[export <path> --yes|inspect <path>]',
-    async handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const commandArgs = [...parsed.rest];
-      const sub = (commandArgs[0] ?? '').toLowerCase();
-      const pathArg = commandArgs[1];
-      if (!ctx.executeCommand) {
-        ctx.print('Bootstrap controls are not available in this runtime.');
-        return;
-      }
-      if (sub === 'export' && pathArg) {
-        if (!parsed.yes) {
-          requireYesFlag(ctx, `export remote bootstrap bundle to ${pathArg}`, '/bootstrap export <path> --yes');
-          return;
-        }
-        await ctx.executeCommand('remote', ['bootstrap', sub, pathArg, '--yes']);
-        return;
-      }
-      if (sub === 'inspect' && pathArg) {
-        await ctx.executeCommand('remote', ['bootstrap', sub, pathArg]);
-        return;
-      }
-      ctx.print('Usage: /bootstrap [export <path> --yes|inspect <path>]');
-    },
-  });
-
-  registry.register({
-    name: 'worker-pool',
-    aliases: ['pool'],
-    description: 'Dedicated front-door for remote worker pool review flows',
-    usage: '[list|show <id>]',
-    async handler(args, ctx) {
-      const sub = (args[0] ?? 'list').toLowerCase();
-      if (!ctx.executeCommand) {
-        ctx.print('Remote worker pool controls are not available in this runtime.');
-        return;
-      }
-      if (sub === 'list') {
-        await ctx.executeCommand('remote', ['pool', 'list']);
-        return;
-      }
-      if (sub === 'show' && args[1]) {
-        await ctx.executeCommand('remote', ['pool', 'show', args[1]]);
-        return;
-      }
-      if (sub === 'create' && args[1] && args.length >= 3) {
-        ctx.print('Remote worker pool mutation is blocked in GoodVibes Agent. Use /worker-pool list or /worker-pool show <id>.');
-        return;
-      }
-      if ((sub === 'assign' || sub === 'unassign') && args[1] && args[2]) {
-        ctx.print('Remote worker pool mutation is blocked in GoodVibes Agent. Use /worker-pool list or /worker-pool show <id>.');
-        return;
-      }
-      ctx.print('Usage: /worker-pool [list|show <id>]');
-    },
-  });
-
   registry.register({
     name: 'approval',
     aliases: ['approvals'],
@@ -223,29 +69,6 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         return;
       }
       ctx.print('Usage: /approval [open|matrix|review <kind>]');
-    },
-  });
-
-  registry.register({
-    name: 'memory-review',
-    aliases: ['knowledge-review'],
-    description: 'Dedicated front-door for knowledge review queues and task-specific memory injection explanations',
-    usage: '[queue [limit]|explain <task...> [--scope <path> ...]]',
-    async handler(args, ctx) {
-      const sub = (args[0] ?? 'queue').toLowerCase();
-      if (!ctx.executeCommand) {
-        ctx.print('Memory review controls are not available in this runtime.');
-        return;
-      }
-      if (sub === 'queue') {
-        await ctx.executeCommand('knowledge', ['queue', ...(args[1] ? [args[1]] : [])]);
-        return;
-      }
-      if (sub === 'explain' && args.length >= 2) {
-        await ctx.executeCommand('knowledge', ['explain', ...args.slice(1)]);
-        return;
-      }
-      ctx.print('Usage: /memory-review [queue [limit]|explain <task...> [--scope <path> ...]]');
     },
   });
 

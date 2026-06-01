@@ -60,7 +60,7 @@ describe('SkillsPanel', () => {
     expect(text).toContain('/registry search skills');
   });
 
-  test('is registered as a built-in panel', () => {
+  test('is not registered as an Agent built-in panel', () => {
     const manager = new PanelManager();
     const services = createRuntimeServices({
       configManager: new ConfigManager({ surfaceRoot: 'tui',
@@ -83,7 +83,7 @@ describe('SkillsPanel', () => {
       sandboxSessionRegistry: services.sandboxSessionRegistry,
       systemMessagesPanel: new SystemMessagesPanel(services.configManager, services.componentHealthMonitor),
     });
-    expect(manager.getRegisteredTypes().some((entry) => entry.id === 'skills')).toBe(true);
+    expect(manager.getRegisteredTypes().some((entry) => entry.id === 'skills')).toBe(false);
   });
 
   test('discovers project-local skills before global skills and renders origin path', async () => {

@@ -1,32 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
-import { VERSION } from '../../version.ts';
 import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import { handleLocalAuthCommand } from './local-auth-runtime.ts';
 import { buildAuthInspectionSnapshot, inspectProviderAuth } from '@/runtime/index.ts';
-import { requireProfileManager, requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from './runtime-services.ts';
+import { requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
-
-interface InstallBundle {
-  readonly version: 1;
-  readonly exportedAt: number;
-  readonly appVersion: string;
-  readonly workingDirectory: string;
-  readonly homeDirectory: string;
-  readonly profileCount: number;
-  readonly secretKeyCount: number;
-  readonly setupLinks: readonly string[];
-}
-
-interface UpdateBundle {
-  readonly version: 1;
-  readonly exportedAt: number;
-  readonly appVersion: string;
-  readonly updateChannel: 'stable' | 'preview';
-  readonly subscriptionProviders: readonly string[];
-  readonly notes: readonly string[];
-}
 
 interface AuthReviewBundle {
   readonly version: 1;
@@ -49,32 +28,6 @@ function normalizeAuthServiceLoginTarget(value: string | undefined): AuthService
 
 function authServiceSecretPrefix(target: AuthServiceLoginTarget): string {
   return target === 'runtime' ? 'RUNTIME' : 'LISTENER';
-}
-
-function buildSetupLink(surface: string, target?: string): string {
-  const params = target ? `?target=${encodeURIComponent(target)}` : '';
-  return `goodvibes://open/${surface}${params}`;
-}
-
-function inspectInstallBundle(bundle: InstallBundle): string {
-  return [
-    'Install Bundle Review',
-    `  appVersion: ${bundle.appVersion}`,
-    `  workingDirectory: ${bundle.workingDirectory}`,
-    `  profileCount: ${bundle.profileCount}`,
-    `  secretKeys: ${bundle.secretKeyCount}`,
-    `  setupLinks: ${bundle.setupLinks.length}`,
-  ].join('\n');
-}
-
-function inspectUpdateBundle(bundle: UpdateBundle): string {
-  return [
-    'Update Bundle Review',
-    `  appVersion: ${bundle.appVersion}`,
-    `  updateChannel: ${bundle.updateChannel}`,
-    `  subscriptionProviders: ${bundle.subscriptionProviders.length}`,
-    `  notes: ${bundle.notes.length}`,
-  ].join('\n');
 }
 
 function inspectAuthBundle(bundle: AuthReviewBundle): string {
@@ -154,152 +107,6 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         return;
       }
       ctx.print(`Use /subscription logout ${commandArgs[1]} --yes`);
-    },
-  });
-
-  registry.register({
-    name: 'install',
-    description: 'Review install posture and export portable install bundles',
-    usage: '[review|bundle export <path> --yes|bundle inspect <path>]',
-    async handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const commandArgs = [...parsed.rest];
-      const shellPaths = requireShellPaths(ctx);
-      const sub = commandArgs[0] ?? 'review';
-      if (sub === 'review') {
-        const profiles = requireProfileManager(ctx).list();
-        const secretKeys = await requireSecretsManager(ctx).list();
-        ctx.print([
-          'Install Review',
-          `  version: ${VERSION}`,
-          `  profiles: ${profiles.length}`,
-          `  secret keys: ${secretKeys.length}`,
-          `  setup links: 4`,
-        ].join('\n'));
-        return;
-      }
-      if (sub === 'bundle') {
-        const mode = commandArgs[1];
-        const pathArg = commandArgs[2];
-        if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /install bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
-          return;
-        }
-        const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
-        if (mode === 'export') {
-          if (!parsed.yes) {
-            requireYesFlag(ctx, `export install bundle to ${pathArg}`, '/install bundle export <path> --yes');
-            return;
-          }
-          const profiles = requireProfileManager(ctx).list();
-          const secretKeys = await requireSecretsManager(ctx).list();
-          const bundle: InstallBundle = {
-            version: 1,
-            exportedAt: Date.now(),
-            appVersion: VERSION,
-            workingDirectory: shellPaths.workingDirectory,
-            homeDirectory: shellPaths.homeDirectory,
-            profileCount: profiles.length,
-            secretKeyCount: secretKeys.length,
-            setupLinks: [
-              buildSetupLink('cockpit'),
-              buildSetupLink('security'),
-              buildSetupLink('remote'),
-              buildSetupLink('knowledge'),
-            ],
-          };
-          mkdirSync(dirname(targetPath), { recursive: true });
-          writeFileSync(targetPath, JSON.stringify(bundle, null, 2) + '\n', 'utf-8');
-          ctx.print(`Install bundle exported to ${targetPath}`);
-          return;
-        }
-        if (mode === 'inspect') {
-          const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as InstallBundle;
-          ctx.print(inspectInstallBundle(bundle));
-          return;
-        }
-      }
-      ctx.print('Usage: /install [review|bundle export <path> --yes|bundle inspect <path>]');
-    },
-  });
-
-  registry.register({
-    name: 'update',
-    aliases: ['upgrade'],
-    description: 'Review update posture, choose release channel guidance, and package portable update bundles',
-    usage: '[review|channel <stable|preview> --yes|bundle export <path> --yes|bundle inspect <path>]',
-    handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const commandArgs = [...parsed.rest];
-      const shellPaths = requireShellPaths(ctx);
-      const sub = commandArgs[0] ?? 'review';
-      const subscriptions = requireSubscriptionManager(ctx);
-      const serviceRegistry = requireServiceRegistry(ctx);
-      const secretsManager = requireSecretsManager(ctx);
-      const builtinProviders = listBuiltinSubscriptionProviders().map((entry) => entry.provider);
-      const activeSubscriptions = subscriptions.list().map((entry) => entry.provider);
-      if (sub === 'review') {
-        const channel = ctx.platform.configManager.get('release.channel');
-        ctx.print([
-          'Update Review',
-          `  version: ${VERSION}`,
-          `  channel: ${channel}`,
-          `  built-in subscription providers: ${builtinProviders.length}${builtinProviders.length > 0 ? ` (${builtinProviders.join(', ')})` : ''}`,
-          `  active subscriptions: ${activeSubscriptions.length}${activeSubscriptions.length > 0 ? ` (${activeSubscriptions.join(', ')})` : ''}`,
-          '  use /update channel <stable|preview> --yes to change release posture',
-        ].join('\n'));
-        return;
-      }
-      if (sub === 'channel') {
-        const channel = commandArgs[1];
-        if (channel !== 'stable' && channel !== 'preview') {
-          ctx.print('Usage: /update channel <stable|preview> --yes');
-          return;
-        }
-        if (!parsed.yes) {
-          requireYesFlag(ctx, `set update channel to ${channel}`, '/update channel <stable|preview> --yes');
-          return;
-        }
-        ctx.platform.configManager.setDynamic('release.channel', channel);
-        ctx.print(`Update channel set to ${channel}.`);
-        return;
-      }
-      if (sub === 'bundle') {
-        const mode = commandArgs[1];
-        const pathArg = commandArgs[2];
-        if ((mode === 'export' || mode === 'inspect') && !pathArg) {
-          ctx.print(`Usage: /update bundle ${mode} <path>${mode === 'export' ? ' --yes' : ''}`);
-          return;
-        }
-        const targetPath = shellPaths.resolveWorkspacePath(pathArg!);
-        if (mode === 'export') {
-          if (!parsed.yes) {
-            requireYesFlag(ctx, `export update bundle to ${pathArg}`, '/update bundle export <path> --yes');
-            return;
-          }
-          const bundle: UpdateBundle = {
-            version: 1,
-            exportedAt: Date.now(),
-            appVersion: VERSION,
-            updateChannel: ctx.platform.configManager.get('release.channel') as 'stable' | 'preview',
-            subscriptionProviders: [...new Set([...builtinProviders, ...activeSubscriptions])],
-            notes: [
-              'Preview channel is recommended only when operator review is enabled.',
-              'OAuth-backed provider subscriptions survive channel changes and continue to apply to supported provider surfaces.',
-            ],
-          };
-          mkdirSync(dirname(targetPath), { recursive: true });
-          writeFileSync(targetPath, JSON.stringify(bundle, null, 2) + '\n', 'utf-8');
-          ctx.print(`Update bundle exported to ${targetPath}`);
-          return;
-        }
-        if (mode === 'inspect') {
-          const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as UpdateBundle;
-          ctx.print(inspectUpdateBundle(bundle));
-          return;
-        }
-      }
-      ctx.print('Usage: /update [review|channel <stable|preview> --yes|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 

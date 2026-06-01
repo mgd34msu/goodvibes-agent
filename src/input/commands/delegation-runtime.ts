@@ -118,12 +118,4 @@ export function registerDelegationRuntimeCommands(registry: CommandRegistry): vo
     argsHint: '[--wrfc] <task>',
     handler: makeHandler(false),
   });
-  registry.register({
-    name: 'wrfc',
-    aliases: ['review'],
-    description: 'Explicitly delegate build/fix/review work to GoodVibes TUI with WRFC requested',
-    usage: '<task>',
-    argsHint: '<task>',
-    handler: makeHandler(true),
-  });
 }

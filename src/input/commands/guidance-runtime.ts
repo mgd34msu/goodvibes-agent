@@ -1,8 +1,4 @@
-import { estimateConversationTokens } from '@pellux/goodvibes-sdk/platform/core';
-import { evaluateSessionMaintenance, formatSessionMaintenanceLines, getGuidanceMode } from '@/runtime/index.ts';
-import { dismissGuidance, evaluateContextualGuidance, formatGuidanceItems, resetGuidance } from '@/runtime/index.ts';
 import type { CommandRegistry } from '../command-registry.ts';
-import { requireProviderApi, requireReadModels, requireSessionMemoryStore, requireShellPaths } from './runtime-services.ts';
 
 export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
@@ -35,71 +31,6 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
         return;
       }
       ctx.print('Usage: /welcome [open|print]');
-    },
-  });
-
-  registry.register({
-    name: 'guidance',
-    description: 'Review contextual operational guidance without interrupting the main conversation flow',
-    usage: '[review|dismiss <id>|reset [id]]',
-    async handler(args, ctx) {
-      const sub = (args[0] ?? 'review').toLowerCase();
-      const shellPaths = requireShellPaths(ctx);
-      const guidanceOptions = {
-        homeDirectory: shellPaths.homeDirectory,
-      };
-      if (sub === 'dismiss') {
-        const id = args[1];
-        if (!id) {
-          ctx.print('Usage: /guidance dismiss <id>');
-          return;
-        }
-        dismissGuidance(id, guidanceOptions);
-        ctx.print(`Dismissed guidance item ${id}.`);
-        return;
-      }
-      if (sub === 'reset') {
-        resetGuidance(args[1], guidanceOptions);
-        ctx.print(args[1] ? `Reset guidance item ${args[1]}.` : 'Reset all dismissed guidance items.');
-        return;
-      }
-      if (sub !== 'review') {
-        ctx.print('Usage: /guidance [review|dismiss <id>|reset [id]]');
-        return;
-      }
-
-      const providerApi = requireProviderApi(ctx);
-      const currentModel = await providerApi.getCurrentModel().catch(() => null); // best-effort: null handled as unknown context window
-      const llmMessages = ctx.session.conversationManager.getMessagesForLLM();
-      const readModels = requireReadModels(ctx);
-      const session = readModels.session.getSnapshot();
-      const mcp = readModels.mcp.getSnapshot();
-      const health = readModels.health.getSnapshot();
-      const marketplace = readModels.marketplace.getSnapshot();
-      const maintenance = evaluateSessionMaintenance({
-        configManager: ctx.platform.configManager,
-        currentTokens: estimateConversationTokens(llmMessages),
-        contextWindow: currentModel?.contextWindow ?? 0,
-        messageCount: llmMessages.length,
-        sessionMemoryCount: requireSessionMemoryStore(ctx).list().length,
-        session: session.session,
-      });
-      const contextual = evaluateContextualGuidance(ctx.platform.configManager, {
-        pendingApproval: session.pendingApproval,
-        denialCount: session.denialCount,
-        authRequiredMcpCount: mcp.servers.filter((server) => server.status === 'auth_required').length,
-        degradedProviderCount: health.providerProblems.length,
-        intelligenceUnavailable: false,
-        recommendations: marketplace.recommendations,
-      }, maintenance, guidanceOptions);
-
-      ctx.print([
-        `Guidance Review (${getGuidanceMode(ctx.platform.configManager)})`,
-        '',
-        ...formatGuidanceItems(contextual),
-        '',
-        ...formatSessionMaintenanceLines(maintenance, maintenance.guidanceMode === 'guided' ? 'guided' : 'minimal'),
-      ].join('\n'));
     },
   });
 }

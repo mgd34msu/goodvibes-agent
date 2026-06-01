@@ -220,19 +220,6 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
   });
 
   registry.register({
-    name: 'wq',
-    aliases: [':wq'],
-    description: 'Blocked in Agent; git commit/exit is owned by GoodVibes TUI',
-    handler(_args, ctx) {
-      ctx.print([
-        'Blocked: /wq is not available in GoodVibes Agent.',
-        'Git commit, worktree, and coding-session exit flows belong to GoodVibes TUI.',
-        'No files, commits, or repository state were changed.',
-      ].join('\n'));
-    },
-  });
-
-  registry.register({
     name: 'effort',
     aliases: ['e'],
     description: 'Show or set reasoning effort level',

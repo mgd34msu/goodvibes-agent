@@ -1,7 +1,7 @@
 import { dirname, join, resolve } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import type { CommandContext } from '../command-registry.ts';
-import { discoverSkills } from '../../panels/skills-panel.ts';
+import { discoverSkills } from '../../agent/skill-discovery.ts';
 import { getPluginDirectories } from '../../plugins/loader';
 import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import type { SetupReviewSnapshot } from './local-setup-transfer.ts';

@@ -4,7 +4,6 @@ import { writeFile } from 'node:fs/promises';
 import type { CommandRegistry } from '../command-registry.ts';
 import type { SelectionItem } from '../selection-modal.ts';
 import { exportToMarkdown } from '@pellux/goodvibes-sdk/platform/export';
-import { TemplateManager, parseTemplateArgs } from '@pellux/goodvibes-sdk/platform/templates';
 import { requireSessionManager, requireSessionMemoryStore, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
@@ -257,102 +256,6 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       const lines = ['Saved sessions:', ''];
       for (const s of sessions) lines.push(`  ${s.name.padEnd(30)} ${(s.title || '(untitled)').padEnd(24)} ${new Date(s.timestamp).toLocaleString()}  (${s.messageCount} msgs)`);
       ctx.print(lines.join('\n'));
-    },
-  });
-
-  registry.register({
-    name: 'template',
-    aliases: ['tmpl'],
-    description: 'Manage and use prompt templates',
-    usage: 'save <name> --yes | use <name> [args] | list | edit <name> | delete <name> --yes',
-    argsHint: '<save|use|list|edit|delete> [name]',
-    handler(args, ctx) {
-      const shellPaths = requireShellPaths(ctx);
-      const templateManager = new TemplateManager({
-        projectRoot: shellPaths.workingDirectory,
-        homeDirectory: shellPaths.homeDirectory,
-      });
-      const parsed = stripYesFlag(args);
-      const sub = parsed.rest[0];
-      const rest = parsed.rest.slice(1);
-      if (!sub || sub === 'list') {
-        const templates = templateManager.list();
-        if (ctx.openSelection) {
-          const actions = new Map([['e', 'edit' as const]]);
-          const items: SelectionItem[] = templates.length === 0
-            ? [{ id: '_empty', label: 'No templates saved', detail: 'Use /template save <name> --yes' }]
-            : templates.map(t => ({ id: t.name, label: t.name, detail: t.preview, category: t.scope === 'project' ? 'project' : 'global', actions: '[e] edit' }));
-          ctx.openSelection('Templates', items, { allowSearch: true, customActions: actions }, (result) => {
-            if (!result) return;
-            const content = templateManager.load(result.item.id);
-            if (content !== null) {
-              if (result.action === 'edit') ctx.print(`Template: ${result.item.id}\n\n${content}`);
-              else ctx.submitInput?.(content);
-            } else {
-              ctx.print(`Template not found: ${result.item.id}`);
-            }
-          });
-          return;
-        }
-        ctx.print(['Templates:', '', ...templates.map(t => `  ${t.scope === 'project' ? '[project]' : '[global] '} ${t.name.padEnd(28)} ${t.preview}`)].join('\n'));
-        return;
-      }
-      if (sub === 'save') {
-        const name = rest[0];
-        if (!name) {
-          ctx.print('Usage: /template save <name> --yes');
-          return;
-        }
-        if (!parsed.yes) {
-          requireYesFlag(ctx, `save prompt template ${name}`, '/template save <name> --yes');
-          return;
-        }
-        try {
-          templateManager.save(name, ctx.session.conversationManager.getLastUserMessage() || '# Template\n\nReplace this with your template content.\n');
-          ctx.print(`Template saved: ${name}`);
-        } catch (e) {
-          ctx.print(`Failed to save template: ${summarizeError(e)}`);
-        }
-        return;
-      }
-      if (sub === 'use') {
-        const name = rest[0];
-        if (!name) {
-          ctx.print('Usage: /template use <name> [args...]');
-          return;
-        }
-        const templateContent = templateManager.load(name);
-        if (templateContent === null) {
-          ctx.print(`Template not found: ${name}\nRun /template list to see available templates.`);
-          return;
-        }
-        ctx.submitInput?.(templateManager.expand(templateContent, parseTemplateArgs(rest.slice(1))));
-        return;
-      }
-      if (sub === 'edit') {
-        const name = rest[0];
-        if (!name) {
-          ctx.print('Usage: /template edit <name>');
-          return;
-        }
-        const content = templateManager.load(name);
-        ctx.print(content === null ? `Template not found: ${name}` : `Template: ${name}\n\n${content}`);
-        return;
-      }
-      if (sub === 'delete') {
-        const name = rest[0];
-        if (!name) {
-          ctx.print('Usage: /template delete <name> --yes');
-          return;
-        }
-        if (!parsed.yes) {
-          requireYesFlag(ctx, `delete prompt template ${name}`, '/template delete <name> --yes');
-          return;
-        }
-        ctx.print(templateManager.delete(name) ? `Template deleted: ${name}` : `Template not found: ${name}`);
-        return;
-      }
-      ctx.print(`Unknown subcommand: ${sub}\nUsage: /template save <name> --yes | use <name> | list | edit <name> | delete <name> --yes`);
     },
   });
 
