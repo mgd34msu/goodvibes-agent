@@ -148,7 +148,7 @@ function buildSettingContext(modal: SettingsModal, entry: SettingEntry): string[
   ];
 
   if (entry.locked) lines.push(`Locked: ${entry.lockReason ?? 'This setting is locked by a higher-priority layer.'}`);
-  if (entry.conflict) lines.push(`Conflict: resolve with /settingssync resolve ${entry.setting.key} local|synced.`);
+  if (entry.conflict) lines.push(`Conflict: inspect with /settings and resolve runtime-owned sync state in the external host.`);
 
   lines.push('', entry.setting.description);
 

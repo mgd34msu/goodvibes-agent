@@ -71,7 +71,7 @@ describe('renderHelpOverlay', () => {
 
   test('contains Quick Start section when featured commands are registered', () => {
     // Quick Start is built from the live registry: need at least one featured command.
-    const cmds: SlashCommand[] = [{ name: 'cockpit', description: 'Control room', handler: () => {} }];
+    const cmds: SlashCommand[] = [{ name: 'agent', description: 'Operator workspace', handler: () => {} }];
     const lines = renderHelpOverlay(W, KEYBINDINGS, cmds, 14, TALL_VIEWPORT);
     const texts = linesToText(lines).join('\n');
     expect(texts).toContain('Quick Start');
@@ -80,7 +80,7 @@ describe('renderHelpOverlay', () => {
   test('shows the onboarding wizard quick-start row when onboarding is registered', () => {
     const text = renderAllText([{ name: 'onboarding', description: 'Setup surfaces', handler: () => {} }]);
     expect(text).toContain('/onboarding');
-    expect(text).toContain('Open the onboarding wizard with current settings');
+    expect(text).toContain('Open Agent setup with current settings');
     expect(text).toContain('preloaded');
     expect(text).not.toContain('first-run checklist');
   });

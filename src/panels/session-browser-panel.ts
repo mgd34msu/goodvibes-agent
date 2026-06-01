@@ -266,7 +266,7 @@ export class SessionBrowserPanel extends BasePanel {
             ...formatReturnContextLines(selected.returnContext).map((line) =>
               buildPanelLine(width, [[' ', DEFAULT_PANEL_PALETTE.dim], [truncateDisplay(line, Math.max(0, width - 2)), DEFAULT_PANEL_PALETTE.dim]])
             ),
-            buildPanelLine(width, [[' Next ', DEFAULT_PANEL_PALETTE.label], [selected.returnContext?.remoteRunners?.length ? `/remote recover ${selected.returnContext.remoteRunners[0]}` : '/session resume', DEFAULT_PANEL_PALETTE.dim]]),
+            buildPanelLine(width, [[' Next ', DEFAULT_PANEL_PALETTE.label], ['/session resume', DEFAULT_PANEL_PALETTE.dim]]),
           ],
         }
       : { title: 'Selected', lines: [] };

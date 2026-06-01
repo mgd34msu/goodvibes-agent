@@ -1,6 +1,8 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { CommandRegistry } from '../input/command-registry.ts';
+import { registerBuiltinCommands } from '../input/commands.ts';
 
 export interface PackageCliBinVerification {
   readonly command: 'goodvibes-agent';
@@ -108,9 +110,38 @@ const PACKAGE_FACING_REQUIRED_TEXT: readonly {
   { path: 'docs/runtime-connection.md', required: ['/api/goodvibes-agent/knowledge'] },
   { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge'] },
 ];
+const NON_COMMAND_ROUTE_ROOTS = new Set(['api', 'status']);
 
 function readPackageJson(root: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')) as Record<string, unknown>;
+}
+
+function buildRegisteredSlashCommandNames(): ReadonlySet<string> {
+  const registry = new CommandRegistry();
+  registerBuiltinCommands(registry);
+  const names = new Set<string>();
+  for (const command of registry.list()) {
+    names.add(command.name);
+    for (const alias of command.aliases ?? []) names.add(alias);
+  }
+  return names;
+}
+
+function verifyPackageFacingSlashCommands(path: string, content: string, registeredCommands: ReadonlySet<string>): readonly string[] {
+  const failures: string[] = [];
+  const commandPattern = /(^|[\s`([])\/([a-z][a-z0-9_-]*)(?=$|[\s`.,;:)\]])/g;
+  const lines = content.split(/\r?\n/);
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex] ?? '';
+    commandPattern.lastIndex = 0;
+    for (let match = commandPattern.exec(line); match !== null; match = commandPattern.exec(line)) {
+      const root = match[2] ?? '';
+      if (NON_COMMAND_ROUTE_ROOTS.has(root)) continue;
+      if (registeredCommands.has(root)) continue;
+      failures.push(`package-facing text ${path}:${lineIndex + 1} references unknown Agent slash command: /${root}`);
+    }
+  }
+  return failures;
 }
 
 function hasExecutableBit(path: string): boolean {
@@ -146,6 +177,7 @@ function registryPackDryRun(root: string): { readonly files: readonly string[]; 
 
 export function verifyPackageFacingText(root: string): { readonly checkedPaths: readonly string[]; readonly failures: readonly string[] } {
   const failures: string[] = [];
+  const registeredCommands = buildRegisteredSlashCommandNames();
   for (const path of PACKAGE_FACING_TEXT_PATHS) {
     const absolutePath = join(root, path);
     if (!existsSync(absolutePath)) {
@@ -153,6 +185,9 @@ export function verifyPackageFacingText(root: string): { readonly checkedPaths: 
       continue;
     }
     const content = readFileSync(absolutePath, 'utf-8');
+    if (path !== 'CHANGELOG.md') {
+      failures.push(...verifyPackageFacingSlashCommands(path, content, registeredCommands));
+    }
     for (const forbidden of PACKAGE_FACING_FORBIDDEN_TEXT) {
       if (content.includes(forbidden)) {
         failures.push(`package-facing text ${path} contains forbidden default/TUI route or policy: ${forbidden}`);

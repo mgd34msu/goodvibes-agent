@@ -46,31 +46,32 @@ function renderText(commands: SlashCommand[]): string {
 }
 
 describe('renderHelpOverlay Quick Start sourced from live registry (β3)', () => {
-  test('shows the onboarding wizard row with its updated description', () => {
+  test('shows the onboarding wizard row with its Agent setup description', () => {
     const text = renderText([makeCmd('onboarding')]);
     expect(text).toContain('/onboarding');
-    expect(text).toContain('Open the onboarding wizard with current settings');
+    expect(text).toContain('Open Agent setup with current settings');
     expect(text).toContain('preloaded');
   });
 
-  test('shows /cockpit when cockpit is registered', () => {
-    const commands: SlashCommand[] = [makeCmd('cockpit'), makeCmd('setup')];
+  test('shows /agent when the Agent workspace command is registered', () => {
+    const commands: SlashCommand[] = [makeCmd('agent'), makeCmd('onboarding')];
     const text = renderText(commands);
-    expect(text).toContain('/cockpit');
+    expect(text).toContain('/agent');
+    expect(text).toContain('Open the Agent operator workspace');
   });
 
-  test('omits /cockpit when cockpit is not registered', () => {
-    // Only setup registered — cockpit missing from registry
-    const commands: SlashCommand[] = [makeCmd('setup'), makeCmd('settings')];
+  test('omits /agent when the Agent workspace command is not registered', () => {
+    const commands: SlashCommand[] = [makeCmd('onboarding'), makeCmd('settings')];
     const text = renderText(commands);
-    expect(text).not.toContain('/cockpit');
+    expect(text).not.toContain('/agent');
   });
 
   test('omits all featured commands when registry is empty', () => {
     const featuredNames = [
-      'setup', 'cockpit', 'settings', 'provider', 'subscription',
-      'marketplace', 'remote', 'sandbox', 'security', 'policy',
-      'incident', 'knowledge', 'hooks', 'orchestration', 'communication', 'tasks',
+      'agent', 'onboarding', 'knowledge', 'memory', 'personas',
+      'agent-skills', 'routines', 'workplan', 'approval', 'schedule',
+      'delegate', 'mcp', 'provider', 'subscription',
+      'secrets', 'health',
     ];
     const text = renderText([]);
     for (const name of featuredNames) {
@@ -79,14 +80,14 @@ describe('renderHelpOverlay Quick Start sourced from live registry (β3)', () =>
   });
 
   test('shows only registered subset of featured commands', () => {
-    const registered = ['settings', 'provider', 'hooks'];
+    const registered = ['agent', 'provider', 'knowledge'];
     const commands = registered.map(makeCmd);
     const text = renderText(commands);
-    expect(text).toContain('/settings');
+    expect(text).toContain('/agent');
     expect(text).toContain('/provider');
-    expect(text).toContain('/hooks');
-    expect(text).not.toContain('/cockpit');
-    expect(text).not.toContain('/security');
+    expect(text).toContain('/knowledge');
+    expect(text).not.toContain('/delegate');
+    expect(text).not.toContain('/routines');
   });
 
   test('shows available-commands section when commands are provided', () => {

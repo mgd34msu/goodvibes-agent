@@ -6,6 +6,8 @@ import { InputHandler } from '../../input/handler.ts';
 import { SelectionManager } from '../../input/selection.ts';
 import { DEFAULT_CONFIG } from '../../config/index.ts';
 import { getProviderIdFromModel } from '../../config/provider-model.ts';
+import { CommandRegistry } from '../../input/command-registry.ts';
+import { registerBuiltinCommands } from '../../input/commands.ts';
 import type { OnboardingApplyOperation, OnboardingSnapshotState } from '../../runtime/onboarding/index.ts';
 import { createDefaultUiRuntimeServices } from '../helpers/ui-services.ts';
 import { resetTestRuntimeServices } from '../helpers/runtime-services.ts';
@@ -171,6 +173,40 @@ function expectNoCopiedSetupOperations(operations: readonly OnboardingApplyOpera
   }
 }
 
+function collectOnboardingText(wizard: OnboardingWizardController): string {
+  return wizard.steps
+    .flatMap((step) => [
+      step.id,
+      step.title,
+      step.shortLabel,
+      step.description,
+      step.summaryTitle,
+      ...step.summaryLines,
+      ...step.fields.flatMap((field) => [
+        field.id,
+        field.label,
+        field.hint,
+        field.defaultValue,
+        ...(field.kind === 'radio' ? field.options.flatMap((option) => [option.id, option.label, option.hint]) : []),
+      ]),
+    ])
+    .join('\n');
+}
+
+function collectSlashCommandRoots(text: string): readonly string[] {
+  const roots = new Set<string>();
+  const commandPattern = /(^|[\s`([])\/([a-z][a-z0-9_-]*)(?=$|[\s`.,;:)\]])/g;
+  for (const line of text.split(/\r?\n/)) {
+    commandPattern.lastIndex = 0;
+    for (let match = commandPattern.exec(line); match !== null; match = commandPattern.exec(line)) {
+      const root = match[2] ?? '';
+      if (root === 'api') continue;
+      roots.add(root);
+    }
+  }
+  return [...roots].sort();
+}
+
 describe('OnboardingWizardController', () => {
   test('uses Agent-specific onboarding screens instead of copied service setup screens', () => {
     const wizard = new OnboardingWizardController();
@@ -268,22 +304,7 @@ describe('OnboardingWizardController', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
 
-    const text = wizard.steps
-      .flatMap((step) => [
-        step.id,
-        step.title,
-        step.shortLabel,
-        step.description,
-        step.summaryTitle,
-        ...step.summaryLines,
-        ...step.fields.flatMap((field) => [
-          field.id,
-          field.label,
-          field.hint,
-          ...(field.kind === 'radio' ? field.options.flatMap((option) => [option.id, option.label, option.hint]) : []),
-        ]),
-      ])
-      .join('\n');
+    const text = collectOnboardingText(wizard);
 
     expect(text).not.toContain('external-services');
     expect(text).not.toContain('Slack');
@@ -297,6 +318,18 @@ describe('OnboardingWizardController', () => {
     expect(text).not.toContain('network setup');
   });
 
+  test('onboarding slash-command guidance resolves through the Agent command registry', () => {
+    const wizard = new OnboardingWizardController();
+    wizard.open('new');
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+
+    const missingRoots = collectSlashCommandRoots(collectOnboardingText(wizard))
+      .filter((root) => registry.get(root) === undefined);
+
+    expect(missingRoots).toEqual([]);
+  });
+
   test('onboards day-one personal operator tools without runtime ownership', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
@@ -308,21 +341,7 @@ describe('OnboardingWizardController', () => {
     expect(byId.get('agent-voice-media')?.summaryLines).toContain('Voice and speech: optional operator tools');
     expect(byId.get('agent-setup')?.summaryLines).toContain('Optional starter profile: create an isolated Agent home from setup.');
 
-    const text = wizard.steps
-      .flatMap((step) => [
-        step.id,
-        step.title,
-        step.description,
-        ...step.summaryLines,
-        ...step.fields.flatMap((field) => [
-          field.id,
-          field.label,
-          field.hint,
-          field.defaultValue,
-          ...(field.kind === 'radio' ? field.options.flatMap((option) => [option.id, option.label, option.hint]) : []),
-        ]),
-      ])
-      .join('\n');
+    const text = collectOnboardingText(wizard);
 
     expect(text).toContain('companion clients');
     expect(text).toContain('MCP servers');

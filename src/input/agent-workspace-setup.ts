@@ -40,7 +40,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       label: 'GoodVibes runtime',
       status: 'ready',
       detail: `Agent will connect to ${input.daemonBaseUrl}; runtime ownership stays outside this product.`,
-      command: '/status',
+      command: '/health',
     },
     {
       id: 'provider-model',

@@ -202,7 +202,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
               ...needingAttention.map((server) => (
                 `  ${server.name}  connected=${server.connected ? 'yes' : 'no'}  freshness=${server.schemaFreshness}  trust=${server.trustMode}`
               )),
-              '  next: /services auth-review',
+              '  next: /auth review',
               '  next: /mcp repair <server>',
             ].join('\n')
           : 'MCP Auth Review\n  No MCP servers currently need auth or quarantine recovery.');
@@ -223,7 +223,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
           selected.schemaFreshness === 'quarantined'
             ? `/mcp quarantine ${selected.name} approve operator --yes`
             : null,
-          !selected.connected ? '/services auth-review' : null,
+          !selected.connected ? '/auth review' : null,
           '/mcp review',
           '/health review',
         ].filter((entry): entry is string => entry !== null);

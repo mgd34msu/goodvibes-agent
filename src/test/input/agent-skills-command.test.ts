@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerAgentSkillsRuntimeCommands } from '../../input/commands/agent-skills-runtime.ts';
-import { registerSkillsRuntimeCommands } from '../../input/commands/skills-runtime.ts';
+import { registerBuiltinCommands } from '../../input/commands.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
 function commandHarness(): {
@@ -95,10 +95,10 @@ describe('/agent-skills command', () => {
     expect(text).toContain('- approvals: Approvals');
   });
 
-  test('/skills local routes to Agent-local skills', async () => {
+  test('/skills local routes to Agent-local skills through the Agent command registry', async () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skill-local-alias-'));
     const registry = new CommandRegistry();
-    registerSkillsRuntimeCommands(registry);
+    registerBuiltinCommands(registry);
     const out: string[] = [];
     const ctx = {
       print: (text: string) => out.push(text),
@@ -107,6 +107,7 @@ describe('/agent-skills command', () => {
       },
     } as unknown as CommandContext;
 
+    expect(registry.get('skills')?.name).toBe('agent-skills');
     await registry.execute('skills', ['local', 'create', '--name', 'Prep', '--description', 'Prepare context.', '--procedure', 'Read current state first.'], ctx);
     await registry.execute('skills', ['local', 'list'], ctx);
 

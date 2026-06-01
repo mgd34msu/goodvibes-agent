@@ -1,11 +1,27 @@
 import { describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { CommandRegistry } from '../../input/command-registry.ts';
+import { registerBuiltinCommands } from '../../input/commands.ts';
 
 const ROOT = join(import.meta.dir, '../../..');
 
 function readRepoFile(path: string): string {
   return readFileSync(join(ROOT, path), 'utf-8');
+}
+
+function collectSlashCommandRoots(text: string): readonly string[] {
+  const roots = new Set<string>();
+  const commandPattern = /(^|[\s`([])\/([a-z][a-z0-9_-]*)(?=$|[\s`.,;:)\]])/g;
+  for (const line of text.split(/\r?\n/)) {
+    commandPattern.lastIndex = 0;
+    for (let match = commandPattern.exec(line); match !== null; match = commandPattern.exec(line)) {
+      const root = match[2] ?? '';
+      if (root === 'api') continue;
+      roots.add(root);
+    }
+  }
+  return [...roots].sort();
 }
 
 describe('Agent boundary docs', () => {
@@ -60,5 +76,14 @@ describe('Agent boundary docs', () => {
     expect(coordinatorSource).not.toContain('Knowledge space:');
     expect(combined).not.toContain('TUI-owned');
     expect(combined).not.toContain('non-Agent product setup');
+  });
+
+  test('tools command guide only names registered slash commands', () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const missingRoots = collectSlashCommandRoots(readRepoFile('docs/tools-and-commands.md'))
+      .filter((root) => registry.get(root) === undefined);
+
+    expect(missingRoots).toEqual([]);
   });
 });

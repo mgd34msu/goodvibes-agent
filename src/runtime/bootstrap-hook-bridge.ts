@@ -74,7 +74,7 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
           options.conversation.log(`Resume: Reopened panels: ${reopenedPanels.join(', ')}`, { fg: '244' });
         }
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
-          options.conversation.log(`Resume: Remote re-entry -> /remote recover ${meta.returnContext.remoteRunners![0]}`, { fg: '244' });
+          options.conversation.log('Resume: Remote re-entry belongs to the external runtime host; delegate explicit build/fix/review recovery from Agent.', { fg: '244' });
         }
         if (returnContextMode === 'assisted') {
           const helperModel = new HelperModel({

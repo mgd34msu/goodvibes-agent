@@ -76,13 +76,13 @@ export function evaluateSessionMaintenance(input: PanelSessionMaintenanceInput):
     level = 'needs-repair';
     summary = `Compact now to recover context headroom (${usagePct}% used).`;
     reasons.push(`Context pressure is high at ${usagePct}% usage.`);
-    nextSteps.push('/compact', '/panel tokens');
+    nextSteps.push('/compact', '/context');
     compactRecommended = true;
   } else if (usagePct >= thresholdPct || remainingTokens <= 15_000) {
     level = 'suggest-compact';
     summary = `Watch context growth (${usagePct}% used).`;
     reasons.push(`Context pressure is climbing at ${usagePct}% usage.`);
-    nextSteps.push('/panel tokens');
+    nextSteps.push('/context');
     compactRecommended = true;
   } else if (usagePct >= 70 || staleByMessageGrowth) {
     level = 'watch';
@@ -92,7 +92,7 @@ export function evaluateSessionMaintenance(input: PanelSessionMaintenanceInput):
     reasons.push(staleByMessageGrowth
       ? `Conversation has grown ${messageCount.toLocaleString()} messages since the last maintenance checkpoint.`
       : `Context usage is climbing toward the ${thresholdPct}% maintenance threshold.`);
-    nextSteps.push('/panel tokens');
+    nextSteps.push('/context');
   } else {
     reasons.push('Context pressure is currently within the stable operating band.');
   }

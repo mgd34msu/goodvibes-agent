@@ -17,7 +17,8 @@ GoodVibes Agent is an operator assistant TUI. Its command set is centered on mai
 High-signal Agent command families:
 
 - `/help` for registry-driven command discovery.
-- `/status`, `/auth`, and `/compat` for runtime/auth/SDK diagnostics.
+- `/health` and `/auth` for runtime/auth/SDK diagnostics inside the TUI.
+- `goodvibes-agent status` and `goodvibes-agent compat` for CLI diagnostics.
 - `/model` and `/provider` for provider/model selection and visibility.
 - `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, and ingest.
 - `goodvibes-agent ask <question>` and `goodvibes-agent search <query>` are CLI shortcuts for the same isolated Agent Knowledge routes.
@@ -25,7 +26,8 @@ High-signal Agent command families:
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
 - `/approvals` for pending approval visibility and explicit approval actions.
-- `/automation` and `/schedule` for automation visibility plus narrow explicit-user-action flows.
+- `/schedule` for schedule visibility plus narrow explicit-user-action flows.
+- `goodvibes-agent automation ...` for CLI automation views and explicit confirmed automation actions.
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
 

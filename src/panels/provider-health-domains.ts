@@ -55,8 +55,8 @@ export function buildProviderHealthDomainSummaries(
       auth.bootstrapCredentialPresent ? 'Runtime bootstrap cleanup must be done from the runtime-owning TUI or host tooling.' : '',
     ].filter(Boolean),
     nextSteps: auth.bootstrapCredentialPresent
-      ? ['/auth review', '/providers', '/subscription providers']
-      : ['/auth review', '/providers'],
+      ? ['/auth review', '/provider', '/subscription providers']
+      : ['/auth review', '/provider'],
   });
 
   const settingIssueCount = settings.conflictCount + settings.recentFailureCount + (settings.hasStagedManagedBundle ? 1 : 0);
@@ -68,7 +68,7 @@ export function buildProviderHealthDomainSummaries(
       : settingIssueCount > 0
         ? `${settings.conflictCount} conflicts / ${settings.recentFailureCount} failures${settings.hasStagedManagedBundle ? ' / staged bundle' : ''}`
         : 'settings runtime API clean',
-    next: settingIssueCount > 0 ? '/settingssync panel' : '/settingssync show <key>',
+    next: settingIssueCount > 0 ? '/settings' : '/config <key>',
     details: [
       settings.conflictCount > 0 ? `${settings.conflictCount} unresolved import conflict(s)` : '',
       settings.recentFailureCount > 0 ? `${settings.recentFailureCount} recent sync or managed failure(s)` : '',
@@ -76,8 +76,8 @@ export function buildProviderHealthDomainSummaries(
       settings.managedLockCount > 0 ? `${settings.managedLockCount} managed lock(s) enforced` : '',
     ].filter(Boolean),
     nextSteps: settingIssueCount > 0
-      ? ['/settingssync panel', '/settingssync show <key>', '/managed staged']
-      : ['/settingssync show <key>'],
+      ? ['/settings', '/config <key>', '/health settings']
+      : ['/config <key>'],
   });
 
   summaries.push({
@@ -86,7 +86,7 @@ export function buildProviderHealthDomainSummaries(
     summary: remote.supervisor.sessions.length === 0
       ? 'no remote sessions tracked'
       : `${remote.supervisor.sessions.length} sessions / ${remote.supervisor.degradedConnections} degraded`,
-    next: remote.supervisor.degradedConnections > 0 ? '/remote recover <workerId>' : '/remote supervisor',
+    next: remote.supervisor.degradedConnections > 0 ? '/delegate <build/fix/review task>' : '/health remote',
     details: remote.supervisor.sessions.length === 0
       ? ['no remote sessions have been attached yet']
       : remote.supervisor.sessions
@@ -99,8 +99,8 @@ export function buildProviderHealthDomainSummaries(
           .slice(0, 3)
           .map((entry) => `${entry.runnerId}: transport=${entry.transportState} heartbeat=${entry.heartbeat.status}${entry.lastError ? ` error=${entry.lastError}` : ''}`),
     nextSteps: remote.supervisor.degradedConnections > 0
-      ? ['/remote supervisor', '/remote recover <workerId>', '/remote support']
-      : ['/remote supervisor'],
+      ? ['/delegate <build/fix/review task>', '/health remote']
+      : ['/health remote'],
   });
 
   const degradedServers = security.mcpServers.filter((server) =>
@@ -141,7 +141,7 @@ export function buildProviderHealthDomainSummaries(
         ? 'warn'
         : 'good',
     summary: maintenance.summary,
-    next: maintenance.nextSteps[0] ?? '/guidance review',
+    next: maintenance.nextSteps[0] ?? '/health maintenance',
     details: maintenance.reasons.slice(0, 3),
     nextSteps: maintenance.nextSteps,
   });

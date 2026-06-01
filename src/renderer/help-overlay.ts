@@ -69,21 +69,23 @@ export function renderHelpOverlay(
   // Each entry is [commandName, subcommandOrArgHint, description].
   // Commands not registered in the live registry are omitted at render time.
   const FEATURED_COMMANDS: Array<[name: string, argHint: string, desc: string]> = [
-    ['onboarding',   '',           'Open the onboarding wizard with current settings preloaded'],
-    ['cockpit',      '',           'Unified runtime control room'],
-    ['settings',     '',           'Settings and config browser'],
+    ['agent',        '',           'Open the Agent operator workspace'],
+    ['onboarding',   '',           'Open Agent setup with current settings preloaded'],
+    ['knowledge',    'status',     'Inspect isolated Agent Knowledge readiness'],
+    ['memory',       '',           'Manage local Agent memory records'],
+    ['personas',     '',           'Manage serial Agent operating personas'],
+    ['agent-skills', '',           'Manage local Agent skills and bundles'],
+    ['routines',     '',           'Manage reusable main-conversation routines'],
+    ['workplan',     '',           'Inspect shared work-plan state'],
+    ['approval',     '',           'Review and explicitly act on approvals'],
+    ['schedule',     '',           'Inspect schedules and routine promotion receipts'],
+    ['delegate',     '',           'Explicitly hand build/fix/review work to GoodVibes TUI'],
+    ['mcp',          '',           'Inspect MCP servers and tool readiness'],
     ['provider',     '',           'Choose provider or model family'],
+    ['model',        '',           'Select the active model route'],
     ['subscription', '',           'Review provider logins and subscriptions'],
-    ['marketplace',  'open',       'Browse plugins, skills, and packs'],
-    ['remote',       'setup',      'Review remote, bridge, and tunnel flows'],
-    ['security',     '',           'Security review workspace'],
-    ['policy',       '',           'Simulation, lint, and preflight review'],
-    ['incident',     '',           'Incident workspace and export flows'],
-    ['knowledge',    '',           'Durable knowledge and review queue'],
-    ['hooks',        '',           'Hook workbench and runtime activity'],
-    ['orchestration','',           'Graph and recursive-agent control room'],
-    ['communication','',           'Structured agent communication workspace'],
-    ['tasks',        '',           'Read-only task view for list/show/pause/resume/output'],
+    ['secrets',      '',           'Manage secret references without printing values'],
+    ['health',       '',           'Run Agent runtime and setup diagnostics'],
   ];
 
   // Build command rows from featured list, filtering out unregistered commands.
@@ -115,7 +117,29 @@ export function renderHelpOverlay(
 
   if (commands && commands.length > 0) {
     commandRows.push('', '  Available Slash Commands', '  ' + '\u2500'.repeat(40));
-    const preferred = ['setup', 'cockpit', 'settings', 'provider', 'subscription', 'marketplace', 'remote', 'security', 'policy', 'incident', 'knowledge', 'hooks', 'orchestration', 'communication', 'tasks'];
+    const preferred = [
+      'agent',
+      'onboarding',
+      'knowledge',
+      'memory',
+      'personas',
+      'agent-skills',
+      'routines',
+      'workplan',
+      'approval',
+      'schedule',
+      'delegate',
+      'mcp',
+      'provider',
+      'model',
+      'subscription',
+      'secrets',
+      'health',
+      'settings',
+      'security',
+      'policy',
+      'tasks',
+    ];
     const seen = new Set<string>();
     for (const name of preferred) {
       const cmd = commands.find((entry) => entry.name === name);

@@ -238,6 +238,10 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
 
 export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
   const sub = (args[0] ?? 'list').toLowerCase();
+  if (sub === 'local' || sub === 'agent') {
+    await runAgentSkillsRuntimeCommand(args.slice(1), ctx);
+    return;
+  }
   const skillRegistry = registryFromContext(ctx);
   try {
     if (sub === 'bundle' || sub === 'bundles') {
@@ -356,7 +360,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
 export function registerAgentSkillsRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'agent-skills',
-    aliases: ['askills', 'local-skills'],
+    aliases: ['askills', 'local-skills', 'skills', 'skill'],
     description: 'Manage local GoodVibes Agent skills',
     usage: '[list|enabled|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps>|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
     handler: runAgentSkillsRuntimeCommand,

@@ -103,9 +103,9 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           `  recent failures: ${settings.recentFailureCount}`,
           `  staged bundle: ${settings.hasStagedManagedBundle ? 'present' : 'none'}`,
           ...(issues.length > 0 ? issues.map((issue) => `  issue: ${issue}`) : ['  no active settings-control issues detected']),
-          '  next: /settingssync panel',
-          '  next: /settingssync show <key>',
-          '  next: /managed staged',
+          '  next: /settings',
+          '  next: /config <key>',
+          '  next: /health repair settings',
         ].join('\n'));
         return;
       }
@@ -131,8 +131,8 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           `  active connections: ${snapshot.activeConnections}`,
           `  degraded: ${snapshot.degradedConnections}`,
           ...(issues.length > 0 ? issues.map((issue) => `  issue: ${issue}`) : ['  no active remote recovery issues detected']),
-          '  next: /remote supervisor',
-          '  next: /remote recover <runnerId>',
+          '  next: /delegate <build/fix/review task> for explicit TUI build work',
+          '  next: use the external runtime host for remote worker repair',
         ].join('\n'));
         return;
       }
@@ -217,14 +217,14 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  domain: settings');
           lines.push(...(
             settings.conflicts.length > 0
-              ? ['  /settingssync panel', '  /settingssync show <key>', '  /managed staged']
+              ? ['  /settings', '  /config <key>', '  runtime-owned managed setting repair stays external']
               : ['  no active settings repair actions suggested']
           ));
           lines.push('  verify: /health settings');
         } else if (domain === 'auth') {
           lines.push('  domain: auth');
           lines.push('  /auth review');
-          lines.push('  /providers');
+          lines.push('  /provider');
           lines.push('  /subscription providers');
           lines.push('  runtime auth users/bootstrap cleanup: use the runtime-owning GoodVibes TUI or host tooling');
           lines.push('  verify: /health auth');
@@ -237,15 +237,13 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  verify: /health accounts');
         } else if (domain === 'services') {
           lines.push('  domain: services');
-          lines.push('  /services doctor');
-          lines.push('  /services auth-review');
           lines.push('  /health services');
+          lines.push('  runtime service repair belongs to the external GoodVibes runtime host');
           lines.push('  verify: /health services');
         } else if (domain === 'remote') {
           lines.push('  domain: remote');
-          lines.push('  /remote supervisor');
-          lines.push('  /remote recover <runnerId>');
-          lines.push('  /remote setup');
+          lines.push('  /delegate <build/fix/review task> for explicit TUI build work');
+          lines.push('  remote runner setup and recovery belong to the external runtime host');
           lines.push('  verify: /health remote');
         } else if (domain === 'mcp') {
           lines.push('  domain: mcp');
@@ -262,9 +260,8 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         } else if (domain === 'maintenance') {
           lines.push('  domain: maintenance');
           lines.push('  /health maintenance');
-          lines.push('  /guidance review');
+          lines.push('  /mode');
           lines.push('  /compact');
-          lines.push('  /panel tokens');
           lines.push('  verify: /health maintenance');
         } else {
           lines.push('  domains: settings, auth, accounts, services, remote, mcp, continuity, maintenance');
@@ -329,7 +326,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         '  /health remote',
         '  /health maintenance',
         '  /health repair <domain>',
-        '  /setup onboarding',
+        '  /onboarding',
       ].join('\n'));
     },
   });

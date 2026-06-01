@@ -88,7 +88,7 @@ export class AutomationControlPanel extends ScrollableListPanel<AutomationRun> {
   protected override getEmptyStateActions(): Array<{ command: string; summary: string }> {
     return [
       { command: '/schedule list', summary: 'inspect jobs and run history without mutating schedules' },
-      { command: '/automation jobs', summary: 'review runtime-owned automation jobs from Agent' },
+      { command: '/schedule receipts', summary: 'review Agent routine promotion receipts' },
     ];
   }
 

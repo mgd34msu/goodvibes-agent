@@ -32,7 +32,6 @@ const hiddenCopiedBreadthCommands = [
   'setup',
   'settingssync',
   'share',
-  'skills',
   'storage',
   'team-memory',
   'teleport',

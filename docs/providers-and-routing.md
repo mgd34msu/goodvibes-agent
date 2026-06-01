@@ -7,7 +7,7 @@ GoodVibes Agent uses the provider/model configuration exposed by the external Go
 Provider and model state should be visible in:
 
 - the shell footer/status rows;
-- `/status`;
+- `/health` in the TUI and `goodvibes-agent status` in the CLI;
 - `/model` and `/provider`;
 - the Agent operator workspace setup checklist;
 - the TTS configuration workspace when spoken turns are used.
