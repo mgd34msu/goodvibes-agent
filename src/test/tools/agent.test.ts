@@ -1116,7 +1116,7 @@ describe('spawn mode', () => {
     installAgentToolPolicyGuard(registry);
 
     const stateDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'state');
-    expect(stateDefinition?.description).toContain('Inspect copied runtime state');
+    expect(stateDefinition?.description).toContain('Inspect runtime-owned state');
     const properties = stateDefinition?.parameters.properties as Record<string, unknown>;
     const modeProperty = getRecordProperty(properties, 'mode');
     expect(modeProperty?.enum).toEqual([...AGENT_READ_ONLY_STATE_TOOL_MODES]);

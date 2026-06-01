@@ -31,7 +31,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   storage: 'Local storage posture, including secret storage policy and maximum artifact size for Agent Knowledge, artifacts, and document ingestion.',
   permissions: 'Permission mode and tool-class policy. These settings decide whether the shell prompts before read/write/exec/network/agent actions.',
   orchestration: 'Agent orchestration limits and recursion controls.',
-  wrfc: 'WRFC is external to normal Agent operation. Review these copied compatibility values only for explicit GoodVibes TUI build delegation.',
+  wrfc: 'WRFC is external to normal Agent operation. Review these runtime compatibility values only for explicit GoodVibes TUI build delegation.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
   service: 'External runtime installation posture. Agent shows these compatibility keys for inspection only and does not install, start, stop, restart, or autostart anything.',

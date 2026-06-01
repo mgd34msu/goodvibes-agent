@@ -321,7 +321,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   tasks: {
     usage: ['tasks list', 'tasks show <taskId>'],
-    summary: 'Inspect in-process runtime tasks. Agent blocks copied task submission; use run for one-shot work or delegate for explicit build/fix/review handoff.',
+    summary: 'Inspect in-process runtime tasks. Agent blocks runtime-owned task submission; use run for one-shot work or delegate for explicit build/fix/review handoff.',
     examples: ['tasks list', 'tasks show task-123', 'run "check provider readiness"', 'delegate "fix the failing tests"'],
   },
   bundle: {

@@ -16,7 +16,7 @@ When a selected model is provider-qualified, Agent keeps the runtime provider ro
 
 ## Local Provider Definitions
 
-Agent-owned provider definitions live under the Agent profile root when supported by the copied GoodVibes provider registry:
+Agent-owned provider definitions live under the Agent profile root when supported by the shared GoodVibes provider registry:
 
 ```text
 ~/.goodvibes/agent/providers/*.json

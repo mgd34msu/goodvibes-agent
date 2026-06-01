@@ -279,7 +279,7 @@ export async function handleTasks(runtime: CliCommandRuntime): Promise<string> {
   const [sub = 'list', ...rest] = runtime.cli.commandArgs;
   if (sub === 'submit') {
     return [
-      'GoodVibes Agent blocks CLI task submission from the copied task workflow.',
+      'GoodVibes Agent blocks CLI task submission from the runtime-owned task workflow.',
       '  policy: do normal assistant work in the main Agent conversation or use `goodvibes-agent run <prompt>` for an explicit one-shot run.',
       '  build/fix/review: use `goodvibes-agent delegate <task>` for explicit GoodVibes TUI handoff.',
       '  result: no local task was started.',

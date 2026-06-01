@@ -553,8 +553,8 @@ export async function bootstrapRuntime(
   };
 
   // ── Phase 12b: Operator intervention wiring (feature-gated) ──────────────
-  // Keep the copied control-plane state internal. GoodVibes Agent does not
-  // expose the copied local ops-control panel; operator control is surfaced
+  // Keep runtime-owned control-plane state internal. GoodVibes Agent does not
+  // expose the local ops-control panel; operator control is surfaced
   // through Agent-owned status, approvals, automation, and delegation flows.
   ctx.commandContext.ops.acpManager = acpManager;
 

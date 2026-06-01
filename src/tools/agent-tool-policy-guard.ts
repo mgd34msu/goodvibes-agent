@@ -166,8 +166,8 @@ const FETCH_NETWORK_MUTATION_DENIAL = [
 ].join(' ');
 
 const STATE_MUTATION_DENIAL = [
-  'GoodVibes Agent only inspects copied runtime state from the main conversation.',
-  'Arbitrary state set/clear, copied memory writes, hook mutation, output-mode mutation, and analytics writes are disabled here.',
+  'GoodVibes Agent only inspects runtime-owned state from the main conversation.',
+  'Arbitrary state set/clear, runtime-owned memory writes, hook mutation, output-mode mutation, and analytics writes are disabled here.',
   'Use Agent-owned memory, skills, personas, routines, and explicit CLI/slash commands for intentional local state changes.',
 ].join(' ');
 
@@ -184,13 +184,13 @@ const INSPECT_WRITE_DENIAL = [
 ].join(' ');
 
 const DURABLE_WORKFLOW_MUTATION_DENIAL = [
-  'GoodVibes Agent only inspects copied durable workflow tools from the main conversation.',
+  'GoodVibes Agent only inspects runtime-owned durable workflow tools from the main conversation.',
   'Task, team, worklist, packet, and query creation or lifecycle mutation is disabled here.',
   'Use explicit Agent CLI/slash commands or GoodVibes TUI delegation for intentional workflow changes.',
 ].join(' ');
 
 const CONTROL_MUTATION_DENIAL = [
-  'GoodVibes Agent only inspects copied product-control surfaces from the main conversation.',
+  'GoodVibes Agent only inspects runtime-owned product-control surfaces from the main conversation.',
   'Product-control mutation, daemon lifecycle, and service posture changes are disabled here.',
   'Use explicit Agent CLI/slash commands for Agent-owned changes, and keep daemon lifecycle external.',
 ].join(' ');
@@ -290,7 +290,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_QUERY_TOOL_MODES,
         modeSet: READ_ONLY_QUERY_TOOL_MODE_SET,
-        description: 'Read-only operator query inspection for GoodVibes Agent. Asking, answering, and closing copied workflow queries are disabled in the main conversation.',
+        description: 'Read-only operator query inspection for GoodVibes Agent. Asking, answering, and closing runtime-owned workflow queries are disabled in the main conversation.',
         denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
         removedProperties: ['prompt', 'askedBy', 'target', 'answer', 'resolution'],
       });
@@ -701,8 +701,8 @@ function narrowFetchToolDefinitionForAgentPolicy(tool: Tool): void {
 
 function narrowStateToolDefinitionForAgentPolicy(tool: Tool): void {
   tool.definition.description = [
-    'Inspect copied runtime state for GoodVibes Agent.',
-    'State mutation, copied memory writes, hook changes, output-mode changes, and analytics writes are disabled in the main conversation.',
+    'Inspect runtime-owned state for GoodVibes Agent.',
+    'State mutation, runtime-owned memory writes, hook changes, output-mode changes, and analytics writes are disabled in the main conversation.',
     'Use Agent-owned commands for intentional memory, skill, persona, and routine changes.',
   ].join(' ');
 
@@ -711,7 +711,7 @@ function narrowStateToolDefinitionForAgentPolicy(tool: Tool): void {
   const modeProperty = properties.mode;
   if (isRecord(modeProperty)) {
     modeProperty.enum = [...READ_ONLY_STATE_TOOL_MODES];
-    modeProperty.description = 'Read-only copied runtime state mode. set and clear are disabled in GoodVibes Agent.';
+    modeProperty.description = 'Read-only runtime-owned state mode. set and clear are disabled in GoodVibes Agent.';
   }
 
   delete properties.values;
@@ -727,7 +727,7 @@ function narrowStateToolDefinitionForAgentPolicy(tool: Tool): void {
   delete properties.analyticsTokens;
   delete properties.analyticsFormat;
 
-  narrowStringEnumProperty(properties, 'memoryAction', READ_ONLY_STATE_MEMORY_ACTIONS, 'Read-only copied memory actions allowed by GoodVibes Agent.');
+  narrowStringEnumProperty(properties, 'memoryAction', READ_ONLY_STATE_MEMORY_ACTIONS, 'Read-only runtime-owned memory actions allowed by GoodVibes Agent.');
   narrowStringEnumProperty(properties, 'hookAction', READ_ONLY_STATE_HOOK_ACTIONS, 'Read-only hook action allowed by GoodVibes Agent.');
   narrowStringEnumProperty(properties, 'modeAction', READ_ONLY_STATE_MODE_ACTIONS, 'Read-only mode actions allowed by GoodVibes Agent.');
   narrowStringEnumProperty(properties, 'analyticsAction', READ_ONLY_STATE_ANALYTICS_ACTIONS, 'Read-only analytics actions allowed by GoodVibes Agent.');
