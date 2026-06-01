@@ -61,9 +61,9 @@ export interface CliServicePosture {
 }
 
 const ENDPOINTS: readonly { readonly id: RuntimeEndpointId; readonly label: string; readonly enabledKey: string }[] = [
-  { id: 'controlPlane', label: 'runtime API', enabledKey: 'controlPlane.enabled' },
-  { id: 'httpListener', label: 'incoming webhook listener', enabledKey: 'danger.httpListener' },
-  { id: 'web', label: 'browser companion', enabledKey: 'web.enabled' },
+  { id: 'controlPlane', label: 'runtime connection', enabledKey: 'controlPlane.enabled' },
+  { id: 'httpListener', label: 'inbound events endpoint', enabledKey: 'danger.httpListener' },
+  { id: 'web', label: 'browser companion route', enabledKey: 'web.enabled' },
 ];
 
 interface CliServicePostureOptions {
@@ -184,7 +184,7 @@ export async function buildCliServicePosture(
   const issues: string[] = [];
 
   if (serverBackedEnabled && !config.enabled) {
-    issues.push('External runtime endpoints are configured, but Agent runtime ownership is disabled by design.');
+    issues.push('External runtime connection settings are present, but Agent runtime lifecycle ownership is disabled by design.');
   }
   if (config.enabled && !config.autostart) {
     issues.push('External runtime host config has autostart off.');
@@ -229,16 +229,17 @@ function yesNo(value: boolean): string {
 export function formatCliServicePosture(posture: CliServicePosture, json = false): string {
   if (json) return JSON.stringify(posture, null, 2);
   return [
-    'GoodVibes external runtime diagnostics',
+    'GoodVibes Agent runtime connection diagnostics',
     '  ownership: managed outside goodvibes-agent',
-    `  host config enabled: ${yesNo(posture.config.enabled)}`,
-    `  autostart config: ${yesNo(posture.config.autostart)}`,
-    `  restartOnFailure config: ${yesNo(posture.config.restartOnFailure)}`,
-    `  runtime host flag: ${yesNo(posture.config.daemonEnabled)}`,
+    '  Agent owns lifecycle: no',
+    `  external host config present: ${yesNo(posture.config.enabled)}`,
+    `  external host autostart config: ${yesNo(posture.config.autostart)}`,
+    `  external host restart config: ${yesNo(posture.config.restartOnFailure)}`,
+    `  legacy host switch present: ${yesNo(posture.config.daemonEnabled)}`,
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),
     '',
-    'Runtime endpoints:',
+    'Runtime connection checks:',
     ...posture.endpoints.map((endpoint) =>
       `  ${endpoint.label}: enabled=${yesNo(endpoint.enabled)} ${endpoint.binding.hostMode} ${endpoint.binding.host}:${endpoint.binding.port} posture=${endpoint.bindPosture.label}${endpoint.reachable === undefined ? '' : ` reachable=${yesNo(endpoint.reachable)}`}`,
     ),

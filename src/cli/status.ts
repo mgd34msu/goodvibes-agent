@@ -113,9 +113,9 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
   const marker = options.onboardingMarkers?.effective;
   const serverBackedEnabled = daemonEnabled || controlPlaneEnabled || listenerEnabled || webEnabled;
   const networkFacingSurfaces = [
-    ['runtime API', controlPlaneEnabled, controlPlaneBinding],
-    ['incoming webhook listener', listenerEnabled, httpListenerBinding],
-    ['browser companion', webEnabled, webBinding],
+    ['runtime connection', controlPlaneEnabled, controlPlaneBinding],
+    ['inbound events endpoint', listenerEnabled, httpListenerBinding],
+    ['browser companion route', webEnabled, webBinding],
   ].filter(([, enabled, binding]) => isNetworkFacing(enabled, binding as typeof controlPlaneBinding));
 
   const findings: CliDoctorFinding[] = [];
@@ -173,8 +173,8 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'runtime-ownership-external',
       area: 'runtime',
       severity: 'warning',
-      summary: 'External runtime endpoints are configured while Agent runtime ownership is disabled by design.',
-      cause: 'One or more runtime API, listener, or web settings are enabled while service.enabled is false.',
+      summary: 'External runtime connection settings are present while Agent lifecycle ownership is disabled by design.',
+      cause: 'One or more runtime connection, inbound events, or browser companion settings are enabled while service.enabled is false.',
       impact: 'The external GoodVibes runtime must own availability for those endpoints; Agent will not start or enable them.',
       action: 'Manage runtime availability from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
     });
@@ -284,10 +284,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'network-http-listener-enabled',
       area: 'network',
       severity: 'warning',
-      summary: 'The incoming webhook listener is reachable beyond loopback.',
-      cause: `Incoming webhook listener is enabled on ${httpListenerBinding.host}:${httpListenerBinding.port} with ${httpListenerBinding.hostMode} binding.`,
+      summary: 'The inbound events endpoint is reachable beyond loopback.',
+      cause: `Inbound events endpoint is enabled on ${httpListenerBinding.host}:${httpListenerBinding.port} with ${httpListenerBinding.hostMode} binding.`,
       impact: 'External tools and devices may be able to reach incoming event endpoints.',
-      action: 'Keep listener secrets/signature checks configured for every enabled webhook endpoint.',
+      action: 'Keep inbound-event secrets/signature checks configured for every enabled endpoint.',
     });
   }
 

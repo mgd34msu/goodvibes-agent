@@ -45,10 +45,13 @@ describe('CLI service posture', () => {
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(posture.managed.suggestedCommands).toEqual([]);
     expect(posture.issues).not.toContain('External runtime host config is enabled, but no platform service definition is installed.');
-    expect(text).toContain('GoodVibes external runtime diagnostics');
+    expect(text).toContain('GoodVibes Agent runtime connection diagnostics');
     expect(text).toContain('ownership: managed outside goodvibes-agent');
+    expect(text).toContain('Agent owns lifecycle: no');
+    expect(text).toContain('legacy host switch present: no');
     expect(text).not.toContain(`goodvibes-${'daemon'}`);
     expect(text).not.toContain('systemctl');
+    expect(text).not.toContain('runtime host flag');
   });
 
   test('probe mode reports enabled endpoint reachability without lifecycle mutations', async () => {
@@ -69,7 +72,7 @@ describe('CLI service posture', () => {
     );
 
     expect(posture.endpoints.find((endpoint) => endpoint.id === 'controlPlane')?.reachable).toBe(false);
-    expect(posture.issues).toContain('runtime API is enabled but not reachable on 127.0.0.1:1.');
+    expect(posture.issues).toContain('runtime connection is enabled but not reachable on 127.0.0.1:1.');
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
   });
 
@@ -109,6 +112,6 @@ describe('CLI service posture', () => {
     expect(parsed.managed.path).toBe('external GoodVibes runtime host');
     expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
-    expect(parsed.issues).toContain('External runtime endpoints are configured, but Agent runtime ownership is disabled by design.');
+    expect(parsed.issues).toContain('External runtime connection settings are present, but Agent runtime lifecycle ownership is disabled by design.');
   });
 });

@@ -116,7 +116,7 @@ describe('CLI status and doctor output', () => {
     }));
     const text = findings.map((finding) => `${finding.summary}\n${finding.action}`).join('\n');
 
-    expect(text).toContain('Agent runtime ownership is disabled');
+    expect(text).toContain('Agent lifecycle ownership is disabled');
     expect(text).toContain('GoodVibes TUI or the owning host');
     expect(text).not.toContain('Enable service mode');
     expect(text).not.toContain('Enable service.autostart');
