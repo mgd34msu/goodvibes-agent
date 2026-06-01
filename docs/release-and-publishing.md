@@ -34,7 +34,9 @@ bun pm pack --dry-run
 git diff --check
 ```
 
-`bun run publish:package` publishes from a staged package directory to the package registry. If `NPM_CONFIG_USERCONFIG` is already set, the registry publish command uses it. Otherwise the script creates a temporary 0600 registry userconfig from `NODE_AUTH_TOKEN` or `NPM_TOKEN`, uses it for that publish command, and removes it with the staging directory.
+`bun run publish:package` publishes from a staged package directory to the package registry. If `NPM_CONFIG_USERCONFIG` is already set, the registry publish command uses it. Otherwise the script creates a temporary 0600 registry userconfig from `NODE_AUTH_TOKEN` or `NPM_TOKEN`, uses it for that publish command, and removes it with the staging directory. The publish script is idempotent for reruns: if the exact package version is already present on the registry, it reports that state and exits successfully instead of failing the release retry.
+
+The GitHub release workflow publishes to npm only when the repository variable `PUBLISH_NPM` is `true` and the repository secret `NPM_TOKEN` is configured. Without those repository settings, the workflow still validates and creates the GitHub release, but npm publish must be run from a local environment with an exported token.
 
 Also run the package install smoke from a packed artifact. It must prove:
 

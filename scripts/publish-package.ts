@@ -3,6 +3,7 @@ import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, write
 import { dirname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { buildNpmPublishAuthEnv } from './npm-auth.ts';
+import { getPublishedNpmVersion } from './npm-publish-state.ts';
 import { syncProjectSurfaces } from './project-surfaces.ts';
 import { withWorkspaceLock } from './workspace-lock.ts';
 
@@ -69,14 +70,39 @@ try {
       writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
     }
 
-    const args = dryRun
-      ? ['pack', '--json']
-      : ['publish', '--access', 'public', '--registry', registry];
     const publishAuth = buildNpmPublishAuthEnv({
       env: process.env,
       registry,
       tempRoot,
     });
+
+    const stagedPackage = JSON.parse(readFileSync(join(stageDir, 'package.json'), 'utf8')) as {
+      readonly name?: unknown;
+      readonly version?: unknown;
+    };
+
+    if (typeof stagedPackage.name !== 'string' || typeof stagedPackage.version !== 'string') {
+      throw new Error('staged package.json is missing string name/version fields');
+    }
+
+    if (!dryRun) {
+      const publishedVersion = getPublishedNpmVersion({
+        name: stagedPackage.name,
+        version: stagedPackage.version,
+        registry,
+        cwd: stageDir,
+        env: publishAuth.env,
+      });
+
+      if (publishedVersion === stagedPackage.version) {
+        console.log(`${stagedPackage.name}@${stagedPackage.version} is already published; skipping npm publish.`);
+        return;
+      }
+    }
+
+    const args = dryRun
+      ? ['pack', '--json']
+      : ['publish', '--access', 'public', '--registry', registry];
 
     execFileSync('npm', args, {
       cwd: stageDir,
