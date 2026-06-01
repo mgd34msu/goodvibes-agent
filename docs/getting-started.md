@@ -18,6 +18,7 @@ goodvibes-agent --help
 goodvibes-agent status
 goodvibes-agent personas list
 goodvibes-agent skills list
+goodvibes-agent memory list
 ```
 
 If the installed command is not found, add Bun's global bin directory to `PATH`:
@@ -55,6 +56,7 @@ The local behavior libraries are also available from the installed CLI:
 ```sh
 goodvibes-agent personas create --name "Research Analyst" --description "Source-backed research" --body "Check sources and call out uncertainty" --use
 goodvibes-agent skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, routines, and Agent Knowledge before summarizing" --enabled
+goodvibes-agent memory add fact "Prefers concise morning briefings" --scope project --tags preference
 goodvibes-agent routines list
 ```
 
@@ -79,9 +81,9 @@ goodvibes-agent --agent-profile household
 
 Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate the external GoodVibes runtime by themselves.
 
-## Local Personas, Routines, And Skills
+## Local Memory, Personas, Routines, And Skills
 
-Personas, routines, and reusable Agent skills are local to GoodVibes Agent. They do not write into default Knowledge/Wiki or non-Agent knowledge segments.
+Memory, personas, routines, and reusable Agent skills are local to GoodVibes Agent. They do not write into default Knowledge/Wiki or non-Agent knowledge segments.
 
 ```text
 /personas list
@@ -93,9 +95,11 @@ Personas, routines, and reusable Agent skills are local to GoodVibes Agent. They
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
 /agent-skills enabled
 /skills local list
+/recall add fact Prefers concise morning briefings --scope project --tags preference
+/recall search morning
 ```
 
-The active persona plus enabled Agent routines and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or non-Agent knowledge segments.
+The active persona plus enabled Agent routines, reviewed memory, and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or non-Agent knowledge segments.
 
 ## External Runtime
 

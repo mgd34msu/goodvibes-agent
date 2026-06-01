@@ -341,7 +341,8 @@ export interface RuntimeServices {
   readonly fileUndoManager: FileUndoManager;
   readonly integrationHelpers: IntegrationHelperService;
   /**
-   * Re-root path-bound stores (MemoryStore, ProjectIndex) to a new working directory.
+   * Re-root workspace-bound stores to a new working directory.
+   * Agent memory is home/profile-owned and intentionally does not move on workspace swap.
    * Called by WorkspaceSwapManager after the new directory has been verified.
    * Stores that require a process restart emit a warn-level log; they continue serving
    * the old path until the daemon restarts with the new --working-dir.
@@ -472,7 +473,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const artifactStore = new ArtifactStore({ configManager });
   const memoryEmbeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
-  const memoryDbPath = join(workingDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'memory.sqlite');
+  const memoryDbPath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'memory.sqlite');
   const memoryStore = new MemoryStore(memoryDbPath, {
     embeddingRegistry: memoryEmbeddingRegistry,
   });
@@ -733,8 +734,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     fileUndoManager,
     integrationHelpers,
     async rerootStores(newWorkingDir: string): Promise<void> {
-      const newMemoryDbPath = join(newWorkingDir, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'memory.sqlite');
-      await memoryStore.reroot(newMemoryDbPath);
       await projectIndex.reroot(newWorkingDir);
     },
   };

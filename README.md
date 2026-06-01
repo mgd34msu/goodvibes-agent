@@ -18,6 +18,7 @@ goodvibes-agent status
 goodvibes-agent profiles templates
 goodvibes-agent personas list
 goodvibes-agent skills list
+goodvibes-agent memory list
 goodvibes-agent knowledge status
 goodvibes-agent knowledge list --kind sources
 goodvibes-agent knowledge import-urls ./agent-sources.txt --yes
@@ -65,6 +66,7 @@ goodvibes-agent profiles templates
 goodvibes-agent profiles create household --template household --yes
 goodvibes-agent personas create --name "Travel Planner" --description "Plan trips" --body "Compare options before booking" --use
 goodvibes-agent skills create --name "Daily Brief" --description "Summarize operator state" --procedure "Review Agent Knowledge, work plans, approvals, and routines" --enabled
+goodvibes-agent memory add fact "Prefers concise morning briefings" --scope project --tags preference
 goodvibes-agent profiles templates export research ./research-starter.json --yes
 goodvibes-agent profiles templates import ./research-starter.json --yes
 goodvibes-agent --agent-profile household status
@@ -73,7 +75,7 @@ GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
 
 Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The GoodVibes runtime is still external and shared unless the owning host is separately configured otherwise.
 
-The same local behavior libraries are available without opening the TUI: `goodvibes-agent personas ...`, `goodvibes-agent skills ...`, and `goodvibes-agent routines ...` list, create, review, enable, stale, and delete local Agent records with explicit confirmation for destructive actions.
+The same local behavior libraries are available without opening the TUI: `goodvibes-agent personas ...`, `goodvibes-agent skills ...`, `goodvibes-agent memory ...`, and `goodvibes-agent routines ...` list, create, review, enable, stale, export/import where relevant, and delete local Agent records with explicit confirmation for destructive actions.
 
 Local Agent behavior is editable from the TUI:
 
@@ -87,6 +89,8 @@ Local Agent behavior is editable from the TUI:
 /schedule reconcile
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
 /skills local list
+/recall add fact Prefers concise morning briefings --scope project --tags preference
+/recall search morning
 ```
 
 Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promotion to an external schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live external schedules through public `schedules.list`.
