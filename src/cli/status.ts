@@ -392,11 +392,12 @@ export function renderCliStatus(options: CliStatusOptions): string {
       '  live check: unavailable',
     ]),
     '',
-    'External Runtime Ownership:',
-    `  owner: external GoodVibes runtime host`,
-    `  hostConfigEnabled: ${yesNo(serviceEnabled)}`,
-    `  hostAutostart: ${yesNo(serviceAutostart)}`,
-    `  hostRestartOnFailure: ${yesNo(restartOnFailure)}`,
+    'Runtime Ownership:',
+    '  Agent hosting: external only',
+    `  Agent starts runtime: no`,
+    `  legacy host config present: ${yesNo(serviceEnabled)}`,
+    `  legacy host autostart: ${yesNo(serviceAutostart)}`,
+    `  legacy host restart policy: ${yesNo(restartOnFailure)}`,
     ...(options.service ? [
       `  platform: ${options.service.managed.platform}`,
       `  installed: ${yesNo(options.service.managed.installed)}`,
@@ -405,7 +406,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
       `  log: ${options.service.log.path ?? 'n/a'} (${options.service.log.exists ? 'present' : 'missing'})`,
     ] : []),
     '',
-    'Runtime Endpoints:',
+    'Runtime Endpoint Diagnostics:',
     bindLine('runtimeApi', controlPlaneEnabled, controlPlaneBinding),
     bindLine('incomingWebhook', listenerEnabled, httpListenerBinding),
     bindLine('browserCompanion', webEnabled, webBinding),
@@ -438,7 +439,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
 export function renderOnboardingCliStatus(options: CliStatusOptions): string {
   const marker = options.onboardingMarkers?.effective;
   return [
-    'GoodVibes onboarding status',
+    'GoodVibes Agent onboarding status',
     `  checked: ${marker?.exists ? 'yes' : 'no'}`,
     `  scope: ${marker?.scope ?? 'none'}`,
     `  source: ${marker?.payload?.source ?? 'n/a'}`,

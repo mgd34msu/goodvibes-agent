@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildCliDoctorFindings, renderCliStatus } from '../../cli/status.ts';
+import { buildCliDoctorFindings, renderCliStatus, renderOnboardingCliStatus } from '../../cli/status.ts';
 import type { CliStatusOptions } from '../../cli/status.ts';
 import type { CliExternalRuntimeSnapshot } from '../../cli/external-runtime.ts';
 
@@ -131,8 +131,19 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('reachable: yes (HTTP 200)');
     expect(text).toContain('sdk: 0.33.35 expected 0.33.35');
     expect(text).toContain('Agent Knowledge: ready');
-    expect(text).toContain('External Runtime Ownership:');
-    expect(text).toContain('owner: external GoodVibes runtime host');
+    expect(text).toContain('Runtime Ownership:');
+    expect(text).toContain('Agent hosting: external only');
+    expect(text).toContain('Agent starts runtime: no');
+    expect(text).not.toContain('hostConfigEnabled');
+    expect(text).not.toContain('hostAutostart');
+    expect(text).not.toContain('hostRestartOnFailure');
+  });
+
+  test('onboarding status is Agent-branded', () => {
+    const text = renderOnboardingCliStatus(makeOptions());
+
+    expect(text).toContain('GoodVibes Agent onboarding status');
+    expect(text).not.toContain('GoodVibes onboarding status');
   });
 
   test('doctor warns when live external runtime or Agent Knowledge is unavailable without suggesting fallback wiki use', () => {
