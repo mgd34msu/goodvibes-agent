@@ -814,6 +814,40 @@ describe('AgentWorkspace', () => {
     expect(JSON.stringify(snapshot.channels)).not.toContain('DISCORD_BOT_TOKEN');
   });
 
+  test('channels command prints read-only readiness without secret values', async () => {
+    const printed: string[] = [];
+    const configValues = new Map<string, unknown>([
+      ['surfaces.slack.enabled', true],
+      ['surfaces.slack.botToken', 'goodvibes://secrets/goodvibes/SLACK_BOT_TOKEN'],
+      ['surfaces.slack.signingSecret', 'goodvibes://secrets/goodvibes/SLACK_SIGNING_SECRET'],
+      ['surfaces.slack.defaultChannel', '#ops'],
+      ['surfaces.telegram.enabled', true],
+      ['surfaces.telegram.botToken', 'goodvibes://secrets/goodvibes/TELEGRAM_BOT_TOKEN'],
+    ]);
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+
+    await registry.execute('channels', [], {
+      ...commandContext(),
+      print: (text: string) => printed.push(text),
+      platform: {
+        configManager: {
+          get: (key: string) => configValues.get(key),
+        },
+      },
+    } as unknown as CommandContext);
+
+    const output = printed.join('\n');
+    expect(output).toContain('Channel Readiness');
+    expect(output).toContain('ready: 2/13');
+    expect(output).toContain('Slack: ready ready=yes delivery=default-ready risk=group');
+    expect(output).toContain('Telegram: needs-target ready=yes delivery=explicit-target risk=dm');
+    expect(output).toContain('policy: read-only inspection');
+    expect(output).toContain('sends require explicit user action');
+    expect(output).not.toContain('SLACK_BOT_TOKEN');
+    expect(output).not.toContain('TELEGRAM_BOT_TOKEN');
+  });
+
   test('builds a first-run setup checklist from live Agent state', () => {
     const configValues = new Map<string, unknown>([
       ['controlPlane.host', '127.0.0.1'],

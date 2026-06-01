@@ -122,6 +122,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/agent-skills', label: '/agent-skills', detail: 'Create, review, and enable reusable Agent skills', category: 'Agent Operator' },
           { id: '/routines', label: '/routines', detail: 'Create, review, start, and promote Agent routines explicitly', category: 'Agent Operator' },
           { id: '/delegate', label: '/delegate [task]', detail: 'Explicit build/fix/review handoff to GoodVibes TUI', category: 'Agent Operator' },
+          { id: '/channels', label: '/channels', detail: 'Inspect messaging-channel readiness without sending messages', category: 'Agent Operator' },
           { id: '/pair', label: '/pair', detail: 'Pair companion clients through the GoodVibes runtime', category: 'Agent Operator' },
           { id: '/model', label: '/model [id]', detail: 'Select LLM model', category: 'Model & Provider' },
           { id: '/provider', label: '/provider [name]', detail: 'Switch provider', category: 'Model & Provider' },
@@ -170,7 +171,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Use /help to open the help modal. Commands: /agent, /knowledge, /memory, /personas, /agent-skills, /routines, /delegate, /model, /provider, /config, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
+      ctx.print('Use /help to open the help modal. Commands: /agent, /knowledge, /memory, /personas, /agent-skills, /routines, /channels, /delegate, /model, /provider, /config, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
     },
   });
 

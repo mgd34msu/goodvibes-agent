@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## Unreleased
+
+- Add an in-TUI `/channels` readiness command and workspace action for read-only channel setup review without sending messages or exposing token values.
+
 ## 0.1.107 - 2026-06-01
 
 - Add `goodvibes-agent launch` and `goodvibes-agent start` as explicit aliases for starting the Agent TUI.

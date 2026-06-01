@@ -99,6 +99,7 @@ Local Agent behavior is editable from the TUI:
 /schedule promote-routine evening-review --cron "0 17 * * 1-5" --timezone America/Chicago --delivery-channel slack --yes
 /schedule receipts
 /schedule reconcile
+/channels
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
 /skills local list
 /recall add fact Prefers concise morning briefings --scope project --tags preference
@@ -106,6 +107,8 @@ Local Agent behavior is editable from the TUI:
 ```
 
 Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promotion to an external schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live external schedules through public `schedules.list`.
+
+Use `/channels` inside the TUI for a read-only channel readiness matrix. It shows enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values.
 
 ## Runtime Prerequisite
 

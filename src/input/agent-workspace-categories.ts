@@ -49,6 +49,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent uses externally managed channels. Pairing, account inspection, and readiness checks are visible here; inbound delivery and public channel exposure stay policy-gated.',
     actions: [
       { id: 'pair', label: 'Pair companion', detail: 'Open the QR pairing view for companion app setup.', command: '/pair', kind: 'command', safety: 'safe' },
+      { id: 'channel-readiness', label: 'Channel readiness', detail: 'Show a read-only readiness matrix for configured messaging and notification channels.', command: '/channels', kind: 'command', safety: 'read-only' },
       { id: 'notification-routes', label: 'Notification routes', detail: 'Inspect configured webhook notification URLs without sending a test message.', command: '/notify list', kind: 'command', safety: 'read-only' },
       { id: 'setup-review', label: 'Health review', detail: 'Review setup posture without starting inbound endpoints or mutating channel state.', command: '/health review', kind: 'command', safety: 'read-only' },
       { id: 'channel-safety', label: 'Delivery safety', detail: 'External messages, channel DMs, and public delivery targets require explicit user action and runtime policy. Agent will not silently send or expose channels from this workspace.', kind: 'guidance', safety: 'blocked' },

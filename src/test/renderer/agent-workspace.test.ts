@@ -506,6 +506,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Channels');
     expect(output).toContain('Pair companion');
     expect(output).toContain('/pair');
+    expect(output).toContain('Channel readiness');
+    expect(output).toContain('/channels');
     expect(output).toContain('/notify list');
     expect(output).toContain('/health review');
     expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and runtime');
