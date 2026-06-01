@@ -263,10 +263,10 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Voice & Media');
     expect(output).toContain('Voice providers: 2; streaming TTS: 1; STT: 2; realtime: 1.');
-    expect(output).toContain('Voice surface: enabled');
+    expect(output).toContain('Voice interaction: enabled');
     expect(output).toContain('TTS config: provider elevenlabs; voice voice-operator; response model openai-subscriber/gpt-5.5.');
     expect(output).toContain('Media providers: 2; understanding: 1; generation: 1.');
-    expect(output).toContain('Browser tools: available; public base URL https://agent.example.test.');
+    expect(output).toContain('Browser companion: available; public base URL https://agent.example.test.');
     expect(output).toContain('/config tts');
     expect(output).toContain('/image <path> <prompt>');
     expect(output).toContain('/mcp servers');

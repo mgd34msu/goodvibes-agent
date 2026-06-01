@@ -79,7 +79,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
   protected override getEmptyStateActions() {
     return [
       { command: '/subscription login openai start --yes', summary: 'start the first-class OpenAI subscription flow' },
-      { command: '/login provider <name> start --yes', summary: 'use the front-door auth surface for supported providers' },
+      { command: '/login provider <name> start --yes', summary: 'use the front-door auth flow for supported providers' },
       { command: '/services auth-review', summary: 'inspect configured service auth posture and stored secrets' },
     ];
   }
@@ -205,7 +205,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
         intro,
         sections: [{ lines: [...summaryLines, ...emptyLines] }],
         footerLines: [
-          buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start browser-based provider login from the packaged subscription surface', C),
+          buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start browser-based provider login from the packaged subscription flow', C),
           buildPanelLine(width, [['  Up/Down move  Enter/X sign out selected provider  r refresh', C.dim]]),
         ],
         palette: C,
@@ -255,7 +255,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
       header: headerLines,
       footer: [
         ...detailRows,
-        buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start browser-based provider login from the packaged subscription surface', C),
+        buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start browser-based provider login from the packaged subscription flow', C),
         buildPanelLine(width, [['  Up/Down move  Enter/X sign out selected provider  r refresh', C.dim]]),
       ],
     });

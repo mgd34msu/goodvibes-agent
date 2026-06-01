@@ -28,7 +28,7 @@ export interface CliAuthStatus {
 
 export interface CliDoctorFinding {
   readonly id: string;
-  readonly area: 'auth' | 'network' | 'onboarding' | 'security' | 'service' | 'secrets';
+  readonly area: 'auth' | 'network' | 'onboarding' | 'runtime' | 'security' | 'secrets';
   readonly severity: 'warning' | 'risk';
   readonly summary: string;
   readonly cause: string;
@@ -52,13 +52,13 @@ export interface CliStatusSnapshot {
     readonly secretPolicyLabel: string;
     readonly localUsers: CliAuthStatus | null;
   };
-  readonly service: {
+  readonly runtimeConnection: {
     readonly enabled: unknown;
     readonly autostart: unknown;
     readonly restartOnFailure: unknown;
     readonly lifecycle?: CliServicePosture;
   };
-  readonly surfaces: {
+  readonly runtimeEndpoints: {
     readonly controlPlane: ReturnType<typeof resolveRuntimeEndpointBinding> & { readonly enabled: unknown };
     readonly httpListener: ReturnType<typeof resolveRuntimeEndpointBinding> & { readonly enabled: unknown };
     readonly web: ReturnType<typeof resolveRuntimeEndpointBinding> & { readonly enabled: unknown };
@@ -111,30 +111,30 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
   const serverBackedEnabled = daemonEnabled || controlPlaneEnabled || listenerEnabled || webEnabled;
   const networkFacingSurfaces = [
     ['runtime API', controlPlaneEnabled, controlPlaneBinding],
-    ['HTTP listener', listenerEnabled, httpListenerBinding],
-    ['web surface', webEnabled, webBinding],
+    ['incoming webhook listener', listenerEnabled, httpListenerBinding],
+    ['browser companion', webEnabled, webBinding],
   ].filter(([, enabled, binding]) => isNetworkFacing(enabled, binding as typeof controlPlaneBinding));
 
   const findings: CliDoctorFinding[] = [];
 
   if (serverBackedEnabled && !serviceEnabled) {
     findings.push({
-      id: 'service-disabled-for-server-surfaces',
-      area: 'service',
+      id: 'runtime-ownership-external',
+      area: 'runtime',
       severity: 'warning',
-      summary: 'Host-owned surfaces are configured while Agent service ownership is disabled.',
+      summary: 'External runtime endpoints are configured while Agent runtime ownership is disabled by design.',
       cause: 'One or more runtime API, listener, or web settings are enabled while service.enabled is false.',
-      impact: 'The external GoodVibes runtime must own availability for those surfaces; Agent will not start or enable them.',
-      action: 'Manage surface/service posture from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
+      impact: 'The external GoodVibes runtime must own availability for those endpoints; Agent will not start or enable them.',
+      action: 'Manage runtime availability from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
     });
   }
 
   if (serviceEnabled && !serviceAutostart) {
     findings.push({
-      id: 'service-autostart-disabled',
-      area: 'service',
+      id: 'runtime-autostart-disabled',
+      area: 'runtime',
       severity: 'warning',
-      summary: 'External runtime service config has autostart off.',
+      summary: 'External runtime host config has autostart off.',
       cause: 'service.enabled is true and service.autostart is false.',
       impact: 'The external GoodVibes runtime may not be available after login or reboot even though host-managed startup is selected.',
       action: 'Configure autostart from GoodVibes TUI or the owning host; Agent will not mutate this setting.',
@@ -143,10 +143,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
 
   if (serviceEnabled && !restartOnFailure) {
     findings.push({
-      id: 'service-restart-disabled',
-      area: 'service',
+      id: 'runtime-restart-disabled',
+      area: 'runtime',
       severity: 'warning',
-      summary: 'External runtime service config has restart-on-failure off.',
+      summary: 'External runtime host config has restart-on-failure off.',
       cause: 'service.enabled is true and service.restartOnFailure is false.',
       impact: 'A crashed runtime or listener may stay down until manually restarted.',
       action: 'Configure restart-on-failure from GoodVibes TUI or the owning host; Agent will not mutate this setting.',
@@ -157,11 +157,11 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
     for (const issue of options.service.issues) {
       if (findings.some((finding) => finding.summary === issue)) continue;
       findings.push({
-        id: `service-lifecycle-${findings.length}`,
-        area: 'service',
+        id: `runtime-connection-${findings.length}`,
+        area: 'runtime',
         severity: 'warning',
         summary: issue,
-        cause: 'The service lifecycle inspection found a mismatch between configured service/surface state and observed host state.',
+        cause: 'The runtime connection inspection found a mismatch between configured endpoint state and observed host state.',
         impact: 'Runtime API, listener, or web availability may not match the configuration.',
         action: 'Use Agent status and doctor diagnostics here, then manage the runtime from GoodVibes TUI or your host tooling.',
       });
@@ -175,17 +175,17 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       severity: 'warning',
       summary: 'Onboarding has not been shown for this user.',
       cause: 'No global user onboarding check marker was found.',
-      impact: 'Important service, network, provider, auth, or permission choices may still be implicit defaults.',
+      impact: 'Important runtime, network, provider, auth, or permission choices may still be implicit defaults.',
       action: 'Run /onboarding in GoodVibes Agent or goodvibes-agent onboarding status to review setup state.',
     });
   }
 
   if (networkFacingSurfaces.length > 0 && options.auth?.userStorePresent !== true) {
     findings.push({
-      id: 'network-surface-without-local-users',
+      id: 'network-endpoint-without-local-users',
       area: 'auth',
       severity: 'risk',
-      summary: 'Network-facing surfaces are enabled before local users are configured.',
+      summary: 'Network-facing runtime endpoints are enabled before local users are configured.',
       cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but no local auth user store was found.`,
       impact: 'Remote access paths may be unusable or unsafe until local admin auth is configured.',
       action: 'Create/verify a local admin user before exposing GoodVibes on the network.',
@@ -194,7 +194,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
 
   if (networkFacingSurfaces.length > 0 && options.auth?.bootstrapCredentialPresent === true) {
     findings.push({
-      id: 'network-surface-with-bootstrap-credential',
+      id: 'network-endpoint-with-bootstrap-credential',
       area: 'auth',
       severity: 'risk',
       summary: 'A bootstrap credential is still present while network-facing surfaces are enabled.',
@@ -223,7 +223,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       severity: 'risk',
       summary: 'Plaintext secret storage is allowed.',
       cause: 'storage.secretPolicy is plaintext_allowed.',
-      impact: 'Provider keys and surface tokens may be stored without secure backend protection.',
+      impact: 'Provider keys and channel tokens may be stored without secure backend protection.',
       action: 'Use Require secure storage or Use secure storage when available for normal operation.',
     });
   }
@@ -233,10 +233,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'network-http-listener-enabled',
       area: 'network',
       severity: 'warning',
-      summary: 'The HTTP listener is reachable beyond loopback.',
-      cause: `HTTP listener is enabled on ${httpListenerBinding.host}:${httpListenerBinding.port} with ${httpListenerBinding.hostMode} binding.`,
+      summary: 'The incoming webhook listener is reachable beyond loopback.',
+      cause: `Incoming webhook listener is enabled on ${httpListenerBinding.host}:${httpListenerBinding.port} with ${httpListenerBinding.hostMode} binding.`,
       impact: 'External tools and devices may be able to reach incoming event endpoints.',
-      action: 'Keep listener secrets/signature checks configured for every enabled webhook surface.',
+      action: 'Keep listener secrets/signature checks configured for every enabled webhook endpoint.',
     });
   }
 
@@ -266,13 +266,13 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
       secretPolicyLabel: secretPolicyLabel(config.get('storage.secretPolicy')),
       localUsers: options.auth ?? null,
     },
-    service: {
+    runtimeConnection: {
       enabled: config.get('service.enabled'),
       autostart: config.get('service.autostart'),
       restartOnFailure: config.get('service.restartOnFailure'),
       ...(options.service ? { lifecycle: options.service } : {}),
     },
-    surfaces: {
+    runtimeEndpoints: {
       controlPlane: { enabled: config.get('controlPlane.enabled'), ...controlPlaneBinding },
       httpListener: { enabled: config.get('danger.httpListener'), ...httpListenerBinding },
       web: { enabled: config.get('web.enabled'), ...webBinding },
@@ -289,15 +289,15 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
 export function renderCliStatus(options: CliStatusOptions): string {
   const config = options.configManager;
   const snapshot = buildCliStatusSnapshot(options);
-  const serviceEnabled = snapshot.service.enabled;
-  const serviceAutostart = snapshot.service.autostart;
-  const restartOnFailure = snapshot.service.restartOnFailure;
-  const controlPlaneEnabled = snapshot.surfaces.controlPlane.enabled;
-  const listenerEnabled = snapshot.surfaces.httpListener.enabled;
-  const webEnabled = snapshot.surfaces.web.enabled;
-  const controlPlaneBinding = snapshot.surfaces.controlPlane;
-  const httpListenerBinding = snapshot.surfaces.httpListener;
-  const webBinding = snapshot.surfaces.web;
+  const serviceEnabled = snapshot.runtimeConnection.enabled;
+  const serviceAutostart = snapshot.runtimeConnection.autostart;
+  const restartOnFailure = snapshot.runtimeConnection.restartOnFailure;
+  const controlPlaneEnabled = snapshot.runtimeEndpoints.controlPlane.enabled;
+  const listenerEnabled = snapshot.runtimeEndpoints.httpListener.enabled;
+  const webEnabled = snapshot.runtimeEndpoints.web.enabled;
+  const controlPlaneBinding = snapshot.runtimeEndpoints.controlPlane;
+  const httpListenerBinding = snapshot.runtimeEndpoints.httpListener;
+  const webBinding = snapshot.runtimeEndpoints.web;
   const marker = options.onboardingMarkers?.effective;
   const findings = snapshot.findings;
 
@@ -326,10 +326,10 @@ export function renderCliStatus(options: CliStatusOptions): string {
       ? `  operatorTokens: ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
       : '  operatorTokens: unknown',
     '',
-    'External Runtime Service:',
-    `  enabled: ${yesNo(serviceEnabled)}`,
-    `  autostart: ${yesNo(serviceAutostart)}`,
-    `  restartOnFailure: ${yesNo(restartOnFailure)}`,
+    'External Runtime Connection:',
+    `  hostConfigEnabled: ${yesNo(serviceEnabled)}`,
+    `  hostAutostart: ${yesNo(serviceAutostart)}`,
+    `  hostRestartOnFailure: ${yesNo(restartOnFailure)}`,
     ...(options.service ? [
       `  platform: ${options.service.managed.platform}`,
       `  installed: ${yesNo(options.service.managed.installed)}`,
@@ -339,9 +339,9 @@ export function renderCliStatus(options: CliStatusOptions): string {
     ] : []),
     '',
     'Runtime Endpoints:',
-    bindLine('controlPlane', controlPlaneEnabled, controlPlaneBinding),
-    bindLine('httpListener', listenerEnabled, httpListenerBinding),
-    bindLine('web', webEnabled, webBinding),
+    bindLine('runtimeApi', controlPlaneEnabled, controlPlaneBinding),
+    bindLine('incomingWebhook', listenerEnabled, httpListenerBinding),
+    bindLine('browserCompanion', webEnabled, webBinding),
     '',
     'Onboarding:',
     `  checked: ${marker?.exists ? 'yes' : 'no'}`,

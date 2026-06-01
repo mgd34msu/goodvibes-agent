@@ -192,10 +192,10 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'voice-media') {
     base.push(
       { text: `Voice providers: ${snapshot.voiceProviderCount}; streaming TTS: ${snapshot.voiceStreamingProviderCount}; STT: ${snapshot.voiceSttProviderCount}; realtime: ${snapshot.voiceRealtimeProviderCount}.`, fg: PALETTE.info },
-      { text: `Voice surface: ${snapshot.voiceSurfaceEnabled ? 'enabled' : 'disabled'}; use /voice review for portable voice posture.`, fg: snapshot.voiceSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: `Voice interaction: ${snapshot.voiceSurfaceEnabled ? 'enabled' : 'disabled'}; use /voice review for portable voice posture.`, fg: snapshot.voiceSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
       { text: `TTS config: provider ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}; response model ${snapshot.ttsResponseModel}.`, fg: PALETTE.info },
       { text: `Media providers: ${snapshot.mediaProviderCount}; understanding: ${snapshot.mediaUnderstandingProviderCount}; generation: ${snapshot.mediaGenerationProviderCount}.`, fg: PALETTE.info },
-      { text: `Browser tools: ${snapshot.browserSurfaceEnabled ? 'available' : 'not advertised'}; public base URL ${snapshot.browserSurfacePublicBaseUrl}.`, fg: snapshot.browserSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: `Browser companion: ${snapshot.browserSurfaceEnabled ? 'available' : 'not advertised'}; public base URL ${snapshot.browserSurfacePublicBaseUrl}.`, fg: snapshot.browserSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
       { text: 'Build dispatch stays out of setup; explicit delegation is handled from the Build Delegation workspace.', fg: PALETTE.good },
       { text: 'Image input uses prompt attachments; media generation/provider setup stays behind explicit commands and configured providers.', fg: PALETTE.muted },
     );

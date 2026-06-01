@@ -125,7 +125,7 @@ export function buildToolsStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-tools.no-hidden-work',
         label: 'Hidden work policy',
-        hint: 'Tool use stays visible in the main Agent conversation or explicit command surface; no hidden background work is started from onboarding.',
+        hint: 'Tool use stays visible in the main Agent conversation or explicit command workspace; no hidden background work is started from onboarding.',
         defaultValue: 'Visible',
       },
     ],

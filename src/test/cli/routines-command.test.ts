@@ -205,7 +205,7 @@ describe('routines CLI command', () => {
         'daily-operations-sweep',
         '--cron',
         '0 8 * * *',
-        '--delivery-surface',
+        '--delivery-channel',
         'slack:route-slack:Ops',
         '--yes',
       ]);
@@ -249,7 +249,7 @@ describe('routines CLI command', () => {
       expect(receipt.output).toContain('Agent routine schedule receipt');
       expect(receipt.output).toContain('cadence: cron 0 8 * * *');
       expect(receipt.output).toContain('delivery: surface');
-      expect(receipt.output).toContain('delivery target: surface/slack route=route-slack label=Ops');
+      expect(receipt.output).toContain('delivery target: channel/slack route=route-slack label=Ops');
 
       const reconciled = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'reconcile']) });
       expect(reconciled.exitCode).toBe(0);
@@ -276,7 +276,7 @@ describe('routines CLI command', () => {
         'daily-operations-sweep',
         '--cron',
         '0 8 * * *',
-        '--delivery-surface',
+        '--delivery-channel',
         'slack',
         '--delivery-webhook',
         'https://hooks.example.test/routine',

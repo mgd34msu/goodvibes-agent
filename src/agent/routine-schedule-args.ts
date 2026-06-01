@@ -37,10 +37,10 @@ export function isRoutineScheduleDeliverySurfaceKind(value: string): value is Ro
   return DELIVERY_SURFACE_KINDS.includes(value as RoutineScheduleDeliverySurfaceKind);
 }
 
-function parseSurfaceDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
+function parseChannelDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
   const [surfaceKind = '', routeId, label] = raw.split(':');
   if (!isRoutineScheduleDeliverySurfaceKind(surfaceKind)) {
-    return `Unsupported delivery surface "${surfaceKind}".`;
+    return `Unsupported delivery channel "${surfaceKind}".`;
   }
   return {
     kind: 'surface',
@@ -148,7 +148,10 @@ export function parseRoutineSchedulePromotionArgs(args: readonly string[]): Pars
       };
       continue;
     }
-    if (optionName === '--delivery-surface' || optionName === '--deliver-surface') {
+    if (
+      optionName === '--delivery-channel'
+      || optionName === '--deliver-channel'
+    ) {
       const consumed = optionValue(args, index, inlineValue);
       index = consumed.nextIndex;
       const value = consumed.value?.trim();
@@ -156,7 +159,7 @@ export function parseRoutineSchedulePromotionArgs(args: readonly string[]): Pars
         errors.push(`${optionName} requires a value.`);
         continue;
       }
-      const target = parseSurfaceDeliveryTarget(value);
+      const target = parseChannelDeliveryTarget(value);
       if (typeof target === 'string') errors.push(target);
       else deliveryTargets.push(target);
       continue;

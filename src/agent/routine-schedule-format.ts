@@ -18,6 +18,11 @@ function readString(record: Record<string, unknown>, key: string): string | null
   return typeof value === 'string' ? value : null;
 }
 
+function formatDeliveryTargetKind(target: { readonly kind?: string; readonly surfaceKind?: string }): string {
+  if (target.kind === 'surface') return `channel${target.surfaceKind ? `/${target.surfaceKind}` : ''}`;
+  return `${target.kind ?? 'unknown'}${target.surfaceKind ? `/${target.surfaceKind}` : ''}`;
+}
+
 export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPreview): string {
   const schedule = preview.payload.kind === 'cron'
     ? `${preview.payload.cron}${preview.payload.timezone ? ` [${preview.payload.timezone}]` : ''}`
@@ -90,9 +95,9 @@ export function formatRoutineScheduleReceipt(receipt: RoutineScheduleReceipt): s
     `  enabled: ${receipt.enabled ? 'yes' : 'no'}`,
     receipt.provider ? `  provider: ${receipt.provider}` : '',
     receipt.model ? `  model: ${receipt.model}` : '',
-    `  target: ${receipt.target.kind ?? 'unknown'}${receipt.target.surfaceKind ? `/${receipt.target.surfaceKind}` : ''}`,
+    `  target: ${formatDeliveryTargetKind(receipt.target)}`,
     receipt.deliveryMode ? `  delivery: ${receipt.deliveryMode}` : '',
-    ...(receipt.deliveryTargets ?? []).map((target) => `  delivery target: ${target.kind}${target.surfaceKind ? `/${target.surfaceKind}` : ''}${target.routeId ? ` route=${target.routeId}` : ''}${target.address ? ` address=${target.address}` : ''}${target.label ? ` label=${target.label}` : ''}`),
+    ...(receipt.deliveryTargets ?? []).map((target) => `  delivery target: ${formatDeliveryTargetKind(target)}${target.routeId ? ` route=${target.routeId}` : ''}${target.address ? ` address=${target.address}` : ''}${target.label ? ` label=${target.label}` : ''}`),
     receipt.failureKind ? `  failure: ${receipt.failureKind}` : '',
     receipt.failureError ? `  error: ${receipt.failureError}` : '',
   ].filter((line): line is string => Boolean(line)).join('\n');

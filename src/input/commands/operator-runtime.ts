@@ -229,7 +229,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
         + '  /mode                          — show current mode and settings\n'
         + '  /mode show                     — show current mode and settings\n'
         + '  /mode quiet --yes              — suppress all non-critical notifications\n'
-        + '  /mode balanced --yes           — surface warnings, batch info noise (default)\n'
+        + '  /mode balanced --yes           — show warnings, batch info noise (default)\n'
         + '  /mode operator --yes           — full verbosity, no suppression\n'
         + '  /mode set-domain <d> <v> --yes — per-domain verbosity override (minimal|normal|verbose)'
       );

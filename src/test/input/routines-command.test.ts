@@ -306,7 +306,7 @@ describe('/routines command', () => {
         'inbox-sweep',
         '--cron',
         '0 9 * * *',
-        '--delivery-surface',
+        '--delivery-channel',
         'slack',
         '--delivery-webhook',
         'https://hooks.example.test/routine',

@@ -185,7 +185,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
             width,
             ' Runtime store not wired into this panel yet.',
             'Use the Tasks panel with a live runtime store to review active execution, cancellations, retries, and completion results.',
-            [{ command: '/tasks', summary: 'open or operate the task surface from a shell-owned runtime' }],
+            [{ command: '/tasks', summary: 'inspect runtime tasks without starting background work' }],
             C,
           ),
         }],

@@ -54,7 +54,7 @@ Keyboard behavior should match the rest of the Agent TUI: predictable focus, scr
 
 ## `/plan`
 
-`/plan` remains a command surface for inspection and seeding:
+`/plan` remains a command workspace for inspection and seeding:
 
 - `/plan` prints current planning readiness and opens the planning surface;
 - `/plan panel` opens the planning surface;

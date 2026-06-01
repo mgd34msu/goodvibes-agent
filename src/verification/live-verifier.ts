@@ -366,7 +366,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
       'cli-listener-test',
       'Read-only listener readiness command',
       await runCommand(binaryPath, ['listener', 'test'], projectRoot),
-      'HTTP listener readiness rendered successfully.',
+      'Incoming webhook listener readiness rendered successfully.',
       { warnOnNonZero: true },
     ));
     checks.push(commandCheck(

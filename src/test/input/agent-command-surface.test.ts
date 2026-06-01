@@ -72,7 +72,7 @@ const expectedAgentCommands = [
   'workplan',
 ] as const;
 
-describe('Agent command surface', () => {
+describe('Agent command interface', () => {
   test('hides copied TUI coding/lifecycle/developer commands from the Agent slash registry', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);

@@ -83,7 +83,7 @@ export function renderHelpOverlay(
     ['hooks',        '',           'Hook workbench and runtime activity'],
     ['orchestration','',           'Graph and recursive-agent control room'],
     ['communication','',           'Structured agent communication workspace'],
-    ['tasks',        '',           'Task surface for list/show/pause/resume/output'],
+    ['tasks',        '',           'Read-only task view for list/show/pause/resume/output'],
   ];
 
   // Build command rows from featured list, filtering out unregistered commands.

@@ -146,7 +146,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localSignalVerified: featureFlags,
       localBehaviorVerified: featureFlags - 4,
       externalOutcomeRequired: 4,
-      notes: 'All flags can be loaded/toggled; a small surface/service subset still requires live external behavior.',
+      notes: 'All flags can be loaded/toggled; a small external runtime subset still requires live behavior.',
     },
     {
       area: 'Slash commands',

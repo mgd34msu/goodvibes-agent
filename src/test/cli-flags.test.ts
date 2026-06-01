@@ -137,7 +137,7 @@ describe('parseCliFlags', () => {
     expect(helpOutput).not.toContain('remote|bridge');
   });
 
-  test('command-specific help describes the selected command surface', () => {
+  test('command-specific help describes the selected command interface', () => {
     const parsed = parseGoodVibesCli(['providers', '--help']);
     const helpOutput = renderGoodVibesCommandHelp(parsed.rawCommand ?? parsed.command, 'goodvibes');
 
@@ -179,7 +179,7 @@ describe('parseCliFlags', () => {
     expect(flags.workingDir).toBeUndefined();
   });
 
-  test('parses core command surface and prompt aliases', () => {
+  test('parses core command interface and prompt aliases', () => {
     const run = parseGoodVibesCli(['run', '--output', 'json', 'write tests']);
     expect(run.command).toBe('run');
     expect(run.flags.outputFormat).toBe('json');

@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.75 - 2026-05-31
+
+- Reworded Agent status, doctor, and external runtime diagnostics away from copied service/surface ownership language.
+- Added `--delivery-channel` as the documented schedule promotion delivery flag while keeping prior delivery aliases as compatibility-only parser inputs.
+- Cleaned Agent TUI help, workspace, and panel guidance so visible copy describes Agent workflows, channels, runtime endpoints, and external runtime connection boundaries.
+
 ## 0.1.74 - 2026-05-31
 
 - Filtered checked-in foundation operator artifacts to Agent-relevant routes so host-specific knowledge segments are not documented in Agent artifacts.

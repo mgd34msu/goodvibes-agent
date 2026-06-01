@@ -189,7 +189,7 @@ export class MemoryPanel extends SearchableListPanel<MemoryRecord> {
         { label: 'runbooks', value: String(byClass.get('runbook') ?? 0), valueColor: C.runbook },
       ], C),
       filterLine,
-      buildGuidanceLine(width, '/recall review', 'review durable knowledge and queue posture from the command surface', C),
+      buildGuidanceLine(width, '/recall review', 'review durable knowledge and queue posture from the command workspace', C),
     ];
 
     const selected = records[this.selectedIndex];

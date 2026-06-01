@@ -92,7 +92,7 @@ export class IncidentReviewPanel extends ScrollableListPanel<FailureReport> {
             ' Forensics registry not wired into this panel yet.',
             'Incident review needs the live forensics registry so it can inspect failure bundles, replay mismatches, and causal evidence.',
             [
-              { command: '/incident latest', summary: 'inspect the latest incident from the command surface' },
+              { command: '/incident latest', summary: 'inspect the latest incident from the command workspace' },
               { command: '/security', summary: 'open the broader trust and incident posture control room' },
             ],
             C,

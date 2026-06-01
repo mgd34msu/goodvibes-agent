@@ -62,8 +62,8 @@ export interface CliServicePosture {
 
 const ENDPOINTS: readonly { readonly id: RuntimeEndpointId; readonly label: string; readonly enabledKey: string }[] = [
   { id: 'controlPlane', label: 'runtime API', enabledKey: 'controlPlane.enabled' },
-  { id: 'httpListener', label: 'HTTP listener', enabledKey: 'danger.httpListener' },
-  { id: 'web', label: 'web surface', enabledKey: 'web.enabled' },
+  { id: 'httpListener', label: 'incoming webhook listener', enabledKey: 'danger.httpListener' },
+  { id: 'web', label: 'browser companion', enabledKey: 'web.enabled' },
 ];
 
 interface CliServicePostureOptions {
@@ -184,13 +184,13 @@ export async function buildCliServicePosture(
   const issues: string[] = [];
 
   if (serverBackedEnabled && !config.enabled) {
-    issues.push('Host-owned surfaces are configured, but Agent service ownership is disabled.');
+    issues.push('External runtime endpoints are configured, but Agent runtime ownership is disabled by design.');
   }
   if (config.enabled && !config.autostart) {
-    issues.push('External runtime service config has autostart off.');
+    issues.push('External runtime host config has autostart off.');
   }
   if (config.enabled && !config.restartOnFailure) {
-    issues.push('External runtime service config has restart-on-failure off.');
+    issues.push('External runtime host config has restart-on-failure off.');
   }
   for (const endpoint of endpoints) {
     if (endpoint.enabled && options.probe && endpoint.reachable === false) {
@@ -230,15 +230,15 @@ export function formatCliServicePosture(posture: CliServicePosture, json = false
   if (json) return JSON.stringify(posture, null, 2);
   return [
     'GoodVibes external runtime diagnostics',
-    '  lifecycle: managed outside goodvibes-agent',
-    `  service config enabled: ${yesNo(posture.config.enabled)}`,
+    '  ownership: managed outside goodvibes-agent',
+    `  host config enabled: ${yesNo(posture.config.enabled)}`,
     `  autostart config: ${yesNo(posture.config.autostart)}`,
     `  restartOnFailure config: ${yesNo(posture.config.restartOnFailure)}`,
     `  runtime host flag: ${yesNo(posture.config.daemonEnabled)}`,
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),
     '',
-    'Endpoints:',
+    'Runtime endpoints:',
     ...posture.endpoints.map((endpoint) =>
       `  ${endpoint.label}: enabled=${yesNo(endpoint.enabled)} ${endpoint.binding.hostMode} ${endpoint.binding.host}:${endpoint.binding.port} posture=${endpoint.bindPosture.label}${endpoint.reachable === undefined ? '' : ` reachable=${yesNo(endpoint.reachable)}`}`,
     ),

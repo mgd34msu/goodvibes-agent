@@ -44,9 +44,9 @@ describe('CLI service posture', () => {
     expect(posture.managed.path).toBe('external GoodVibes runtime host');
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(posture.managed.suggestedCommands).toEqual([]);
-    expect(posture.issues).not.toContain('External runtime service config is enabled, but no platform service definition is installed.');
+    expect(posture.issues).not.toContain('External runtime host config is enabled, but no platform service definition is installed.');
     expect(text).toContain('GoodVibes external runtime diagnostics');
-    expect(text).toContain('lifecycle: managed outside goodvibes-agent');
+    expect(text).toContain('ownership: managed outside goodvibes-agent');
     expect(text).not.toContain(`goodvibes-${'daemon'}`);
     expect(text).not.toContain('systemctl');
   });
@@ -109,6 +109,6 @@ describe('CLI service posture', () => {
     expect(parsed.managed.path).toBe('external GoodVibes runtime host');
     expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
-    expect(parsed.issues).toContain('Host-owned surfaces are configured, but Agent service ownership is disabled.');
+    expect(parsed.issues).toContain('External runtime endpoints are configured, but Agent runtime ownership is disabled by design.');
   });
 });

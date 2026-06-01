@@ -66,7 +66,7 @@ Approvals and automation are safe by default:
 - no chat turn silently runs approval, schedule, or automation mutations;
 - unavailable routes return structured errors rather than fallback behavior.
 
-Routine promotion is an explicit scheduling bridge: local routines stay local during normal use, and promotion creates a schedule only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or non-Agent knowledge fallback. Delivery is opt-in with explicit flags such as `--delivery-surface`, `--delivery-route`, `--delivery-webhook`, or `--delivery-link`; no delivery target is inferred from chat.
+Routine promotion is an explicit scheduling bridge: local routines stay local during normal use, and promotion creates a schedule only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or non-Agent knowledge fallback. Delivery is opt-in with explicit flags such as `--delivery-channel`, `--delivery-route`, `--delivery-webhook`, or `--delivery-link`; no delivery target is inferred from chat.
 
 ## Related Docs
 

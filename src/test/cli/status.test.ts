@@ -81,7 +81,7 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('[warning:network:network-http-listener-enabled]');
   });
 
-  test('service posture findings never instruct Agent to mutate runtime lifecycle', () => {
+  test('runtime posture findings never instruct Agent to mutate runtime lifecycle', () => {
     const findings = buildCliDoctorFindings(makeOptions({
       'service.enabled': false,
       'service.autostart': false,
@@ -91,14 +91,14 @@ describe('CLI status and doctor output', () => {
     }));
     const text = findings.map((finding) => `${finding.summary}\n${finding.action}`).join('\n');
 
-    expect(text).toContain('Agent service ownership is disabled');
+    expect(text).toContain('Agent runtime ownership is disabled');
     expect(text).toContain('GoodVibes TUI or the owning host');
     expect(text).not.toContain('Enable service mode');
     expect(text).not.toContain('Enable service.autostart');
     expect(text).not.toContain('Enable service.restartOnFailure');
   });
 
-  test('network auth posture is flagged when LAN surfaces have no local users or bootstrap is still present', () => {
+  test('network auth posture is flagged when LAN runtime endpoints have no local users or bootstrap is still present', () => {
     const findings = buildCliDoctorFindings({
       ...makeOptions({
         'web.enabled': true,
@@ -115,11 +115,11 @@ describe('CLI status and doctor output', () => {
       },
     });
 
-    expect(findings.map((finding) => finding.id)).toContain('network-surface-without-local-users');
-    expect(findings.map((finding) => finding.id)).toContain('network-surface-with-bootstrap-credential');
+    expect(findings.map((finding) => finding.id)).toContain('network-endpoint-without-local-users');
+    expect(findings.map((finding) => finding.id)).toContain('network-endpoint-with-bootstrap-credential');
   });
 
-  test('status can render a stable JSON contract with service lifecycle details', () => {
+  test('status can render a stable JSON contract with external runtime connection details', () => {
     const text = renderCliStatus({
       ...makeOptions(),
       outputFormat: 'json',
@@ -157,16 +157,16 @@ describe('CLI status and doctor output', () => {
     const parsed = JSON.parse(text) as {
       title: string;
       provider: { provider: string };
-      service: { lifecycle: { managed: { running: boolean; commandPreview: string } } };
-      surfaces: { controlPlane: { port: number } };
+      runtimeConnection: { lifecycle: { managed: { running: boolean; commandPreview: string } } };
+      runtimeEndpoints: { controlPlane: { port: number } };
       findings: unknown[];
     };
 
     expect(parsed.title).toBe('GoodVibes Agent status');
     expect(parsed.provider.provider).toBe('openai');
-    expect(parsed.service.lifecycle.managed.running).toBe(false);
-    expect(parsed.service.lifecycle.managed.commandPreview).toBe('managed outside goodvibes-agent');
-    expect(parsed.surfaces.controlPlane.port).toBe(3421);
+    expect(parsed.runtimeConnection.lifecycle.managed.running).toBe(false);
+    expect(parsed.runtimeConnection.lifecycle.managed.commandPreview).toBe('managed outside goodvibes-agent');
+    expect(parsed.runtimeEndpoints.controlPlane.port).toBe(3421);
     expect(parsed.findings).toBeArray();
   });
 });

@@ -64,7 +64,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         ctx.print([
           `Approval Review: ${entry[0]}`,
           `  ${entry[1]}`,
-          '  Related surfaces: /security, /policy preflight, /trust, /mcp',
+          '  Related workspaces: /security, /policy preflight, /trust, /mcp',
         ].join('\n'));
         return;
       }
@@ -74,7 +74,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
 
   registry.register({
     name: 'voice',
-    description: 'Review voice posture and package portable voice-surface metadata',
+    description: 'Review voice posture and package portable voice interaction metadata',
     usage: '[review|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
       const parsed = stripYesFlag(args);
@@ -86,19 +86,19 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         ctx.print([
           'Voice Review',
           `  enabled: ${enabled ? 'yes' : 'no'}`,
-          '  posture: optional local companion surface; disabled by default',
+          '  posture: optional local companion interaction; disabled by default',
           '  note: voice remains an optional operator convenience, not a required SaaS dependency',
         ].join('\n'));
         return;
       }
       if (sub === 'enable' || sub === 'disable') {
         if (!parsed.yes) {
-          requireYesFlag(ctx, `${sub} voice surface`, `/voice ${sub} --yes`);
+          requireYesFlag(ctx, `${sub} voice interaction`, `/voice ${sub} --yes`);
           return;
         }
         const next = sub === 'enable';
         ctx.platform.configManager.setDynamic('ui.voiceEnabled', next);
-        ctx.print(`Voice surface ${next ? 'enabled' : 'disabled'} for this runtime.`);
+        ctx.print(`Voice interaction ${next ? 'enabled' : 'disabled'} for this runtime.`);
         return;
       }
       if (sub === 'bundle') {
@@ -120,7 +120,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
             enabled: Boolean(ctx.platform.configManager.get('ui.voiceEnabled')),
             notes: [
               'Voice is optional and local-first.',
-              'Operator review remains the primary control surface for risky actions.',
+              'Operator review remains the primary review path for risky actions.',
             ],
           };
           mkdirSync(dirname(targetPath), { recursive: true });

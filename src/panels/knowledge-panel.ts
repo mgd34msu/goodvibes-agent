@@ -335,7 +335,7 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
         ['  project ', C.label], [String(byScope.get('project') ?? 0), C.value],
         ['  team ', C.label], [String(byScope.get('team') ?? 0), C.good],
       ]),
-      buildGuidanceLine(width, '/recall review', 'work the stale and contradicted queue from the command surface', C),
+      buildGuidanceLine(width, '/recall review', 'work the stale and contradicted queue from the command workspace', C),
     ];
 
     const recentSummaryLines: Line[] = [];

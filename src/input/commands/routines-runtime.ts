@@ -299,7 +299,7 @@ export function registerRoutinesRuntimeCommands(registry: CommandRegistry): void
     name: 'routines',
     aliases: ['routine'],
     description: 'Manage local GoodVibes Agent routines',
-    usage: '[list|enabled|search <query>|show <id>|receipts|reconcile|receipt <id>|create --name <name> --description <summary> --steps <steps>|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> [--delivery-surface slack] --yes|delete <id> --yes]',
+    usage: '[list|enabled|search <query>|show <id>|receipts|reconcile|receipt <id>|create --name <name> --description <summary> --steps <steps>|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> [--delivery-channel slack] --yes|delete <id> --yes]',
     handler: runRoutinesRuntimeCommand,
   });
 }
