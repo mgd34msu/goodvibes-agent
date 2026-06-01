@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.89 - 2026-06-01
+
+- 6be201c Fix Agent workspace command targets
+
 ## 0.1.88 - 2026-06-01
 
 - e97d2a2 Fix release test daemon port allocation
