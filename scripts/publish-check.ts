@@ -1,11 +1,36 @@
 #!/usr/bin/env bun
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { verifyPackageFacingText } from '../src/cli/package-verification.ts';
 
 const root = process.cwd();
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+
+function listFilesUnder(path: string): readonly string[] {
+  if (!existsSync(path)) return [];
+  const entries = readdirSync(path, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const childPath = join(path, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listFilesUnder(childPath));
+      continue;
+    }
+    if (entry.isFile()) files.push(childPath);
+  }
+  return files;
+}
+
+const exampleFiles = listFilesUnder(join(root, 'examples'));
+if (exampleFiles.length > 0) {
+  throw new Error(`repo-facing copied foundation examples are not part of GoodVibes Agent:\n${exampleFiles.join('\n')}`);
+}
+
+const tsconfigText = readFileSync(join(root, 'tsconfig.json'), 'utf8');
+if (tsconfigText.includes('examples')) {
+  throw new Error('tsconfig.json must not include copied foundation examples in the Agent typecheck surface');
+}
 
 for (const field of ['name', 'version', 'description', 'license', 'homepage']) {
   if (typeof pkg[field] !== 'string' || pkg[field].trim().length === 0) {
