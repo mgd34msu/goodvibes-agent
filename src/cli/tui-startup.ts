@@ -9,6 +9,70 @@ export type InteractiveTerminalCheckInput = {
   readonly stdoutIsTTY: boolean | undefined;
 };
 
+type NodeLikeError = Error & {
+  readonly code?: string;
+  readonly path?: string;
+  readonly syscall?: string;
+};
+
+export type FatalStartupFormatOptions = {
+  readonly binary: string;
+  readonly debug?: boolean;
+};
+
+function isNodeLikeError(error: unknown): error is NodeLikeError {
+  return error instanceof Error;
+}
+
+function fatalStartupMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function fatalStartupStack(error: unknown): string {
+  if (error instanceof Error) return error.stack ?? error.message;
+  return fatalStartupMessage(error);
+}
+
+export function formatFatalStartupErrorForLog(error: unknown): string {
+  return fatalStartupStack(error);
+}
+
+export function formatFatalStartupErrorForUser(error: unknown, options: FatalStartupFormatOptions): string {
+  if (options.debug === true) return fatalStartupStack(error);
+
+  const message = fatalStartupMessage(error);
+  if (isNodeLikeError(error) && (error.code === 'EACCES' || error.code === 'EPERM')) {
+    return [
+      `${options.binary} could not prepare its local workspace or log directory.`,
+      error.path ? `  path: ${error.path}` : '',
+      error.syscall ? `  operation: ${error.syscall}` : '',
+      '  reason: permission denied',
+      `  next: launch from a writable directory, pass '${options.binary} --cd <dir>', or set GOODVIBES_WORKING_DIR to a writable path.`,
+      '  note: GOODVIBES_AGENT_HOME can be set to move Agent-local config, sessions, memory, skills, personas, and routines.',
+    ].filter((line) => line.length > 0).join('\n');
+  }
+
+  if (isNodeLikeError(error) && error.code === 'ENOENT') {
+    return [
+      `${options.binary} could not find a required startup path.`,
+      error.path ? `  path: ${error.path}` : '',
+      `  reason: ${message}`,
+      `  next: check '${options.binary} --cd <dir>' and GOODVIBES_WORKING_DIR, then rerun '${options.binary} status'.`,
+    ].filter((line) => line.length > 0).join('\n');
+  }
+
+  return [
+    message || `${options.binary} failed during startup.`,
+    'Set GOODVIBES_AGENT_DEBUG=1 to print a stack trace.',
+  ].join('\n');
+}
+
 export function getInteractiveTerminalLaunchError(input: InteractiveTerminalCheckInput): string | null {
   const stdinReady = input.stdinIsTTY === true;
   const stdoutReady = input.stdoutIsTTY === true;

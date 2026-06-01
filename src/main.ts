@@ -45,7 +45,7 @@ import { deriveComposerState } from './core/composer-state.ts';
 import { buildPersistedSessionContext, formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
-import { applyInitialTuiCliState, getInteractiveTerminalLaunchError } from './cli/tui-startup.ts';
+import { applyInitialTuiCliState, formatFatalStartupErrorForLog, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from './cli/tui-startup.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './audio/spoken-turn-model-routing.ts';
 import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/terminal-output-guard.ts';
@@ -768,29 +768,19 @@ async function main() {
 
 }
 
-function formatFatalStartupError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.stack ?? error.message;
-  }
-  if (typeof error === 'string') {
-    return error;
-  }
-  try {
-    return JSON.stringify(error);
-  } catch {
-    return String(error);
-  }
-}
-
 main().catch((err: unknown) => {
-  const detail = formatFatalStartupError(err);
+  const detail = formatFatalStartupErrorForLog(err);
   try {
     logger.error('Fatal error', { error: detail });
   } catch {
     // Startup diagnostics must never hide the original launch failure.
   }
+  const userDetail = formatFatalStartupErrorForUser(err, {
+    binary: 'goodvibes-agent',
+    debug: process.env['GOODVIBES_AGENT_DEBUG'] === '1',
+  });
   try {
-    process.stderr.write(`goodvibes-agent failed to launch:\n${detail}\n`);
+    process.stderr.write(`goodvibes-agent failed to launch:\n${userDetail}\n`);
   } catch {
     // Ignore secondary stderr failures during process teardown.
   }

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createShellPathService } from '@/runtime/index.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
-import { applyInitialTuiCliState, getInteractiveTerminalLaunchError } from '../../cli/tui-startup.ts';
+import { applyInitialTuiCliState, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from '../../cli/tui-startup.ts';
 import { writeOnboardingCheckMarker } from '../../runtime/onboarding/index.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import type { InputHandler } from '../../input/handler.ts';
@@ -126,5 +126,34 @@ describe('interactive TUI terminal guard', () => {
     expect(message).toContain('stdin and stdout are not a TTY');
     expect(message).toContain('goodvibes-agent status --json');
     expect(message).not.toContain('\x1b[');
+  });
+});
+
+describe('fatal TUI startup formatting', () => {
+  test('renders permission errors without stack traces', () => {
+    const error = Object.assign(new Error("EACCES: permission denied, mkdir '/work'"), {
+      code: 'EACCES',
+      path: '/work',
+      syscall: 'mkdir',
+    });
+
+    const message = formatFatalStartupErrorForUser(error, { binary: 'goodvibes-agent' });
+
+    expect(message).toContain('could not prepare its local workspace or log directory');
+    expect(message).toContain('path: /work');
+    expect(message).toContain('goodvibes-agent --cd <dir>');
+    expect(message).not.toContain('at ');
+    expect(message).not.toContain('Error: EACCES');
+  });
+
+  test('keeps stack traces available only in explicit debug mode', () => {
+    const error = new Error('startup failed');
+
+    const normal = formatFatalStartupErrorForUser(error, { binary: 'goodvibes-agent' });
+    const debug = formatFatalStartupErrorForUser(error, { binary: 'goodvibes-agent', debug: true });
+
+    expect(normal).toBe('startup failed\nSet GOODVIBES_AGENT_DEBUG=1 to print a stack trace.');
+    expect(debug).toContain('Error: startup failed');
+    expect(debug).toContain('at ');
   });
 });
