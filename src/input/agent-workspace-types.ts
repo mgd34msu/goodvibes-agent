@@ -13,8 +13,12 @@ export type AgentWorkspaceLocalEditorKind = 'memory' | 'persona' | 'skill' | 'ro
 export type AgentWorkspaceEditorKind =
   | AgentWorkspaceLocalEditorKind
   | 'knowledge-url'
+  | 'knowledge-bookmarks'
   | 'knowledge-search'
   | 'knowledge-ask'
+  | 'tts-prompt'
+  | 'image-input'
+  | 'skill-bundle'
   | 'routine-schedule';
 
 export type AgentWorkspaceLocalOperation =

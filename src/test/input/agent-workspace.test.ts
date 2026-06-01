@@ -505,6 +505,30 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
+  test('creates skill bundles from an in-workspace form with concrete skill ids', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create-bundle');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-bundle');
+    feedText(workspace, 'Daily Ops');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Daily operations bundle');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'briefing,calendar-review');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/agent-skills bundle create --name "Daily Ops" --description "Daily operations bundle" --skills briefing,calendar-review --enabled',
+    ]);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening skill bundle creation');
+  });
+
   test('creates reviews marks stale and deletes Agent memory from workspace editors', async () => {
     const records: MemoryRecord[] = [];
     const ctx = {
@@ -992,6 +1016,44 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toBe('Opening Agent Knowledge ask.');
   });
 
+  test('imports Agent Knowledge bookmarks from a confirmed workspace form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-import-bookmarks');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('knowledge-bookmarks');
+    feedText(workspace, './exports/browser bookmarks.html');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/knowledge import-bookmarks "./exports/browser bookmarks.html" --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
+  });
+
+  test('does not import Agent Knowledge bookmarks without typed confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-import-bookmarks');
+
+    workspace.activateSelected();
+    feedText(workspace, './exports/bookmarks.html');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.kind).toBe('knowledge-bookmarks');
+    expect(workspace.status).toBe('Agent Knowledge bookmark import not confirmed.');
+  });
+
   test('summarizes voice and media provider coverage in the runtime snapshot', () => {
     const keys = ['ELEVENLABS_API_KEY', 'XI_API_KEY', 'FAL_KEY', 'FAL_API_KEY'] as const;
     const previous = new Map(keys.map((key) => [key, process.env[key]] as const));
@@ -1057,18 +1119,33 @@ describe('AgentWorkspace', () => {
     }
   });
 
-  test('does not dispatch voice media command templates without real target values', () => {
+  test('opens voice media forms and dispatches concrete commands', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tts-speak');
-
     workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('tts-prompt');
+    feedText(workspace, 'Read the morning brief');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/tts "Read the morning brief"']);
 
-    expect(dispatched).toEqual([]);
-    expect(workspace.lastActionResult?.kind).toBe('guidance');
-    expect(workspace.status).toContain('Placeholder command not dispatched');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'image-attach');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('image-input');
+    feedText(workspace, './screenshots/dashboard.png');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Summarize the visible errors');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/tts "Read the morning brief"',
+      '/image ./screenshots/dashboard.png "Summarize the visible errors"',
+    ]);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening image input');
   });
 
   test('summarizes runtime and config profile posture', () => {

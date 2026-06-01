@@ -409,6 +409,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Skill bundles');
     expect(output).toContain('/agent-skills bundle list');
     expect(output).toContain('Create bundle');
+    expect(output).toContain('edit skill-bundle');
     expect(output).toContain('Skill Bundles');
     expect(output).toContain('operator-pack: Operator Pack');
     expect(output).toContain('Skills: briefing');
@@ -428,6 +429,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit knowledge-search');
     expect(output).toContain('Ingest URL');
     expect(output).toContain('edit knowledge-url');
+    expect(output).toContain('Import bookmarks');
+    expect(output).toContain('edit knowledge-bookmarks');
     expect(output).toContain('in-workspace form');
     expect(output).toContain('Review queue');
     expect(output).toContain('/knowledge queue');
@@ -462,6 +465,39 @@ describe('renderAgentWorkspace', () => {
     expect(askOutput).toContain('Question *');
     expect(askOutput).toContain('fails closed instead of using');
     expect(askOutput).toContain('another wiki');
+  });
+
+  test('renders bookmark media and skill bundle command forms with concrete fields', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-import-bookmarks');
+    workspace.activateSelected();
+    const bookmarkOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(bookmarkOutput).toContain('Import Bookmarks into Agent Knowledge');
+    expect(bookmarkOutput).toContain('Bookmark export path *');
+    expect(bookmarkOutput).toContain('Confirm *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'image-attach');
+    workspace.activateSelected();
+    const imageOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(imageOutput).toContain('Attach Image Input');
+    expect(imageOutput).toContain('Image path *');
+    expect(imageOutput).toContain('Prompt');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create-bundle');
+    workspace.activateSelected();
+    const bundleOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(bundleOutput).toContain('Create Skill Bundle');
+    expect(bundleOutput).toContain('Bundle name *');
+    workspace.moveEditorField(2);
+    const bundleSkillsOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(bundleSkillsOutput).toContain('Skill ids *');
   });
 
   test('renders routine schedule promotion as an in-workspace form', () => {
@@ -514,7 +550,8 @@ describe('renderAgentWorkspace', () => {
       expect(output).toContain('Fal: needs-secret; generate; needs FAL_KEY|FAL_API_KEY.');
       expect(output).toContain('No secret values are rendered.');
       expect(output).toContain('/config tts');
-      expect(output).toContain('/image <path> <prompt>');
+      expect(output).toContain('edit tts-prompt');
+      expect(output).toContain('edit image-input');
       expect(output).toContain('/mcp servers');
       expect(output).toContain('/mcp tools');
       expect(output).not.toContain('/remote list');
