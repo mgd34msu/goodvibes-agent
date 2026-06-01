@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 type PackageJson = {
@@ -50,5 +50,9 @@ describe('CI test execution policy', () => {
 
     expect(countOccurrences(ciGate, 'bun run test')).toBe(1);
     expect(ciGate).not.toContain('bun run eval:gate');
+  });
+
+  test('repo does not keep a separate release test runner', () => {
+    expect(existsSync(resolve(ROOT, 'scripts/release-gate.ts'))).toBe(false);
   });
 });

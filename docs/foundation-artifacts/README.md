@@ -13,4 +13,4 @@ Regenerate them with:
 bun run foundation:artifacts
 ```
 
-The release-gate tests fail if these artifacts drift from the current source.
+Release checks fail if these artifacts drift from the current source.
