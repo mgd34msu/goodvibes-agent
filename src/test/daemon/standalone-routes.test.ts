@@ -11,6 +11,7 @@
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DaemonServer } from '@pellux/goodvibes-sdk/platform/daemon';
@@ -24,13 +25,42 @@ import { resetTestRuntimeServices } from '../helpers/runtime-services.ts';
 import { buildTestModelDefinition } from '../helpers/test-managers.ts';
 
 const TEST_TOKEN = 'standalone-test-token-abc123';
-const TEST_PORT_BASE = 39600;
 
-// Spread port assignments across tests to avoid conflicts
-let portOffset = 0;
-function nextPort(): number {
-  return TEST_PORT_BASE + portOffset++;
+async function allocateDaemonTestPort(): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const server = createServer();
+    server.unref();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (typeof address !== 'object' || address === null) {
+        server.close(() => reject(new Error('Unable to allocate daemon test port')));
+        return;
+      }
+
+      const allocatedPort = address.port;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(allocatedPort);
+      });
+    });
+  });
 }
+
+describe('standalone daemon test port allocation', () => {
+  test('uses OS-assigned loopback ports instead of a fixed release-runner port', async () => {
+    const first = await allocateDaemonTestPort();
+    const second = await allocateDaemonTestPort();
+
+    expect(first).toBeGreaterThan(0);
+    expect(second).toBeGreaterThan(0);
+    expect(first).toBeLessThanOrEqual(65535);
+    expect(second).toBeLessThanOrEqual(65535);
+  });
+});
 
 function makeTempDir(): string {
   return mkdtempSync(join(tmpdir(), 'gv-standalone-'));
@@ -159,7 +189,7 @@ describe('F1 — companion-chat routes on standalone DaemonServer', () => {
   beforeEach(async () => {
     resetTestRuntimeServices();
     tempRoot = makeTempDir();
-    port = nextPort();
+    port = await allocateDaemonTestPort();
     const env = makeEnv(tempRoot);
     ({ daemon } = await startDaemon(env, port));
   });
@@ -383,7 +413,7 @@ describe('F2 — provider state on standalone daemon', () => {
   beforeEach(async () => {
     resetTestRuntimeServices();
     tempRoot = makeTempDir();
-    port = nextPort();
+    port = await allocateDaemonTestPort();
     const env = makeEnv(tempRoot);
     ({ daemon, runtimeServices } = await startDaemon(env, port));
   });
@@ -445,7 +475,7 @@ describe('F4 — panel registry on standalone daemon', () => {
   beforeEach(async () => {
     resetTestRuntimeServices();
     tempRoot = makeTempDir();
-    port = nextPort();
+    port = await allocateDaemonTestPort();
     const env = makeEnv(tempRoot);
     ({ daemon, runtimeServices } = await startDaemon(env, port));
   });
@@ -521,7 +551,7 @@ describe('F14 — control-plane SSE default domains', () => {
   beforeEach(async () => {
     resetTestRuntimeServices();
     tempRoot = makeTempDir();
-    port = nextPort();
+    port = await allocateDaemonTestPort();
     const env = makeEnv(tempRoot);
     ({ daemon } = await startDaemon(env, port));
   });
