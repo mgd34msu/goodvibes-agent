@@ -2,6 +2,16 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.103 - 2026-06-01
+
+- ed9895a Add CLI controls for Agent memory
+- da48bc2 Add CLI controls for local agent libraries
+- ef18975 Use runtime naming in agent workspace
+- c172f38 Rename Agent tool policy guard
+- 7708f3e Prune local agent activity modals
+- 24eae8e Remove local agent activity panel
+- 90dcd58 Remove legacy release test runner
+
 ## 0.1.102 - 2026-06-01
 
 - 34aaea8 Prune hidden copied panel surfaces
