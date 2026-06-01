@@ -13,7 +13,7 @@ Agent does not launch the runtime for you.
 ## Install From Package
 
 ```sh
-bun add -g @pellux/goodvibes-agent
+bun add -g --trust @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent status
 goodvibes-agent personas list
@@ -28,10 +28,17 @@ export PATH="$(bun pm bin -g):$PATH"
 goodvibes-agent --help
 ```
 
-If Bun requires lifecycle trust:
+`--trust` lets Bun run the lifecycle scripts required by the shipped SDK and parser dependencies. A clean global install should leave no pending lifecycle scripts:
+
+```sh
+bun pm -g untrusted
+```
+
+If you previously installed without `--trust`, run the targeted trust command once and then re-check:
 
 ```sh
 bun pm trust -g @pellux/goodvibes-agent @pellux/goodvibes-sdk core-js tree-sitter-css tree-sitter-javascript tree-sitter-json tree-sitter-python tree-sitter-typescript
+bun pm -g untrusted
 ```
 
 ## Run From Source

@@ -12,7 +12,7 @@ The Agent product connects to an already-running GoodVibes runtime. It does not 
 Install the public alpha package with Bun:
 
 ```sh
-bun add -g @pellux/goodvibes-agent
+bun add -g --trust @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent status
 goodvibes-agent profiles templates
@@ -31,10 +31,17 @@ export PATH="$(bun pm bin -g):$PATH"
 goodvibes-agent --help
 ```
 
-If Bun reports untrusted lifecycle dependencies, trust only the package and dependencies required by this package:
+`--trust` lets Bun run the package lifecycle scripts required by the shipped SDK and parser dependencies during global install. A healthy install should report no pending lifecycle scripts:
+
+```sh
+bun pm -g untrusted
+```
+
+If you previously installed without `--trust`, run the targeted trust command once and then re-check:
 
 ```sh
 bun pm trust -g @pellux/goodvibes-agent @pellux/goodvibes-sdk core-js tree-sitter-css tree-sitter-javascript tree-sitter-json tree-sitter-python tree-sitter-typescript
+bun pm -g untrusted
 ```
 
 ## Source Usage

@@ -113,11 +113,11 @@ const PACKAGE_FACING_REQUIRED_TEXT: readonly {
   readonly path: typeof PACKAGE_FACING_TEXT_PATHS[number];
   readonly required: readonly string[];
 }[] = [
-  { path: 'README.md', required: ['/api/goodvibes-agent/knowledge'] },
+  { path: 'README.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g --trust @pellux/goodvibes-agent', 'bun pm -g untrusted'] },
   { path: 'docs/README.md', required: ['/api/goodvibes-agent/knowledge'] },
-  { path: 'docs/getting-started.md', required: ['/api/goodvibes-agent/knowledge'] },
+  { path: 'docs/getting-started.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g --trust @pellux/goodvibes-agent', 'bun pm -g untrusted'] },
   { path: 'docs/runtime-connection.md', required: ['/api/goodvibes-agent/knowledge'] },
-  { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge'] },
+  { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g --trust @pellux/goodvibes-agent', 'bun pm -g untrusted'] },
 ];
 const NON_COMMAND_ROUTE_ROOTS = new Set(['api', 'status']);
 

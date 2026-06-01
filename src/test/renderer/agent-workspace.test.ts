@@ -422,7 +422,10 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/knowledge ingest-url <url> --yes');
     expect(output).toContain('Review queue');
     expect(output).toContain('/knowledge queue');
-    expect(output).toContain('Consolidation review');
+    expect(output).toContain('Source library');
+    expect(output).toContain('/knowledge list --kind sources');
+    expect(output).not.toContain('Consolidation review');
+    expect(output).not.toContain('/knowledge candidates');
     expect(output).not.toContain('/api/knowledge');
     expect(output).not.toContain('non-Agent product setup');
   });
@@ -453,6 +456,7 @@ describe('renderAgentWorkspace', () => {
       expect(output).toContain('/config tts');
       expect(output).toContain('/image <path> <prompt>');
       expect(output).toContain('/mcp servers');
+      expect(output).toContain('/mcp tools');
       expect(output).not.toContain('/remote list');
     } finally {
       for (const key of keys) {

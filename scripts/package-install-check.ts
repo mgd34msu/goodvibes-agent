@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { verifyPackageCliInstall } from '../src/cli/package-verification.ts';
@@ -91,6 +91,20 @@ function extractPackTarballPath(packOutput: string, packDir: string): string {
   return isAbsolute(filename) ? filename : join(packDir, filename);
 }
 
+function installCheckTempParent(): string {
+  const configured = process.env.GOODVIBES_AGENT_INSTALL_CHECK_TMPDIR ?? process.env.RUNNER_TEMP;
+  const parent = configured && configured.trim().length > 0
+    ? configured
+    : join(homedir(), '.cache', 'goodvibes-agent', 'install-check');
+  mkdirSync(parent, { recursive: true });
+  return parent;
+}
+
+function assertNoUntrustedLifecycleDependencies(output: string): void {
+  if (output.includes('Found 0 untrusted dependencies with scripts.')) return;
+  throw new Error(`Bun global install left untrusted lifecycle dependencies:\n${output.trim()}`);
+}
+
 function assertInstalledTuiLaunches(env: NodeJS.ProcessEnv, tempRoot: string): void {
   const transcriptPath = join(tempRoot, 'tui-launch.typescript');
   const command = 'timeout -s INT -k 1s 2s goodvibes-agent --no-alt-screen';
@@ -126,17 +140,19 @@ function assertInstalledTuiLaunches(env: NodeJS.ProcessEnv, tempRoot: string): v
   throw new Error(`installed Agent TUI launch transcript did not contain the Agent shell:\n${transcript}`);
 }
 
-const tempRoot = mkdtempSync(join(tmpdir(), 'goodvibes-agent-install-check-'));
+const tempRoot = mkdtempSync(join(installCheckTempParent(), 'goodvibes-agent-install-check-'));
 try {
   const packDir = join(tempRoot, 'pack');
   const bunInstallDir = join(tempRoot, 'bun');
   const bunCacheDir = join(tempRoot, 'bun-cache');
   const homeDir = join(tempRoot, 'home');
+  const tempDir = join(tempRoot, 'tmp');
   const workspaceDir = join(tempRoot, 'workspace');
   mkdirSync(packDir, { recursive: true });
   mkdirSync(bunInstallDir, { recursive: true });
   mkdirSync(bunCacheDir, { recursive: true });
   mkdirSync(homeDir, { recursive: true });
+  mkdirSync(tempDir, { recursive: true });
   mkdirSync(workspaceDir, { recursive: true });
 
   const packOutput = run('bun', ['pm', 'pack', '--destination', packDir, '--quiet']);
@@ -145,16 +161,21 @@ try {
     throw new Error(`bun pm pack did not create expected tarball: ${tarballPath}`);
   }
 
-  run('bun', ['add', '-g', tarballPath, '--registry', 'https://registry.npmjs.org'], {
+  const installEnv = {
+    ...process.env,
+    HOME: homeDir,
+    BUN_INSTALL: bunInstallDir,
+    BUN_CACHE_DIR: bunCacheDir,
+    TMPDIR: tempDir,
+  };
+
+  run('bun', ['add', '-g', '--trust', tarballPath, '--registry', 'https://registry.npmjs.org'], {
     cwd: tempRoot,
-    env: {
-      ...process.env,
-      HOME: homeDir,
-      BUN_INSTALL: bunInstallDir,
-      BUN_CACHE_DIR: bunCacheDir,
-    },
+    env: installEnv,
     timeoutMs: BUN_GLOBAL_INSTALL_TIMEOUT_MS,
   });
+  const untrusted = run('bun', ['pm', '-g', 'untrusted'], { env: installEnv });
+  assertNoUntrustedLifecycleDependencies(untrusted);
 
   const binPath = join(bunInstallDir, 'bin', 'goodvibes-agent');
   if (!existsSync(binPath)) {
@@ -176,6 +197,7 @@ try {
     HOME: homeDir,
     BUN_INSTALL: bunInstallDir,
     BUN_CACHE_DIR: bunCacheDir,
+    TMPDIR: tempDir,
     GOODVIBES_WORKING_DIR: workspaceDir,
     PATH: `${join(bunInstallDir, 'bin')}:${process.env.PATH ?? ''}`,
   };
