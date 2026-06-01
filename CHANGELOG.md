@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.82 - 2026-06-01
+
+- 3185531 Remove Agent local auth ownership paths
+
 ## 0.1.81 - 2026-06-01
 
 - Added local Agent skill bundles so users can group related local skills, enable or disable the bundle, and inject the bundle's member procedures into the same serial assistant conversation.
