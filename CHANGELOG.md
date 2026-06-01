@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.83 - 2026-06-01
+
+- f5099c1 Hide runtime-owned settings from Agent workspace
+
 ## 0.1.82 - 2026-06-01
 
 - 3185531 Remove Agent local auth ownership paths
