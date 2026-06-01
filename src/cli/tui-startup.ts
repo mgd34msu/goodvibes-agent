@@ -100,6 +100,7 @@ export function applyInitialTuiCliState(options: {
 }): void {
   const { cli, input, commandRegistry, commandContext, shellPaths, render } = options;
   const globalOnboardingMarker = readOnboardingCheckMarker(shellPaths, 'user');
+  const seededPrompt = cli.flags.prompt ?? (cli.rawCommand === undefined && cli.positionals.length > 0 ? cli.positionals.join(' ') : undefined);
   if (cli.command === 'onboarding') {
     input.openOnboardingWizard({ mode: 'edit', reset: true });
   } else if (cli.command === 'sessions' && cli.commandArgs[0] === 'resume') {
@@ -109,9 +110,10 @@ export function applyInitialTuiCliState(options: {
     }
   } else if (!globalOnboardingMarker.exists) {
     input.openOnboardingWizard({ mode: 'new', reset: true });
+  } else if (cli.command === 'tui' && seededPrompt === undefined) {
+    input.openAgentWorkspace(commandContext);
   }
 
-  const seededPrompt = cli.flags.prompt ?? (cli.rawCommand === undefined && cli.positionals.length > 0 ? cli.positionals.join(' ') : undefined);
   if (seededPrompt) {
     input.prompt = seededPrompt;
     input.cursorPos = seededPrompt.length;

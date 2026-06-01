@@ -54,18 +54,25 @@ function makeCli(overrides: Partial<GoodVibesCliParseResult> = {}): GoodVibesCli
   };
 }
 
-function runStartup(shellPaths: ReturnType<typeof makeShellPaths>): { readonly opened: number } {
+function runStartup(
+  shellPaths: ReturnType<typeof makeShellPaths>,
+  cli: GoodVibesCliParseResult = makeCli(),
+): { readonly onboardingOpened: number; readonly workspaceOpened: number; readonly prompt: string } {
   let opened = 0;
+  let workspaceOpened = 0;
   const input = {
     prompt: '',
     cursorPos: 0,
     openOnboardingWizard: () => {
       opened += 1;
     },
+    openAgentWorkspace: () => {
+      workspaceOpened += 1;
+    },
   } as unknown as InputHandler;
 
   applyInitialTuiCliState({
-    cli: makeCli(),
+    cli,
     input,
     commandRegistry: new CommandRegistry(),
     commandContext: {} as CommandContext,
@@ -73,14 +80,16 @@ function runStartup(shellPaths: ReturnType<typeof makeShellPaths>): { readonly o
     render: () => {},
   });
 
-  return { opened };
+  return { onboardingOpened: opened, workspaceOpened, prompt: input.prompt };
 }
 
 describe('initial TUI onboarding startup check', () => {
   test('opens onboarding when the global user check marker is absent', () => {
     const shellPaths = makeShellPaths();
 
-    expect(runStartup(shellPaths).opened).toBe(1);
+    const result = runStartup(shellPaths);
+    expect(result.onboardingOpened).toBe(1);
+    expect(result.workspaceOpened).toBe(0);
   });
 
   test('does not use project markers as the global onboarding check', () => {
@@ -91,10 +100,12 @@ describe('initial TUI onboarding startup check', () => {
       mode: 'new',
     });
 
-    expect(runStartup(shellPaths).opened).toBe(1);
+    const result = runStartup(shellPaths);
+    expect(result.onboardingOpened).toBe(1);
+    expect(result.workspaceOpened).toBe(0);
   });
 
-  test('skips automatic onboarding after the global user check marker exists', () => {
+  test('opens Agent workspace after the global user check marker exists', () => {
     const shellPaths = makeShellPaths();
     writeOnboardingCheckMarker(shellPaths, {
       scope: 'user',
@@ -102,7 +113,26 @@ describe('initial TUI onboarding startup check', () => {
       mode: 'new',
     });
 
-    expect(runStartup(shellPaths).opened).toBe(0);
+    const result = runStartup(shellPaths);
+    expect(result.onboardingOpened).toBe(0);
+    expect(result.workspaceOpened).toBe(1);
+  });
+
+  test('does not replace a seeded prompt with the Agent workspace', () => {
+    const shellPaths = makeShellPaths();
+    writeOnboardingCheckMarker(shellPaths, {
+      scope: 'user',
+      source: 'wizard',
+      mode: 'new',
+    });
+
+    const result = runStartup(shellPaths, makeCli({
+      positionals: ['summarize', 'today'],
+    }));
+
+    expect(result.onboardingOpened).toBe(0);
+    expect(result.workspaceOpened).toBe(0);
+    expect(result.prompt).toBe('summarize today');
   });
 });
 
