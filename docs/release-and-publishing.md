@@ -38,7 +38,9 @@ git diff --check
 
 The GitHub release workflow publishes to npm only when the repository variable `PUBLISH_NPM` is `true` and the repository secret `NPM_TOKEN` is configured. Without those repository settings, the workflow still validates and creates the GitHub release, but npm publish must be run from a local environment with an exported token.
 
-CI and release workflows must run the full test suite exactly once with `bun run test`. Do not add a second targeted `bun test`/`eval:gate` pass to release validation; tests that matter for release must be included in the full suite.
+Branch CI is the only workflow that runs the full test suite. It runs `bun run test` once for the release SHA. The release workflow must not run tests again; it verifies that branch CI passed for the exact checked-out SHA and then continues with non-test release validation.
+
+Do not add targeted `bun test` passes or separate release-only test gates to CI, release, or aggregate scripts. Tests that matter for release must be included in the single full branch-CI suite.
 
 Also run the package install smoke from a packed artifact. It must prove:
 

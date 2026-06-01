@@ -70,7 +70,6 @@
     "publish:dry-run": "bun run scripts/publish-package.ts --dry-run",
     "publish:check": "bun run scripts/publish-check.ts",
     "package:install-check": "bun run scripts/package-install-check.ts",
-    "eval:gate": "bun test src/test/runtime/eval/runner.test.ts",
     "ci:gate": "bun run typecheck && bun run test && bun run architecture:check && bun run perf:check && bun run build && bun run publish:check && bun run package:install-check && bun run verification:ledger",
     "build:prod": "bun run scripts/build.ts",
     "build:all": "bun run scripts/build.ts --all",

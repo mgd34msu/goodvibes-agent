@@ -19,12 +19,13 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
   validate-release:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
@@ -33,14 +34,61 @@ jobs:
           fetch-depth: 0
       - name: Setup
         uses: ./.github/actions/setup
-      - name: Configure git for tests
+      - name: Verify branch CI passed for release SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config --global user.name "CI"
-          git config --global user.email "ci@test.com"
+          set -euo pipefail
+
+          target_sha="$(git rev-parse HEAD)"
+          deadline=$((SECONDS + 1800))
+
+          echo "Waiting for CI workflow to pass on ${target_sha}."
+          while true; do
+            run_id="$(gh run list \
+              --repo "${GITHUB_REPOSITORY}" \
+              --workflow ci.yml \
+              --commit "${target_sha}" \
+              --event push \
+              --limit 20 \
+              --json databaseId \
+              --jq '.[0].databaseId // ""')"
+
+            if [ -n "${run_id}" ]; then
+              status="$(gh run view "${run_id}" --repo "${GITHUB_REPOSITORY}" --json status --jq '.status')"
+              conclusion="$(gh run view "${run_id}" --repo "${GITHUB_REPOSITORY}" --json conclusion --jq '.conclusion // ""')"
+
+              if [ "${status}" = "completed" ]; then
+                if [ "${conclusion}" != "success" ]; then
+                  echo "CI workflow ${run_id} completed with conclusion: ${conclusion}" >&2
+                  exit 1
+                fi
+
+                test_job="$(gh run view "${run_id}" --repo "${GITHUB_REPOSITORY}" --json jobs --jq '.jobs[] | select(.name == "test") | .conclusion' | head -n 1)"
+                if [ "${test_job}" != "success" ]; then
+                  echo "CI workflow ${run_id} did not have a successful test job." >&2
+                  exit 1
+                fi
+
+                echo "CI workflow ${run_id} passed, including its single test job."
+                exit 0
+              fi
+
+              echo "CI workflow ${run_id} is ${status}; waiting."
+            else
+              echo "No CI workflow run found yet for ${target_sha}; waiting."
+            fi
+
+            if [ "${SECONDS}" -ge "${deadline}" ]; then
+              echo "Timed out waiting for CI to pass on ${target_sha}." >&2
+              echo "Push the release commit to main and wait for branch CI before publishing the tag." >&2
+              exit 1
+            fi
+
+            sleep 20
+          done
       - name: Typecheck
         run: bun x tsc --noEmit --pretty false
-      - name: Tests
-        run: bun run test
       - name: Architecture check
         run: bun run architecture:check
       - name: Performance check

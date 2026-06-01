@@ -3,12 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - CHANGELOG.md
-      - README.md
-      - package.json
-      - src/version.ts
-      - docs/foundation-artifacts/**
   pull_request:
     branches: [main]
 

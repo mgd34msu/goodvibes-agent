@@ -23,13 +23,16 @@ function countOccurrences(text: string, needle: string): number {
 }
 
 describe('CI test execution policy', () => {
-  test('release workflow runs the full test suite exactly once', () => {
+  test('release workflow does not rerun the full test suite', () => {
     const releaseWorkflow = readProjectFile('.github/workflows/release.yml');
 
-    expect(countOccurrences(releaseWorkflow, 'run: bun run test')).toBe(1);
+    expect(countOccurrences(releaseWorkflow, 'run: bun run test')).toBe(0);
     expect(releaseWorkflow).not.toContain('bun test ');
     expect(releaseWorkflow).not.toContain('bun run eval:gate');
     expect(releaseWorkflow).not.toContain('Eval gate');
+    expect(releaseWorkflow).toContain('Verify branch CI passed for release SHA');
+    expect(releaseWorkflow).toContain('--workflow ci.yml');
+    expect(releaseWorkflow).toContain('select(.name == "test")');
   });
 
   test('branch CI does not add a second targeted test job', () => {
