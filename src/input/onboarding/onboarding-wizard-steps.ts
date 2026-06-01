@@ -27,7 +27,7 @@ function buildApplyAndContinueAction(step: OnboardingWizardStepDefinition): Onbo
     kind: 'action',
     id: `${step.id}.apply-and-continue`,
     action: 'apply-and-continue',
-    label: 'Apply & Continue To Next Section',
+    label: 'Apply & Continue',
     hint: 'Save the current wizard selections in this onboarding session and move to the next section. Settings are persisted on the final Review apply.',
     defaultValue: 'Apply & next',
     spacerBeforeRows: 2,
@@ -179,7 +179,7 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
         id: 'agent-setup.identity',
         label: 'Product identity',
         hint: 'GoodVibes Agent is a personal operator TUI with Agent-local profiles, memory, skills, personas, routines, and isolated Agent Knowledge.',
-        defaultValue: 'Agent operator',
+        defaultValue: 'Operator',
       },
       {
         kind: 'status',
@@ -188,7 +188,7 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
         hint: collectionIssues > 0
           ? `${collectionIssues} setup snapshot issue(s) were reported. Status and doctor commands show connection details.`
           : 'Agent connects to an already-running GoodVibes runtime for companion chat, work plans, approvals, automation, and Agent Knowledge.',
-        defaultValue: collectionIssues > 0 ? `${collectionIssues} issue(s)` : 'External service',
+        defaultValue: collectionIssues > 0 ? `${collectionIssues} issue(s)` : 'External',
       },
       {
         kind: 'radio',
@@ -203,7 +203,7 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
         id: 'agent-setup.profile-guide',
         label: 'Agent profiles',
         hint: 'Use /agent-profile guide after setup to create household, research, travel, operations, or custom Agent profiles.',
-        defaultValue: 'Local profiles',
+        defaultValue: 'Profiles',
       },
     ],
   };

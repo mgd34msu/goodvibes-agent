@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.69 - 2026-05-31
+
+- Made the first-run onboarding detail area wrap selected-row guidance across multiple lines instead of hiding setup context behind single-line truncation.
+- Shortened first-screen setup labels and values so Agent identity, runtime connection, secret policy, profiles, and continue actions remain readable at normal terminal widths.
+- Fixed tiny-view onboarding scroll behavior so the selected action stays visible when field capacity is minimal.
+
 ## 0.1.68 - 2026-05-31
 
 - Removed internal foundation-phase language and blocked lifecycle command examples from package-facing docs.

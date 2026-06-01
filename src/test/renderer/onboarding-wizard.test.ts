@@ -59,9 +59,9 @@ describe('renderOnboardingWizard', () => {
   test('shows scroll affordances for the field body when the current step exceeds the visible window', () => {
     const wizard = new OnboardingWizardController();
     wizard.open();
-    wizard.selectLast(getOnboardingWizardVisibleFieldCount(14));
+    wizard.selectLast(getOnboardingWizardVisibleFieldCount(18));
 
-    const text = linesToText(renderOnboardingWizard(wizard, 100, 14)).join('\n');
+    const text = linesToText(renderOnboardingWizard(wizard, 100, 18)).join('\n');
 
     expect(text).toContain('more above');
     expect(text).toContain('Apply & Continue');
@@ -72,7 +72,7 @@ describe('renderOnboardingWizard', () => {
     wizard.open('new');
 
     const textLines = linesToText(renderOnboardingWizard(wizard, 188, 42));
-    const applyLine = textLines.findIndex((line) => line.includes('Apply & Continue To Next Section'));
+    const applyLine = textLines.findIndex((line) => line.includes('Apply & Continue'));
     let previousActionLine = -1;
     for (let index = 0; index < applyLine; index += 1) {
       if (textLines[index]?.includes('Agent profiles')) previousActionLine = index;

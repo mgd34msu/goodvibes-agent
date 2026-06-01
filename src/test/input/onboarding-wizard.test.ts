@@ -220,7 +220,7 @@ describe('OnboardingWizardController', () => {
       }
 
       expect(applyAndContinue).toBeDefined();
-      expect(applyAndContinue?.label).toBe('Apply & Continue To Next Section');
+      expect(applyAndContinue?.label).toBe('Apply & Continue');
       expect(applyAndContinue?.spacerBeforeRows).toBe(2);
       expect(step.fields.at(-1)).toBe(applyAndContinue);
     }

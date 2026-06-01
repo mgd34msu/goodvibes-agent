@@ -112,13 +112,18 @@ function buildFieldRows(
   if (selectedRowIndex >= start + capacity) start = selectedRowIndex - capacity + 1;
   start = clamp(start, 0, maxStart);
 
-  if (start > 0 && selectedRowIndex === start) start = Math.max(0, start - 1);
-  if (start + capacity < allRows.length && selectedRowIndex === start + capacity - 1) {
+  if (capacity > 1 && start > 0 && selectedRowIndex === start) start = Math.max(0, start - 1);
+  if (capacity > 1 && start + capacity < allRows.length && selectedRowIndex === start + capacity - 1) {
     start = Math.min(maxStart, start + 1);
   }
 
   rows.push(...allRows.slice(start, start + capacity));
-  if (start > 0 && rows.length > 0) {
+  const firstVisibleRow = rows[0];
+  if (
+    start > 0
+    && rows.length > 0
+    && !(firstVisibleRow?.kind === 'field' && firstVisibleRow.absoluteIndex === selectedFieldIndex)
+  ) {
     rows[0] = {
       kind: 'moreAbove',
       text: `${OVERLAY_GLYPHS.moreAbove} ${start} more above`,
@@ -126,7 +131,12 @@ function buildFieldRows(
   }
 
   const hiddenBelow = Math.max(0, allRows.length - (start + capacity));
-  if (hiddenBelow > 0 && rows.length > 0) {
+  const lastVisibleRow = rows[rows.length - 1];
+  if (
+    hiddenBelow > 0
+    && rows.length > 0
+    && !(lastVisibleRow?.kind === 'field' && lastVisibleRow.absoluteIndex === selectedFieldIndex)
+  ) {
     rows[rows.length - 1] = {
       kind: 'moreBelow',
       text: `${OVERLAY_GLYPHS.moreBelow} ${hiddenBelow} more below`,
@@ -253,9 +263,9 @@ function footerText(wizard: OnboardingWizardController): string {
 
 function controlsText(wizard: OnboardingWizardController): string {
   if (wizard.isEditingTextField()) {
-    return 'Controls: Enter saves this value, Esc cancels editing, Backspace deletes one character, Delete or Ctrl+U clears the field.';
+    return 'Controls: Enter saves, Esc cancels, Backspace deletes, Del clears.';
   }
-  return 'Controls: Enter or Space changes the selected row; Delete or Ctrl+U clears selected text inputs; Tab/Shift+Tab changes screens; arrows move.';
+  return 'Controls: Enter selects, Del clears, Tab moves.';
 }
 
 function renderWideLayout(
@@ -302,8 +312,9 @@ function renderWideLayout(
     `Fields ${wizard.getCompletedFieldCount(wizard.stepIndex)}/${wizard.getStepFieldCount(wizard.stepIndex)} complete`,
     changedScreensLabel(wizard),
   ];
-  const fieldStartRow = 6;
   const selectedText = selectedFieldText(wizard);
+  const selectedHintLines = wrapText(selectedText.hint, Math.max(18, centerWidth - 2)).slice(0, 3);
+  const fieldStartRow = 8;
   const fieldRows = buildFieldRows(wizard, visibleFields, Math.max(0, bodyRows - fieldStartRow));
 
   const topLine = createOverlayFilledBorderLine(
@@ -397,9 +408,9 @@ function renderWideLayout(
         bg: DEFAULT_OVERLAY_PALETTE.selectedBg,
         bold: true,
       });
-    } else if (row === 5) {
+    } else if (row >= 5 && row <= 7) {
       fillWidth(line, centerStart, centerWidth, DEFAULT_OVERLAY_PALETTE.selectedBg);
-      putOverlayText(line, centerStart + 1, centerWidth - 2, truncateDisplay(selectedText.hint, centerWidth - 2), {
+      putOverlayText(line, centerStart + 1, centerWidth - 2, selectedHintLines[row - 5] ?? '', {
         fg: UI_TONES.fg.secondary,
         bg: DEFAULT_OVERLAY_PALETTE.selectedBg,
       });
@@ -482,8 +493,9 @@ function renderCollapsedLayout(
   const innerStart = layout.margin + 1;
   const innerWidth = layout.innerWidth;
   const descriptionLines = wrapText(currentStep.description, Math.max(14, innerWidth - 2)).slice(0, 2);
-  const fieldStartRow = 6;
   const selectedText = selectedFieldText(wizard);
+  const selectedHintLines = wrapText(selectedText.hint, Math.max(14, innerWidth - 2)).slice(0, 3);
+  const fieldStartRow = 8;
   const fieldRows = buildFieldRows(wizard, visibleFields, Math.max(0, bodyRows - fieldStartRow));
 
   const topLine = createOverlayFilledBorderLine(
@@ -559,9 +571,9 @@ function renderCollapsedLayout(
         bg: DEFAULT_OVERLAY_PALETTE.selectedBg,
         bold: true,
       });
-    } else if (row === 5) {
+    } else if (row >= 5 && row <= 7) {
       fillWidth(line, innerStart, innerWidth, DEFAULT_OVERLAY_PALETTE.selectedBg);
-      putOverlayText(line, innerStart + 1, innerWidth - 2, truncateDisplay(selectedText.hint, innerWidth - 2), {
+      putOverlayText(line, innerStart + 1, innerWidth - 2, selectedHintLines[row - 5] ?? '', {
         fg: UI_TONES.fg.secondary,
         bg: DEFAULT_OVERLAY_PALETTE.selectedBg,
       });

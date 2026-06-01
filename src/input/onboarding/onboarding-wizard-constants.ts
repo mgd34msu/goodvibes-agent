@@ -35,13 +35,13 @@ export const GUIDANCE_MODE_OPTIONS: readonly OnboardingWizardRadioOption[] = [
 ];
 
 export const PERMISSION_MODE_OPTIONS: readonly OnboardingWizardRadioOption[] = [
-  { id: 'prompt', label: 'Ask before powerful actions', hint: 'Prompt before write, edit, network, and execution tools.' },
-  { id: 'allow-all', label: 'Allow everything', hint: 'Allow tools without approval prompts.' },
-  { id: 'custom', label: 'Custom advanced rules', hint: 'Use tool-specific permission rules.' },
+  { id: 'prompt', label: 'Ask first', hint: 'Prompt before write, edit, network, and execution tools.' },
+  { id: 'allow-all', label: 'Allow all', hint: 'Allow tools without approval prompts.' },
+  { id: 'custom', label: 'Custom', hint: 'Use tool-specific permission rules.' },
 ];
 
 export const SECRET_POLICY_OPTIONS: readonly OnboardingWizardRadioOption[] = [
-  { id: 'preferred_secure', label: 'Use secure storage when available', hint: 'Prefer the secure secret backend and fall back only when needed.' },
-  { id: 'require_secure', label: 'Require secure storage', hint: 'Refuse plaintext secret persistence.' },
-  { id: 'plaintext_allowed', label: 'Allow plaintext storage', hint: 'Permit local plaintext secret storage.' },
+  { id: 'preferred_secure', label: 'Secure', hint: 'Prefer the secure secret backend and fall back only when needed.' },
+  { id: 'require_secure', label: 'Require secure', hint: 'Refuse plaintext secret persistence.' },
+  { id: 'plaintext_allowed', label: 'Plaintext allowed', hint: 'Permit local plaintext secret storage.' },
 ];
