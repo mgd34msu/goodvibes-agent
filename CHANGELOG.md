@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.99 - 2026-06-01
+
+- 804edd2 Prune copied setup commands and single-test CI
+
 ## 0.1.98 - 2026-06-01
 
 - Avoid duplicate remote test runs during releases by letting the tag Release workflow own the single full validation pass.
