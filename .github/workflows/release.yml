@@ -185,4 +185,15 @@ jobs:
       - name: Verify npm publish
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          npm view "@pellux/goodvibes-agent@${VERSION}" version --registry=https://registry.npmjs.org
+          for attempt in $(seq 1 18); do
+            PUBLISHED_VERSION="$(npm view "@pellux/goodvibes-agent@${VERSION}" version --registry=https://registry.npmjs.org 2>/tmp/goodvibes-agent-npm-view.log || true)"
+            if [ "$PUBLISHED_VERSION" = "$VERSION" ]; then
+              echo "Verified @pellux/goodvibes-agent@${VERSION} on npm."
+              exit 0
+            fi
+            echo "npm has not exposed @pellux/goodvibes-agent@${VERSION} yet; retrying (${attempt}/18)."
+            sleep 10
+          done
+          cat /tmp/goodvibes-agent-npm-view.log >&2 || true
+          echo "Timed out waiting for @pellux/goodvibes-agent@${VERSION} to appear on npm." >&2
+          exit 1
