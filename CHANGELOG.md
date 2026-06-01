@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.96 - 2026-06-01
+
+- 7ae787f Remove unused widget scaffold
+
 ## 0.1.95 - 2026-06-01
 
 - a3b0dea Remove copied foundation examples
