@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { CommandContext } from '../../input/command-registry.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 
@@ -94,6 +95,41 @@ describe('Agent command interface', () => {
     for (const commandName of expectedAgentCommands) {
       expect(names.has(commandName)).toBe(true);
     }
+  });
+
+  test('auth and login command discovery does not advertise runtime service session exchange', () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+
+    const login = registry.get('login');
+    const auth = registry.get('auth');
+
+    expect(login?.description).toBe('Front-door login flow for provider subscriptions');
+    expect(login?.usage).toBe('provider <name> start|finish <code> --yes');
+    expect(auth?.description).toBe('Review provider auth posture and export redacted auth review bundles');
+    expect(auth?.usage).not.toContain('listener');
+    expect(auth?.usage).not.toContain('service');
+  });
+
+  test('runtime service login paths fail closed in Agent commands', async () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const printed: string[] = [];
+    const dispatched: string[] = [];
+    const context = {
+      print: (message: string) => printed.push(message),
+      executeCommand: async (name: string, args: string[]) => {
+        dispatched.push([name, ...args].join(' '));
+        return true;
+      },
+    } as unknown as CommandContext;
+
+    await registry.execute('login', ['service', 'runtime', 'http://127.0.0.1:3421', 'user', 'pass', '--yes'], context);
+    await registry.execute('auth', ['login', 'runtime', 'http://127.0.0.1:3421', 'user', 'pass', '--yes'], context);
+
+    expect(dispatched).toEqual([]);
+    expect(printed.join('\n')).toContain('Runtime service login is external to GoodVibes Agent.');
+    expect(printed.join('\n')).toContain('provider subscriptions only');
   });
 
   test('routes /skills to the Agent-local skills command, not the copied TUI skill-pack command', () => {

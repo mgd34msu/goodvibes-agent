@@ -14,7 +14,7 @@ describe('renderAutocompleteOverlay', () => {
     });
     registry.register({
       name: 'auth',
-      description: 'Review auth posture and exchange session login tokens with local services',
+      description: 'Review provider auth posture and export redacted auth review bundles',
       handler: async (_args: string[], _ctx: CommandContext) => {},
     });
     registry.register({
