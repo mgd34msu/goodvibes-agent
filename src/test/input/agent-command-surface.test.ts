@@ -151,6 +151,19 @@ describe('Agent command interface', () => {
     expect(registry.get('smemory')?.name).toBe('session-memory');
   });
 
+  test('keeps undo and redo conversation-scoped instead of file-edit scoped', () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+
+    const undo = registry.get('undo');
+    const redo = registry.get('redo');
+
+    expect(undo?.description).toBe('Undo the last conversation turn');
+    expect(redo?.description).toBe('Redo the last undone conversation turn');
+    expect(`${undo?.description ?? ''} ${undo?.usage ?? ''} ${undo?.argsHint ?? ''}`).not.toContain('file');
+    expect(`${redo?.description ?? ''} ${redo?.usage ?? ''} ${redo?.argsHint ?? ''}`).not.toContain('file');
+  });
+
   test('visible Agent guidance does not advertise hidden copied TUI lifecycle commands', () => {
     const visibleGuidanceFiles = [
       'src/input/agent-workspace-setup.ts',

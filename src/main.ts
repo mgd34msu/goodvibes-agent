@@ -289,7 +289,7 @@ async function main() {
     if (processedText.startsWith('!#')) {
       const memoryText = processedText.slice(2).trim();
       if (!memoryText) {
-        systemMessageRouter.high('[Memory] Usage: !# <text to pin as session memory>');
+        systemMessageRouter.high('[Memory] Usage: !# <text to pin as conversation-pinned memory>');
         render();
         processedText = '';
       } else {

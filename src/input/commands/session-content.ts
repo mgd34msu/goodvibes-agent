@@ -154,58 +154,40 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
   registry.register({
     name: 'undo',
     aliases: [],
-    description: 'Undo last action. /undo file — revert last file write/edit. /undo — remove last conversation turn.',
-    usage: '[file]',
-    argsHint: '[file]',
+    description: 'Undo the last conversation turn',
+    usage: '',
+    argsHint: '',
     handler(args, ctx) {
-      if (args[0] === 'file') {
-        if (!ctx.workspace.fileUndoManager) {
-          ctx.print('File undo not available.');
-          return;
-        }
-        try {
-          const result = ctx.workspace.fileUndoManager.undo();
-          ctx.print(result ? `File reverted: ${result.path} (${result.tool} tool). Use /redo file to re-apply.` : 'Nothing to undo. No file operations recorded.');
-        } catch (err) {
-          ctx.print(`File undo failed: ${summarizeError(err)}`);
-        }
+      if (args.length > 0) {
+        ctx.print('Usage: /undo\n  Removes the last conversation turn. File edit undo belongs to the delegated GoodVibes TUI session.');
         return;
       }
       const success = ctx.session.conversationManager.undo();
       if (success) {
-        ctx.print('Last turn undone. Use /redo to restore. Tip: /undo file to revert a file write/edit.');
+        ctx.print('Last turn undone. Use /redo to restore.');
         ctx.renderRequest();
       } else {
-        ctx.print('Nothing to undo. Tip: use /undo file to revert the last file write/edit.');
+        ctx.print('Nothing to undo.');
       }
     },
   });
 
   registry.register({
     name: 'redo',
-    description: 'Redo last undone action. /redo file — re-apply last reverted file. /redo — restore conversation turn.',
-    usage: '[file]',
-    argsHint: '[file]',
+    description: 'Redo the last undone conversation turn',
+    usage: '',
+    argsHint: '',
     handler(args, ctx) {
-      if (args[0] === 'file') {
-        if (!ctx.workspace.fileUndoManager) {
-          ctx.print('File redo not available.');
-          return;
-        }
-        try {
-          const result = ctx.workspace.fileUndoManager.redo();
-          ctx.print(result ? `File re-applied: ${result.path} (${result.tool} tool).` : 'Nothing to redo.');
-        } catch (err) {
-          ctx.print(`File redo failed: ${summarizeError(err)}`);
-        }
+      if (args.length > 0) {
+        ctx.print('Usage: /redo\n  Restores the last undone conversation turn. File edit redo belongs to the delegated GoodVibes TUI session.');
         return;
       }
       const success = ctx.session.conversationManager.redo();
       if (success) {
-        ctx.print('Turn restored. Tip: /redo file to re-apply a reverted file.');
+        ctx.print('Turn restored.');
         ctx.renderRequest();
       } else {
-        ctx.print('Nothing to redo. Tip: use /redo file to re-apply the last reverted file.');
+        ctx.print('Nothing to redo.');
       }
     },
   });

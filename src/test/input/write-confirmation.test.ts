@@ -71,7 +71,7 @@ describe('write/export command confirmation', () => {
     }
   });
 
-  test('session and memory deletes require --yes before mutating local state', async () => {
+  test('session and conversation-pinned memory deletes require --yes before mutating local state', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-delete-confirm-'));
     try {
       const registry = new CommandRegistry();
@@ -119,12 +119,12 @@ describe('write/export command confirmation', () => {
       expect(deletedSession).toBe('saved-session');
 
       out.length = 0;
-      await registry.get('memory')!.handler(['remove', 'mem-1'], ctx);
+      await registry.get('session-memory')!.handler(['remove', 'mem-1'], ctx);
       expect(removedMemory).toBe('');
-      expect(out.join('\n')).toContain('Refusing to remove session memory mem-1 without --yes');
+      expect(out.join('\n')).toContain('Refusing to remove conversation-pinned memory mem-1 without --yes');
 
       out.length = 0;
-      await registry.get('memory')!.handler(['remove', 'mem-1', '--yes'], ctx);
+      await registry.get('session-memory')!.handler(['remove', 'mem-1', '--yes'], ctx);
       expect(removedMemory).toBe('mem-1');
     } finally {
       rmSync(root, { recursive: true, force: true });
