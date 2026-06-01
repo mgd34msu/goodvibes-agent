@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.106 - 2026-06-01
+
+- b67a2fe Polish Agent setup entrypoint
+
 ## 0.1.105 - 2026-06-01
 
 - 7ea88c8 Remove development panel surface
