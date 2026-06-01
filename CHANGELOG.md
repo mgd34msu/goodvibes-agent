@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.79 - 2026-06-01
+
+- Expanded the Voice & Media workspace into a provider readiness matrix covering selected TTS readiness, missing secret key names, media understanding/generation posture, and browser-tool state.
+- Kept voice, browser, and generated media side effects explicit: the workspace renders setup state and next steps only, never secret values or hidden runtime actions.
+
 ## 0.1.78 - 2026-06-01
 
 - Expanded the Agent channel workspace into a concrete readiness matrix with setup state, missing runtime config keys, default-target posture, and safe next steps for each externally owned channel.

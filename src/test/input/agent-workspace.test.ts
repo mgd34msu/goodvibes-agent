@@ -622,48 +622,68 @@ describe('AgentWorkspace', () => {
   });
 
   test('summarizes voice and media provider coverage in the runtime snapshot', () => {
-    const snapshot = buildAgentWorkspaceRuntimeSnapshot({
-      ...commandContext(),
-      platform: {
-        configManager: {
-          get: (key: string) => new Map<string, unknown>([
-            ['tts.provider', 'elevenlabs'],
-            ['tts.voice', 'voice-operator'],
-            ['tts.llmProvider', 'openai-subscriber'],
-            ['tts.llmModel', 'gpt-5.5'],
-            ['ui.voiceEnabled', true],
-            ['web.enabled', true],
-            ['web.publicBaseUrl', 'https://agent.example.test'],
-          ]).get(key),
+    const keys = ['ELEVENLABS_API_KEY', 'XI_API_KEY', 'FAL_KEY', 'FAL_API_KEY'] as const;
+    const previous = new Map(keys.map((key) => [key, process.env[key]] as const));
+    for (const key of keys) delete process.env[key];
+    try {
+      const snapshot = buildAgentWorkspaceRuntimeSnapshot({
+        ...commandContext(),
+        platform: {
+          configManager: {
+            get: (key: string) => new Map<string, unknown>([
+              ['tts.provider', 'elevenlabs'],
+              ['tts.voice', 'voice-operator'],
+              ['tts.llmProvider', 'openai-subscriber'],
+              ['tts.llmModel', 'gpt-5.5'],
+              ['ui.voiceEnabled', true],
+              ['web.enabled', true],
+              ['web.publicBaseUrl', 'https://agent.example.test'],
+            ]).get(key),
+          },
+          voiceProviderRegistry: {
+            list: () => [
+              { id: 'elevenlabs', label: 'ElevenLabs', capabilities: ['tts-stream', 'stt', 'realtime'] },
+              { id: 'deepgram', label: 'Deepgram', capabilities: ['stt'] },
+            ],
+          },
+          mediaProviderRegistry: {
+            list: () => [
+              { id: 'builtin:image-understanding', label: 'Image Understanding', capabilities: ['understand'] },
+              { id: 'fal', label: 'Fal', capabilities: ['generate'] },
+            ],
+          },
         },
-        voiceProviderRegistry: {
-          list: () => [
-            { id: 'elevenlabs', label: 'ElevenLabs', capabilities: ['tts-stream', 'stt', 'realtime'] },
-            { id: 'deepgram', label: 'Deepgram', capabilities: ['stt'] },
-          ],
-        },
-        mediaProviderRegistry: {
-          list: () => [
-            { id: 'builtin:image-understanding', label: 'Image Understanding', capabilities: ['understand'] },
-            { id: 'fal', label: 'Fal', capabilities: ['generate'] },
-          ],
-        },
-      },
-    } as unknown as CommandContext);
+      } as unknown as CommandContext);
 
-    expect(snapshot.voiceProviderCount).toBe(2);
-    expect(snapshot.voiceStreamingProviderCount).toBe(1);
-    expect(snapshot.voiceSttProviderCount).toBe(2);
-    expect(snapshot.voiceRealtimeProviderCount).toBe(1);
-    expect(snapshot.ttsProvider).toBe('elevenlabs');
-    expect(snapshot.ttsVoice).toBe('voice-operator');
-    expect(snapshot.ttsResponseModel).toBe('openai-subscriber/gpt-5.5');
-    expect(snapshot.voiceSurfaceEnabled).toBe(true);
-    expect(snapshot.mediaProviderCount).toBe(2);
-    expect(snapshot.mediaUnderstandingProviderCount).toBe(1);
-    expect(snapshot.mediaGenerationProviderCount).toBe(1);
-    expect(snapshot.browserSurfaceEnabled).toBe(true);
-    expect(snapshot.browserSurfacePublicBaseUrl).toBe('https://agent.example.test');
+      expect(snapshot.voiceProviderCount).toBe(2);
+      expect(snapshot.voiceStreamingProviderCount).toBe(1);
+      expect(snapshot.voiceSttProviderCount).toBe(2);
+      expect(snapshot.voiceRealtimeProviderCount).toBe(1);
+      expect(snapshot.ttsProvider).toBe('elevenlabs');
+      expect(snapshot.ttsVoice).toBe('voice-operator');
+      expect(snapshot.ttsResponseModel).toBe('openai-subscriber/gpt-5.5');
+      expect(snapshot.voiceSurfaceEnabled).toBe(true);
+      expect(snapshot.mediaProviderCount).toBe(2);
+      expect(snapshot.mediaUnderstandingProviderCount).toBe(1);
+      expect(snapshot.mediaGenerationProviderCount).toBe(1);
+      expect(snapshot.voiceMediaReadiness.readyVoiceProviderCount).toBe(0);
+      expect(snapshot.voiceMediaReadiness.readyMediaProviderCount).toBe(1);
+      expect(snapshot.voiceMediaReadiness.selectedTtsProviderStatus).toBe('needs-secret');
+      expect(snapshot.voiceMediaReadiness.selectedTtsProviderLabel).toBe('ElevenLabs');
+      expect(snapshot.voiceMediaReadiness.ttsVoiceConfigured).toBe(true);
+      expect(snapshot.voiceMediaReadiness.ttsResponseRouteConfigured).toBe(true);
+      expect(snapshot.voiceMediaReadiness.browserToolState).toBe('public-url');
+      expect(snapshot.voiceMediaReadiness.voiceProviders[0]?.missingSecretKeyOptions).toEqual(['ELEVENLABS_API_KEY', 'XI_API_KEY']);
+      expect(snapshot.voiceMediaReadiness.mediaProviders[1]?.missingSecretKeyOptions).toEqual(['FAL_KEY', 'FAL_API_KEY']);
+      expect(snapshot.browserSurfaceEnabled).toBe(true);
+      expect(snapshot.browserSurfacePublicBaseUrl).toBe('https://agent.example.test');
+    } finally {
+      for (const key of keys) {
+        const value = previous.get(key);
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
 
   test('does not dispatch voice media command templates without real target values', () => {

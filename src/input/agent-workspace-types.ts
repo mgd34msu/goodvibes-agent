@@ -1,5 +1,6 @@
 import type { AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
 import type { AgentWorkspaceSetupChecklistItem } from './agent-workspace-setup.ts';
+import type { AgentWorkspaceVoiceMediaReadiness } from './agent-workspace-voice-media.ts';
 
 export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
@@ -147,6 +148,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly mediaProviderCount: number;
   readonly mediaUnderstandingProviderCount: number;
   readonly mediaGenerationProviderCount: number;
+  readonly voiceMediaReadiness: AgentWorkspaceVoiceMediaReadiness;
   readonly browserSurfaceEnabled: boolean;
   readonly browserSurfacePublicBaseUrl: string;
   readonly activeRuntimeProfile: string;

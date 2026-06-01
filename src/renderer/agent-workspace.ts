@@ -242,13 +242,41 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: 'Agent-owned content appears here only after explicit Agent knowledge ingestion.', fg: PALETTE.muted },
     );
   } else if (category.id === 'voice-media') {
+    const readiness = snapshot.voiceMediaReadiness;
+    const voiceRows = readiness.voiceProviders.slice(0, 6);
+    const mediaRows = readiness.mediaProviders.slice(0, 6);
     base.push(
       { text: `Voice providers: ${snapshot.voiceProviderCount}; streaming TTS: ${snapshot.voiceStreamingProviderCount}; STT: ${snapshot.voiceSttProviderCount}; realtime: ${snapshot.voiceRealtimeProviderCount}.`, fg: PALETTE.info },
-      { text: `Voice interaction: ${snapshot.voiceSurfaceEnabled ? 'enabled' : 'disabled'}; use /voice review for portable voice posture.`, fg: snapshot.voiceSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: `Voice interaction: ${snapshot.voiceSurfaceEnabled ? 'enabled' : 'disabled'}; ready providers ${readiness.readyVoiceProviderCount}/${snapshot.voiceProviderCount}.`, fg: snapshot.voiceSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
       { text: `TTS config: provider ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}; response model ${snapshot.ttsResponseModel}.`, fg: PALETTE.info },
+      { text: `Selected TTS readiness: ${readiness.selectedTtsProviderLabel} -> ${readiness.selectedTtsProviderStatus}; voice ${readiness.ttsVoiceConfigured ? 'configured' : 'default'}; response route ${readiness.ttsResponseRouteConfigured ? 'configured' : 'chat route'}.`, fg: readiness.selectedTtsProviderStatus === 'ready' ? PALETTE.good : PALETTE.warn },
       { text: `Media providers: ${snapshot.mediaProviderCount}; understanding: ${snapshot.mediaUnderstandingProviderCount}; generation: ${snapshot.mediaGenerationProviderCount}.`, fg: PALETTE.info },
-      { text: `Browser companion: ${snapshot.browserSurfaceEnabled ? 'available' : 'not advertised'}; public base URL ${snapshot.browserSurfacePublicBaseUrl}.`, fg: snapshot.browserSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
-      { text: 'Build dispatch stays out of setup; explicit delegation is handled from the Build Delegation workspace.', fg: PALETTE.good },
+      { text: `Ready media providers: ${readiness.readyMediaProviderCount}/${snapshot.mediaProviderCount}.`, fg: readiness.readyMediaProviderCount > 0 ? PALETTE.good : PALETTE.warn },
+      { text: `Browser tooling: ${readiness.browserToolState}; public base URL ${snapshot.browserSurfacePublicBaseUrl}.`, fg: snapshot.browserSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: readiness.browserToolNextStep, fg: PALETTE.muted },
+      { text: 'Voice provider readiness', fg: PALETTE.title, bold: true },
+    );
+    for (const provider of voiceRows) {
+      const selected = provider.selected ? 'selected; ' : '';
+      const missing = provider.missingSecretKeyOptions.length > 0 ? `; needs ${provider.missingSecretKeyOptions.join('|')}` : '';
+      base.push({
+        text: `${provider.label}: ${selected}${provider.setupState}; ${provider.features.join(', ') || 'registered'}${missing}.`,
+        fg: provider.setupState === 'ready' ? PALETTE.good : provider.setupState === 'needs-secret' ? PALETTE.warn : PALETTE.muted,
+      });
+    }
+    if (snapshot.voiceProviderCount > voiceRows.length) base.push({ text: `${snapshot.voiceProviderCount - voiceRows.length} more voice provider(s).`, fg: PALETTE.dim });
+    base.push({ text: 'Media provider readiness', fg: PALETTE.title, bold: true });
+    for (const provider of mediaRows) {
+      const missing = provider.missingSecretKeyOptions.length > 0 ? `; needs ${provider.missingSecretKeyOptions.join('|')}` : '';
+      base.push({
+        text: `${provider.label}: ${provider.setupState}; ${provider.features.join(', ') || 'registered'}${missing}.`,
+        fg: provider.setupState === 'ready' ? PALETTE.good : provider.setupState === 'needs-secret' ? PALETTE.warn : PALETTE.muted,
+      });
+    }
+    if (snapshot.mediaProviderCount > mediaRows.length) base.push({ text: `${snapshot.mediaProviderCount - mediaRows.length} more media provider(s).`, fg: PALETTE.dim });
+    for (const step of readiness.nextSteps.slice(0, 4)) base.push({ text: `Next: ${step}`, fg: PALETTE.info });
+    base.push(
+      { text: 'No secret values are rendered. Voice, browser, and generated media side effects require explicit user action.', fg: PALETTE.warn },
       { text: 'Image input uses prompt attachments; media generation/provider setup stays behind explicit commands and configured providers.', fg: PALETTE.muted },
     );
   } else if (category.id === 'profiles') {

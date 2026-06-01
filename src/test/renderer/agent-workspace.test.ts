@@ -255,22 +255,39 @@ describe('renderAgentWorkspace', () => {
   });
 
   test('renders voice media and browser tool setup posture', () => {
+    const keys = ['ELEVENLABS_API_KEY', 'XI_API_KEY', 'FAL_KEY', 'FAL_API_KEY'] as const;
+    const previous = new Map(keys.map((key) => [key, process.env[key]] as const));
+    for (const key of keys) delete process.env[key];
     const workspace = new AgentWorkspace();
-    workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+    try {
+      workspace.open(liveCommandContext(), () => undefined);
+      workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 38));
+      const output = text(renderAgentWorkspace(workspace, 132, 54));
 
-    expect(output).toContain('Voice & Media');
-    expect(output).toContain('Voice providers: 2; streaming TTS: 1; STT: 2; realtime: 1.');
-    expect(output).toContain('Voice interaction: enabled');
-    expect(output).toContain('TTS config: provider elevenlabs; voice voice-operator; response model openai-subscriber/gpt-5.5.');
-    expect(output).toContain('Media providers: 2; understanding: 1; generation: 1.');
-    expect(output).toContain('Browser companion: available; public base URL https://agent.example.test.');
-    expect(output).toContain('/config tts');
-    expect(output).toContain('/image <path> <prompt>');
-    expect(output).toContain('/mcp servers');
-    expect(output).not.toContain('/remote list');
+      expect(output).toContain('Voice & Media');
+      expect(output).toContain('Voice providers: 2; streaming TTS: 1; STT: 2; realtime: 1.');
+      expect(output).toContain('Voice interaction: enabled; ready providers 0/2.');
+      expect(output).toContain('TTS config: provider elevenlabs; voice voice-operator; response model openai-subscriber/gpt-5.5.');
+      expect(output).toContain('Selected TTS readiness: ElevenLabs -> needs-secret; voice configured; response route configured.');
+      expect(output).toContain('Media providers: 2; understanding: 1; generation: 1.');
+      expect(output).toContain('Ready media providers: 1/2.');
+      expect(output).toContain('Browser tooling: public-url; public base URL https://agent.example.test.');
+      expect(output).toContain('ElevenLabs: selected; needs-secret; tts-stream, stt, realtime; needs');
+      expect(output).toContain('ELEVENLABS_API_KEY|XI_API_KEY.');
+      expect(output).toContain('Fal: needs-secret; generate; needs FAL_KEY|FAL_API_KEY.');
+      expect(output).toContain('No secret values are rendered.');
+      expect(output).toContain('/config tts');
+      expect(output).toContain('/image <path> <prompt>');
+      expect(output).toContain('/mcp servers');
+      expect(output).not.toContain('/remote list');
+    } finally {
+      for (const key of keys) {
+        const value = previous.get(key);
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
 
   test('renders profile isolation and bundle workflow posture', () => {

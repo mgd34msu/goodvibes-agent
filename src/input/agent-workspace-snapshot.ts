@@ -6,6 +6,7 @@ import { AgentSkillRegistry, type AgentSkillRecord } from '../agent/skill-regist
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates } from '../agent/runtime-profile.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
 import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
+import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
 import type {
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceRuntimeProfileItem,
@@ -217,6 +218,16 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return [];
     }
   })();
+  const voiceProviderDescriptors: readonly AgentWorkspaceVoiceMediaProviderDescriptor[] = voiceProviders.map((provider) => ({
+    id: provider.id,
+    label: provider.label,
+    capabilities: provider.capabilities,
+  }));
+  const mediaProviderDescriptors: readonly AgentWorkspaceVoiceMediaProviderDescriptor[] = mediaProviders.map((provider) => ({
+    id: provider.id,
+    label: provider.label,
+    capabilities: provider.capabilities,
+  }));
   const warnings: string[] = [];
   if (provider === 'unknown' || model === 'unknown') warnings.push('Provider/model unavailable in this runtime context.');
   if (!context.executeCommand) warnings.push('Command dispatch is unavailable; workspace actions will show guidance only.');
@@ -226,6 +237,11 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const ttsLlmModel = readConfigString(context, 'tts.llmModel', '');
   const daemonBaseUrl = `http://${host}:${port}`;
   const channels = buildAgentWorkspaceChannels(context);
+  const voiceMediaReadiness = buildAgentWorkspaceVoiceMediaReadiness({
+    context,
+    voiceProviders: voiceProviderDescriptors,
+    mediaProviders: mediaProviderDescriptors,
+  });
   const setupChecklist = buildAgentWorkspaceSetupChecklist({
     provider,
     model,
@@ -278,6 +294,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     mediaProviderCount: mediaProviders.length,
     mediaUnderstandingProviderCount: mediaProviders.filter((entry) => entry.capabilities.includes('understand')).length,
     mediaGenerationProviderCount: mediaProviders.filter((entry) => entry.capabilities.includes('generate')).length,
+    voiceMediaReadiness,
     browserSurfaceEnabled: readConfigBoolean(context, 'web.enabled', false),
     browserSurfacePublicBaseUrl: readConfigString(context, 'web.publicBaseUrl', '(not configured)'),
     activeRuntimeProfile: inferActiveRuntimeProfile(context.workspace?.shellPaths?.homeDirectory ?? ''),
