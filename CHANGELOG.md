@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.101 - 2026-06-01
+
+- 5f35012 Prune hidden copied command surfaces
+
 ## 0.1.100 - 2026-06-01
 
 - e2d5eee Run release tests only through branch CI
