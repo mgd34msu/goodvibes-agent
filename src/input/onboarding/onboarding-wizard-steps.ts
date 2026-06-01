@@ -3,7 +3,7 @@ import { modelSelectionLabel, normalizeText } from './onboarding-wizard-helpers.
 import { listAgentRuntimeProfileTemplates } from '../../agent/runtime-profile.ts';
 import type { OnboardingWizardController } from './onboarding-wizard.ts';
 import type { OnboardingWizardActionFieldDefinition, OnboardingWizardFieldDefinition, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardRadioFieldDefinition, OnboardingWizardRadioOption, OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
-import type { OnboardingStep1CapabilityId, OnboardingStep1CapabilityItem } from '../../runtime/onboarding/index.ts';
+import type { OnboardingProviderAccountRecord, OnboardingStep1CapabilityId, OnboardingStep1CapabilityItem } from '../../runtime/onboarding/index.ts';
 
 function buildStarterTemplateOptions(): readonly OnboardingWizardRadioOption[] {
   return [
@@ -80,6 +80,27 @@ function profileSetupLabel(controller: OnboardingWizardController): string {
   const templateId = controller.getStringFieldValue('agent-setup.profile-template', 'none');
   if (profileName.length === 0) return 'Current home';
   return templateId === 'none' ? `Create ${profileName}` : `Create ${profileName} from ${templateId}`;
+}
+
+function formatBoundedList(values: readonly string[], empty: string): string {
+  const unique = [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))]
+    .sort((left, right) => left.localeCompare(right));
+  if (unique.length === 0) return empty;
+  if (unique.length <= 4) return unique.join(', ');
+  return `${unique.slice(0, 4).join(', ')} +${unique.length - 4} more`;
+}
+
+function providerAccountLabel(provider: OnboardingProviderAccountRecord): string {
+  const route = provider.activeRoute && provider.activeRoute !== 'unconfigured'
+    ? provider.activeRoute
+    : provider.oauthReady
+      ? 'oauth-ready'
+      : provider.pendingLogin
+        ? 'pending-login'
+        : provider.configured
+          ? 'configured'
+          : 'unconfigured';
+  return `${provider.providerId}:${route}`;
 }
 
 function buildReviewReadinessFields(controller: OnboardingWizardController): readonly OnboardingWizardFieldDefinition[] {
@@ -342,17 +363,42 @@ export function buildProviderAccessStep(controller: OnboardingWizardController):
   const openAiPending = pendingSubscriptions.some((subscription) => subscription.provider === 'openai');
   const providerSecretCount = controller.runtimeSnapshot?.secrets.records.filter((record) => record.key.endsWith('_API_KEY') || record.key.endsWith('_TOKEN')).length ?? 0;
   const openAiApiKeyConfigured = controller.runtimeSnapshot?.secrets.records.some((record) => record.key === 'OPENAI_API_KEY') ?? false;
+  const routing = controller.runtimeSnapshot?.providerRouting;
+  const accountProviders = controller.runtimeSnapshot?.providerAccounts?.providers ?? [];
+  const configuredAccounts = accountProviders.filter((provider) =>
+    provider.configured || provider.active || provider.oauthReady || provider.pendingLogin || provider.activeRoute !== 'unconfigured',
+  );
+  const providerRouteLabel = routing
+    ? `${routing.primaryProviderId}/${routing.primaryModelId}`
+    : 'Not loaded';
+  const activeSubscriptionProviders = activeSubscriptions.map((subscription) => subscription.provider);
+  const pendingSubscriptionProviders = pendingSubscriptions.map((subscription) => subscription.provider);
   const fields: OnboardingWizardFieldDefinition[] = [
     {
       kind: 'status',
-      id: 'providers.openai-subscription',
-      label: 'OpenAI subscription status',
-      hint: openAiActive
-        ? 'An OpenAI subscription session is already available.'
-        : openAiPending
-          ? 'An OpenAI subscription login is pending.'
-          : 'No OpenAI subscription session was found in the current Agent state.',
-      defaultValue: openAiActive ? 'Active' : openAiPending ? 'Pending' : 'Not detected',
+      id: 'providers.default-route',
+      label: 'Current conversation route',
+      hint: 'Normal Agent turns use this provider/model until you change the default model route.',
+      defaultValue: providerRouteLabel,
+    },
+    {
+      kind: 'status',
+      id: 'providers.account-routes',
+      label: 'Provider account routes',
+      hint: configuredAccounts.length > 0
+        ? formatBoundedList(configuredAccounts.map(providerAccountLabel), 'No provider account routes detected.')
+        : 'No provider account routes were detected in the current Agent state.',
+      defaultValue: configuredAccounts.length > 0 ? `${configuredAccounts.length} route(s)` : 'None detected',
+    },
+    {
+      kind: 'status',
+      id: 'providers.subscription-sessions',
+      label: 'Subscription sessions',
+      hint: [
+        `active: ${formatBoundedList(activeSubscriptionProviders, 'none')}`,
+        `pending: ${formatBoundedList(pendingSubscriptionProviders, 'none')}`,
+      ].join('  '),
+      defaultValue: `${activeSubscriptions.length} active / ${pendingSubscriptions.length} pending`,
     },
     {
       kind: 'status',
@@ -364,10 +410,10 @@ export function buildProviderAccessStep(controller: OnboardingWizardController):
     {
       kind: 'masked',
       id: 'providers.openai-api-key',
-      label: 'OpenAI API key',
+      label: 'OpenAI API key quick start',
       hint: openAiApiKeyConfigured
-        ? 'An OpenAI API key is already stored. Leave blank to keep it; enter a new key to replace it through the secret manager.'
-        : 'Optional: enter an OpenAI API key now. The value is stored through the secret manager, not in config.',
+        ? 'Optional quick start: an OpenAI API key is already stored. Leave blank to keep it; enter a new key to replace it through the secret manager.'
+        : 'Optional quick start: enter an OpenAI API key now. Other providers can be configured from /secrets, /provider, and the model picker.',
       placeholder: openAiApiKeyConfigured ? 'already configured' : 'sk-...',
       defaultValue: '',
     },
@@ -413,11 +459,12 @@ export function buildProviderAccessStep(controller: OnboardingWizardController):
     id: 'provider-access',
     title: 'AI provider access',
     shortLabel: 'Providers',
-    description: 'Review provider access for the Agent conversation. Credentials stay masked and are stored through the secret manager.',
+    description: 'Review provider and model access for the Agent conversation. Credentials stay masked and provider-specific setup remains configurable.',
     summaryTitle: 'Provider access summary',
     summaryLines: [
-      `OpenAI subscription: ${openAiActive ? 'active' : openAiPending ? 'pending' : 'not detected'}`,
-      `OpenAI API key: ${openAiApiKeyConfigured ? 'configured' : 'not detected'}`,
+      `Default route: ${providerRouteLabel}`,
+      `Provider account routes: ${configuredAccounts.length}`,
+      `Subscription sessions: ${activeSubscriptions.length} active / ${pendingSubscriptions.length} pending`,
       `Provider credential references: ${providerSecretCount}`,
     ],
     fields,
