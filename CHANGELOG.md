@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.78 - 2026-06-01
+
+- Expanded the Agent channel workspace into a concrete readiness matrix with setup state, missing runtime config keys, default-target posture, and safe next steps for each externally owned channel.
+- Kept channel setup read-only inside Agent: no runtime lifecycle ownership, no hidden sends, and no secret values rendered.
+
 ## 0.1.77 - 2026-06-01
 
 - Added a first-class Agent profile creation form inside the fullscreen operator workspace instead of dispatching a placeholder command template.

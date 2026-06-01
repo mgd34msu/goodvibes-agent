@@ -205,23 +205,34 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
     const readyCount = snapshot.channels.filter((channel) => channel.ready).length;
     const configuredDefaults = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
-    const disabledChannels = snapshot.channels.filter((channel) => !channel.enabled).map((channel) => channel.label).join(', ');
+    const readyChannels = snapshot.channels.filter((channel) => channel.ready).map((channel) => channel.label);
+    const needsTarget = snapshot.channels.filter((channel) => channel.setupState === 'needs-target');
+    const needsConfig = snapshot.channels.filter((channel) => channel.setupState === 'needs-config');
+    const disabledChannels = snapshot.channels.filter((channel) => !channel.enabled).map((channel) => channel.label);
+    const disabledPreview = disabledChannels.slice(0, 6).join(', ');
+    const disabledSuffix = disabledChannels.length > 6 ? `, +${disabledChannels.length - 6} more` : '';
+    const orderedChannels = [
+      ...snapshot.channels.filter((channel) => channel.enabled),
+      ...snapshot.channels.filter((channel) => !channel.enabled),
+    ].slice(0, 6);
     base.push(
       { text: `GoodVibes runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
       { text: `Readiness: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} default target(s) configured.`, fg: PALETTE.info },
-      { text: `Disabled channels: ${disabledChannels || 'none'}.`, fg: PALETTE.dim },
-      { text: 'Pairing: use /pair or /qrcode for companion setup.', fg: PALETTE.info },
-      { text: 'Channel posture: inspect via /communication and /setup review.', fg: PALETTE.muted },
-      { text: 'Safety: external delivery, unknown senders, and public exposure require explicit policy and user action.', fg: PALETTE.warn },
+      { text: `Ready channels: ${readyChannels.join(', ') || 'none'}.`, fg: readyChannels.length > 0 ? PALETTE.good : PALETTE.warn },
+      { text: `Needs default target: ${needsTarget.map((channel) => `${channel.label} -> ${channel.defaultTargetKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsTarget.length > 0 ? PALETTE.warn : PALETTE.muted },
+      { text: `Needs config: ${needsConfig.map((channel) => `${channel.label} -> ${channel.missingRequiredKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsConfig.length > 0 ? PALETTE.warn : PALETTE.muted },
+      { text: `Disabled channels: ${disabledPreview || 'none'}${disabledSuffix}.`, fg: PALETTE.dim },
+      { text: 'Safety: no secret values; sends and public exposure require explicit user action and runtime policy.', fg: PALETTE.warn },
     );
-    for (const channel of snapshot.channels) {
-      const enabled = channel.enabled ? 'enabled' : 'disabled';
+    for (const channel of orderedChannels) {
       const ready = channel.ready ? 'ready' : `${channel.missingConfigCount} missing`;
       base.push({
-        text: `${channel.label}: ${enabled}; ${ready}; default ${channel.defaultTarget}; delivery ${channel.delivery}; risk ${channel.riskLabel}.`,
+        text: `${channel.label}: ${channel.setupState}; ${ready}; target ${channel.defaultTarget}; delivery ${channel.delivery}; risk ${channel.risk}.`,
         fg: channel.ready ? PALETTE.good : channel.enabled ? PALETTE.warn : PALETTE.dim,
       });
     }
+    base.push({ text: 'Only config key names and readiness state are rendered here.', fg: PALETTE.muted });
+    base.push({ text: 'Pairing: use /pair or /qrcode; inspect routed activity with /communication and /setup review.', fg: PALETTE.info });
   } else if (category.id === 'knowledge') {
     base.push(
       { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },

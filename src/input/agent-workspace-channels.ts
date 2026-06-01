@@ -7,11 +7,17 @@ export interface AgentWorkspaceChannelStatus {
   readonly label: string;
   readonly enabled: boolean;
   readonly ready: boolean;
+  readonly requiredKeys: readonly string[];
+  readonly missingRequiredKeys: readonly string[];
   readonly missingConfigCount: number;
+  readonly defaultTargetKeys: readonly string[];
+  readonly configuredDefaultTargetKeys: readonly string[];
   readonly defaultTarget: 'configured' | 'missing' | 'not-required';
   readonly delivery: 'disabled' | 'blocked' | 'explicit-target' | 'default-ready';
   readonly risk: AgentWorkspaceChannelRisk;
   readonly riskLabel: string;
+  readonly setupState: 'disabled' | 'needs-config' | 'needs-target' | 'ready';
+  readonly nextStep: string;
 }
 
 interface AgentWorkspaceConfigReader {
@@ -182,10 +188,12 @@ function hasConfigValue(context: CommandContext, key: string): boolean {
 
 function buildChannelStatus(context: CommandContext, spec: AgentWorkspaceChannelSpec): AgentWorkspaceChannelStatus {
   const enabled = readConfigBoolean(context, spec.enabledKey, false);
-  const missingConfigCount = spec.requiredKeys.filter((key) => !hasConfigValue(context, key)).length;
+  const missingRequiredKeys = spec.requiredKeys.filter((key) => !hasConfigValue(context, key));
+  const configuredDefaultTargetKeys = spec.defaultTargetKeys.filter((key) => hasConfigValue(context, key));
+  const missingConfigCount = missingRequiredKeys.length;
   const defaultTarget = spec.defaultTargetKeys.length === 0
     ? 'not-required'
-    : spec.defaultTargetKeys.some((key) => hasConfigValue(context, key))
+    : configuredDefaultTargetKeys.length > 0
       ? 'configured'
       : 'missing';
   const ready = enabled && missingConfigCount === 0;
@@ -196,16 +204,36 @@ function buildChannelStatus(context: CommandContext, spec: AgentWorkspaceChannel
       : defaultTarget === 'configured'
         ? 'default-ready'
         : 'explicit-target';
+  const setupState = !enabled
+    ? 'disabled'
+    : missingConfigCount > 0
+      ? 'needs-config'
+      : defaultTarget === 'missing'
+        ? 'needs-target'
+        : 'ready';
+  const nextStep = setupState === 'disabled'
+    ? `Enable ${spec.label} in the owning GoodVibes runtime before Agent can use it.`
+    : setupState === 'needs-config'
+      ? `Configure ${missingRequiredKeys.join(', ')} in the owning runtime or secret manager.`
+      : setupState === 'needs-target'
+        ? `Provide an explicit delivery target per send, or configure one of ${spec.defaultTargetKeys.join(', ')}.`
+        : `Use explicit user action or runtime policy to send through ${spec.label}.`;
   return {
     id: spec.id,
     label: spec.label,
     enabled,
     ready,
+    requiredKeys: spec.requiredKeys,
+    missingRequiredKeys,
     missingConfigCount,
+    defaultTargetKeys: spec.defaultTargetKeys,
+    configuredDefaultTargetKeys,
     defaultTarget,
     delivery,
     risk: spec.risk,
     riskLabel: spec.riskLabel,
+    setupState,
+    nextStep,
   };
 }
 

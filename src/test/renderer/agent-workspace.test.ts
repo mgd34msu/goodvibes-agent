@@ -156,7 +156,7 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
 
-    const output = text(renderAgentWorkspace(workspace, 132, 34));
+    const output = text(renderAgentWorkspace(workspace, 132, 50));
 
     expect(output).toContain('Live Agent Context');
     expect(output).toContain('openai-subscriber / GPT-5.5');
@@ -310,13 +310,16 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Pair companion');
     expect(output).toContain('/pair');
     expect(output).toContain('/communication');
-    expect(output).toContain('external delivery');
-    expect(output).toContain('explicit policy and user');
-    expect(output).toContain('action.');
+    expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and runtime');
+    expect(output).toContain('policy.');
     expect(output).toContain('Readiness: 2/13 ready; 2 enabled; 1 default target(s) configured.');
-    expect(output).toContain('Slack: enabled; ready; default configured; delivery default-ready; risk workspace/group channel.');
-    expect(output).toContain('Telegram: enabled; ready; default missing; delivery explicit-target; risk bot DM/group delivery.');
-    expect(output).toContain('Disabled channels: Discord, ntfy');
+    expect(output).toContain('Ready channels: Slack, Telegram.');
+    expect(output).toContain('Needs default target: Telegram -> surfaces.telegram.defaultChatId.');
+    expect(output).toContain('Needs config: none.');
+    expect(output).toContain('Slack: ready; ready; target configured; delivery default-ready; risk group.');
+    expect(output).toContain('Telegram: needs-target; ready; target missing; delivery explicit-target; risk dm.');
+    expect(output).toContain('Discord: disabled; 3 missing; target missing; delivery disabled; risk group.');
+    expect(output).toContain('Disabled channels: Discord, ntfy, Google Chat, Signal, WhatsApp, iMessage, +5 more.');
     expect(output).toContain('WhatsApp');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('TELEGRAM_BOT_TOKEN');
