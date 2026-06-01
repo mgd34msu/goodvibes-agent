@@ -3,6 +3,7 @@ import { modelSelectionLabel, normalizeText } from './onboarding-wizard-helpers.
 import { listAgentRuntimeProfileTemplates } from '../../agent/runtime-profile.ts';
 import type { OnboardingWizardController } from './onboarding-wizard.ts';
 import type { OnboardingWizardActionFieldDefinition, OnboardingWizardFieldDefinition, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardRadioFieldDefinition, OnboardingWizardRadioOption, OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
+import type { OnboardingStep1CapabilityId, OnboardingStep1CapabilityItem } from '../../runtime/onboarding/index.ts';
 
 function buildStarterTemplateOptions(): readonly OnboardingWizardRadioOption[] {
   return [
@@ -56,6 +57,98 @@ function addApplyAndContinueAction(step: OnboardingWizardStepDefinition): Onboar
     ...step,
     fields: [...step.fields, buildApplyAndContinueAction(step)],
   };
+}
+
+function findRuntimeCapability(
+  controller: OnboardingWizardController,
+  id: OnboardingStep1CapabilityId,
+): OnboardingStep1CapabilityItem | null {
+  return controller.runtimeDerived.step1Capabilities.find((capability) => capability.id === id) ?? null;
+}
+
+function currentMainModelLabel(controller: OnboardingWizardController): string {
+  const routing = controller.runtimeSnapshot?.providerRouting;
+  return modelSelectionLabel(controller.modelSelectionState.get('main') ?? {
+    providerId: normalizeText(routing?.primaryProviderId),
+    modelId: normalizeText(routing?.primaryModelId),
+    enabled: true,
+  });
+}
+
+function profileSetupLabel(controller: OnboardingWizardController): string {
+  const profileName = normalizeText(controller.getStringFieldValue('agent-setup.profile-name', ''));
+  const templateId = controller.getStringFieldValue('agent-setup.profile-template', 'none');
+  if (profileName.length === 0) return 'Current home';
+  return templateId === 'none' ? `Create ${profileName}` : `Create ${profileName} from ${templateId}`;
+}
+
+function buildReviewReadinessFields(controller: OnboardingWizardController): readonly OnboardingWizardFieldDefinition[] {
+  const localBehavior = findRuntimeCapability(controller, 'local-behavior');
+  const channels = findRuntimeCapability(controller, 'communication-channels');
+  const automation = findRuntimeCapability(controller, 'automation-review');
+  const collectionIssues = controller.runtimeSnapshot?.collectionIssues.length ?? 0;
+
+  return [
+    {
+      kind: 'status',
+      id: 'review.readiness.connection',
+      label: 'Runtime connection snapshot',
+      hint: collectionIssues > 0
+        ? `${collectionIssues} setup snapshot issue(s) need attention before this Agent is day-one ready.`
+        : 'The setup snapshot loaded cleanly from the external GoodVibes runtime.',
+      defaultValue: collectionIssues > 0 ? 'Needs attention' : 'Ready',
+      spacerBeforeRows: 1,
+    },
+    {
+      kind: 'status',
+      id: 'review.readiness.model',
+      label: 'Default model route',
+      hint: 'Normal assistant turns use this selected provider/model route unless changed later from the model picker.',
+      defaultValue: currentMainModelLabel(controller),
+    },
+    {
+      kind: 'status',
+      id: 'review.readiness.profile',
+      label: 'Agent profile',
+      hint: 'Profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state.',
+      defaultValue: profileSetupLabel(controller),
+    },
+    {
+      kind: 'status',
+      id: 'review.readiness.knowledge',
+      label: 'Agent Knowledge segment',
+      hint: 'Ask, search, status, and ingest stay on /api/goodvibes-agent/knowledge/* with no default wiki or non-Agent fallback.',
+      defaultValue: 'Isolated',
+    },
+    {
+      kind: 'status',
+      id: 'review.readiness.local-behavior',
+      label: 'Local behavior library',
+      hint: localBehavior?.detail ?? 'Agent-local memory, routines, skills, and personas remain local until a stable shared registry exists.',
+      defaultValue: localBehavior?.selected ? 'Customized' : 'Starter ready',
+    },
+    {
+      kind: 'status',
+      id: 'review.readiness.channels',
+      label: 'Channels and notifications',
+      hint: channels?.detail ?? 'Connect only the channels the Agent should use, and keep outbound delivery explicit.',
+      defaultValue: channels?.selected ? 'Review configured' : 'Optional setup',
+    },
+    {
+      kind: 'status',
+      id: 'review.readiness.automation',
+      label: 'Routines and schedules',
+      hint: automation?.detail ?? 'Local routines run in the main conversation; external schedules require explicit promotion and confirmation.',
+      defaultValue: automation?.selected ? 'Review configured' : 'Local first',
+    },
+    {
+      kind: 'status',
+      id: 'review.readiness.delegation',
+      label: 'Build delegation',
+      hint: 'Build, fix, implementation, and review work is handed to GoodVibes TUI only when explicitly requested.',
+      defaultValue: 'Explicit only',
+    },
+  ];
 }
 
 export function buildCommunicationStep(): OnboardingWizardStepDefinition {
@@ -636,14 +729,17 @@ export function buildReviewStep(controller: OnboardingWizardController): Onboard
   const unsavedLabel = controller.dirtyStepCount === 1
     ? '1 screen has unapplied changes'
     : `${controller.dirtyStepCount} screens have unapplied changes`;
+  const collectionIssues = controller.runtimeSnapshot?.collectionIssues.length ?? 0;
+  const dayOneReadiness = collectionIssues > 0 ? `${collectionIssues} connection issue(s) before day-one ready` : 'operator checklist ready';
 
   return {
     id: 'review',
     title: 'Review and apply',
     shortLabel: 'Review',
-    description: 'Review Agent-owned settings and apply them directly from the wizard.',
-    summaryTitle: 'Review posture',
+    description: 'Review the Agent day-one checklist and apply setup directly from the wizard.',
+    summaryTitle: 'Agent day-one readiness',
     summaryLines: [
+      `Day-one readiness: ${dayOneReadiness}`,
       unsavedLabel,
       `${controller.buildApplyRequest().operations.length} Agent setting change(s) ready to apply`,
       feedback ? `Last apply: ${feedback.title}` : 'No apply errors reported',
@@ -651,6 +747,7 @@ export function buildReviewStep(controller: OnboardingWizardController): Onboard
     ],
     fields: [
       ...feedbackFields,
+      ...buildReviewReadinessFields(controller),
       {
         kind: 'status',
         id: 'review.global-marker',

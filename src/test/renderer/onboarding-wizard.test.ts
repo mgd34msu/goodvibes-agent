@@ -57,6 +57,26 @@ describe('renderOnboardingWizard', () => {
     expect(text).not.toContain('background service processes');
   });
 
+  test('renders an Agent day-one readiness checklist on the review step', () => {
+    const wizard = new OnboardingWizardController();
+    wizard.open('new');
+    wizard.setFieldValue('agent-setup.profile-name', 'household');
+    wizard.setFieldValue('agent-setup.profile-template', 'household');
+    wizard.setStep(wizard.steps.findIndex((step) => step.id === 'review'));
+
+    const text = linesToText(renderOnboardingWizard(wizard, 188, 44)).join('\n');
+
+    expect(text).toContain('Agent day-one readiness');
+    expect(text).toContain('Runtime connection snapshot');
+    expect(text).toContain('Default model route');
+    expect(text).toContain('Create household from household');
+    expect(text).toContain('Agent Knowledge segment');
+    expect(text).toContain('Channels and notifications');
+    expect(text).toContain('Build delegation');
+    expect(text).not.toContain('HomeGraph');
+    expect(text).not.toContain('Default Knowledge/Wiki fallback: enabled');
+  });
+
   test('shows scroll affordances for the field body when the current step exceeds the visible window', () => {
     const wizard = new OnboardingWizardController();
     wizard.open();

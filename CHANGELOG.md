@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.80 - 2026-06-01
+
+- Added an Agent day-one readiness checklist to the onboarding review step covering runtime connection, default model route, profile setup, isolated Agent Knowledge, local behavior, channels, routines/schedules, and explicit build delegation.
+- Kept the first-run review focused on Agent setup outcomes instead of copied runtime lifecycle or non-Agent knowledge behavior.
+
 ## 0.1.79 - 2026-06-01
 
 - Expanded the Voice & Media workspace into a provider readiness matrix covering selected TTS readiness, missing secret key names, media understanding/generation posture, and browser-tool state.
