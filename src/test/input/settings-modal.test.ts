@@ -106,9 +106,7 @@ describe('SettingsModal', () => {
       'Agent Experience',
       'Models and Providers',
       'Local Agent State',
-      'Tools and Automation',
-      'External Runtime Connection',
-      'Delegation Compatibility',
+      'Channels and Tools',
       'Advanced',
     ]);
   });
@@ -134,6 +132,30 @@ describe('SettingsModal', () => {
     }
     const missing = CONFIG_SCHEMA.map((entry) => entry.key).filter((key) => !isAgentHiddenSettingKey(key) && !visibleKeys.has(key));
     expect(missing).toEqual([]);
+  });
+
+  test('open() does not route runtime-hosting or copied WRFC config into the Agent workspace', () => {
+    modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
+    const visibleKeys = new Set<string>();
+    for (const entries of modal.groups.values()) {
+      for (const entry of entries) visibleKeys.add(entry.setting.key);
+    }
+
+    for (const key of [
+      'danger.daemon',
+      'controlPlane.hostMode',
+      'httpListener.hostMode',
+      'web.hostMode',
+      'service.autostart',
+      'runtime.eventBus.maxListeners',
+      'network.remoteFetch.allowPrivateHosts',
+      'orchestration.recursionEnabled',
+      'wrfc.scoreThreshold',
+      'ui.wrfcMessages',
+    ]) {
+      expect(isAgentHiddenSettingKey(key)).toBe(true);
+      expect(visibleKeys.has(key)).toBe(false);
+    }
   });
 
   test('currentCategory returns correct category', () => {

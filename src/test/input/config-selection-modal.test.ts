@@ -107,4 +107,36 @@ describe('/config fullscreen workspace command', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test('the fullscreen workspace does not expose copied host/runtime lifecycle targets', () => {
+    const dir = join(tmpdir(), `gv-config-hidden-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    mkdirSync(dir, { recursive: true });
+    try {
+      const cm = makeConfigManager(dir);
+      const modal = new SettingsModal();
+      const subscriptions = new SubscriptionManager(join(dir, '.goodvibes', 'tui', 'subscriptions.json'));
+      const services = new ServiceRegistry(join(dir, '.goodvibes', 'tui', 'services.json'), {
+        secretsManager: new SecretsManager({ projectRoot: dir, globalHome: dir, configManager: cm }),
+        subscriptionManager: subscriptions,
+      });
+
+      modal.open(cm, createFeatureFlagManager(), subscriptions, services);
+
+      const workspaceKeys = new Set<string>();
+      for (const entries of modal.groups.values()) {
+        for (const entry of entries) workspaceKeys.add(entry.setting.key);
+      }
+
+      expect(isAgentHiddenSettingKey('danger.daemon')).toBe(true);
+      expect(isAgentHiddenSettingKey('controlPlane.port')).toBe(true);
+      expect(isAgentHiddenSettingKey('runtime.eventBus.maxListeners')).toBe(true);
+      expect(isAgentHiddenSettingKey('ui.wrfcMessages')).toBe(true);
+      expect(workspaceKeys.has('danger.daemon')).toBe(false);
+      expect(workspaceKeys.has('controlPlane.port')).toBe(false);
+      expect(workspaceKeys.has('runtime.eventBus.maxListeners')).toBe(false);
+      expect(workspaceKeys.has('ui.wrfcMessages')).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -57,11 +57,9 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
 }> = [
   { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'permissions'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts'] },
-  { label: 'Local Agent State', categories: ['storage', 'runtime', 'cache', 'telemetry'] },
-  { label: 'Tools and Automation', categories: ['mcp', 'batch', 'automation', 'watchers'] },
-  { label: 'External Runtime Connection', categories: ['network', 'controlPlane', 'httpListener', 'web', 'service', 'surfaces'] },
-  { label: 'Delegation Compatibility', categories: ['orchestration', 'wrfc'] },
-  { label: 'Advanced', categories: ['flags', 'release', 'danger'] },
+  { label: 'Local Agent State', categories: ['storage', 'cache', 'telemetry'] },
+  { label: 'Channels and Tools', categories: ['surfaces', 'mcp', 'automation'] },
+  { label: 'Advanced', categories: ['flags', 'release'] },
 ];
 
 export const SETTINGS_CATEGORIES: SettingsCategory[] = SETTINGS_CATEGORY_GROUPS.flatMap(group => group.categories);

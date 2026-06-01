@@ -133,11 +133,35 @@ describe('renderSettingsModal', () => {
     expect(modal.focusPane).toBe('categories');
     expect(texts).toContain('AGENT EXPERIENCE');
     expect(texts).toContain('MODELS AND PROVIDERS');
+    expect(texts).toContain('CHANNELS AND TOOLS');
     expect(texts).toContain('  ▸ Display (8)');
+    expect(texts).not.toContain('EXTERNAL RUNTIME CONNECTION');
+    expect(texts).not.toContain('DELEGATION COMPATIBILITY');
     const interfaceLine = lines.find(line => lineToString(line).includes('AGENT EXPERIENCE'));
     expect(interfaceLine).toBeDefined();
     const interfaceIndex = lineToString(interfaceLine!).indexOf('AGENT EXPERIENCE');
     expect(interfaceLine![interfaceIndex]?.bold).toBe(true);
+  });
+
+  test('does not expose external runtime hosting or copied WRFC settings as Agent settings', () => {
+    const rendered: string[] = [];
+    for (let index = 0; index < 20; index += 1) {
+      rendered.push(linesToText(renderSettingsModal(modal, W, 40)).join('\n'));
+      modal.nextCategory();
+    }
+    const text = rendered.join('\n');
+    expect(text).not.toContain('Runtime API');
+    expect(text).not.toContain('Inbound Events');
+    expect(text).not.toContain('Runtime Install');
+    expect(text).not.toContain('Danger');
+    expect(text).not.toContain('WRFC Delegation');
+    expect(text).not.toContain('Agent Orchestration');
+    expect(text).not.toContain('controlPlane.');
+    expect(text).not.toContain('httpListener.');
+    expect(text).not.toContain('service.');
+    expect(text).not.toContain('danger.');
+    expect(text).not.toContain('wrfc.');
+    expect(text).not.toContain('orchestration.');
   });
 
   test('settings list shows setting keys', () => {
@@ -207,7 +231,7 @@ describe('renderSettingsModal', () => {
     modal.nextCategory();
     const lines = renderSettingsModal(modal, W);
     const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('UI (4)');
+    expect(texts).toContain('UI (3)');
   });
 
   test('mcp category renders server trust editing surface', () => {

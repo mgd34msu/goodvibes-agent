@@ -453,20 +453,19 @@ describe('command modal handoff', () => {
       };
       input.setCommandRegistry(registry, context);
 
-      input.feed('/config danger.daemon\r');
+      input.feed('/config display.stream\r');
       await Promise.resolve();
 
       expect(input.settingsModal.active).toBe(true);
       expect(input.commandMode).toBe(false);
       expect(input.prompt).toBe('');
       expect(input.modalStack).toEqual(['settings']);
-      expect(input.settingsModal.getSelected()?.setting.key).toBe('danger.daemon');
+      expect(input.settingsModal.getSelected()?.setting.key).toBe('display.stream');
 
-      const before = configManager.get('danger.daemon');
+      const before = configManager.get('display.stream');
       input.feed(' ');
 
-      expect(configManager.get('danger.daemon')).toBe(before);
-      expect(input.settingsModal.lastSettingEffectMessage).toContain('external GoodVibes runtime');
+      expect(configManager.get('display.stream')).toBe(!before);
       expect(input.settingsModal.active).toBe(true);
       expect(input.commandMode).toBe(false);
       expect(input.modalStack).toEqual(['settings']);
