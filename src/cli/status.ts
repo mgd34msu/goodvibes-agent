@@ -379,7 +379,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
       ? `  operatorTokens: ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
       : '  operatorTokens: unknown',
     '',
-    'External Runtime:',
+    'Runtime Connection:',
     ...(externalRuntime ? [
       `  baseUrl: ${externalRuntime.baseUrl}`,
       `  reachable: ${yesNo(externalRuntime.reachable)}${externalRuntime.statusCode === null ? '' : ` (HTTP ${externalRuntime.statusCode})`}`,
@@ -393,11 +393,9 @@ export function renderCliStatus(options: CliStatusOptions): string {
     ]),
     '',
     'Runtime Ownership:',
-    '  Agent hosting: external only',
-    `  Agent starts runtime: no`,
-    `  legacy host config present: ${yesNo(serviceEnabled)}`,
-    `  legacy host autostart: ${yesNo(serviceAutostart)}`,
-    `  legacy host restart policy: ${yesNo(restartOnFailure)}`,
+    '  Agent role: client/operator TUI only',
+    '  hosting lifecycle: external',
+    '  Agent starts runtime: no',
     ...(options.service ? [
       `  platform: ${options.service.managed.platform}`,
       `  installed: ${yesNo(options.service.managed.installed)}`,
@@ -405,12 +403,6 @@ export function renderCliStatus(options: CliStatusOptions): string {
       `  definition: ${options.service.managed.path}`,
       `  log: ${options.service.log.path ?? 'n/a'} (${options.service.log.exists ? 'present' : 'missing'})`,
     ] : []),
-    '',
-    'Runtime Endpoint Diagnostics:',
-    bindLine('runtimeApi', controlPlaneEnabled, controlPlaneBinding),
-    bindLine('incomingWebhook', listenerEnabled, httpListenerBinding),
-    bindLine('browserCompanion', webEnabled, webBinding),
-    '',
     'Onboarding:',
     `  checked: ${marker?.exists ? 'yes' : 'no'}`,
     `  scope: ${marker?.scope ?? 'none'}`,
@@ -418,6 +410,18 @@ export function renderCliStatus(options: CliStatusOptions): string {
   ];
 
   if (options.doctor) {
+    lines.push(
+      '',
+      'External Runtime Config Signals:',
+      `  host config present: ${yesNo(serviceEnabled)}`,
+      `  host autostart: ${yesNo(serviceAutostart)}`,
+      `  host restart policy: ${yesNo(restartOnFailure)}`,
+      '',
+      'Endpoint Diagnostics:',
+      bindLine('runtimeApi', controlPlaneEnabled, controlPlaneBinding),
+      bindLine('incomingWebhook', listenerEnabled, httpListenerBinding),
+      bindLine('browserCompanion', webEnabled, webBinding),
+    );
     lines.push('', 'Warnings:');
     if (findings.length === 0) {
       lines.push('  none');

@@ -126,17 +126,31 @@ describe('CLI status and doctor output', () => {
   test('status foregrounds live external runtime and Agent Knowledge readiness', () => {
     const text = renderCliStatus(makeOptions());
 
-    expect(text).toContain('External Runtime:');
+    expect(text).toContain('Runtime Connection:');
     expect(text).toContain('baseUrl: http://127.0.0.1:3421');
     expect(text).toContain('reachable: yes (HTTP 200)');
     expect(text).toContain('sdk: 0.33.35 expected 0.33.35');
     expect(text).toContain('Agent Knowledge: ready');
     expect(text).toContain('Runtime Ownership:');
-    expect(text).toContain('Agent hosting: external only');
+    expect(text).toContain('Agent role: client/operator TUI only');
+    expect(text).toContain('hosting lifecycle: external');
     expect(text).toContain('Agent starts runtime: no');
+    expect(text).not.toContain('Runtime Endpoint Diagnostics:');
+    expect(text).not.toContain('Endpoint Diagnostics:');
+    expect(text).not.toContain('runtimeApi:');
     expect(text).not.toContain('hostConfigEnabled');
     expect(text).not.toContain('hostAutostart');
     expect(text).not.toContain('hostRestartOnFailure');
+  });
+
+  test('doctor includes external runtime config and endpoint diagnostics', () => {
+    const text = renderCliStatus({ ...makeOptions(), doctor: true });
+
+    expect(text).toContain('External Runtime Config Signals:');
+    expect(text).toContain('host config present: yes');
+    expect(text).toContain('Endpoint Diagnostics:');
+    expect(text).toContain('runtimeApi: yes');
+    expect(text).toContain('incomingWebhook: no');
   });
 
   test('setup status is Agent-branded', () => {
