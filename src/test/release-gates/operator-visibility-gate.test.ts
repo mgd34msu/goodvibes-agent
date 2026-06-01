@@ -34,7 +34,7 @@ const visibleOperatorCommands = [
   'trust',
 ] as const;
 
-describe('operator surfaces gate', () => {
+describe('operator visibility gate', () => {
   function walkProductionSource(dir: string): string[] {
     const entries = readdirSync(dir, { withFileTypes: true });
     const files: string[] = [];
@@ -71,7 +71,7 @@ describe('operator surfaces gate', () => {
     expect(leaks).toEqual([]);
   });
 
-  test('hides copied operator panels and lifecycle surfaces from slash-command discovery', () => {
+  test('hides copied operator panels and lifecycle setup from slash-command discovery', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
 

@@ -1,6 +1,6 @@
 # Tools and Commands
 
-GoodVibes Agent is an operator assistant TUI. Its command surface is centered on main-conversation assistant work, isolated Agent Knowledge/Wiki, local memory/routines/skills/personas, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
+GoodVibes Agent is an operator assistant TUI. Its command set is centered on main-conversation assistant work, isolated Agent Knowledge/Wiki, local memory/routines/skills/personas, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
 
 ## Product Boundaries
 
@@ -29,7 +29,7 @@ High-signal Agent command families:
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
 
-Copied TUI-era commands that would imply runtime lifecycle ownership, local agent spawning, coding-first execution, runtime-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only until they are intentionally adapted to Agent policy.
+Copied TUI-era commands that would imply runtime lifecycle ownership, local agent spawning, coding-first execution, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only until they are intentionally adapted to Agent policy.
 
 Local recall capture/add commands are explicit Agent-local memory actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
 

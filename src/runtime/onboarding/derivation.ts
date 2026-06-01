@@ -6,6 +6,7 @@ import type {
   OnboardingNetworkMode,
   OnboardingReopenEditAcknowledgementState,
   OnboardingSnapshotState,
+  OnboardingStep1CapabilityFlags,
   OnboardingStep1CapabilityItem,
   OnboardingStepDerivationState,
 } from './types.ts';
@@ -185,10 +186,6 @@ function hasAnyServerEnabled(snapshot: OnboardingSnapshotState): boolean {
     || snapshot.bindSettings.web.enabled;
 }
 
-function hasBrowserAccess(snapshot: OnboardingSnapshotState): boolean {
-  return snapshot.bindSettings.web.enabled;
-}
-
 function isLoopbackHost(host: string | null | undefined): boolean {
   const normalized = (host ?? '').trim().toLowerCase();
   if (normalized.length === 0) return false;
@@ -251,43 +248,72 @@ function hasExternalIntegrations(snapshot: OnboardingSnapshotState): boolean {
     || countConfiguredSurfaceKinds(snapshot) > 0;
 }
 
-function describeLocalTuiOnly(snapshot: OnboardingSnapshotState): string {
+function hasLocalBehaviorCustomization(snapshot: OnboardingSnapshotState): boolean {
+  return hasCustomizedWorkspaceDefaults(snapshot)
+    || countPermissionToolOverrides(snapshot) > 0
+    || snapshot.runtimeDefaults.secretStoragePolicy !== DEFAULT_CONFIG.storage.secretPolicy;
+}
+
+function hasCommunicationChannelSignals(snapshot: OnboardingSnapshotState): boolean {
+  return hasExternalIntegrations(snapshot);
+}
+
+function hasAutomationReviewSignals(snapshot: OnboardingSnapshotState): boolean {
+  return hasWebhookOrEventIngress(snapshot);
+}
+
+function describeOperatorTerminal(snapshot: OnboardingSnapshotState): string {
   if (!hasAnyServerEnabled(snapshot)) {
-    return 'Use GoodVibes Agent in this terminal while connecting to the existing GoodVibes runtime. Agent setup does not enable network services or extra entrypoints.';
+    return 'Use GoodVibes Agent as the terminal operator while connecting to the existing GoodVibes runtime. Agent setup does not create new entrypoints.';
   }
 
-  return 'Keep Agent local-first by reviewing runtime connectivity separately from Agent-owned assistant setup.';
+  return 'Use GoodVibes Agent as the terminal operator; runtime host settings are shown only so the connection is understandable.';
 }
 
-function describeBrowserAccess(snapshot: OnboardingSnapshotState): string {
-  return snapshot.bindSettings.web.enabled
-    ? 'Review browser access already exposed by the runtime owner. Agent records visibility but does not change network posture.'
-    : 'Browser access is optional. Agent can stay terminal-first while the runtime owner controls any browser entrypoint.';
+function describeProviderAccess(snapshot: OnboardingSnapshotState): string {
+  const configuredCount = getConfiguredProviderSignalIds(snapshot).length;
+  if (configuredCount === 0 && !hasCustomizedProviderRouting(snapshot)) {
+    return 'Choose the model route the Agent should use for normal assistant turns, tool reasoning, and embeddings.';
+  }
+
+  return `Review ${Math.max(configuredCount, 1)} provider auth or routing signal(s) already available to Agent.`;
 }
 
-function describeRemoteDeviceAccess(snapshot: OnboardingSnapshotState): string {
-  return hasRemoteDeviceAccess(snapshot)
-    ? 'Review runtime access reachable from other devices on your LAN. Local authentication is required.'
-    : 'Other-device access is optional and remains controlled by the runtime owner.';
+function describeAgentKnowledge(): string {
+  return 'Agent Knowledge uses the isolated /api/goodvibes-agent/knowledge segment only; it never falls back to another knowledge segment.';
 }
 
-function describeWebhookIngress(snapshot: OnboardingSnapshotState): string {
-  return hasWebhookOrEventIngress(snapshot)
-    ? 'Review incoming webhook, callback, and automation-event routes exposed by the runtime owner.'
-    : 'Incoming webhook and callback routes are optional; Agent onboarding does not create them.';
+function describeLocalBehavior(snapshot: OnboardingSnapshotState): string {
+  if (!hasLocalBehaviorCustomization(snapshot)) {
+    return 'Configure local memory, routines, skills, personas, permissions, and secret handling before the Agent starts doing useful work.';
+  }
+
+  return 'Review existing local behavior, permission, display, or secret-handling choices before applying Agent setup.';
 }
 
-function describeExternalIntegrations(snapshot: OnboardingSnapshotState): string {
+function describeCommunicationChannels(snapshot: OnboardingSnapshotState): string {
   const integrationCount = new Set<string>([
     ...getExternalIntegrationServiceIds(snapshot),
     ...getConfiguredSurfaceKinds(snapshot),
   ]).size;
 
   if (integrationCount === 0) {
-    return 'Connect only the channels you want the assistant to use, then review delivery safety before sending externally.';
+    return 'Connect only the channels the Agent should use, and keep outbound delivery explicit until a user action allows it.';
   }
 
-  return `Review ${integrationCount} detected channel or integration signal(s) before allowing external delivery.`;
+  return `Review ${integrationCount} configured channel or integration signal(s) before the Agent uses them for delivery.`;
+}
+
+function describeAutomationReview(snapshot: OnboardingSnapshotState): string {
+  if (!hasAutomationReviewSignals(snapshot)) {
+    return 'Review schedules, routine promotion, approvals, and automation visibility without starting hidden background work.';
+  }
+
+  return 'Review existing event, schedule, or automation signals and keep all side effects behind explicit commands or confirmations.';
+}
+
+function describeTuiDelegation(): string {
+  return 'Delegate explicit build, fix, implementation, and review work to GoodVibes TUI; WRFC is requested only when the user explicitly asks for it.';
 }
 
 function getAcknowledgementAccepted(
@@ -329,61 +355,64 @@ export function deriveStep1Capabilities(
 ): readonly OnboardingStep1CapabilityItem[] {
   return [
     {
-      id: 'local-tui-only',
-      label: 'Agent Terminal First',
-      selected: !hasAnyServerEnabled(snapshot),
-      detail: describeLocalTuiOnly(snapshot),
+      id: 'operator-terminal',
+      label: 'Agent Operator TUI',
+      selected: true,
+      detail: describeOperatorTerminal(snapshot),
     },
     {
-      id: 'browser-access',
-      label: 'Optional Browser Access',
-      selected: hasBrowserAccess(snapshot),
-      detail: describeBrowserAccess(snapshot),
+      id: 'provider-access',
+      label: 'Provider and Model Access',
+      selected: hasConfiguredProviderState(snapshot) || hasCustomizedProviderRouting(snapshot),
+      detail: describeProviderAccess(snapshot),
     },
     {
-      id: 'network-access',
-      label: 'Optional Other-Device Access',
-      selected: hasRemoteDeviceAccess(snapshot),
-      detail: describeRemoteDeviceAccess(snapshot),
+      id: 'agent-knowledge',
+      label: 'Isolated Agent Knowledge',
+      selected: true,
+      detail: describeAgentKnowledge(),
     },
     {
-      id: 'webhook-events',
-      label: 'Optional Incoming Events',
-      selected: hasWebhookOrEventIngress(snapshot),
-      detail: describeWebhookIngress(snapshot),
+      id: 'local-behavior',
+      label: 'Local Memory and Skills',
+      selected: hasLocalBehaviorCustomization(snapshot),
+      detail: describeLocalBehavior(snapshot),
     },
     {
-      id: 'external-integrations',
-      label: 'Channels and Integrations',
-      selected: hasExternalIntegrations(snapshot),
-      detail: describeExternalIntegrations(snapshot),
+      id: 'communication-channels',
+      label: 'Channels and Notifications',
+      selected: hasCommunicationChannelSignals(snapshot),
+      detail: describeCommunicationChannels(snapshot),
+    },
+    {
+      id: 'automation-review',
+      label: 'Routines and Automation Review',
+      selected: hasAutomationReviewSignals(snapshot),
+      detail: describeAutomationReview(snapshot),
+    },
+    {
+      id: 'tui-delegation',
+      label: 'Explicit Build Delegation',
+      selected: true,
+      detail: describeTuiDelegation(),
     },
   ];
 }
 
 export function deriveStep1CapabilityFlags(
   snapshot: OnboardingSnapshotState,
-): {
-  readonly providers: boolean;
-  readonly services: boolean;
-  readonly subscriptions: boolean;
-  readonly auth: boolean;
-  readonly controlPlane: boolean;
-  readonly httpListener: boolean;
-  readonly web: boolean;
-  readonly surfaces: boolean;
-} {
+): OnboardingStep1CapabilityFlags {
   return {
-    providers: hasConfiguredProviderState(snapshot) || hasCustomizedProviderRouting(snapshot),
-    services: snapshot.services.total > 0,
+    providerAccess: hasConfiguredProviderState(snapshot) || hasCustomizedProviderRouting(snapshot),
     subscriptions: snapshot.subscriptions.active.length > 0 || snapshot.subscriptions.pending.length > 0,
     auth: snapshot.auth.snapshot.userCount > 0
       || snapshot.auth.snapshot.sessionCount > 0
       || snapshot.auth.snapshot.bootstrapCredentialPresent,
-    controlPlane: snapshot.bindSettings.daemonEnabled || snapshot.bindSettings.controlPlane.enabled,
-    httpListener: snapshot.bindSettings.httpListenerEnabled,
-    web: snapshot.bindSettings.web.enabled,
-    surfaces: countConfiguredSurfaceKinds(snapshot) > 0,
+    agentKnowledge: true,
+    localBehavior: hasLocalBehaviorCustomization(snapshot),
+    communicationChannels: hasCommunicationChannelSignals(snapshot),
+    automationReview: hasAutomationReviewSignals(snapshot),
+    tuiDelegation: true,
   };
 }
 

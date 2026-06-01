@@ -130,7 +130,7 @@ const LOCAL_AGENT_DENIAL = [
 ].join(' ');
 
 const LOCAL_CODING_TOOL_DENIAL = [
-  'GoodVibes Agent does not perform direct local file mutation, local WRFC workflow execution, or local runtime-isolation execution from the main conversation.',
+  'GoodVibes Agent does not perform direct local file mutation, local WRFC workflow execution, or local execution-isolation work from the main conversation.',
   'For explicit build/fix/review/code execution work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract with the full original user ask.',
   'For durable Agent memory, skills, personas, routines, and knowledge, use the Agent-owned commands and isolated Agent Knowledge routes.',
 ].join(' ');

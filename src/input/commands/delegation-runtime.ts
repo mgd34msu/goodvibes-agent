@@ -29,7 +29,7 @@ function buildDelegationBody(task: string, wrfcRequested: boolean): string {
     'Agent policy:',
     '- GoodVibes Agent is not the coding TUI.',
     '- Preserve the full original ask.',
-    '- GoodVibes TUI owns file edits, git/worktree flows, runtime-isolation UX, and any WRFC owner chain.',
+    '- GoodVibes TUI owns file edits, git/worktree flows, execution isolation UX, and any WRFC owner chain.',
     wrfcRequested
       ? '- WRFC was explicitly requested by the Agent user for this build/fix/review delegation.'
       : '- WRFC was not explicitly requested; do not turn this into WRFC solely because it came from Agent.',

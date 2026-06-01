@@ -65,11 +65,13 @@ const EXTERNAL_CLI_COMMANDS = new Set([
 ]);
 
 const ONBOARDING_CAPABILITIES = [
-  'local-tui-only',
-  'browser-access',
-  'network-access',
-  'webhook-events',
-  'external-integrations',
+  'operator-terminal',
+  'provider-access',
+  'agent-knowledge',
+  'local-behavior',
+  'communication-channels',
+  'automation-review',
+  'tui-delegation',
 ] as const;
 
 const EXTERNAL_SURFACES = [

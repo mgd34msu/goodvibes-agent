@@ -55,12 +55,12 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   readonly label: string;
   readonly categories: readonly SettingsCategory[];
 }> = [
-  { label: 'Interface', categories: ['display', 'ui', 'behavior', 'permissions'] },
-  { label: 'AI Routing', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts'] },
-  { label: 'Service & Network', categories: ['service', 'network', 'controlPlane', 'httpListener', 'web'] },
-  { label: 'Surfaces & Integrations', categories: ['surfaces', 'mcp'] },
-  { label: 'Automation', categories: ['batch', 'automation', 'watchers', 'orchestration', 'wrfc'] },
-  { label: 'Runtime & Data', categories: ['storage', 'runtime', 'cache', 'telemetry'] },
+  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'permissions'] },
+  { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts'] },
+  { label: 'Local Agent State', categories: ['storage', 'runtime', 'cache', 'telemetry'] },
+  { label: 'Tools and Automation', categories: ['mcp', 'batch', 'automation', 'watchers'] },
+  { label: 'External Runtime Connection', categories: ['network', 'controlPlane', 'httpListener', 'web', 'service', 'surfaces'] },
+  { label: 'Delegation Compatibility', categories: ['orchestration', 'wrfc'] },
   { label: 'Advanced', categories: ['flags', 'release', 'danger'] },
 ];
 

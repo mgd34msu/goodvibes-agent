@@ -131,12 +131,12 @@ describe('renderSettingsModal', () => {
     const lines = renderSettingsModal(modal, W);
     const texts = linesToText(lines).join('\n');
     expect(modal.focusPane).toBe('categories');
-    expect(texts).toContain('INTERFACE');
-    expect(texts).toContain('AI ROUTING');
+    expect(texts).toContain('AGENT EXPERIENCE');
+    expect(texts).toContain('MODELS AND PROVIDERS');
     expect(texts).toContain('  ▸ Display (8)');
-    const interfaceLine = lines.find(line => lineToString(line).includes('INTERFACE'));
+    const interfaceLine = lines.find(line => lineToString(line).includes('AGENT EXPERIENCE'));
     expect(interfaceLine).toBeDefined();
-    const interfaceIndex = lineToString(interfaceLine!).indexOf('INTERFACE');
+    const interfaceIndex = lineToString(interfaceLine!).indexOf('AGENT EXPERIENCE');
     expect(interfaceLine![interfaceIndex]?.bold).toBe(true);
   });
 

@@ -47,7 +47,7 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
     id: 'agent-communication',
     title: 'Channels and notifications',
     shortLabel: 'Channels',
-    description: 'Prepare the Agent for companion pairing, messaging-channel awareness, notification delivery, and safe outbound communication without changing runtime connectivity.',
+    description: 'Prepare the Agent for companion pairing, messaging-channel awareness, notification delivery, and safe outbound communication while leaving runtime hosting external.',
     summaryTitle: 'Communication posture',
     summaryLines: [
       'Companion chat: paired through the GoodVibes runtime',
@@ -60,13 +60,13 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
         id: 'agent-communication.companion',
         label: 'Companion pairing',
         hint: 'Use /pair from the Agent workspace to pair companion clients through the already-running GoodVibes runtime.',
-        defaultValue: 'External service route',
+        defaultValue: 'External runtime route',
       },
       {
         kind: 'status',
         id: 'agent-communication.channels',
         label: 'Messaging channels',
-        hint: 'Use the Channels workspace to inspect account readiness, delivery posture, and recent communication without changing runtime connectivity.',
+        hint: 'Use the Channels workspace to inspect account readiness, delivery posture, and recent communication without changing runtime hosting.',
         defaultValue: 'Inspectable',
       },
       {
@@ -97,7 +97,7 @@ export function buildToolsStep(): OnboardingWizardStepDefinition {
     summaryLines: [
       'MCP and tools: inspect before use',
       'Read/search/summarize: safe by default',
-      'Writes, installs, external sends, and service changes: require explicit user action',
+      'Writes, installs, external sends, and account changes: require explicit user action',
     ],
     fields: [
       {
@@ -111,14 +111,14 @@ export function buildToolsStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-tools.browser-media',
         label: 'Browser and media helpers',
-        hint: 'Browser, image, audio, and file helpers are capability surfaces. Agent uses them only when the current task needs them and policy allows it.',
+        hint: 'Browser, image, audio, and file helpers are task-scoped tools. Agent uses them only when the current task needs them and policy allows it.',
         defaultValue: 'Task scoped',
       },
       {
         kind: 'status',
         id: 'agent-tools.approval-boundary',
         label: 'Power action boundary',
-        hint: 'Workspace writes, package installs, external sends, account changes, and service changes require an explicit command or confirmation.',
+        hint: 'Workspace writes, package installs, external sends, and account changes require an explicit command or confirmation.',
         defaultValue: 'Approval required',
       },
       {
@@ -468,10 +468,10 @@ export function buildVoiceMediaStep(): OnboardingWizardStepDefinition {
     id: 'agent-voice-media',
     title: 'Voice and media',
     shortLabel: 'Voice',
-    description: 'Prepare voice, speech, image input, and media understanding as Agent operator surfaces rather than runtime lifecycle features.',
+    description: 'Prepare voice, speech, image input, and media understanding as Agent operator tools rather than runtime lifecycle features.',
     summaryTitle: 'Voice and media posture',
     summaryLines: [
-      'Voice and speech: optional operator surfaces',
+      'Voice and speech: optional operator tools',
       'Image/audio inputs: explicit attachment workflows',
       'Media generation and playback: provider-backed and policy-gated',
     ],

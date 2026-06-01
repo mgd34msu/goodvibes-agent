@@ -193,11 +193,13 @@ export interface OnboardingSnapshotState {
 }
 
 export type OnboardingStep1CapabilityId =
-  | 'local-tui-only'
-  | 'browser-access'
-  | 'network-access'
-  | 'webhook-events'
-  | 'external-integrations';
+  | 'operator-terminal'
+  | 'provider-access'
+  | 'agent-knowledge'
+  | 'local-behavior'
+  | 'communication-channels'
+  | 'automation-review'
+  | 'tui-delegation';
 
 export interface OnboardingStep1CapabilityItem {
   readonly id: OnboardingStep1CapabilityId;
@@ -207,14 +209,14 @@ export interface OnboardingStep1CapabilityItem {
 }
 
 export interface OnboardingStep1CapabilityFlags {
-  readonly providers: boolean;
-  readonly services: boolean;
+  readonly providerAccess: boolean;
   readonly subscriptions: boolean;
   readonly auth: boolean;
-  readonly controlPlane: boolean;
-  readonly httpListener: boolean;
-  readonly web: boolean;
-  readonly surfaces: boolean;
+  readonly agentKnowledge: boolean;
+  readonly localBehavior: boolean;
+  readonly communicationChannels: boolean;
+  readonly automationReview: boolean;
+  readonly tuiDelegation: boolean;
 }
 
 export interface OnboardingAcknowledgementState {

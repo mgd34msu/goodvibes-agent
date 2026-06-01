@@ -24,7 +24,7 @@ import {
 
 const CATEGORY_INFO: Record<SettingsCategory, string> = {
   display: 'Presentation settings for the terminal transcript: streaming, line numbers, thinking visibility, reasoning summaries, token speed, and tool previews.',
-  ui: 'Controls where operational messages render and whether voice surfaces are enabled. These settings change visibility, not provider behavior.',
+  ui: 'Controls where operational messages render and whether voice interaction is enabled. These settings change visibility, not provider behavior.',
   provider: 'Default model routing for normal chat turns, embeddings, reasoning effort, and persistent system prompt file.',
   subscriptions: 'Provider subscription login state and routing posture. Active sessions can be reviewed or signed out here; API keys remain managed through secrets.',
   behavior: 'Day-to-day shell behavior: approval posture, compaction, history, guidance, notifications, stale-context warnings, return context, and Human-in-the-Loop mode.',
@@ -34,10 +34,10 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   wrfc: 'WRFC is external to normal Agent operation. Review these copied compatibility values only for explicit GoodVibes TUI build delegation.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
-  service: 'External GoodVibes runtime service posture. Agent shows these compatibility keys for inspection only and does not install, start, stop, restart, or autostart services.',
-  controlPlane: 'External GoodVibes runtime API settings for local admin/API access. Agent connects to that runtime and does not mutate its bind posture.',
-  httpListener: 'External HTTP listener settings for webhook and integration ingress. Agent does not start or expose the listener.',
-  web: 'External browser surface settings. Agent does not own the web listener or network bind lifecycle.',
+  service: 'External runtime installation posture. Agent shows these compatibility keys for inspection only and does not install, start, stop, restart, or autostart anything.',
+  controlPlane: 'External runtime API connection settings. Agent connects to that runtime and does not mutate its bind posture.',
+  httpListener: 'Inbound event endpoint settings owned by the external runtime. Agent inspects readiness and does not expose endpoints.',
+  web: 'External browser companion settings. Agent does not own browser hosting or network bind lifecycle.',
   batch: 'Batch execution settings reported from the external GoodVibes runtime. Agent does not own remote queue provisioning.',
   automation: 'Scheduled and automated run settings, concurrency, timeout, catch-up, cooldown, and retention behavior.',
   watchers: 'File/process watcher heartbeat, polling, and recovery-window behavior.',
@@ -45,12 +45,12 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   telemetry: 'Telemetry payload policy.',
   cache: 'Provider and model cache behavior, TTL, and hit-rate monitoring.',
   mcp: 'MCP server trust and scope review. Trust changes can expose local files, tools, databases, browsers, or remote automation depending on the server.',
-  surfaces: 'External app surfaces such as Slack, Discord, ntfy, Telegram, webhooks, chat bridges, and messaging providers.',
+  surfaces: 'Messaging and notification channel accounts such as Slack, Discord, ntfy, Telegram, chat bridges, and delivery providers.',
   release: 'Release-channel preference.',
-  danger: 'High-impact runtime and listener switches. Agent renders host-owned switches read-only; use GoodVibes TUI or the owning host to change them.',
+  danger: 'High-impact runtime switches. Agent renders host-owned switches read-only; use the owning GoodVibes runtime host to change them.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
   flags: 'Feature flags are SDK runtime gates. They are separate from normal config keys because they enable or disable staged runtime behavior.',
-  network: 'Read-only view of external GoodVibes runtime API, HTTP listener, and browser web bind posture plus editable Agent network settings.',
+  network: 'Read-only view of external runtime API, inbound-event, and browser companion bind posture plus editable Agent network settings.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
@@ -86,7 +86,7 @@ const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
   },
   'httpListener.hostMode': {
     localhost: 'Bind only to this computer.',
-    network: 'Bind for LAN/webhook access using the default network host.',
+    network: 'Bind for LAN event delivery using the default network host.',
     custom: 'Use the explicit host value in the related host setting.',
   },
   'web.hostMode': {
@@ -110,12 +110,12 @@ const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
     both: 'Show explicit delegated-build WRFC messages in both panels and the transcript.',
   },
   'surfaces.telegram.mode': {
-    webhook: 'Receive Telegram updates through webhook delivery.',
-    polling: 'Poll Telegram for updates from the service.',
+    webhook: 'Receive Telegram updates through externally hosted delivery.',
+    polling: 'Poll Telegram for updates from the configured account.',
   },
   'surfaces.whatsapp.provider': {
     'meta-cloud': 'Use Meta Cloud API credentials and identifiers.',
-    bridge: 'Use a bridge service URL/token flow instead of direct Meta Cloud API delivery.',
+    bridge: 'Use a bridge endpoint URL/token flow instead of direct Meta Cloud API delivery.',
   },
 };
 

@@ -103,12 +103,12 @@ describe('SettingsModal', () => {
     expect(grouped).toEqual(SETTINGS_CATEGORIES);
     expect(new Set(grouped).size).toBe(grouped.length);
     expect(SETTINGS_CATEGORY_GROUPS.map(group => group.label)).toEqual([
-      'Interface',
-      'AI Routing',
-      'Service & Network',
-      'Surfaces & Integrations',
-      'Automation',
-      'Runtime & Data',
+      'Agent Experience',
+      'Models and Providers',
+      'Local Agent State',
+      'Tools and Automation',
+      'External Runtime Connection',
+      'Delegation Compatibility',
       'Advanced',
     ]);
   });

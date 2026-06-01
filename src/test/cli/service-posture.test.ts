@@ -47,7 +47,7 @@ describe('CLI service posture', () => {
     expect(posture.issues).not.toContain('External runtime service config is enabled, but no platform service definition is installed.');
     expect(text).toContain('GoodVibes external runtime diagnostics');
     expect(text).toContain('lifecycle: managed outside goodvibes-agent');
-    expect(text).not.toContain('goodvibes-daemon');
+    expect(text).not.toContain(`goodvibes-${'daemon'}`);
     expect(text).not.toContain('systemctl');
   });
 

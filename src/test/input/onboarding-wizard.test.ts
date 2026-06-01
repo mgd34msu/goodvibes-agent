@@ -285,7 +285,7 @@ describe('OnboardingWizardController', () => {
     expect(text).not.toContain('network setup');
   });
 
-  test('onboards day-one personal operator surfaces without runtime ownership', () => {
+  test('onboards day-one personal operator tools without runtime ownership', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
 
@@ -293,7 +293,7 @@ describe('OnboardingWizardController', () => {
     expect(byId.get('agent-communication')?.summaryLines).toContain('Outbound messages: explicit user action only');
     expect(byId.get('agent-tools')?.summaryLines).toContain('MCP and tools: inspect before use');
     expect(byId.get('agent-automation')?.summaryLines).toContain('Local routines: reusable main-conversation workflows');
-    expect(byId.get('agent-voice-media')?.summaryLines).toContain('Voice and speech: optional operator surfaces');
+    expect(byId.get('agent-voice-media')?.summaryLines).toContain('Voice and speech: optional operator tools');
 
     const text = wizard.steps
       .flatMap((step) => [

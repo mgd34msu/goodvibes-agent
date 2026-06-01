@@ -220,46 +220,58 @@ describe('onboarding derivation helpers', () => {
 
     expect(deriveStep1Capabilities(snapshot)).toEqual([
       {
-        id: 'local-tui-only',
-        label: 'Agent Terminal First',
+        id: 'operator-terminal',
+        label: 'Agent Operator TUI',
+        selected: true,
+        detail: 'Use GoodVibes Agent as the terminal operator; runtime host settings are shown only so the connection is understandable.',
+      },
+      {
+        id: 'provider-access',
+        label: 'Provider and Model Access',
+        selected: true,
+        detail: 'Review 1 provider auth or routing signal(s) already available to Agent.',
+      },
+      {
+        id: 'agent-knowledge',
+        label: 'Isolated Agent Knowledge',
+        selected: true,
+        detail: 'Agent Knowledge uses the isolated /api/goodvibes-agent/knowledge segment only; it never falls back to another knowledge segment.',
+      },
+      {
+        id: 'local-behavior',
+        label: 'Local Memory and Skills',
         selected: false,
-        detail: 'Keep Agent local-first by reviewing runtime connectivity separately from Agent-owned assistant setup.',
+        detail: 'Configure local memory, routines, skills, personas, permissions, and secret handling before the Agent starts doing useful work.',
       },
       {
-        id: 'browser-access',
-        label: 'Optional Browser Access',
+        id: 'communication-channels',
+        label: 'Channels and Notifications',
         selected: true,
-        detail: 'Review browser access already exposed by the runtime owner. Agent records visibility but does not change network posture.',
+        detail: 'Review 1 configured channel or integration signal(s) before the Agent uses them for delivery.',
       },
       {
-        id: 'network-access',
-        label: 'Optional Other-Device Access',
+        id: 'automation-review',
+        label: 'Routines and Automation Review',
         selected: true,
-        detail: 'Review runtime access reachable from other devices on your LAN. Local authentication is required.',
+        detail: 'Review existing event, schedule, or automation signals and keep all side effects behind explicit commands or confirmations.',
       },
       {
-        id: 'webhook-events',
-        label: 'Optional Incoming Events',
+        id: 'tui-delegation',
+        label: 'Explicit Build Delegation',
         selected: true,
-        detail: 'Review incoming webhook, callback, and automation-event routes exposed by the runtime owner.',
-      },
-      {
-        id: 'external-integrations',
-        label: 'Channels and Integrations',
-        selected: true,
-        detail: 'Review 1 detected channel or integration signal(s) before allowing external delivery.',
+        detail: 'Delegate explicit build, fix, implementation, and review work to GoodVibes TUI; WRFC is requested only when the user explicitly asks for it.',
       },
     ]);
 
     expect(deriveStep1CapabilityFlags(snapshot)).toEqual({
-      providers: true,
-      services: true,
+      providerAccess: true,
       subscriptions: true,
       auth: true,
-      controlPlane: true,
-      httpListener: true,
-      web: true,
-      surfaces: true,
+      agentKnowledge: true,
+      localBehavior: false,
+      communicationChannels: true,
+      automationReview: true,
+      tuiDelegation: true,
     });
   });
 
@@ -343,7 +355,7 @@ describe('onboarding derivation helpers', () => {
     expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('local-network-default');
   });
 
-  test('does not treat a LAN-facing HTTP listener as other-device GoodVibes access', () => {
+  test('keeps host posture out of first-run Agent capabilities', () => {
     const snapshot: OnboardingSnapshotState = {
       ...buildBaseSnapshot(),
       bindSettings: {
@@ -366,11 +378,13 @@ describe('onboarding derivation helpers', () => {
     };
     const capabilities = deriveStep1Capabilities(snapshot);
 
-    expect(capabilities.find((capability) => capability.id === 'network-access')?.selected).toBe(false);
-    expect(capabilities.find((capability) => capability.id === 'webhook-events')?.selected).toBe(true);
+    expect(capabilities.map((capability) => capability.id)).not.toContain('network-access');
+    expect(capabilities.map((capability) => capability.id)).not.toContain('webhook-events');
+    expect(capabilities.find((capability) => capability.id === 'automation-review')?.selected).toBe(true);
+    expect(capabilities.find((capability) => capability.id === 'operator-terminal')?.detail).toContain('terminal operator');
   });
 
-  test('does not treat custom loopback binds as other-device access', () => {
+  test('does not surface browser or listener setup as Agent setup items', () => {
     const snapshot: OnboardingSnapshotState = {
       ...buildBaseSnapshot(),
       bindSettings: {
@@ -391,10 +405,15 @@ describe('onboarding derivation helpers', () => {
       },
     };
 
-    expect(deriveStep1Capabilities(snapshot).find((capability) => capability.id === 'network-access')?.selected).toBe(false);
+    const rendered = deriveStep1Capabilities(snapshot).map((capability) => `${capability.label}\n${capability.detail}`).join('\n');
+    expect(rendered).not.toContain('Browser Access');
+    expect(rendered).not.toContain('Other-Device Access');
+    expect(rendered).not.toContain('Incoming Events');
+    expect(rendered).not.toContain('HTTP listener');
+    expect(rendered).not.toContain('control-plane');
   });
 
-  test('derives webhook-events for every inbound external surface kind', () => {
+  test('derives automation review for every inbound external channel kind', () => {
     const inboundKinds = [
       'bluebubbles',
       'discord',
@@ -431,7 +450,7 @@ describe('onboarding derivation helpers', () => {
         },
       };
 
-      expect(deriveStep1Capabilities(snapshot).find((capability) => capability.id === 'webhook-events')?.selected).toBe(true);
+      expect(deriveStep1Capabilities(snapshot).find((capability) => capability.id === 'automation-review')?.selected).toBe(true);
     }
   });
 
@@ -495,34 +514,46 @@ describe('onboarding derivation helpers', () => {
 
     expect(deriveStep1Capabilities(snapshot)).toEqual([
       {
-        id: 'local-tui-only',
-        label: 'Agent Terminal First',
+        id: 'operator-terminal',
+        label: 'Agent Operator TUI',
         selected: true,
-        detail: 'Use GoodVibes Agent in this terminal while connecting to the existing GoodVibes runtime. Agent setup does not enable network services or extra entrypoints.',
+        detail: 'Use GoodVibes Agent as the terminal operator while connecting to the existing GoodVibes runtime. Agent setup does not create new entrypoints.',
       },
       {
-        id: 'browser-access',
-        label: 'Optional Browser Access',
-        selected: false,
-        detail: 'Browser access is optional. Agent can stay terminal-first while the runtime owner controls any browser entrypoint.',
+        id: 'provider-access',
+        label: 'Provider and Model Access',
+        selected: true,
+        detail: 'Review 1 provider auth or routing signal(s) already available to Agent.',
       },
       {
-        id: 'network-access',
-        label: 'Optional Other-Device Access',
-        selected: false,
-        detail: 'Other-device access is optional and remains controlled by the runtime owner.',
+        id: 'agent-knowledge',
+        label: 'Isolated Agent Knowledge',
+        selected: true,
+        detail: 'Agent Knowledge uses the isolated /api/goodvibes-agent/knowledge segment only; it never falls back to another knowledge segment.',
       },
       {
-        id: 'webhook-events',
-        label: 'Optional Incoming Events',
+        id: 'local-behavior',
+        label: 'Local Memory and Skills',
         selected: false,
-        detail: 'Incoming webhook and callback routes are optional; Agent onboarding does not create them.',
+        detail: 'Configure local memory, routines, skills, personas, permissions, and secret handling before the Agent starts doing useful work.',
       },
       {
-        id: 'external-integrations',
-        label: 'Channels and Integrations',
+        id: 'communication-channels',
+        label: 'Channels and Notifications',
         selected: false,
-        detail: 'Connect only the channels you want the assistant to use, then review delivery safety before sending externally.',
+        detail: 'Connect only the channels the Agent should use, and keep outbound delivery explicit until a user action allows it.',
+      },
+      {
+        id: 'automation-review',
+        label: 'Routines and Automation Review',
+        selected: false,
+        detail: 'Review schedules, routine promotion, approvals, and automation visibility without starting hidden background work.',
+      },
+      {
+        id: 'tui-delegation',
+        label: 'Explicit Build Delegation',
+        selected: true,
+        detail: 'Delegate explicit build, fix, implementation, and review work to GoodVibes TUI; WRFC is requested only when the user explicitly asks for it.',
       },
     ]);
   });

@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.73 - 2026-05-31
+
+- Replaced copied first-run capability language with Agent-specific setup: operator TUI, provider access, isolated Agent Knowledge, local memory/skills, channels, automation review, and explicit TUI delegation.
+- Reworked the fullscreen settings workspace grouping and descriptions around Agent experience, models, local Agent state, tools/automation, and external runtime connection.
+- Added package-facing guards and regressions so copied browser/network/listener setup wording does not return to shipped Agent docs.
+
 ## 0.1.72 - 2026-05-31
 
 - Removed copied runtime lifecycle and transport words from the Agent CLI parser, command handler, detailed help, and package exports.

@@ -50,7 +50,7 @@ bun run package:install-check
 bun run publish:check
 ```
 
-Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen surface for setup, status, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
+Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen workspace for setup, status, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
 Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
 
@@ -91,11 +91,11 @@ Agent reports unavailable, unauthenticated, or incompatible runtime state throug
 
 ## Product Boundary
 
-GoodVibes Agent owns the operator assistant surface: serial assistant flow, proactive safe actions, local memory/routines/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
+GoodVibes Agent owns the operator assistant TUI: serial assistant flow, proactive safe actions, local memory/routines/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
 
-GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, runtime-isolation UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public runtime/session contracts; normal assistant chat must not use shared coding sessions.
+GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, execution isolation UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public runtime/session contracts; normal assistant chat must not use shared coding sessions.
 
 ## Package Docs
 

@@ -207,7 +207,7 @@ export function registerPlatformServicesRuntimeCommands(registry: CommandRegistr
   registry.register({
     name: 'deeplink',
     aliases: ['link'],
-    description: 'Review and package deep-link entrypoints for setup and operator surfaces',
+    description: 'Review and package deep-link entrypoints for setup and operator workspaces',
     usage: '[review|open <surface> [target]|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
       const parsed = stripYesFlag(args);
