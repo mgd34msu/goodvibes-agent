@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.91 - 2026-06-01
+
+- efbb82a Expand Agent Knowledge CLI management
+
 ## 0.1.90 - 2026-06-01
 
 - 19f67ea Polish Agent command guidance
