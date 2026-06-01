@@ -13,6 +13,8 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly model: string;
   readonly runtimeBaseUrl: string;
   readonly sessionMemoryCount: number;
+  readonly localMemoryCount: number;
+  readonly localMemoryReviewQueueCount: number;
   readonly routineCount: number;
   readonly enabledRoutineCount: number;
   readonly skillCount: number;
@@ -97,9 +99,9 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
     {
       id: 'memory',
       label: 'Local memory',
-      status: setupStatusForCount(input.sessionMemoryCount, 'ready', 'optional'),
-      detail: input.sessionMemoryCount > 0
-        ? `${input.sessionMemoryCount} session memory record(s) are available.`
+      status: setupStatusForCount(input.localMemoryCount, 'ready', 'optional'),
+      detail: input.localMemoryCount > 0
+        ? `${input.localMemoryCount} Agent memory record(s) are available; ${input.localMemoryReviewQueueCount} need review.`
         : 'Memory starts empty; durable facts should be stored deliberately and never include secrets.',
       command: '/memory',
     },

@@ -1,6 +1,7 @@
 import type { AgentPersonaRecord } from '../agent/persona-registry.ts';
 import type { AgentRoutineRecord } from '../agent/routine-registry.ts';
 import type { AgentSkillRecord } from '../agent/skill-registry.ts';
+import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type {
   AgentWorkspaceLocalEditor,
   AgentWorkspaceLocalEditorKind,
@@ -31,6 +32,23 @@ export function createProfileEditor(templates: readonly AgentWorkspaceRuntimeSta
 
 export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalEditor {
   if (kind === 'profile') return createProfileEditor([]);
+  if (kind === 'memory') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Create Memory',
+      selectedFieldIndex: 0,
+      message: 'Record a durable, non-secret Agent memory. This stays in the Agent-owned memory store and never writes to default Knowledge/Wiki.',
+      fields: [
+        { id: 'cls', label: 'Class', value: 'fact', required: true, multiline: false, hint: 'fact, decision, constraint, incident, pattern, risk, runbook, architecture, or ownership.' },
+        { id: 'scope', label: 'Scope', value: 'project', required: true, multiline: false, hint: 'session, project, or team.' },
+        { id: 'summary', label: 'Summary', value: '', required: true, multiline: false, hint: 'One durable sentence. Do not store secrets.' },
+        { id: 'detail', label: 'Detail', value: '', required: false, multiline: true, hint: 'Optional supporting detail. Ctrl-J inserts a new line.' },
+        { id: 'tags', label: 'Tags', value: '', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+        { id: 'confidence', label: 'Confidence', value: '80', required: false, multiline: false, hint: '0-100 confidence score.' },
+      ],
+    };
+  }
   if (kind === 'persona') {
     return {
       kind,
@@ -78,6 +96,23 @@ export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind): AgentWor
       { id: 'triggers', label: 'Triggers', value: '', required: false, multiline: false, hint: 'Comma-separated words that suggest this routine.' },
       { id: 'tags', label: 'Tags', value: '', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
       { id: 'enabled', label: 'Enable now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
+    ],
+  };
+}
+
+export function createMemoryUpdateEditor(record: MemoryRecord): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'memory',
+    mode: 'update',
+    recordId: record.id,
+    title: 'Edit Memory',
+    selectedFieldIndex: 0,
+    message: `Editing ${record.id}. Saving updates only the Agent-owned memory record.`,
+    fields: [
+      { id: 'scope', label: 'Scope', value: record.scope, required: true, multiline: false, hint: 'session, project, or team.' },
+      { id: 'summary', label: 'Summary', value: record.summary, required: true, multiline: false, hint: 'One durable sentence. Do not store secrets.' },
+      { id: 'detail', label: 'Detail', value: record.detail ?? '', required: false, multiline: true, hint: 'Optional supporting detail. Ctrl-J inserts a new line.' },
+      { id: 'tags', label: 'Tags', value: record.tags.join(', '), required: false, multiline: false, hint: 'Comma-separated optional tags.' },
     ],
   };
 }
@@ -164,6 +199,7 @@ export function isAffirmative(value: string): boolean {
 }
 
 export function editorCategoryId(kind: AgentWorkspaceLocalEditorKind): string {
+  if (kind === 'memory') return 'memory';
   if (kind === 'profile') return 'profiles';
   if (kind === 'persona') return 'personas';
   if (kind === 'skill') return 'skills';

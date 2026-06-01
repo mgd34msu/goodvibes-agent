@@ -16,6 +16,7 @@ import {
   type ProvenanceLink,
   type ProvenanceLinkKind,
 } from '@pellux/goodvibes-sdk/platform/state';
+import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
@@ -40,13 +41,6 @@ const VALUE_OPTIONS = new Set([
   'task',
   'turn',
 ]);
-const SECRET_PATTERNS: readonly RegExp[] = [
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----/i,
-  /\bsk-[A-Za-z0-9_-]{16,}\b/,
-  /\bgh[pousr]_[A-Za-z0-9_]{16,}\b/i,
-  /\b(?:password|passwd|api[_-]?key|token|secret)\s*[:=]\s*\S{6,}/i,
-];
-
 interface CommandSuccess<TData> {
   readonly ok: true;
   readonly kind: string;
@@ -195,16 +189,6 @@ function optionalScope(value: string | undefined): MemoryScope | undefined {
 function optionalClass(value: string | undefined): MemoryClass | undefined {
   if (value === undefined) return undefined;
   return requireClass(value);
-}
-
-function containsSecretLikeText(text: string): boolean {
-  return SECRET_PATTERNS.some((pattern) => pattern.test(text));
-}
-
-function assertNoSecretLikeText(fields: readonly string[]): void {
-  if (fields.some((field) => containsSecretLikeText(field))) {
-    throw new Error('Agent memory cannot store secret-looking values. Store a secret reference or remove the sensitive text.');
-  }
 }
 
 function timestamp(value: number): string {
@@ -385,7 +369,7 @@ function readBundle(path: string): MemoryBundle {
   const parsed: unknown = JSON.parse(readFileSync(path, 'utf-8'));
   if (!isMemoryBundle(parsed)) throw new Error('Invalid Agent memory bundle.');
   for (const record of parsed.records) {
-    assertNoSecretLikeText([
+    assertNoSecretLikeMemoryText([
       record.summary,
       record.detail ?? '',
       ...record.tags,
@@ -454,7 +438,7 @@ async function handleAdd(runtime: CliCommandRuntime, context: MemoryContext, arg
   if (!summary) return failure(runtime, 'invalid_memory_command', 'Usage: goodvibes-agent memory add <class> <summary> [--scope <scope>] [--detail <text>] [--tags a,b]', 2);
   const detail = optionValue(options, 'detail');
   const tags = csvOption(options, 'tags');
-  assertNoSecretLikeText([summary, detail ?? '', ...(tags ?? [])]);
+  assertNoSecretLikeMemoryText([summary, detail ?? '', ...(tags ?? [])]);
   const reviewState = optionValue(options, 'review-state');
   if (reviewState !== undefined && !isReviewState(reviewState)) {
     return failure(runtime, 'invalid_memory_command', `Invalid review state "${reviewState}". Valid: ${VALID_REVIEW_STATES.join(', ')}`, 2);

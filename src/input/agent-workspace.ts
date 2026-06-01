@@ -1,12 +1,15 @@
-import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
+import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
+import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { ShellPathService } from '@/runtime/index.ts';
 import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
 import { createAgentRuntimeProfile, type AgentRuntimeProfileInfo } from '../agent/runtime-profile.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
+import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
-import { createDeleteEditor, createLocalEditor, createPersonaUpdateEditor, createProfileEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
+import { createDeleteEditor, createMemoryUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
+import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
@@ -26,12 +29,7 @@ export type {
 } from './agent-workspace-types.ts';
 export { AGENT_WORKSPACE_MODAL_NAME } from './agent-workspace-types.ts';
 export { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
-function parseCommand(command: string): { readonly name: string; readonly args: readonly string[] } {
-  const trimmed = command.trim().replace(/^\//, '');
-  if (!trimmed) return { name: '', args: [] };
-  const parts = trimmed.split(/\s+/);
-  return { name: parts[0] ?? '', args: parts.slice(1) };
-}
+export { handleAgentWorkspaceToken } from './agent-workspace-token.ts';
 
 export class AgentWorkspace {
   public active = false;
@@ -43,6 +41,7 @@ export class AgentWorkspace {
   public lastActionResult: AgentWorkspaceActionResult | null = null;
   public localEditor: AgentWorkspaceLocalEditor | null = null;
   private readonly selectedLibraryItemIndexes: Record<AgentWorkspaceLocalEditorKind, number> = {
+    memory: 0,
     persona: 0,
     skill: 0,
     routine: 0,
@@ -207,147 +206,39 @@ export class AgentWorkspace {
     this.replaceEditorField(editor.selectedFieldIndex, characters.join(''), editor.message);
   }
 
-  submitEditorFieldOrForm(): void {
+  submitEditorFieldOrForm(requestRender?: () => void): void {
     const editor = this.localEditor;
     if (!editor) return;
     if (editor.selectedFieldIndex < editor.fields.length - 1) {
       this.moveEditorField(1);
       return;
     }
-    this.submitLocalEditor();
+    this.submitLocalEditor(requestRender);
   }
 
-  activateSelected(): void {
-    if (this.localEditor) {
-      this.submitEditorFieldOrForm();
-      return;
-    }
-    if (this.focusPane === 'categories') {
-      this.focusActions();
-      return;
-    }
-    const action = this.selectedAction;
-    if (!action) return;
-    if (action.kind === 'editor' && action.editorKind) {
-      this.localEditor = action.editorKind === 'profile'
-        ? createProfileEditor(this.runtimeSnapshot?.runtimeStarterTemplates ?? [])
-        : createLocalEditor(action.editorKind);
-      this.status = `Editing ${this.localEditor.title}.`;
-      this.lastActionResult = {
-        kind: 'guidance',
-        title: this.localEditor.title,
-        detail: this.localEditor.message,
-        safety: action.safety,
-      };
-      return;
-    }
-    if (action.kind === 'local-selection' && action.localKind) {
-      this.moveLocalLibraryItemSelection(action.localKind, action.selectionDelta ?? 0);
-      return;
-    }
-    if (action.kind === 'local-operation' && action.localOperation) {
-      this.applyLocalLibraryOperation(action.localOperation);
-      return;
-    }
-    if (action.kind === 'guidance' || !action.command) {
-      if (action.kind === 'workspace' && action.targetCategoryId) {
-        const targetIndex = this.categories.findIndex((category) => category.id === action.targetCategoryId);
-        if (targetIndex >= 0) {
-          this.selectedCategoryIndex = targetIndex;
-          this.selectedActionIndex = 0;
-          this.focusActions();
-          this.status = `Opened ${this.selectedCategory.label}.`;
-          this.lastActionResult = {
-            kind: 'refreshed',
-            title: `Opened ${this.selectedCategory.label}`,
-            detail: action.detail,
-            safety: action.safety,
-          };
-          this.clampSelection();
-          return;
-        }
-        this.status = `Workspace area unavailable: ${action.targetCategoryId}.`;
-        this.lastActionResult = {
-          kind: 'error',
-          title: 'Workspace area unavailable',
-          detail: `No Agent workspace category exists for ${action.targetCategoryId}.`,
-          safety: action.safety,
-        };
-        return;
-      }
-      this.status = action.detail;
-      this.lastActionResult = {
-        kind: 'guidance',
-        title: action.label,
-        detail: action.detail,
-        safety: action.safety,
-      };
-      return;
-    }
-    if (action.safety === 'blocked') {
-      this.status = `Blocked here: ${action.label}.`;
-      this.lastActionResult = {
-        kind: 'blocked',
-        title: `${action.label} is blocked in Agent`,
-        detail: action.detail,
-        command: action.command,
-        safety: action.safety,
-      };
-      return;
-    }
-    const parsed = parseCommand(action.command);
-    if (!parsed.name) {
-      this.status = `No command is configured for ${action.label}.`;
-      this.lastActionResult = {
-        kind: 'error',
-        title: 'Command unavailable',
-        detail: `No command is configured for ${action.label}.`,
-        safety: action.safety,
-      };
-      return;
-    }
-    if (/<[^>\s]+(?:\s+[^>]*)?>/.test(action.command)) {
-      this.status = `Placeholder command not dispatched: ${action.command}.`;
-      this.lastActionResult = {
-        kind: 'guidance',
-        title: `${action.label} needs details`,
-        detail: 'This action is a command template. Close the workspace and run it with real task text instead of placeholder values.',
-        command: action.command,
-        safety: action.safety,
-      };
-      return;
-    }
-    if (!this.context?.executeCommand || !this.dispatchCommand) {
-      this.status = `Command dispatch is not available for ${action.command}.`;
-      this.lastActionResult = {
-        kind: 'error',
-        title: 'Command dispatch unavailable',
-        detail: `The command ${action.command} cannot be opened from this runtime.`,
-        command: action.command,
-        safety: action.safety,
-      };
-      return;
-    }
-    this.status = `Opening ${action.command}.`;
-    this.lastActionResult = {
-      kind: 'dispatched',
-      title: `Opening ${action.label}`,
-      detail: 'The workspace handed this safe or read-only command to the shell-owned command router.',
-      command: action.command,
-      safety: action.safety,
-    };
-    this.dispatchCommand(action.command);
+  activateSelected(requestRender?: () => void): void {
+    activateAgentWorkspaceSelection(this, requestRender);
   }
 
-  private clampSelection(): void {
+  hasCommandDispatch(): boolean {
+    return Boolean(this.context?.executeCommand && this.dispatchCommand);
+  }
+
+  dispatchWorkspaceCommand(command: string): void {
+    this.dispatchCommand?.(command);
+  }
+
+  clampSelection(): void {
     this.selectedCategoryIndex = Math.max(0, Math.min(this.selectedCategoryIndex, this.categories.length - 1));
     this.selectedActionIndex = Math.max(0, Math.min(this.selectedActionIndex, this.actions.length - 1));
+    this.clampLocalLibrarySelection('memory');
     this.clampLocalLibrarySelection('persona');
     this.clampLocalLibrarySelection('skill');
     this.clampLocalLibrarySelection('routine');
   }
 
   private localLibraryItems(kind: AgentWorkspaceLocalEditorKind): readonly AgentWorkspaceLocalLibraryItem[] {
+    if (kind === 'memory') return this.runtimeSnapshot?.localMemories ?? [];
     if (kind === 'persona') return this.runtimeSnapshot?.localPersonas ?? [];
     if (kind === 'skill') return this.runtimeSnapshot?.localSkills ?? [];
     if (kind === 'profile') return [];
@@ -361,7 +252,7 @@ export class AgentWorkspace {
       : Math.max(0, Math.min(this.selectedLibraryItemIndexes[kind], length - 1));
   }
 
-  private moveLocalLibraryItemSelection(kind: AgentWorkspaceLocalEditorKind, delta: number): void {
+  moveLocalLibraryItemSelection(kind: AgentWorkspaceLocalEditorKind, delta: number): void {
     const items = this.localLibraryItems(kind);
     if (items.length === 0) {
       this.status = `No local ${kind} records to select.`;
@@ -384,7 +275,7 @@ export class AgentWorkspace {
     };
   }
 
-  private applyLocalLibraryOperation(operation: AgentWorkspaceLocalOperation): void {
+  applyLocalLibraryOperation(operation: AgentWorkspaceLocalOperation): void {
     const shellPaths = this.context?.workspace?.shellPaths;
     if (!shellPaths) {
       this.status = 'Local Agent registry files are unavailable.';
@@ -412,7 +303,29 @@ export class AgentWorkspace {
         };
         return;
       }
-      if (operation === 'persona-edit') {
+      if (operation === 'memory-edit') {
+        const memory = this.memoryApi();
+        const record = memory.get(selected.id);
+        if (!record) throw new Error(`Unknown Agent memory: ${selected.id}`);
+        this.localEditor = createMemoryUpdateEditor(record);
+        this.status = `Editing memory: ${record.id}.`;
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: this.localEditor.title,
+          detail: this.localEditor.message,
+          safety: 'safe',
+        };
+      } else if (operation === 'memory-review') {
+        const record = this.memoryApi().review(selected.id, { state: 'reviewed', confidence: selected.confidence ?? 100, reviewedBy: 'operator' });
+        if (!record) throw new Error(`Unknown Agent memory: ${selected.id}`);
+        this.finishLocalOperation('memory', `Reviewed memory ${record.id}`, `${record.summary} is marked reviewed.`);
+      } else if (operation === 'memory-stale') {
+        const record = this.memoryApi().review(selected.id, { state: 'stale', staleReason: 'Marked stale from Agent workspace', reviewedBy: 'operator' });
+        if (!record) throw new Error(`Unknown Agent memory: ${selected.id}`);
+        this.finishLocalOperation('memory', `Marked memory stale ${record.id}`, `${record.summary} needs review before reuse.`);
+      } else if (operation === 'memory-delete') {
+        this.openDeleteEditor('memory', selected);
+      } else if (operation === 'persona-edit') {
         const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
         const persona = registry.get(selected.id);
         if (!persona) throw new Error(`Unknown persona: ${selected.id}`);
@@ -492,9 +405,16 @@ export class AgentWorkspace {
   }
 
   private selectedItemForOperation(operation: AgentWorkspaceLocalOperation): AgentWorkspaceLocalLibraryItem | null {
+    if (operation.startsWith('memory-')) return this.selectedLocalLibraryItem('memory');
     if (operation.startsWith('persona-')) return this.selectedLocalLibraryItem('persona');
     if (operation.startsWith('skill-')) return this.selectedLocalLibraryItem('skill');
     return this.selectedLocalLibraryItem('routine');
+  }
+
+  private memoryApi(): MemoryApi {
+    const memory = this.context?.clients?.agentKnowledgeApi?.memory;
+    if (!memory) throw new Error('Agent Memory API is unavailable; refusing default Knowledge/Wiki or non-Agent fallback.');
+    return memory;
   }
 
   private finishLocalOperation(kind: AgentWorkspaceLocalEditorKind, title: string, detail: string): void {
@@ -538,7 +458,7 @@ export class AgentWorkspace {
     return editor.fields.find((field) => field.required && field.value.trim().length === 0) ?? null;
   }
 
-  private submitLocalEditor(): void {
+  private submitLocalEditor(requestRender?: () => void): void {
     const editor = this.localEditor;
     if (!editor) return;
     const missing = this.missingEditorField();
@@ -550,6 +470,26 @@ export class AgentWorkspace {
         message: `${missing.label} is required before saving.`,
       };
       this.status = `${missing.label} is required.`;
+      return;
+    }
+    if (editor.kind === 'memory') {
+      if (editor.mode === 'delete') {
+        try {
+          this.submitMemoryDeleteEditor(editor);
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          this.localEditor = { ...editor, message: detail };
+          this.status = detail;
+          this.lastActionResult = {
+            kind: 'error',
+            title: `${editor.title} failed`,
+            detail,
+          };
+        }
+        requestRender?.();
+        return;
+      }
+      void this.submitMemoryEditor(editor).finally(() => requestRender?.());
       return;
     }
     const shellPaths = this.context?.workspace?.shellPaths;
@@ -679,7 +619,11 @@ export class AgentWorkspace {
       this.status = 'Deletion not confirmed.';
       return;
     }
-    if (editor.kind === 'persona') {
+    if (editor.kind === 'memory') {
+      const removed = this.memoryApi().delete(expectedId);
+      if (!removed) throw new Error(`Unknown Agent memory: ${expectedId}`);
+      this.finishLocalDelete(editor.kind, expectedId, expectedId);
+    } else if (editor.kind === 'persona') {
       const removed = AgentPersonaRegistry.fromShellPaths(shellPaths).deletePersona(expectedId);
       this.finishLocalDelete(editor.kind, removed.id, removed.name);
     } else if (editor.kind === 'skill') {
@@ -689,6 +633,56 @@ export class AgentWorkspace {
       const removed = AgentRoutineRegistry.fromShellPaths(shellPaths).deleteRoutine(expectedId);
       this.finishLocalDelete(editor.kind, removed.id, removed.name);
     }
+  }
+
+  private submitMemoryDeleteEditor(editor: AgentWorkspaceLocalEditor): void {
+    const expectedId = editor.recordId ?? '';
+    const confirmedId = this.editorField('confirm');
+    const removed = deleteAgentWorkspaceMemoryEditor(editor, confirmedId, this.memoryApi());
+    if (!removed) {
+      this.localEditor = {
+        ...editor,
+        message: `Deletion not confirmed. Type ${expectedId} exactly, then press Enter.`,
+      };
+      this.status = 'Deletion not confirmed.';
+      return;
+    }
+    this.finishLocalDelete(editor.kind, removed.id, removed.name);
+  }
+
+  private async submitMemoryEditor(editor: AgentWorkspaceLocalEditor): Promise<void> {
+    try {
+      this.status = 'Saving Agent memory...';
+      const result = await submitAgentWorkspaceMemoryEditor(editor, this.memoryApi(), (id) => this.editorField(id));
+      this.finishMemoryEditor(result.record, result.verb);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.localEditor = { ...editor, message: detail };
+      this.status = detail;
+      this.lastActionResult = {
+        kind: 'error',
+        title: `${editor.title} failed`,
+        detail,
+      };
+    }
+  }
+
+  private finishMemoryEditor(record: MemoryRecord, verb: 'Created' | 'Updated'): void {
+    this.localEditor = null;
+    this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
+    const categoryIndex = this.categories.findIndex((category) => category.id === 'memory');
+    if (categoryIndex >= 0) {
+      this.selectedCategoryIndex = categoryIndex;
+      this.selectedActionIndex = 0;
+    }
+    this.status = `${verb} memory: ${record.summary}.`;
+    this.lastActionResult = {
+      kind: 'refreshed',
+      title: `${verb} memory`,
+      detail: `${record.summary} (${record.id}) was saved to Agent-owned memory only.`,
+      safety: 'safe',
+    };
+    this.clampSelection();
   }
 
   private finishLocalEditor(kind: AgentWorkspaceLocalEditorKind, id: string, name: string, verb: 'Created' | 'Updated'): void {
@@ -748,53 +742,4 @@ export class AgentWorkspace {
     };
     this.clampSelection();
   }
-}
-
-export function handleAgentWorkspaceToken(
-  workspace: AgentWorkspace,
-  token: InputToken,
-  handleEscape: () => void,
-  requestRender: () => void,
-): boolean {
-  if (!workspace.active) return false;
-
-  if (workspace.localEditor) {
-    if (token.type === 'text') {
-      workspace.appendEditorText(token.value);
-    } else if (token.type === 'key') {
-      if (token.logicalName === 'escape') workspace.cancelLocalEditor();
-      else if (token.logicalName === 'enter') workspace.submitEditorFieldOrForm();
-      else if (token.logicalName === 'tab' || token.logicalName === 'down') workspace.moveEditorField(1);
-      else if (token.logicalName === 'up') workspace.moveEditorField(-1);
-      else if (token.logicalName === 'backspace' || token.logicalName === 'delete') workspace.editorBackspace();
-      else if (token.logicalName === 'j' && token.ctrl === true) workspace.appendEditorNewline();
-    }
-    requestRender();
-    return true;
-  }
-
-  if (token.type === 'key') {
-    if (token.logicalName === 'escape') {
-      handleEscape();
-      return true;
-    }
-    if (token.logicalName === 'enter' || token.logicalName === 'space') workspace.activateSelected();
-    else if (token.logicalName === 'left') workspace.focusCategories();
-    else if (token.logicalName === 'right') workspace.focusActions();
-    else if (token.logicalName === 'up') workspace.moveUp();
-    else if (token.logicalName === 'down') workspace.moveDown();
-    else if (token.logicalName === 'tab') workspace.toggleFocusPane();
-    else if (token.logicalName === 'home') workspace.jumpHome();
-    else if (token.logicalName === 'end') workspace.jumpEnd();
-  } else if (token.type === 'text') {
-    if (token.value === 'h') workspace.focusCategories();
-    else if (token.value === 'l') workspace.focusActions();
-    else if (token.value === 'j') workspace.moveDown();
-    else if (token.value === 'k') workspace.moveUp();
-    else if (token.value === 'r' || token.value === 'R') workspace.refreshRuntimeSnapshot();
-    else if (token.value === ' ') workspace.activateSelected();
-  }
-
-  requestRender();
-  return true;
 }

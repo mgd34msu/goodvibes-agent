@@ -15,6 +15,8 @@ import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { createAgentRuntimeProfile, listAgentRuntimeProfiles } from '../../agent/runtime-profile.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
+import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { Line } from '../../types/grid.ts';
 
 function linesText(lines: readonly Line[]): string {
@@ -43,6 +45,123 @@ function commandContext(calls: string[] = []): CommandContext {
       calls.push(`print:${text}`);
     },
   } as unknown as CommandContext;
+}
+
+function memoryRecord(overrides: Partial<MemoryRecord> = {}): MemoryRecord {
+  const now = Date.now();
+  return {
+    id: 'mem-preference',
+    scope: 'project',
+    cls: 'fact',
+    summary: 'Prefers concise operator briefings',
+    detail: 'Use short summaries before action.',
+    tags: ['preference'],
+    provenance: [],
+    reviewState: 'fresh',
+    confidence: 82,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+function vectorStats() {
+  return {
+    backend: 'sqlite-vec' as const,
+    enabled: false,
+    available: false,
+    path: '',
+    dimensions: 0,
+    indexedRecords: 0,
+    embeddingProviderId: 'none',
+    embeddingProviderLabel: 'None',
+  };
+}
+
+function memoryApi(records: MemoryRecord[] = [memoryRecord()]): MemoryApi {
+  return {
+    add: async (input) => {
+      const record = memoryRecord({
+        id: `mem-${records.length + 1}`,
+        scope: input.scope ?? 'project',
+        cls: input.cls,
+        summary: input.summary,
+        detail: input.detail,
+        tags: [...(input.tags ?? [])],
+        provenance: [...(input.provenance ?? [])],
+        reviewState: input.review?.state ?? 'fresh',
+        confidence: input.review?.confidence ?? 80,
+      });
+      records.unshift(record);
+      return record;
+    },
+    search: () => records,
+    searchSemantic: () => [],
+    vectorStats,
+    rebuildVectors: vectorStats,
+    rebuildVectorsAsync: async () => vectorStats(),
+    doctor: async () => ({
+      vector: vectorStats(),
+      embeddings: {
+        activeProviderId: 'none',
+        providers: [],
+        asyncProviders: [],
+        syncProviders: [],
+        warnings: [],
+      },
+      checkedAt: Date.now(),
+    }),
+    reviewQueue: () => records.filter((record) => record.reviewState !== 'reviewed'),
+    exportBundle: () => ({
+      schemaVersion: 'v1',
+      exportedAt: Date.now(),
+      scope: 'all',
+      recordCount: records.length,
+      linkCount: 0,
+      records,
+      links: [],
+    }),
+    importBundle: async () => ({ importedRecords: 0, skippedRecords: 0, importedLinks: 0 }),
+    get: (id) => records.find((record) => record.id === id) ?? null,
+    getAll: () => records,
+    link: async () => null,
+    linksFor: () => [],
+    update: (id, patch) => {
+      const index = records.findIndex((record) => record.id === id);
+      const current = records[index];
+      if (!current) return null;
+      const updated: MemoryRecord = {
+        ...current,
+        ...patch,
+        updatedAt: Date.now(),
+      };
+      records[index] = updated;
+      return updated;
+    },
+    review: (id, patch) => {
+      const index = records.findIndex((record) => record.id === id);
+      const current = records[index];
+      if (!current) return null;
+      const updated: MemoryRecord = {
+        ...current,
+        reviewState: patch.state ?? current.reviewState,
+        confidence: patch.confidence ?? current.confidence,
+        reviewedBy: patch.reviewedBy ?? current.reviewedBy,
+        reviewedAt: Date.now(),
+        staleReason: patch.staleReason,
+        updatedAt: Date.now(),
+      };
+      records[index] = updated;
+      return updated;
+    },
+    delete: (id) => {
+      const index = records.findIndex((record) => record.id === id);
+      if (index < 0) return false;
+      records.splice(index, 1);
+      return true;
+    },
+    explain: () => ({ injections: [], prompt: null }),
+  };
 }
 
 describe('AgentWorkspace', () => {
@@ -231,6 +350,38 @@ describe('AgentWorkspace', () => {
     expect(linesText(renderAgentWorkspace(workspace, 140, 34))).toContain('Morning Brief');
   });
 
+  test('renders Agent-owned memory in the workspace without default knowledge fallback', () => {
+    const ctx = {
+      ...commandContext(),
+      clients: {
+        agentKnowledgeApi: {
+          memory: memoryApi([
+            memoryRecord({
+              id: 'mem-source-policy',
+              cls: 'constraint',
+              scope: 'project',
+              summary: 'Never fallback to non-Agent knowledge segments',
+              detail: 'Agent Knowledge and local memory are separate Agent-owned surfaces.',
+              reviewState: 'reviewed',
+              confidence: 100,
+            }),
+          ]),
+        },
+      },
+    } as unknown as CommandContext;
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+
+    const output = linesText(renderAgentWorkspace(workspace, 150, 42));
+
+    expect(workspace.runtimeSnapshot?.localMemoryCount).toBe(1);
+    expect(output).toContain('Agent memory: 1; review queue: 0');
+    expect(output).toContain('Never fallback to non-Agent knowledge segments');
+    expect(output).toContain('project/constraint');
+    expect(output).not.toContain('default Knowledge/Wiki');
+  });
+
   test('library workspace actions open editors and dispatch only concrete commands', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
@@ -321,6 +472,92 @@ describe('AgentWorkspace', () => {
     expect(personaSnapshot.activePersona?.name).toBe('Research Analyst');
     expect(workspace.lastActionResult?.title).toBe('Created persona');
     expect(dispatched).toEqual([]);
+  });
+
+  test('creates reviews marks stale and deletes Agent memory from workspace editors', async () => {
+    const records: MemoryRecord[] = [];
+    const ctx = {
+      ...commandContext(),
+      workspace: {
+        shellPaths: createShellPathService({
+          workingDirectory: mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-workspace-')),
+          homeDirectory: mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-home-')),
+        }),
+      },
+      clients: {
+        agentKnowledgeApi: {
+          memory: memoryApi(records),
+        },
+      },
+    } as unknown as CommandContext;
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, (command) => dispatched.push(command));
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-create');
+    workspace.activateSelected();
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Prefers concise briefings');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Summarize before action.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'preference');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(records[0]?.summary).toBe('Prefers concise briefings');
+    expect(records[0]?.confidence).toBe(80);
+    expect(workspace.lastActionResult?.title).toBe('Created memory');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-review');
+    workspace.activateSelected();
+    expect(records[0]?.reviewState).toBe('reviewed');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-stale');
+    workspace.activateSelected();
+    expect(records[0]?.reviewState).toBe('stale');
+    expect(records[0]?.staleReason).toContain('Agent workspace');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-delete');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.title).toBe('Delete Memory');
+    feedText(workspace, records[0]?.id ?? '');
+    feedKey(workspace, 'enter');
+
+    expect(records).toHaveLength(0);
+    expect(dispatched).toEqual([]);
+  });
+
+  test('rejects secret-looking Agent memory from the workspace editor', async () => {
+    const records: MemoryRecord[] = [];
+    const ctx = {
+      ...commandContext(),
+      clients: {
+        agentKnowledgeApi: {
+          memory: memoryApi(records),
+        },
+      },
+    } as unknown as CommandContext;
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-create');
+    workspace.activateSelected();
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'api_key=sk-secretsecretsecretsecret');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    await Promise.resolve();
+
+    expect(records).toHaveLength(0);
+    expect(workspace.localEditor?.message).toContain('cannot store secret-looking values');
   });
 
   test('operates on selected local library records without dispatching commands', () => {
@@ -599,6 +836,17 @@ describe('AgentWorkspace', () => {
       platform: {
         configManager: {
           get: (key: string) => configValues.get(key),
+        },
+      },
+      clients: {
+        agentKnowledgeApi: {
+          memory: memoryApi([
+            memoryRecord({
+              id: 'mem-setup',
+              summary: 'Configured durable Agent memory',
+              reviewState: 'reviewed',
+            }),
+          ]),
         },
       },
     } as unknown as CommandContext);

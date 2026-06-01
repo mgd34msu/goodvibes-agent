@@ -123,6 +123,8 @@ function localLibraryLines(
       selected ? 'selected' : '',
       item.active ? 'active' : '',
       item.enabled === true ? 'enabled' : item.enabled === false ? 'disabled' : '',
+      item.scope && item.cls ? `${item.scope}/${item.cls}` : '',
+      item.confidence !== undefined ? `${item.confidence}%` : '',
       item.reviewState,
       item.startCount !== undefined ? `starts ${item.startCount}` : '',
     ].filter(Boolean).join(' / ');
@@ -301,11 +303,14 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'memory') {
     base.push(
       { text: `Session memories: ${snapshot.sessionMemoryCount}`, fg: PALETTE.info },
+      { text: `Agent memory: ${snapshot.localMemoryCount}; review queue: ${snapshot.localMemoryReviewQueueCount}`, fg: PALETTE.info },
       { text: `Local routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
       { text: `Local skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}; bundles: ${snapshot.localSkillBundleCount}; active skills: ${snapshot.activeSkillCount}`, fg: PALETTE.info },
       { text: `Local personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
       { text: 'Durable memory, routines, skills, and personas remain Agent-local until shared registry contracts exist.', fg: PALETTE.good },
       { text: 'Secrets are rejected/redacted; store secret references instead of secret values.', fg: PALETTE.warn },
+      { text: '' },
+      ...localLibraryLines('Agent Memory', snapshot.localMemories, 'No Agent memory yet. Create one here with Create memory.', workspace.selectedLocalLibraryItem('memory')?.id ?? null),
     );
   } else if (category.id === 'personas') {
     base.push(

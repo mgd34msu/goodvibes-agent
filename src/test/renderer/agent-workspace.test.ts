@@ -11,6 +11,8 @@ import type { CommandContext } from '../../input/command-registry.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import type { Line } from '../../types/grid.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
+import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 
 function text(lines: readonly Line[]): string {
   return lines.map((line) => line.map((cell) => cell.char ?? ' ').join('').trimEnd()).join('\n');
@@ -21,6 +23,146 @@ function commandContext(): CommandContext {
     executeCommand: async () => true,
     print: () => undefined,
   } as unknown as CommandContext;
+}
+
+function memoryRecord(overrides: Partial<MemoryRecord> = {}): MemoryRecord {
+  const now = Date.now();
+  return {
+    id: 'mem-preference',
+    scope: 'project',
+    cls: 'fact',
+    summary: 'Prefers concise operator briefings',
+    detail: 'Use short summaries before action.',
+    tags: ['preference'],
+    provenance: [],
+    reviewState: 'fresh',
+    confidence: 82,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+function memoryApi(records: MemoryRecord[] = [memoryRecord()]): MemoryApi {
+  return {
+    add: async (input) => {
+      const record = memoryRecord({
+        id: `mem-${records.length + 1}`,
+        scope: input.scope ?? 'project',
+        cls: input.cls,
+        summary: input.summary,
+        detail: input.detail,
+        tags: [...(input.tags ?? [])],
+        provenance: [...(input.provenance ?? [])],
+        reviewState: input.review?.state ?? 'fresh',
+        confidence: input.review?.confidence ?? 80,
+      });
+      records.unshift(record);
+      return record;
+    },
+    search: () => records,
+    searchSemantic: () => [],
+    vectorStats: () => ({
+      backend: 'sqlite-vec',
+      enabled: false,
+      available: false,
+      path: '',
+      dimensions: 0,
+      indexedRecords: 0,
+      embeddingProviderId: 'none',
+      embeddingProviderLabel: 'None',
+    }),
+    rebuildVectors: () => ({
+      backend: 'sqlite-vec',
+      enabled: false,
+      available: false,
+      path: '',
+      dimensions: 0,
+      indexedRecords: 0,
+      embeddingProviderId: 'none',
+      embeddingProviderLabel: 'None',
+    }),
+    rebuildVectorsAsync: async () => ({
+      backend: 'sqlite-vec',
+      enabled: false,
+      available: false,
+      path: '',
+      dimensions: 0,
+      indexedRecords: 0,
+      embeddingProviderId: 'none',
+      embeddingProviderLabel: 'None',
+    }),
+    doctor: async () => ({
+      vector: {
+        backend: 'sqlite-vec',
+        enabled: false,
+        available: false,
+        dimensions: 0,
+        indexedRecords: 0,
+      },
+      embeddings: {
+        activeProviderId: 'none',
+        providers: [],
+        asyncProviders: [],
+        syncProviders: [],
+        warnings: [],
+      },
+      checkedAt: Date.now(),
+    }),
+    reviewQueue: () => records.filter((record) => record.reviewState !== 'reviewed'),
+    exportBundle: () => ({
+      schemaVersion: 'v1',
+      exportedAt: Date.now(),
+      scope: 'all',
+      recordCount: records.length,
+      linkCount: 0,
+      records,
+      links: [],
+    }),
+    importBundle: async () => ({ importedRecords: 0, skippedRecords: 0, importedLinks: 0 }),
+    get: (id) => records.find((record) => record.id === id) ?? null,
+    getAll: () => records,
+    link: async () => null,
+    linksFor: () => [],
+    update: (id, patch) => {
+      const index = records.findIndex((record) => record.id === id);
+      const current = records[index];
+      if (!current) return null;
+      const updated = {
+        ...current,
+        ...patch,
+        updatedAt: Date.now(),
+      };
+      records[index] = updated;
+      return updated;
+    },
+    review: (id, patch) => {
+      const index = records.findIndex((record) => record.id === id);
+      const current = records[index];
+      if (!current) return null;
+      const updated = {
+        ...current,
+        reviewState: patch.state ?? current.reviewState,
+        confidence: patch.confidence ?? current.confidence,
+        reviewedBy: patch.reviewedBy ?? current.reviewedBy,
+        reviewedAt: Date.now(),
+        staleReason: patch.staleReason,
+        updatedAt: Date.now(),
+      };
+      records[index] = updated;
+      return updated;
+    },
+    delete: (id) => {
+      const index = records.findIndex((record) => record.id === id);
+      if (index < 0) return false;
+      records.splice(index, 1);
+      return true;
+    },
+    explain: () => ({
+      injections: [],
+      prompt: null,
+    }),
+  };
 }
 
 function liveCommandContext(): CommandContext {
@@ -103,6 +245,11 @@ function liveCommandContext(): CommandContext {
           { name: 'operator', timestamp: Date.now() },
           { name: 'travel', timestamp: Date.now() - 1000 },
         ],
+      },
+    },
+    clients: {
+      agentKnowledgeApi: {
+        memory: memoryApi(),
       },
     },
     platform: {
@@ -224,9 +371,10 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Local routines: 1; enabled: 1');
     expect(output).toContain('Local skills: 1; enabled: 1; bundles: 1; active skills: 1');
     expect(output).toContain('Local personas: 1; active: Research Analyst');
-    expect(output).toContain('open routines');
-    expect(output).toContain('open skills');
-    expect(output).toContain('open personas');
+    expect(output).toContain('Agent memory: 1; review queue: 1');
+    expect(output).toContain('Create memory');
+    expect(output).toContain('Edit selected memory');
+    expect(output).toContain('Prefers concise operator briefings');
   });
 
   test('renders in-workspace local library editor controls', () => {

@@ -1,4 +1,5 @@
 import { basename, sep } from 'node:path';
+import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
@@ -113,6 +114,22 @@ function summarizeRoutineItem(routine: AgentRoutineRecord): AgentWorkspaceLocalL
   };
 }
 
+function summarizeMemoryItem(record: MemoryRecord): AgentWorkspaceLocalLibraryItem {
+  const detail = record.detail?.trim();
+  return {
+    id: record.id,
+    name: record.summary,
+    description: detail && detail.length > 0 ? detail : `${record.scope}/${record.cls}`,
+    reviewState: record.reviewState,
+    source: 'agent-memory',
+    tags: record.tags,
+    triggers: [],
+    scope: record.scope,
+    cls: record.cls,
+    confidence: record.confidence,
+  };
+}
+
 function summarizeRuntimeProfile(profile: ReturnType<typeof listAgentRuntimeProfiles>[number]): AgentWorkspaceRuntimeProfileItem {
   return {
     id: profile.id,
@@ -152,6 +169,20 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return context.session?.sessionMemoryStore?.list?.().length ?? 0;
     } catch {
       return 0;
+    }
+  })();
+  const memorySnapshot = (() => {
+    try {
+      const memory = context.clients?.agentKnowledgeApi?.memory;
+      if (!memory) return { count: 0, reviewQueueCount: 0, items: [] };
+      const records = [...memory.getAll()].sort((left, right) => right.updatedAt - left.updatedAt);
+      return {
+        count: records.length,
+        reviewQueueCount: memory.reviewQueue(100).length,
+        items: records.map(summarizeMemoryItem),
+      };
+    } catch {
+      return { count: 0, reviewQueueCount: 0, items: [] };
     }
   })();
   const personaSnapshot = (() => {
@@ -264,6 +295,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     model,
     runtimeBaseUrl,
     sessionMemoryCount,
+    localMemoryCount: memorySnapshot.count,
+    localMemoryReviewQueueCount: memorySnapshot.reviewQueueCount,
     routineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     skillCount: skillSnapshot.count,
@@ -288,6 +321,9 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     runtimeBaseUrl,
     runtimeOwnership: 'external',
     sessionMemoryCount,
+    localMemoryCount: memorySnapshot.count,
+    localMemoryReviewQueueCount: memorySnapshot.reviewQueueCount,
+    localMemories: memorySnapshot.items,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,

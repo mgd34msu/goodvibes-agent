@@ -8,9 +8,13 @@ export type AgentWorkspaceFocusPane = 'categories' | 'actions';
 
 export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'local-selection' | 'local-operation';
 
-export type AgentWorkspaceLocalEditorKind = 'persona' | 'skill' | 'routine' | 'profile';
+export type AgentWorkspaceLocalEditorKind = 'memory' | 'persona' | 'skill' | 'routine' | 'profile';
 
 export type AgentWorkspaceLocalOperation =
+  | 'memory-edit'
+  | 'memory-review'
+  | 'memory-stale'
+  | 'memory-delete'
   | 'persona-edit'
   | 'persona-use'
   | 'persona-review'
@@ -90,6 +94,9 @@ export interface AgentWorkspaceLocalLibraryItem {
   readonly source: string;
   readonly tags: readonly string[];
   readonly triggers: readonly string[];
+  readonly scope?: string;
+  readonly cls?: string;
+  readonly confidence?: number;
   readonly active?: boolean;
   readonly enabled?: boolean;
   readonly startCount?: number;
@@ -123,6 +130,9 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly runtimeBaseUrl: string;
   readonly runtimeOwnership: 'external';
   readonly sessionMemoryCount: number;
+  readonly localMemoryCount: number;
+  readonly localMemoryReviewQueueCount: number;
+  readonly localMemories: readonly AgentWorkspaceLocalLibraryItem[];
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];
