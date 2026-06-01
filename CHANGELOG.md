@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.102 - 2026-06-01
+
+- 34aaea8 Prune hidden copied panel surfaces
+
 ## 0.1.101 - 2026-06-01
 
 - 5f35012 Prune hidden copied command surfaces
