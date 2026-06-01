@@ -19,7 +19,6 @@ function buildState() {
     cancelGeneration: undefined,
     selectionCallback: null,
     bookmarkModal: { active: false, open: function () { this.active = true; }, close: function () { this.active = false; } },
-    agentDetailModal: { active: false, open: () => {}, close: () => {} },
     liveTailModal: { active: false, open: () => {}, close: () => {} },
     settingsModal: { active: false, editingMode: false, cancelEdit: () => {}, open: () => {}, close: () => {} },
     sessionPickerModal: { active: false, open: () => {}, close: () => {} },

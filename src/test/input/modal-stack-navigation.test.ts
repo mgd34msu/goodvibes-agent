@@ -7,13 +7,13 @@ function key(logicalName: string) {
 }
 
 describe('modal stack navigation', () => {
-  test('process modal preserves previous modal stack entry when opening agent detail', () => {
+  test('process modal preserves previous modal stack entry when opening live process output', () => {
     const modalStack: string[] = ['process'];
-    let selectedId: string | undefined;
+    let openedEntry: ProcessEntry | undefined;
     const selectedEntry: ProcessEntry = {
-      id: 'agent-1',
-      label: 'Agent 1',
-      type: 'agent',
+      id: 'process-1',
+      label: 'Process 1',
+      type: 'exec',
       status: 'running',
       elapsedMs: 1000,
     };
@@ -25,14 +25,11 @@ describe('modal stack navigation', () => {
         getSelected: () => selectedEntry,
         close: () => { state.processModal.active = false; },
         open: () => { state.processModal.active = true; },
-        killSelected: () => false,
+        stopSelected: () => false,
         refresh: () => {},
       },
       liveTailModal: {
-        open: () => {},
-      },
-      agentDetailModal: {
-        open: (id: string) => { selectedId = id; },
+        open: (entry: ProcessEntry) => { openedEntry = entry; },
       },
       modalOpened: (name: string) => { modalStack.push(name); },
       requestRender: () => {},
@@ -42,9 +39,9 @@ describe('modal stack navigation', () => {
     const handled = handleProcessModalToken(state, key('enter'));
 
     expect(handled).toBe(true);
-    expect(modalStack).toEqual(['process', 'agentDetail']);
+    expect(modalStack).toEqual(['process', 'liveTail']);
     expect(state.processModal.active).toBe(false);
-    expect(selectedId).toBe('agent-1');
+    expect(openedEntry?.id).toBe('process-1');
   });
 
   test('live tail stop-and-return unwinds through escape only after a stopped exec', () => {
@@ -55,7 +52,7 @@ describe('modal stack navigation', () => {
         active: true,
         scrollUp: () => {},
         scrollDown: () => {},
-        killProcess: () => {
+        stopProcess: () => {
           killCount += 1;
           return true;
         },
@@ -82,7 +79,7 @@ describe('modal stack navigation', () => {
         active: true,
         scrollUp: () => {},
         scrollDown: () => {},
-        killProcess: () => false,
+        stopProcess: () => false,
         close: () => {},
       },
       processModal: {

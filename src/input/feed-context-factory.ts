@@ -25,7 +25,6 @@ import type { ConversationManager } from '../core/conversation';
 import type { ProcessModal } from '../renderer/process-modal.ts';
 import type { LiveTailModal } from '../renderer/live-tail-modal.ts';
 import type { BlockActionsMenu } from '../renderer/block-actions.ts';
-import type { AgentDetailModal } from '../renderer/agent-detail-modal.ts';
 import type { ContextInspectorModal } from '../renderer/context-inspector.ts';
 import type { BookmarkModal } from './bookmark-modal.ts';
 import type { SettingsModal } from './settings-modal.ts';
@@ -83,7 +82,7 @@ export interface FeedContextMutableInit {
  *   - `selectionModal`, `bookmarkModal`, `settingsModal`, `sessionPickerModal`,
  *     `profilePickerModal` — modal objects constructed once
  *   - `filePicker`, `modelPicker`, `processModal`, `liveTailModal`,
- *     `agentDetailModal`, `contextInspectorModal`, `blockActionsMenu`,
+ *     `contextInspectorModal`, `blockActionsMenu`,
  *     `searchManager`, `historySearch`, `onboardingWizard` — service objects constructed once
  *   - `panelManager`, `keybindingsManager` — from uiServices, stable
  *   - `modalStack` — reference to the handler's shared array
@@ -117,7 +116,6 @@ export interface FeedContextStableRefs {
   onboardingWizard: OnboardingWizardController;
   processModal: ProcessModal;
   liveTailModal: LiveTailModal;
-  agentDetailModal: AgentDetailModal;
   contextInspectorModal: ContextInspectorModal;
   blockActionsMenu: BlockActionsMenu;
   searchManager: SearchManager;

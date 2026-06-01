@@ -204,14 +204,11 @@ type ProcessRouteState = {
     getSelected: () => ProcessEntry | undefined;
     close: () => void;
     open: () => void;
-    killSelected: () => boolean;
+    stopSelected: () => boolean;
     refresh: () => void;
   };
   liveTailModal: {
     open: (entry: ProcessEntry) => void;
-  };
-  agentDetailModal: {
-    open: (id: string) => void;
   };
   modalOpened: (name: string) => void;
   requestRender: () => void;
@@ -231,20 +228,14 @@ export function handleProcessModalToken(state: ProcessRouteState, token: InputTo
     else if (token.logicalName === 'enter') {
       const entry = state.processModal.getSelected();
       if (entry) {
-        if (entry.type === 'agent') {
-          state.modalOpened('agentDetail');
-          state.processModal.close();
-          state.agentDetailModal.open(entry.id);
-        } else {
-          state.modalOpened('liveTail');
-          state.processModal.close();
-          state.liveTailModal.open(entry);
-        }
+        state.modalOpened('liveTail');
+        state.processModal.close();
+        state.liveTailModal.open(entry);
       }
     }
   } else if (token.type === 'text' && token.value === 'k') {
-    const killed = state.processModal.killSelected();
-    if (killed) state.processModal.refresh();
+    const stopped = state.processModal.stopSelected();
+    if (stopped) state.processModal.refresh();
   }
 
   state.requestRender();
@@ -256,7 +247,7 @@ type LiveTailRouteState = {
     active: boolean;
     scrollUp: () => void;
     scrollDown: () => void;
-    killProcess: () => boolean;
+    stopProcess: () => boolean;
     close: () => void;
   };
   processModal: {
@@ -269,8 +260,8 @@ type LiveTailRouteState = {
 export function handleLiveTailToken(state: LiveTailRouteState, token: InputToken): boolean {
   if (!state.liveTailModal.active) return false;
 
-  const killAndReturn = (): void => {
-    if (state.liveTailModal.killProcess()) state.handleEscape();
+  const stopAndReturn = (): void => {
+    if (state.liveTailModal.stopProcess()) state.handleEscape();
   };
 
   if (token.type === 'key') {
@@ -280,9 +271,9 @@ export function handleLiveTailToken(state: LiveTailRouteState, token: InputToken
     }
     if (token.logicalName === 'up') state.liveTailModal.scrollUp();
     else if (token.logicalName === 'down') state.liveTailModal.scrollDown();
-    else if (token.logicalName === 'k') killAndReturn();
+    else if (token.logicalName === 'k') stopAndReturn();
   } else if (token.type === 'text' && token.value === 'k') {
-    killAndReturn();
+    stopAndReturn();
   }
 
   state.requestRender();

@@ -235,7 +235,6 @@ export function handleEscapeForHandler(handler: InputHandler): void {
       helpOverlayActive: handler.helpOverlayActive,
       shortcutsOverlayActive: handler.shortcutsOverlayActive,
       bookmarkModal: handler.bookmarkModal,
-      agentDetailModal: handler.agentDetailModal,
       liveTailModal: handler.liveTailModal,
       settingsModal: handler.settingsModal,
       mcpWorkspace: handler.mcpWorkspace,

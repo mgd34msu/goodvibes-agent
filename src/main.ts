@@ -398,11 +398,6 @@ async function main() {
     scroll,
     exitApp,
     {
-      agents: {
-        agentManager,
-        agentMessageBus: ctx.services.agentMessageBus,
-        wrfcController: ctx.services.wrfcController,
-      },
       providers: {
         benchmarkStore: ctx.services.benchmarkStore,
         favoritesStore: ctx.services.favoritesStore,
@@ -450,7 +445,6 @@ async function main() {
   input.setConversationManager(conversation);
   input.setContentWidth(getPromptContentWidth());
   input.filePicker.setOnUpdate(() => render());
-  input.agentDetailModal.setOnRefresh(() => render());
   input.processModal.setOnRefresh(() => render());
 
   // Model picker callback is handled in bootstrap.ts — do not duplicate here.

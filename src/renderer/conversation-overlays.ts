@@ -9,7 +9,6 @@ import { renderSelectionModalOverlay } from './selection-modal-overlay.ts';
 import { renderSearchOverlay } from './search-overlay.ts';
 import { renderHistorySearchOverlay } from './history-search-overlay.ts';
 import { renderProcessModal } from './process-modal.ts';
-import { renderAgentDetailModal } from './agent-detail-modal.ts';
 import { renderLiveTailModal } from './live-tail-modal.ts';
 import { renderContextInspector } from './context-inspector.ts';
 import { renderSettingsModal } from './settings-modal.ts';
@@ -71,11 +70,6 @@ export function applyConversationOverlays(
 
   if (input.processModal.active) {
     const lines = renderProcessModal(input.processModal, conversationWidth, viewportHeight);
-    next = overlayViewportBottom(next, lines, conversationWidth, viewportHeight, bottomDockInset);
-  }
-
-  if (input.agentDetailModal.active) {
-    const lines = renderAgentDetailModal(input.agentDetailModal, conversationWidth);
     next = overlayViewportBottom(next, lines, conversationWidth, viewportHeight, bottomDockInset);
   }
 

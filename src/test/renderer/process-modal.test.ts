@@ -1,76 +1,34 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
+import type { BackgroundProcess } from '@pellux/goodvibes-sdk/platform/tools';
 import { ProcessModal, renderProcessModal } from '../../renderer/process-modal.ts';
 import { UI_TONES } from '../../renderer/ui-primitives.ts';
-import type { AgentRecord } from '@pellux/goodvibes-sdk/platform/tools';
-import type { BackgroundProcess } from '@pellux/goodvibes-sdk/platform/tools';
-import { lineToString, linesToText } from '../setup.ts';
+import { linesToText } from '../setup.ts';
 
 const W = 100;
-
-type TestAgentStatus = AgentRecord['status'];
-
-type TestAgentRecord = AgentRecord;
 
 type TestProcessRecord = BackgroundProcess & {
   status: string;
 };
 
-const agents = new Map<string, TestAgentRecord>();
 const processes = new Map<string, TestProcessRecord>();
-const wrfcChains = new Map<string, {
-  id: string;
-  task: string;
-  ownerAgentId: string;
-  state: string;
-  engineerAgentId?: string;
-  reviewerAgentId?: string;
-  fixerAgentId?: string;
-  allAgentIds?: string[];
-  constraints: unknown[];
-}>();
 
 beforeEach(() => {
-  agents.clear();
   processes.clear();
-  wrfcChains.clear();
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function seedAgent(
-  task: string,
-  status: TestAgentStatus = 'running',
-  overrides: Partial<TestAgentRecord> = {},
-): string {
-  const id = `agent-${agents.size + 1}`;
-  const record: TestAgentRecord = {
+function seedProcess(cmd: string, status = 'running'): string {
+  const id = `process-${processes.size + 1}`;
+  processes.set(id, {
     id,
-    task,
-    template: 'default',
-    tools: [],
+    cmd,
     status,
-    startedAt: Date.now(),
-    orchestrationDepth: 0,
-    toolCallCount: 0,
-    executionProtocol: 'gather-plan-apply',
-    reviewMode: 'wrfc',
-    communicationLane: 'direct',
-    fullOutput: '',
-    ...overrides,
-    id: overrides.id ?? id,
-    task: overrides.task ?? task,
-    status: overrides.status ?? status,
-  };
-  agents.set(record.id, record);
-  return record.id;
+    startTime: Date.now() - 1200,
+  } as TestProcessRecord);
+  return id;
 }
 
 function createProcessModal(): ProcessModal {
   return new ProcessModal({
-    agentManager: {
-      list: () => Array.from(agents.values()),
-      getStatus: (id: string) => agents.get(id) ?? null,
-    },
     processManager: {
       list: () => Array.from(processes.values()),
       getStatus: (id: string) => processes.get(id),
@@ -81,15 +39,8 @@ function createProcessModal(): ProcessModal {
         return true;
       },
     },
-    wrfcController: {
-      getChain: (id: string) => wrfcChains.get(id) as never ?? null,
-      listChains: () => Array.from(wrfcChains.values()) as never,
-    },
-    agentEntries: 'read-only',
   });
 }
-
-// ─── ProcessModal state ────────────────────────────────────────────────────────
 
 describe('ProcessModal state', () => {
   test('initially inactive with no entries', () => {
@@ -112,509 +63,88 @@ describe('ProcessModal state', () => {
     expect(modal.active).toBe(false);
   });
 
-  test('refresh() populates entries from AgentManager running agents', () => {
-    seedAgent('Build the feature');
+  test('refresh() populates entries from running shell processes only', () => {
+    seedProcess('bun run build');
+    seedProcess('bun test', 'done');
     const modal = createProcessModal();
     modal.refresh();
-    expect(modal.entries.length).toBe(1);
-    expect(modal.entries[0].type).toBe('agent');
-    expect(modal.entries[0].label).toContain('Build the feature');
-  });
-
-  test('refresh() hides AgentManager entries when product policy disables local agent activity', () => {
-    seedAgent('Hidden local agent task');
-    const modal = new ProcessModal({
-      agentManager: {
-        list: () => Array.from(agents.values()),
-        getStatus: (id: string) => agents.get(id) ?? null,
-      },
-      processManager: {
-        list: () => Array.from(processes.values()),
-        getStatus: (id: string) => processes.get(id),
-        stop: () => false,
-      },
-      wrfcController: {
-        getChain: (id: string) => wrfcChains.get(id) as never ?? null,
-        listChains: () => Array.from(wrfcChains.values()) as never,
-      },
-      agentEntries: 'hidden',
-    });
-    modal.refresh();
-    expect(modal.entries).toEqual([]);
-  });
-
-  test('refresh() skips completed agents', () => {
-    const id = seedAgent('Done task', 'completed');
-    const modal = createProcessModal();
-    modal.refresh();
-    expect(modal.entries.length).toBe(0);
-  });
-
-  test('refresh() includes pending agents', () => {
-    seedAgent('Pending task', 'pending');
-    const modal = createProcessModal();
-    modal.refresh();
-    expect(modal.entries.length).toBe(1);
-    expect(modal.entries[0].status).toBe('pending');
+    expect(modal.entries).toHaveLength(1);
+    expect(modal.entries[0]?.type).toBe('exec');
+    expect(modal.entries[0]?.label).toContain('bun run build');
   });
 
   test('moveDown() wraps around to first entry', () => {
-    seedAgent('Task A');
-    seedAgent('Task B');
+    seedProcess('Task A');
+    seedProcess('Task B');
     const modal = createProcessModal();
     modal.open();
     expect(modal.selectedIndex).toBe(0);
     modal.moveDown();
     expect(modal.selectedIndex).toBe(1);
-    modal.moveDown(); // wrap
+    modal.moveDown();
     expect(modal.selectedIndex).toBe(0);
   });
 
   test('moveUp() wraps around to last entry', () => {
-    seedAgent('Task A');
-    seedAgent('Task B');
+    seedProcess('Task A');
+    seedProcess('Task B');
     const modal = createProcessModal();
     modal.open();
-    modal.moveUp(); // wrap to last
+    modal.moveUp();
     expect(modal.selectedIndex).toBe(1);
   });
 
-  test('navigation does nothing when no entries', () => {
-    const modal = createProcessModal();
-    modal.refresh();
-    modal.moveDown();
-    modal.moveUp();
-    expect(modal.selectedIndex).toBe(0);
-  });
-
-  test('getSelected() returns entry at selectedIndex', () => {
-    seedAgent('Task A');
-    seedAgent('Task B');
+  test('stopSelected() delegates only to ProcessManager', () => {
+    const id = seedProcess('sleep 100');
     const modal = createProcessModal();
     modal.open();
-    modal.moveDown();
-    const sel = modal.getSelected();
-    expect(sel).toBeDefined();
-    expect(sel!.label).toContain('Task B');
-  });
-
-  test('killSelected() refuses to cancel agent entries', () => {
-    const id = seedAgent('Kill this task');
-    const record = agents.get(id);
-    if (!record) throw new Error('expected agent record');
-    const modal = createProcessModal();
-    modal.open();
-    const entryIdx = modal.entries.findIndex((e) => e.id === id);
-    modal.selectedIndex = entryIdx;
-    const result = modal.killSelected();
-    expect(result).toBe(false);
-    expect(record.status).toBe('running');
-  });
-
-  test('killSelected() returns false when no entries', () => {
-    const modal = createProcessModal();
-    modal.refresh();
-    expect(modal.killSelected()).toBe(false);
-  });
-
-  test('streamSnippet is populated when agent has streamingContent', () => {
-    const id = seedAgent('Streaming task');
-    const rec = agents.get(id);
-    if (!rec) throw new Error('expected agent record');
-    rec.streamingContent = 'Processing file analysis results and building summary';
-    const modal = createProcessModal();
-    modal.refresh();
-    const entry = modal.entries.find((e) => e.id === id);
-    expect(entry).toBeDefined();
-    expect(entry!.streamSnippet).toBeDefined();
-    expect(entry!.streamSnippet).toContain('Processing file analysis results');
-  });
-
-  test('streamSnippet truncates long content with ellipsis prefix', () => {
-    const id = seedAgent('Long streaming task');
-    const rec = agents.get(id);
-    if (!rec) throw new Error('expected agent record');
-    // 80-char content — exceeds the 60-char threshold in refresh()
-    rec.streamingContent = 'a'.repeat(80);
-    const modal = createProcessModal();
-    modal.refresh();
-    const entry = modal.entries.find((e) => e.id === id);
-    expect(entry).toBeDefined();
-    expect(entry!.streamSnippet).toBeDefined();
-    expect(entry!.streamSnippet!.startsWith('...')).toBe(true);
-    // Total length: 3 (ellipsis) + 57 (last chars) = 60
-    expect(entry!.streamSnippet!.length).toBe(60);
-  });
-
-  test('streamSnippet is undefined when agent has no streamingContent', () => {
-    const id = seedAgent('Quiet task');
-    const modal = createProcessModal();
-    modal.refresh();
-    const entry = modal.entries.find((e) => e.id === id);
-    expect(entry).toBeDefined();
-    expect(entry!.streamSnippet).toBeUndefined();
-  });
-
-  test('entry label is truncated with ellipsis when longer than 80 chars', () => {
-    const longTask = 'a'.repeat(100);
-    seedAgent(longTask);
-    const modal = createProcessModal();
-    modal.refresh();
-    expect(modal.entries[0].label.length).toBeLessThanOrEqual(80);
-    expect(modal.entries[0].label.endsWith('...')).toBe(true);
-  });
-
-  test('refresh() groups WRFC owner and child agents as a tree', () => {
-    const wrfcId = 'wrfc-tree-1';
-    const ownerId = seedAgent('Complete the requested work as a single WRFC owner chain.', 'running', {
-      wrfcId,
-      wrfcRole: 'owner',
-      template: 'engineer',
-      startedAt: Date.now() - 2000,
-    });
-    const engineerId = seedAgent('Complete the requested work as a single WRFC owner chain.', 'running', {
-      wrfcId,
-      wrfcRole: 'engineer',
-      template: 'engineer',
-      parentAgentId: ownerId,
-      startedAt: Date.now() - 1000,
-    });
-    wrfcChains.set(wrfcId, {
-      id: wrfcId,
-      task: 'Build a simple rate limiter',
-      ownerAgentId: ownerId,
-      state: 'engineering',
-      constraints: [],
-    });
-
-    const modal = createProcessModal();
-    modal.refresh();
-
-    expect(modal.entries.map((entry) => entry.id)).toEqual([ownerId, engineerId]);
-    expect(modal.entries[0].treePrefix ?? '').toBe('');
-    expect(modal.entries[1].treePrefix).toBe('└─ ');
-    expect(modal.entries[0].label).toContain('[WRFC owner]');
-    expect(modal.entries[1].label).toContain('[Engineer]');
-  });
-
-  test('refresh() infers WRFC tree from chain when live records are generic engineers', () => {
-    const wrfcId = 'wrfc-inferred-chain';
-    const ownerId = seedAgent('Design a minimal Python rate limiter library API for an empty project.', 'running', {
-      template: 'engineer',
-      reviewMode: 'wrfc',
-      startedAt: Date.now() - 2000,
-    });
-    const engineerId = seedAgent('Design a minimal Python rate limiter library API for an empty project.', 'running', {
-      template: 'engineer',
-      reviewMode: 'wrfc',
-      startedAt: Date.now() - 1000,
-    });
-    wrfcChains.set(wrfcId, {
-      id: wrfcId,
-      task: 'Build a simple rate limiter',
-      ownerAgentId: ownerId,
-      engineerAgentId: engineerId,
-      allAgentIds: [ownerId, engineerId],
-      state: 'engineering',
-      constraints: [],
-    });
-
-    const modal = createProcessModal();
-    modal.refresh();
-
-    expect(modal.entries.map((entry) => entry.id)).toEqual([ownerId, engineerId]);
-    expect(modal.entries[0].treePrefix ?? '').toBe('');
-    expect(modal.entries[1].treePrefix).toBe('└─ ');
-    expect(modal.entries[0].label).toContain('[WRFC owner]');
-    expect(modal.entries[1].label).toContain('[Engineer]');
-  });
-
-  test('refresh() infers duplicate WRFC owner rows when chain metadata has not reached the records yet', () => {
-    const ownerId = seedAgent('Complete the requested work as a single WRFC owner chain.', 'running', {
-      template: 'engineer',
-      reviewMode: 'wrfc',
-      startedAt: Date.now() - 2000,
-    });
-    const childId = seedAgent('Complete the requested work as a single WRFC owner chain.', 'running', {
-      template: 'engineer',
-      reviewMode: 'wrfc',
-      startedAt: Date.now() - 1000,
-    });
-
-    const modal = createProcessModal();
-    modal.refresh();
-
-    expect(modal.entries.map((entry) => entry.id)).toEqual([ownerId, childId]);
-    expect(modal.entries[0].label).toContain('[WRFC owner]');
-    expect(modal.entries[1].treePrefix).toBe('└─ ');
-    expect(modal.entries[1].label).toContain('[Engineer]');
-  });
-
-  test('refresh() keeps WRFC owner visible until chain reaches a terminal state', () => {
-    const wrfcId = 'wrfc-owner-visible';
-    const ownerId = seedAgent('Complete the requested work as a single WRFC owner chain.', 'completed', {
-      wrfcId,
-      wrfcRole: 'owner',
-      template: 'engineer',
-      completedAt: Date.now() - 100,
-      startedAt: Date.now() - 3000,
-    });
-    const reviewerId = seedAgent('WRFC Review Request\nOriginal task', 'running', {
-      wrfcId,
-      wrfcRole: 'reviewer',
-      template: 'reviewer',
-      parentAgentId: ownerId,
-      startedAt: Date.now() - 1000,
-    });
-    wrfcChains.set(wrfcId, {
-      id: wrfcId,
-      task: 'Build a simple rate limiter',
-      ownerAgentId: ownerId,
-      reviewerAgentId: reviewerId,
-      allAgentIds: [ownerId, reviewerId],
-      state: 'reviewing',
-      constraints: [],
-    });
-
-    const modal = createProcessModal();
-    modal.refresh();
-
-    expect(modal.entries.map((entry) => entry.id)).toEqual([ownerId, reviewerId]);
-    expect(modal.entries[0].status).toBe('running');
-    expect(modal.entries[0].label).toContain('[WRFC owner]');
-    expect(modal.entries[1].treePrefix).toBe('└─ ');
-  });
-
-  test('refresh() draws branch and final connectors for multiple WRFC children', () => {
-    const wrfcId = 'wrfc-tree-2';
-    const ownerId = seedAgent('Owner task', 'running', {
-      wrfcId,
-      wrfcRole: 'owner',
-      template: 'engineer',
-      startedAt: Date.now() - 3000,
-    });
-    const engineerId = seedAgent('Engineer task', 'running', {
-      wrfcId,
-      wrfcRole: 'engineer',
-      template: 'engineer',
-      parentAgentId: ownerId,
-      startedAt: Date.now() - 2000,
-    });
-    const reviewerId = seedAgent('WRFC Review Request\nOriginal task', 'running', {
-      wrfcId,
-      wrfcRole: 'reviewer',
-      template: 'reviewer',
-      parentAgentId: ownerId,
-      startedAt: Date.now() - 1000,
-    });
-    wrfcChains.set(wrfcId, {
-      id: wrfcId,
-      task: 'Build a simple rate limiter',
-      ownerAgentId: ownerId,
-      state: 'reviewing',
-      constraints: [],
-    });
-
-    const modal = createProcessModal();
-    modal.refresh();
-
-    expect(modal.entries.map((entry) => entry.id)).toEqual([ownerId, engineerId, reviewerId]);
-    expect(modal.entries[1].treePrefix).toBe('├─ ');
-    expect(modal.entries[2].treePrefix).toBe('└─ ');
-  });
-
-  test('refresh() keeps vertical tree guides for nested WRFC children', () => {
-    const wrfcId = 'wrfc-tree-3';
-    const ownerId = seedAgent('Owner task', 'running', {
-      wrfcId,
-      wrfcRole: 'owner',
-      template: 'engineer',
-      startedAt: Date.now() - 4000,
-    });
-    const engineerId = seedAgent('Engineer task', 'running', {
-      wrfcId,
-      wrfcRole: 'engineer',
-      template: 'engineer',
-      parentAgentId: ownerId,
-      startedAt: Date.now() - 3000,
-    });
-    const reviewerId = seedAgent('WRFC Review Request\nOriginal task', 'running', {
-      wrfcId,
-      wrfcRole: 'reviewer',
-      template: 'reviewer',
-      parentAgentId: ownerId,
-      startedAt: Date.now() - 2000,
-    });
-    const fixerId = seedAgent('WRFC Fix Request\nOriginal task', 'running', {
-      wrfcId,
-      wrfcRole: 'fixer',
-      template: 'engineer',
-      parentAgentId: engineerId,
-      startedAt: Date.now() - 1000,
-    });
-    wrfcChains.set(wrfcId, {
-      id: wrfcId,
-      task: 'Build a simple rate limiter',
-      ownerAgentId: ownerId,
-      state: 'fixing',
-      constraints: [],
-    });
-
-    const modal = createProcessModal();
-    modal.refresh();
-
-    expect(modal.entries.map((entry) => entry.id)).toEqual([ownerId, engineerId, fixerId, reviewerId]);
-    expect(modal.entries[1].treePrefix).toBe('├─ ');
-    expect(modal.entries[2].treePrefix).toBe('│  └─ ');
-    expect(modal.entries[3].treePrefix).toBe('└─ ');
-  });
-
-  test('refresh() keeps independent agent hierarchies grouped by parent', () => {
-    const rootA = seedAgent('Root A', 'running', {
-      startedAt: Date.now() - 4000,
-    });
-    const rootB = seedAgent('Root B', 'running', {
-      startedAt: Date.now() - 3000,
-    });
-    const childA = seedAgent('Child A', 'running', {
-      parentAgentId: rootA,
-      startedAt: Date.now() - 1000,
-    });
-
-    const modal = createProcessModal();
-    modal.refresh();
-
-    expect(modal.entries.map((entry) => entry.id)).toEqual([rootA, childA, rootB]);
-    expect(modal.entries[1].treePrefix).toBe('└─ ');
-  });
-
-  test('refresh() preserves hierarchy position when an active parent exits', () => {
-    const rootA = seedAgent('Root A', 'running', {
-      startedAt: Date.now() - 4000,
-    });
-    const rootB = seedAgent('Root B', 'running', {
-      startedAt: Date.now() - 3000,
-    });
-    const modal = createProcessModal();
-    modal.refresh();
-    expect(modal.entries.map((entry) => entry.id)).toEqual([rootA, rootB]);
-
-    const childA = seedAgent('Child A', 'running', {
-      parentAgentId: rootA,
-      startedAt: Date.now() - 1000,
-    });
-    const rootARecord = agents.get(rootA);
-    if (!rootARecord) throw new Error('expected root agent');
-    rootARecord.status = 'completed';
-    modal.refresh();
-
-    expect(modal.entries.map((entry) => entry.id)).toEqual([childA, rootB]);
+    expect(modal.stopSelected()).toBe(true);
+    expect(processes.get(id)?.status).toBe('done');
   });
 });
 
-// ─── renderProcessModal ────────────────────────────────────────────────────────
-
 describe('renderProcessModal', () => {
-  test('renders empty state when no processes running', () => {
+  test('renders empty state when no processes are running', () => {
     const modal = createProcessModal();
     const lines = renderProcessModal(modal, W);
     const text = linesToText(lines).join('\n');
-    expect(text).toContain('No runtime activity');
+    expect(text).toContain('No running shell processes');
   });
 
   test('all lines have correct terminal width', () => {
     const modal = createProcessModal();
     const lines = renderProcessModal(modal, W);
-    for (const line of lines) {
-      expect(line.length).toBe(W);
-    }
+    for (const line of lines) expect(line.length).toBe(W);
   });
 
-  test('renders entries as list items when processes exist', () => {
-    seedAgent('Build the app');
+  test('renders exec entries as list items', () => {
+    seedProcess('bun run build');
     const modal = createProcessModal();
     modal.open();
     const lines = renderProcessModal(modal, W);
     const text = linesToText(lines).join('\n');
-    expect(text).toContain('Build the app');
+    expect(text).toContain('[exec]');
+    expect(text).toContain('bun run build');
   });
 
   test('selected entry shows selection indicator', () => {
-    seedAgent('Task A');
-    seedAgent('Task B');
+    seedProcess('Task A');
+    seedProcess('Task B');
     const modal = createProcessModal();
     modal.open();
     modal.moveDown();
     const lines = renderProcessModal(modal, W);
     const text = linesToText(lines).join('\n');
     expect(text).toContain('Task B');
-    const selectedCell = lines
-      .flat()
-      .find((cell) => cell.bg === UI_TONES.bg.selected);
+    const selectedCell = lines.flat().find((cell) => cell.bg === UI_TONES.bg.selected);
     expect(selectedCell).toBeDefined();
   });
 
-  test('renders type tag [agent] in entry label', () => {
-    seedAgent('My agent task');
-    const modal = createProcessModal();
-    modal.open();
-    const lines = renderProcessModal(modal, W);
-    const text = linesToText(lines).join('\n');
-    expect(text).toContain('[agent]');
-  });
-
-  test('renders WRFC child connector in entry label', () => {
-    const wrfcId = 'wrfc-render';
-    const ownerId = seedAgent('Owner task', 'running', {
-      wrfcId,
-      wrfcRole: 'owner',
-      template: 'engineer',
-      startedAt: Date.now() - 2000,
-    });
-    seedAgent('Engineer task', 'running', {
-      wrfcId,
-      wrfcRole: 'engineer',
-      template: 'engineer',
-      parentAgentId: ownerId,
-      startedAt: Date.now() - 1000,
-    });
-    wrfcChains.set(wrfcId, {
-      id: wrfcId,
-      task: 'Build a simple rate limiter',
-      ownerAgentId: ownerId,
-      state: 'engineering',
-      constraints: [],
-    });
-    const modal = createProcessModal();
-    modal.open();
-
-    const lines = renderProcessModal(modal, W);
-    const text = linesToText(lines).join('\n');
-
-    expect(text).toContain('└─ [Engineer]');
-  });
-
-  test('renders duration in entry label', () => {
-    seedAgent('Timed task');
-    const modal = createProcessModal();
-    modal.open();
-    const lines = renderProcessModal(modal, W);
-    const text = linesToText(lines).join('\n');
-    // Duration formats: Xms, Xs, XmYs
-    expect(text).toMatch(/\d+ms|\d+s|\d+m\d+s/);
-  });
-
-  test('footer contains hint text', () => {
+  test('footer contains process-specific hint text', () => {
     const modal = createProcessModal();
     const lines = renderProcessModal(modal, W);
     const text = linesToText(lines).join('\n');
     expect(text).toContain('Esc');
-  });
-
-  test('title contains Runtime Activity', () => {
-    const modal = createProcessModal();
-    const lines = renderProcessModal(modal, W);
-    const text = linesToText(lines).join('\n');
-    expect(text).toContain('Runtime Activity');
+    expect(text).not.toContain('[agent]');
   });
 });

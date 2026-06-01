@@ -88,7 +88,9 @@ const forbiddenSourceFiles = new Set([
   'src/input/commands/quit-shared.ts',
   'src/cli/service-command.ts',
   'src/cli/surface-command.ts',
+  'src/renderer/agent-detail-modal.ts',
   'src/renderer/git-status.ts',
+  'src/renderer/process-summary.ts',
 ]);
 for (const filePath of filePaths) {
   if (forbiddenPrefixes.some((prefix) => filePath.startsWith(prefix))) {

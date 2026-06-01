@@ -121,7 +121,6 @@ export function handleEscape(state: EscapeState): {
         shortcutsScrollOffset = 0;
       },
       closeBookmark: () => state.bookmarkModal.close(),
-      closeAgentDetail: () => state.agentDetailModal.close(),
       closeLiveTail: () => state.liveTailModal.close(),
       closeSettings: () => state.settingsModal.close(),
       closeMcpWorkspace: () => state.mcpWorkspace?.close(),

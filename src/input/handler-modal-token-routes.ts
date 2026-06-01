@@ -12,7 +12,6 @@ import { handleMcpWorkspaceToken, type McpWorkspace } from './mcp-workspace.ts';
 import type { CommandContext } from './command-registry.ts';
 import type { LiveTailModal } from '../renderer/live-tail-modal.ts';
 import type { ProcessModal } from '../renderer/process-modal.ts';
-import type { AgentDetailModal } from '../renderer/agent-detail-modal.ts';
 import type { ContextInspectorModal } from '../renderer/context-inspector.ts';
 import type { FilePickerModal } from './file-picker.ts';
 import type { BlockActionsMenu, BlockActionId } from '../renderer/block-actions.ts';
@@ -65,7 +64,6 @@ export type ModalTokenRouteState = {
   handleEscape: () => void;
   liveTailModal: LiveTailModal;
   processModal: ProcessModal;
-  agentDetailModal: AgentDetailModal;
   contextInspectorModal: ContextInspectorModal;
   modalOpened: (name: string) => void;
   filePicker: FilePickerModal;
@@ -241,14 +239,6 @@ export function handleModalTokenRoutes(state: ModalTokenRouteState, token: Input
   }
 
   if (handleEscapeOnlyModalToken({
-    active: state.agentDetailModal.active,
-    requestRender: state.requestRender,
-    handleEscape: state.handleEscape,
-  }, token)) {
-    return withState(state, true);
-  }
-
-  if (handleEscapeOnlyModalToken({
     active: state.contextInspectorModal.active,
     requestRender: state.requestRender,
     handleEscape: state.handleEscape,
@@ -259,7 +249,6 @@ export function handleModalTokenRoutes(state: ModalTokenRouteState, token: Input
   if (handleProcessModalToken({
     processModal: state.processModal,
     liveTailModal: state.liveTailModal,
-    agentDetailModal: state.agentDetailModal,
     modalOpened: state.modalOpened,
     requestRender: state.requestRender,
     handleEscape: state.handleEscape,

@@ -55,7 +55,6 @@ export type ActiveModalState = {
   helpOverlayActive: boolean;
   shortcutsOverlayActive: boolean;
   bookmarkModal: { active: boolean; close: () => void };
-  agentDetailModal: { active: boolean; close: () => void };
   liveTailModal: { active: boolean; close: () => void };
   settingsModal: { active: boolean; close: () => void };
   mcpWorkspace?: { active: boolean; close: () => void; reopen: () => void };
@@ -76,7 +75,6 @@ export function getActiveModalName(state: ActiveModalState): string | null {
   if (state.helpOverlayActive) return 'help';
   if (state.shortcutsOverlayActive) return 'shortcuts';
   if (state.bookmarkModal.active) return 'bookmark';
-  if (state.agentDetailModal.active) return 'agentDetail';
   if (state.liveTailModal.active) return 'liveTail';
   if (state.settingsModal.active) return 'settings';
   if (state.mcpWorkspace?.active) return 'mcpWorkspace';
@@ -98,7 +96,6 @@ export type ModalCloseOps = {
   resetHelp: () => void;
   resetShortcuts: () => void;
   closeBookmark: () => void;
-  closeAgentDetail: () => void;
   closeLiveTail: () => void;
   closeSettings: () => void;
   closeMcpWorkspace: () => void;
@@ -125,9 +122,6 @@ export function closeModalByName(name: string, ops: ModalCloseOps): void {
       break;
     case 'bookmark':
       ops.closeBookmark();
-      break;
-    case 'agentDetail':
-      ops.closeAgentDetail();
       break;
     case 'liveTail':
       ops.closeLiveTail();

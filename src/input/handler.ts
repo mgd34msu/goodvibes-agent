@@ -21,14 +21,12 @@ import type { BlockMeta, ConversationManager } from '../core/conversation';
 import { ProcessModal } from '../renderer/process-modal.ts';
 import { LiveTailModal } from '../renderer/live-tail-modal.ts';
 import { BlockActionsMenu } from '../renderer/block-actions.ts';
-import { AgentDetailModal } from '../renderer/agent-detail-modal.ts';
 import { ContextInspectorModal } from '../renderer/context-inspector.ts';
 import { BookmarkModal } from './bookmark-modal.ts';
 import { SettingsModal } from './settings-modal.ts';
 import { McpWorkspace } from './mcp-workspace.ts';
 import { AgentWorkspace } from './agent-workspace.ts';
 import { SessionPickerModal } from './session-picker-modal.ts';
-import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { ProfilePickerModal } from './profile-picker-modal.ts';
 import { OnboardingWizardController, type OnboardingWizardAction, type OnboardingWizardMode } from './onboarding/onboarding-wizard.ts';
 import {
@@ -155,7 +153,6 @@ export class InputHandler {
   public searchManager = new SearchManager();
   public processModal: ProcessModal;
   public liveTailModal: LiveTailModal;
-  public agentDetailModal: AgentDetailModal;
   public contextInspectorModal = new ContextInspectorModal();
   public bookmarkModal: BookmarkModal;
   public blockActionsMenu = new BlockActionsMenu();
@@ -220,8 +217,7 @@ export class InputHandler {
     public scroll: (delta: number) => void,
     public exitApp: () => void,
     public readonly uiServices: Pick<UiRuntimeServices,
-      'agents'
-      | 'environment'
+      'environment'
       | 'platform'
       | 'providers'
       | 'sessions'
@@ -235,21 +231,10 @@ export class InputHandler {
       uiServices.providers.providerRegistry,
     );
     this.processModal = new ProcessModal({
-      agentManager: uiServices.agents.agentManager,
       processManager: uiServices.shell.processManager,
-      wrfcController: uiServices.agents.wrfcController,
-      agentEntries: 'hidden',
     });
     this.liveTailModal = new LiveTailModal({
-      agentManager: uiServices.agents.agentManager,
       processManager: uiServices.shell.processManager,
-    });
-    this.agentDetailModal = new AgentDetailModal({
-      agentManager: uiServices.agents.agentManager,
-      agentMessageBus: uiServices.agents.agentMessageBus,
-      sessionLogPathResolver: (agentId) => uiServices.environment.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'sessions', `${agentId}.jsonl`),
-      // SDK 0.23.0: supply wrfcController so the modal can show constraint data
-      wrfcController: uiServices.agents.wrfcController,
     });
     this.bookmarkModal = new BookmarkModal(uiServices.shell.bookmarkManager);
     this.sessionPickerModal = new SessionPickerModal(uiServices.sessions.sessionManager);
@@ -294,7 +279,6 @@ export class InputHandler {
         onboardingWizard: this.onboardingWizard,
         processModal: this.processModal,
         liveTailModal: this.liveTailModal,
-        agentDetailModal: this.agentDetailModal,
         contextInspectorModal: this.contextInspectorModal,
         blockActionsMenu: this.blockActionsMenu,
         searchManager: this.searchManager,
