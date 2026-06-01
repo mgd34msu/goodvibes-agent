@@ -1,12 +1,32 @@
-import { dirname, join, resolve } from 'node:path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import type { CommandContext } from '../command-registry.ts';
 import { discoverSkills } from '../../agent/skill-discovery.ts';
 import { getPluginDirectories } from '../../plugins/loader';
 import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
-import type { SetupReviewSnapshot } from './local-setup-transfer.ts';
 import { requireProviderApi, requireReadModels, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from './runtime-services.ts';
-import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+
+export interface SetupReviewSnapshot {
+  readonly sessionId: string;
+  readonly providerCount: number;
+  readonly serviceCount: number;
+  readonly oauthProviderCount: number;
+  readonly builtinSubscriptionProviderCount: number;
+  readonly activeSubscriptionCount: number;
+  readonly pendingSubscriptionCount: number;
+  readonly serviceIssues: string[];
+  readonly skillCount: number;
+  readonly pluginCount: number;
+  readonly quarantinedPluginCount: number;
+  readonly pluginDirectories: string[];
+  readonly managedHookCount: number;
+  readonly managedHookChainCount: number;
+  readonly mcpServerCount: number;
+  readonly quarantinedMcpCount: number;
+  readonly elevatedMcpCount: number;
+  readonly remoteRunnerCount: number;
+  readonly issues: Array<{ readonly severity: 'pass' | 'warn' | 'fail'; readonly area: string; readonly message: string }>;
+  readonly services: string[];
+}
 
 export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<SetupReviewSnapshot> {
   const shellPaths = requireShellPaths(ctx);
@@ -115,24 +135,4 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
     issues,
     services,
   };
-}
-
-export function exportSetupSupportBundle(
-  targetDirArg: string,
-  snapshot: SetupReviewSnapshot,
-  ctx: CommandContext,
-): string {
-  const shellPaths = requireShellPaths(ctx);
-  const targetDir = shellPaths.resolveWorkspacePath(targetDirArg);
-  mkdirSync(targetDir, { recursive: true });
-  writeFileSync(join(targetDir, 'startup-review.json'), JSON.stringify(snapshot, null, 2) + '\n', 'utf-8');
-  const servicesPath = shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'services.json');
-  if (existsSync(servicesPath)) {
-    writeFileSync(join(targetDir, 'services.json'), readFileSync(servicesPath, 'utf-8'), 'utf-8');
-  }
-  const hooksPath = shellPaths.resolveProjectPath('hooks.managed.json');
-  if (existsSync(hooksPath)) {
-    writeFileSync(join(targetDir, 'hooks.managed.json'), readFileSync(hooksPath, 'utf-8'), 'utf-8');
-  }
-  return targetDir;
 }

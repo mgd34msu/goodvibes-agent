@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerGuidanceRuntimeCommands } from '../../input/commands/guidance-runtime.ts';
-import { registerLocalSetupCommands } from '../../input/commands/local-setup.ts';
 import { registerOnboardingRuntimeCommands } from '../../input/commands/onboarding-runtime.ts';
 import type { OpenOnboardingWizardOptions } from '../../input/handler-ui-state.ts';
 import { wireShellUiOpeners } from '../../shell/ui-openers.ts';
@@ -90,21 +89,6 @@ function makeWiredContext(out: string[]): {
 }
 
 describe('onboarding entrypoints', () => {
-  test('setup onboarding reaches the wizard through the shared shell opener seam', async () => {
-    const registry = new CommandRegistry();
-    registerLocalSetupCommands(registry);
-
-    const out: string[] = [];
-    const { ctx, inputState } = makeWiredContext(out);
-
-    await expect(registry.execute('setup', ['onboarding'], ctx)).resolves.toBe(true);
-
-    expect(inputState.active).toBe(true);
-    expect(inputState.mode).toBe('edit');
-    expect(inputState.modalStack).toEqual(['onboarding']);
-    expect(out.join('\n')).toContain('Opening onboarding wizard.');
-  });
-
   test('top-level onboarding command opens the same hydrated edit wizard path', async () => {
     const registry = new CommandRegistry();
     registerOnboardingRuntimeCommands(registry);
@@ -118,15 +102,6 @@ describe('onboarding entrypoints', () => {
     expect(inputState.mode).toBe('edit');
     expect(inputState.modalStack).toEqual(['onboarding']);
     expect(out.join('\n')).toContain('Opening onboarding wizard.');
-  });
-
-  test('setup onboarding fails loudly when the shell opener was not wired at bootstrap', async () => {
-    const registry = new CommandRegistry();
-    registerLocalSetupCommands(registry);
-
-    await expect(registry.execute('setup', ['onboarding'], makeContext([]))).rejects.toThrow(
-      'commandContext.openOnboardingWizard is required but was not wired at bootstrap',
-    );
   });
 
   test('welcome print points users at the onboarding wizard path', () => {

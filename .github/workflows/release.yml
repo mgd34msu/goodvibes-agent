@@ -45,8 +45,6 @@ jobs:
         run: bun run architecture:check
       - name: Performance check
         run: bun run perf:check
-      - name: Eval gate
-        run: bun run eval:gate
       - name: Foundation artifacts
         run: bun run foundation:artifacts
       - name: Build

@@ -38,6 +38,8 @@ git diff --check
 
 The GitHub release workflow publishes to npm only when the repository variable `PUBLISH_NPM` is `true` and the repository secret `NPM_TOKEN` is configured. Without those repository settings, the workflow still validates and creates the GitHub release, but npm publish must be run from a local environment with an exported token.
 
+CI and release workflows must run the full test suite exactly once with `bun run test`. Do not add a second targeted `bun test`/`eval:gate` pass to release validation; tests that matter for release must be included in the full suite.
+
 Also run the package install smoke from a packed artifact. It must prove:
 
 - the installed command is on `PATH`

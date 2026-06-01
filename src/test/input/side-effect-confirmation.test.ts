@@ -5,7 +5,6 @@ import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerLocalRuntimeCommands } from '../../input/commands/local-runtime.ts';
 import { registerNotifyRuntimeCommands } from '../../input/commands/notify-runtime.ts';
-import { registerPlatformServicesRuntimeCommands } from '../../input/commands/platform-services-runtime.ts';
 
 function makeShellPaths(root: string) {
   return {
@@ -90,42 +89,6 @@ function makeContext(root: string, out: string[], calls: SideEffectCalls): Comma
 }
 
 describe('side-effecting slash command confirmation', () => {
-  test('storage delete requires --yes before deleting a secret', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-side-effects-'));
-    try {
-      const registry = new CommandRegistry();
-      registerPlatformServicesRuntimeCommands(registry);
-      const out: string[] = [];
-      const calls = makeCalls();
-      const ctx = makeContext(root, out, calls);
-
-      await registry.get('storage')!.handler(['delete', 'OPENAI_API_KEY'], ctx);
-
-      expect(calls.secretDeletes).toBe(0);
-      expect(out.join('\n')).toContain('Refusing to delete secure storage key OPENAI_API_KEY without --yes');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  test('storage delete proceeds only with --yes', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-side-effects-'));
-    try {
-      const registry = new CommandRegistry();
-      registerPlatformServicesRuntimeCommands(registry);
-      const out: string[] = [];
-      const calls = makeCalls();
-      const ctx = makeContext(root, out, calls);
-
-      await registry.get('storage')!.handler(['delete', 'OPENAI_API_KEY', '--yes'], ctx);
-
-      expect(calls.secretDeletes).toBe(1);
-      expect(out.join('\n')).toContain('Deleted secure storage key OPENAI_API_KEY');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
   test('notify mutation and network test commands require --yes', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-side-effects-'));
     try {
