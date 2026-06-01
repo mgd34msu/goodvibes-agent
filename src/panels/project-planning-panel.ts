@@ -545,13 +545,13 @@ export class ProjectPlanningPanel extends BasePanel {
         id: 'scope-end-to-end',
         label: 'End-to-end required scope',
         detail: 'Let the plan include every component needed to make this work, but avoid unrelated cleanup.',
-        answer: 'Scope is everything required to make the requested outcome work end-to-end. Include TUI, daemon composition, configuration, docs, and tests if they are required. Do not include unrelated cleanup or broad refactors unless they are necessary for this task.',
+        answer: 'Scope is everything required to make the requested outcome work end-to-end. Include TUI, runtime composition, configuration, docs, and tests if they are required. Do not include unrelated cleanup or broad refactors unless they are necessary for this task.',
       });
       actions.push({
         id: 'scope-agent-first',
         label: 'Agent-first scope',
         detail: 'Fix Agent behavior here; report SDK blockers instead of patching around SDK-owned bugs.',
-        answer: 'Scope is Agent-owned behavior first. If a blocker is SDK-owned, report the exact SDK contract/runtime issue instead of patching around it locally. Include daemon contracts only where Agent consumes public daemon routes.',
+        answer: 'Scope is Agent-owned behavior first. If a blocker is SDK-owned, report the exact SDK contract/runtime issue instead of patching around it locally. Include runtime contracts only where Agent consumes public runtime routes.',
       });
     }
     actions.push({

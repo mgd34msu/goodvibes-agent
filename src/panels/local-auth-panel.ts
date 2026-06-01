@@ -57,7 +57,7 @@ export class LocalAuthPanel extends ScrollableListPanel<LocalAuthUser> {
   }
 
   public render(width: number, height: number): Line[] {
-    const intro = 'Manage local daemon and HTTP-listener auth users, bootstrap state, and active sessions.';
+    const intro = 'Review local runtime auth users, bootstrap state, and active sessions.';
     const snapshot = this.authManager.inspect();
     const users = this.getItems();
 

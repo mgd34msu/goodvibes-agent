@@ -154,7 +154,7 @@ export const SETTING_LABELS: Partial<Record<string, string>> = {
   'surfaces.ntfy.topic': 'ntfy Default Delivery Topic',
   'surfaces.ntfy.chatTopic': 'ntfy Chat Topic',
   'surfaces.ntfy.agentTopic': 'ntfy Agent Topic',
-  'surfaces.ntfy.remoteTopic': 'ntfy Daemon-Only Remote Topic',
+  'surfaces.ntfy.remoteTopic': 'ntfy Runtime-Only Remote Topic',
   'surfaces.ntfy.token': 'ntfy Token',
   'surfaces.ntfy.defaultPriority': 'ntfy Default Priority',
 };

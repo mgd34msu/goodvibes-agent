@@ -158,7 +158,7 @@ export class RemotePanel extends BasePanel {
 
     const postureLines: Line[] = [
       buildPanelLine(width, [
-        [' daemon ', C.label],
+        [' runtime ', C.label],
         [daemon.transportState.toUpperCase(), stateColor(daemon.transportState)],
         ['  running ', C.label],
         [daemon.isRunning ? 'yes' : 'no', daemon.isRunning ? C.ok : C.dim],
@@ -199,7 +199,7 @@ export class RemotePanel extends BasePanel {
 
     if (daemon.lastError) {
       postureLines.push(buildPanelLine(width, [
-        [' daemon error ', C.label],
+        [' runtime error ', C.label],
         [daemon.lastError.slice(0, Math.max(0, width - 14)), C.error],
       ]));
     }

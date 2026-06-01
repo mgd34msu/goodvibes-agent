@@ -253,28 +253,28 @@ function hasExternalIntegrations(snapshot: OnboardingSnapshotState): boolean {
 
 function describeLocalTuiOnly(snapshot: OnboardingSnapshotState): string {
   if (!hasAnyServerEnabled(snapshot)) {
-    return 'Use GoodVibes Agent in this terminal while connecting only to an externally managed daemon. Agent does not enable service mode, HTTP listeners, external app surfaces, or network setup.';
+    return 'Use GoodVibes Agent in this terminal while connecting to the existing GoodVibes runtime. Agent setup does not enable network services or extra entrypoints.';
   }
 
-  return 'Keep Agent local-only by not requesting browser access, service posture changes, HTTP listeners, external app surfaces, or network setup from the daemon owner.';
+  return 'Keep Agent local-first by reviewing runtime connectivity separately from Agent-owned assistant setup.';
 }
 
 function describeBrowserAccess(snapshot: OnboardingSnapshotState): string {
   return snapshot.bindSettings.web.enabled
-    ? 'Review the externally managed daemon web UI posture. Network reachability is controlled by the daemon owner.'
-    : 'Review browser access requirements for the externally managed daemon. Agent records intent but does not start web services.';
+    ? 'Review browser access already exposed by the runtime owner. Agent records visibility but does not change network posture.'
+    : 'Browser access is optional. Agent can stay terminal-first while the runtime owner controls any browser entrypoint.';
 }
 
 function describeRemoteDeviceAccess(snapshot: OnboardingSnapshotState): string {
   return hasRemoteDeviceAccess(snapshot)
-    ? 'Review external daemon surfaces reachable from other devices on your LAN. Local authentication is required.'
-    : 'Review the external daemon surfaces required for other-device LAN access. Local authentication is required.';
+    ? 'Review runtime access reachable from other devices on your LAN. Local authentication is required.'
+    : 'Other-device access is optional and remains controlled by the runtime owner.';
 }
 
 function describeWebhookIngress(snapshot: OnboardingSnapshotState): string {
   return hasWebhookOrEventIngress(snapshot)
-    ? 'Review the external HTTP listener used for incoming webhooks, callbacks, and automation events.'
-    : 'Review the external HTTP listener required for incoming webhooks, callbacks, and automation events.';
+    ? 'Review incoming webhook, callback, and automation-event routes exposed by the runtime owner.'
+    : 'Incoming webhook and callback routes are optional; Agent onboarding does not create them.';
 }
 
 function describeExternalIntegrations(snapshot: OnboardingSnapshotState): string {
@@ -284,10 +284,10 @@ function describeExternalIntegrations(snapshot: OnboardingSnapshotState): string
   ]).size;
 
   if (integrationCount === 0) {
-    return 'Enable setup screens for Slack, Discord, Telegram, Teams, Matrix, and other app surfaces you choose.';
+    return 'Connect only the channels you want the assistant to use, then review delivery safety before sending externally.';
   }
 
-  return `Review and configure ${integrationCount} detected external app, service, or surface integration signal(s).`;
+  return `Review ${integrationCount} detected channel or integration signal(s) before allowing external delivery.`;
 }
 
 function getAcknowledgementAccepted(
@@ -330,31 +330,31 @@ export function deriveStep1Capabilities(
   return [
     {
       id: 'local-tui-only',
-      label: 'Agent Local Only (External Daemon)',
+      label: 'Agent Terminal First',
       selected: !hasAnyServerEnabled(snapshot),
       detail: describeLocalTuiOnly(snapshot),
     },
     {
       id: 'browser-access',
-      label: 'Open GoodVibes in a Browser',
+      label: 'Optional Browser Access',
       selected: hasBrowserAccess(snapshot),
       detail: describeBrowserAccess(snapshot),
     },
     {
       id: 'network-access',
-      label: 'Let other devices use GoodVibes',
+      label: 'Optional Other-Device Access',
       selected: hasRemoteDeviceAccess(snapshot),
       detail: describeRemoteDeviceAccess(snapshot),
     },
     {
       id: 'webhook-events',
-      label: 'Receive webhooks or events from other tools',
+      label: 'Optional Incoming Events',
       selected: hasWebhookOrEventIngress(snapshot),
       detail: describeWebhookIngress(snapshot),
     },
     {
       id: 'external-integrations',
-      label: 'Connect GoodVibes to external apps and services',
+      label: 'Channels and Integrations',
       selected: hasExternalIntegrations(snapshot),
       detail: describeExternalIntegrations(snapshot),
     },

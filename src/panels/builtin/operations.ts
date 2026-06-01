@@ -129,7 +129,7 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     name: 'Control Plane',
     icon: 'C',
     category: 'monitoring',
-    description: 'Daemon control-plane state, clients, approvals, and recent operator activity',
+    description: 'Runtime state, clients, approvals, and recent operator activity',
     factory: () => {
       requireControlPlanePanelDeps(deps);
       return new ControlPlanePanel(ui.readModels.controlPlane);
@@ -150,7 +150,7 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     name: 'Local Auth',
     icon: 'U',
     category: 'monitoring',
-    description: 'Local daemon/listener auth users, bootstrap posture, and active sessions',
+    description: 'Local runtime auth users, bootstrap posture, and active sessions',
     factory: () => new LocalAuthPanel(deps.localUserAuthManager),
   });
 
@@ -251,7 +251,7 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     name: 'Remote',
     icon: 'R',
     category: 'monitoring',
-    description: 'Self-hosted daemon and ACP transport state with active remote connections',
+    description: 'Runtime transport state with active remote connections',
     factory: () => new RemotePanel(ui.readModels.remote),
   });
 

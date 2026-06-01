@@ -2002,12 +2002,12 @@ describe('product breadth commands', () => {
     await daemon.start();
     try {
       out.length = 0;
-      await auth!.handler(['login', 'daemon', 'http://127.0.0.1:39451', 'admin', 'admin', 'DAEMON_SESSION'], ctx);
-      expect(out.join('\n')).toContain('Refusing to store daemon session token without --yes.');
+      await auth!.handler(['login', 'runtime', 'http://127.0.0.1:39451', 'admin', 'admin', 'RUNTIME_SESSION'], ctx);
+      expect(out.join('\n')).toContain('Refusing to store runtime session token without --yes.');
 
       out.length = 0;
-      await auth!.handler(['login', 'daemon', 'http://127.0.0.1:39451', 'admin', 'admin', 'DAEMON_SESSION', '--yes'], ctx);
-      expect(out.join('\n')).toContain('Stored daemon session token');
+      await auth!.handler(['login', 'runtime', 'http://127.0.0.1:39451', 'admin', 'admin', 'RUNTIME_SESSION', '--yes'], ctx);
+      expect(out.join('\n')).toContain('Stored runtime session token');
     } finally {
       await daemon.stop();
     }

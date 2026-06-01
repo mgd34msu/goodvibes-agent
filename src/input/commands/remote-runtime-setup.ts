@@ -43,15 +43,15 @@ export async function handleRemoteSetupCommand(
     const lines = [
       'Remote Setup Review',
       `  acp agent command: ${command.join(' ')}`,
-      `  daemon enabled: ${danger.daemon ? 'yes' : 'no'}`,
-      `  http listener enabled: ${danger.httpListener ? 'yes' : 'no'}`,
+      `  runtime host enabled: ${danger.daemon ? 'yes' : 'no'}`,
+      `  inbound listener enabled: ${danger.httpListener ? 'yes' : 'no'}`,
       `  remote runner contracts: ${remoteRegistry.listContracts().length}`,
       `  active acp connections: ${activeConnections.length}`,
       '',
       '  guidance:',
       '    - set ACP_AGENT_CMD to override the spawned remote agent command',
       '    - use /remote env to export a reusable shell snippet',
-      '    - enable danger.daemon / danger.httpListener only when you actually need those remote surfaces',
+      '    - runtime-host and inbound-listener posture belongs to the runtime owner, not Agent onboarding',
     ];
     if (commandArgs[1]?.toLowerCase() === 'export') {
       const pathArg = commandArgs[2];
@@ -69,8 +69,8 @@ export async function handleRemoteSetupCommand(
       writeFileSync(targetPath, `${JSON.stringify({
         exportedAt: Date.now(),
         acpAgentCommand: command,
-        daemonEnabled: Boolean(danger.daemon),
-        httpListenerEnabled: Boolean(danger.httpListener),
+        runtimeHostEnabled: Boolean(danger.daemon),
+        inboundListenerEnabled: Boolean(danger.httpListener),
         remoteRunnerContracts: remoteRegistry.listContracts().length,
       }, null, 2)}\n`, 'utf-8');
       ctx.print(`Exported remote setup bundle to ${targetPath}`);
@@ -111,7 +111,7 @@ export async function handleRemoteSetupCommand(
     const mode = commandArgs[1]?.toLowerCase() ?? 'review';
     const lines = [
       'Remote Tunnel Review',
-      '  transport: self-hosted ACP / daemon relay',
+      '  transport: self-hosted ACP / runtime relay',
       `  session: ${ctx.session.runtime.sessionId}`,
       `  active remote connections: ${activeConnections.length}`,
       '  guidance: forward ACP agent traffic through your chosen self-hosted tunnel or SSH transport',

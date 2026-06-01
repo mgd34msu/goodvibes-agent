@@ -243,7 +243,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       const routine = routineRegistry.markStarted(id);
       ctx.print([
         `Started Agent routine ${routine.id}: ${routine.name}`,
-        '  policy: same main conversation; no hidden background job, daemon mutation, or external side effect was started',
+        '  policy: same main conversation; no hidden job, runtime mutation, or external side effect was started',
         '',
         routine.steps,
       ].join('\n'));

@@ -285,7 +285,7 @@ describe('OnboardingWizardController', () => {
     expect(text).not.toContain('network setup');
   });
 
-  test('onboards day-one personal operator surfaces without daemon ownership', () => {
+  test('onboards day-one personal operator surfaces without runtime ownership', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
 

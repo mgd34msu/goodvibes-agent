@@ -443,7 +443,7 @@ async function runKnowledgeCall<TData>(
     return {
       ok: false,
       kind: 'auth_required',
-      error: `No daemon operator token found at ${connection.tokenPath}`,
+      error: `No runtime operator token found at ${connection.tokenPath}`,
       baseUrl: connection.baseUrl,
       route: method.route,
     };

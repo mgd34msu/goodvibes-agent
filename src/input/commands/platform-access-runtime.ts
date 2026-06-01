@@ -31,11 +31,24 @@ interface UpdateBundle {
 interface AuthReviewBundle {
   readonly version: 1;
   readonly exportedAt: number;
-  readonly daemonLoginUrl: string;
+  readonly runtimeLoginUrl: string;
   readonly listenerLoginUrl: string;
   readonly secretKeys: readonly string[];
   readonly activeSubscriptions: readonly string[];
   readonly pendingSubscriptions: readonly string[];
+}
+
+type AuthServiceLoginTarget = 'runtime' | 'listener';
+
+function normalizeAuthServiceLoginTarget(value: string | undefined): AuthServiceLoginTarget | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === 'runtime' || normalized === 'daemon') return 'runtime';
+  if (normalized === 'listener' || normalized === 'inbound-listener') return 'listener';
+  return null;
+}
+
+function authServiceSecretPrefix(target: AuthServiceLoginTarget): string {
+  return target === 'runtime' ? 'RUNTIME' : 'LISTENER';
 }
 
 function buildSetupLink(surface: string, target?: string): string {
@@ -68,7 +81,7 @@ function inspectAuthBundle(bundle: AuthReviewBundle): string {
   return [
     'Auth Review Bundle',
     `  exportedAt: ${new Date(bundle.exportedAt).toISOString()}`,
-    `  daemonLoginUrl: ${bundle.daemonLoginUrl}`,
+    `  runtimeLoginUrl: ${bundle.runtimeLoginUrl}`,
     `  listenerLoginUrl: ${bundle.listenerLoginUrl}`,
     `  stored secrets: ${bundle.secretKeys.length}`,
     `  active subscriptions: ${bundle.activeSubscriptions.length}`,
@@ -80,7 +93,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
   registry.register({
     name: 'login',
     description: 'Front-door login flow for provider subscriptions and local service sessions',
-    usage: '[provider <name> start|finish <code> --yes|service <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes]',
+    usage: '[provider <name> start|finish <code> --yes|service <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
@@ -106,17 +119,17 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       }
       if (target === 'service') {
         if (!parsed.yes) {
-          requireYesFlag(ctx, 'store a local service session token', '/login service <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes');
+          requireYesFlag(ctx, 'store a local service session token', '/login service <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes');
           return;
         }
         if (ctx.executeCommand) {
           await ctx.executeCommand('auth', ['login', ...commandArgs.slice(1), '--yes']);
           return;
         }
-        ctx.print('Use /auth login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes');
+        ctx.print('Use /auth login <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes');
         return;
       }
-      ctx.print('Usage: /login [provider <name> start|finish <code> --yes|service <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes]');
+      ctx.print('Usage: /login [provider <name> start|finish <code> --yes|service <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes]');
     },
   });
 
@@ -293,7 +306,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
   registry.register({
     name: 'auth',
     description: 'Review auth posture and exchange session login tokens with local services',
-    usage: '[review|show <provider>|repair <provider>|bundle export <path> --yes|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]',
+    usage: '[review|show <provider>|repair <provider>|bundle export <path> --yes|bundle inspect <path>|login <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
@@ -315,7 +328,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         const builtinProviders = listBuiltinSubscriptionProviders().map((entry) => entry.provider);
         ctx.print([
           'Auth Review',
-          '  daemon login route: /login',
+          '  runtime login route: /login',
           '  listener login route: /login',
           `  stored secrets: ${snapshot.secretKeyCount}`,
           `  built-in providers: ${builtinProviders.length}${builtinProviders.length > 0 ? ` (${builtinProviders.join(', ')})` : ''}`,
@@ -397,7 +410,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           const bundle: AuthReviewBundle = {
             version: 1,
             exportedAt: Date.now(),
-            daemonLoginUrl: 'http://127.0.0.1:3421/login',
+            runtimeLoginUrl: 'http://127.0.0.1:3421/login',
             listenerLoginUrl: 'http://127.0.0.1:3422/login',
             secretKeys,
             activeSubscriptions: subscriptions.list().map((entry) => entry.provider),
@@ -416,17 +429,17 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       }
 
       if (sub === 'login') {
-        const target = commandArgs[1];
+        const target = normalizeAuthServiceLoginTarget(commandArgs[1]);
         const baseUrl = commandArgs[2];
         const username = commandArgs[3];
         const password = commandArgs[4];
-        const secretKey = commandArgs[5] ?? `${target?.toUpperCase() ?? 'SERVICE'}_SESSION_TOKEN`;
-        if ((target !== 'daemon' && target !== 'listener') || !baseUrl || !username || !password) {
-          ctx.print('Usage: /auth login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes');
+        const secretKey = commandArgs[5] ?? `${target ? authServiceSecretPrefix(target) : 'SERVICE'}_SESSION_TOKEN`;
+        if (!target || !baseUrl || !username || !password) {
+          ctx.print('Usage: /auth login <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes');
           return;
         }
         if (!parsed.yes) {
-          requireYesFlag(ctx, `store ${target} session token`, '/auth login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes');
+          requireYesFlag(ctx, `store ${target} session token`, '/auth login <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes');
           return;
         }
         const url = new URL('/login', baseUrl).toString();
@@ -450,7 +463,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         return;
       }
 
-      ctx.print('Usage: /auth [review|show <provider>|bundle export <path> --yes|bundle inspect <path>|login <daemon|listener> <baseUrl> <username> <password> [secretKey] --yes|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]');
+      ctx.print('Usage: /auth [review|show <provider>|bundle export <path> --yes|bundle inspect <path>|login <runtime|listener> <baseUrl> <username> <password> [secretKey] --yes|local <review|panel|add-user --yes|delete-user --yes|rotate-password --yes|revoke-session --yes|clear-bootstrap-file --yes>]');
     },
   });
 }

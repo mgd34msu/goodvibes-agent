@@ -435,7 +435,7 @@ describe('parseCliFlags', () => {
     expect(text.output).toContain('ntfy-surface');
     expect(text.output).toContain('chat: custom-chat');
     expect(text.output).toContain('agent: custom-agent');
-    expect(text.output).toContain('daemon-only remote: custom-remote');
+    expect(text.output).toContain('runtime-only remote: custom-remote');
     expect(text.output).not.toContain('Web surface is enabled');
   });
 

@@ -111,7 +111,7 @@ describe('RemotePanel', () => {
     expect(text).toContain('/remote setup');
   });
 
-  test('renders daemon posture and selected ACP connection detail', () => {
+  test('renders runtime posture and selected ACP connection detail', () => {
     const store = createRuntimeStore();
     store.setState((state) => ({
       ...state,
@@ -156,7 +156,7 @@ describe('RemotePanel', () => {
     const panel = createRemotePanel(store);
     expect(panel.handleInput('down')).toBe(true);
     const text = linesText(panel.render(140, 18));
-    expect(text).toContain('daemon');
+    expect(text).toContain('runtime');
     expect(text).toContain('ACP');
     expect(text).toContain('active connections');
     expect(text).toContain('Selected connection');

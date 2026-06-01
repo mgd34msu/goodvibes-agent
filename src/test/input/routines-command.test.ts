@@ -167,7 +167,7 @@ describe('/routines command', () => {
     expect(text).toContain('Created Agent routine inbox-sweep');
     expect(text).toContain('Enabled Agent routine inbox-sweep');
     expect(text).toContain('Started Agent routine inbox-sweep');
-    expect(text).toContain('no hidden background job');
+    expect(text).toContain('no hidden job');
     expect(text).toContain('Inbox Sweep - Summarize inbound messages');
     expect(text).toContain('ask before external replies');
     expect(text).toContain('Disabled Agent routine inbox-sweep');

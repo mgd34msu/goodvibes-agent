@@ -501,7 +501,7 @@ export function buildVoiceMediaStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-voice-media.nodes',
         label: 'Node and device posture',
-        hint: 'Remote devices and nodes are inspected as capability surfaces. Agent does not own runner topology or launch service processes from onboarding.',
+        hint: 'Remote devices and nodes are inspected only when useful. Agent onboarding does not launch runners or background service processes.',
         defaultValue: 'External',
       },
     ],

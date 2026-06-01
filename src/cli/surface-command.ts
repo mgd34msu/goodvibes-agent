@@ -155,7 +155,7 @@ export async function handleSurfacesCommand(runtime: CliCommandRuntime): Promise
       'ntfy inbound topics:',
       `  chat: ${ntfyTopics.chatTopic}`,
       `  agent: ${ntfyTopics.agentTopic}`,
-      `  daemon-only remote: ${ntfyTopics.remoteTopic}`,
+      `  runtime-only remote: ${ntfyTopics.remoteTopic}`,
       `  default delivery topic: ${String(config.get('surfaces.ntfy.topic') || '(none)')}`,
     ] : []),
     ...(includeProbe ? [

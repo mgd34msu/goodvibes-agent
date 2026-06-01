@@ -171,7 +171,7 @@ export class SchedulePanel extends BasePanel {
       }
       case 'return':
       case ' ': {
-        this.setError('Schedule mutation is read-only in GoodVibes Agent; use daemon/TUI-owned explicit approval routes later.');
+        this.setError('Schedule mutation is read-only in GoodVibes Agent; use explicit runtime approval routes later.');
         return true;
       }
       case 'r': {

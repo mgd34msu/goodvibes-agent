@@ -221,33 +221,33 @@ describe('onboarding derivation helpers', () => {
     expect(deriveStep1Capabilities(snapshot)).toEqual([
       {
         id: 'local-tui-only',
-        label: 'Agent Local Only (External Daemon)',
+        label: 'Agent Terminal First',
         selected: false,
-        detail: 'Keep Agent local-only by not requesting browser access, service posture changes, HTTP listeners, external app surfaces, or network setup from the daemon owner.',
+        detail: 'Keep Agent local-first by reviewing runtime connectivity separately from Agent-owned assistant setup.',
       },
       {
         id: 'browser-access',
-        label: 'Open GoodVibes in a Browser',
+        label: 'Optional Browser Access',
         selected: true,
-        detail: 'Review the externally managed daemon web UI posture. Network reachability is controlled by the daemon owner.',
+        detail: 'Review browser access already exposed by the runtime owner. Agent records visibility but does not change network posture.',
       },
       {
         id: 'network-access',
-        label: 'Let other devices use GoodVibes',
+        label: 'Optional Other-Device Access',
         selected: true,
-        detail: 'Review external daemon surfaces reachable from other devices on your LAN. Local authentication is required.',
+        detail: 'Review runtime access reachable from other devices on your LAN. Local authentication is required.',
       },
       {
         id: 'webhook-events',
-        label: 'Receive webhooks or events from other tools',
+        label: 'Optional Incoming Events',
         selected: true,
-        detail: 'Review the external HTTP listener used for incoming webhooks, callbacks, and automation events.',
+        detail: 'Review incoming webhook, callback, and automation-event routes exposed by the runtime owner.',
       },
       {
         id: 'external-integrations',
-        label: 'Connect GoodVibes to external apps and services',
+        label: 'Channels and Integrations',
         selected: true,
-        detail: 'Review and configure 1 detected external app, service, or surface integration signal(s).',
+        detail: 'Review 1 detected channel or integration signal(s) before allowing external delivery.',
       },
     ]);
 
@@ -496,33 +496,33 @@ describe('onboarding derivation helpers', () => {
     expect(deriveStep1Capabilities(snapshot)).toEqual([
       {
         id: 'local-tui-only',
-        label: 'Agent Local Only (External Daemon)',
+        label: 'Agent Terminal First',
         selected: true,
-        detail: 'Use GoodVibes Agent in this terminal while connecting only to an externally managed daemon. Agent does not enable service mode, HTTP listeners, external app surfaces, or network setup.',
+        detail: 'Use GoodVibes Agent in this terminal while connecting to the existing GoodVibes runtime. Agent setup does not enable network services or extra entrypoints.',
       },
       {
         id: 'browser-access',
-        label: 'Open GoodVibes in a Browser',
+        label: 'Optional Browser Access',
         selected: false,
-        detail: 'Review browser access requirements for the externally managed daemon. Agent records intent but does not start web services.',
+        detail: 'Browser access is optional. Agent can stay terminal-first while the runtime owner controls any browser entrypoint.',
       },
       {
         id: 'network-access',
-        label: 'Let other devices use GoodVibes',
+        label: 'Optional Other-Device Access',
         selected: false,
-        detail: 'Review the external daemon surfaces required for other-device LAN access. Local authentication is required.',
+        detail: 'Other-device access is optional and remains controlled by the runtime owner.',
       },
       {
         id: 'webhook-events',
-        label: 'Receive webhooks or events from other tools',
+        label: 'Optional Incoming Events',
         selected: false,
-        detail: 'Review the external HTTP listener required for incoming webhooks, callbacks, and automation events.',
+        detail: 'Incoming webhook and callback routes are optional; Agent onboarding does not create them.',
       },
       {
         id: 'external-integrations',
-        label: 'Connect GoodVibes to external apps and services',
+        label: 'Channels and Integrations',
         selected: false,
-        detail: 'Enable setup screens for Slack, Discord, Telegram, Teams, Matrix, and other app surfaces you choose.',
+        detail: 'Connect only the channels you want the assistant to use, then review delivery safety before sending externally.',
       },
     ]);
   });

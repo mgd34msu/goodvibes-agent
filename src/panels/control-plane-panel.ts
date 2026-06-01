@@ -83,7 +83,7 @@ export class ControlPlanePanel extends ScrollableListPanel<ControlPlaneClient> {
   }
 
   public render(width: number, height: number): Line[] {
-    const intro = 'Shared daemon control plane state, live clients, approval pressure, and recent omnichannel session posture.';
+    const intro = 'Shared runtime state, live clients, approval pressure, and recent omnichannel session posture.';
 
     if (!this.readModel) {
       const workspace = buildPanelWorkspace(width, height, {
@@ -123,7 +123,7 @@ export class ControlPlanePanel extends ScrollableListPanel<ControlPlaneClient> {
         { label: 'sessions', value: String(sessions.length), valueColor: sessions.length > 0 ? C.info : C.dim },
         { label: 'events', value: String(recentEvents.length), valueColor: recentEvents.length > 0 ? C.info : C.dim },
       ], C),
-      buildGuidanceLine(width, '/cockpit', 'use the web operator surface or daemon APIs for direct interventions while this panel tracks overall posture', C),
+      buildGuidanceLine(width, '/cockpit', 'use confirmed runtime actions for interventions while this panel tracks overall posture', C),
     ];
 
     if (clients.length === 0 && approvals.length === 0 && sessions.length === 0) {

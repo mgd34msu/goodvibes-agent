@@ -179,6 +179,13 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('READY Routines -> /routines');
     expect(output).toContain('READY Channels -> /pair');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
+    expect(output).not.toContain('daemon URL');
+    expect(output).not.toContain('External Daemon');
+    expect(output).not.toContain('service mode');
+    expect(output).not.toContain('HTTP listeners');
+    expect(output).not.toContain('Cloudflare');
+    expect(output).not.toContain('Home Assistant');
+    expect(output).not.toContain('HomeGraph');
   });
 
   test('renders first-run setup actions for skills and routines', () => {

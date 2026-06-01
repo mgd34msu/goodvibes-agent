@@ -130,7 +130,7 @@ export class WatchersPanel extends ScrollableListPanel<WatcherEntry> {
         { label: 'degraded', value: String(snapshot.totalDegraded), valueColor: snapshot.totalDegraded > 0 ? C.warn : C.dim },
         { label: 'lagged', value: String(snapshot.totalLagged), valueColor: snapshot.totalLagged > 0 ? C.warn : C.dim },
       ], C),
-      buildGuidanceLine(width, '/schedule list', 'verify jobs consuming these sources and use daemon APIs for watcher lifecycle control', C),
+      buildGuidanceLine(width, '/schedule list', 'verify jobs consuming these sources; Agent keeps watcher lifecycle read-only here', C),
     ];
 
     if (watchers.length === 0) {

@@ -37,7 +37,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       id: 'runtime',
       label: 'External runtime',
       status: 'ready',
-      detail: `Agent will connect to ${input.daemonBaseUrl}; runtime lifecycle stays external.`,
+      detail: `Agent will connect to ${input.daemonBaseUrl}; runtime ownership stays outside this TUI.`,
       command: '/status',
     },
     {

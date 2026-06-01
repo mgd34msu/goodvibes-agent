@@ -136,7 +136,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       severity: 'warning',
       summary: 'External runtime service config has autostart off.',
       cause: 'service.enabled is true and service.autostart is false.',
-      impact: 'The external GoodVibes runtime may not be available after login or reboot even though service mode is selected.',
+      impact: 'The external GoodVibes runtime may not be available after login or reboot even though host-managed startup is selected.',
       action: 'Configure autostart from GoodVibes TUI or the owning host; Agent will not mutate this setting.',
     });
   }
@@ -326,7 +326,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
       ? `  operatorTokens: ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
       : '  operatorTokens: unknown',
     '',
-    'External Daemon Service:',
+    'External Runtime Service:',
     `  enabled: ${yesNo(serviceEnabled)}`,
     `  autostart: ${yesNo(serviceAutostart)}`,
     `  restartOnFailure: ${yesNo(restartOnFailure)}`,
@@ -338,7 +338,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
       `  log: ${options.service.log.path ?? 'n/a'} (${options.service.log.exists ? 'present' : 'missing'})`,
     ] : []),
     '',
-    'Surfaces:',
+    'Runtime Endpoints:',
     bindLine('controlPlane', controlPlaneEnabled, controlPlaneBinding),
     bindLine('httpListener', listenerEnabled, httpListenerBinding),
     bindLine('web', webEnabled, webBinding),

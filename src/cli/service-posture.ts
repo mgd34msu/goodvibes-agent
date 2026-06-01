@@ -234,7 +234,7 @@ export function formatCliServicePosture(posture: CliServicePosture, json = false
     `  service config enabled: ${yesNo(posture.config.enabled)}`,
     `  autostart config: ${yesNo(posture.config.autostart)}`,
     `  restartOnFailure config: ${yesNo(posture.config.restartOnFailure)}`,
-    `  daemon flag: ${yesNo(posture.config.daemonEnabled)}`,
+    `  runtime host flag: ${yesNo(posture.config.daemonEnabled)}`,
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),
     '',

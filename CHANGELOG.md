@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.64 - 2026-05-31
+
+- Cleaned remaining visible setup, workspace, panel, and auth wording that still exposed copied runtime-host terminology.
+- Changed the advertised auth login target to runtime/listener while keeping legacy runtime-host aliases non-prominent.
+- Added regression coverage so setup and workspace text stay Agent-specific and avoid copied platform/product wording.
+
 ## 0.1.63 - 2026-05-31
 
 - Rewrote the remaining repo docs that still read like copied runtime/API notes into Agent-facing product docs.

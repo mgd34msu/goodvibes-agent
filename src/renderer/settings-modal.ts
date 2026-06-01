@@ -75,9 +75,9 @@ const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
     plaintext_allowed: 'Allow plaintext fallback when secure storage is unavailable.',
   },
   'batch.mode': {
-    off: 'Keep daemon work on the immediate local path.',
+    off: 'Keep runtime work on the immediate local path.',
     explicit: 'Use batch only when callers explicitly request batch execution.',
-    'eligible-by-default': 'Allow eligible daemon work to use the batch path unless callers opt out.',
+    'eligible-by-default': 'Allow eligible runtime work to use the batch path unless callers opt out.',
   },
   'controlPlane.hostMode': {
     localhost: 'Bind only to this computer.',

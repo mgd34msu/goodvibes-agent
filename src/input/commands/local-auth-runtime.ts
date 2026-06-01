@@ -119,7 +119,7 @@ export function registerLocalAuthRuntimeCommands(registry: CommandRegistry): voi
   registry.register({
     name: 'local-auth',
     aliases: ['auth-local'],
-    description: 'Inspect and manage local daemon/listener auth users, sessions, and bootstrap credentials',
+    description: 'Inspect and manage local runtime auth users, sessions, and bootstrap credentials',
     usage: '[review|panel|add-user <username> <password> [roles] --yes|delete-user <username> --yes|rotate-password <username> <password> --yes|revoke-session <token-or-fingerprint> --yes|clear-bootstrap-file --yes]',
     handler(args, ctx) {
       handleLocalAuthCommand(args, ctx);

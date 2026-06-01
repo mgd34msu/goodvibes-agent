@@ -154,7 +154,7 @@ export class AgentWorkspace {
     this.lastActionResult = {
       kind: 'refreshed',
       title: 'Runtime context refreshed',
-      detail: 'Provider, model, session, local memory, daemon URL, and Agent knowledge route posture were re-read from the live command context.',
+      detail: 'Provider, model, session, local memory, runtime endpoint, and Agent knowledge route posture were re-read from the live command context.',
     };
   }
 

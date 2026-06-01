@@ -88,12 +88,12 @@ export class AutomationControlPanel extends ScrollableListPanel<AutomationRun> {
   protected override getEmptyStateActions(): Array<{ command: string; summary: string }> {
     return [
       { command: '/schedule list', summary: 'inspect jobs and run history without mutating schedules' },
-      { command: '/automation jobs', summary: 'review daemon-owned automation jobs from the Agent CLI' },
+      { command: '/automation jobs', summary: 'review runtime-owned automation jobs from Agent' },
     ];
   }
 
   public render(width: number, height: number): Line[] {
-    const intro = 'Automation jobs, active runs, deliveries, and failure posture across the shared control plane.';
+    const intro = 'Automation jobs, active runs, deliveries, and failure posture across the shared runtime.';
 
     if (!this.readModel) {
       const workspace = buildPanelWorkspace(width, height, {
