@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   release-commit:
-    if: github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore: release v')
+    if: ${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore: release v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -27,7 +27,7 @@ jobs:
           echo "Release commit detected. Full validation, including tests, runs once in the Release workflow for the tag."
 
   typecheck:
-    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v')
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -39,7 +39,7 @@ jobs:
         run: bun x tsc --noEmit --pretty false
 
   test:
-    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v')
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -55,7 +55,7 @@ jobs:
         run: bun run test
 
   architecture-check:
-    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v')
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -67,7 +67,7 @@ jobs:
         run: bun run architecture:check
 
   perf-check:
-    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v')
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -79,7 +79,7 @@ jobs:
         run: bun run perf:check
 
   eval-gate:
-    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v')
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -91,7 +91,7 @@ jobs:
         run: bun run eval:gate
 
   package-check:
-    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v')
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore: release v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -111,7 +111,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore: release v')
+    if: ${{ github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore: release v') }}
     needs: [typecheck, test, architecture-check, perf-check, eval-gate, package-check]
     steps:
       - name: Checkout
