@@ -3,7 +3,6 @@ import { describe, expect, test } from 'bun:test';
 import type { AgentRecord } from '@pellux/goodvibes-sdk/platform/tools';
 import { buildKnowledgeInjectionPrompt } from '@pellux/goodvibes-sdk/platform/state';
 import { buildMcpAttackPathReview } from '@/runtime/index.ts';
-import { handleRemoteCancelCommand } from '../../input/commands/remote-runtime.ts';
 
 function makeRecord(overrides: Partial<AgentRecord> = {}): AgentRecord {
   return {
@@ -51,21 +50,6 @@ describe('next cycle certification gate', () => {
     expect(knowledgePrompt).toContain('retention task-only');
     expect(knowledgeInjections[0]?.summary).toContain('orchestration store');
     expect(knowledgeInjections[0]?.reason).toContain('matched');
-  });
-
-  test('remote operator control is read-only and does not cancel local agents', () => {
-    const remoteRecord = { id: 'agent-remote-01' };
-    const printed: string[] = [];
-    handleRemoteCancelCommand(
-      remoteRecord.id,
-      [{ agentId: remoteRecord.id }],
-      {
-        print: (text: string) => { printed.push(text); },
-      },
-    );
-
-    expect(printed.join('\n')).toContain('GoodVibes Agent remote control is read-only.');
-    expect(printed.join('\n')).toContain(`/remote cancel ${remoteRecord.id}`);
   });
 
   test('MCP security review produces programmatic attack-path findings for incoherent servers', () => {

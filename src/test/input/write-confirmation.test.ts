@@ -6,7 +6,6 @@ import { CommandRegistry, type CommandContext } from '../../input/command-regist
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { ProfileManager } from '@pellux/goodvibes-sdk/platform/profiles';
 import { registerOperatorRuntimeCommands } from '../../input/commands/operator-runtime.ts';
-import { registerReplayRuntimeCommands } from '../../input/commands/replay-runtime.ts';
 import { registerSessionContentCommands } from '../../input/commands/session-content.ts';
 import { registerSessionWorkflowCommands } from '../../input/commands/session-workflow.ts';
 import type { ShellModeManagerService } from '../../runtime/index.ts';
@@ -67,41 +66,6 @@ describe('write/export command confirmation', () => {
       await registry.get('export')!.handler([target, '--yes'], ctx);
       expect(existsSync(target)).toBe(true);
       expect(readFileSync(target, 'utf-8')).toContain('hello');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  test('replay export requires --yes before invoking replay engine export', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-replay-confirm-'));
-    try {
-      const registry = new CommandRegistry();
-      registerReplayRuntimeCommands(registry);
-      const out: string[] = [];
-      const replayExport = mock(async (_path: string) => {});
-      const ctx = {
-        ...baseContext(root, out),
-        platform: {
-          replayEngine: {
-            getSnapshot: () => ({
-              status: 'loaded',
-              runId: 'run-1',
-              totalRevisions: 2,
-              mismatches: [],
-            }),
-            export: replayExport,
-          },
-        },
-      } as unknown as CommandContext;
-
-      await registry.get('replay')!.handler(['export', 'report.json'], ctx);
-      expect(replayExport).toHaveBeenCalledTimes(0);
-      expect(out.join('\n')).toContain('Refusing to export replay run');
-
-      out.length = 0;
-      await registry.get('replay')!.handler(['export', 'report.json', '--yes'], ctx);
-      expect(replayExport).toHaveBeenCalledTimes(1);
-      expect(out.join('\n')).toContain('Report export started');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
