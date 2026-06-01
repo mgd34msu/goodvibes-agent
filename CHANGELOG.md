@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.104 - 2026-06-01
+
+- 37fe253 Add Agent memory workspace controls
+
 ## 0.1.103 - 2026-06-01
 
 - ed9895a Add CLI controls for Agent memory
