@@ -178,6 +178,8 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 44));
 
     expect(output).toContain('Setup Checklist');
+    expect(output).toContain('GoodVibes runtime: http://127.0.0.1:3421');
+    expect(output).toContain('Runtime owner: external');
     expect(output).toContain('READY Provider and model -> /model');
     expect(output).toContain('RECOMMENDED Agent Knowledge -> /knowledge status');
     expect(output).toContain('READY Persona -> /personas');
@@ -185,6 +187,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('READY Routines -> /routines');
     expect(output).toContain('READY Channels -> /pair');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
+    expect(output).not.toContain('daemonBaseUrl');
     expect(output).not.toContain('daemon URL');
     expect(output).not.toContain('External Daemon');
     expect(output).not.toContain('service mode');

@@ -194,8 +194,8 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     );
   } else if (category.id === 'setup') {
     base.push(
-      { text: `GoodVibes runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
-      { text: `Runtime owner: ${snapshot.daemonOwnership}; Agent connects but never starts or restarts it`, fg: PALETTE.good },
+      { text: `GoodVibes runtime: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
+      { text: `Runtime owner: ${snapshot.runtimeOwnership}; Agent connects but never starts or restarts it`, fg: PALETTE.good },
       ...setupChecklistLines(snapshot),
       { text: '' },
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
@@ -216,7 +216,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       ...snapshot.channels.filter((channel) => !channel.enabled),
     ].slice(0, 6);
     base.push(
-      { text: `GoodVibes runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
+      { text: `GoodVibes runtime: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
       { text: `Readiness: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} default target(s) configured.`, fg: PALETTE.info },
       { text: `Ready channels: ${readyChannels.join(', ') || 'none'}.`, fg: readyChannels.length > 0 ? PALETTE.good : PALETTE.warn },
       { text: `Needs default target: ${needsTarget.map((channel) => `${channel.label} -> ${channel.defaultTargetKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsTarget.length > 0 ? PALETTE.warn : PALETTE.muted },

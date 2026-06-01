@@ -11,7 +11,7 @@ export interface AgentWorkspaceSetupChecklistItem {
 export interface AgentWorkspaceSetupChecklistInput {
   readonly provider: string;
   readonly model: string;
-  readonly daemonBaseUrl: string;
+  readonly runtimeBaseUrl: string;
   readonly sessionMemoryCount: number;
   readonly routineCount: number;
   readonly enabledRoutineCount: number;
@@ -39,7 +39,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       id: 'runtime',
       label: 'GoodVibes runtime',
       status: 'ready',
-      detail: `Agent will connect to ${input.daemonBaseUrl}; runtime ownership stays outside this product.`,
+      detail: `Agent will connect to ${input.runtimeBaseUrl}; runtime ownership stays outside this product.`,
       command: '/health',
     },
     {

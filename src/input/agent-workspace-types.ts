@@ -120,8 +120,8 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly sessionId: string;
   readonly workingDirectory: string;
   readonly homeDirectory: string;
-  readonly daemonBaseUrl: string;
-  readonly daemonOwnership: 'external';
+  readonly runtimeBaseUrl: string;
+  readonly runtimeOwnership: 'external';
   readonly sessionMemoryCount: number;
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;

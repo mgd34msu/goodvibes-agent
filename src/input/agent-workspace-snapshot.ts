@@ -252,7 +252,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const ttsVoice = readConfigString(context, 'tts.voice', '(voice default)');
   const ttsLlmProvider = readConfigString(context, 'tts.llmProvider', '');
   const ttsLlmModel = readConfigString(context, 'tts.llmModel', '');
-  const daemonBaseUrl = `http://${host}:${port}`;
+  const runtimeBaseUrl = `http://${host}:${port}`;
   const channels = buildAgentWorkspaceChannels(context);
   const voiceMediaReadiness = buildAgentWorkspaceVoiceMediaReadiness({
     context,
@@ -262,7 +262,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const setupChecklist = buildAgentWorkspaceSetupChecklist({
     provider,
     model,
-    daemonBaseUrl,
+    runtimeBaseUrl,
     sessionMemoryCount,
     routineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
@@ -285,8 +285,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     sessionId: context.session?.runtime?.sessionId ?? 'unknown',
     workingDirectory: context.workspace?.shellPaths?.workingDirectory ?? 'unavailable',
     homeDirectory: context.workspace?.shellPaths?.homeDirectory ?? 'unavailable',
-    daemonBaseUrl,
-    daemonOwnership: 'external',
+    runtimeBaseUrl,
+    runtimeOwnership: 'external',
     sessionMemoryCount,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
