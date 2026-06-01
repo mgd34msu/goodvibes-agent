@@ -61,7 +61,8 @@ describe('block save Agent policy', () => {
 
     expect(saveToFile).toHaveBeenCalledTimes(0);
     expect(requestRender).toHaveBeenCalledTimes(1);
-    expect(logged.join('\n')).toContain('Block save blocked in GoodVibes Agent');
-    expect(logged.join('\n')).toContain('/share <html|json|md> <path> --yes');
+    expect(logged.join('\n')).toContain('Block file save is disabled in GoodVibes Agent');
+    expect(logged.join('\n')).toContain('/export markdown <path> --yes');
+    expect(logged.join('\n')).not.toContain('/share');
   });
 });

@@ -304,7 +304,7 @@ export function handleBlockSave(
     requestRender();
     return;
   }
-  conversationManager.log('[Block save blocked in GoodVibes Agent: use /share <html|json|md> <path> --yes or copy the block explicitly.]', { fg: '#f59e0b' });
+  conversationManager.log('[Block file save is disabled in GoodVibes Agent: copy the block explicitly or use /export markdown <path> --yes for the conversation.]', { fg: '#f59e0b' });
   requestRender();
 }
 
