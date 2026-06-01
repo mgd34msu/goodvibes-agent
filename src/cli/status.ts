@@ -224,10 +224,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'onboarding-incomplete',
       area: 'onboarding',
       severity: 'warning',
-      summary: 'Onboarding has not been shown for this user.',
-      cause: 'No global user onboarding check marker was found.',
+      summary: 'Agent setup has not been shown for this user.',
+      cause: 'No global user setup check marker was found.',
       impact: 'Important runtime, network, provider, auth, or permission choices may still be implicit defaults.',
-      action: 'Run /onboarding in GoodVibes Agent or goodvibes-agent onboarding status to review setup state.',
+      action: 'Run /setup in GoodVibes Agent or goodvibes-agent setup status to review setup state.',
     });
   }
 
@@ -439,7 +439,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
 export function renderOnboardingCliStatus(options: CliStatusOptions): string {
   const marker = options.onboardingMarkers?.effective;
   return [
-    'GoodVibes Agent onboarding status',
+    'GoodVibes Agent setup status',
     `  checked: ${marker?.exists ? 'yes' : 'no'}`,
     `  scope: ${marker?.scope ?? 'none'}`,
     `  source: ${marker?.payload?.source ?? 'n/a'}`,

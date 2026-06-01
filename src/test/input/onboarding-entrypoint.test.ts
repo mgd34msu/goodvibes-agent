@@ -89,7 +89,22 @@ function makeWiredContext(out: string[]): {
 }
 
 describe('onboarding entrypoints', () => {
-  test('top-level onboarding command opens the same hydrated edit wizard path', async () => {
+  test('top-level setup command opens the same hydrated edit wizard path', async () => {
+    const registry = new CommandRegistry();
+    registerOnboardingRuntimeCommands(registry);
+
+    const out: string[] = [];
+    const { ctx, inputState } = makeWiredContext(out);
+
+    await expect(registry.execute('setup', [], ctx)).resolves.toBe(true);
+
+    expect(inputState.active).toBe(true);
+    expect(inputState.mode).toBe('edit');
+    expect(inputState.modalStack).toEqual(['onboarding']);
+    expect(out.join('\n')).toContain('Opening Agent setup.');
+  });
+
+  test('legacy onboarding alias opens Agent setup', async () => {
     const registry = new CommandRegistry();
     registerOnboardingRuntimeCommands(registry);
 
@@ -101,18 +116,18 @@ describe('onboarding entrypoints', () => {
     expect(inputState.active).toBe(true);
     expect(inputState.mode).toBe('edit');
     expect(inputState.modalStack).toEqual(['onboarding']);
-    expect(out.join('\n')).toContain('Opening onboarding wizard.');
+    expect(out.join('\n')).toContain('Opening Agent setup.');
   });
 
-  test('welcome print points users at the onboarding wizard path', () => {
+  test('welcome print points users at Agent setup', () => {
     const registry = new CommandRegistry();
     registerGuidanceRuntimeCommands(registry);
 
     const out: string[] = [];
     registry.get('welcome')!.handler(['print'], makeContext(out));
 
-    expect(out.join('\n')).toContain('/onboarding');
-    expect(out.join('\n')).toContain('open the onboarding wizard');
+    expect(out.join('\n')).toContain('/setup');
+    expect(out.join('\n')).toContain('open Agent setup');
     expect(out.join('\n')).not.toContain('first-run checklist');
   });
 });

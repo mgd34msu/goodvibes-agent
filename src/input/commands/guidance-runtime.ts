@@ -13,13 +13,13 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
           ctx.openOnboardingWizard({ mode: 'edit' });
           return;
         }
-        ctx.print('Use /onboarding to open the setup wizard.');
+        ctx.print('Use /setup to open Agent setup.');
         return;
       }
       if (sub === 'print') {
         ctx.print([
           'Welcome To GoodVibes Agent',
-          '  /onboarding         - open the onboarding wizard with current settings preloaded',
+          '  /setup              - open Agent setup with current settings preloaded',
           '  /agent              - open the Agent operator workspace',
           '  /knowledge          - inspect isolated Agent Knowledge status, ask, and search',
           '  /memory             - manage local Agent memory',

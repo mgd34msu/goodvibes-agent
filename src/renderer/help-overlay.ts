@@ -70,7 +70,7 @@ export function renderHelpOverlay(
   // Commands not registered in the live registry are omitted at render time.
   const FEATURED_COMMANDS: Array<[name: string, argHint: string, desc: string]> = [
     ['agent',        '',           'Open the Agent operator workspace'],
-    ['onboarding',   '',           'Open Agent setup with current settings preloaded'],
+    ['setup',        '',           'Open Agent setup with current settings preloaded'],
     ['knowledge',    'status',     'Inspect isolated Agent Knowledge readiness'],
     ['memory',       '',           'Manage local Agent memory records'],
     ['personas',     '',           'Manage serial Agent operating personas'],
@@ -119,7 +119,7 @@ export function renderHelpOverlay(
     commandRows.push('', '  Available Slash Commands', '  ' + '\u2500'.repeat(40));
     const preferred = [
       'agent',
-      'onboarding',
+      'setup',
       'knowledge',
       'memory',
       'personas',

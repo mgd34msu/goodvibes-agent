@@ -39,7 +39,6 @@ const hiddenCopiedCommands = [
   'replay',
   'scan',
   'services',
-  'setup',
   'settingssync',
   'share',
   'storage',
@@ -65,13 +64,13 @@ const expectedAgentCommands = [
   'knowledge',
   'memory',
   'model',
-  'onboarding',
   'personas',
   'provider',
   'routines',
   'schedule',
   'secrets',
   'sessions',
+  'setup',
   'workplan',
 ] as const;
 

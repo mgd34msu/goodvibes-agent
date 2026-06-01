@@ -139,10 +139,10 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('hostRestartOnFailure');
   });
 
-  test('onboarding status is Agent-branded', () => {
+  test('setup status is Agent-branded', () => {
     const text = renderOnboardingCliStatus(makeOptions());
 
-    expect(text).toContain('GoodVibes Agent onboarding status');
+    expect(text).toContain('GoodVibes Agent setup status');
     expect(text).not.toContain('GoodVibes onboarding status');
   });
 

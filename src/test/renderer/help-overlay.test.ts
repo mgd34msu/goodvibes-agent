@@ -77,9 +77,9 @@ describe('renderHelpOverlay', () => {
     expect(texts).toContain('Quick Start');
   });
 
-  test('shows the onboarding wizard quick-start row when onboarding is registered', () => {
-    const text = renderAllText([{ name: 'onboarding', description: 'Setup surfaces', handler: () => {} }]);
-    expect(text).toContain('/onboarding');
+  test('shows the setup quick-start row when setup is registered', () => {
+    const text = renderAllText([{ name: 'setup', description: 'Setup surfaces', handler: () => {} }]);
+    expect(text).toContain('/setup');
     expect(text).toContain('Open Agent setup with current settings');
     expect(text).toContain('preloaded');
     expect(text).not.toContain('first-run checklist');

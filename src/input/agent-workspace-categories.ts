@@ -27,7 +27,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent connects to an existing GoodVibes runtime and owns local assistant configuration only. Runtime lifecycle and connectivity posture remain external.',
     actions: [
       { id: 'config', label: 'Open settings', detail: 'Open the fullscreen Agent settings workspace.', command: '/config', kind: 'command', safety: 'safe' },
-      { id: 'onboarding', label: 'Run setup', detail: 'Review Agent settings in the fullscreen setup flow.', command: '/onboarding', kind: 'command', safety: 'safe' },
+      { id: 'setup', label: 'Run setup', detail: 'Review Agent settings in the fullscreen setup flow.', command: '/setup', kind: 'command', safety: 'safe' },
       { id: 'setup-provider-model', label: 'Provider and model', detail: 'Choose the provider/model route for normal assistant chat.', command: '/model', kind: 'command', safety: 'safe' },
       { id: 'setup-agent-knowledge', label: 'Agent Knowledge', detail: 'Inspect the isolated Agent Knowledge store before ingesting source-backed material.', command: '/knowledge status', kind: 'command', safety: 'read-only' },
       { id: 'setup-runtime-profiles', label: 'Agent profiles', detail: 'Browse starter templates for isolated Agent homes and operator identities.', command: '/agent-profile templates', kind: 'command', safety: 'read-only' },

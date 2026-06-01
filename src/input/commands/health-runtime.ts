@@ -326,7 +326,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         '  /health remote',
         '  /health maintenance',
         '  /health repair <domain>',
-        '  /onboarding',
+        '  /setup',
       ].join('\n'));
     },
   });

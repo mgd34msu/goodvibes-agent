@@ -46,29 +46,29 @@ function renderText(commands: SlashCommand[]): string {
 }
 
 describe('renderHelpOverlay Quick Start sourced from live registry (β3)', () => {
-  test('shows the onboarding wizard row with its Agent setup description', () => {
-    const text = renderText([makeCmd('onboarding')]);
-    expect(text).toContain('/onboarding');
+  test('shows the setup row with its Agent setup description', () => {
+    const text = renderText([makeCmd('setup')]);
+    expect(text).toContain('/setup');
     expect(text).toContain('Open Agent setup with current settings');
     expect(text).toContain('preloaded');
   });
 
   test('shows /agent when the Agent workspace command is registered', () => {
-    const commands: SlashCommand[] = [makeCmd('agent'), makeCmd('onboarding')];
+    const commands: SlashCommand[] = [makeCmd('agent'), makeCmd('setup')];
     const text = renderText(commands);
     expect(text).toContain('/agent');
     expect(text).toContain('Open the Agent operator workspace');
   });
 
   test('omits /agent when the Agent workspace command is not registered', () => {
-    const commands: SlashCommand[] = [makeCmd('onboarding'), makeCmd('settings')];
+    const commands: SlashCommand[] = [makeCmd('setup'), makeCmd('settings')];
     const text = renderText(commands);
     expect(text).not.toContain('/agent');
   });
 
   test('omits all featured commands when registry is empty', () => {
     const featuredNames = [
-      'agent', 'onboarding', 'knowledge', 'memory', 'personas',
+      'agent', 'setup', 'knowledge', 'memory', 'personas',
       'agent-skills', 'routines', 'workplan', 'approval', 'schedule',
       'delegate', 'mcp', 'provider', 'subscription',
       'secrets', 'health',
