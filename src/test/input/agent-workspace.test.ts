@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
+import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
+import { registerBuiltinCommands } from '../../input/commands.ts';
 import { registerAgentWorkspaceRuntimeCommands } from '../../input/commands/agent-workspace-runtime.ts';
 import { registerAgentRuntimeProfileRuntimeCommands } from '../../input/commands/agent-runtime-profile-runtime.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
@@ -44,6 +46,24 @@ function commandContext(calls: string[] = []): CommandContext {
 }
 
 describe('AgentWorkspace', () => {
+  test('all workspace slash command actions resolve through the Agent command registry', () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+
+    const missingCommands = AGENT_WORKSPACE_CATEGORIES.flatMap((category) => (
+      category.actions.flatMap((action) => {
+        const command = action.command?.trim();
+        if (!command?.startsWith('/')) return [];
+        const root = command.slice(1).split(/\s+/)[0];
+        return root && !registry.get(root)
+          ? [`${category.id}/${action.id}: ${command}`]
+          : [];
+      })
+    ));
+
+    expect(missingCommands).toEqual([]);
+  });
+
   test('opens as an operator workspace and keeps guidance actions local', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
@@ -776,12 +796,12 @@ describe('AgentWorkspace', () => {
     expect(calls.at(-1)).toContain('starter=lab-operator');
   });
 
-  test('does not dispatch profile export templates without real target values', () => {
+  test('does not dispatch profile starter export templates without real target values', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'profile-sync-export');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-export');
 
     workspace.activateSelected();
 

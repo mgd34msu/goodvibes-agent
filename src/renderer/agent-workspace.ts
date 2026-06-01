@@ -232,7 +232,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       });
     }
     base.push({ text: 'Only config key names and readiness state are rendered here.', fg: PALETTE.muted });
-    base.push({ text: 'Pairing: use /pair or /qrcode; inspect routed activity with /communication and /setup review.', fg: PALETTE.info });
+    base.push({ text: 'Pairing: use /pair or /qrcode; inspect notification targets with /notify list and health with /health review.', fg: PALETTE.info });
   } else if (category.id === 'knowledge') {
     base.push(
       { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },

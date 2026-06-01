@@ -327,9 +327,11 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Starter authoring guide');
     expect(output).toContain('/agent-profile guide');
     expect(output).toContain('/agent-profile templates');
-    expect(output).toContain('/profilesync list');
-    expect(output).toContain('/profilesync export <path> --yes');
-    expect(output).toContain('/setup transfer export <path> --yes');
+    expect(output).toContain('/agent-profile list');
+    expect(output).toContain('/agent-profile template export <id> <path> --yes');
+    expect(output).toContain('/agent-profile template import <path> --yes');
+    expect(output).not.toContain('/profilesync');
+    expect(output).not.toContain('/setup transfer');
     expect(output).toContain('Starter templates: 5; local custom: 0');
     expect(output).toContain('Starter ids: household, research, travel, operations, personal-productivity');
     expect(output).toContain('Agent Profiles');
@@ -348,7 +350,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Channels');
     expect(output).toContain('Pair companion');
     expect(output).toContain('/pair');
-    expect(output).toContain('/communication');
+    expect(output).toContain('/notify list');
+    expect(output).toContain('/health review');
     expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and runtime');
     expect(output).toContain('policy.');
     expect(output).toContain('Readiness: 2/13 ready; 2 enabled; 1 default target(s) configured.');
