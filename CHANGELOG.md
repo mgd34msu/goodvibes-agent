@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.100 - 2026-06-01
+
+- e2d5eee Run release tests only through branch CI
+- 7d46e87 Prune dormant copied command modules
+
 ## 0.1.99 - 2026-06-01
 
 - 804edd2 Prune copied setup commands and single-test CI
