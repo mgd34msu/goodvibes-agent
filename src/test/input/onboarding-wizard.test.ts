@@ -193,6 +193,12 @@ function collectOnboardingText(wizard: OnboardingWizardController): string {
     .join('\n');
 }
 
+function selectOnboardingField(wizard: OnboardingWizardController, fieldId: string, visibleFields = 20): void {
+  const index = wizard.currentStep.fields.findIndex((field) => field.id === fieldId);
+  expect(index).toBeGreaterThanOrEqual(0);
+  wizard.moveSelection(index - wizard.getSelectedFieldIndex(), visibleFields);
+}
+
 function collectSlashCommandRoots(text: string): readonly string[] {
   const roots = new Set<string>();
   const commandPattern = /(^|[\s`([])\/([a-z][a-z0-9_-]*)(?=$|[\s`.,;:)\]])/g;
@@ -358,7 +364,7 @@ describe('OnboardingWizardController', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
     wizard.setStep(1);
-    wizard.moveSelection(2, 6);
+    selectOnboardingField(wizard, 'providers.openai-api-key');
     wizard.setFieldValue('providers.openai-api-key', 'sk-secret');
 
     handleOnboardingWizardToken({
@@ -376,7 +382,7 @@ describe('OnboardingWizardController', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
     wizard.setStep(1);
-    wizard.moveSelection(2, 6);
+    selectOnboardingField(wizard, 'providers.openai-api-key');
 
     const routeState = {
       onboardingWizard: wizard,
