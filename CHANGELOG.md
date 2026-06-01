@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.94 - 2026-06-01
+
+- ae6fa3e Polish Agent runtime status labels
+
 ## 0.1.93 - 2026-06-01
 
 - 7f802e5 Add external runtime URL override
