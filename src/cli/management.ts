@@ -30,6 +30,7 @@ import type { RuntimeEndpointId } from './endpoints.ts';
 import { handleBundleCommand } from './bundle-command.ts';
 import { handleSecrets, handleSessions, handleTasks, renderPairing, renderSubscriptions } from './management-commands.ts';
 import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand, handleCompatCommand, handleDelegateCommand } from './agent-knowledge-command.ts';
+import { handlePersonasCommand, handleSkillsCommand } from './local-library-command.ts';
 import { handleProfilesCommand } from './profiles-command.ts';
 import { handleRoutinesCommand } from './routines-command.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
@@ -612,6 +613,16 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
       }
       case 'profiles': {
         const result = await handleProfilesCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'personas': {
+        const result = await handlePersonasCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'skills': {
+        const result = await handleSkillsCommand(runtime);
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }

@@ -16,6 +16,8 @@ Agent does not launch the runtime for you.
 bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent status
+goodvibes-agent personas list
+goodvibes-agent skills list
 ```
 
 If the installed command is not found, add Bun's global bin directory to `PATH`:
@@ -47,6 +49,14 @@ Once the TUI opens, run `/agent`, `/home`, or `/operator` to open the Agent oper
 Use `/agent-profile guide` inside that workspace to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
 Use `/schedule receipts` to review redacted local routine promotion history and `/schedule reconcile` to compare those receipts with live external schedules through public `schedules.list`.
+
+The local behavior libraries are also available from the installed CLI:
+
+```sh
+goodvibes-agent personas create --name "Research Analyst" --description "Source-backed research" --body "Check sources and call out uncertainty" --use
+goodvibes-agent skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, routines, and Agent Knowledge before summarizing" --enabled
+goodvibes-agent routines list
+```
 
 ## Isolated Agent Profiles
 

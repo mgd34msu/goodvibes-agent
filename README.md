@@ -16,6 +16,8 @@ bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent status
 goodvibes-agent profiles templates
+goodvibes-agent personas list
+goodvibes-agent skills list
 goodvibes-agent knowledge status
 goodvibes-agent knowledge list --kind sources
 goodvibes-agent knowledge import-urls ./agent-sources.txt --yes
@@ -61,6 +63,8 @@ Use isolated Agent profiles when one machine needs separate operator identities 
 ```sh
 goodvibes-agent profiles templates
 goodvibes-agent profiles create household --template household --yes
+goodvibes-agent personas create --name "Travel Planner" --description "Plan trips" --body "Compare options before booking" --use
+goodvibes-agent skills create --name "Daily Brief" --description "Summarize operator state" --procedure "Review Agent Knowledge, work plans, approvals, and routines" --enabled
 goodvibes-agent profiles templates export research ./research-starter.json --yes
 goodvibes-agent profiles templates import ./research-starter.json --yes
 goodvibes-agent --agent-profile household status
@@ -68,6 +72,8 @@ GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
 ```
 
 Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The GoodVibes runtime is still external and shared unless the owning host is separately configured otherwise.
+
+The same local behavior libraries are available without opening the TUI: `goodvibes-agent personas ...`, `goodvibes-agent skills ...`, and `goodvibes-agent routines ...` list, create, review, enable, stale, and delete local Agent records with explicit confirmation for destructive actions.
 
 Local Agent behavior is editable from the TUI:
 
