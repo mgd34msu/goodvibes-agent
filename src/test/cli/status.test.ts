@@ -178,7 +178,7 @@ describe('CLI status and doctor output', () => {
     const text = findings.map((finding) => `${finding.summary}\n${finding.impact}\n${finding.action}`).join('\n');
 
     expect(findings.map((finding) => finding.id)).toContain('agent-knowledge-route-not-ready');
-    expect(text).toContain('Agent Knowledge ask/search will not use any fallback wiki or HomeGraph segment');
+    expect(text).toContain('Agent Knowledge ask/search will not use any fallback wiki or non-Agent knowledge segment');
     expect(text).not.toContain('default Knowledge');
   });
 

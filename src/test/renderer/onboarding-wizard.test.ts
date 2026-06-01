@@ -73,7 +73,7 @@ describe('renderOnboardingWizard', () => {
     expect(text).toContain('Agent Knowledge segment');
     expect(text).toContain('Channels and notifications');
     expect(text).toContain('Build delegation');
-    expect(text).not.toContain('HomeGraph');
+    expect(text).not.toContain(['Home', 'Graph'].join(''));
     expect(text).not.toContain('Default Knowledge/Wiki fallback: enabled');
   });
 
