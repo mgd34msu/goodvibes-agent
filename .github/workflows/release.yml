@@ -15,6 +15,9 @@ concurrency:
   group: agent-release-${{ github.event.inputs.ref || github.ref_name || github.run_id }}
   cancel-in-progress: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 permissions:
   contents: write
 
@@ -85,7 +88,16 @@ jobs:
         id: pack
         run: |
           mkdir -p dist
-          TARBALL="$(bun pm pack --destination dist --quiet | tail -n 1)"
+          rm -f dist/*.tgz
+          PACK_OUTPUT="$(bun pm pack --destination dist 2>&1)"
+          printf '%s\n' "$PACK_OUTPUT"
+          mapfile -t TARBALLS < <(find dist -maxdepth 1 -type f -name '*.tgz' -printf '%f\n' | sort)
+          if [ "${#TARBALLS[@]}" -ne 1 ]; then
+            echo "Expected exactly one package tarball in dist; found ${#TARBALLS[@]}" >&2
+            find dist -maxdepth 1 -type f -print >&2
+            exit 1
+          fi
+          TARBALL="${TARBALLS[0]}"
           echo "tarball=${TARBALL}" >> "$GITHUB_OUTPUT"
           test -f "dist/${TARBALL}"
       - name: Upload package tarball
