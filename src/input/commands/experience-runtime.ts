@@ -148,7 +148,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
     name: 'worker-pool',
     aliases: ['pool'],
     description: 'Dedicated front-door for remote worker pool review flows',
-    usage: '[list|show <id>|create <id> <label...>|assign <pool> <runner>|unassign <pool> <runner>]',
+    usage: '[list|show <id>]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'list').toLowerCase();
       if (!ctx.executeCommand) {
@@ -164,11 +164,11 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         return;
       }
       if (sub === 'create' && args[1] && args.length >= 3) {
-        await ctx.executeCommand('remote', ['pool', 'create', args[1], ...args.slice(2)]);
+        ctx.print('Remote worker pool mutation is blocked in GoodVibes Agent. Use /worker-pool list or /worker-pool show <id>.');
         return;
       }
       if ((sub === 'assign' || sub === 'unassign') && args[1] && args[2]) {
-        await ctx.executeCommand('remote', ['pool', sub, args[1], args[2]]);
+        ctx.print('Remote worker pool mutation is blocked in GoodVibes Agent. Use /worker-pool list or /worker-pool show <id>.');
         return;
       }
       ctx.print('Usage: /worker-pool [list|show <id>]');

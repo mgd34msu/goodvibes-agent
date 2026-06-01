@@ -1649,8 +1649,12 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('ops-pool');
 
     out.length = 0;
-    await bridge!.handler(['runner', 'agent-remote'], ctx);
-    expect(out.join('\n')).toContain('Bridge Runner agent-remote');
+    await bridge!.handler(['worker', 'agent-remote'], ctx);
+    expect(out.join('\n')).toContain('Bridge Worker agent-remote');
+
+    out.length = 0;
+    await bridge!.handler(['assign', 'ops-pool', 'agent-remote', '--yes'], ctx);
+    expect(out.join('\n')).toContain('Bridge worker assignment is read-only in GoodVibes Agent.');
 
     out.length = 0;
     await bridge!.handler(['import', importedArtifactPath], ctx);
@@ -1839,7 +1843,7 @@ describe('product breadth commands', () => {
         title: 'Resume Me',
         returnContext: {
           summary: 'returning to blocked work',
-          lines: ['Pending approvals spotted: 2', 'Remote runners: runner-a', 'Worktree paths: /tmp/demo-worktree', 'Open panels: remote, approval'],
+          lines: ['Pending approvals spotted: 2', 'Remote workers: runner-a', 'Worktree paths: /tmp/demo-worktree', 'Open panels: remote, approval'],
           pendingApprovals: 2,
           activeTasks: 1,
           blockedTasks: 1,
@@ -1872,7 +1876,7 @@ describe('product breadth commands', () => {
     out.length = 0;
     await session!.handler(['info', 'resume-demo'], ctx);
     expect(out.join('\n')).toContain('Pending approvals spotted: 2');
-    expect(out.join('\n')).toContain('Remote runners: runner-a');
+    expect(out.join('\n')).toContain('Remote workers: runner-a');
     expect(out.join('\n')).toContain('Worktree paths: /tmp/demo-worktree');
     expect(out.join('\n')).toContain('Open panels: remote, approval');
   });

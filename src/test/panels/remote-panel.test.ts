@@ -54,7 +54,7 @@ function createRemotePanel(
 }
 
 describe('RemotePanel', () => {
-  test('renders runner contract and recent review artifact details', () => {
+  test('renders worker contract and recent review artifact details', () => {
     resetTestRuntimeServices();
     const manager = getTestAgentManager();
     const agent = manager.spawn({
@@ -97,7 +97,7 @@ describe('RemotePanel', () => {
     registry.captureArtifactForAgent(agent.id, store);
 
     const text = linesText(createRemotePanel(store, registry).render(140, 22));
-    expect(text).toContain('runner contracts');
+    expect(text).toContain('worker contracts');
     expect(text).toContain('review artifacts');
     expect(text).toContain('Contract:');
     expect(text).toContain('Task:');
@@ -106,7 +106,7 @@ describe('RemotePanel', () => {
 
   test('renders empty guidance without a runtime store', () => {
     const text = linesText(createRemotePanel().render(120, 12));
-    expect(text).toContain('Remote Control Room');
+    expect(text).toContain('Remote Work Review');
     expect(text).toContain('Runtime store not wired');
     expect(text).toContain('/remote setup');
   });
@@ -186,7 +186,7 @@ describe('RemotePanel', () => {
     expect(panel.handleInput('tab')).toBe(true);
     const text = linesText(panel.render(140, 20));
     expect(text).toContain('focus=contracts');
-    expect(text).toContain('Registered Remote Runner Contracts');
+    expect(text).toContain('Registered Remote Worker Contracts');
     expect(text).toContain('Selected contract');
     expect(text).toContain(agent.id);
   });

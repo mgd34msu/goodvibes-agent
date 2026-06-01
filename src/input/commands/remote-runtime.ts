@@ -36,7 +36,7 @@ export function handleRemoteCancelCommand(
   ctx.print([
     'GoodVibes Agent remote control is read-only.',
     `  requested: /remote cancel ${agentId}`,
-    '  policy: Agent does not cancel local ACP/runner processes from this surface',
+    '  policy: Agent does not cancel local remote-worker processes from this surface',
     '  next: inspect with /remote show or delegate explicit build/fix/review work to GoodVibes TUI',
   ].join('\n'));
 }
@@ -46,7 +46,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
     name: 'remote',
     aliases: [],
     description: 'Inspect remote workers, delegated work receipts, and review artifacts',
-    usage: '[list | show [agentId] | supervisor [workerId] | support [workerId] | recover [workerId] | setup [export <path> --yes] | env [export <path> --yes] | tunnel [review|export <path> --yes] | bootstrap [export <path> --yes|inspect <path>] | session <export|inspect|import> <path> [--yes] | pool <list|show> ... | dispatch [template] <description> | dispatch-pool <pool> [template] <description> | contract [agentId] | cancel <agentId> | export <agentId> [path] --yes | artifact list | artifact show <id> | artifact export <id> [path] --yes | review <id> | rerun-local <id> | import <path> --yes]',
+    usage: '[list | show [agentId] | supervisor [workerId] | support [workerId] | recover [workerId] | setup [export <path> --yes] | env [export <path> --yes] | tunnel [review|export <path> --yes] | bootstrap [export <path> --yes|inspect <path>] | session <export|inspect|import> <path> [--yes] | pool <list|show> ... | dispatch [template] <description> | dispatch-pool <pool> [template] <description> | contract [workerId] | cancel <agentId> | export <agentId> [path] --yes | artifact list | artifact show <id> | artifact export <id> [path] --yes | review <id> | rerun-local <id> | import <path> --yes]',
     async handler(args, ctx) {
       if (args.length === 0) {
         if (ctx.openRemotePanel) {
@@ -210,7 +210,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           ctx.print(agentId ? `Unknown remote connection: ${agentId}` : 'No active remote connections.');
           return;
         }
-        const contract = remoteRunners.upsertContractForAgent(connection.agentId);
+        const contract = remoteRunners.getContract(connection.agentId);
         ctx.print([
           `Remote connection ${connection.agentId}`,
           `  label: ${connection.label}`,
@@ -278,14 +278,14 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           ctx.print('No remote worker contracts are available yet.');
           return;
         }
-        const contract = remoteRunners.upsertContractForAgent(agentId);
+        const contract = remoteRunners.getContract(agentId);
         if (!contract) {
           ctx.print(`Unknown remote worker: ${agentId}`);
           return;
         }
         ctx.print([
           `Remote worker contract ${contract.id}`,
-          `  runnerId: ${contract.runnerId}`,
+          `  workerId: ${contract.runnerId}`,
           `  label: ${contract.label}`,
           `  pool: ${contract.poolId ?? '(none)'}`,
           `  trustClass: ${contract.trustClass}`,
@@ -422,7 +422,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           return;
         }
         const artifact = await remoteRunners.importArtifact(path);
-        ctx.print(`Imported remote review artifact ${artifact.id} for runner ${artifact.runnerId}.`);
+        ctx.print(`Imported remote review artifact ${artifact.id} for worker ${artifact.runnerId}.`);
         return;
       }
 

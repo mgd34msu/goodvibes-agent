@@ -132,7 +132,7 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
   registry.register({
     name: 'bridge',
     description: 'Review self-hosted bridge and remote worker flows',
-    usage: '[status|pools|assign <pool> <runner> --yes|runner <id>|review <artifactId>|export <artifactId> [path] --yes|import <path> --yes]',
+    usage: '[status|pools|worker <id>|review <artifactId>|export <artifactId> [path] --yes|import <path> --yes]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
@@ -156,7 +156,7 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
       if (sub === 'pools') {
         const pools = remoteRegistry.listPools();
         ctx.print(pools.length > 0
-          ? ['Bridge Pools', ...pools.map((pool) => `  ${pool.id}  runners=${pool.runnerIds.length}  trust=${pool.trustClass}`)].join('\n')
+          ? ['Bridge Pools', ...pools.map((pool) => `  ${pool.id}  workers=${pool.runnerIds.length}  trust=${pool.trustClass}`)].join('\n')
           : 'Bridge Pools\n  No worker pools registered yet.');
         return;
       }
@@ -164,34 +164,30 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
         const poolId = commandArgs[1];
         const runnerId = commandArgs[2];
         if (!poolId || !runnerId) {
-          ctx.print('Usage: /bridge assign <pool> <runner> --yes');
+          ctx.print('Usage: /bridge assign <pool> <worker> --yes');
           return;
         }
-        if (!parsed.yes) {
-          requireYesFlag(ctx, `assign bridge runner ${runnerId} to pool ${poolId}`, '/bridge assign <pool> <runner> --yes');
-          return;
-        }
-        const pool = remoteRegistry.assignRunnerToPool(poolId, runnerId);
-        if (!pool) {
-          ctx.print(`Unable to assign runner ${runnerId} to pool ${poolId}.`);
-          return;
-        }
-        ctx.print(`Assigned runner ${runnerId} to bridge pool ${poolId}.`);
+        ctx.print([
+          'Bridge worker assignment is read-only in GoodVibes Agent.',
+          `  requested: /bridge assign ${poolId} ${runnerId}`,
+          '  policy: Agent reviews remote bridge state but does not mutate worker topology',
+          '  next: inspect /bridge pools or delegate explicit build/fix/review work to GoodVibes TUI',
+        ].join('\n'));
         return;
       }
-      if (sub === 'runner') {
+      if (sub === 'runner' || sub === 'worker') {
         const runnerId = commandArgs[1];
         if (!runnerId) {
-          ctx.print('Usage: /bridge runner <id>');
+          ctx.print('Usage: /bridge worker <id>');
           return;
         }
         const contract = remoteRegistry.getContract(runnerId);
         if (!contract) {
-          ctx.print(`Unknown runner contract: ${runnerId}`);
+          ctx.print(`Unknown worker contract: ${runnerId}`);
           return;
         }
         ctx.print([
-          `Bridge Runner ${runnerId}`,
+          `Bridge Worker ${runnerId}`,
           `  template: ${contract.template}`,
           `  trustClass: ${contract.trustClass}`,
           `  transport: ${contract.sourceTransport}/${contract.transport.state}`,
@@ -242,10 +238,10 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
           return;
         }
         const artifact = await remoteRegistry.importArtifact(shellPaths.resolveWorkspacePath(pathArg));
-        ctx.print(`Imported remote bridge artifact ${artifact.id} for runner ${artifact.runnerId}.`);
+        ctx.print(`Imported remote bridge artifact ${artifact.id} for worker ${artifact.runnerId}.`);
         return;
       }
-      ctx.print('Usage: /bridge [status|pools|assign <pool> <runner> --yes|runner <id>|review <artifactId>|export <artifactId> [path] --yes|import <path> --yes]');
+      ctx.print('Usage: /bridge [status|pools|worker <id>|review <artifactId>|export <artifactId> [path] --yes|import <path> --yes]');
     },
   });
 

@@ -85,7 +85,7 @@ export function buildProviderHealthDomainSummaries(
     summary: remote.supervisor.sessions.length === 0
       ? 'no remote sessions tracked'
       : `${remote.supervisor.sessions.length} sessions / ${remote.supervisor.degradedConnections} degraded`,
-    next: remote.supervisor.degradedConnections > 0 ? '/remote recover <runnerId>' : '/remote supervisor',
+    next: remote.supervisor.degradedConnections > 0 ? '/remote recover <workerId>' : '/remote supervisor',
     details: remote.supervisor.sessions.length === 0
       ? ['no remote sessions have been attached yet']
       : remote.supervisor.sessions
@@ -98,7 +98,7 @@ export function buildProviderHealthDomainSummaries(
           .slice(0, 3)
           .map((entry) => `${entry.runnerId}: transport=${entry.transportState} heartbeat=${entry.heartbeat.status}${entry.lastError ? ` error=${entry.lastError}` : ''}`),
     nextSteps: remote.supervisor.degradedConnections > 0
-      ? ['/remote supervisor', '/remote recover <runnerId>', '/remote support']
+      ? ['/remote supervisor', '/remote recover <workerId>', '/remote support']
       : ['/remote supervisor'],
   });
 

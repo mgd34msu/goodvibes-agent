@@ -111,13 +111,13 @@ export class RemotePanel extends BasePanel {
 
   public render(width: number, height: number): Line[] {
     this.needsRender = false;
-    const intro = 'Bridge, ACP, runner-contract, and artifact posture for self-hosted remote work.';
+    const intro = 'Remote worker, bridge, and review-artifact posture for delegated work.';
 
     if (!this.readModel) {
       const sectionLines = buildEmptyState(
         width,
         ' Runtime store not wired into this panel yet.',
-        'The remote control room needs the shell read model so it can display ACP state, runner contracts, and replay artifacts.',
+        'The remote review workspace needs the shell read model so it can display worker state and review artifacts.',
         [
           { command: '/remote setup', summary: 'review bootstrap, env, tunnel, and bridge guidance' },
           { command: '/remote panel', summary: 'reopen the panel from the shell-owned runtime' },
@@ -125,7 +125,7 @@ export class RemotePanel extends BasePanel {
         C,
       );
       const lines = buildPanelWorkspace(width, height, {
-        title: 'Remote Control Room',
+        title: 'Remote Work Review',
         intro,
         sections: [{ lines: sectionLines }],
         palette: C,
@@ -176,7 +176,7 @@ export class RemotePanel extends BasePanel {
         [String(acp.totalMessages), acp.totalMessages > 0 ? C.value : C.dim],
       ]),
       buildPanelLine(width, [
-        [' runner contracts ', C.label],
+        [' worker contracts ', C.label],
         [String(contracts.length), C.info],
         ['  pools ', C.label],
         [String(pools.length), pools.length > 0 ? C.info : C.dim],
@@ -204,7 +204,7 @@ export class RemotePanel extends BasePanel {
       ]));
     }
     postureLines.push(
-      buildGuidanceLine(width, '/remote recover', 'resume remote state with runner support and disconnect recovery hints', C),
+      buildGuidanceLine(width, '/remote recover', 'inspect remote state with worker support and disconnect recovery hints', C),
       buildGuidanceLine(width, '/remote support', 'inspect transport support before routing remote work or reattaching a session', C),
     );
 
@@ -219,17 +219,17 @@ export class RemotePanel extends BasePanel {
         ...buildEmptyState(
           width,
           ' No active ACP or remote subagent connections.',
-          'The remote control room is healthy but idle. Runner contracts, session bundles, and bridge pools will appear here once remote work starts.',
+          'Remote review is healthy but idle. Worker contracts, session bundles, and bridge pools will appear here once delegated work exists.',
           [
             { command: '/remote setup', summary: 'review remote bootstrap and environment export' },
             { command: '/remote env', summary: 'emit a reusable remote shell snippet' },
-            { command: '/bridge status', summary: 'inspect runner pools and existing remote artifacts' },
+            { command: '/bridge status', summary: 'inspect worker pools and existing remote artifacts' },
           ],
           C,
         ),
       ];
       const lines = buildPanelWorkspace(width, height, {
-        title: 'Remote Control Room',
+        title: 'Remote Work Review',
         intro,
         sections: [{ lines: buildSummaryBlock(width, 'Remote posture', idleLines, C) }],
         footerLines,
@@ -341,7 +341,7 @@ export class RemotePanel extends BasePanel {
       ]));
     } else if (selectedContract) {
       detailRows.push(buildPanelLine(width, [
-        ['  Runner: ', C.label],
+        ['  Worker: ', C.label],
         [selectedContract.runnerId, C.value],
         ['  Template: ', C.label],
         [selectedContract.template, C.info],
@@ -392,7 +392,7 @@ export class RemotePanel extends BasePanel {
     const detailSection: PanelWorkspaceSection = {
       lines: buildDetailBlock(width, selected ? 'Selected connection' : 'Selected contract', detailRows, C),
     };
-    const browseTitle = viewingConnections ? 'Active Connections' : 'Registered Remote Runner Contracts';
+    const browseTitle = viewingConnections ? 'Active Connections' : 'Registered Remote Worker Contracts';
     const rawBrowseLines: Line[] = viewingConnections
       ? activeConnections.map((connection, absolute) => {
           return buildPanelListRow(width, [
@@ -437,7 +437,7 @@ export class RemotePanel extends BasePanel {
       detailSection,
     ];
     const lines = buildPanelWorkspace(width, height, {
-      title: 'Remote Control Room',
+      title: 'Remote Work Review',
       intro,
       sections,
       footerLines,

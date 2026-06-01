@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.67 - 2026-05-31
+
+- Reworked remote bridge and remote review language from copied runner/control-room wording to Agent-facing worker/review wording.
+- Made bridge worker assignment read-only in Agent and removed hidden contract creation from remote show/contract paths.
+- Added regressions around the remote worker review panel and bridge command wording.
+
 ## 0.1.66 - 2026-05-31
 
 - Removed remote-runner and node/device posture wording from first-run Agent setup surfaces.
