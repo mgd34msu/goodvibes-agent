@@ -231,7 +231,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 - Made the operator workspace more product-facing by replacing foundation/setup jargon with Agent profile, runtime status, voice/media, and browser-tool language.
 - Removed the remote-runner item from the first-run voice/media workspace so day-one setup stays focused on user-facing assistant capabilities.
-- Reworded settings, status panels, profile commands, and docs away from control-plane/runtime-profile terminology while preserving the same underlying contracts.
+- Reworded settings, status panels, profile commands, and docs away from internal runtime terminology while preserving the same underlying contracts.
 
 ## 0.1.64 - 2026-05-31
 

@@ -38,7 +38,7 @@ describe('live verification report', () => {
     expect(markdown).toContain('Result: PASS');
   });
 
-  it('skips Agent Knowledge route validation when the external daemon SDK is older than the Agent pin', () => {
+  it('skips Agent Knowledge route validation when the GoodVibes runtime SDK is older than the Agent pin', () => {
     const check = buildAgentKnowledgeLiveSkipCheck(
       'agent-knowledge-status',
       'Agent Knowledge isolated /status',
@@ -47,7 +47,7 @@ describe('live verification report', () => {
     );
 
     expect(check.status).toBe('skip');
-    expect(check.summary).toContain('external daemon SDK 0.33.30');
+    expect(check.summary).toContain('GoodVibes runtime SDK 0.33.30');
     expect(check.summary).toContain('Agent SDK pin 0.33.35');
     expect(check.detail).toContain('must not fall back to default Knowledge/Wiki or non-Agent knowledge segments');
   });

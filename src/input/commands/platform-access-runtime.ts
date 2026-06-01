@@ -57,7 +57,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         ctx.print([
           'Runtime service login is external to GoodVibes Agent.',
           'Agent does not create, exchange, store, rotate, revoke, or clear runtime/listener service sessions.',
-          'Use the runtime-owning GoodVibes TUI or host tooling for runtime auth administration.',
+          'Use the owning GoodVibes runtime for runtime auth administration.',
           'Agent login supports provider subscriptions only: /login provider <name> start|finish <code> --yes.',
         ].join('\n'));
         return;
@@ -102,7 +102,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         ctx.print([
           'Local runtime auth management is external to GoodVibes Agent.',
           'Agent connects to an already-running GoodVibes runtime and does not create, delete, rotate, revoke, or clear runtime auth users, sessions, or bootstrap credentials.',
-          'Use the runtime-owning GoodVibes TUI or host tooling for runtime auth administration.',
+          'Use the owning GoodVibes runtime for runtime auth administration.',
           'Agent auth commands available here: /auth review, /auth show <provider>, /auth repair <provider>, /auth bundle export <path> --yes, /auth bundle inspect <path>.',
         ].join('\n'));
         return;
@@ -111,7 +111,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         ctx.print([
           'Runtime service login is external to GoodVibes Agent.',
           'Agent does not create, exchange, store, rotate, revoke, or clear runtime/listener service sessions.',
-          'Use the runtime-owning GoodVibes TUI or host tooling for runtime auth administration.',
+          'Use the owning GoodVibes runtime for runtime auth administration.',
         ].join('\n'));
         return;
       }

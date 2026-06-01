@@ -264,7 +264,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
           ctx.print(`  Reopened panels: ${reopenedPanels.join(', ')}`);
         }
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
-          ctx.print('  Remote re-entry: use the external runtime host for remote runner recovery; delegate explicit build/fix/review recovery from Agent.');
+          ctx.print('  Remote re-entry: handle remote runner recovery outside Agent; delegate explicit build/fix/review recovery from Agent.');
         }
         if ((meta.returnContext.worktreePaths?.length ?? 0) > 0) {
           ctx.print('  Worktree re-entry: open GoodVibes TUI in the target workspace; delegate explicit build/fix/review recovery from Agent.');

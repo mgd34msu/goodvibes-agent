@@ -216,7 +216,7 @@ describe('CLI status and doctor output', () => {
         },
         managed: {
           platform: 'manual',
-          path: 'external GoodVibes runtime host',
+          path: 'external GoodVibes runtime',
           installed: false,
           autostart: false,
           running: false,
@@ -224,7 +224,7 @@ describe('CLI status and doctor output', () => {
           commandPreview: 'managed outside goodvibes-agent',
           suggestedCommands: [],
           lastAction: 'status',
-          pidPath: 'external GoodVibes runtime host',
+          pidPath: 'external GoodVibes runtime',
           lastError: null,
         },
         endpoints: [],

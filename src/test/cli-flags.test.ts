@@ -334,7 +334,7 @@ describe('parseCliFlags', () => {
     expect(reloaded.getCategory('featureFlags')).toEqual({});
   });
 
-  test('applies runtime URL overrides to external runtime host and port without persisting settings', () => {
+  test('applies runtime URL overrides to external runtime connection without persisting settings', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-runtime-url-'));
     const configDir = join(root, '.goodvibes', 'agent');
     const configManager = new ConfigManager({ surfaceRoot: 'agent', configDir, workingDir: root });

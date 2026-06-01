@@ -546,7 +546,7 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
     return [
       'Unsupported: runtime auth user/session administration is external to GoodVibes Agent.',
       'GoodVibes Agent connects to an already-running runtime and does not create, delete, rotate, revoke, or clear runtime users, sessions, or bootstrap credentials.',
-      'Use the runtime-owning GoodVibes TUI or host tooling for runtime auth administration.',
+      'Use the owning GoodVibes runtime for runtime auth administration.',
     ].join('\n');
   }
   if (sub !== 'status' && sub !== 'review' && sub !== 'list' && sub !== 'users' && sub !== 'sessions') {
@@ -569,7 +569,7 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
       '  owner: external GoodVibes runtime',
       `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'}`,
       `  operator token path: ${paths.operatorTokenPath}`,
-      `  ${sub}: managed by the runtime-owning TUI or host tooling`,
+      `  ${sub}: managed outside Agent`,
       '  Agent does not enumerate or mutate runtime users/sessions from the local CLI.',
     ].join('\n'));
   }

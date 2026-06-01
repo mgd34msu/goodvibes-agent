@@ -114,7 +114,7 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
         ? '  next: pair/authenticate with the external GoodVibes runtime, then retry.'
         : null,
       result.kind === 'daemon_unavailable'
-        ? '  next: start/restart the external GoodVibes runtime from TUI or host tooling; Agent does not own runtime lifecycle.'
+        ? '  next: start/restart the GoodVibes runtime outside Agent, then retry.'
         : null,
       result.kind === 'version_mismatch' || result.kind === 'daemon_route_unavailable'
         ? '  next: update/restart the external GoodVibes runtime so public schedules.list is available.'
@@ -169,7 +169,7 @@ export function formatRoutineScheduleFailure(failure: RoutineSchedulePromotionFa
       ? '  next: pair/authenticate with the external GoodVibes runtime, then retry with --yes.'
       : null,
     failure.kind === 'daemon_unavailable'
-      ? '  next: start/restart the external GoodVibes runtime from TUI or host tooling; Agent does not own runtime lifecycle.'
+        ? '  next: start/restart the GoodVibes runtime outside Agent, then retry.'
       : null,
     failure.kind === 'version_mismatch' || failure.kind === 'daemon_route_unavailable'
       ? '  next: update/restart the external GoodVibes runtime so public schedules.create is available.'

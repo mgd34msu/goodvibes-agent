@@ -52,7 +52,7 @@ export function buildProviderHealthDomainSummaries(
     details: [
       'GoodVibes Agent does not create, delete, rotate, revoke, or clear runtime auth users or sessions.',
       `${auth.userCount} compatibility user record(s) and ${auth.sessionCount} session record(s) are visible for diagnostics only.`,
-      auth.bootstrapCredentialPresent ? 'Runtime bootstrap cleanup must be done from the runtime-owning TUI or host tooling.' : '',
+      auth.bootstrapCredentialPresent ? 'Runtime bootstrap cleanup must be done outside Agent.' : '',
     ].filter(Boolean),
     nextSteps: auth.bootstrapCredentialPresent
       ? ['/auth review', '/provider', '/subscription providers']

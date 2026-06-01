@@ -24,7 +24,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'SETUP',
     label: 'Setup',
     summary: 'Configuration, auth, provider, and onboarding workspaces.',
-    detail: 'Use this to configure the assistant: provider/model, setup checklist, Agent Knowledge, local behavior, channels, and voice/media. Agent-local setup changes happen here; runtime hosting is not managed here.',
+    detail: 'Use this to configure the assistant: provider/model, setup checklist, Agent Knowledge, local behavior, channels, and voice/media. Agent-local setup changes happen here; runtime lifecycle is outside Agent.',
     actions: [
       { id: 'config', label: 'Open settings', detail: 'Open the fullscreen Agent settings workspace.', command: '/config', kind: 'command', safety: 'safe' },
       { id: 'setup', label: 'Run setup', detail: 'Review Agent settings in the fullscreen setup flow.', command: '/setup', kind: 'command', safety: 'safe' },

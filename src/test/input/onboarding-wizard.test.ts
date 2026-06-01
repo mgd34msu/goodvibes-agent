@@ -350,7 +350,7 @@ describe('OnboardingWizardController', () => {
     const text = collectOnboardingText(wizard);
 
     expect(text).toContain('companion clients');
-    expect(text).toContain('MCP servers');
+    expect(text).toContain('MCP connections');
     expect(text).toContain('local routines');
     expect(text).toContain('image');
     expect(text).toContain('Agent Knowledge');

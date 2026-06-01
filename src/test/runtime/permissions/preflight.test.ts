@@ -55,7 +55,7 @@ describe('buildPolicyPreflightReview', () => {
     expect(review.issues.some((issue) => issue.source === 'mcp' && issue.serverName === 'deploy')).toBe(true);
   });
 
-  test('warns for ask-on-risk MCP servers', () => {
+  test('warns for ask-on-risk MCP connections', () => {
     const review = buildPolicyPreflightReview({
       config: baseConfig,
       lintFindings: [],

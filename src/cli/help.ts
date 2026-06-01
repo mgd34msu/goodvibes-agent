@@ -270,7 +270,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   auth: {
     usage: ['auth', 'auth status', 'auth review', 'auth users', 'auth sessions'],
-    summary: 'Inspect Agent auth posture and connection token state. Runtime user/session administration belongs to the runtime-owning TUI or host tooling.',
+    summary: 'Inspect Agent auth posture and connection token state. Runtime user/session administration stays outside Agent.',
     examples: ['auth', 'auth status', 'auth users'],
   },
   compat: {

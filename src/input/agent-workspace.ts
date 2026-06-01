@@ -9,6 +9,7 @@ import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
 import { createDeleteEditor, createMemoryUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
+import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
@@ -614,61 +615,18 @@ export class AgentWorkspace {
   }
 
   private submitKnowledgeUrlEditor(editor: AgentWorkspaceLocalEditor): void {
-    const url = this.editorField('url');
-    const confirm = this.editorField('confirm');
-    if (!isAffirmative(confirm)) {
-      this.localEditor = { ...editor, message: 'Type yes to confirm Agent Knowledge URL ingest.' };
-      this.status = 'Agent Knowledge ingest not confirmed.';
+    const result = buildAgentKnowledgeUrlEditorSubmission(editor, (fieldId) => this.editorField(fieldId), this.hasCommandDispatch());
+    if (result.kind === 'editor') {
+      this.localEditor = result.editor;
+      this.status = result.status;
+      if (result.actionResult) this.lastActionResult = result.actionResult;
       return;
     }
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        throw new Error('Agent Knowledge URL ingest requires an http(s) URL.');
-      }
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      this.localEditor = { ...editor, message: detail };
-      this.status = detail;
-      this.lastActionResult = {
-        kind: 'error',
-        title: 'Agent Knowledge ingest URL invalid',
-        detail,
-      };
-      return;
-    }
-    if (!this.hasCommandDispatch()) {
-      this.localEditor = { ...editor, message: 'Command dispatch is unavailable; cannot run Agent Knowledge ingest from this workspace.' };
-      this.status = 'Command dispatch unavailable.';
-      this.lastActionResult = {
-        kind: 'error',
-        title: 'Command dispatch unavailable',
-        detail: 'The Agent Knowledge ingest command cannot be opened from this runtime.',
-      };
-      return;
-    }
-    const tags = splitList(this.editorField('tags'));
-    const folder = this.editorField('folder');
-    if (/\s/.test(folder)) {
-      this.localEditor = { ...editor, message: 'Folder paths with spaces are not supported from this compact workspace form.' };
-      this.status = 'Folder path contains spaces.';
-      return;
-    }
-    const parts = ['/knowledge', 'ingest-url', url];
-    if (tags.length > 0) parts.push('--tags', tags.join(','));
-    if (folder.length > 0) parts.push('--folder', folder);
-    parts.push('--yes');
-    const command = parts.join(' ');
+
     this.localEditor = null;
-    this.status = 'Opening Agent Knowledge URL ingest.';
-    this.lastActionResult = {
-      kind: 'dispatched',
-      title: 'Opening Agent Knowledge URL ingest',
-      detail: 'The workspace handed a confirmed Agent Knowledge URL ingest command to the shell-owned command router.',
-      command,
-      safety: 'safe',
-    };
-    this.dispatchWorkspaceCommand(command);
+    this.status = result.status;
+    this.lastActionResult = result.actionResult;
+    this.dispatchWorkspaceCommand(result.command);
   }
 
   private submitLocalDeleteEditor(shellPaths: ShellPathService, editor: AgentWorkspaceLocalEditor): void {

@@ -84,7 +84,7 @@ describe('CLI help/version', () => {
   test('auth help keeps runtime user administration external', () => {
     const help = renderGoodVibesCommandHelp('auth');
     expect(help).toContain('connection token state');
-    expect(help).toContain('runtime-owning TUI or host tooling');
+    expect(help).toContain('Runtime user/session administration stays outside Agent');
     expect(help).not.toContain('auth add-user');
     expect(help).not.toContain('auth clear-bootstrap');
   });

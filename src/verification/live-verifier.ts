@@ -287,11 +287,11 @@ export function buildAgentKnowledgeLiveSkipCheck(
     id,
     title,
     status: 'skip',
-    summary: `Skipped because external daemon SDK ${daemonVersion} does not match Agent SDK pin ${expectedSdkVersion}.`,
+    summary: `Skipped because GoodVibes runtime SDK ${daemonVersion} does not match Agent SDK pin ${expectedSdkVersion}.`,
     detail: [
       'Agent Knowledge is intentionally isolated under /api/goodvibes-agent/knowledge/*.',
       'An older daemon cannot validate those routes, and Agent must not fall back to default Knowledge/Wiki or non-Agent knowledge segments.',
-      'Update/restart the external daemon, then rerun live verification.',
+      'Update/restart the GoodVibes runtime, then rerun live verification.',
     ].join('\n'),
   };
 }

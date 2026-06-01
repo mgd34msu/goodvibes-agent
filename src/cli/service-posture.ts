@@ -143,7 +143,7 @@ function resolveConfiguredLogPath(runtime: CliServiceRuntime): string | undefine
 function createExternalDaemonLifecycle(logPath: string | undefined): CliExternalDaemonLifecyclePosture {
   return {
     platform: 'manual',
-    path: 'external GoodVibes runtime host',
+    path: 'external GoodVibes runtime',
     installed: false,
     autostart: false,
     running: false,
@@ -151,7 +151,7 @@ function createExternalDaemonLifecycle(logPath: string | undefined): CliExternal
     commandPreview: 'managed outside goodvibes-agent',
     suggestedCommands: [],
     lastAction: 'status',
-    pidPath: 'external GoodVibes runtime host',
+    pidPath: 'external GoodVibes runtime',
     lastError: null,
   };
 }
@@ -187,10 +187,10 @@ export async function buildCliServicePosture(
     issues.push('External runtime connection settings are present, but Agent runtime lifecycle ownership is disabled by design.');
   }
   if (config.enabled && !config.autostart) {
-    issues.push('External runtime host config has autostart off.');
+    issues.push('External GoodVibes runtime autostart is off.');
   }
   if (config.enabled && !config.restartOnFailure) {
-    issues.push('External runtime host config has restart-on-failure off.');
+    issues.push('External GoodVibes runtime restart-on-failure is off.');
   }
   for (const endpoint of endpoints) {
     if (endpoint.enabled && options.probe && endpoint.reachable === false) {

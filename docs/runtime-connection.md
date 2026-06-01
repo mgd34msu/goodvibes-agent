@@ -36,7 +36,7 @@ For a persistent shell/session override, set:
 export GOODVIBES_AGENT_RUNTIME_URL=http://127.0.0.1:3421
 ```
 
-`GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias. These values only select the external runtime API root; they do not enable runtime hosting inside Agent.
+`GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias. These values only select the external runtime API root; they do not make Agent own the runtime.
 
 If the runtime is unavailable, unauthenticated, or on an incompatible SDK version, Agent commands report actionable diagnostics without printing token values.
 
@@ -44,7 +44,7 @@ If the runtime is unavailable, unauthenticated, or on an incompatible SDK versio
 
 Agent owns the operator assistant TUI, local profiles, local memory/routines/skills/personas, isolated Agent Knowledge calls, companion chat, approvals/automation visibility, and explicit build delegation.
 
-Agent does not host runtime connectivity. It does not provide commands to install, expose, start, stop, restart, or mutate the runtime host.
+Agent does not own runtime lifecycle. It does not provide commands to install, expose, start, stop, restart, or mutate the GoodVibes runtime.
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` only and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
 

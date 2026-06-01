@@ -223,7 +223,7 @@ describe('onboarding derivation helpers', () => {
         id: 'operator-terminal',
         label: 'Agent Operator TUI',
         selected: true,
-        detail: 'Use GoodVibes Agent as the terminal operator; runtime host settings are shown only so the connection is understandable.',
+        detail: 'Use GoodVibes Agent as the terminal operator; connection settings are shown only so setup is understandable.',
       },
       {
         id: 'provider-access',

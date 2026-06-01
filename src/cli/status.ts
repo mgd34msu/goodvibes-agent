@@ -185,7 +185,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'runtime-autostart-disabled',
       area: 'runtime',
       severity: 'warning',
-      summary: 'External runtime host config has autostart off.',
+      summary: 'External GoodVibes runtime autostart is off.',
       cause: 'service.enabled is true and service.autostart is false.',
       impact: 'The external GoodVibes runtime may not be available after login or reboot even though host-managed startup is selected.',
       action: 'Configure autostart from GoodVibes TUI or the owning host; Agent will not mutate this setting.',
@@ -197,7 +197,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'runtime-restart-disabled',
       area: 'runtime',
       severity: 'warning',
-      summary: 'External runtime host config has restart-on-failure off.',
+      summary: 'External GoodVibes runtime restart-on-failure is off.',
       cause: 'service.enabled is true and service.restartOnFailure is false.',
       impact: 'A crashed runtime or listener may stay down until manually restarted.',
       action: 'Configure restart-on-failure from GoodVibes TUI or the owning host; Agent will not mutate this setting.',
@@ -214,7 +214,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         summary: issue,
         cause: 'The runtime connection inspection found a mismatch between configured endpoint state and observed host state.',
         impact: 'Runtime API, listener, or web availability may not match the configuration.',
-        action: 'Use Agent status and doctor diagnostics here, then manage the runtime from GoodVibes TUI or your host tooling.',
+        action: 'Use Agent status and doctor diagnostics here, then manage the runtime outside Agent.',
       });
     }
   }
@@ -239,7 +239,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       summary: 'Network-facing runtime endpoints are enabled without a visible runtime auth signal.',
       cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but Agent cannot see runtime auth state from its local compatibility files.`,
       impact: 'Remote access paths may be unusable or unsafe unless the external runtime owner configured auth.',
-      action: 'Review runtime auth from the owning GoodVibes TUI or host tooling; Agent will not create local runtime users.',
+      action: 'Review runtime auth outside Agent; Agent will not create local runtime users.',
     });
   }
 
@@ -251,7 +251,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       summary: 'A bootstrap credential is still present while network-facing surfaces are enabled.',
       cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound and auth-bootstrap.txt exists.`,
       impact: 'Bootstrap credentials should be treated as temporary setup material, not long-lived network access credentials.',
-      action: 'Use the runtime-owning GoodVibes TUI or host tooling to replace bootstrap auth and retire the bootstrap credential.',
+      action: 'Replace bootstrap auth and retire the bootstrap credential outside Agent.',
     });
   }
 

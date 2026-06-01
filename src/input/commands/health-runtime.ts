@@ -78,12 +78,12 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         const auth = readModels.localAuth.getSnapshot();
         ctx.print([
           'Health Review: Runtime Auth',
-          '  owner: external GoodVibes runtime host',
+          '  owner: external GoodVibes runtime',
           `  compatibility users visible: ${auth.userCount}`,
           `  compatibility sessions visible: ${auth.sessionCount}`,
           `  bootstrap file signal: ${auth.bootstrapCredentialPresent ? 'present' : 'cleared'}`,
           '  Agent action: review provider/subscription auth only; do not mutate runtime auth users or bootstrap credentials.',
-          ...(auth.bootstrapCredentialPresent ? ['  issue: bootstrap cleanup belongs to the runtime-owning TUI or host tooling'] : []),
+          ...(auth.bootstrapCredentialPresent ? ['  issue: bootstrap cleanup belongs outside Agent'] : []),
         ].join('\n'));
         return;
       }
@@ -132,7 +132,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           `  degraded: ${snapshot.degradedConnections}`,
           ...(issues.length > 0 ? issues.map((issue) => `  issue: ${issue}`) : ['  no active remote recovery issues detected']),
           '  next: /delegate <build/fix/review task> for explicit TUI build work',
-          '  next: use the external runtime host for remote worker repair',
+          '  next: repair remote worker state outside Agent',
         ].join('\n'));
         return;
       }
@@ -226,7 +226,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /auth review');
           lines.push('  /provider');
           lines.push('  /subscription providers');
-          lines.push('  runtime auth users/bootstrap cleanup: use the runtime-owning GoodVibes TUI or host tooling');
+          lines.push('  runtime auth users/bootstrap cleanup: manage outside Agent');
           lines.push('  verify: /health auth');
         } else if (domain === 'accounts') {
           lines.push('  domain: accounts');
@@ -238,12 +238,12 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         } else if (domain === 'services') {
           lines.push('  domain: services');
           lines.push('  /health services');
-          lines.push('  runtime service repair belongs to the external GoodVibes runtime host');
+          lines.push('  runtime service repair belongs outside Agent');
           lines.push('  verify: /health services');
         } else if (domain === 'remote') {
           lines.push('  domain: remote');
           lines.push('  /delegate <build/fix/review task> for explicit TUI build work');
-          lines.push('  remote runner setup and recovery belong to the external runtime host');
+          lines.push('  remote runner setup and recovery belong outside Agent');
           lines.push('  verify: /health remote');
         } else if (domain === 'mcp') {
           lines.push('  domain: mcp');

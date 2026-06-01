@@ -47,7 +47,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   mcp: 'MCP server trust and scope review. Trust changes can expose local files, tools, databases, browsers, or remote automation depending on the server.',
   surfaces: 'Messaging and notification channel accounts such as Slack, Discord, ntfy, Telegram, chat bridges, and delivery providers.',
   release: 'Release-channel preference.',
-  danger: 'High-impact runtime switches. Agent renders host-owned switches read-only; use the owning GoodVibes runtime host to change them.',
+  danger: 'High-impact runtime switches. Agent renders runtime-owned switches read-only; change them outside Agent.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
   flags: 'Feature flags are SDK runtime gates. They are separate from normal config keys because they enable or disable staged runtime behavior.',
   network: 'Read-only view of external runtime API, inbound-event, and browser companion bind posture plus editable Agent network settings.',

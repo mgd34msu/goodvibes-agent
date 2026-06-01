@@ -1,7 +1,7 @@
 import type { ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import type { CliServiceRuntime } from '../cli/service-posture.ts';
 
-export const AGENT_EXTERNAL_DAEMON_SERVICE_MESSAGE = 'GoodVibes Agent connects to an external daemon and does not install, start, stop, restart, or uninstall daemon services. Manage daemon lifecycle from GoodVibes TUI or your daemon host tooling.';
+export const AGENT_EXTERNAL_DAEMON_SERVICE_MESSAGE = 'GoodVibes Agent connects to an external GoodVibes runtime and does not install, start, stop, restart, or uninstall it. Manage runtime lifecycle outside Agent.';
 
 export interface ServiceSettingsSyncChange {
   readonly key: ConfigKey;

@@ -5,7 +5,7 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
     id: 'agent-communication',
     title: 'Channels and notifications',
     shortLabel: 'Channels',
-    description: 'Prepare the Agent for companion pairing, messaging-channel awareness, notification delivery, and safe outbound communication while leaving runtime hosting external.',
+    description: 'Prepare the Agent for companion pairing, messaging-channel awareness, notification delivery, and safe outbound communication without changing the GoodVibes runtime connection.',
     summaryTitle: 'Communication posture',
     summaryLines: [
       'Companion chat: paired through the GoodVibes runtime',
@@ -24,7 +24,7 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-communication.channels',
         label: 'Messaging channels',
-        hint: 'Use the Channels workspace to inspect account readiness, delivery posture, and recent communication without changing runtime hosting.',
+        hint: 'Use the Channels workspace to inspect account readiness, delivery posture, and recent communication without changing connection state.',
         defaultValue: 'Inspectable',
       },
       {
@@ -50,7 +50,7 @@ export function buildToolsStep(): OnboardingWizardStepDefinition {
     id: 'agent-tools',
     title: 'Tools and MCP',
     shortLabel: 'Tools',
-    description: 'Review tool access for the Agent operator: MCP servers, browser/media helpers, safe read-only inspection, and explicit approval before side effects.',
+    description: 'Review tool access for the Agent operator: MCP connections, browser/media helpers, safe read-only inspection, and explicit approval before side effects.',
     summaryTitle: 'Tool posture',
     summaryLines: [
       'MCP and tools: inspect before use',
@@ -61,8 +61,8 @@ export function buildToolsStep(): OnboardingWizardStepDefinition {
       {
         kind: 'status',
         id: 'agent-tools.mcp',
-        label: 'MCP servers and tools',
-        hint: 'Use /mcp servers and the Agent workspace Tools area to inspect connected servers, roles, and tool readiness.',
+        label: 'MCP connections and tools',
+        hint: 'Use /mcp servers and the Agent workspace Tools area to inspect connected MCP endpoints, roles, and tool readiness.',
         defaultValue: 'Inspectable',
       },
       {

@@ -267,7 +267,7 @@ function describeOperatorTerminal(snapshot: OnboardingSnapshotState): string {
     return 'Use GoodVibes Agent as the terminal operator while connecting to the existing GoodVibes runtime. Agent setup does not create new entrypoints.';
   }
 
-  return 'Use GoodVibes Agent as the terminal operator; runtime host settings are shown only so the connection is understandable.';
+  return 'Use GoodVibes Agent as the terminal operator; connection settings are shown only so setup is understandable.';
 }
 
 function describeProviderAccess(snapshot: OnboardingSnapshotState): string {
