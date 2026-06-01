@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.92 - 2026-06-01
+
+- f52b62e Fix copied CLI executable guidance
+
 ## 0.1.91 - 2026-06-01
 
 - efbb82a Expand Agent Knowledge CLI management
