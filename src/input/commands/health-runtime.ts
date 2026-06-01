@@ -317,7 +317,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         `  settings conflicts: ${settingsSnapshot.conflicts.length}`,
         `  managed locks: ${settingsSnapshot.managedLockCount}`,
         `  local auth users: ${readModels.localAuth.getSnapshot().userCount}`,
-        `  remote runners: ${snapshot.remoteRunnerCount}`,
+        `  remote workers: ${snapshot.remoteRunnerCount}`,
         ...formatSessionMaintenanceLines(maintenance, 'guided').map((line) => `  ${line}`),
         ...(snapshot.issues.length > 0 ? ['', ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`)] : []),
         ...(snapshot.serviceIssues.length > 0 ? ['', ...snapshot.serviceIssues.map((issue) => `  service: ${issue}`)] : []),

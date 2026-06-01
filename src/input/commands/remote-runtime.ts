@@ -11,11 +11,11 @@ type RemoteCancelContext = Pick<CommandContext, 'print'>;
 
 function printRemoteDelegationBoundary(ctx: Pick<CommandContext, 'print'>, requestedAction: string): void {
   ctx.print([
-    'GoodVibes Agent does not dispatch remote/local coding runners from this surface.',
+    'GoodVibes Agent does not dispatch remote/local coding workers from this surface.',
     `  requested: ${requestedAction}`,
     '  policy: keep ordinary work serial in the main assistant conversation',
     '  build/fix/review: delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract',
-    '  preserve: full original user ask and executionIntent; let TUI own runner/WRFC topology when explicitly requested',
+    '  preserve: full original user ask and executionIntent; let TUI own execution and WRFC chain details when explicitly requested',
   ].join('\n'));
 }
 
@@ -45,8 +45,8 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'remote',
     aliases: [],
-    description: 'Inspect, dispatch, and review self-hosted remote runners and artifacts',
-    usage: '[list | show [agentId] | supervisor [runnerId] | support [runnerId] | recover [runnerId] | setup [export <path> --yes] | env [export <path> --yes] | tunnel [review|export <path> --yes] | bootstrap [export <path> --yes|inspect <path>] | session <export|inspect|import> <path> [--yes] | pool <list|show|create|assign|unassign> ... | dispatch [template] <description> | dispatch-pool <pool> [template] <description> | contract [agentId] | cancel <agentId> | export <agentId> [path] --yes | artifact list | artifact show <id> | artifact export <id> [path] --yes | review <id> | rerun-local <id> | import <path> --yes]',
+    description: 'Inspect remote workers, delegated work receipts, and review artifacts',
+    usage: '[list | show [agentId] | supervisor [workerId] | support [workerId] | recover [workerId] | setup [export <path> --yes] | env [export <path> --yes] | tunnel [review|export <path> --yes] | bootstrap [export <path> --yes|inspect <path>] | session <export|inspect|import> <path> [--yes] | pool <list|show> ... | dispatch [template] <description> | dispatch-pool <pool> [template] <description> | contract [agentId] | cancel <agentId> | export <agentId> [path] --yes | artifact list | artifact show <id> | artifact export <id> [path] --yes | review <id> | rerun-local <id> | import <path> --yes]',
     async handler(args, ctx) {
       if (args.length === 0) {
         if (ctx.openRemotePanel) {
@@ -85,8 +85,8 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
         const lines = [
           'Remote Control Surface',
           `  active connections: ${activeConnections.length}`,
-          `  runner contracts: ${contracts.length}`,
-          `  runner pools: ${pools.length}`,
+          `  worker contracts: ${contracts.length}`,
+          `  worker pools: ${pools.length}`,
           `  review artifacts: ${artifacts.length}`,
           `  supervisor sessions: ${supervisor.sessions.length}`,
           `  degraded sessions: ${supervisor.degradedConnections}`,
@@ -131,7 +131,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           `  messageCount: ${selected.messageCount}`,
           `  errorCount: ${selected.errorCount}`,
           ...(selected.lastError ? [`  lastError: ${selected.lastError}`] : []),
-          '  runner support:',
+          '  worker support:',
           ...selected.capabilities.map((capability) => `    ${capability.id}: ${capability.supported ? 'yes' : 'no'} (${capability.detail})`),
           '  recovery:',
           ...selected.recovery.map((action) => `    ${action.command} — ${action.reason}`),
@@ -146,7 +146,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           ? snapshot.sessions.find((entry) => entry.runnerId === runnerId)
           : snapshot.sessions[0];
         if (!selected) {
-          ctx.print(runnerId ? `Unknown remote runner: ${runnerId}` : 'No remote supervisor sessions are currently tracked.');
+          ctx.print(runnerId ? `Unknown remote worker: ${runnerId}` : 'No remote supervisor sessions are currently tracked.');
           return;
         }
         ctx.print([
@@ -157,7 +157,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           `  reviewMode: ${selected.negotiation.reviewMode}`,
           `  communicationLane: ${selected.negotiation.communicationLane}`,
           `  trustClass: ${selected.negotiation.trustClass}`,
-          '  runner support:',
+          '  worker support:',
           ...selected.capabilities.map((capability) => (
             `    ${capability.id}: ${capability.supported ? 'supported' : 'missing'} — ${capability.detail}`
           )),
@@ -172,7 +172,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
           ? snapshot.sessions.find((entry) => entry.runnerId === runnerId)
           : snapshot.sessions.find((entry) => entry.recovery.length > 0) ?? snapshot.sessions[0];
         if (!selected) {
-          ctx.print(runnerId ? `Unknown remote runner: ${runnerId}` : 'No remote supervisor sessions are currently tracked.');
+          ctx.print(runnerId ? `Unknown remote worker: ${runnerId}` : 'No remote supervisor sessions are currently tracked.');
           return;
         }
         const nextSteps = selected.recovery.length > 0
@@ -254,7 +254,7 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
         }
         const pool = remoteRunners.getPool(poolId);
         if (!pool) {
-          ctx.print(`Unknown remote runner pool: ${poolId}`);
+          ctx.print(`Unknown remote worker pool: ${poolId}`);
           return;
         }
         let template = pool.preferredTemplate ?? 'general';
@@ -275,16 +275,16 @@ export function registerRemoteRuntimeCommands(registry: CommandRegistry): void {
       if (subcommand === 'contract') {
         const agentId = args[1] ?? activeConnections[0]?.agentId;
         if (!agentId) {
-          ctx.print('No remote runner contracts are available yet.');
+          ctx.print('No remote worker contracts are available yet.');
           return;
         }
         const contract = remoteRunners.upsertContractForAgent(agentId);
         if (!contract) {
-          ctx.print(`Unknown remote runner: ${agentId}`);
+          ctx.print(`Unknown remote worker: ${agentId}`);
           return;
         }
         ctx.print([
-          `Remote runner contract ${contract.id}`,
+          `Remote worker contract ${contract.id}`,
           `  runnerId: ${contract.runnerId}`,
           `  label: ${contract.label}`,
           `  pool: ${contract.poolId ?? '(none)'}`,

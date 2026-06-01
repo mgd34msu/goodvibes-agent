@@ -30,7 +30,7 @@ Remote-node and peer capability is runtime-owned. In Agent, remote commands are 
 - checking routes and peer readiness;
 - delegating explicit build/fix/review work to GoodVibes TUI when a remote runtime is actually needed.
 
-Agent should not start remote runners, manage peer lifecycle, or fan out hidden local agents from the main conversation.
+Agent should not start remote workers, manage peer lifecycle, or fan out hidden local agents from the main conversation.
 
 ## Public API Use
 

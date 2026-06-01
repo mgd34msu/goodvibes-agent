@@ -131,14 +131,14 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
   });
   registry.register({
     name: 'bridge',
-    description: 'Review and operate self-hosted bridge and remote runner flows',
+    description: 'Review self-hosted bridge and remote worker flows',
     usage: '[status|pools|assign <pool> <runner> --yes|runner <id>|review <artifactId>|export <artifactId> [path] --yes|import <path> --yes]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       if (!ctx.ops.remoteRuntime) {
-        ctx.print('Remote runner registry is not available in this runtime.');
+        ctx.print('Remote worker registry is not available in this runtime.');
         return;
       }
       const remoteRegistry = ctx.ops.remoteRuntime;
@@ -148,7 +148,7 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
         ctx.print([
           'Bridge Status',
           `  remote pools: ${remote.pools.length}`,
-          `  runner contracts: ${remote.contracts.length}`,
+          `  worker contracts: ${remote.contracts.length}`,
           `  review artifacts: ${remote.artifacts.length}`,
         ].join('\n'));
         return;
@@ -157,7 +157,7 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
         const pools = remoteRegistry.listPools();
         ctx.print(pools.length > 0
           ? ['Bridge Pools', ...pools.map((pool) => `  ${pool.id}  runners=${pool.runnerIds.length}  trust=${pool.trustClass}`)].join('\n')
-          : 'Bridge Pools\n  No runner pools registered yet.');
+          : 'Bridge Pools\n  No worker pools registered yet.');
         return;
       }
       if (sub === 'assign') {

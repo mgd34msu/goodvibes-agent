@@ -42,6 +42,20 @@ describe('renderOnboardingWizard', () => {
     expect(text).not.toContain('External network setup');
   });
 
+  test('keeps first-run setup focused on Agent features instead of runner internals', () => {
+    const wizard = new OnboardingWizardController();
+    wizard.open('new');
+    wizard.setStep(wizard.steps.findIndex((step) => step.id === 'agent-voice-media'));
+
+    const text = linesToText(renderOnboardingWizard(wizard, 188, 42)).join('\n');
+
+    expect(text).toContain('Voice and media');
+    expect(text).toContain('Image and audio input');
+    expect(text).not.toContain('Node and device posture');
+    expect(text).not.toContain('remote runner');
+    expect(text).not.toContain('background service processes');
+  });
+
   test('shows scroll affordances for the field body when the current step exceeds the visible window', () => {
     const wizard = new OnboardingWizardController();
     wizard.open();

@@ -809,19 +809,21 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/schedule reconcile');
   });
 
-  test('blocks copied TUI-only blocked commands inside the workspace', () => {
+  test('keeps copied runner controls out of the build delegation workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'remote-policy');
 
-    workspace.activateSelected();
+    const actionText = workspace.actions
+      .map((action) => `${action.id} ${action.label} ${action.detail} ${action.command ?? ''}`)
+      .join('\n');
 
     expect(dispatched).toEqual([]);
-    expect(workspace.status).toContain('Blocked here');
-    expect(workspace.lastActionResult?.kind).toBe('blocked');
-    expect(workspace.lastActionResult?.command).toBe('/remote dispatch');
+    expect(actionText).toContain('delegation-status');
+    expect(actionText).toContain('/delegate status');
+    expect(actionText).not.toContain('remote runner');
+    expect(actionText).not.toContain('/remote dispatch');
   });
 
   test('does not dispatch template delegation commands from the workspace', () => {

@@ -57,7 +57,7 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
           `  mcp servers known: ${snapshot.mcpServerCount}`,
           `  mcp quarantined: ${snapshot.quarantinedMcpCount}`,
           `  mcp elevated: ${snapshot.elevatedMcpCount}`,
-          `  remote runners: ${snapshot.remoteRunnerCount}`,
+          `  remote workers: ${snapshot.remoteRunnerCount}`,
           '',
           `  service ids: ${snapshot.services.join(', ') || '(none)'}`,
           `  plugin dirs: ${snapshot.pluginDirectories.join(', ') || '(none)'}`,
@@ -111,7 +111,7 @@ export function registerLocalSetupCommands(registry: CommandRegistry): void {
         const runners = ctx.ops.remoteRuntime?.listContracts() ?? [];
         ctx.print([
           'Startup Remote',
-          `  runner contracts: ${snapshot.remoteRunnerCount}`,
+          `  worker contracts: ${snapshot.remoteRunnerCount}`,
           ...runners.map((runner) => `  ${runner.id}  [${runner.trustClass}]  ${runner.label}`),
         ].join('\n'));
         return;

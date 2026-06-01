@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.66 - 2026-05-31
+
+- Removed remote-runner and node/device posture wording from first-run Agent setup surfaces.
+- Replaced the blocked remote-runner workspace action with a read-only build-delegation status action.
+- Added onboarding/workspace regressions to keep visible setup focused on Agent features instead of copied runner internals.
+
 ## 0.1.65 - 2026-05-31
 
 - Made the operator workspace more product-facing by replacing foundation/setup jargon with Agent profile, runtime status, voice/media, and browser-tool language.

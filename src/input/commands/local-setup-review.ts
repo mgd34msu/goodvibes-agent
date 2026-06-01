@@ -89,7 +89,7 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
     {
       severity: remoteRunnerCount > 0 ? 'pass' : 'warn',
       area: 'remote',
-      message: remoteRunnerCount > 0 ? `${remoteRunnerCount} remote runner contract(s)` : 'no remote runner contracts registered',
+      message: remoteRunnerCount > 0 ? `${remoteRunnerCount} remote worker contract(s)` : 'no remote worker contracts registered',
     },
   ];
 

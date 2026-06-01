@@ -323,14 +323,14 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'remote-policy');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegation-status');
     workspace.activateSelected();
 
     const output = text(renderAgentWorkspace(workspace, 132, 34));
 
     expect(output).toContain('Action Result');
-    expect(output).toContain('Remote runner policy is blocked in Agent');
-    expect(output).toContain('/remote dispatch');
+    expect(output).toContain('Opening Delegation status');
+    expect(output).toContain('/delegate status');
     expect(output).toContain('R refresh');
   });
 });

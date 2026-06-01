@@ -145,14 +145,14 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
   });
 
   registry.register({
-    name: 'runner-pool',
+    name: 'worker-pool',
     aliases: ['pool'],
-    description: 'Dedicated front-door for remote runner pool review and assignment flows',
+    description: 'Dedicated front-door for remote worker pool review flows',
     usage: '[list|show <id>|create <id> <label...>|assign <pool> <runner>|unassign <pool> <runner>]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'list').toLowerCase();
       if (!ctx.executeCommand) {
-        ctx.print('Runner pool controls are not available in this runtime.');
+        ctx.print('Remote worker pool controls are not available in this runtime.');
         return;
       }
       if (sub === 'list') {
@@ -171,7 +171,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         await ctx.executeCommand('remote', ['pool', sub, args[1], args[2]]);
         return;
       }
-      ctx.print('Usage: /runner-pool [list|show <id>|create <id> <label...>|assign <pool> <runner>|unassign <pool> <runner>]');
+      ctx.print('Usage: /worker-pool [list|show <id>]');
     },
   });
 

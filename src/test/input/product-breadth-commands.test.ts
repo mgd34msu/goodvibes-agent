@@ -792,14 +792,14 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Tools are available for the main Agent conversation');
   });
 
-  test('experience commands expose remote setup/env, tunnel/bootstrap, runner pools, approval workspace, memory review, and voice review', async () => {
+  test('experience commands expose remote setup/env, tunnel/bootstrap, worker pools, approval workspace, memory review, and voice review', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const remoteSetup = registry.get('remote-setup');
     const remoteEnv = registry.get('remote-env');
     const tunnel = registry.get('tunnel');
     const bootstrap = registry.get('bootstrap');
-    const runnerPool = registry.get('runner-pool');
+    const workerPool = registry.get('worker-pool');
     const memoryReview = registry.get('memory-review');
     const approval = registry.get('approval');
     const voice = registry.get('voice');
@@ -807,7 +807,7 @@ describe('product breadth commands', () => {
     expect(remoteEnv).toBeDefined();
     expect(tunnel).toBeDefined();
     expect(bootstrap).toBeDefined();
-    expect(runnerPool).toBeDefined();
+    expect(workerPool).toBeDefined();
     expect(memoryReview).toBeDefined();
     expect(approval).toBeDefined();
     expect(voice).toBeDefined();
@@ -873,8 +873,8 @@ describe('product breadth commands', () => {
     expect(out.join('\n')).toContain('Exported remote bootstrap bundle');
 
     out.length = 0;
-    await runnerPool!.handler(['list'], ctx);
-    expect(out.join('\n')).toContain('No remote runner pools defined yet.');
+    await workerPool!.handler(['list'], ctx);
+    expect(out.join('\n')).toContain('No remote worker pools defined yet.');
 
     out.length = 0;
     await memoryReview!.handler(['queue', '5'], ctx);

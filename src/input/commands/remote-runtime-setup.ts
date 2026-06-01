@@ -45,7 +45,7 @@ export async function handleRemoteSetupCommand(
       `  acp agent command: ${command.join(' ')}`,
       `  runtime host enabled: ${danger.daemon ? 'yes' : 'no'}`,
       `  inbound listener enabled: ${danger.httpListener ? 'yes' : 'no'}`,
-      `  remote runner contracts: ${remoteRegistry.listContracts().length}`,
+      `  remote worker contracts: ${remoteRegistry.listContracts().length}`,
       `  active acp connections: ${activeConnections.length}`,
       '',
       '  guidance:',

@@ -56,7 +56,7 @@ export function inspectSetupTransferBundle(bundle: SetupTransferBundle): string 
     `  services: ${bundle.startupReview.serviceCount}`,
     `  plugins: ${bundle.startupReview.pluginCount}`,
     `  skills: ${bundle.startupReview.skillCount}`,
-    `  remote runners: ${bundle.startupReview.remoteRunnerCount}`,
+    `  remote workers: ${bundle.startupReview.remoteRunnerCount}`,
     `  config keys: ${Object.keys(bundle.config ?? {}).length}`,
     `  curated plugins: ${ecosystemPluginCount}`,
     `  curated skills: ${ecosystemSkillCount}`,

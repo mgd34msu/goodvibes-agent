@@ -315,7 +315,7 @@ describe('remote command', () => {
 
     await remote!.handler(['dispatch', 'researcher', 'Inspect', 'deployment', 'logs'], ctx);
     expect(spawn).toHaveBeenCalledTimes(0);
-    expect(out.join('\n')).toContain('does not dispatch remote/local coding runners');
+    expect(out.join('\n')).toContain('does not dispatch remote/local coding workers');
     expect(out.join('\n')).toContain('delegate one request to GoodVibes TUI');
 
     store.setState((state) => ({
@@ -365,7 +365,7 @@ describe('remote command', () => {
 
     out.length = 0;
     await remote!.handler(['rerun-local', artifactId!], ctx);
-    expect(out.join('\n')).toContain('does not dispatch remote/local coding runners');
+    expect(out.join('\n')).toContain('does not dispatch remote/local coding workers');
     expect(out.join('\n')).toContain(`/remote rerun-local ${artifactId}`);
   });
 
@@ -464,7 +464,7 @@ describe('remote command', () => {
     expect(out.join('\n')).toContain('Imported remote session bundle');
   });
 
-  test('manages remote runner pools and pool-aware dispatch from the command surface', async () => {
+  test('keeps remote worker pool mutation blocked and dispatch explicit', async () => {
     resetTestRuntimeServices();
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
@@ -472,7 +472,7 @@ describe('remote command', () => {
     expect(remote).toBeDefined();
 
     const store = createRuntimeStore();
-    const spawn = mock(async () => 'remote-runner-pool-1');
+    const spawn = mock(async () => 'remote-worker-pool-1');
     const out: string[] = [];
     const ctx = createRemoteCommandContext(store, out, {
       platform: {
@@ -498,22 +498,21 @@ describe('remote command', () => {
     });
 
     await remote!.handler(['pool', 'create', 'ops', 'Ops Pool'], ctx);
-    expect(out.join('\n')).toContain('Created remote runner pool ops');
+    expect(out.join('\n')).toContain('Remote worker pool mutation is blocked in GoodVibes Agent.');
 
     out.length = 0;
-    await remote!.handler(['dispatch-pool', 'ops', 'engineer', 'Triage', 'incident'], ctx);
+    await remote!.handler(['dispatch', 'engineer', 'Triage', 'incident'], ctx);
     expect(spawn).toHaveBeenCalledTimes(0);
-    expect(out.join('\n')).toContain('does not dispatch remote/local coding runners');
-    expect(out.join('\n')).toContain('/remote dispatch-pool ops engineer Triage incident');
+    expect(out.join('\n')).toContain('does not dispatch remote/local coding workers');
+    expect(out.join('\n')).toContain('/remote dispatch engineer Triage incident');
 
     out.length = 0;
     await remote!.handler(['pool', 'show', 'ops'], ctx);
-    expect(out.join('\n')).toContain('Remote Runner Pool ops');
-    expect(out.join('\n')).toContain('runners: (none)');
+    expect(out.join('\n')).toContain('Unknown remote worker pool: ops');
 
     out.length = 0;
     await remote!.handler(['list'], ctx);
-    expect(out.join('\n')).toContain('runner pools: 1');
+    expect(out.join('\n')).toContain('worker pools: 0');
   });
 
   test('teleport command exports, inspects, and imports portable remote-session bundles', async () => {

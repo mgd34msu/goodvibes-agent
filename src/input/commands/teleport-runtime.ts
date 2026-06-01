@@ -35,7 +35,7 @@ export function registerTeleportRuntimeCommands(registry: CommandRegistry): void
       try {
         peerClient = requirePeerClient(ctx);
       } catch {
-        ctx.print('Remote runner registry is not available in this runtime.');
+        ctx.print('Remote worker registry is not available in this runtime.');
         return;
       }
       const targetPath = shellPaths.resolveWorkspacePath(pathArg);

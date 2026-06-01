@@ -65,7 +65,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'knowledge-search', label: 'Search Agent knowledge', detail: 'Search the isolated Agent Knowledge index. Close this workspace and provide an actual query.', command: '/knowledge search <query>', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-ingest-url', label: 'Ingest URL', detail: 'Ingest a URL into Agent Knowledge only. Requires an explicit --yes command with a real URL.', command: '/knowledge ingest-url <url> --yes', kind: 'command', safety: 'safe' },
       { id: 'knowledge-import-bookmarks', label: 'Import bookmarks', detail: 'Import a browser bookmark export into Agent Knowledge only. Requires an explicit --yes command with a real path.', command: '/knowledge import-bookmarks <path> --yes', kind: 'command', safety: 'safe' },
-      { id: 'knowledge-review-queue', label: 'Review queue', detail: 'Inspect source/node/issue review work before accepting, rejecting, or resolving anything.', command: '/knowledge queue', kind: 'command', safety: 'read-only' },
+      { id: 'knowledge-review-queue', label: 'Review queue', detail: 'Inspect source, item, and issue review work before accepting, rejecting, or resolving anything.', command: '/knowledge queue', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-consolidation', label: 'Consolidation review', detail: 'Inspect consolidation candidates and reports before running Agent Knowledge mutations.', command: '/knowledge candidates', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-ask', label: 'Ask Agent knowledge', detail: 'Close this workspace and run /knowledge ask <question> or ask normally in chat.', kind: 'guidance', safety: 'read-only' },
     ],
@@ -81,7 +81,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'tts-provider', label: 'Choose TTS provider', detail: 'Open provider/model routing for spoken responses through the settings flow.', command: '/config tts.provider', kind: 'command', safety: 'safe' },
       { id: 'tts-speak', label: 'Speak a prompt', detail: 'Submit a normal assistant turn and play the reply through configured live TTS. Close this workspace and provide real prompt text.', command: '/tts <prompt>', kind: 'command', safety: 'safe' },
       { id: 'image-attach', label: 'Attach image input', detail: 'Attach an image to the next assistant turn. Close this workspace and provide a real path and prompt.', command: '/image <path> <prompt>', kind: 'command', safety: 'safe' },
-      { id: 'browser-surface', label: 'Browser tools', detail: 'Inspect browser/tool readiness without starting inbound endpoints or runtime services.', command: '/setup services', kind: 'command', safety: 'read-only' },
+      { id: 'browser-tools', label: 'Browser tools', detail: 'Inspect browser/tool readiness without starting inbound endpoints or runtime services.', command: '/setup services', kind: 'command', safety: 'read-only' },
       { id: 'mcp-browser', label: 'Browser MCP tools', detail: 'Inspect MCP servers and tools, including browser/automation roles, without mutating server setup.', command: '/mcp servers', kind: 'command', safety: 'read-only' },
     ],
   },
@@ -212,7 +212,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'delegate-guidance', label: 'Delegation rule', detail: 'For build/fix/review work, delegate one request to GoodVibes TUI instead of spawning local Engineer/Reviewer/Tester roots.', kind: 'guidance', safety: 'delegates' },
       { id: 'review-command', label: 'Review delegation command', detail: 'Use /delegate --wrfc <task> only when the user explicitly asks for code review/build execution. Close this workspace and include the actual task text.', kind: 'guidance', safety: 'delegates' },
-      { id: 'remote-policy', label: 'Remote runner policy', detail: 'Remote dispatch/rerun is blocked in Agent; TUI owns runner topology for delegated build work.', command: '/remote dispatch', kind: 'command', safety: 'blocked' },
+      { id: 'delegation-status', label: 'Delegation status', detail: 'Inspect build-delegation receipts and shared-session status without starting coding work.', command: '/delegate status', kind: 'command', safety: 'read-only' },
     ],
   },
 ];

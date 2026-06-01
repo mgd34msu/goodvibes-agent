@@ -497,13 +497,6 @@ export function buildVoiceMediaStep(): OnboardingWizardStepDefinition {
         hint: 'Media output uses configured providers and visible command/turn flow; external publication still requires explicit approval.',
         defaultValue: 'Policy gated',
       },
-      {
-        kind: 'status',
-        id: 'agent-voice-media.nodes',
-        label: 'Node and device posture',
-        hint: 'Remote devices and nodes are inspected only when useful. Agent onboarding does not launch runners or background service processes.',
-        defaultValue: 'External',
-      },
     ],
   };
 }

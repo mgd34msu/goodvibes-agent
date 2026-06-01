@@ -196,7 +196,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `TTS config: provider ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}; response model ${snapshot.ttsResponseModel}.`, fg: PALETTE.info },
       { text: `Media providers: ${snapshot.mediaProviderCount}; understanding: ${snapshot.mediaUnderstandingProviderCount}; generation: ${snapshot.mediaGenerationProviderCount}.`, fg: PALETTE.info },
       { text: `Browser tools: ${snapshot.browserSurfaceEnabled ? 'available' : 'not advertised'}; public base URL ${snapshot.browserSurfacePublicBaseUrl}.`, fg: snapshot.browserSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
-      { text: 'Remote runner posture is hidden from this setup surface; build dispatch remains explicit delegation.', fg: PALETTE.good },
+      { text: 'Build dispatch stays out of setup; explicit delegation is handled from the Build Delegation workspace.', fg: PALETTE.good },
       { text: 'Image input uses prompt attachments; media generation/provider setup stays behind explicit commands and configured providers.', fg: PALETTE.muted },
     );
   } else if (category.id === 'profiles') {
