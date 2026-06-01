@@ -11,6 +11,7 @@ import {
   applyRuntimeConfigOverrides,
   applyRuntimeConfigValue,
   applyRuntimeFeatureFlagOverrides,
+  applyRuntimeUrlOverride,
   buildCliStatusSnapshot,
   handleGoodVibesCliCommand,
   parseGoodVibesCli,
@@ -30,6 +31,14 @@ type ShellEntrypointOwnership = {
   readonly workingDirectory: string;
   readonly homeDirectory: string;
 };
+
+function readEnvRuntimeUrl(): { readonly source: string; readonly value: string } | null {
+  const runtimeUrl = process.env['GOODVIBES_AGENT_RUNTIME_URL'];
+  if (runtimeUrl !== undefined) return { source: 'GOODVIBES_AGENT_RUNTIME_URL', value: runtimeUrl };
+  const legacyBaseUrl = process.env['GOODVIBES_AGENT_BASE_URL'];
+  if (legacyBaseUrl !== undefined) return { source: 'GOODVIBES_AGENT_BASE_URL', value: legacyBaseUrl };
+  return null;
+}
 
 export type ShellEntrypointRoots = {
   readonly defaultWorkingDirectory: string;
@@ -112,6 +121,15 @@ export async function prepareShellCliRuntime(
   });
   new GlobalNetworkTransportInstaller().install(configManager);
 
+  const envRuntimeUrl = readEnvRuntimeUrl();
+  const envRuntimeUrlErrors = envRuntimeUrl
+    ? applyRuntimeUrlOverride(configManager, envRuntimeUrl.value, envRuntimeUrl.source)
+    : [];
+  if (envRuntimeUrlErrors.length > 0) {
+    console.error(envRuntimeUrlErrors.join('\n'));
+    process.exit(2);
+  }
+
   const overrideErrors = applyRuntimeConfigOverrides(configManager, cli.flags.configOverrides);
   if (overrideErrors.length > 0) {
     console.error(overrideErrors.join('\n'));
@@ -127,6 +145,13 @@ export async function prepareShellCliRuntime(
     const provider = cli.flags.provider ?? getProviderIdFromModel(currentModel);
     const model = cli.flags.model ?? getModelIdFromProviderModel(currentModel);
     applyRuntimeConfigValue(configManager, 'provider.model', formatProviderModel(provider, model));
+  }
+  if (cli.flags.runtimeUrl !== undefined) {
+    const runtimeUrlErrors = applyRuntimeUrlOverride(configManager, cli.flags.runtimeUrl);
+    if (runtimeUrlErrors.length > 0) {
+      console.error(runtimeUrlErrors.join('\n'));
+      process.exit(2);
+    }
   }
   const endpointOverrideErrors = applyRuntimeCommandEndpointFlagOverrides(configManager, cli.command, cli.flags);
   if (endpointOverrideErrors.length > 0) {

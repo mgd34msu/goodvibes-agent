@@ -24,6 +24,20 @@ http://127.0.0.1:3421
 /api/goodvibes-agent/knowledge/search
 ```
 
+If the runtime API is on a different host or port, use a one-off override:
+
+```sh
+goodvibes-agent --runtime-url http://127.0.0.1:3421 status
+```
+
+For a persistent shell/session override, set:
+
+```sh
+export GOODVIBES_AGENT_RUNTIME_URL=http://127.0.0.1:3421
+```
+
+`GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias. These values only select the external runtime API root; they do not enable runtime hosting inside Agent.
+
 If the runtime is unavailable, unauthenticated, or on an incompatible SDK version, Agent commands report actionable diagnostics without printing token values.
 
 ## Product Boundary

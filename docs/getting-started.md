@@ -97,6 +97,8 @@ Start the runtime from GoodVibes TUI or the owning host before using runtime-bac
 - `/api/goodvibes-agent/knowledge/search`
 - `/api/goodvibes-agent/knowledge/ingest/url`
 
+If the runtime API is not on `http://127.0.0.1:3421`, use `goodvibes-agent --runtime-url http://host:port status` for a one-off check or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` before launching the TUI.
+
 Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not fall back to default Knowledge/Wiki or other product-specific knowledge spaces.
 
 Runtime-hosting commands are not part of GoodVibes Agent. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and the Agent TUI status views for diagnostics.

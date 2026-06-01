@@ -6,6 +6,7 @@ export {
   applyRuntimeCommandEndpointFlagOverrides,
   applyRuntimeEndpointFlagOverrides,
   applyRuntimeFeatureFlagOverrides,
+  applyRuntimeUrlOverride,
   handleGoodVibesCliCommand,
   parseGoodVibesCli,
   renderGoodVibesCommandHelp,

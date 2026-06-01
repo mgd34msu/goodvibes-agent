@@ -8,6 +8,7 @@ import {
   applyRuntimeConfigValue,
   applyRuntimeCommandEndpointFlagOverrides,
   applyRuntimeFeatureFlagOverrides,
+  applyRuntimeUrlOverride,
   handleGoodVibesCliCommand,
   parseCliFlags,
   parseGoodVibesCli,
@@ -50,6 +51,14 @@ describe('parseCliFlags', () => {
   test('parses --agent-profile=<name>', () => {
     const flags = parseCliFlags(['--agent-profile=household']);
     expect(flags.agentProfile).toBe('household');
+  });
+
+  test('parses --runtime-url for external runtime connection overrides', () => {
+    const flags = parseCliFlags(['--runtime-url=http://127.0.0.1:4521']);
+    expect(flags.runtimeUrl).toBe('http://127.0.0.1:4521');
+
+    const alias = parseCliFlags(['--runtime', '127.0.0.1:4522']);
+    expect(alias.runtimeUrl).toBe('127.0.0.1:4522');
   });
 
   test('parses both --daemon-home and --working-dir together', () => {
@@ -313,6 +322,43 @@ describe('parseCliFlags', () => {
     expect(reloaded.get('behavior.autoApprove')).toBe(false);
     expect(reloaded.get('provider.model')).not.toBe('openai:gpt-5.2');
     expect(reloaded.getCategory('featureFlags')).toEqual({});
+  });
+
+  test('applies runtime URL overrides to external runtime host and port without persisting settings', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-runtime-url-'));
+    const configDir = join(root, '.goodvibes', 'agent');
+    const configManager = new ConfigManager({ surfaceRoot: 'agent', configDir, workingDir: root });
+
+    const errors = applyRuntimeUrlOverride(configManager, 'runtime.example.test:4521');
+
+    expect(errors).toEqual([]);
+    expect(configManager.get('controlPlane.hostMode')).toBe('custom');
+    expect(configManager.get('controlPlane.host')).toBe('runtime.example.test');
+    expect(configManager.get('controlPlane.port')).toBe(4521);
+    expect(existsSync(join(configDir, 'settings.json'))).toBe(false);
+
+    const reloaded = new ConfigManager({ surfaceRoot: 'agent', configDir, workingDir: root });
+    expect(reloaded.get('controlPlane.host')).toBe('127.0.0.1');
+    expect(reloaded.get('controlPlane.port')).toBe(3421);
+  });
+
+  test('rejects invalid runtime URL overrides before changing config', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-runtime-url-invalid-'));
+    const configManager = new ConfigManager({
+      surfaceRoot: 'agent',
+      configDir: join(root, '.goodvibes', 'agent'),
+      workingDir: root,
+    });
+
+    const unsupportedProtocol = applyRuntimeUrlOverride(configManager, 'https://runtime.example.test:4521');
+    const pathScoped = applyRuntimeUrlOverride(configManager, 'http://runtime.example.test:4521/api');
+    const badPort = applyRuntimeUrlOverride(configManager, 'http://runtime.example.test:99999');
+
+    expect(unsupportedProtocol[0]).toContain('must use http://');
+    expect(pathScoped[0]).toContain('runtime root');
+    expect(badPort[0]).toContain('valid http://host:port URL');
+    expect(configManager.get('controlPlane.host')).toBe('127.0.0.1');
+    expect(configManager.get('controlPlane.port')).toBe(3421);
   });
 
   test('does not apply endpoint flags for removed lifecycle CLI words', () => {

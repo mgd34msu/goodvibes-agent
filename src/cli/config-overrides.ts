@@ -21,6 +21,38 @@ function parseConfigOverrideValue(value: string): unknown {
   }
 }
 
+function parseRuntimeUrl(rawValue: string, source: string): { readonly host: string; readonly port: number } {
+  const trimmed = rawValue.trim();
+  if (trimmed.length === 0) {
+    throw new ConfigError(`${source} requires a non-empty http://host:port value.`);
+  }
+
+  const value = /^[a-z][a-z\d+.-]*:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new ConfigError(`${source} must be a valid http://host:port URL.`);
+  }
+
+  if (url.protocol !== 'http:') {
+    throw new ConfigError(`${source} must use http:// because Agent connects to the local GoodVibes runtime API.`);
+  }
+  if (!url.hostname) {
+    throw new ConfigError(`${source} must include a hostname.`);
+  }
+  if ((url.pathname && url.pathname !== '/') || url.search || url.hash) {
+    throw new ConfigError(`${source} must point at the runtime root, not a path, query, or hash.`);
+  }
+
+  const port = url.port ? Number.parseInt(url.port, 10) : 3421;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new ConfigError(`${source} port must be from 1 to 65535.`);
+  }
+
+  return { host: url.hostname, port };
+}
+
 function getRuntimeConfig(configManager: ConfigManager): GoodVibesConfig {
   const mutable = configManager as unknown as { config?: GoodVibesConfig };
   if (!mutable.config || typeof mutable.config !== 'object') {
@@ -91,6 +123,22 @@ export function applyRuntimeConfigOverrides(
     }
   }
   return errors;
+}
+
+export function applyRuntimeUrlOverride(
+  configManager: ConfigManager,
+  rawValue: string,
+  source = '--runtime-url',
+): readonly string[] {
+  try {
+    const parsed = parseRuntimeUrl(rawValue, source);
+    applyRuntimeConfigValue(configManager, 'controlPlane.hostMode', hostModeForHostname(parsed.host));
+    applyRuntimeConfigValue(configManager, 'controlPlane.host', parsed.host);
+    applyRuntimeConfigValue(configManager, 'controlPlane.port', parsed.port);
+    return [];
+  } catch (error) {
+    return [error instanceof Error ? error.message : `Invalid ${source}`];
+  }
 }
 
 export function applyRuntimeFeatureFlagOverrides(

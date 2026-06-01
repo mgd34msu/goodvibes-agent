@@ -89,6 +89,8 @@ Starting a routine records local usage and prints its steps; it does not spawn b
 
 Start or restart the GoodVibes runtime from GoodVibes TUI or the owning host before launching Agent. Agent status and companion/knowledge routes connect to that external runtime, normally on `http://127.0.0.1:3421`.
 
+Use `--runtime-url http://host:port` for a one-off launch, or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` when the runtime API is not on the default local port. The legacy `GOODVIBES_AGENT_BASE_URL` env var is also accepted as an alias. These only change the external runtime connection target; Agent still does not host or start the runtime.
+
 Agent reports unavailable, unauthenticated, or incompatible runtime state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. It does not provide runtime hosting commands.
 
 ## Product Boundary

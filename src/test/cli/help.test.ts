@@ -25,6 +25,7 @@ describe('CLI help/version', () => {
     expect(help).toContain('profiles                   Manage isolated Agent profile homes');
     expect(help).toContain('routines                   Inspect local routines and explicitly promote one to an external schedule');
     expect(help).toContain('auth                       Inspect Agent auth posture and external runtime token state');
+    expect(help).toContain('--runtime-url <url>');
     expect(help).not.toContain('capabilities               ');
     expect(help).not.toContain('auth add-user');
     expect(help).not.toContain('clear-bootstrap');
@@ -40,6 +41,10 @@ describe('CLI help/version', () => {
     expect(completion).toContain('profiles');
     expect(completion).toContain('knowledge');
     expect(completion).toContain('delegate');
+    expect(completion).toContain('--runtime-url');
+    expect(completion).not.toContain(' tasks ');
+    expect(completion).not.toContain(' remote ');
+    expect(completion).not.toContain(' bridge ');
     expect(completion).not.toContain(' serve ');
     expect(completion).not.toContain(' service ');
     expect(completion).not.toContain(' surfaces ');
