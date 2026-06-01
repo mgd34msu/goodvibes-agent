@@ -472,6 +472,11 @@ export class AgentWorkspace {
       this.status = `${missing.label} is required.`;
       return;
     }
+    if (editor.kind === 'knowledge-url') {
+      this.submitKnowledgeUrlEditor(editor);
+      requestRender?.();
+      return;
+    }
     if (editor.kind === 'memory') {
       if (editor.mode === 'delete') {
         try {
@@ -608,6 +613,64 @@ export class AgentWorkspace {
     }
   }
 
+  private submitKnowledgeUrlEditor(editor: AgentWorkspaceLocalEditor): void {
+    const url = this.editorField('url');
+    const confirm = this.editorField('confirm');
+    if (!isAffirmative(confirm)) {
+      this.localEditor = { ...editor, message: 'Type yes to confirm Agent Knowledge URL ingest.' };
+      this.status = 'Agent Knowledge ingest not confirmed.';
+      return;
+    }
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error('Agent Knowledge URL ingest requires an http(s) URL.');
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.localEditor = { ...editor, message: detail };
+      this.status = detail;
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Agent Knowledge ingest URL invalid',
+        detail,
+      };
+      return;
+    }
+    if (!this.hasCommandDispatch()) {
+      this.localEditor = { ...editor, message: 'Command dispatch is unavailable; cannot run Agent Knowledge ingest from this workspace.' };
+      this.status = 'Command dispatch unavailable.';
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Command dispatch unavailable',
+        detail: 'The Agent Knowledge ingest command cannot be opened from this runtime.',
+      };
+      return;
+    }
+    const tags = splitList(this.editorField('tags'));
+    const folder = this.editorField('folder');
+    if (/\s/.test(folder)) {
+      this.localEditor = { ...editor, message: 'Folder paths with spaces are not supported from this compact workspace form.' };
+      this.status = 'Folder path contains spaces.';
+      return;
+    }
+    const parts = ['/knowledge', 'ingest-url', url];
+    if (tags.length > 0) parts.push('--tags', tags.join(','));
+    if (folder.length > 0) parts.push('--folder', folder);
+    parts.push('--yes');
+    const command = parts.join(' ');
+    this.localEditor = null;
+    this.status = 'Opening Agent Knowledge URL ingest.';
+    this.lastActionResult = {
+      kind: 'dispatched',
+      title: 'Opening Agent Knowledge URL ingest',
+      detail: 'The workspace handed a confirmed Agent Knowledge URL ingest command to the shell-owned command router.',
+      command,
+      safety: 'safe',
+    };
+    this.dispatchWorkspaceCommand(command);
+  }
+
   private submitLocalDeleteEditor(shellPaths: ShellPathService, editor: AgentWorkspaceLocalEditor): void {
     const expectedId = editor.recordId ?? '';
     const confirmedId = this.editorField('confirm');
@@ -629,9 +692,11 @@ export class AgentWorkspace {
     } else if (editor.kind === 'skill') {
       const removed = AgentSkillRegistry.fromShellPaths(shellPaths).deleteSkill(expectedId);
       this.finishLocalDelete(editor.kind, removed.id, removed.name);
-    } else {
+    } else if (editor.kind === 'routine') {
       const removed = AgentRoutineRegistry.fromShellPaths(shellPaths).deleteRoutine(expectedId);
       this.finishLocalDelete(editor.kind, removed.id, removed.name);
+    } else {
+      throw new Error(`Unsupported delete editor kind: ${editor.kind}`);
     }
   }
 
@@ -647,7 +712,7 @@ export class AgentWorkspace {
       this.status = 'Deletion not confirmed.';
       return;
     }
-    this.finishLocalDelete(editor.kind, removed.id, removed.name);
+    this.finishLocalDelete('memory', removed.id, removed.name);
   }
 
   private async submitMemoryEditor(editor: AgentWorkspaceLocalEditor): Promise<void> {

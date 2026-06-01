@@ -909,7 +909,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.selectedCategory.detail).toContain('Default regular wiki and non-Agent knowledge segments are not');
   });
 
-  test('does not dispatch Agent Knowledge ingest templates without real target values', () => {
+  test('ingests Agent Knowledge URLs from a confirmed workspace form', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -918,9 +918,19 @@ describe('AgentWorkspace', () => {
 
     workspace.activateSelected();
 
+    expect(workspace.localEditor?.kind).toBe('knowledge-url');
     expect(dispatched).toEqual([]);
-    expect(workspace.lastActionResult?.kind).toBe('guidance');
-    expect(workspace.status).toContain('Placeholder command not dispatched');
+    feedText(workspace, 'https://example.com/agent-guide');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'docs,agent');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/knowledge ingest-url https://example.com/agent-guide --tags docs,agent --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });
 
   test('summarizes voice and media provider coverage in the runtime snapshot', () => {

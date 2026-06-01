@@ -414,13 +414,15 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-ingest-url');
 
     const output = text(renderAgentWorkspace(workspace, 132, 38));
 
     expect(output).toContain('/api/goodvibes-agent/knowledge');
     expect(output).toContain('no default Knowledge/Wiki or non-Agent fallback');
     expect(output).toContain('Ingest URL');
-    expect(output).toContain('/knowledge ingest-url <url> --yes');
+    expect(output).toContain('edit knowledge-url');
+    expect(output).toContain('in-workspace form');
     expect(output).toContain('Review queue');
     expect(output).toContain('/knowledge queue');
     expect(output).toContain('Source library');

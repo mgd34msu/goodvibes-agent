@@ -10,6 +10,8 @@ export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'e
 
 export type AgentWorkspaceLocalEditorKind = 'memory' | 'persona' | 'skill' | 'routine' | 'profile';
 
+export type AgentWorkspaceEditorKind = AgentWorkspaceLocalEditorKind | 'knowledge-url';
+
 export type AgentWorkspaceLocalOperation =
   | 'memory-edit'
   | 'memory-review'
@@ -42,7 +44,7 @@ export interface AgentWorkspaceEditorField {
 }
 
 export interface AgentWorkspaceLocalEditor {
-  readonly kind: AgentWorkspaceLocalEditorKind;
+  readonly kind: AgentWorkspaceEditorKind;
   readonly mode: 'create' | 'update' | 'delete';
   readonly recordId?: string;
   readonly title: string;
@@ -57,7 +59,7 @@ export interface AgentWorkspaceAction {
   readonly detail: string;
   readonly command?: string;
   readonly targetCategoryId?: string;
-  readonly editorKind?: AgentWorkspaceLocalEditorKind;
+  readonly editorKind?: AgentWorkspaceEditorKind;
   readonly localKind?: AgentWorkspaceLocalEditorKind;
   readonly selectionDelta?: number;
   readonly localOperation?: AgentWorkspaceLocalOperation;

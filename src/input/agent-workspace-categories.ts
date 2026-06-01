@@ -64,7 +64,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'knowledge-status', label: 'Knowledge status', detail: 'Inspect Agent knowledge readiness and counts.', command: '/knowledge status', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-search', label: 'Search Agent knowledge', detail: 'Search the isolated Agent Knowledge index. Close this workspace and provide an actual query.', command: '/knowledge search <query>', kind: 'command', safety: 'read-only' },
-      { id: 'knowledge-ingest-url', label: 'Ingest URL', detail: 'Ingest a URL into Agent Knowledge only. Requires an explicit --yes command with a real URL.', command: '/knowledge ingest-url <url> --yes', kind: 'command', safety: 'safe' },
+      { id: 'knowledge-ingest-url', label: 'Ingest URL', detail: 'Open an in-workspace form that ingests a real URL into Agent Knowledge only after typed confirmation.', editorKind: 'knowledge-url', kind: 'editor', safety: 'safe' },
       { id: 'knowledge-import-bookmarks', label: 'Import bookmarks', detail: 'Import a browser bookmark export into Agent Knowledge only. Requires an explicit --yes command with a real path.', command: '/knowledge import-bookmarks <path> --yes', kind: 'command', safety: 'safe' },
       { id: 'knowledge-review-queue', label: 'Review queue', detail: 'Inspect source, item, and issue review work before accepting, rejecting, or resolving anything.', command: '/knowledge queue', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-sources', label: 'Source library', detail: 'List source-backed records already ingested into the isolated Agent Knowledge segment.', command: '/knowledge list --kind sources', kind: 'command', safety: 'read-only' },

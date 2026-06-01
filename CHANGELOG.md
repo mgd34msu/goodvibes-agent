@@ -5,6 +5,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 ## Unreleased
 
 - Add an in-TUI `/channels` readiness command and workspace action for read-only channel setup review without sending messages or exposing token values.
+- Add a confirmed in-workspace Agent Knowledge URL ingest form that writes only through the isolated Agent Knowledge route.
 
 ## 0.1.107 - 2026-06-01
 

@@ -3,6 +3,7 @@ import type { AgentRoutineRecord } from '../agent/routine-registry.ts';
 import type { AgentSkillRecord } from '../agent/skill-registry.ts';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type {
+  AgentWorkspaceEditorKind,
   AgentWorkspaceLocalEditor,
   AgentWorkspaceLocalEditorKind,
   AgentWorkspaceLocalLibraryItem,
@@ -30,8 +31,23 @@ export function createProfileEditor(templates: readonly AgentWorkspaceRuntimeSta
   };
 }
 
-export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalEditor {
+export function createLocalEditor(kind: AgentWorkspaceEditorKind): AgentWorkspaceLocalEditor {
   if (kind === 'profile') return createProfileEditor([]);
+  if (kind === 'knowledge-url') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Ingest Agent Knowledge URL',
+      selectedFieldIndex: 0,
+      message: 'Add a source-backed URL to the isolated Agent Knowledge segment. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'url', label: 'URL', value: '', required: true, multiline: false, hint: 'HTTP or HTTPS URL to ingest into Agent Knowledge only.' },
+        { id: 'tags', label: 'Tags', value: '', required: false, multiline: false, hint: 'Comma-separated optional tags. Spaces are not needed.' },
+        { id: 'folder', label: 'Folder', value: '', required: false, multiline: false, hint: 'Optional Agent Knowledge folder path.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge ingest-url with --yes.' },
+      ],
+    };
+  }
   if (kind === 'memory') {
     return {
       kind,
