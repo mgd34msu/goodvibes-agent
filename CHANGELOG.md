@@ -5,6 +5,14 @@ All notable changes to GoodVibes Agent will be recorded here.
 ## 0.1.106 - 2026-06-01
 
 - b67a2fe Polish Agent setup entrypoint
+- Harden Bun global install with `bun add -g --trust`, zero-untrusted lifecycle verification, and packed TUI launch smoke.
+- Make Agent status and doctor output client/operator focused, including external runtime diagnostics and fail-closed isolated Agent Knowledge readiness.
+- Route `/memory` to Agent-local durable memory and move conversation-pinned compaction notes to `/session-memory`.
+- Remove copied file-edit undo/redo behavior from Agent conversation commands.
+- Remove stale hidden-share shortcut guidance and keep diff/file operations delegation-oriented.
+- Make provider onboarding generic across provider routes, subscription sessions, and credential inventory while keeping OpenAI as an optional quick-start path.
+- Remove internal audit phrase leakage from source/package-facing guards and neutralize non-Agent knowledge wording.
+- Shorten release workflow validation by relying on the single branch-CI gate run instead of duplicating release checks.
 
 ## 0.1.105 - 2026-06-01
 
