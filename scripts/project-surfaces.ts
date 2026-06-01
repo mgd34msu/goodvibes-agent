@@ -5,6 +5,15 @@ import { GatewayMethodCatalog, buildOperatorContract } from '@pellux/goodvibes-s
 import { getKnowledgeGraphqlSchemaText, renderKnowledgeSchemaSql } from '@pellux/goodvibes-sdk/platform/knowledge';
 
 const ROOT = join(import.meta.dir, '..');
+type OperatorContractArtifact = ReturnType<typeof buildOperatorContract>;
+type OperatorContractMethod = OperatorContractArtifact['operator']['methods'][number];
+
+const AGENT_EXCLUDED_OPERATOR_METHOD_PREFIXES = [
+  'homeassistant.',
+] as const;
+const AGENT_EXCLUDED_CONTRACT_VALUES = new Set<unknown>([
+  'homeassistant',
+]);
 
 function toSerializable(value: unknown, stack = new Map<object, string>(), path = '$'): unknown {
   if (!value || typeof value !== 'object') return value;
@@ -33,6 +42,64 @@ function writeJsonArtifact(outputDir: string, name: string, value: unknown): voi
 
 function writeTextArtifact(outputDir: string, name: string, value: string): void {
   writeFileSync(join(outputDir, name), value.endsWith('\n') ? value : `${value}\n`, 'utf8');
+}
+
+function hasSchema(schema: unknown): boolean {
+  return Boolean(schema && typeof schema === 'object');
+}
+
+function isAgentOperatorMethod(method: OperatorContractMethod): boolean {
+  const routePath = typeof method.http?.path === 'string' ? method.http.path : '';
+  return !AGENT_EXCLUDED_OPERATOR_METHOD_PREFIXES.some((prefix) => method.id.startsWith(prefix))
+    && !routePath.startsWith('/api/homeassistant/');
+}
+
+function stripAgentExcludedContractValues(value: unknown, seen = new WeakMap<object, unknown>()): unknown {
+  if (AGENT_EXCLUDED_CONTRACT_VALUES.has(value)) return undefined;
+  if (!value || typeof value !== 'object') return value;
+
+  const prior = seen.get(value);
+  if (prior) return prior;
+
+  if (Array.isArray(value)) {
+    const output: unknown[] = [];
+    seen.set(value, output);
+    for (const entry of value) {
+      const next = stripAgentExcludedContractValues(entry, seen);
+      if (next !== undefined) output.push(next);
+    }
+    return output;
+  }
+
+  const output: Record<string, unknown> = {};
+  seen.set(value, output);
+  for (const [key, entry] of Object.entries(value)) {
+    const next = stripAgentExcludedContractValues(entry, seen);
+    if (next !== undefined) output[key] = next;
+  }
+  return output;
+}
+
+export function buildAgentOperatorContractArtifact(catalog = new GatewayMethodCatalog()): OperatorContractArtifact {
+  const contract = buildOperatorContract(catalog);
+  const methods = contract.operator.methods.filter(isAgentOperatorMethod);
+  const typedInputs = methods.filter((method) => hasSchema(method.inputSchema)).length;
+  const typedOutputs = methods.filter((method) => hasSchema(method.outputSchema)).length;
+  return stripAgentExcludedContractValues({
+    ...contract,
+    operator: {
+      ...contract.operator,
+      methods,
+      schemaCoverage: {
+        ...contract.operator.schemaCoverage,
+        methods: methods.length,
+        typedInputs,
+        genericInputs: methods.length - typedInputs,
+        typedOutputs,
+        genericOutputs: methods.length - typedOutputs,
+      },
+    },
+  }) as OperatorContractArtifact;
 }
 
 export function syncVersionSurfaces(root = ROOT): string {
@@ -79,7 +146,7 @@ export function syncFoundationArtifacts(root = ROOT): void {
 
   mkdirSync(outputDir, { recursive: true });
 
-  const operatorContract = buildOperatorContract(new GatewayMethodCatalog());
+  const operatorContract = buildAgentOperatorContractArtifact();
   const peerContract = getPeerContract();
 
   writeJsonArtifact(outputDir, 'operator-contract.json', operatorContract);

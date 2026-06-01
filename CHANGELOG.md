@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.74 - 2026-05-31
+
+- Filtered checked-in foundation operator artifacts to Agent-relevant routes so host-specific knowledge segments are not documented in Agent artifacts.
+- Added a release regression that rejects excluded host-specific route IDs, paths, descriptions, and enum values from Agent operator artifacts.
+- Updated foundation artifact wording to describe the Agent-filtered contract instead of a full host contract dump.
+
 ## 0.1.73 - 2026-05-31
 
 - Replaced copied first-run capability language with Agent-specific setup: operator TUI, provider access, isolated Agent Knowledge, local memory/skills, channels, automation review, and explicit TUI delegation.

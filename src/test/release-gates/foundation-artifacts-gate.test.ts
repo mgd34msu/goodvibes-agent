@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { GatewayMethodCatalog } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { getKnowledgeGraphqlSchemaText, renderKnowledgeSchemaSql } from '@pellux/goodvibes-sdk/platform/knowledge';
 import { getDistributedNodeHostContract } from '@/runtime/index.ts';
-import { buildOperatorContract } from '@pellux/goodvibes-sdk/platform/control-plane';
+import { buildAgentOperatorContractArtifact } from '../../../scripts/project-surfaces.ts';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const ARTIFACTS_DIR = join(ROOT, 'docs', 'foundation-artifacts');
@@ -37,7 +37,7 @@ describe('foundation artifacts gate', () => {
     const catalog = new GatewayMethodCatalog();
 
     expect(readFileSync(join(ARTIFACTS_DIR, 'operator-contract.json'), 'utf8')).toBe(
-      canonicalJson(buildOperatorContract(catalog)),
+      canonicalJson(buildAgentOperatorContractArtifact(catalog)),
     );
     expect(readFileSync(join(ARTIFACTS_DIR, 'peer-contract.json'), 'utf8')).toBe(
       canonicalJson(getDistributedNodeHostContract()),
@@ -52,5 +52,19 @@ describe('foundation artifacts gate', () => {
     expect(readFileSync(join(ARTIFACTS_DIR, 'knowledge-store.sql'), 'utf8')).toBe(
       normalizeText(renderKnowledgeSchemaSql()),
     );
+  });
+
+  test('Agent operator artifacts do not document excluded host-specific routes', () => {
+    const operatorContract = readFileSync(join(ARTIFACTS_DIR, 'operator-contract.json'), 'utf8');
+    const markers = [
+      ['home', 'assistant'].join(''),
+      ['home', 'assistant.'].join(''),
+      ['/api/', ['home', 'assistant'].join(''), '/'].join(''),
+      ['Home', ' Assistant'].join(''),
+      ['Home', ' Graph'].join(''),
+    ];
+    for (const marker of markers) {
+      expect(operatorContract).not.toContain(marker);
+    }
   });
 });
