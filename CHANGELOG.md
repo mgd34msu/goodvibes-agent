@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.86 - 2026-06-01
+
+- aac1849 Retry npm publish verification
+
 ## 0.1.85 - 2026-06-01
 
 - 4a046f7 Harden npm publish reruns
