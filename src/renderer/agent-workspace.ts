@@ -153,8 +153,8 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     );
   } else if (category.id === 'setup') {
     base.push(
-      { text: `External runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
-      { text: `Runtime ownership: ${snapshot.daemonOwnership}; Agent never starts or restarts it`, fg: PALETTE.good },
+      { text: `GoodVibes runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
+      { text: `Runtime owner: ${snapshot.daemonOwnership}; Agent connects but never starts or restarts it`, fg: PALETTE.good },
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
       { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
       { text: '' },
@@ -166,7 +166,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     const configuredDefaults = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
     const disabledChannels = snapshot.channels.filter((channel) => !channel.enabled).map((channel) => channel.label).join(', ');
     base.push(
-      { text: `External runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
+      { text: `GoodVibes runtime: ${snapshot.daemonBaseUrl}`, fg: PALETTE.info },
       { text: `Readiness: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} default target(s) configured.`, fg: PALETTE.info },
       { text: `Disabled channels: ${disabledChannels || 'none'}.`, fg: PALETTE.dim },
       { text: 'Pairing: use /pair or /qrcode for companion setup.', fg: PALETTE.info },
@@ -195,18 +195,18 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Voice surface: ${snapshot.voiceSurfaceEnabled ? 'enabled' : 'disabled'}; use /voice review for portable voice posture.`, fg: snapshot.voiceSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
       { text: `TTS config: provider ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}; response model ${snapshot.ttsResponseModel}.`, fg: PALETTE.info },
       { text: `Media providers: ${snapshot.mediaProviderCount}; understanding: ${snapshot.mediaUnderstandingProviderCount}; generation: ${snapshot.mediaGenerationProviderCount}.`, fg: PALETTE.info },
-      { text: `Browser surface: ${snapshot.browserSurfaceEnabled ? 'enabled' : 'disabled'}; public base URL ${snapshot.browserSurfacePublicBaseUrl}.`, fg: snapshot.browserSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
-      { text: 'Node/remote posture is read-only here; build dispatch remains explicit TUI delegation.', fg: PALETTE.good },
+      { text: `Browser tools: ${snapshot.browserSurfaceEnabled ? 'available' : 'not advertised'}; public base URL ${snapshot.browserSurfacePublicBaseUrl}.`, fg: snapshot.browserSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: 'Remote runner posture is hidden from this setup surface; build dispatch remains explicit delegation.', fg: PALETTE.good },
       { text: 'Image input uses prompt attachments; media generation/provider setup stays behind explicit commands and configured providers.', fg: PALETTE.muted },
     );
   } else if (category.id === 'profiles') {
     base.push(
-      { text: `Active runtime profile: ${snapshot.activeRuntimeProfile}`, fg: PALETTE.info },
-      { text: `Runtime profiles under this home: ${snapshot.runtimeProfileCount}`, fg: PALETTE.info },
-      { text: `Runtime profile root: ${snapshot.runtimeProfileRoot}`, fg: PALETTE.muted },
+      { text: `Active Agent profile: ${snapshot.activeRuntimeProfile}`, fg: PALETTE.info },
+      { text: `Agent profiles under this home: ${snapshot.runtimeProfileCount}`, fg: PALETTE.info },
+      { text: `Agent profile root: ${snapshot.runtimeProfileRoot}`, fg: PALETTE.muted },
       { text: `Starter templates: ${snapshot.runtimeStarterTemplateCount}; local custom: ${snapshot.localStarterTemplateCount}`, fg: PALETTE.info },
       { text: `Config profiles: ${snapshot.configProfileCount}`, fg: PALETTE.info },
-      { text: 'Named runtime profiles isolate Agent-local config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
+      { text: 'Named Agent profiles isolate local config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
       { text: 'Starter authoring: browse, export, edit, import, and create Agent profiles from inside this workspace via /agent-profile.', fg: PALETTE.info },
       { text: 'The external GoodVibes runtime remains shared unless the owning host is configured separately.', fg: PALETTE.warn },
       { text: 'Portable bundles require explicit export/import commands with real paths and --yes.', fg: PALETTE.muted },

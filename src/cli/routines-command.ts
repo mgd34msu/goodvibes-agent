@@ -62,7 +62,7 @@ function renderRoutineList(title: string, path: string, routines: readonly Agent
     return [
       title,
       '  No local Agent routines yet.',
-      '  Create routines inside the Agent TUI with /routines create, or create a runtime profile from a starter template.',
+      '  Create routines inside the Agent TUI with /routines create, or create an Agent profile from a starter template.',
     ].join('\n');
   }
   return [

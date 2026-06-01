@@ -61,7 +61,7 @@ export interface CliServicePosture {
 }
 
 const ENDPOINTS: readonly { readonly id: RuntimeEndpointId; readonly label: string; readonly enabledKey: string }[] = [
-  { id: 'controlPlane', label: 'control plane', enabledKey: 'controlPlane.enabled' },
+  { id: 'controlPlane', label: 'runtime API', enabledKey: 'controlPlane.enabled' },
   { id: 'httpListener', label: 'HTTP listener', enabledKey: 'danger.httpListener' },
   { id: 'web', label: 'web surface', enabledKey: 'web.enabled' },
 ];

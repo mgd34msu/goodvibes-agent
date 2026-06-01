@@ -56,7 +56,7 @@ Use a separate Agent home when you want isolated local state:
 GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
 ```
 
-Use named runtime profiles for repeatable local identities:
+Use named Agent profiles for repeatable local identities:
 
 ```sh
 goodvibes-agent profiles templates
@@ -103,4 +103,4 @@ Agent lifecycle commands that would start or mutate runtime posture are blocked 
 
 ## Current Baseline Notes
 
-This repository keeps broad TUI-derived foundation code intentionally so Agent can use the mature terminal shell, renderer, input, fullscreen workspace, command registry, and release bones. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/spawn fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.
+This repository keeps broad terminal foundation code intentionally so Agent can use the mature shell, renderer, input, fullscreen workspace, command registry, and release bones. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/spawn fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.

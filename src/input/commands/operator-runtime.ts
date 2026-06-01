@@ -252,7 +252,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
 
   registry.register({
     name: 'ops',
-    description: 'Operator Control Plane: view Agent operator posture without local task/agent lifecycle mutations',
+    description: 'Operator runtime status: view Agent posture without local task/agent lifecycle mutations',
     usage: '[view]',
     argsHint: '[view]',
     handler(args, ctx) {
@@ -260,7 +260,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
 
       if (sub === 'view' || sub === undefined) {
         if (ctx.openOpsPanel) ctx.openOpsPanel();
-        else ctx.print('Operator Control Plane panel is not available. Enable the operator-control-plane feature flag.');
+        else ctx.print('Operator runtime status panel is not available. Enable the operator-control-plane feature flag.');
         return;
       }
 

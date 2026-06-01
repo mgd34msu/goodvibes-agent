@@ -318,7 +318,7 @@ describe('onboarding derivation helpers', () => {
     expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('local-network-default');
   });
 
-  test('does not treat a local control plane as custom when listener is LAN-facing', () => {
+  test('does not treat a local runtime API as custom when listener is LAN-facing', () => {
     const snapshot: OnboardingSnapshotState = {
       ...buildBaseSnapshot(),
       bindSettings: {

@@ -36,7 +36,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  onboarding [status]        Open Agent onboarding, or print onboarding status',
     '  models [provider]          List/use/pin selectable models and recent model history',
     '  providers                  List/inspect/use provider config/auth posture',
-    '  profiles                   Manage isolated Agent runtime profile homes',
+    '  profiles                   Manage isolated Agent profile homes',
     '  routines                   Inspect local routines and explicitly promote one to an external schedule',
     '  auth                       Inspect and manage local users, sessions, and bootstrap auth',
     '  compat                     Inspect Agent SDK pin, runtime version, and Agent knowledge route readiness',
@@ -56,7 +56,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     'Options:',
     '  -m, --model <registryKey>       Override model. provider:model infers --provider',
     '      --provider <id>            Override provider',
-    '      --agent-profile <name>     Use an isolated Agent runtime profile home',
+    '      --agent-profile <name>     Use an isolated Agent profile home',
     '  -C, --cd <dir>                 Set working directory for this launch',
     '      --working-dir <dir>        Alias for --cd',
     '  -c, --config <key=value>       Override a config value for this launch',
@@ -141,7 +141,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   profiles: {
     usage: ['profiles list', 'profiles templates', 'profiles templates export <id> <path> --yes', 'profiles templates import <path> --yes', 'profiles show <name>', 'profiles create <name> [--template <id>] --yes', 'profiles delete <name> --yes', '--agent-profile <name>'],
-    summary: 'Create and inspect isolated Agent runtime profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing the shared GoodVibes runtime.',
+    summary: 'Create and inspect isolated Agent profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing the shared GoodVibes runtime.',
     examples: ['profiles templates', 'profiles templates export research ./research-starter.json --yes', 'profiles templates import ./research-starter.json --yes', 'profiles create household --template household --yes', '--agent-profile household status'],
   },
   routines: {

@@ -69,7 +69,7 @@ describe('CLI service posture', () => {
     );
 
     expect(posture.endpoints.find((endpoint) => endpoint.id === 'controlPlane')?.reachable).toBe(false);
-    expect(posture.issues).toContain('control plane is enabled but not reachable on 127.0.0.1:1.');
+    expect(posture.issues).toContain('runtime API is enabled but not reachable on 127.0.0.1:1.');
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
   });
 

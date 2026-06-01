@@ -21,7 +21,7 @@ describe('CLI help/version', () => {
     const help = renderGoodVibesHelp();
 
     expect(help).not.toContain('tasks                      ');
-    expect(help).toContain('profiles                   Manage isolated Agent runtime profile homes');
+    expect(help).toContain('profiles                   Manage isolated Agent profile homes');
     expect(help).toContain('routines                   Inspect local routines and explicitly promote one to an external schedule');
     expect(help).not.toContain('capabilities               ');
     expect(help).toContain('--agent-profile <name>');
@@ -31,7 +31,7 @@ describe('CLI help/version', () => {
 
   test('profiles command help explains isolated profile homes', () => {
     const help = renderGoodVibesCommandHelp('profiles');
-    expect(help).toContain('isolated Agent runtime profile homes');
+    expect(help).toContain('isolated Agent profile homes');
     expect(help).toContain('--agent-profile');
     expect(help).toContain('shared GoodVibes runtime');
   });

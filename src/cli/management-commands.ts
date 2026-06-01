@@ -328,12 +328,12 @@ export async function buildControlPlaneStatusResult(runtime: CliCommandRuntime):
     restartOnFailure: runtime.configManager.get('service.restartOnFailure'),
   };
   const issues: string[] = [];
-  if (enabled === true && !reachable) issues.push(`Control plane is enabled but not reachable on ${binding.host}:${binding.port}.`);
-  if (enabled === true && service.enabled !== true) issues.push('Control plane is enabled on the external runtime config, but Agent service ownership is disabled.');
-  if (enabled === true && service.autostart !== true) issues.push('Control plane is enabled on the external runtime config, but autostart is off.');
-  if (enabled === true && service.restartOnFailure !== true) issues.push('Control plane is enabled on the external runtime config, but restart-on-failure is off.');
-  if (isNetworkFacing(enabled, binding) && !auth.userStorePresent) issues.push('Network-facing control plane has no local auth user store.');
-  if (isNetworkFacing(enabled, binding) && auth.bootstrapCredentialPresent) issues.push('Network-facing control plane still has a bootstrap credential file.');
+  if (enabled === true && !reachable) issues.push(`Runtime API is enabled but not reachable on ${binding.host}:${binding.port}.`);
+  if (enabled === true && service.enabled !== true) issues.push('Runtime API is enabled on the external runtime config, but Agent service ownership is disabled.');
+  if (enabled === true && service.autostart !== true) issues.push('Runtime API is enabled on the external runtime config, but autostart is off.');
+  if (enabled === true && service.restartOnFailure !== true) issues.push('Runtime API is enabled on the external runtime config, but restart-on-failure is off.');
+  if (isNetworkFacing(enabled, binding) && !auth.userStorePresent) issues.push('Network-facing Runtime API has no local auth user store.');
+  if (isNetworkFacing(enabled, binding) && auth.bootstrapCredentialPresent) issues.push('Network-facing Runtime API still has a bootstrap credential file.');
   return {
     enabled,
     ...binding,
@@ -347,7 +347,7 @@ export async function buildControlPlaneStatusResult(runtime: CliCommandRuntime):
 
 export function formatControlPlaneStatus(runtime: CliCommandRuntime, value: ControlPlaneStatusResult): string {
   return formatJsonOrText(runtime.cli)(value, [
-    'GoodVibes control-plane status',
+    'GoodVibes runtime API status',
     `  enabled: ${yesNo(value.enabled)}`,
     `  bind: ${value.hostMode} ${value.host}:${value.port}`,
     `  bind posture: ${value.posture.label}`,

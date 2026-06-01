@@ -6,9 +6,9 @@
  * - load-replay: reset engine, absent engine graceful failure
  * - run-policy-simulation: diverged + non-diverged, absent simulator
  * - jump-to-task / jump-to-agent / jump-to-tool-call: callback invoked
- * - retry-task: success, not retriable, absent control plane
- * - cancel-task: success, not cancellable, absent control plane
- * - cancel-agent: success, not cancellable, absent control plane
+ * - retry-task: success, not retriable, absent runtime API
+ * - cancel-task: success, not cancellable, absent runtime API
+ * - cancel-agent: success, not cancellable, absent runtime API
  * - Factory helpers: all produce HighSeverityDiagnostic with non-empty actions
  */
 
@@ -247,7 +247,7 @@ describe('jump-to-tool-call', () => {
 // ---------------------------------------------------------------------------
 
 describe('retry-task', () => {
-  test('retries a failed task via control plane', async () => {
+  test('retries a failed task via runtime API', async () => {
     const env = makeControlPlaneEnv();
     const task = makeTask(env);
     env.taskManager.startTask(task.id);
@@ -277,7 +277,7 @@ describe('retry-task', () => {
     expect(result.message).toContain('cannot be retried');
   });
 
-  test('returns graceful failure when no control plane is configured', async () => {
+  test('returns graceful failure when no runtime API is configured', async () => {
     const dispatcher = new DiagnosticActionDispatcher({});
     const result = await dispatcher.dispatch(buildRetryTaskAction('task-x'));
     expect(result.success).toBe(false);
@@ -290,7 +290,7 @@ describe('retry-task', () => {
 // ---------------------------------------------------------------------------
 
 describe('cancel-task', () => {
-  test('cancels a queued task via control plane', async () => {
+  test('cancels a queued task via runtime API', async () => {
     const env = makeControlPlaneEnv();
     const task = makeTask(env);
 
@@ -316,7 +316,7 @@ describe('cancel-task', () => {
     expect(result.message).toContain('cannot be cancelled');
   });
 
-  test('returns graceful failure when no control plane is configured', async () => {
+  test('returns graceful failure when no runtime API is configured', async () => {
     const dispatcher = new DiagnosticActionDispatcher({});
     const result = await dispatcher.dispatch(buildCancelTaskAction('task-y'));
     expect(result.success).toBe(false);
@@ -329,7 +329,7 @@ describe('cancel-task', () => {
 // ---------------------------------------------------------------------------
 
 describe('cancel-agent', () => {
-  test('returns graceful failure when no control plane is configured', async () => {
+  test('returns graceful failure when no runtime API is configured', async () => {
     const dispatcher = new DiagnosticActionDispatcher({});
     const result = await dispatcher.dispatch(buildCancelAgentAction('agent-z'));
     expect(result.success).toBe(false);
@@ -337,7 +337,7 @@ describe('cancel-agent', () => {
   });
 
   test('returns failure for non-cancellable agent state', async () => {
-    // Create a control plane but no agent is registered — canCancelAgent returns false
+    // Create a runtime API facade but no agent is registered — canCancelAgent returns false
     const env = makeControlPlaneEnv();
     const dispatcher = new DiagnosticActionDispatcher({
       controlPlane: env.controlPlane,

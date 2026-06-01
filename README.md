@@ -52,9 +52,9 @@ bun run publish:check
 
 Inside the Agent TUI, use `/agent`, `/home`, or `/operator` to open the operator workspace. It is the Agent-first fullscreen surface for setup, status, knowledge, local memory/skills, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
-Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated runtime profiles from them.
+Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
 
-Use isolated Agent runtime profiles when one machine needs separate operator identities or local state:
+Use isolated Agent profiles when one machine needs separate operator identities or local state:
 
 ```sh
 goodvibes-agent profiles templates
@@ -113,4 +113,4 @@ Package-facing docs are intentionally narrow during the near-fork baseline:
 - [Deployment And Services](docs/deployment-and-services.md)
 - [Release And Publishing](docs/release-and-publishing.md)
 
-Broader TUI-derived reference docs may exist in the source tree while the near-fork foundation is being completed, but the package-facing Agent documentation is limited to the docs listed above.
+Broader foundation reference docs may exist in the source tree while the near-fork foundation is being completed, but the package-facing Agent documentation is limited to the docs listed above.

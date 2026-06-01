@@ -35,9 +35,9 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
   return [
     {
       id: 'runtime',
-      label: 'External runtime',
+      label: 'GoodVibes runtime',
       status: 'ready',
-      detail: `Agent will connect to ${input.daemonBaseUrl}; runtime ownership stays outside this TUI.`,
+      detail: `Agent will connect to ${input.daemonBaseUrl}; runtime ownership stays outside this product.`,
       command: '/status',
     },
     {
@@ -58,10 +58,10 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
     },
     {
       id: 'profile',
-      label: 'Runtime profile',
+      label: 'Agent profile',
       status: setupStatusForCount(input.runtimeProfileCount, 'ready', 'optional'),
       detail: input.runtimeProfileCount > 0
-        ? `${input.runtimeProfileCount} isolated runtime profile(s) are available.`
+        ? `${input.runtimeProfileCount} isolated Agent profile(s) are available.`
         : `${input.runtimeStarterTemplateCount} starter template(s) are available if this machine needs separate operator identities.`,
       command: '/agent-profile templates',
     },

@@ -183,9 +183,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('External Daemon');
     expect(output).not.toContain('service mode');
     expect(output).not.toContain('HTTP listeners');
-    expect(output).not.toContain('Cloudflare');
-    expect(output).not.toContain('Home Assistant');
-    expect(output).not.toContain('HomeGraph');
+    expect(output).not.toContain('tunnel provider setup');
+    expect(output).not.toContain('non-Agent assistant segment');
+    expect(output).not.toContain('non-Agent graph segment');
   });
 
   test('renders first-run setup actions for skills and routines', () => {
@@ -254,23 +254,23 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('non-Agent product setup');
   });
 
-  test('renders voice media browser and node setup posture', () => {
+  test('renders voice media and browser tool setup posture', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
 
     const output = text(renderAgentWorkspace(workspace, 132, 38));
 
-    expect(output).toContain('Voice, Media & Nodes');
+    expect(output).toContain('Voice & Media');
     expect(output).toContain('Voice providers: 2; streaming TTS: 1; STT: 2; realtime: 1.');
     expect(output).toContain('Voice surface: enabled');
     expect(output).toContain('TTS config: provider elevenlabs; voice voice-operator; response model openai-subscriber/gpt-5.5.');
     expect(output).toContain('Media providers: 2; understanding: 1; generation: 1.');
-    expect(output).toContain('Browser surface: enabled; public base URL https://agent.example.test.');
+    expect(output).toContain('Browser tools: available; public base URL https://agent.example.test.');
     expect(output).toContain('/config tts');
     expect(output).toContain('/image <path> <prompt>');
     expect(output).toContain('/mcp servers');
-    expect(output).toContain('/remote list');
+    expect(output).not.toContain('/remote list');
   });
 
   test('renders profile isolation and bundle workflow posture', () => {
@@ -280,9 +280,9 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 38));
 
-    expect(output).toContain('Profiles & Portability');
-    expect(output).toContain('Active runtime profile: (default home)');
-    expect(output).toContain('Runtime profiles under this home: 1');
+    expect(output).toContain('Profiles');
+    expect(output).toContain('Active Agent profile: (default home)');
+    expect(output).toContain('Agent profiles under this home: 1');
     expect(output).toContain('Config profiles: 2');
     expect(output).toContain('/profiles');
     expect(output).toContain('Starter authoring guide');

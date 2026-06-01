@@ -42,7 +42,7 @@ export class ControlPlanePanel extends ScrollableListPanel<ControlPlaneClient> {
   private readonly unsub: (() => void) | null;
 
   public constructor(private readonly readModel?: UiReadModel<UiControlPlaneSnapshot>) {
-    super('control-plane', 'Control Plane', 'C', 'monitoring');
+    super('control-plane', 'Runtime Status', 'C', 'monitoring');
     this.showSelectionGutter = true; // I5: non-color selection affordance
     this.unsub = readModel ? readModel.subscribe(() => this.markDirty()) : null;
   }
@@ -72,7 +72,7 @@ export class ControlPlanePanel extends ScrollableListPanel<ControlPlaneClient> {
   }
 
   protected override getEmptyStateMessage(): string {
-    return ' No control-plane activity recorded.';
+    return ' No runtime activity recorded.';
   }
 
   protected override getEmptyStateActions(): Array<{ command: string; summary: string }> {
@@ -83,18 +83,18 @@ export class ControlPlanePanel extends ScrollableListPanel<ControlPlaneClient> {
   }
 
   public render(width: number, height: number): Line[] {
-    const intro = 'Shared runtime state, live clients, approval pressure, and recent omnichannel session posture.';
+    const intro = 'Shared runtime state, live clients, approval pressure, and recent channel session posture.';
 
     if (!this.readModel) {
       const workspace = buildPanelWorkspace(width, height, {
-        title: 'Control Plane',
+        title: 'Runtime Status',
         intro,
         sections: [{
           lines: buildEmptyState(
             width,
             ' Runtime read model not wired.',
-            'This panel needs the shared control-plane read model to inspect clients, requests, and approvals.',
-            [{ command: '/cockpit', summary: 'use the cockpit while control-plane wiring is unavailable' }],
+            'This panel needs the shared runtime read model to inspect clients, requests, and approvals.',
+            [{ command: '/cockpit', summary: 'use the cockpit while runtime wiring is unavailable' }],
             C,
           ),
         }],
@@ -128,9 +128,9 @@ export class ControlPlanePanel extends ScrollableListPanel<ControlPlaneClient> {
 
     if (clients.length === 0 && approvals.length === 0 && sessions.length === 0) {
       return this.renderList(width, height, {
-        title: 'Control Plane',
+        title: 'Runtime Status',
         header: headerLines,
-        emptyMessage: ' No control-plane activity recorded.',
+        emptyMessage: ' No runtime activity recorded.',
       });
     }
 
@@ -203,7 +203,7 @@ export class ControlPlanePanel extends ScrollableListPanel<ControlPlaneClient> {
     footerLines.push(buildPanelLine(width, [['  Up/Down move through connected clients', C.dim]]));
 
     return this.renderList(width, height, {
-      title: 'Control Plane',
+      title: 'Runtime Status',
       header: headerLines,
       footer: footerLines,
     });

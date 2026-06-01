@@ -552,7 +552,7 @@ export async function bootstrapRuntime(
     },
   };
 
-  // ── Phase 12b: Operator Control Plane wiring (feature-gated) ──────────────
+  // ── Phase 12b: Operator intervention wiring (feature-gated) ──────────────
   // Wire the OpsControlPlane into CommandContext when the feature flag is enabled.
   // The store and task manager are created unconditionally so they reflect the
   // real runtime state (tasks registered before the flag check are visible).

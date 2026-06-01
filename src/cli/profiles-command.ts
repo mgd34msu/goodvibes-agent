@@ -63,9 +63,9 @@ function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string 
   if (!result.ok) return result.error ?? 'Agent profile command failed.';
   if (result.kind === 'agent.profiles.list') {
     const profiles = result.data?.profiles ?? [];
-    if (profiles.length === 0) return 'No Agent runtime profiles. Use: goodvibes-agent profiles create <name> --template <id> --yes';
+    if (profiles.length === 0) return 'No Agent profiles. Use: goodvibes-agent profiles create <name> --template <id> --yes';
     return [
-      `Agent runtime profiles (${profiles.length})`,
+      `Agent profiles (${profiles.length})`,
       ...profiles.map(profileLine),
     ].join('\n');
   }
@@ -103,7 +103,7 @@ function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string 
   if (result.kind === 'agent.profiles.create' && profile) {
     const template = result.data?.appliedTemplate;
     return [
-      `Agent runtime profile created: ${profile.id}`,
+      `Agent profile created: ${profile.id}`,
       `  home: ${profile.homeDirectory}`,
       ...(template ? [
         `  starter: ${template.id} (${template.name})`,
@@ -113,7 +113,7 @@ function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string 
     ].join('\n');
   }
   if (result.kind === 'agent.profiles.delete' && profile) {
-    return `Agent runtime profile deleted: ${profile.id}`;
+    return `Agent profile deleted: ${profile.id}`;
   }
   return 'Agent profile command completed.';
 }
@@ -242,7 +242,7 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
         data: { profile: info },
       };
       const starter = info.starterTemplateId ? [`  starter: ${info.starterTemplateId} (${info.starterTemplateName ?? info.starterTemplateId})`] : [];
-      const text = [`Agent runtime profile: ${profile.id}`, `  home: ${profile.homeDirectory}`, ...starter, `  use: goodvibes-agent --agent-profile ${profile.id}`].join('\n');
+      const text = [`Agent profile: ${profile.id}`, `  home: ${profile.homeDirectory}`, ...starter, `  use: goodvibes-agent --agent-profile ${profile.id}`].join('\n');
       return {
         output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(result, null, 2) : text,
         exitCode: 0,
@@ -266,7 +266,7 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
         const result: AgentRuntimeProfileCommandResult = {
           ok: false,
           kind: 'agent.profiles.error',
-          error: `Refusing to create Agent runtime profile ${name} without --yes.`,
+          error: `Refusing to create Agent profile ${name} without --yes.`,
         };
         return {
           output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
@@ -307,7 +307,7 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
         const result: AgentRuntimeProfileCommandResult = {
           ok: false,
           kind: 'agent.profiles.error',
-          error: `Refusing to delete Agent runtime profile ${name} without --yes.`,
+          error: `Refusing to delete Agent profile ${name} without --yes.`,
         };
         return {
           output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
@@ -325,7 +325,7 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
         : {
           ok: false,
           kind: 'agent.profiles.error',
-          error: `Agent runtime profile not found: ${resolution.id}`,
+          error: `Agent profile not found: ${resolution.id}`,
       };
       return {
         output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),

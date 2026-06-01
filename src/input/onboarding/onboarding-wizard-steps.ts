@@ -201,7 +201,7 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
       {
         kind: 'status',
         id: 'agent-setup.profile-guide',
-        label: 'Runtime profiles',
+        label: 'Agent profiles',
         hint: 'Use /agent-profile guide after setup to create household, research, travel, operations, or custom Agent profiles.',
         defaultValue: 'Local profiles',
       },
@@ -378,7 +378,7 @@ export function buildLocalStateStep(): OnboardingWizardStepDefinition {
     id: 'agent-local-state',
     title: 'Local memory and behavior',
     shortLabel: 'Memory',
-    description: 'Review the Agent-local behavior model. Memory, personas, skills, routines, and runtime profiles stay local until a stable shared registry exists.',
+    description: 'Review the Agent-local behavior model. Memory, personas, skills, routines, and Agent profiles stay local until a stable shared registry exists.',
     summaryTitle: 'Local Agent state',
     summaryLines: [
       'Memory/personas/skills/routines: local Agent registries',

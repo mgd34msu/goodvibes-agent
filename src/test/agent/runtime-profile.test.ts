@@ -22,7 +22,7 @@ function makeHome(): string {
   return mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-home-'));
 }
 
-describe('Agent runtime profiles', () => {
+describe('Agent profiles', () => {
   test('normalizes profile names into stable launch ids', () => {
     expect(normalizeAgentRuntimeProfileId('Household Ops')).toBe('household-ops');
     expect(normalizeAgentRuntimeProfileId('  ops.prod  ')).toBe('ops.prod');

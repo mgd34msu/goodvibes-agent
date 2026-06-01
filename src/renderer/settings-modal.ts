@@ -35,7 +35,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
   service: 'External GoodVibes runtime service posture. Agent shows these compatibility keys for inspection only and does not install, start, stop, restart, or autostart services.',
-  controlPlane: 'External GoodVibes runtime control-plane settings for local admin/API access. Agent connects to that runtime and does not mutate its bind posture.',
+  controlPlane: 'External GoodVibes runtime API settings for local admin/API access. Agent connects to that runtime and does not mutate its bind posture.',
   httpListener: 'External HTTP listener settings for webhook and integration ingress. Agent does not start or expose the listener.',
   web: 'External browser surface settings. Agent does not own the web listener or network bind lifecycle.',
   batch: 'Batch execution settings reported from the external GoodVibes runtime. Agent does not own remote queue provisioning.',
@@ -50,7 +50,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   danger: 'High-impact runtime and listener switches. Agent renders host-owned switches read-only; use GoodVibes TUI or the owning host to change them.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
   flags: 'Feature flags are SDK runtime gates. They are separate from normal config keys because they enable or disable staged runtime behavior.',
-  network: 'Read-only view of external GoodVibes runtime control-plane, HTTP listener, and browser web bind posture plus editable Agent network settings.',
+  network: 'Read-only view of external GoodVibes runtime API, HTTP listener, and browser web bind posture plus editable Agent network settings.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {

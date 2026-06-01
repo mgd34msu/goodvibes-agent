@@ -102,7 +102,7 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     name: 'Automation',
     icon: 'M',
     category: 'monitoring',
-    description: 'Automation jobs, runs, deliveries, and failure posture across the control plane',
+    description: 'Automation jobs, runs, deliveries, and failure posture across the shared runtime',
     factory: () => new AutomationControlPanel(ui.readModels.automation),
   });
 
@@ -126,7 +126,7 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
 
   manager.registerType({
     id: 'control-plane',
-    name: 'Control Plane',
+    name: 'Runtime Status',
     icon: 'C',
     category: 'monitoring',
     description: 'Runtime state, clients, approvals, and recent operator activity',

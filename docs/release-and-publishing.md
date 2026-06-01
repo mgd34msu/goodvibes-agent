@@ -57,4 +57,4 @@ Do not ship runtime host binaries from this package. If Agent later gets compile
 
 ## Near-Fork Baseline Rule
 
-The public alpha can include copied TUI foundation code, but package-facing behavior must follow Agent product policy. Follow-up work should continue pruning or reshaping copied coding-first surfaces while preserving the TUI-derived renderer, input, fullscreen workspace, command registry, and release bones.
+The public alpha can include copied terminal foundation code, but package-facing behavior must follow Agent product policy. Follow-up work should continue pruning or reshaping copied coding-first surfaces while preserving the renderer, input, fullscreen workspace, command registry, and release bones.

@@ -110,7 +110,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
   const marker = options.onboardingMarkers?.effective;
   const serverBackedEnabled = daemonEnabled || controlPlaneEnabled || listenerEnabled || webEnabled;
   const networkFacingSurfaces = [
-    ['control plane', controlPlaneEnabled, controlPlaneBinding],
+    ['runtime API', controlPlaneEnabled, controlPlaneBinding],
     ['HTTP listener', listenerEnabled, httpListenerBinding],
     ['web surface', webEnabled, webBinding],
   ].filter(([, enabled, binding]) => isNetworkFacing(enabled, binding as typeof controlPlaneBinding));
@@ -123,7 +123,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       area: 'service',
       severity: 'warning',
       summary: 'Host-owned surfaces are configured while Agent service ownership is disabled.',
-      cause: 'One or more runtime, control-plane, listener, or web settings are enabled while service.enabled is false.',
+      cause: 'One or more runtime API, listener, or web settings are enabled while service.enabled is false.',
       impact: 'The external GoodVibes runtime must own availability for those surfaces; Agent will not start or enable them.',
       action: 'Manage surface/service posture from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
     });
@@ -162,7 +162,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         severity: 'warning',
         summary: issue,
         cause: 'The service lifecycle inspection found a mismatch between configured service/surface state and observed host state.',
-        impact: 'Runtime, control-plane, listener, or web availability may not match the configuration.',
+        impact: 'Runtime API, listener, or web availability may not match the configuration.',
         action: 'Use goodvibes-agent service check for read-only detail, then manage the runtime from GoodVibes TUI or your host tooling.',
       });
     }

@@ -536,7 +536,7 @@ describe('parseCliFlags', () => {
     expect(text.result).toEqual({ handled: true, exitCode: 1 });
     expect(text.output).toContain('GoodVibes external runtime diagnostics');
     expect(text.output).toContain('Readiness: needs attention');
-    expect(text.output).toContain('control plane is enabled but not reachable on 127.0.0.1:1.');
+    expect(text.output).toContain('runtime API is enabled but not reachable on 127.0.0.1:1.');
     expect(text.output).not.toContain('goodvibes-daemon');
 
     const json = await captureGoodVibesCliCommand(['service', 'check', '--json'], configManager, root);
@@ -545,7 +545,7 @@ describe('parseCliFlags', () => {
     expect(parsed.managed.installed).toBe(false);
     expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
-    expect(parsed.issues).toContain('control plane is enabled but not reachable on 127.0.0.1:1.');
+    expect(parsed.issues).toContain('runtime API is enabled but not reachable on 127.0.0.1:1.');
   });
 
   test('control-plane status returns readiness failures for enabled unreachable network posture', async () => {
@@ -564,14 +564,14 @@ describe('parseCliFlags', () => {
     expect(text.result).toEqual({ handled: true, exitCode: 1 });
     expect(text.output).toContain('bind posture: Local Network');
     expect(text.output).toContain('readiness: needs attention');
-    expect(text.output).toContain('Control plane is enabled on the external runtime config, but Agent service ownership is disabled.');
-    expect(text.output).toContain('Network-facing control plane has no local auth user store.');
+    expect(text.output).toContain('Runtime API is enabled on the external runtime config, but Agent service ownership is disabled.');
+    expect(text.output).toContain('Network-facing Runtime API has no local auth user store.');
 
     const json = await captureGoodVibesCliCommand(['control-plane', 'status', '--json'], configManager, root);
     expect(json.result).toEqual({ handled: true, exitCode: 1 });
     const parsed = JSON.parse(json.output) as { posture: { kind: string }; issues: string[] };
     expect(parsed.posture.kind).toBe('local-network');
-    expect(parsed.issues).toContain('Control plane is enabled on the external runtime config, but Agent service ownership is disabled.');
+    expect(parsed.issues).toContain('Runtime API is enabled on the external runtime config, but Agent service ownership is disabled.');
   });
 
   test('providers and models commands surface setup posture through CLI output', async () => {

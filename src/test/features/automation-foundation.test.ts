@@ -13,7 +13,7 @@ function makeTmpDir(): string {
 }
 
 describe('automation foundation config surface', () => {
-  test('defaults include automation, control plane, web, surfaces, watchers, and service categories', () => {
+  test('defaults include automation, runtime API, web, surfaces, watchers, and service categories', () => {
     const tmpDir = makeTmpDir();
     const configDir = join(tmpDir, '.goodvibes', 'tui');
     const mgr = new ConfigManager({ surfaceRoot: 'tui',  workingDir: tmpDir, configDir });

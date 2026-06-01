@@ -283,7 +283,7 @@ describe('control-plane operator panels', () => {
       recentEvents: gateway.listRecentEvents(6),
     }));
     const text = linesText(panel.render(110, 30));
-    expect(text).toContain('Control Plane');
+    expect(text).toContain('Runtime Status');
     expect(text).toContain('Web Console');
     expect(text).toContain('exec');
     expect(text).toContain('Shared session');

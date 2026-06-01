@@ -43,12 +43,12 @@ function renderProfiles(homeDirectory: string): string {
   const profiles = listAgentRuntimeProfiles(homeDirectory);
   if (profiles.length === 0) {
     return [
-      'Agent Runtime Profiles',
-      '  No isolated Agent runtime profiles yet.',
+      'Agent Profiles',
+      '  No isolated Agent profiles yet.',
       '  Create one with /agent-profile create <name> --template <id> --yes.',
     ].join('\n');
   }
-  return ['Agent Runtime Profiles', ...profiles.map(profileLine)].join('\n');
+  return ['Agent Profiles', ...profiles.map(profileLine)].join('\n');
 }
 
 function renderTemplates(homeDirectory: string): string {
@@ -80,7 +80,7 @@ function renderGuide(homeDirectory: string): string {
     '3. Edit id, name, description, persona, skills, and routines in that JSON file.',
     '4. Import it into this Agent home:',
     '   /agent-profile template import ./agent-starter.json --yes',
-    '5. Create a runtime profile from the imported starter:',
+    '5. Create an Agent profile from the imported starter:',
     '   /agent-profile create <name> --template <imported-id> --yes',
     '',
     'This writes only Agent-local starter/profile state. It does not mutate the runtime host, default wiki, or non-Agent knowledge segments.',
@@ -107,7 +107,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
   registry.register({
     name: 'agent-profile',
     aliases: ['runtime-profile', 'agent-profiles'],
-    description: 'Manage isolated Agent runtime profiles and starter templates',
+    description: 'Manage isolated Agent profiles and starter templates',
     usage: '[list|templates|guide|template show|template export|template import|create|delete]',
     handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);
@@ -187,12 +187,12 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             return;
           }
           if (!parsed.yes) {
-            requireYesFlag(ctx, `create Agent runtime profile ${name}`, '/agent-profile create <name> [--template <id>] --yes');
+            requireYesFlag(ctx, `create Agent profile ${name}`, '/agent-profile create <name> [--template <id>] --yes');
             return;
           }
           const profile = createAgentRuntimeProfile(homeDirectory, name, { templateId });
           ctx.print([
-            `Agent runtime profile created: ${profile.id}`,
+            `Agent profile created: ${profile.id}`,
             `  home: ${profile.homeDirectory}`,
             profile.starterTemplateId ? `  starter: ${profile.starterTemplateId}` : '',
             `  launch: goodvibes-agent --agent-profile ${profile.id}`,
@@ -207,10 +207,10 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             return;
           }
           if (!parsed.yes) {
-            requireYesFlag(ctx, `delete Agent runtime profile ${name}`, '/agent-profile delete <name> --yes');
+            requireYesFlag(ctx, `delete Agent profile ${name}`, '/agent-profile delete <name> --yes');
             return;
           }
-          ctx.print(deleteAgentRuntimeProfile(homeDirectory, name) ? `Agent runtime profile deleted: ${name}` : `Agent runtime profile not found: ${name}`);
+          ctx.print(deleteAgentRuntimeProfile(homeDirectory, name) ? `Agent profile deleted: ${name}` : `Agent profile not found: ${name}`);
           return;
         }
 

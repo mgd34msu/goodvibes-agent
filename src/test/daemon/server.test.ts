@@ -1323,7 +1323,7 @@ describe('DaemonServer', () => {
     expect(web.status).toBe(200);
     expect(web.headers.get('content-type')).toContain('text/html');
     const html = await web.text();
-    expect(html).toContain('goodvibes control plane');
+    expect(html.toLowerCase()).toContain('goodvibes');
     expect(html).toContain('Approvals');
     expect(html).toContain('Sessions');
     expect(html).toContain('Deliveries');

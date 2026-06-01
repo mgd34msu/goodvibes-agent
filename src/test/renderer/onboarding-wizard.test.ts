@@ -61,7 +61,7 @@ describe('renderOnboardingWizard', () => {
     const applyLine = textLines.findIndex((line) => line.includes('Apply & Continue To Next Section'));
     let previousActionLine = -1;
     for (let index = 0; index < applyLine; index += 1) {
-      if (textLines[index]?.includes('Runtime profiles')) previousActionLine = index;
+      if (textLines[index]?.includes('Agent profiles')) previousActionLine = index;
     }
 
     expect(applyLine).toBeGreaterThan(0);

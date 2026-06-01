@@ -1,5 +1,5 @@
 /**
- * OpsControlPanel — operator control plane UI panel.
+ * OpsControlPanel — operator intervention log panel.
  *
  * Renders the ops audit log sourced from the OpsPanel diagnostics subscriber.
  * Each entry shows: seq, timestamp, action, target, outcome, and optional note.
@@ -130,7 +130,7 @@ export class OpsControlPanel extends ScrollableListPanel<OpsAuditEntry> {
   }
 
   protected override getEmptyStateActions(): Array<{ command: string; summary: string }> {
-    return [{ command: '/cockpit', summary: 'open the cockpit and drive runtime interventions from the control rooms' }];
+    return [{ command: '/cockpit', summary: 'open the cockpit and review runtime interventions' }];
   }
 
   public render(width: number, height: number): Line[] {
@@ -142,7 +142,7 @@ export class OpsControlPanel extends ScrollableListPanel<OpsAuditEntry> {
     ];
 
     return this.renderList(width, height, {
-      title: 'Operator Control Plane',
+      title: 'Operator Interventions',
       header: headerLines,
       footer: footerLines,
     });

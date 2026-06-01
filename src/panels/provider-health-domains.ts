@@ -63,10 +63,10 @@ export function buildProviderHealthDomainSummaries(
     name: 'settings',
     level: !settings.available ? 'info' : settingIssueCount > 0 ? 'warn' : 'good',
     summary: !settings.available
-      ? 'settings control plane unavailable'
+      ? 'settings runtime API unavailable'
       : settingIssueCount > 0
         ? `${settings.conflictCount} conflicts / ${settings.recentFailureCount} failures${settings.hasStagedManagedBundle ? ' / staged bundle' : ''}`
-        : 'settings control plane clean',
+        : 'settings runtime API clean',
     next: settingIssueCount > 0 ? '/settingssync panel' : '/settingssync show <key>',
     details: [
       settings.conflictCount > 0 ? `${settings.conflictCount} unresolved import conflict(s)` : '',

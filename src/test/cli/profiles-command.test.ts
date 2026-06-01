@@ -40,7 +40,7 @@ describe('profiles CLI command', () => {
     expect(profiles.command).toBe('profiles');
   });
 
-  test('creates, lists, shows, and deletes Agent runtime profiles with confirmation', async () => {
+  test('creates, lists, shows, and deletes Agent profiles with confirmation', async () => {
     const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-cli-'));
 
     const refused = await runProfilesCli(['profiles', 'create', 'Household'], home);
@@ -49,15 +49,15 @@ describe('profiles CLI command', () => {
 
     const created = await runProfilesCli(['profiles', 'create', 'Household', '--yes'], home);
     expect(created.result.exitCode).toBe(0);
-    expect(created.output).toContain('Agent runtime profile created: household');
+    expect(created.output).toContain('Agent profile created: household');
     expect(created.output).toContain('goodvibes-agent --agent-profile household');
 
     const listed = await runProfilesCli(['profiles', 'list'], home);
-    expect(listed.output).toContain('Agent runtime profiles (1)');
+    expect(listed.output).toContain('Agent profiles (1)');
     expect(listed.output).toContain('household');
 
     const shown = await runProfilesCli(['profiles', 'show', 'household'], home);
-    expect(shown.output).toContain('Agent runtime profile: household');
+    expect(shown.output).toContain('Agent profile: household');
 
     const shownJson = await runProfilesCli(['profiles', 'show', 'household', '--json'], home);
     expect((JSON.parse(shownJson.output) as { kind?: unknown }).kind).toBe('agent.profiles.show');
@@ -68,7 +68,7 @@ describe('profiles CLI command', () => {
 
     const deleted = await runProfilesCli(['profiles', 'delete', 'household', '--yes'], home);
     expect(deleted.result.exitCode).toBe(0);
-    expect(deleted.output).toContain('Agent runtime profile deleted: household');
+    expect(deleted.output).toContain('Agent profile deleted: household');
   });
 
   test('returns structured json envelopes', async () => {

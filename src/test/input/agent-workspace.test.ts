@@ -750,7 +750,7 @@ describe('AgentWorkspace', () => {
     expect(calls.at(-1)).toContain('[local');
 
     expect(await registry.execute('agent-profile', ['create', 'lab', '--template', 'lab-operator', '--yes'], ctx)).toBe(true);
-    expect(calls.at(-1)).toContain('Agent runtime profile created: lab');
+    expect(calls.at(-1)).toContain('Agent profile created: lab');
     expect(calls.at(-1)).toContain('starter: lab-operator');
     expect(await registry.execute('agent-profile', ['list'], ctx)).toBe(true);
     expect(calls.at(-1)).toContain('starter=lab-operator');
