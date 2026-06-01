@@ -6,7 +6,12 @@ import { AgentSkillRegistry, type AgentSkillRecord } from '../agent/skill-regist
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates } from '../agent/runtime-profile.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
 import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
-import type { AgentWorkspaceLocalLibraryItem, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+import type {
+  AgentWorkspaceLocalLibraryItem,
+  AgentWorkspaceRuntimeProfileItem,
+  AgentWorkspaceRuntimeSnapshot,
+  AgentWorkspaceRuntimeStarterTemplateItem,
+} from './agent-workspace-types.ts';
 
 type AgentWorkspaceConfigReader = {
   get(key: string): unknown;
@@ -91,6 +96,28 @@ function summarizeRoutineItem(routine: AgentRoutineRecord): AgentWorkspaceLocalL
     triggers: routine.triggers,
     enabled: routine.enabled,
     startCount: routine.startCount,
+  };
+}
+
+function summarizeRuntimeProfile(profile: ReturnType<typeof listAgentRuntimeProfiles>[number]): AgentWorkspaceRuntimeProfileItem {
+  return {
+    id: profile.id,
+    homeDirectory: profile.homeDirectory,
+    createdAt: profile.createdAt,
+    starterTemplateId: profile.starterTemplateId,
+    starterTemplateName: profile.starterTemplateName,
+  };
+}
+
+function summarizeStarterTemplate(template: ReturnType<typeof listAgentRuntimeProfileTemplates>[number]): AgentWorkspaceRuntimeStarterTemplateItem {
+  return {
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    personaName: template.personaName,
+    skillNames: template.skillNames,
+    routineNames: template.routineNames,
+    source: template.source,
   };
 }
 
@@ -255,9 +282,11 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     browserSurfacePublicBaseUrl: readConfigString(context, 'web.publicBaseUrl', '(not configured)'),
     activeRuntimeProfile: inferActiveRuntimeProfile(context.workspace?.shellPaths?.homeDirectory ?? ''),
     runtimeProfileCount: runtimeProfiles.length,
+    runtimeProfiles: runtimeProfiles.map(summarizeRuntimeProfile),
     runtimeProfileRoot: getAgentRuntimeProfilesRoot(context.workspace?.shellPaths?.homeDirectory ?? ''),
     runtimeStarterTemplateCount: runtimeStarterTemplates.length,
     localStarterTemplateCount: runtimeStarterTemplates.filter((template) => template.source === 'local').length,
+    runtimeStarterTemplates: runtimeStarterTemplates.map(summarizeStarterTemplate),
     configProfileCount,
     setupChecklist,
     warnings,

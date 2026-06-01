@@ -727,6 +727,9 @@ export function listAgentRuntimeProfiles(baseHomeDirectory: string): readonly Ag
 
 export function createAgentRuntimeProfile(baseHomeDirectory: string, profileName: string, options: CreateAgentRuntimeProfileOptions = {}): AgentRuntimeProfileInfo {
   const resolution = resolveAgentRuntimeProfileHome(baseHomeDirectory, profileName);
+  if (existsSync(resolution.homeDirectory)) {
+    throw new Error(`Agent profile already exists: ${resolution.id}`);
+  }
   mkdirSync(resolution.homeDirectory, { recursive: true });
   const createdAt = new Date().toISOString();
   const appliedTemplate = options.templateId

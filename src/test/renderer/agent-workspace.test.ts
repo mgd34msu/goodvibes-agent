@@ -292,8 +292,11 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/profilesync export <path> --yes');
     expect(output).toContain('/setup transfer export <path> --yes');
     expect(output).toContain('Starter templates: 5; local custom: 0');
-    expect(output).toContain('Starter authoring: browse, export, edit, import, and create Agent profiles');
-    expect(output).toContain('external GoodVibes runtime remains shared');
+    expect(output).toContain('Starter ids: household, research, travel, operations, personal-productivity');
+    expect(output).toContain('Agent Profiles');
+    expect(output).toContain('household starter=none');
+    expect(output).toContain('Starter Templates');
+    expect(output).toContain('runtime external');
   });
 
   test('renders channel onboarding and delivery safety posture', () => {

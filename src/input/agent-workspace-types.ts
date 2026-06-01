@@ -7,7 +7,7 @@ export type AgentWorkspaceFocusPane = 'categories' | 'actions';
 
 export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'local-selection' | 'local-operation';
 
-export type AgentWorkspaceLocalEditorKind = 'persona' | 'skill' | 'routine';
+export type AgentWorkspaceLocalEditorKind = 'persona' | 'skill' | 'routine' | 'profile';
 
 export type AgentWorkspaceLocalOperation =
   | 'persona-edit'
@@ -94,6 +94,24 @@ export interface AgentWorkspaceLocalLibraryItem {
   readonly startCount?: number;
 }
 
+export interface AgentWorkspaceRuntimeProfileItem {
+  readonly id: string;
+  readonly homeDirectory: string;
+  readonly createdAt: string | null;
+  readonly starterTemplateId?: string;
+  readonly starterTemplateName?: string;
+}
+
+export interface AgentWorkspaceRuntimeStarterTemplateItem {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly personaName: string;
+  readonly skillNames: readonly string[];
+  readonly routineNames: readonly string[];
+  readonly source: string;
+}
+
 export interface AgentWorkspaceRuntimeSnapshot {
   readonly provider: string;
   readonly model: string;
@@ -133,9 +151,11 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly browserSurfacePublicBaseUrl: string;
   readonly activeRuntimeProfile: string;
   readonly runtimeProfileCount: number;
+  readonly runtimeProfiles: readonly AgentWorkspaceRuntimeProfileItem[];
   readonly runtimeProfileRoot: string;
   readonly runtimeStarterTemplateCount: number;
   readonly localStarterTemplateCount: number;
+  readonly runtimeStarterTemplates: readonly AgentWorkspaceRuntimeStarterTemplateItem[];
   readonly configProfileCount: number;
   readonly setupChecklist: readonly AgentWorkspaceSetupChecklistItem[];
   readonly warnings: readonly string[];

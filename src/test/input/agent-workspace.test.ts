@@ -10,7 +10,7 @@ import { registerAgentRuntimeProfileRuntimeCommands } from '../../input/commands
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
-import { createAgentRuntimeProfile } from '../../agent/runtime-profile.ts';
+import { createAgentRuntimeProfile, listAgentRuntimeProfiles } from '../../agent/runtime-profile.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import type { Line } from '../../types/grid.ts';
@@ -781,6 +781,58 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/agent-profile guide']);
     expect(workspace.status).toContain('/agent-profile guide');
+  });
+
+  test('creates an isolated Agent profile from the workspace form', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-profile-form-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open({
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext, (command) => dispatched.push(command));
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-create');
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('profile');
+    expect(workspace.localEditor?.fields.find((field) => field.id === 'template')?.value).toBe('research');
+
+    feedText(workspace, 'research desk');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    const profiles = listAgentRuntimeProfiles(root);
+    expect(dispatched).toEqual([]);
+    expect(profiles.map((profile) => profile.id)).toContain('research-desk');
+    expect(profiles.find((profile) => profile.id === 'research-desk')?.starterTemplateId).toBe('research');
+    expect(workspace.lastActionResult?.detail).toContain('goodvibes-agent --agent-profile research-desk');
+    expect(workspace.runtimeSnapshot?.runtimeProfileCount).toBe(1);
+  });
+
+  test('refuses to overwrite an existing Agent profile from the workspace form', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-profile-duplicate-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    createAgentRuntimeProfile(root, 'research-desk', { templateId: 'research' });
+    const workspace = new AgentWorkspace();
+    workspace.open({
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext, () => undefined);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-create');
+    workspace.activateSelected();
+    feedText(workspace, 'research-desk');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    expect(workspace.localEditor?.kind).toBe('profile');
+    expect(workspace.localEditor?.message).toContain('Agent profile already exists: research-desk');
+    expect(workspace.lastActionResult?.kind).toBe('error');
+    expect(listAgentRuntimeProfiles(root)).toHaveLength(1);
   });
 
   test('automation workspace dispatches routine promotion receipt review', () => {

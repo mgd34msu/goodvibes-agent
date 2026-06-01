@@ -1,9 +1,36 @@
 import type { AgentPersonaRecord } from '../agent/persona-registry.ts';
 import type { AgentRoutineRecord } from '../agent/routine-registry.ts';
 import type { AgentSkillRecord } from '../agent/skill-registry.ts';
-import type { AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem } from './agent-workspace-types.ts';
+import type {
+  AgentWorkspaceLocalEditor,
+  AgentWorkspaceLocalEditorKind,
+  AgentWorkspaceLocalLibraryItem,
+  AgentWorkspaceRuntimeStarterTemplateItem,
+} from './agent-workspace-types.ts';
+
+export function createProfileEditor(templates: readonly AgentWorkspaceRuntimeStarterTemplateItem[]): AgentWorkspaceLocalEditor {
+  const defaultTemplate = templates.find((template) => template.id === 'research')?.id ?? templates[0]?.id ?? 'none';
+  const preview = templates.length === 0
+    ? 'No starter templates found; use none to create an empty isolated profile.'
+    : templates
+      .slice(0, 6)
+      .map((template) => `${template.id} (${template.name})`)
+      .join(', ');
+  return {
+    kind: 'profile',
+    mode: 'create',
+    title: 'Create Agent Profile',
+    selectedFieldIndex: 0,
+    message: 'Create an isolated Agent home seeded with a persona, skills, and routines. The current process keeps using its existing home until relaunched with --agent-profile.',
+    fields: [
+      { id: 'name', label: 'Profile name', value: '', required: true, multiline: false, hint: 'Short profile name. It normalizes to lowercase letters, numbers, dots, underscores, and dashes.' },
+      { id: 'template', label: 'Starter template', value: defaultTemplate, required: false, multiline: false, hint: `Template id or none. Available: ${preview}.` },
+    ],
+  };
+}
 
 export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalEditor {
+  if (kind === 'profile') return createProfileEditor([]);
   if (kind === 'persona') {
     return {
       kind,
@@ -137,6 +164,7 @@ export function isAffirmative(value: string): boolean {
 }
 
 export function editorCategoryId(kind: AgentWorkspaceLocalEditorKind): string {
+  if (kind === 'profile') return 'profiles';
   if (kind === 'persona') return 'personas';
   if (kind === 'skill') return 'skills';
   return 'routines';

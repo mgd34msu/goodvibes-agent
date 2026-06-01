@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.77 - 2026-06-01
+
+- Added a first-class Agent profile creation form inside the fullscreen operator workspace instead of dispatching a placeholder command template.
+- Surfaced profile and starter-template summaries directly in the Profiles workspace so day-one setup can pick an isolated Agent home from the TUI.
+- Made Agent runtime profile creation refuse existing profile homes to protect local profile state across CLI, onboarding, and workspace flows.
+
 ## 0.1.76 - 2026-05-31
 
 - Added optional starter profile creation to first-run onboarding so setup can create an isolated Agent home seeded with persona, skill, and routine templates.

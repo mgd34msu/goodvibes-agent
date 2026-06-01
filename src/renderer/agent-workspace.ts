@@ -142,6 +142,47 @@ function localLibraryLines(
   return lines;
 }
 
+function profileLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const lines: ContextLine[] = [
+    { text: 'Agent Profiles', fg: PALETTE.title, bold: true },
+  ];
+  if (snapshot.runtimeProfiles.length === 0) {
+    lines.push({ text: 'No isolated Agent profiles yet. Use Create Agent profile in this workspace.', fg: PALETTE.warn });
+    return lines;
+  }
+  for (const profile of snapshot.runtimeProfiles.slice(0, 6)) {
+    const starter = profile.starterTemplateId ? ` starter=${profile.starterTemplateId}` : ' starter=none';
+    const created = profile.createdAt ? ` created=${profile.createdAt.slice(0, 10)}` : '';
+    lines.push({ text: `${profile.id}${starter}${created}`, fg: PALETTE.info, bold: profile.id === snapshot.activeRuntimeProfile });
+    lines.push({ text: `  home: ${profile.homeDirectory}`, fg: PALETTE.muted });
+  }
+  if (snapshot.runtimeProfiles.length > 6) {
+    lines.push({ text: `${snapshot.runtimeProfiles.length - 6} more profile(s).`, fg: PALETTE.dim });
+  }
+  return lines;
+}
+
+function starterTemplateLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const lines: ContextLine[] = [
+    { text: 'Starter Templates', fg: PALETTE.title, bold: true },
+  ];
+  for (const template of snapshot.runtimeStarterTemplates.slice(0, 6)) {
+    lines.push({
+      text: `${template.id}: ${template.name} [${template.source}]`,
+      fg: template.source === 'local' ? PALETTE.good : PALETTE.info,
+      bold: template.id === 'research',
+    });
+    lines.push({
+      text: `  ${template.description} Persona ${template.personaName}; skills ${template.skillNames.join(', ')}; routines ${template.routineNames.join(', ')}.`,
+      fg: PALETTE.muted,
+    });
+  }
+  if (snapshot.runtimeStarterTemplates.length > 6) {
+    lines.push({ text: `${snapshot.runtimeStarterTemplates.length - 6} more starter template(s).`, fg: PALETTE.dim });
+  }
+  return lines;
+}
+
 function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   if (!snapshot) return [{ text: 'Runtime context is not loaded yet.', fg: PALETTE.warn }];
   const base: ContextLine[] = [{ text: 'Live Agent Context', fg: PALETTE.title, bold: true }];
@@ -206,8 +247,14 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Agent profile root: ${snapshot.runtimeProfileRoot}`, fg: PALETTE.muted },
       { text: `Starter templates: ${snapshot.runtimeStarterTemplateCount}; local custom: ${snapshot.localStarterTemplateCount}`, fg: PALETTE.info },
       { text: `Config profiles: ${snapshot.configProfileCount}`, fg: PALETTE.info },
+      { text: `Starter ids: ${snapshot.runtimeStarterTemplates.map((template) => template.id).join(', ') || 'none'}`, fg: PALETTE.info },
+      { text: '' },
+      ...profileLines(snapshot),
+      { text: '' },
+      ...starterTemplateLines(snapshot),
+      { text: '' },
       { text: 'Named Agent profiles isolate local config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
-      { text: 'Starter authoring: browse, export, edit, import, and create Agent profiles from inside this workspace via /agent-profile.', fg: PALETTE.info },
+      { text: 'Starter authoring: browse, export, edit, import, and create Agent profiles from inside this workspace.', fg: PALETTE.info },
       { text: 'The external GoodVibes runtime remains shared unless the owning host is configured separately.', fg: PALETTE.warn },
       { text: 'Portable bundles require explicit export/import commands with real paths and --yes.', fg: PALETTE.muted },
     );

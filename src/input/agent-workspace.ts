@@ -3,9 +3,10 @@ import type { ShellPathService } from '@/runtime/index.ts';
 import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
+import { createAgentRuntimeProfile, type AgentRuntimeProfileInfo } from '../agent/runtime-profile.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
-import { createDeleteEditor, createLocalEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
+import { createDeleteEditor, createLocalEditor, createPersonaUpdateEditor, createProfileEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
@@ -25,7 +26,6 @@ export type {
 } from './agent-workspace-types.ts';
 export { AGENT_WORKSPACE_MODAL_NAME } from './agent-workspace-types.ts';
 export { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
-
 function parseCommand(command: string): { readonly name: string; readonly args: readonly string[] } {
   const trimmed = command.trim().replace(/^\//, '');
   if (!trimmed) return { name: '', args: [] };
@@ -46,6 +46,7 @@ export class AgentWorkspace {
     persona: 0,
     skill: 0,
     routine: 0,
+    profile: 0,
   };
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
@@ -228,7 +229,9 @@ export class AgentWorkspace {
     const action = this.selectedAction;
     if (!action) return;
     if (action.kind === 'editor' && action.editorKind) {
-      this.localEditor = createLocalEditor(action.editorKind);
+      this.localEditor = action.editorKind === 'profile'
+        ? createProfileEditor(this.runtimeSnapshot?.runtimeStarterTemplates ?? [])
+        : createLocalEditor(action.editorKind);
       this.status = `Editing ${this.localEditor.title}.`;
       this.lastActionResult = {
         kind: 'guidance',
@@ -347,6 +350,7 @@ export class AgentWorkspace {
   private localLibraryItems(kind: AgentWorkspaceLocalEditorKind): readonly AgentWorkspaceLocalLibraryItem[] {
     if (kind === 'persona') return this.runtimeSnapshot?.localPersonas ?? [];
     if (kind === 'skill') return this.runtimeSnapshot?.localSkills ?? [];
+    if (kind === 'profile') return [];
     return this.runtimeSnapshot?.localRoutines ?? [];
   }
 
@@ -564,7 +568,14 @@ export class AgentWorkspace {
         this.submitLocalDeleteEditor(shellPaths, editor);
         return;
       }
-      if (editor.kind === 'persona') {
+      if (editor.kind === 'profile') {
+        const template = this.editorField('template');
+        const templateId = template && template.toLowerCase() !== 'none' ? template : undefined;
+        const profile = createAgentRuntimeProfile(shellPaths.homeDirectory, this.editorField('name'), {
+          ...(templateId ? { templateId } : {}),
+        });
+        this.finishProfileEditor(profile);
+      } else if (editor.kind === 'persona') {
         const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
         if (editor.mode === 'update' && editor.recordId) {
           const wasActive = registry.snapshot().activePersonaId === editor.recordId;
@@ -694,6 +705,26 @@ export class AgentWorkspace {
       kind: 'refreshed',
       title: `${verb} ${kind}`,
       detail: `${name} (${id}) was saved to the Agent-local ${categoryId} registry.`,
+      safety: 'safe',
+    };
+    this.clampSelection();
+  }
+
+  private finishProfileEditor(profile: AgentRuntimeProfileInfo): void {
+    this.localEditor = null;
+    const categoryIndex = this.categories.findIndex((category) => category.id === 'profiles');
+    if (categoryIndex >= 0) {
+      this.selectedCategoryIndex = categoryIndex;
+      this.selectedActionIndex = this.categories[categoryIndex]?.actions.findIndex((action) => action.id === 'runtime-profile-create') ?? 0;
+      if (this.selectedActionIndex < 0) this.selectedActionIndex = 0;
+    }
+    this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
+    const starter = profile.starterTemplateId ? ` from ${profile.starterTemplateId}` : '';
+    this.status = `Created Agent profile: ${profile.id}.`;
+    this.lastActionResult = {
+      kind: 'refreshed',
+      title: 'Created Agent profile',
+      detail: `Created isolated Agent profile ${profile.id}${starter}. Launch it with goodvibes-agent --agent-profile ${profile.id}. The current TUI session was not switched.`,
       safety: 'safe',
     };
     this.clampSelection();
