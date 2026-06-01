@@ -1,8 +1,8 @@
 # Deployment And Services
 
-GoodVibes Agent is a client/operator surface. It does not own runtime or listener deployment.
+GoodVibes Agent is a client/operator TUI. It connects to an already-running GoodVibes runtime and does not own runtime or listener deployment.
 
-## Service Ownership
+## Runtime Ownership
 
 Agent must not:
 
@@ -12,7 +12,7 @@ Agent must not:
 - start, stop, or restart runtime services
 - enable web, listener, control-plane, or channel surface posture
 
-Those operations belong to GoodVibes TUI or the owning runtime host.
+Those operations belong to GoodVibes TUI or the owning runtime host. Agent reports external runtime readiness but does not configure that host.
 
 ## Agent Runtime
 
@@ -39,12 +39,6 @@ http://127.0.0.1:3421
 ```
 
 If the runtime is unavailable, unauthenticated, or on an incompatible SDK version, Agent commands should report actionable diagnostics without printing token values.
-
-## Surface Commands
-
-`goodvibes-agent surfaces`, `surfaces check`, and `surfaces show <surfaceId>` are read-only diagnostics.
-
-`surfaces enable` and `surfaces disable` are intentionally blocked in Agent because they can mutate runtime/listener/web/channel posture.
 
 ## Release Rule
 

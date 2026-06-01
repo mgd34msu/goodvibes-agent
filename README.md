@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#install)
 
-GoodVibes Agent is the personal operator assistant built on the GoodVibes terminal UI foundation. This repository is intentionally in a near-fork baseline phase: the shell, renderer, input, fullscreen workspace, command, and release bones are copied from the terminal product first, then the coding-specific behavior is removed or reshaped deliberately.
+GoodVibes Agent is the personal operator assistant TUI for GoodVibes. It is built for day-to-day operator work: chat, setup, local profiles, routines, skills, personas, isolated Agent Knowledge, status review, approvals, automation visibility, and explicit build delegation.
 
 The Agent product connects to an already-running GoodVibes runtime. It does not install, start, stop, restart, or own runtime connectivity or service lifecycle.
 
@@ -87,15 +87,7 @@ Starting a routine records local usage and prints its steps; it does not spawn b
 
 Start or restart the GoodVibes runtime from GoodVibes TUI or the owning host before launching Agent. Agent status and companion/knowledge routes connect to that external runtime, normally on `http://127.0.0.1:3421`.
 
-Agent intentionally blocks runtime lifecycle commands:
-
-```sh
-goodvibes-agent serve
-goodvibes-agent service start
-goodvibes-agent surfaces enable web
-```
-
-Those commands should return explicit external-runtime guidance instead of mutating local service posture.
+Agent reports unavailable, unauthenticated, or incompatible runtime state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status surfaces. It does not provide runtime lifecycle setup commands.
 
 ## Product Boundary
 
@@ -107,10 +99,10 @@ GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding 
 
 ## Package Docs
 
-Package-facing docs are intentionally narrow during the near-fork baseline:
+Package-facing docs:
 
 - [Getting Started](docs/getting-started.md)
 - [Deployment And Services](docs/deployment-and-services.md)
 - [Release And Publishing](docs/release-and-publishing.md)
 
-Broader foundation reference docs may exist in the source tree while the near-fork foundation is being completed, but the package-facing Agent documentation is limited to the docs listed above.
+The package-facing Agent documentation is limited to the docs listed above.

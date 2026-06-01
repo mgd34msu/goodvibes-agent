@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { renderCompletion } from '../../cli/completion.ts';
 import { renderGoodVibesCommandHelp, renderGoodVibesHelp, renderGoodVibesVersion } from '../../cli/help.ts';
 
 describe('CLI help/version', () => {
@@ -27,6 +28,23 @@ describe('CLI help/version', () => {
     expect(help).toContain('--agent-profile <name>');
     expect(help).not.toContain('tasks submit <prompt>');
     expect(help).not.toContain('submit a non-interactive task');
+  });
+
+  test('shell completion advertises product commands instead of runtime lifecycle commands', () => {
+    const completion = renderCompletion('bash', 'goodvibes-agent');
+
+    expect(completion).toContain('tui');
+    expect(completion).toContain('profiles');
+    expect(completion).toContain('knowledge');
+    expect(completion).toContain('delegate');
+    expect(completion).not.toContain(' serve ');
+    expect(completion).not.toContain(' service ');
+    expect(completion).not.toContain(' surfaces ');
+    expect(completion).not.toContain(' listener ');
+    expect(completion).not.toContain(' control-plane ');
+    expect(completion).not.toContain('--daemon-home');
+    expect(completion).not.toContain('--hostname');
+    expect(completion).not.toContain('--port');
   });
 
   test('profiles command help explains isolated profile homes', () => {

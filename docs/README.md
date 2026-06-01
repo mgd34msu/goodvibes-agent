@@ -1,8 +1,6 @@
 # GoodVibes Agent Docs
 
-These are the package-facing docs for GoodVibes Agent.
-
-GoodVibes Agent is a near-fork of the GoodVibes terminal foundation with a different product brain. It uses the copied terminal shell, renderer, input, fullscreen workspace, command, and release bones while the Agent-specific assistant behavior is being rebuilt.
+These are the package-facing docs for GoodVibes Agent, the personal operator assistant TUI for GoodVibes.
 
 Current package docs:
 
@@ -24,4 +22,4 @@ Important baseline constraints:
 - Normal assistant chat is not coding-session delegation.
 - Build/fix/review delegation to GoodVibes TUI must be explicit; WRFC is not the default Agent behavior.
 
-Copied TUI release and UAT histories are intentionally not part of this repository. The Agent docs above define the supported alpha behavior.
+The Agent docs above define the supported alpha behavior.

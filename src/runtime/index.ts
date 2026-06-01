@@ -2,7 +2,7 @@
  * Runtime module barrel for GoodVibes Agent.
  *
  * SDK 0.33 intentionally removed private deep imports and the runtime root
- * god-barrel. This file keeps the near-fork Agent app on public SDK seams
+ * god-barrel. This file keeps the Agent app on public SDK seams
  * while preserving the local import surface used by the shell.
  */
 

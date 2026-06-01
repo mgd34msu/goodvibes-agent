@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.68 - 2026-05-31
+
+- Removed internal foundation-phase language and blocked lifecycle command examples from package-facing docs.
+- Stopped advertising runtime lifecycle and surface-management commands in shell completion while keeping safety blocks for accidental invocations.
+- Added package text guards so shipped docs stay focused on the Agent TUI product path.
+
 ## 0.1.67 - 2026-05-31
 
 - Reworked remote bridge and remote review language from copied runner/control-room wording to Agent-facing worker/review wording.
@@ -377,7 +383,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 ## 0.1.0 - 2026-05-28
 
 - Published the first public alpha package for `@pellux/goodvibes-agent`.
-- Kept the near-fork GoodVibes TUI shell, renderer, input, fullscreen workspace, command registry, and release foundation.
+- Kept the GoodVibes TUI-derived shell, renderer, input, fullscreen workspace, command registry, and release foundation.
 - Preserved Agent product policy: serial/proactive main conversation by default, no local Agent-owned WRFC/spawn fanout, and explicit GoodVibes TUI delegation for build/fix/review work.
 - Moved Agent-owned runtime state to `.goodvibes/agent` surface roots.
 - Updated packaged Agent guidance, reviewer persona, and provider skill to avoid copied TUI WRFC/multi-agent defaults.
@@ -386,7 +392,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 ## 0.0.0 - Private Baseline
 
-- Copied the GoodVibes terminal foundation as a near-fork starting point for the Agent product.
+- Adopted the GoodVibes terminal foundation as the starting point for the Agent product.
 - Renamed package identity to `@pellux/goodvibes-agent` and exposed one executable, `goodvibes-agent`.
 - Pinned `@pellux/goodvibes-sdk` to `0.33.35`.
 - Removed packaged runtime-host binaries and blocked Agent-owned runtime/service lifecycle commands.

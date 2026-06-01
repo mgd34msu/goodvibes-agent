@@ -101,6 +101,6 @@ Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not 
 
 Agent lifecycle commands that would start or mutate runtime posture are blocked intentionally. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and read-only surface checks for diagnostics.
 
-## Current Baseline Notes
+## Current Product Notes
 
-This repository keeps broad terminal foundation code intentionally so Agent can use the mature shell, renderer, input, fullscreen workspace, command registry, and release bones. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/spawn fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.
+Agent uses the mature GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/spawn fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.

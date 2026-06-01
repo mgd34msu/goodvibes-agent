@@ -55,6 +55,6 @@ Do not publish if Agent Knowledge commands can fall back to default Knowledge/Wi
 
 Do not ship runtime host binaries from this package. If Agent later gets compiled artifacts, they must use Agent artifact names and remain separate from runtime ownership.
 
-## Near-Fork Baseline Rule
+## Product Rule
 
-The public alpha can include copied terminal foundation code, but package-facing behavior must follow Agent product policy. Follow-up work should continue pruning or reshaping copied coding-first surfaces while preserving the renderer, input, fullscreen workspace, command registry, and release bones.
+The public alpha can include mature terminal foundation code, but package-facing behavior must follow Agent product policy. Follow-up work should continue pruning or reshaping coding-first surfaces while preserving the renderer, input, fullscreen workspace, command registry, and release bones.
