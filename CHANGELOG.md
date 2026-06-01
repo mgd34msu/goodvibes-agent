@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.105 - 2026-06-01
+
+- 7ea88c8 Remove development panel surface
+
 ## 0.1.104 - 2026-06-01
 
 - 37fe253 Add Agent memory workspace controls
