@@ -1,7 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { isSecretRefInput } from '@pellux/goodvibes-sdk/platform/config';
 import { CONFIG_SCHEMA, DEFAULT_CONFIG } from '../../config/index.ts';
+import {
+  createAgentRuntimeProfile,
+  getAgentRuntimeProfileTemplate,
+  resolveAgentRuntimeProfileHome,
+} from '../../agent/runtime-profile.ts';
 import type { FeatureFlagConfigKey } from '../surface-feature-flags.ts';
 import {
   getOnboardingRuntimeStatePath,
@@ -250,6 +255,22 @@ function validateAcknowledgementOperation(
   }
 }
 
+function validateCreateAgentProfileOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-agent-profile' }>,
+): void {
+  const name = operation.name.trim();
+  if (name.length === 0) throw new Error('Agent profile name is required.');
+
+  const resolution = resolveAgentRuntimeProfileHome(deps.shellPaths.homeDirectory, name);
+  if (existsSync(resolution.homeDirectory)) {
+    throw new Error(`Agent profile already exists: ${resolution.id}`);
+  }
+
+  const templateId = operation.templateId?.trim();
+  if (templateId) getAgentRuntimeProfileTemplate(templateId, deps.shellPaths.homeDirectory);
+}
+
 function applyConfigOperation(
   deps: OnboardingApplyDependencies,
   operation: Extract<OnboardingApplyOperation, { kind: 'set-config' }>,
@@ -441,6 +462,13 @@ async function buildRollbackAction(
     );
   }
 
+  if (operation.kind === 'create-agent-profile') {
+    const resolution = resolveAgentRuntimeProfileHome(deps.shellPaths.homeDirectory, operation.name);
+    return () => {
+      if (existsSync(resolution.homeDirectory)) rmSync(resolution.homeDirectory, { recursive: true, force: true });
+    };
+  }
+
   const neverOperation: never = operation;
   throw new Error(`Unsupported onboarding operation: ${JSON.stringify(neverOperation)}`);
 }
@@ -465,6 +493,24 @@ function applyAcknowledgementOperation(
   };
 }
 
+function applyCreateAgentProfileOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-agent-profile' }>,
+): OnboardingAppliedOperation {
+  validateCreateAgentProfileOperation(deps, operation);
+  const templateId = operation.templateId?.trim();
+  const profile = createAgentRuntimeProfile(deps.shellPaths.homeDirectory, operation.name, {
+    ...(templateId ? { templateId } : {}),
+  });
+
+  return {
+    kind: operation.kind,
+    summary: profile.starterTemplateId
+      ? `Created Agent profile ${profile.id} from ${profile.starterTemplateId}.`
+      : `Created Agent profile ${profile.id}.`,
+  };
+}
+
 function orderApplyOperations(
   operations: readonly OnboardingApplyOperation[],
 ): readonly OnboardingApplyOperation[] {
@@ -476,6 +522,7 @@ function orderApplyOperations(
   const configOperations = operations.filter((operation) => (
     operation.kind === 'set-config' && operation.key !== 'storage.secretPolicy'
   ));
+  const agentProfileOperations = operations.filter((operation) => operation.kind === 'create-agent-profile');
   const finalOperations = operations.filter((operation) => (
     operation.kind === 'acknowledge'
   ));
@@ -485,6 +532,7 @@ function orderApplyOperations(
     ...authOperations,
     ...secretOperations,
     ...configOperations,
+    ...agentProfileOperations,
     ...finalOperations,
   ];
 }
@@ -521,6 +569,11 @@ function prevalidateApplyRequest(
         continue;
       }
 
+      if (operation.kind === 'create-agent-profile') {
+        validateCreateAgentProfileOperation(deps, operation);
+        continue;
+      }
+
       const neverOperation: never = operation;
       throw new Error(`Unsupported onboarding operation: ${JSON.stringify(neverOperation)}`);
     } catch (error) {
@@ -539,6 +592,7 @@ function getVerificationFailureKind(itemId: string): OnboardingApplyOperation['k
   if (itemId.startsWith('secret:')) return 'set-secret';
   if (itemId.startsWith('auth:')) return 'ensure-auth-user';
   if (itemId.startsWith('acknowledge:')) return 'acknowledge';
+  if (itemId.startsWith('agent-profile:')) return 'create-agent-profile';
   return 'set-config';
 }
 
@@ -586,6 +640,12 @@ export async function applyOnboardingRequest(
 
         if (operation.kind === 'acknowledge') {
           applied.push(applyAcknowledgementOperation(deps, request, operation));
+          rollbacks.push(rollback);
+          continue;
+        }
+
+        if (operation.kind === 'create-agent-profile') {
+          applied.push(applyCreateAgentProfileOperation(deps, operation));
           rollbacks.push(rollback);
           continue;
         }

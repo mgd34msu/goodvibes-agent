@@ -38,6 +38,16 @@ export function buildOnboardingApplyRequest(controller: OnboardingWizardControll
 
     setSecret('OPENAI_API_KEY', controller.getStringFieldValue('providers.openai-api-key', ''));
 
+    const profileName = controller.getStringFieldValue('agent-setup.profile-name', '').trim();
+    if (profileName.length > 0) {
+      const selectedTemplate = controller.getStringFieldValue('agent-setup.profile-template', 'none').trim();
+      operations.push({
+        kind: 'create-agent-profile',
+        name: profileName,
+        ...(selectedTemplate.length > 0 && selectedTemplate !== 'none' ? { templateId: selectedTemplate } : {}),
+      });
+    }
+
     return {
       mode: controller.mode,
       source: 'wizard',

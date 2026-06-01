@@ -37,6 +37,7 @@ describe('renderOnboardingWizard', () => {
     expect(text).toContain('┌─Onboarding Wizard');
     expect(text).toContain('1. Agent');
     expect(text).toContain('Agent setup');
+    expect(text).toContain('Create starter profile');
     expect(text).toContain('Set up the Agent operator workspace');
     expect(text).not.toContain('1. Surfaces');
     expect(text).not.toContain('External network setup');
@@ -75,7 +76,7 @@ describe('renderOnboardingWizard', () => {
     const applyLine = textLines.findIndex((line) => line.includes('Apply & Continue'));
     let previousActionLine = -1;
     for (let index = 0; index < applyLine; index += 1) {
-      if (textLines[index]?.includes('Agent profiles')) previousActionLine = index;
+      if (textLines[index]?.includes('Profile guidance')) previousActionLine = index;
     }
 
     expect(applyLine).toBeGreaterThan(0);

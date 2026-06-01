@@ -236,6 +236,8 @@ describe('OnboardingWizardController', () => {
     wizard.setFieldValue('experience.guidance', 'guided');
     wizard.setFieldValue('experience.permissions', 'allow-all');
     wizard.setFieldValue('agent-setup.secret-policy', 'plaintext_allowed');
+    wizard.setFieldValue('agent-setup.profile-name', 'research-desk');
+    wizard.setFieldValue('agent-setup.profile-template', 'research');
     wizard.setFieldValue('providers.openai-api-key', 'sk-test-openai');
 
     const request = wizard.buildApplyRequest();
@@ -255,6 +257,11 @@ describe('OnboardingWizardController', () => {
       scope: 'project',
       medium: 'plaintext',
     });
+    expect(request.operations).toContainEqual({
+      kind: 'create-agent-profile',
+      name: 'research-desk',
+      templateId: 'research',
+    });
   });
 
   test('does not expose copied service, surface, or network fields in Agent onboarding text', () => {
@@ -269,7 +276,12 @@ describe('OnboardingWizardController', () => {
         step.description,
         step.summaryTitle,
         ...step.summaryLines,
-        ...step.fields.flatMap((field) => [field.id, field.label, field.hint]),
+        ...step.fields.flatMap((field) => [
+          field.id,
+          field.label,
+          field.hint,
+          ...(field.kind === 'radio' ? field.options.flatMap((option) => [option.id, option.label, option.hint]) : []),
+        ]),
       ])
       .join('\n');
 
@@ -294,6 +306,7 @@ describe('OnboardingWizardController', () => {
     expect(byId.get('agent-tools')?.summaryLines).toContain('MCP and tools: inspect before use');
     expect(byId.get('agent-automation')?.summaryLines).toContain('Local routines: reusable main-conversation workflows');
     expect(byId.get('agent-voice-media')?.summaryLines).toContain('Voice and speech: optional operator tools');
+    expect(byId.get('agent-setup')?.summaryLines).toContain('Optional starter profile: create an isolated Agent home from setup.');
 
     const text = wizard.steps
       .flatMap((step) => [
@@ -301,7 +314,13 @@ describe('OnboardingWizardController', () => {
         step.title,
         step.description,
         ...step.summaryLines,
-        ...step.fields.flatMap((field) => [field.id, field.label, field.hint, field.defaultValue]),
+        ...step.fields.flatMap((field) => [
+          field.id,
+          field.label,
+          field.hint,
+          field.defaultValue,
+          ...(field.kind === 'radio' ? field.options.flatMap((option) => [option.id, option.label, option.hint]) : []),
+        ]),
       ])
       .join('\n');
 
@@ -310,6 +329,8 @@ describe('OnboardingWizardController', () => {
     expect(text).toContain('local routines');
     expect(text).toContain('image');
     expect(text).toContain('Agent Knowledge');
+    expect(text).toContain('Create starter profile');
+    expect(text).toContain('Research Analyst');
     expect(text).not.toContain('Default Knowledge/Wiki fallback: enabled');
     expect(text).not.toContain('start services');
   });

@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.76 - 2026-05-31
+
+- Added optional starter profile creation to first-run onboarding so setup can create an isolated Agent home seeded with persona, skill, and routine templates.
+- Added onboarding apply/verify support for Agent profile creation with prevalidation, rollback, and overwrite protection.
+- Updated onboarding and renderer regressions so the first-run flow stays Agent-specific while exposing the starter profile path directly in the TUI.
+
 ## 0.1.75 - 2026-05-31
 
 - Reworded Agent status, doctor, and external runtime diagnostics away from copied service/surface ownership language.

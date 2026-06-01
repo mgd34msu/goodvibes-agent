@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
 import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
+import { listAgentRuntimeProfiles, resolveAgentRuntimeProfileHome } from '../../../agent/runtime-profile.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../../config/surface.ts';
 import { SecretsManager } from '../../../config/secrets.ts';
 import {
@@ -93,6 +94,75 @@ describe('onboarding apply and verify helpers', () => {
 
     expect(verification.ok).toBe(true);
     expect(verification.items.map((item) => item.status)).toEqual(['pass', 'pass']);
+  });
+
+  test('creates an isolated Agent profile from onboarding starter selection', async () => {
+    const request = {
+      mode: 'new' as const,
+      source: 'wizard',
+      operations: [
+        {
+          kind: 'create-agent-profile' as const,
+          name: 'research-desk',
+          templateId: 'research',
+        },
+      ],
+    };
+
+    const deps = {
+      clock: () => 100,
+      config: configManager,
+      shellPaths,
+      acknowledgementScope: 'project' as const,
+    };
+    const applied = await applyOnboardingRequest(deps, request);
+    const verification = await verifyOnboardingRequest(deps, request);
+    const profile = listAgentRuntimeProfiles(shellPaths.homeDirectory).find((entry) => entry.id === 'research-desk');
+
+    expect(applied.ok).toBe(true);
+    expect(applied.applied).toContainEqual({
+      kind: 'create-agent-profile',
+      summary: 'Created Agent profile research-desk from research.',
+    });
+    expect(verification.ok).toBe(true);
+    expect(profile?.starterTemplateId).toBe('research');
+    expect(existsSync(join(resolveAgentRuntimeProfileHome(shellPaths.homeDirectory, 'research-desk').homeDirectory, 'profile.json'))).toBe(true);
+  });
+
+  test('refuses to overwrite an existing Agent profile during onboarding', async () => {
+    const existing = resolveAgentRuntimeProfileHome(shellPaths.homeDirectory, 'research-desk');
+    rmSync(existing.homeDirectory, { recursive: true, force: true });
+    await applyOnboardingRequest(
+      {
+        clock: () => 100,
+        config: configManager,
+        shellPaths,
+        acknowledgementScope: 'project',
+      },
+      {
+        mode: 'new',
+        source: 'wizard',
+        operations: [{ kind: 'create-agent-profile', name: 'research-desk', templateId: 'research' }],
+      },
+    );
+
+    const second = await applyOnboardingRequest(
+      {
+        clock: () => 100,
+        config: configManager,
+        shellPaths,
+        acknowledgementScope: 'project',
+      },
+      {
+        mode: 'new',
+        source: 'wizard',
+        operations: [{ kind: 'create-agent-profile', name: 'research-desk', templateId: 'research' }],
+      },
+    );
+
+    expect(second.ok).toBe(false);
+    expect(second.applied).toEqual([]);
+    expect(second.errors.map((error) => error.message).join('\n')).toContain('Agent profile already exists: research-desk');
   });
 
   test('prevalidates all config operations before mutating settings', async () => {

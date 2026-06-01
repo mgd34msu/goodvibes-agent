@@ -264,6 +264,11 @@ export type OnboardingApplyOperation =
       readonly kind: 'acknowledge';
       readonly target: OnboardingAcknowledgementTarget;
       readonly acknowledged: boolean;
+    }
+  | {
+      readonly kind: 'create-agent-profile';
+      readonly name: string;
+      readonly templateId?: string;
     };
 
 export interface OnboardingApplyRequest {
@@ -358,7 +363,7 @@ export interface OnboardingProviderAccountReadHelper {
 
 export type OnboardingShellPaths = Pick<
   ShellPathService,
-  'workingDirectory' | 'resolveProjectPath' | 'resolveUserPath'
+  'homeDirectory' | 'workingDirectory' | 'resolveProjectPath' | 'resolveUserPath'
 >;
 
 export interface OnboardingSnapshotDependencies {

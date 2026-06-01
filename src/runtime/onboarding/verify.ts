@@ -1,4 +1,7 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { isSecretRefInput } from '@pellux/goodvibes-sdk/platform/config';
+import { resolveAgentRuntimeProfileHome } from '../../agent/runtime-profile.ts';
 import { readOnboardingRuntimeState } from './state.ts';
 import type {
   OnboardingApplyOperation,
@@ -147,6 +150,22 @@ function verifyAuthOperation(
   };
 }
 
+function verifyCreateAgentProfileOperation(
+  deps: OnboardingVerificationDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-agent-profile' }>,
+): OnboardingVerificationItem {
+  const resolution = resolveAgentRuntimeProfileHome(deps.shellPaths.homeDirectory, operation.name);
+  const ok = existsSync(join(resolution.homeDirectory, 'profile.json'));
+  return {
+    id: `agent-profile:${resolution.id}`,
+    status: ok ? 'pass' : 'fail',
+    message: ok
+      ? `${resolution.id} Agent profile exists.`
+      : `${resolution.id} Agent profile was not created.`,
+    target: resolution.id,
+  };
+}
+
 async function verifyOperation(
   deps: OnboardingVerificationDependencies,
   operation: OnboardingApplyOperation,
@@ -154,7 +173,8 @@ async function verifyOperation(
   if (operation.kind === 'set-config') return verifyConfigOperation(deps, operation);
   if (operation.kind === 'set-secret') return verifySecretOperation(deps, operation);
   if (operation.kind === 'ensure-auth-user') return verifyAuthOperation(deps, operation);
-  return verifyAcknowledgementOperation(deps, operation);
+  if (operation.kind === 'acknowledge') return verifyAcknowledgementOperation(deps, operation);
+  return verifyCreateAgentProfileOperation(deps, operation);
 }
 
 export async function verifyOnboardingRequest(

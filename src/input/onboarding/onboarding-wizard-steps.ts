@@ -1,7 +1,23 @@
 import { REASONING_OPTIONS, HITL_MODE_OPTIONS, GUIDANCE_MODE_OPTIONS, PERMISSION_MODE_OPTIONS, SECRET_POLICY_OPTIONS } from './onboarding-wizard-constants.ts';
 import { modelSelectionLabel, normalizeText } from './onboarding-wizard-helpers.ts';
+import { listAgentRuntimeProfileTemplates } from '../../agent/runtime-profile.ts';
 import type { OnboardingWizardController } from './onboarding-wizard.ts';
-import type { OnboardingWizardActionFieldDefinition, OnboardingWizardFieldDefinition, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardRadioFieldDefinition, OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
+import type { OnboardingWizardActionFieldDefinition, OnboardingWizardFieldDefinition, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardRadioFieldDefinition, OnboardingWizardRadioOption, OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
+
+function buildStarterTemplateOptions(): readonly OnboardingWizardRadioOption[] {
+  return [
+    {
+      id: 'none',
+      label: 'No profile',
+      hint: 'Keep using the current Agent home. You can create isolated profiles later from the Agent workspace.',
+    },
+    ...listAgentRuntimeProfileTemplates().map((template): OnboardingWizardRadioOption => ({
+      id: template.id,
+      label: template.name,
+      hint: `${template.description} Includes persona ${template.personaName}, skills ${template.skillNames.join(', ')}, and routines ${template.routineNames.join(', ')}.`,
+    })),
+  ];
+}
 
 export function buildOnboardingWizardSteps(controller: OnboardingWizardController): readonly OnboardingWizardStepDefinition[] {
   if (controller.hydrationPending || controller.hydrationError !== null) return [buildLoadingStep(controller)];
@@ -169,6 +185,7 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
     summaryTitle: 'Agent setup posture',
     summaryLines: [
       'Agent owns the operator TUI and local behavior registry.',
+      'Optional starter profile: create an isolated Agent home from setup.',
       'GoodVibes runtime lifecycle is external to this product.',
       `Secret policy: ${controller.getStringFieldValue('agent-setup.secret-policy', secretPolicy)}`,
       collectionIssues > 0 ? `${collectionIssues} setup snapshot issue(s)` : 'Setup snapshot collected cleanly',
@@ -199,11 +216,27 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
         defaultValue: secretPolicy,
       },
       {
+        kind: 'text',
+        id: 'agent-setup.profile-name',
+        label: 'Create starter profile',
+        hint: 'Optional: enter a new Agent profile name to create an isolated home during setup. Leave blank to keep the current home.',
+        placeholder: 'research-desk',
+        defaultValue: '',
+      },
+      {
+        kind: 'radio',
+        id: 'agent-setup.profile-template',
+        label: 'Starter profile template',
+        hint: 'Choose the persona, skills, and routine bundle to seed into the optional new Agent profile.',
+        options: buildStarterTemplateOptions(),
+        defaultValue: 'none',
+      },
+      {
         kind: 'status',
         id: 'agent-setup.profile-guide',
-        label: 'Agent profiles',
-        hint: 'Use /agent-profile guide after setup to create household, research, travel, operations, or custom Agent profiles.',
-        defaultValue: 'Profiles',
+        label: 'Profile guidance',
+        hint: 'Use /agent-profile guide after setup to export, customize, import, and launch Agent profiles.',
+        defaultValue: 'Available',
       },
     ],
   };
