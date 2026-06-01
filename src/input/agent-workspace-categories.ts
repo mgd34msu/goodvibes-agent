@@ -144,6 +144,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'skills-list', label: 'List skills', detail: 'Print the full local Agent skill library.', command: '/agent-skills list', kind: 'command', safety: 'read-only' },
       { id: 'skills-enabled', label: 'Enabled skills', detail: 'Show only skills currently injected into Agent guidance.', command: '/agent-skills enabled', kind: 'command', safety: 'read-only' },
+      { id: 'skills-bundles', label: 'Skill bundles', detail: 'List reviewable groups of local skills that can be enabled together.', command: '/agent-skills bundle list', kind: 'command', safety: 'read-only' },
+      { id: 'skills-create-bundle', label: 'Create bundle', detail: 'Create a named skill bundle from existing skill ids with an explicit command.', command: '/agent-skills bundle create --name <name> --description <summary> --skills <id,id>', kind: 'command', safety: 'safe' },
       { id: 'skills-prev', label: 'Previous skill', detail: 'Move the local skill selection up without changing enabled state.', localKind: 'skill', selectionDelta: -1, kind: 'local-selection', safety: 'safe' },
       { id: 'skills-next', label: 'Next skill', detail: 'Move the local skill selection down without changing enabled state.', localKind: 'skill', selectionDelta: 1, kind: 'local-selection', safety: 'safe' },
       { id: 'skills-create', label: 'Create skill', detail: 'Open an in-workspace form for a reusable local procedure. No placeholder command is dispatched.', editorKind: 'skill', kind: 'editor', safety: 'safe' },

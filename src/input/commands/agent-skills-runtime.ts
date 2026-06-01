@@ -1,4 +1,4 @@
-import { AgentSkillRegistry, type AgentSkillRecord } from '../../agent/skill-registry.ts';
+import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../../agent/skill-registry.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
 
@@ -55,6 +55,11 @@ function summarizeSkill(skill: AgentSkillRecord): string {
   return `  ${skill.id}  ${enabled}  ${skill.reviewState}  ${skill.name} - ${skill.description}${tags}`;
 }
 
+function summarizeBundle(bundle: AgentSkillBundleRecord): string {
+  const enabled = bundle.enabled ? 'enabled' : 'disabled';
+  return `  ${bundle.id}  ${enabled}  ${bundle.reviewState}  ${bundle.name} - ${bundle.description}  skills=${bundle.skillIds.join(',')}`;
+}
+
 function renderList(title: string, registry: AgentSkillRegistry, skills: readonly AgentSkillRecord[]): string {
   const snapshot = registry.snapshot();
   if (skills.length === 0) {
@@ -65,6 +70,20 @@ function renderList(title: string, registry: AgentSkillRegistry, skills: readonl
     `  store: ${snapshot.path}`,
     `  enabled: ${snapshot.enabledSkills.length}`,
     ...skills.map(summarizeSkill),
+  ].join('\n');
+}
+
+function renderBundleList(title: string, registry: AgentSkillRegistry, bundles: readonly AgentSkillBundleRecord[]): string {
+  const snapshot = registry.snapshot();
+  if (bundles.length === 0) {
+    return `${title}\n  No local Agent skill bundles yet. Create one with /agent-skills bundle create --name <name> --description <summary> --skills <id,id>.`;
+  }
+  return [
+    `${title} (${bundles.length})`,
+    `  store: ${snapshot.path}`,
+    `  enabled bundles: ${snapshot.enabledBundles.length}`,
+    `  active skills: ${snapshot.activeSkills.length}`,
+    ...bundles.map(summarizeBundle),
   ].join('\n');
 }
 
@@ -88,14 +107,143 @@ function renderSkill(skill: AgentSkillRecord): string {
   ].filter(Boolean).join('\n');
 }
 
+function renderBundle(bundle: AgentSkillBundleRecord, registry: AgentSkillRegistry): string {
+  const skills = bundle.skillIds
+    .map((skillId) => registry.get(skillId))
+    .filter((skill): skill is AgentSkillRecord => skill !== null);
+  return [
+    `Skill Bundle ${bundle.name}`,
+    `  id: ${bundle.id}`,
+    `  enabled: ${bundle.enabled ? 'yes' : 'no'}`,
+    `  review: ${bundle.reviewState}`,
+    `  source: ${bundle.source}`,
+    `  provenance: ${bundle.provenance}`,
+    `  skills: ${bundle.skillIds.join(', ')}`,
+    `  created: ${bundle.createdAt}`,
+    `  updated: ${bundle.updatedAt}`,
+    bundle.staleReason ? `  stale reason: ${bundle.staleReason}` : '',
+    '',
+    bundle.description,
+    '',
+    ...skills.map((skill) => `- ${skill.id}: ${skill.name} - ${skill.description}`),
+  ].filter(Boolean).join('\n');
+}
+
 function printError(ctx: CommandContext, error: unknown): void {
   ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
+}
+
+function runBundleCommand(args: readonly string[], ctx: CommandContext, skillRegistry: AgentSkillRegistry): void {
+  const sub = (args[0] ?? 'list').toLowerCase();
+  if (sub === 'list' || sub === 'open') {
+    ctx.print(renderBundleList('Agent Skill Bundles', skillRegistry, skillRegistry.listBundles()));
+    return;
+  }
+  if (sub === 'enabled') {
+    const snapshot = skillRegistry.snapshot();
+    ctx.print(renderBundleList('Enabled Agent Skill Bundles', skillRegistry, snapshot.enabledBundles));
+    return;
+  }
+  if (sub === 'search') {
+    const query = args.slice(1).join(' ').trim();
+    ctx.print(renderBundleList(query ? `Agent Skill Bundles matching "${query}"` : 'Agent Skill Bundles', skillRegistry, skillRegistry.searchBundles(query)));
+    return;
+  }
+  if (sub === 'show') {
+    const id = args[1];
+    if (!id) {
+      ctx.print('Usage: /agent-skills bundle show <id>');
+      return;
+    }
+    const bundle = skillRegistry.getBundle(id);
+    ctx.print(bundle ? renderBundle(bundle, skillRegistry) : `Unknown Agent skill bundle: ${id}`);
+    return;
+  }
+  if (sub === 'create') {
+    const parsed = parseSkillArgs(args.slice(1));
+    const bundle = skillRegistry.createBundle({
+      name: requiredFlag(parsed.flags, 'name'),
+      description: requiredFlag(parsed.flags, 'description'),
+      skillIds: splitList(requiredFlag(parsed.flags, 'skills')),
+      enabled: parsed.flags.get('enabled') === 'true',
+      source: 'user',
+      provenance: 'slash-command',
+    });
+    ctx.print(`Created Agent skill bundle ${bundle.id}: ${bundle.name}`);
+    return;
+  }
+  if (sub === 'update') {
+    const id = args[1];
+    if (!id) {
+      ctx.print('Usage: /agent-skills bundle update <id> [--name ...] [--description ...] [--skills id,id]');
+      return;
+    }
+    const parsed = parseSkillArgs(args.slice(2));
+    const updated = skillRegistry.updateBundle(id, {
+      name: parsed.flags.get('name'),
+      description: parsed.flags.get('description'),
+      skillIds: parsed.flags.has('skills') ? splitList(parsed.flags.get('skills')) : undefined,
+      provenance: 'slash-command',
+    });
+    ctx.print(`Updated Agent skill bundle ${updated.id}: ${updated.name}`);
+    return;
+  }
+  if (sub === 'enable' || sub === 'disable') {
+    const id = args[1];
+    if (!id) {
+      ctx.print(`Usage: /agent-skills bundle ${sub} <id>`);
+      return;
+    }
+    const bundle = skillRegistry.setBundleEnabled(id, sub === 'enable');
+    ctx.print(`${sub === 'enable' ? 'Enabled' : 'Disabled'} Agent skill bundle ${bundle.id}: ${bundle.name}`);
+    return;
+  }
+  if (sub === 'review') {
+    const id = args[1];
+    if (!id) {
+      ctx.print('Usage: /agent-skills bundle review <id>');
+      return;
+    }
+    const bundle = skillRegistry.markBundleReviewed(id);
+    ctx.print(`Reviewed Agent skill bundle ${bundle.id}.`);
+    return;
+  }
+  if (sub === 'stale') {
+    const id = args[1];
+    if (!id) {
+      ctx.print('Usage: /agent-skills bundle stale <id> <reason...>');
+      return;
+    }
+    const bundle = skillRegistry.markBundleStale(id, args.slice(2).join(' '));
+    ctx.print(`Marked Agent skill bundle ${bundle.id} stale.`);
+    return;
+  }
+  if (sub === 'delete' || sub === 'remove') {
+    const parsed = parseSkillArgs(args.slice(1));
+    const id = parsed.rest[0];
+    if (!id) {
+      ctx.print('Usage: /agent-skills bundle delete <id> --yes');
+      return;
+    }
+    if (!parsed.yes) {
+      ctx.print(`Refusing to delete Agent skill bundle ${id} without --yes.`);
+      return;
+    }
+    const removed = skillRegistry.deleteBundle(id);
+    ctx.print(`Deleted Agent skill bundle ${removed.id}: ${removed.name}`);
+    return;
+  }
+  ctx.print('Usage: /agent-skills bundle [list|enabled|search|show|create|update|enable|disable|review|stale|delete]');
 }
 
 export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
   const sub = (args[0] ?? 'list').toLowerCase();
   const skillRegistry = registryFromContext(ctx);
   try {
+    if (sub === 'bundle' || sub === 'bundles') {
+      runBundleCommand(args.slice(1), ctx, skillRegistry);
+      return;
+    }
     if (sub === 'list' || sub === 'open') {
       ctx.print(renderList('Agent Skills', skillRegistry, skillRegistry.list()));
       return;
@@ -199,7 +347,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
       ctx.print(`Deleted Agent skill ${removed.id}: ${removed.name}`);
       return;
     }
-    ctx.print('Usage: /agent-skills [list|enabled|search|show|create|update|enable|disable|review|stale|delete]');
+    ctx.print('Usage: /agent-skills [list|enabled|search|show|create|update|enable|disable|review|stale|delete|bundle]');
   } catch (error) {
     printError(ctx, error);
   }
@@ -210,7 +358,7 @@ export function registerAgentSkillsRuntimeCommands(registry: CommandRegistry): v
     name: 'agent-skills',
     aliases: ['askills', 'local-skills'],
     description: 'Manage local GoodVibes Agent skills',
-    usage: '[list|enabled|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps>|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes]',
+    usage: '[list|enabled|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps>|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
     handler: runAgentSkillsRuntimeCommand,
   });
 }

@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { verifyPackageCliInstall } from '../src/cli/package-verification.ts';
 
 const report = verifyPackageCliInstall(process.cwd());
+const BUN_GLOBAL_INSTALL_TIMEOUT_MS = 420_000;
 
 if (report.issues.length > 0) {
   console.error(JSON.stringify(report, null, 2));
@@ -100,20 +101,20 @@ function assertInstalledTuiLaunches(env: NodeJS.ProcessEnv, tempRoot: string): v
   const transcript = existsSync(transcriptPath) ? readFileSync(transcriptPath, 'utf-8') : '';
   if (result.status !== 124 && result.status !== 137) {
     throw new Error([
-      `installed TUI launch exited ${result.status ?? 'without status'}, expected timeout after staying alive`,
+      `installed Agent TUI launch exited ${result.status ?? 'without status'}, expected timeout after staying alive`,
       result.stdout.trim(),
       result.stderr.trim(),
       transcript.trim(),
     ].filter(Boolean).join('\n'));
   }
   if (transcript.includes('goodvibes-agent failed to launch')) {
-    throw new Error(`installed TUI launch failed during startup:\n${transcript}`);
+    throw new Error(`installed Agent TUI launch failed during startup:\n${transcript}`);
   }
   const plainTranscript = transcript
     .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g, '')
     .replace(/\s+/g, ' ');
   if (!plainTranscript.includes('GoodVibes Agent') && !plainTranscript.includes('Onboarding Wizard')) {
-    throw new Error(`installed TUI launch transcript did not contain the Agent shell:\n${transcript}`);
+    throw new Error(`installed Agent TUI launch transcript did not contain the Agent shell:\n${transcript}`);
   }
 }
 
@@ -141,7 +142,7 @@ try {
       HOME: homeDir,
       BUN_INSTALL: bunInstallDir,
     },
-    timeoutMs: 120_000,
+    timeoutMs: BUN_GLOBAL_INSTALL_TIMEOUT_MS,
   });
 
   const binPath = join(bunInstallDir, 'bin', 'goodvibes-agent');
@@ -188,7 +189,7 @@ try {
 
   assertInstalledTuiLaunches(smokeEnv, tempRoot);
 
-  console.log(`package install check passed (${report.bins.length} bins, ${report.tarball.entryCount} packed files, Bun global command + TUI launch smoke ok)`);
+  console.log(`package install check passed (${report.bins.length} bins, ${report.tarball.entryCount} packed files, Bun global command + Agent TUI launch smoke ok)`);
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

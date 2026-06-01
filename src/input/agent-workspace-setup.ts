@@ -17,6 +17,8 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly enabledRoutineCount: number;
   readonly skillCount: number;
   readonly enabledSkillCount: number;
+  readonly skillBundleCount: number;
+  readonly enabledSkillBundleCount: number;
   readonly activePersonaName: string;
   readonly readyChannelCount: number;
   readonly voiceProviderCount: number;
@@ -77,10 +79,10 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
     {
       id: 'skills',
       label: 'Skills',
-      status: setupStatusForCount(input.enabledSkillCount, 'ready', input.skillCount > 0 ? 'recommended' : 'optional'),
-      detail: input.skillCount > 0
-        ? `${input.enabledSkillCount}/${input.skillCount} local skill(s) enabled.`
-        : 'Create reusable local skills for repeated workflows.',
+      status: input.enabledSkillCount > 0 || input.enabledSkillBundleCount > 0 ? 'ready' : input.skillCount > 0 || input.skillBundleCount > 0 ? 'recommended' : 'optional',
+      detail: input.skillCount > 0 || input.skillBundleCount > 0
+        ? `${input.enabledSkillCount}/${input.skillCount} local skill(s) enabled; ${input.enabledSkillBundleCount}/${input.skillBundleCount} bundle(s) enabled.`
+        : 'Create reusable local skills and bundles for repeated workflows.',
       command: '/agent-skills',
     },
     {

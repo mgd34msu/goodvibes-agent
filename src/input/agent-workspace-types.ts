@@ -128,6 +128,10 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];
   readonly localSkillCount: number;
   readonly enabledSkillCount: number;
+  readonly localSkillBundleCount: number;
+  readonly enabledSkillBundleCount: number;
+  readonly activeSkillCount: number;
+  readonly localSkillBundles: readonly AgentWorkspaceLocalLibraryItem[];
   readonly localSkills: readonly AgentWorkspaceLocalLibraryItem[];
   readonly localPersonaCount: number;
   readonly activePersonaName: string;

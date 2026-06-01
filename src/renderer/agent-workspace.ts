@@ -301,7 +301,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `Session memories: ${snapshot.sessionMemoryCount}`, fg: PALETTE.info },
       { text: `Local routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
-      { text: `Local skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}`, fg: PALETTE.info },
+      { text: `Local skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}; bundles: ${snapshot.localSkillBundleCount}; active skills: ${snapshot.activeSkillCount}`, fg: PALETTE.info },
       { text: `Local personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
       { text: 'Durable memory, routines, skills, and personas remain Agent-local until shared registry contracts exist.', fg: PALETTE.good },
       { text: 'Secrets are rejected/redacted; store secret references instead of secret values.', fg: PALETTE.warn },
@@ -316,11 +316,13 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     );
   } else if (category.id === 'skills') {
     base.push(
-      { text: `Skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}`, fg: PALETTE.info },
+      { text: `Skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}; bundles: ${snapshot.localSkillBundleCount}; enabled bundles: ${snapshot.enabledSkillBundleCount}; active skills: ${snapshot.activeSkillCount}`, fg: PALETTE.info },
       { text: 'Skills are reusable local procedures the assistant can apply from the main conversation.', fg: PALETTE.good },
-      { text: 'Enabled skills are injected as operating guidance; secret-looking content is rejected.', fg: PALETTE.warn },
+      { text: 'Enabled skills and enabled bundles are injected as operating guidance; secret-looking content is rejected.', fg: PALETTE.warn },
       { text: '' },
       ...localLibraryLines('Skill Library', snapshot.localSkills, 'No local skills yet. Create one here with Create skill.', workspace.selectedLocalLibraryItem('skill')?.id ?? null),
+      { text: '' },
+      ...localLibraryLines('Skill Bundles', snapshot.localSkillBundles, 'No local skill bundles yet. Use Skill bundles and Create bundle after creating skills.', null),
     );
   } else if (category.id === 'routines') {
     base.push(

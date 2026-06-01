@@ -73,4 +73,57 @@ describe('AgentSkillRegistry', () => {
     expect(prompt).not.toContain('/api/knowledge');
     expect(prompt).not.toContain('non-Agent knowledge fallback');
   });
+
+  test('creates enabled skill bundles that activate member skills together', () => {
+    const { registry, paths } = tempRegistry();
+    registry.create({
+      name: 'Briefing',
+      description: 'Summarize current state.',
+      procedure: 'Review visible status and present concise next actions.',
+    });
+    registry.create({
+      name: 'Approval Review',
+      description: 'Explain pending approvals.',
+      procedure: 'List approval risk, tool, route, and requested decision.',
+    });
+
+    const bundle = registry.createBundle({
+      name: 'Daily Operator Pack',
+      description: 'Use briefing and approval-review procedures together.',
+      skillIds: ['briefing', 'approval-review'],
+      enabled: true,
+    });
+
+    const snapshot = registry.snapshot();
+    expect(bundle.id).toBe('daily-operator-pack');
+    expect(snapshot.enabledSkills).toHaveLength(0);
+    expect(snapshot.enabledBundles.map((entry) => entry.id)).toEqual(['daily-operator-pack']);
+    expect(snapshot.activeSkills.map((entry) => entry.id)).toEqual(['briefing', 'approval-review']);
+
+    const prompt = buildEnabledSkillsPrompt(paths);
+    expect(prompt).toContain('Skill Bundle: Daily Operator Pack');
+    expect(prompt).toContain('Included skills: briefing, approval-review');
+    expect(prompt).toContain('Briefing');
+    expect(prompt).toContain('Approval Review');
+  });
+
+  test('removes deleted skills from bundles and drops empty bundles', () => {
+    const { registry } = tempRegistry();
+    registry.create({
+      name: 'Only Skill',
+      description: 'Single skill.',
+      procedure: 'Do one thing clearly.',
+    });
+    registry.createBundle({
+      name: 'Temporary Pack',
+      description: 'Single-skill bundle.',
+      skillIds: ['only-skill'],
+      enabled: true,
+    });
+
+    registry.deleteSkill('only-skill');
+
+    expect(registry.snapshot().skills).toHaveLength(0);
+    expect(registry.snapshot().bundles).toHaveLength(0);
+  });
 });

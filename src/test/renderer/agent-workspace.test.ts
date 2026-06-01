@@ -58,6 +58,12 @@ function liveCommandContext(): CommandContext {
     procedure: 'Review current daemon, tasks, and approvals first.',
     enabled: true,
   });
+  skills.createBundle({
+    name: 'Operator Pack',
+    description: 'Use the core operator procedures together.',
+    skillIds: ['briefing'],
+    enabled: true,
+  });
   const routines = AgentRoutineRegistry.fromShellPaths(shellPaths);
   routines.create({
     name: 'Daily Brief',
@@ -213,7 +219,7 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 34));
 
     expect(output).toContain('Local routines: 1; enabled: 1');
-    expect(output).toContain('Local skills: 1; enabled: 1');
+    expect(output).toContain('Local skills: 1; enabled: 1; bundles: 1; active skills: 1');
     expect(output).toContain('Local personas: 1; active: Research Analyst');
     expect(output).toContain('open routines');
     expect(output).toContain('open skills');
@@ -234,6 +240,22 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Procedure *');
     expect(output).toContain('Enter next/save');
     expect(output).toContain('Esc cancel');
+  });
+
+  test('renders local skill bundles in the skills workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 42));
+
+    expect(output).toContain('Skills: 1; enabled: 1; bundles: 1; enabled bundles: 1; active skills: 1');
+    expect(output).toContain('Skill bundles');
+    expect(output).toContain('/agent-skills bundle list');
+    expect(output).toContain('Create bundle');
+    expect(output).toContain('Skill Bundles');
+    expect(output).toContain('operator-pack: Operator Pack');
+    expect(output).toContain('Skills: briefing');
   });
 
   test('renders Agent Knowledge ingest and review workflow without default wiki fallback', () => {

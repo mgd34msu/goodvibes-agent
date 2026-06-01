@@ -73,11 +73,28 @@ jobs:
       - name: Run eval gate
         run: bun run eval:gate
 
+  package-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Setup
+        uses: ./.github/actions/setup
+      - name: Build
+        run: bun run build
+      - name: Compiled binary smoke
+        run: bun run scripts/post-build-smoke.ts
+      - name: Publish package check
+        run: bun run publish:check
+      - name: Package install check
+        run: bun run package:install-check
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: github.event_name == 'push'
-    needs: [typecheck, test, architecture-check, perf-check, eval-gate]
+    needs: [typecheck, test, architecture-check, perf-check, eval-gate, package-check]
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1

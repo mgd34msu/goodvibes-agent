@@ -1,6 +1,6 @@
 {
   "name": "@pellux/goodvibes-agent",
-  "version": "0.1.80",
+  "version": "0.1.81",
   "private": false,
   "description": "GoodVibes personal operator assistant TUI with a proactive Agent product brain, isolated Agent Knowledge, local profiles, routines, skills, personas, and explicit build delegation.",
   "type": "module",
@@ -92,6 +92,8 @@
     "publish:dry-run": "bun run scripts/publish-package.ts --dry-run",
     "publish:check": "bun run scripts/publish-check.ts",
     "package:install-check": "bun run scripts/package-install-check.ts",
+    "eval:gate": "bun test src/test/runtime/eval/runner.test.ts",
+    "ci:gate": "bun run typecheck && bun run test && bun run architecture:check && bun run perf:check && bun run eval:gate && bun run build && bun run publish:check && bun run package:install-check && bun run verification:ledger",
     "build:prod": "bun run scripts/build.ts",
     "build:all": "bun run scripts/build.ts --all",
     "perf:check": "bun run scripts/perf-check.ts",

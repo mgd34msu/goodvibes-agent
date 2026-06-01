@@ -2,7 +2,7 @@ import { basename, sep } from 'node:path';
 import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
-import { AgentSkillRegistry, type AgentSkillRecord } from '../agent/skill-registry.ts';
+import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates } from '../agent/runtime-profile.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
 import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
@@ -86,6 +86,19 @@ function summarizeSkillItem(skill: AgentSkillRecord): AgentWorkspaceLocalLibrary
   };
 }
 
+function summarizeSkillBundleItem(bundle: AgentSkillBundleRecord): AgentWorkspaceLocalLibraryItem {
+  return {
+    id: bundle.id,
+    name: bundle.name,
+    description: `${bundle.description} Skills: ${bundle.skillIds.join(', ')}`,
+    reviewState: bundle.reviewState,
+    source: bundle.source,
+    tags: bundle.skillIds,
+    triggers: [],
+    enabled: bundle.enabled,
+  };
+}
+
 function summarizeRoutineItem(routine: AgentRoutineRecord): AgentWorkspaceLocalLibraryItem {
   return {
     id: routine.id,
@@ -158,15 +171,19 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const skillSnapshot = (() => {
     try {
       const shellPaths = context.workspace?.shellPaths;
-      if (!shellPaths) return { count: 0, enabled: 0, items: [] };
+      if (!shellPaths) return { count: 0, enabled: 0, active: 0, bundleCount: 0, enabledBundleCount: 0, items: [], bundleItems: [] };
       const snapshot = AgentSkillRegistry.fromShellPaths(shellPaths).snapshot();
       return {
         count: snapshot.skills.length,
         enabled: snapshot.enabledSkills.length,
+        active: snapshot.activeSkills.length,
+        bundleCount: snapshot.bundles.length,
+        enabledBundleCount: snapshot.enabledBundles.length,
         items: snapshot.skills.map(summarizeSkillItem),
+        bundleItems: snapshot.bundles.map(summarizeSkillBundleItem),
       };
     } catch {
-      return { count: 0, enabled: 0, items: [] };
+      return { count: 0, enabled: 0, active: 0, bundleCount: 0, enabledBundleCount: 0, items: [], bundleItems: [] };
     }
   })();
   const routineSnapshot = (() => {
@@ -251,6 +268,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     enabledRoutineCount: routineSnapshot.enabled,
     skillCount: skillSnapshot.count,
     enabledSkillCount: skillSnapshot.enabled,
+    skillBundleCount: skillSnapshot.bundleCount,
+    enabledSkillBundleCount: skillSnapshot.enabledBundleCount,
     activePersonaName: personaSnapshot.activeName,
     readyChannelCount: channels.filter((channel) => channel.ready).length,
     voiceProviderCount: voiceProviders.length,
@@ -274,6 +293,10 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     localRoutines: routineSnapshot.items,
     localSkillCount: skillSnapshot.count,
     enabledSkillCount: skillSnapshot.enabled,
+    localSkillBundleCount: skillSnapshot.bundleCount,
+    enabledSkillBundleCount: skillSnapshot.enabledBundleCount,
+    activeSkillCount: skillSnapshot.active,
+    localSkillBundles: skillSnapshot.bundleItems,
     localSkills: skillSnapshot.items,
     localPersonaCount: personaSnapshot.count,
     activePersonaName: personaSnapshot.activeName,

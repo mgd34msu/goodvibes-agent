@@ -67,6 +67,34 @@ describe('/agent-skills command', () => {
     expect(text).toContain('secret-looking');
   });
 
+  test('creates and enables local skill bundles', async () => {
+    const { registry, out, ctx } = commandHarness();
+
+    await registry.execute('agent-skills', ['create', '--name', 'Briefing', '--description', 'Summarize status.', '--procedure', 'Review state and report next actions.'], ctx);
+    await registry.execute('agent-skills', ['create', '--name', 'Approvals', '--description', 'Review approvals.', '--procedure', 'Explain pending approval risk and decision.'], ctx);
+    await registry.execute('agent-skills', [
+      'bundle',
+      'create',
+      '--name',
+      'Operator Pack',
+      '--description',
+      'Use briefing and approval review together.',
+      '--skills',
+      'briefing,approvals',
+    ], ctx);
+    await registry.execute('agent-skills', ['bundle', 'enable', 'operator-pack'], ctx);
+    await registry.execute('agent-skills', ['bundle', 'enabled'], ctx);
+    await registry.execute('agent-skills', ['bundle', 'show', 'operator-pack'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Created Agent skill bundle operator-pack');
+    expect(text).toContain('Enabled Agent skill bundle operator-pack');
+    expect(text).toContain('Operator Pack - Use briefing and approval review together.');
+    expect(text).toContain('active skills: 2');
+    expect(text).toContain('- briefing: Briefing');
+    expect(text).toContain('- approvals: Approvals');
+  });
+
   test('/skills local routes to Agent-local skills', async () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skill-local-alias-'));
     const registry = new CommandRegistry();
