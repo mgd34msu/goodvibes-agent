@@ -55,6 +55,7 @@ const FORBIDDEN_TARBALL_FILES = new Set([
   'src/panels/agent-inspector-shared.ts',
   'src/panels/agent-logs-panel.ts',
   'src/panels/agent-logs-shared.ts',
+  'src/tools/wrfc-agent-guard.ts',
   'src/renderer/agent-detail-modal.ts',
   'src/renderer/process-summary.ts',
 ]);

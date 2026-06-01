@@ -782,9 +782,3 @@ function narrowStringEnumProperty(
   property.enum = [...values];
   property.description = description;
 }
-
-// Compatibility exports for inherited terminal-foundation tests/imports.
-export const installWrfcAgentToolGuard = installAgentToolPolicyGuard;
-export const wrapWrfcAgentTool = wrapAgentToolForAgentPolicy;
-export const validateWrfcAgentToolInvocation = validateAgentToolInvocationForAgentPolicy;
-export const normalizeWrfcAgentToolInvocation = normalizeAgentToolInvocationForAgentPolicy;

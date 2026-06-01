@@ -55,7 +55,7 @@ import {
   installAgentToolPolicyGuard,
   normalizeAgentToolInvocationForAgentPolicy,
   wrapAgentToolForAgentPolicy,
-} from '../../tools/wrfc-agent-guard.ts';
+} from '../../tools/agent-tool-policy-guard.ts';
 
 const EXPECTED_AGENT_TEMPLATES = [
   'orchestrator',

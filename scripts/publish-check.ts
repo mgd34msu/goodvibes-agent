@@ -88,6 +88,7 @@ const forbiddenSourceFiles = new Set([
   'src/input/commands/quit-shared.ts',
   'src/cli/service-command.ts',
   'src/cli/surface-command.ts',
+  'src/tools/wrfc-agent-guard.ts',
   'src/renderer/agent-detail-modal.ts',
   'src/renderer/git-status.ts',
   'src/renderer/process-summary.ts',
