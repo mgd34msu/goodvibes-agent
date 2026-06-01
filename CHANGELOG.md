@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.97 - 2026-06-01
+
+- d17b910 Harden package TUI launch smoke
+
 ## 0.1.96 - 2026-06-01
 
 - 7ae787f Remove unused widget scaffold
