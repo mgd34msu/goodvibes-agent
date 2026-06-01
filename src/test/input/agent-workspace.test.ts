@@ -14,6 +14,7 @@ import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { createAgentRuntimeProfile, listAgentRuntimeProfiles } from '../../agent/runtime-profile.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
+import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
@@ -44,6 +45,21 @@ function commandContext(calls: string[] = []): CommandContext {
     print: (text: string) => {
       calls.push(`print:${text}`);
     },
+  } as unknown as CommandContext;
+}
+
+function routineWorkspaceContext(): CommandContext {
+  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-routine-form-'));
+  const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+  AgentRoutineRegistry.fromShellPaths(shellPaths).create({
+    name: 'Daily Brief',
+    description: 'Summarize operator state.',
+    steps: 'Review current tasks, approvals, and Agent Knowledge status first.',
+    enabled: true,
+  });
+  return {
+    ...commandContext(),
+    workspace: { shellPaths },
   } as unknown as CommandContext;
 }
 
@@ -165,6 +181,21 @@ function memoryApi(records: MemoryRecord[] = [memoryRecord()]): MemoryApi {
 }
 
 describe('AgentWorkspace', () => {
+  test('parses quoted workspace slash commands for schedule promotion', () => {
+    const parsed = parseSlashCommand('/schedule promote-routine daily-brief --cron "0 9 * * *" --delivery-channel "slack:ops alerts" --yes');
+
+    expect(parsed.name).toBe('schedule');
+    expect(parsed.args).toEqual([
+      'promote-routine',
+      'daily-brief',
+      '--cron',
+      '0 9 * * *',
+      '--delivery-channel',
+      'slack:ops alerts',
+      '--yes',
+    ]);
+  });
+
   test('all workspace slash command actions resolve through the Agent command registry', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
@@ -1191,6 +1222,61 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/schedule reconcile']);
     expect(workspace.status).toContain('/schedule reconcile');
+  });
+
+  test('automation workspace promotes selected routine through a confirmed form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(routineWorkspaceContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-promote-routine');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('routine-schedule');
+    expect(workspace.localEditor?.fields.find((field) => field.id === 'routineId')?.value).toBe('daily-brief');
+
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, '0 9 * * *');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'America/Chicago');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'slack:ops-alerts:Ops');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/schedule promote-routine daily-brief --cron "0 9 * * *" --timezone America/Chicago --name "Daily Brief" --delivery-channel slack:ops-alerts:Ops --yes',
+    ]);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
+  });
+
+  test('automation workspace does not dispatch routine schedule promotion without confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(routineWorkspaceContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-promote-routine');
+
+    workspace.activateSelected();
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, '0 9 * * *');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.kind).toBe('routine-schedule');
+    expect(workspace.status).toContain('not confirmed');
   });
 
   test('keeps copied runner controls out of the build delegation workspace', () => {

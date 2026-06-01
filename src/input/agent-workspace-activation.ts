@@ -1,4 +1,6 @@
 import { createLocalEditor, createProfileEditor } from './agent-workspace-editors.ts';
+import { createRoutineScheduleEditor } from './agent-workspace-routine-schedule-editor.ts';
+import { parseSlashCommand } from './slash-command-parser.ts';
 import type {
   AgentWorkspaceActionResult,
   AgentWorkspaceCategory,
@@ -6,6 +8,7 @@ import type {
   AgentWorkspaceFocusPane,
   AgentWorkspaceLocalEditor,
   AgentWorkspaceLocalEditorKind,
+  AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceLocalOperation,
   AgentWorkspaceRuntimeSnapshot,
 } from './agent-workspace-types.ts';
@@ -25,16 +28,10 @@ interface AgentWorkspaceActivationHost {
   focusActions(): void;
   clampSelection(): void;
   moveLocalLibraryItemSelection(kind: AgentWorkspaceLocalEditorKind, delta: number): void;
+  selectedLocalLibraryItem(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null;
   applyLocalLibraryOperation(operation: AgentWorkspaceLocalOperation): void;
   hasCommandDispatch(): boolean;
   dispatchWorkspaceCommand: AgentWorkspaceCommandDispatcher;
-}
-
-function parseCommand(command: string): { readonly name: string; readonly args: readonly string[] } {
-  const trimmed = command.trim().replace(/^\//, '');
-  if (!trimmed) return { name: '', args: [] };
-  const parts = trimmed.split(/\s+/);
-  return { name: parts[0] ?? '', args: parts.slice(1) };
 }
 
 export function activateAgentWorkspaceSelection(
@@ -52,9 +49,7 @@ export function activateAgentWorkspaceSelection(
   const action = workspace.selectedAction;
   if (!action) return;
   if (action.kind === 'editor' && action.editorKind) {
-    workspace.localEditor = action.editorKind === 'profile'
-      ? createProfileEditor(workspace.runtimeSnapshot?.runtimeStarterTemplates ?? [])
-      : createLocalEditor(action.editorKind);
+    workspace.localEditor = createWorkspaceEditor(workspace, action.editorKind);
     workspace.status = `Editing ${workspace.localEditor.title}.`;
     workspace.lastActionResult = {
       kind: 'guidance',
@@ -87,7 +82,7 @@ export function activateAgentWorkspaceSelection(
     };
     return;
   }
-  const parsed = parseCommand(action.command);
+  const parsed = parseSlashCommand(action.command);
   if (!parsed.name) {
     workspace.status = `No command is configured for ${action.label}.`;
     workspace.lastActionResult = {
@@ -129,6 +124,15 @@ export function activateAgentWorkspaceSelection(
     safety: action.safety,
   };
   workspace.dispatchWorkspaceCommand(action.command);
+}
+
+function createWorkspaceEditor(
+  workspace: AgentWorkspaceActivationHost,
+  editorKind: AgentWorkspaceCategory['actions'][number]['editorKind'],
+): AgentWorkspaceLocalEditor {
+  if (editorKind === 'profile') return createProfileEditor(workspace.runtimeSnapshot?.runtimeStarterTemplates ?? []);
+  if (editorKind === 'routine-schedule') return createRoutineScheduleEditor(workspace.selectedLocalLibraryItem('routine'));
+  return createLocalEditor(editorKind ?? 'memory');
 }
 
 function handleGuidanceOrWorkspaceAction(

@@ -389,7 +389,11 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Create Skill');
     expect(output).toContain('Name *');
-    expect(output).toContain('Procedure *');
+    expect(output).toContain('more field(s) below');
+    workspace.moveEditorField(2);
+    const procedureOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(procedureOutput).toContain('Procedure *');
+    expect(procedureOutput).toContain('more field(s) above');
     expect(output).toContain('Enter next/save');
     expect(output).toContain('Esc cancel');
   });
@@ -431,6 +435,32 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('/knowledge candidates');
     expect(output).not.toContain('/api/knowledge');
     expect(output).not.toContain('non-Agent product setup');
+  });
+
+  test('renders routine schedule promotion as an in-workspace form', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-promote-routine');
+    workspace.activateSelected();
+
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
+
+    expect(output).toContain('Promote Routine to Schedule');
+    expect(output).toContain('Routine id *');
+    expect(output).toContain('daily-brief');
+    expect(output).toContain('Schedule value *');
+    expect(output).toContain('more field(s) below');
+    workspace.moveEditorField(5);
+    const deliveryOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(deliveryOutput).toContain('Delivery channel');
+    expect(deliveryOutput).toContain('more field(s) above');
+    expect(deliveryOutput).toContain('more field(s) below');
+    workspace.moveEditorField(2);
+    const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(confirmOutput).toContain('Confirm *');
+    expect(output).not.toContain('<routine-id>');
+    expect(output).not.toContain('<expr>');
   });
 
   test('renders voice media and browser tool setup posture', () => {

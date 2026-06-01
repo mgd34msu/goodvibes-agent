@@ -182,7 +182,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'routines-disable', label: 'Disable selected', detail: 'Disable the selected routine without deleting it.', localKind: 'routine', localOperation: 'routine-disable', kind: 'local-operation', safety: 'safe' },
       { id: 'routines-review', label: 'Review selected', detail: 'Mark the selected local routine reviewed after inspecting it.', localKind: 'routine', localOperation: 'routine-review', kind: 'local-operation', safety: 'safe' },
       { id: 'routines-delete', label: 'Delete selected', detail: 'Open a confirmation form before deleting the selected local Agent routine.', localKind: 'routine', localOperation: 'routine-delete', kind: 'local-operation', safety: 'safe' },
-      { id: 'routines-promote', label: 'Promote to schedule', detail: 'Create an external schedule from a reviewed routine only with real timing and --yes.', command: '/routines promote <id> --cron <expr> --yes', kind: 'command', safety: 'safe' },
+      { id: 'routines-promote', label: 'Promote to schedule', detail: 'Open an in-workspace form that creates one external schedule from the selected routine with real timing and confirmation.', editorKind: 'routine-schedule', kind: 'editor', safety: 'safe' },
       { id: 'routines-receipts', label: 'Promotion receipts', detail: 'Inspect local redacted routine schedule promotion receipts.', command: '/routines receipts', kind: 'command', safety: 'read-only' },
     ],
   },
@@ -206,7 +206,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent does not create local automation jobs or hidden scheduler spawns. Reviewed local routines can be promoted into external schedules only through an explicit schedules.create command with --yes, optional delivery targets, and a redacted local receipt.',
     actions: [
       { id: 'schedule-list', label: 'List schedules', detail: 'Inspect configured jobs and history without running or mutating them.', command: '/schedule list', kind: 'command', safety: 'read-only' },
-      { id: 'schedule-promote-routine', label: 'Promote routine', detail: 'Create an external schedule from a local Agent routine. Requires a real routine id, schedule expression, optional delivery target, and explicit --yes.', command: '/schedule promote-routine <routine-id> --cron <expr> [--delivery-channel slack] --yes', kind: 'command', safety: 'safe' },
+      { id: 'schedule-promote-routine', label: 'Promote routine', detail: 'Open an in-workspace form that creates one external schedule from a local Agent routine with real timing, optional delivery target, and explicit confirmation.', editorKind: 'routine-schedule', kind: 'editor', safety: 'safe' },
       { id: 'schedule-receipts', label: 'Promotion receipts', detail: 'Review local redacted receipt history for routine-to-schedule promotion attempts.', command: '/schedule receipts', kind: 'command', safety: 'read-only' },
       { id: 'schedule-reconcile', label: 'Reconcile schedules', detail: 'Compare local promotion receipts with live external schedules using schedules.list.', command: '/schedule reconcile', kind: 'command', safety: 'read-only' },
       { id: 'schedule-policy', label: 'Local scheduler blocked', detail: 'Local schedule add/run/remove/enable/disable remain blocked; only explicit external schedule promotion is allowed here.', kind: 'guidance', safety: 'blocked' },

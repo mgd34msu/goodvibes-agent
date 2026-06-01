@@ -3,7 +3,6 @@ import type { AgentRoutineRecord } from '../agent/routine-registry.ts';
 import type { AgentSkillRecord } from '../agent/skill-registry.ts';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type {
-  AgentWorkspaceEditorKind,
   AgentWorkspaceLocalEditor,
   AgentWorkspaceLocalEditorKind,
   AgentWorkspaceLocalLibraryItem,
@@ -31,7 +30,7 @@ export function createProfileEditor(templates: readonly AgentWorkspaceRuntimeSta
   };
 }
 
-export function createLocalEditor(kind: AgentWorkspaceEditorKind): AgentWorkspaceLocalEditor {
+export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind | 'knowledge-url'): AgentWorkspaceLocalEditor {
   if (kind === 'profile') return createProfileEditor([]);
   if (kind === 'knowledge-url') {
     return {

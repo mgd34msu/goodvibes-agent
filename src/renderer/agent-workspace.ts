@@ -430,32 +430,44 @@ function buildEditorRows(editor: AgentWorkspaceLocalEditor, width: number, heigh
     { text: editor.message, fg: PALETTE.info },
     { text: '' },
   ];
-  for (let index = 0; index < editor.fields.length; index += 1) {
-    const field = editor.fields[index]!;
-    const selected = index === editor.selectedFieldIndex;
-    const marker = selected ? GLYPHS.navigation.selected : ' ';
-    const required = field.required ? ' *' : '';
-    const value = field.value.length > 0 ? field.value : '(empty)';
-    const color = selected ? PALETTE.text : field.value.length > 0 ? PALETTE.info : PALETTE.muted;
-    rows.push({
-      text: `${marker} ${field.label}${required}`,
-      selected,
-      fg: color,
-      bold: selected,
-    });
-    const valueLines = value.split('\n');
-    for (const valueLine of valueLines.slice(0, 4)) {
-      for (const wrapped of wrapText(`  ${valueLine}`, Math.max(1, width - 2))) {
-        rows.push({ text: wrapped, fg: field.value.length > 0 ? PALETTE.text : PALETTE.dim, dim: field.value.length === 0 });
-      }
-    }
-    if (valueLines.length > 4) rows.push({ text: `  ${valueLines.length - 4} more line(s)`, fg: PALETTE.dim, dim: true });
-    rows.push({ text: `  ${field.hint}`, fg: PALETTE.dim, dim: true });
+  const footerRows: WorkspaceRow[] = [
+    { text: '' },
+    { text: 'Enter next/save · Up/Down field · Backspace edit · Ctrl-J newline · Esc cancel', fg: PALETTE.muted },
+  ];
+  const visibleFields = Math.max(1, Math.floor(Math.max(1, height - rows.length - footerRows.length) / 3));
+  const window = stableWindow(editor.fields.length, editor.selectedFieldIndex, visibleFields);
+  if (window.start > 0) rows.push({ text: `${GLYPHS.navigation.moreAbove} ${window.start} more field(s) above`, kind: 'more', fg: PALETTE.dim, dim: true });
+  for (let index = window.start; index < window.end; index += 1) {
+    rows.push(...buildEditorFieldRows(editor, index, width));
   }
-  rows.push({ text: '' });
-  rows.push({ text: 'Enter next/save · Up/Down field · Backspace edit · Ctrl-J newline · Esc cancel', fg: PALETTE.muted });
+  if (window.end < editor.fields.length) rows.push({ text: `${GLYPHS.navigation.moreBelow} ${editor.fields.length - window.end} more field(s) below`, kind: 'more', fg: PALETTE.dim, dim: true });
+  rows.push(...footerRows);
   while (rows.length < height) rows.push({ text: '', kind: 'empty' });
   return rows.slice(0, height);
+}
+
+function buildEditorFieldRows(editor: AgentWorkspaceLocalEditor, index: number, width: number): WorkspaceRow[] {
+  const field = editor.fields[index]!;
+  const selected = index === editor.selectedFieldIndex;
+  const marker = selected ? GLYPHS.navigation.selected : ' ';
+  const required = field.required ? ' *' : '';
+  const value = field.value.length > 0 ? field.value : '(empty)';
+  const color = selected ? PALETTE.text : field.value.length > 0 ? PALETTE.info : PALETTE.muted;
+  const rows: WorkspaceRow[] = [{
+    text: `${marker} ${field.label}${required}`,
+    selected,
+    fg: color,
+    bold: selected,
+  }];
+  const valueLines = value.split('\n');
+  for (const valueLine of valueLines.slice(0, 4)) {
+    for (const wrapped of wrapText(`  ${valueLine}`, Math.max(1, width - 2))) {
+      rows.push({ text: wrapped, fg: field.value.length > 0 ? PALETTE.text : PALETTE.dim, dim: field.value.length === 0 });
+    }
+  }
+  if (valueLines.length > 4) rows.push({ text: `  ${valueLines.length - 4} more line(s)`, fg: PALETTE.dim, dim: true });
+  rows.push({ text: `  ${field.hint}`, fg: PALETTE.dim, dim: true });
+  return rows;
 }
 
 function buildActionRows(workspace: AgentWorkspace, width: number, height: number): WorkspaceRow[] {

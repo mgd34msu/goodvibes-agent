@@ -10,7 +10,7 @@ export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'e
 
 export type AgentWorkspaceLocalEditorKind = 'memory' | 'persona' | 'skill' | 'routine' | 'profile';
 
-export type AgentWorkspaceEditorKind = AgentWorkspaceLocalEditorKind | 'knowledge-url';
+export type AgentWorkspaceEditorKind = AgentWorkspaceLocalEditorKind | 'knowledge-url' | 'routine-schedule';
 
 export type AgentWorkspaceLocalOperation =
   | 'memory-edit'

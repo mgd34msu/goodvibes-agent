@@ -11,6 +11,7 @@ import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
 import { createDeleteEditor, createMemoryUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
+import { buildAgentRoutineScheduleEditorSubmission } from './agent-workspace-routine-schedule-editor.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
@@ -478,6 +479,11 @@ export class AgentWorkspace {
       requestRender?.();
       return;
     }
+    if (editor.kind === 'routine-schedule') {
+      this.submitRoutineScheduleEditor(editor);
+      requestRender?.();
+      return;
+    }
     if (editor.kind === 'memory') {
       if (editor.mode === 'delete') {
         try {
@@ -616,6 +622,21 @@ export class AgentWorkspace {
 
   private submitKnowledgeUrlEditor(editor: AgentWorkspaceLocalEditor): void {
     const result = buildAgentKnowledgeUrlEditorSubmission(editor, (fieldId) => this.editorField(fieldId), this.hasCommandDispatch());
+    if (result.kind === 'editor') {
+      this.localEditor = result.editor;
+      this.status = result.status;
+      if (result.actionResult) this.lastActionResult = result.actionResult;
+      return;
+    }
+
+    this.localEditor = null;
+    this.status = result.status;
+    this.lastActionResult = result.actionResult;
+    this.dispatchWorkspaceCommand(result.command);
+  }
+
+  private submitRoutineScheduleEditor(editor: AgentWorkspaceLocalEditor): void {
+    const result = buildAgentRoutineScheduleEditorSubmission(editor, (fieldId) => this.editorField(fieldId), this.hasCommandDispatch());
     if (result.kind === 'editor') {
       this.localEditor = result.editor;
       this.status = result.status;

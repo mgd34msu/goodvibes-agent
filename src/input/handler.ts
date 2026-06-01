@@ -26,6 +26,7 @@ import { BookmarkModal } from './bookmark-modal.ts';
 import { SettingsModal } from './settings-modal.ts';
 import { McpWorkspace } from './mcp-workspace.ts';
 import { AgentWorkspace } from './agent-workspace.ts';
+import { parseSlashCommand } from './slash-command-parser.ts';
 import { SessionPickerModal } from './session-picker-modal.ts';
 import { ProfilePickerModal } from './profile-picker-modal.ts';
 import { OnboardingWizardController, type OnboardingWizardAction, type OnboardingWizardMode } from './onboarding/onboarding-wizard.ts';
@@ -423,9 +424,9 @@ export class InputHandler {
     for (let index = this.modalStack.length - 1; index >= 0; index -= 1) {
       if (this.modalStack[index] === 'agentWorkspace') this.modalStack.splice(index, 1);
     }
-    const [name, ...args] = command.trim().replace(/^\//, '').split(/\s+/);
+    const { name, args } = parseSlashCommand(command);
     if (!name) return;
-    void context.executeCommand?.(name, args).catch((error: unknown) => {
+    void context.executeCommand?.(name, [...args]).catch((error: unknown) => {
       context.print(`Agent workspace command failed: ${error instanceof Error ? error.message : String(error)}`);
       this.requestRender();
     });

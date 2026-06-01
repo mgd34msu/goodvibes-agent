@@ -33,7 +33,7 @@ POST /api/goodvibes-agent/knowledge/ingest/bookmarks
 POST /api/goodvibes-agent/knowledge/reindex
 ```
 
-If those routes are unavailable, Agent commands fail closed with a structured error. They do not retry against `/api/knowledge/*` or arbitrary knowledge-space selectors.
+If those routes are unavailable, Agent commands fail closed with a structured error. They do not retry against the default Knowledge/Wiki routes or arbitrary knowledge-space selectors.
 
 The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces` because those would violate the Agent product boundary.
 
