@@ -6,6 +6,7 @@ export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
   | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
+  | 'support-bundle-export' | 'support-bundle-inspect' | 'support-bundle-import'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
@@ -28,6 +29,9 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'profile-from-discovered'
     || kind === 'profile-default'
     || kind === 'profile-default-clear'
+    || kind === 'support-bundle-export'
+    || kind === 'support-bundle-inspect'
+    || kind === 'support-bundle-import'
     || kind === 'mcp-server'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
@@ -269,6 +273,44 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       message: 'Return the next normal goodvibes-agent launch to the base Agent home. Type yes to confirm.',
       fields: [
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile default clear with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'support-bundle-export') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Export Agent Support Bundle',
+      selectedFieldIndex: 0,
+      message: 'Export a redacted Agent support bundle from this workspace. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'path', label: 'Output path', value: 'goodvibes-agent-bundle.json', required: true, multiline: false, hint: 'Workspace-relative JSON path to write.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /bundle export with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'support-bundle-inspect') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Inspect Agent Support Bundle',
+      selectedFieldIndex: 0,
+      message: 'Inspect a redacted Agent support bundle before import or sharing.',
+      fields: [
+        { id: 'path', label: 'Bundle path', value: 'goodvibes-agent-bundle.json', required: true, multiline: false, hint: 'Workspace-relative bundle JSON path.' },
+      ],
+    };
+  }
+  if (kind === 'support-bundle-import') {
+    return {
+      kind,
+      mode: 'update',
+      title: 'Import Agent Support Bundle',
+      selectedFieldIndex: 0,
+      message: 'Import non-redacted config values from a reviewed Agent support bundle. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'path', label: 'Bundle path', value: 'goodvibes-agent-bundle.json', required: true, multiline: false, hint: 'Workspace-relative bundle JSON path to import.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /bundle import with --yes.' },
       ],
     };
   }

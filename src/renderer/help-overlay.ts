@@ -88,6 +88,7 @@ export function renderHelpOverlay(
     ['model',        '',           'Select the active model route'],
     ['subscription', '',           'Review provider logins and subscriptions'],
     ['secrets',      '',           'Manage secret references without printing values'],
+    ['bundle',       'inspect',    'Inspect Agent support bundles from the TUI'],
     ['health',       '',           'Run Agent runtime and setup diagnostics'],
   ];
 

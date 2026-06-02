@@ -371,6 +371,24 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('non-Agent graph segment');
   });
 
+  test('renders support bundle actions in the setup workspace when selected', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-export');
+    const exportOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(exportOutput).toContain('Export support bundle');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-inspect');
+    const inspectOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(inspectOutput).toContain('Inspect support bundle');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-import');
+    const importOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(importOutput).toContain('Import support bundle');
+  });
+
   test('renders discovered behavior files as first-run setup actions', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-discovery-'));
     mkdirSync(join(root, '.goodvibes', 'agent', 'personas'), { recursive: true });

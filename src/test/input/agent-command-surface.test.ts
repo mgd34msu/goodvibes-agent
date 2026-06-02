@@ -75,6 +75,7 @@ const expectedAgentCommands = [
   'agent-skills',
   'auth',
   'brief',
+  'bundle',
   'config',
   'delegate',
   'help',
@@ -164,6 +165,21 @@ describe('Agent command interface', () => {
     expect(registry.get('memory')?.description).not.toContain('session memories');
     expect(registry.get('mem')?.name).toBe('memory');
     expect(registry.get('recall')).toBeUndefined();
+  });
+
+  test('requires explicit confirmation for TUI support bundle write and import commands', async () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const printed: string[] = [];
+    const context = {
+      print: (message: string) => printed.push(message),
+    } as unknown as CommandContext;
+
+    await registry.execute('bundle', ['export', 'goodvibes-agent-bundle.json'], context);
+    await registry.execute('bundle', ['import', 'goodvibes-agent-bundle.json'], context);
+
+    expect(printed.join('\n')).toContain('Refusing to export Agent support bundle without --yes.');
+    expect(printed.join('\n')).toContain('Refusing to import Agent support bundle without --yes.');
   });
 
   test('keeps undo and redo conversation-scoped instead of file-edit scoped', () => {

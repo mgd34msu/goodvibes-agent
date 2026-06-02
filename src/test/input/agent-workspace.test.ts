@@ -781,6 +781,64 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening skill bundle creation');
   });
 
+  test('exposes Agent support bundle export inspect and import from the setup workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-export');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('support-bundle-export');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/bundle export goodvibes-agent-bundle.json --yes']);
+    expect(workspace.lastActionResult?.title).toBe('Opening Agent support bundle export');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-inspect');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('support-bundle-inspect');
+    clearEditorField(workspace);
+    feedText(workspace, 'support/review.json');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/bundle export goodvibes-agent-bundle.json --yes',
+      '/bundle inspect support/review.json',
+    ]);
+    expect(workspace.lastActionResult?.title).toBe('Opening Agent support bundle inspection');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-import');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('support-bundle-import');
+    clearEditorField(workspace);
+    feedText(workspace, 'support/review.json');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/bundle export goodvibes-agent-bundle.json --yes',
+      '/bundle inspect support/review.json',
+    ]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/bundle export goodvibes-agent-bundle.json --yes',
+      '/bundle inspect support/review.json',
+      '/bundle import support/review.json --yes',
+    ]);
+    expect(workspace.lastActionResult?.title).toBe('Opening Agent support bundle import');
+  });
+
   test('adds MCP servers from the workspace only after typed confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

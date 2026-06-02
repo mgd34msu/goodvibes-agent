@@ -161,6 +161,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/shortcuts', label: '/shortcuts', detail: 'View keyboard shortcuts reference', category: 'Tools & System' },
           { id: '/commands', label: '/commands', detail: 'Browse all commands in a scrollable list', category: 'Tools & System' },
           { id: '/secrets', label: '/secrets set|link|get|test|list|delete', detail: 'Manage encrypted and provider-backed secrets', category: 'Tools & System' },
+          { id: '/bundle', label: '/bundle export|inspect|import', detail: 'Manage redacted Agent support bundles', category: 'Tools & System' },
           { id: '/help', label: '/help', detail: 'This help', category: 'Tools & System' },
           { id: '/quit', label: '/quit', detail: 'Exit', category: 'Tools & System' },
         ];
@@ -176,7 +177,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Use /help to open the help modal. Commands: /agent, /brief, /knowledge, /memory, /personas, /agent-skills, /routines, /channels, /delegate, /model, /provider, /config, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
+      ctx.print('Use /help to open the help modal. Commands: /agent, /brief, /knowledge, /memory, /personas, /agent-skills, /routines, /channels, /delegate, /model, /provider, /config, /bundle, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
     },
   });
 

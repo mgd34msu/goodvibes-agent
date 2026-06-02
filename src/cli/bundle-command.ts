@@ -132,7 +132,7 @@ export async function handleBundleCommand(runtime: CliCommandRuntime): Promise<C
     const summary = inspectBundle(sourcePath, parsed.value);
     return {
       output: formatJsonOrText(runtime, summary, [
-        'GoodVibes bundle',
+        'GoodVibes Agent support bundle',
         `  type: ${summary.type}`,
         `  version: ${summary.version}`,
         `  path: ${summary.path}`,

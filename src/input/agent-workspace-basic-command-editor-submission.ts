@@ -465,6 +465,65 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'support-bundle-export') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Agent support bundle export not confirmed. Type yes, then press Enter.' },
+        status: 'Agent support bundle export not confirmed.',
+      };
+    }
+    const command = `/bundle export ${quoteSlashCommandArg(readField('path'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent support bundle export.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent support bundle export',
+        detail: 'The workspace handed a confirmed support bundle export command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'support-bundle-inspect') {
+    const command = `/bundle inspect ${quoteSlashCommandArg(readField('path'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent support bundle inspection.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent support bundle inspection',
+        detail: 'The workspace handed a support bundle inspect command to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
+  if (editor.kind === 'support-bundle-import') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Agent support bundle import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent support bundle import not confirmed.',
+      };
+    }
+    const command = `/bundle import ${quoteSlashCommandArg(readField('path'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent support bundle import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent support bundle import',
+        detail: 'The workspace handed a confirmed support bundle import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
   if (editor.kind === 'skill-discovery-import') {
     if (!isAffirmative(readField('confirm'))) {
       return {
