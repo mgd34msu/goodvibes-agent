@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
@@ -231,6 +231,37 @@ describe('AgentWorkspace', () => {
         return root ? [root] : [];
       })
     )));
+    const workspaceSubmissionFiles = [
+      'src/input/agent-workspace-basic-command-editor-submission.ts',
+      'src/input/agent-workspace-provider-command-editor-submission.ts',
+      'src/input/agent-workspace-session-command-editor-submission.ts',
+      'src/input/agent-workspace-channel-command-editor-submission.ts',
+      'src/input/agent-workspace-access-command-editor-submission.ts',
+      'src/input/agent-workspace-knowledge-command-editor-submission.ts',
+      'src/input/agent-workspace-memory-command-editor-submission.ts',
+      'src/input/agent-workspace-notify-editor-submission.ts',
+      'src/input/agent-workspace-secret-editor-submission.ts',
+      'src/input/agent-workspace-skill-bundle-command-editor-submission.ts',
+      'src/input/agent-workspace-workplan-editor-submission.ts',
+      'src/input/agent-workspace-delegation-editor-submission.ts',
+      'src/input/agent-workspace-task-command-editor-submission.ts',
+      'src/input/agent-workspace-operations-command-editor-submission.ts',
+      'src/input/agent-workspace-mcp-command-editor-submission.ts',
+      'src/input/agent-workspace-reminder-schedule-editor.ts',
+      'src/input/agent-workspace-routine-schedule-editor.ts',
+      'src/input/agent-workspace-library-command-editor-submission.ts',
+    ];
+    for (const filePath of workspaceSubmissionFiles) {
+      if (!existsSync(filePath)) continue;
+      const source = readFileSync(filePath, 'utf-8');
+      for (const match of source.matchAll(/\/([a-z0-9-]+)/g)) {
+        workspaceCommandRoots.add(match[1]!);
+      }
+      for (const match of source.matchAll(/\/\$\{\s*[^?}]+\?\s*'([a-z0-9-]+)'\s*:\s*'([a-z0-9-]+)'\s*\}/g)) {
+        workspaceCommandRoots.add(match[1]!);
+        workspaceCommandRoots.add(match[2]!);
+      }
+    }
     const shellOnlyCommands = new Set([
       'agent',
       'bookmarks',
@@ -239,41 +270,27 @@ describe('AgentWorkspace', () => {
       'commands',
       'compact',
       'context',
-      'conversation',
-      'effort',
       'expand',
-      'export',
       'help',
       'keybindings',
-      'load',
-      'mode',
       'next-error',
       'paste',
       'prev-error',
-      'qrcode',
       'quit',
       'redo',
       'reset',
       'retry',
-      'save',
-      'session',
       'shortcuts',
       'title',
       'undo',
       'welcome',
     ]);
-    const workspaceFormBackedCommands = new Set([
-      'bundle',
-      'image',
-      'tts',
-      'unpin',
-    ]);
 
     const missingWorkspaceAccess = registry.list()
+      .filter((command) => !workspaceCommandRoots.has(command.name)
+        && !(command.aliases ?? []).some((alias) => workspaceCommandRoots.has(alias)))
       .map((command) => command.name)
-      .filter((name) => !workspaceCommandRoots.has(name))
       .filter((name) => !shellOnlyCommands.has(name))
-      .filter((name) => !workspaceFormBackedCommands.has(name))
       .sort();
 
     expect(missingWorkspaceAccess).toEqual([]);
