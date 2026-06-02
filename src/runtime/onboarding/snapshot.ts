@@ -1,6 +1,7 @@
 import type { SecretStorageReview } from '../../config/secrets.ts';
 import { getProviderIdFromModel } from '../../config/provider-model.ts';
 import type { LocalAuthSnapshot } from '@pellux/goodvibes-sdk/platform/security';
+import { summarizeAgentBehaviorDiscovery } from '../../agent/behavior-discovery-summary.ts';
 import { readOnboardingRuntimeState } from './state.ts';
 import type {
   OnboardingAcknowledgementSnapshot,
@@ -400,6 +401,7 @@ export async function collectOnboardingSnapshot(
       records: sortSurfaceRecords(surfaceResult.value),
     },
     providerAccounts: providerAccountsResult.value,
+    localBehaviorDiscovery: summarizeAgentBehaviorDiscovery(deps.shellPaths),
     collectionIssues,
   };
 }

@@ -36,6 +36,12 @@ const EMPTY_SUMMARY: AgentBehaviorDiscoverySummary = {
   names: [],
 };
 
+export const EMPTY_AGENT_BEHAVIOR_DISCOVERY_SNAPSHOT: AgentBehaviorDiscoverySnapshot = {
+  personas: EMPTY_SUMMARY,
+  skills: EMPTY_SUMMARY,
+  routines: EMPTY_SUMMARY,
+};
+
 function parseFrontmatter(content: string): Record<string, string> {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return {};
@@ -156,12 +162,6 @@ function definitions(shellPaths: Pick<ShellPathService, 'workingDirectory' | 'ho
 }
 
 export function summarizeAgentBehaviorDiscovery(shellPaths: Pick<ShellPathService, 'workingDirectory' | 'homeDirectory'> | undefined): AgentBehaviorDiscoverySnapshot {
-  if (!shellPaths) {
-    return {
-      personas: EMPTY_SUMMARY,
-      skills: EMPTY_SUMMARY,
-      routines: EMPTY_SUMMARY,
-    };
-  }
+  if (!shellPaths) return EMPTY_AGENT_BEHAVIOR_DISCOVERY_SNAPSHOT;
   return definitions(shellPaths);
 }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -164,6 +164,73 @@ describe('collectOnboardingSnapshot', () => {
     expect(snapshot.surfaces.records).toHaveLength(1);
     expect(snapshot.providerAccounts?.providers[0]?.activeRoute).toBe('api-key');
     expect(snapshot.collectionIssues).toEqual([]);
+  });
+
+  test('captures importable local Agent behavior files for first-run setup', async () => {
+    mkdirSync(join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'personas'), { recursive: true });
+    mkdirSync(join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'skills', 'daily-brief'), { recursive: true });
+    mkdirSync(join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'routines'), { recursive: true });
+    writeFileSync(join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'personas', 'research.md'), [
+      '---',
+      'name: Research Operator',
+      '---',
+      'Prefer checked sources and clear unknowns.',
+    ].join('\n'));
+    writeFileSync(join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'skills', 'daily-brief', 'SKILL.md'), [
+      '---',
+      'name: Daily Brief Skill',
+      '---',
+      'Review work plans, approvals, routines, and Agent Knowledge before summarizing.',
+    ].join('\n'));
+    writeFileSync(join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'routines', 'evening.md'), [
+      '---',
+      'name: Evening Review',
+      '---',
+      'Review work plan, approvals, routines, and Agent Knowledge status.',
+    ].join('\n'));
+
+    const snapshot = await collectOnboardingSnapshot({
+      clock: () => 123,
+      config: configManager,
+      shellPaths,
+      subscriptions: {
+        list: () => [],
+        listPending: () => [],
+        get: () => null,
+        getPending: () => null,
+      },
+      secrets: {
+        inspect: async () => ({
+          policy: 'preferred_secure',
+          secureAvailable: false,
+          storedKeys: 0,
+          envBackedKeys: 0,
+          secureKeys: 0,
+          plaintextKeys: 0,
+          warnings: [],
+          locations: [],
+        }),
+        listDetailed: async () => [],
+      },
+      auth: {
+        inspect: () => buildLocalAuthSnapshot(),
+      },
+      services: {
+        getAll: () => ({}),
+        inspect: async () => {
+          throw new Error('not used');
+        },
+      },
+    });
+
+    expect(snapshot.localBehaviorDiscovery.personas).toEqual({
+      count: 1,
+      projectLocalCount: 1,
+      globalCount: 0,
+      names: ['Research Operator'],
+    });
+    expect(snapshot.localBehaviorDiscovery.skills.names).toEqual(['Daily Brief Skill']);
+    expect(snapshot.localBehaviorDiscovery.routines.names).toEqual(['Evening Review']);
   });
 
   test('degrades gracefully when optional surfaces and provider-account reads fail', async () => {

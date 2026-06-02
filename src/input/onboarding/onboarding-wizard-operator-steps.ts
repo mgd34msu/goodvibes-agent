@@ -1,4 +1,31 @@
 import type { OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
+import type { AgentBehaviorDiscoverySnapshot } from '../../agent/behavior-discovery-summary.ts';
+
+function discoveryCount(discovery: AgentBehaviorDiscoverySnapshot | undefined): number {
+  if (!discovery) return 0;
+  return discovery.personas.count + discovery.skills.count + discovery.routines.count;
+}
+
+function discoverySummary(discovery: AgentBehaviorDiscoverySnapshot | undefined): string {
+  if (!discovery || discoveryCount(discovery) === 0) return 'No importable local behavior files found yet';
+  return [
+    `${discovery.personas.count} persona file(s)`,
+    `${discovery.skills.count} skill file(s)`,
+    `${discovery.routines.count} routine file(s)`,
+  ].join('; ');
+}
+
+function discoverySample(discovery: AgentBehaviorDiscoverySnapshot | undefined): string {
+  if (!discovery) return '';
+  const names = [
+    ...discovery.personas.names,
+    ...discovery.skills.names,
+    ...discovery.routines.names,
+  ].slice(0, 4);
+  if (names.length === 0) return 'Use /personas discover, /agent-skills discover, and /routines discover after setup to rescan.';
+  const remaining = discoveryCount(discovery) > names.length ? `, +${discoveryCount(discovery) - names.length} more` : '';
+  return `Import candidates: ${names.join(', ')}${remaining}.`;
+}
 
 export function buildCommunicationStep(): OnboardingWizardStepDefinition {
   return {
@@ -128,15 +155,19 @@ export function buildAgentKnowledgeStep(): OnboardingWizardStepDefinition {
   };
 }
 
-export function buildLocalStateStep(): OnboardingWizardStepDefinition {
+export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot): OnboardingWizardStepDefinition {
+  const discoveredCount = discoveryCount(discovery);
   return {
     id: 'agent-local-state',
     title: 'Local memory and behavior',
-    shortLabel: 'Memory',
-    description: 'Review the Agent-local behavior model. Memory, personas, skills, routines, and Agent profiles stay local until a stable shared registry exists.',
+    shortLabel: 'Behavior',
+    description: discoveredCount > 0
+      ? 'Review importable Agent-local behavior files before creating blank memory, personas, skills, or routines.'
+      : 'Review the Agent-local behavior model. Memory, personas, skills, routines, and Agent profiles stay local until a stable shared registry exists.',
     summaryTitle: 'Local Agent state',
     summaryLines: [
       'Memory/personas/skills/routines: local Agent registries',
+      `Discovered behavior files: ${discoverySummary(discovery)}`,
       'Secrets: rejected or stored by secret reference',
       'Profiles: isolated Agent homes',
     ],
@@ -152,22 +183,28 @@ export function buildLocalStateStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-local-state.personas',
         label: 'Personas',
-        hint: 'Use /personas to create and activate serial operating modes for the main conversation.',
-        defaultValue: 'Local registry',
+        hint: discovery?.personas.count && discovery.personas.count > 0
+          ? `${discovery.personas.count} persona file(s) are available to preview with /personas discover and import from the Agent workspace.`
+          : 'Use /personas to create and activate serial operating modes for the main conversation.',
+        defaultValue: discovery?.personas.count && discovery.personas.count > 0 ? `${discovery.personas.count} discovered` : 'Local registry',
       },
       {
         kind: 'status',
         id: 'agent-local-state.skills',
         label: 'Skills',
-        hint: 'Use /agent-skills and /skills local to manage reusable Agent procedures.',
-        defaultValue: 'Local registry',
+        hint: discovery?.skills.count && discovery.skills.count > 0
+          ? `${discovery.skills.count} skill file(s) are available to preview with /agent-skills discover and import from the Agent workspace.`
+          : 'Use /agent-skills and /skills local to manage reusable Agent procedures.',
+        defaultValue: discovery?.skills.count && discovery.skills.count > 0 ? `${discovery.skills.count} discovered` : 'Local registry',
       },
       {
         kind: 'status',
         id: 'agent-local-state.routines',
         label: 'Routines',
-        hint: 'Use /routines for reusable local procedures. Starting a routine prints steps in the main conversation and does not spawn hidden work.',
-        defaultValue: 'Local registry',
+        hint: discovery?.routines.count && discovery.routines.count > 0
+          ? `${discovery.routines.count} routine file(s) are available to preview with /routines discover and import from the Agent workspace. ${discoverySample(discovery)}`
+          : 'Use /routines for reusable local procedures. Starting a routine prints steps in the main conversation and does not spawn hidden work.',
+        defaultValue: discovery?.routines.count && discovery.routines.count > 0 ? `${discovery.routines.count} discovered` : 'Local registry',
       },
     ],
   };

@@ -4,7 +4,130 @@ import {
   getOnboardingWizardVisibleFieldCount,
 } from '../../input/onboarding/onboarding-wizard.ts';
 import { renderOnboardingWizard } from '../../renderer/onboarding/onboarding-wizard.ts';
+import { DEFAULT_CONFIG } from '../../config/index.ts';
+import { EMPTY_AGENT_BEHAVIOR_DISCOVERY_SNAPSHOT, type AgentBehaviorDiscoverySnapshot } from '../../agent/behavior-discovery-summary.ts';
+import type { OnboardingSnapshotState, OnboardingStepDerivationState } from '../../runtime/onboarding/index.ts';
 import { linesToText } from '../setup.ts';
+
+function onboardingSnapshotWithDiscovery(discovery: AgentBehaviorDiscoverySnapshot): OnboardingSnapshotState {
+  const controlPlane = structuredClone(DEFAULT_CONFIG.controlPlane);
+  const httpListener = structuredClone(DEFAULT_CONFIG.httpListener);
+  const web = structuredClone(DEFAULT_CONFIG.web);
+  return {
+    capturedAt: 0,
+    config: {
+      display: structuredClone(DEFAULT_CONFIG.display),
+      provider: structuredClone(DEFAULT_CONFIG.provider),
+      behavior: structuredClone(DEFAULT_CONFIG.behavior),
+      storage: structuredClone(DEFAULT_CONFIG.storage),
+      permissions: structuredClone(DEFAULT_CONFIG.permissions),
+      helper: structuredClone(DEFAULT_CONFIG.helper),
+      tools: {
+        llmEnabled: DEFAULT_CONFIG.tools.llmEnabled,
+        llmProvider: DEFAULT_CONFIG.tools.llmProvider,
+        llmModel: DEFAULT_CONFIG.tools.llmModel,
+      },
+      danger: structuredClone(DEFAULT_CONFIG.danger),
+      controlPlane,
+      httpListener,
+      web,
+      network: structuredClone(DEFAULT_CONFIG.network),
+      surfaces: structuredClone(DEFAULT_CONFIG.surfaces),
+      service: structuredClone(DEFAULT_CONFIG.service),
+      featureFlags: structuredClone(DEFAULT_CONFIG.featureFlags),
+      batch: structuredClone(DEFAULT_CONFIG.batch),
+    },
+    providerRouting: {
+      primaryProviderId: DEFAULT_CONFIG.provider.provider,
+      primaryModelId: DEFAULT_CONFIG.provider.model,
+      primaryReasoningEffort: DEFAULT_CONFIG.provider.reasoningEffort,
+      embeddingProviderId: DEFAULT_CONFIG.provider.embeddingProvider,
+      systemPromptFile: DEFAULT_CONFIG.provider.systemPromptFile,
+      helperEnabled: DEFAULT_CONFIG.helper.enabled,
+      helperProviderId: DEFAULT_CONFIG.helper.globalProvider,
+      helperModelId: DEFAULT_CONFIG.helper.globalModel,
+      toolLlmEnabled: DEFAULT_CONFIG.tools.llmEnabled,
+      toolProviderId: DEFAULT_CONFIG.tools.llmProvider,
+      toolModelId: DEFAULT_CONFIG.tools.llmModel,
+    },
+    runtimeDefaults: {
+      providerReasoningEffort: DEFAULT_CONFIG.provider.reasoningEffort,
+      permissionsMode: DEFAULT_CONFIG.permissions.mode,
+      behavior: structuredClone(DEFAULT_CONFIG.behavior),
+      display: structuredClone(DEFAULT_CONFIG.display),
+      secretStoragePolicy: DEFAULT_CONFIG.storage.secretPolicy,
+    },
+    acknowledgements: {
+      scope: 'project',
+      exists: false,
+      updatedAt: null,
+      source: null,
+      accepted: {},
+    },
+    services: {
+      total: 0,
+      oauthProviderIds: [],
+      services: [],
+    },
+    subscriptions: {
+      active: [],
+      pending: [],
+      activeProviderIds: [],
+      pendingProviderIds: [],
+    },
+    secrets: {
+      review: {
+        policy: 'preferred_secure',
+        secureAvailable: false,
+        storedKeys: 0,
+        envBackedKeys: 0,
+        secureKeys: 0,
+        plaintextKeys: 0,
+        warnings: [],
+        locations: [],
+      },
+      records: [],
+    },
+    auth: {
+      snapshot: {
+        userStorePath: '/tmp/auth-users.json',
+        bootstrapCredentialPath: '/tmp/auth-bootstrap.txt',
+        persisted: true,
+        bootstrapCredentialPresent: false,
+        userCount: 0,
+        sessionCount: 0,
+        users: [],
+        sessions: [],
+      },
+    },
+    bindSettings: {
+      daemonEnabled: false,
+      httpListenerEnabled: false,
+      controlPlane,
+      httpListener,
+      web,
+    },
+    surfaces: {
+      configuredEnabledKinds: [],
+      records: [],
+    },
+    providerAccounts: null,
+    localBehaviorDiscovery: discovery,
+    collectionIssues: [],
+  };
+}
+
+function emptyDerivedState(): OnboardingStepDerivationState {
+  return {
+    step1Capabilities: [],
+    step1_5NetworkMode: 'local-network-default',
+    reopenEditAcknowledgements: {
+      providers: { required: false, accepted: true, reason: 'not-needed', detail: '' },
+      subscriptions: { required: false, accepted: true, reason: 'not-needed', detail: '' },
+      auth: { required: false, accepted: true, reason: 'not-needed', detail: '' },
+    },
+  };
+}
 
 describe('renderOnboardingWizard', () => {
   test('renders a viewport-sized onboarding shell with stable chrome', () => {
@@ -55,6 +178,33 @@ describe('renderOnboardingWizard', () => {
     expect(text).not.toContain('Node and device posture');
     expect(text).not.toContain('remote runner');
     expect(text).not.toContain('background service processes');
+  });
+
+  test('shows discovered behavior imports in first-run local setup', () => {
+    const wizard = new OnboardingWizardController();
+    wizard.open('new');
+    wizard.hydrateRuntimeState({
+      snapshot: onboardingSnapshotWithDiscovery({
+          ...EMPTY_AGENT_BEHAVIOR_DISCOVERY_SNAPSHOT,
+          personas: { count: 1, projectLocalCount: 1, globalCount: 0, names: ['Research Operator'] },
+          skills: { count: 1, projectLocalCount: 1, globalCount: 0, names: ['Daily Brief Skill'] },
+          routines: { count: 1, projectLocalCount: 1, globalCount: 0, names: ['Evening Review'] },
+        }),
+      derived: emptyDerivedState(),
+    });
+    wizard.setStep(wizard.steps.findIndex((step) => step.id === 'agent-local-state'));
+    wizard.moveSelection(3, getOnboardingWizardVisibleFieldCount(42));
+
+    const text = linesToText(renderOnboardingWizard(wizard, 188, 42)).join('\n');
+
+    expect(text).toContain('Local memory and behavior');
+    expect(text).toContain('Routines');
+    expect(text).toContain('1 discovered');
+    expect(text).toContain('Import');
+    expect(text).toContain('candidates: Research Operator');
+    expect(text).toContain('Research Operator');
+    expect(text).toContain('Daily Brief Skill');
+    expect(text).toContain('Evening Review');
   });
 
   test('renders an Agent day-one readiness checklist on the review step', () => {

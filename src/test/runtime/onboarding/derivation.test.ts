@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { DEFAULT_CONFIG } from '../../../config/index.ts';
+import { EMPTY_AGENT_BEHAVIOR_DISCOVERY_SNAPSHOT } from '../../../agent/behavior-discovery-summary.ts';
 import type { OnboardingSnapshotState } from '../../../runtime/onboarding/index.ts';
 import {
   deriveReopenEditAcknowledgementState,
@@ -112,6 +113,7 @@ function buildBaseSnapshot(): OnboardingSnapshotState {
       records: [],
     },
     providerAccounts: null,
+    localBehaviorDiscovery: EMPTY_AGENT_BEHAVIOR_DISCOVERY_SNAPSHOT,
     collectionIssues: [],
   };
 }
@@ -273,6 +275,38 @@ describe('onboarding derivation helpers', () => {
       automationReview: true,
       tuiDelegation: true,
     });
+  });
+
+  test('treats discovered local behavior files as day-one setup work', () => {
+    const snapshot: OnboardingSnapshotState = {
+      ...buildBaseSnapshot(),
+      localBehaviorDiscovery: {
+        personas: {
+          count: 1,
+          projectLocalCount: 1,
+          globalCount: 0,
+          names: ['Research Operator'],
+        },
+        skills: {
+          count: 1,
+          projectLocalCount: 1,
+          globalCount: 0,
+          names: ['Daily Brief Skill'],
+        },
+        routines: {
+          count: 1,
+          projectLocalCount: 1,
+          globalCount: 0,
+          names: ['Evening Review'],
+        },
+      },
+    };
+    const localBehavior = deriveStep1Capabilities(snapshot).find((item) => item.id === 'local-behavior');
+
+    expect(localBehavior?.selected).toBe(true);
+    expect(localBehavior?.detail).toContain('Import 3 discovered Agent persona/skill/routine file(s)');
+    expect(localBehavior?.detail).toContain('Research Operator');
+    expect(deriveStep1CapabilityFlags(snapshot).localBehavior).toBe(true);
   });
 
   test('keeps copied bind targets out of Agent setup network-mode derivation', () => {

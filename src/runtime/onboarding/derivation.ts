@@ -211,7 +211,8 @@ function hasExternalIntegrations(snapshot: OnboardingSnapshotState): boolean {
 function hasLocalBehaviorCustomization(snapshot: OnboardingSnapshotState): boolean {
   return hasCustomizedWorkspaceDefaults(snapshot)
     || countPermissionToolOverrides(snapshot) > 0
-    || snapshot.runtimeDefaults.secretStoragePolicy !== DEFAULT_CONFIG.storage.secretPolicy;
+    || snapshot.runtimeDefaults.secretStoragePolicy !== DEFAULT_CONFIG.storage.secretPolicy
+    || countDiscoveredLocalBehavior(snapshot) > 0;
 }
 
 function hasCommunicationChannelSignals(snapshot: OnboardingSnapshotState): boolean {
@@ -240,11 +241,29 @@ function describeAgentKnowledge(): string {
 }
 
 function describeLocalBehavior(snapshot: OnboardingSnapshotState): string {
+  const discoveredCount = countDiscoveredLocalBehavior(snapshot);
+  if (discoveredCount > 0) {
+    const discovery = snapshot.localBehaviorDiscovery;
+    const samples = [
+      ...discovery.personas.names,
+      ...discovery.skills.names,
+      ...discovery.routines.names,
+    ].slice(0, 4);
+    const sampleText = samples.length > 0 ? ` Found: ${samples.join(', ')}.` : '';
+    return `Import ${discoveredCount} discovered Agent persona/skill/routine file(s) from local Agent folders before creating blank behavior.${sampleText}`;
+  }
+
   if (!hasLocalBehaviorCustomization(snapshot)) {
     return 'Configure local memory, routines, skills, personas, permissions, and secret handling before the Agent starts doing useful work.';
   }
 
   return 'Review existing local behavior, permission, display, or secret-handling choices before applying Agent setup.';
+}
+
+function countDiscoveredLocalBehavior(snapshot: OnboardingSnapshotState): number {
+  return snapshot.localBehaviorDiscovery.personas.count
+    + snapshot.localBehaviorDiscovery.skills.count
+    + snapshot.localBehaviorDiscovery.routines.count;
 }
 
 function describeCommunicationChannels(snapshot: OnboardingSnapshotState): string {

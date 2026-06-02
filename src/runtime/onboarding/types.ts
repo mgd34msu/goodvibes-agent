@@ -8,6 +8,7 @@ import type {
   ServiceInspectionQuery,
   SubscriptionAccessQuery,
 } from '../ui-service-queries.ts';
+import type { AgentBehaviorDiscoverySnapshot } from '../../agent/behavior-discovery-summary.ts';
 
 export type OnboardingMode = 'new' | 'edit' | 'reopen';
 
@@ -189,6 +190,7 @@ export interface OnboardingSnapshotState {
   readonly bindSettings: OnboardingBindSettingsSnapshot;
   readonly surfaces: OnboardingSurfacesSnapshot;
   readonly providerAccounts: OnboardingProviderAccountsSnapshot | null;
+  readonly localBehaviorDiscovery: AgentBehaviorDiscoverySnapshot;
   readonly collectionIssues: readonly OnboardingSnapshotCollectionIssue[];
 }
 

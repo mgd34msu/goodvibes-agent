@@ -31,7 +31,7 @@ export function buildOnboardingWizardSteps(controller: OnboardingWizardControlle
     buildCommunicationStep(),
     buildToolsStep(),
     buildAgentKnowledgeStep(),
-    buildLocalStateStep(),
+    buildLocalStateStep(controller.runtimeSnapshot?.localBehaviorDiscovery),
     buildAutomationStep(),
     buildVoiceMediaStep(),
     buildDelegationPolicyStep(),
