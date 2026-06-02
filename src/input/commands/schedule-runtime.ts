@@ -4,6 +4,17 @@ import {
 } from '@pellux/goodvibes-sdk/platform/automation';
 import type { AutomationJob } from '@pellux/goodvibes-sdk/platform/automation';
 import type { AutomationScheduleDefinition } from '@pellux/goodvibes-sdk/platform/automation';
+import {
+  buildReminderSchedulePreview,
+  createReminderSchedule,
+  parseReminderScheduleArgs,
+  resolveReminderDaemonConnection,
+} from '../../agent/reminder-schedule.ts';
+import {
+  formatReminderScheduleFailure,
+  formatReminderSchedulePreview,
+  formatReminderScheduleSuccess,
+} from '../../agent/reminder-schedule-format.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
@@ -86,15 +97,40 @@ async function promoteRoutineSchedule(args: readonly string[], ctx: CommandConte
   ctx.print(result.ok ? `${formatRoutineScheduleSuccess(result)}\n  receipt: ${receipt.id}` : `${formatRoutineScheduleFailure(result)}\n  receipt: ${receipt.id}`);
 }
 
+async function createReminder(args: readonly string[], ctx: CommandContext): Promise<void> {
+  const parsed = parseReminderScheduleArgs(args);
+  if (parsed.errors.length > 0) {
+    ctx.print([
+      'Usage: /schedule remind (--cron <expr>|--every <interval>|--at <iso-time>) (--message <text>|<text...>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--delivery-channel <channel[:route[:label]]>|--delivery-route <route[:label]>|--delivery-webhook <url>|--delivery-link <url>] [--disabled] --yes',
+      ...parsed.errors.map((error) => `  ${error}`),
+    ].join('\n'));
+    return;
+  }
+  const preview = buildReminderSchedulePreview(parsed);
+  if (!parsed.yes) {
+    ctx.print(formatReminderSchedulePreview(preview));
+    return;
+  }
+  const shellPaths = requireShellPaths(ctx);
+  const connection = resolveReminderDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+  const result = await createReminderSchedule(connection, preview);
+  ctx.print(result.ok ? formatReminderScheduleSuccess(result) : formatReminderScheduleFailure(result));
+}
+
 export function registerScheduleRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'schedule',
     aliases: ['sched'],
-    description: 'Inspect schedules and explicitly promote local Agent routines to connected schedules',
-    usage: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-channel slack] --yes',
-    argsHint: 'list | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-channel slack] --yes',
+    description: 'Inspect schedules, create confirmed reminders, and explicitly promote local Agent routines to connected schedules',
+    usage: 'list | remind --at <iso> --message <text> --yes | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-channel slack] --yes',
+    argsHint: 'list | remind --at <iso> --message <text> --yes | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-channel slack] --yes',
     async handler(args, ctx) {
       const sub = args[0];
+
+      if (sub === 'remind' || sub === 'reminder') {
+        await createReminder(args.slice(1), ctx);
+        return;
+      }
 
       if (sub === 'promote-routine' || sub === 'promote' || sub === 'create-routine-schedule') {
         await promoteRoutineSchedule(args.slice(1), ctx);
@@ -136,7 +172,7 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         if (jobs.length === 0) {
           ctx.print(
             'No automation jobs.\n'
-            + 'Local add/run/enable/disable/remove are blocked. Use /schedule promote-routine <routine> --cron <expr> --yes for an explicit connected schedule.'
+            + 'Local add/run/enable/disable/remove are blocked. Use /schedule remind --at <time> --message <text> --yes for reminders or /schedule promote-routine <routine> --cron <expr> --yes for explicit connected schedules.'
           );
           return;
         }
@@ -164,6 +200,7 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         + '  /schedule receipts\n'
         + '  /schedule reconcile\n'
         + '  /schedule receipt <receipt-id>\n'
+        + '  /schedule remind (--cron <expr>|--every <interval>|--at <iso-time>) (--message <text>|<text...>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes\n'
         + '  /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes\n'
         + '  Local schedule mutations and runs remain blocked.'
       );

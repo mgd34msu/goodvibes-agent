@@ -78,7 +78,7 @@ export function renderHelpOverlay(
     ['routines',     '',           'Manage reusable main-conversation routines'],
     ['workplan',     '',           'Inspect shared work-plan state'],
     ['approval',     '',           'Review and explicitly act on approvals'],
-    ['schedule',     '',           'Inspect schedules and routine promotion receipts'],
+    ['schedule',     'remind',     'Create confirmed reminders or inspect schedules'],
     ['delegate',     '',           'Explicitly hand build/fix/review work to GoodVibes TUI'],
     ['mcp',          '',           'Inspect MCP servers and tool readiness'],
     ['provider',     '',           'Choose provider or model family'],

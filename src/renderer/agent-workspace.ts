@@ -346,7 +346,8 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'automation') {
     base.push(
       { text: 'Automation and schedules default to read-only observability.', fg: PALETTE.info },
-      { text: 'Run/pause/resume/cancel/retry require exact explicit commands and confirmation.', fg: PALETTE.warn },
+      { text: 'Confirmed reminders and routine promotion use connected schedules only.', fg: PALETTE.info },
+      { text: 'Local scheduler mutation/run controls remain blocked.', fg: PALETTE.warn },
     );
   } else if (category.id === 'delegate') {
     base.push(

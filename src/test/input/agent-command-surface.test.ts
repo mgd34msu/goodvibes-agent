@@ -128,7 +128,7 @@ describe('Agent command interface', () => {
     await registry.execute('auth', ['login', 'runtime', 'http://127.0.0.1:3421', 'user', 'pass', '--yes'], context);
 
     expect(dispatched).toEqual([]);
-    expect(printed.join('\n')).toContain('Runtime service login is external to GoodVibes Agent.');
+    expect(printed.join('\n')).toContain('Connected-service login is outside GoodVibes Agent.');
     expect(printed.join('\n')).toContain('provider subscriptions only');
   });
 

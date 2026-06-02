@@ -1,0 +1,494 @@
+import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
+import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
+import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
+import { SDK_VERSION } from '../version.ts';
+import {
+  resolveAgentDaemonConnection,
+  ROUTINE_SCHEDULE_METHOD,
+  ROUTINE_SCHEDULE_ROUTE,
+  type AgentDaemonConfigReader,
+  type AgentDaemonConnection,
+  type RoutineScheduleDeliveryKind,
+  type RoutineScheduleDeliverySurfaceKind,
+  type RoutineScheduleDeliveryTargetSpec,
+  type RoutineScheduleKind,
+  type RoutineScheduleSpec,
+} from './routine-schedule-promotion.ts';
+
+type ScheduleCreateInput = OperatorMethodInput<'schedules.create'>;
+type ScheduleCreateOutput = OperatorMethodOutput<'schedules.create'>;
+type ScheduleDeliveryInput = NonNullable<ScheduleCreateInput['delivery']>;
+type ScheduleDeliveryTargetInput = ScheduleDeliveryInput['targets'] extends readonly (infer T)[] ? T : never;
+
+export const REMINDER_SCHEDULE_METHOD = ROUTINE_SCHEDULE_METHOD;
+export const REMINDER_SCHEDULE_ROUTE = ROUTINE_SCHEDULE_ROUTE;
+
+export interface ParsedReminderScheduleArgs {
+  readonly message: string | null;
+  readonly schedule: RoutineScheduleSpec | null;
+  readonly deliveryTargets: readonly RoutineScheduleDeliveryTargetSpec[];
+  readonly name?: string;
+  readonly timezone?: string;
+  readonly provider?: string;
+  readonly model?: string;
+  readonly enabled: boolean;
+  readonly yes: boolean;
+  readonly errors: readonly string[];
+}
+
+export interface ReminderSchedulePreview {
+  readonly message: string;
+  readonly route: typeof REMINDER_SCHEDULE_ROUTE;
+  readonly method: typeof REMINDER_SCHEDULE_METHOD;
+  readonly payload: ScheduleCreateInput;
+}
+
+export interface ReminderScheduleSuccess {
+  readonly ok: true;
+  readonly kind: typeof REMINDER_SCHEDULE_METHOD;
+  readonly route: typeof REMINDER_SCHEDULE_ROUTE;
+  readonly message: string;
+  readonly schedule: ScheduleCreateOutput;
+  readonly request: ScheduleCreateInput;
+}
+
+export interface ReminderScheduleFailure {
+  readonly ok: false;
+  readonly kind:
+    | 'confirmation_required'
+    | 'auth_required'
+    | 'daemon_unavailable'
+    | 'version_mismatch'
+    | 'daemon_route_unavailable'
+    | 'daemon_error';
+  readonly error: string;
+  readonly route: typeof REMINDER_SCHEDULE_ROUTE;
+  readonly baseUrl?: string;
+  readonly daemonVersion?: string;
+  readonly expectedSdkVersion?: string;
+}
+
+export type ReminderScheduleResult = ReminderScheduleSuccess | ReminderScheduleFailure;
+
+const DELIVERY_SURFACE_KINDS: readonly RoutineScheduleDeliverySurfaceKind[] = [
+  'tui',
+  'web',
+  'slack',
+  'discord',
+  'ntfy',
+  'webhook',
+  'telegram',
+  'google-chat',
+  'signal',
+  'whatsapp',
+  'imessage',
+  'msteams',
+  'bluebubbles',
+  'mattermost',
+  'matrix',
+  'service',
+];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function readString(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function optionValue(args: readonly string[], index: number, inlineValue: string | undefined): {
+  readonly value: string | undefined;
+  readonly nextIndex: number;
+} {
+  if (inlineValue !== undefined) return { value: inlineValue, nextIndex: index };
+  const next = args[index + 1];
+  if (next === undefined || next.startsWith('--')) return { value: undefined, nextIndex: index };
+  return { value: next, nextIndex: index + 1 };
+}
+
+function isDeliverySurfaceKind(value: string): value is RoutineScheduleDeliverySurfaceKind {
+  return DELIVERY_SURFACE_KINDS.includes(value as RoutineScheduleDeliverySurfaceKind);
+}
+
+function parseChannelDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
+  const [surfaceKind = '', routeId, label] = raw.split(':');
+  if (!isDeliverySurfaceKind(surfaceKind)) {
+    return `Unsupported delivery channel "${surfaceKind}".`;
+  }
+  return {
+    kind: 'surface',
+    surfaceKind,
+    routeId: routeId?.trim() || undefined,
+    label: label?.trim() || undefined,
+  };
+}
+
+function parseWebhookDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
+  const normalized = raw.trim();
+  if (!normalized) return '--delivery-webhook requires a URL.';
+  try {
+    const url = new URL(normalized);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '--delivery-webhook must be an http(s) URL.';
+  } catch {
+    return '--delivery-webhook must be a valid URL.';
+  }
+  return {
+    kind: 'webhook',
+    address: normalized,
+  };
+}
+
+function parseRouteDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
+  const [routeId = '', label] = raw.split(':');
+  const normalizedRouteId = routeId.trim();
+  if (!normalizedRouteId) return '--delivery-route requires a route id.';
+  return {
+    kind: 'surface',
+    routeId: normalizedRouteId,
+    label: label?.trim() || undefined,
+  };
+}
+
+function parseLinkDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
+  const normalized = raw.trim();
+  if (!normalized) return '--delivery-link requires a URL or label.';
+  return {
+    kind: 'link',
+    address: normalized,
+  };
+}
+
+function validateDeliveryTargets(targets: readonly RoutineScheduleDeliveryTargetSpec[]): string | null {
+  const kinds = new Set(targets.map((target) => target.kind));
+  return kinds.size > 1 ? 'Use one delivery target kind per reminder command.' : null;
+}
+
+function normalizeProviderModel(provider: string | undefined, model: string | undefined): {
+  readonly provider?: string;
+  readonly model?: string;
+} {
+  if (!model) return provider ? { provider } : {};
+  const normalizedProvider = provider ?? getProviderIdFromModel(model);
+  return {
+    provider: normalizedProvider,
+    model: getModelIdFromProviderModel(model),
+  };
+}
+
+function deliveryModeFromTargets(targets: readonly RoutineScheduleDeliveryTargetSpec[]): RoutineScheduleDeliveryKind | 'none' {
+  const first = targets[0];
+  return first ? first.kind : 'none';
+}
+
+function toDeliveryTargetInput(target: RoutineScheduleDeliveryTargetSpec): ScheduleDeliveryTargetInput {
+  return {
+    kind: target.kind,
+    surfaceKind: target.surfaceKind,
+    address: target.address,
+    routeId: target.routeId,
+    label: target.label,
+  };
+}
+
+export function parseReminderScheduleArgs(args: readonly string[]): ParsedReminderScheduleArgs {
+  let message: string | null = null;
+  let schedule: RoutineScheduleSpec | null = null;
+  const deliveryTargets: RoutineScheduleDeliveryTargetSpec[] = [];
+  let name: string | undefined;
+  let timezone: string | undefined;
+  let provider: string | undefined;
+  let model: string | undefined;
+  let enabled = true;
+  let yes = false;
+  const errors: string[] = [];
+  const positional: string[] = [];
+
+  for (let index = 0; index < args.length; index += 1) {
+    const raw = args[index] ?? '';
+    const equals = raw.indexOf('=');
+    const optionName = equals >= 0 ? raw.slice(0, equals) : raw;
+    const inlineValue = equals >= 0 ? raw.slice(equals + 1) : undefined;
+
+    if (raw === '--yes') {
+      yes = true;
+      continue;
+    }
+    if (raw === '--disabled') {
+      enabled = false;
+      continue;
+    }
+    if (
+      optionName === '--message'
+      || optionName === '--name'
+      || optionName === '--timezone'
+      || optionName === '--provider'
+      || optionName === '--model'
+    ) {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      if (optionName === '--message') message = value;
+      if (optionName === '--name') name = value;
+      if (optionName === '--timezone') timezone = value;
+      if (optionName === '--provider') provider = value;
+      if (optionName === '--model') model = value;
+      continue;
+    }
+    if (optionName === '--cron' || optionName === '--every' || optionName === '--at') {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      if (schedule) {
+        errors.push('Choose exactly one schedule selector: --cron, --every, or --at.');
+        continue;
+      }
+      schedule = {
+        kind: optionName === '--cron' ? 'cron' : optionName === '--every' ? 'every' : 'at',
+        value,
+      };
+      continue;
+    }
+    if (optionName === '--delivery-channel' || optionName === '--deliver-channel') {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      const target = parseChannelDeliveryTarget(value);
+      if (typeof target === 'string') errors.push(target);
+      else deliveryTargets.push(target);
+      continue;
+    }
+    if (optionName === '--delivery-route' || optionName === '--deliver-route') {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      const target = parseRouteDeliveryTarget(value);
+      if (typeof target === 'string') errors.push(target);
+      else deliveryTargets.push(target);
+      continue;
+    }
+    if (optionName === '--delivery-webhook' || optionName === '--deliver-webhook') {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      const target = parseWebhookDeliveryTarget(value);
+      if (typeof target === 'string') errors.push(target);
+      else deliveryTargets.push(target);
+      continue;
+    }
+    if (optionName === '--delivery-link' || optionName === '--deliver-link') {
+      const consumed = optionValue(args, index, inlineValue);
+      index = consumed.nextIndex;
+      const value = consumed.value?.trim();
+      if (!value) {
+        errors.push(`${optionName} requires a value.`);
+        continue;
+      }
+      const target = parseLinkDeliveryTarget(value);
+      if (typeof target === 'string') errors.push(target);
+      else deliveryTargets.push(target);
+      continue;
+    }
+    if (raw.startsWith('--')) {
+      errors.push(`Unknown option: ${raw}`);
+      continue;
+    }
+    positional.push(raw);
+  }
+
+  if (!message && positional.length > 0) message = positional.join(' ').trim();
+  if (!message) errors.push('Reminder message is required: use --message <text> or trailing text.');
+  if (!schedule) errors.push('Schedule is required: use --cron <expr>, --every <interval>, or --at <iso-time>.');
+  const deliveryError = validateDeliveryTargets(deliveryTargets);
+  if (deliveryError) errors.push(deliveryError);
+  return { message, schedule, deliveryTargets, name, timezone, provider, model, enabled, yes, errors };
+}
+
+export function buildReminderSchedulePrompt(message: string): string {
+  return [
+    'GoodVibes Agent scheduled reminder.',
+    '',
+    'Reminder:',
+    message,
+    '',
+    'Operator policy:',
+    '- Treat this as a reminder delivery, not an autonomous hidden workflow.',
+    '- Use isolated Agent Knowledge routes only when lookup is needed; never use default Knowledge/Wiki or non-Agent knowledge spaces as fallback.',
+    '- Do not perform destructive, costly, externally visible, or secret-handling actions from this reminder without explicit approval.',
+    '- Do not request WRFC from a reminder. If build/fix/review work is needed, ask the user to delegate it explicitly to GoodVibes TUI.',
+    '- Keep the reminder concise and state any next action the user can take.',
+  ].join('\n');
+}
+
+export function buildReminderSchedulePayload(parsed: ParsedReminderScheduleArgs): ScheduleCreateInput {
+  if (!parsed.message) throw new Error('Reminder message is required.');
+  if (!parsed.schedule) throw new Error('Schedule is required.');
+  const modelRoute = normalizeProviderModel(parsed.provider, parsed.model);
+  const payload: ScheduleCreateInput = {
+    name: parsed.name ?? `Agent reminder: ${parsed.message.slice(0, 48)}`,
+    prompt: buildReminderSchedulePrompt(parsed.message),
+    kind: parsed.schedule.kind,
+    enabled: parsed.enabled,
+    target: {
+      kind: 'main',
+      surfaceKind: 'service',
+      preserveThread: true,
+      createIfMissing: true,
+    },
+    delivery: {
+      mode: deliveryModeFromTargets(parsed.deliveryTargets),
+      targets: parsed.deliveryTargets.map(toDeliveryTargetInput),
+      fallbackTargets: [],
+      includeSummary: true,
+      includeTranscript: false,
+      includeLinks: true,
+    },
+    failure: {
+      action: 'retry',
+      maxConsecutiveFailures: 3,
+      cooldownMs: 3_600_000,
+      retryPolicy: {
+        maxAttempts: 2,
+        delayMs: 60_000,
+        strategy: 'exponential',
+        maxDelayMs: 900_000,
+        jitterMs: 30_000,
+      },
+      disableAfterFailures: false,
+    },
+    lightContext: true,
+    autoApprove: false,
+    allowUnsafeExternalContent: false,
+    ...modelRoute,
+  };
+  if (parsed.schedule.kind === 'cron') {
+    return {
+      ...payload,
+      cron: parsed.schedule.value,
+      timezone: parsed.timezone,
+    };
+  }
+  if (parsed.schedule.kind === 'every') {
+    return { ...payload, every: parsed.schedule.value };
+  }
+  return { ...payload, at: parsed.schedule.value };
+}
+
+export function buildReminderSchedulePreview(parsed: ParsedReminderScheduleArgs): ReminderSchedulePreview {
+  if (!parsed.message) throw new Error('Reminder message is required.');
+  return {
+    message: parsed.message,
+    route: REMINDER_SCHEDULE_ROUTE,
+    method: REMINDER_SCHEDULE_METHOD,
+    payload: buildReminderSchedulePayload(parsed),
+  };
+}
+
+async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{
+  readonly ok: boolean;
+  readonly status: number;
+  readonly body: unknown;
+}> {
+  try {
+    const response = await fetch(`${connection.baseUrl}/status`, {
+      headers: connection.token ? { authorization: `Bearer ${connection.token}` } : undefined,
+    });
+    const text = await response.text();
+    let body: unknown = text;
+    try {
+      body = text.trim() ? JSON.parse(text) as unknown : {};
+    } catch {
+      body = text;
+    }
+    return { ok: response.ok, status: response.status, body };
+  } catch (error) {
+    return { ok: false, status: 0, body: summarizeError(error) };
+  }
+}
+
+async function classifyReminderScheduleError(
+  error: unknown,
+  connection: AgentDaemonConnection,
+): Promise<ReminderScheduleFailure> {
+  const message = summarizeError(error);
+  const lower = message.toLowerCase();
+  if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('auth')) {
+    return { ok: false, kind: 'auth_required', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  }
+  if (lower.includes('404') || lower.includes('not found')) {
+    const daemon = await fetchDaemonStatus(connection);
+    const record = isRecord(daemon.body) ? daemon.body : {};
+    const daemonVersion = readString(record, 'version') ?? 'unknown';
+    if (daemon.ok && daemonVersion !== SDK_VERSION) {
+      return {
+        ok: false,
+        kind: 'version_mismatch',
+        error: `Connected GoodVibes service SDK version ${daemonVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
+        route: REMINDER_SCHEDULE_ROUTE,
+        baseUrl: connection.baseUrl,
+        daemonVersion,
+        expectedSdkVersion: SDK_VERSION,
+      };
+    }
+    return { ok: false, kind: 'daemon_route_unavailable', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  }
+  if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
+    return { ok: false, kind: 'daemon_unavailable', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  }
+  return { ok: false, kind: 'daemon_error', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+}
+
+export async function createReminderSchedule(
+  connection: AgentDaemonConnection,
+  preview: ReminderSchedulePreview,
+): Promise<ReminderScheduleResult> {
+  if (!connection.token) {
+    return {
+      ok: false,
+      kind: 'auth_required',
+      error: `No daemon operator token found at ${connection.tokenPath}`,
+      route: REMINDER_SCHEDULE_ROUTE,
+      baseUrl: connection.baseUrl,
+    };
+  }
+  try {
+    const sdk = createBrowserGoodVibesSdk({ baseUrl: connection.baseUrl, authToken: connection.token });
+    const schedule = await sdk.operator.invoke(REMINDER_SCHEDULE_METHOD, preview.payload);
+    return {
+      ok: true,
+      kind: REMINDER_SCHEDULE_METHOD,
+      route: REMINDER_SCHEDULE_ROUTE,
+      message: preview.message,
+      schedule,
+      request: preview.payload,
+    };
+  } catch (error) {
+    return classifyReminderScheduleError(error, connection);
+  }
+}
+
+export function resolveReminderDaemonConnection(configManager: AgentDaemonConfigReader, homeDirectory: string): AgentDaemonConnection {
+  return resolveAgentDaemonConnection(configManager, homeDirectory);
+}

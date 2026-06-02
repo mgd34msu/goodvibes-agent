@@ -1370,6 +1370,63 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/schedule reconcile');
   });
 
+  test('automation workspace creates a confirmed reminder schedule through a form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-reminder');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('reminder-schedule');
+
+    feedText(workspace, 'Follow up on the report');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, '2026-06-01T09:00:00-05:00');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'America/Chicago');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Report follow-up');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'slack:ops-alerts:Ops');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/schedule remind --message "Follow up on the report" --at 2026-06-01T09:00:00-05:00 --timezone America/Chicago --name "Report follow-up" --delivery-channel slack:ops-alerts:Ops --yes',
+    ]);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
+  });
+
+  test('automation workspace does not create reminder schedule without confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-reminder');
+
+    workspace.activateSelected();
+    feedText(workspace, 'Follow up on the report');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, '2026-06-01T09:00:00-05:00');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.kind).toBe('reminder-schedule');
+    expect(workspace.status).toContain('not confirmed');
+  });
+
   test('automation workspace promotes selected routine through a confirmed form', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

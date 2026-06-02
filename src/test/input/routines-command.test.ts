@@ -319,4 +319,92 @@ describe('/routines command', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test('previews reminder schedule creation without daemon calls', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return scheduleResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      await registry.execute('schedule', [
+        'remind',
+        '--at',
+        '2026-06-01T09:00:00-05:00',
+        '--message',
+        'Follow up on the report',
+      ], ctx);
+
+      const text = out.join('\n');
+      expect(text).toContain('GoodVibes schedule preview for Agent reminder');
+      expect(text).toContain('schedules.create /api/automation/schedules');
+      expect(text).toContain('isolated Agent Knowledge only');
+      expect(calls).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('confirmed reminder schedule uses schedules.create and preserves Agent reminder policy', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : '',
+      });
+      return scheduleResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      await registry.execute('schedule', [
+        'remind',
+        '--every',
+        '7d',
+        '--message',
+        'Review open approvals',
+        '--delivery-channel',
+        'slack:ops:Ops',
+        '--yes',
+      ], ctx);
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0]!.url).toBe('http://127.0.0.1:3421/api/automation/schedules');
+      expect(requests[0]!.method).toBe('POST');
+      const payload = JSON.parse(requests[0]!.body) as {
+        readonly prompt?: string;
+        readonly kind?: string;
+        readonly every?: string;
+        readonly target?: { readonly kind?: string; readonly surfaceKind?: string };
+        readonly delivery?: {
+          readonly mode?: string;
+          readonly targets?: readonly {
+            readonly kind?: string;
+            readonly surfaceKind?: string;
+            readonly routeId?: string;
+          }[];
+        };
+      };
+      expect(payload.kind).toBe('every');
+      expect(payload.every).toBe('7d');
+      expect(payload.target).toEqual(expect.objectContaining({ kind: 'main', surfaceKind: 'service' }));
+      expect(payload.delivery?.mode).toBe('surface');
+      expect(payload.delivery?.targets?.[0]).toEqual(expect.objectContaining({
+        kind: 'surface',
+        surfaceKind: 'slack',
+        routeId: 'ops',
+      }));
+      expect(payload.prompt).toContain('GoodVibes Agent scheduled reminder');
+      expect(payload.prompt).toContain('never use default Knowledge/Wiki or non-Agent knowledge spaces');
+      expect(payload.prompt).toContain('Do not request WRFC from a reminder');
+      expect(out.join('\n')).toContain('Created GoodVibes schedule for Agent reminder');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

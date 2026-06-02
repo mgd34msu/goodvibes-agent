@@ -21,7 +21,8 @@ export type AgentWorkspaceEditorKind =
   | 'skill-bundle'
   | 'profile-template-export'
   | 'profile-template-import'
-  | 'routine-schedule';
+  | 'routine-schedule'
+  | 'reminder-schedule';
 
 export type AgentWorkspaceLocalOperation =
   | 'memory-edit'

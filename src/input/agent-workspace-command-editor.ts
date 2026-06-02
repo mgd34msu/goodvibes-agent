@@ -1,6 +1,7 @@
 import { buildAgentWorkspaceBasicCommandEditorSubmission, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
+import { buildAgentReminderScheduleEditorSubmission } from './agent-workspace-reminder-schedule-editor.ts';
 import { buildAgentRoutineScheduleEditorSubmission } from './agent-workspace-routine-schedule-editor.ts';
 import type { AgentWorkspaceActionResult, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 
@@ -11,6 +12,7 @@ type AgentWorkspaceCommandEditorKind = Extract<
   | 'knowledge-search'
   | 'knowledge-ask'
   | 'routine-schedule'
+  | 'reminder-schedule'
   | 'knowledge-bookmarks'
   | 'tts-prompt'
   | 'image-input'
@@ -38,6 +40,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'knowledge-search'
     || kind === 'knowledge-ask'
     || kind === 'routine-schedule'
+    || kind === 'reminder-schedule'
     || isAgentWorkspaceBasicCommandEditorKind(kind);
 }
 
@@ -53,5 +56,6 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   if (isAgentWorkspaceBasicCommandEditorKind(editor.kind)) {
     return buildAgentWorkspaceBasicCommandEditorSubmission(editor, readField, commandDispatchAvailable);
   }
+  if (editor.kind === 'reminder-schedule') return buildAgentReminderScheduleEditorSubmission(editor, readField, commandDispatchAvailable);
   return buildAgentRoutineScheduleEditorSubmission(editor, readField, commandDispatchAvailable);
 }

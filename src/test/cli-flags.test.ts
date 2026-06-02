@@ -366,7 +366,7 @@ describe('parseCliFlags', () => {
     const badPort = applyRuntimeUrlOverride(configManager, 'http://runtime.example.test:99999');
 
     expect(unsupportedProtocol[0]).toContain('must use http://');
-    expect(pathScoped[0]).toContain('runtime root');
+    expect(pathScoped[0]).toContain('connected GoodVibes API root');
     expect(badPort[0]).toContain('valid http://host:port URL');
     expect(configManager.get('controlPlane.host')).toBe('127.0.0.1');
     expect(configManager.get('controlPlane.port')).toBe(3421);
