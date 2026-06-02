@@ -490,6 +490,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/agent-skills bundle list');
     expect(output).toContain('Needs setup');
     expect(output).toContain('Create bundle');
+    expect(output).toContain('Bundle setup gaps');
+    expect(output).toContain('/agent-skills bundle attention');
     expect(output).toContain('edit skill-bundle');
     expect(output).toContain('Skill Bundles');
     expect(output).toContain('needs 1/1');
