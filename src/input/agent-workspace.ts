@@ -13,6 +13,7 @@ import { quoteSlashCommandArg } from './slash-command-parser.ts';
 import { createDeleteEditor, createMemoryUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from './agent-workspace-learned-behavior.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
+import { jumpAgentWorkspaceSelection, moveAgentWorkspaceSelection, selectAgentWorkspaceCategory } from './agent-workspace-navigation.ts';
 import { buildAgentWorkspaceRequirements } from './agent-workspace-requirements.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
@@ -91,19 +92,7 @@ export class AgentWorkspace {
   }
 
   selectCategory(categoryIdOrLabel: string): boolean {
-    const normalized = categoryIdOrLabel.trim().toLowerCase();
-    if (!normalized) return false;
-    const categoryIndex = this.categories.findIndex((category) =>
-      category.id.toLowerCase() === normalized
-      || category.label.toLowerCase() === normalized
-      || category.label.toLowerCase().replace(/[^a-z0-9]+/g, '-') === normalized
-    );
-    if (categoryIndex < 0) return false;
-    this.selectedCategoryIndex = categoryIndex;
-    this.selectedActionIndex = 0;
-    this.focusPane = 'actions';
-    this.clampSelection();
-    return true;
+    return selectAgentWorkspaceCategory(this, categoryIdOrLabel);
   }
 
   selectedLocalLibraryItem(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null {
@@ -126,35 +115,19 @@ export class AgentWorkspace {
   }
 
   moveUp(): void {
-    if (this.focusPane === 'categories') {
-      this.selectedCategoryIndex = Math.max(0, this.selectedCategoryIndex - 1);
-      this.selectedActionIndex = 0;
-    } else {
-      this.selectedActionIndex = Math.max(0, this.selectedActionIndex - 1);
-    }
-    this.clampSelection();
+    moveAgentWorkspaceSelection(this, -1);
   }
 
   moveDown(): void {
-    if (this.focusPane === 'categories') {
-      this.selectedCategoryIndex = Math.min(this.categories.length - 1, this.selectedCategoryIndex + 1);
-      this.selectedActionIndex = 0;
-    } else {
-      this.selectedActionIndex = Math.min(this.actions.length - 1, this.selectedActionIndex + 1);
-    }
-    this.clampSelection();
+    moveAgentWorkspaceSelection(this, 1);
   }
 
   jumpHome(): void {
-    if (this.focusPane === 'categories') this.selectedCategoryIndex = 0;
-    else this.selectedActionIndex = 0;
-    this.clampSelection();
+    jumpAgentWorkspaceSelection(this, 'home');
   }
 
   jumpEnd(): void {
-    if (this.focusPane === 'categories') this.selectedCategoryIndex = this.categories.length - 1;
-    else this.selectedActionIndex = this.actions.length - 1;
-    this.clampSelection();
+    jumpAgentWorkspaceSelection(this, 'end');
   }
 
   refreshRuntimeSnapshot(): void {
