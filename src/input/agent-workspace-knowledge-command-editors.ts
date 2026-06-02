@@ -4,6 +4,8 @@ export type AgentWorkspaceKnowledgeCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   | 'knowledge-get'
   | 'knowledge-map'
+  | 'knowledge-connector-show'
+  | 'knowledge-connector-doctor'
   | 'knowledge-review-issue'
   | 'knowledge-consolidate'
   | 'knowledge-packet'
@@ -13,6 +15,8 @@ export type AgentWorkspaceKnowledgeCommandEditorKind = Extract<
 export function isAgentWorkspaceKnowledgeCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceKnowledgeCommandEditorKind {
   return kind === 'knowledge-get'
     || kind === 'knowledge-map'
+    || kind === 'knowledge-connector-show'
+    || kind === 'knowledge-connector-doctor'
     || kind === 'knowledge-review-issue'
     || kind === 'knowledge-consolidate'
     || kind === 'knowledge-packet'
@@ -42,6 +46,21 @@ export function createAgentWorkspaceKnowledgeCommandEditor(kind: AgentWorkspaceK
       fields: [
         { id: 'query', label: 'Query', value: '', required: false, multiline: false, hint: 'Optional map filter query.' },
         { id: 'limit', label: 'Limit', value: '50', required: false, multiline: false, hint: 'Maximum map records to summarize.' },
+      ],
+    };
+  }
+  if (kind === 'knowledge-connector-show' || kind === 'knowledge-connector-doctor') {
+    const doctor = kind === 'knowledge-connector-doctor';
+    return {
+      kind,
+      mode: 'create',
+      title: doctor ? 'Doctor Agent Knowledge Connector' : 'Show Agent Knowledge Connector',
+      selectedFieldIndex: 0,
+      message: doctor
+        ? 'Run a read-only readiness doctor for one Agent Knowledge connector.'
+        : 'Show one Agent Knowledge connector from the isolated Agent Knowledge connector registry.',
+      fields: [
+        { id: 'connectorId', label: 'Connector id', value: '', required: true, multiline: false, hint: 'Connector id from the Agent Knowledge connector inventory.' },
       ],
     };
   }

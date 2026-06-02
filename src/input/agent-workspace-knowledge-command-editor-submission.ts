@@ -73,6 +73,22 @@ export function buildAgentWorkspaceKnowledgeCommandEditorSubmission(
       'read-only',
     );
   }
+  if (editor.kind === 'knowledge-connector-show') {
+    return dispatch(
+      `/knowledge connectors ${quoteSlashCommandArg(readField('connectorId'))}`,
+      'Opening Agent Knowledge connector',
+      'The workspace handed a read-only Agent Knowledge connector detail command to the shell-owned command router.',
+      'read-only',
+    );
+  }
+  if (editor.kind === 'knowledge-connector-doctor') {
+    return dispatch(
+      `/knowledge connectors doctor ${quoteSlashCommandArg(readField('connectorId'))}`,
+      'Opening Agent Knowledge connector doctor',
+      'The workspace handed a read-only Agent Knowledge connector doctor command to the shell-owned command router.',
+      'read-only',
+    );
+  }
   if (editor.kind === 'knowledge-review-issue') {
     if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Agent Knowledge issue review not confirmed. Type yes, then press Enter.');
     const parts = [

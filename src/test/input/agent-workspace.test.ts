@@ -2907,6 +2907,35 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });
 
+  test('inspects Agent Knowledge connectors from workspace actions', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-connectors');
+    workspace.activateSelected();
+    expect(dispatched).toEqual(['/knowledge connectors']);
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-connector-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-connector-show');
+    feedText(workspace, 'url');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/knowledge connectors url');
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-connector-doctor');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-connector-doctor');
+    feedText(workspace, 'browser-history');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/knowledge connectors doctor browser-history');
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
+  });
+
   test('queries Agent Knowledge from workspace forms without placeholder commands', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
