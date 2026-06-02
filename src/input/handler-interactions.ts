@@ -1,7 +1,7 @@
 import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
 import type { OnboardingWizardMode } from './onboarding/onboarding-wizard.ts';
 import { collectOnboardingSnapshot } from '../runtime/onboarding/index.ts';
-import { cleanupMarkerRegistry, expandPrompt, findMarkerAtPos, handleBlockCopy, handleBlockRerun, handleBlockSave, handleBlockToggle, handleBookmark, handleClipboardPaste, handleCopy, handleCtrlC, handleDiffApply, registerPaste } from './handler-content-actions.ts';
+import { cleanupMarkerRegistry, expandPrompt, findMarkerAtPos, handleBlockCopy, handleBlockRerun, handleBlockSave, handleBlockToggle, handleBookmark, handleClipboardPaste, handleCopy, handleCtrlC, registerPaste } from './handler-content-actions.ts';
 import { clearModalStack, handleEscape, modalOpened } from './handler-modal-stack.ts';
 import { openOnboardingWizardState, type OpenOnboardingWizardOptions } from './handler-ui-state.ts';
 import type { InputHandler } from './handler.ts';
@@ -139,7 +139,6 @@ export function executeBlockActionForHandler(handler: InputHandler, actionId: st
       case 'copy':     handler.handleBlockCopy(); break;
       case 'bookmark': handler.handleBookmark(); break;
       case 'toggle':   handler.handleBlockToggle(); break;
-      case 'apply':    handler.handleDiffApply(); break;
       case 'rerun':    handler.handleBlockRerun(); break;
     }
   }
@@ -157,21 +156,6 @@ export function handleBlockRerunForHandler(handler: InputHandler): void {
    */
 export function handleBlockToggleForHandler(handler: InputHandler): void {
     handleBlockToggle(handler.conversationManager, handler.getScrollTop, handler.requestRender);
-  }
-
-  /**
-   * handleDiffApply - Ctrl+A when a diff block is nearest: request approval and apply the diff.
-   * Returns true if a diff was found and applied (so caller can skip default Ctrl+A).
-   */
-export function handleDiffApplyForHandler(handler: InputHandler): boolean {
-    return handleDiffApply(
-      handler.conversationManager,
-      handler.getScrollTop,
-      handler.commandContext,
-      handler.requestRender,
-      () => `diff-apply-${Date.now()}`,
-      'write',
-    );
   }
 
   /**

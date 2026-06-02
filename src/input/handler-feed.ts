@@ -141,7 +141,6 @@ export interface InputFeedContext {
   readonly handleBlockCopy: () => void;
   readonly handleBookmark: () => void;
   readonly handleBlockSave: () => void;
-  readonly handleDiffApply: () => boolean;
   readonly handleUndo: () => void;
   readonly handleRedo: () => void;
   readonly handlePaste: () => void;
@@ -272,7 +271,6 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
         handleBlockCopy: context.handleBlockCopy,
         handleBookmark: context.handleBookmark,
         handleBlockSave: context.handleBlockSave,
-        handleDiffApply: context.handleDiffApply,
         handleUndo: context.handleUndo,
         handleRedo: context.handleRedo,
         handlePaste: context.handlePaste,

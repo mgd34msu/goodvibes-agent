@@ -238,7 +238,7 @@ export function renderShortcutsOverlay(
     row(kb('clear-prompt'), 'Clear prompt'),
     row(kb('delete-word'), 'Delete word backward'),
     row(kb('kill-line'), 'Kill to end of line'),
-    row(kb('apply-diff-line-start'), 'Delegate diff changes / line start'),
+    row(kb('line-start'), 'Move to start of line'),
     row(kb('next-error-line-end'), 'Next error / line end'),
     '',
     '  Actions',

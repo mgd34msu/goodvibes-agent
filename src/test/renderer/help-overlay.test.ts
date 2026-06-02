@@ -2,7 +2,7 @@
  * Tests for renderHelpOverlay.
  */
 import { describe, test, expect } from 'bun:test';
-import { renderHelpOverlay } from '../../renderer/help-overlay.ts';
+import { renderHelpOverlay, renderShortcutsOverlay } from '../../renderer/help-overlay.ts';
 import type { SlashCommand } from '../../input/command-registry.ts';
 import { KeybindingsManager } from '../../input/keybindings.ts';
 import { lineToString, linesToText } from '../setup.ts';
@@ -21,6 +21,14 @@ function renderAllText(commands?: SlashCommand[]): string {
   const frames: string[] = [];
   for (let offset = 0; offset <= 30; offset += 6) {
     frames.push(linesToText(renderHelpOverlay(W, KEYBINDINGS, commands, offset, TALL_VIEWPORT)).join('\n'));
+  }
+  return frames.join('\n');
+}
+
+function renderAllShortcutText(): string {
+  const frames: string[] = [];
+  for (let offset = 0; offset <= 42; offset += 6) {
+    frames.push(linesToText(renderShortcutsOverlay(W, KEYBINDINGS, offset, TALL_VIEWPORT)).join('\n'));
   }
   return frames.join('\n');
 }
@@ -101,6 +109,13 @@ describe('renderHelpOverlay', () => {
     const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
     const texts = linesToText(lines).join('\n');
     expect(texts).toContain('?');
+  });
+
+  test('shortcuts overlay presents Ctrl+A as prompt editing only', () => {
+    const text = renderAllShortcutText();
+    expect(text).toContain('Move to start of line');
+    expect(text).not.toContain('Delegate diff');
+    expect(text).not.toContain('apply-diff');
   });
 
   test('renders command list when commands provided', () => {

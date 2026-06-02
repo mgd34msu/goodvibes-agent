@@ -38,7 +38,6 @@ function buildState(overrides: Partial<GlobalShortcutRouteState> = {}): GlobalSh
     handleBlockCopy: mock(() => {}),
     handleBookmark: mock(() => {}),
     handleBlockSave: mock(() => {}),
-    handleDiffApply: mock(() => false),
     handleUndo: mock(() => {}),
     handleRedo: mock(() => {}),
     handlePaste: mock(() => {}),
@@ -119,5 +118,35 @@ describe('handleGlobalShortcutToken', () => {
     expect(pageUpHandled).toBe(false);
     expect(pageDownHandled).toBe(false);
     expect(state.scroll).not.toHaveBeenCalled();
+  });
+
+  test('Ctrl+A moves to line start without invoking build or edit actions', () => {
+    const state = buildState({
+      prompt: 'hello\nworld',
+      cursorPos: 9,
+      contentWidth: 80,
+      keybindingsManager: {
+        matches: () => false,
+        lookup: () => 'line-start',
+      } as unknown as GlobalShortcutRouteState['keybindingsManager'],
+      getWrappedPromptInfo: () => ({
+        wrappedLines: ['hello', 'world'],
+        segments: [
+          { rawStart: 0, length: 5 },
+          { rawStart: 6, length: 5 },
+        ],
+        cursorWrappedLine: 1,
+      }),
+    });
+
+    const handled = handleGlobalShortcutToken(
+      state,
+      { type: 'key', name: '\x01', logicalName: 'a', ctrl: true, shift: false, meta: false },
+      24,
+    );
+
+    expect(handled).toBe(true);
+    expect(state.cursorPos).toBe(6);
+    expect(state.ensureInputCursorVisible).toHaveBeenCalled();
   });
 });

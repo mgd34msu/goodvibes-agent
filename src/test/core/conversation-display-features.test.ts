@@ -75,11 +75,14 @@ describe('BlockActionsMenu', () => {
     expect(ids).not.toContain('apply');
   });
 
-  test('shows apply action only for diff blocks', () => {
+  test('does not expose edit-apply actions for diff-like blocks in Agent', () => {
     const menu = new BlockActionsMenu();
     menu.open({ blockIndex: 0, type: 'diff', startLine: 0, lineCount: 5, rawContent: 'diff', collapseKey: 'k0' });
     const ids = menu.actions.map(a => a.id);
-    expect(ids).toContain('apply');
+    expect(ids).toContain('copy');
+    expect(ids).toContain('bookmark');
+    expect(ids).toContain('toggle');
+    expect(ids).not.toContain('apply');
     expect(ids).not.toContain('rerun');
   });
 

@@ -2,9 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { copyToClipboard, pasteFromClipboard, pasteImageFromClipboard } from '../utils/clipboard.ts';
 import type { InfiniteBuffer } from '../core/history.ts';
 import type { ConversationManager } from '../core/conversation';
-import type { PermissionCategory } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
-import type { CommandContext } from './command-registry.ts';
 import type { BookmarkManager } from '@pellux/goodvibes-sdk/platform/bookmarks';
 import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
@@ -335,29 +333,6 @@ export function handleBlockToggle(
   if (blockIdx >= 0) {
     requestRender();
   }
-}
-
-export function handleDiffApply(
-  conversationManager: ConversationManager | null,
-  getScrollTop: () => number,
-  commandContext: CommandContext | undefined,
-  requestRender: () => void,
-  getCallId: () => string,
-  category: PermissionCategory,
-): boolean {
-  void commandContext;
-  void getCallId;
-  void category;
-  if (!conversationManager) return false;
-  const lineIndex = getScrollTop();
-  const diff = conversationManager.getDiffAtLine(lineIndex);
-  if (!diff || !diff.filePath) return false;
-  conversationManager.log(
-    `[Diff apply blocked in GoodVibes Agent: ${diff.filePath}. Delegate build/fix work to GoodVibes TUI with /delegate <task>.]`,
-    { fg: '#f59e0b' },
-  );
-  requestRender();
-  return true;
 }
 
 export function handleCtrlC(

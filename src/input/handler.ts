@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname } from 'node:path';
 import { InputTokenizer } from '@pellux/goodvibes-sdk/platform/core';
 import { createOAuthLocalListener } from '@pellux/goodvibes-sdk/platform/config';
-import { clearModalStackForHandler, cleanupMarkerRegistryForHandler, executeBlockActionForHandler, expandPromptForHandler, findMarkerAtPosForHandler, getImageAttachmentsForHandler, handleBlockCopyForHandler, handleBlockRerunForHandler, handleBlockSaveForHandler, handleBlockToggleForHandler, handleBookmarkForHandler, handleCopyForHandler, handleCtrlCForHandler, handleDiffApplyForHandler, handleEscapeForHandler, hydrateOnboardingWizardFromRuntimeForHandler, modalOpenedForHandler, openOnboardingWizardForHandler, registerPasteForHandler } from './handler-interactions.ts';
+import { clearModalStackForHandler, cleanupMarkerRegistryForHandler, executeBlockActionForHandler, expandPromptForHandler, findMarkerAtPosForHandler, getImageAttachmentsForHandler, handleBlockCopyForHandler, handleBlockRerunForHandler, handleBlockSaveForHandler, handleBlockToggleForHandler, handleBookmarkForHandler, handleCopyForHandler, handleCtrlCForHandler, handleEscapeForHandler, hydrateOnboardingWizardFromRuntimeForHandler, modalOpenedForHandler, openOnboardingWizardForHandler, registerPasteForHandler } from './handler-interactions.ts';
 import { clearOnboardingModelPickerCancelStateForHandler, clearOnboardingPendingModelPickerTargetForHandler, completeOpenAiSubscriptionFromListenerForHandler, getOnboardingConfigValueForHandler, getOnboardingRuntimePostureForHandler, handleModelPickerCommitForHandler, handleOnboardingActionForHandler, handleOpenAiSubscriptionFinishForHandler, handleOpenAiSubscriptionStartForHandler, openModelPickerWithTargetForHandler, openProviderModelPickerWithTargetForHandler, refreshOnboardingHydrationForHandler, restartOnboardingExternalServicesIfNeededForHandler, restoreOnboardingModelPickerCancelStateForHandler, syncRuntimeFromOnboardingRequestForHandler, verifyOnboardingRuntimePostureForHandler, type OnboardingRuntimePosture } from './handler-onboarding.ts';
 import { beginOpenAICodexLogin, exchangeOpenAICodexCode } from '@pellux/goodvibes-sdk/platform/config';
 import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
@@ -56,7 +56,6 @@ import {
   handleClipboardPaste,
   handleCopy,
   handleCtrlC,
-  handleDiffApply,
   mediaTypeFromExt,
   registerPaste,
 } from './handler-content-actions.ts';
@@ -302,7 +301,6 @@ export class InputHandler {
         handleBlockCopy: () => this.handleBlockCopy(),
         handleBookmark: () => this.handleBookmark(),
         handleBlockSave: () => this.handleBlockSave(),
-        handleDiffApply: () => this.handleDiffApply(),
         handleUndo: () => { this.handleUndo(); this.syncFeedContextMutableFields(); },
         handleRedo: () => { this.handleRedo(); this.syncFeedContextMutableFields(); },
         handlePaste: () => { this.handlePaste(); this.syncFeedContextMutableFields(); },
@@ -351,7 +349,7 @@ export class InputHandler {
     this.autocomplete = new AutocompleteEngine(registry);
   }
 
-  /** Wire in the conversation manager for block copy/apply/collapse. */
+  /** Wire in the conversation manager for block copy/collapse. */
   public setConversationManager(cm: ConversationManager): void { this.conversationManager = cm; }
 
   /**
@@ -393,7 +391,6 @@ export class InputHandler {
   public executeBlockAction(actionId: string): void { executeBlockActionForHandler(this, actionId); }
   public handleBlockRerun(): void { handleBlockRerunForHandler(this); }
   public handleBlockToggle(): void { handleBlockToggleForHandler(this); }
-  public handleDiffApply(): boolean { return handleDiffApplyForHandler(this); }
   public handleCtrlC(): void { handleCtrlCForHandler(this); }
   public modalOpened(name: string): void { modalOpenedForHandler(this, name); }
   public clearModalStack(): void { clearModalStackForHandler(this); }

@@ -140,7 +140,6 @@ export interface FeedContextClosures {
   handleBlockCopy: () => void;
   handleBookmark: () => void;
   handleBlockSave: () => void;
-  handleDiffApply: () => boolean;
   handleUndo: () => void;
   handleRedo: () => void;
   handlePaste: () => void;

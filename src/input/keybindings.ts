@@ -45,7 +45,7 @@ export type KeyAction =
   | 'bookmark'
   | 'block-save'
   | 'delete-word'
-  | 'apply-diff-line-start'
+  | 'line-start'
   | 'next-error-line-end'
   | 'kill-line'
   | 'clear-prompt'
@@ -70,7 +70,7 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'bookmark':              'Bookmark / unbookmark nearest block',
   'block-save':            'Block file save disabled; copy block or export conversation',
   'delete-word':           'Delete word backward',
-  'apply-diff-line-start': 'Delegate diff changes / move to line start',
+  'line-start':            'Move to start of line',
   'next-error-line-end':   'Navigate to next error / move to line end',
   'kill-line':             'Kill to end of line',
   'clear-prompt':          'Clear the prompt',
@@ -96,7 +96,7 @@ export const DEFAULT_KEYBINDINGS: Record<KeyAction, KeyCombo[]> = {
   'bookmark':              [{ key: 'b', ctrl: true }],
   'block-save':            [{ key: 's', ctrl: true }],
   'delete-word':           [{ key: 'w', ctrl: true }],
-  'apply-diff-line-start': [{ key: 'a', ctrl: true }],
+  'line-start':            [{ key: 'a', ctrl: true }],
   'next-error-line-end':   [{ key: 'e', ctrl: true }],
   'kill-line':             [{ key: 'k', ctrl: true }],
   'clear-prompt':          [{ key: 'u', ctrl: true }],

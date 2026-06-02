@@ -37,7 +37,6 @@ export type GlobalShortcutRouteState = {
   handleBlockCopy: () => void;
   handleBookmark: () => void;
   handleBlockSave: () => void;
-  handleDiffApply: () => boolean;
   handleUndo: () => void;
   handleRedo: () => void;
   handlePaste: () => void;
@@ -154,8 +153,7 @@ export function handleGlobalShortcutToken(
       return true;
     }
 
-    case 'apply-diff-line-start': {
-      if (!state.commandMode && state.handleDiffApply()) return true;
+    case 'line-start': {
       const info = state.getWrappedPromptInfo(state.contentWidth);
       state.cursorPos = info.wrappedLines.length > 1 ? info.segments[info.cursorWrappedLine].rawStart : 0;
       state.ensureInputCursorVisible();

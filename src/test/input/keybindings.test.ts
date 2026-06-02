@@ -65,6 +65,15 @@ describe('default bindings', () => {
       expect(entry.combos).toEqual(expected);
     }
   });
+
+  it('does not expose copied diff-apply keybinding actions in Agent', () => {
+    const km = new KeybindingsManager({ configPath: '/nonexistent/path/keybindings.json' });
+    const text = km.getAll().map((entry) => `${entry.action} ${entry.description}`).join('\n');
+    expect(text).toContain('line-start');
+    expect(text).toContain('Move to start of line');
+    expect(text).not.toContain('apply-diff');
+    expect(text).not.toContain('Delegate diff');
+  });
 });
 
 // ---------------------------------------------------------------------------
