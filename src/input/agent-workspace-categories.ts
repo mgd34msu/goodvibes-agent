@@ -52,7 +52,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent uses connected channel accounts. Pairing, account inspection, and readiness checks are visible here; inbound delivery and public channel exposure stay policy-gated.',
     actions: [
       { id: 'pair', label: 'Pair companion', detail: 'Open the QR pairing view for companion app setup.', command: '/pair', kind: 'command', safety: 'safe' },
-      { id: 'channel-readiness', label: 'Channel readiness', detail: 'Show a read-only readiness matrix for configured messaging and notification channels.', command: '/channels', kind: 'command', safety: 'read-only' },
+      { id: 'channel-readiness', label: 'Channel readiness', detail: 'Show the read-only readiness matrix, then use /channels attention or /channels show <id> for setup detail.', command: '/channels', kind: 'command', safety: 'read-only' },
       { id: 'notification-routes', label: 'Notification routes', detail: 'Inspect configured webhook notification URLs without sending a test message.', command: '/notify list', kind: 'command', safety: 'read-only' },
       { id: 'notification-add-webhook', label: 'Add webhook target', detail: 'Open a confirmed form that adds one webhook notification target for explicit reminder and routine delivery.', editorKind: 'notify-webhook', kind: 'editor', safety: 'safe' },
       { id: 'notification-remove-webhook', label: 'Remove webhook target', detail: 'Open a confirmed form that removes one exact webhook notification target from Agent delivery.', editorKind: 'notify-webhook-remove', kind: 'editor', safety: 'safe' },

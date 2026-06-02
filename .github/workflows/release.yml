@@ -223,3 +223,20 @@ jobs:
           cat /tmp/goodvibes-agent-npm-view.log >&2 || true
           echo "Timed out waiting for @pellux/goodvibes-agent@${VERSION} to appear on npm." >&2
           exit 1
+      - name: Bun registry install smoke
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          TMP_ROOT="$(mktemp -d)"
+          trap 'rm -rf "${TMP_ROOT}"' EXIT
+          mkdir -p "${TMP_ROOT}/home" "${TMP_ROOT}/cache" "${TMP_ROOT}/bun"
+
+          HOME="${TMP_ROOT}/home" \
+          XDG_CACHE_HOME="${TMP_ROOT}/cache" \
+          BUN_INSTALL="${TMP_ROOT}/bun" \
+            bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org
+
+          export PATH="${TMP_ROOT}/bun/bin:${PATH}"
+          goodvibes-agent --version | grep "goodvibes-agent ${VERSION}"
+          goodvibes-agent --help > "${TMP_ROOT}/help.txt"
+          test -s "${TMP_ROOT}/help.txt"
