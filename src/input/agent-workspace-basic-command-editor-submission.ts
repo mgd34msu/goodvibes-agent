@@ -361,6 +361,21 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'profile-show') {
+    const command = `/agent-profile show ${quoteSlashCommandArg(readField('profile'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent profile detail.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent profile detail',
+        detail: 'The workspace handed a read-only Agent profile inspection command to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
   if (editor.kind === 'profile-template-from-discovered') {
     if (!isAffirmative(readField('confirm'))) {
       return {

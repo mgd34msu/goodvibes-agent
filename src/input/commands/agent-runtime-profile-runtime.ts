@@ -12,6 +12,7 @@ import {
   listAgentRuntimeProfiles,
   listAgentRuntimeProfileTemplates,
   readAgentRuntimeProfileSelection,
+  resolveAgentRuntimeProfileHome,
   setAgentRuntimeProfileSelection,
   type AgentRuntimeProfileInfo,
   type AgentRuntimeProfileTemplateSummary,
@@ -63,6 +64,18 @@ function renderProfiles(homeDirectory: string): string {
     ].join('\n');
   }
   return ['Agent Profiles', defaultLine, ...profiles.map(profileLine)].join('\n');
+}
+
+function renderProfileDetail(homeDirectory: string, name: string): string {
+  const profile = resolveAgentRuntimeProfileHome(homeDirectory, name);
+  const info = listAgentRuntimeProfiles(homeDirectory).find((entry) => entry.id === profile.id) ?? { ...profile, createdAt: null };
+  const starter = info.starterTemplateId ? [`  starter: ${info.starterTemplateId} (${info.starterTemplateName ?? info.starterTemplateId})`] : [];
+  return [
+    `Agent profile: ${profile.id}`,
+    `  home: ${profile.homeDirectory}`,
+    ...starter,
+    `  use: goodvibes-agent --agent-profile ${profile.id}`,
+  ].join('\n');
 }
 
 function renderTemplates(homeDirectory: string): string {
@@ -123,7 +136,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
     name: 'agent-profile',
     aliases: ['runtime-profile', 'agent-profiles'],
     description: 'Manage isolated Agent profiles and starter templates',
-    usage: '[list|default|use|templates|guide|template show|template export|template import|template from-discovered|create|create-from-discovered|delete]',
+    usage: '[list|show|default|use|templates|guide|template show|template export|template import|template from-discovered|create|create-from-discovered|delete]',
     async handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);
       const homeDirectory = shellPaths.homeDirectory;
@@ -139,6 +152,16 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
 
         if (sub === 'templates' || sub === 'starters') {
           ctx.print(renderTemplates(homeDirectory));
+          return;
+        }
+
+        if (sub === 'show' || sub === 'path' || sub === 'home') {
+          const name = commandArgs[1];
+          if (!name) {
+            ctx.print('Usage: /agent-profile show <name>');
+            return;
+          }
+          ctx.print(renderProfileDetail(homeDirectory, name));
           return;
         }
 
@@ -345,7 +368,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           return;
         }
 
-        ctx.print('Usage: /agent-profile [list|default [<name>|clear] --yes|use <name> --yes|templates|guide|template show <id>|template export <id> <path> --yes|template import <path> --yes|create <name> [--template <id>] --yes|create-from-discovered <name> --yes|delete <name> --yes]');
+        ctx.print('Usage: /agent-profile [list|show <name>|default [<name>|clear] --yes|use <name> --yes|templates|guide|template show <id>|template export <id> <path> --yes|template import <path> --yes|create <name> [--template <id>] --yes|create-from-discovered <name> --yes|delete <name> --yes]');
       } catch (error) {
         ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
       }

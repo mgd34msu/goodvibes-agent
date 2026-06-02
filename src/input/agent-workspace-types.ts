@@ -76,6 +76,7 @@ export type AgentWorkspaceEditorKind =
   | 'profile-template-show'
   | 'profile-template-from-discovered'
   | 'profile-from-discovered'
+  | 'profile-show'
   | 'profile-default'
   | 'profile-default-clear'
   | 'profile-delete'

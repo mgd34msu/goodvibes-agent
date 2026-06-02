@@ -3258,6 +3258,9 @@ describe('AgentWorkspace', () => {
     expect(await registry.execute('agent-profile', ['create', 'lab', '--template', 'lab-operator', '--yes'], ctx)).toBe(true);
     expect(calls.at(-1)).toContain('Agent profile created: lab');
     expect(calls.at(-1)).toContain('starter: lab-operator');
+    expect(await registry.execute('agent-profile', ['show', 'lab'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('Agent profile: lab');
+    expect(calls.at(-1)).toContain('starter: lab-operator');
     expect(await registry.execute('agent-profile', ['use', 'lab'], ctx)).toBe(true);
     expect(calls.at(-1)).toContain('without --yes');
     expect(readAgentRuntimeProfileSelection(root)).toBeNull();
@@ -3316,7 +3319,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening Agent starter template import');
   });
 
-  test('previews starter templates and deletes profiles from workspace forms', () => {
+  test('previews starter templates shows profiles and deletes profiles from workspace forms', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -3328,6 +3331,12 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'operations');
     feedKey(workspace, 'enter');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('profile-show');
+    feedText(workspace, 'household');
+    feedKey(workspace, 'enter');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-delete');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('profile-delete');
@@ -3335,7 +3344,10 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
     feedText(workspace, 'no');
     feedKey(workspace, 'enter');
-    expect(dispatched).toEqual(['/agent-profile template show operations']);
+    expect(dispatched).toEqual([
+      '/agent-profile template show operations',
+      '/agent-profile show household',
+    ]);
     expect(workspace.status).toContain('not confirmed');
 
     clearEditorField(workspace);
@@ -3344,6 +3356,7 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual([
       '/agent-profile template show operations',
+      '/agent-profile show household',
       '/agent-profile delete old-profile --yes',
     ]);
     expect(workspace.lastActionResult?.title).toBe('Opening Agent profile deletion');

@@ -26,7 +26,7 @@ export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEd
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-urls' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'knowledge-reindex' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
   | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
-  | 'profile-template-show' | 'profile-delete'
+  | 'profile-template-show' | 'profile-show' | 'profile-delete'
   | 'support-bundle-export' | 'support-bundle-inspect' | 'support-bundle-import'
   | 'subscription-inspect' | 'subscription-login-start' | 'subscription-login-finish' | 'subscription-logout'
   | 'model-pin' | 'model-unpin'
@@ -68,6 +68,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'profile-default'
     || kind === 'profile-default-clear'
     || kind === 'profile-template-show'
+    || kind === 'profile-show'
     || kind === 'profile-delete'
     || kind === 'support-bundle-export'
     || kind === 'support-bundle-inspect'
@@ -454,6 +455,18 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       message: 'Preview one built-in or local starter template before creating or exporting a profile.',
       fields: [
         { id: 'id', label: 'Starter id', value: '', required: true, multiline: false, hint: 'Starter template id from /agent-profile templates.' },
+      ],
+    };
+  }
+  if (kind === 'profile-show') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Show Agent Profile',
+      selectedFieldIndex: 0,
+      message: 'Show one isolated Agent profile home, starter metadata, and launch command.',
+      fields: [
+        { id: 'profile', label: 'Profile name', value: '', required: true, multiline: false, hint: 'Existing isolated Agent profile name from /agent-profile list.' },
       ],
     };
   }
