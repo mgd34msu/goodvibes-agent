@@ -140,6 +140,39 @@ describe('agent_local_registry tool', () => {
     expect(snapshot.enabledSkills[0]?.provenance).toBe('agent-local-registry-tool');
   });
 
+  test('rejects blank self-created behavior records from the model-visible tool', async () => {
+    const { paths, tool } = await toolFixture();
+
+    const persona = await tool.execute({
+      domain: 'persona',
+      action: 'create',
+      name: 'Blank persona',
+      description: 'Should be rejected.',
+    });
+    const skill = await tool.execute({
+      domain: 'skill',
+      action: 'create',
+      name: 'Blank skill',
+      description: 'Should be rejected.',
+    });
+    const routine = await tool.execute({
+      domain: 'routine',
+      action: 'create',
+      name: 'Blank routine',
+      description: 'Should be rejected.',
+    });
+
+    expect(persona.success).toBe(false);
+    expect(persona.error).toContain('body is required');
+    expect(skill.success).toBe(false);
+    expect(skill.error).toContain('procedure is required');
+    expect(routine.success).toBe(false);
+    expect(routine.error).toContain('steps is required');
+    expect(AgentPersonaRegistry.fromShellPaths(paths).list()).toHaveLength(0);
+    expect(AgentSkillRegistry.fromShellPaths(paths).list()).toHaveLength(0);
+    expect(AgentRoutineRegistry.fromShellPaths(paths).list()).toHaveLength(0);
+  });
+
   test('creates and enables Agent-local skill bundles from the model-visible tool', async () => {
     const { paths, tool } = await toolFixture();
     await tool.execute({

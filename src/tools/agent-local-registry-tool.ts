@@ -137,6 +137,12 @@ function requireDescription(args: AgentLocalRegistryToolArgs): string {
   return description;
 }
 
+function requireTextField(value: unknown, fieldName: string): string {
+  const text = readString(value);
+  if (!text) throw new Error(`${fieldName} is required.`);
+  return text;
+}
+
 function requireSummary(args: AgentLocalRegistryToolArgs): string {
   const summary = readString(args.summary || args.description);
   if (!summary) throw new Error('summary is required.');
@@ -299,7 +305,7 @@ function handlePersona(shellPaths: ShellPathService, action: AgentLocalRegistryA
     const persona = registry.create({
       name: requireName(args),
       description: requireDescription(args),
-      body: readString(args.body),
+      body: requireTextField(args.body, 'body'),
       tags: readStringList(args.tags),
       triggers: readStringList(args.triggers),
       source: 'agent',
@@ -350,7 +356,7 @@ function handleSkill(shellPaths: ShellPathService, action: AgentLocalRegistryAct
     const skill = registry.create({
       name: requireName(args),
       description: requireDescription(args),
-      procedure: readString(args.procedure),
+      procedure: requireTextField(args.procedure, 'procedure'),
       triggers: readStringList(args.triggers),
       tags: readStringList(args.tags),
       enabled: args.enabled === true,
@@ -441,7 +447,7 @@ function handleRoutine(shellPaths: ShellPathService, action: AgentLocalRegistryA
     const routine = registry.create({
       name: requireName(args),
       description: requireDescription(args),
-      steps: readString(args.steps),
+      steps: requireTextField(args.steps, 'steps'),
       triggers: readStringList(args.triggers),
       tags: readStringList(args.tags),
       enabled: args.enabled === true,
