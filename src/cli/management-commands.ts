@@ -1,16 +1,17 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { SecretsManager } from '../config/secrets.ts';
 import { BUILTIN_SECRET_PROVIDER_SOURCES, describeSecretRef, isSecretRefInput, resolveSecretRef } from '@pellux/goodvibes-sdk/platform/config';
 import { getSubscriptionProviderConfig, listAvailableSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import { beginOpenAICodexLogin, exchangeOpenAICodexCode } from '@pellux/goodvibes-sdk/platform/config';
 import { inspectProviderAuth } from '@/runtime/index.ts';
-import { getOrCreateCompanionToken, buildCompanionConnectionInfo, encodeConnectionPayload, formatConnectionBlock } from '@pellux/goodvibes-sdk/platform/pairing';
+import { buildCompanionConnectionInfo, encodeConnectionPayload, formatConnectionBlock } from '@pellux/goodvibes-sdk/platform/pairing';
 import { generateQrMatrix, renderQrToString } from '@pellux/goodvibes-sdk/platform/pairing';
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import type { CliCommandRuntime } from './management.ts';
 import { extractAuthorizationCode, formatJsonOrText, hasCommandFlag, openBrowser, urlHostForBindHost, withRuntimeServices, yesNo } from './management.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
+import { connectedHostTokenRequiredMessage, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 
 export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<string> {
   return await withRuntimeServices(runtime, async (services) => {
@@ -302,8 +303,8 @@ export async function handleTasks(runtime: CliCommandRuntime): Promise<string> {
 }
 
 export async function renderPairing(runtime: CliCommandRuntime): Promise<string> {
-  const daemonHomeDir = join(runtime.homeDirectory, '.goodvibes', 'daemon');
-  const tokenRecord = getOrCreateCompanionToken(GOODVIBES_AGENT_PAIRING_SURFACE, { daemonHomeDir });
+  const tokenRecord = readConnectedHostOperatorToken(runtime.homeDirectory);
+  if (!tokenRecord.token) return connectedHostTokenRequiredMessage(tokenRecord.path);
   const binding = resolveRuntimeEndpointBinding(runtime.configManager, 'controlPlane');
   const daemonUrl = `http://${urlHostForBindHost(binding.host)}:${binding.port}`;
   const info = buildCompanionConnectionInfo({

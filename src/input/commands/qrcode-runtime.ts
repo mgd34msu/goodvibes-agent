@@ -1,16 +1,15 @@
 import type { CommandRegistry } from '../command-registry.ts';
-import { join } from 'node:path';
 import { networkInterfaces } from 'node:os';
 import {
   buildCompanionConnectionInfo,
   encodeConnectionPayload,
   formatConnectionBlock,
   generateQrMatrix,
-  getOrCreateCompanionToken,
   renderQrToString,
 } from '@pellux/goodvibes-sdk/platform/pairing';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../../config/surface.ts';
 import { resolveRuntimeEndpointBinding } from '../../cli/endpoints.ts';
+import { connectedHostTokenRequiredMessage, readConnectedHostOperatorToken } from '../../runtime/connected-host-auth.ts';
 import { requirePlatform, requireShellPaths } from './runtime-services.ts';
 
 function getLocalNetworkIp(): string {
@@ -41,8 +40,11 @@ export function registerQrcodeRuntimeCommands(registry: CommandRegistry): void {
     handler(_args, ctx) {
       const shellPaths = requireShellPaths(ctx);
       const configManager = requirePlatform(ctx).configManager;
-      const daemonHomeDir = join(shellPaths.homeDirectory, '.goodvibes', 'daemon');
-      const tokenRecord = getOrCreateCompanionToken(GOODVIBES_AGENT_PAIRING_SURFACE, { daemonHomeDir });
+      const tokenRecord = readConnectedHostOperatorToken(shellPaths.homeDirectory);
+      if (!tokenRecord.token) {
+        ctx.print(connectedHostTokenRequiredMessage(tokenRecord.path));
+        return;
+      }
       const binding = resolveRuntimeEndpointBinding(configManager, 'controlPlane');
       const daemonUrl = `http://${urlHostForBindHost(binding.host)}:${binding.port}`;
       const info = buildCompanionConnectionInfo({

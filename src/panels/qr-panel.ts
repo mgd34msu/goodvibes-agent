@@ -79,13 +79,15 @@ export class QrPanel extends BasePanel {
         this.connectionInfo = this.regenerateToken();
         this.lastStatus = 'Token regenerated.';
       } else {
-        this.lastStatus = 'Regeneration not available.';
+        this.lastStatus = 'Token rotation belongs to the connected host.';
       }
       this.markDirty();
       return true;
     }
     if (key === 'c') {
-      if (this.copyToClipboard) {
+      if (!this.connectionInfo.token) {
+        this.lastStatus = 'No connected-host token is available to copy.';
+      } else if (this.copyToClipboard) {
         this.copyToClipboard(this.connectionInfo.token);
         this.lastStatus = 'Token copied to clipboard.';
       } else {
@@ -134,18 +136,36 @@ export class QrPanel extends BasePanel {
     lines.push(createEmptyLine(width));
 
     // ── QR code ────────────────────────────────────────────────────────────
-    const payload = encodeConnectionPayload({
-      url: this.connectionInfo.url,
-      token: this.connectionInfo.token,
-      username: this.connectionInfo.username,
-      ...(this.connectionInfo.password !== undefined ? { password: this.connectionInfo.password } : {}),
-      version: this.connectionInfo.version ?? '0.0.0',
-      surface: this.connectionInfo.surface ?? GOODVIBES_AGENT_PAIRING_SURFACE,
-    });
-    const matrix = generateQrMatrix(payload);
-    const qrLines = renderQrMatrix(matrix.modules, width, { fg: C.qrFg, bg: C.qrBg });
-    for (const qrLine of qrLines) {
-      lines.push(qrLine);
+    if (this.connectionInfo.token) {
+      const payload = encodeConnectionPayload({
+        url: this.connectionInfo.url,
+        token: this.connectionInfo.token,
+        username: this.connectionInfo.username,
+        ...(this.connectionInfo.password !== undefined ? { password: this.connectionInfo.password } : {}),
+        version: this.connectionInfo.version ?? '0.0.0',
+        surface: this.connectionInfo.surface ?? GOODVIBES_AGENT_PAIRING_SURFACE,
+      });
+      const matrix = generateQrMatrix(payload);
+      const qrLines = renderQrMatrix(matrix.modules, width, { fg: C.qrFg, bg: C.qrBg });
+      for (const qrLine of qrLines) {
+        lines.push(qrLine);
+      }
+    } else {
+      lines.push(
+        buildPanelLine(width, [
+          [' Pairing unavailable ', C.hint],
+        ]),
+      );
+      lines.push(
+        buildPanelLine(width, [
+          [' Connected-host operator token is missing. Agent does not create or rotate host auth tokens. ', C.dim],
+        ]),
+      );
+      lines.push(
+        buildPanelLine(width, [
+          [' Start or repair the owning GoodVibes host, then reopen this panel. ', C.dim],
+        ]),
+      );
     }
 
     lines.push(createEmptyLine(width));
@@ -160,12 +180,16 @@ export class QrPanel extends BasePanel {
     }
 
     // ── Hints ──────────────────────────────────────────────────────────────
-    const hintsLine = buildPanelLine(width, [
-      [' r ', C.hint],
-      ['regenerate  ', C.dim],
-      [' c ', C.hint],
-      ['copy token', C.dim],
-    ]);
+    const hintParts: Array<[string, string]> = this.connectionInfo.token
+      ? [
+        [' c ', C.hint],
+        ['copy token', C.dim],
+      ]
+      : [
+        [' h ', C.hint],
+        ['host auth required', C.dim],
+      ];
+    const hintsLine = buildPanelLine(width, hintParts);
 
     // Push hints at the bottom if we have room, otherwise append after QR
     const remaining = height - lines.length;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
@@ -35,6 +35,9 @@ describe('qrcode runtime command', () => {
     const command = registry.get('qrcode');
     expect(command).toBeDefined();
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-'));
+    const tokenDir = join(root, '.goodvibes', 'daemon');
+    mkdirSync(tokenDir, { recursive: true });
+    writeFileSync(join(tokenDir, 'operator-tokens.json'), JSON.stringify({ token: 'existing-connected-host-token' }));
     const out: string[] = [];
 
     await command!.handler([], makeContext(out, root));
@@ -43,5 +46,21 @@ describe('qrcode runtime command', () => {
     expect(text).toContain('goodvibes-agent');
     expect(text).toContain('http://127.0.0.1:3421');
     expect(text).not.toContain('QR code panel');
+  });
+
+  test('does not create connected-host auth tokens when pairing token is missing', async () => {
+    const registry = new CommandRegistry();
+    registerQrcodeRuntimeCommands(registry);
+    const command = registry.get('qrcode');
+    expect(command).toBeDefined();
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-missing-'));
+    const out: string[] = [];
+
+    await command!.handler([], makeContext(out, root));
+
+    const text = out.join('\n');
+    expect(text).toContain('Connected-host operator token is required.');
+    expect(text).toContain('Agent does not create or rotate connected-host auth tokens.');
+    expect(text).not.toContain('existing-connected-host-token');
   });
 });

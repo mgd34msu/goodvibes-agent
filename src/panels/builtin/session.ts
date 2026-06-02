@@ -1,5 +1,5 @@
 import { networkInterfaces } from 'node:os';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import type { PanelManager } from '../panel-manager.ts';
 import { SessionBrowserPanel } from '../session-browser-panel.ts';
 import { QrPanel } from '../qr-panel.ts';
@@ -9,8 +9,6 @@ import { TokenBudgetPanel } from '../token-budget-panel.ts';
 import type { ResolvedBuiltinPanelDeps } from './shared.ts';
 import { requireUiServices } from './shared.ts';
 import {
-  getOrCreateCompanionToken,
-  regenerateCompanionToken,
   buildCompanionConnectionInfo,
 } from '@pellux/goodvibes-sdk/platform/pairing';
 import { copyToClipboard } from '../../utils/clipboard.ts';
@@ -42,6 +40,18 @@ function readBootstrapPassword(credentialPath: string): string | undefined {
   return undefined;
 }
 
+function readOperatorToken(tokenPath: string): string | null {
+  if (!existsSync(tokenPath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(tokenPath, 'utf-8')) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const token = (parsed as Record<string, unknown>)['token'];
+    return typeof token === 'string' && token.trim().length > 0 ? token : null;
+  } catch {
+    return null;
+  }
+}
+
 export function registerSessionPanels(manager: PanelManager, deps: ResolvedBuiltinPanelDeps): void {
   manager.registerType({
     id: 'qr-code',
@@ -51,28 +61,26 @@ export function registerSessionPanels(manager: PanelManager, deps: ResolvedBuilt
     description: 'QR code for companion app pairing — scan to connect a mobile or desktop companion',
     factory: () => {
       if (!deps.daemonHomeDir) throw new Error('daemonHomeDir must be provided to the session panel factory via BuiltinPanelDeps');
-      const daemonHomeDir = deps.daemonHomeDir;
-      const tokenRecord = getOrCreateCompanionToken(GOODVIBES_AGENT_PAIRING_SURFACE, { daemonHomeDir });
+      const token = readOperatorToken(`${deps.daemonHomeDir}/operator-tokens.json`);
       const daemonPort = deps.configManager.get('controlPlane.port');
       const daemonHost = String(process.env['GOODVIBES_DAEMON_HOST'] ?? getLocalNetworkIp());
       const daemonUrl = `http://${daemonHost}:${daemonPort}`;
       const bootstrapPassword = readBootstrapPassword(deps.localUserAuthManager.getBootstrapCredentialPath());
-      const connectionInfo = buildCompanionConnectionInfo({
-        daemonUrl,
-        token: tokenRecord.token,
-        password: bootstrapPassword,
-        surface: GOODVIBES_AGENT_PAIRING_SURFACE,
-      });
-      const regenerate = (): typeof connectionInfo => {
-        const newRecord = regenerateCompanionToken({ daemonHomeDir });
-        return buildCompanionConnectionInfo({
+      const connectionInfo = token
+        ? buildCompanionConnectionInfo({
           daemonUrl,
-          token: newRecord.token,
+          token,
           password: bootstrapPassword,
           surface: GOODVIBES_AGENT_PAIRING_SURFACE,
-        });
-      };
-      return new QrPanel(connectionInfo, regenerate, copyToClipboard);
+        })
+        : {
+          url: daemonUrl,
+          token: '',
+          username: 'admin',
+          ...(bootstrapPassword !== undefined ? { password: bootstrapPassword } : {}),
+          surface: GOODVIBES_AGENT_PAIRING_SURFACE,
+        };
+      return new QrPanel(connectionInfo, undefined, copyToClipboard);
     },
   });
 
