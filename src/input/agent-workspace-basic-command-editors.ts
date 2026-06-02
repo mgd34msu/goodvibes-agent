@@ -5,7 +5,7 @@ type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'knowledge-bookmarks' | 'tts-prompt' | 'image-input' | 'skill-bundle'
+  'knowledge-bookmarks' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'profile-template-export' | 'profile-template-import'
 >;
 
 export type AgentWorkspaceBasicCommandEditorSubmission =
@@ -30,7 +30,9 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
   return kind === 'knowledge-bookmarks'
     || kind === 'tts-prompt'
     || kind === 'image-input'
-    || kind === 'skill-bundle';
+    || kind === 'skill-bundle'
+    || kind === 'profile-template-export'
+    || kind === 'profile-template-import';
 }
 
 export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasicCommandEditorKind): AgentWorkspaceLocalEditor {
@@ -69,6 +71,33 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       fields: [
         { id: 'path', label: 'Image path', value: '', required: true, multiline: false, hint: 'PNG, JPEG, WebP, or GIF path under the current workspace.' },
         { id: 'prompt', label: 'Prompt', value: '', required: false, multiline: true, hint: 'Optional prompt. Ctrl-J inserts a new line.' },
+      ],
+    };
+  }
+  if (kind === 'profile-template-export') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Export Agent Starter Template',
+      selectedFieldIndex: 0,
+      message: 'Export a starter template JSON file for review and customization. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'templateId', label: 'Starter id', value: '', required: true, multiline: false, hint: 'Existing starter id from /agent-profile templates.' },
+        { id: 'path', label: 'Output path', value: '', required: true, multiline: false, hint: 'Workspace-relative JSON path to write.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile template export with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'profile-template-import') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Import Agent Starter Template',
+      selectedFieldIndex: 0,
+      message: 'Import a reviewed starter template JSON file into this Agent home. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'path', label: 'Template path', value: '', required: true, multiline: false, hint: 'Workspace-relative JSON path to import.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile template import with --yes.' },
       ],
     };
   }
@@ -154,6 +183,50 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening image input',
         detail: 'The workspace handed an image attachment command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'profile-template-export') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Starter template export not confirmed. Type yes, then press Enter.' },
+        status: 'Agent starter template export not confirmed.',
+      };
+    }
+    const command = `/agent-profile template export ${quoteSlashCommandArg(readField('templateId'))} ${quoteSlashCommandArg(readField('path'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent starter template export.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent starter template export',
+        detail: 'The workspace handed a confirmed starter template export command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'profile-template-import') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Starter template import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent starter template import not confirmed.',
+      };
+    }
+    const command = `/agent-profile template import ${quoteSlashCommandArg(readField('path'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent starter template import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent starter template import',
+        detail: 'The workspace handed a confirmed starter template import command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

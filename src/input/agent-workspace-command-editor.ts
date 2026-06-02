@@ -15,6 +15,8 @@ type AgentWorkspaceCommandEditorKind = Extract<
   | 'tts-prompt'
   | 'image-input'
   | 'skill-bundle'
+  | 'profile-template-export'
+  | 'profile-template-import'
 >;
 
 type AgentWorkspaceCommandEditorSubmission =

@@ -96,11 +96,11 @@ export function activateAgentWorkspaceSelection(
     return;
   }
   if (/<[^>\s]+(?:\s+[^>]*)?>/.test(action.command)) {
-    workspace.status = `Placeholder command not dispatched: ${action.command}.`;
+    workspace.status = `Command needs concrete values before dispatch: ${action.command}.`;
     workspace.lastActionResult = {
       kind: 'guidance',
       title: `${action.label} needs details`,
-      detail: 'This action is a command template. Close the workspace and run it with real task text instead of placeholder values.',
+      detail: 'This action needs concrete values before it can run. Return to the composer and include the real task text.',
       command: action.command,
       safety: action.safety,
     };

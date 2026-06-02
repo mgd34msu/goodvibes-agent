@@ -19,6 +19,8 @@ export type AgentWorkspaceEditorKind =
   | 'tts-prompt'
   | 'image-input'
   | 'skill-bundle'
+  | 'profile-template-export'
+  | 'profile-template-import'
   | 'routine-schedule';
 
 export type AgentWorkspaceLocalOperation =

@@ -1224,7 +1224,7 @@ describe('AgentWorkspace', () => {
     expect(calls.at(-1)).toContain('starter=lab-operator');
   });
 
-  test('does not dispatch profile starter export templates without real target values', () => {
+  test('exports and imports profile starter templates from in-workspace forms', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -1233,9 +1233,49 @@ describe('AgentWorkspace', () => {
 
     workspace.activateSelected();
 
+    expect(workspace.localEditor?.kind).toBe('profile-template-export');
+    feedText(workspace, 'operations');
+    feedKey(workspace, 'enter');
+    feedText(workspace, './ops-starter.json');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/agent-profile template export operations ./ops-starter.json --yes']);
+    expect(workspace.lastActionResult?.title).toBe('Opening Agent starter template export');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-import');
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('profile-template-import');
+    feedText(workspace, './ops-starter.json');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/agent-profile template export operations ./ops-starter.json --yes',
+      '/agent-profile template import ./ops-starter.json --yes',
+    ]);
+    expect(workspace.lastActionResult?.title).toBe('Opening Agent starter template import');
+  });
+
+  test('keeps profile starter template forms local until typed confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-import');
+
+    workspace.activateSelected();
+    feedText(workspace, './starter.json');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
     expect(dispatched).toEqual([]);
-    expect(workspace.lastActionResult?.kind).toBe('guidance');
-    expect(workspace.status).toContain('Placeholder command not dispatched');
+    expect(workspace.localEditor?.kind).toBe('profile-template-import');
+    expect(workspace.status).toContain('not confirmed');
   });
 
   test('dispatches starter authoring guide from the workspace', () => {

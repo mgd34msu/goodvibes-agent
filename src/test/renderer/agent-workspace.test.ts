@@ -580,8 +580,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/agent-profile guide');
     expect(output).toContain('/agent-profile templates');
     expect(output).toContain('/agent-profile list');
-    expect(output).toContain('/agent-profile template export <id> <path> --yes');
-    expect(output).toContain('/agent-profile template import <path> --yes');
+    expect(output).toContain('edit profile-template-export');
+    expect(output).toContain('edit profile-template-import');
     expect(output).not.toContain('/profilesync');
     expect(output).not.toContain('/setup transfer');
     expect(output).toContain('Starter templates: 5; local custom: 0');
@@ -590,6 +590,30 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('household starter=none');
     expect(output).toContain('Starter Templates');
     expect(output).toContain('separate assistants for household');
+  });
+
+  test('renders profile starter export and import forms with concrete fields', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-export');
+    workspace.activateSelected();
+    const exportOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(exportOutput).toContain('Export Agent Starter Template');
+    expect(exportOutput).toContain('Starter id *');
+    expect(exportOutput).toContain('Output path *');
+    workspace.moveEditorField(2);
+    const exportConfirmOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(exportConfirmOutput).toContain('Confirm *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-import');
+    workspace.activateSelected();
+    const importOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(importOutput).toContain('Import Agent Starter Template');
+    expect(importOutput).toContain('Template path *');
+    expect(importOutput).toContain('Confirm *');
   });
 
   test('renders channel onboarding and delivery safety posture', () => {
