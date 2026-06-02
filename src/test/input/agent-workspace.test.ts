@@ -410,7 +410,7 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
-  test('setup workspace exposes compatibility and subscription review without shell-only paths', () => {
+  test('setup workspace exposes compatibility accounts and subscription review without shell-only paths', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -420,6 +420,10 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
     expect(workspace.status).toContain('/compat');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-accounts');
+    workspace.activateSelected();
+    expect(workspace.status).toContain('/accounts review');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-providers');
     workspace.activateSelected();
     expect(workspace.status).toContain('/subscription providers');
@@ -428,7 +432,7 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
     expect(workspace.status).toContain('/subscription review');
 
-    expect(dispatched).toEqual(['/compat', '/subscription providers', '/subscription review']);
+    expect(dispatched).toEqual(['/compat', '/accounts review', '/subscription providers', '/subscription review']);
   });
 
   test('home and setup workspaces jump to Tools and MCP without dispatching commands', () => {
@@ -459,6 +463,23 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/mcp']);
     expect(workspace.lastActionResult?.title).toBe('Opening Open MCP workspace');
+  });
+
+  test('tools workspace exposes trust and security review from the TUI', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'trust-review');
+    workspace.activateSelected();
+    expect(workspace.status).toContain('/trust review');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'security-review');
+    workspace.activateSelected();
+    expect(workspace.status).toContain('/security review');
+
+    expect(dispatched).toEqual(['/trust review', '/security review']);
   });
 
   test('renders local persona skill and routine library workspaces from live Agent state', () => {

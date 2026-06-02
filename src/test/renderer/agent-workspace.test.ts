@@ -697,6 +697,10 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/mcp config');
     expect(output).toContain('edit mcp-server');
     expect(output).toContain('typed confirmation');
+    expect(output).toContain('Trust review');
+    expect(output).toContain('/trust review');
+    expect(output).toContain('Security review');
+    expect(output).toContain('/security review');
     expect(output).toContain('allow-all');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-add-server');

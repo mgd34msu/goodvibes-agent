@@ -70,6 +70,7 @@ const hiddenCopiedCommands = [
 ] as const;
 
 const expectedAgentCommands = [
+  'accounts',
   'agent',
   'agent-profile',
   'agent-skills',
@@ -88,8 +89,10 @@ const expectedAgentCommands = [
   'routines',
   'schedule',
   'secrets',
+  'security',
   'sessions',
   'setup',
+  'trust',
   'workplan',
 ] as const;
 
