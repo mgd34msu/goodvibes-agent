@@ -604,6 +604,37 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-review');
+    workspace.activateSelected();
+    expect(dispatched.at(-1)).toBe('/conversation review');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-hotspots');
+    workspace.activateSelected();
+    expect(dispatched.at(-1)).toBe('/conversation hotspots');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-events');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('conversation-events');
+    feedText(workspace, 'tool_call');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/conversation events tool_call');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-groups');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('conversation-groups');
+    feedText(workspace, 'assistant_output');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/conversation groups assistant_output');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-find');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('conversation-find');
+    feedText(workspace, 'release');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'user_input');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/conversation find release user_input');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-save');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('session-save');
@@ -626,6 +657,13 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'renamed-review');
     feedKey(workspace, 'enter');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-fork');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-fork');
+    feedText(workspace, 'forked-review');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/session fork forked-review');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-resume');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('session-resume');
@@ -637,6 +675,16 @@ describe('AgentWorkspace', () => {
     expect(workspace.localEditor?.kind).toBe('session-info');
     feedText(workspace, 'morning-review');
     feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-graph');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-graph');
+    feedText(workspace, 'session-123');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'json');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/session graph --session session-123 --format json');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-export-saved');
     workspace.activateSelected();
@@ -667,11 +715,18 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual([
       '/export markdown ./exports/session.md --yes',
+      '/conversation review',
+      '/conversation hotspots',
+      '/conversation events tool_call',
+      '/conversation groups assistant_output',
+      '/conversation find release user_input',
       '/save morning-review',
       '/load morning-review',
       '/session rename renamed-review',
+      '/session fork forked-review',
       '/session resume morning-review',
       '/session info morning-review',
+      '/session graph --session session-123 --format json',
       '/session export morning-review text',
       '/session search release',
       '/session delete old-review --yes',

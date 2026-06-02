@@ -1389,6 +1389,27 @@ describe('renderAgentWorkspace', () => {
     expect(exportOutput).toContain('Output path *');
 
     workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-events');
+    workspace.activateSelected();
+    const eventsOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(eventsOutput).toContain('Show Transcript Events');
+    expect(eventsOutput).toContain('Event kind');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-groups');
+    workspace.activateSelected();
+    const groupsOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(groupsOutput).toContain('Show Transcript Groups');
+    expect(groupsOutput).toContain('Event kind');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-find');
+    workspace.activateSelected();
+    const findOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(findOutput).toContain('Find Transcript Text');
+    expect(findOutput).toContain('Search query *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-load');
     workspace.activateSelected();
     const loadOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -1403,6 +1424,13 @@ describe('renderAgentWorkspace', () => {
     expect(renameOutput).toContain('New session name *');
 
     workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-fork');
+    workspace.activateSelected();
+    const forkOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(forkOutput).toContain('Fork Current Session');
+    expect(forkOutput).toContain('Fork name');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-resume');
     workspace.activateSelected();
     const resumeOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -1415,6 +1443,13 @@ describe('renderAgentWorkspace', () => {
     const infoOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(infoOutput).toContain('Inspect Saved Session');
     expect(infoOutput).toContain('Session id or name *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-graph');
+    workspace.activateSelected();
+    const graphOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(graphOutput).toContain('Inspect Session Graph');
+    expect(graphOutput).toContain('Session id');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-export-saved');

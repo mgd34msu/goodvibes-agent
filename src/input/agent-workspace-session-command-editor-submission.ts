@@ -57,6 +57,31 @@ export function buildAgentWorkspaceSessionCommandEditorSubmission(
       'safe',
     );
   }
+  if (editor.kind === 'conversation-events' || editor.kind === 'conversation-groups') {
+    const subcommand = editor.kind === 'conversation-groups' ? 'groups' : 'events';
+    const eventKind = readField('kind');
+    const command = eventKind.length > 0
+      ? `/conversation ${subcommand} ${quoteSlashCommandArg(eventKind)}`
+      : `/conversation ${subcommand}`;
+    return dispatch(
+      command,
+      editor.kind === 'conversation-groups' ? 'Opening transcript groups' : 'Opening transcript events',
+      'The workspace handed read-only transcript structure inspection to the shell-owned command router.',
+      'read-only',
+    );
+  }
+  if (editor.kind === 'conversation-find') {
+    const kind = readField('kind');
+    const command = kind.length > 0
+      ? `/conversation find ${quoteSlashCommandArg(readField('query'))} ${quoteSlashCommandArg(kind)}`
+      : `/conversation find ${quoteSlashCommandArg(readField('query'))}`;
+    return dispatch(
+      command,
+      'Opening transcript search',
+      'The workspace handed read-only transcript search to the shell-owned command router.',
+      'read-only',
+    );
+  }
   if (editor.kind === 'session-save') {
     if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Session save not confirmed. Type yes, then press Enter.');
     return dispatch(
@@ -122,6 +147,29 @@ export function buildAgentWorkspaceSessionCommandEditorSubmission(
       'Opening saved-session delete',
       'The workspace handed confirmed saved-session deletion to the shell-owned command router.',
       'safe',
+    );
+  }
+  if (editor.kind === 'session-fork') {
+    const name = readField('name');
+    return dispatch(
+      name.length > 0 ? `/session fork ${quoteSlashCommandArg(name)}` : '/session fork',
+      'Opening session fork',
+      'The workspace handed current-session fork to the shell-owned command router.',
+      'safe',
+    );
+  }
+  if (editor.kind === 'session-graph') {
+    const sessionId = readField('sessionId');
+    const format = readField('format');
+    const parts = ['/session', 'graph'];
+    if (sessionId.length > 0) parts.push('--session', quoteSlashCommandArg(sessionId));
+    if (format.length > 0) parts.push('--format', quoteSlashCommandArg(format));
+    const command = parts.join(' ');
+    return dispatch(
+      command,
+      'Opening session graph',
+      'The workspace handed read-only session graph inspection to the shell-owned command router.',
+      'read-only',
     );
   }
   if (editor.kind === 'mode-preset') {

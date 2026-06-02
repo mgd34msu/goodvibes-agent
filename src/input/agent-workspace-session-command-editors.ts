@@ -3,6 +3,9 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 export type AgentWorkspaceSessionCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   | 'conversation-export'
+  | 'conversation-events'
+  | 'conversation-groups'
+  | 'conversation-find'
   | 'session-save'
   | 'session-load'
   | 'session-rename'
@@ -11,12 +14,17 @@ export type AgentWorkspaceSessionCommandEditorKind = Extract<
   | 'session-export-saved'
   | 'session-search'
   | 'session-delete'
+  | 'session-fork'
+  | 'session-graph'
   | 'mode-preset'
   | 'mode-domain'
 >;
 
 export function isAgentWorkspaceSessionCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceSessionCommandEditorKind {
   return kind === 'conversation-export'
+    || kind === 'conversation-events'
+    || kind === 'conversation-groups'
+    || kind === 'conversation-find'
     || kind === 'session-save'
     || kind === 'session-load'
     || kind === 'session-rename'
@@ -25,6 +33,8 @@ export function isAgentWorkspaceSessionCommandEditorKind(kind: AgentWorkspaceEdi
     || kind === 'session-export-saved'
     || kind === 'session-search'
     || kind === 'session-delete'
+    || kind === 'session-fork'
+    || kind === 'session-graph'
     || kind === 'mode-preset'
     || kind === 'mode-domain';
 }
@@ -41,6 +51,34 @@ export function createAgentWorkspaceSessionCommandEditor(kind: AgentWorkspaceSes
         { id: 'format', label: 'Format', value: 'markdown', required: true, multiline: false, hint: 'markdown or text.' },
         { id: 'path', label: 'Output path', value: './conversation.md', required: true, multiline: false, hint: 'Workspace-relative output path.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /export with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'conversation-events' || kind === 'conversation-groups') {
+    const groups = kind === 'conversation-groups';
+    return {
+      kind,
+      mode: 'create',
+      title: groups ? 'Show Transcript Groups' : 'Show Transcript Events',
+      selectedFieldIndex: 0,
+      message: groups
+        ? 'Inspect grouped transcript structure from the Agent workspace.'
+        : 'Inspect transcript events from the Agent workspace.',
+      fields: [
+        { id: 'kind', label: 'Event kind', value: '', required: false, multiline: false, hint: 'Optional transcript event kind. Blank shows all.' },
+      ],
+    };
+  }
+  if (kind === 'conversation-find') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Find Transcript Text',
+      selectedFieldIndex: 0,
+      message: 'Search the current Agent transcript from the workspace.',
+      fields: [
+        { id: 'query', label: 'Search query', value: '', required: true, multiline: false, hint: 'Text to find in the current transcript.' },
+        { id: 'kind', label: 'Event kind', value: '', required: false, multiline: false, hint: 'Optional transcript event kind.' },
       ],
     };
   }
@@ -141,6 +179,31 @@ export function createAgentWorkspaceSessionCommandEditor(kind: AgentWorkspaceSes
       fields: [
         { id: 'target', label: 'Session id or name', value: '', required: true, multiline: false, hint: 'Saved session id or prefix. The active session cannot be deleted.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /session delete with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'session-fork') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Fork Current Session',
+      selectedFieldIndex: 0,
+      message: 'Fork the current Agent session into a new local saved session.',
+      fields: [
+        { id: 'name', label: 'Fork name', value: '', required: false, multiline: false, hint: 'Optional new session name. Blank uses the default fork name.' },
+      ],
+    };
+  }
+  if (kind === 'session-graph') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Inspect Session Graph',
+      selectedFieldIndex: 0,
+      message: 'Inspect the read-only cross-session graph. Mutating graph actions remain blocked in Agent.',
+      fields: [
+        { id: 'sessionId', label: 'Session id', value: '', required: false, multiline: false, hint: 'Optional session id filter.' },
+        { id: 'format', label: 'Format', value: 'text', required: false, multiline: false, hint: 'text or json.' },
       ],
     };
   }
