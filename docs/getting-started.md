@@ -24,6 +24,15 @@ goodvibes-agent skills list
 goodvibes-agent memory list
 ```
 
+The exact bare Bun command is supported too:
+
+```sh
+bun add -g @pellux/goodvibes-agent
+goodvibes-agent
+```
+
+If Bun blocks lifecycle scripts during the bare install, the executable should still be present. Run `bun pm -g untrusted` and trust the listed GoodVibes/parser dependencies before relying on provider parsing, native parser helpers, or SDK postinstall setup.
+
 If the installed command is not found, add Bun's global bin directory to `PATH`:
 
 ```sh

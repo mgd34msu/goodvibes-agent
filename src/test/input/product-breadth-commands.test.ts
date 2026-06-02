@@ -47,6 +47,7 @@ const visibleAgentBreadthCommands = [
   'agent-skills',
   'approval',
   'auth',
+  'brief',
   'health',
   'knowledge',
   'login',

@@ -143,12 +143,22 @@ function assertInstalledTuiLaunches(env: NodeJS.ProcessEnv, tempRoot: string): v
 const tempRoot = mkdtempSync(join(installCheckTempParent(), 'goodvibes-agent-install-check-'));
 try {
   const packDir = join(tempRoot, 'pack');
+  const bareBunInstallDir = join(tempRoot, 'bun-bare');
+  const bareBunCacheDir = join(tempRoot, 'bun-bare-cache');
+  const bareHomeDir = join(tempRoot, 'home-bare');
+  const bareTempDir = join(tempRoot, 'tmp-bare');
+  const bareWorkspaceDir = join(tempRoot, 'workspace-bare');
   const bunInstallDir = join(tempRoot, 'bun');
   const bunCacheDir = join(tempRoot, 'bun-cache');
   const homeDir = join(tempRoot, 'home');
   const tempDir = join(tempRoot, 'tmp');
   const workspaceDir = join(tempRoot, 'workspace');
   mkdirSync(packDir, { recursive: true });
+  mkdirSync(bareBunInstallDir, { recursive: true });
+  mkdirSync(bareBunCacheDir, { recursive: true });
+  mkdirSync(bareHomeDir, { recursive: true });
+  mkdirSync(bareTempDir, { recursive: true });
+  mkdirSync(bareWorkspaceDir, { recursive: true });
   mkdirSync(bunInstallDir, { recursive: true });
   mkdirSync(bunCacheDir, { recursive: true });
   mkdirSync(homeDir, { recursive: true });
@@ -160,6 +170,33 @@ try {
   if (!existsSync(tarballPath)) {
     throw new Error(`bun pm pack did not create expected tarball: ${tarballPath}`);
   }
+
+  const bareInstallEnv = {
+    ...process.env,
+    HOME: bareHomeDir,
+    BUN_INSTALL: bareBunInstallDir,
+    BUN_CACHE_DIR: bareBunCacheDir,
+    TMPDIR: bareTempDir,
+  };
+  run('bun', ['add', '-g', tarballPath, '--registry', 'https://registry.npmjs.org'], {
+    cwd: tempRoot,
+    env: bareInstallEnv,
+    timeoutMs: BUN_GLOBAL_INSTALL_TIMEOUT_MS,
+  });
+  const bareSmokeEnv = {
+    ...process.env,
+    HOME: bareHomeDir,
+    BUN_INSTALL: bareBunInstallDir,
+    BUN_CACHE_DIR: bareBunCacheDir,
+    TMPDIR: bareTempDir,
+    GOODVIBES_WORKING_DIR: bareWorkspaceDir,
+    PATH: `${join(bareBunInstallDir, 'bin')}:${process.env.PATH ?? ''}`,
+  };
+  const bareHelp = run('goodvibes-agent', ['--help'], { env: bareSmokeEnv });
+  if (!bareHelp.includes('goodvibes-agent') || bareHelp.includes('tui|launch')) {
+    throw new Error('bare Bun global install did not expose current Agent help');
+  }
+  assertInstalledTuiLaunches(bareSmokeEnv, tempRoot);
 
   const installEnv = {
     ...process.env,
@@ -223,7 +260,7 @@ try {
 
   assertInstalledTuiLaunches(smokeEnv, tempRoot);
 
-  console.log(`package install check passed (${report.bins.length} bins, ${report.tarball.entryCount} packed files, Bun global command + Agent TUI launch smoke ok)`);
+  console.log(`package install check passed (${report.bins.length} bins, ${report.tarball.entryCount} packed files, bare/trusted Bun global command + Agent TUI launch smoke ok)`);
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

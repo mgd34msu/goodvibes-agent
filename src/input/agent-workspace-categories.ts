@@ -9,6 +9,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Use this as the Agent front door: chat in the main conversation, inspect state, choose model/provider, and open setup without switching modes.',
     actions: [
       { id: 'chat', label: 'Continue assistant chat', detail: 'Return to the main composer and type a normal message. Agent work stays serial in the main conversation.', kind: 'guidance', safety: 'safe' },
+      { id: 'brief', label: 'Operator briefing', detail: 'Show a concise Agent status and next-actions briefing without mutating connected services.', command: '/brief', kind: 'command', safety: 'read-only' },
       { id: 'model', label: 'Choose model', detail: 'Open the model/provider workspace for the Agent chat route.', command: '/model', kind: 'command', safety: 'safe' },
       { id: 'setup-home', label: 'Setup checklist', detail: 'Jump to the first-run checklist for provider, knowledge, personas, skills, routines, memory, channels, and voice/media.', targetCategoryId: 'setup', kind: 'workspace', safety: 'safe' },
       { id: 'knowledge-home', label: 'Agent Knowledge', detail: 'Jump to isolated Agent Knowledge status, ingest, search, and review flows.', targetCategoryId: 'knowledge', kind: 'workspace', safety: 'read-only' },

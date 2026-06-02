@@ -27,6 +27,15 @@ goodvibes-agent knowledge list --kind sources
 goodvibes-agent knowledge import-urls ./agent-sources.txt --yes
 ```
 
+The bare Bun global install path is also supported:
+
+```sh
+bun add -g @pellux/goodvibes-agent
+goodvibes-agent
+```
+
+If Bun reports blocked lifecycle scripts, the command should still install, but provider parsers and SDK helper dependencies may not be fully prepared until the package is trusted. Run the trust check and targeted trust command below.
+
 If `goodvibes-agent` is not found after installation, add Bun's global bin directory to `PATH`:
 
 ```sh

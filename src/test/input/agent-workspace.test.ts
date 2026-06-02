@@ -233,12 +233,24 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedActionIndex = 1;
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model');
 
     workspace.activateSelected();
 
     expect(dispatched).toEqual(['/model']);
     expect(workspace.status).toContain('/model');
+  });
+
+  test('dispatches operator briefing from the home workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'brief');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/brief']);
+    expect(workspace.status).toContain('/brief');
   });
 
   test('opens local persona library workspace from memory', () => {

@@ -116,6 +116,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         const items: SelectionItem[] = [
           { id: '/agent', label: '/agent', detail: 'Open the Agent operator workspace', category: 'Agent Operator' },
           { id: '/home', label: '/home', detail: 'Alias for the Agent operator workspace', category: 'Agent Operator' },
+          { id: '/brief', label: '/brief', detail: 'Show a concise Agent operator briefing and next actions', category: 'Agent Operator' },
           { id: '/knowledge', label: '/knowledge', detail: 'Inspect isolated Agent Knowledge status, ask/search, and ingest flows', category: 'Agent Operator' },
           { id: '/memory', label: '/memory', detail: 'Review local Agent memory records', category: 'Agent Operator' },
           { id: '/personas', label: '/personas', detail: 'Create, review, and activate local Agent personas', category: 'Agent Operator' },
@@ -171,7 +172,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Use /help to open the help modal. Commands: /agent, /knowledge, /memory, /personas, /agent-skills, /routines, /channels, /delegate, /model, /provider, /config, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
+      ctx.print('Use /help to open the help modal. Commands: /agent, /brief, /knowledge, /memory, /personas, /agent-skills, /routines, /channels, /delegate, /model, /provider, /config, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
     },
   });
 

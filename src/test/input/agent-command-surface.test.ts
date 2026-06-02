@@ -59,6 +59,7 @@ const expectedAgentCommands = [
   'agent-profile',
   'agent-skills',
   'auth',
+  'brief',
   'config',
   'delegate',
   'help',
