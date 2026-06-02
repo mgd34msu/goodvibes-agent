@@ -264,6 +264,10 @@ export async function handleOnboardingActionForHandler(handler: InputHandler, ac
     handler.commandContext?.print?.(markerWarning
       ? `${completionMessage}\nSetup check marker could not be written: ${markerWarning}`
       : completionMessage);
+    if (handler.commandContext) {
+      handler.openAgentWorkspace(handler.commandContext, 'setup');
+      return;
+    }
     handler.requestRender();
   }
 
@@ -468,7 +472,7 @@ export async function handleOpenAiSubscriptionFinishForHandler(handler: InputHan
   }
 
 export function syncRuntimeFromOnboardingRequestForHandler(handler: InputHandler, request: ReturnType<OnboardingWizardController['buildApplyRequest']>): void {
-    const runtime = handler.commandContext?.session.runtime;
+    const runtime = handler.commandContext?.session?.runtime;
     if (!runtime) return;
 
     for (const operation of request.operations) {

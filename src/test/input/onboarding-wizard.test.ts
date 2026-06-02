@@ -6,7 +6,7 @@ import { InputHandler } from '../../input/handler.ts';
 import { SelectionManager } from '../../input/selection.ts';
 import { DEFAULT_CONFIG } from '../../config/index.ts';
 import { getProviderIdFromModel } from '../../config/provider-model.ts';
-import { CommandRegistry } from '../../input/command-registry.ts';
+import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { readOnboardingCheckMarker, type OnboardingApplyOperation, type OnboardingSnapshotState } from '../../runtime/onboarding/index.ts';
 import { createDefaultUiRuntimeServices } from '../helpers/ui-services.ts';
@@ -494,6 +494,26 @@ describe('InputHandler onboarding integration', () => {
     expect(marker.exists).toBe(true);
     expect(marker.payload?.source).toBe('wizard');
     expect(marker.payload?.mode).toBe('new');
+  });
+
+  test('opens the Agent setup workspace after successful setup apply when the shell context is wired', async () => {
+    const input = makeInput();
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    input.setCommandRegistry(registry, {
+      print: () => undefined,
+      workspace: { shellPaths: input.uiServices.environment.shellPaths },
+      platform: { configManager: input.uiServices.platform.configManager },
+    } as unknown as CommandContext);
+    input.openOnboardingWizard('new');
+    input.onboardingWizard.hydrateRuntimeState({ snapshot: makeOnboardingSnapshot() }, { resetValues: true });
+
+    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
+
+    expect(input.onboardingWizard.active).toBe(false);
+    expect(input.agentWorkspace.active).toBe(true);
+    expect(input.agentWorkspace.selectedCategory.id).toBe('setup');
+    expect(input.modalStack).toContain('agentWorkspace');
   });
 
   test('keeps external service lifecycle untouched when completing Agent setup', async () => {
