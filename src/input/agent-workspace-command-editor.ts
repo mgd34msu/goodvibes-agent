@@ -1,3 +1,4 @@
+import type { AgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentWorkspaceBasicCommandEditorSubmission, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
@@ -6,7 +7,7 @@ import { buildAgentRoutineScheduleEditorSubmission } from './agent-workspace-rou
 import type { AgentWorkspaceActionResult, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
-type AgentWorkspaceCommandEditorKind = Extract<
+type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Extract<
   AgentWorkspaceEditorKind,
   'knowledge-url'
   | 'knowledge-urls'

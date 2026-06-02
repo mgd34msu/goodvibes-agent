@@ -498,8 +498,25 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Local personas: 1; active: Research Analyst');
     expect(output).toContain('Agent memory: 1; prompt-active: 0; review queue: 1');
     expect(output).toContain('Create memory');
-    expect(output).toContain('Edit selected memory');
+    expect(output).toContain('Search memory');
     expect(output).toContain('Prefers concise operator briefings');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-promote');
+    const maintenanceOutput = text(renderAgentWorkspace(workspace, 132, 34));
+
+    expect(maintenanceOutput).toContain('Edit selected memory');
+    expect(maintenanceOutput).toContain('Promote memory');
+    expect(maintenanceOutput).toContain('Export memory bundle');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-handoff-inspect');
+    const handoffOutput = text(renderAgentWorkspace(workspace, 132, 34));
+
+    expect(handoffOutput).toContain('Inspect handoff bundle');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-vector-rebuild');
+    const vectorOutput = text(renderAgentWorkspace(workspace, 132, 34));
+
+    expect(vectorOutput).toContain('Rebuild vector index');
   });
 
   test('renders in-workspace local library editor controls', () => {

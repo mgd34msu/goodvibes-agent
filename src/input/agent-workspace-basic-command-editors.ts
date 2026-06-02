@@ -1,8 +1,10 @@
 import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceMemoryCommandEditorKind } from './agent-workspace-memory-command-editors.ts';
+import { createAgentWorkspaceMemoryCommandEditor, isAgentWorkspaceMemoryCommandEditorKind } from './agent-workspace-memory-command-editors.ts';
 export type { AgentWorkspaceBasicCommandEditorSubmission } from './agent-workspace-basic-command-editor-submission.ts';
 export { buildAgentWorkspaceBasicCommandEditorSubmission } from './agent-workspace-basic-command-editor-submission.ts';
 
-export type AgentWorkspaceBasicCommandEditorKind = Extract<
+export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceMemoryCommandEditorKind | Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-urls' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'knowledge-reindex' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
   | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
@@ -17,7 +19,8 @@ export type AgentWorkspaceBasicCommandEditorKind = Extract<
 >;
 
 export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceBasicCommandEditorKind {
-  return kind === 'knowledge-bookmarks'
+  return isAgentWorkspaceMemoryCommandEditorKind(kind)
+    || kind === 'knowledge-bookmarks'
     || kind === 'knowledge-file'
     || kind === 'knowledge-urls'
     || kind === 'knowledge-browser-history'
@@ -59,6 +62,9 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
 }
 
 export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasicCommandEditorKind): AgentWorkspaceLocalEditor {
+  if (isAgentWorkspaceMemoryCommandEditorKind(kind)) {
+    return createAgentWorkspaceMemoryCommandEditor(kind);
+  }
   if (kind === 'knowledge-bookmarks') {
     return {
       kind,

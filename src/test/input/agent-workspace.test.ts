@@ -1507,6 +1507,136 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
+  test('opens read-only Agent memory command forms from the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-search');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('memory-search');
+    feedText(workspace, 'release blocker');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'project');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'risk');
+    feedKey(workspace, 'enter');
+    feedText(workspace, '5');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/memory search "release blocker" --scope project --cls risk --limit 5 --semantic']);
+    expect(workspace.localEditor).toBeNull();
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-get');
+    workspace.activateSelected();
+    feedText(workspace, 'mem-123');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-explain');
+    workspace.activateSelected();
+    feedText(workspace, 'Prepare release notes');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'project, team');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-handoff-inspect');
+    workspace.activateSelected();
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-vector-status');
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([
+      '/memory search "release blocker" --scope project --cls risk --limit 5 --semantic',
+      '/memory get mem-123',
+      '/memory explain "Prepare release notes" --scope project team',
+      '/memory handoff-inspect agent-memory-handoff.json',
+      '/memory vector status',
+    ]);
+  });
+
+  test('requires confirmation before Agent memory maintenance workspace actions', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-promote');
+    workspace.activateSelected();
+    feedText(workspace, 'mem-1');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'team');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-link');
+    workspace.activateSelected();
+    feedText(workspace, 'mem-1');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'mem-2');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'supports');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-export');
+    workspace.activateSelected();
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'project');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'fact');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-import');
+    workspace.activateSelected();
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-handoff-export');
+    workspace.activateSelected();
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-handoff-import');
+    workspace.activateSelected();
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-vector-rebuild');
+    workspace.activateSelected();
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/memory promote mem-1 team --yes',
+      '/memory link mem-1 mem-2 supports --yes',
+      '/memory export agent-memory-bundle.json --scope project --cls fact --yes',
+      '/memory import agent-memory-bundle.json --yes',
+      '/memory handoff-export agent-memory-handoff.json --scope team --yes',
+      '/memory handoff-import agent-memory-handoff.json --yes',
+      '/memory vector rebuild',
+    ]);
+  });
+
   test('rejects secret-looking Agent memory from the workspace editor', async () => {
     const records: MemoryRecord[] = [];
     const ctx = {
