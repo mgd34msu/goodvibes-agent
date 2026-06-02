@@ -505,7 +505,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Scratchpad notes: ${snapshot.localNoteCount}; review queue: ${snapshot.localNoteReviewQueueCount}`, fg: PALETTE.info },
       { text: 'Notes are Agent-local working context for source triage, temporary decisions, and operator handoff.', fg: PALETTE.good },
       { text: 'Notes do not become memory and are not ingested into Agent Knowledge unless the user takes a separate explicit action.', fg: PALETTE.warn },
-      { text: 'Use reviewed notes to decide what deserves durable memory, an Agent Knowledge source, or a reusable skill/routine.', fg: PALETTE.muted },
+      { text: 'Use reviewed notes to prefill durable memory, skills, routines, or personas, or to decide that a reviewed source deserves Agent Knowledge ingest.', fg: PALETTE.muted },
       { text: '' },
       ...localLibraryLines('Scratchpad Notes', snapshot.localNotes, 'No local notes yet. Create one here with Create note.', workspace.selectedLocalLibraryItem('note')?.id ?? null),
     );

@@ -58,7 +58,7 @@ Use the workspace as the primary product surface:
 - Tools & MCP: MCP server setup, tool inventory, trust review, secret storage/link/test/delete, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, URL/URL-list/file/bookmark/browser-history/connector ingest, source library, review queue, and reindex.
 - Memory & Skills: local memory, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
-- Notes: Agent-local scratchpad for source triage, temporary decisions, and operator handoff. Notes do not become memory or Agent Knowledge unless you explicitly promote or ingest something.
+- Notes: Agent-local scratchpad for source triage, temporary decisions, and operator handoff. Notes do not become memory or Agent Knowledge unless you explicitly promote or ingest something; reviewed notes can prefill memory, skills, routines, or personas.
 - Channels: companion pairing, channel readiness, confirmed channel delivery, and confirmed webhook add/remove/test/send.
 - Voice & Media: voice review, spoken response setup, image input, confirmed image/video generation, browser-tool posture, MCP inventory, and media provider readiness.
 - Automation: reminder creation, schedule status, routine promotion, receipts, reconciliation, and explicitly confirmed approve/deny/cancel/run/pause/resume/retry actions.
@@ -95,7 +95,7 @@ Local Agent behavior is editable from the TUI workspace:
 - Agent Workspace -> Routines: create routines, start a routine in the main conversation, review receipts, and explicitly promote one routine to a connected schedule.
 - Agent Workspace -> Work: review the visible local work plan, add work items, and update status from the TUI while the main assistant conversation can keep the same plan current.
 - Agent Workspace -> Memory & Skills: create memory, search memory, review/stale/delete records, export/import bundles, and rebuild the local vector index.
-- Agent Workspace -> Notes: create, edit, review, stale, and delete Agent-local scratchpad notes for source triage and temporary context.
+- Agent Workspace -> Notes: create, edit, review, stale, delete, and promote Agent-local scratchpad notes into memory, skills, routines, or personas.
 - Agent Workspace -> Channels: inspect readiness, pair companion clients, send one confirmed channel delivery message, and manage or send configured notification targets with confirmation.
 
 Slash commands remain available inside the TUI for power users, but the fullscreen Agent workspace is the primary path for these workflows.

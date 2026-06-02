@@ -171,6 +171,94 @@ export function createMemoryUpdateEditor(record: MemoryRecord): AgentWorkspaceLo
   };
 }
 
+function noteDescription(note: AgentNoteRecord): string {
+  const compact = note.body.replace(/\s+/g, ' ').trim();
+  const firstSentence = compact.split(/(?<=[.!?])\s+/)[0]?.trim() ?? compact;
+  const base = firstSentence.length > 160 ? `${firstSentence.slice(0, 157)}...` : firstSentence;
+  return base || note.title;
+}
+
+function noteTags(note: AgentNoteRecord, extraTag: string): string {
+  return [...new Set([...note.tags, extraTag])].join(', ');
+}
+
+export function createMemoryEditorFromNote(note: AgentNoteRecord): AgentWorkspaceLocalEditor {
+  const sourceLine = note.sourceUrl ? `\n\nSource: ${note.sourceUrl}` : '';
+  return {
+    kind: 'memory',
+    mode: 'create',
+    title: 'Create Memory From Note',
+    selectedFieldIndex: 0,
+    message: `Promote ${note.title} into durable Agent memory. Saving writes memory only; the note remains in the scratchpad.`,
+    fields: [
+      { id: 'cls', label: 'Class', value: 'fact', required: true, multiline: false, hint: 'fact, decision, constraint, incident, pattern, risk, runbook, architecture, or ownership.' },
+      { id: 'scope', label: 'Scope', value: 'project', required: true, multiline: false, hint: 'session, project, or team.' },
+      { id: 'summary', label: 'Summary', value: note.title, required: true, multiline: false, hint: 'One durable sentence. Do not store secrets.' },
+      { id: 'detail', label: 'Detail', value: `${note.body}${sourceLine}`, required: false, multiline: true, hint: 'Optional supporting detail. Ctrl-J inserts a new line.' },
+      { id: 'tags', label: 'Tags', value: noteTags(note, 'from-note'), required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+      { id: 'confidence', label: 'Confidence', value: note.reviewState === 'reviewed' ? '85' : '65', required: false, multiline: false, hint: '0-100 confidence score.' },
+    ],
+  };
+}
+
+export function createPersonaEditorFromNote(note: AgentNoteRecord): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'persona',
+    mode: 'create',
+    title: 'Create Persona From Note',
+    selectedFieldIndex: 0,
+    message: `Use ${note.title} as the starting point for a local persona. Saving creates a persona only; the note remains in the scratchpad.`,
+    fields: [
+      { id: 'name', label: 'Name', value: note.title, required: true, multiline: false, hint: 'Short persona name.' },
+      { id: 'description', label: 'Description', value: noteDescription(note), required: true, multiline: false, hint: 'One-line summary of when to use it.' },
+      { id: 'body', label: 'Instructions', value: note.body, required: true, multiline: true, hint: 'Operating guidance. Ctrl-J inserts a new line.' },
+      { id: 'tags', label: 'Tags', value: noteTags(note, 'from-note'), required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+      { id: 'triggers', label: 'Triggers', value: '', required: false, multiline: false, hint: 'Comma-separated words that suggest this persona.' },
+      { id: 'activate', label: 'Activate now', value: 'no', required: false, multiline: false, hint: 'yes/no.' },
+    ],
+  };
+}
+
+export function createSkillEditorFromNote(note: AgentNoteRecord): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'skill',
+    mode: 'create',
+    title: 'Create Skill From Note',
+    selectedFieldIndex: 0,
+    message: `Use ${note.title} as the starting point for a reusable local skill. Saving creates a skill only; the note remains in the scratchpad.`,
+    fields: [
+      { id: 'name', label: 'Name', value: note.title, required: true, multiline: false, hint: 'Short skill name.' },
+      { id: 'description', label: 'Description', value: noteDescription(note), required: true, multiline: false, hint: 'One-line summary of the procedure.' },
+      { id: 'procedure', label: 'Procedure', value: note.body, required: true, multiline: true, hint: 'Reusable steps. Ctrl-J inserts a new line.' },
+      { id: 'triggers', label: 'Triggers', value: '', required: false, multiline: false, hint: 'Comma-separated words that suggest this skill.' },
+      { id: 'tags', label: 'Tags', value: noteTags(note, 'from-note'), required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+      { id: 'requiresEnv', label: 'Required env vars', value: '', required: false, multiline: false, hint: 'Comma-separated env var names. Values are never stored.' },
+      { id: 'requiresCommands', label: 'Required commands', value: '', required: false, multiline: false, hint: 'Comma-separated binaries that must be on PATH.' },
+      { id: 'enabled', label: 'Enable now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
+    ],
+  };
+}
+
+export function createRoutineEditorFromNote(note: AgentNoteRecord): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'routine',
+    mode: 'create',
+    title: 'Create Routine From Note',
+    selectedFieldIndex: 0,
+    message: `Use ${note.title} as the starting point for a repeatable local routine. Saving creates a routine only; the note remains in the scratchpad.`,
+    fields: [
+      { id: 'name', label: 'Name', value: note.title, required: true, multiline: false, hint: 'Short routine name.' },
+      { id: 'description', label: 'Description', value: noteDescription(note), required: true, multiline: false, hint: 'One-line summary of the workflow.' },
+      { id: 'steps', label: 'Steps', value: note.body, required: true, multiline: true, hint: 'Workflow steps. Ctrl-J inserts a new line.' },
+      { id: 'triggers', label: 'Triggers', value: '', required: false, multiline: false, hint: 'Comma-separated words that suggest this routine.' },
+      { id: 'tags', label: 'Tags', value: noteTags(note, 'from-note'), required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+      { id: 'requiresEnv', label: 'Required env vars', value: '', required: false, multiline: false, hint: 'Comma-separated env var names. Values are never stored.' },
+      { id: 'requiresCommands', label: 'Required commands', value: '', required: false, multiline: false, hint: 'Comma-separated binaries that must be on PATH.' },
+      { id: 'enabled', label: 'Enable now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
+    ],
+  };
+}
+
 export function createNoteUpdateEditor(record: AgentNoteRecord): AgentWorkspaceLocalEditor {
   return {
     kind: 'note',

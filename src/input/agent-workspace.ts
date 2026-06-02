@@ -11,7 +11,7 @@ import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from './agent-workspace-command-editor.ts';
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
-import { createDeleteEditor, createMemoryUpdateEditor, createNoteUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
+import { createDeleteEditor, createMemoryEditorFromNote, createMemoryUpdateEditor, createNoteUpdateEditor, createPersonaEditorFromNote, createPersonaUpdateEditor, createRoutineEditorFromNote, createRoutineUpdateEditor, createSkillEditorFromNote, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from './agent-workspace-learned-behavior.ts';
 import { clampAgentWorkspaceLocalLibrarySelection, moveAgentWorkspaceLocalLibraryItemSelection, selectedAgentWorkspaceLocalLibraryItem, type AgentWorkspaceLocalSelectionIndexes } from './agent-workspace-local-selection.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
@@ -354,6 +354,50 @@ export class AgentWorkspace {
         this.finishLocalOperation('note', `Marked note stale ${note.title}`, `${note.title} needs review before reuse.`);
       } else if (operation === 'note-delete') {
         this.openDeleteEditor('note', selected);
+      } else if (operation === 'note-promote-memory') {
+        const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
+        if (!note) throw new Error(`Unknown note: ${selected.id}`);
+        this.localEditor = createMemoryEditorFromNote(note);
+        this.status = `Creating memory from note: ${note.title}.`;
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: this.localEditor.title,
+          detail: this.localEditor.message,
+          safety: 'safe',
+        };
+      } else if (operation === 'note-promote-persona') {
+        const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
+        if (!note) throw new Error(`Unknown note: ${selected.id}`);
+        this.localEditor = createPersonaEditorFromNote(note);
+        this.status = `Creating persona from note: ${note.title}.`;
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: this.localEditor.title,
+          detail: this.localEditor.message,
+          safety: 'safe',
+        };
+      } else if (operation === 'note-promote-skill') {
+        const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
+        if (!note) throw new Error(`Unknown note: ${selected.id}`);
+        this.localEditor = createSkillEditorFromNote(note);
+        this.status = `Creating skill from note: ${note.title}.`;
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: this.localEditor.title,
+          detail: this.localEditor.message,
+          safety: 'safe',
+        };
+      } else if (operation === 'note-promote-routine') {
+        const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
+        if (!note) throw new Error(`Unknown note: ${selected.id}`);
+        this.localEditor = createRoutineEditorFromNote(note);
+        this.status = `Creating routine from note: ${note.title}.`;
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: this.localEditor.title,
+          detail: this.localEditor.message,
+          safety: 'safe',
+        };
       } else if (operation === 'persona-edit') {
         const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
         const persona = registry.get(selected.id);
