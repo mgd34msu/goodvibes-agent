@@ -1,7 +1,7 @@
 /**
  * Panel resource diagnostics panel data provider.
  *
- * Polls the shared TUI-owned ComponentHealthMonitor and produces PanelResourceSnapshot
+ * Polls the shared shell ComponentHealthMonitor and produces PanelResourceSnapshot
  * values for the diagnostics panel to render.
  */
 import type { ComponentHealthMonitor } from '../../perf/panel-health-monitor.ts';

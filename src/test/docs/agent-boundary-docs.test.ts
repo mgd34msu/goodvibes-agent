@@ -73,6 +73,14 @@ describe('Agent boundary docs', () => {
       `@pellux/goodvibes-${'tui'}`,
       `@pellux/goodvibes-${'daemon'}`,
       `goodvibes-${'daemon'}`,
+      'TUI-owned',
+      'current TUI session',
+      'No service restart was attempted',
+      'external-service-owned',
+      'service controller',
+      'Service lifecycle commands',
+      'service switches',
+      'services, and automation',
     ] as const;
     const offenders: string[] = [];
 

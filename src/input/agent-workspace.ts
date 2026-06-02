@@ -755,7 +755,7 @@ export class AgentWorkspace {
     this.lastActionResult = {
       kind: 'refreshed',
       title: 'Created Agent profile',
-      detail: `Created isolated Agent profile ${profile.id}${starter}. Launch it with goodvibes-agent --agent-profile ${profile.id}. The current TUI session was not switched.`,
+      detail: `Created isolated Agent profile ${profile.id}${starter}. Launch it with goodvibes-agent --agent-profile ${profile.id}. The current Agent session was not switched.`,
       safety: 'safe',
     };
     this.clampSelection();

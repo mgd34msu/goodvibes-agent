@@ -219,7 +219,7 @@ export async function handleOnboardingActionForHandler(handler: InputHandler, ac
       showOnboardingApplyFeedbackForHandler(handler, {
         severity: 'error',
         title: 'Apply failed',
-        summary: 'The wizard could not persist these settings. No service restart was attempted.',
+        summary: 'The wizard could not persist these settings. No connected-host restart was attempted.',
         messages: [error instanceof Error ? error.message : String(error)],
       });
       return;
@@ -500,12 +500,12 @@ export function getOnboardingRuntimePostureForHandler(handler: InputHandler, req
 export async function restartOnboardingExternalServicesIfNeededForHandler(handler: InputHandler, request: OnboardingApplyRequest): Promise<OnboardingVerificationItem[]> {
     const externalServices = handler.uiServices.platform.externalServices;
     const state = externalServices?.inspect();
-    const serviceStatus = state?.daemonStatus?.reason ?? (state?.daemonRunning ? 'connected GoodVibes host appears active' : 'connected GoodVibes host is not verified from this shell');
+    const hostStatus = state?.daemonStatus?.reason ?? (state?.daemonRunning ? 'connected GoodVibes host appears active' : 'connected GoodVibes host is not verified from this shell');
     return [{
-      id: 'runtime:external-service-owned',
+      id: 'runtime:external-host-owned',
       status: 'pass',
-      message: `GoodVibes Agent did not start, stop, restart, or reconfigure the connected host. ${serviceStatus}`,
-      target: 'service',
+      message: `GoodVibes Agent did not start, stop, restart, or reconfigure the connected host. ${hostStatus}`,
+      target: 'host',
     }];
   }
 
@@ -513,11 +513,11 @@ export function verifyOnboardingRuntimePostureForHandler(handler: InputHandler, 
     const externalServices = handler.uiServices.platform.externalServices;
     const externalState = externalServices?.inspect();
     return [{
-      id: 'runtime:external-service-owned',
+      id: 'runtime:external-host-owned',
       status: 'pass',
       message: externalState
         ? 'The connected GoodVibes host is managed outside Agent; Agent onboarding did not request shutdown, startup, restart, bind, or surface changes.'
-        : 'The connected GoodVibes host is managed outside Agent; no local service controller is required for Agent onboarding.',
-      target: 'service',
+        : 'The connected GoodVibes host is managed outside Agent; no local host controller is required for Agent onboarding.',
+      target: 'host',
     }];
   }

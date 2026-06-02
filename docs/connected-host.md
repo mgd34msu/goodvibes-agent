@@ -36,7 +36,7 @@ For a persistent shell/session override, set:
 export GOODVIBES_AGENT_RUNTIME_URL=http://127.0.0.1:3421
 ```
 
-`GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias. These values only select the connected GoodVibes API root; they do not make Agent own services.
+`GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias. These values only select the connected GoodVibes API root; they do not make Agent own host processes.
 
 If the connected host is unavailable, unauthenticated, or on an incompatible SDK version, Agent commands report actionable diagnostics without printing token values.
 

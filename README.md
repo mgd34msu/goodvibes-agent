@@ -109,7 +109,7 @@ Start the owning GoodVibes host before launching Agent. Agent status and compani
 
 Use `--runtime-url http://host:port` for a one-off launch, or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` when the connected host is not on the default local port. The legacy `GOODVIBES_AGENT_BASE_URL` env var is also accepted as an alias. These only change the connection target; Agent still does not host or start it.
 
-Agent reports unavailable, unauthenticated, or incompatible connected-host state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. Service lifecycle commands remain outside the Agent product.
+Agent reports unavailable, unauthenticated, or incompatible connected-host state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. Host lifecycle stays outside the Agent product.
 
 ## Product Boundary
 
