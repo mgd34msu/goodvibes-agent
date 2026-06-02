@@ -40,7 +40,8 @@ export type OnboardingWizardAction =
   | 'apply'
   | 'apply-and-continue'
   | 'start-openai-subscription'
-  | 'finish-openai-subscription';
+  | 'finish-openai-subscription'
+  | `open-agent-workspace:${string}`;
 
 export type OnboardingWizardApplyFeedbackSeverity = 'info' | 'warning' | 'error';
 

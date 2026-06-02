@@ -22,7 +22,7 @@ function discoverySample(discovery: AgentBehaviorDiscoverySnapshot | undefined):
     ...discovery.skills.names,
     ...discovery.routines.names,
   ].slice(0, 4);
-  if (names.length === 0) return 'Use /personas discover, /agent-skills discover, and /routines discover after setup to rescan.';
+  if (names.length === 0) return 'Open the Memory & Skills workspace after setup to rescan and import local behavior files.';
   const remaining = discoveryCount(discovery) > names.length ? `, +${discoveryCount(discovery) - names.length} more` : '';
   return `Import candidates: ${names.join(', ')}${remaining}.`;
 }
@@ -41,11 +41,12 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
     ],
     fields: [
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-communication.companion',
+        action: 'open-agent-workspace:channels',
         label: 'Companion pairing',
-        hint: 'Use /pair from the Agent workspace to pair companion clients through the connected GoodVibes host.',
-        defaultValue: 'Pair when ready',
+        hint: 'Open the Channels workspace to pair companion clients and review channel readiness and delivery safety.',
+        defaultValue: 'Open Channels',
       },
       {
         kind: 'status',
@@ -86,11 +87,12 @@ export function buildToolsStep(): OnboardingWizardStepDefinition {
     ],
     fields: [
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-tools.mcp',
+        action: 'open-agent-workspace:tools',
         label: 'MCP connections and tools',
-        hint: 'Use /mcp servers and the Agent workspace Tools area to inspect connected MCP servers, roles, and tool readiness.',
-        defaultValue: 'Inspectable',
+        hint: 'Open the Tools & MCP workspace to inspect connected MCP servers, roles, trust, and tool readiness.',
+        defaultValue: 'Open Tools',
       },
       {
         kind: 'status',
@@ -131,11 +133,12 @@ export function buildAgentKnowledgeStep(): OnboardingWizardStepDefinition {
     ],
     fields: [
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-knowledge.route',
+        action: 'open-agent-workspace:knowledge',
         label: 'Isolated Agent Knowledge route',
-        hint: 'Ask, search, status, and ingest use /api/goodvibes-agent/knowledge/* only.',
-        defaultValue: 'Isolated',
+        hint: 'Open the Knowledge workspace for isolated Agent ask, search, status, ingest, and review actions.',
+        defaultValue: 'Open Knowledge',
       },
       {
         kind: 'status',
@@ -173,38 +176,42 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
     ],
     fields: [
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-local-state.memory',
+        action: 'open-agent-workspace:memory',
         label: 'Local memory',
-        hint: 'Use /memory to create, review, stale, search, and delete Agent-local memory records.',
-        defaultValue: 'Local registry',
+        hint: 'Open the Memory & Skills workspace to create, review, stale, search, and delete Agent-local memory records.',
+        defaultValue: 'Open Memory',
       },
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-local-state.personas',
+        action: 'open-agent-workspace:personas',
         label: 'Personas',
         hint: discovery?.personas.count && discovery.personas.count > 0
-          ? `${discovery.personas.count} persona file(s) are available. Use the Profiles workspace to create a profile from discovered behavior, or preview individual files with /personas discover.`
-          : 'Use /personas to create and activate serial operating modes for the main conversation.',
-        defaultValue: discovery?.personas.count && discovery.personas.count > 0 ? `${discovery.personas.count} discovered` : 'Local registry',
+          ? `${discovery.personas.count} persona file(s) are available. Open the Personas workspace to review, import, activate, or create a profile from discovered behavior.`
+          : 'Open the Personas workspace to create and activate serial operating modes for the main conversation.',
+        defaultValue: discovery?.personas.count && discovery.personas.count > 0 ? `${discovery.personas.count} discovered` : 'Open Personas',
       },
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-local-state.skills',
+        action: 'open-agent-workspace:skills',
         label: 'Skills',
         hint: discovery?.skills.count && discovery.skills.count > 0
-          ? `${discovery.skills.count} skill file(s) are available. Use the Profiles workspace to create a profile from discovered behavior, or preview individual files with /agent-skills discover.`
-          : 'Use /agent-skills and /skills local to manage reusable Agent procedures.',
-        defaultValue: discovery?.skills.count && discovery.skills.count > 0 ? `${discovery.skills.count} discovered` : 'Local registry',
+          ? `${discovery.skills.count} skill file(s) are available. Open the Skills workspace to review, import, bundle, enable reusable procedures, or create a profile from discovered behavior.`
+          : 'Open the Skills workspace to manage reusable Agent procedures.',
+        defaultValue: discovery?.skills.count && discovery.skills.count > 0 ? `${discovery.skills.count} discovered` : 'Open Skills',
       },
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-local-state.routines',
+        action: 'open-agent-workspace:routines',
         label: 'Routines',
         hint: discovery?.routines.count && discovery.routines.count > 0
-          ? `${discovery.routines.count} routine file(s) are available. Use the Profiles workspace to create a profile from discovered behavior, or preview individual files with /routines discover. ${discoverySample(discovery)}`
-          : 'Use /routines for reusable local procedures. Starting a routine prints steps in the main conversation and does not launch local workers.',
-        defaultValue: discovery?.routines.count && discovery.routines.count > 0 ? `${discovery.routines.count} discovered` : 'Local registry',
+          ? `${discovery.routines.count} routine file(s) are available. Open the Routines workspace to review, import, start, promote reviewed routines, or create a profile from discovered behavior. ${discoverySample(discovery)}`
+          : 'Open the Routines workspace for reusable local procedures. Starting a routine prints steps in the main conversation and does not launch local workers.',
+        defaultValue: discovery?.routines.count && discovery.routines.count > 0 ? `${discovery.routines.count} discovered` : 'Open Routines',
       },
       {
         kind: 'text',
@@ -302,18 +309,20 @@ export function buildAutomationStep(): OnboardingWizardStepDefinition {
     ],
     fields: [
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-automation.local-routines',
+        action: 'open-agent-workspace:routines',
         label: 'Local routine library',
-        hint: 'Use /routines or the Agent workspace to create, review, enable, and start local routines without spawning hidden jobs.',
-        defaultValue: 'Local registry',
+        hint: 'Open the Routines workspace to create, review, enable, and start local routines without spawning hidden jobs.',
+        defaultValue: 'Open Routines',
       },
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-automation.schedule-observability',
+        action: 'open-agent-workspace:automation',
         label: 'Schedule observability',
-        hint: 'Use /schedule list, /schedule reconcile, and automation views to inspect externally owned jobs and runs.',
-        defaultValue: 'Read first',
+        hint: 'Open the Automation workspace to inspect schedules, receipts, reconciliation, externally owned jobs, and runs.',
+        defaultValue: 'Open Automation',
       },
       {
         kind: 'status',
@@ -347,11 +356,12 @@ export function buildVoiceMediaStep(): OnboardingWizardStepDefinition {
     ],
     fields: [
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-voice-media.voice',
+        action: 'open-agent-workspace:voice-media',
         label: 'Voice interaction',
-        hint: 'Use the voice/media workspace and TTS settings to configure spoken responses for the Agent conversation.',
-        defaultValue: 'Optional',
+        hint: 'Open the Voice & Media workspace and TTS settings to configure spoken responses for the Agent conversation.',
+        defaultValue: 'Open Voice',
       },
       {
         kind: 'status',
@@ -392,11 +402,12 @@ export function buildDelegationPolicyStep(): OnboardingWizardStepDefinition {
         defaultValue: 'Serial',
       },
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-delegation.build-work',
+        action: 'open-agent-workspace:delegate',
         label: 'Build/fix/review work',
-        hint: 'Use /delegate with the full original task. GoodVibes TUI owns coding execution and WRFC chains.',
-        defaultValue: 'Explicit delegation',
+        hint: 'Open the Delegation workspace for explicit build/fix/review handoff. GoodVibes TUI owns coding execution and WRFC chains.',
+        defaultValue: 'Open Delegation',
       },
       {
         kind: 'status',

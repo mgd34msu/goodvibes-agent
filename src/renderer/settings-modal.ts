@@ -209,7 +209,7 @@ function buildFlagContext(entry: FlagEntry | null): string[] {
     '',
     entry.flag.runtimeToggleable
       ? 'Impact: changes apply immediately and are also persisted as an override when they differ from the default.'
-      : 'Impact: this flag is persisted as an override and requires restart before startup-only code sees the new state.',
+      : 'Impact: this override is saved for the next Agent launch or owning-host reload, depending on who owns the flag.',
   ];
 }
 
@@ -248,7 +248,7 @@ function buildSubscriptionContext(modal: SettingsModal, entry: SubscriptionEntry
     ? modal.subscriptionLogoutConfirmationTarget === entry.provider
       ? `Press Enter again to sign out ${entry.provider}. Move selection or close config to cancel.`
       : 'Press Enter to review sign-out for this provider session.'
-    : `Open /agent setup and choose Start subscription login for ${entry.provider}.`;
+    : `Open Agent Workspace -> Setup and choose Start subscription login for ${entry.provider}.`;
   return [
     entry.provider,
     `State: ${entry.state}`,
@@ -390,10 +390,10 @@ function renderFlagRows(modal: SettingsModal, width: number, height: number): st
   const nameWidth = clamp(Math.floor(width * 0.40), 24, 58);
   const stateWidth = 10;
   const tierWidth = 6;
-  const runtimeWidth = 9;
+  const runtimeWidth = 10;
   const defaultWidth = 9;
   const idWidth = Math.max(12, width - nameWidth - stateWidth - tierWidth - runtimeWidth - defaultWidth - 14);
-  rows.push(`  ${padDisplay('Feature Flag', nameWidth)}  ${padDisplay('State', stateWidth)}  ${padDisplay('Tier', tierWidth)}  ${padDisplay('Runtime', runtimeWidth)}  ${padDisplay('Default', defaultWidth)}  ${padDisplay('ID', idWidth)}`);
+  rows.push(`  ${padDisplay('Feature Flag', nameWidth)}  ${padDisplay('State', stateWidth)}  ${padDisplay('Tier', tierWidth)}  ${padDisplay('Applies', runtimeWidth)}  ${padDisplay('Default', defaultWidth)}  ${padDisplay('ID', idWidth)}`);
   const visibleCount = Math.max(1, height - 2);
   const window = stableWindow(items.length, selectedIndex, visibleCount);
   if (window.start > 0) rows.push(`${GLYPHS.navigation.moreAbove} ${window.start} more flag(s) above`);
@@ -401,7 +401,7 @@ function renderFlagRows(modal: SettingsModal, width: number, height: number): st
     const entry = items[index]!;
     const selected = index === selectedIndex;
     const marker = selected ? (modal.focusPane === 'settings' ? GLYPHS.navigation.selected : '•') : ' ';
-    rows.push(`${marker} ${padDisplay(entry.flag.name, nameWidth)}  ${padDisplay(entry.state, stateWidth)}  ${padDisplay(String(entry.flag.tier), tierWidth)}  ${padDisplay(entry.flag.runtimeToggleable ? 'yes' : 'restart', runtimeWidth)}  ${padDisplay(entry.flag.defaultState, defaultWidth)}  ${padDisplay(entry.flag.id, idWidth)}`);
+    rows.push(`${marker} ${padDisplay(entry.flag.name, nameWidth)}  ${padDisplay(entry.state, stateWidth)}  ${padDisplay(String(entry.flag.tier), tierWidth)}  ${padDisplay(entry.flag.runtimeToggleable ? 'now' : 'next run', runtimeWidth)}  ${padDisplay(entry.flag.defaultState, defaultWidth)}  ${padDisplay(entry.flag.id, idWidth)}`);
   }
   if (window.end < items.length) rows.push(`${GLYPHS.navigation.moreBelow} ${items.length - window.end} more flag(s) below`);
   return rows.slice(0, height);
@@ -490,7 +490,6 @@ export function renderSettingsModal(
   viewportHeight = 24,
 ): Line[] {
   const notices = [
-    ...(modal.lastSaveTriggeredRestart ? [`Owning host must restart ${modal.lastSaveTriggeredRestart}`] : []),
     ...(modal.lastSettingEffectMessage ? [modal.lastSettingEffectMessage] : []),
   ];
   const metrics = getFullscreenWorkspaceMetrics({ width, height: viewportHeight });

@@ -156,6 +156,17 @@ export function handleModelPickerCommitForHandler(handler: InputHandler): boolea
   }
 
 export async function handleOnboardingActionForHandler(handler: InputHandler, action: OnboardingWizardAction): Promise<void> {
+    if (action.startsWith('open-agent-workspace:')) {
+      const categoryId = action.slice('open-agent-workspace:'.length);
+      if (handler.commandContext) handler.openAgentWorkspace(handler.commandContext, categoryId);
+      else handler.onboardingWizard.setApplyFeedback({
+        severity: 'warning',
+        title: 'Workspace unavailable',
+        summary: 'The Agent workspace cannot open because the command context is not wired yet.',
+        messages: [`Requested workspace: ${categoryId}`],
+      });
+      return;
+    }
     if (action === 'start-openai-subscription') {
       await handler.handleOpenAiSubscriptionStart();
       return;

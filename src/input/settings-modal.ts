@@ -99,12 +99,6 @@ export class SettingsModal {
   /** Provider subscription entries (populated when subscriptions tab is active). */
   public subscriptionEntries: SubscriptionEntry[] = [];
 
-  /**
-   * Set after a network-category save that touches controlPlane or httpListener
-   * config keys.  Renderer reads this to display a transient restart notice.
-   * Cleared on next open() or close().
-   */
-  public lastSaveTriggeredRestart: 'control-plane' | 'http-listener' | 'web' | null = null;
   public lastSettingEffectMessage: string | null = null;
 
   private configManager: ConfigManager | null = null;
@@ -151,7 +145,6 @@ export class SettingsModal {
     this.pendingSettingsPickerAction = null;
     this.mcpAllowAllConfirmationTarget = null;
     this.subscriptionLogoutConfirmationTarget = null;
-    this.lastSaveTriggeredRestart = null;
     this.lastSettingEffectMessage = null;
     this.active = true;
   }
@@ -165,7 +158,6 @@ export class SettingsModal {
     this.pendingSettingsPickerAction = null;
     this.mcpAllowAllConfirmationTarget = null;
     this.subscriptionLogoutConfirmationTarget = null;
-    this.lastSaveTriggeredRestart = null;
     this.lastSettingEffectMessage = null;
     this.serviceRegistry = null;
     this.secretsManager = null;
@@ -452,8 +444,9 @@ export class SettingsModal {
   /**
    * Toggle the currently selected feature flag.
    *
-   * Killed flags cannot be toggled. Non-runtimeToggleable flags toggle in config
-   * only (require restart). runtimeToggleable flags toggle immediately.
+   * Killed flags cannot be toggled. Non-runtimeToggleable flags are saved as
+   * overrides for the next Agent launch or owning-host reload; runtimeToggleable
+   * flags toggle immediately.
    */
   toggleSelectedFlag(): void {
     const flagEntry = this.getSelectedFlag();
@@ -474,7 +467,7 @@ export class SettingsModal {
     const { flag } = flagEntry;
 
     if (!flag.runtimeToggleable) {
-      // Persist to config only — takes effect on restart
+      // Persist to config only; the flag owner applies it on the next run.
       this._persistFlagState(flag.id, newState, flag.defaultState as FlagState);
       flagEntry.state = newState;
     } else {
@@ -749,26 +742,9 @@ export class SettingsModal {
       this.lastSettingEffectMessage = AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON;
       return;
     }
-    // Diff previous value before writing — avoids false restart notices on no-op saves
     const previousValue = this.configManager.get(key);
-    const isRestartKey = ['host', 'port', 'hostMode', 'enabled'].includes(key.split('.')[1] ?? '');
     try {
       this.configManager.setDynamic(key, value);
-      const rawCat = key.split('.')[0] as string;
-      if (rawCat === 'controlPlane') {
-        if (isRestartKey && previousValue !== value) {
-          this.lastSaveTriggeredRestart = 'control-plane';
-        }
-      } else if (rawCat === 'httpListener') {
-        if (isRestartKey && previousValue !== value) {
-          this.lastSaveTriggeredRestart = 'http-listener';
-        }
-      } else if (rawCat === 'web') {
-        if (isRestartKey && previousValue !== value) {
-          this.lastSaveTriggeredRestart = 'web';
-        }
-      }
-
       for (const entries of this.groups.values()) {
         const entry = entries.find((candidate) => candidate.setting.key === key);
         if (entry) {

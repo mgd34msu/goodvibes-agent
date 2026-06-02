@@ -264,11 +264,12 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
         defaultValue: true,
       },
       {
-        kind: 'status',
+        kind: 'action',
         id: 'agent-setup.profile-guide',
+        action: 'open-agent-workspace:profiles',
         label: 'Profile guidance',
-        hint: 'Use /agent-profile guide after setup to export, customize, import, and launch Agent profiles.',
-        defaultValue: 'Available',
+        hint: 'Open the Profiles workspace to browse starters, export, customize, import, create, and select isolated Agent profiles.',
+        defaultValue: 'Open Profiles',
       },
     ],
   };
@@ -331,7 +332,7 @@ export function buildProviderAccessStep(controller: OnboardingWizardController):
       label: 'OpenAI API key quick start',
       hint: openAiApiKeyConfigured
         ? 'Optional quick start: an OpenAI API key is already stored. Leave blank to keep it; enter a new key to replace it through the secret manager.'
-        : 'Optional quick start: enter an OpenAI API key now. Other providers can be configured from /secrets, /provider, and the model picker.',
+        : 'Optional quick start: enter an OpenAI API key now. Other providers can be configured from the Setup workspace, Tools & MCP workspace, and model picker.',
       placeholder: openAiApiKeyConfigured ? 'already configured' : 'sk-...',
       defaultValue: '',
     },
