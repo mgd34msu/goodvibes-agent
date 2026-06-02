@@ -434,7 +434,6 @@ export const uninstallEcosystemCatalogEntry = shell.uninstallEcosystemCatalogEnt
 export const updateInstalledEcosystemEntry = shell.updateInstalledEcosystemEntry;
 export const upsertEcosystemCatalogEntry = shell.upsertEcosystemCatalogEntry;
 export const summarizeWorktreeOwnership = shell.summarizeWorktreeOwnership;
-export const WorktreeRegistry = shell.WorktreeRegistry;
 export const listPersistedWorktreeMeta = shell.listPersistedWorktreeMeta;
 export const getPersistedWorktreeMeta = shell.getPersistedWorktreeMeta;
 export const reviewWorktreeAttachments = shell.reviewWorktreeAttachments;

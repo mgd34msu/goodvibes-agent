@@ -73,7 +73,7 @@ import { IdempotencyStore } from '@/runtime/index.ts';
 import { OverflowHandler } from '@pellux/goodvibes-sdk/platform/tools';
 import { ToolLLM } from '@pellux/goodvibes-sdk/platform/config';
 import { ComponentHealthMonitor } from '@/runtime/index.ts';
-import { WorktreeRegistry } from '@/runtime/index.ts';
+import type { WorktreeRegistry } from '@/runtime/index.ts';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import { createShellPathService, type ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
@@ -111,6 +111,24 @@ function buildFallbackModelDefinition(provider: string, modelId: string): ModelD
     tier: 'standard',
     ...(isReasoningProvider ? { reasoningEffort: ['instant', 'low', 'medium', 'high'] } : {}),
   };
+}
+
+function createDisabledAgentWorktreeRegistry(): WorktreeRegistry {
+  const registry: Pick<WorktreeRegistry, 'list' | 'attach' | 'setState' | 'cleanup'> = {
+    async list() {
+      return [];
+    },
+    attach(_path, _target) {
+      throw new Error('GoodVibes Agent does not own local worktree attachment. Delegate build, fix, and review work to GoodVibes TUI.');
+    },
+    setState(_path, _state) {
+      throw new Error('GoodVibes Agent does not own local worktree state. Delegate build, fix, and review work to GoodVibes TUI.');
+    },
+    async cleanup(_path) {
+      throw new Error('GoodVibes Agent does not own local worktree cleanup. Delegate build, fix, and review work to GoodVibes TUI.');
+    },
+  };
+  return registry as unknown as WorktreeRegistry;
 }
 
 function ensureConfiguredModelIsRoutable(providerRegistry: ProviderRegistry, configManager: ConfigManager): void {
@@ -575,7 +593,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   mcpRegistry.setSandboxRuntime(configManager, sandboxSessionRegistry);
   const tokenAuditor = new ApiTokenAuditor({ managed: false });
   const componentHealthMonitor = new ComponentHealthMonitor();
-  const worktreeRegistry = new WorktreeRegistry(workingDirectory);
+  const worktreeRegistry = createDisabledAgentWorktreeRegistry();
   const webhookNotifier = new WebhookNotifier();
   const replayEngine = new DeterministicReplayEngine(workingDirectory);
   const providerOptimizer = new ProviderOptimizer(providerRegistry, providerCapabilityRegistry, false);

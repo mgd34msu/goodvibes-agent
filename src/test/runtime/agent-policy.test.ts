@@ -84,6 +84,18 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(offenders).toEqual([]);
   });
 
+  test('production runtime does not construct a local worktree registry', () => {
+    const srcRoot = join(import.meta.dir, '../..');
+    const offenders: string[] = [];
+    for (const file of productionSourceFiles(srcRoot)) {
+      const content = readFileSync(file, 'utf8');
+      if (content.includes('new WorktreeRegistry')) {
+        offenders.push(`${file.slice(srcRoot.length + 1)}: new WorktreeRegistry`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   test('operator policy tells the model to use local registry memory for durable recall', () => {
     const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
     expect(source).toContain('durable memory, reusable persona, skill, skill bundle, or routine');
@@ -339,5 +351,17 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(registry.get('sandbox')).toBeUndefined();
     expect(existsSync(join(root, '.git'))).toBe(false);
     expect(services.sandboxSessionRegistry.list()).toHaveLength(0);
+  });
+
+  test('runtime worktree registry is disabled and fail-closed', async () => {
+    const services = makeRuntimeServices();
+
+    await expect(services.worktreeRegistry.list()).resolves.toEqual([]);
+    expect(() => services.worktreeRegistry.attach(join(root, 'agent-worktree'), { sessionId: 'agent-session' }))
+      .toThrow('does not own local worktree attachment');
+    expect(() => services.worktreeRegistry.setState(join(root, 'agent-worktree'), 'active'))
+      .toThrow('does not own local worktree state');
+    await expect(services.worktreeRegistry.cleanup(join(root, 'agent-worktree')))
+      .rejects.toThrow('does not own local worktree cleanup');
   });
 });
