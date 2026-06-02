@@ -49,7 +49,7 @@ describe('renderProfilePickerModal', () => {
     const texts = linesToText(lines).join('\n');
     expect(texts).toContain('Navigate');
     expect(texts).toContain('Load');
-    expect(texts).toContain('/profiles save');
+    expect(texts).toContain('/agent profiles');
   });
 
   test('shows profile names in list', () => {
@@ -71,7 +71,7 @@ describe('renderProfilePickerModal', () => {
     const lines = renderProfilePickerModal(modal, W);
     const texts = linesToText(lines).join('\n');
     expect(texts).toContain('No saved profiles');
-    expect(texts).toContain('/profiles save <name> --yes');
+    expect(texts).toContain('/agent profiles');
   });
 
   test('status message is displayed when set', () => {
@@ -82,12 +82,12 @@ describe('renderProfilePickerModal', () => {
     expect(texts).toContain('Loaded profile: work-profile');
   });
 
-  test('delete command guidance is displayed through status message', () => {
+  test('Agent profile-home guidance is displayed through status message', () => {
     const modal = makeModal();
-    modal.statusMessage = 'Deletion requires an explicit command: /profiles delete work-profile --yes';
+    modal.statusMessage = 'Config-profile deletion is disabled in Agent. Use /agent profiles for isolated Agent profile homes.';
     const lines = renderProfilePickerModal(modal, W);
     const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('/profiles delete work-profile --yes');
+    expect(texts).toContain('/agent profiles');
   });
 
   test('works at narrow terminal width', () => {

@@ -51,7 +51,7 @@ export function renderProfilePickerModal(
     });
     sections.push({
       type: 'text',
-      content: 'Use /profiles save <name> --yes to save the current settings as a profile.',
+      content: 'Use /agent profiles to create and manage isolated Agent profile homes.',
       style: { fg: '240', dim: true },
     });
   } else {
@@ -114,7 +114,7 @@ export function renderProfilePickerModal(
       margin: boxMargin,
       targetContentRows,
       sections,
-      hints: ['[Up/Down] Navigate', '[Enter] Load', '/profiles save|delete --yes', '[Esc] Close'],
+      hints: ['[Up/Down] Navigate', '[Enter] Load', 'Agent profiles: /agent profiles', '[Esc] Close'],
     },
     width,
   );

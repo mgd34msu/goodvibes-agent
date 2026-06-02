@@ -1,7 +1,5 @@
 import type { CommandRegistry } from '../command-registry.ts';
-import type { ProfileData } from '@pellux/goodvibes-sdk/platform/profiles';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
-import { requireProfileManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
@@ -63,71 +61,14 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'profiles',
     aliases: ['profile'],
-    description: 'Browse, save, and delete config profiles',
-    usage: '[list|open|save <name> --yes|delete <name> --yes]',
-    argsHint: '[list|open|save --yes|delete --yes]',
-    handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const sub = parsed.rest[0] ?? 'open';
-      const profileManager = requireProfileManager(ctx);
-      if (sub === 'open') {
-        if (ctx.openProfilePicker) {
-          ctx.openProfilePicker();
-        } else {
-          const profiles = profileManager.list();
-          if (profiles.length === 0) ctx.print('No profiles saved. Use /profiles save <name> --yes to save the current settings as a profile.');
-          else ctx.print(['Saved profiles:', ...profiles.map(p => `  ${p.name}`)].join('\n'));
-        }
-        return;
-      }
-      if (sub === 'list') {
-        const profiles = profileManager.list();
-        if (profiles.length === 0) ctx.print('No profiles saved. Use /profiles save <name> --yes to save the current settings as a profile.');
-        else ctx.print(['Saved profiles:', ...profiles.map(p => `  ${p.name}`)].join('\n'));
-        return;
-      }
-      if (sub === 'save') {
-        const name = parsed.rest[1];
-        if (!name) {
-          ctx.print('Usage: /profiles save <name> --yes');
-          return;
-        }
-        if (!parsed.yes) {
-          requireYesFlag(ctx, `save config profile ${name}`, '/profiles save <name> --yes');
-          return;
-        }
-        const all = ctx.platform.configManager.getAll();
-        const data: ProfileData = {
-          display: { ...all.display },
-          provider: {
-            model: all.provider.model,
-            reasoningEffort: all.provider.reasoningEffort,
-          },
-          behavior: { ...all.behavior },
-        };
-        profileManager.save(name, data);
-        ctx.print(`Profile saved: ${name}`);
-        return;
-      }
-      if (sub === 'delete' || sub === 'remove') {
-        const name = parsed.rest[1];
-        if (!name) {
-          ctx.print('Usage: /profiles delete <name> --yes');
-          return;
-        }
-        if (!parsed.yes) {
-          requireYesFlag(ctx, `delete config profile ${name}`, '/profiles delete <name> --yes');
-          return;
-        }
-        const deleted = profileManager.delete(name);
-        ctx.print(deleted ? `Profile deleted: ${name}` : `Profile not found: ${name}`);
-        return;
-      }
-      if (args.length === 0 && ctx.openProfilePicker) {
-        ctx.openProfilePicker();
-        return;
-      }
-      ctx.print('Usage: /profiles [list|open|save <name> --yes|delete <name> --yes]');
+    description: 'Blocked copied config-profile command; Agent uses isolated profile homes',
+    usage: 'disabled',
+    argsHint: 'disabled',
+    handler(_args, ctx) {
+      ctx.print([
+        'Copied config profiles are disabled in GoodVibes Agent.',
+        'Use /agent profiles or /agent-profile to create and manage isolated Agent profile homes.',
+      ].join('\n'));
     },
   });
 

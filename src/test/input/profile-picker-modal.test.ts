@@ -107,10 +107,11 @@ describe('ProfilePickerModal', () => {
     expect(modal.selectedIndex).toBe(0);
   });
 
-  test('saveCurrentAs requires explicit slash command', () => {
+  test('saveCurrentAs points to Agent profile homes instead of copied config profiles', () => {
     const result = modal.saveCurrentAs('my-profile', cm);
     expect(result).toBe(false);
-    expect(modal.statusMessage).toContain('/profiles save my-profile --yes');
+    expect(modal.statusMessage).toContain('Config-profile saving is disabled');
+    expect(modal.statusMessage).toContain('/agent profiles');
   });
 
   test('saveCurrentAs with empty name returns false', () => {
@@ -119,14 +120,15 @@ describe('ProfilePickerModal', () => {
     expect(modal.statusMessage).toBeTruthy();
   });
 
-  test('deleteSelected requires explicit slash command before removal', () => {
+  test('deleteSelected points to Agent profile homes before removal', () => {
     pm.save('test-profile', { display: {}, behavior: {} });
     modal.profiles = pm.list();
     modal.selectedIndex = 0;
     const result = modal.deleteSelected();
     expect(result).toBe(false);
     expect(modal.deleteConfirmationTarget).toBeNull();
-    expect(modal.statusMessage).toContain('/profiles delete test-profile --yes');
+    expect(modal.statusMessage).toContain('Config-profile deletion is disabled');
+    expect(modal.statusMessage).toContain('/agent profiles');
     expect(pm.list().some((profile) => profile.name === 'test-profile')).toBe(true);
   });
 

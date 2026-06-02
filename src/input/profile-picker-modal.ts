@@ -145,7 +145,7 @@ export class ProfilePickerModal {
     const profile = this.getSelected();
     if (!profile) return false;
     this.deleteConfirmationTarget = null;
-    this.statusMessage = `Deletion requires an explicit command: /profiles delete ${profile.name} --yes`;
+    this.statusMessage = `Config-profile deletion is disabled in Agent for ${profile.name}. Use /agent profiles for isolated Agent profile homes.`;
     return false;
   }
 
@@ -158,7 +158,7 @@ export class ProfilePickerModal {
       return false;
     }
     void configManager;
-    this.statusMessage = `Saving requires an explicit command: /profiles save ${name} --yes`;
+    this.statusMessage = `Config-profile saving is disabled in Agent for ${name}. Use /agent profiles to create isolated Agent homes.`;
     return false;
   }
 
