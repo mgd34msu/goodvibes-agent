@@ -335,6 +335,18 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/brief');
   });
 
+  test('exposes doctor diagnostics from the home workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'doctor');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/doctor']);
+    expect(workspace.status).toContain('/doctor');
+  });
+
   test('sets interaction mode from home and setup workspace forms', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

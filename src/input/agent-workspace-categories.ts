@@ -22,6 +22,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'voice-home', label: 'Voice and media', detail: 'Jump to voice, TTS, image input, browser-tool, and media setup.', targetCategoryId: 'voice-media', kind: 'workspace', safety: 'safe' },
       { id: 'help', label: 'Browse commands', detail: 'Open registry-driven command help.', command: '/help', kind: 'command', safety: 'safe' },
       { id: 'health', label: 'Review health', detail: 'Show local health and connected-host status without starting or mutating anything.', command: '/health review', kind: 'command', safety: 'read-only' },
+      { id: 'doctor', label: 'Doctor diagnostics', detail: 'Run the same Agent doctor diagnostics from the TUI home workspace instead of relying on the CLI.', command: '/doctor', kind: 'command', safety: 'read-only' },
     ],
   },
   {
