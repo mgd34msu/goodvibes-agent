@@ -2,6 +2,22 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.112 - 2026-06-02
+
+- 566995c test: align operator visibility gate
+- 5035e09 fix: remove daemon-home cli flag
+- f31e35c fix: remove copied recall cli alias
+- aba694f fix: hide stale health open usage
+- a771a42 fix: remove copied panel entrypoints from agent commands
+- 27c858d fix: keep work tracking out of copied panels
+- f13c66a fix: keep profile workspace agent owned
+- 523415f fix: simplify agent command surface
+- 0e55cb3 ci: collapse branch gate into one test job
+- 5d6d7f3 fix: make mcp servers setup action explicit
+- 95b6994 feat: show connected channel diagnostics
+- 1daeac0 fix: keep host posture out of agent setup
+- e8ef013 feat: improve channel setup visibility
+
 ## 0.1.111 - 2026-06-02
 
 - 3c53136 fix: harden package runtime bundle
