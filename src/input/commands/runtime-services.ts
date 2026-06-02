@@ -22,7 +22,6 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type { ProviderApi } from '@pellux/goodvibes-sdk/platform/providers';
 import type {
   ShellAgentManagerService,
-  ShellAcpManagerService,
   ShellAutomationManagerService,
   ShellAutomationManagerRuntimeService,
   ShellModeManagerService,
@@ -272,10 +271,6 @@ export function requireDirectTransport(context: CommandContext): DirectTransport
 
 export function requireAgentManager(context: CommandContext): ShellAgentManagerService {
   return requireContextValue(context.ops.agentManager, 'ops.agentManager') as ShellAgentManagerService;
-}
-
-export function requireAcpManager(context: CommandContext): ShellAcpManagerService {
-  return requireContextValue(context.ops.acpManager, 'ops.acpManager') as ShellAcpManagerService;
 }
 
 export function requireModeManager(context: CommandContext): ShellModeManagerService {

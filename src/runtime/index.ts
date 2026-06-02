@@ -245,7 +245,6 @@ export type RemoteRuntimeEvents = Transport.RemoteRuntimeEvents;
 export type SerializedRuntimeEnvelope = Transport.SerializedRuntimeEnvelope;
 
 // Operations compatibility aliases.
-export const AcpTaskAdapter = operations.AcpTaskAdapter;
 export const OpsControlPlane = operations.OpsControlPlane;
 export const OpsIllegalActionError = operations.OpsIllegalActionError;
 export const OpsTargetNotFoundError = operations.OpsTargetNotFoundError;
@@ -458,7 +457,6 @@ export type WorktreeRegistry = Shell.WorktreeRegistry;
 export type WorktreeStatusRecord = Shell.WorktreeStatusRecord;
 export type ManagedWorktreeMeta = Shell.ManagedWorktreeMeta;
 export type ShellAgentManagerService = Shell.ShellAgentManagerService;
-export type ShellAcpManagerService = Shell.ShellAcpManagerService;
 export type ShellAutomationManagerService = Shell.ShellAutomationManagerService;
 export type ShellAutomationManagerRuntimeService = Shell.ShellAutomationManagerRuntimeService;
 export type ShellModeManagerService = Shell.ShellModeManagerService;

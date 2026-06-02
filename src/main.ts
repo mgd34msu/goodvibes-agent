@@ -11,7 +11,6 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';
 import { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
 import { PermissionManager } from '@pellux/goodvibes-sdk/platform/permissions';
-import { AcpManager } from '@pellux/goodvibes-sdk/platform/acp';
 import { PermissionPromptUI } from './permissions/prompt.ts';
 import { CommandRegistry } from './input/command-registry.ts';
 import type { CommandContext } from './input/command-registry.ts';

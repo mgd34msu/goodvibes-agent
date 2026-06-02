@@ -10,7 +10,6 @@
  *   - lifecycle.ts: save/shutdown helpers
  */
 import { Orchestrator, type OrchestratorUserInputOptions } from '../core/orchestrator.ts';
-import { AcpManager } from '@pellux/goodvibes-sdk/platform/acp';
 import { getTierPromptSupplement, getTierForContextWindow } from '@pellux/goodvibes-sdk/platform/providers';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
@@ -23,7 +22,6 @@ import type { RuntimeContext, BootstrapOptions } from './context.ts';
 import { shutdownRuntime, fireSessionStart, saveSession } from '@/runtime/index.ts';
 import { createTaskManager } from '@/runtime/index.ts';
 import { OpsControlPlane } from '@/runtime/index.ts';
-import { AcpTaskAdapter } from '@/runtime/index.ts';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import { emitSessionReady, emitSessionStarted } from '@/runtime/index.ts';
 import {
@@ -130,7 +128,7 @@ export type BootstrapContext = RuntimeContext & {
  *   3. Tool registry + agent wiring
  *   4. Runtime bus subscriptions (WRFC, subagent, hook bridge)
  *   5. Providers, webhooks, PermissionManager, HookDispatcher
- *   6. Orchestrator + AcpManager
+ *   6. Orchestrator and Agent-local task read models
  *   7. MCP auto-connect + workspace/panel manager
  *   8. Command registry + plugin init + CommandContext
  *   9. Input handler wiring
@@ -183,7 +181,7 @@ export async function bootstrapRuntime(
     pluginManager,
   } = services;
 
-  // ── Phase 6: Orchestrator + AcpManager ───────────────────────────────────
+  // ── Phase 6: Orchestrator and Agent-local task read models ───────────────
 
   // Mutable function refs so main.ts can patch these after constructing the scroll/viewport state.
   // The orchestrator closes over these refs, so patching them in main.ts takes immediate effect.
@@ -243,17 +241,6 @@ export async function bootstrapRuntime(
   });
   conversation.setSessionLineageTracker(services.sessionLineageTracker);
 
-  const acpManager = new AcpManager({
-    requestPermission: (request) => permissionPromptRef.requestPermission(request),
-    runtimeBus,
-    hookDispatcher: services.hookDispatcher,
-  });
-  const acpTaskAdapter = new AcpTaskAdapter(store);
-  const ACP_TASK_SYNC_INTERVAL_MS = 1_000;
-  const acpTaskSyncInterval = setInterval(() => {
-    acpTaskAdapter.sync(acpManager);
-  }, ACP_TASK_SYNC_INTERVAL_MS);
-  bootstrapUnsubs.push(() => clearInterval(acpTaskSyncInterval));
   const opsTaskManager = createTaskManager(store, runtimeBus, userSessionId);
   const opsControlPlane = services.featureFlags.isEnabled('operator-control-plane')
     ? new OpsControlPlane(opsTaskManager, runtimeBus, store, userSessionId)
@@ -553,12 +540,6 @@ export async function bootstrapRuntime(
       );
     },
   };
-
-  // ── Phase 12b: Operator intervention wiring (feature-gated) ──────────────
-  // Keep host-owned control-plane state internal. GoodVibes Agent does not
-  // expose the local ops-control panel; operator control is surfaced
-  // through Agent-owned status, approvals, automation, and delegation flows.
-  ctx.commandContext.ops.acpManager = acpManager;
 
   // Wire exit from options if provided; otherwise main.ts binds the shell bridge.
   if (options?.exit) {

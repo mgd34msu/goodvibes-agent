@@ -58,6 +58,12 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(source).not.toContain('registerDelegateTool');
   });
 
+  test('bootstrap does not construct copied local ACP runtime machinery', () => {
+    const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
+    expect(source).not.toContain('new AcpManager');
+    expect(source).not.toContain('AcpTaskAdapter');
+  });
+
   test('bootstrap core does not emit copied local WRFC chain telemetry', () => {
     const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap-core.ts'), 'utf8');
     expect(source).not.toContain('WORKFLOW_CONSTRAINTS_ENUMERATED');
