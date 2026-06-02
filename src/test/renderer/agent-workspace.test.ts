@@ -488,6 +488,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Skills: 1; enabled: 1; bundles: 1; enabled bundles: 1; active skills: 1');
     expect(output).toContain('Skill bundles');
     expect(output).toContain('/agent-skills bundle list');
+    expect(output).toContain('Needs setup');
     expect(output).toContain('Create bundle');
     expect(output).toContain('edit skill-bundle');
     expect(output).toContain('Skill Bundles');
@@ -506,6 +507,7 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Routines: 1; enabled: 1');
     expect(output).toContain('Repeatable workflows with setup readiness');
+    expect(output).toContain('Needs setup');
     expect(output).toContain('daily-brief: Daily Brief');
     expect(output).toContain('needs 1/1');
     expect(output).toContain('missing setup: env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN');

@@ -250,6 +250,11 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       ctx.print(renderList('Enabled Agent Routines', routineRegistry, snapshot.enabledRoutines));
       return;
     }
+    if (sub === 'attention' || sub === 'needs-setup') {
+      const routines = routineRegistry.list().filter((routine) => !evaluateAgentRoutineReadiness(routine).ready);
+      ctx.print(renderList('Agent Routines needing setup', routineRegistry, routines));
+      return;
+    }
     if (sub === 'discover' || sub === 'discovered') {
       ctx.print(renderDiscoveredRoutines(await discoverRoutines(requireShellPaths(ctx))));
       return;
@@ -404,7 +409,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       ctx.print(`Deleted Agent routine ${removed.id}: ${removed.name}`);
       return;
     }
-    ctx.print('Usage: /routines [list|enabled|discover|import-discovered|search|show|receipts|reconcile|receipt|create|update|enable|disable|start|review|stale|promote|delete]');
+    ctx.print('Usage: /routines [list|enabled|attention|discover|import-discovered|search|show|receipts|reconcile|receipt|create|update|enable|disable|start|review|stale|promote|delete]');
   } catch (error) {
     printError(ctx, error);
   }
@@ -415,7 +420,7 @@ export function registerRoutinesRuntimeCommands(registry: CommandRegistry): void
     name: 'routines',
     aliases: ['routine'],
     description: 'Manage local GoodVibes Agent routines',
-    usage: '[list|enabled|discover|import-discovered <name> --yes|search <query>|show <id>|receipts|reconcile|receipt <id>|create --name <name> --description <summary> --steps <steps> [--requires-env A,B] [--requires-command gh,jq]|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> [--delivery-channel slack] --yes|delete <id> --yes]',
+    usage: '[list|enabled|attention|discover|import-discovered <name> --yes|search <query>|show <id>|receipts|reconcile|receipt <id>|create --name <name> --description <summary> --steps <steps> [--requires-env A,B] [--requires-command gh,jq]|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> [--delivery-channel slack] --yes|delete <id> --yes]',
     handler: runRoutinesRuntimeCommand,
   });
 }

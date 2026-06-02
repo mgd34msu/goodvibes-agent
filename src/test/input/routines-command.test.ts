@@ -162,6 +162,7 @@ describe('/routines command', () => {
       'definitely-missing-goodvibes-agent-routine-bin',
     ], ctx);
     await registry.execute('routines', ['enable', 'inbox-sweep'], ctx);
+    await registry.execute('routines', ['attention'], ctx);
     await registry.execute('routines', ['start', 'inbox-sweep'], ctx);
     await registry.execute('routines', ['enabled'], ctx);
     await registry.execute('routines', ['show', 'inbox-sweep'], ctx);
@@ -170,6 +171,7 @@ describe('/routines command', () => {
     const text = out.join('\n');
     expect(text).toContain('Created Agent routine inbox-sweep');
     expect(text).toContain('Enabled Agent routine inbox-sweep');
+    expect(text).toContain('Agent Routines needing setup');
     expect(text).toContain('Started Agent routine inbox-sweep');
     expect(text).toContain('needs env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN,command:definitely-missing-goodvibes-agent-routine-bin');
     expect(text).toContain('readiness: needs setup (env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN, command:definitely-missing-goodvibes-agent-routine-bin)');

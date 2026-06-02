@@ -374,6 +374,11 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
       ctx.print(renderList('Enabled Agent Skills', skillRegistry, snapshot.enabledSkills));
       return;
     }
+    if (sub === 'attention' || sub === 'needs-setup') {
+      const skills = skillRegistry.list().filter((skill) => !evaluateAgentSkillReadiness(skill).ready);
+      ctx.print(renderList('Agent Skills needing setup', skillRegistry, skills));
+      return;
+    }
     if (sub === 'search') {
       const query = args.slice(1).join(' ').trim();
       ctx.print(renderList(query ? `Agent Skills matching "${query}"` : 'Agent Skills', skillRegistry, skillRegistry.search(query)));
@@ -478,7 +483,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
       ctx.print(`Deleted Agent skill ${removed.id}: ${removed.name}`);
       return;
     }
-    ctx.print('Usage: /agent-skills [list|enabled|discover|import-discovered|search|show|create|update|enable|disable|review|stale|delete|bundle]');
+    ctx.print('Usage: /agent-skills [list|enabled|attention|discover|import-discovered|search|show|create|update|enable|disable|review|stale|delete|bundle]');
   } catch (error) {
     printError(ctx, error);
   }
@@ -489,7 +494,7 @@ export function registerAgentSkillsRuntimeCommands(registry: CommandRegistry): v
     name: 'agent-skills',
     aliases: ['askills', 'local-skills', 'skills', 'skill'],
     description: 'Manage local GoodVibes Agent skills',
-    usage: '[list|enabled|discover|import-discovered <name> --yes|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps> [--requires-env A,B] [--requires-command gh,jq]|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
+    usage: '[list|enabled|attention|discover|import-discovered <name> --yes|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps> [--requires-env A,B] [--requires-command gh,jq]|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
     handler: runAgentSkillsRuntimeCommand,
   });
 }

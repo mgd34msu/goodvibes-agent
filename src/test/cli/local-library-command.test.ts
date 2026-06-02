@@ -227,6 +227,11 @@ describe('local Agent library CLI commands', () => {
     expect(active.output).toContain('Daily Brief');
     expect(active.output).toContain('needs env:GOODVIBES_AGENT_TEST_MISSING_TOKEN,command:definitely-missing-goodvibes-agent-test-bin');
 
+    const attention = await runCli(['skills', 'attention'], home);
+    expect(attention.exitCode).toBe(0);
+    expect(attention.output).toContain('Agent skills needing setup');
+    expect(attention.output).toContain('Daily Brief');
+
     const shown = await runCli(['skills', 'show', 'daily-brief', '--json'], home);
     const shownParsed = JSON.parse(shown.output) as {
       readonly kind?: unknown;

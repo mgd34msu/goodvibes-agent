@@ -192,6 +192,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'skills list',
       'skills enabled',
       'skills active',
+      'skills attention',
       'skills discover',
       'skills import-discovered <name> [--enabled] --yes',
       'skills search <query>',
@@ -208,6 +209,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     summary: 'Manage reusable Agent-local procedures and skill bundles for the main conversation.',
     examples: [
       'skills list',
+      'skills attention',
       'skills discover',
       'skills import-discovered "Daily Brief" --enabled --yes',
       'skills create --name "Daily Brief" --description "Summarize operator state" --procedure "Review Agent Knowledge, work plans, approvals, and routines" --requires-env GOODVIBES_AGENT_TOKEN --requires-command gh --enabled',
@@ -247,6 +249,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     usage: [
       'routines list',
       'routines enabled',
+      'routines attention',
       'routines discover',
       'routines import-discovered <name> [--enabled] --yes',
       'routines show <id>',
@@ -259,6 +262,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     summary: 'Inspect and import Agent-local routines with setup readiness, review local promotion receipts, reconcile receipts against live connected schedules, and explicitly promote a reviewed routine into a GoodVibes schedule. Without --yes, promote only prints the schedules.create preview.',
     examples: [
       'routines list',
+      'routines attention',
       'routines discover',
       'routines import-discovered "Daily Brief" --enabled --yes',
       'routines show daily-operations-sweep',

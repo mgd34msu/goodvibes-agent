@@ -203,6 +203,11 @@ describe('routines CLI command', () => {
     expect(imported.exitCode).toBe(0);
     expect(imported.output).toContain('Imported Agent routine travel-prep: Travel Prep (enabled)');
 
+    const attention = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'attention']) });
+    expect(attention.exitCode).toBe(0);
+    expect(attention.output).toContain('Agent routines needing setup');
+    expect(attention.output).toContain('Travel Prep');
+
     const shownJson = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'show', 'travel-prep', '--json']) });
     const shownPayload = JSON.parse(shownJson.output) as {
       readonly kind?: unknown;

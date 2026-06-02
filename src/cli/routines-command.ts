@@ -250,15 +250,23 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
   const registry = routineRegistry(runtime);
   const snapshot = registry.snapshot();
   const normalized = sub.toLowerCase();
-  if (normalized === 'list' || normalized === 'enabled') {
-    const routines = normalized === 'enabled' ? snapshot.enabledRoutines : snapshot.routines;
+  if (normalized === 'list' || normalized === 'enabled' || normalized === 'attention' || normalized === 'needs-setup') {
+    const routines = normalized === 'enabled'
+      ? snapshot.enabledRoutines
+      : normalized === 'attention' || normalized === 'needs-setup'
+        ? snapshot.routines.filter((routine) => !evaluateAgentRoutineReadiness(routine).ready)
+        : snapshot.routines;
     const value: RoutinesCommandSuccess<{
       readonly path: string;
       readonly routines: readonly AgentRoutineRecord[];
       readonly enabledCount: number;
     }> = {
       ok: true,
-      kind: normalized === 'enabled' ? 'agent.routines.enabled' : 'agent.routines.list',
+      kind: normalized === 'enabled'
+        ? 'agent.routines.enabled'
+        : normalized === 'attention' || normalized === 'needs-setup'
+          ? 'agent.routines.attention'
+          : 'agent.routines.list',
       data: {
         path: snapshot.path,
         routines,
@@ -266,7 +274,15 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       },
     };
     return {
-      output: jsonOrText(runtime, value, renderRoutineList(normalized === 'enabled' ? 'Enabled Agent routines' : 'Agent routines', snapshot.path, routines)),
+      output: jsonOrText(runtime, value, renderRoutineList(
+        normalized === 'enabled'
+          ? 'Enabled Agent routines'
+          : normalized === 'attention' || normalized === 'needs-setup'
+            ? 'Agent routines needing setup'
+            : 'Agent routines',
+        snapshot.path,
+        routines,
+      )),
       exitCode: 0,
     };
   }
@@ -415,7 +431,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
     return handleRoutinePromotion(runtime, rest);
   }
   return {
-    output: 'Usage: goodvibes-agent routines [list|enabled|discover|import-discovered <name> --yes|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes]',
+    output: 'Usage: goodvibes-agent routines [list|enabled|attention|discover|import-discovered <name> --yes|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes]',
     exitCode: 2,
   };
 }

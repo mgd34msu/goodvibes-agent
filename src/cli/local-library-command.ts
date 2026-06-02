@@ -347,7 +347,7 @@ function usagePersonas(): string {
 }
 
 function usageSkills(): string {
-  return 'Usage: goodvibes-agent skills [list|enabled|active|discover|import-discovered <name> --yes|search <query>|show <id>|create [--requires-env A,B] [--requires-command gh,jq]|update <id>|enable <id>|disable <id>|review <id>|stale <id> <reason>|delete <id> --yes|bundle ...]';
+  return 'Usage: goodvibes-agent skills [list|enabled|active|attention|discover|import-discovered <name> --yes|search <query>|show <id>|create [--requires-env A,B] [--requires-command gh,jq]|update <id>|enable <id>|disable <id>|review <id>|stale <id> <reason>|delete <id> --yes|bundle ...]';
 }
 
 function usageBundles(): string {
@@ -608,6 +608,10 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
         renderSkillList('Active Agent skills', snapshot.path, snapshot.activeSkills),
         snapshot.enabledBundles.length > 0 ? renderBundleList('Enabled Agent skill bundles', snapshot.path, snapshot.enabledBundles) : '',
       ].filter(Boolean).join('\n\n'));
+    }
+    if (normalized === 'attention' || normalized === 'needs-setup') {
+      const skills = snapshot.skills.filter((skill) => !evaluateAgentSkillReadiness(skill).ready);
+      return success(runtime, 'agent.skills.attention', { path: snapshot.path, skills }, renderSkillList('Agent skills needing setup', snapshot.path, skills));
     }
     if (normalized === 'discover') {
       const discovered = await discoverSkills(shellPaths(runtime));

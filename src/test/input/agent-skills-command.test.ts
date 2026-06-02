@@ -45,6 +45,7 @@ describe('/agent-skills command', () => {
       'definitely-missing-goodvibes-agent-test-bin',
     ], ctx);
     await registry.execute('agent-skills', ['enable', 'inbox-triage'], ctx);
+    await registry.execute('agent-skills', ['attention'], ctx);
     await registry.execute('agent-skills', ['enabled'], ctx);
     await registry.execute('agent-skills', ['show', 'inbox-triage'], ctx);
     await registry.execute('agent-skills', ['disable', 'inbox-triage'], ctx);
