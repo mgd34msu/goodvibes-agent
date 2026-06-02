@@ -447,22 +447,29 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list']);
     expect(workspace.status).toContain('/plan list');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('plan-show');
+    feedText(workspace, 'plan-123');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/plan show plan-123');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tasks-list');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/tasks list']);
+    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/plan show plan-123', '/tasks list']);
     expect(workspace.status).toContain('/tasks list');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'sessions-list');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/tasks list', '/sessions']);
+    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/plan show plan-123', '/tasks list', '/sessions']);
     expect(workspace.status).toContain('/sessions');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approvals');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/tasks list', '/sessions', '/approval matrix']);
+    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/plan show plan-123', '/tasks list', '/sessions', '/approval matrix']);
     expect(workspace.status).toContain('/approval matrix');
   });
 
@@ -3320,6 +3327,23 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/schedule reconcile']);
     expect(workspace.status).toContain('/schedule reconcile');
+  });
+
+  test('automation workspace opens health repair guidance from a domain form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'health-repair');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('health-repair');
+    clearEditorField(workspace);
+    feedText(workspace, 'accounts');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/health repair accounts']);
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
   });
 
   test('automation workspace creates a confirmed reminder schedule through a form', () => {

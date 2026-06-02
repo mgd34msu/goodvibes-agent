@@ -896,6 +896,17 @@ describe('renderAgentWorkspace', () => {
     expect(confirmOutput).toContain('Confirm *');
     expect(output).not.toContain('<routine-id>');
     expect(output).not.toContain('<expr>');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'health-repair');
+    const healthActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(healthActionOutput).toContain('Health repair guidance');
+    expect(healthActionOutput).toContain('edit health-repair');
+
+    workspace.activateSelected();
+    const healthEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(healthEditorOutput).toContain('Show Health Repair Guidance');
+    expect(healthEditorOutput).toContain('Domain *');
   });
 
   test('renders voice media and browser tool setup posture', () => {
@@ -1157,6 +1168,17 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Clear completed work');
     expect(output).toContain('edit workplan-clear-completed');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-show');
+    const planOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(planOutput).toContain('Show saved plan');
+    expect(planOutput).toContain('edit plan-show');
+
+    workspace.activateSelected();
+    const planEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(planEditorOutput).toContain('Show Saved Plan');
+    expect(planEditorOutput).toContain('Plan id *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-show');
     const taskOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(taskOutput).toContain('Inspect runtime task');

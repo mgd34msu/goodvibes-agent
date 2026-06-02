@@ -339,6 +339,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'session-delete', label: 'Delete saved session', detail: 'Open a confirmed form before deleting one saved Agent session.', editorKind: 'session-delete', kind: 'editor', safety: 'safe' },
       { id: 'planning-status', label: 'Planning status', detail: 'Inspect current Agent planning readiness, mode, and next question without seeding or approving planning state.', command: '/plan status', kind: 'command', safety: 'read-only' },
       { id: 'planning-list', label: 'Saved plans', detail: 'List local execution plans without opening copied planning panels or changing planning state.', command: '/plan list', kind: 'command', safety: 'read-only' },
+      { id: 'plan-show', label: 'Show saved plan', detail: 'Open a plan-id form for read-only saved plan detail.', editorKind: 'plan-show', kind: 'editor', safety: 'read-only' },
       { id: 'tasks-list', label: 'Runtime tasks', detail: 'Inspect connected-host task state without creating, retrying, or mutating tasks.', command: '/tasks list', kind: 'command', safety: 'read-only' },
       { id: 'task-show', label: 'Inspect runtime task', detail: 'Open a task-id form for read-only connected-host task metadata.', editorKind: 'task-show', kind: 'editor', safety: 'read-only' },
       { id: 'task-output', label: 'Show task output', detail: 'Open a task-id form for read-only connected-host task output.', editorKind: 'task-output', kind: 'editor', safety: 'read-only' },
@@ -360,6 +361,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'schedule-reconcile', label: 'Reconcile schedules', detail: 'Compare local promotion receipts with live connected schedules using schedules.list.', command: '/schedule reconcile', kind: 'command', safety: 'read-only' },
       { id: 'schedule-policy', label: 'Local scheduler blocked', detail: 'Local schedule add/run/remove/enable/disable remain blocked; confirmed reminders and routine promotion use connected schedules only.', kind: 'guidance', safety: 'blocked' },
       { id: 'health-services', label: 'Host status', detail: 'Inspect connected-host readiness without starting, stopping, or restarting anything.', command: '/health review', kind: 'command', safety: 'read-only' },
+      { id: 'health-repair', label: 'Health repair guidance', detail: 'Open a domain form for read-only health repair guidance.', editorKind: 'health-repair', kind: 'editor', safety: 'read-only' },
     ],
   },
   {
