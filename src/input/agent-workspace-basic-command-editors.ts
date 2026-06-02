@@ -9,6 +9,8 @@ import type { AgentWorkspaceLibraryCommandEditorKind } from './agent-workspace-l
 import { createAgentWorkspaceLibraryCommandEditor, isAgentWorkspaceLibraryCommandEditorKind } from './agent-workspace-library-command-editors.ts';
 import type { AgentWorkspaceMemoryCommandEditorKind } from './agent-workspace-memory-command-editors.ts';
 import { createAgentWorkspaceMemoryCommandEditor, isAgentWorkspaceMemoryCommandEditorKind } from './agent-workspace-memory-command-editors.ts';
+import type { AgentWorkspaceMediaCommandEditorKind } from './agent-workspace-media-command-editors.ts';
+import { createAgentWorkspaceMediaCommandEditor, isAgentWorkspaceMediaCommandEditorKind } from './agent-workspace-media-command-editors.ts';
 import type { AgentWorkspaceOperationsCommandEditorKind } from './agent-workspace-operations-command-editors.ts';
 import { createAgentWorkspaceOperationsCommandEditor, isAgentWorkspaceOperationsCommandEditorKind } from './agent-workspace-operations-command-editors.ts';
 import type { AgentWorkspaceProviderCommandEditorKind } from './agent-workspace-provider-command-editors.ts';
@@ -22,7 +24,7 @@ import { createAgentWorkspaceTaskCommandEditor, isAgentWorkspaceTaskCommandEdito
 export type { AgentWorkspaceBasicCommandEditorSubmission } from './agent-workspace-basic-command-editor-submission.ts';
 export { buildAgentWorkspaceBasicCommandEditorSubmission } from './agent-workspace-basic-command-editor-submission.ts';
 
-export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEditorKind | AgentWorkspaceChannelCommandEditorKind | AgentWorkspaceKnowledgeCommandEditorKind | AgentWorkspaceLibraryCommandEditorKind | AgentWorkspaceMemoryCommandEditorKind | AgentWorkspaceOperationsCommandEditorKind | AgentWorkspaceProviderCommandEditorKind | AgentWorkspaceSessionCommandEditorKind | AgentWorkspaceSkillBundleCommandEditorKind | AgentWorkspaceTaskCommandEditorKind | Extract<
+export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEditorKind | AgentWorkspaceChannelCommandEditorKind | AgentWorkspaceKnowledgeCommandEditorKind | AgentWorkspaceLibraryCommandEditorKind | AgentWorkspaceMemoryCommandEditorKind | AgentWorkspaceMediaCommandEditorKind | AgentWorkspaceOperationsCommandEditorKind | AgentWorkspaceProviderCommandEditorKind | AgentWorkspaceSessionCommandEditorKind | AgentWorkspaceSkillBundleCommandEditorKind | AgentWorkspaceTaskCommandEditorKind | Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-urls' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'knowledge-reindex' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
   | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
@@ -44,6 +46,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || isAgentWorkspaceKnowledgeCommandEditorKind(kind)
     || isAgentWorkspaceLibraryCommandEditorKind(kind)
     || isAgentWorkspaceMemoryCommandEditorKind(kind)
+    || isAgentWorkspaceMediaCommandEditorKind(kind)
     || isAgentWorkspaceOperationsCommandEditorKind(kind)
     || isAgentWorkspaceProviderCommandEditorKind(kind)
     || isAgentWorkspaceSessionCommandEditorKind(kind)
@@ -114,6 +117,9 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
   }
   if (isAgentWorkspaceMemoryCommandEditorKind(kind)) {
     return createAgentWorkspaceMemoryCommandEditor(kind);
+  }
+  if (isAgentWorkspaceMediaCommandEditorKind(kind)) {
+    return createAgentWorkspaceMediaCommandEditor(kind);
   }
   if (isAgentWorkspaceOperationsCommandEditorKind(kind)) {
     return createAgentWorkspaceOperationsCommandEditor(kind);

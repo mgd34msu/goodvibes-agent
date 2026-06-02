@@ -9,6 +9,10 @@ import { BUILTIN_SECRET_PROVIDER_SOURCES, describeSecretRef, isSecretRefInput, r
 import { requireBookmarkManager, requireProviderApi, requireSecretsManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
+import {
+  formatAgentMediaGenerationResult,
+  generateAgentMedia,
+} from '../../agent/media-generation.ts';
 
 function isGoodVibesSecretRefInput(value: string): boolean {
   const normalized = value.trim();
@@ -47,6 +51,60 @@ function toggleBlocks(typeFilter: string, collapsed: boolean, ctx: CommandContex
   }
   ctx.print(`${collapsed ? 'Collapsed' : 'Expanded'} ${count} block${count !== 1 ? 's' : ''}${typeFilter !== 'all' ? ` (${typeFilter})` : ''}.`);
   ctx.renderRequest();
+}
+
+interface MediaGenerateArgs {
+  readonly prompt: string;
+  readonly providerId?: string;
+  readonly modelId?: string;
+  readonly outputMimeType?: string;
+  readonly yes: boolean;
+  readonly errors: readonly string[];
+}
+
+function readFlagValue(args: readonly string[], index: number, flag: string, errors: string[]): string | null {
+  const value = args[index + 1];
+  if (!value || value.startsWith('--')) {
+    errors.push(`${flag} requires a value.`);
+    return null;
+  }
+  return value;
+}
+
+function parseMediaGenerateArgs(args: readonly string[]): MediaGenerateArgs {
+  const parsed = stripYesFlag([...args]);
+  const errors: string[] = [];
+  const promptParts: string[] = [];
+  let providerId: string | undefined;
+  let modelId: string | undefined;
+  let outputMimeType: string | undefined;
+  for (let index = 0; index < parsed.rest.length; index += 1) {
+    const arg = parsed.rest[index];
+    if (arg === '--provider') {
+      providerId = readFlagValue(parsed.rest, index, arg, errors) ?? providerId;
+      index += 1;
+    } else if (arg === '--model') {
+      modelId = readFlagValue(parsed.rest, index, arg, errors) ?? modelId;
+      index += 1;
+    } else if (arg === '--mime') {
+      outputMimeType = readFlagValue(parsed.rest, index, arg, errors) ?? outputMimeType;
+      index += 1;
+    } else if (arg?.startsWith('--')) {
+      errors.push(`Unknown media generation flag: ${arg}`);
+    } else if (arg) {
+      promptParts.push(arg);
+    }
+  }
+  const prompt = promptParts.join(' ').trim();
+  if (!prompt) errors.push('Media generation prompt is required.');
+  return {
+    prompt,
+    ...(providerId ? { providerId } : {}),
+    ...(modelId ? { modelId } : {}),
+    ...(outputMimeType ? { outputMimeType } : {}),
+    yes: parsed.yes,
+    errors,
+  };
 }
 
 export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
@@ -250,6 +308,53 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
       }
       const content: ContentPart[] = [{ type: 'text', text: promptText }, { type: 'image', data, mediaType }];
       ctx.submitInput?.(promptText, content);
+    },
+  });
+
+  registry.register({
+    name: 'media',
+    description: 'Inspect media providers or generate media through configured providers',
+    usage: 'providers | generate [--provider <id>] [--model <id>] [--mime <mime>] <prompt> --yes',
+    argsHint: '<providers|generate>',
+    async handler(args, ctx) {
+      const subcommand = args[0]?.toLowerCase() || 'providers';
+      const registry = ctx.platform.mediaProviderRegistry;
+      if (!registry) {
+        ctx.print('[media] Media providers are not available in this runtime.');
+        return;
+      }
+      if (subcommand === 'providers' || subcommand === 'status' || subcommand === 'list') {
+        const statuses = await registry.status();
+        ctx.print([
+          '[media] Providers:',
+          ...statuses.map((provider) => `  ${provider.id}: ${provider.state}${provider.configured ? '' : ' (setup needed)'} - ${provider.capabilities.join(', ')}${provider.detail ? ` - ${provider.detail}` : ''}`),
+        ].join('\n'));
+        return;
+      }
+      if (subcommand !== 'generate') {
+        ctx.print('[media] Usage: /media providers | /media generate [--provider <id>] [--model <id>] [--mime <mime>] <prompt> --yes');
+        return;
+      }
+      const artifactStore = ctx.platform.artifactStore;
+      if (!artifactStore) {
+        ctx.print('[media] Artifact storage is not available in this runtime.');
+        return;
+      }
+      const parsed = parseMediaGenerateArgs(args.slice(1));
+      if (parsed.errors.length > 0) {
+        ctx.print(`[media] ${parsed.errors.join('\n[media] ')}`);
+        return;
+      }
+      if (!parsed.yes) {
+        requireYesFlag(ctx, `generate media for "${parsed.prompt}"`, '/media generate [--provider <id>] [--model <id>] [--mime <mime>] <prompt> --yes');
+        return;
+      }
+      try {
+        const result = await generateAgentMedia(registry, artifactStore, parsed);
+        ctx.print(formatAgentMediaGenerationResult(result));
+      } catch (error) {
+        ctx.print(`[media] Generation failed: ${summarizeError(error)}`);
+      }
     },
   });
 

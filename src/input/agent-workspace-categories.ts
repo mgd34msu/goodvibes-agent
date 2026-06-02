@@ -229,6 +229,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'voice-bundle-inspect', label: 'Inspect voice bundle', detail: 'Open a form that inspects voice setup state before review.', editorKind: 'voice-bundle-inspect', kind: 'editor', safety: 'read-only' },
       { id: 'tts-speak', label: 'Speak a prompt', detail: 'Open an in-workspace prompt form for spoken assistant replies through configured live TTS.', editorKind: 'tts-prompt', kind: 'editor', safety: 'safe' },
       { id: 'image-attach', label: 'Attach image input', detail: 'Open an in-workspace image form for attaching a real image path and optional prompt.', editorKind: 'image-input', kind: 'editor', safety: 'safe' },
+      { id: 'media-providers', label: 'Media providers', detail: 'Inspect configured media provider readiness without generating artifacts.', command: '/media providers', kind: 'command', safety: 'read-only' },
+      { id: 'media-generate', label: 'Generate media', detail: 'Open a confirmed prompt form that generates image or video artifacts through configured media providers.', editorKind: 'media-generate', kind: 'editor', safety: 'safe' },
       { id: 'browser-tools', label: 'Browser tools', detail: 'Inspect browser/tool server readiness without starting inbound endpoints or mutating connected-host state.', command: '/mcp servers', kind: 'command', safety: 'read-only' },
       { id: 'voice-media-mcp-tools', label: 'MCP tool inventory', detail: 'List available MCP tools, including browser and automation roles, without changing server trust or setup.', command: '/mcp tools', kind: 'command', safety: 'read-only' },
     ],

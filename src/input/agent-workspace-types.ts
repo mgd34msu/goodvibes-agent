@@ -62,6 +62,7 @@ export type AgentWorkspaceEditorKind =
   | 'secret-delete'
   | 'tts-prompt'
   | 'image-input'
+  | 'media-generate'
   | 'skill-bundle'
   | 'skill-bundle-search'
   | 'skill-bundle-show'

@@ -80,6 +80,8 @@ Do not map local memory, routines, skills, personas, or default wiki documents i
 
 Artifacts are first-class runtime objects for files, images, audio, video, generated outputs, and delegation results. Agent Knowledge use of artifacts must still go through Agent-specific ingest routes when those are available.
 
+Agent Workspace -> Voice & Media -> Generate media creates image/video artifacts through configured media providers after typed confirmation. The main conversation can perform the same confirmed action with the `agent_media_generate` tool when the user explicitly asks for generated media. Generated media output is summarized as artifact ids, MIME types, filenames, and source URLs when present; inline base64 is not printed into the transcript.
+
 Until dedicated Agent artifact-ingest route coverage exists, multimodal outputs should stay in the conversation, artifacts, local memory, or explicit delegation results rather than being inserted into default Knowledge/Wiki.
 
 ## Related Docs

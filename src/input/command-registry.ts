@@ -21,6 +21,7 @@ import type { PeerClient } from '@/runtime/index.ts';
 import type { DirectTransport } from '@/runtime/index.ts';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
+import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type {
   CommandWorkspaceShellServices,
 } from '@/runtime/index.ts';
@@ -157,6 +158,7 @@ export interface CommandPlatformConfigServices {
   readonly voiceProviderRegistry?: VoiceProviderRegistry;
   readonly voiceService?: VoiceService;
   readonly mediaProviderRegistry?: MediaProviderRegistry;
+  readonly artifactStore?: Pick<ArtifactStore, 'create'>;
 }
 
 export interface CommandPlatformServices

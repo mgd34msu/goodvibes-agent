@@ -52,6 +52,8 @@ Use the Profiles workspace form to assemble a local starter template and isolate
 
 Use the Knowledge area in that workspace to ingest source URLs, local files, URL-list files, bookmarks, browser history, and connector input without leaving the TUI. Every ingest path requires typed confirmation and writes only to the isolated Agent Knowledge segment.
 
+Use the Voice & Media area to review media provider readiness, attach images to conversation prompts, and generate image/video artifacts from a confirmed form. Generated media stays in GoodVibes artifact storage and returns artifact ids for follow-up conversation or delegation; it is not written into default Knowledge/Wiki or HomeGraph.
+
 Use the Routines workspace receipt actions to review redacted local routine promotion history and reconcile those receipts with live connected schedules through public `schedules.list`. The `/schedule receipts` and `/schedule reconcile` commands are the power-user equivalents inside the TUI.
 
 The local behavior libraries are configured in the TUI first:

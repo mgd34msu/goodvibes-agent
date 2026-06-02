@@ -3374,12 +3374,27 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'Summarize the visible errors');
     feedKey(workspace, 'enter');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'media-generate');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('media-generate');
+    feedText(workspace, 'Create a clean dashboard hero image');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'fal');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'fast-sdxl');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'image/png');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
     expect(dispatched).toEqual([
       '/tts "Read the morning brief"',
       '/image ./screenshots/dashboard.png "Summarize the visible errors"',
+      '/media generate --provider fal --model fast-sdxl --mime image/png "Create a clean dashboard hero image" --yes',
     ]);
     expect(workspace.localEditor).toBeNull();
-    expect(workspace.lastActionResult?.title).toBe('Opening image input');
+    expect(workspace.lastActionResult?.title).toBe('Opening media generation');
   });
 
   test('summarizes isolated Agent profile posture', () => {

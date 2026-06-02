@@ -32,6 +32,7 @@ import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
+import { registerAgentMediaGenerateTool } from '../tools/agent-media-generate-tool.ts';
 import { registerAgentNotifyTool } from '../tools/agent-notify-tool.ts';
 import { registerAgentOperatorActionTool } from '../tools/agent-operator-action-tool.ts';
 import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
@@ -237,6 +238,7 @@ export async function initializeBootstrapCore(
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
+  registerAgentMediaGenerateTool(toolRegistry, services.mediaProviders, services.artifactStore);
   registerAgentNotifyTool(toolRegistry, configManager, services.webhookNotifier);
   registerAgentOperatorActionTool(toolRegistry, services.shellPaths, configManager);
   registerAgentOperatorBriefingTool(toolRegistry, services.shellPaths, configManager);
