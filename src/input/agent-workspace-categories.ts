@@ -507,7 +507,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'planning-status', label: 'Planning status', detail: 'Inspect current Agent planning readiness, mode, and next question without seeding or approving planning state.', command: '/plan status', kind: 'command', safety: 'read-only' },
       { id: 'planning-mode', label: 'Planning mode', detail: 'Inspect current planner mode and runtime strategy without changing it.', command: '/plan mode', kind: 'command', safety: 'read-only' },
       { id: 'planning-explain', label: 'Explain planner', detail: 'Explain planner state and readiness without approving or changing it.', command: '/plan explain', kind: 'command', safety: 'read-only' },
-      { id: 'planning-list', label: 'Saved plans', detail: 'List local execution plans without opening copied planning panels or changing planning state.', command: '/plan list', kind: 'command', safety: 'read-only' },
+      { id: 'planning-list', label: 'Saved plans', detail: 'List local execution plans without opening deferred planning panels or changing planning state.', command: '/plan list', kind: 'command', safety: 'read-only' },
       { id: 'plan-seed', label: 'Seed planning goal', detail: 'Open a form that seeds current planning state from a concrete Agent operating goal.', editorKind: 'plan-seed', kind: 'editor', safety: 'safe' },
       { id: 'plan-show', label: 'Show saved plan', detail: 'Open a plan-id form for read-only saved plan detail.', editorKind: 'plan-show', kind: 'editor', safety: 'read-only' },
       { id: 'plan-approve', label: 'Approve planning state', detail: 'Open a confirmation form before approving current planning state for execution.', editorKind: 'plan-approve', kind: 'editor', safety: 'safe' },

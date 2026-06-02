@@ -102,7 +102,7 @@ Use `Capture learned behavior` in the Agent workspace after reviewing a repeated
 
 Use Agent Workspace -> Research for web research and URL inspection. Research requests run in the normal main conversation, can use connected read-only web tools when you ask, and do not ingest sources. Use confirmed Agent Knowledge ingest actions only when a reviewed source should become durable Agent-owned knowledge.
 
-Use Agent Workspace -> Notes for source triage and temporary context. Notes are a scratchpad: they are reviewable local records, but they do not become durable memory or Agent Knowledge unless you explicitly promote them into memory/skills/routines/personas or run a confirmed Agent Knowledge ingest action.
+Use Agent Workspace -> Notes for source triage and temporary context. Notes are a scratchpad: they are reviewable local records, but they do not become durable memory or Agent Knowledge unless you explicitly promote them into memory/skills/routines/personas or run a confirmed Agent Knowledge ingest action. A reviewed note with a source URL can prefill the Agent Knowledge URL ingest form so you do not have to copy the URL by hand.
 
 Day-one local behavior setup should stay in the fullscreen workspace:
 

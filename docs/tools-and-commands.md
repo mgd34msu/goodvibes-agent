@@ -23,7 +23,7 @@ High-signal Agent TUI paths:
 - `/model` and `/provider` for provider/model selection and visibility.
 - `/agent` for the fullscreen operator workspace: setup, provider/model, Agent Knowledge, memory, notes, personas, skills, routines, channels, MCP/tools, secrets, voice/media, work state, automation, and build delegation.
 - Agent Workspace -> Research for read-only web research, URL inspection, source triage, and explicit source-to-Agent-Knowledge handoff.
-- Agent Workspace -> Notes for local source-triage notes, temporary decisions, and operator handoff. Notes do not write memory or Agent Knowledge by themselves; reviewed notes can prefill memory, skills, routines, or personas.
+- Agent Workspace -> Notes for local source-triage notes, temporary decisions, and operator handoff. Notes do not write memory or Agent Knowledge by themselves; reviewed notes can prefill memory, skills, routines, personas, or an isolated Agent Knowledge URL ingest.
 - `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
 - `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.

@@ -63,9 +63,9 @@ export function registerQrcodeRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
       const binding = resolveRuntimeEndpointBinding(configManager, 'controlPlane');
-      const daemonUrl = `http://${urlHostForBindHost(binding.host)}:${binding.port}`;
+      const connectedHostUrl = `http://${urlHostForBindHost(binding.host)}:${binding.port}`;
       const info = buildCompanionConnectionInfo({
-        daemonUrl,
+        daemonUrl: connectedHostUrl,
         token: tokenRecord.token,
         username: 'admin',
         surface: GOODVIBES_AGENT_PAIRING_SURFACE,
