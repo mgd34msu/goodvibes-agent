@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
+  createAgentRuntimeProfileTemplateFromDiscovered,
   createAgentRuntimeProfile,
   deleteAgentRuntimeProfile,
   exportAgentRuntimeProfileTemplate,
@@ -20,6 +21,12 @@ function parseFlag(args: readonly string[], name: string): string | undefined {
   if (index < 0) return undefined;
   const value = args[index + 1];
   return value && !value.startsWith('--') ? value : undefined;
+}
+
+function parseCsvFlag(args: readonly string[], name: string): readonly string[] | undefined {
+  const raw = parseFlag(args, name);
+  if (!raw) return undefined;
+  return raw.split(',').map((entry) => entry.trim()).filter(Boolean);
 }
 
 function profileLine(profile: AgentRuntimeProfileInfo): string {
@@ -108,8 +115,8 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
     name: 'agent-profile',
     aliases: ['runtime-profile', 'agent-profiles'],
     description: 'Manage isolated Agent profiles and starter templates',
-    usage: '[list|templates|guide|template show|template export|template import|create|delete]',
-    handler(args, ctx) {
+    usage: '[list|templates|guide|template show|template export|template import|template from-discovered|create|delete]',
+    async handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);
       const homeDirectory = shellPaths.homeDirectory;
       const parsed = stripYesFlag(args);
@@ -175,7 +182,35 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             ctx.print(`Agent starter template imported: ${template.id}\n  source: ${template.source}\n  use: /agent-profile create <name> --template ${template.id} --yes`);
             return;
           }
-          ctx.print('Usage: /agent-profile template [show <id>|export <id> <path> --yes|import <path> --yes]');
+          if (mode === 'from-discovered' || mode === 'import-discovered') {
+            const templateId = commandArgs[2];
+            if (!templateId) {
+              ctx.print('Usage: /agent-profile template from-discovered <id> [--name <name>] [--description <summary>] [--persona <name>] [--skills all|name,name] [--routines all|name,name] [--replace] --yes');
+              return;
+            }
+            if (!parsed.yes) {
+              requireYesFlag(ctx, `create Agent starter template ${templateId} from discovered behavior`, '/agent-profile template from-discovered <id> --yes');
+              return;
+            }
+            const template = await createAgentRuntimeProfileTemplateFromDiscovered(shellPaths, {
+              id: templateId,
+              name: parseFlag(commandArgs, '--name'),
+              description: parseFlag(commandArgs, '--description'),
+              persona: parseFlag(commandArgs, '--persona'),
+              skills: parseCsvFlag(commandArgs, '--skills'),
+              routines: parseCsvFlag(commandArgs, '--routines'),
+              replace: commandArgs.includes('--replace'),
+            });
+            ctx.print([
+              `Agent starter template created from discovered behavior: ${template.id}`,
+              `  persona: ${template.personaName}`,
+              `  skills: ${template.skillNames.join(', ')}`,
+              `  routines: ${template.routineNames.join(', ')}`,
+              `  use: /agent-profile create <name> --template ${template.id} --yes`,
+            ].join('\n'));
+            return;
+          }
+          ctx.print('Usage: /agent-profile template [show <id>|export <id> <path> --yes|import <path> --yes|from-discovered <id> --yes]');
           return;
         }
 

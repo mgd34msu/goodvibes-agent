@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -9,6 +9,7 @@ import {
   exportAgentRuntimeProfileTemplate,
   getAgentRuntimeProfilesRoot,
   importAgentRuntimeProfileTemplate,
+  createAgentRuntimeProfileTemplateFromDiscovered,
   listAgentRuntimeProfileTemplates,
   listAgentRuntimeProfiles,
   normalizeAgentRuntimeProfileId,
@@ -110,5 +111,58 @@ describe('Agent profiles', () => {
     const profile = createAgentRuntimeProfile(home, 'lab', { templateId: 'lab-operator' });
     const persona = new AgentPersonaRegistry(join(profile.homeDirectory, '.goodvibes', 'agent', 'personas', 'personas.json')).snapshot();
     expect(persona.activePersona?.name).toBe('Lab Operator');
+  });
+
+  test('creates a local starter template from discovered Agent behavior files', async () => {
+    const home = makeHome();
+    const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-discovery-workspace-'));
+    mkdirSync(join(workspace, '.goodvibes', 'agent', 'personas'), { recursive: true });
+    mkdirSync(join(workspace, '.goodvibes', 'agent', 'skills', 'daily-brief'), { recursive: true });
+    mkdirSync(join(workspace, '.goodvibes', 'agent', 'routines'), { recursive: true });
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'personas', 'research.md'), [
+      '---',
+      'name: Research Operator',
+      'description: Source-backed research posture.',
+      'tags: research,operator',
+      '---',
+      'Prefer checked sources and clear unknowns.',
+    ].join('\n'));
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'skills', 'daily-brief', 'SKILL.md'), [
+      '---',
+      'name: Daily Brief Skill',
+      'description: Build a concise operator brief.',
+      'triggers: brief, morning',
+      '---',
+      'Review work plans, approvals, routines, and Agent Knowledge before summarizing.',
+    ].join('\n'));
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'routines', 'evening.md'), [
+      '---',
+      'name: Evening Review',
+      'description: Review open work before shutdown.',
+      '---',
+      'Review work plan, approvals, routines, and Agent Knowledge status.',
+    ].join('\n'));
+
+    const starter = await createAgentRuntimeProfileTemplateFromDiscovered({
+      homeDirectory: home,
+      workingDirectory: workspace,
+    }, {
+      id: 'research-desk',
+      name: 'Research Desk',
+    });
+
+    expect(starter.id).toBe('research-desk');
+    expect(starter.personaName).toBe('Research Operator');
+    expect(starter.skillNames).toEqual(['Daily Brief Skill']);
+    expect(starter.routineNames).toEqual(['Evening Review']);
+    expect(listAgentRuntimeProfileTemplates(home).map((template) => template.id)).toContain('research-desk');
+
+    const profile = createAgentRuntimeProfile(home, 'desk', { templateId: 'research-desk' });
+    const persona = new AgentPersonaRegistry(join(profile.homeDirectory, '.goodvibes', 'agent', 'personas', 'personas.json')).snapshot();
+    const skills = new AgentSkillRegistry(join(profile.homeDirectory, '.goodvibes', 'agent', 'skills', 'skills.json')).snapshot();
+    const routines = new AgentRoutineRegistry(join(profile.homeDirectory, '.goodvibes', 'agent', 'routines', 'routines.json')).snapshot();
+    expect(persona.activePersona?.name).toBe('Research Operator');
+    expect(skills.enabledSkills.map((skill) => skill.name)).toEqual(['Daily Brief Skill']);
+    expect(routines.enabledRoutines.map((routine) => routine.name)).toEqual(['Evening Review']);
   });
 });

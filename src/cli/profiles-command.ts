@@ -1,5 +1,6 @@
 import {
   createAgentRuntimeProfile,
+  createAgentRuntimeProfileTemplateFromDiscovered,
   deleteAgentRuntimeProfile,
   exportAgentRuntimeProfileTemplate,
   importAgentRuntimeProfileTemplate,
@@ -16,6 +17,7 @@ import type { CliCommandOutput, GoodVibesCliParseResult } from './types.ts';
 interface ProfilesCommandRuntime {
   readonly cli: GoodVibesCliParseResult;
   readonly homeDirectory: string;
+  readonly workingDirectory: string;
 }
 
 function hasYes(args: readonly string[]): boolean {
@@ -51,6 +53,12 @@ function parseTemplate(args: readonly string[]): AgentRuntimeProfileTemplateId |
   const normalized = raw.trim().toLowerCase().replace(/_/g, '-');
   if (isAgentRuntimeProfileTemplateId(normalized)) return normalized;
   throw new Error(`Unknown Agent starter profile template: ${raw}. Use profiles templates to list starters.`);
+}
+
+function parseCsvFlag(args: readonly string[], names: readonly string[]): readonly string[] | undefined {
+  const raw = flagValue(args, names);
+  if (!raw) return undefined;
+  return raw.split(',').map((entry) => entry.trim()).filter(Boolean);
 }
 
 function profileLine(profile: AgentRuntimeProfileInfo): string {
@@ -99,6 +107,16 @@ function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string 
       `  use: goodvibes-agent profiles create <name> --template ${result.data.template.id} --yes`,
     ].join('\n');
   }
+  if (result.kind === 'agent.profiles.template.from_discovered' && result.data?.template) {
+    return [
+      `Agent starter template created from discovered behavior: ${result.data.template.id}`,
+      `  name: ${result.data.template.name}`,
+      `  persona: ${result.data.template.personaName}`,
+      `  skills: ${result.data.template.skillNames.join(', ')}`,
+      `  routines: ${result.data.template.routineNames.join(', ')}`,
+      `  use: goodvibes-agent profiles create <name> --template ${result.data.template.id} --yes`,
+    ].join('\n');
+  }
   const profile = result.data?.profile;
   if (result.kind === 'agent.profiles.create' && profile) {
     const template = result.data?.appliedTemplate;
@@ -142,6 +160,51 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
 
     if (sub === 'templates' || sub === 'starters') {
       const [templateAction, templateId, templatePath] = values;
+      if (templateAction === 'from-discovered' || templateAction === 'import-discovered') {
+        if (!templateId) {
+          const result: AgentRuntimeProfileCommandResult = {
+            ok: false,
+            kind: 'agent.profiles.error',
+            error: 'Usage: goodvibes-agent profiles templates from-discovered <id> [--name <name>] [--description <summary>] [--persona <name>] [--skills all|name,name] [--routines all|name,name] [--replace] --yes',
+          };
+          return {
+            output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+            exitCode: 2,
+          };
+        }
+        if (!hasYes(rawRest)) {
+          const result: AgentRuntimeProfileCommandResult = {
+            ok: false,
+            kind: 'agent.profiles.error',
+            error: `Refusing to create Agent starter template ${templateId} from discovered behavior without --yes.`,
+          };
+          return {
+            output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+            exitCode: 2,
+          };
+        }
+        const template = await createAgentRuntimeProfileTemplateFromDiscovered({
+          homeDirectory: runtime.homeDirectory,
+          workingDirectory: runtime.workingDirectory,
+        }, {
+          id: templateId,
+          name: flagValue(rawRest, ['--name']) ?? undefined,
+          description: flagValue(rawRest, ['--description']) ?? undefined,
+          persona: flagValue(rawRest, ['--persona']) ?? undefined,
+          skills: parseCsvFlag(rawRest, ['--skills']),
+          routines: parseCsvFlag(rawRest, ['--routines']),
+          replace: hasYes(rawRest) && rawRest.includes('--replace'),
+        });
+        const result: AgentRuntimeProfileCommandResult = {
+          ok: true,
+          kind: 'agent.profiles.template.from_discovered',
+          data: { template },
+        };
+        return {
+          output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+          exitCode: 0,
+        };
+      }
       if (templateAction === 'export') {
         if (!templateId || !templatePath) {
           const result: AgentRuntimeProfileCommandResult = {

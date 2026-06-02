@@ -32,6 +32,7 @@ export type AgentWorkspaceEditorKind =
   | 'skill-discovery-import'
   | 'profile-template-export'
   | 'profile-template-import'
+  | 'profile-template-from-discovered'
   | 'routine-schedule'
   | 'reminder-schedule';
 

@@ -60,6 +60,8 @@ The setup workspace surfaces discovered local Agent persona, skill, and routine 
 
 Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
 
+Use `profiles templates from-discovered <id> --yes` or the Profiles workspace form to turn reviewed discovered persona, skill, and routine files into a local starter template, then create an isolated profile from that starter.
+
 The Knowledge area includes an in-workspace URL ingest form. It writes only to Agent Knowledge, requires typed confirmation, and dispatches the existing isolated `/knowledge ingest-url ... --yes` route.
 
 Use isolated Agent profiles when one machine needs separate operator identities or local state:

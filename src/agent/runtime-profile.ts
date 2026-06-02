@@ -4,6 +4,10 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { AgentPersonaRegistry } from './persona-registry.ts';
 import { AgentRoutineRegistry } from './routine-registry.ts';
 import { AgentSkillRegistry } from './skill-registry.ts';
+import { discoverPersonas, type DiscoveredPersonaRecord } from './persona-discovery.ts';
+import { discoverRoutines, type DiscoveredRoutineRecord } from './routine-discovery.ts';
+import { discoverSkills, type SkillRecord } from './skill-discovery.ts';
+import type { ShellPathService } from '@/runtime/index.ts';
 
 export type AgentRuntimeProfileTemplateId = string;
 export type AgentRuntimeProfileTemplateSource = 'builtin' | 'local';
@@ -45,6 +49,16 @@ export interface CreateAgentRuntimeProfileOptions {
   readonly templateId?: AgentRuntimeProfileTemplateId;
 }
 
+export interface CreateAgentRuntimeProfileTemplateFromDiscoveredOptions {
+  readonly id: AgentRuntimeProfileTemplateId;
+  readonly name?: string;
+  readonly description?: string;
+  readonly persona?: string;
+  readonly skills?: readonly string[];
+  readonly routines?: readonly string[];
+  readonly replace?: boolean;
+}
+
 export interface AgentRuntimeProfileCommandResult {
   readonly ok: boolean;
   readonly kind:
@@ -53,6 +67,7 @@ export interface AgentRuntimeProfileCommandResult {
     | 'agent.profiles.templates'
     | 'agent.profiles.template.export'
     | 'agent.profiles.template.import'
+    | 'agent.profiles.template.from_discovered'
     | 'agent.profiles.create'
     | 'agent.profiles.delete'
     | 'agent.profiles.error';
@@ -514,6 +529,72 @@ function parseStringArray(value: unknown): readonly string[] {
   return value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean);
 }
 
+function splitFrontmatterList(value: string | undefined): readonly string[] {
+  if (!value) return [];
+  return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
+function normalizedLookupValues(value: string, path?: string): readonly string[] {
+  const slug = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const basename = path?.split(/[\\/]/).pop()?.replace(/\.md$/i, '') ?? '';
+  return [value, slug, path ?? '', basename].map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+}
+
+function selectDiscoveredRecord<T extends { readonly name: string; readonly path: string }>(
+  records: readonly T[],
+  selector: string | undefined,
+  label: string,
+): T {
+  if (records.length === 0) throw new Error(`No discovered Agent ${label} files found.`);
+  if (!selector?.trim()) return records[0]!;
+  const lookup = selector.trim().toLowerCase();
+  const match = records.find((record) => normalizedLookupValues(record.name, record.path).includes(lookup));
+  if (!match) throw new Error(`Unknown discovered Agent ${label}: ${selector}.`);
+  return match;
+}
+
+function selectDiscoveredRecords<T extends { readonly name: string; readonly path: string }>(
+  records: readonly T[],
+  selectors: readonly string[] | undefined,
+  label: string,
+): readonly T[] {
+  if (records.length === 0) throw new Error(`No discovered Agent ${label} files found.`);
+  if (!selectors || selectors.length === 0 || selectors.includes('all')) return records;
+  return selectors.map((selector) => selectDiscoveredRecord(records, selector, label));
+}
+
+function discoveredSkillToTemplate(skill: SkillRecord): AgentRuntimeProfileStarterTemplate['skills'][number] {
+  if (!skill.body.trim()) throw new Error(`Discovered Agent skill ${skill.name} has no procedure body.`);
+  return {
+    name: skill.name,
+    description: skill.description || `Imported skill from ${skill.origin} skill file.`,
+    procedure: skill.body,
+    triggers: splitFrontmatterList(skill.frontmatter.triggers),
+    tags: splitFrontmatterList(skill.frontmatter.tags),
+  };
+}
+
+function discoveredRoutineToTemplate(routine: DiscoveredRoutineRecord): AgentRuntimeProfileStarterTemplate['routines'][number] {
+  if (!routine.steps.trim()) throw new Error(`Discovered Agent routine ${routine.name} has no steps.`);
+  return {
+    name: routine.name,
+    description: routine.description || `Imported routine from ${routine.origin} markdown file.`,
+    steps: routine.steps,
+    triggers: splitFrontmatterList(routine.frontmatter.triggers),
+    tags: splitFrontmatterList(routine.frontmatter.tags),
+  };
+}
+
+function discoveredPersonaToTemplate(persona: DiscoveredPersonaRecord): AgentRuntimeProfileStarterTemplate['persona'] {
+  return {
+    name: persona.name,
+    description: persona.description || `Imported persona from ${persona.origin} markdown file.`,
+    body: persona.body,
+    tags: splitFrontmatterList(persona.frontmatter.tags),
+    triggers: splitFrontmatterList(persona.frontmatter.triggers),
+  };
+}
+
 function readTemplateTextBlock(value: unknown, field: string): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`Starter template ${field} is required.`);
   return value.trim();
@@ -648,6 +729,42 @@ export function importAgentRuntimeProfileTemplate(baseHomeDirectory: string, sou
   const target = join(root, `${parsed.id}.json`);
   writeFileSync(target, `${JSON.stringify(templateFilePayload({ ...parsed, source: 'local', path: target }), null, 2)}\n`, 'utf-8');
   return summarizeTemplate({ ...parsed, source: 'local', path: target });
+}
+
+export async function createAgentRuntimeProfileTemplateFromDiscovered(
+  shellPaths: Pick<ShellPathService, 'homeDirectory' | 'workingDirectory'>,
+  options: CreateAgentRuntimeProfileTemplateFromDiscoveredOptions,
+): Promise<AgentRuntimeProfileTemplateSummary> {
+  const id = assertValidAgentRuntimeProfileId(options.id);
+  const [personas, skills, routines] = await Promise.all([
+    discoverPersonas(shellPaths),
+    discoverSkills(shellPaths),
+    discoverRoutines(shellPaths),
+  ]);
+  const selectedPersona = selectDiscoveredRecord(personas, options.persona, 'persona');
+  const selectedSkills = selectDiscoveredRecords(skills, options.skills, 'skill');
+  const selectedRoutines = selectDiscoveredRecords(routines, options.routines, 'routine');
+  const target = join(getAgentRuntimeProfileTemplatesRoot(shellPaths.homeDirectory), `${id}.json`);
+  if (existsSync(target) && options.replace !== true) {
+    throw new Error(`Agent starter template already exists: ${id}. Rerun with --replace to overwrite it.`);
+  }
+  const persona = discoveredPersonaToTemplate(selectedPersona);
+  const template: AgentRuntimeProfileStarterTemplate = {
+    id,
+    source: 'local',
+    path: target,
+    name: options.name?.trim() || `${persona.name} Starter`,
+    description: options.description?.trim() || 'Agent starter template assembled from discovered local persona, skill, and routine files.',
+    personaName: persona.name,
+    skillNames: selectedSkills.map((skill) => skill.name),
+    routineNames: selectedRoutines.map((routine) => routine.name),
+    persona,
+    skills: selectedSkills.map(discoveredSkillToTemplate),
+    routines: selectedRoutines.map(discoveredRoutineToTemplate),
+  };
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, `${JSON.stringify(templateFilePayload(template), null, 2)}\n`, 'utf-8');
+  return summarizeTemplate(template);
 }
 
 function createMissingSkill(registry: AgentSkillRegistry, template: AgentRuntimeProfileStarterTemplate['skills'][number]): string {

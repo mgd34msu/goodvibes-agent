@@ -6,6 +6,7 @@ type AgentWorkspaceFieldReader = (fieldId: string) => string;
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
+  | 'profile-template-from-discovered'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
@@ -46,6 +47,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'skill-discovery-import'
     || kind === 'profile-template-export'
     || kind === 'profile-template-import'
+    || kind === 'profile-template-from-discovered'
     || kind === 'mcp-server'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
@@ -223,6 +225,25 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       fields: [
         { id: 'path', label: 'Template path', value: '', required: true, multiline: false, hint: 'Workspace-relative JSON path to import.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile template import with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'profile-template-from-discovered') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Create Starter from Discovered Behavior',
+      selectedFieldIndex: 0,
+      message: 'Create an Agent-local starter template from reviewed discovered persona, skill, and routine markdown. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'id', label: 'Starter id', value: '', required: true, multiline: false, hint: 'New local starter id, for example research-desk.' },
+        { id: 'name', label: 'Starter name', value: '', required: false, multiline: false, hint: 'Optional display name. Defaults to the selected persona name.' },
+        { id: 'description', label: 'Description', value: '', required: false, multiline: false, hint: 'Optional one-line summary.' },
+        { id: 'persona', label: 'Persona', value: '', required: false, multiline: false, hint: 'Optional discovered persona name/path. Blank uses the first discovered persona.' },
+        { id: 'skills', label: 'Skills', value: '', required: false, multiline: false, hint: 'all or comma-separated discovered skill names. Blank includes all.' },
+        { id: 'routines', label: 'Routines', value: '', required: false, multiline: false, hint: 'all or comma-separated discovered routine names. Blank includes all.' },
+        { id: 'replace', label: 'Replace existing', value: 'no', required: false, multiline: false, hint: 'yes/no. Existing starter ids are protected unless this is yes.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile template from-discovered with --yes.' },
       ],
     };
   }
@@ -593,6 +614,46 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening Agent starter template import',
         detail: 'The workspace handed a confirmed starter template import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'profile-template-from-discovered') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Starter-from-discovered creation not confirmed. Type yes, then press Enter.' },
+        status: 'Agent starter-from-discovered creation not confirmed.',
+      };
+    }
+    const parts = [
+      '/agent-profile',
+      'template',
+      'from-discovered',
+      quoteSlashCommandArg(readField('id')),
+    ];
+    const name = readField('name');
+    const description = readField('description');
+    const persona = readField('persona');
+    const skills = readField('skills');
+    const routines = readField('routines');
+    if (name.length > 0) parts.push('--name', quoteSlashCommandArg(name));
+    if (description.length > 0) parts.push('--description', quoteSlashCommandArg(description));
+    if (persona.length > 0) parts.push('--persona', quoteSlashCommandArg(persona));
+    if (skills.length > 0) parts.push('--skills', quoteSlashCommandArg(skills));
+    if (routines.length > 0) parts.push('--routines', quoteSlashCommandArg(routines));
+    if (isAffirmative(readField('replace'))) parts.push('--replace');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent starter-from-discovered creation.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent starter-from-discovered creation',
+        detail: 'The workspace handed a confirmed starter creation command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

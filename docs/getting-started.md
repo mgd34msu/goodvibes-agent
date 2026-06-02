@@ -50,6 +50,8 @@ The setup workspace scans local Agent behavior folders and shows importable pers
 
 Use `/agent-profile guide` inside that workspace to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
+Use `goodvibes-agent profiles templates from-discovered research-desk --yes` or the Profiles workspace form to assemble a local starter template from reviewed discovered persona, skill, and routine files.
+
 Use the Knowledge area in that workspace to ingest a source URL without leaving the TUI. The form requires typed confirmation and writes only to the isolated Agent Knowledge segment.
 
 Use `/schedule receipts` to review redacted local routine promotion history and `/schedule reconcile` to compare those receipts with live connected schedules through public `schedules.list`.

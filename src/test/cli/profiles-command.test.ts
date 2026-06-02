@@ -1,10 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
+import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 
 async function runProfilesCli(args: readonly string[], homeDirectory: string) {
   const output: string[] = [];
@@ -151,5 +152,45 @@ describe('profiles CLI command', () => {
     const created = await runProfilesCli(['profiles', 'create', 'briefing', '--template', 'daily-briefing', '--yes'], home);
     expect(created.result.exitCode).toBe(0);
     expect(created.output).toContain('starter: daily-briefing');
+  });
+
+  test('creates a starter template from discovered behavior through the CLI', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-discovered-'));
+    mkdirSync(join(home, '.goodvibes', 'agent', 'personas'), { recursive: true });
+    mkdirSync(join(home, '.goodvibes', 'agent', 'skills', 'briefing'), { recursive: true });
+    mkdirSync(join(home, '.goodvibes', 'agent', 'routines'), { recursive: true });
+    writeFileSync(join(home, '.goodvibes', 'agent', 'personas', 'research.md'), [
+      '---',
+      'name: Research Operator',
+      '---',
+      'Prefer checked sources and clear unknowns.',
+    ].join('\n'));
+    writeFileSync(join(home, '.goodvibes', 'agent', 'skills', 'briefing', 'SKILL.md'), [
+      '---',
+      'name: Daily Brief Skill',
+      '---',
+      'Review work plans, approvals, routines, and Agent Knowledge before summarizing.',
+    ].join('\n'));
+    writeFileSync(join(home, '.goodvibes', 'agent', 'routines', 'evening.md'), [
+      '---',
+      'name: Evening Review',
+      '---',
+      'Review work plan, approvals, routines, and Agent Knowledge status.',
+    ].join('\n'));
+
+    const refused = await runProfilesCli(['profiles', 'templates', 'from-discovered', 'research-desk'], home);
+    expect(refused.result.exitCode).toBe(2);
+    expect(refused.output).toContain('without --yes');
+
+    const created = await runProfilesCli(['profiles', 'templates', 'from-discovered', 'research-desk', '--name', 'Research Desk', '--yes'], home);
+    expect(created.result.exitCode).toBe(0);
+    expect(created.output).toContain('Agent starter template created from discovered behavior: research-desk');
+
+    const profile = await runProfilesCli(['profiles', 'create', 'desk', '--template', 'research-desk', '--yes'], home);
+    expect(profile.result.exitCode).toBe(0);
+    expect(profile.output).toContain('starter: research-desk');
+
+    const personaRegistry = new AgentPersonaRegistry(join(home, '.goodvibes', 'agent', 'profile-homes', 'desk', '.goodvibes', 'agent', 'personas', 'personas.json'));
+    expect(personaRegistry.snapshot().activePersona?.name).toBe('Research Operator');
   });
 });
