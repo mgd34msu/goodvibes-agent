@@ -295,6 +295,12 @@ export class OnboardingWizardController {
     return this.editingFieldId !== null;
   }
 
+  public isEditingMultilineTextField(): boolean {
+    if (this.editingFieldId === null) return false;
+    const field = this.getFieldById(this.editingFieldId);
+    return field?.kind === 'text' && field.multiline === true;
+  }
+
   public getFieldWindow(visibleFields: number): OnboardingWizardFieldWindow {
     const fields = this.currentStep.fields;
     const total = fields.length;
@@ -408,7 +414,7 @@ export class OnboardingWizardController {
     const field = this.getSelectedField();
     if (!field || (field.kind !== 'text' && field.kind !== 'masked')) return false;
     this.beginEdit(field.id);
-    this.editBuffer = initialText;
+    this.editBuffer = this.prepareTextInput(initialText);
     return true;
   }
 
@@ -432,7 +438,13 @@ export class OnboardingWizardController {
 
   public editChar(char: string): void {
     if (this.editingFieldId === null || char.length === 0) return;
-    this.editBuffer += char;
+    this.editBuffer += this.prepareTextInput(char);
+  }
+
+  public editNewline(): boolean {
+    if (!this.isEditingMultilineTextField()) return false;
+    this.editBuffer += '\n';
+    return true;
   }
 
   public editBackspace(): void {
@@ -453,6 +465,11 @@ export class OnboardingWizardController {
     this.applyFeedback = null;
     this.recalculateDirtyState();
     return true;
+  }
+
+  private prepareTextInput(text: string): string {
+    if (this.isEditingMultilineTextField()) return text.replace(/\r\n?/g, '\n');
+    return text.replace(/[\r\n]+/g, ' ');
   }
 
   public setFieldValue(fieldId: string, value: boolean | string): void {

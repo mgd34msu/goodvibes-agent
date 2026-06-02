@@ -230,6 +230,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         hint: 'Tell Agent how to behave when this persona is active.',
         placeholder: 'Be concise, proactive, and use safe local actions before asking for follow-up details.',
         defaultValue: '',
+        multiline: true,
       },
       {
         kind: 'text',
@@ -255,6 +256,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         hint: 'Write the procedure Agent should reuse in the main conversation.',
         placeholder: 'Check tasks, summarize important events, identify blockers, and ask only for missing critical inputs.',
         defaultValue: '',
+        multiline: true,
       },
       {
         kind: 'text',
@@ -280,6 +282,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         hint: 'Write the local routine steps. This stays in Agent-local state only.',
         placeholder: 'Review open tasks; summarize unresolved approvals; list tomorrow priorities; ask what to defer.',
         defaultValue: '',
+        multiline: true,
       },
     ],
   };

@@ -431,6 +431,36 @@ describe('OnboardingWizardController', () => {
     expect(wizard.getSelectedField()?.id).toBe('providers.openai-api-key');
     expect(wizard.getTextFieldValue('providers.openai-api-key')).toBe('jk');
   });
+
+  test('local behavior setup fields support multiline instructions without making all text fields multiline', () => {
+    const wizard = new OnboardingWizardController();
+    wizard.open('new');
+    wizard.setStep(6);
+
+    const routeState = {
+      onboardingWizard: wizard,
+      getViewportHeight: () => 20,
+      requestRender: () => {},
+      handleEscape: () => {},
+    };
+
+    selectOnboardingField(wizard, 'agent-local-state.persona-body');
+    handleOnboardingWizardToken(routeState, { type: 'text', value: 'Line one' });
+    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'j', ctrl: true, shift: false, meta: false } as InputToken);
+    handleOnboardingWizardToken(routeState, { type: 'text', value: 'Line two' });
+    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'return', ctrl: false, shift: false, meta: false } as InputToken);
+
+    expect(wizard.getTextFieldValue('agent-local-state.persona-body')).toBe('Line one\nLine two');
+    expect(wizard.getFieldById('agent-local-state.persona-body')).toMatchObject({ kind: 'text', multiline: true });
+
+    selectOnboardingField(wizard, 'agent-local-state.persona-name');
+    handleOnboardingWizardToken(routeState, { type: 'text', value: 'Line A\nLine B' });
+    handleOnboardingWizardToken(routeState, { type: 'key', logicalName: 'return', ctrl: false, shift: false, meta: false } as InputToken);
+
+    expect(wizard.getTextFieldValue('agent-local-state.persona-name')).toBe('Line A Line B');
+    expect(wizard.getFieldById('agent-local-state.persona-name')).toMatchObject({ kind: 'text' });
+    expect(wizard.getFieldById('agent-local-state.persona-name')).not.toMatchObject({ multiline: true });
+  });
 });
 
 describe('InputHandler onboarding integration', () => {

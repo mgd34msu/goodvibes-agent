@@ -87,6 +87,7 @@ export interface OnboardingWizardTextFieldDefinition extends OnboardingWizardFie
   readonly defaultValue: string;
   readonly placeholder: string;
   readonly required?: boolean;
+  readonly multiline?: boolean;
 }
 
 export interface OnboardingWizardMaskedFieldDefinition extends OnboardingWizardFieldBase {

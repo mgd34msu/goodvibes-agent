@@ -161,14 +161,26 @@ function fieldHint(
     const rawValue = wizard.editBuffer.length > 0 ? wizard.editBuffer : field.placeholder;
     const editingValue = field.kind === 'masked' && wizard.editBuffer.length > 0
       ? '•'.repeat(Math.min(12, Math.max(4, wizard.editBuffer.length)))
-      : rawValue;
+      : formatEditingValue(rawValue, field.kind === 'text' && field.multiline === true);
     return `Editing: ${editingValue}█`;
   }
 
   if (selected && field.kind === 'modelPicker') return `${field.hint} Press Enter to open picker.`;
-  if (selected && field.kind === 'text') return `${field.hint} Press Enter to edit inline.`;
+  if (selected && field.kind === 'text') {
+    return field.multiline === true
+      ? `${field.hint} Press Enter to edit; Ctrl-J inserts a new line.`
+      : `${field.hint} Press Enter to edit inline.`;
+  }
   if (selected && field.kind === 'masked') return `${field.hint} Press Enter to edit inline.`;
   return field.hint;
+}
+
+function formatEditingValue(value: string, multiline: boolean): string {
+  if (!multiline) return value;
+  const lines = value.split(/\r?\n/);
+  if (lines.length <= 1) return value;
+  const preview = lines[lines.length - 1] ?? '';
+  return `${preview} (${lines.length} lines)`;
 }
 
 function fieldRowPrefix(
@@ -255,7 +267,9 @@ function renderFieldRow(
 
 function footerText(wizard: OnboardingWizardController): string {
   if (wizard.isEditingTextField()) {
-    return '[Enter] Save value  [Esc] Cancel edit  [Backspace] Delete char  [Del/Ctrl+U] Clear value';
+    return wizard.isEditingMultilineTextField()
+      ? '[Enter] Save value  [Ctrl-J] New line  [Esc] Cancel edit  [Backspace] Delete char  [Del/Ctrl+U] Clear value'
+      : '[Enter] Save value  [Esc] Cancel edit  [Backspace] Delete char  [Del/Ctrl+U] Clear value';
   }
 
   return '[Enter] Toggle/open  [Esc] Close  [Tab/Shift+Tab] Screen  [↑↓] Move  [Del/Ctrl+U] Clear input';
@@ -263,7 +277,9 @@ function footerText(wizard: OnboardingWizardController): string {
 
 function controlsText(wizard: OnboardingWizardController): string {
   if (wizard.isEditingTextField()) {
-    return 'Controls: Enter saves, Esc cancels, Backspace deletes, Del clears.';
+    return wizard.isEditingMultilineTextField()
+      ? 'Controls: Enter saves, Ctrl-J inserts a line, Esc cancels, Backspace deletes, Del clears.'
+      : 'Controls: Enter saves, Esc cancels, Backspace deletes, Del clears.';
   }
   return 'Controls: Enter selects, Del clears, Tab moves.';
 }

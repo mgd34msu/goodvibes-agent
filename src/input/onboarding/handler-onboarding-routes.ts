@@ -62,7 +62,9 @@ export function handleOnboardingWizardToken(state: OnboardingRouteState, token: 
     }
 
     if (editing) {
-      if (isEnterKey(token)) {
+      if (token.ctrl && (token.logicalName === 'j' || isEnterKey(token))) {
+        state.onboardingWizard.editNewline();
+      } else if (isEnterKey(token)) {
         state.onboardingWizard.commitEdit();
       } else if ((token.ctrl && token.logicalName === 'u') || token.logicalName === 'delete') {
         state.onboardingWizard.clearEditingValue();
