@@ -40,7 +40,7 @@ bun run dev
 
 `goodvibes-agent` starts the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
 
-After setup has been applied once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, conversation/session controls, provider/model selection, Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
+After setup has been applied once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, conversation/session controls, provider/model selection, read-only web research, Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
 
 Press `/` inside the Agent workspace to search every workspace action by name, category, command, or detail. Use that finder before reaching for shell commands; CLI subcommands are scriptable mirrors of these TUI workflows.
 
@@ -98,6 +98,8 @@ Named profiles isolate Agent-local config, sessions, memory, personas, skills, r
 Memory, personas, routines, and reusable Agent skills are local to GoodVibes Agent. First-run setup, TUI workspace forms, and CLI commands all write them to Agent-local registries. They do not write into default Knowledge/Wiki or non-Agent knowledge segments.
 
 Use `Capture learned behavior` in the Agent workspace after reviewing a repeated workflow, lesson, or operating style. It saves one local skill, routine, or persona from the TUI and does not call connected-host mutation routes.
+
+Use Agent Workspace -> Research for web research and URL inspection. Research requests run in the normal main conversation, can use connected read-only web tools when you ask, and do not ingest sources. Use confirmed Agent Knowledge ingest actions only when a reviewed source should become durable Agent-owned knowledge.
 
 Day-one local behavior setup should stay in the fullscreen workspace:
 

@@ -158,6 +158,52 @@ export function buildAgentKnowledgeStep(): OnboardingWizardStepDefinition {
   };
 }
 
+export function buildResearchStep(): OnboardingWizardStepDefinition {
+  return {
+    id: 'agent-research',
+    title: 'Research and source triage',
+    shortLabel: 'Research',
+    description: 'Prepare read-only web research and source triage. Research runs in the main Agent conversation; durable source storage uses explicit Agent Knowledge ingest.',
+    summaryTitle: 'Research posture',
+    summaryLines: [
+      'Web research: read-only main-conversation requests',
+      'URL inspection: user-directed and visible',
+      'Durable sources: explicit Agent Knowledge ingest only',
+    ],
+    fields: [
+      {
+        kind: 'action',
+        id: 'agent-research.workspace',
+        action: 'open-agent-workspace:research',
+        label: 'Research workspace',
+        hint: 'Open the Research workspace to submit web research, inspect URLs, and decide what belongs in Agent Knowledge.',
+        defaultValue: 'Open Research',
+      },
+      {
+        kind: 'status',
+        id: 'agent-research.read-only',
+        label: 'Read-only web use',
+        hint: 'Search and URL inspection are normal Agent conversation turns. They should not send messages, mutate connected-host state, or perform browser side effects.',
+        defaultValue: 'Serial',
+      },
+      {
+        kind: 'status',
+        id: 'agent-research.knowledge-boundary',
+        label: 'Source-to-knowledge boundary',
+        hint: 'Reviewed sources become durable only through confirmed Agent Knowledge ingest actions. Default Knowledge/Wiki and non-Agent segments are not fallback stores.',
+        defaultValue: 'Explicit ingest',
+      },
+      {
+        kind: 'status',
+        id: 'agent-research.context-references',
+        label: 'Inline URL context',
+        hint: 'Use @https://... in the composer to reference a URL for one turn without ingesting it into Agent Knowledge.',
+        defaultValue: 'Available',
+      },
+    ],
+  };
+}
+
 export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot): OnboardingWizardStepDefinition {
   const discoveredCount = discoveryCount(discovery);
   return {

@@ -1,6 +1,6 @@
 import { REASONING_OPTIONS, HITL_MODE_OPTIONS, GUIDANCE_MODE_OPTIONS, PERMISSION_MODE_OPTIONS, SECRET_POLICY_OPTIONS } from './onboarding-wizard-constants.ts';
 import { modelSelectionLabel, normalizeText } from './onboarding-wizard-helpers.ts';
-import { buildAgentKnowledgeStep, buildAutomationStep, buildCommunicationStep, buildDelegationPolicyStep, buildLocalStateStep, buildToolsStep, buildVoiceMediaStep } from './onboarding-wizard-operator-steps.ts';
+import { buildAgentKnowledgeStep, buildAutomationStep, buildCommunicationStep, buildDelegationPolicyStep, buildLocalStateStep, buildResearchStep, buildToolsStep, buildVoiceMediaStep } from './onboarding-wizard-operator-steps.ts';
 import { listAgentRuntimeProfileTemplates } from '../../agent/runtime-profile.ts';
 import type { OnboardingWizardController } from './onboarding-wizard.ts';
 import type { OnboardingWizardActionFieldDefinition, OnboardingWizardFieldDefinition, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardRadioFieldDefinition, OnboardingWizardRadioOption, OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
@@ -30,6 +30,7 @@ export function buildOnboardingWizardSteps(controller: OnboardingWizardControlle
     buildDefaultModelStep(controller),
     buildCommunicationStep(),
     buildToolsStep(),
+    buildResearchStep(),
     buildAgentKnowledgeStep(),
     buildLocalStateStep(controller.runtimeSnapshot?.localBehaviorDiscovery),
     buildAutomationStep(),
@@ -141,6 +142,13 @@ function buildReviewReadinessFields(controller: OnboardingWizardController): rea
       label: 'Agent Knowledge segment',
       hint: 'Ask, search, status, and ingest stay on /api/goodvibes-agent/knowledge/* with no default wiki or non-Agent fallback.',
       defaultValue: 'Isolated',
+    },
+    {
+      kind: 'status',
+      id: 'review.readiness.research',
+      label: 'Research and source triage',
+      hint: 'Web research and URL inspection stay in the main conversation; durable source storage requires explicit Agent Knowledge ingest.',
+      defaultValue: 'Read-only',
     },
     {
       kind: 'status',
