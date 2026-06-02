@@ -47,6 +47,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'setup-tools', label: 'Tools and MCP', detail: 'Open MCP setup, trust review, and tool inventory.', targetCategoryId: 'tools', kind: 'workspace', safety: 'safe' },
       { id: 'setup-voice-media', label: 'Voice and media', detail: 'Open TTS/media settings for voice and image-capable Agent flows.', command: '/config tts', kind: 'command', safety: 'safe' },
       { id: 'provider', label: 'Provider status', detail: 'Review provider/model posture.', command: '/provider', kind: 'command', safety: 'read-only' },
+      { id: 'provider-add', label: 'Add custom provider', detail: 'Open a confirmed form that adds one OpenAI-compatible custom provider for Agent model routing.', editorKind: 'provider-add', kind: 'editor', safety: 'safe' },
+      { id: 'provider-remove', label: 'Remove custom provider', detail: 'Open a confirmed form that removes one Agent custom provider config.', editorKind: 'provider-remove', kind: 'editor', safety: 'safe' },
       { id: 'provider-accounts', label: 'Provider accounts', detail: 'Review provider account routes, subscription windows, and billing-path safety without starting login or repair flows.', command: '/accounts review', kind: 'command', safety: 'read-only' },
       { id: 'subscription-providers', label: 'Subscription providers', detail: 'Review provider subscription login routes without starting a login.', command: '/subscription providers', kind: 'command', safety: 'read-only' },
       { id: 'subscription-review', label: 'Subscription review', detail: 'Inspect active and pending provider subscription sessions without printing token values.', command: '/subscription review', kind: 'command', safety: 'read-only' },
@@ -164,7 +166,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Memory, routines, skills, and personas stay Agent-local until stable shared registry contracts exist. Secrets must not be stored as memory.',
     actions: [
       { id: 'memory-list', label: 'List memory', detail: 'Print the full Agent-owned memory list.', command: '/memory list', kind: 'command', safety: 'read-only' },
-      { id: 'memory-search', label: 'Search memory', detail: 'Open an in-workspace Agent-local memory search form. This never queries default Knowledge/Wiki or HomeGraph.', editorKind: 'memory-search', kind: 'editor', safety: 'read-only' },
+      { id: 'memory-search', label: 'Search memory', detail: 'Open an in-workspace Agent-local memory search form. This never queries default Knowledge/Wiki or other product routes.', editorKind: 'memory-search', kind: 'editor', safety: 'read-only' },
       { id: 'memory-get', label: 'Show memory by id', detail: 'Open an in-workspace form that prints one Agent-local memory record with provenance and links.', editorKind: 'memory-get', kind: 'editor', safety: 'read-only' },
       { id: 'memory-queue', label: 'Review queue', detail: 'Print the Agent-local memory review queue.', command: '/memory queue', kind: 'command', safety: 'read-only' },
       { id: 'memory-explain', label: 'Explain selection', detail: 'Preview which reviewed Agent-local memories would be selected for a task.', editorKind: 'memory-explain', kind: 'editor', safety: 'read-only' },

@@ -36,7 +36,7 @@ export function createAgentWorkspaceMemoryCommandEditor(kind: AgentWorkspaceMemo
       mode: 'create',
       title: 'Search Agent Memory',
       selectedFieldIndex: 0,
-      message: 'Search Agent-local memory only. This does not query default Knowledge/Wiki or HomeGraph.',
+      message: 'Search Agent-local memory only. This does not query default Knowledge/Wiki or other product routes.',
       fields: [
         { id: 'query', label: 'Query', value: '', required: false, multiline: false, hint: 'Optional text query. Blank searches by filters.' },
         { id: 'scope', label: 'Scope', value: '', required: false, multiline: false, hint: 'Optional session, project, or team.' },

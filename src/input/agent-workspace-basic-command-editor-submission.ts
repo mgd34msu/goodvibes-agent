@@ -2,6 +2,7 @@ import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './ag
 import { buildAgentWorkspaceDelegationEditorSubmission, isAgentWorkspaceDelegationEditorKind } from './agent-workspace-delegation-editor-submission.ts';
 import { buildAgentWorkspaceMemoryCommandEditorSubmission, isAgentWorkspaceMemoryCommandSubmissionKind } from './agent-workspace-memory-command-editor-submission.ts';
 import { buildAgentWorkspaceNotifyEditorSubmission, isAgentWorkspaceNotifyEditorKind } from './agent-workspace-notify-editor-submission.ts';
+import { buildAgentWorkspaceProviderCommandEditorSubmission, isAgentWorkspaceProviderCommandSubmissionKind } from './agent-workspace-provider-command-editor-submission.ts';
 import { buildAgentWorkspaceSecretEditorSubmission, isAgentWorkspaceSecretEditorKind } from './agent-workspace-secret-editor-submission.ts';
 import { buildAgentWorkspaceWorkPlanEditorSubmission, isAgentWorkspaceWorkPlanEditorKind } from './agent-workspace-workplan-editor-submission.ts';
 import { quoteSlashCommandArg, tokenizeSlashCommand } from './slash-command-parser.ts';
@@ -212,6 +213,9 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
   }
   if (isAgentWorkspaceMemoryCommandSubmissionKind(editor.kind)) {
     return buildAgentWorkspaceMemoryCommandEditorSubmission(editor, readField);
+  }
+  if (isAgentWorkspaceProviderCommandSubmissionKind(editor.kind)) {
+    return buildAgentWorkspaceProviderCommandEditorSubmission(editor, readField);
   }
   if (editor.kind === 'mcp-server') {
     if (!isAffirmative(readField('confirm'))) {

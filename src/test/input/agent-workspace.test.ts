@@ -1040,6 +1040,48 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening Agent support bundle import');
   });
 
+  test('adds and removes custom providers from setup workspace forms with confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('provider-add');
+    feedText(workspace, 'local_llm');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'http://127.0.0.1:8000/v1');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'sk-local-provider-token');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/provider add local_llm http://127.0.0.1:8000/v1 sk-local-provider-token --yes']);
+    expect(workspace.lastActionResult?.command).toBe('/provider add local_llm http://127.0.0.1:8000/v1 <redacted-api-key> --yes');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-remove');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('provider-remove');
+    feedText(workspace, 'local_llm');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/provider add local_llm http://127.0.0.1:8000/v1 sk-local-provider-token --yes',
+      '/provider remove local_llm --yes',
+    ]);
+  });
+
   test('starts finishes inspects and logs out provider subscriptions from workspace forms', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

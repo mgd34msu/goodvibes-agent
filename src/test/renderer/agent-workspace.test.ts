@@ -415,6 +415,31 @@ describe('renderAgentWorkspace', () => {
     expect(confirmOutput).toContain('Editing: Confirm (required)');
   });
 
+  test('renders custom provider add and remove forms in the setup workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
+    const addActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(addActionOutput).toContain('Add custom provider');
+    expect(addActionOutput).toContain('edit provider-add');
+
+    workspace.activateSelected();
+    const addEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(addEditorOutput).toContain('Add Custom Provider');
+    expect(addEditorOutput).toContain('Provider name *');
+    workspace.moveEditorField(2);
+    const addKeyOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(addKeyOutput).toContain('API key');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-remove');
+    const removeActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(removeActionOutput).toContain('Remove custom provider');
+    expect(removeActionOutput).toContain('edit provider-remove');
+  });
+
   test('renders discovered behavior files as first-run setup actions', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-discovery-'));
     mkdirSync(join(root, '.goodvibes', 'agent', 'personas'), { recursive: true });
