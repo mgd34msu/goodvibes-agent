@@ -1,7 +1,6 @@
 import type { CommandRegistry } from '../command-registry.ts';
 import type { WorkPlanItemStatus, WorkPlanStore } from '../../work-plans/work-plan-store.ts';
 import { WORK_PLAN_STATUSES } from '../../work-plans/work-plan-store.ts';
-import { requirePanelManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
@@ -23,17 +22,6 @@ const STATUS_COMMANDS: Record<string, WorkPlanItemStatus> = {
 
 function getStore(ctx: import('../command-registry.ts').CommandContext): WorkPlanStore | null {
   return ctx.workspace.workPlanStore ?? null;
-}
-
-function openPanel(ctx: import('../command-registry.ts').CommandContext): void {
-  if (ctx.showPanel) {
-    ctx.showPanel('work-plan');
-    return;
-  }
-  const panelManager = requirePanelManager(ctx);
-  panelManager.open('work-plan');
-  panelManager.show();
-  ctx.renderRequest();
 }
 
 function formatList(store: WorkPlanStore): string {
@@ -82,8 +70,8 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
     name: 'workplan',
     aliases: ['wp', 'todo'],
     description: 'Track a persistent workspace-scoped work plan',
-    usage: '[panel|list|show|add <title> [--owner name] [--source label] [--notes text]|done <id>|start <id>|block <id>|fail <id>|cancel <id>|pending <id>|remove <id> --yes|clear-done --yes]',
-    argsHint: '[panel|add|list|done]',
+    usage: '[list|show|add <title> [--owner name] [--source label] [--notes text]|done <id>|start <id>|block <id>|fail <id>|cancel <id>|pending <id>|remove <id> --yes|clear-done --yes]',
+    argsHint: '[list|add|show|done]',
     handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
@@ -92,11 +80,10 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
         ctx.print('Work plan store is not available in this runtime.');
         return;
       }
-      const subcommand = (commandArgs[0] ?? 'panel').toLowerCase();
+      const subcommand = (commandArgs[0] ?? 'list').toLowerCase();
       try {
         if (subcommand === 'panel' || subcommand === 'open') {
-          openPanel(ctx);
-          ctx.print('Opened work plan panel.');
+          ctx.print('Work plan panels are not part of the Agent workspace. Use /workplan list.');
           return;
         }
         if (subcommand === 'list') {
@@ -119,8 +106,7 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
             ...(addArgs.notes ? { notes: addArgs.notes } : {}),
           };
           const item = store.addItem(addArgs.title, addOptions);
-          openPanel(ctx);
-          ctx.print(`Added work plan item ${item.id}.`);
+          ctx.print(`Added work plan item ${item.id}. Use /workplan list to review.`);
           return;
         }
         if (subcommand === 'remove' || subcommand === 'delete' || subcommand === 'rm') {

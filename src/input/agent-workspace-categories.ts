@@ -220,9 +220,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Visible task state, work plan, and approval posture.',
     detail: 'Use this workspace to inspect active operator state. Side-effecting approval decisions require explicit commands and confirmation outside this workspace.',
     actions: [
-      { id: 'workplan', label: 'Open work plan', detail: 'Open the workspace-scoped work plan panel.', command: '/workplan panel', kind: 'command', safety: 'read-only' },
-      { id: 'workplan-list', label: 'List work plan', detail: 'Print a concise work plan summary.', command: '/workplan list', kind: 'command', safety: 'read-only' },
-      { id: 'approvals', label: 'Review approvals', detail: 'Open/read approval posture. This workspace does not approve or deny requests.', command: '/approval open', kind: 'command', safety: 'read-only' },
+      { id: 'workplan', label: 'Review work plan', detail: 'Print a concise work plan summary in the main Agent transcript.', command: '/workplan list', kind: 'command', safety: 'read-only' },
+      { id: 'approvals', label: 'Review approvals', detail: 'Print the approval matrix without approving or denying requests.', command: '/approval matrix', kind: 'command', safety: 'read-only' },
     ],
   },
   {

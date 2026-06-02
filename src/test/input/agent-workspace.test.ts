@@ -253,6 +253,29 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/brief');
   });
 
+  test('work workspace reviews work plan from transcript instead of opening a panel', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+
+    const commands = workspace.actions.map((action) => action.command).filter(Boolean);
+    expect(commands).not.toContain('/workplan panel');
+    expect(commands).not.toContain('/approval open');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'workplan');
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/workplan list']);
+    expect(workspace.status).toContain('/workplan list');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approvals');
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/workplan list', '/approval matrix']);
+    expect(workspace.status).toContain('/approval matrix');
+  });
+
   test('opens local persona library workspace from memory', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

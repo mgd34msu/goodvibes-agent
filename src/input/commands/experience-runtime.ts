@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
-import { requirePanelManager, requireShellPaths } from './runtime-services.ts';
+import { requireShellPaths } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 interface VoiceBundle {
@@ -29,12 +29,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
     async handler(args, ctx) {
       const sub = (args[0] ?? 'matrix').toLowerCase();
       if (sub === 'open' || sub === 'panel') {
-        if (ctx.showPanel) ctx.showPanel('approval');
-        else {
-          const panelManager = requirePanelManager(ctx);
-          panelManager.open('approval');
-          panelManager.show();
-        }
+        ctx.print('Approval panels are not part of the Agent workspace. Use /approval matrix.');
         return;
       }
       const matrix = [
@@ -68,7 +63,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         ].join('\n'));
         return;
       }
-      ctx.print('Usage: /approval [open|matrix|review <kind>]');
+      ctx.print('Usage: /approval [matrix|review <kind>]');
     },
   });
 

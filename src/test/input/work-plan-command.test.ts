@@ -57,10 +57,11 @@ describe('workplan command', () => {
     const ctx = makeContext(out, opened, store);
 
     await command!.handler(['add', 'Ship', 'persistent', 'plan', '--owner', 'tui'], ctx);
-    expect(opened).toContain('work-plan');
+    expect(opened).toEqual([]);
     const item = store.listItems()[0]!;
     expect(item.title).toBe('Ship persistent plan');
     expect(item.owner).toBe('tui');
+    expect(out.join('\n')).toContain('Use /workplan list to review');
 
     await command!.handler(['done', item.id.slice(0, 8)], ctx);
     expect(store.listItems()[0]?.status).toBe('done');
@@ -69,6 +70,47 @@ describe('workplan command', () => {
     await command!.handler(['list'], ctx);
     expect(out.join('\n')).toContain('Ship persistent plan');
     expect(out.join('\n')).toContain('done');
+  });
+
+  test('defaults to a transcript list instead of opening the panel workspace', async () => {
+    const registry = new CommandRegistry();
+    registerWorkPlanRuntimeCommands(registry);
+    const command = registry.get('workplan');
+    expect(command).toBeDefined();
+    const store = new WorkPlanStore({
+      homeDirectory: mkdtempSync(join(tmpdir(), 'gv-work-plan-command-')),
+      projectId: 'project:command',
+      projectRoot: '/tmp/command',
+    });
+    store.addItem('Review operator state', { source: 'test' });
+    const out: string[] = [];
+    const opened: string[] = [];
+    const ctx = makeContext(out, opened, store);
+
+    await command!.handler([], ctx);
+
+    expect(opened).toEqual([]);
+    expect(out.join('\n')).toContain('Review operator state');
+  });
+
+  test('blocks copied panel routing in the Agent work plan command', async () => {
+    const registry = new CommandRegistry();
+    registerWorkPlanRuntimeCommands(registry);
+    const command = registry.get('workplan');
+    expect(command).toBeDefined();
+    const store = new WorkPlanStore({
+      homeDirectory: mkdtempSync(join(tmpdir(), 'gv-work-plan-command-')),
+      projectId: 'project:command',
+      projectRoot: '/tmp/command',
+    });
+    const out: string[] = [];
+    const opened: string[] = [];
+    const ctx = makeContext(out, opened, store);
+
+    await command!.handler(['panel'], ctx);
+
+    expect(opened).toEqual([]);
+    expect(out.join('\n')).toContain('Use /workplan list');
   });
 
   test('requires --yes for destructive work plan cleanup', async () => {
