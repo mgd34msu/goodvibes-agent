@@ -1641,6 +1641,28 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening MCP server add/update');
   });
 
+  test('opens MCP server-specific tools and repair guidance from workspace forms', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-tools-server');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('mcp-tools-server');
+    feedText(workspace, 'filesystem');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-repair');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('mcp-repair');
+    feedText(workspace, 'browser-tools');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/mcp tools filesystem', '/mcp repair browser-tools']);
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
+  });
+
   test('stores links tests and deletes secrets from confirmed workspace forms without rendering raw values', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

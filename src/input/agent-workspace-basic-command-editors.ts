@@ -32,7 +32,7 @@ export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEd
   | 'workplan-add' | 'workplan-status' | 'workplan-delete' | 'workplan-clear-completed'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
-  | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-clear' | 'notify-webhook-test'
+  | 'mcp-server' | 'mcp-tools-server' | 'mcp-repair' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-clear' | 'notify-webhook-test'
   | 'secret-set' | 'secret-link' | 'secret-test' | 'secret-delete'
 >;
 
@@ -81,6 +81,8 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'workplan-delete'
     || kind === 'workplan-clear-completed'
     || kind === 'mcp-server'
+    || kind === 'mcp-tools-server'
+    || kind === 'mcp-repair'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
     || kind === 'notify-webhook-clear'
@@ -225,6 +227,30 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
         { id: 'paths', label: 'Allowed paths', value: '', required: false, multiline: false, hint: 'Comma-separated path allowlist entries.' },
         { id: 'hosts', label: 'Allowed hosts', value: '', required: false, multiline: false, hint: 'Comma-separated host allowlist entries.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save the MCP server through the TUI command router.' },
+      ],
+    };
+  }
+  if (kind === 'mcp-tools-server') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Show MCP Server Tools',
+      selectedFieldIndex: 0,
+      message: 'List tools exposed by one MCP server without changing server trust, role, or config.',
+      fields: [
+        { id: 'server', label: 'Server name', value: '', required: true, multiline: false, hint: 'MCP server name from MCP Review or the fullscreen MCP workspace.' },
+      ],
+    };
+  }
+  if (kind === 'mcp-repair') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Show MCP Repair Guidance',
+      selectedFieldIndex: 0,
+      message: 'Show read-only repair guidance for one MCP server. This does not approve quarantine, change trust, or reload the runtime.',
+      fields: [
+        { id: 'server', label: 'Server name', value: '', required: true, multiline: false, hint: 'MCP server name from MCP Review or Auth review.' },
       ],
     };
   }

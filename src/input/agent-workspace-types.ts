@@ -39,6 +39,8 @@ export type AgentWorkspaceEditorKind =
   | 'memory-handoff-import'
   | 'memory-vector-rebuild'
   | 'mcp-server'
+  | 'mcp-tools-server'
+  | 'mcp-repair'
   | 'notify-webhook'
   | 'notify-webhook-remove'
   | 'notify-webhook-clear'

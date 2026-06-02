@@ -959,14 +959,37 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Open MCP workspace');
     expect(output).toContain('/mcp review');
     expect(output).toContain('/mcp tools');
+    expect(output).toContain('Server tool inventory');
     expect(output).toContain('/mcp config');
     expect(output).toContain('edit mcp-server');
+    expect(output).toContain('Repair guidance');
+    expect(output).toContain('edit mcp-repair');
     expect(output).toContain('typed confirmation');
-    expect(output).toContain('Store secret value');
-    expect(output).toContain('Link secret ref');
-    expect(output).toContain('8 more action(s) below');
+    expect(output).toContain('10 more action(s) below');
     expect(output).toContain('allow-all');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-tools-server');
+    const toolsActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(toolsActionOutput).toContain('Server tool inventory');
+    expect(toolsActionOutput).toContain('edit mcp-tools-server');
+
+    workspace.activateSelected();
+    const toolsEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(toolsEditorOutput).toContain('Show MCP Server Tools');
+    expect(toolsEditorOutput).toContain('Server name *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-repair');
+    const repairActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(repairActionOutput).toContain('Repair guidance');
+    expect(repairActionOutput).toContain('edit mcp-repair');
+
+    workspace.activateSelected();
+    const repairEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(repairEditorOutput).toContain('Show MCP Repair Guidance');
+    expect(repairEditorOutput).toContain('Server name *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-add-server');
     workspace.activateSelected();
     const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));

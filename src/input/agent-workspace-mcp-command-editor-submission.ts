@@ -3,7 +3,7 @@ import { quoteSlashCommandArg, tokenizeSlashCommand } from './slash-command-pars
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
-export type AgentWorkspaceMcpCommandEditorKind = Extract<AgentWorkspaceEditorKind, 'mcp-server'>;
+export type AgentWorkspaceMcpCommandEditorKind = Extract<AgentWorkspaceEditorKind, 'mcp-server' | 'mcp-tools-server' | 'mcp-repair'>;
 
 export type AgentWorkspaceMcpCommandEditorSubmission =
   | {
@@ -20,7 +20,7 @@ export type AgentWorkspaceMcpCommandEditorSubmission =
   };
 
 export function isAgentWorkspaceMcpCommandSubmissionKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceMcpCommandEditorKind {
-  return kind === 'mcp-server';
+  return kind === 'mcp-server' || kind === 'mcp-tools-server' || kind === 'mcp-repair';
 }
 
 function isAffirmative(value: string): boolean {
@@ -35,6 +35,26 @@ export function buildAgentWorkspaceMcpCommandEditorSubmission(
   editor: AgentWorkspaceLocalEditor,
   readField: AgentWorkspaceFieldReader,
 ): AgentWorkspaceMcpCommandEditorSubmission {
+  if (editor.kind === 'mcp-tools-server' || editor.kind === 'mcp-repair') {
+    const server = quoteSlashCommandArg(readField('server'));
+    const tools = editor.kind === 'mcp-tools-server';
+    const command = tools ? `/mcp tools ${server}` : `/mcp repair ${server}`;
+    const title = tools ? 'Opening MCP server tools' : 'Opening MCP repair guidance';
+    return {
+      kind: 'dispatch',
+      command,
+      status: `${title}.`,
+      actionResult: {
+        kind: 'dispatched',
+        title,
+        detail: tools
+          ? 'The workspace handed read-only MCP server tool inspection to the shell-owned command router.'
+          : 'The workspace handed read-only MCP repair guidance to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
   if (!isAffirmative(readField('confirm'))) {
     return {
       kind: 'editor',
