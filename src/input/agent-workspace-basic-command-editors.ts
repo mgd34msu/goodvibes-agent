@@ -5,7 +5,7 @@ type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
+  'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
 >;
 
 export type AgentWorkspaceBasicCommandEditorSubmission =
@@ -30,6 +30,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
   return kind === 'knowledge-bookmarks'
     || kind === 'knowledge-file'
     || kind === 'knowledge-browser-history'
+    || kind === 'knowledge-connector-ingest'
     || kind === 'tts-prompt'
     || kind === 'image-input'
     || kind === 'skill-bundle'
@@ -81,6 +82,23 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
         { id: 'limit', label: 'Limit', value: '250', required: false, multiline: false, hint: 'Maximum browser entries to import.' },
         { id: 'sinceDays', label: 'Since days', value: '', required: false, multiline: false, hint: 'Optional age window, such as 30.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge import-browser-history with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'knowledge-connector-ingest') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Ingest Connector Input',
+      selectedFieldIndex: 0,
+      message: 'Send explicit connector input into the isolated Agent Knowledge segment. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'connectorId', label: 'Connector id', value: '', required: true, multiline: false, hint: 'Connector id from /knowledge connectors.' },
+        { id: 'input', label: 'Input', value: '', required: false, multiline: true, hint: 'Optional JSON or text input. Ctrl-J inserts a new line.' },
+        { id: 'path', label: 'Path', value: '', required: false, multiline: false, hint: 'Optional local path for connectors that read files.' },
+        { id: 'content', label: 'Content', value: '', required: false, multiline: true, hint: 'Optional raw content for connectors that accept text.' },
+        { id: 'allowPrivateHosts', label: 'Allow private hosts', value: 'no', required: false, multiline: false, hint: 'yes/no. Defaults to no.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge ingest-connector with --yes.' },
       ],
     };
   }
@@ -261,6 +279,38 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening Agent Knowledge browser history import',
         detail: 'The workspace handed a confirmed browser-history import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'knowledge-connector-ingest') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Connector ingest not confirmed. Type yes, then press Enter.' },
+        status: 'Agent Knowledge connector ingest not confirmed.',
+      };
+    }
+    const connectorId = readField('connectorId');
+    const input = readField('input');
+    const path = readField('path');
+    const content = readField('content');
+    const parts = ['/knowledge', 'ingest-connector', quoteSlashCommandArg(connectorId)];
+    if (input.length > 0) parts.push('--input', quoteSlashCommandArg(input));
+    if (path.length > 0) parts.push('--path', quoteSlashCommandArg(path));
+    if (content.length > 0) parts.push('--content', quoteSlashCommandArg(content));
+    if (isAffirmative(readField('allowPrivateHosts'))) parts.push('--allow-private-hosts');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent Knowledge connector ingest.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent Knowledge connector ingest',
+        detail: 'The workspace handed a confirmed connector ingest command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

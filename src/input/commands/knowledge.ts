@@ -90,6 +90,21 @@ function readSinceMsFlag(args: string[]): number | undefined {
   return Date.now() - parsed * 24 * 60 * 60 * 1000;
 }
 
+function parseConnectorInputFlag(args: string[]): unknown {
+  const value = readFlag(args, '--input');
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      return JSON.parse(trimmed) as unknown;
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
+}
+
 function readJsonObjectFlag(args: string[], name: string): Record<string, unknown> | null | undefined {
   const value = readFlag(args, name);
   if (!value) return undefined;
@@ -348,6 +363,38 @@ export const knowledgeCommand: SlashCommand = {
         });
         context.print(`[knowledge] Imported browser knowledge: ${result.imported} ok, ${result.failed} failed`);
         if (result.profiles.length > 0) context.print(`  profiles: ${result.profiles.length}`);
+        if (result.errors.length > 0) {
+          for (const error of result.errors.slice(0, 10)) context.print(`  error: ${error}`);
+        }
+        break;
+      }
+
+      case 'ingest-connector': {
+        const [connectorId] = positionalArgs(rest, ['--input', '--path', '--content']);
+        if (!connectorId) {
+          context.print('[knowledge] Usage: /knowledge ingest-connector <connectorId> [--input <json-or-text>|--path <path>|--content <text>] --yes');
+          return;
+        }
+        const input = parseConnectorInputFlag(rest);
+        const path = readFlag(rest, '--path');
+        const content = readFlag(rest, '--content');
+        if (input === undefined && !path && !content) {
+          context.print('[knowledge] Usage: /knowledge ingest-connector <connectorId> [--input <json-or-text>|--path <path>|--content <text>] --yes');
+          return;
+        }
+        if (!confirmation.yes) {
+          requireYesFlag(context, `ingest connector input into Agent Knowledge for ${connectorId}`, '/knowledge ingest-connector <connectorId> [--input <json-or-text>|--path <path>|--content <text>] --yes');
+          return;
+        }
+        const result = await knowledge.ingest.connectorInput({
+          connectorId,
+          input,
+          path,
+          content,
+          sessionId: context.session.runtime.sessionId,
+          allowPrivateHosts: rest.includes('--allow-private-hosts'),
+        });
+        context.print(`[knowledge] Imported connector input: ${result.imported} ok, ${result.failed} failed`);
         if (result.errors.length > 0) {
           for (const error of result.errors.slice(0, 10)) context.print(`  error: ${error}`);
         }
@@ -689,6 +736,7 @@ export const knowledgeCommand: SlashCommand = {
           '  ask <query> [--limit <n>] [--mode <concise|standard|detailed>]',
           '  ingest-url <url> [--title <title>] [--tags <a,b>] [--folder <path>] --yes',
           '  ingest-file <path> [--title <title>] [--tags <a,b>] [--folder <path>] --yes',
+          '  ingest-connector <connectorId> [--input <json-or-text>|--path <path>|--content <text>] --yes',
           '  import-bookmarks <path> --yes',
           '  import-urls <path> --yes',
           '  import-browser-history [--browsers chrome,firefox] [--sources history,bookmark] [--limit <n>] [--since-days <n>] --yes',

@@ -1081,6 +1081,32 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });
 
+  test('ingests connector input into Agent Knowledge from a confirmed workspace form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-ingest-connector');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('knowledge-connector-ingest');
+    expect(dispatched).toEqual([]);
+    feedText(workspace, 'url');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'https://example.com/reference');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/knowledge ingest-connector url --input https://example.com/reference --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
+  });
+
   test('queries Agent Knowledge from workspace forms without placeholder commands', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

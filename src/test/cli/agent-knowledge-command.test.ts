@@ -579,6 +579,67 @@ describe('Agent Knowledge CLI route isolation', () => {
     }
   });
 
+  test('ingest-connector requires confirmation and uses isolated Agent Knowledge routes', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return new Response(JSON.stringify({
+        imported: 1,
+        failed: 0,
+        sources: [],
+        errors: [],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) satisfies typeof fetch;
+
+    try {
+      const preview = await handleAgentKnowledgeCommand(createRuntime([
+        'ingest-connector',
+        'url',
+        '--input',
+        'https://example.test/reference',
+      ]));
+      const previewParsed = JSON.parse(preview.output) as unknown;
+      expect(preview.exitCode).toBe(2);
+      expect(requests).toHaveLength(0);
+      expect(previewParsed).toMatchObject({
+        ok: false,
+        kind: 'confirmation_required',
+        route: '/api/goodvibes-agent/knowledge/ingest/connector',
+      });
+
+      const imported = await handleAgentKnowledgeCommand(createRuntime([
+        'ingest-connector',
+        'url',
+        '--input',
+        'https://example.test/reference',
+        '--yes',
+      ]));
+      const importedParsed = JSON.parse(imported.output) as unknown;
+
+      expect(imported.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/connector');
+      expect(requests[0]?.url).not.toContain('/api/knowledge/');
+      expect(requests[0]?.body).toContain('"connectorId":"url"');
+      expect(requests[0]?.body).toContain('"input":"https://example.test/reference"');
+      expect(importedParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.ingest.connector',
+        route: '/api/goodvibes-agent/knowledge/ingest/connector',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test('ask uses only the Agent Knowledge route', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;

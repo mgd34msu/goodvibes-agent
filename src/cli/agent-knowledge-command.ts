@@ -119,6 +119,10 @@ const AGENT_KNOWLEDGE_METHODS = {
     kind: 'agentKnowledge.ingest.browserHistory',
     route: '/api/goodvibes-agent/knowledge/ingest/browser-history',
   },
+  ingestConnector: {
+    kind: 'agentKnowledge.ingest.connector',
+    route: '/api/goodvibes-agent/knowledge/ingest/connector',
+  },
   reindex: {
     kind: 'agentKnowledge.reindex',
     route: '/api/goodvibes-agent/knowledge/reindex',
@@ -207,6 +211,20 @@ function readSinceMs(args: readonly string[]): number | undefined {
   const parsed = Number.parseInt(days, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
   return Date.now() - parsed * 24 * 60 * 60 * 1000;
+}
+
+function parseConnectorInput(value: string | undefined): unknown {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      return JSON.parse(trimmed) as unknown;
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
 }
 
 function hasFlag(args: readonly string[], flag: string): boolean {
@@ -768,6 +786,45 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     };
   }
 
+  if (normalized === 'ingest-connector') {
+    const values = commandValues(rest);
+    const connectorId = values[0];
+    if (!connectorId) return { output: 'Usage: goodvibes-agent knowledge ingest-connector <connectorId> [--input <json-or-text>|--path <path>|--content <text>] --yes', exitCode: 2 };
+    const input = parseConnectorInput(readOptionValue(rest, '--input'));
+    const path = readOptionValue(rest, '--path');
+    const content = readOptionValue(rest, '--content');
+    if (input === undefined && !path && !content) {
+      return { output: 'Usage: goodvibes-agent knowledge ingest-connector <connectorId> [--input <json-or-text>|--path <path>|--content <text>] --yes', exitCode: 2 };
+    }
+    if (!confirmation.present) {
+      const failure = {
+        ok: false,
+        kind: 'confirmation_required',
+        error: `Refusing to ingest connector input into Agent Knowledge for ${connectorId} without --yes.`,
+        route: AGENT_KNOWLEDGE_METHODS.ingestConnector.route,
+      };
+      return {
+        output: json ? JSON.stringify(failure, null, 2) : `${failure.error}\nUsage: goodvibes-agent knowledge ingest-connector <connectorId> [--input <json-or-text>|--path <path>|--content <text>] --yes`,
+        exitCode: 2,
+      };
+    }
+    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.ingestConnector, async (connection) => (
+      await postAgentKnowledgeJson(connection, AGENT_KNOWLEDGE_METHODS.ingestConnector.route, {
+        connectorId,
+        input,
+        path,
+        content,
+        allowPrivateHosts: hasFlag(rest, '--allow-private-hosts'),
+        sessionId: 'goodvibes-agent-cli',
+      })
+    ));
+    if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
+    return {
+      output: formatJsonOrText(runtime.cli)(result, formatBatchIngest(result.data, `connector ${connectorId}`)),
+      exitCode: 0,
+    };
+  }
+
   if (normalized === 'reindex') {
     if (!confirmation.present) {
       const failure = {
@@ -792,7 +849,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
   }
 
   return {
-    output: 'Usage: goodvibes-agent knowledge [status|ask <question>|search <query>|list|sources|nodes|issues|get <id>|map|connectors|ingest-url <url> --yes|ingest-file <path> --yes|import-urls <path> --yes|import-bookmarks <path> --yes|import-browser-history --yes|reindex --yes]',
+    output: 'Usage: goodvibes-agent knowledge [status|ask <question>|search <query>|list|sources|nodes|issues|get <id>|map|connectors|ingest-url <url> --yes|ingest-file <path> --yes|ingest-connector <id> --yes|import-urls <path> --yes|import-bookmarks <path> --yes|import-browser-history --yes|reindex --yes]',
     exitCode: 2,
   };
 }

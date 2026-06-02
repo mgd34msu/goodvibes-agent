@@ -11,6 +11,7 @@ type AgentWorkspaceCommandEditorKind = Extract<
   'knowledge-url'
   | 'knowledge-file'
   | 'knowledge-browser-history'
+  | 'knowledge-connector-ingest'
   | 'knowledge-search'
   | 'knowledge-ask'
   | 'routine-schedule'

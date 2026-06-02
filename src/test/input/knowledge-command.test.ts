@@ -340,6 +340,64 @@ describe('knowledgeCommand', () => {
     expect(printed.join('\n')).toContain('ready: yes');
   });
 
+  test('ingests connector input only after confirmation', async () => {
+    let calledInput: unknown = null;
+    const context = {
+      ...makeKnowledgeAskCommandContext(printed, {
+        query: '',
+        answer: {
+          text: '',
+          mode: 'standard',
+          confidence: 0,
+          synthesized: false,
+          sources: [],
+          facts: [],
+          linkedObjects: [],
+          gaps: [],
+        },
+      }),
+      clients: {
+        agentKnowledgeApi: {
+          ingest: {
+            connectorInput: async (input: unknown) => {
+              calledInput = input;
+              return {
+                imported: 1,
+                failed: 0,
+                sources: [],
+                errors: [],
+              };
+            },
+          },
+        },
+      },
+    } as unknown as CommandContext;
+
+    await knowledgeCommand.handler(
+      ['ingest-connector', 'url', '--input', '{"url":"https://example.test/reference"}'],
+      context,
+    );
+
+    expect(calledInput).toBeNull();
+    expect(printed.join('\n')).toContain('Refusing to ingest connector input into Agent Knowledge for url without --yes');
+
+    printed.length = 0;
+    await knowledgeCommand.handler(
+      ['ingest-connector', 'url', '--input', '{"url":"https://example.test/reference"}', '--yes'],
+      context,
+    );
+
+    const input = calledInput as {
+      readonly connectorId?: string;
+      readonly input?: { readonly url?: string };
+      readonly sessionId?: string;
+    };
+    expect(input.connectorId).toBe('url');
+    expect(input.input?.url).toBe('https://example.test/reference');
+    expect(input.sessionId).toBe('session-ask');
+    expect(printed.join('\n')).toContain('Imported connector input: 1 ok, 0 failed');
+  });
+
   test('reviews a knowledge issue', async () => {
     const artifactStore = new ArtifactStore({
       configManager: {
