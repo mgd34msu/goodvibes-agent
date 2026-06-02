@@ -224,7 +224,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Needs default target: ${needsTarget.map((channel) => `${channel.label} -> ${channel.defaultTargetKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsTarget.length > 0 ? PALETTE.warn : PALETTE.muted },
       { text: `Needs config: ${needsConfig.map((channel) => `${channel.label} -> ${channel.missingRequiredKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsConfig.length > 0 ? PALETTE.warn : PALETTE.muted },
       { text: `Disabled channels: ${disabledPreview || 'none'}${disabledSuffix}.`, fg: PALETTE.dim },
-      { text: 'Safety: no secret values; sends and public exposure require explicit user action and runtime policy.', fg: PALETTE.warn },
+      { text: 'Safety: no secret values; sends and public exposure require explicit user action and Agent policy.', fg: PALETTE.warn },
     );
     for (const channel of orderedChannels) {
       const ready = channel.ready ? 'ready' : `${channel.missingConfigCount} missing`;
@@ -297,7 +297,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: '' },
       { text: 'Named Agent profiles isolate local config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
       { text: 'Starter authoring: browse, export, edit, import, and create Agent profiles from inside this workspace.', fg: PALETTE.info },
-      { text: 'The external GoodVibes runtime remains shared unless the owning host is configured separately.', fg: PALETTE.warn },
+      { text: 'Connected GoodVibes services stay shared unless the owning host is configured separately.', fg: PALETTE.warn },
       { text: 'Portable bundles require explicit export/import commands with real paths and --yes.', fg: PALETTE.muted },
     );
   } else if (category.id === 'memory') {
@@ -334,7 +334,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `Routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
       { text: 'Routines are repeatable main-conversation workflows. Starting one does not create hidden jobs.', fg: PALETTE.good },
-      { text: 'Scheduling a reviewed routine is explicit and writes to the external GoodVibes runtime only with --yes.', fg: PALETTE.warn },
+      { text: 'Scheduling a reviewed routine is explicit and requires a confirmed schedule command.', fg: PALETTE.warn },
       { text: '' },
       ...localLibraryLines('Routine Library', snapshot.localRoutines, 'No local routines yet. Create one here with Create routine.', workspace.selectedLocalLibraryItem('routine')?.id ?? null),
     );

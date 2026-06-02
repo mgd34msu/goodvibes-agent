@@ -52,12 +52,12 @@ Also run the package install smoke from a packed artifact. It must prove:
 - `goodvibes-agent --help` works
 - `goodvibes-agent --version` reports the package version
 - the installed TUI launches in a PTY and does not exit immediately
-- runtime-backed commands fail clearly when the external GoodVibes runtime is unavailable or unauthenticated
+- connected-service commands fail clearly when GoodVibes services are unavailable or unauthenticated
 - no token value is printed
 
 ## Do Not Ship
 
-Do not publish if package-facing docs or install commands refer to another package name, another executable, or Agent-owned runtime lifecycle.
+Do not publish if package-facing docs or install commands refer to another package name, another executable, or Agent-owned connected-service lifecycle.
 
 Do not publish if Agent Knowledge commands can fall back to default Knowledge/Wiki or another product-specific knowledge route. Agent Knowledge must use the isolated `/api/goodvibes-agent/knowledge/*` segment.
 

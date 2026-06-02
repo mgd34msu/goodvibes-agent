@@ -217,7 +217,7 @@ function buildChannelStatus(context: CommandContext, spec: AgentWorkspaceChannel
       ? `Configure ${missingRequiredKeys.join(', ')} in the owning runtime or secret manager.`
       : setupState === 'needs-target'
         ? `Provide an explicit delivery target per send, or configure one of ${spec.defaultTargetKeys.join(', ')}.`
-        : `Use explicit user action or runtime policy to send through ${spec.label}.`;
+        : `Use explicit user action or Agent policy to send through ${spec.label}.`;
   return {
     id: spec.id,
     label: spec.label,

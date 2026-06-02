@@ -20,7 +20,7 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         `  enabled: ${enabled.length}/${channels.length}`,
         `  needs target: ${needsTarget.length}`,
         `  needs config: ${needsConfig.length}`,
-        '  policy: read-only inspection; sends require explicit user action and runtime policy',
+        '  policy: read-only inspection; sends require explicit user action and Agent policy',
         '',
         ...channels.map((channel) => {
           const missing = channel.missingRequiredKeys.length > 0

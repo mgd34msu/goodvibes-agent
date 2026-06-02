@@ -13,10 +13,10 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'setup-home', label: 'Setup checklist', detail: 'Jump to the first-run checklist for provider, knowledge, personas, skills, routines, memory, channels, and voice/media.', targetCategoryId: 'setup', kind: 'workspace', safety: 'safe' },
       { id: 'knowledge-home', label: 'Agent Knowledge', detail: 'Jump to isolated Agent Knowledge status, ingest, search, and review flows.', targetCategoryId: 'knowledge', kind: 'workspace', safety: 'read-only' },
       { id: 'memory-home', label: 'Memory, skills, routines', detail: 'Jump to local memory, persona, skill, and routine setup. These are core Agent product features.', targetCategoryId: 'memory', kind: 'workspace', safety: 'safe' },
-      { id: 'channels-home', label: 'Channels', detail: 'Jump to companion pairing and channel readiness without changing runtime connectivity.', targetCategoryId: 'channels', kind: 'workspace', safety: 'read-only' },
+      { id: 'channels-home', label: 'Channels', detail: 'Jump to companion pairing and channel readiness without changing connected-service routing.', targetCategoryId: 'channels', kind: 'workspace', safety: 'read-only' },
       { id: 'voice-home', label: 'Voice and media', detail: 'Jump to voice, TTS, image input, browser-tool, and media setup.', targetCategoryId: 'voice-media', kind: 'workspace', safety: 'safe' },
       { id: 'help', label: 'Browse commands', detail: 'Open registry-driven command help.', command: '/help', kind: 'command', safety: 'safe' },
-      { id: 'health', label: 'Review health', detail: 'Show local health and runtime connection status without starting or mutating anything.', command: '/health review', kind: 'command', safety: 'read-only' },
+      { id: 'health', label: 'Review health', detail: 'Show local health and connected-service status without starting or mutating anything.', command: '/health review', kind: 'command', safety: 'read-only' },
     ],
   },
   {
@@ -24,7 +24,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'SETUP',
     label: 'Setup',
     summary: 'Configuration, auth, provider, and onboarding workspaces.',
-    detail: 'Use this to configure the assistant: provider/model, setup checklist, Agent Knowledge, local behavior, channels, and voice/media. Agent-local setup changes happen here; runtime lifecycle is outside Agent.',
+    detail: 'Use this to configure the assistant: provider/model, setup checklist, Agent Knowledge, local behavior, channels, and voice/media. Changes here stay Agent-owned.',
     actions: [
       { id: 'config', label: 'Open settings', detail: 'Open the fullscreen Agent settings workspace.', command: '/config', kind: 'command', safety: 'safe' },
       { id: 'setup', label: 'Run setup', detail: 'Review Agent settings in the fullscreen setup flow.', command: '/setup', kind: 'command', safety: 'safe' },
@@ -46,13 +46,13 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'SETUP',
     label: 'Channels',
     summary: 'Companion pairing, channel posture, and delivery safety.',
-    detail: 'Agent uses externally managed channels. Pairing, account inspection, and readiness checks are visible here; inbound delivery and public channel exposure stay policy-gated.',
+    detail: 'Agent uses connected channel accounts. Pairing, account inspection, and readiness checks are visible here; inbound delivery and public channel exposure stay policy-gated.',
     actions: [
       { id: 'pair', label: 'Pair companion', detail: 'Open the QR pairing view for companion app setup.', command: '/pair', kind: 'command', safety: 'safe' },
       { id: 'channel-readiness', label: 'Channel readiness', detail: 'Show a read-only readiness matrix for configured messaging and notification channels.', command: '/channels', kind: 'command', safety: 'read-only' },
       { id: 'notification-routes', label: 'Notification routes', detail: 'Inspect configured webhook notification URLs without sending a test message.', command: '/notify list', kind: 'command', safety: 'read-only' },
-      { id: 'setup-review', label: 'Health review', detail: 'Review setup posture without starting inbound endpoints or mutating channel state.', command: '/health review', kind: 'command', safety: 'read-only' },
-      { id: 'channel-safety', label: 'Delivery safety', detail: 'External messages, channel DMs, and public delivery targets require explicit user action and runtime policy. Agent will not silently send or expose channels from this workspace.', kind: 'guidance', safety: 'blocked' },
+      { id: 'setup-review', label: 'Health review', detail: 'Review setup posture without changing inbound delivery or mutating channel state.', command: '/health review', kind: 'command', safety: 'read-only' },
+      { id: 'channel-safety', label: 'Delivery safety', detail: 'External messages, channel DMs, and public delivery targets require explicit user action and Agent policy. Agent will not silently send or expose channels from this workspace.', kind: 'guidance', safety: 'blocked' },
     ],
   },
   {
@@ -60,7 +60,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'KNOW',
     label: 'Knowledge',
     summary: 'Agent Knowledge/Wiki and source-backed lookup.',
-    detail: 'Agent knowledge calls must use the isolated /api/goodvibes-agent/knowledge routes. Default regular wiki and non-Agent knowledge segments are not the Agent knowledge environment.',
+    detail: 'Agent knowledge calls use the isolated Agent Knowledge route family only. Default regular wiki and non-Agent knowledge segments are not the Agent knowledge environment.',
     actions: [
       { id: 'knowledge-status', label: 'Knowledge status', detail: 'Inspect Agent knowledge readiness and counts.', command: '/knowledge status', kind: 'command', safety: 'read-only' },
       { id: 'knowledge-search', label: 'Search Agent knowledge', detail: 'Open an in-workspace search form for the isolated Agent Knowledge index.', editorKind: 'knowledge-search', kind: 'editor', safety: 'read-only' },

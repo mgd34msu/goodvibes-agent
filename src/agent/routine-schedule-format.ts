@@ -111,13 +111,13 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
       result.baseUrl ? `  runtime: ${result.baseUrl}` : null,
       `  route: ${ROUTINE_SCHEDULE_LIST_METHOD} ${result.route}`,
       result.kind === 'auth_required'
-        ? '  next: pair/authenticate with the external GoodVibes runtime, then retry.'
+        ? '  next: pair/authenticate with connected GoodVibes services, then retry.'
         : null,
       result.kind === 'daemon_unavailable'
-        ? '  next: start/restart the GoodVibes runtime outside Agent, then retry.'
+        ? '  next: make connected GoodVibes services available outside Agent, then retry.'
         : null,
       result.kind === 'version_mismatch' || result.kind === 'daemon_route_unavailable'
-        ? '  next: update/restart the external GoodVibes runtime so public schedules.list is available.'
+        ? '  next: update connected GoodVibes services so public schedules.list is available.'
         : null,
     ].filter((line): line is string => Boolean(line)).join('\n');
   }
@@ -166,13 +166,13 @@ export function formatRoutineScheduleFailure(failure: RoutineSchedulePromotionFa
       ? `  versions: runtime=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
       : null,
     failure.kind === 'auth_required'
-      ? '  next: pair/authenticate with the external GoodVibes runtime, then retry with --yes.'
+      ? '  next: pair/authenticate with connected GoodVibes services, then retry with --yes.'
       : null,
     failure.kind === 'daemon_unavailable'
-        ? '  next: start/restart the GoodVibes runtime outside Agent, then retry.'
+        ? '  next: make connected GoodVibes services available outside Agent, then retry.'
       : null,
     failure.kind === 'version_mismatch' || failure.kind === 'daemon_route_unavailable'
-      ? '  next: update/restart the external GoodVibes runtime so public schedules.create is available.'
+      ? '  next: update connected GoodVibes services so public schedules.create is available.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }

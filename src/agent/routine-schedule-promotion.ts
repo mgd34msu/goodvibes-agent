@@ -393,7 +393,7 @@ async function classifyScheduleError(
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `External runtime SDK version ${daemonVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
+        error: `Connected GoodVibes service SDK version ${daemonVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
         route: ROUTINE_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
         daemonVersion,

@@ -316,10 +316,10 @@ export function formatFailure(failure: AgentKnowledgeFailureLike, json: boolean)
       ? `  versions: runtime=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
       : null,
     failure.kind === 'version_mismatch'
-      ? '  next: update/restart the external GoodVibes runtime so /status matches the Agent SDK pin.'
+      ? '  next: update connected GoodVibes services so /status matches the Agent SDK pin.'
       : null,
     failure.kind === 'daemon_route_unavailable'
-      ? '  next: update/restart the external GoodVibes runtime to the SDK version required by this Agent package.'
+      ? '  next: update connected GoodVibes services to the SDK version required by this Agent package.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }

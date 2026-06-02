@@ -44,7 +44,7 @@ If the runtime is unavailable, unauthenticated, or on an incompatible SDK versio
 
 Agent owns the operator assistant TUI, local profiles, local memory/routines/skills/personas, isolated Agent Knowledge calls, companion chat, approvals/automation visibility, and explicit build delegation.
 
-Agent does not own runtime lifecycle. It does not provide commands to install, expose, start, stop, restart, or mutate the GoodVibes runtime.
+Agent does not own connected-service lifecycle. It does not provide commands to install, expose, start, stop, restart, or mutate connected GoodVibes services.
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` only and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
 

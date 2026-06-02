@@ -1,6 +1,6 @@
 # Providers and Routing
 
-GoodVibes Agent uses the provider/model configuration exposed by the external GoodVibes runtime. The Agent TUI should make the active route easy to see and easy to change, but it should not duplicate provider hosting logic.
+GoodVibes Agent uses the provider/model configuration exposed by connected GoodVibes services. The Agent TUI should make the active route easy to see and easy to change, but it should not duplicate provider hosting logic.
 
 ## Agent Expectations
 

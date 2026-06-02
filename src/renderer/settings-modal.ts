@@ -34,11 +34,11 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   wrfc: 'WRFC is external to normal Agent operation. Review these runtime compatibility values only for explicit GoodVibes TUI build delegation.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
-  service: 'External runtime installation posture. Agent shows these compatibility keys for inspection only and does not install, start, stop, restart, or autostart anything.',
-  controlPlane: 'External runtime API connection settings. Agent connects to that runtime and does not mutate its bind posture.',
+  service: 'Connected-service installation posture. Agent shows these compatibility keys for inspection only and does not install, start, stop, restart, or autostart anything.',
+  controlPlane: 'Connected-service API settings. Agent uses these settings for access and does not mutate bind posture.',
   httpListener: 'Inbound event endpoint settings owned by the external runtime. Agent inspects readiness and does not expose endpoints.',
   web: 'External browser companion settings. Agent does not own browser hosting or network bind lifecycle.',
-  batch: 'Batch execution settings reported from the external GoodVibes runtime. Agent does not own remote queue provisioning.',
+  batch: 'Batch execution settings reported from connected GoodVibes services. Agent does not own remote queue provisioning.',
   automation: 'Scheduled and automated run settings, concurrency, timeout, catch-up, cooldown, and retention behavior.',
   watchers: 'File/process watcher heartbeat, polling, and recovery-window behavior.',
   runtime: 'Runtime guardrails such as companion chat limiter and event bus listener caps.',
@@ -490,7 +490,7 @@ export function renderSettingsModal(
   viewportHeight = 24,
 ): Line[] {
   const notices = [
-    ...(modal.lastSaveTriggeredRestart ? [`External runtime owner must restart ${modal.lastSaveTriggeredRestart}`] : []),
+    ...(modal.lastSaveTriggeredRestart ? [`Owning host must restart ${modal.lastSaveTriggeredRestart}`] : []),
     ...(modal.lastSettingEffectMessage ? [modal.lastSettingEffectMessage] : []),
   ];
   const metrics = getFullscreenWorkspaceMetrics({ width, height: viewportHeight });

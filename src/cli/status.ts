@@ -128,18 +128,18 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         severity: 'warning',
         summary: 'External GoodVibes runtime is not reachable.',
         cause: `Agent could not reach ${options.externalRuntime.baseUrl}${options.externalRuntime.error ? `: ${options.externalRuntime.error}` : '.'}`,
-        impact: 'Companion chat, isolated Agent Knowledge, approvals, automation status, and build delegation cannot work until the external runtime is available.',
-        action: 'Start or repair the runtime-owning GoodVibes TUI/host, then rerun goodvibes-agent status.',
+        impact: 'Companion chat, isolated Agent Knowledge, approvals, automation status, and build delegation cannot work until connected GoodVibes services are available.',
+        action: 'Start or repair the owning GoodVibes host, then rerun goodvibes-agent status.',
       });
     } else if (!options.externalRuntime.compatible) {
       findings.push({
         id: 'external-runtime-version-mismatch',
         area: 'runtime',
         severity: 'warning',
-        summary: 'External GoodVibes runtime SDK version does not match Agent.',
-        cause: `Runtime reports SDK ${options.externalRuntime.version}; Agent expects ${options.externalRuntime.expectedVersion}.`,
+        summary: 'Connected GoodVibes service SDK version does not match Agent.',
+        cause: `Connected service reports SDK ${options.externalRuntime.version}; Agent expects ${options.externalRuntime.expectedVersion}.`,
         impact: 'Agent-only routes, especially isolated Agent Knowledge, may be missing or incompatible.',
-        action: 'Update/restart the runtime-owning GoodVibes TUI/host so /status matches this Agent package SDK pin.',
+        action: 'Update the owning GoodVibes host so /status matches this Agent package SDK pin.',
       });
     }
 
@@ -148,10 +148,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         id: 'external-runtime-token-missing',
         area: 'auth',
         severity: 'warning',
-        summary: 'External runtime operator token is missing.',
+        summary: 'Connected-service operator token is missing.',
         cause: `No operator token was found at ${options.externalRuntime.operatorToken.path}.`,
-        impact: 'Agent can inspect only unauthenticated routes and cannot use protected runtime APIs.',
-        action: 'Pair or provision access through the runtime-owning GoodVibes TUI/host, then rerun goodvibes-agent auth.',
+        impact: 'Agent can inspect only unauthenticated routes and cannot use protected connected-service APIs.',
+        action: 'Pair or provision access through the owning GoodVibes host, then rerun goodvibes-agent auth.',
       });
     }
 
@@ -163,7 +163,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         summary: 'Isolated Agent Knowledge route is not ready.',
         cause: `${options.externalRuntime.agentKnowledge.route} returned ${options.externalRuntime.agentKnowledge.kind}${options.externalRuntime.agentKnowledge.statusCode === null ? '' : ` (${options.externalRuntime.agentKnowledge.statusCode})`}.`,
         impact: 'Agent Knowledge ask/search will not use any fallback wiki or non-Agent knowledge segment; it will fail closed until the Agent route is available.',
-        action: 'Update/restart the external runtime to the Agent-compatible SDK and verify goodvibes-agent compat.',
+        action: 'Update the connected GoodVibes services to the Agent-compatible SDK and verify goodvibes-agent compat.',
       });
     }
   }
@@ -173,9 +173,9 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'runtime-ownership-external',
       area: 'runtime',
       severity: 'warning',
-      summary: 'External runtime connection settings are present while Agent lifecycle ownership is disabled by design.',
+      summary: 'Connected-service settings are present while Agent service ownership is disabled by design.',
       cause: 'One or more runtime connection, inbound events, or browser companion settings are enabled while service.enabled is false.',
-      impact: 'The external GoodVibes runtime must own availability for those endpoints; Agent will not start or enable them.',
+      impact: 'The owning GoodVibes host must provide availability for those endpoints; Agent will not start or enable them.',
       action: 'Manage runtime availability from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
     });
   }
@@ -185,9 +185,9 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'runtime-autostart-disabled',
       area: 'runtime',
       severity: 'warning',
-      summary: 'External GoodVibes runtime autostart is off.',
+      summary: 'Connected-service autostart is off.',
       cause: 'service.enabled is true and service.autostart is false.',
-      impact: 'The external GoodVibes runtime may not be available after login or reboot even though host-managed startup is selected.',
+      impact: 'Connected GoodVibes services may not be available after login or reboot even though host-managed startup is selected.',
       action: 'Configure autostart from GoodVibes TUI or the owning host; Agent will not mutate this setting.',
     });
   }
@@ -197,9 +197,9 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'runtime-restart-disabled',
       area: 'runtime',
       severity: 'warning',
-      summary: 'External GoodVibes runtime restart-on-failure is off.',
+      summary: 'Connected-service restart-on-failure is off.',
       cause: 'service.enabled is true and service.restartOnFailure is false.',
-      impact: 'A crashed runtime or listener may stay down until manually restarted.',
+      impact: 'A crashed connected service or listener may stay down until manually restarted.',
       action: 'Configure restart-on-failure from GoodVibes TUI or the owning host; Agent will not mutate this setting.',
     });
   }

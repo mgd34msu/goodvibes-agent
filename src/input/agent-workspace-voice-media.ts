@@ -170,7 +170,7 @@ function browserToolState(context: CommandContext): AgentWorkspaceVoiceMediaRead
 function browserToolNextStep(state: AgentWorkspaceVoiceMediaReadiness['browserToolState']): string {
   if (state === 'disabled') return 'Inspect MCP browser/automation tools; enable browser access in the owning runtime only when needed.';
   if (state === 'local-only') return 'Browser tooling is local-only; keep external exposure off unless explicitly configured.';
-  return 'Public browser URL is configured; use explicit user action and runtime policy before browser-side effects.';
+  return 'Public browser URL is configured; use explicit user action and Agent policy before browser-side effects.';
 }
 
 export function buildAgentWorkspaceVoiceMediaReadiness(options: {

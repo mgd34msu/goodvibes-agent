@@ -544,9 +544,9 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
   ]);
   if (blocked.has(sub)) {
     return [
-      'Unsupported: runtime auth user/session administration is external to GoodVibes Agent.',
-      'GoodVibes Agent connects to an already-running runtime and does not create, delete, rotate, revoke, or clear runtime users, sessions, or bootstrap credentials.',
-      'Use the owning GoodVibes runtime for runtime auth administration.',
+      'Unsupported: connected-service auth user/session administration is outside GoodVibes Agent.',
+      'GoodVibes Agent does not create, delete, rotate, revoke, or clear connected-service users, sessions, or bootstrap credentials.',
+      'Use the owning GoodVibes host for auth administration.',
     ].join('\n');
   }
   if (sub !== 'status' && sub !== 'review' && sub !== 'list' && sub !== 'users' && sub !== 'sessions') {
@@ -566,21 +566,21 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
   if (sub === 'users' || sub === 'sessions') {
     return formatJsonOrText(runtime.cli)(value, [
       `GoodVibes Agent auth ${sub}`,
-      '  owner: external GoodVibes runtime',
+      '  owner: connected GoodVibes services',
       `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'}`,
       `  operator token path: ${paths.operatorTokenPath}`,
       `  ${sub}: managed outside Agent`,
-      '  Agent does not enumerate or mutate runtime users/sessions from the local CLI.',
+      '  Agent does not enumerate or mutate connected-service users/sessions from the local CLI.',
     ].join('\n'));
   }
   return formatJsonOrText(runtime.cli)(value, [
     'GoodVibes Agent auth',
-    '  owner: external GoodVibes runtime',
+    '  owner: connected GoodVibes services',
     `  permission mode: ${String(value.permissionMode)}`,
     `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'} (${paths.operatorTokenPath})`,
     `  compatibility user store: ${paths.userStorePresent ? 'present' : 'missing'} (${paths.userStorePath})`,
     `  compatibility bootstrap credential: ${paths.bootstrapCredentialPresent ? 'present' : 'missing'} (${paths.bootstrapCredentialPath})`,
-    '  runtime user/session administration: external',
+    '  connected-service user/session administration: outside Agent',
     '  next: goodvibes-agent providers',
     '  next: goodvibes-agent subscription providers',
   ].join('\n'));

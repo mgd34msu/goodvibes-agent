@@ -217,7 +217,7 @@ export async function buildProviderAccountSnapshot(
     }
     if (hasServiceOAuth && !serviceOauth?.usable) {
       issues.push('Service OAuth is configured but missing a usable credential.');
-      recommendedActions.push(`Repair service OAuth credentials for ${providerId} in /settings or the external GoodVibes runtime.`);
+      recommendedActions.push(`Repair service OAuth credentials for ${providerId} in /settings or the owning GoodVibes host.`);
     }
 
     return {

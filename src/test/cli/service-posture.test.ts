@@ -27,7 +27,7 @@ describe('CLI service posture', () => {
     });
   }
 
-  test('reports external runtime diagnostics without resolving runtime binaries', async () => {
+  test('reports connected-service diagnostics without resolving runtime binaries', async () => {
     const config = createConfig();
     config.setDynamic('service.enabled', true);
     config.setDynamic('service.autostart', true);
@@ -41,10 +41,10 @@ describe('CLI service posture', () => {
     });
     const text = formatCliServicePosture(posture);
 
-    expect(posture.managed.path).toBe('external GoodVibes runtime');
+    expect(posture.managed.path).toBe('connected GoodVibes services');
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(posture.managed.suggestedCommands).toEqual([]);
-    expect(posture.issues).not.toContain('External GoodVibes runtime config is enabled, but no platform service definition is installed.');
+    expect(posture.issues).not.toContain('Connected-service config is enabled, but no platform service definition is installed.');
     expect(text).toContain('GoodVibes Agent runtime connection diagnostics');
     expect(text).toContain('ownership: managed outside goodvibes-agent');
     expect(text).toContain('Agent owns lifecycle: no');
@@ -76,7 +76,7 @@ describe('CLI service posture', () => {
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
   });
 
-  test('reads configured external runtime logs with redaction', async () => {
+  test('reads configured service logs with redaction', async () => {
     const config = createConfig();
     const logPath = join(root, 'daemon.log');
     writeFileSync(logPath, 'token=secret-value GOODVIBES_DAEMON_TOKEN=abc123\n', 'utf-8');
@@ -93,7 +93,7 @@ describe('CLI service posture', () => {
     expect(posture.log.tail).toContain('<redacted>');
   });
 
-  test('json output preserves endpoint and external lifecycle structure', async () => {
+  test('json output preserves endpoint and connected-service ownership structure', async () => {
     const config = createConfig();
     config.setDynamic('danger.daemon', true);
     config.setDynamic('service.enabled', false);
@@ -109,9 +109,9 @@ describe('CLI service posture', () => {
       issues: string[];
     };
 
-    expect(parsed.managed.path).toBe('external GoodVibes runtime');
+    expect(parsed.managed.path).toBe('connected GoodVibes services');
     expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
-    expect(parsed.issues).toContain('External runtime connection settings are present, but Agent runtime lifecycle ownership is disabled by design.');
+    expect(parsed.issues).toContain('Connected-service settings are present, but Agent service ownership is disabled by design.');
   });
 });

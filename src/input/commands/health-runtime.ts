@@ -78,7 +78,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         const auth = readModels.localAuth.getSnapshot();
         ctx.print([
           'Health Review: Runtime Auth',
-          '  owner: external GoodVibes runtime',
+          '  owner: connected GoodVibes services',
           `  compatibility users visible: ${auth.userCount}`,
           `  compatibility sessions visible: ${auth.sessionCount}`,
           `  bootstrap file signal: ${auth.bootstrapCredentialPresent ? 'present' : 'cleared'}`,

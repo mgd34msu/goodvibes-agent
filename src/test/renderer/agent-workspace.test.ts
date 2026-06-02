@@ -630,7 +630,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/channels');
     expect(output).toContain('/notify list');
     expect(output).toContain('/health review');
-    expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and runtime');
+    expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and Agent');
     expect(output).toContain('policy.');
     expect(output).toContain('Readiness: 2/13 ready; 2 enabled; 1 default target(s) configured.');
     expect(output).toContain('Ready channels: Slack, Telegram.');

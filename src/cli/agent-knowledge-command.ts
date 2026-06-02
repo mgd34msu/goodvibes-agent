@@ -244,7 +244,7 @@ async function classifyKnowledgeError(error: unknown, connection: AgentDaemonCon
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `External runtime SDK version ${daemonVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
+        error: `Connected GoodVibes service SDK version ${daemonVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
         baseUrl: connection.baseUrl,
         route,
         daemonVersion,
@@ -687,7 +687,7 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
     `  version compatible: ${yesNo(versionCompatible)}`,
     `  operator token: ${connection.token ? 'present' : 'missing'} (${connection.tokenPath})`,
     `  Agent knowledge route: ${knowledgeRouteReady ? 'ready' : `not ready (${knowledgeRoute.ok ? 'unknown' : knowledgeRoute.kind})`}`,
-    ...(versionCompatible ? [] : ['  next: update/restart the external GoodVibes runtime so /status matches the Agent SDK pin.']),
+    ...(versionCompatible ? [] : ['  next: update connected GoodVibes services so /status matches the Agent SDK pin.']),
   ].join('\n');
   return {
     output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text,
