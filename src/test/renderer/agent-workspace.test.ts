@@ -1140,5 +1140,47 @@ describe('renderAgentWorkspace', () => {
     const loadOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(loadOutput).toContain('Load Session');
     expect(loadOutput).toContain('Session name *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-rename');
+    workspace.activateSelected();
+    const renameOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(renameOutput).toContain('Rename Current Session');
+    expect(renameOutput).toContain('New session name *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-resume');
+    workspace.activateSelected();
+    const resumeOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(resumeOutput).toContain('Resume Saved Session');
+    expect(resumeOutput).toContain('Session id or name *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-info');
+    workspace.activateSelected();
+    const infoOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(infoOutput).toContain('Inspect Saved Session');
+    expect(infoOutput).toContain('Session id or name *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-export-saved');
+    workspace.activateSelected();
+    const savedExportOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(savedExportOutput).toContain('Export Saved Session');
+    expect(savedExportOutput).toContain('Format *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-search');
+    workspace.activateSelected();
+    const searchOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(searchOutput).toContain('Search Saved Sessions');
+    expect(searchOutput).toContain('Search query *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-delete');
+    workspace.activateSelected();
+    const deleteOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(deleteOutput).toContain('Delete Saved Session');
+    expect(deleteOutput).toContain('Confirm *');
   });
 });

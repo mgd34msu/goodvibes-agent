@@ -503,10 +503,61 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-rename');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-rename');
+    feedText(workspace, 'renamed-review');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-resume');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-resume');
+    feedText(workspace, 'morning-review');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-info');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-info');
+    feedText(workspace, 'morning-review');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-export-saved');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-export-saved');
+    feedText(workspace, 'morning-review');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'text');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-search');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-search');
+    feedText(workspace, 'release');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-delete');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-delete');
+    feedText(workspace, 'old-review');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
     expect(dispatched).toEqual([
       '/export markdown ./exports/session.md --yes',
       '/save morning-review',
       '/load morning-review',
+      '/session rename renamed-review',
+      '/session resume morning-review',
+      '/session info morning-review',
+      '/session export morning-review text',
+      '/session search release',
+      '/session delete old-review --yes',
     ]);
   });
 

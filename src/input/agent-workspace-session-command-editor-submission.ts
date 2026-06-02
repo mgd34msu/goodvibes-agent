@@ -75,6 +75,55 @@ export function buildAgentWorkspaceSessionCommandEditorSubmission(
       'safe',
     );
   }
+  if (editor.kind === 'session-rename') {
+    return dispatch(
+      `/session rename ${quoteSlashCommandArg(readField('name'))}`,
+      'Opening session rename',
+      'The workspace handed current-session rename to the shell-owned command router.',
+      'safe',
+    );
+  }
+  if (editor.kind === 'session-resume') {
+    return dispatch(
+      `/session resume ${quoteSlashCommandArg(readField('target'))}`,
+      'Opening session resume',
+      'The workspace handed saved-session resume to the shell-owned command router.',
+      'safe',
+    );
+  }
+  if (editor.kind === 'session-info') {
+    return dispatch(
+      `/session info ${quoteSlashCommandArg(readField('target'))}`,
+      'Opening session inspection',
+      'The workspace handed read-only saved-session inspection to the shell-owned command router.',
+      'read-only',
+    );
+  }
+  if (editor.kind === 'session-export-saved') {
+    return dispatch(
+      `/session export ${quoteSlashCommandArg(readField('target'))} ${quoteSlashCommandArg(readField('format'))}`,
+      'Opening saved-session export',
+      'The workspace handed saved-session transcript export to the shell-owned command router.',
+      'read-only',
+    );
+  }
+  if (editor.kind === 'session-search') {
+    return dispatch(
+      `/session search ${quoteSlashCommandArg(readField('query'))}`,
+      'Opening saved-session search',
+      'The workspace handed saved-session search to the shell-owned command router.',
+      'read-only',
+    );
+  }
+  if (editor.kind === 'session-delete') {
+    if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Session delete not confirmed. Type yes, then press Enter.');
+    return dispatch(
+      `/session delete ${quoteSlashCommandArg(readField('target'))} --yes`,
+      'Opening saved-session delete',
+      'The workspace handed confirmed saved-session deletion to the shell-owned command router.',
+      'safe',
+    );
+  }
   if (editor.kind === 'mode-preset') {
     if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Interaction mode change not confirmed. Type yes, then press Enter.');
     return dispatch(
