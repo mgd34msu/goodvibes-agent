@@ -353,13 +353,13 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Connection: http://127.0.0.1:3421');
     expect(output).toContain('Agent role: interactive operator TUI');
     expect(output).toContain('setup changes here are Agent-local');
-    expect(output).toContain('READY Provider and model -> /model');
-    expect(output).toContain('RECOMMENDED Agent Knowledge -> /knowledge status');
-    expect(output).toContain('READY Persona -> /personas');
-    expect(output).toContain('RECOMMENDED Skills -> /agent-skills');
+    expect(output).toContain('READY Provider and model -> /agent setup');
+    expect(output).toContain('RECOMMENDED Agent Knowledge -> /agent knowledge');
+    expect(output).toContain('READY Persona -> /agent personas');
+    expect(output).toContain('RECOMMENDED Skills -> /agent skills');
     expect(output).toContain('1 missing setup requirement(s).');
-    expect(output).toContain('RECOMMENDED Routines -> /routines');
-    expect(output).toContain('READY Channels -> /pair');
+    expect(output).toContain('RECOMMENDED Routines -> /agent routines');
+    expect(output).toContain('READY Channels -> /agent channels');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('daemonBaseUrl');
     expect(output).not.toContain('daemon URL');
@@ -410,11 +410,11 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 150, 52));
 
-    expect(output).toContain('RECOMMENDED Agent profile -> /agent-profile guide');
+    expect(output).toContain('RECOMMENDED Agent profile -> /agent profiles');
     expect(output).toContain('3 discovered behavior file(s) can seed an isolated Agent profile');
-    expect(output).toContain('RECOMMENDED Persona -> /personas discover');
-    expect(output).toContain('RECOMMENDED Skills -> /agent-skills discover');
-    expect(output).toContain('RECOMMENDED Routines -> /routines discover');
+    expect(output).toContain('RECOMMENDED Persona -> /agent personas');
+    expect(output).toContain('RECOMMENDED Skills -> /agent skills');
+    expect(output).toContain('RECOMMENDED Routines -> /agent routines');
     expect(output).toContain('Discovered Behavior Files');
     expect(output).toContain('Discovered personas: 1 discovered; project 1; global 0.');
     expect(output).toContain('Research Operator');
@@ -433,13 +433,13 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 150, 48));
 
     expect(output).toContain('Skills');
-    expect(output).toContain('/agent-skills');
+    expect(output).toContain('/agent skills');
     expect(output).toContain('Routines');
-    expect(output).toContain('/routines');
+    expect(output).toContain('/agent routines');
     expect(output).toContain('Agent Knowledge');
-    expect(output).toContain('/knowledge status');
+    expect(output).toContain('/agent knowledge');
     expect(output).toContain('Voice and media');
-    expect(output).toContain('/config tts');
+    expect(output).toContain('/agent voice-media');
   });
 
   test('renders local persona posture in the memory workspace', () => {

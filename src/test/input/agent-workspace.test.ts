@@ -1435,6 +1435,14 @@ describe('AgentWorkspace', () => {
     expect(byId.get('agent-knowledge')?.status).toBe('recommended');
     expect(byId.get('memory')?.status).toBe('ready');
     expect(byId.get('channels')?.status).toBe('ready');
+    expect(byId.get('agent-knowledge')?.command).toBe('/agent knowledge');
+    expect(byId.get('profile')?.command).toBe('/agent profiles');
+    expect(byId.get('persona')?.command).toBe('/agent personas');
+    expect(byId.get('skills')?.command).toBe('/agent skills');
+    expect(byId.get('routines')?.command).toBe('/agent routines');
+    expect(byId.get('memory')?.command).toBe('/agent memory');
+    expect(byId.get('channels')?.command).toBe('/agent channels');
+    expect(byId.get('voice-media')?.command).toBe('/agent voice-media');
     expect(JSON.stringify(snapshot.setupChecklist)).not.toContain('SLACK_BOT_TOKEN');
   });
 
