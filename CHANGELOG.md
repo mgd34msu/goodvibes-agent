@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.111 - 2026-06-02
+
+- 3c53136 fix: harden package runtime bundle
+
 ## 0.1.110 - 2026-06-02
 
 - 31caa81 fix: retire redundant TUI launcher command
