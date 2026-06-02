@@ -27,27 +27,16 @@ export type SettingsCategory =
   | 'behavior'
   | 'storage'
   | 'permissions'
-  | 'orchestration'
-  | 'wrfc'
   | 'tools'
   | 'helper'
   | 'tts'
-  | 'service'
-  | 'controlPlane'
-  | 'httpListener'
-  | 'web'
-  | 'network'
   | 'surfaces'
-  | 'batch'
   | 'automation'
-  | 'watchers'
-  | 'runtime'
   | 'telemetry'
   | 'cache'
   | 'mcp'
   | 'flags'
-  | 'release'
-  | 'danger';
+  | 'release';
 
 export type SettingsFocusPane = 'categories' | 'settings';
 

@@ -632,9 +632,6 @@ export class SettingsModal {
         lockReason: hostOwned ? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON : resolved?.lockReason,
       };
       if (this.groups.has(cat)) this.groups.get(cat)!.push(entry);
-      if ((rawCat === 'controlPlane' || rawCat === 'httpListener' || rawCat === 'web') && this.groups.has('network')) {
-        this.groups.get('network')!.push(entry);
-      }
     }
 
     const uiEntries = this.groups.get('ui');
@@ -642,8 +639,7 @@ export class SettingsModal {
       const uiPriority: Record<string, number> = {
         'ui.systemMessages': 0,
         'ui.operationalMessages': 1,
-        'ui.wrfcMessages': 2,
-        'ui.voiceEnabled': 3,
+        'ui.voiceEnabled': 2,
       };
       uiEntries.sort((a, b) => (uiPriority[a.setting.key] ?? 99) - (uiPriority[b.setting.key] ?? 99));
     }
@@ -705,25 +701,7 @@ export class SettingsModal {
   /** Returns [] for the flags category (flags use flagEntries instead). */
   private _currentItems(): SettingEntry[] {
     if (this.currentCategory === 'flags' || this.currentCategory === 'mcp' || this.currentCategory === 'subscriptions') return [];
-    const items = this.groups.get(this.currentCategory) ?? [];
-    if (this.currentCategory === 'network') {
-      return items.filter(entry => {
-        if (entry.setting.key === 'controlPlane.host') {
-          const hostMode = this.configManager?.get('controlPlane.hostMode');
-          return hostMode === 'custom';
-        }
-        if (entry.setting.key === 'httpListener.host') {
-          const hostMode = this.configManager?.get('httpListener.hostMode');
-          return hostMode === 'custom';
-        }
-        if (entry.setting.key === 'web.host') {
-          const hostMode = this.configManager?.get('web.hostMode');
-          return hostMode === 'custom';
-        }
-        return true;
-      });
-    }
-    return items;
+    return this.groups.get(this.currentCategory) ?? [];
   }
 
   private _refreshAllEntries(): void {

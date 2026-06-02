@@ -30,27 +30,16 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   behavior: 'Day-to-day shell behavior: approval posture, compaction, history, guidance, notifications, stale-context warnings, return context, and Human-in-the-Loop mode.',
   storage: 'Local storage posture, including secret storage policy and maximum artifact size for Agent Knowledge, artifacts, and document ingestion.',
   permissions: 'Permission mode and tool-class policy. These settings decide whether the shell prompts before read/write/exec/network/agent actions.',
-  orchestration: 'Hidden compatibility settings. Normal Agent operation stays serial and does not expose local worker fanout.',
-  wrfc: 'Build-review routing is external to normal Agent operation. Review these compatibility values only for explicit delegated build work.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
-  service: 'Connected-host status posture. Agent inspects these values only and does not install, start, stop, restart, or autostart anything.',
-  controlPlane: 'Connected API settings. Agent uses these values for access and does not mutate bind posture.',
-  httpListener: 'Inbound delivery endpoint settings owned by the connected GoodVibes host. Agent inspects readiness and does not expose endpoints.',
-  web: 'External browser companion settings. Agent does not own browser hosting or network bind lifecycle.',
-  batch: 'Queued execution settings reported from the connected GoodVibes host. Agent does not own remote queue provisioning.',
   automation: 'Scheduled and automated run settings, concurrency, timeout, catch-up, cooldown, and retention behavior.',
-  watchers: 'File/process watcher heartbeat, polling, and recovery-window behavior.',
-  runtime: 'Connected-host guardrails such as companion chat limits and event-stream caps.',
   telemetry: 'Telemetry payload policy.',
   cache: 'Provider and model cache behavior, TTL, and hit-rate monitoring.',
   mcp: 'MCP server trust and scope review. Trust changes can expose local files, tools, databases, browsers, or remote automation depending on the server.',
   surfaces: 'Messaging and notification channel accounts such as Slack, Discord, ntfy, Telegram, chat bridges, and delivery providers.',
   release: 'Release-channel preference.',
-  danger: 'High-impact host switches. Agent renders host-owned switches read-only; change them outside Agent.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
   flags: 'Feature flags are SDK gates. They are separate from normal config keys because they enable or disable staged behavior.',
-  network: 'Read-only view of connected GoodVibes API, inbound delivery, and browser companion bind posture plus editable Agent network settings.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
@@ -74,26 +63,6 @@ const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
     require_secure: 'Require secure secret storage and reject plaintext fallback.',
     plaintext_allowed: 'Allow plaintext fallback when secure storage is unavailable.',
   },
-  'batch.mode': {
-    off: 'Keep runtime work on the immediate local path.',
-    explicit: 'Use batch only when callers explicitly request batch execution.',
-    'eligible-by-default': 'Allow eligible runtime work to use the batch path unless callers opt out.',
-  },
-  'controlPlane.hostMode': {
-    localhost: 'Bind only to this computer.',
-    network: 'Bind for LAN access using the default network host.',
-    custom: 'Use the explicit host value in the related host setting.',
-  },
-  'httpListener.hostMode': {
-    localhost: 'Bind only to this computer.',
-    network: 'Bind for LAN event delivery using the default network host.',
-    custom: 'Use the explicit host value in the related host setting.',
-  },
-  'web.hostMode': {
-    localhost: 'Serve the browser UI only on this computer.',
-    network: 'Serve the browser UI on the LAN.',
-    custom: 'Use the explicit host value in the related host setting.',
-  },
   'ui.systemMessages': {
     panel: 'Show system messages in panels only.',
     conversation: 'Show system messages inline in the transcript.',
@@ -103,11 +72,6 @@ const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
     panel: 'Show operational messages in panels only.',
     conversation: 'Show operational messages inline in the transcript.',
     both: 'Show operational messages in both panels and the transcript.',
-  },
-  'ui.wrfcMessages': {
-    panel: 'Show explicit delegated build messages in panels only.',
-    conversation: 'Show explicit delegated build messages inline in the transcript.',
-    both: 'Show explicit delegated build messages in both panels and the transcript.',
   },
   'surfaces.telegram.mode': {
     webhook: 'Receive Telegram updates through externally hosted delivery.',
@@ -155,7 +119,6 @@ function buildSettingContext(modal: SettingsModal, entry: SettingEntry): string[
   if (
     entry.setting.key === 'ui.systemMessages'
     || entry.setting.key === 'ui.operationalMessages'
-    || entry.setting.key === 'ui.wrfcMessages'
   ) {
     lines.push(`Routing meaning: ${describeUiRouting(String(entry.currentValue))}.`);
   }
@@ -464,7 +427,6 @@ function renderControlRows(modal: SettingsModal, width: number, height: number):
 }
 
 function rowColorForSetting(modal: SettingsModal, rowText: string): string {
-  if (modal.currentCategory === 'danger') return PALETTE.bad;
   if (rowText.startsWith(GLYPHS.navigation.selected)) return PALETTE.text;
   const selected = modal.getSelected();
   if (!selected) return PALETTE.text;

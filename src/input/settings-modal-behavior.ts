@@ -30,8 +30,5 @@ export function getNumericAdjustmentMeta(setting: ConfigSetting): {
   max?: number;
   precision: number;
 } {
-  if (setting.key === 'wrfc.scoreThreshold') {
-    return { step: 0.1, min: 0, max: 10, precision: 1 };
-  }
   return { step: 1, precision: 0 };
 }
