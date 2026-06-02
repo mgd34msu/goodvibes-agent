@@ -187,6 +187,42 @@ describe('/routines command', () => {
     expect(text).toContain('secret-looking');
   });
 
+  test('discovers and imports local routine markdown only after confirmation', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const shellPaths = ctx.workspace?.shellPaths;
+    if (!shellPaths) throw new Error('missing shell paths');
+    const routineDir = join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'routines', 'travel-prep');
+    mkdirSync(routineDir, { recursive: true });
+    writeFileSync(join(routineDir, 'ROUTINE.md'), [
+      '---',
+      'name: Travel Prep',
+      'description: Prepare a trip brief from local context.',
+      'triggers: travel, trip',
+      'tags: planning, personal',
+      '---',
+      'Review itinerary, constraints, and reminders.',
+      'Ask before booking, messaging, or changing external plans.',
+    ].join('\n'));
+
+    await registry.execute('routines', ['discover'], ctx);
+    await registry.execute('routines', ['import-discovered', 'Travel', 'Prep'], ctx);
+    await registry.execute('routines', ['list'], ctx);
+    await registry.execute('routines', ['import-discovered', 'travel-prep', '--enabled', '--yes'], ctx);
+    await registry.execute('routines', ['enabled'], ctx);
+    await registry.execute('routines', ['show', 'travel-prep'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Discovered Agent routine files (1)');
+    expect(text).toContain('Travel Prep  project-local');
+    expect(text).toContain('Agent routine import preview');
+    expect(text).toContain('No local Agent routines yet');
+    expect(text).toContain('Imported Agent routine travel-prep: Travel Prep (enabled)');
+    expect(text).toContain('travel-prep  enabled');
+    expect(text).toContain('Review itinerary, constraints');
+    expect(text).toContain('tags: planning, personal');
+    expect(text).toContain('triggers: travel, trip');
+  });
+
   test('previews routine schedule promotion without calling the daemon', async () => {
     const { registry, out, ctx } = commandHarness();
     const originalFetch = globalThis.fetch;

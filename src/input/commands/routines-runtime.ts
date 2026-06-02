@@ -1,3 +1,4 @@
+import { discoverRoutines, type DiscoveredRoutineRecord } from '../../agent/routine-discovery.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
@@ -111,8 +112,84 @@ function renderRoutine(routine: AgentRoutineRecord): string {
   ].filter(Boolean).join('\n');
 }
 
+function summarizeDiscoveredRoutine(routine: DiscoveredRoutineRecord): string {
+  const description = routine.description ? ` - ${routine.description}` : '';
+  return `  ${routine.name}  ${routine.origin}${description}\n    path: ${routine.path}`;
+}
+
+function renderDiscoveredRoutines(routines: readonly DiscoveredRoutineRecord[]): string {
+  if (routines.length === 0) {
+    return [
+      'Discovered Agent routine files',
+      '  No routine markdown files found in project/global Agent routine folders.',
+      '  Search roots: .goodvibes/routines, .goodvibes/agent/routines, ~/.goodvibes/routines, ~/.goodvibes/agent/routines',
+    ].join('\n');
+  }
+  return [
+    `Discovered Agent routine files (${routines.length})`,
+    ...routines.map(summarizeDiscoveredRoutine),
+    '',
+    'Import one with: /routines import-discovered <name> --yes',
+  ].join('\n');
+}
+
+function discoveredRoutineLookupValues(routine: DiscoveredRoutineRecord): readonly string[] {
+  const slug = routine.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const basename = routine.path.split(/[\\/]/).pop()?.replace(/\.md$/i, '') ?? '';
+  return [routine.name, slug, routine.path, basename].map((value) => value.trim().toLowerCase()).filter(Boolean);
+}
+
+function findDiscoveredRoutine(routines: readonly DiscoveredRoutineRecord[], idOrName: string): DiscoveredRoutineRecord | null {
+  const lookup = idOrName.trim().toLowerCase();
+  if (!lookup) return null;
+  return routines.find((routine) => discoveredRoutineLookupValues(routine).includes(lookup)) ?? null;
+}
+
+function frontmatterList(routine: DiscoveredRoutineRecord, key: string): readonly string[] {
+  const value = routine.frontmatter[key];
+  if (!value) return [];
+  return splitList(value);
+}
+
 function printError(ctx: CommandContext, error: unknown): void {
   ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
+}
+
+async function importDiscoveredRoutine(args: readonly string[], ctx: CommandContext, routineRegistry: AgentRoutineRegistry): Promise<void> {
+  const parsed = parseRoutineArgs(args);
+  const name = parsed.rest.join(' ').trim();
+  if (!name) {
+    ctx.print('Usage: /routines import-discovered <name> [--enabled] --yes');
+    return;
+  }
+  const discovered = findDiscoveredRoutine(await discoverRoutines(requireShellPaths(ctx)), name);
+  if (!discovered) {
+    ctx.print(`Unknown discovered Agent routine: ${name}\nRun /routines discover to inspect available routine files.`);
+    return;
+  }
+  if (!parsed.yes) {
+    ctx.print([
+      'Agent routine import preview',
+      `  name: ${discovered.name}`,
+      `  origin: ${discovered.origin}`,
+      `  path: ${discovered.path}`,
+      `  description: ${discovered.description || '(none)'}`,
+      `  steps characters: ${discovered.steps.length}`,
+      '  next: rerun with --yes to import into the Agent-local routine registry',
+    ].join('\n'));
+    return;
+  }
+  const routine = routineRegistry.create({
+    name: discovered.name,
+    description: discovered.description || `Imported routine from ${discovered.origin} markdown file.`,
+    steps: discovered.steps,
+    tags: frontmatterList(discovered, 'tags'),
+    triggers: frontmatterList(discovered, 'triggers'),
+    enabled: parsed.flags.get('enabled') === 'true',
+    source: 'imported',
+    provenance: `discovered:${discovered.origin}:${discovered.path}`,
+  });
+  ctx.print(`Imported Agent routine ${routine.id}: ${routine.name}${routine.enabled ? ' (enabled)' : ''}`);
 }
 
 async function promoteRoutine(args: readonly string[], routineRegistry: AgentRoutineRegistry, ctx: CommandContext): Promise<void> {
@@ -152,6 +229,14 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
     if (sub === 'enabled') {
       const snapshot = routineRegistry.snapshot();
       ctx.print(renderList('Enabled Agent Routines', routineRegistry, snapshot.enabledRoutines));
+      return;
+    }
+    if (sub === 'discover' || sub === 'discovered') {
+      ctx.print(renderDiscoveredRoutines(await discoverRoutines(requireShellPaths(ctx))));
+      return;
+    }
+    if (sub === 'import-discovered' || sub === 'import-routine') {
+      await importDiscoveredRoutine(args.slice(1), ctx, routineRegistry);
       return;
     }
     if (sub === 'search') {
@@ -288,7 +373,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       ctx.print(`Deleted Agent routine ${removed.id}: ${removed.name}`);
       return;
     }
-    ctx.print('Usage: /routines [list|enabled|search|show|receipts|reconcile|receipt|create|update|enable|disable|start|review|stale|promote|delete]');
+    ctx.print('Usage: /routines [list|enabled|discover|import-discovered|search|show|receipts|reconcile|receipt|create|update|enable|disable|start|review|stale|promote|delete]');
   } catch (error) {
     printError(ctx, error);
   }
@@ -299,7 +384,7 @@ export function registerRoutinesRuntimeCommands(registry: CommandRegistry): void
     name: 'routines',
     aliases: ['routine'],
     description: 'Manage local GoodVibes Agent routines',
-    usage: '[list|enabled|search <query>|show <id>|receipts|reconcile|receipt <id>|create --name <name> --description <summary> --steps <steps>|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> [--delivery-channel slack] --yes|delete <id> --yes]',
+    usage: '[list|enabled|discover|import-discovered <name> --yes|search <query>|show <id>|receipts|reconcile|receipt <id>|create --name <name> --description <summary> --steps <steps>|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> [--delivery-channel slack] --yes|delete <id> --yes]',
     handler: runRoutinesRuntimeCommand,
   });
 }

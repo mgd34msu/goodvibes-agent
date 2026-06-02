@@ -25,6 +25,7 @@ type AgentWorkspaceCommandEditorKind = Extract<
   | 'image-input'
   | 'skill-bundle'
   | 'persona-discovery-import'
+  | 'routine-discovery-import'
   | 'skill-discovery-import'
   | 'profile-template-export'
   | 'profile-template-import'

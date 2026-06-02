@@ -1,4 +1,5 @@
 import { createShellPathService } from '@/runtime/index.ts';
+import { discoverRoutines, type DiscoveredRoutineRecord } from '../agent/routine-discovery.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
@@ -44,6 +45,13 @@ function routineRegistry(runtime: CliCommandRuntime): AgentRoutineRegistry {
   }));
 }
 
+function shellPaths(runtime: CliCommandRuntime): ReturnType<typeof createShellPathService> {
+  return createShellPathService({
+    workingDirectory: runtime.workingDirectory,
+    homeDirectory: runtime.homeDirectory,
+  });
+}
+
 function routineReceiptStore(runtime: CliCommandRuntime): RoutineScheduleReceiptStore {
   return RoutineScheduleReceiptStore.fromShellPaths(createShellPathService({
     workingDirectory: runtime.workingDirectory,
@@ -51,10 +59,81 @@ function routineReceiptStore(runtime: CliCommandRuntime): RoutineScheduleReceipt
   }));
 }
 
+function splitList(value: string | undefined): readonly string[] {
+  if (!value) return [];
+  return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
+function parseImportFlags(args: readonly string[]): {
+  readonly name: string;
+  readonly enabled: boolean;
+  readonly yes: boolean;
+} {
+  const positionals: string[] = [];
+  let enabled = false;
+  let yes = false;
+  for (const arg of args) {
+    if (arg === '--enabled') {
+      enabled = true;
+      continue;
+    }
+    if (arg === '--yes') {
+      yes = true;
+      continue;
+    }
+    positionals.push(arg);
+  }
+  return { name: positionals.join(' ').trim(), enabled, yes };
+}
+
 function summarizeRoutine(routine: AgentRoutineRecord): string {
   const enabled = routine.enabled ? 'enabled' : 'disabled';
   const tags = routine.tags.length > 0 ? ` tags=${routine.tags.join(',')}` : '';
   return `  ${routine.id}  ${enabled}  ${routine.reviewState}  starts=${routine.startCount}  ${routine.name} - ${routine.description}${tags}`;
+}
+
+function summarizeDiscoveredRoutine(routine: DiscoveredRoutineRecord): string {
+  const description = routine.description ? ` - ${routine.description}` : '';
+  return [
+    `  ${routine.name}  ${routine.origin}${description}`,
+    `    path: ${routine.path}`,
+  ].join('\n');
+}
+
+function renderDiscoveredRoutineList(routines: readonly DiscoveredRoutineRecord[]): string {
+  if (routines.length === 0) {
+    return [
+      'Discovered Agent routine files',
+      '  No routine markdown files found in Agent routine folders.',
+      '  Search roots: .goodvibes/routines, .goodvibes/agent/routines, ~/.goodvibes/routines, ~/.goodvibes/agent/routines',
+    ].join('\n');
+  }
+  return [
+    `Discovered Agent routine files (${routines.length})`,
+    ...routines.map(summarizeDiscoveredRoutine),
+    '',
+    'Import one with: goodvibes-agent routines import-discovered <name> --yes',
+  ].join('\n');
+}
+
+function discoveredRoutineLookupValues(routine: DiscoveredRoutineRecord): readonly string[] {
+  const slug = routine.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const basename = routine.path.split(/[\\/]/).pop()?.replace(/\.md$/i, '') ?? '';
+  return [routine.name, slug, routine.path, basename]
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function findDiscoveredRoutine(routines: readonly DiscoveredRoutineRecord[], idOrName: string): DiscoveredRoutineRecord | null {
+  const lookup = idOrName.trim().toLowerCase();
+  if (!lookup) return null;
+  return routines.find((routine) => discoveredRoutineLookupValues(routine).includes(lookup)) ?? null;
+}
+
+function discoveredRoutineFrontmatterList(routine: DiscoveredRoutineRecord, key: string): readonly string[] {
+  const value = routine.frontmatter[key];
+  if (!value) return [];
+  return splitList(value);
 }
 
 function renderRoutineList(title: string, path: string, routines: readonly AgentRoutineRecord[]): string {
@@ -176,6 +255,82 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       exitCode: 0,
     };
   }
+  if (normalized === 'discover') {
+    const discovered = await discoverRoutines(shellPaths(runtime));
+    const value: RoutinesCommandSuccess<{ readonly routines: readonly DiscoveredRoutineRecord[] }> = {
+      ok: true,
+      kind: 'agent.routines.discover',
+      data: { routines: discovered },
+    };
+    return {
+      output: jsonOrText(runtime, value, renderDiscoveredRoutineList(discovered)),
+      exitCode: 0,
+    };
+  }
+  if (normalized === 'import-discovered' || normalized === 'import-routine') {
+    const parsed = parseImportFlags(rest);
+    if (!parsed.name) {
+      const failure: RoutinesCommandFailure = {
+        ok: false,
+        kind: 'invalid_routine_command',
+        error: 'Usage: goodvibes-agent routines import-discovered <name> [--enabled] --yes',
+      };
+      return {
+        output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(failure, null, 2) : failure.error,
+        exitCode: 2,
+      };
+    }
+    const discovered = findDiscoveredRoutine(await discoverRoutines(shellPaths(runtime)), parsed.name);
+    if (!discovered) {
+      const failure: RoutinesCommandFailure = {
+        ok: false,
+        kind: 'routine_discovery_not_found',
+        error: `Unknown discovered Agent routine: ${parsed.name}\nRun goodvibes-agent routines discover to inspect available routine files.`,
+      };
+      return {
+        output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(failure, null, 2) : failure.error,
+        exitCode: 1,
+      };
+    }
+    if (!parsed.yes) {
+      const value: RoutinesCommandSuccess<{ readonly routine: DiscoveredRoutineRecord }> = {
+        ok: true,
+        kind: 'agent.routines.import_discovered.preview',
+        data: { routine: discovered },
+      };
+      return {
+        output: jsonOrText(runtime, value, [
+          'Agent routine import preview',
+          `  name: ${discovered.name}`,
+          `  origin: ${discovered.origin}`,
+          `  path: ${discovered.path}`,
+          `  description: ${discovered.description || '(none)'}`,
+          `  steps characters: ${discovered.steps.length}`,
+          '  next: rerun with --yes to import into the Agent-local routine registry',
+        ].join('\n')),
+        exitCode: 0,
+      };
+    }
+    const routine = registry.create({
+      name: discovered.name,
+      description: discovered.description || `Imported routine from ${discovered.origin} markdown file.`,
+      steps: discovered.steps,
+      tags: discoveredRoutineFrontmatterList(discovered, 'tags'),
+      triggers: discoveredRoutineFrontmatterList(discovered, 'triggers'),
+      enabled: parsed.enabled,
+      source: 'imported',
+      provenance: `discovered:${discovered.origin}:${discovered.path}`,
+    });
+    const value: RoutinesCommandSuccess<AgentRoutineRecord> = {
+      ok: true,
+      kind: 'agent.routines.import_discovered',
+      data: routine,
+    };
+    return {
+      output: jsonOrText(runtime, value, `Imported Agent routine ${routine.id}: ${routine.name}${routine.enabled ? ' (enabled)' : ''}`),
+      exitCode: 0,
+    };
+  }
   if (normalized === 'show') {
     const id = rest[0];
     if (!id) return { output: 'Usage: goodvibes-agent routines show <id>', exitCode: 2 };
@@ -241,7 +396,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
     return handleRoutinePromotion(runtime, rest);
   }
   return {
-    output: 'Usage: goodvibes-agent routines [list|enabled|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes]',
+    output: 'Usage: goodvibes-agent routines [list|enabled|discover|import-discovered <name> --yes|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes]',
     exitCode: 2,
   };
 }

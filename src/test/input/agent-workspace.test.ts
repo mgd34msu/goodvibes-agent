@@ -791,6 +791,42 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening discovered persona import');
   });
 
+  test('discovers and imports local routine files from the workspace after confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-discover');
+    workspace.activateSelected();
+    expect(dispatched).toEqual(['/routines discover']);
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-import-discovered');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('routine-discovery-import');
+    feedText(workspace, 'Daily Brief');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    expect(workspace.localEditor?.message).toContain('Confirm is required');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    expect(dispatched).toEqual(['/routines discover']);
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/routines discover',
+      '/routines import-discovered "Daily Brief" --enabled --yes',
+    ]);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening discovered routine import');
+  });
+
   test('creates reviews marks stale and deletes Agent memory from workspace editors', async () => {
     const records: MemoryRecord[] = [];
     const ctx = {

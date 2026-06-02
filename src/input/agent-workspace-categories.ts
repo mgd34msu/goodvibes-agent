@@ -202,6 +202,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'routines-list', label: 'List routines', detail: 'Print the full local Agent routine library.', command: '/routines list', kind: 'command', safety: 'read-only' },
       { id: 'routines-enabled', label: 'Enabled routines', detail: 'Show routines available for direct use.', command: '/routines enabled', kind: 'command', safety: 'read-only' },
+      { id: 'routines-discover', label: 'Discover routine files', detail: 'Scan project and global Agent routine folders for routine markdown without importing it.', command: '/routines discover', kind: 'command', safety: 'read-only' },
+      { id: 'routines-import-discovered', label: 'Import discovered routine', detail: 'Open an in-workspace form that imports one reviewed routine markdown file into the Agent-local routine registry after typed confirmation.', editorKind: 'routine-discovery-import', kind: 'editor', safety: 'safe' },
       { id: 'routines-prev', label: 'Previous routine', detail: 'Move the local routine selection up without changing enabled state.', localKind: 'routine', selectionDelta: -1, kind: 'local-selection', safety: 'safe' },
       { id: 'routines-next', label: 'Next routine', detail: 'Move the local routine selection down without changing enabled state.', localKind: 'routine', selectionDelta: 1, kind: 'local-selection', safety: 'safe' },
       { id: 'routines-create', label: 'Create routine', detail: 'Open an in-workspace form for a repeatable local workflow that writes Agent-local state only.', editorKind: 'routine', kind: 'editor', safety: 'safe' },

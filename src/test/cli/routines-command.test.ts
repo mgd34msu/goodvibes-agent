@@ -158,6 +158,62 @@ describe('routines CLI command', () => {
     expect(shown.output).toContain('Ask before external changes');
   });
 
+  test('discovers previews and imports local routine markdown only after confirmation', async () => {
+    const baseRuntime = runtime(['discover']);
+    const routineDir = join(baseRuntime.workingDirectory, '.goodvibes', 'agent', 'routines', 'travel-prep');
+    mkdirSync(routineDir, { recursive: true });
+    writeFileSync(join(routineDir, 'ROUTINE.md'), [
+      '---',
+      'name: Travel Prep',
+      'description: Prepare a trip brief from local context.',
+      'triggers: travel, trip',
+      'tags: planning, personal',
+      '---',
+      'Review itinerary, constraints, and reminders.',
+      'Ask before booking, messaging, or changing external plans.',
+    ].join('\n'));
+
+    const discovered = await handleRoutinesCommand(baseRuntime);
+    expect(discovered.exitCode).toBe(0);
+    expect(discovered.output).toContain('Discovered Agent routine files (1)');
+    expect(discovered.output).toContain('Travel Prep');
+    expect(discovered.output).toContain('travel-prep/ROUTINE.md');
+
+    const discoveredJson = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'discover', '--json']) });
+    const discoveredPayload = JSON.parse(discoveredJson.output) as {
+      readonly kind?: unknown;
+      readonly data?: { readonly routines?: readonly { readonly name?: unknown; readonly origin?: unknown }[] };
+    };
+    expect(discoveredPayload.kind).toBe('agent.routines.discover');
+    expect(discoveredPayload.data?.routines?.[0]?.name).toBe('Travel Prep');
+    expect(discoveredPayload.data?.routines?.[0]?.origin).toBe('project-local');
+
+    const preview = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'import-discovered', 'travel-prep']) });
+    expect(preview.exitCode).toBe(0);
+    expect(preview.output).toContain('Agent routine import preview');
+    expect(preview.output).toContain('rerun with --yes');
+
+    const beforeImport = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'show', 'travel-prep']) });
+    expect(beforeImport.exitCode).toBe(1);
+    expect(beforeImport.output).toContain('Unknown Agent routine: travel-prep');
+
+    const imported = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'import-discovered', 'Travel', 'Prep', '--enabled', '--yes']) });
+    expect(imported.exitCode).toBe(0);
+    expect(imported.output).toContain('Imported Agent routine travel-prep: Travel Prep (enabled)');
+
+    const shownJson = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'show', 'travel-prep', '--json']) });
+    const shownPayload = JSON.parse(shownJson.output) as {
+      readonly kind?: unknown;
+      readonly data?: { readonly source?: unknown; readonly provenance?: unknown; readonly tags?: readonly string[]; readonly triggers?: readonly string[]; readonly enabled?: unknown };
+    };
+    expect(shownPayload.kind).toBe('agent.routines.show');
+    expect(shownPayload.data?.source).toBe('imported');
+    expect(String(shownPayload.data?.provenance ?? '')).toContain('discovered:project-local:');
+    expect(shownPayload.data?.tags).toContain('planning');
+    expect(shownPayload.data?.triggers).toContain('trip');
+    expect(shownPayload.data?.enabled).toBe(true);
+  });
+
   test('previews schedule promotion with explicit delivery without calling the daemon', async () => {
     const originalFetch = globalThis.fetch;
     let calls = 0;
