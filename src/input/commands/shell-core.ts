@@ -115,6 +115,10 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
       if (ctx.openSelection) {
         const items: SelectionItem[] = [
           { id: '/agent', label: '/agent', detail: 'Open the Agent operator workspace', category: 'Agent Operator' },
+          { id: '/agent setup', label: '/agent setup', detail: 'Open the Agent setup workspace', category: 'Agent Operator' },
+          { id: '/agent channels', label: '/agent channels', detail: 'Open channel readiness and delivery safety', category: 'Agent Operator' },
+          { id: '/agent knowledge', label: '/agent knowledge', detail: 'Open isolated Agent Knowledge workflows', category: 'Agent Operator' },
+          { id: '/agent voice-media', label: '/agent voice-media', detail: 'Open voice, TTS, image, browser, and media setup', category: 'Agent Operator' },
           { id: '/home', label: '/home', detail: 'Alias for the Agent operator workspace', category: 'Agent Operator' },
           { id: '/brief', label: '/brief', detail: 'Show a concise Agent operator briefing and next actions', category: 'Agent Operator' },
           { id: '/knowledge', label: '/knowledge', detail: 'Inspect isolated Agent Knowledge status, ask/search, and ingest flows', category: 'Agent Operator' },

@@ -21,6 +21,10 @@ describe('/help command', () => {
 
     const ids = capturedItems.map((item) => item.id);
     expect(ids).toContain('/agent');
+    expect(ids).toContain('/agent setup');
+    expect(ids).toContain('/agent channels');
+    expect(ids).toContain('/agent knowledge');
+    expect(ids).toContain('/agent voice-media');
     expect(ids).toContain('/brief');
     expect(ids).toContain('/knowledge');
     expect(ids).toContain('/memory');

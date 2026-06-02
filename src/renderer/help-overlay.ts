@@ -70,6 +70,9 @@ export function renderHelpOverlay(
   // Commands not registered in the live registry are omitted at render time.
   const FEATURED_COMMANDS: Array<[name: string, argHint: string, desc: string]> = [
     ['agent',        '',           'Open the Agent operator workspace'],
+    ['agent',        'setup',      'Open setup, local behavior, channel, and voice workspaces'],
+    ['agent',        'knowledge',  'Open isolated Agent Knowledge workflows'],
+    ['agent',        'voice-media', 'Open voice, image, browser, and media setup'],
     ['setup',        '',           'Open Agent setup with current settings preloaded'],
     ['knowledge',    'status',     'Inspect isolated Agent Knowledge readiness'],
     ['memory',       '',           'Manage local Agent memory records'],
