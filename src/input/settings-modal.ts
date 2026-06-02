@@ -34,7 +34,7 @@ import {
   type SettingsModalOpenOptions,
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
-import { AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON, isAgentHiddenSettingKey, isExternalDaemonOwnedSettingKey } from './settings-modal-agent-policy.ts';
+import { AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON, isAgentHiddenSettingKey, isExternalHostOwnedSettingKey } from './settings-modal-agent-policy.ts';
 
 export {
   SETTINGS_CATEGORIES,
@@ -50,7 +50,7 @@ export {
   type SettingsModalOpenOptions,
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
-export { AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON, isExternalDaemonOwnedSettingKey } from './settings-modal-agent-policy.ts';
+export { AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON, isExternalHostOwnedSettingKey } from './settings-modal-agent-policy.ts';
 export { isAgentHiddenSettingKey } from './settings-modal-agent-policy.ts';
 
 // ---------------------------------------------------------------------------
@@ -352,7 +352,7 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return;
-    if (this._blockExternalDaemonOwnedSetting(entry)) return;
+    if (this._blockExternalHostOwnedSetting(entry)) return;
 
     const { setting } = entry;
 
@@ -417,7 +417,7 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return;
-    if (this._blockExternalDaemonOwnedSetting(entry)) return;
+    if (this._blockExternalHostOwnedSetting(entry)) return;
     const { setting } = entry;
 
     if (setting.type === 'boolean') {
@@ -539,7 +539,7 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return false;
-    if (this._blockExternalDaemonOwnedSetting(entry)) {
+    if (this._blockExternalHostOwnedSetting(entry)) {
       this.editingMode = false;
       this.editBuffer = '';
       return false;
@@ -590,7 +590,7 @@ export class SettingsModal {
     if (this.editingMode || !this.configManager) return null;
     const entry = this.getSelected();
     if (!entry) return null;
-    if (this._blockExternalDaemonOwnedSetting(entry)) return null;
+    if (this._blockExternalHostOwnedSetting(entry)) return null;
     const key = entry.setting.key as ConfigKey;
     this._setValue(key, entry.setting.default);
     if (isSecretConfigKey(key) && this.secretsManager) {
@@ -627,16 +627,16 @@ export class SettingsModal {
       const cat = rawCat as SettingsCategory;
       const currentValue = configManager.get(setting.key as ConfigKey);
       const resolved = getResolvedSettingLookup(configManager, setting.key as ConfigKey)?.entry;
-      const daemonOwned = isExternalDaemonOwnedSettingKey(setting.key);
+      const hostOwned = isExternalHostOwnedSettingKey(setting.key);
       const entry: SettingEntry = {
         setting,
         currentValue,
         isDefault: currentValue === setting.default,
         effectiveSource: resolved?.effectiveSource,
-        locked: daemonOwned || resolved?.locked,
+        locked: hostOwned || resolved?.locked,
         conflict: resolved?.conflict,
         sourceLabel: resolved?.sourceLabel,
-        lockReason: daemonOwned ? AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON : resolved?.lockReason,
+        lockReason: hostOwned ? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON : resolved?.lockReason,
       };
       if (this.groups.has(cat)) this.groups.get(cat)!.push(entry);
       if ((rawCat === 'controlPlane' || rawCat === 'httpListener' || rawCat === 'web') && this.groups.has('network')) {
@@ -745,8 +745,8 @@ export class SettingsModal {
 
   private _setValue(key: ConfigKey, value: unknown): void {
     if (!this.configManager) return;
-    if (isExternalDaemonOwnedSettingKey(key)) {
-      this.lastSettingEffectMessage = AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON;
+    if (isExternalHostOwnedSettingKey(key)) {
+      this.lastSettingEffectMessage = AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON;
       return;
     }
     // Diff previous value before writing — avoids false restart notices on no-op saves
@@ -787,9 +787,9 @@ export class SettingsModal {
     }
   }
 
-  private _blockExternalDaemonOwnedSetting(entry: SettingEntry): boolean {
-    if (!isExternalDaemonOwnedSettingKey(entry.setting.key)) return false;
-    this.lastSettingEffectMessage = entry.lockReason ?? AGENT_EXTERNAL_DAEMON_SETTING_LOCK_REASON;
+  private _blockExternalHostOwnedSetting(entry: SettingEntry): boolean {
+    if (!isExternalHostOwnedSettingKey(entry.setting.key)) return false;
+    this.lastSettingEffectMessage = entry.lockReason ?? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON;
     return true;
   }
 

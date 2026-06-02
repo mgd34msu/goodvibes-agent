@@ -32,7 +32,7 @@ export interface CliServiceLogPosture {
   readonly readError?: string;
 }
 
-export interface CliExternalDaemonLifecyclePosture {
+export interface CliExternalHostLifecyclePosture {
   readonly platform: 'manual';
   readonly path: string;
   readonly installed: false;
@@ -54,7 +54,7 @@ export interface CliServicePosture {
     readonly restartOnFailure: boolean;
     readonly daemonEnabled: boolean;
   };
-  readonly managed: CliExternalDaemonLifecyclePosture;
+  readonly managed: CliExternalHostLifecyclePosture;
   readonly endpoints: readonly CliServiceEndpointPosture[];
   readonly log: CliServiceLogPosture;
   readonly issues: readonly string[];
@@ -140,7 +140,7 @@ function resolveConfiguredLogPath(runtime: CliServiceRuntime): string | undefine
   return isAbsolute(trimmed) ? trimmed : join(runtime.homeDirectory, trimmed);
 }
 
-function createExternalDaemonLifecycle(logPath: string | undefined): CliExternalDaemonLifecyclePosture {
+function createExternalHostLifecycle(logPath: string | undefined): CliExternalHostLifecyclePosture {
   return {
     platform: 'manual',
     path: 'connected GoodVibes host',
@@ -209,7 +209,7 @@ export async function buildCliServicePosture(
 
   return {
     config,
-    managed: createExternalDaemonLifecycle(configuredLogPath),
+    managed: createExternalHostLifecycle(configuredLogPath),
     endpoints,
     log,
     issues,

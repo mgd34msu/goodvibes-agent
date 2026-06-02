@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import {
-  AGENT_EXTERNAL_DAEMON_SERVICE_MESSAGE,
+  AGENT_EXTERNAL_HOST_SERVICE_MESSAGE,
   syncServiceSettingToPlatform,
 } from '../../shell/service-settings-sync.ts';
 
@@ -42,7 +42,7 @@ describe('syncServiceSettingToPlatform', () => {
     expect(result).toEqual({
       handled: true,
       action: 'connected-host-blocked',
-      message: AGENT_EXTERNAL_DAEMON_SERVICE_MESSAGE,
+      message: AGENT_EXTERNAL_HOST_SERVICE_MESSAGE,
       error: 'connected_host_lifecycle_external',
     });
     expect(result.message).toContain('connected GoodVibes host');

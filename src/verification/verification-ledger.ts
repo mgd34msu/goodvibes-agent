@@ -186,7 +186,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localSignalVerified: ONBOARDING_CAPABILITIES.length,
       localBehaviorVerified: ONBOARDING_CAPABILITIES.length,
       externalOutcomeRequired: 0,
-      notes: 'Wizard state derivation/apply is local; daemon-backed outcomes stay external to Agent ownership.',
+      notes: 'Wizard state derivation/apply is local; connected-host-backed outcomes stay external to Agent ownership.',
     },
   ];
 
@@ -233,8 +233,8 @@ export function renderVerificationLedgerMarkdown(ledger: VerificationLedger): st
     `- Local behavior verified: ${ledger.totals.localBehaviorVerified} (${ledger.totals.localBehaviorPercent}%)`,
     `- External outcome required: ${ledger.totals.externalOutcomeRequired}`,
     '',
-    'Local verification signal means the item can be exercised through schema, routing, persistence, render, readiness, daemon, CLI, or real-state checks without relying on an external SaaS/device outcome.',
-    'Local behavior verified means the behavior can be completed locally with in-process, CLI, daemon, tmux, or real persisted state.',
+    'Local verification signal means the item can be exercised through schema, routing, persistence, render, readiness, connected-host checks, CLI, or real-state checks without relying on an external SaaS/device outcome.',
+    'Local behavior verified means the behavior can be completed locally with in-process, CLI, connected-host checks, tmux, or real persisted state.',
     '',
   ];
   return `${lines.join('\n')}\n`;

@@ -89,7 +89,7 @@ function resolveDaemonBaseUrl(homeDir: string, explicit?: string): string {
       const configuredPort = (settings as { controlPlane?: { port?: unknown } })?.controlPlane?.port;
       if (typeof configuredPort === 'number' && Number.isFinite(configuredPort)) port = configuredPort;
     } catch {
-      // Keep the default; this verifier should report daemon state, not fail before checks run.
+      // Keep the default; this verifier should report connected-host state, not fail before checks run.
     }
   }
   return `http://127.0.0.1:${port}`;
@@ -192,7 +192,7 @@ async function fetchCheck(
       id,
       title,
       status: 'skip',
-      summary: 'No daemon bearer token was available.',
+      summary: 'No connected-host bearer token was available.',
     };
   }
   try {
@@ -235,7 +235,7 @@ async function fetchJsonCheck(
       id,
       title,
       status: 'skip',
-      summary: 'No daemon bearer token was available.',
+      summary: 'No connected-host bearer token was available.',
     };
   }
   try {
@@ -290,7 +290,7 @@ export function buildAgentKnowledgeLiveSkipCheck(
     summary: `Skipped because GoodVibes runtime SDK ${daemonVersion} does not match Agent SDK pin ${expectedSdkVersion}.`,
     detail: [
       'Agent Knowledge is intentionally isolated under /api/goodvibes-agent/knowledge/*.',
-      'An older daemon cannot validate those routes, and Agent must not fall back to default Knowledge/Wiki or non-Agent knowledge segments.',
+      'An older connected host cannot validate those routes, and Agent must not fall back to default Knowledge/Wiki or non-Agent knowledge segments.',
       'Update/restart the GoodVibes runtime, then rerun live verification.',
     ].join('\n'),
   };
@@ -394,7 +394,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
 
   checks.push(await fetchCheck(
     'daemon-status',
-    'Authenticated daemon /status',
+    'Authenticated connected-host /status',
     `${daemonBaseUrl}/status`,
     token,
     (status, body) => {
@@ -414,7 +414,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
 
   checks.push(await fetchCheck(
     'daemon-health',
-    'Authenticated daemon /api/health',
+    'Authenticated connected-host /api/health',
     `${daemonBaseUrl}/api/health`,
     token,
     (status, body) => {
@@ -555,7 +555,7 @@ export function renderLiveVerificationReportMarkdown(report: LiveVerificationRep
     `Generated: ${report.generatedAt}`,
     `Home: \`${report.homeDir}\``,
     `Binary: \`${report.binaryPath}\``,
-    `Daemon: \`${report.daemonBaseUrl}\``,
+    `Connected host: \`${report.daemonBaseUrl}\``,
     '',
     '| Status | Count |',
     '|---|---:|',

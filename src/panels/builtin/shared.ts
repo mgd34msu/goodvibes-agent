@@ -85,8 +85,8 @@ export interface BuiltinPanelDeps {
   /** Sandbox session registry used by MCP isolation; Agent does not expose sandbox/QEMU command UX. */
   sandboxSessionRegistry: SandboxSessionRegistry;
   /**
-   * Resolved daemon home directory (e.g. `~/.goodvibes/daemon`) — owned by the composition root
-   * and passed explicitly so panel factories do not discover cwd/home implicitly.
+   * Resolved connected-host token directory (e.g. `~/.goodvibes/daemon`) — owned by the
+   * composition root and passed explicitly so panel factories do not discover cwd/home implicitly.
    */
   daemonHomeDir?: string;
   /** Session memory store for context and token budget panels. */

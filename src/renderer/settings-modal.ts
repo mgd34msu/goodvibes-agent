@@ -7,7 +7,7 @@
 
 import type { Line } from '../types/grid.ts';
 import type { SettingsModal, SettingEntry, FlagEntry, McpEntry, SubscriptionEntry, SettingsCategory } from '../input/settings-modal.ts';
-import { isExternalDaemonOwnedSettingKey, SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../input/settings-modal.ts';
+import { isExternalHostOwnedSettingKey, SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../input/settings-modal.ts';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
 import { CATEGORY_LABELS, describeUiRouting, formatValue, getSettingLabel, inferSubscriptionRouteReason, valueColor } from './settings-modal-helpers.ts';
 import { isSecretConfigKey } from '../config/secret-config.ts';
@@ -478,7 +478,7 @@ function footerText(modal: SettingsModal): string {
   if (modal.currentCategory === 'mcp') return 'Focus settings · Up/Down server · Left categories · Tab pane · Enter edit trust · Esc close';
   if (modal.currentCategory === 'flags') return 'Focus feature flags · Up/Down flag · Left categories · Tab pane · Enter/Space toggle · Esc close';
   const selected = modal.getSelected();
-  if (selected && isExternalDaemonOwnedSettingKey(selected.setting.key)) {
+  if (selected && isExternalHostOwnedSettingKey(selected.setting.key)) {
     return 'Read-only connected-host setting · Change from GoodVibes TUI or the owning host · Esc close';
   }
   return 'Focus settings · Up/Down setting · Left categories · Tab pane · Enter/Space edit/toggle · R reset · Esc close';
