@@ -64,7 +64,7 @@ Read-only inspection is available from the TUI Knowledge workspace first, with C
 
 ## Ingest
 
-Use Agent Workspace -> Knowledge for URL, URL-list, file, bookmark, browser-history, connector ingest, and reindex forms. `/knowledge ingest-url <url> --yes` and `goodvibes-agent knowledge ingest-url <url> --yes` ingest URL sources into Agent Knowledge only.
+Use Agent Workspace -> Knowledge for URL, URL-list, file, bookmark, browser-history, connector ingest, and reindex forms. The main assistant conversation can also call the confirmed `agent_knowledge_ingest` tool for the same isolated source families. `/knowledge ingest-url <url> --yes` and `goodvibes-agent knowledge ingest-url <url> --yes` ingest URL sources into Agent Knowledge only.
 
 The TUI workspace exposes the common confirmed ingest and reindex flows. The CLI also exposes Agent-specific batch routes for scripts:
 

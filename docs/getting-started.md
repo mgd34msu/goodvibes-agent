@@ -50,7 +50,7 @@ Use the Profiles workspace Starter authoring guide to walk through starter-profi
 
 Use the Profiles workspace form to assemble a local starter template and isolated Agent profile from reviewed discovered persona, skill, and routine files. Scriptable profile commands mirror the same flow for automation; use them only when you intentionally want a shell-driven setup path.
 
-Use the Knowledge area in that workspace to ingest a source URL without leaving the TUI. The form requires typed confirmation and writes only to the isolated Agent Knowledge segment.
+Use the Knowledge area in that workspace to ingest source URLs, local files, URL-list files, bookmarks, browser history, and connector input without leaving the TUI. Every ingest path requires typed confirmation and writes only to the isolated Agent Knowledge segment.
 
 Use the Routines workspace receipt actions to review redacted local routine promotion history and reconcile those receipts with live connected schedules through public `schedules.list`. The `/schedule receipts` and `/schedule reconcile` commands are the power-user equivalents inside the TUI.
 

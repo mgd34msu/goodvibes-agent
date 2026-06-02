@@ -20,10 +20,14 @@ interface CapturedRequest {
 }
 
 interface IngestPayload {
+  readonly path?: string;
   readonly url?: string;
   readonly title?: string;
   readonly tags?: readonly string[];
   readonly connectorId?: string;
+  readonly allowPrivateHosts?: boolean;
+  readonly input?: unknown;
+  readonly content?: string;
   readonly metadata?: {
     readonly originSurface?: string;
     readonly explicitUserRequest?: string;
@@ -139,7 +143,7 @@ describe('agent_knowledge_ingest tool', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.output).toContain('Agent Knowledge ingest-url accepted');
+      expect(result.output).toContain('Agent Knowledge URL ingest accepted');
       expect(requests).toHaveLength(1);
       expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/url');
       expect(requests[0]?.url).not.toContain('/api/knowledge');
@@ -151,6 +155,154 @@ describe('agent_knowledge_ingest tool', () => {
       expect(payload.tags).toEqual(['docs', 'agent']);
       expect(payload.connectorId).toBe('goodvibes-agent-main-conversation');
       expect(payload.metadata?.originSurface).toBe('goodvibes-agent');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('ingests local files through only the isolated Agent Knowledge artifact route', async () => {
+    const paths = shellPaths();
+    const tool = createAgentKnowledgeIngestTool(paths, configManager(paths));
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return ingestResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await tool.execute({
+        sourceKind: 'file',
+        path: '/tmp/agent-notes.md',
+        title: 'Agent notes',
+        tags: ['notes'],
+        confirm: true,
+        explicitUserRequest: 'Add this local notes file to your Agent wiki.',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.output).toContain('Agent Knowledge file ingest accepted');
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/artifact');
+      expect(requests[0]?.url).not.toContain('/api/knowledge');
+      const payload = JSON.parse(requests[0]?.body ?? '{}') as IngestPayload;
+      expect(payload.path).toBe('/tmp/agent-notes.md');
+      expect(payload.title).toBe('Agent notes');
+      expect(payload.tags).toEqual(['notes']);
+      expect(payload.connectorId).toBe('goodvibes-agent-main-conversation-file');
+      expect(payload.metadata?.originSurface).toBe('goodvibes-agent');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('imports URL-list and bookmarks files through isolated Agent routes after confirmation', async () => {
+    const paths = shellPaths();
+    const tool = createAgentKnowledgeIngestTool(paths, configManager(paths));
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return Response.json({ imported: 2, failed: 0, sources: [] });
+    }) satisfies typeof fetch;
+
+    try {
+      const urls = await tool.execute({
+        sourceKind: 'urls_file',
+        path: '/tmp/urls.txt',
+        confirm: true,
+        explicitUserRequest: 'Import this URL list into Agent Knowledge.',
+      });
+      const bookmarks = await tool.execute({
+        sourceKind: 'bookmarks_file',
+        path: '/tmp/bookmarks.html',
+        confirm: true,
+        explicitUserRequest: 'Import these bookmarks into Agent Knowledge.',
+      });
+
+      expect(urls.success).toBe(true);
+      expect(bookmarks.success).toBe(true);
+      expect(requests.map((request) => request.url)).toEqual([
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/urls',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/bookmarks',
+      ]);
+      for (const request of requests) {
+        expect(request.url).not.toContain('/api/knowledge');
+        const payload = JSON.parse(request.body ?? '{}') as IngestPayload;
+        expect(payload.path).toMatch(/^\/tmp\//);
+        expect(payload.metadata?.originSurface).toBe('goodvibes-agent');
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('ingests connector input through the isolated Agent connector route', async () => {
+    const paths = shellPaths();
+    const tool = createAgentKnowledgeIngestTool(paths, configManager(paths));
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return Response.json({ imported: 1, failed: 0, sources: [] });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await tool.execute({
+        sourceKind: 'connector',
+        connectorId: 'manual-note',
+        input: '{"summary":"Keep Agent Knowledge isolated."}',
+        confirm: true,
+        explicitUserRequest: 'Import this connector note into Agent Knowledge.',
+      });
+
+      expect(result.success).toBe(true);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/connector');
+      const payload = JSON.parse(requests[0]?.body ?? '{}') as IngestPayload;
+      expect(payload.connectorId).toBe('manual-note');
+      expect(payload.input).toEqual({ summary: 'Keep Agent Knowledge isolated.' });
+      expect(payload.metadata?.originSurface).toBe('goodvibes-agent');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('previews browser history import without calling the connected host', async () => {
+    const paths = shellPaths();
+    const tool = createAgentKnowledgeIngestTool(paths, configManager(paths));
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return Response.json({ imported: 0, failed: 0, sources: [] });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await tool.execute({
+        sourceKind: 'browser_history',
+        browsers: ['firefox'],
+        sourceKinds: ['history'],
+        confirm: false,
+        explicitUserRequest: 'Import browser history into Agent Knowledge.',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('browser-history import preview');
+      expect(result.error).toContain('/api/goodvibes-agent/knowledge/ingest/browser-history');
+      expect(calls).toBe(0);
     } finally {
       globalThis.fetch = originalFetch;
     }
