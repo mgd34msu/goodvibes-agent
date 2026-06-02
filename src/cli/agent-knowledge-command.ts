@@ -8,6 +8,8 @@ import type { CliCommandRuntime } from './management.ts';
 import {
   formatAsk,
   formatBatchIngest,
+  formatConnector,
+  formatConnectorDoctor,
   formatConnectors,
   formatEntityList,
   formatFailure,
@@ -88,6 +90,14 @@ const AGENT_KNOWLEDGE_METHODS = {
   connectorsList: {
     kind: 'agentKnowledge.connectors.list',
     route: '/api/goodvibes-agent/knowledge/connectors',
+  },
+  connectorGet: {
+    kind: 'agentKnowledge.connector.get',
+    route: '/api/goodvibes-agent/knowledge/connectors/{id}',
+  },
+  connectorDoctor: {
+    kind: 'agentKnowledge.connector.doctor',
+    route: '/api/goodvibes-agent/knowledge/connectors/{id}/doctor',
   },
   ingestUrl: {
     kind: 'agentKnowledge.ingest.url',
@@ -545,12 +555,66 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
   }
 
   if (normalized === 'connectors') {
+    const values = commandValues(rest);
+    if (values[0] === 'doctor') {
+      const id = values[1];
+      if (!id) return { output: 'Usage: goodvibes-agent knowledge connectors doctor <connectorId>', exitCode: 2 };
+      const route = `/api/goodvibes-agent/knowledge/connectors/${encodeURIComponent(id)}/doctor`;
+      const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.connectorDoctor, async (connection) => (
+        await getAgentKnowledgeJson(connection, route)
+      ));
+      if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
+      return {
+        output: formatJsonOrText(runtime.cli)(result, formatConnectorDoctor(result.data, id)),
+        exitCode: 0,
+      };
+    }
+    const id = values[0];
+    if (id) {
+      const route = `/api/goodvibes-agent/knowledge/connectors/${encodeURIComponent(id)}`;
+      const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.connectorGet, async (connection) => (
+        await getAgentKnowledgeJson(connection, route)
+      ));
+      if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
+      return {
+        output: formatJsonOrText(runtime.cli)(result, formatConnector(result.data, id)),
+        exitCode: 0,
+      };
+    }
     const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.connectorsList, async (connection) => (
       await getAgentKnowledgeJson(connection, AGENT_KNOWLEDGE_METHODS.connectorsList.route)
     ));
     if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
     return {
       output: formatJsonOrText(runtime.cli)(result, formatConnectors(result.data)),
+      exitCode: 0,
+    };
+  }
+
+  if (normalized === 'connector' || normalized === 'connector-get') {
+    const [id] = commandValues(rest);
+    if (!id) return { output: 'Usage: goodvibes-agent knowledge connector <connectorId>', exitCode: 2 };
+    const route = `/api/goodvibes-agent/knowledge/connectors/${encodeURIComponent(id)}`;
+    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.connectorGet, async (connection) => (
+      await getAgentKnowledgeJson(connection, route)
+    ));
+    if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
+    return {
+      output: formatJsonOrText(runtime.cli)(result, formatConnector(result.data, id)),
+      exitCode: 0,
+    };
+  }
+
+  if (normalized === 'connector-doctor' || normalized === 'doctor-connector') {
+    const [id] = commandValues(rest);
+    if (!id) return { output: 'Usage: goodvibes-agent knowledge connector-doctor <connectorId>', exitCode: 2 };
+    const route = `/api/goodvibes-agent/knowledge/connectors/${encodeURIComponent(id)}/doctor`;
+    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.connectorDoctor, async (connection) => (
+      await getAgentKnowledgeJson(connection, route)
+    ));
+    if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
+    return {
+      output: formatJsonOrText(runtime.cli)(result, formatConnectorDoctor(result.data, id)),
       exitCode: 0,
     };
   }

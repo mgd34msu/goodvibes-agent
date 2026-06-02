@@ -221,6 +221,51 @@ export function formatConnectors(data: unknown): string {
   ].join('\n');
 }
 
+export function formatConnector(data: unknown, id: string): string {
+  const record = isRecord(data) ? data : {};
+  const connector = isRecord(record.connector) ? record.connector : record;
+  const connectorId = cleanInline(connector.id) || id;
+  const name = cleanInline(connector.displayName) || connectorId;
+  const description = cleanInline(connector.description);
+  const sourceType = cleanInline(connector.sourceType);
+  const capabilities = readArray(connector, 'capabilities').map(cleanInline).filter(Boolean);
+  const examples = readArray(connector, 'examples');
+  return [
+    `Agent Knowledge connector: ${connectorId}`,
+    `  name: ${name}`,
+    sourceType ? `  sourceType: ${sourceType}` : null,
+    description ? `  description: ${description}` : null,
+    capabilities.length > 0 ? `  capabilities: ${capabilities.join(', ')}` : null,
+    `  examples: ${examples.length}`,
+    '  route: /api/goodvibes-agent/knowledge/connectors/{id}',
+  ].filter((line): line is string => Boolean(line)).join('\n');
+}
+
+export function formatConnectorDoctor(data: unknown, id: string): string {
+  const record = isRecord(data) ? data : {};
+  const ready = readBoolean(record, 'ready');
+  const summary = cleanInline(record.summary);
+  const checks = readArray(record, 'checks');
+  const hints = readArray(record, 'hints').map(cleanInline).filter(Boolean);
+  return [
+    `Agent Knowledge connector doctor: ${cleanInline(record.connectorId) || id}`,
+    `  ready: ${ready === null ? 'unknown' : yesNo(ready)}`,
+    summary ? `  summary: ${summary}` : null,
+    checks.length > 0 ? '  checks:' : null,
+    ...checks.slice(0, 10).map((check) => {
+      const item = isRecord(check) ? check : {};
+      const checkId = cleanInline(item.id) || 'check';
+      const status = cleanInline(item.status) || 'unknown';
+      const label = cleanInline(item.label);
+      const detail = cleanInline(item.detail);
+      return `    - ${checkId} [${status}] ${label}${detail ? ` - ${detail}` : ''}`;
+    }),
+    hints.length > 0 ? '  hints:' : null,
+    ...hints.slice(0, 8).map((hint) => `    - ${hint}`),
+    '  route: /api/goodvibes-agent/knowledge/connectors/{id}/doctor',
+  ].filter((line): line is string => Boolean(line)).join('\n');
+}
+
 export function formatAsk(data: unknown, query: string): string {
   const record = isRecord(data) ? data : {};
   const answer = isRecord(record.answer) ? record.answer : record;

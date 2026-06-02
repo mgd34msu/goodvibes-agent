@@ -274,6 +274,72 @@ describe('knowledgeCommand', () => {
     expect(printed.join('\n')).toContain('Imported browser knowledge: 2 ok, 0 failed');
   });
 
+  test('inspects Agent Knowledge connectors and doctor reports', async () => {
+    const context = {
+      ...makeKnowledgeAskCommandContext(printed, {
+        query: '',
+        answer: {
+          text: '',
+          mode: 'standard',
+          confidence: 0,
+          synthesized: false,
+          sources: [],
+          facts: [],
+          linkedObjects: [],
+          gaps: [],
+        },
+      }),
+      clients: {
+        agentKnowledgeApi: {
+          connectors: {
+            list: () => [{
+              id: 'url',
+              displayName: 'URL',
+              description: 'Ingest one URL.',
+              sourceType: 'url',
+              capabilities: ['ingest-url'],
+            }],
+            get: (id: string) => id === 'url'
+              ? {
+                id: 'url',
+                displayName: 'URL',
+                description: 'Ingest one URL.',
+                sourceType: 'url',
+                capabilities: ['ingest-url'],
+              }
+              : null,
+            doctor: (id: string) => ({
+              connectorId: id,
+              ready: true,
+              summary: 'Connector ready.',
+              checks: [{
+                id: 'route',
+                label: 'Route',
+                status: 'pass',
+                detail: 'Agent route available.',
+              }],
+              hints: [],
+            }),
+          },
+        },
+      },
+    } as unknown as CommandContext;
+
+    await knowledgeCommand.handler(['connectors'], context);
+    expect(printed.join('\n')).toContain('Connectors (1)');
+    expect(printed.join('\n')).toContain('url');
+
+    printed.length = 0;
+    await knowledgeCommand.handler(['connectors', 'url'], context);
+    expect(printed.join('\n')).toContain('Connector url');
+    expect(printed.join('\n')).toContain('capabilities: ingest-url');
+
+    printed.length = 0;
+    await knowledgeCommand.handler(['connectors', 'doctor', 'url'], context);
+    expect(printed.join('\n')).toContain('Connector doctor url');
+    expect(printed.join('\n')).toContain('ready: yes');
+  });
+
   test('reviews a knowledge issue', async () => {
     const artifactStore = new ArtifactStore({
       configManager: {

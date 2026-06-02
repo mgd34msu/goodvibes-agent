@@ -312,6 +312,36 @@ describe('Agent Knowledge CLI route isolation', () => {
           headers: { 'content-type': 'application/json' },
         });
       }
+      if (url.includes('/connectors/url/doctor')) {
+        return new Response(JSON.stringify({
+          connectorId: 'url',
+          ready: true,
+          summary: 'URL connector is ready.',
+          checks: [{
+            id: 'route',
+            label: 'Route',
+            status: 'pass',
+            detail: 'Agent Knowledge route is available.',
+          }],
+          hints: [],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (url.includes('/connectors/url')) {
+        return new Response(JSON.stringify({
+          id: 'url',
+          displayName: 'URL',
+          description: 'Ingest one URL into Agent Knowledge.',
+          sourceType: 'url',
+          capabilities: ['ingest-url'],
+          examples: [],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
       if (url.includes('/connectors')) {
         return new Response(JSON.stringify({
           connectors: [{
@@ -335,14 +365,22 @@ describe('Agent Knowledge CLI route isolation', () => {
       const itemParsed = JSON.parse(item.output) as unknown;
       const connectors = await handleAgentKnowledgeCommand(createRuntime(['connectors']));
       const connectorParsed = JSON.parse(connectors.output) as unknown;
+      const connector = await handleAgentKnowledgeCommand(createRuntime(['connectors', 'url']));
+      const connectorGetParsed = JSON.parse(connector.output) as unknown;
+      const doctor = await handleAgentKnowledgeCommand(createRuntime(['connectors', 'doctor', 'url']));
+      const doctorParsed = JSON.parse(doctor.output) as unknown;
 
       expect(sources.exitCode).toBe(0);
       expect(item.exitCode).toBe(0);
       expect(connectors.exitCode).toBe(0);
+      expect(connector.exitCode).toBe(0);
+      expect(doctor.exitCode).toBe(0);
       expect(requests.map((request) => request.url)).toEqual([
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/sources?limit=2',
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/items/src-agent',
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors/url',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors/url/doctor',
       ]);
       expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
       expect(sourceParsed).toMatchObject({
@@ -359,6 +397,16 @@ describe('Agent Knowledge CLI route isolation', () => {
         ok: true,
         kind: 'agentKnowledge.connectors.list',
         route: '/api/goodvibes-agent/knowledge/connectors',
+      });
+      expect(connectorGetParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.connector.get',
+        route: '/api/goodvibes-agent/knowledge/connectors/{id}',
+      });
+      expect(doctorParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.connector.doctor',
+        route: '/api/goodvibes-agent/knowledge/connectors/{id}/doctor',
       });
     } finally {
       globalThis.fetch = originalFetch;

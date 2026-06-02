@@ -539,6 +539,55 @@ export const knowledgeCommand: SlashCommand = {
         break;
       }
 
+      case 'connectors': {
+        const [first, second] = positionalArgs(rest);
+        if (first === 'doctor') {
+          if (!second) {
+            context.print('[knowledge] Usage: /knowledge connectors doctor <connectorId>');
+            return;
+          }
+          const report = await knowledge.connectors.doctor(second);
+          if (!report) {
+            context.print(`[knowledge] Connector doctor report unavailable: ${second}`);
+            return;
+          }
+          context.print([
+            `[knowledge] Connector doctor ${report.connectorId}`,
+            `  ready: ${report.ready ? 'yes' : 'no'}`,
+            `  summary: ${report.summary}`,
+            ...(report.checks.length > 0 ? ['  checks:', ...report.checks.slice(0, 10).map((check) => `    - ${check.id} [${check.status}] ${check.label} - ${check.detail}`)] : []),
+            ...(report.hints.length > 0 ? ['  hints:', ...report.hints.slice(0, 8).map((hint) => `    - ${hint}`)] : []),
+          ].join('\n'));
+          return;
+        }
+        if (first) {
+          const connector = knowledge.connectors.get(first);
+          if (!connector) {
+            context.print(`[knowledge] Unknown connector: ${first}`);
+            return;
+          }
+          context.print([
+            `[knowledge] Connector ${connector.id}`,
+            `  name: ${connector.displayName ?? connector.id}`,
+            `  sourceType: ${connector.sourceType}`,
+            `  description: ${connector.description}`,
+            `  capabilities: ${connector.capabilities?.join(', ') || 'none'}`,
+          ].join('\n'));
+          return;
+        }
+        const connectors = knowledge.connectors.list();
+        if (connectors.length === 0) {
+          context.print('[knowledge] No connectors.');
+          return;
+        }
+        context.print(`[knowledge] Connectors (${connectors.length}):`);
+        for (const connector of connectors) {
+          context.print(`  ${connector.id} [${connector.sourceType}] ${connector.displayName ?? connector.id}`);
+          context.print(`    ${connector.description}`);
+        }
+        break;
+      }
+
       case 'reports': {
         const [limitArg] = positionalArgs(rest);
         const limit = Math.max(1, Number.parseInt(limitArg ?? '10', 10) || 10);
@@ -649,6 +698,7 @@ export const knowledgeCommand: SlashCommand = {
           '  queue [limit]',
           '  review-issue <issueId> <accept|reject|resolve|reopen|edit|forget> [--reviewer <name>] [--value <json-object>] --yes',
           '  candidates [limit]',
+          '  connectors [connectorId|doctor <connectorId>]',
           '  reports [limit]',
           '  schedules',
           '  lint',
