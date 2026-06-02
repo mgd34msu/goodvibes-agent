@@ -564,6 +564,32 @@ describe('renderAgentWorkspace', () => {
     }
   });
 
+  test('renders Tools and MCP setup posture with confirmed add form', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 38));
+
+    expect(output).toContain('Tools & MCP');
+    expect(output).toContain('/mcp review');
+    expect(output).toContain('/mcp tools');
+    expect(output).toContain('/mcp config');
+    expect(output).toContain('edit mcp-server');
+    expect(output).toContain('typed confirmation');
+    expect(output).toContain('allow-all');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-add-server');
+    workspace.activateSelected();
+    const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(editorOutput).toContain('Add MCP Server');
+    expect(editorOutput).toContain('Server name *');
+    expect(editorOutput).toContain('Command *');
+    workspace.moveEditorField(9);
+    const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(confirmOutput).toContain('Confirm *');
+  });
+
   test('renders profile isolation and bundle workflow posture', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
@@ -629,6 +655,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Channel readiness');
     expect(output).toContain('/channels');
     expect(output).toContain('/notify list');
+    expect(output).toContain('edit notify-webhook');
     expect(output).toContain('/health review');
     expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and Agent');
     expect(output).toContain('policy.');

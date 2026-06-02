@@ -345,6 +345,23 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
+  test('home and setup workspaces jump to Tools and MCP without dispatching commands', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tools-home');
+    workspace.activateSelected();
+    expect(workspace.selectedCategory.id).toBe('tools');
+    expect(workspace.status).toContain('Opened Tools & MCP');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-tools');
+    workspace.activateSelected();
+    expect(workspace.selectedCategory.id).toBe('tools');
+    expect(dispatched).toEqual([]);
+  });
+
   test('renders local persona skill and routine library workspaces from live Agent state', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-local-libraries-'));
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
@@ -540,6 +557,78 @@ describe('AgentWorkspace', () => {
     ]);
     expect(workspace.localEditor).toBeNull();
     expect(workspace.lastActionResult?.title).toBe('Opening skill bundle creation');
+  });
+
+  test('adds MCP servers from the workspace only after typed confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-add-server');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('mcp-server');
+    feedText(workspace, 'filesystem');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'bunx');
+    feedKey(workspace, 'enter');
+    feedText(workspace, '-y @modelcontextprotocol/server-filesystem .');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'project');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'filesystem');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'constrained');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'FS_TOKEN=goodvibes://secrets/mcp/FS_TOKEN');
+    feedKey(workspace, 'enter');
+    feedText(workspace, '/home/buzzkill/Projects');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'docs.example.test');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/mcp add filesystem bunx -y @modelcontextprotocol/server-filesystem . --scope project --role filesystem --trust constrained --env FS_TOKEN=goodvibes://secrets/mcp/FS_TOKEN --path /home/buzzkill/Projects --host docs.example.test --yes',
+    ]);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening MCP server add/update');
+  });
+
+  test('adds notification webhook targets from the workspace only after typed confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-add-webhook');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('notify-webhook');
+    feedText(workspace, 'https://ntfy.sh/goodvibes-agent-alerts');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/notify add https://ntfy.sh/goodvibes-agent-alerts --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening notification webhook add');
   });
 
   test('discovers and imports local skill files from the workspace after confirmation', () => {

@@ -243,6 +243,14 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: 'Review: queue, issues, candidates, reports, reindex, and consolidation stay inside the Agent segment.', fg: PALETTE.muted },
       { text: 'Agent-owned content appears here only after explicit Agent knowledge ingestion.', fg: PALETTE.muted },
     );
+  } else if (category.id === 'tools') {
+    base.push(
+      { text: 'MCP server setup and tool review are available from this Agent workspace.', fg: PALETTE.info },
+      { text: 'Add/update requires typed confirmation and dispatches /mcp add ... --yes through the command router.', fg: PALETTE.good },
+      { text: 'Trust changes remain explicit; allow-all is kept behind the settings workspace.', fg: PALETTE.warn },
+      { text: 'Useful first actions: /mcp review, /mcp tools, /mcp config, and Add MCP server.', fg: PALETTE.muted },
+      { text: 'Normal assistant chat can use tools serially when policy allows; onboarding does not start hidden tool work.', fg: PALETTE.muted },
+    );
   } else if (category.id === 'voice-media') {
     const readiness = snapshot.voiceMediaReadiness;
     const voiceRows = readiness.voiceProviders.slice(0, 6);

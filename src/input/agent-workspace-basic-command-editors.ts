@@ -1,11 +1,12 @@
 import type { AgentWorkspaceActionResult, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
-import { quoteSlashCommandArg } from './slash-command-parser.ts';
+import { quoteSlashCommandArg, tokenizeSlashCommand } from './slash-command-parser.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
+  | 'mcp-server' | 'notify-webhook'
 >;
 
 export type AgentWorkspaceBasicCommandEditorSubmission =
@@ -26,6 +27,10 @@ function isAffirmative(value: string): boolean {
   return /^(y|yes|true)$/i.test(value.trim());
 }
 
+function splitCommaList(value: string): readonly string[] {
+  return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
 export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceBasicCommandEditorKind {
   return kind === 'knowledge-bookmarks'
     || kind === 'knowledge-file'
@@ -36,7 +41,9 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'skill-bundle'
     || kind === 'skill-discovery-import'
     || kind === 'profile-template-export'
-    || kind === 'profile-template-import';
+    || kind === 'profile-template-import'
+    || kind === 'mcp-server'
+    || kind === 'notify-webhook';
 }
 
 export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasicCommandEditorKind): AgentWorkspaceLocalEditor {
@@ -99,6 +106,40 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
         { id: 'content', label: 'Content', value: '', required: false, multiline: true, hint: 'Optional raw content for connectors that accept text.' },
         { id: 'allowPrivateHosts', label: 'Allow private hosts', value: 'no', required: false, multiline: false, hint: 'yes/no. Defaults to no.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge ingest-connector with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'mcp-server') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Add MCP Server',
+      selectedFieldIndex: 0,
+      message: 'Add or update one MCP server from the Agent workspace. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'name', label: 'Server name', value: '', required: true, multiline: false, hint: 'Letters, numbers, dot, underscore, and dash only.' },
+        { id: 'command', label: 'Command', value: '', required: true, multiline: false, hint: 'Executable command, such as bunx, npx, uvx, or a full local binary path.' },
+        { id: 'args', label: 'Arguments', value: '', required: false, multiline: false, hint: 'Optional command arguments. Quotes are supported.' },
+        { id: 'scope', label: 'Scope', value: '', required: false, multiline: false, hint: 'Optional. Defaults to project. Use project or global.' },
+        { id: 'role', label: 'Role', value: '', required: false, multiline: false, hint: 'Optional. general, docs, filesystem, git, database, browser, automation, ops, or remote.' },
+        { id: 'trust', label: 'Trust mode', value: '', required: false, multiline: false, hint: 'Optional. Defaults to constrained. Use constrained, ask-on-risk, or blocked. Use settings for allow-all.' },
+        { id: 'env', label: 'Env refs', value: '', required: false, multiline: false, hint: 'Comma-separated KEY=VALUE entries. Prefer secret refs, not raw secrets.' },
+        { id: 'paths', label: 'Allowed paths', value: '', required: false, multiline: false, hint: 'Comma-separated path allowlist entries.' },
+        { id: 'hosts', label: 'Allowed hosts', value: '', required: false, multiline: false, hint: 'Comma-separated host allowlist entries.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /mcp add with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'notify-webhook') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Add Notification Webhook',
+      selectedFieldIndex: 0,
+      message: 'Add one webhook notification target for explicit reminder/routine delivery. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'url', label: 'Webhook URL', value: '', required: true, multiline: false, hint: 'HTTP(S) target, for example https://ntfy.sh/my-topic.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /notify add with --yes.' },
       ],
     };
   }
@@ -311,6 +352,67 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening Agent Knowledge connector ingest',
         detail: 'The workspace handed a confirmed connector ingest command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'mcp-server') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'MCP server add/update not confirmed. Type yes, then press Enter.' },
+        status: 'MCP server add/update not confirmed.',
+      };
+    }
+    const parts = [
+      '/mcp',
+      'add',
+      quoteSlashCommandArg(readField('name')),
+      quoteSlashCommandArg(readField('command')),
+      ...tokenizeSlashCommand(readField('args')).map(quoteSlashCommandArg),
+    ];
+    const scope = readField('scope');
+    const role = readField('role');
+    const trust = readField('trust');
+    if (scope.length > 0) parts.push('--scope', quoteSlashCommandArg(scope));
+    if (role.length > 0) parts.push('--role', quoteSlashCommandArg(role));
+    if (trust.length > 0) parts.push('--trust', quoteSlashCommandArg(trust));
+    for (const env of splitCommaList(readField('env'))) parts.push('--env', quoteSlashCommandArg(env));
+    for (const path of splitCommaList(readField('paths'))) parts.push('--path', quoteSlashCommandArg(path));
+    for (const host of splitCommaList(readField('hosts'))) parts.push('--host', quoteSlashCommandArg(host));
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening MCP server add/update.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening MCP server add/update',
+        detail: 'The workspace handed a confirmed MCP server add/update command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'notify-webhook') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Notification webhook add not confirmed. Type yes, then press Enter.' },
+        status: 'Notification webhook add not confirmed.',
+      };
+    }
+    const command = `/notify add ${quoteSlashCommandArg(readField('url'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening notification webhook add.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening notification webhook add',
+        detail: 'The workspace handed a confirmed notification target command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

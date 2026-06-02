@@ -19,6 +19,8 @@ export type AgentWorkspaceEditorKind =
   | 'knowledge-connector-ingest'
   | 'knowledge-search'
   | 'knowledge-ask'
+  | 'mcp-server'
+  | 'notify-webhook'
   | 'tts-prompt'
   | 'image-input'
   | 'skill-bundle'

@@ -14,6 +14,8 @@ type AgentWorkspaceCommandEditorKind = Extract<
   | 'knowledge-connector-ingest'
   | 'knowledge-search'
   | 'knowledge-ask'
+  | 'mcp-server'
+  | 'notify-webhook'
   | 'routine-schedule'
   | 'reminder-schedule'
   | 'knowledge-bookmarks'
