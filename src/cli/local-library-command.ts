@@ -1,4 +1,5 @@
 import { createShellPathService } from '@/runtime/index.ts';
+import { discoverPersonas, type DiscoveredPersonaRecord } from '../agent/persona-discovery.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { discoverSkills, type SkillRecord } from '../agent/skill-discovery.ts';
 import {
@@ -156,6 +157,50 @@ function renderPersona(persona: AgentPersonaRecord, activePersonaId: string | nu
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
+function summarizeDiscoveredPersona(persona: DiscoveredPersonaRecord): string {
+  const description = persona.description ? ` - ${persona.description}` : '';
+  return [
+    `  ${persona.name}  ${persona.origin}${description}`,
+    `    path: ${persona.path}`,
+  ].join('\n');
+}
+
+function renderDiscoveredPersonaList(personas: readonly DiscoveredPersonaRecord[]): string {
+  if (personas.length === 0) {
+    return [
+      'Discovered Agent persona files',
+      '  No persona markdown files found in Agent persona folders.',
+      '  Search roots: .goodvibes/personas, .goodvibes/agent/personas, .goodvibes/agents, ~/.goodvibes/personas, ~/.goodvibes/agent/personas, ~/.goodvibes/agents',
+    ].join('\n');
+  }
+  return [
+    `Discovered Agent persona files (${personas.length})`,
+    ...personas.map(summarizeDiscoveredPersona),
+    '',
+    'Import one with: goodvibes-agent personas import-discovered <name> --yes',
+  ].join('\n');
+}
+
+function discoveredPersonaLookupValues(persona: DiscoveredPersonaRecord): readonly string[] {
+  const slug = persona.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const basename = persona.path.split(/[\\/]/).pop()?.replace(/\.md$/i, '') ?? '';
+  return [persona.name, slug, persona.path, basename]
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function findDiscoveredPersona(personas: readonly DiscoveredPersonaRecord[], idOrName: string): DiscoveredPersonaRecord | null {
+  const lookup = idOrName.trim().toLowerCase();
+  if (!lookup) return null;
+  return personas.find((persona) => discoveredPersonaLookupValues(persona).includes(lookup)) ?? null;
+}
+
+function discoveredPersonaFrontmatterList(persona: DiscoveredPersonaRecord, key: string): readonly string[] {
+  const value = persona.frontmatter[key];
+  if (!value) return [];
+  return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
 function summarizeSkill(skill: AgentSkillRecord): string {
   const enabled = skill.enabled ? 'enabled' : 'disabled';
   const tags = skill.tags.length > 0 ? ` tags=${skill.tags.join(',')}` : '';
@@ -281,7 +326,7 @@ function renderBundle(bundle: AgentSkillBundleRecord): string {
 }
 
 function usagePersonas(): string {
-  return 'Usage: goodvibes-agent personas [list|active|search <query>|show <id>|create|update <id>|use <id>|clear|review <id>|stale <id> <reason>|delete <id> --yes]';
+  return 'Usage: goodvibes-agent personas [list|active|discover|import-discovered <name> --yes|search <query>|show <id>|create|update <id>|use <id>|clear|review <id>|stale <id> <reason>|delete <id> --yes]';
 }
 
 function usageSkills(): string {
@@ -311,6 +356,41 @@ export async function handlePersonasCommand(runtime: CliCommandRuntime): Promise
       const active = snapshot.activePersona;
       if (!active) return failure(runtime, 'agent.personas.active_missing', 'No active Agent persona.', 1);
       return success(runtime, 'agent.personas.active', active, renderPersona(active, active.id));
+    }
+    if (normalized === 'discover') {
+      const discovered = await discoverPersonas(shellPaths(runtime));
+      return success(runtime, 'agent.personas.discover', { personas: discovered }, renderDiscoveredPersonaList(discovered));
+    }
+    if (normalized === 'import-discovered' || normalized === 'import-persona') {
+      const options = parseOptions(rest);
+      const name = options.positionals.join(' ').trim();
+      if (!name) return failure(runtime, 'invalid_persona_command', 'Usage: goodvibes-agent personas import-discovered <name> [--use] --yes', 2);
+      const discovered = findDiscoveredPersona(await discoverPersonas(shellPaths(runtime)), name);
+      if (!discovered) {
+        return failure(runtime, 'persona_discovery_not_found', `Unknown discovered Agent persona: ${name}\nRun goodvibes-agent personas discover to inspect available persona files.`, 1);
+      }
+      if (!hasFlag(options, 'yes')) {
+        return success(runtime, 'agent.personas.import_discovered.preview', { persona: discovered }, [
+          'Agent persona import preview',
+          `  name: ${discovered.name}`,
+          `  origin: ${discovered.origin}`,
+          `  path: ${discovered.path}`,
+          `  description: ${discovered.description || '(none)'}`,
+          `  body characters: ${discovered.body.length}`,
+          '  next: rerun with --yes to import into the Agent-local persona registry',
+        ].join('\n'));
+      }
+      const persona = registry.create({
+        name: discovered.name,
+        description: discovered.description || `Imported persona from ${discovered.origin} markdown file.`,
+        body: discovered.body,
+        tags: discoveredPersonaFrontmatterList(discovered, 'tags'),
+        triggers: discoveredPersonaFrontmatterList(discovered, 'triggers'),
+        source: 'imported',
+        provenance: `discovered:${discovered.origin}:${discovered.path}`,
+      });
+      if (hasFlag(options, 'use')) registry.setActive(persona.id);
+      return success(runtime, 'agent.personas.import_discovered', persona, `Imported Agent persona ${persona.id}: ${persona.name}${hasFlag(options, 'use') ? ' (active)' : ''}`);
     }
     if (normalized === 'search' || normalized === 'find') {
       const query = rest.join(' ').trim();

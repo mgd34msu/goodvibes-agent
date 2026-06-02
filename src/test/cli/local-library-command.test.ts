@@ -102,6 +102,66 @@ describe('local Agent library CLI commands', () => {
     expect(result.output).toContain('cannot store secret-looking values');
   });
 
+  test('discovers previews and imports persona files from the CLI', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-personas-discovery-cli-'));
+    roots.push(home);
+    const personaDir = join(home, '.goodvibes', 'agent', 'personas', 'travel-planner');
+    mkdirSync(personaDir, { recursive: true });
+    writeFileSync(join(personaDir, 'PERSONA.md'), [
+      '---',
+      'name: Travel Planner',
+      'description: Compare routes, lodging, and constraints before booking',
+      'tags: travel,planning',
+      'triggers: trip,vacation',
+      '---',
+      'Ask for dates, budget, destination constraints, and traveler preferences.',
+      'Do not book without explicit confirmation.',
+      '',
+    ].join('\n'));
+
+    const discovered = await runCli(['personas', 'discover'], home);
+    expect(discovered.exitCode).toBe(0);
+    expect(discovered.output).toContain('Discovered Agent persona files (1)');
+    expect(discovered.output).toContain('Travel Planner');
+    expect(discovered.output).toContain('travel-planner/PERSONA.md');
+
+    const discoveredJson = await runCli(['personas', 'discover', '--json'], home);
+    const discoveredPayload = JSON.parse(discoveredJson.output) as {
+      readonly kind?: unknown;
+      readonly data?: { readonly personas?: readonly { readonly name?: unknown; readonly origin?: unknown }[] };
+    };
+    expect(discoveredPayload.kind).toBe('agent.personas.discover');
+    expect(discoveredPayload.data?.personas?.[0]?.name).toBe('Travel Planner');
+    expect(discoveredPayload.data?.personas?.[0]?.origin).toBe('project-local');
+
+    const preview = await runCli(['personas', 'import-discovered', 'travel-planner'], home);
+    expect(preview.exitCode).toBe(0);
+    expect(preview.output).toContain('Agent persona import preview');
+    expect(preview.output).toContain('rerun with --yes');
+
+    const beforeImport = await runCli(['personas', 'list'], home);
+    expect(beforeImport.output).toContain('No local Agent personas yet.');
+
+    const imported = await runCli(['personas', 'import-discovered', 'Travel', 'Planner', '--use', '--yes'], home);
+    expect(imported.exitCode).toBe(0);
+    expect(imported.output).toContain('Imported Agent persona travel-planner: Travel Planner (active)');
+
+    const active = await runCli(['personas', 'active'], home);
+    expect(active.output).toContain('Travel Planner');
+    expect(active.output).toContain('active: yes');
+
+    const shownJson = await runCli(['personas', 'show', 'travel-planner', '--json'], home);
+    const shownPayload = JSON.parse(shownJson.output) as {
+      readonly kind?: unknown;
+      readonly data?: { readonly source?: unknown; readonly provenance?: unknown; readonly tags?: readonly string[]; readonly triggers?: readonly string[] };
+    };
+    expect(shownPayload.kind).toBe('agent.personas.show');
+    expect(shownPayload.data?.source).toBe('imported');
+    expect(String(shownPayload.data?.provenance ?? '')).toContain('discovered:project-local:');
+    expect(shownPayload.data?.tags).toContain('travel');
+    expect(shownPayload.data?.triggers).toContain('vacation');
+  });
+
   test('creates enables bundles reviews and deletes local skills', async () => {
     const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skills-cli-'));
     roots.push(home);
@@ -228,6 +288,8 @@ describe('local Agent library CLI commands', () => {
 
     const personaHelp = renderGoodVibesCommandHelp('personas');
     expect(personaHelp).toContain('GoodVibes personas');
+    expect(personaHelp).toContain('personas discover');
+    expect(personaHelp).toContain('personas import-discovered');
     expect(personaHelp).toContain('personas create');
 
     const skillsHelp = renderGoodVibesCommandHelp('skills');

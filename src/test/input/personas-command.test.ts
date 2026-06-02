@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
@@ -64,5 +64,41 @@ describe('/personas command', () => {
     expect(text).toContain('Refusing to delete Agent persona ops without --yes');
     expect(text).toContain('Deleted Agent persona ops');
     expect(text).toContain('secret-looking');
+  });
+
+  test('discovers and imports local persona markdown only after confirmation', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const shellPaths = ctx.workspace?.shellPaths;
+    if (!shellPaths) throw new Error('missing shell paths');
+    const personaDir = join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'personas', 'travel-planner');
+    mkdirSync(personaDir, { recursive: true });
+    writeFileSync(join(personaDir, 'PERSONA.md'), [
+      '---',
+      'name: Travel Planner',
+      'description: Plan trips from preferences and constraints.',
+      'triggers: travel, trip',
+      'tags: planning, personal',
+      '---',
+      'Collect destination, dates, budget, accessibility needs, and timing constraints.',
+      'Produce options and ask before booking or messaging anyone.',
+    ].join('\n'));
+
+    await registry.execute('personas', ['discover'], ctx);
+    await registry.execute('personas', ['import-discovered', 'Travel', 'Planner'], ctx);
+    await registry.execute('personas', ['list'], ctx);
+    await registry.execute('personas', ['import-discovered', 'travel-planner', '--use', '--yes'], ctx);
+    await registry.execute('personas', ['active'], ctx);
+    await registry.execute('personas', ['show', 'travel-planner'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Discovered Agent persona files (1)');
+    expect(text).toContain('Travel Planner  project-local');
+    expect(text).toContain('Agent persona import preview');
+    expect(text).toContain('No local Agent personas yet');
+    expect(text).toContain('Imported Agent persona travel-planner: Travel Planner (active)');
+    expect(text).toContain('active: yes');
+    expect(text).toContain('Collect destination, dates, budget');
+    expect(text).toContain('tags: planning, personal');
+    expect(text).toContain('triggers: travel, trip');
   });
 });

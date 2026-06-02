@@ -165,6 +165,8 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     usage: [
       'personas list',
       'personas active',
+      'personas discover',
+      'personas import-discovered <name> [--use] --yes',
       'personas search <query>',
       'personas show <id>',
       'personas create --name <name> --description <summary> --body <instructions> [--tags a,b] [--triggers a,b] [--use]',
@@ -178,6 +180,8 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     summary: 'Manage Agent-local personas for the serial main conversation. Personas do not spawn worker agents.',
     examples: [
       'personas list',
+      'personas discover',
+      'personas import-discovered "Travel Planner" --use --yes',
       'personas create --name "Travel Planner" --description "Plan trips" --body "Compare options before booking" --use',
       'personas review travel-planner',
       'personas delete travel-planner --yes',
