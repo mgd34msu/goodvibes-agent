@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.110 - 2026-06-02
+
+- 31caa81 fix: retire redundant TUI launcher command
+- 028e397 feat: improve agent workspace and package runtime
+- f322d6b feat: add operator MCP setup workspace
+
 ## 0.1.109 - 2026-06-02
 
 - 4152420 Let Agent remember through local registry tool
