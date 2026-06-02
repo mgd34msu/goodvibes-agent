@@ -2,14 +2,26 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 
 export type AgentWorkspaceTaskCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'task-show' | 'task-output'
+  'task-list-filter' | 'task-show' | 'task-output'
 >;
 
 export function isAgentWorkspaceTaskCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceTaskCommandEditorKind {
-  return kind === 'task-show' || kind === 'task-output';
+  return kind === 'task-list-filter' || kind === 'task-show' || kind === 'task-output';
 }
 
 export function createAgentWorkspaceTaskCommandEditor(kind: AgentWorkspaceTaskCommandEditorKind): AgentWorkspaceLocalEditor {
+  if (kind === 'task-list-filter') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Filter Runtime Tasks',
+      selectedFieldIndex: 0,
+      message: 'List connected-host tasks filtered by status or kind. This is read-only and never creates, retries, or cancels tasks.',
+      fields: [
+        { id: 'filter', label: 'Status or kind', value: '', required: false, multiline: false, hint: 'Optional task status or kind. Blank lists recent tasks.' },
+      ],
+    };
+  }
   if (kind === 'task-output') {
     return {
       kind,

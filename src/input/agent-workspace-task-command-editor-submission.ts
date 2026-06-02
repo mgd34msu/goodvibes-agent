@@ -27,6 +27,22 @@ export function buildAgentWorkspaceTaskCommandEditorSubmission(
   editor: AgentWorkspaceLocalEditor,
   readField: AgentWorkspaceFieldReader,
 ): AgentWorkspaceTaskCommandEditorSubmission {
+  if (editor.kind === 'task-list-filter') {
+    const filter = readField('filter');
+    const command = filter.length > 0 ? `/tasks list ${quoteSlashCommandArg(filter)}` : '/tasks list';
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening filtered task list.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening filtered task list',
+        detail: 'The workspace handed read-only connected-host task listing to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
   const subcommand = editor.kind === 'task-output' ? 'output' : 'show';
   const command = `/tasks ${subcommand} ${quoteSlashCommandArg(readField('taskId'))}`;
   const title = editor.kind === 'task-output' ? 'Opening task output' : 'Opening task inspection';

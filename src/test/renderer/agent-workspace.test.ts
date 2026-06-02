@@ -1260,6 +1260,8 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Add work item');
     expect(output).toContain('edit workplan-add');
+    expect(output).toContain('Show work plan detail');
+    expect(output).toContain('edit workplan-show');
     expect(output).toContain('Update work item status');
     expect(output).toContain('edit workplan-status');
     expect(output).toContain('Remove work item');
@@ -1267,6 +1269,28 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Clear completed work');
     expect(output).toContain('edit workplan-clear-completed');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'workplan-show');
+    const workPlanDetailOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(workPlanDetailOutput).toContain('Show work plan detail');
+    expect(workPlanDetailOutput).toContain('edit workplan-show');
+
+    workspace.activateSelected();
+    const workPlanEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(workPlanEditorOutput).toContain('Show Work Plan Detail');
+    expect(workPlanEditorOutput).toContain('Format');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-seed');
+    const seedActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(seedActionOutput).toContain('Seed planning goal');
+    expect(seedActionOutput).toContain('edit plan-seed');
+
+    workspace.activateSelected();
+    const seedEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(seedEditorOutput).toContain('Seed Planning Goal');
+    expect(seedEditorOutput).toContain('Planning goal *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-show');
     const planOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(planOutput).toContain('Show saved plan');
@@ -1320,6 +1344,17 @@ describe('renderAgentWorkspace', () => {
     const approvalEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(approvalEditorOutput).toContain('Review Approval Class');
     expect(approvalEditorOutput).toContain('Approval kind *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tasks-filter');
+    const taskFilterOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(taskFilterOutput).toContain('Filter runtime tasks');
+    expect(taskFilterOutput).toContain('edit task-list-filter');
+
+    workspace.activateSelected();
+    const taskFilterEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(taskFilterEditorOutput).toContain('Filter Runtime Tasks');
+    expect(taskFilterEditorOutput).toContain('Status or kind');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-show');

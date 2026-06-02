@@ -3,7 +3,7 @@ import { quoteSlashCommandArg } from './slash-command-parser.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
-export type AgentWorkspaceWorkPlanEditorKind = 'workplan-add' | 'workplan-status' | 'workplan-delete' | 'workplan-clear-completed';
+export type AgentWorkspaceWorkPlanEditorKind = 'workplan-add' | 'workplan-show' | 'workplan-status' | 'workplan-delete' | 'workplan-clear-completed';
 
 export type AgentWorkspaceWorkPlanEditorSubmission =
   | {
@@ -40,6 +40,7 @@ const STATUS_COMMANDS: Record<string, string> = {
 
 export function isAgentWorkspaceWorkPlanEditorKind(kind: string): kind is AgentWorkspaceWorkPlanEditorKind {
   return kind === 'workplan-add'
+    || kind === 'workplan-show'
     || kind === 'workplan-status'
     || kind === 'workplan-delete'
     || kind === 'workplan-clear-completed';
@@ -90,6 +91,18 @@ export function buildAgentWorkspaceWorkPlanEditorSubmission(
       'Opening work plan item creation.',
       'The workspace handed a visible work plan item creation command to the shell-owned command router.',
       'safe',
+    );
+  }
+
+  if (editor.kind === 'workplan-show') {
+    const format = readField('format').trim().toLowerCase();
+    const command = format === 'markdown' ? '/workplan markdown' : '/workplan show';
+    return dispatch(
+      command,
+      'Opening work plan detail',
+      'Opening work plan detail.',
+      'The workspace handed read-only work plan detail inspection to the shell-owned command router.',
+      'read-only',
     );
   }
 

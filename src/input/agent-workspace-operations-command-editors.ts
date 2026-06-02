@@ -2,11 +2,12 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 
 export type AgentWorkspaceOperationsCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'plan-show' | 'plan-approve' | 'plan-override' | 'plan-clear' | 'health-repair' | 'approval-review' | 'routine-receipt' | 'schedule-receipt'
+  'plan-seed' | 'plan-show' | 'plan-approve' | 'plan-override' | 'plan-clear' | 'health-repair' | 'approval-review' | 'routine-receipt' | 'schedule-receipt'
 >;
 
 export function isAgentWorkspaceOperationsCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceOperationsCommandEditorKind {
-  return kind === 'plan-show'
+  return kind === 'plan-seed'
+    || kind === 'plan-show'
     || kind === 'plan-approve'
     || kind === 'plan-override'
     || kind === 'plan-clear'
@@ -17,6 +18,18 @@ export function isAgentWorkspaceOperationsCommandEditorKind(kind: AgentWorkspace
 }
 
 export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspaceOperationsCommandEditorKind): AgentWorkspaceLocalEditor {
+  if (kind === 'plan-seed') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Seed Planning Goal',
+      selectedFieldIndex: 0,
+      message: 'Seed Agent planning state from a concrete goal. This stays in the main Agent planning flow and does not spawn coding agents.',
+      fields: [
+        { id: 'goal', label: 'Planning goal', value: '', required: true, multiline: true, hint: 'Describe the goal or operating plan to evaluate. Ctrl-J inserts a new line.' },
+      ],
+    };
+  }
   if (kind === 'health-repair') {
     return {
       kind,

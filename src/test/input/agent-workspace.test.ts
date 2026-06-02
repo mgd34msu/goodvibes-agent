@@ -423,6 +423,7 @@ describe('AgentWorkspace', () => {
     expect(commands).not.toContain('/plan approve --yes');
     expect(commands).not.toContain('/approval open');
     expect(workspace.actions.map((action) => action.id)).toContain('workplan-add');
+    expect(workspace.actions.map((action) => action.id)).toContain('workplan-show');
     expect(workspace.actions.map((action) => action.id)).toContain('workplan-status');
     expect(workspace.actions.map((action) => action.id)).toContain('workplan-delete');
     expect(workspace.actions.map((action) => action.id)).toContain('workplan-clear-completed');
@@ -433,17 +434,42 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual(['/workplan list']);
     expect(workspace.status).toContain('/workplan list');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'workplan-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('workplan-show');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/workplan show');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'planning-status');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/plan status']);
+    expect(dispatched).toEqual(['/workplan list', '/workplan show', '/plan status']);
     expect(workspace.status).toContain('/plan status');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'planning-mode');
+    workspace.activateSelected();
+
+    expect(dispatched.at(-1)).toBe('/plan mode');
+    expect(workspace.status).toContain('/plan mode');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'planning-explain');
+    workspace.activateSelected();
+
+    expect(dispatched.at(-1)).toBe('/plan explain');
+    expect(workspace.status).toContain('/plan explain');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'planning-list');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list']);
+    expect(dispatched.at(-1)).toBe('/plan list');
     expect(workspace.status).toContain('/plan list');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-seed');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('plan-seed');
+    feedText(workspace, 'Prepare the household assistant setup');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/plan "Prepare the household assistant setup"');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-show');
     workspace.activateSelected();
@@ -455,19 +481,26 @@ describe('AgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tasks-list');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/plan show plan-123', '/tasks list']);
+    expect(dispatched.at(-1)).toBe('/tasks list');
     expect(workspace.status).toContain('/tasks list');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tasks-filter');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('task-list-filter');
+    feedText(workspace, 'running');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/tasks list running');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'sessions-list');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/plan show plan-123', '/tasks list', '/sessions']);
+    expect(dispatched.at(-1)).toBe('/sessions');
     expect(workspace.status).toContain('/sessions');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approvals');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/plan show plan-123', '/tasks list', '/sessions', '/approval matrix']);
+    expect(dispatched.at(-1)).toBe('/approval matrix');
     expect(workspace.status).toContain('/approval matrix');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approval-review');
@@ -486,6 +519,14 @@ describe('AgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tasks-filter');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('task-list-filter');
+    feedText(workspace, 'running');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/tasks list running');
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-show');
     workspace.activateSelected();

@@ -39,6 +39,21 @@ export function buildAgentWorkspaceOperationsCommandEditorSubmission(
   editor: AgentWorkspaceLocalEditor,
   readField: AgentWorkspaceFieldReader,
 ): AgentWorkspaceOperationsCommandEditorSubmission {
+  if (editor.kind === 'plan-seed') {
+    const command = `/plan ${quoteSlashCommandArg(readField('goal'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening planning goal seeding.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening planning goal seeding',
+        detail: 'The workspace handed a concrete planning goal to the shell-owned command router without spawning coding agents.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
   if (editor.kind === 'plan-approve') {
     if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Planning approval not confirmed. Type yes, then press Enter.');
     return {

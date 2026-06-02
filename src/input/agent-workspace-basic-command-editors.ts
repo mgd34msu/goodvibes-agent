@@ -31,7 +31,7 @@ export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEd
   | 'subscription-inspect' | 'subscription-login-start' | 'subscription-login-finish' | 'subscription-logout'
   | 'model-pin' | 'model-unpin'
   | 'delegate-task'
-  | 'workplan-add' | 'workplan-status' | 'workplan-delete' | 'workplan-clear-completed'
+  | 'workplan-add' | 'workplan-show' | 'workplan-status' | 'workplan-delete' | 'workplan-clear-completed'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'mcp-server' | 'mcp-tools-server' | 'mcp-repair' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-clear' | 'notify-webhook-test'
@@ -80,6 +80,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'model-unpin'
     || kind === 'delegate-task'
     || kind === 'workplan-add'
+    || kind === 'workplan-show'
     || kind === 'workplan-status'
     || kind === 'workplan-delete'
     || kind === 'workplan-clear-completed'
@@ -651,6 +652,18 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
         { id: 'owner', label: 'Owner', value: '', required: false, multiline: false, hint: 'Optional owner label.' },
         { id: 'source', label: 'Source', value: '', required: false, multiline: false, hint: 'Optional source label. Blank defaults to manual.' },
         { id: 'notes', label: 'Notes', value: '', required: false, multiline: true, hint: 'Optional notes. Ctrl-J inserts a new line.' },
+      ],
+    };
+  }
+  if (kind === 'workplan-show') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Show Work Plan Detail',
+      selectedFieldIndex: 0,
+      message: 'Print the detailed work plan from the Agent workspace without mutating work state.',
+      fields: [
+        { id: 'format', label: 'Format', value: '', required: false, multiline: false, hint: 'Optional. Blank uses the default detail view; markdown also works.' },
       ],
     };
   }
