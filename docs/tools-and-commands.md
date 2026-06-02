@@ -12,9 +12,11 @@ GoodVibes Agent is an operator assistant TUI. Its command set is centered on mai
 - WRFC is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, review, or WRFC work.
 - Code-building work is delegated to GoodVibes TUI through public shared-session/task contracts.
 
-## Operator Commands
+## TUI-First Operator Surface
 
-High-signal Agent TUI surfaces:
+The Agent workspace is the product surface. Slash commands are power-user routes inside the TUI, and package CLI subcommands are scriptable mirrors. New user-facing capabilities should appear in the workspace first.
+
+High-signal Agent TUI paths:
 
 - `/help` for registry-driven command discovery.
 - `/health` and `/auth` for runtime/auth/SDK diagnostics inside the TUI.
@@ -29,7 +31,7 @@ High-signal Agent TUI surfaces:
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
 
-The installed `goodvibes-agent` CLI launches the TUI by default. Its subcommands are secondary scriptable equivalents for diagnostics and local library automation, for example `goodvibes-agent status`, `goodvibes-agent compat`, `goodvibes-agent knowledge ...`, `goodvibes-agent ask <question>`, and `goodvibes-agent search <query>`.
+The installed `goodvibes-agent` command launches the TUI by default. Subcommands such as `status`, `compat`, `knowledge ...`, `ask <question>`, and `search <query>` are secondary scriptable equivalents for diagnostics and automation over the same Agent workspace capabilities.
 
 Host-management and coding-first commands that would imply connected-host lifecycle ownership, local agent spawning, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 

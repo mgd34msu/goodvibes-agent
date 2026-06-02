@@ -10,7 +10,7 @@ GoodVibes Agent is the installable public alpha of the personal operator assista
 
 Agent does not launch the connected host for you.
 
-Use the interactive TUI first. CLI subcommands are secondary support paths for install checks, setup inspection, and scriptable local Agent libraries.
+Use the interactive TUI first. CLI subcommands are secondary support paths for install checks, setup inspection, and scriptable mirrors of workflows that are already reachable from the workspace.
 
 ## Install From Package
 
@@ -46,11 +46,11 @@ The setup workspace scans local Agent behavior folders and shows importable pers
 
 Use `/agent-profile guide` inside that workspace to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
-Use the Profiles workspace form to assemble a local starter template and isolated Agent profile from reviewed discovered persona, skill, and routine files. The scriptable equivalent is `goodvibes-agent profiles create-from-discovered research-desk --yes`; use `profiles templates from-discovered <id> --yes` only when you want to save the starter before creating a profile.
+Use the Profiles workspace form to assemble a local starter template and isolated Agent profile from reviewed discovered persona, skill, and routine files. Scriptable profile commands mirror the same flow for automation; use them only when you intentionally want a shell-driven setup path.
 
 Use the Knowledge area in that workspace to ingest a source URL without leaving the TUI. The form requires typed confirmation and writes only to the isolated Agent Knowledge segment.
 
-Use `/schedule receipts` to review redacted local routine promotion history and `/schedule reconcile` to compare those receipts with live connected schedules through public `schedules.list`.
+Use the Routines workspace receipt actions to review redacted local routine promotion history and reconcile those receipts with live connected schedules through public `schedules.list`. The `/schedule receipts` and `/schedule reconcile` commands are the power-user equivalents inside the TUI.
 
 The local behavior libraries are configured in the TUI first:
 
@@ -63,15 +63,15 @@ The installed CLI mirrors these libraries for scripts, but it is not the primary
 
 ## Isolated Agent Profiles
 
-Use a separate Agent home when you want isolated local state:
+Use a separate Agent home when you want isolated local state. The normal launch still opens the TUI:
 
 ```sh
-GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
+GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent
 ```
 
 Use named Agent profiles for repeatable local identities from Agent Workspace -> Profiles. The workspace can browse starter templates, create isolated Agent profiles, set or clear the default profile for the next launch, and export/import starter JSON.
 
-Scriptable equivalents:
+Scriptable equivalents for automation and setup scripts:
 
 ```sh
 goodvibes-agent profiles templates
@@ -116,11 +116,11 @@ Start the owning GoodVibes host before using connected Agent features. Agent exp
 - `/api/goodvibes-agent/knowledge/search`
 - `/api/goodvibes-agent/knowledge/ingest/url`
 
-If the GoodVibes API is not on `http://127.0.0.1:3421`, use `goodvibes-agent --runtime-url http://host:port status` for a one-off check or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` before launching the TUI.
+If the GoodVibes API is not on `http://127.0.0.1:3421`, pass `--runtime-url http://host:port` for a one-off TUI launch or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` before launching the TUI.
 
 Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not fall back to default Knowledge/Wiki or other product-specific knowledge spaces.
 
-Host lifecycle commands are not part of GoodVibes Agent. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and the Agent TUI status views for diagnostics.
+Host lifecycle commands are not part of GoodVibes Agent. Use Agent Workspace -> Home -> Host compatibility, Doctor diagnostics, and Review health for diagnostics. CLI status/doctor/compat commands are scriptable mirrors for install checks.
 
 ## Current Product Notes
 

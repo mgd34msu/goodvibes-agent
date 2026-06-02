@@ -7,7 +7,7 @@ GoodVibes Agent is the personal operator assistant TUI for GoodVibes. It is buil
 
 The Agent product connects to a GoodVibes host owned outside this package. It does not install, start, stop, restart, or own that host.
 
-Most work happens in the interactive TUI. The installed CLI exists to launch that TUI, inspect setup, and script local Agent libraries when that is useful.
+Most work happens in the interactive TUI. The installed CLI exists to launch that TUI and provide scriptable mirrors for workflows that are already reachable from the workspace.
 
 ## Install
 
@@ -71,7 +71,7 @@ Use isolated Agent profiles when one machine needs separate operator identities 
 
 Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The connected GoodVibes host remains shared unless that host is separately configured otherwise.
 
-For scripts and automation, the installed CLI mirrors the same local behavior libraries: `goodvibes-agent personas ...`, `goodvibes-agent skills ...`, `goodvibes-agent memory ...`, and `goodvibes-agent routines ...` can list, create, review, enable, stale, export/import where relevant, and delete local Agent records with explicit confirmation for destructive actions. The TUI workspace is the primary user experience.
+The installed CLI mirrors the same local behavior libraries for scripts and automation, but it is not the primary product path. Personas, skills, memory, and routines are created, reviewed, enabled, exported/imported where relevant, and deleted from the TUI workspace first; destructive actions still require explicit confirmation.
 
 The Agent workspace also has a `Capture learned behavior` form. Use it after reviewing a repeated workflow, lesson, or operating style; it saves one local skill, routine, or persona directly from the TUI and does not write to connected-host routes or non-Agent knowledge.
 
@@ -95,7 +95,7 @@ Start the owning GoodVibes host before launching Agent. Agent status and compani
 
 Use `--runtime-url http://host:port` for a one-off launch, or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` when the connected host is not on the default local port. The legacy `GOODVIBES_AGENT_BASE_URL` env var is also accepted as an alias. These only change the connection target; Agent still does not host or start it.
 
-Agent reports unavailable, unauthenticated, or incompatible connected-host state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. Host lifecycle stays outside the Agent product.
+Agent reports unavailable, unauthenticated, or incompatible connected-host state from Agent Workspace -> Home through Host compatibility, Doctor diagnostics, and Review health. `goodvibes-agent status`, `goodvibes-agent doctor`, and `goodvibes-agent compat` are scriptable mirrors for install checks. Host lifecycle stays outside the Agent product.
 
 ## Product Boundary
 
@@ -103,7 +103,7 @@ GoodVibes Agent owns the operator assistant TUI: serial assistant flow, proactiv
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
 
-Agent Knowledge CLI commands can ask/search, inspect sources/nodes/issues, inspect connectors, ingest a URL, import URL/bookmark files, and reindex the Agent segment. Confirmed mutations require `--yes`.
+Agent Workspace -> Knowledge can ask/search, inspect sources/nodes/issues, inspect connectors, ingest URL/file/bookmark/browser-history/connector input, and reindex the Agent segment. CLI commands mirror those same isolated Agent Knowledge workflows for scripts. Confirmed mutations require explicit confirmation.
 
 GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, execution isolation UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public runtime/session contracts; normal assistant chat must not use shared coding sessions.
 

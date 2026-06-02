@@ -6,7 +6,7 @@ GoodVibes Agent is a TUI client for a connected GoodVibes host owned outside thi
 goodvibes-agent
 ```
 
-The installed command is backed by TypeScript-authored source with a Bun shebang. Package install smoke must verify:
+The installed command is backed by TypeScript-authored source with a Bun shebang. Package install smoke verifies the executable path:
 
 - `goodvibes-agent --help`
 - `goodvibes-agent --version`
@@ -24,10 +24,10 @@ http://127.0.0.1:3421
 /api/goodvibes-agent/knowledge/search
 ```
 
-If the GoodVibes API is on a different host or port, use a one-off override:
+If the GoodVibes API is on a different host or port, use a one-off override when launching the TUI:
 
 ```sh
-goodvibes-agent --runtime-url http://127.0.0.1:3421 status
+goodvibes-agent --runtime-url http://127.0.0.1:3421
 ```
 
 For a persistent shell/session override, set:
@@ -38,7 +38,7 @@ export GOODVIBES_AGENT_RUNTIME_URL=http://127.0.0.1:3421
 
 `GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias. These values only select the connected GoodVibes API root; they do not make Agent own host processes.
 
-If the connected host is unavailable, unauthenticated, or on an incompatible SDK version, Agent commands report actionable diagnostics without printing token values.
+If the connected host is unavailable, unauthenticated, or on an incompatible SDK version, the Agent TUI reports actionable diagnostics without printing token values.
 
 Use the TUI first for those checks:
 
