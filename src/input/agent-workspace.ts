@@ -11,7 +11,7 @@ import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from './agent-workspace-command-editor.ts';
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
-import { createDeleteEditor, createMemoryEditorFromNote, createMemoryUpdateEditor, createNoteUpdateEditor, createPersonaEditorFromNote, createPersonaUpdateEditor, createRoutineEditorFromNote, createRoutineUpdateEditor, createSkillEditorFromNote, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
+import { createDeleteEditor, createKnowledgeUrlEditorFromNote, createMemoryEditorFromNote, createMemoryUpdateEditor, createNoteUpdateEditor, createPersonaEditorFromNote, createPersonaUpdateEditor, createRoutineEditorFromNote, createRoutineUpdateEditor, createSkillEditorFromNote, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from './agent-workspace-learned-behavior.ts';
 import { clampAgentWorkspaceLocalLibrarySelection, moveAgentWorkspaceLocalLibraryItemSelection, selectedAgentWorkspaceLocalLibraryItem, type AgentWorkspaceLocalSelectionIndexes } from './agent-workspace-local-selection.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
@@ -392,6 +392,32 @@ export class AgentWorkspace {
         if (!note) throw new Error(`Unknown note: ${selected.id}`);
         this.localEditor = createRoutineEditorFromNote(note);
         this.status = `Creating routine from note: ${note.title}.`;
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: this.localEditor.title,
+          detail: this.localEditor.message,
+          safety: 'safe',
+        };
+      } else if (operation === 'note-promote-knowledge-url') {
+        const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
+        if (!note) throw new Error(`Unknown note: ${selected.id}`);
+        const sourceUrl = note.sourceUrl?.trim();
+        if (!sourceUrl) {
+          this.status = 'Selected note has no reviewed source URL.';
+          this.lastActionResult = {
+            kind: 'guidance',
+            title: 'No note source URL',
+            detail: 'Edit the selected note and add a reviewed HTTP(S) source URL before ingesting it into Agent Knowledge.',
+            safety: 'safe',
+          };
+          return;
+        }
+        const parsed = new URL(sourceUrl);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          throw new Error('Selected note source URL must be HTTP or HTTPS before Agent Knowledge ingest.');
+        }
+        this.localEditor = createKnowledgeUrlEditorFromNote(note);
+        this.status = `Preparing Agent Knowledge ingest from note: ${note.title}.`;
         this.lastActionResult = {
           kind: 'guidance',
           title: this.localEditor.title,

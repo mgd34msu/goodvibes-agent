@@ -379,7 +379,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'notes-to-skill', label: 'Create skill from selected', detail: 'Prefill a reusable skill from the selected note after reviewing a repeated procedure.', localKind: 'note', localOperation: 'note-promote-skill', kind: 'local-operation', safety: 'safe' },
       { id: 'notes-to-routine', label: 'Create routine from selected', detail: 'Prefill a repeatable main-conversation routine from the selected note.', localKind: 'note', localOperation: 'note-promote-routine', kind: 'local-operation', safety: 'safe' },
       { id: 'notes-to-persona', label: 'Create persona from selected', detail: 'Prefill a local operating persona from the selected note when it describes a durable style or role.', localKind: 'note', localOperation: 'note-promote-persona', kind: 'local-operation', safety: 'safe' },
-      { id: 'notes-to-knowledge', label: 'Ingest reviewed source', detail: 'Open the Agent Knowledge URL ingest form only after reviewing a source URL.', editorKind: 'knowledge-url', kind: 'editor', safety: 'safe' },
+      { id: 'notes-to-knowledge', label: 'Ingest reviewed source', detail: 'Prefill the Agent Knowledge URL ingest form from the selected note source URL.', localKind: 'note', localOperation: 'note-promote-knowledge-url', kind: 'local-operation', safety: 'safe' },
       { id: 'notes-research', label: 'Research source', detail: 'Open a read-only URL inspection form before deciding whether a source belongs in notes or Agent Knowledge.', editorKind: 'web-fetch', kind: 'editor', safety: 'read-only' },
     ],
   },

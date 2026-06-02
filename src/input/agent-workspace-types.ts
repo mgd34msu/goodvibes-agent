@@ -177,6 +177,7 @@ export type AgentWorkspaceLocalOperation =
   | 'note-promote-persona'
   | 'note-promote-skill'
   | 'note-promote-routine'
+  | 'note-promote-knowledge-url'
   | 'persona-edit'
   | 'persona-use'
   | 'persona-review'

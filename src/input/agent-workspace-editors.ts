@@ -259,6 +259,22 @@ export function createRoutineEditorFromNote(note: AgentNoteRecord): AgentWorkspa
   };
 }
 
+export function createKnowledgeUrlEditorFromNote(note: AgentNoteRecord): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'knowledge-url',
+    mode: 'create',
+    title: 'Ingest Note Source Into Agent Knowledge',
+    selectedFieldIndex: 3,
+    message: `Review the source URL from ${note.title}, then type yes to ingest it into isolated Agent Knowledge. The scratchpad note remains unchanged.`,
+    fields: [
+      { id: 'url', label: 'URL', value: note.sourceUrl ?? '', required: true, multiline: false, hint: 'HTTP or HTTPS URL to ingest into Agent Knowledge only.' },
+      { id: 'tags', label: 'Tags', value: noteTags(note, 'from-note'), required: false, multiline: false, hint: 'Comma-separated optional tags. Spaces are not needed.' },
+      { id: 'folder', label: 'Folder', value: 'notes', required: false, multiline: false, hint: 'Optional Agent Knowledge folder path.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge ingest-url with --yes.' },
+    ],
+  };
+}
+
 export function createNoteUpdateEditor(record: AgentNoteRecord): AgentWorkspaceLocalEditor {
   return {
     kind: 'note',
