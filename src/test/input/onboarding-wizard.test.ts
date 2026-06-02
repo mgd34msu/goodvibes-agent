@@ -8,7 +8,7 @@ import { DEFAULT_CONFIG } from '../../config/index.ts';
 import { getProviderIdFromModel } from '../../config/provider-model.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
-import type { OnboardingApplyOperation, OnboardingSnapshotState } from '../../runtime/onboarding/index.ts';
+import { readOnboardingCheckMarker, type OnboardingApplyOperation, type OnboardingSnapshotState } from '../../runtime/onboarding/index.ts';
 import { createDefaultUiRuntimeServices } from '../helpers/ui-services.ts';
 import { resetTestRuntimeServices } from '../helpers/runtime-services.ts';
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
@@ -411,6 +411,21 @@ describe('InputHandler onboarding integration', () => {
 
     expect(input.onboardingWizard.active).toBe(true);
     expect(input.onboardingWizard.currentStep.id).toBe('provider-access');
+  });
+
+  test('opening first-run setup does not mark setup complete until apply succeeds', async () => {
+    const input = makeInput();
+    input.openOnboardingWizard('new');
+    input.onboardingWizard.hydrateRuntimeState({ snapshot: makeOnboardingSnapshot() }, { resetValues: true });
+
+    expect(readOnboardingCheckMarker(input.uiServices.environment.shellPaths, 'user').exists).toBe(false);
+
+    await (input as unknown as { handleOnboardingAction(action: 'apply'): Promise<void> }).handleOnboardingAction('apply');
+
+    const marker = readOnboardingCheckMarker(input.uiServices.environment.shellPaths, 'user');
+    expect(marker.exists).toBe(true);
+    expect(marker.payload?.source).toBe('wizard');
+    expect(marker.payload?.mode).toBe('new');
   });
 
   test('keeps external service lifecycle untouched when completing Agent setup', async () => {

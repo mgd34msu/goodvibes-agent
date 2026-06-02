@@ -505,9 +505,9 @@ export function buildReviewStep(controller: OnboardingWizardController): Onboard
       {
         kind: 'status',
         id: 'review.global-marker',
-        label: 'Agent setup check',
-        hint: 'Opening this wizard marks Agent setup as shown for this user account, so it does not reopen automatically.',
-        defaultValue: 'Already marked as shown',
+        label: 'Agent setup completion',
+        hint: 'Successful apply marks Agent setup complete for this user account, so a bare launch opens the operator workspace next time.',
+        defaultValue: 'Marked after apply',
       },
       {
         kind: 'action',

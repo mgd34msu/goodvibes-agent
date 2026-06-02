@@ -4,7 +4,7 @@ import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
 import { OnboardingWizardController, type OnboardingWizardAction, type OnboardingWizardApplyFeedback } from './onboarding/onboarding-wizard.ts';
-import { applyOnboardingRequest, collectOnboardingSnapshot, verifyOnboardingRequest } from '../runtime/onboarding/index.ts';
+import { applyOnboardingRequest, collectOnboardingSnapshot, verifyOnboardingRequest, writeOnboardingCheckMarker } from '../runtime/onboarding/index.ts';
 import type { OnboardingApplyRequest, OnboardingVerificationItem } from '../runtime/onboarding/index.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
 import { captureOnboardingWizardSnapshot, restoreOnboardingWizardSnapshot } from './handler-ui-state.ts';
@@ -240,6 +240,16 @@ export async function handleOnboardingActionForHandler(handler: InputHandler, ac
 
     handler.syncRuntimeFromOnboardingRequest(request);
     handler.onboardingWizard.markApplied();
+    let markerWarning: string | null = null;
+    try {
+      writeOnboardingCheckMarker(handler.uiServices.environment.shellPaths, {
+        scope: 'user',
+        source: 'wizard',
+        mode: request.mode,
+      });
+    } catch (error) {
+      markerWarning = error instanceof Error ? error.message : String(error);
+    }
     handler.onboardingWizard.close();
     for (let index = handler.modalStack.length - 1; index >= 0; index -= 1) {
       if (handler.modalStack[index] === 'onboarding') handler.modalStack.splice(index, 1);
@@ -250,7 +260,10 @@ export async function handleOnboardingActionForHandler(handler: InputHandler, ac
       handler.indicatorFocused = returnFocus === 'indicator';
       handler.modalReturnFocus = 'prompt';
     }
-    handler.commandContext?.print?.(formatOnboardingApplyCompletionMessage(verificationItems));
+    const completionMessage = formatOnboardingApplyCompletionMessage(verificationItems);
+    handler.commandContext?.print?.(markerWarning
+      ? `${completionMessage}\nSetup check marker could not be written: ${markerWarning}`
+      : completionMessage);
     handler.requestRender();
   }
 
