@@ -2763,16 +2763,27 @@ describe('AgentWorkspace', () => {
     expect(JSON.stringify(snapshot.setupChecklist)).not.toContain('SLACK_BOT_TOKEN');
   });
 
-  test('exposes Agent Knowledge review queue without default wiki fallback', () => {
+  test('exposes Agent Knowledge review queue and list views without default wiki fallback', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-queue');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-sources');
+    workspace.activateSelected();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-nodes');
+    workspace.activateSelected();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-issues');
+    workspace.activateSelected();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-queue');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/knowledge queue']);
+    expect(dispatched).toEqual([
+      '/knowledge list --kind sources',
+      '/knowledge list --kind nodes',
+      '/knowledge list --kind issues',
+      '/knowledge queue',
+    ]);
     expect(workspace.status).toContain('/knowledge queue');
     expect(workspace.selectedCategory.detail).toContain('isolated Agent Knowledge route family only');
     expect(workspace.selectedCategory.detail).toContain('Default regular wiki and non-Agent knowledge segments are not');

@@ -824,15 +824,25 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit knowledge-urls');
     expect(output).toContain('Import bookmarks');
     expect(output).toContain('edit knowledge-bookmarks');
+    expect(output).toContain('Connector inventory');
+    expect(output).toContain('/knowledge connectors');
     expect(output).toContain('in-workspace form');
-    expect(output).toContain('Review queue');
-    expect(output).toContain('/knowledge queue');
-    expect(output).toContain('Source library');
-    expect(output).toContain('/knowledge list --kind sources');
     expect(output).toContain('more action(s) below');
     expect(output).not.toContain('/knowledge search <query>');
     expect(output).not.toContain('/api/knowledge');
     expect(output).not.toContain('non-Agent product setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-queue');
+    const reviewOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(reviewOutput).toContain('Review queue');
+    expect(reviewOutput).toContain('/knowledge queue');
+    expect(reviewOutput).toContain('Source library');
+    expect(reviewOutput).toContain('/knowledge list --kind sources');
+    expect(reviewOutput).toContain('Node library');
+    expect(reviewOutput).toContain('/knowledge list --kind nodes');
+    expect(reviewOutput).toContain('Issue library');
+    expect(reviewOutput).toContain('/knowledge list --kind issues');
+    expect(reviewOutput).not.toContain('/api/knowledge');
   });
 
   test('renders Agent Knowledge query forms with focused input fields', () => {
