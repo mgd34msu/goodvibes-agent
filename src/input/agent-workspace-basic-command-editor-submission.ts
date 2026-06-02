@@ -309,6 +309,22 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'model-pin' || editor.kind === 'model-unpin') {
+    const pinning = editor.kind === 'model-pin';
+    const command = `/${pinning ? 'pin' : 'unpin'} ${quoteSlashCommandArg(readField('model'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: pinning ? 'Opening model pin action.' : 'Opening model unpin action.',
+      actionResult: {
+        kind: 'dispatched',
+        title: pinning ? 'Opening model pin action' : 'Opening model unpin action',
+        detail: 'The workspace handed model favorites maintenance to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
   if (editor.kind === 'profile-template-export') {
     if (!isAffirmative(readField('confirm'))) {
       return {

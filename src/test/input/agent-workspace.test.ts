@@ -244,34 +244,31 @@ describe('AgentWorkspace', () => {
       'expand',
       'export',
       'help',
-      'image',
       'keybindings',
       'load',
-      'login',
-      'logout',
       'mode',
       'next-error',
       'paste',
-      'pin',
       'prev-error',
       'qrcode',
       'quit',
       'redo',
-      'refresh-models',
       'reset',
       'retry',
       'save',
       'session',
       'shortcuts',
       'title',
-      'tts',
       'undo',
-      'unpin',
-      'voice',
       'welcome',
     ]);
     const workspaceFormBackedCommands = new Set([
       'bundle',
+      'image',
+      'login',
+      'logout',
+      'tts',
+      'unpin',
     ]);
 
     const missingWorkspaceAccess = registry.list()
@@ -361,6 +358,34 @@ describe('AgentWorkspace', () => {
       '/mode show',
       '/mode operator --yes',
       '/mode set-domain approvals verbose --yes',
+    ]);
+  });
+
+  test('manages model favorites and catalog refresh from setup workspace actions', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-refresh');
+    workspace.activateSelected();
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-pin');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('model-pin');
+    feedText(workspace, 'openai:gpt-5.5');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-unpin');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('model-unpin');
+    feedText(workspace, 'openai:gpt-5.5');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/refresh-models',
+      '/pin openai:gpt-5.5',
+      '/unpin openai:gpt-5.5',
     ]);
   });
 

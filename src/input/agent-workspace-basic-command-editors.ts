@@ -21,6 +21,7 @@ export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEd
   | 'profile-template-show' | 'profile-delete'
   | 'support-bundle-export' | 'support-bundle-inspect' | 'support-bundle-import'
   | 'subscription-inspect' | 'subscription-login-start' | 'subscription-login-finish' | 'subscription-logout'
+  | 'model-pin' | 'model-unpin'
   | 'delegate-task'
   | 'workplan-add' | 'workplan-status' | 'workplan-delete' | 'workplan-clear-completed'
   | 'persona-discovery-import'
@@ -63,6 +64,8 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'subscription-login-start'
     || kind === 'subscription-login-finish'
     || kind === 'subscription-logout'
+    || kind === 'model-pin'
+    || kind === 'model-unpin'
     || kind === 'delegate-task'
     || kind === 'workplan-add'
     || kind === 'workplan-status'
@@ -339,6 +342,28 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       fields: [
         { id: 'path', label: 'Image path', value: '', required: true, multiline: false, hint: 'PNG, JPEG, WebP, or GIF path under the current workspace.' },
         { id: 'prompt', label: 'Prompt', value: '', required: false, multiline: true, hint: 'Optional prompt. Ctrl-J inserts a new line.' },
+      ],
+    };
+  }
+  if (kind === 'model-pin' || kind === 'model-unpin') {
+    const pinning = kind === 'model-pin';
+    return {
+      kind,
+      mode: 'create',
+      title: pinning ? 'Pin Model' : 'Unpin Model',
+      selectedFieldIndex: 0,
+      message: pinning
+        ? 'Pin one model registry key so it is easy to reuse from the Agent TUI.'
+        : 'Remove one pinned model registry key from the Agent model favorites.',
+      fields: [
+        {
+          id: 'model',
+          label: 'Model registry key',
+          value: '',
+          required: true,
+          multiline: false,
+          hint: 'Use a registry key shown by the model picker, such as openai:gpt-5.5.',
+        },
       ],
     };
   }

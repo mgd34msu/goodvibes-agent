@@ -370,6 +370,37 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('non-Agent graph segment');
   });
 
+  test('renders model favorites maintenance in the setup workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-pinned');
+    let output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Pinned models');
+    expect(output).toContain('/pin');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-refresh');
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Refresh model catalog');
+    expect(output).toContain('/refresh-models');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-pin');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Pin Model');
+    expect(output).toContain('Model registry key *');
+
+    const unpinWorkspace = new AgentWorkspace();
+    unpinWorkspace.open(liveCommandContext(), () => undefined);
+    unpinWorkspace.selectedCategoryIndex = unpinWorkspace.categories.findIndex((category) => category.id === 'setup');
+    unpinWorkspace.selectedActionIndex = unpinWorkspace.actions.findIndex((action) => action.id === 'setup-model-unpin');
+    unpinWorkspace.activateSelected();
+    output = text(renderAgentWorkspace(unpinWorkspace, 132, 44));
+    expect(output).toContain('Unpin Model');
+    expect(output).toContain('Model registry key *');
+  });
+
   test('renders support bundle actions in the setup workspace when selected', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);

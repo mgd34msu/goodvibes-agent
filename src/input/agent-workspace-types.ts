@@ -96,6 +96,8 @@ export type AgentWorkspaceEditorKind =
   | 'session-load'
   | 'mode-preset'
   | 'mode-domain'
+  | 'model-pin'
+  | 'model-unpin'
   | 'delegate-task'
   | 'workplan-add'
   | 'workplan-status'
