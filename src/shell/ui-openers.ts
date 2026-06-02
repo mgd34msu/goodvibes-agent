@@ -284,8 +284,8 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     render();
   };
 
-  commandContext.openAgentWorkspace = () => {
-    input.openAgentWorkspace(commandContext);
+  commandContext.openAgentWorkspace = (categoryId?: string) => {
+    input.openAgentWorkspace(commandContext, categoryId);
     render();
   };
 

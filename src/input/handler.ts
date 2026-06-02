@@ -408,11 +408,11 @@ export class InputHandler {
     this.mcpWorkspace.open(context);
     this.requestRender();
   }
-  public openAgentWorkspace(context: CommandContext): void {
+  public openAgentWorkspace(context: CommandContext, categoryId?: string): void {
     this.panelFocused = false;
     this.indicatorFocused = false;
     this.modalOpened('agentWorkspace');
-    this.agentWorkspace.open(context, (command) => this.dispatchAgentWorkspaceCommand(command, context));
+    this.agentWorkspace.open(context, (command) => this.dispatchAgentWorkspaceCommand(command, context), categoryId);
     this.requestRender();
   }
 

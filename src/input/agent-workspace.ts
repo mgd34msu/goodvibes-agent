@@ -42,7 +42,7 @@ export class AgentWorkspace {
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
 
-  open(context: CommandContext, dispatchCommand: AgentWorkspaceCommandDispatcher): void {
+  open(context: CommandContext, dispatchCommand: AgentWorkspaceCommandDispatcher, categoryId?: string): void {
     this.context = context;
     this.dispatchCommand = dispatchCommand;
     this.runtimeSnapshot = buildAgentWorkspaceRuntimeSnapshot(context);
@@ -51,6 +51,7 @@ export class AgentWorkspace {
     this.status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
     this.lastActionResult = null;
     this.localEditor = null;
+    if (categoryId) this.selectCategory(categoryId);
     this.clampSelection();
   }
 
@@ -78,6 +79,22 @@ export class AgentWorkspace {
 
   get selectedAction(): AgentWorkspaceAction | null {
     return this.actions[this.selectedActionIndex] ?? null;
+  }
+
+  selectCategory(categoryIdOrLabel: string): boolean {
+    const normalized = categoryIdOrLabel.trim().toLowerCase();
+    if (!normalized) return false;
+    const categoryIndex = this.categories.findIndex((category) =>
+      category.id.toLowerCase() === normalized
+      || category.label.toLowerCase() === normalized
+      || category.label.toLowerCase().replace(/[^a-z0-9]+/g, '-') === normalized
+    );
+    if (categoryIndex < 0) return false;
+    this.selectedCategoryIndex = categoryIndex;
+    this.selectedActionIndex = 0;
+    this.focusPane = 'actions';
+    this.clampSelection();
+    return true;
   }
 
   selectedLocalLibraryItem(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null {

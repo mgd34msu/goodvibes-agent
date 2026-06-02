@@ -2290,7 +2290,7 @@ describe('AgentWorkspace', () => {
     registerAgentWorkspaceRuntimeCommands(registry);
     const opened: string[] = [];
     const ctx = {
-      openAgentWorkspace: () => opened.push('agent'),
+      openAgentWorkspace: (categoryId?: string) => opened.push(categoryId ? `agent:${categoryId}` : 'agent'),
       print: (text: string) => opened.push(`print:${text}`),
     } as unknown as CommandContext;
 
@@ -2298,5 +2298,31 @@ describe('AgentWorkspace', () => {
     expect(await registry.execute('home', [], ctx)).toBe(true);
     expect(await registry.execute('operator', [], ctx)).toBe(true);
     expect(opened).toEqual(['agent', 'agent', 'agent']);
+  });
+
+  test('opens the Agent workspace directly to a requested category', async () => {
+    const registry = new CommandRegistry();
+    registerAgentWorkspaceRuntimeCommands(registry);
+    const opened: string[] = [];
+    const ctx = {
+      openAgentWorkspace: (categoryId?: string) => opened.push(categoryId ? `agent:${categoryId}` : 'agent'),
+      print: (text: string) => opened.push(`print:${text}`),
+    } as unknown as CommandContext;
+
+    expect(await registry.execute('agent', ['voice-media'], ctx)).toBe(true);
+    expect(await registry.execute('operator', ['Channels'], ctx)).toBe(true);
+    expect(opened).toEqual(['agent:voice-media', 'agent:Channels']);
+  });
+
+  test('selects Agent workspace categories by id or label', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined, 'voice-media');
+    expect(workspace.selectedCategory.id).toBe('voice-media');
+
+    expect(workspace.selectCategory('Channels')).toBe(true);
+    expect(workspace.selectedCategory.id).toBe('channels');
+
+    expect(workspace.selectCategory('not-a-category')).toBe(false);
+    expect(workspace.selectedCategory.id).toBe('channels');
   });
 });

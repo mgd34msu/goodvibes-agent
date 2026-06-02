@@ -5,13 +5,14 @@ export function registerAgentWorkspaceRuntimeCommands(registry: CommandRegistry)
     name: 'agent',
     aliases: ['home', 'operator'],
     description: 'Open the GoodVibes Agent operator workspace',
-    usage: '',
-    handler(_args, ctx) {
+    usage: '[category]',
+    argsHint: 'home|setup|channels|knowledge|voice-media|profiles|automation',
+    handler(args, ctx) {
       if (!ctx.openAgentWorkspace) {
         ctx.print('Agent operator workspace is not available in this runtime.');
         return;
       }
-      ctx.openAgentWorkspace();
+      ctx.openAgentWorkspace(args[0]);
     },
   });
 }
