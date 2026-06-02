@@ -288,6 +288,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'knowledge ingest-file <path> [--title <title>] [--tags a,b] --yes',
       'knowledge import-urls <path> --yes',
       'knowledge import-bookmarks <path> --yes',
+      'knowledge import-browser-history [--browsers chrome,firefox] [--sources history,bookmark] --yes',
       'knowledge reindex --yes',
     ],
     summary: 'Call isolated Agent Knowledge/Wiki routes under /api/goodvibes-agent/knowledge. No default wiki or non-Agent fallback.',
@@ -300,6 +301,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'knowledge ingest-url https://example.com/page --title "Reference" --yes',
       'knowledge ingest-file ./docs/guide.md --title "Guide" --yes',
       'knowledge import-urls ~/agent-links.txt --yes',
+      'knowledge import-browser-history --browsers chrome,firefox --sources history,bookmark --yes',
     ],
   },
   ask: {

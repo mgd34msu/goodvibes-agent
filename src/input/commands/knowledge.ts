@@ -1,8 +1,11 @@
 import type { KnowledgeService } from '@pellux/goodvibes-sdk/platform/knowledge';
+import type { BrowserKnowledgeKind, BrowserKnowledgeSourceKind } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { CommandContext, SlashCommand } from '../command-registry.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 const KNOWLEDGE_REVIEW_ACTIONS = ['accept', 'reject', 'resolve', 'reopen', 'edit', 'forget'] as const;
+const BROWSER_KINDS = ['chrome', 'chromium', 'brave', 'edge', 'vivaldi', 'arc', 'opera', 'firefox', 'zen', 'librewolf', 'waterfox', 'floorp', 'safari', 'orion', 'epiphany'] as const satisfies readonly BrowserKnowledgeKind[];
+const BROWSER_SOURCE_KINDS = ['history', 'bookmark'] as const satisfies readonly BrowserKnowledgeSourceKind[];
 
 type KnowledgeReviewAction = typeof KNOWLEDGE_REVIEW_ACTIONS[number];
 type KnowledgeAskInput = Parameters<KnowledgeService['ask']>[0];
@@ -61,6 +64,30 @@ function readPositiveIntFlag(args: string[], name: string, fallback: number): nu
   if (!raw) return fallback;
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readFirstStringListFlag(args: string[], names: readonly string[]): string[] {
+  for (const name of names) {
+    const values = readStringListFlag(args, name);
+    if (values.length > 0) return values;
+  }
+  return [];
+}
+
+function toBrowserKinds(values: readonly string[]): readonly BrowserKnowledgeKind[] {
+  return values.filter((value): value is BrowserKnowledgeKind => BROWSER_KINDS.includes(value as BrowserKnowledgeKind));
+}
+
+function toBrowserSourceKinds(values: readonly string[]): readonly BrowserKnowledgeSourceKind[] {
+  return values.filter((value): value is BrowserKnowledgeSourceKind => BROWSER_SOURCE_KINDS.includes(value as BrowserKnowledgeSourceKind));
+}
+
+function readSinceMsFlag(args: string[]): number | undefined {
+  const raw = readFlag(args, '--since-days');
+  if (!raw) return undefined;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Date.now() - parsed * 24 * 60 * 60 * 1000;
 }
 
 function readJsonObjectFlag(args: string[], name: string): Record<string, unknown> | null | undefined {
@@ -298,6 +325,29 @@ export const knowledgeCommand: SlashCommand = {
         }
         const result = await knowledge.ingest.urlsFile({ path, sessionId: context.session.runtime.sessionId });
         context.print(`[knowledge] Imported URL list: ${result.imported} ok, ${result.failed} failed`);
+        if (result.errors.length > 0) {
+          for (const error of result.errors.slice(0, 10)) context.print(`  error: ${error}`);
+        }
+        break;
+      }
+
+      case 'import-browser-history':
+      case 'sync-browser-history': {
+        if (!confirmation.yes) {
+          requireYesFlag(context, 'import browser history into Agent Knowledge', '/knowledge import-browser-history [--browsers chrome,firefox] [--sources history,bookmark] [--limit <n>] [--since-days <n>] --yes');
+          return;
+        }
+        const result = await knowledge.ingest.browserHistory({
+          browsers: toBrowserKinds(readFirstStringListFlag(rest, ['--browsers', '--browser'])),
+          sourceKinds: toBrowserSourceKinds(readFirstStringListFlag(rest, ['--sources', '--source-kinds', '--source-kind'])),
+          homeOverride: readFlag(rest, '--home'),
+          limit: readPositiveIntFlag(rest, '--limit', 250),
+          sinceMs: readSinceMsFlag(rest),
+          connectorId: 'goodvibes-agent-browser-history',
+          sessionId: context.session.runtime.sessionId,
+        });
+        context.print(`[knowledge] Imported browser knowledge: ${result.imported} ok, ${result.failed} failed`);
+        if (result.profiles.length > 0) context.print(`  profiles: ${result.profiles.length}`);
         if (result.errors.length > 0) {
           for (const error of result.errors.slice(0, 10)) context.print(`  error: ${error}`);
         }
@@ -592,6 +642,7 @@ export const knowledgeCommand: SlashCommand = {
           '  ingest-file <path> [--title <title>] [--tags <a,b>] [--folder <path>] --yes',
           '  import-bookmarks <path> --yes',
           '  import-urls <path> --yes',
+          '  import-browser-history [--browsers chrome,firefox] [--sources history,bookmark] [--limit <n>] [--since-days <n>] --yes',
           '  list [--kind <sources|nodes|issues>] [--limit <n>]',
           '  search <query> [--limit <n>]',
           '  get <id>',

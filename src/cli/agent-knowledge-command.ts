@@ -105,6 +105,10 @@ const AGENT_KNOWLEDGE_METHODS = {
     kind: 'agentKnowledge.ingest.bookmarks',
     route: '/api/goodvibes-agent/knowledge/ingest/bookmarks',
   },
+  ingestBrowserHistory: {
+    kind: 'agentKnowledge.ingest.browserHistory',
+    route: '/api/goodvibes-agent/knowledge/ingest/browser-history',
+  },
   reindex: {
     kind: 'agentKnowledge.reindex',
     route: '/api/goodvibes-agent/knowledge/reindex',
@@ -177,6 +181,22 @@ function readStringList(args: readonly string[], name: string): readonly string[
   const raw = readOptionValue(args, name);
   if (!raw) return [];
   return raw.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
+function readFirstStringList(args: readonly string[], names: readonly string[]): readonly string[] {
+  for (const name of names) {
+    const values = readStringList(args, name);
+    if (values.length > 0) return values;
+  }
+  return [];
+}
+
+function readSinceMs(args: readonly string[]): number | undefined {
+  const days = readOptionValue(args, '--since-days');
+  if (!days) return undefined;
+  const parsed = Number.parseInt(days, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Date.now() - parsed * 24 * 60 * 60 * 1000;
 }
 
 function hasFlag(args: readonly string[], flag: string): boolean {
@@ -651,6 +671,39 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     };
   }
 
+  if (normalized === 'import-browser-history' || normalized === 'sync-browser-history') {
+    if (!confirmation.present) {
+      const failure = {
+        ok: false,
+        kind: 'confirmation_required',
+        error: 'Refusing to import browser history into Agent Knowledge without --yes.',
+        route: AGENT_KNOWLEDGE_METHODS.ingestBrowserHistory.route,
+      };
+      return {
+        output: json ? JSON.stringify(failure, null, 2) : `${failure.error}\nUsage: goodvibes-agent knowledge import-browser-history [--browsers chrome,firefox] [--sources history,bookmark] [--limit <n>] [--since-days <n>] --yes`,
+        exitCode: 2,
+      };
+    }
+    const browsers = readFirstStringList(rest, ['--browsers', '--browser']);
+    const sourceKinds = readFirstStringList(rest, ['--sources', '--source-kinds', '--source-kind']);
+    const homeOverride = readOptionValue(rest, '--home');
+    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.ingestBrowserHistory, async (connection) => (
+      await postAgentKnowledgeJson(connection, AGENT_KNOWLEDGE_METHODS.ingestBrowserHistory.route, {
+        browsers,
+        sourceKinds,
+        homeOverride,
+        limit: readPositiveInt(rest, '--limit', 250),
+        sinceMs: readSinceMs(rest),
+        connectorId: 'goodvibes-agent-browser-history',
+      })
+    ));
+    if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
+    return {
+      output: formatJsonOrText(runtime.cli)(result, formatBatchIngest(result.data, 'browser-history')),
+      exitCode: 0,
+    };
+  }
+
   if (normalized === 'reindex') {
     if (!confirmation.present) {
       const failure = {
@@ -675,7 +728,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
   }
 
   return {
-    output: 'Usage: goodvibes-agent knowledge [status|ask <question>|search <query>|list|sources|nodes|issues|get <id>|map|connectors|ingest-url <url> --yes|ingest-file <path> --yes|import-urls <path> --yes|import-bookmarks <path> --yes|reindex --yes]',
+    output: 'Usage: goodvibes-agent knowledge [status|ask <question>|search <query>|list|sources|nodes|issues|get <id>|map|connectors|ingest-url <url> --yes|ingest-file <path> --yes|import-urls <path> --yes|import-bookmarks <path> --yes|import-browser-history --yes|reindex --yes]',
     exitCode: 2,
   };
 }

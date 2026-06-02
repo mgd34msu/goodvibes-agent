@@ -5,7 +5,7 @@ type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'knowledge-file' | 'knowledge-bookmarks' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
+  'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
 >;
 
 export type AgentWorkspaceBasicCommandEditorSubmission =
@@ -29,6 +29,7 @@ function isAffirmative(value: string): boolean {
 export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceBasicCommandEditorKind {
   return kind === 'knowledge-bookmarks'
     || kind === 'knowledge-file'
+    || kind === 'knowledge-browser-history'
     || kind === 'tts-prompt'
     || kind === 'image-input'
     || kind === 'skill-bundle'
@@ -64,6 +65,22 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
         { id: 'tags', label: 'Tags', value: '', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
         { id: 'folder', label: 'Folder', value: '', required: false, multiline: false, hint: 'Optional Agent Knowledge folder path.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge ingest-file with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'knowledge-browser-history') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Import Browser History into Agent Knowledge',
+      selectedFieldIndex: 0,
+      message: 'Import local browser history/bookmarks into the isolated Agent Knowledge segment. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'browsers', label: 'Browsers', value: '', required: false, multiline: false, hint: 'Optional comma list: chrome, brave, edge, firefox, safari, etc.' },
+        { id: 'sources', label: 'Sources', value: 'history,bookmark', required: false, multiline: false, hint: 'history, bookmark, or both.' },
+        { id: 'limit', label: 'Limit', value: '250', required: false, multiline: false, hint: 'Maximum browser entries to import.' },
+        { id: 'sinceDays', label: 'Since days', value: '', required: false, multiline: false, hint: 'Optional age window, such as 30.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge import-browser-history with --yes.' },
       ],
     };
   }
@@ -212,6 +229,38 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening Agent Knowledge file ingest',
         detail: 'The workspace handed a confirmed file ingest command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'knowledge-browser-history') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Browser history import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent Knowledge browser history import not confirmed.',
+      };
+    }
+    const parts = ['/knowledge', 'import-browser-history'];
+    const browsers = readField('browsers');
+    const sources = readField('sources');
+    const limit = readField('limit');
+    const sinceDays = readField('sinceDays');
+    if (browsers.length > 0) parts.push('--browsers', quoteSlashCommandArg(browsers));
+    if (sources.length > 0) parts.push('--sources', quoteSlashCommandArg(sources));
+    if (limit.length > 0) parts.push('--limit', quoteSlashCommandArg(limit));
+    if (sinceDays.length > 0) parts.push('--since-days', quoteSlashCommandArg(sinceDays));
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent Knowledge browser history import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent Knowledge browser history import',
+        detail: 'The workspace handed a confirmed browser-history import command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

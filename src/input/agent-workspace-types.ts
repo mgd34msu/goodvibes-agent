@@ -15,6 +15,7 @@ export type AgentWorkspaceEditorKind =
   | 'knowledge-url'
   | 'knowledge-file'
   | 'knowledge-bookmarks'
+  | 'knowledge-browser-history'
   | 'knowledge-search'
   | 'knowledge-ask'
   | 'tts-prompt'

@@ -457,6 +457,80 @@ describe('Agent Knowledge CLI route isolation', () => {
     }
   });
 
+  test('import-browser-history requires confirmation and uses isolated Agent Knowledge routes', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return new Response(JSON.stringify({
+        imported: 2,
+        failed: 0,
+        sources: [],
+        errors: [],
+        profiles: [{
+          family: 'chromium',
+          browser: 'chrome',
+          profileName: 'Default',
+          profilePath: '/home/test/.config/google-chrome/Default',
+        }],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) satisfies typeof fetch;
+
+    try {
+      const preview = await handleAgentKnowledgeCommand(createRuntime([
+        'import-browser-history',
+        '--browsers',
+        'chrome,firefox',
+        '--sources',
+        'history,bookmark',
+        '--limit',
+        '25',
+      ]));
+      const previewParsed = JSON.parse(preview.output) as unknown;
+      expect(preview.exitCode).toBe(2);
+      expect(requests).toHaveLength(0);
+      expect(previewParsed).toMatchObject({
+        ok: false,
+        kind: 'confirmation_required',
+        route: '/api/goodvibes-agent/knowledge/ingest/browser-history',
+      });
+
+      const imported = await handleAgentKnowledgeCommand(createRuntime([
+        'import-browser-history',
+        '--browsers',
+        'chrome,firefox',
+        '--sources',
+        'history,bookmark',
+        '--limit',
+        '25',
+        '--yes',
+      ]));
+      const importedParsed = JSON.parse(imported.output) as unknown;
+
+      expect(imported.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/browser-history');
+      expect(requests[0]?.url).not.toContain('/api/knowledge/');
+      expect(requests[0]?.body).toContain('"browsers":["chrome","firefox"]');
+      expect(requests[0]?.body).toContain('"sourceKinds":["history","bookmark"]');
+      expect(requests[0]?.body).toContain('"connectorId":"goodvibes-agent-browser-history"');
+      expect(importedParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.ingest.browserHistory',
+        route: '/api/goodvibes-agent/knowledge/ingest/browser-history',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test('ask uses only the Agent Knowledge route', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;

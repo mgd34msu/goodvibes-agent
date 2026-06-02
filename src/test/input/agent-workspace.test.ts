@@ -1052,6 +1052,35 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });
 
+  test('imports browser history into Agent Knowledge from a confirmed workspace form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-import-browser-history');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('knowledge-browser-history');
+    expect(dispatched).toEqual([]);
+    feedText(workspace, 'chrome,firefox');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, '100');
+    feedKey(workspace, 'enter');
+    feedText(workspace, '30');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/knowledge import-browser-history --browsers chrome,firefox --sources history,bookmark --limit 100 --since-days 30 --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
+  });
+
   test('queries Agent Knowledge from workspace forms without placeholder commands', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

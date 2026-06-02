@@ -152,7 +152,7 @@ describe('knowledgeCommand', () => {
 
     expect(printed.join('\n')).toContain('Refusing to ingest URL into Agent Knowledge');
 
-    printed = [];
+    printed.length = 0;
     await knowledgeCommand.handler(
       ['ingest-url', `${baseUrl}/docs`, '--tags', 'example,docs', '--yes'],
       makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
@@ -160,7 +160,7 @@ describe('knowledgeCommand', () => {
 
     expect(printed.join('\n')).toContain('Ingested');
 
-    printed = [];
+    printed.length = 0;
     await knowledgeCommand.handler(
       ['packet', 'example docs'],
       makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
@@ -204,6 +204,74 @@ describe('knowledgeCommand', () => {
     const sources = knowledgeStore.listSources();
     expect(sources).toHaveLength(1);
     expect(sources[0]?.connectorId).toBe('goodvibes-agent-file');
+  });
+
+  test('imports browser history only after confirmation', async () => {
+    let calledInput: unknown = null;
+    const context = {
+      ...makeKnowledgeAskCommandContext(printed, {
+        query: '',
+        answer: {
+          text: '',
+          mode: 'standard',
+          confidence: 0,
+          synthesized: false,
+          sources: [],
+          facts: [],
+          linkedObjects: [],
+          gaps: [],
+        },
+      }),
+      clients: {
+        agentKnowledgeApi: {
+          ingest: {
+            browserHistory: async (input: unknown) => {
+              calledInput = input;
+              return {
+                imported: 2,
+                failed: 0,
+                sources: [],
+                errors: [],
+                profiles: [{
+                  family: 'chromium',
+                  browser: 'chrome',
+                  profileName: 'Default',
+                  profilePath: '/home/test/.config/google-chrome/Default',
+                }],
+              };
+            },
+          },
+        },
+      },
+    } as unknown as CommandContext;
+
+    await knowledgeCommand.handler(
+      ['import-browser-history', '--browsers', 'chrome,firefox', '--sources', 'history', '--limit', '12'],
+      context,
+    );
+
+    expect(calledInput).toBeNull();
+    expect(printed.join('\n')).toContain('Refusing to import browser history into Agent Knowledge without --yes');
+
+    printed.length = 0;
+    await knowledgeCommand.handler(
+      ['import-browser-history', '--browsers', 'chrome,firefox', '--sources', 'history', '--limit', '12', '--yes'],
+      context,
+    );
+
+    const input = calledInput as {
+      readonly browsers?: readonly string[];
+      readonly sourceKinds?: readonly string[];
+      readonly limit?: number;
+      readonly connectorId?: string;
+      readonly sessionId?: string;
+    };
+    expect(input.browsers).toEqual(['chrome', 'firefox']);
+    expect(input.sourceKinds).toEqual(['history']);
+    expect(input.limit).toBe(12);
+    expect(input.connectorId).toBe('goodvibes-agent-browser-history');
+    expect(input.sessionId).toBe('session-ask');
+    expect(printed.join('\n')).toContain('Imported browser knowledge: 2 ok, 0 failed');
   });
 
   test('reviews a knowledge issue', async () => {
