@@ -39,7 +39,7 @@ function runExpectingExit(
   args: readonly string[],
   expectedExitCode: number,
   options: { readonly cwd?: string; readonly env?: NodeJS.ProcessEnv } = {},
-): string {
+): { readonly stdout: string; readonly stderr: string } {
   const result = spawnSync(command, [...args], {
     cwd: options.cwd,
     env: options.env ?? process.env,
@@ -53,7 +53,10 @@ function runExpectingExit(
       result.stderr.trim(),
     ].filter(Boolean).join('\n'));
   }
-  return result.stdout;
+  return {
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
 }
 
 function runAllowingExit(
@@ -231,9 +234,14 @@ try {
     throw new Error('installed status --json did not report Agent surface state');
   }
 
-  const serveBlock = runExpectingExit('goodvibes-agent', ['serve'], 2, { env: bareSmokeEnv });
-  if (serveBlock.trim().length > 0) {
-    throw new Error('serve lifecycle block should write guidance to stderr, not stdout');
+  for (const command of ['serve', 'daemon', 'service', 'web', 'surfaces', 'remote'] as const) {
+    const blocked = runExpectingExit('goodvibes-agent', [command], 2, { env: bareSmokeEnv });
+    if (blocked.stdout.trim().length > 0) {
+      throw new Error(`${command} lifecycle block should write guidance to stderr, not stdout`);
+    }
+    if (!blocked.stderr.includes(`Unknown command: ${command}`)) {
+      throw new Error(`${command} lifecycle block did not explain the blocked command:\n${blocked.stderr}`);
+    }
   }
 
   assertInstalledTuiLaunches(bareSmokeEnv, tempRoot);

@@ -101,16 +101,6 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
         ? `${quarantinedMcpCount} quarantined, ${elevatedMcpCount} elevated`
         : `${mcpServers.length} server(s) known`,
     },
-    {
-      severity: managedHookCount > 0 || managedHookChainCount > 0 ? 'pass' : 'warn',
-      area: 'hooks',
-      message: `${managedHookCount} managed hook(s), ${managedHookChainCount} chain(s)`,
-    },
-    {
-      severity: remoteRunnerCount > 0 ? 'pass' : 'warn',
-      area: 'remote',
-      message: remoteRunnerCount > 0 ? `${remoteRunnerCount} remote worker contract(s)` : 'no remote worker contracts registered',
-    },
   ];
 
   return {
