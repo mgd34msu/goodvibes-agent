@@ -5,6 +5,7 @@ import { buildAgentWorkspaceMemoryCommandEditorSubmission, isAgentWorkspaceMemor
 import { buildAgentWorkspaceNotifyEditorSubmission, isAgentWorkspaceNotifyEditorKind } from './agent-workspace-notify-editor-submission.ts';
 import { buildAgentWorkspaceProviderCommandEditorSubmission, isAgentWorkspaceProviderCommandSubmissionKind } from './agent-workspace-provider-command-editor-submission.ts';
 import { buildAgentWorkspaceSecretEditorSubmission, isAgentWorkspaceSecretEditorKind } from './agent-workspace-secret-editor-submission.ts';
+import { buildAgentWorkspaceSessionCommandEditorSubmission, isAgentWorkspaceSessionCommandSubmissionKind } from './agent-workspace-session-command-editor-submission.ts';
 import { buildAgentWorkspaceSkillBundleCommandEditorSubmission, isAgentWorkspaceSkillBundleCommandSubmissionKind } from './agent-workspace-skill-bundle-command-editor-submission.ts';
 import { buildAgentWorkspaceWorkPlanEditorSubmission, isAgentWorkspaceWorkPlanEditorKind } from './agent-workspace-workplan-editor-submission.ts';
 import { quoteSlashCommandArg, tokenizeSlashCommand } from './slash-command-parser.ts';
@@ -221,6 +222,9 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
   }
   if (isAgentWorkspaceProviderCommandSubmissionKind(editor.kind)) {
     return buildAgentWorkspaceProviderCommandEditorSubmission(editor, readField);
+  }
+  if (isAgentWorkspaceSessionCommandSubmissionKind(editor.kind)) {
+    return buildAgentWorkspaceSessionCommandEditorSubmission(editor, readField);
   }
   if (isAgentWorkspaceSkillBundleCommandSubmissionKind(editor.kind)) {
     return buildAgentWorkspaceSkillBundleCommandEditorSubmission(editor, readField);

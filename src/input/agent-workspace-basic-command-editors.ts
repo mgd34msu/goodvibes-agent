@@ -5,12 +5,14 @@ import type { AgentWorkspaceMemoryCommandEditorKind } from './agent-workspace-me
 import { createAgentWorkspaceMemoryCommandEditor, isAgentWorkspaceMemoryCommandEditorKind } from './agent-workspace-memory-command-editors.ts';
 import type { AgentWorkspaceProviderCommandEditorKind } from './agent-workspace-provider-command-editors.ts';
 import { createAgentWorkspaceProviderCommandEditor, isAgentWorkspaceProviderCommandEditorKind } from './agent-workspace-provider-command-editors.ts';
+import type { AgentWorkspaceSessionCommandEditorKind } from './agent-workspace-session-command-editors.ts';
+import { createAgentWorkspaceSessionCommandEditor, isAgentWorkspaceSessionCommandEditorKind } from './agent-workspace-session-command-editors.ts';
 import type { AgentWorkspaceSkillBundleCommandEditorKind } from './agent-workspace-skill-bundle-command-editors.ts';
 import { createAgentWorkspaceSkillBundleCommandEditor, isAgentWorkspaceSkillBundleCommandEditorKind } from './agent-workspace-skill-bundle-command-editors.ts';
 export type { AgentWorkspaceBasicCommandEditorSubmission } from './agent-workspace-basic-command-editor-submission.ts';
 export { buildAgentWorkspaceBasicCommandEditorSubmission } from './agent-workspace-basic-command-editor-submission.ts';
 
-export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEditorKind | AgentWorkspaceMemoryCommandEditorKind | AgentWorkspaceProviderCommandEditorKind | AgentWorkspaceSkillBundleCommandEditorKind | Extract<
+export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEditorKind | AgentWorkspaceMemoryCommandEditorKind | AgentWorkspaceProviderCommandEditorKind | AgentWorkspaceSessionCommandEditorKind | AgentWorkspaceSkillBundleCommandEditorKind | Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-urls' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'knowledge-reindex' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
   | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
@@ -28,6 +30,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
   return isAgentWorkspaceAccessCommandEditorKind(kind)
     || isAgentWorkspaceMemoryCommandEditorKind(kind)
     || isAgentWorkspaceProviderCommandEditorKind(kind)
+    || isAgentWorkspaceSessionCommandEditorKind(kind)
     || isAgentWorkspaceSkillBundleCommandEditorKind(kind)
     || kind === 'knowledge-bookmarks'
     || kind === 'knowledge-file'
@@ -79,6 +82,9 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
   }
   if (isAgentWorkspaceProviderCommandEditorKind(kind)) {
     return createAgentWorkspaceProviderCommandEditor(kind);
+  }
+  if (isAgentWorkspaceSessionCommandEditorKind(kind)) {
+    return createAgentWorkspaceSessionCommandEditor(kind);
   }
   if (isAgentWorkspaceSkillBundleCommandEditorKind(kind)) {
     return createAgentWorkspaceSkillBundleCommandEditor(kind);

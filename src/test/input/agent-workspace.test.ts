@@ -323,6 +323,47 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/brief');
   });
 
+  test('sets interaction mode from home and setup workspace forms', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mode-show');
+    workspace.activateSelected();
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mode-preset');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('mode-preset');
+    clearEditorField(workspace);
+    feedText(workspace, 'operator');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/mode show']);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-mode-domain');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('mode-domain');
+    feedText(workspace, 'approvals');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'verbose');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/mode show',
+      '/mode operator --yes',
+      '/mode set-domain approvals verbose --yes',
+    ]);
+  });
+
   test('opens direct Agent workspace categories and reports unknown targets', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
@@ -398,6 +439,50 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/tasks list', '/sessions', '/approval matrix']);
     expect(workspace.status).toContain('/approval matrix');
+  });
+
+  test('exports conversation and manages saved session continuity from work workspace forms', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-export');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('conversation-export');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, './exports/session.md');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-save');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-save');
+    feedText(workspace, 'morning-review');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-load');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('session-load');
+    feedText(workspace, 'morning-review');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/export markdown ./exports/session.md --yes',
+      '/save morning-review',
+      '/load morning-review',
+    ]);
   });
 
   test('creates and updates work plan items from TUI workspace forms', () => {

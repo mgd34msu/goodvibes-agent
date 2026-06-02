@@ -309,10 +309,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Home');
     expect(output).toContain('Setup checklist');
     expect(output).toContain('open setup');
-    expect(output).toContain('Memory, skills, routines');
-    expect(output).toContain('open memory');
     expect(output).toContain('Choose model');
     expect(output).toContain('/model');
+    expect(output).toContain('Interaction mode');
     expect(output).toContain('Agent workspace');
     expect(output).toContain('Enter open/action');
   });
@@ -1024,5 +1023,31 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit workplan-delete');
     expect(output).toContain('Clear completed work');
     expect(output).toContain('edit workplan-clear-completed');
+  });
+
+  test('renders session continuity and interaction mode forms in the workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mode-preset');
+    workspace.activateSelected();
+    const modeOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(modeOutput).toContain('Set Interaction Mode');
+    expect(modeOutput).toContain('Preset *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-export');
+    workspace.activateSelected();
+    const exportOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(exportOutput).toContain('Export Conversation');
+    expect(exportOutput).toContain('Output path *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-load');
+    workspace.activateSelected();
+    const loadOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(loadOutput).toContain('Load Session');
+    expect(loadOutput).toContain('Session name *');
   });
 });
