@@ -283,7 +283,7 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
-  test('work workspace reviews work plan from transcript instead of opening a panel', () => {
+  test('work workspace reviews work plan tasks sessions and approvals from transcript instead of opening a panel', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -299,10 +299,22 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual(['/workplan list']);
     expect(workspace.status).toContain('/workplan list');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tasks-list');
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/workplan list', '/tasks list']);
+    expect(workspace.status).toContain('/tasks list');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'sessions-list');
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/workplan list', '/tasks list', '/sessions']);
+    expect(workspace.status).toContain('/sessions');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approvals');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/approval matrix']);
+    expect(dispatched).toEqual(['/workplan list', '/tasks list', '/sessions', '/approval matrix']);
     expect(workspace.status).toContain('/approval matrix');
   });
 
@@ -396,6 +408,27 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
     expect(workspace.selectedCategory.id).toBe('routines');
     expect(dispatched).toEqual([]);
+  });
+
+  test('setup workspace exposes compatibility and subscription review without shell-only paths', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-compat');
+    workspace.activateSelected();
+    expect(workspace.status).toContain('/compat');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-providers');
+    workspace.activateSelected();
+    expect(workspace.status).toContain('/subscription providers');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-review');
+    workspace.activateSelected();
+    expect(workspace.status).toContain('/subscription review');
+
+    expect(dispatched).toEqual(['/compat', '/subscription providers', '/subscription review']);
   });
 
   test('home and setup workspaces jump to Tools and MCP without dispatching commands', () => {

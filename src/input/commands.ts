@@ -37,6 +37,7 @@ import { registerRoutinesRuntimeCommands } from './commands/routines-runtime.ts'
 import { registerChannelsRuntimeCommands } from './commands/channels-runtime.ts';
 import { registerBriefRuntimeCommands } from './commands/brief-runtime.ts';
 import { registerSupportBundleRuntimeCommands } from './commands/support-bundle-runtime.ts';
+import { registerCompatRuntimeCommands } from './commands/compat-runtime.ts';
 
 function registerAgentMemoryCommand(registry: CommandRegistry): void {
   registry.register({
@@ -60,6 +61,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerAgentWorkspaceRuntimeCommands(registry);
   registerBriefRuntimeCommands(registry);
   registerSupportBundleRuntimeCommands(registry);
+  registerCompatRuntimeCommands(registry);
   registerAgentRuntimeProfileRuntimeCommands(registry);
   registerPersonasRuntimeCommands(registry);
   registerAgentSkillsRuntimeCommands(registry);

@@ -89,6 +89,7 @@ export function renderHelpOverlay(
     ['subscription', '',           'Review provider logins and subscriptions'],
     ['secrets',      '',           'Manage secret references without printing values'],
     ['bundle',       'inspect',    'Inspect Agent support bundles from the TUI'],
+    ['compat',       '',           'Inspect connected-host and Agent Knowledge compatibility'],
     ['health',       '',           'Run Agent runtime and setup diagnostics'],
   ];
 

@@ -76,6 +76,7 @@ const expectedAgentCommands = [
   'auth',
   'brief',
   'bundle',
+  'compat',
   'config',
   'delegate',
   'help',
