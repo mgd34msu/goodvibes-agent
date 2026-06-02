@@ -128,6 +128,11 @@ describe('tasks command', () => {
     expect(out.join('\n')).toContain('Publish release evidence');
 
     out.length = 0;
+    await tasksCommand!.handler([], ctx);
+    expect(out.join('\n')).toContain('Runtime Tasks');
+    expect(out.join('\n')).toContain('Publish release evidence');
+
+    out.length = 0;
     await tasksCommand!.handler(['show', task.id], ctx);
     expect(out.join('\n')).toContain(`Task ${task.id}`);
     expect(out.join('\n')).toContain('kind: integration');
@@ -135,6 +140,19 @@ describe('tasks command', () => {
     out.length = 0;
     await tasksCommand!.handler(['output', task.id], ctx);
     expect(out.join('\n')).toContain('artifact-1');
+  });
+
+  test('blocks copied task panel routing in Agent', async () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const tasksCommand = registry.get('tasks');
+    expect(tasksCommand).toBeDefined();
+    const out: string[] = [];
+    const ctx = makeTaskCommandContext(out, undefined);
+
+    await tasksCommand!.handler(['open'], ctx);
+
+    expect(out.join('\n')).toContain('Use /tasks list');
   });
 
   test('blocks copied runtime task interventions in Agent', async () => {

@@ -4,7 +4,6 @@ import type {
   ProviderAccountSnapshot,
 } from '@/runtime/index.ts';
 import {
-  openCommandPanel,
   requireOperatorClient,
 } from './runtime-services.ts';
 
@@ -25,11 +24,11 @@ export function registerProviderAccountsRuntimeCommands(registry: CommandRegistr
     name: 'accounts',
     aliases: ['account'],
     description: 'Review provider auth routes, subscription windows, and billing-path safety',
-    usage: '[review|panel|show <provider>|routes <provider>|repair <provider>]',
+    usage: '[review|show <provider>|routes <provider>|repair <provider>]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
       if (sub === 'panel' || sub === 'open') {
-        openCommandPanel(ctx, 'accounts');
+        ctx.print('Provider account panels are not part of the Agent workspace. Use /accounts review.');
         return;
       }
       const snapshot = await loadProviderAccountSnapshot(ctx);

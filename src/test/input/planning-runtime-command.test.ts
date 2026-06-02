@@ -123,8 +123,8 @@ describe('/plan project planning runtime command', () => {
 
     await registry.execute('plan', ['replace', 'the', 'planning', 'panel'], makeContext(fake.service, out, opened));
 
-    expect(opened).toContain('project-planning');
-    expect(out.join('\n')).toContain('Answer in the prompt, or focus the Planning workspace');
+    expect(opened).toEqual([]);
+    expect(out.join('\n')).toContain('Answer in the main prompt or review planning state with /plan status.');
     expect(fake.state()?.knownContext.join('\n')).toContain('Agent /plan command');
     expect(fake.state()?.metadata?.['active']).toBe(true);
     expect(fake.state()?.metadata?.['owner']).toBe('agent');
@@ -150,8 +150,21 @@ describe('/plan project planning runtime command', () => {
 
     expect(fake.state()?.executionApproved).toBe(true);
     expect(fake.state()?.metadata?.['approvedFrom']).toBe('plan-command');
-    expect(opened).toContain('project-planning');
+    expect(opened).toHaveLength(0);
     expect(out.join('\n')).toContain('Project planning approved');
+  });
+
+  test('/plan panel is guidance-only in Agent', async () => {
+    const registry = new CommandRegistry();
+    registerPlanningRuntimeCommands(registry);
+    const out: string[] = [];
+    const opened: string[] = [];
+    const fake = makeService();
+
+    await registry.execute('plan', ['panel'], makeContext(fake.service, out, opened));
+
+    expect(opened).toEqual([]);
+    expect(out.join('\n')).toContain('Use /plan status or /plan list');
   });
 
   test('/plan override and clear require --yes before calling the planner runtime bridge', async () => {

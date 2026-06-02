@@ -44,7 +44,7 @@ function formatNextQuestion(question: ProjectPlanningQuestion | undefined): stri
   if (!question) return 'No next question recorded.';
   const lines = [`Next question: ${question.prompt}`];
   if (question.recommendedAnswer) lines.push(`Recommended answer: ${question.recommendedAnswer}`);
-  lines.push('Answer in the prompt, or focus the Planning workspace to choose/type an answer.');
+  lines.push('Answer in the main prompt or review planning state with /plan status.');
   return lines.join('\n');
 }
 
@@ -52,8 +52,8 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'plan',
     description: 'Inspect or seed Agent workspace planning state',
-    usage: '[panel | approve --yes | list | show <id> | mode | explain | override <strategy> --yes | status | clear --yes | <planning goal>]',
-    argsHint: '[panel|approve|status|<goal>]',
+    usage: '[approve --yes | list | show <id> | mode | explain | override <strategy> --yes | status | clear --yes | <planning goal>]',
+    argsHint: '[approve|status|list|<goal>]',
     async handler(args, ctx) {
       const planManager = requirePlanManager(ctx);
       const sessionLineageTracker = requireSessionLineageTracker(ctx);
@@ -74,7 +74,6 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
 
       const projectPlanningService = ctx.workspace.projectPlanningService;
       const projectId = ctx.workspace.projectPlanningProjectId;
-      const openProjectPlanningPanel = () => ctx.showPanel?.('project-planning');
 
       if (args.length === 0) {
         if (projectPlanningService && projectId) {
@@ -92,7 +91,6 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
           const planningNamespace = String(
             status[['knowledge', 'SpaceId'].join('') as keyof typeof status] ?? `project:${status.projectId}`,
           );
-          openProjectPlanningPanel();
           ctx.print(
             `Project planning: ${evaluation.readiness}\n` +
             `Project: ${status.projectId}\n` +
@@ -113,8 +111,7 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
       }
 
       if (args[0] === 'panel') {
-        openProjectPlanningPanel();
-        ctx.print('Opened project planning panel.');
+        ctx.print('Planning panels are not part of the Agent workspace. Use /plan status or /plan list.');
         return;
       }
 
@@ -146,7 +143,6 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
           },
         });
         const evaluation = await projectPlanningService.evaluate({ projectId });
-        openProjectPlanningPanel();
         ctx.print(`Project planning approved. Readiness: ${evaluation.readiness}. State: ${result.state?.id ?? 'current'}.`);
         return;
       }
@@ -208,7 +204,6 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
         ? await persistEvaluatedNextQuestion(projectPlanningService, projectId, result.state, initialEvaluation)
         : { state: result.state, evaluation: initialEvaluation };
       sessionLineageTracker.setOriginalTask(taskDescription.slice(0, 200));
-      openProjectPlanningPanel();
 
       ctx.print(
         `Project planning seeded: "${state?.goal ?? taskDescription}"\n` +

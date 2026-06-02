@@ -208,4 +208,29 @@ describe('Agent command interface', () => {
       }
     }
   });
+
+  test('visible Agent command metadata does not advertise copied panel entrypoints', () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const checkedCommands = [
+      'accounts',
+      'approval',
+      'health',
+      'plan',
+      'qrcode',
+      'tasks',
+      'workplan',
+    ] as const;
+
+    for (const commandName of checkedCommands) {
+      const command = registry.get(commandName);
+      const metadata = [
+        command?.description ?? '',
+        command?.usage ?? '',
+        command?.argsHint ?? '',
+      ].join('\n');
+
+      expect(metadata.toLowerCase(), commandName).not.toContain('panel');
+    }
+  });
 });

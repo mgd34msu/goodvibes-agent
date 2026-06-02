@@ -7,7 +7,6 @@ import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
 import { getSettingsControlPlaneSnapshot } from '@/runtime/index.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
 import {
-  openCommandPanel,
   requireOperatorClient,
   requireProviderApi,
   requireReadModels,
@@ -25,12 +24,33 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
     usage: '[open|review|setup|services|provider|accounts|auth|settings|remote|mcp|continuity|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
-      const readModels = requireReadModels(ctx);
 
-      if (sub === 'open' || sub === 'panel' || sub === 'provider') {
-        openCommandPanel(ctx, 'provider-health');
+      if (sub === 'open' || sub === 'panel') {
+        ctx.print('Health panels are not part of the Agent workspace. Use /health review.');
         return;
       }
+
+      if (sub === 'provider') {
+        const providerApi = requireProviderApi(ctx);
+        const currentModel = await providerApi.getCurrentModel().catch(() => null);
+        const accounts = await requireOperatorClient(ctx).providers.accountSnapshot();
+        ctx.print([
+          'Health Review: Provider',
+          `  selected model: ${currentModel?.registryKey ?? 'unknown'}`,
+          `  providers: ${providerApi.listProviderIds().length}`,
+          `  configured accounts: ${accounts.configuredCount}`,
+          `  account issues: ${accounts.issueCount}`,
+          ...(accounts.issueCount > 0
+            ? accounts.providers.flatMap((provider) => provider.issues.map((issue) => `  ${provider.providerId}: ${issue}`))
+            : ['  no provider account issues detected']),
+          '  next: /model',
+          '  next: /provider',
+          '  next: /accounts review',
+        ].join('\n'));
+        return;
+      }
+
+      const readModels = requireReadModels(ctx);
 
       if (sub === 'services') {
         const registry = requireServiceRegistry(ctx);
@@ -318,7 +338,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         ...(snapshot.serviceIssues.length > 0 ? ['', ...snapshot.serviceIssues.map((issue) => `  service: ${issue}`)] : []),
         '',
         'Next steps:',
-        '  /health open',
+        '  /health review',
         '  /health services',
         '  /health accounts',
         '  /health auth',

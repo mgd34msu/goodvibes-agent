@@ -1,6 +1,6 @@
 import type { CommandRegistry } from '../command-registry.ts';
 import type { RuntimeTask, TaskLifecycleState } from '@/runtime/index.ts';
-import { requireOperatorClient, requirePanelManager } from './runtime-services.ts';
+import { requireOperatorClient } from './runtime-services.ts';
 
 const BLOCKED_TASK_MUTATIONS: ReadonlySet<string> = new Set([
   'create',
@@ -54,20 +54,19 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
     description: 'Inspect connected-service tasks without starting or mutating local background work',
     usage: '[list [status|kind] | show <taskId> | output <taskId>]',
     handler(args, ctx) {
-      if (args.length === 0) {
-        if (ctx.showPanel) ctx.showPanel('tasks');
-        else {
-          const panelManager = requirePanelManager(ctx);
-          panelManager.open('tasks');
-          panelManager.show();
-          ctx.renderRequest();
-        }
+      const subcommand = args[0]?.toLowerCase() ?? 'list';
+      if (subcommand === 'open' || subcommand === 'panel') {
+        ctx.print('Task panels are not part of the Agent workspace. Use /tasks list.');
+        return;
+      }
+
+      if (BLOCKED_TASK_MUTATIONS.has(subcommand)) {
+        printTaskMutationBlocked(ctx.print, subcommand);
         return;
       }
 
       const operatorClient = requireOperatorClient(ctx);
       const tasks = sortRuntimeTasks([...operatorClient.tasks.list(500)]);
-      const subcommand = args[0]?.toLowerCase() ?? 'list';
 
       if (subcommand === 'list') {
         const filter = args[1]?.toLowerCase();
@@ -129,11 +128,6 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
             ? JSON.stringify(task.result, null, 2)
             : task.error ?? task.description ?? task.title;
         ctx.print(String(payload));
-        return;
-      }
-
-      if (BLOCKED_TASK_MUTATIONS.has(subcommand)) {
-        printTaskMutationBlocked(ctx.print, subcommand);
         return;
       }
 
