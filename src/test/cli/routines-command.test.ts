@@ -158,6 +158,70 @@ describe('routines CLI command', () => {
     expect(shown.output).toContain('Ask before external changes');
   });
 
+  test('creates local routines from the CLI as parity with TUI /routines create', async () => {
+    const baseRuntime = runtime([
+      'create',
+      '--name',
+      'Daily Sweep',
+      '--description',
+      'Review operator state.',
+      '--steps',
+      'Check tasks, approvals, channels, and Agent Knowledge.',
+      '--tags',
+      'ops,daily',
+      '--triggers',
+      'morning',
+      '--requires-env',
+      'GOODVIBES_AGENT_TOKEN',
+      '--requires-command',
+      'gh',
+      '--enabled',
+    ]);
+    const created = await handleRoutinesCommand(baseRuntime);
+
+    expect(created.exitCode).toBe(0);
+    expect(created.output).toContain('Created Agent routine daily-sweep: Daily Sweep (enabled)');
+
+    const shown = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'show', 'daily-sweep', '--json']) });
+    const payload = JSON.parse(shown.output) as {
+      readonly kind?: unknown;
+      readonly data?: {
+        readonly name?: unknown;
+        readonly enabled?: unknown;
+        readonly tags?: readonly string[];
+        readonly triggers?: readonly string[];
+        readonly requirements?: readonly { readonly kind?: unknown; readonly name?: unknown }[];
+        readonly provenance?: unknown;
+      };
+    };
+
+    expect(shown.exitCode).toBe(0);
+    expect(payload.kind).toBe('agent.routines.show');
+    expect(payload.data?.name).toBe('Daily Sweep');
+    expect(payload.data?.enabled).toBe(true);
+    expect(payload.data?.tags).toEqual(['ops', 'daily']);
+    expect(payload.data?.triggers).toEqual(['morning']);
+    expect(payload.data?.requirements?.map((requirement) => `${String(requirement.kind)}:${String(requirement.name)}`)).toEqual([
+      'env:GOODVIBES_AGENT_TOKEN',
+      'command:gh',
+    ]);
+    expect(payload.data?.provenance).toBe('cli');
+  });
+
+  test('returns structured errors for invalid routine create input', async () => {
+    const result = await handleRoutinesCommand({
+      ...runtime(['create', '--name', 'Incomplete', '--json']),
+      cli: parseGoodVibesCli(['routines', 'create', '--name', 'Incomplete', '--json']),
+    });
+    const payload = JSON.parse(result.output) as { readonly ok?: unknown; readonly kind?: unknown; readonly error?: unknown };
+
+    expect(result.exitCode).toBe(2);
+    expect(payload.ok).toBe(false);
+    expect(payload.kind).toBe('invalid_routine_command');
+    expect(String(payload.error)).toContain('Usage: goodvibes-agent routines create');
+    expect(String(payload.error)).toContain('Missing --description');
+  });
+
   test('discovers previews and imports local routine markdown only after confirmation', async () => {
     const baseRuntime = runtime(['discover']);
     const routineDir = join(baseRuntime.workingDirectory, '.goodvibes', 'agent', 'routines', 'travel-prep');

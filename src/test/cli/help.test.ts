@@ -79,6 +79,9 @@ describe('CLI help/version', () => {
   test('routines command help explains explicit connected schedule promotion', () => {
     const help = renderGoodVibesCommandHelp('routines');
     expect(help).toContain('promote <id>');
+    expect(help).toContain('GoodVibes Agent routines');
+    expect(help).toContain('routines create --name <name>');
+    expect(help).not.toContain('goodvibes-agent /routines create');
     expect(help).toContain('routines receipts');
     expect(help).toContain('routines reconcile');
     expect(help).toContain('--delivery-channel');

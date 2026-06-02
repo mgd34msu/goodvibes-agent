@@ -166,7 +166,7 @@ describe('Agent memory CLI command', () => {
     expect(help).toContain('Manage Agent-owned durable memory records');
 
     const memoryHelp = renderGoodVibesCommandHelp('memory');
-    expect(memoryHelp).toContain('GoodVibes memory');
+    expect(memoryHelp).toContain('GoodVibes Agent memory');
     expect(memoryHelp).toContain('memory add');
     expect(memoryHelp).toContain('never falls back to default Knowledge/Wiki or non-Agent knowledge segments');
   });

@@ -41,12 +41,14 @@ describe('UI roadmap gate', () => {
     expect(conversation.prevTranscriptEventLine(999, 'tool_result')).toBe(toolLine);
   });
 
-  test('opens and focuses panels through the shared shell opener path', () => {
+  test('routes deferred panel openers through the Agent workspace path', () => {
     const testManagers = createTestManagers();
+    let openedWorkspaceCategory: string | null = null;
     const input = {
       panelFocused: false,
       modalOpened: () => {},
       modelPicker: {} as never,
+      openAgentWorkspace: (_ctx: CommandContext, category: string) => { openedWorkspaceCategory = category; },
       openSelection: () => {},
       contextInspectorModal: { open: () => {} },
       bookmarkModal: { open: () => {} },
@@ -67,6 +69,7 @@ describe('UI roadmap gate', () => {
       hide: () => { visible = false; },
     } as never;
     const conversation = {
+      log: () => {},
       setSplashSuppressed: () => {},
       rebuildHistory: () => {},
     } as never;
@@ -90,8 +93,9 @@ describe('UI roadmap gate', () => {
     });
 
     (commandContext as { showPanel?: (panelId: string, pane?: 'top' | 'bottom') => void }).showPanel?.('docs');
-    expect(input.panelFocused).toBe(true);
-    expect(visible).toBe(true);
+    expect(input.panelFocused).toBe(false);
+    expect(visible).toBe(false);
+    expect(openedWorkspaceCategory).toBe('home');
   });
 
   test('keeps overlays on shared width bands for narrow, medium, and wide terminals', () => {

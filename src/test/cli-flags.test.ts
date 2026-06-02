@@ -112,7 +112,7 @@ describe('parseCliFlags', () => {
 
     expect(parsed.command).toBe('providers');
     expect(parsed.flags.help).toBe(true);
-    expect(helpOutput).toContain('GoodVibes providers');
+    expect(helpOutput).toContain('GoodVibes Agent providers');
     expect(helpOutput).toContain('providers inspect <provider>');
     expect(helpOutput).not.toContain('Usage: goodvibes [OPTIONS] [PROMPT]');
   });

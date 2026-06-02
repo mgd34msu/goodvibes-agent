@@ -35,8 +35,24 @@ interface RoutinesCommandFailure {
   readonly error: string;
 }
 
+interface ParsedRoutineOptions {
+  readonly positionals: readonly string[];
+  readonly flags: ReadonlyMap<string, string>;
+  readonly yes: boolean;
+}
+
+const ROUTINE_CREATE_USAGE = 'Usage: goodvibes-agent routines create --name <name> --description <summary> --steps <steps> [--tags a,b] [--triggers a,b] [--requires-env A,B] [--requires-command gh,jq] [--enabled]';
+
 function jsonOrText(runtime: CliCommandRuntime, value: unknown, text: string): string {
   return runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text;
+}
+
+function commandFailure(runtime: CliCommandRuntime, kind: string, error: string, exitCode: number): CliCommandOutput {
+  const failure: RoutinesCommandFailure = { ok: false, kind, error };
+  return {
+    output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(failure, null, 2) : error,
+    exitCode,
+  };
 }
 
 function routineRegistry(runtime: CliCommandRuntime): AgentRoutineRegistry {
@@ -63,6 +79,47 @@ function routineReceiptStore(runtime: CliCommandRuntime): RoutineScheduleReceipt
 function splitList(value: string | undefined): readonly string[] {
   if (!value) return [];
   return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
+function parseRoutineOptions(args: readonly string[]): ParsedRoutineOptions {
+  const flags = new Map<string, string>();
+  const positionals: string[] = [];
+  let yes = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index] ?? '';
+    if (token === '--yes') {
+      yes = true;
+      continue;
+    }
+    if (token.startsWith('--')) {
+      const key = token.slice(2);
+      const next = args[index + 1];
+      if (next !== undefined && !next.startsWith('--')) {
+        flags.set(key, next);
+        index += 1;
+      } else {
+        flags.set(key, 'true');
+      }
+      continue;
+    }
+    positionals.push(token);
+  }
+  return { positionals, flags, yes };
+}
+
+function optionValue(options: ParsedRoutineOptions, key: string): string | undefined {
+  const value = options.flags.get(key)?.trim();
+  return value ? value : undefined;
+}
+
+function hasFlag(options: ParsedRoutineOptions, key: string): boolean {
+  return options.flags.get(key) === 'true';
+}
+
+function requiredOption(options: ParsedRoutineOptions, key: string): string {
+  const value = optionValue(options, key);
+  if (!value) throw new Error(`${ROUTINE_CREATE_USAGE}\nMissing --${key}.`);
+  return value;
 }
 
 function parseImportFlags(args: readonly string[]): {
@@ -152,7 +209,7 @@ function renderRoutineList(title: string, path: string, routines: readonly Agent
     return [
       title,
       `  ${emptyMessage ?? 'No local Agent routines yet.'}`,
-      emptyMessage ? '' : '  Create routines inside the Agent TUI with /routines create, or create an Agent profile from a starter template.',
+      emptyMessage ? '' : '  Open /agent routines in the TUI, or use goodvibes-agent routines create for scripted setup.',
     ].filter(Boolean).join('\n');
   }
   return [
@@ -367,6 +424,41 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       exitCode: 0,
     };
   }
+  if (normalized === 'create') {
+    const options = parseRoutineOptions(rest);
+    try {
+      const routine = registry.create({
+        name: requiredOption(options, 'name'),
+        description: requiredOption(options, 'description'),
+        steps: optionValue(options, 'steps') ?? options.positionals.join(' ').trim(),
+        tags: splitList(optionValue(options, 'tags')),
+        triggers: splitList(optionValue(options, 'triggers')),
+        requirements: buildAgentSkillRequirements({
+          env: splitList(optionValue(options, 'requires-env')),
+          commands: splitList(optionValue(options, 'requires-command') ?? optionValue(options, 'requires-commands')),
+        }),
+        enabled: hasFlag(options, 'enabled'),
+        source: 'user',
+        provenance: 'cli',
+      });
+      const value: RoutinesCommandSuccess<AgentRoutineRecord> = {
+        ok: true,
+        kind: 'agent.routines.create',
+        data: routine,
+      };
+      return {
+        output: jsonOrText(runtime, value, `Created Agent routine ${routine.id}: ${routine.name}${routine.enabled ? ' (enabled)' : ''}`),
+        exitCode: 0,
+      };
+    } catch (error) {
+      return commandFailure(
+        runtime,
+        error instanceof Error && error.message.startsWith('Usage:') ? 'invalid_routine_command' : 'agent.routines.create.error',
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error && error.message.startsWith('Usage:') ? 2 : 1,
+      );
+    }
+  }
   if (normalized === 'show') {
     const id = rest[0];
     if (!id) return { output: 'Usage: goodvibes-agent routines show <id>', exitCode: 2 };
@@ -432,7 +524,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
     return handleRoutinePromotion(runtime, rest);
   }
   return {
-    output: 'Usage: goodvibes-agent routines [list|enabled|attention|discover|import-discovered <name> --yes|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes]',
+    output: `Usage: goodvibes-agent routines [list|enabled|attention|discover|import-discovered <name> --yes|create --name <name> --description <summary> --steps <steps>|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes]`,
     exitCode: 2,
   };
 }

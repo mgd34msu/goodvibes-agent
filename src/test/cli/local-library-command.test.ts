@@ -354,13 +354,13 @@ describe('local Agent library CLI commands', () => {
     expect(help).toContain('Manage local Agent skills');
 
     const personaHelp = renderGoodVibesCommandHelp('personas');
-    expect(personaHelp).toContain('GoodVibes personas');
+    expect(personaHelp).toContain('GoodVibes Agent personas');
     expect(personaHelp).toContain('personas discover');
     expect(personaHelp).toContain('personas import-discovered');
     expect(personaHelp).toContain('personas create');
 
     const skillsHelp = renderGoodVibesCommandHelp('skills');
-    expect(skillsHelp).toContain('GoodVibes skills');
+    expect(skillsHelp).toContain('GoodVibes Agent skills');
     expect(skillsHelp).toContain('skills discover');
     expect(skillsHelp).toContain('skills import-discovered');
     expect(skillsHelp).toContain('skills bundle attention');

@@ -73,7 +73,7 @@ describe('panel navigation chrome', () => {
     picker.moveDown();
     const lines = renderPanelPickerOverlay(picker, 100);
     const text = linesToText(lines).join('\n');
-    expect(text).toContain('Open Panel Workspace');
+    expect(text).toContain('Deferred Workspace Picker');
     expect(text).toContain('Cockpit');
     expect(text).toContain('[MONITORING]');
     expect(text).toContain('Unified operator cockpit');

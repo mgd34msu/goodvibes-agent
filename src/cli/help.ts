@@ -254,20 +254,20 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'routines discover',
       'routines import-discovered <name> [--enabled] --yes',
       'routines show <id>',
-      '/routines create --name <name> --description <summary> --steps <steps> [--requires-env A,B] [--requires-command gh,jq]',
+      'routines create --name <name> --description <summary> --steps <steps> [--tags a,b] [--triggers a,b] [--requires-env A,B] [--requires-command gh,jq] [--enabled]',
       'routines receipts',
       'routines reconcile',
       'routines receipt <receipt-id>',
       'routines promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--delivery-channel <channel[:route[:label]]>|--delivery-route <route[:label]>|--delivery-webhook <url>|--delivery-link <url>] [--disabled] --yes',
     ],
-    summary: 'Inspect and import Agent-local routines with setup readiness, review local promotion receipts, reconcile receipts against live connected schedules, and explicitly promote a reviewed routine into a GoodVibes schedule. Without --yes, promote only prints the schedules.create preview.',
+    summary: 'Inspect, create, and import Agent-local routines with setup readiness. The same routine workflow is available in the TUI through /routines and the Agent workspace. GoodVibes schedule promotion is explicit. Without --yes, promotion only prints the preview.',
     examples: [
       'routines list',
       'routines attention',
       'routines discover',
       'routines import-discovered "Daily Brief" --enabled --yes',
       'routines show daily-operations-sweep',
-      '/routines create --name "Daily Sweep" --description "Review operator state" --steps "Check tasks, approvals, channels, and Agent Knowledge" --requires-env GOODVIBES_AGENT_TOKEN',
+      'routines create --name "Daily Sweep" --description "Review operator state" --steps "Check tasks, approvals, channels, and Agent Knowledge" --requires-env GOODVIBES_AGENT_TOKEN',
       'routines receipts',
       'routines reconcile',
       'routines promote daily-operations-sweep --cron "0 9 * * *" --timezone America/Chicago --delivery-channel slack --yes',
@@ -409,7 +409,7 @@ export function renderGoodVibesCommandHelp(topic: string, binary = 'goodvibes-ag
     ].join('\n');
   }
   return [
-    `GoodVibes ${normalized}`,
+    `GoodVibes Agent ${normalized}`,
     '',
     help.summary,
     '',
