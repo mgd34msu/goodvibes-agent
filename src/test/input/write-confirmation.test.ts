@@ -137,7 +137,7 @@ describe('write/export command confirmation', () => {
     expect(registry.get('template')).toBeUndefined();
   });
 
-  test('profile save and delete commands require --yes before writing profile state', async () => {
+  test('copied config profile save and delete commands are disabled in Agent', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-profile-confirm-'));
     try {
       const registry = new CommandRegistry();
@@ -163,20 +163,23 @@ describe('write/export command confirmation', () => {
 
       await registry.get('profiles')!.handler(['save', 'demo'], ctx);
       expect(profileManager.list()).toHaveLength(0);
-      expect(out.join('\n')).toContain('Refusing to save config profile demo without --yes');
+      expect(out.join('\n')).toContain('Copied config profiles are disabled in GoodVibes Agent.');
+      expect(out.join('\n')).toContain('/agent-profile');
 
       out.length = 0;
       await registry.get('profiles')!.handler(['save', 'demo', '--yes'], ctx);
-      expect(profileManager.list().some((profile) => profile.name === 'demo')).toBe(true);
+      expect(profileManager.list()).toHaveLength(0);
+      expect(out.join('\n')).toContain('Copied config profiles are disabled in GoodVibes Agent.');
 
       out.length = 0;
       await registry.get('profiles')!.handler(['delete', 'demo'], ctx);
-      expect(profileManager.list().some((profile) => profile.name === 'demo')).toBe(true);
-      expect(out.join('\n')).toContain('Refusing to delete config profile demo without --yes');
+      expect(profileManager.list()).toHaveLength(0);
+      expect(out.join('\n')).toContain('Copied config profiles are disabled in GoodVibes Agent.');
 
       out.length = 0;
       await registry.get('profiles')!.handler(['delete', 'demo', '--yes'], ctx);
-      expect(profileManager.list().some((profile) => profile.name === 'demo')).toBe(false);
+      expect(profileManager.list()).toHaveLength(0);
+      expect(out.join('\n')).toContain('Copied config profiles are disabled in GoodVibes Agent.');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
