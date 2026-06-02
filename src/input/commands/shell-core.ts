@@ -125,7 +125,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/memory', label: '/memory', detail: 'Review local Agent memory records', category: 'Agent Operator' },
           { id: '/notes', label: '/notes', detail: 'Open Agent-local scratchpad notes for source triage and temporary context', category: 'Agent Operator' },
           { id: '/personas', label: '/personas', detail: 'Create, review, and activate local Agent personas', category: 'Agent Operator' },
-          { id: '/agent-skills', label: '/agent-skills', detail: 'Create, review, and enable reusable Agent skills', category: 'Agent Operator' },
+          { id: '/skills', label: '/skills', detail: 'Create, review, and enable reusable Agent skills', category: 'Agent Operator' },
           { id: '/routines', label: '/routines', detail: 'Create, review, start, and promote Agent routines explicitly', category: 'Agent Operator' },
           { id: '/delegate', label: '/delegate [task]', detail: 'Explicit build/fix/review handoff to GoodVibes TUI', category: 'Agent Operator' },
           { id: '/channels', label: '/channels', detail: 'Inspect messaging-channel readiness without sending messages', category: 'Agent Operator' },
@@ -179,7 +179,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Open the Agent workspace first, then press / inside it to search every product action. Slash commands remain available: /agent, /brief, /knowledge, /memory, /notes, /personas, /agent-skills, /routines, /channels, /approval, /automation, /schedule, /delegate, /model, /provider, /config, /compat, /bundle, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
+      ctx.print('Open the Agent workspace first, then press / inside it to search every product action. Slash commands remain available: /agent, /brief, /knowledge, /memory, /notes, /personas, /skills, /routines, /channels, /approval, /automation, /schedule, /delegate, /model, /provider, /config, /compat, /bundle, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
     },
   });
 

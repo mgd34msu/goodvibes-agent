@@ -687,7 +687,7 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       };
     }
     const parts = [
-      '/agent-skills',
+      '/skills',
       'import-discovered',
       quoteSlashCommandArg(readField('name')),
     ];
@@ -766,7 +766,7 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
     };
   }
   const commandParts = [
-    '/agent-skills bundle create',
+    '/skills bundle create',
     '--name',
     quoteSlashCommandArg(readField('name')),
     '--description',

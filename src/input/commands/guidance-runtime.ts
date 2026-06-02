@@ -24,7 +24,7 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
           '  /knowledge          - inspect isolated Agent Knowledge status, ask, and search',
           '  /memory             - manage local Agent memory',
           '  /personas           - manage local Agent personas',
-          '  /agent-skills       - manage reusable local Agent skills',
+          '  /skills       - manage reusable local Agent skills',
           '  /routines           - manage local Agent routines',
           '  /delegate           - explicitly hand build/fix/review work to GoodVibes TUI',
         ].join('\n'));

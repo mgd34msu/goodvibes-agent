@@ -50,12 +50,12 @@ export function buildAgentWorkspaceSkillBundleCommandEditorSubmission(
 ): AgentWorkspaceSkillBundleCommandEditorSubmission {
   if (editor.kind === 'skill-bundle-search') {
     const query = readField('query').trim();
-    const command = query.length > 0 ? `/agent-skills bundle search ${quoteSlashCommandArg(query)}` : '/agent-skills bundle search';
+    const command = query.length > 0 ? `/skills bundle search ${quoteSlashCommandArg(query)}` : '/skills bundle search';
     return dispatch(command, 'Opening skill bundle search', 'The workspace handed a read-only skill bundle search command to the shell-owned command router.', 'read-only');
   }
   if (editor.kind === 'skill-bundle-show') {
     return dispatch(
-      `/agent-skills bundle show ${quoteSlashCommandArg(readField('id'))}`,
+      `/skills bundle show ${quoteSlashCommandArg(readField('id'))}`,
       'Opening skill bundle detail',
       'The workspace handed a read-only skill bundle detail command to the shell-owned command router.',
       'read-only',
@@ -63,7 +63,7 @@ export function buildAgentWorkspaceSkillBundleCommandEditorSubmission(
   }
   if (editor.kind === 'skill-bundle-update') {
     if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Skill bundle update not confirmed. Type yes, then press Enter.');
-    const parts = ['/agent-skills', 'bundle', 'update', quoteSlashCommandArg(readField('id'))];
+    const parts = ['/skills', 'bundle', 'update', quoteSlashCommandArg(readField('id'))];
     const name = readField('name');
     const description = readField('description');
     const skills = readField('skills');
@@ -76,7 +76,7 @@ export function buildAgentWorkspaceSkillBundleCommandEditorSubmission(
     if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Skill bundle action not confirmed. Type yes, then press Enter.');
     const verb = editor.kind.replace('skill-bundle-', '');
     return dispatch(
-      `/agent-skills bundle ${verb} ${quoteSlashCommandArg(readField('id'))}`,
+      `/skills bundle ${verb} ${quoteSlashCommandArg(readField('id'))}`,
       `Opening skill bundle ${verb}`,
       `The workspace handed a confirmed skill bundle ${verb} command to the shell-owned command router.`,
       'safe',
@@ -85,7 +85,7 @@ export function buildAgentWorkspaceSkillBundleCommandEditorSubmission(
   if (editor.kind === 'skill-bundle-stale') {
     if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Skill bundle stale action not confirmed. Type yes, then press Enter.');
     return dispatch(
-      `/agent-skills bundle stale ${quoteSlashCommandArg(readField('id'))} ${quoteSlashCommandArg(readField('reason'))}`,
+      `/skills bundle stale ${quoteSlashCommandArg(readField('id'))} ${quoteSlashCommandArg(readField('reason'))}`,
       'Opening skill bundle stale review',
       'The workspace handed a confirmed skill bundle stale command to the shell-owned command router.',
       'safe',
@@ -93,7 +93,7 @@ export function buildAgentWorkspaceSkillBundleCommandEditorSubmission(
   }
   if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Skill bundle delete not confirmed. Type yes, then press Enter.');
   return dispatch(
-    `/agent-skills bundle delete ${quoteSlashCommandArg(readField('id'))} --yes`,
+    `/skills bundle delete ${quoteSlashCommandArg(readField('id'))} --yes`,
     'Opening skill bundle delete',
     'The workspace handed a confirmed skill bundle delete command to the shell-owned command router.',
     'safe',

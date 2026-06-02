@@ -60,7 +60,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
         { id: 'name', label: 'Name', value: '', required: false, multiline: false, hint: 'Optional replacement name.' },
         { id: 'description', label: 'Description', value: '', required: false, multiline: false, hint: 'Optional replacement one-line description.' },
         { id: 'skills', label: 'Skill ids', value: '', required: false, multiline: false, hint: 'Optional replacement comma-separated local skill ids.' },
-        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-skills bundle update.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /skills bundle update.' },
       ],
     };
   }
@@ -74,7 +74,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
       fields: [
         { id: 'id', label: 'Bundle id', value: '', required: true, multiline: false, hint: 'Existing local skill bundle id.' },
         { id: 'reason', label: 'Reason', value: '', required: true, multiline: true, hint: 'Why this bundle needs review. Ctrl-J inserts a new line.' },
-        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-skills bundle stale.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /skills bundle stale.' },
       ],
     };
   }
@@ -87,7 +87,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
       message: 'Delete one local Agent skill bundle. This does not delete member skills. Type yes to confirm.',
       fields: [
         { id: 'id', label: 'Bundle id', value: '', required: true, multiline: false, hint: 'Existing local skill bundle id.' },
-        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-skills bundle delete with --yes.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /skills bundle delete with --yes.' },
       ],
     };
   }
@@ -104,7 +104,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
     message: `${verb} one local Agent skill bundle. Type yes on the final field to confirm.`,
     fields: [
       { id: 'id', label: 'Bundle id', value: '', required: true, multiline: false, hint: 'Existing local skill bundle id.' },
-      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: `Type yes to run /agent-skills bundle ${verb.toLowerCase()}.` },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: `Type yes to run /skills bundle ${verb.toLowerCase()}.` },
     ],
   };
 }

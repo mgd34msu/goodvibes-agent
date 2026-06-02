@@ -746,9 +746,9 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       selectedFieldIndex: 0,
       message: 'Import one discovered SKILL.md or .md skill file into the Agent-local skill registry. Type yes on the final field to confirm.',
       fields: [
-        { id: 'name', label: 'Discovered skill', value: '', required: true, multiline: false, hint: 'Name shown by /agent-skills discover.' },
+        { id: 'name', label: 'Discovered skill', value: '', required: true, multiline: false, hint: 'Name shown by /skills discover.' },
         { id: 'enabled', label: 'Enable now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
-        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-skills import-discovered with --yes.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /skills import-discovered with --yes.' },
       ],
     };
   }

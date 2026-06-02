@@ -82,7 +82,7 @@ function renderList(title: string, registry: AgentSkillRegistry, skills: readonl
   if (skills.length === 0) {
     return emptyMessage
       ? `${title}\n  ${emptyMessage}`
-      : `${title}\n  No local Agent skills yet. Create one with /agent-skills create --name <name> --description <summary> --procedure <steps>.`;
+      : `${title}\n  No local Agent skills yet. Create one with /skills create --name <name> --description <summary> --procedure <steps>.`;
   }
   return [
     `${title} (${skills.length})`,
@@ -111,7 +111,7 @@ function renderDiscoveredSkills(skills: readonly SkillRecord[]): string {
     `Discovered Agent skill files (${skills.length})`,
     ...skills.map(summarizeDiscoveredSkill),
     '',
-    'Import one with: /agent-skills import-discovered <name> --yes',
+    'Import one with: /skills import-discovered <name> --yes',
   ].join('\n');
 }
 
@@ -150,12 +150,12 @@ async function importDiscoveredSkill(args: readonly string[], ctx: CommandContex
   const parsed = parseSkillArgs(args);
   const name = parsed.rest.join(' ').trim();
   if (!name) {
-    ctx.print('Usage: /agent-skills import-discovered <name> [--enabled] --yes');
+    ctx.print('Usage: /skills import-discovered <name> [--enabled] --yes');
     return;
   }
   const discovered = findDiscoveredSkill(await discoverSkills(requireShellPaths(ctx)), name);
   if (!discovered) {
-    ctx.print(`Unknown discovered Agent skill: ${name}\nRun /agent-skills discover to inspect available skill files.`);
+    ctx.print(`Unknown discovered Agent skill: ${name}\nRun /skills discover to inspect available skill files.`);
     return;
   }
   if (!parsed.yes) {
@@ -192,7 +192,7 @@ function renderBundleList(title: string, registry: AgentSkillRegistry, bundles: 
   if (bundles.length === 0) {
     return emptyMessage
       ? `${title}\n  ${emptyMessage}`
-      : `${title}\n  No local Agent skill bundles yet. Create one with /agent-skills bundle create --name <name> --description <summary> --skills <id,id>.`;
+      : `${title}\n  No local Agent skill bundles yet. Create one with /skills bundle create --name <name> --description <summary> --skills <id,id>.`;
   }
   return [
     `${title} (${bundles.length})`,
@@ -285,7 +285,7 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
   if (sub === 'show') {
     const id = args[1];
     if (!id) {
-      ctx.print('Usage: /agent-skills bundle show <id>');
+      ctx.print('Usage: /skills bundle show <id>');
       return;
     }
     const bundle = skillRegistry.getBundle(id);
@@ -308,7 +308,7 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
   if (sub === 'update') {
     const id = args[1];
     if (!id) {
-      ctx.print('Usage: /agent-skills bundle update <id> [--name ...] [--description ...] [--skills id,id]');
+      ctx.print('Usage: /skills bundle update <id> [--name ...] [--description ...] [--skills id,id]');
       return;
     }
     const parsed = parseSkillArgs(args.slice(2));
@@ -324,7 +324,7 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
   if (sub === 'enable' || sub === 'disable') {
     const id = args[1];
     if (!id) {
-      ctx.print(`Usage: /agent-skills bundle ${sub} <id>`);
+      ctx.print(`Usage: /skills bundle ${sub} <id>`);
       return;
     }
     const bundle = skillRegistry.setBundleEnabled(id, sub === 'enable');
@@ -334,7 +334,7 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
   if (sub === 'review') {
     const id = args[1];
     if (!id) {
-      ctx.print('Usage: /agent-skills bundle review <id>');
+      ctx.print('Usage: /skills bundle review <id>');
       return;
     }
     const bundle = skillRegistry.markBundleReviewed(id);
@@ -344,7 +344,7 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
   if (sub === 'stale') {
     const id = args[1];
     if (!id) {
-      ctx.print('Usage: /agent-skills bundle stale <id> <reason...>');
+      ctx.print('Usage: /skills bundle stale <id> <reason...>');
       return;
     }
     const bundle = skillRegistry.markBundleStale(id, args.slice(2).join(' '));
@@ -355,7 +355,7 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
     const parsed = parseSkillArgs(args.slice(1));
     const id = parsed.rest[0];
     if (!id) {
-      ctx.print('Usage: /agent-skills bundle delete <id> --yes');
+      ctx.print('Usage: /skills bundle delete <id> --yes');
       return;
     }
     if (!parsed.yes) {
@@ -366,7 +366,7 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
     ctx.print(`Deleted Agent skill bundle ${removed.id}: ${removed.name}`);
     return;
   }
-  ctx.print('Usage: /agent-skills bundle [list|enabled|attention|search|show|create|update|enable|disable|review|stale|delete]');
+  ctx.print('Usage: /skills bundle [list|enabled|attention|search|show|create|update|enable|disable|review|stale|delete]');
 }
 
 export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
@@ -411,7 +411,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
     if (sub === 'show') {
       const id = args[1];
       if (!id) {
-        ctx.print('Usage: /agent-skills show <id>');
+        ctx.print('Usage: /skills show <id>');
         return;
       }
       const skill = skillRegistry.get(id);
@@ -441,7 +441,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
     if (sub === 'update') {
       const id = args[1];
       if (!id) {
-        ctx.print('Usage: /agent-skills update <id> [--name ...] [--description ...] [--procedure ...]');
+        ctx.print('Usage: /skills update <id> [--name ...] [--description ...] [--procedure ...]');
         return;
       }
       const parsed = parseSkillArgs(args.slice(2));
@@ -465,7 +465,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
     if (sub === 'enable' || sub === 'disable') {
       const id = args[1];
       if (!id) {
-        ctx.print(`Usage: /agent-skills ${sub} <id>`);
+        ctx.print(`Usage: /skills ${sub} <id>`);
         return;
       }
       const skill = skillRegistry.setEnabled(id, sub === 'enable');
@@ -475,7 +475,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
     if (sub === 'review') {
       const id = args[1];
       if (!id) {
-        ctx.print('Usage: /agent-skills review <id>');
+        ctx.print('Usage: /skills review <id>');
         return;
       }
       const skill = skillRegistry.markReviewed(id);
@@ -485,7 +485,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
     if (sub === 'stale') {
       const id = args[1];
       if (!id) {
-        ctx.print('Usage: /agent-skills stale <id> <reason...>');
+        ctx.print('Usage: /skills stale <id> <reason...>');
         return;
       }
       const skill = skillRegistry.markStale(id, args.slice(2).join(' '));
@@ -496,7 +496,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
       const parsed = parseSkillArgs(args.slice(1));
       const id = parsed.rest[0];
       if (!id) {
-        ctx.print('Usage: /agent-skills delete <id> --yes');
+        ctx.print('Usage: /skills delete <id> --yes');
         return;
       }
       if (!parsed.yes) {
@@ -507,7 +507,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
       ctx.print(`Deleted Agent skill ${removed.id}: ${removed.name}`);
       return;
     }
-    ctx.print('Usage: /agent-skills [list|enabled|attention|discover|import-discovered|search|show|create|update|enable|disable|review|stale|delete|bundle]');
+    ctx.print('Usage: /skills [list|enabled|attention|discover|import-discovered|search|show|create|update|enable|disable|review|stale|delete|bundle]');
   } catch (error) {
     printError(ctx, error);
   }

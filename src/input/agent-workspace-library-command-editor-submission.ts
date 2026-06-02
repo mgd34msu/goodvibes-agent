@@ -28,7 +28,7 @@ export function buildAgentWorkspaceLibraryCommandEditorSubmission(
   readField: AgentWorkspaceFieldReader,
 ): AgentWorkspaceLibraryCommandEditorSubmission {
   const target = editor.kind.startsWith('persona') ? 'persona' : editor.kind.startsWith('skill') ? 'skill' : 'routine';
-  const root = target === 'persona' ? '/personas' : target === 'skill' ? '/agent-skills' : '/routines';
+  const root = target === 'persona' ? '/personas' : target === 'skill' ? '/skills' : '/routines';
   const search = editor.kind.endsWith('search');
   const command = search
     ? `${root} search ${quoteSlashCommandArg(readField('query'))}`
