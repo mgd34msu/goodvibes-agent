@@ -280,11 +280,3 @@ export function requireModeManager(context: CommandContext): ShellModeManagerSer
 export function requireAutomationManager(context: CommandContext): ShellAutomationManagerRuntimeService {
   return requireContextValue(context.ops.automationManager, 'ops.automationManager') as ShellAutomationManagerRuntimeService;
 }
-
-export function requireSandboxSessionRegistry(context: CommandContext) {
-  return requireContextValue(context.workspace.sandboxSessionRegistry, 'workspace.sandboxSessionRegistry');
-}
-
-export function requireWorktreeRegistry(context: CommandContext) {
-  return requireContextValue(context.workspace.worktreeRegistry, 'workspace.worktreeRegistry');
-}

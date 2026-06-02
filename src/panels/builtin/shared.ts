@@ -80,9 +80,9 @@ export interface BuiltinPanelDeps {
   tokenAuditor: ApiTokenAuditor;
   /** Shared component-health monitor for rate-limited panels and diagnostics. */
   componentHealthMonitor: ComponentHealthMonitor;
-  /** Shared worktree registry for worktree surfaces. */
+  /** Copied shell dependency kept inert in Agent; build worktree UX belongs to GoodVibes TUI delegation. */
   worktreeRegistry: WorktreeRegistry;
-  /** Shared sandbox session registry for sandbox surfaces and tools. */
+  /** Sandbox session registry used by MCP isolation; Agent does not expose sandbox/QEMU command UX. */
   sandboxSessionRegistry: SandboxSessionRegistry;
   /**
    * Resolved daemon home directory (e.g. `~/.goodvibes/daemon`) — owned by the composition root
@@ -103,7 +103,7 @@ export interface BuiltinPanelDeps {
   workPlanStore?: import('../../work-plans/work-plan-store.ts').WorkPlanStore;
   /** Shared system-messages panel instance attached from boot so low-priority chatter stays out of conversation. */
   systemMessagesPanel?: import('../system-messages-panel.ts').SystemMessagesPanel;
-  /** Explicit UI-facing runtime services for agent/process/WRFC/remote panels and modals. */
+  /** Explicit UI-facing runtime services for operator panels and modals. */
   uiServices?: UiRuntimeServices;
   /** Shared plugin manager observer for plugin and security panels. */
   pluginManager?: PluginManagerObserver;
@@ -240,7 +240,7 @@ export function requireAutomationManager(deps: BuiltinPanelDeps): AutomationMana
 
 export function requireUiServices(deps: BuiltinPanelDeps): UiRuntimeServices {
   if (!deps.uiServices) {
-    throw new Error('UI runtime services must be wired at bootstrap for agent, process, WRFC, and remote panels.');
+    throw new Error('UI runtime services must be wired at bootstrap for operator panels.');
   }
   return deps.uiServices;
 }
