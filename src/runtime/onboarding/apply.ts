@@ -457,7 +457,7 @@ function applySelectAgentProfileOperation(
   const selection = setAgentRuntimeProfileSelection(deps.shellPaths.homeDirectory, operation.name);
   return {
     kind: operation.kind,
-    summary: `Selected Agent profile ${selection.id} for future launches.`,
+    summary: `Selected Agent profile ${selection.id} for later plain goodvibes-agent runs.`,
   };
 }
 

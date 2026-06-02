@@ -79,8 +79,6 @@ export function renderProfilePickerModal(
 
       const tsStr = fitDisplay(formatTimestamp(prof.timestamp), tsW);
 
-      // Read the profile file to get a preview of settings
-      // (We only have name/timestamp in ProfileInfo, so show a placeholder)
       const preview = fitDisplay('(display/provider/behavior)', previewW);
 
       const label = `${nameStr}  ${tsStr}  ${preview}`;

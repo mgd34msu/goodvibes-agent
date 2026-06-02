@@ -158,8 +158,8 @@ function verifySelectAgentProfileOperation(
     id: `selected-agent-profile:${resolution.id}`,
     status: ok ? 'pass' : 'fail',
     message: ok
-      ? `${resolution.id} Agent profile is selected for future launches.`
-      : `${resolution.id} Agent profile is not selected for future launches.`,
+      ? `${resolution.id} Agent profile is selected for later plain goodvibes-agent runs.`
+      : `${resolution.id} Agent profile is not selected for later plain goodvibes-agent runs.`,
     target: resolution.id,
   };
 }

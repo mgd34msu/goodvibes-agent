@@ -9,6 +9,17 @@ function isAffirmative(value: string): boolean {
   return /^(y|yes|true)$/i.test(value.trim());
 }
 
+function optionalNoteArgs(value: string): string {
+  const trimmed = value.trim();
+  return trimmed ? ` --note ${quoteSlashCommandArg(trimmed)}` : '';
+}
+
+function optionalRememberArgs(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return isAffirmative(trimmed) ? ' --remember' : ' --no-remember';
+}
+
 function unconfirmed(editor: AgentWorkspaceLocalEditor, message: string): AgentWorkspaceOperationsCommandEditorSubmission {
   return {
     kind: 'editor',
@@ -96,6 +107,57 @@ export function buildAgentWorkspaceOperationsCommandEditorSubmission(
         title: 'Opening planning clear',
         detail: 'The workspace handed confirmed planning-state clearing to the shell-owned command router.',
         command: '/plan clear --yes',
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'approval-approve' || editor.kind === 'approval-deny' || editor.kind === 'approval-cancel') {
+    if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Approval action not confirmed. Type yes, then press Enter.');
+    const verb = editor.kind.replace('approval-', '');
+    const command = `/approval ${verb} ${quoteSlashCommandArg(readField('approvalId'))}${optionalNoteArgs(readField('note'))}${optionalRememberArgs(readField('remember'))} --yes`;
+    const title = `${verb[0]?.toUpperCase() ?? ''}${verb.slice(1)} approval`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: `${title}.`,
+      actionResult: {
+        kind: 'dispatched',
+        title,
+        detail: 'The workspace handed an explicit confirmed approval action to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (
+    editor.kind === 'automation-job-run'
+    || editor.kind === 'automation-job-pause'
+    || editor.kind === 'automation-job-resume'
+    || editor.kind === 'automation-run-cancel'
+    || editor.kind === 'automation-run-retry'
+    || editor.kind === 'schedule-run'
+  ) {
+    if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Automation action not confirmed. Type yes, then press Enter.');
+    const command = editor.kind === 'automation-job-run'
+      ? `/automation job run ${quoteSlashCommandArg(readField('jobId'))} --yes`
+      : editor.kind === 'automation-job-pause'
+        ? `/automation job pause ${quoteSlashCommandArg(readField('jobId'))} --yes`
+        : editor.kind === 'automation-job-resume'
+          ? `/automation job resume ${quoteSlashCommandArg(readField('jobId'))} --yes`
+          : editor.kind === 'automation-run-cancel'
+            ? `/automation run cancel ${quoteSlashCommandArg(readField('runId'))} --yes`
+            : editor.kind === 'automation-run-retry'
+              ? `/automation run retry ${quoteSlashCommandArg(readField('runId'))} --yes`
+              : `/automation schedule run ${quoteSlashCommandArg(readField('scheduleId'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening confirmed automation action.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening confirmed automation action',
+        detail: 'The workspace handed an explicit connected-host automation action to the shell-owned command router.',
+        command,
         safety: 'safe',
       },
     };

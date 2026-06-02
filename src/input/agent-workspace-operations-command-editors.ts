@@ -2,7 +2,24 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 
 export type AgentWorkspaceOperationsCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'plan-seed' | 'plan-show' | 'plan-approve' | 'plan-override' | 'plan-clear' | 'health-repair' | 'approval-review' | 'routine-receipt' | 'schedule-receipt'
+  | 'plan-seed'
+  | 'plan-show'
+  | 'plan-approve'
+  | 'plan-override'
+  | 'plan-clear'
+  | 'health-repair'
+  | 'approval-review'
+  | 'approval-approve'
+  | 'approval-deny'
+  | 'approval-cancel'
+  | 'automation-job-run'
+  | 'automation-job-pause'
+  | 'automation-job-resume'
+  | 'automation-run-cancel'
+  | 'automation-run-retry'
+  | 'schedule-run'
+  | 'routine-receipt'
+  | 'schedule-receipt'
 >;
 
 export function isAgentWorkspaceOperationsCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceOperationsCommandEditorKind {
@@ -13,6 +30,15 @@ export function isAgentWorkspaceOperationsCommandEditorKind(kind: AgentWorkspace
     || kind === 'plan-clear'
     || kind === 'health-repair'
     || kind === 'approval-review'
+    || kind === 'approval-approve'
+    || kind === 'approval-deny'
+    || kind === 'approval-cancel'
+    || kind === 'automation-job-run'
+    || kind === 'automation-job-pause'
+    || kind === 'automation-job-resume'
+    || kind === 'automation-run-cancel'
+    || kind === 'automation-run-retry'
+    || kind === 'schedule-run'
     || kind === 'routine-receipt'
     || kind === 'schedule-receipt';
 }
@@ -51,6 +77,57 @@ export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspace
       message: 'Review one approval class without approving, denying, or mutating pending requests.',
       fields: [
         { id: 'kind', label: 'Approval kind', value: 'shell', required: true, multiline: false, hint: 'shell, file, network, delegate, mcp, remote, hook, or plugin.' },
+      ],
+    };
+  }
+  if (kind === 'approval-approve' || kind === 'approval-deny' || kind === 'approval-cancel') {
+    const verb = kind === 'approval-approve' ? 'Approve' : kind === 'approval-deny' ? 'Deny' : 'Cancel';
+    return {
+      kind,
+      mode: 'update',
+      title: `${verb} Approval`,
+      selectedFieldIndex: 0,
+      message: `${verb} one pending connected-host approval request. This is an explicit operator action and requires typed confirmation.`,
+      fields: [
+        { id: 'approvalId', label: 'Approval id', value: '', required: true, multiline: false, hint: 'Approval request id from the approval list.' },
+        { id: 'note', label: 'Note', value: '', required: false, multiline: true, hint: 'Optional approval note. Ctrl-J inserts a new line.' },
+        { id: 'remember', label: 'Remember', value: '', required: false, multiline: false, hint: 'yes/no when you explicitly want to set the connected-host remember flag; blank leaves it unset.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: `Type yes to run /approval ${kind.replace('approval-', '')} with --yes.` },
+      ],
+    };
+  }
+  if (
+    kind === 'automation-job-run'
+    || kind === 'automation-job-pause'
+    || kind === 'automation-job-resume'
+    || kind === 'automation-run-cancel'
+    || kind === 'automation-run-retry'
+    || kind === 'schedule-run'
+  ) {
+    const job = kind.startsWith('automation-job-');
+    const run = kind.startsWith('automation-run-');
+    const label = job ? 'Job id' : run ? 'Run id' : 'Schedule id';
+    const field = job ? 'jobId' : run ? 'runId' : 'scheduleId';
+    const action = kind === 'automation-job-run'
+      ? 'Run Automation Job'
+      : kind === 'automation-job-pause'
+        ? 'Pause Automation Job'
+        : kind === 'automation-job-resume'
+          ? 'Resume Automation Job'
+          : kind === 'automation-run-cancel'
+            ? 'Cancel Automation Run'
+            : kind === 'automation-run-retry'
+              ? 'Retry Automation Run'
+              : 'Run Schedule';
+    return {
+      kind,
+      mode: 'update',
+      title: action,
+      selectedFieldIndex: 0,
+      message: `${action} through the connected host. This is never automatic and requires typed confirmation.`,
+      fields: [
+        { id: field, label, value: '', required: true, multiline: false, hint: `${label} from the Automation workspace list.` },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run the confirmed connected-host action with --yes.' },
       ],
     };
   }

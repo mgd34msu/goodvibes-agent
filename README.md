@@ -52,6 +52,7 @@ Use the workspace as the primary product surface:
 
 - Home: normal assistant chat, operator briefing, model selection, setup, and health.
 - Conversation: context usage, compaction, title/session save/load/search/export, transcript search, bookmarks, paste/image/TTS helpers, undo/redo/retry, clear/reset, shortcuts, and keybindings.
+- Artifacts: image attachment, conversation/session export, source-file ingest, source lookup, bookmark/browser-history import, and generated media artifact handling.
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Tools & MCP: MCP server setup, tool inventory, trust review, secret storage/link/test/delete, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, URL/URL-list/file/bookmark/browser-history/connector ingest, source library, review queue, and reindex.

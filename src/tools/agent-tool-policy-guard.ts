@@ -142,7 +142,7 @@ const BACKGROUND_EXEC_DENIAL = [
 const REMOTE_MUTATION_DENIAL = [
   'GoodVibes Agent only inspects remote runner pools, contracts, artifacts, and review summaries from the main conversation.',
   'Remote pool creation, assignment, unassignment, and artifact import are disabled here.',
-  'Use explicit GoodVibes TUI delegation or a future Agent approval flow for remote execution changes.',
+  'Use explicit GoodVibes TUI delegation for build/fix/review execution changes.',
 ].join(' ');
 
 const CHANNEL_ACTION_DENIAL = [

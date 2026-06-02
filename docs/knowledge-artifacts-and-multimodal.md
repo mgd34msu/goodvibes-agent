@@ -10,7 +10,7 @@ GoodVibes Agent uses these context layers:
 - local Agent memory records for durable but private assistant facts and preferences;
 - local Agent routines, skills, and personas for reusable behavior profiles;
 - isolated Agent Knowledge/Wiki for source-backed documents, search, and semantic answers;
-- artifacts for uploaded/generated files that can be referenced by chat, delegation, or future Agent Knowledge ingestion.
+- artifacts for uploaded/generated files that can be referenced by chat, delegation, or explicit Agent Knowledge ingestion.
 
 These layers are intentionally separate. Local memory/routines/skills/personas are not automatically promoted into Agent Knowledge. Agent Knowledge records are not copied into default Knowledge/Wiki. Secrets are rejected or represented only by explicit secret references.
 

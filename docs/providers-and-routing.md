@@ -30,7 +30,7 @@ Provider discovery and health are owned by the connected GoodVibes host. Agent c
 
 ## Search, Voice, And Media Providers
 
-Search, voice, media, and multimodal providers are valid Agent capabilities when they are presented as assistant features:
+Search, voice, media, and multimodal providers are valid Agent features when they are presented as assistant workflows:
 
 - research and source lookup;
 - live spoken turns;

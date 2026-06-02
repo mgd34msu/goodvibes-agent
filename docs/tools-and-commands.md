@@ -14,7 +14,7 @@ GoodVibes Agent is an operator assistant TUI. Its command set is centered on mai
 
 ## TUI-First Operator Surface
 
-The Agent workspace is the product surface. Slash commands are power-user routes inside the TUI, and package CLI subcommands are scriptable mirrors. New user-facing capabilities should appear in the workspace first.
+The Agent workspace is the product surface. Slash commands are power-user routes inside the TUI, and package CLI subcommands are scriptable mirrors. New user-facing features should appear in the workspace first.
 
 High-signal Agent TUI paths:
 
@@ -33,7 +33,7 @@ High-signal Agent TUI paths:
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
 
-The installed `goodvibes-agent` command launches the TUI by default. Subcommands such as `status`, `compat`, `knowledge ...`, `ask <question>`, and `search <query>` are secondary scriptable equivalents for diagnostics and automation over the same Agent workspace capabilities.
+The installed `goodvibes-agent` command launches the TUI by default. Subcommands such as `status`, `compat`, `knowledge ...`, `ask <question>`, and `search <query>` are secondary scriptable equivalents for diagnostics and automation over the same Agent workspace features.
 
 Host-management and coding-first commands that would imply connected-host lifecycle ownership, local agent spawning, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 
@@ -81,6 +81,25 @@ Approvals and automation are safe by default:
 - mutating routes require exact commands and explicit confirmation such as `--yes`;
 - no chat turn silently runs approval, schedule, or automation mutations;
 - unavailable routes return structured errors rather than fallback behavior.
+
+Workspace forms are the primary path for approval and automation actions:
+
+- Agent Workspace -> Work & Approvals -> Approve request / Deny request / Cancel request
+- Agent Workspace -> Automation -> Run job now / Pause job / Resume job
+- Agent Workspace -> Automation -> Cancel run / Retry run / Run schedule now
+
+Power-user slash mirrors are exact and confirmation-gated:
+
+- `/approval approve <approval-id> [--note <text>] [--remember|--no-remember] --yes`
+- `/approval deny <approval-id> [--note <text>] [--remember|--no-remember] --yes`
+- `/approval cancel <approval-id> [--note <text>] [--remember|--no-remember] --yes`
+- `/automation job run <job-id> --yes`
+- `/automation job pause <job-id> --yes`
+- `/automation job resume <job-id> --yes`
+- `/automation run cancel <run-id> --yes`
+- `/automation run retry <run-id> --yes`
+- `/automation schedule run <schedule-id> --yes`
+- `/schedule run <schedule-id> --yes`
 
 Routine promotion is an explicit scheduling bridge: local routines stay local during normal use, and promotion creates a schedule only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or non-Agent knowledge fallback. Delivery is opt-in with explicit flags such as `--delivery-channel`, `--delivery-route`, `--delivery-webhook`, or `--delivery-link`; no delivery target is inferred from chat.
 

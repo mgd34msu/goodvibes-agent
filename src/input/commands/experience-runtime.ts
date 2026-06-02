@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
+import { handleApprovalOperatorAction } from './operator-actions-runtime.ts';
 
 interface VoiceBundle {
   readonly version: 1;
@@ -25,9 +26,10 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
     name: 'approval',
     aliases: ['approvals'],
     description: 'Review action-specific approval classes and the specialized security UX matrix',
-    usage: '[matrix|review <kind>]',
+    usage: '[matrix|review <kind>|approve <id> --yes|deny <id> --yes|cancel <id> --yes]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'matrix').toLowerCase();
+      if (await handleApprovalOperatorAction(args, ctx)) return;
       if (sub === 'open' || sub === 'panel') {
         ctx.print('Open Agent Workspace -> Work -> Review approvals for the workspace view, or run /approval matrix for the compact command output.');
         return;
@@ -63,7 +65,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         ].join('\n'));
         return;
       }
-      ctx.print('Usage: /approval [matrix|review <kind>]');
+      ctx.print('Usage: /approval [matrix|review <kind>|approve <id> --yes|deny <id> --yes|cancel <id> --yes]');
     },
   });
 

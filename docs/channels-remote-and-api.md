@@ -25,7 +25,7 @@ Do not use shared coding sessions for ordinary chat. Do not create local backgro
 
 ## Remote Access
 
-Remote-node and peer capability is owned by the connected GoodVibes host. In Agent, remote commands are read-only unless a future Agent-safe route is designed and reviewed. The current Agent behavior should guide the user toward:
+Remote-node and peer capability is owned by the connected GoodVibes host. In Agent, remote commands are read-only unless the user explicitly delegates build/fix/review work to GoodVibes TUI. The current Agent behavior should guide the user toward:
 
 - inspecting remote support state;
 - checking routes and peer readiness;

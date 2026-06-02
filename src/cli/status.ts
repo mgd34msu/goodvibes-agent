@@ -1,7 +1,6 @@
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { OnboardingCheckMarkersState } from '../runtime/onboarding/index.ts';
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
-import { isNetworkFacing } from './network-posture.ts';
 import type { GoodVibesCliOutputFormat } from './types.ts';
 import type { CliServicePosture } from './service-posture.ts';
 import type { CliExternalRuntimeSnapshot } from './external-runtime.ts';
@@ -30,7 +29,7 @@ export interface CliAuthStatus {
 
 export interface CliDoctorFinding {
   readonly id: string;
-  readonly area: 'auth' | 'network' | 'onboarding' | 'runtime' | 'security' | 'secrets';
+  readonly area: 'auth' | 'onboarding' | 'runtime' | 'security' | 'secrets';
   readonly severity: 'warning' | 'risk';
   readonly summary: string;
   readonly cause: string;
@@ -92,29 +91,11 @@ function secretPolicyLabel(policy: unknown): string {
   return String(policy ?? 'unknown');
 }
 
-function bindLine(label: string, enabled: unknown, binding: { readonly hostMode: string; readonly host: string; readonly port: number }): string {
-  return `  ${label}: ${yesNo(enabled)} (${binding.hostMode} ${binding.host}:${binding.port})`;
-}
-
 export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliDoctorFinding[] {
   const config = options.configManager;
-  const serviceEnabled = config.get('service.enabled') === true;
-  const daemonEnabled = config.get('danger.daemon') === true;
-  const listenerEnabled = config.get('danger.httpListener') === true;
-  const webEnabled = config.get('web.enabled') === true;
-  const controlPlaneEnabled = config.get('controlPlane.enabled') === true;
-  const controlPlaneBinding = resolveRuntimeEndpointBinding(config, 'controlPlane');
-  const httpListenerBinding = resolveRuntimeEndpointBinding(config, 'httpListener');
-  const webBinding = resolveRuntimeEndpointBinding(config, 'web');
   const permissionMode = config.get('permissions.mode');
   const secretPolicy = config.get('storage.secretPolicy');
   const marker = options.onboardingMarkers?.effective;
-  const serverBackedEnabled = daemonEnabled || controlPlaneEnabled || listenerEnabled || webEnabled;
-  const networkFacingSurfaces = [
-    ['runtime connection', controlPlaneEnabled, controlPlaneBinding],
-    ['inbound events endpoint', listenerEnabled, httpListenerBinding],
-    ['browser companion route', webEnabled, webBinding],
-  ].filter(([, enabled, binding]) => isNetworkFacing(enabled, binding as typeof controlPlaneBinding));
 
   const findings: CliDoctorFinding[] = [];
 
@@ -166,18 +147,6 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
     }
   }
 
-  if (serverBackedEnabled && !serviceEnabled) {
-    findings.push({
-      id: 'runtime-ownership-external',
-      area: 'runtime',
-      severity: 'warning',
-      summary: 'Connected-host settings are present while Agent host ownership is disabled by design.',
-      cause: 'One or more connected API, inbound events, or browser companion settings are enabled while service.enabled is false.',
-      impact: 'The owning GoodVibes host must provide availability for those endpoints; Agent will not start or enable them.',
-      action: 'Manage connected-host availability from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
-    });
-  }
-
   if (options.service) {
     for (const issue of options.service.issues) {
       if (findings.some((finding) => finding.summary === issue)) continue;
@@ -187,8 +156,8 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         severity: 'warning',
         summary: issue,
         cause: 'The connected-host inspection found a mismatch between configured endpoint state and observed host state.',
-        impact: 'Connected API, listener, or web availability may not match the configuration.',
-        action: 'Use Agent status and doctor diagnostics here, then manage the connected host outside Agent.',
+        impact: 'Companion chat, Agent Knowledge, approvals, automation status, or build delegation may be unavailable.',
+        action: 'Use Agent status and doctor diagnostics here, then repair the connected GoodVibes host outside Agent.',
       });
     }
   }
@@ -200,32 +169,8 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       severity: 'warning',
       summary: 'Agent setup has not been applied for this user.',
       cause: 'No global user setup completion marker was found.',
-      impact: 'Important connected-host, network, provider, auth, or permission choices may still be implicit defaults.',
+      impact: 'Provider/model, Agent Knowledge, local behavior, channel, and permission choices may still be implicit defaults.',
       action: 'Run /setup in GoodVibes Agent or goodvibes-agent setup status to review setup state.',
-    });
-  }
-
-  if (networkFacingSurfaces.length > 0 && options.auth?.userStorePresent !== true) {
-    findings.push({
-      id: 'network-endpoint-without-runtime-auth-signal',
-      area: 'auth',
-      severity: 'risk',
-      summary: 'Network-facing connected-host endpoints are enabled without a visible auth signal.',
-      cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but Agent cannot see connected-host auth state from its local compatibility files.`,
-      impact: 'Remote access paths may be unusable or unsafe unless the owning host configured auth.',
-      action: 'Review connected-host auth outside Agent; Agent will not create local service users.',
-    });
-  }
-
-  if (networkFacingSurfaces.length > 0 && options.auth?.bootstrapCredentialPresent === true) {
-    findings.push({
-      id: 'network-endpoint-with-bootstrap-credential',
-      area: 'auth',
-      severity: 'risk',
-      summary: 'A bootstrap credential is still present while network-facing surfaces are enabled.',
-      cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound and auth-bootstrap.txt exists.`,
-      impact: 'Bootstrap credentials should be treated as temporary setup material, not long-lived network access credentials.',
-      action: 'Replace bootstrap auth and retire the bootstrap credential outside Agent.',
     });
   }
 
@@ -250,18 +195,6 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       cause: 'storage.secretPolicy is plaintext_allowed.',
       impact: 'Provider keys and channel tokens may be stored without secure backend protection.',
       action: 'Use Require secure storage or Use secure storage when available for normal operation.',
-    });
-  }
-
-  if (listenerEnabled && isNetworkFacing(listenerEnabled, httpListenerBinding)) {
-    findings.push({
-      id: 'network-http-listener-enabled',
-      area: 'network',
-      severity: 'warning',
-      summary: 'The inbound events endpoint is reachable beyond loopback.',
-      cause: `Inbound events endpoint is enabled on ${httpListenerBinding.host}:${httpListenerBinding.port} with ${httpListenerBinding.hostMode} binding.`,
-      impact: 'External tools and devices may be able to reach incoming event endpoints.',
-      action: 'Keep inbound-event secrets/signature checks configured for every enabled endpoint.',
     });
   }
 
@@ -315,13 +248,6 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
 export function renderCliStatus(options: CliStatusOptions): string {
   const config = options.configManager;
   const snapshot = buildCliStatusSnapshot(options);
-  const serviceEnabled = snapshot.runtimeConnection.enabled;
-  const controlPlaneEnabled = snapshot.runtimeEndpoints.controlPlane.enabled;
-  const listenerEnabled = snapshot.runtimeEndpoints.httpListener.enabled;
-  const webEnabled = snapshot.runtimeEndpoints.web.enabled;
-  const controlPlaneBinding = snapshot.runtimeEndpoints.controlPlane;
-  const httpListenerBinding = snapshot.runtimeEndpoints.httpListener;
-  const webBinding = snapshot.runtimeEndpoints.web;
   const marker = options.onboardingMarkers?.effective;
   const findings = snapshot.findings;
   const externalRuntime = snapshot.externalRuntime;
@@ -342,34 +268,34 @@ export function renderCliStatus(options: CliStatusOptions): string {
     `  permissions: ${permissionModeLabel(config.get('permissions.mode'))} (${String(config.get('permissions.mode'))})`,
     `  secretPolicy: ${secretPolicyLabel(config.get('storage.secretPolicy'))} (${String(config.get('storage.secretPolicy'))})`,
     options.auth
-      ? `  runtimeAuthSignal: ${options.auth.userStorePresent ? 'present' : 'missing'} (${options.auth.userStorePath})`
-      : '  runtimeAuthSignal: unknown',
+      ? `  local auth store: ${options.auth.userStorePresent ? 'present' : 'missing'} (${options.auth.userStorePath})`
+      : '  local auth store: unknown',
     options.auth
-      ? `  bootstrapCredential: ${options.auth.bootstrapCredentialPresent ? 'present' : 'missing'} (${options.auth.bootstrapCredentialPath})`
-      : '  bootstrapCredential: unknown',
+      ? `  setup credential: ${options.auth.bootstrapCredentialPresent ? 'present' : 'missing'} (${options.auth.bootstrapCredentialPath})`
+      : '  setup credential: unknown',
     options.auth
-      ? `  operatorTokens: ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
-      : '  operatorTokens: unknown',
+      ? `  connected-host token: ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
+      : '  connected-host token: unknown',
     '',
-    'Connected GoodVibes API:',
+    'Connected GoodVibes host:',
     ...(externalRuntime ? [
       `  baseUrl: ${externalRuntime.baseUrl}`,
       `  reachable: ${yesNo(externalRuntime.reachable)}${externalRuntime.statusCode === null ? '' : ` (HTTP ${externalRuntime.statusCode})`}`,
       `  sdk: ${externalRuntime.version} expected ${externalRuntime.expectedVersion}`,
       `  compatible: ${yesNo(externalRuntime.compatible)}`,
-      `  operatorToken: ${externalRuntime.operatorToken.present ? 'present' : 'missing'} (${externalRuntime.operatorToken.path})`,
+      `  access token: ${externalRuntime.operatorToken.present ? 'present' : 'missing'} (${externalRuntime.operatorToken.path})`,
       `  Agent Knowledge: ${externalRuntime.agentKnowledge.ready ? 'ready' : `not ready (${externalRuntime.agentKnowledge.kind})`}`,
       ...(externalRuntime.error ? [`  error: ${externalRuntime.error}`] : []),
     ] : [
       '  live check: unavailable',
     ]),
     '',
-    'Connected Host:',
-    '  Agent role: client/operator TUI only',
-    '  lifecycle owner: outside Agent',
-    '  Agent starts connected host: no',
+    'Agent role:',
+    '  product: interactive operator TUI',
+    '  host lifecycle: external',
+    '  starts or exposes host: no',
     ...(options.service ? [
-      `  log: ${options.service.log.path ?? 'n/a'} (${options.service.log.exists ? 'present' : 'missing'})`,
+      `  host log signal: ${options.service.log.path ?? 'n/a'} (${options.service.log.exists ? 'present' : 'missing'})`,
     ] : []),
     'Onboarding:',
     `  checked: ${marker?.exists ? 'yes' : 'no'}`,
@@ -380,14 +306,11 @@ export function renderCliStatus(options: CliStatusOptions): string {
   if (options.doctor) {
     lines.push(
       '',
-      'Connected Host Config Signals:',
-      `  host config present: ${yesNo(serviceEnabled)}`,
-      '  lifecycle config: external to Agent',
-      '',
-      'Endpoint Diagnostics:',
-      bindLine('runtimeApi', controlPlaneEnabled, controlPlaneBinding),
-      bindLine('incomingWebhook', listenerEnabled, httpListenerBinding),
-      bindLine('browserCompanion', webEnabled, webBinding),
+      'Readiness Checks:',
+      '  companion chat route',
+      '  isolated Agent Knowledge route',
+      '  approvals and automation status routes',
+      '  explicit build delegation route',
     );
     lines.push('', 'Warnings:');
     if (findings.length === 0) {

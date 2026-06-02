@@ -178,7 +178,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Open the Agent workspace first, then press / inside it to search every product action. Slash commands remain available: /agent, /brief, /knowledge, /memory, /personas, /agent-skills, /routines, /channels, /delegate, /model, /provider, /config, /compat, /bundle, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
+      ctx.print('Open the Agent workspace first, then press / inside it to search every product action. Slash commands remain available: /agent, /brief, /knowledge, /memory, /personas, /agent-skills, /routines, /channels, /approval, /automation, /schedule, /delegate, /model, /provider, /config, /compat, /bundle, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
     },
   });
 

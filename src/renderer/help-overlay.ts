@@ -263,8 +263,8 @@ export function renderShortcutsOverlay(
     '  ' + '\u2500'.repeat(40),
     row('Tab', 'Swap focus between input and active Agent workspace'),
     row(kb('panel-picker'), 'Open the Agent operator workspace'),
-    row(kb('panel-tab-next'), 'Reserved for future Agent workspace tabs'),
-    row(kb('panel-tab-prev'), 'Reserved for future Agent workspace tabs'),
+    row(kb('panel-tab-next'), 'Cycle Agent workspace category forward'),
+    row(kb('panel-tab-prev'), 'Cycle Agent workspace category backward'),
     '',
     `  Config: /keybindings to list and customize`,
   ];

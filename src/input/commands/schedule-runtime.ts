@@ -36,6 +36,7 @@ import {
 } from '../../agent/routine-schedule-receipts.ts';
 import type { CommandContext } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
+import { executeConfirmedOperatorAction } from './operator-actions-runtime.ts';
 
 function formatSchedule(schedule: AutomationScheduleDefinition): string {
   switch (schedule.kind) {
@@ -67,6 +68,7 @@ function printReadOnlyScheduleBoundary(print: (text: string) => void, requestedA
     `  requested: ${requestedAction}`,
     '  policy: no local Agent automation jobs, scheduled spawns, or immediate automation runs',
     '  use: /schedule list',
+    '  connected run route: /automation schedule run <schedule-id> --yes',
     '  schedule route: use /schedule promote-routine <routine> --cron <expr> --yes to create a connected schedule explicitly',
   ].join('\n'));
 }
@@ -189,7 +191,17 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
-      if (sub === 'add' || sub === 'remove' || sub === 'enable' || sub === 'disable' || sub === 'run') {
+      if (sub === 'run') {
+        const scheduleId = args[1] ?? '';
+        if (!scheduleId) {
+          ctx.print('Usage: /schedule run <schedule-id> --yes');
+          return;
+        }
+        await executeConfirmedOperatorAction(ctx, 'schedules.run', 'scheduleId', scheduleId, args.slice(2), '/schedule run <schedule-id> --yes');
+        return;
+      }
+
+      if (sub === 'add' || sub === 'remove' || sub === 'enable' || sub === 'disable') {
         printReadOnlyScheduleBoundary(ctx.print, `/schedule ${args.join(' ')}`.trim());
         return;
       }
@@ -200,9 +212,10 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         + '  /schedule receipts\n'
         + '  /schedule reconcile\n'
         + '  /schedule receipt <receipt-id>\n'
+        + '  /schedule run <schedule-id> --yes\n'
         + '  /schedule remind (--cron <expr>|--every <interval>|--at <iso-time>) (--message <text>|<text...>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes\n'
         + '  /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes\n'
-        + '  Local schedule mutations and runs remain blocked.'
+        + '  Local schedule mutations remain blocked; schedule run is a confirmed connected-host action.'
       );
     },
   });

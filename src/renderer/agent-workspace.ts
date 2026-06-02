@@ -324,6 +324,17 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
       { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
     );
+  } else if (category.id === 'artifacts') {
+    const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;
+    base.push(
+      { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
+      { text: `Agent Knowledge route: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
+      { text: `Media providers: ${mediaReady}/${snapshot.mediaProviderCount} ready; generation-capable ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
+      { text: 'Use this area for concrete files and generated output: attach images, export transcripts, ingest reviewed sources, inspect source records, and generate media.', fg: PALETTE.good },
+      { text: 'Agent Knowledge ingest writes only to the isolated Agent segment. Default Knowledge/Wiki and non-Agent routes are not fallback storage.', fg: PALETTE.warn },
+      { text: 'Generated media is stored as artifacts and referenced by id; the TUI should not print inline base64.', fg: PALETTE.muted },
+      { text: `Workspace path: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
+    );
   } else if (category.id === 'channels') {
     const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
     const readyCount = snapshot.channels.filter((channel) => channel.ready).length;
@@ -484,14 +495,16 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: 'Work plan and approvals are read or explicitly confirmed through public operator routes.', fg: PALETTE.info },
       { text: 'This workspace does not approve, deny, cancel, or mutate requests by selection alone.', fg: PALETTE.good },
+      { text: 'Approve, deny, and cancel forms require an approval id and typed confirmation.', fg: PALETTE.warn },
     );
   } else if (category.id === 'automation') {
     const ready = readyRoutineItems(snapshot);
     base.push(
-      { text: 'Automation and schedules default to read-only observability.', fg: PALETTE.info },
+      { text: 'Automation and schedules default to read-only observability; side effects require confirmed forms.', fg: PALETTE.info },
       { text: 'Confirmed reminders and routine promotion use connected schedules only.', fg: PALETTE.info },
-      { text: 'Local scheduler mutation/run controls remain blocked.', fg: PALETTE.warn },
+      { text: 'Local scheduler mutation controls remain blocked; job/run/schedule controls go through the connected host.', fg: PALETTE.warn },
       { text: 'Reminder path: Create reminder -> choose at/every/cron -> optional delivery target -> confirm yes.', fg: PALETTE.good },
+      { text: 'Operator path: choose job/run/schedule action -> enter id -> type yes -> dispatch once.', fg: PALETTE.good },
       { text: 'Routine path: Routines -> resolve setup -> review selected -> Promote routine -> Reconcile schedules.', fg: PALETTE.good },
       { text: `Schedule-ready routines: ${ready.length}; local promotion receipts: ${snapshot.routineScheduleReceiptCount}`, fg: ready.length > 0 ? PALETTE.good : PALETTE.warn },
       automationNextActionLine(snapshot),

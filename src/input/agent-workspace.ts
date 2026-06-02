@@ -286,7 +286,7 @@ export class AgentWorkspace {
     try {
       if (operation === 'persona-clear') {
         AgentPersonaRegistry.fromShellPaths(shellPaths).clearActive();
-        this.finishLocalOperation('persona', 'Cleared active persona', 'The default Agent policy will apply to future turns.');
+        this.finishLocalOperation('persona', 'Cleared active persona', 'The default Agent policy will apply to later turns.');
         return;
       }
       const selected = this.selectedItemForOperation(operation);
@@ -336,7 +336,7 @@ export class AgentWorkspace {
         };
       } else if (operation === 'persona-use') {
         AgentPersonaRegistry.fromShellPaths(shellPaths).setActive(selected.id);
-        this.finishLocalOperation('persona', `Using persona ${selected.name}`, `${selected.name} will shape future main-conversation turns.`);
+        this.finishLocalOperation('persona', `Using persona ${selected.name}`, `${selected.name} will shape later main-conversation turns.`);
       } else if (operation === 'persona-review') {
         AgentPersonaRegistry.fromShellPaths(shellPaths).markReviewed(selected.id);
         this.finishLocalOperation('persona', `Reviewed persona ${selected.name}`, `${selected.name} is marked reviewed.`);

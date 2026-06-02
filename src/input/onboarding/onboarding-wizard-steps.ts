@@ -260,7 +260,7 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
         kind: 'checklist',
         id: 'agent-setup.profile-default',
         label: 'Use created profile by default',
-        hint: 'When a starter profile name is provided, make that isolated Agent profile the default for future plain goodvibes-agent launches.',
+        hint: 'When a starter profile name is provided, make that isolated Agent profile the default for later plain goodvibes-agent runs.',
         defaultValue: true,
       },
       {

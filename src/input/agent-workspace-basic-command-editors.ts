@@ -535,7 +535,7 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       mode: 'update',
       title: 'Use Default Agent Profile',
       selectedFieldIndex: 0,
-      message: 'Select which isolated Agent profile the next normal goodvibes-agent launch should use. Type yes on the final field to confirm.',
+      message: 'Select which isolated Agent profile the next plain goodvibes-agent run should use. Type yes on the final field to confirm.',
       fields: [
         { id: 'profile', label: 'Profile name', value: '', required: true, multiline: false, hint: 'Existing isolated Agent profile name from /agent-profile list.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile use with --yes.' },
@@ -548,7 +548,7 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       mode: 'update',
       title: 'Clear Default Agent Profile',
       selectedFieldIndex: 0,
-      message: 'Return the next normal goodvibes-agent launch to the base Agent home. Type yes to confirm.',
+      message: 'Return the next plain goodvibes-agent run to the base Agent home. Type yes to confirm.',
       fields: [
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile default clear with --yes.' },
       ],
