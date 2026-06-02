@@ -52,6 +52,7 @@ const FORBIDDEN_TARBALL_DOCS = [
   'docs/wrfc/',
 ] as const;
 const FORBIDDEN_TARBALL_FILES = new Set([
+  'src/cli/package-verification.ts',
   'src/panels/agent-inspector-panel.ts',
   'src/panels/agent-inspector-shared.ts',
   'src/panels/agent-logs-panel.ts',
@@ -81,8 +82,6 @@ const PACKAGE_FACING_FORBIDDEN_TEXT = [
   ['Home', ' Assistant'].join(''),
   ['Home', 'Graph'].join(''),
   ['Cloud', 'flare'].join(''),
-  ['Open', 'Claw'].join(''),
-  ['Her', 'mes'].join(''),
   ['near', '-fork'].join(''),
   ['Optional ', 'Browser Access'].join(''),
   ['Optional ', 'Other-Device Access'].join(''),

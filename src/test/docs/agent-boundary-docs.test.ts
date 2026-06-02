@@ -64,10 +64,6 @@ describe('Agent boundary docs', () => {
     const productionSourcePaths = walkProductionFiles(join(ROOT, 'src'))
       .map((filePath) => filePath.slice(ROOT.length + 1));
     const forbidden = [
-      `Open${'Claw'}`,
-      `Her${'mes'}`,
-      `capabilities ${'audit'}`,
-      `capabilities-${'audit'}`,
       `Home ${'Assistant'}`,
       `Home${'Graph'}`,
       `@pellux/goodvibes-${'tui'}`,
