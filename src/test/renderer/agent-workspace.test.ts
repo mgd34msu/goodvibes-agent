@@ -656,7 +656,37 @@ describe('renderAgentWorkspace', () => {
   test('renders in-workspace local library editor controls', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-search');
+    workspace.activateSelected();
+    const personaSearchOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(personaSearchOutput).toContain('Search Personas');
+    expect(personaSearchOutput).toContain('Search query');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-show');
+    workspace.activateSelected();
+    const personaShowOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(personaShowOutput).toContain('Show Persona');
+    expect(personaShowOutput).toContain('Persona id *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-search');
+    workspace.activateSelected();
+    const skillSearchOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(skillSearchOutput).toContain('Search Skills');
+    expect(skillSearchOutput).toContain('Search query');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-show');
+    workspace.activateSelected();
+    const skillShowOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(skillShowOutput).toContain('Show Skill');
+    expect(skillShowOutput).toContain('Skill id *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create');
     workspace.activateSelected();
 
@@ -671,6 +701,21 @@ describe('renderAgentWorkspace', () => {
     expect(procedureOutput).toContain('more field(s) above');
     expect(output).toContain('Enter next/save');
     expect(output).toContain('Esc cancel');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-search');
+    workspace.activateSelected();
+    const routineSearchOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(routineSearchOutput).toContain('Search Routines');
+    expect(routineSearchOutput).toContain('Search query');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-show');
+    workspace.activateSelected();
+    const routineShowOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(routineShowOutput).toContain('Show Routine');
+    expect(routineShowOutput).toContain('Routine id *');
   });
 
   test('renders local skill bundles in the skills workspace', () => {

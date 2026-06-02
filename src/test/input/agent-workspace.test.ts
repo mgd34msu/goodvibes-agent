@@ -965,17 +965,59 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
     expect(dispatched).toEqual(['/personas list']);
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-search');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('persona-search');
+    feedText(workspace, 'research');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/personas search research');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('persona-show');
+    feedText(workspace, 'research-analyst');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/personas show research-analyst');
+
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create');
     workspace.activateSelected();
-    expect(dispatched).toEqual(['/personas list']);
+    expect(dispatched).toEqual(['/personas list', '/personas search research', '/personas show research-analyst']);
     expect(workspace.localEditor?.kind).toBe('skill');
     workspace.cancelLocalEditor();
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-search');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-search');
+    feedText(workspace, 'briefing');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/agent-skills search briefing');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-show');
+    feedText(workspace, 'briefing');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/agent-skills show briefing');
+
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-search');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('routine-search');
+    feedText(workspace, 'daily');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/routines search daily');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('routine-show');
+    feedText(workspace, 'daily-brief');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/routines show daily-brief');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipts');
     workspace.activateSelected();
-    expect(dispatched).toEqual(['/personas list', '/routines receipts']);
+    expect(dispatched.at(-1)).toBe('/routines receipts');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipt');
     workspace.activateSelected();
