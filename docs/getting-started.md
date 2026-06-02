@@ -60,6 +60,7 @@ The local behavior libraries are configured in the TUI first:
 - Personas -> Create persona, Use selected, Review selected, or Delete selected.
 - Skills -> Create skill, Create bundle, Enable selected, Review selected, or Delete selected.
 - Routines -> Create routine, Start selected, Enable selected, Promote to schedule, or Review receipts.
+- Work -> Add work item, Review work plan, or Update work item status.
 
 The installed CLI mirrors these libraries for scripts, but it is not the primary user workflow.
 

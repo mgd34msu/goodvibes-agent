@@ -35,6 +35,7 @@ import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-to
 import { registerAgentNotifyTool } from '../tools/agent-notify-tool.ts';
 import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
 import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
+import { registerAgentWorkPlanTool } from '../tools/agent-work-plan-tool.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { registerAgentRuntimeEvents } from './agent-runtime-events.ts';
 
@@ -238,6 +239,7 @@ export async function initializeBootstrapCore(
   registerAgentNotifyTool(toolRegistry, configManager, services.webhookNotifier);
   registerAgentOperatorBriefingTool(toolRegistry, services.shellPaths, configManager);
   registerAgentReminderScheduleTool(toolRegistry, services.shellPaths, configManager);
+  registerAgentWorkPlanTool(toolRegistry, services.workPlanStore);
   installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),
   });

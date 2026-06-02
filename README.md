@@ -83,6 +83,7 @@ Local Agent behavior is editable from the TUI workspace:
 - Agent Workspace -> Personas: create, inspect, activate, review, stale, and delete local personas.
 - Agent Workspace -> Skills: create skills, import discovered skills, enable or disable them, and manage skill bundles.
 - Agent Workspace -> Routines: create routines, start a routine in the main conversation, review receipts, and explicitly promote one routine to a connected schedule.
+- Agent Workspace -> Work: review the visible local work plan, add work items, and update status from the TUI while the main assistant conversation can keep the same plan current.
 - Agent Workspace -> Memory & Skills: create memory, search memory, review/stale/delete records, export/import bundles, and rebuild the local vector index.
 - Agent Workspace -> Channels: inspect readiness, pair companion clients, and manage or send configured notification targets with confirmation.
 
