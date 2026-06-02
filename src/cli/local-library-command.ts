@@ -1,5 +1,6 @@
 import { createShellPathService } from '@/runtime/index.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
+import { discoverSkills, type SkillRecord } from '../agent/skill-discovery.ts';
 import {
   AgentSkillRegistry,
   type AgentSkillBundleRecord,
@@ -107,6 +108,13 @@ function skillRegistry(runtime: CliCommandRuntime): AgentSkillRegistry {
   }));
 }
 
+function shellPaths(runtime: CliCommandRuntime): ReturnType<typeof createShellPathService> {
+  return createShellPathService({
+    workingDirectory: runtime.workingDirectory,
+    homeDirectory: runtime.homeDirectory,
+  });
+}
+
 function summarizePersona(persona: AgentPersonaRecord, activePersonaId: string | null): string {
   const active = persona.id === activePersonaId ? 'active' : 'available';
   const tags = persona.tags.length > 0 ? ` tags=${persona.tags.join(',')}` : '';
@@ -174,6 +182,52 @@ function renderSkillList(title: string, path: string, skills: readonly AgentSkil
   ].join('\n');
 }
 
+function summarizeDiscoveredSkill(skill: SkillRecord): string {
+  const description = skill.description ? ` - ${skill.description}` : '';
+  const dependencies = skill.dependencies.length > 0 ? ` deps=${skill.dependencies.join(',')}` : '';
+  const includes = skill.includes.length > 0 ? ` includes=${skill.includes.join(',')}` : '';
+  return [
+    `  ${skill.name}  ${skill.origin}${description}${dependencies}${includes}`,
+    `    path: ${skill.path}`,
+  ].join('\n');
+}
+
+function renderDiscoveredSkillList(skills: readonly SkillRecord[]): string {
+  if (skills.length === 0) {
+    return [
+      'Discovered Agent skill files',
+      '  No SKILL.md or .md skill files found in Agent skill folders.',
+      '  Search roots: .goodvibes/skills, .goodvibes/agent/skills, ~/.goodvibes/skills, ~/.goodvibes/agent/skills',
+    ].join('\n');
+  }
+  return [
+    `Discovered Agent skill files (${skills.length})`,
+    ...skills.map(summarizeDiscoveredSkill),
+    '',
+    'Import one with: goodvibes-agent skills import-discovered <name> --yes',
+  ].join('\n');
+}
+
+function discoveredSkillLookupValues(skill: SkillRecord): readonly string[] {
+  const slug = skill.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const basename = skill.path.split(/[\\/]/).pop()?.replace(/\.md$/i, '') ?? '';
+  return [skill.name, slug, skill.path, basename]
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function findDiscoveredSkill(skills: readonly SkillRecord[], idOrName: string): SkillRecord | null {
+  const lookup = idOrName.trim().toLowerCase();
+  if (!lookup) return null;
+  return skills.find((skill) => discoveredSkillLookupValues(skill).includes(lookup)) ?? null;
+}
+
+function discoveredFrontmatterList(skill: SkillRecord, key: string): readonly string[] {
+  const value = skill.frontmatter[key];
+  if (!value) return [];
+  return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
 function renderBundleList(title: string, path: string, bundles: readonly AgentSkillBundleRecord[]): string {
   if (bundles.length === 0) {
     return [
@@ -231,7 +285,7 @@ function usagePersonas(): string {
 }
 
 function usageSkills(): string {
-  return 'Usage: goodvibes-agent skills [list|enabled|active|search <query>|show <id>|create|update <id>|enable <id>|disable <id>|review <id>|stale <id> <reason>|delete <id> --yes|bundle ...]';
+  return 'Usage: goodvibes-agent skills [list|enabled|active|discover|import-discovered <name> --yes|search <query>|show <id>|create|update <id>|enable <id>|disable <id>|review <id>|stale <id> <reason>|delete <id> --yes|bundle ...]';
 }
 
 function usageBundles(): string {
@@ -452,6 +506,41 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
         renderSkillList('Active Agent skills', snapshot.path, snapshot.activeSkills),
         snapshot.enabledBundles.length > 0 ? renderBundleList('Enabled Agent skill bundles', snapshot.path, snapshot.enabledBundles) : '',
       ].filter(Boolean).join('\n\n'));
+    }
+    if (normalized === 'discover') {
+      const discovered = await discoverSkills(shellPaths(runtime));
+      return success(runtime, 'agent.skills.discover', { skills: discovered }, renderDiscoveredSkillList(discovered));
+    }
+    if (normalized === 'import-discovered' || normalized === 'import-skill') {
+      const options = parseOptions(rest);
+      const name = options.positionals.join(' ').trim();
+      if (!name) return failure(runtime, 'invalid_skill_command', 'Usage: goodvibes-agent skills import-discovered <name> [--enabled] --yes', 2);
+      const discovered = findDiscoveredSkill(await discoverSkills(shellPaths(runtime)), name);
+      if (!discovered) {
+        return failure(runtime, 'skill_discovery_not_found', `Unknown discovered Agent skill: ${name}\nRun goodvibes-agent skills discover to inspect available skill files.`, 1);
+      }
+      if (!hasFlag(options, 'yes')) {
+        return success(runtime, 'agent.skills.import_discovered.preview', { skill: discovered }, [
+          'Agent skill import preview',
+          `  name: ${discovered.name}`,
+          `  origin: ${discovered.origin}`,
+          `  path: ${discovered.path}`,
+          `  description: ${discovered.description || '(none)'}`,
+          `  procedure characters: ${discovered.body.length}`,
+          '  next: rerun with --yes to import into the Agent-local skill registry',
+        ].join('\n'));
+      }
+      const skill = registry.create({
+        name: discovered.name,
+        description: discovered.description || `Imported skill from ${discovered.origin} skill file.`,
+        procedure: discovered.body,
+        tags: discoveredFrontmatterList(discovered, 'tags'),
+        triggers: discoveredFrontmatterList(discovered, 'triggers'),
+        enabled: hasFlag(options, 'enabled'),
+        source: 'imported',
+        provenance: `discovered:${discovered.origin}:${discovered.path}`,
+      });
+      return success(runtime, 'agent.skills.import_discovered', skill, `Imported Agent skill ${skill.id}: ${skill.name}${skill.enabled ? ' (enabled)' : ''}`);
     }
     if (normalized === 'search' || normalized === 'find') {
       const query = rest.join(' ').trim();

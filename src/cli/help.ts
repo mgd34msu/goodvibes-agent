@@ -188,6 +188,8 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'skills list',
       'skills enabled',
       'skills active',
+      'skills discover',
+      'skills import-discovered <name> [--enabled] --yes',
       'skills search <query>',
       'skills show <id>',
       'skills create --name <name> --description <summary> --procedure <steps> [--tags a,b] [--triggers a,b] [--enabled]',
@@ -202,6 +204,8 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     summary: 'Manage reusable Agent-local procedures and skill bundles for the main conversation.',
     examples: [
       'skills list',
+      'skills discover',
+      'skills import-discovered "Daily Brief" --enabled --yes',
       'skills create --name "Daily Brief" --description "Summarize operator state" --procedure "Review Agent Knowledge, work plans, approvals, and routines" --enabled',
       'skills bundle create --name "Ops Pack" --description "Daily operations bundle" --skills daily-brief --enabled',
       'skills delete daily-brief --yes',

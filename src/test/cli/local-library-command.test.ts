@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
@@ -159,6 +159,66 @@ describe('local Agent library CLI commands', () => {
     expect(deleted.output).toContain('Agent skill deleted: daily-brief');
   });
 
+  test('discovers previews and imports skill files from the CLI', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skills-discovery-cli-'));
+    roots.push(home);
+    const skillDir = join(home, '.goodvibes', 'agent', 'skills', 'travel-planner');
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(join(skillDir, 'SKILL.md'), [
+      '---',
+      'name: Travel Planner',
+      'description: Compare routes, lodging, and constraints before booking',
+      'tags: travel,planning',
+      'triggers: trip,vacation',
+      '---',
+      'Ask for dates, budget, destination constraints, and traveler preferences.',
+      'Compare options before recommending a booking path.',
+      '',
+    ].join('\n'));
+
+    const discovered = await runCli(['skills', 'discover'], home);
+    expect(discovered.exitCode).toBe(0);
+    expect(discovered.output).toContain('Discovered Agent skill files (1)');
+    expect(discovered.output).toContain('Travel Planner');
+    expect(discovered.output).toContain('travel-planner/SKILL.md');
+
+    const discoveredJson = await runCli(['skills', 'discover', '--json'], home);
+    const discoveredPayload = JSON.parse(discoveredJson.output) as {
+      readonly kind?: unknown;
+      readonly data?: { readonly skills?: readonly { readonly name?: unknown; readonly origin?: unknown }[] };
+    };
+    expect(discoveredPayload.kind).toBe('agent.skills.discover');
+    expect(discoveredPayload.data?.skills?.[0]?.name).toBe('Travel Planner');
+    expect(discoveredPayload.data?.skills?.[0]?.origin).toBe('project-local');
+
+    const preview = await runCli(['skills', 'import-discovered', 'travel-planner'], home);
+    expect(preview.exitCode).toBe(0);
+    expect(preview.output).toContain('Agent skill import preview');
+    expect(preview.output).toContain('rerun with --yes');
+
+    const beforeImport = await runCli(['skills', 'list'], home);
+    expect(beforeImport.output).toContain('No local Agent skills yet.');
+
+    const imported = await runCli(['skills', 'import-discovered', 'Travel', 'Planner', '--enabled', '--yes'], home);
+    expect(imported.exitCode).toBe(0);
+    expect(imported.output).toContain('Imported Agent skill travel-planner: Travel Planner (enabled)');
+
+    const active = await runCli(['skills', 'active'], home);
+    expect(active.output).toContain('Travel Planner');
+    expect(active.output).toContain('enabled');
+
+    const shownJson = await runCli(['skills', 'show', 'travel-planner', '--json'], home);
+    const shownPayload = JSON.parse(shownJson.output) as {
+      readonly kind?: unknown;
+      readonly data?: { readonly source?: unknown; readonly provenance?: unknown; readonly tags?: readonly string[]; readonly triggers?: readonly string[] };
+    };
+    expect(shownPayload.kind).toBe('agent.skills.show');
+    expect(shownPayload.data?.source).toBe('imported');
+    expect(String(shownPayload.data?.provenance ?? '')).toContain('discovered:project-local:');
+    expect(shownPayload.data?.tags).toContain('travel');
+    expect(shownPayload.data?.triggers).toContain('vacation');
+  });
+
   test('top-level help advertises local personas and skills', async () => {
     const help = renderGoodVibesHelp();
     expect(help).toContain('personas');
@@ -172,6 +232,8 @@ describe('local Agent library CLI commands', () => {
 
     const skillsHelp = renderGoodVibesCommandHelp('skills');
     expect(skillsHelp).toContain('GoodVibes skills');
+    expect(skillsHelp).toContain('skills discover');
+    expect(skillsHelp).toContain('skills import-discovered');
     expect(skillsHelp).toContain('skills bundle create');
   });
 });
