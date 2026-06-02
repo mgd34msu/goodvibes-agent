@@ -49,7 +49,7 @@ export function buildDefaultDerivedState(): OnboardingStepDerivationState {
         required: false,
         accepted: false,
         reason: 'not-needed',
-        detail: 'No connected-service auth signal needs confirmation.',
+        detail: 'No connected-host auth signal needs confirmation.',
       },
     },
   };

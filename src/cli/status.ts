@@ -146,9 +146,9 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         id: 'external-runtime-token-missing',
         area: 'auth',
         severity: 'warning',
-        summary: 'Connected-service operator token is missing.',
+        summary: 'Connected-host operator token is missing.',
         cause: `No operator token was found at ${options.externalRuntime.operatorToken.path}.`,
-        impact: 'Agent can inspect only unauthenticated routes and cannot use protected connected-service APIs.',
+        impact: 'Agent can inspect only unauthenticated routes and cannot use protected connected-host APIs.',
         action: 'Pair or provision access through the owning GoodVibes host, then rerun goodvibes-agent auth.',
       });
     }
@@ -171,10 +171,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'runtime-ownership-external',
       area: 'runtime',
       severity: 'warning',
-      summary: 'Connected-service settings are present while Agent service ownership is disabled by design.',
+      summary: 'Connected-host settings are present while Agent host ownership is disabled by design.',
       cause: 'One or more connected API, inbound events, or browser companion settings are enabled while service.enabled is false.',
       impact: 'The owning GoodVibes host must provide availability for those endpoints; Agent will not start or enable them.',
-      action: 'Manage connected-service availability from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
+      action: 'Manage connected-host availability from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
     });
   }
 
@@ -186,7 +186,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         area: 'runtime',
         severity: 'warning',
         summary: issue,
-        cause: 'The connected-service inspection found a mismatch between configured endpoint state and observed host state.',
+        cause: 'The connected-host inspection found a mismatch between configured endpoint state and observed host state.',
         impact: 'Connected API, listener, or web availability may not match the configuration.',
         action: 'Use Agent status and doctor diagnostics here, then manage the connected host outside Agent.',
       });
@@ -200,7 +200,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       severity: 'warning',
       summary: 'Agent setup has not been shown for this user.',
       cause: 'No global user setup check marker was found.',
-      impact: 'Important connected-service, network, provider, auth, or permission choices may still be implicit defaults.',
+      impact: 'Important connected-host, network, provider, auth, or permission choices may still be implicit defaults.',
       action: 'Run /setup in GoodVibes Agent or goodvibes-agent setup status to review setup state.',
     });
   }
@@ -210,10 +210,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'network-endpoint-without-runtime-auth-signal',
       area: 'auth',
       severity: 'risk',
-      summary: 'Network-facing connected-service endpoints are enabled without a visible auth signal.',
-      cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but Agent cannot see connected-service auth state from its local compatibility files.`,
+      summary: 'Network-facing connected-host endpoints are enabled without a visible auth signal.',
+      cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but Agent cannot see connected-host auth state from its local compatibility files.`,
       impact: 'Remote access paths may be unusable or unsafe unless the owning host configured auth.',
-      action: 'Review connected-service auth outside Agent; Agent will not create local service users.',
+      action: 'Review connected-host auth outside Agent; Agent will not create local service users.',
     });
   }
 

@@ -150,7 +150,7 @@ function missingSelectedProviderStatus(selectedProviderId: string): AgentWorkspa
     secretKeyOptions: [],
     configuredSecretKeys: [],
     missingSecretKeyOptions: [],
-    nextStep: `Selected TTS provider ${selectedProviderId} is not registered in connected GoodVibes services.`,
+    nextStep: `Selected TTS provider ${selectedProviderId} is not registered by the connected GoodVibes host.`,
   };
 }
 

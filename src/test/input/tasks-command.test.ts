@@ -90,7 +90,7 @@ function requireTasksReadModel(
 }
 
 describe('tasks command', () => {
-  test('lists, shows, and outputs connected-service tasks', async () => {
+  test('lists, shows, and outputs connected-host tasks', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const tasksCommand = registry.get('tasks');

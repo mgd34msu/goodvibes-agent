@@ -143,7 +143,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   status: {
     usage: ['status', 'status --json', '--runtime-url http://127.0.0.1:3421 status'],
-    summary: 'Print Agent config, provider, auth, connected-service state, and setup posture.',
+    summary: 'Print Agent config, provider, auth, connected-host state, and setup posture.',
     examples: ['status', 'status --json', '--runtime-url http://127.0.0.1:3421 status'],
   },
   doctor: {
@@ -348,7 +348,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   tasks: {
     usage: ['tasks list', 'tasks show <taskId>'],
-    summary: 'Inspect connected-service task summaries. Agent blocks service-owned task submission; use run for one-shot work or delegate for explicit build/fix/review handoff.',
+    summary: 'Inspect connected-host task summaries. Agent blocks host-owned task submission; use run for one-shot work or delegate for explicit build/fix/review handoff.',
     examples: ['tasks list', 'tasks show task-123', 'run "check provider readiness"', 'delegate "fix the failing tests"'],
   },
   bundle: {

@@ -64,7 +64,7 @@ describe('parseCliFlags', () => {
   // parseCliFlags itself does not read env vars — it only returns parsed flag
   // values. The shell entrypoint is responsible for setting env
   // vars from the returned flags. Agent exposes a working-directory override;
-  // connected-service token locations stay derived from the Agent home.
+  // connected-host token locations stay derived from the Agent home.
 
   test('env GOODVIBES_WORKING_DIR is the fallback when flag absent', () => {
     const flags = parseCliFlags([]);
@@ -176,7 +176,7 @@ describe('parseCliFlags', () => {
     expect(subscription.commandArgs).toEqual(['login', 'openai', 'start', '--manual']);
   });
 
-  test('blocks copied auth user administration instead of creating a local connected-service user store', async () => {
+  test('blocks copied auth user administration instead of creating a local connected-host user store', async () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-auth-block-'));
     try {
       const configManager = new ConfigManager({
@@ -195,7 +195,7 @@ describe('parseCliFlags', () => {
 
       expect(result.result.handled).toBe(true);
       expect(result.result.exitCode).toBe(2);
-      expect(result.output).toContain('Unsupported: connected-service auth user/session administration is outside GoodVibes Agent.');
+      expect(result.output).toContain('Unsupported: connected-host auth user/session administration is outside GoodVibes Agent.');
       expect(existsSync(join(root, '.goodvibes', 'agent', 'auth-users.json'))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });

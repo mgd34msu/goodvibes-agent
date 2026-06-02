@@ -544,8 +544,8 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
   ]);
   if (blocked.has(sub)) {
     return [
-      'Unsupported: connected-service auth user/session administration is outside GoodVibes Agent.',
-      'GoodVibes Agent does not create, delete, rotate, revoke, or clear connected-service users, sessions, or bootstrap credentials.',
+      'Unsupported: connected-host auth user/session administration is outside GoodVibes Agent.',
+      'GoodVibes Agent does not create, delete, rotate, revoke, or clear connected-host users, sessions, or bootstrap credentials.',
       'Use the owning GoodVibes host for auth administration.',
     ].join('\n');
   }
@@ -570,7 +570,7 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
       `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'}`,
       `  operator token path: ${paths.operatorTokenPath}`,
       `  ${sub}: managed outside Agent`,
-      '  Agent does not enumerate or mutate connected-service users/sessions from the local CLI.',
+      '  Agent does not enumerate or mutate connected-host users/sessions from the local CLI.',
     ].join('\n'));
   }
   return formatJsonOrText(runtime.cli)(value, [
@@ -580,7 +580,7 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
     `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'} (${paths.operatorTokenPath})`,
     `  compatibility user store: ${paths.userStorePresent ? 'present' : 'missing'} (${paths.userStorePath})`,
     `  compatibility bootstrap credential: ${paths.bootstrapCredentialPresent ? 'present' : 'missing'} (${paths.bootstrapCredentialPath})`,
-    '  connected-service user/session administration: outside Agent',
+    '  connected-host user/session administration: outside Agent',
     '  next: goodvibes-agent providers',
     '  next: goodvibes-agent subscription providers',
   ].join('\n'));

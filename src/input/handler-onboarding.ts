@@ -487,11 +487,11 @@ export function getOnboardingRuntimePostureForHandler(handler: InputHandler, req
 export async function restartOnboardingExternalServicesIfNeededForHandler(handler: InputHandler, request: OnboardingApplyRequest): Promise<OnboardingVerificationItem[]> {
     const externalServices = handler.uiServices.platform.externalServices;
     const state = externalServices?.inspect();
-    const serviceStatus = state?.daemonStatus?.reason ?? (state?.daemonRunning ? 'connected GoodVibes services appear active' : 'connected GoodVibes services are not verified from this shell');
+    const serviceStatus = state?.daemonStatus?.reason ?? (state?.daemonRunning ? 'connected GoodVibes host appears active' : 'connected GoodVibes host is not verified from this shell');
     return [{
       id: 'runtime:external-service-owned',
       status: 'pass',
-      message: `GoodVibes Agent did not start, stop, restart, or reconfigure connected services. ${serviceStatus}`,
+      message: `GoodVibes Agent did not start, stop, restart, or reconfigure the connected host. ${serviceStatus}`,
       target: 'service',
     }];
   }
@@ -503,8 +503,8 @@ export function verifyOnboardingRuntimePostureForHandler(handler: InputHandler, 
       id: 'runtime:external-service-owned',
       status: 'pass',
       message: externalState
-        ? 'Connected GoodVibes services are managed outside Agent; Agent onboarding did not request shutdown, startup, restart, bind, or surface changes.'
-        : 'Connected GoodVibes services are managed outside Agent; no local service controller is required for Agent onboarding.',
+        ? 'The connected GoodVibes host is managed outside Agent; Agent onboarding did not request shutdown, startup, restart, bind, or surface changes.'
+        : 'The connected GoodVibes host is managed outside Agent; no local service controller is required for Agent onboarding.',
       target: 'service',
     }];
   }

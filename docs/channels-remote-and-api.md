@@ -1,6 +1,6 @@
 # Channels, Remote Access, and API
 
-GoodVibes Agent can be reached from terminal-first and companion surfaces, but the Agent product does not own transport hosting. It connects to GoodVibes services owned outside this package and uses public operator routes for status, sessions, artifacts, approvals, automation, and Agent Knowledge.
+GoodVibes Agent can be reached from terminal-first and companion surfaces, but the Agent product does not own transport hosting. It connects to a GoodVibes host owned outside this package and uses public operator routes for status, sessions, artifacts, approvals, automation, and Agent Knowledge.
 
 ## Channel Posture
 
@@ -14,7 +14,7 @@ Agent channel UX should show:
 - delivery risk and public exposure warnings;
 - the command or workspace action needed to review pairing.
 
-Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved connected-service request.
+Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved connected-host request.
 
 ## Companion And Session Routes
 
@@ -40,7 +40,7 @@ Use public SDK/operator routes only. For Agent Knowledge, the only valid family 
 /api/goodvibes-agent/knowledge/*
 ```
 
-If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default Knowledge/Wiki, another product segment, or private connected-service files.
+If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default Knowledge/Wiki, another product segment, or private connected-host files.
 
 ## Related Docs
 

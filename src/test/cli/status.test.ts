@@ -106,7 +106,7 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('[warning:network:network-http-listener-enabled]');
   });
 
-  test('connected-service posture findings never instruct Agent to mutate services', () => {
+  test('connected-host posture findings never instruct Agent to mutate services', () => {
     const findings = buildCliDoctorFindings(makeOptions({
       'service.enabled': false,
       'service.autostart': false,
@@ -116,14 +116,14 @@ describe('CLI status and doctor output', () => {
     }));
     const text = findings.map((finding) => `${finding.summary}\n${finding.action}`).join('\n');
 
-    expect(text).toContain('Agent service ownership is disabled');
+    expect(text).toContain('Agent host ownership is disabled');
     expect(text).toContain('owning host');
     expect(text).not.toContain('Enable service mode');
     expect(text).not.toContain('Enable service.autostart');
     expect(text).not.toContain('Enable service.restartOnFailure');
   });
 
-  test('status foregrounds live connected services and Agent Knowledge readiness', () => {
+  test('status foregrounds live connected host and Agent Knowledge readiness', () => {
     const text = renderCliStatus(makeOptions());
 
     expect(text).toContain('Connected GoodVibes API:');
@@ -146,7 +146,7 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('hostRestartOnFailure');
   });
 
-  test('doctor includes connected-service config and endpoint diagnostics', () => {
+  test('doctor includes connected-host config and endpoint diagnostics', () => {
     const text = renderCliStatus({ ...makeOptions(), doctor: true });
 
     expect(text).toContain('Connected Host Config Signals:');
@@ -166,7 +166,7 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('GoodVibes onboarding status');
   });
 
-  test('doctor warns when connected services or Agent Knowledge are unavailable without suggesting fallback wiki use', () => {
+  test('doctor warns when connected host or Agent Knowledge are unavailable without suggesting fallback wiki use', () => {
     const findings = buildCliDoctorFindings({
       ...makeOptions(),
       externalRuntime: makeExternalRuntime({
@@ -209,7 +209,7 @@ describe('CLI status and doctor output', () => {
     expect(findings.map((finding) => finding.id)).toContain('network-endpoint-with-bootstrap-credential');
   });
 
-  test('status can render a stable JSON contract with connected-service details', () => {
+  test('status can render a stable JSON contract with connected-host details', () => {
     const text = renderCliStatus({
       ...makeOptions(),
       outputFormat: 'json',
@@ -222,7 +222,7 @@ describe('CLI status and doctor output', () => {
         },
         managed: {
           platform: 'manual',
-          path: 'connected GoodVibes services',
+          path: 'connected GoodVibes host',
           installed: false,
           autostart: false,
           running: false,
@@ -230,7 +230,7 @@ describe('CLI status and doctor output', () => {
           commandPreview: 'managed outside goodvibes-agent',
           suggestedCommands: [],
           lastAction: 'status',
-          pidPath: 'connected GoodVibes services',
+          pidPath: 'connected GoodVibes host',
           lastError: null,
         },
         endpoints: [],

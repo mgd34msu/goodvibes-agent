@@ -88,7 +88,7 @@ describe('CLI help/version', () => {
     expect(help).toContain('Without --yes');
   });
 
-  test('auth help keeps connected-service user administration outside Agent', () => {
+  test('auth help keeps connected-host user administration outside Agent', () => {
     const help = renderGoodVibesCommandHelp('auth');
     expect(help).toContain('connection token state');
     expect(help).toContain('Runtime user/session administration stays outside Agent');

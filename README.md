@@ -5,7 +5,7 @@
 
 GoodVibes Agent is the personal operator assistant TUI for GoodVibes. It is built for day-to-day operator work: chat, setup, local profiles, routines, skills, personas, isolated Agent Knowledge, status review, approvals, automation visibility, and explicit build delegation.
 
-The Agent product connects to GoodVibes services owned outside this package. It does not install, start, stop, restart, or own those services.
+The Agent product connects to a GoodVibes host owned outside this package. It does not install, start, stop, restart, or own that host.
 
 Most work happens in the interactive TUI. The installed CLI exists to launch that TUI, inspect setup, and script local Agent libraries when that is useful.
 
@@ -109,7 +109,7 @@ Start the owning GoodVibes host before launching Agent. Agent status and compani
 
 Use `--runtime-url http://host:port` for a one-off launch, or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` when the connected host is not on the default local port. The legacy `GOODVIBES_AGENT_BASE_URL` env var is also accepted as an alias. These only change the connection target; Agent still does not host or start it.
 
-Agent reports unavailable, unauthenticated, or incompatible connected-service state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. Service lifecycle commands remain outside the Agent product.
+Agent reports unavailable, unauthenticated, or incompatible connected-host state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. Service lifecycle commands remain outside the Agent product.
 
 ## Product Boundary
 

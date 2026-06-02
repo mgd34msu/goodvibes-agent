@@ -16,7 +16,7 @@ const BLOCKED_TASK_MUTATIONS: ReadonlySet<string> = new Set([
 function printTaskMutationBlocked(print: (text: string) => void, subcommand: string): void {
   print([
     `Task mutation "${subcommand}" is blocked in GoodVibes Agent.`,
-    '  policy: connected-service tasks are read-only from the Agent TUI; normal work stays in the main conversation.',
+    '  policy: connected-host tasks are read-only from the Agent TUI; normal work stays in the main conversation.',
     '  durable tasks: use /workplan for visible planning and task tracking.',
     '  build/fix/review: use /delegate <task> to hand explicit implementation work to GoodVibes TUI.',
     '  result: no local task state was changed.',
@@ -51,7 +51,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'tasks',
     aliases: ['task'],
-    description: 'Inspect connected-service tasks without starting or mutating local background work',
+    description: 'Inspect connected-host tasks without starting or mutating local background work',
     usage: '[list [status|kind] | show <taskId> | output <taskId>]',
     handler(args, ctx) {
       const subcommand = args[0]?.toLowerCase() ?? 'list';

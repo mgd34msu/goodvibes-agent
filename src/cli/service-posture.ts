@@ -184,7 +184,7 @@ export async function buildCliServicePosture(
   const issues: string[] = [];
 
   if (serverBackedEnabled && !config.enabled) {
-    issues.push('Connected-service settings are present, but Agent service ownership is disabled by design.');
+    issues.push('Connected-host settings are present, but Agent host ownership is disabled by design.');
   }
   for (const endpoint of endpoints) {
     if (endpoint.enabled && options.probe && endpoint.reachable === false) {

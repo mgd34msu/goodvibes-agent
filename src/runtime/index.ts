@@ -113,7 +113,7 @@ function agentExternalHostStatus(
     port,
     baseUrl: `http://${host}:${port}`,
     reason: service === 'daemon'
-      ? 'GoodVibes Agent connects to GoodVibes services owned outside this product and does not start or restart them.'
+      ? 'GoodVibes Agent connects to a GoodVibes host owned outside this product and does not start or restart them.'
       : 'GoodVibes Agent does not own listener lifecycle.',
   };
 }

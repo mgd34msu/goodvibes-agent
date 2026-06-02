@@ -225,7 +225,7 @@ describe('onboarding derivation helpers', () => {
         id: 'operator-terminal',
         label: 'Agent Operator TUI',
         selected: true,
-        detail: 'Use GoodVibes Agent as the terminal operator while connecting to existing GoodVibes services. Agent setup does not create new entrypoints.',
+        detail: 'Use GoodVibes Agent as the terminal operator while connecting to an existing GoodVibes host. Agent setup does not create new entrypoints.',
       },
       {
         id: 'provider-access',
@@ -550,7 +550,7 @@ describe('onboarding derivation helpers', () => {
         id: 'operator-terminal',
         label: 'Agent Operator TUI',
         selected: true,
-        detail: 'Use GoodVibes Agent as the terminal operator while connecting to existing GoodVibes services. Agent setup does not create new entrypoints.',
+        detail: 'Use GoodVibes Agent as the terminal operator while connecting to an existing GoodVibes host. Agent setup does not create new entrypoints.',
       },
       {
         id: 'provider-access',
@@ -639,7 +639,7 @@ describe('onboarding derivation helpers', () => {
       required: true,
       accepted: false,
       reason: 'bootstrap-credential',
-      detail: 'A connected-service bootstrap credential signal is still visible to Agent.',
+      detail: 'A connected-host bootstrap credential signal is still visible to Agent.',
     });
   });
 

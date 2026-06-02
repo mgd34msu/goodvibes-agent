@@ -57,8 +57,8 @@ describe('Agent onboarding product boundary', () => {
 
     const text = wizard.steps.flatMap(collectStepStrings).join('\n');
 
-    expect(text).toContain('Connected GoodVibes services');
-    expect(text).toContain('Connected services snapshot');
+    expect(text).toContain('Connected GoodVibes host');
+    expect(text).toContain('Connected host snapshot');
     expect(text).not.toContain('GoodVibes runtime connection');
     expect(text).not.toContain('Runtime connection snapshot');
     expect(text).not.toContain('external GoodVibes runtime');

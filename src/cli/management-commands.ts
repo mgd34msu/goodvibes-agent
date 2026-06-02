@@ -279,7 +279,7 @@ export async function handleTasks(runtime: CliCommandRuntime): Promise<string> {
   const [sub = 'list', ...rest] = runtime.cli.commandArgs;
   if (sub === 'submit') {
     return [
-      'GoodVibes Agent blocks CLI task submission from the service-owned task workflow.',
+      'GoodVibes Agent blocks CLI task submission from the host-owned task workflow.',
       '  policy: do normal assistant work in the main Agent conversation or use `goodvibes-agent run <prompt>` for an explicit one-shot run.',
       '  build/fix/review: use `goodvibes-agent delegate <task>` for explicit GoodVibes TUI handoff.',
       '  result: no local task was started.',
@@ -289,7 +289,7 @@ export async function handleTasks(runtime: CliCommandRuntime): Promise<string> {
     const tasks = [...services.runtimeStore.getState().tasks.tasks.values()];
     if (sub === 'list') {
       return tasks.length === 0
-        ? 'GoodVibes tasks\n  No connected-service tasks are currently recorded.'
+        ? 'GoodVibes tasks\n  No connected-host tasks are currently recorded.'
         : ['GoodVibes tasks', ...tasks.map((task) => `  ${task.id} ${task.status} ${task.kind} ${task.title}`)].join('\n');
     }
     if (sub === 'show') {

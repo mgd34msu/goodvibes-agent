@@ -224,7 +224,7 @@ function hasAutomationReviewSignals(snapshot: OnboardingSnapshotState): boolean 
 }
 
 function describeOperatorTerminal(): string {
-  return 'Use GoodVibes Agent as the terminal operator while connecting to existing GoodVibes services. Agent setup does not create new entrypoints.';
+  return 'Use GoodVibes Agent as the terminal operator while connecting to an existing GoodVibes host. Agent setup does not create new entrypoints.';
 }
 
 function describeProviderAccess(snapshot: OnboardingSnapshotState): string {
@@ -458,23 +458,23 @@ export function deriveReopenEditAcknowledgementState(
         snapshot,
         'auth',
         'bootstrap-credential',
-        'A connected-service bootstrap credential signal is still visible to Agent.',
+        'A connected-host bootstrap credential signal is still visible to Agent.',
       )
     : authSessionCount > 0
       ? buildRequiredAcknowledgement(
           snapshot,
           'auth',
           'active-sessions',
-          `${authSessionCount} connected-service auth session signal(s) are currently visible.`,
+          `${authSessionCount} connected-host auth session signal(s) are currently visible.`,
         )
       : authUserCount > 0
         ? buildRequiredAcknowledgement(
             snapshot,
             'auth',
             'auth-state',
-            `${authUserCount} connected-service auth user signal(s) are already visible.`,
+            `${authUserCount} connected-host auth user signal(s) are already visible.`,
           )
-        : buildNotNeededAcknowledgement(snapshot, 'auth', 'No connected-service auth signal needs confirmation.');
+        : buildNotNeededAcknowledgement(snapshot, 'auth', 'No connected-host auth signal needs confirmation.');
 
   return {
     providers,

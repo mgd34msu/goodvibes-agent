@@ -20,7 +20,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'health',
     aliases: ['doctor'],
-    description: 'Health workspace for startup posture, service readiness, provider health, and Agent continuity',
+    description: 'Health workspace for startup posture, connected host readiness, provider health, and Agent continuity',
     usage: '[review|setup|services|provider|accounts|auth|settings|remote|mcp|continuity|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
@@ -97,12 +97,12 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       if (sub === 'auth') {
         const auth = readModels.localAuth.getSnapshot();
         ctx.print([
-          'Health Review: Connected-Service Auth',
-          '  owner: connected GoodVibes services',
+          'Health Review: Connected-Host Auth',
+          '  owner: connected GoodVibes host',
           `  compatibility users visible: ${auth.userCount}`,
           `  compatibility sessions visible: ${auth.sessionCount}`,
           `  bootstrap file signal: ${auth.bootstrapCredentialPresent ? 'present' : 'cleared'}`,
-          '  Agent action: review provider/subscription auth only; do not mutate connected-service auth users or bootstrap credentials.',
+          '  Agent action: review provider/subscription auth only; do not mutate connected-host auth users or bootstrap credentials.',
           ...(auth.bootstrapCredentialPresent ? ['  issue: bootstrap cleanup belongs outside Agent'] : []),
         ].join('\n'));
         return;
@@ -237,7 +237,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  domain: settings');
           lines.push(...(
             settings.conflicts.length > 0
-              ? ['  /settings', '  /config <key>', '  service-owned managed setting repair stays external']
+              ? ['  /settings', '  /config <key>', '  host-owned managed setting repair stays external']
               : ['  no active settings repair actions suggested']
           ));
           lines.push('  verify: /health settings');
@@ -246,7 +246,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /auth review');
           lines.push('  /provider');
           lines.push('  /subscription providers');
-          lines.push('  connected-service auth users/bootstrap cleanup: manage outside Agent');
+          lines.push('  connected-host auth users/bootstrap cleanup: manage outside Agent');
           lines.push('  verify: /health auth');
         } else if (domain === 'accounts') {
           lines.push('  domain: accounts');
@@ -258,7 +258,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         } else if (domain === 'services') {
           lines.push('  domain: services');
           lines.push('  /health services');
-          lines.push('  runtime service repair belongs outside Agent');
+          lines.push('  connected host repair belongs outside Agent');
           lines.push('  verify: /health services');
         } else if (domain === 'remote') {
           lines.push('  domain: remote');
@@ -331,7 +331,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         `  account issues: ${accountSnapshot.issueCount}`,
         `  settings conflicts: ${settingsSnapshot.conflicts.length}`,
         `  managed locks: ${settingsSnapshot.managedLockCount}`,
-        `  connected-service auth owner: outside Agent`,
+        `  connected-host auth owner: outside Agent`,
         `  remote workers: ${snapshot.remoteRunnerCount}`,
         ...formatSessionMaintenanceLines(maintenance, 'guided').map((line) => `  ${line}`),
         ...(snapshot.issues.length > 0 ? ['', ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`)] : []),

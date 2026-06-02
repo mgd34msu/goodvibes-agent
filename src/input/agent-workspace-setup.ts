@@ -51,7 +51,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
   return [
     {
       id: 'runtime',
-      label: 'Connected services',
+      label: 'Connected host',
       status: 'ready',
       detail: `Agent will connect to ${input.runtimeBaseUrl}; service ownership stays outside this product.`,
       command: '/health',

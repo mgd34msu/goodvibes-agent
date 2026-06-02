@@ -1,6 +1,6 @@
 /**
  * Regression tests for Agent settings boundaries around copied service-hosting
- * config. GoodVibes Agent connects to GoodVibes services owned outside this product; the settings
+ * config. GoodVibes Agent connects to a GoodVibes host owned outside this product; the settings
  * workspace must not expose controls that imply it owns daemon, listener,
  * browser host, raw network, service, or WRFC lifecycle.
  */

@@ -211,7 +211,7 @@ function formatChannelAccounts(body: unknown): string {
     '  policy: read-only account posture; secret values are never shown',
     '',
   ];
-  if (accounts.length === 0) return [...lines, '  No channel accounts reported by connected services.'].join('\n');
+  if (accounts.length === 0) return [...lines, '  No channel accounts reported by connected host.'].join('\n');
   for (const account of accounts.slice(0, 20)) {
     const surface = readString(account, 'surface', 'unknown');
     const accountId = readString(account, 'accountId', '');
@@ -236,7 +236,7 @@ function formatChannelPolicies(body: unknown): string {
     '  policy: read-only policy posture; use exact confirmed commands for changes',
     '',
   ];
-  if (policies.length === 0) return [...lines, '  No channel policies reported by connected services.'].join('\n');
+  if (policies.length === 0) return [...lines, '  No channel policies reported by connected host.'].join('\n');
   for (const policy of policies.slice(0, 20)) {
     const surface = readString(policy, 'surface', 'unknown');
     const direct = readBoolean(policy, 'allowDirectMessages') ? 'direct=yes' : 'direct=no';
@@ -255,7 +255,7 @@ function formatChannelStatus(body: unknown): string {
   const lines = [
     'Connected Channel Status',
     `  channels: ${channels.length}`,
-    '  policy: read-only connected-service status',
+    '  policy: read-only connected-host status',
     '',
   ];
   if (channels.length === 0) return [...lines, '  No connected channel status reported.'].join('\n');

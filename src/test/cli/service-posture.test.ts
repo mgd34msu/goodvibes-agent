@@ -27,7 +27,7 @@ describe('CLI service posture', () => {
     });
   }
 
-  test('reports connected-service diagnostics without resolving runtime binaries', async () => {
+  test('reports connected-host diagnostics without resolving runtime binaries', async () => {
     const config = createConfig();
     config.setDynamic('service.enabled', true);
     config.setDynamic('service.autostart', true);
@@ -45,7 +45,7 @@ describe('CLI service posture', () => {
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(posture.managed.suggestedCommands).toEqual([]);
     expect(posture.issues).toEqual([]);
-    expect(posture.issues).not.toContain('Connected-service config is enabled, but no platform service definition is installed.');
+    expect(posture.issues).not.toContain('Connected-host config is enabled, but no platform service definition is installed.');
     expect(text).toContain('GoodVibes Agent connected-host diagnostics');
     expect(text).toContain('lifecycle owner: outside goodvibes-agent');
     expect(text).toContain('Agent starts connected host: no');
@@ -100,7 +100,7 @@ describe('CLI service posture', () => {
     expect(posture.log.tail).toContain('<redacted>');
   });
 
-  test('json output preserves endpoint and connected-service ownership structure', async () => {
+  test('json output preserves endpoint and connected-host ownership structure', async () => {
     const config = createConfig();
     config.setDynamic('danger.daemon', true);
     config.setDynamic('service.enabled', false);
@@ -119,6 +119,6 @@ describe('CLI service posture', () => {
     expect(parsed.managed.path).toBe('connected GoodVibes host');
     expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
-    expect(parsed.issues).toContain('Connected-service settings are present, but Agent service ownership is disabled by design.');
+    expect(parsed.issues).toContain('Connected-host settings are present, but Agent host ownership is disabled by design.');
   });
 });
