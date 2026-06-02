@@ -204,6 +204,17 @@ try {
   if (statSync(installedRuntimeEntry).size <= 0) {
     throw new Error(`installed bundled runtime is empty: ${installedRuntimeEntry}`);
   }
+  const installedRuntimeSource = readFileSync(installedRuntimeEntry, 'utf-8');
+  const forbiddenRuntimeFragments = [
+    'node_modules/jsdom/lib/jsdom/browser/default-stylesheet.css',
+    '../../../browser/default-stylesheet.css',
+    'require.resolve("./xhr-sync-worker.js")',
+  ] as const;
+  for (const fragment of forbiddenRuntimeFragments) {
+    if (installedRuntimeSource.includes(fragment)) {
+      throw new Error(`installed bundled runtime leaked a build-machine dependency path: ${fragment}`);
+    }
+  }
 
   const help = run('goodvibes-agent', ['--help'], { env: bareSmokeEnv });
   if (!help.includes('goodvibes-agent')) {
