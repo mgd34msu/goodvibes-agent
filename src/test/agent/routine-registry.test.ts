@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AgentRoutineRegistry, buildEnabledRoutinesPrompt } from '../../agent/routine-registry.ts';
+import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from '../../agent/routine-registry.ts';
+import { formatAgentSkillRequirement } from '../../agent/skill-registry.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
 function tempRegistry(): { readonly registry: AgentRoutineRegistry; readonly paths: ReturnType<typeof createShellPathService> } {
@@ -76,5 +77,31 @@ describe('AgentRoutineRegistry', () => {
     expect(prompt).toContain('Do not start hidden background jobs');
     expect(prompt).not.toContain('/api/knowledge');
     expect(prompt).not.toContain('non-Agent knowledge fallback');
+  });
+
+  test('stores setup requirements and reports readiness without secret values', () => {
+    const { registry, paths } = tempRegistry();
+    const routine = registry.create({
+      name: 'Weekly Research Review',
+      description: 'Review research sources before planning.',
+      steps: 'Collect source-backed changes, summarize gaps, and ask before sending anything.',
+      requirements: [
+        { kind: 'env', name: 'GOODVIBES_AGENT_TEST_MISSING_TOKEN' },
+        { kind: 'command', name: 'definitely-missing-goodvibes-agent-routine-bin' },
+      ],
+      enabled: true,
+    });
+
+    const readiness = evaluateAgentRoutineReadiness(routine, {
+      env: { GOODVIBES_AGENT_TEST_MISSING_TOKEN: 'redacted', PATH: '' },
+      pathValue: '',
+    });
+    expect(readiness.ready).toBe(false);
+    expect(readiness.met.map(formatAgentSkillRequirement)).toEqual(['env:GOODVIBES_AGENT_TEST_MISSING_TOKEN']);
+    expect(readiness.missing.map(formatAgentSkillRequirement)).toEqual(['command:definitely-missing-goodvibes-agent-routine-bin']);
+
+    const prompt = buildEnabledRoutinesPrompt(paths);
+    expect(prompt).toContain('command:definitely-missing-goodvibes-agent-routine-bin');
+    expect(prompt).not.toContain('redacted');
   });
 });

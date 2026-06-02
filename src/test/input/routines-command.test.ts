@@ -156,6 +156,10 @@ describe('/routines command', () => {
       'Read channel state, group by sender, summarize urgency, and ask before external replies.',
       '--tags',
       'ops,communication',
+      '--requires-env',
+      'GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN',
+      '--requires-command',
+      'definitely-missing-goodvibes-agent-routine-bin',
     ], ctx);
     await registry.execute('routines', ['enable', 'inbox-sweep'], ctx);
     await registry.execute('routines', ['start', 'inbox-sweep'], ctx);
@@ -167,6 +171,9 @@ describe('/routines command', () => {
     expect(text).toContain('Created Agent routine inbox-sweep');
     expect(text).toContain('Enabled Agent routine inbox-sweep');
     expect(text).toContain('Started Agent routine inbox-sweep');
+    expect(text).toContain('needs env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN,command:definitely-missing-goodvibes-agent-routine-bin');
+    expect(text).toContain('readiness: needs setup (env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN, command:definitely-missing-goodvibes-agent-routine-bin)');
+    expect(text).toContain('missing: env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN, command:definitely-missing-goodvibes-agent-routine-bin');
     expect(text).toContain('no hidden job');
     expect(text).toContain('Inbox Sweep - Summarize inbound messages');
     expect(text).toContain('ask before external replies');

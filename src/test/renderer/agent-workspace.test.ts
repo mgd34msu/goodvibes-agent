@@ -213,6 +213,7 @@ function liveCommandContext(): CommandContext {
     name: 'Daily Brief',
     description: 'Summarize operator state.',
     steps: 'Review current daemon, tasks, approvals, and Agent Knowledge status first.',
+    requirements: [{ kind: 'env', name: 'GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN' }],
     enabled: true,
   });
   return {
@@ -493,6 +494,20 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('missing setup: env:GOODVIBES_AGENT_TEST_MISSING_TOKEN');
     expect(output).toContain('operator-pack: Operator Pack');
     expect(output).toContain('Skills: briefing');
+  });
+
+  test('renders routine setup readiness in the routines workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 42));
+
+    expect(output).toContain('Routines: 1; enabled: 1');
+    expect(output).toContain('Repeatable workflows with setup readiness');
+    expect(output).toContain('daily-brief: Daily Brief');
+    expect(output).toContain('needs 1/1');
+    expect(output).toContain('missing setup: env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN');
   });
 
   test('renders Agent Knowledge ingest and review workflow without default wiki fallback', () => {

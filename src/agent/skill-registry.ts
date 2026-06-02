@@ -680,12 +680,16 @@ export function buildAgentSkillRequirements(input: {
   ]);
 }
 
+export function normalizeAgentSkillRequirements(values: readonly AgentSkillRequirement[] | undefined): readonly AgentSkillRequirement[] {
+  return normalizeRequirements(values);
+}
+
 export function formatAgentSkillRequirement(requirement: AgentSkillRequirement): string {
   return `${requirement.kind}:${requirement.name}`;
 }
 
 export function evaluateAgentSkillReadiness(
-  skill: AgentSkillRecord,
+  skill: Pick<AgentSkillRecord, 'requirements'>,
   options: {
     readonly env?: Readonly<Record<string, string | undefined>>;
     readonly pathValue?: string;

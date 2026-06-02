@@ -624,6 +624,10 @@ export class AgentWorkspace {
             steps: this.editorField('steps'),
             triggers: splitList(this.editorField('triggers')),
             tags: splitList(this.editorField('tags')),
+            requirements: buildAgentSkillRequirements({
+              env: splitList(this.editorField('requiresEnv')),
+              commands: splitList(this.editorField('requiresCommands')),
+            }),
             provenance: 'agent-workspace',
           });
           registry.setEnabled(updated.id, isAffirmative(this.editorField('enabled')));
@@ -636,6 +640,10 @@ export class AgentWorkspace {
           steps: this.editorField('steps'),
           triggers: splitList(this.editorField('triggers')),
           tags: splitList(this.editorField('tags')),
+          requirements: buildAgentSkillRequirements({
+            env: splitList(this.editorField('requiresEnv')),
+            commands: splitList(this.editorField('requiresCommands')),
+          }),
           enabled: isAffirmative(this.editorField('enabled')),
           source: 'user',
           provenance: 'agent-workspace',

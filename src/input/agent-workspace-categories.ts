@@ -203,8 +203,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     id: 'routines',
     group: 'LEARN',
     label: 'Routines',
-    summary: 'Repeatable workflows for the main conversation.',
-    detail: 'Routines run in the main conversation by default. Promotion to a connected schedule requires a real schedule command and --yes.',
+    summary: 'Repeatable workflows with setup readiness.',
+    detail: 'Routines run in the main conversation by default and can declare env/command requirements. Promotion to a connected schedule requires a real schedule command and --yes.',
     actions: [
       { id: 'routines-list', label: 'List routines', detail: 'Print the full local Agent routine library.', command: '/routines list', kind: 'command', safety: 'read-only' },
       { id: 'routines-enabled', label: 'Enabled routines', detail: 'Show routines available for direct use.', command: '/routines enabled', kind: 'command', safety: 'read-only' },

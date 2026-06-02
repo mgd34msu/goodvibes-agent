@@ -581,9 +581,18 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
     feedText(workspace, 'home');
     feedKey(workspace, 'enter');
+    feedText(workspace, 'GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'definitely-missing-goodvibes-agent-routine-bin');
+    feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
 
-    expect(AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot().enabledRoutines[0]?.name).toBe('Daily Brief');
+    const routineSnapshot = AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot();
+    expect(routineSnapshot.enabledRoutines[0]?.name).toBe('Daily Brief');
+    expect(routineSnapshot.enabledRoutines[0]?.requirements.map((requirement) => `${requirement.kind}:${requirement.name}`)).toEqual([
+      'env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN',
+      'command:definitely-missing-goodvibes-agent-routine-bin',
+    ]);
     expect(workspace.lastActionResult?.title).toBe('Created routine');
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
@@ -1211,6 +1220,8 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
     feedText(workspace, ' Report blockers.');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');

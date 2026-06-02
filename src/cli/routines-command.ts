@@ -1,6 +1,7 @@
 import { createShellPathService } from '@/runtime/index.ts';
 import { discoverRoutines, type DiscoveredRoutineRecord } from '../agent/routine-discovery.ts';
-import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
+import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../agent/routine-registry.ts';
+import { buildAgentSkillRequirements, formatAgentSkillRequirement } from '../agent/skill-registry.ts';
 import {
   buildRoutineSchedulePreview,
   promoteRoutineToDaemonSchedule,
@@ -89,7 +90,9 @@ function parseImportFlags(args: readonly string[]): {
 function summarizeRoutine(routine: AgentRoutineRecord): string {
   const enabled = routine.enabled ? 'enabled' : 'disabled';
   const tags = routine.tags.length > 0 ? ` tags=${routine.tags.join(',')}` : '';
-  return `  ${routine.id}  ${enabled}  ${routine.reviewState}  starts=${routine.startCount}  ${routine.name} - ${routine.description}${tags}`;
+  const readiness = evaluateAgentRoutineReadiness(routine);
+  const ready = readiness.ready ? 'ready' : `needs ${readiness.missing.map(formatAgentSkillRequirement).join(',')}`;
+  return `  ${routine.id}  ${enabled}  ${routine.reviewState}  ${ready}  starts=${routine.startCount}  ${routine.name} - ${routine.description}${tags}`;
 }
 
 function summarizeDiscoveredRoutine(routine: DiscoveredRoutineRecord): string {
@@ -136,6 +139,14 @@ function discoveredRoutineFrontmatterList(routine: DiscoveredRoutineRecord, key:
   return splitList(value);
 }
 
+function discoveredRoutineFrontmatterAnyList(routine: DiscoveredRoutineRecord, keys: readonly string[]): readonly string[] {
+  for (const key of keys) {
+    const values = discoveredRoutineFrontmatterList(routine, key);
+    if (values.length > 0) return values;
+  }
+  return [];
+}
+
 function renderRoutineList(title: string, path: string, routines: readonly AgentRoutineRecord[]): string {
   if (routines.length === 0) {
     return [
@@ -152,10 +163,14 @@ function renderRoutineList(title: string, path: string, routines: readonly Agent
 }
 
 function renderRoutine(routine: AgentRoutineRecord): string {
+  const readiness = evaluateAgentRoutineReadiness(routine);
   return [
     `Routine ${routine.name}`,
     `  id: ${routine.id}`,
     `  enabled: ${routine.enabled ? 'yes' : 'no'}`,
+    `  readiness: ${readiness.ready ? 'ready' : 'needs setup'}`,
+    `  requirements: ${routine.requirements.map(formatAgentSkillRequirement).join(', ') || '(none)'}`,
+    readiness.missing.length > 0 ? `  missing: ${readiness.missing.map(formatAgentSkillRequirement).join(', ')}` : '',
     `  review: ${routine.reviewState}`,
     `  source: ${routine.source}`,
     `  provenance: ${routine.provenance}`,
@@ -317,6 +332,10 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       steps: discovered.steps,
       tags: discoveredRoutineFrontmatterList(discovered, 'tags'),
       triggers: discoveredRoutineFrontmatterList(discovered, 'triggers'),
+      requirements: buildAgentSkillRequirements({
+        env: discoveredRoutineFrontmatterAnyList(discovered, ['requiresEnv', 'requires-env', 'requires_env']),
+        commands: discoveredRoutineFrontmatterAnyList(discovered, ['requiresCommands', 'requires-commands', 'requires_commands', 'commands']),
+      }),
       enabled: parsed.enabled,
       source: 'imported',
       provenance: `discovered:${discovered.origin}:${discovered.path}`,

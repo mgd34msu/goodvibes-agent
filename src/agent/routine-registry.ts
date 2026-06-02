@@ -3,9 +3,18 @@ import { dirname } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
+import {
+  evaluateAgentSkillReadiness,
+  formatAgentSkillRequirement,
+  normalizeAgentSkillRequirements,
+  type AgentSkillReadiness,
+  type AgentSkillRequirement,
+} from './skill-registry.ts';
 
 export type AgentRoutineSource = 'user' | 'agent' | 'imported' | 'system';
 export type AgentRoutineReviewState = 'fresh' | 'reviewed' | 'stale';
+export type AgentRoutineRequirement = AgentSkillRequirement;
+export type AgentRoutineReadiness = AgentSkillReadiness;
 
 export interface AgentRoutineRecord {
   readonly id: string;
@@ -14,6 +23,7 @@ export interface AgentRoutineRecord {
   readonly steps: string;
   readonly triggers: readonly string[];
   readonly tags: readonly string[];
+  readonly requirements: readonly AgentRoutineRequirement[];
   readonly enabled: boolean;
   readonly source: AgentRoutineSource;
   readonly provenance: string;
@@ -32,6 +42,7 @@ export interface AgentRoutineCreateInput {
   readonly steps: string;
   readonly triggers?: readonly string[];
   readonly tags?: readonly string[];
+  readonly requirements?: readonly AgentRoutineRequirement[];
   readonly enabled?: boolean;
   readonly source?: AgentRoutineSource;
   readonly provenance?: string;
@@ -43,6 +54,7 @@ export interface AgentRoutineUpdateInput {
   readonly steps?: string;
   readonly triggers?: readonly string[];
   readonly tags?: readonly string[];
+  readonly requirements?: readonly AgentRoutineRequirement[];
   readonly provenance?: string;
 }
 
@@ -70,6 +82,18 @@ function readString(value: unknown, fallback = ''): string {
 function readStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean);
+}
+
+function readRequirementArray(value: unknown): readonly AgentRoutineRequirement[] {
+  if (!Array.isArray(value)) return [];
+  const requirements = value
+    .filter(isRecord)
+    .map((entry) => ({
+      kind: entry.kind === 'command' ? 'command' as const : 'env' as const,
+      name: readString(entry.name).trim(),
+      description: readString(entry.description).trim() || undefined,
+    }));
+  return normalizeAgentSkillRequirements(requirements);
 }
 
 function readNonNegativeInteger(value: unknown): number {
@@ -123,6 +147,7 @@ function parseRoutine(value: unknown): AgentRoutineRecord | null {
     steps,
     triggers: readStringArray(value.triggers),
     tags: readStringArray(value.tags),
+    requirements: readRequirementArray(value.requirements),
     enabled: value.enabled === true,
     source,
     provenance: readString(value.provenance, source).trim() || source,
@@ -202,7 +227,8 @@ export class AgentRoutineRegistry {
     const description = input.description.trim();
     const steps = input.steps.trim();
     this.validateRequired(name, description, steps);
-    assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? [])]);
+    const requirements = normalizeAgentSkillRequirements(input.requirements);
+    assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])]);
     const duplicate = store.routines.find((routine) => routine.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Routine already exists: ${duplicate.id}`);
     const timestamp = nowIso();
@@ -213,6 +239,7 @@ export class AgentRoutineRegistry {
       steps,
       triggers: normalizeList(input.triggers),
       tags: normalizeList(input.tags),
+      requirements,
       enabled: input.enabled === true,
       source: input.source ?? 'user',
       provenance: input.provenance?.trim() || input.source || 'user',
@@ -233,7 +260,8 @@ export class AgentRoutineRegistry {
     const description = input.description === undefined ? existing.description : input.description.trim();
     const steps = input.steps === undefined ? existing.steps : input.steps.trim();
     this.validateRequired(name, description, steps);
-    assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? [])]);
+    const requirements = input.requirements === undefined ? existing.requirements : normalizeAgentSkillRequirements(input.requirements);
+    assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])]);
     const duplicate = store.routines.find((routine) => routine.id !== existing.id && routine.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Routine already exists: ${duplicate.id}`);
     const updated: AgentRoutineRecord = {
@@ -243,6 +271,7 @@ export class AgentRoutineRegistry {
       steps,
       triggers: input.triggers === undefined ? existing.triggers : normalizeList(input.triggers),
       tags: input.tags === undefined ? existing.tags : normalizeList(input.tags),
+      requirements,
       provenance: input.provenance === undefined ? existing.provenance : input.provenance.trim() || existing.provenance,
       reviewState: 'fresh',
       staleReason: undefined,
@@ -372,6 +401,13 @@ export class AgentRoutineRegistry {
   }
 }
 
+export function evaluateAgentRoutineReadiness(
+  routine: Pick<AgentRoutineRecord, 'requirements'>,
+  options: Parameters<typeof evaluateAgentSkillReadiness>[1] = {},
+): AgentRoutineReadiness {
+  return evaluateAgentSkillReadiness(routine, options);
+}
+
 export function buildEnabledRoutinesPrompt(shellPaths: ShellPathService): string | null {
   const enabled = AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot().enabledRoutines;
   if (enabled.length === 0) return null;
@@ -384,6 +420,7 @@ export function buildEnabledRoutinesPrompt(shellPaths: ShellPathService): string
       `Description: ${routine.description}`,
       `Review state: ${routine.reviewState}`,
       `Triggers: ${routine.triggers.join(', ') || '(manual)'}`,
+      `Readiness: ${evaluateAgentRoutineReadiness(routine).ready ? 'ready' : `missing ${evaluateAgentRoutineReadiness(routine).missing.map(formatAgentSkillRequirement).join(', ')}`}`,
       routine.steps,
       '',
     ]),

@@ -168,6 +168,8 @@ describe('routines CLI command', () => {
       'description: Prepare a trip brief from local context.',
       'triggers: travel, trip',
       'tags: planning, personal',
+      'requiresEnv: GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN',
+      'requiresCommands: definitely-missing-goodvibes-agent-routine-bin',
       '---',
       'Review itinerary, constraints, and reminders.',
       'Ask before booking, messaging, or changing external plans.',
@@ -204,13 +206,24 @@ describe('routines CLI command', () => {
     const shownJson = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'show', 'travel-prep', '--json']) });
     const shownPayload = JSON.parse(shownJson.output) as {
       readonly kind?: unknown;
-      readonly data?: { readonly source?: unknown; readonly provenance?: unknown; readonly tags?: readonly string[]; readonly triggers?: readonly string[]; readonly enabled?: unknown };
+      readonly data?: {
+        readonly source?: unknown;
+        readonly provenance?: unknown;
+        readonly tags?: readonly string[];
+        readonly triggers?: readonly string[];
+        readonly requirements?: readonly { readonly kind?: unknown; readonly name?: unknown }[];
+        readonly enabled?: unknown;
+      };
     };
     expect(shownPayload.kind).toBe('agent.routines.show');
     expect(shownPayload.data?.source).toBe('imported');
     expect(String(shownPayload.data?.provenance ?? '')).toContain('discovered:project-local:');
     expect(shownPayload.data?.tags).toContain('planning');
     expect(shownPayload.data?.triggers).toContain('trip');
+    expect(shownPayload.data?.requirements?.map((requirement) => `${String(requirement.kind)}:${String(requirement.name)}`)).toEqual([
+      'env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN',
+      'command:definitely-missing-goodvibes-agent-routine-bin',
+    ]);
     expect(shownPayload.data?.enabled).toBe(true);
   });
 
