@@ -180,8 +180,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     id: 'skills',
     group: 'LEARN',
     label: 'Skills',
-    summary: 'Reusable local procedures the assistant can apply on demand.',
-    detail: 'Skills are local, reviewable procedures. Enabled skills inform the main conversation; secret-looking content is rejected.',
+    summary: 'Reusable local procedures with setup readiness.',
+    detail: 'Skills are local, reviewable procedures with optional env/command requirements. Enabled skills inform the main conversation; secret-looking content is rejected.',
     actions: [
       { id: 'skills-list', label: 'List skills', detail: 'Print the full local Agent skill library.', command: '/agent-skills list', kind: 'command', safety: 'read-only' },
       { id: 'skills-enabled', label: 'Enabled skills', detail: 'Show only skills currently injected into Agent guidance.', command: '/agent-skills enabled', kind: 'command', safety: 'read-only' },

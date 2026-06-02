@@ -5,7 +5,7 @@ import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
 import { createAgentRuntimeProfile, type AgentRuntimeProfileInfo } from '../agent/runtime-profile.ts';
-import { AgentSkillRegistry } from '../agent/skill-registry.ts';
+import { AgentSkillRegistry, buildAgentSkillRequirements } from '../agent/skill-registry.ts';
 import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from './agent-workspace-command-editor.ts';
@@ -590,6 +590,10 @@ export class AgentWorkspace {
             procedure: this.editorField('procedure'),
             triggers: splitList(this.editorField('triggers')),
             tags: splitList(this.editorField('tags')),
+            requirements: buildAgentSkillRequirements({
+              env: splitList(this.editorField('requiresEnv')),
+              commands: splitList(this.editorField('requiresCommands')),
+            }),
             provenance: 'agent-workspace',
           });
           registry.setEnabled(updated.id, isAffirmative(this.editorField('enabled')));
@@ -602,6 +606,10 @@ export class AgentWorkspace {
           procedure: this.editorField('procedure'),
           triggers: splitList(this.editorField('triggers')),
           tags: splitList(this.editorField('tags')),
+          requirements: buildAgentSkillRequirements({
+            env: splitList(this.editorField('requiresEnv')),
+            commands: splitList(this.editorField('requiresCommands')),
+          }),
           enabled: isAffirmative(this.editorField('enabled')),
           source: 'user',
           provenance: 'agent-workspace',

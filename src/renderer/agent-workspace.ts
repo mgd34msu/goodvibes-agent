@@ -150,6 +150,9 @@ function localLibraryLines(
       item.enabled === true ? 'enabled' : item.enabled === false ? 'disabled' : '',
       item.scope && item.cls ? `${item.scope}/${item.cls}` : '',
       item.confidence !== undefined ? `${item.confidence}%` : '',
+      item.requirementCount !== undefined && item.requirementCount > 0
+        ? (item.missingRequirementCount && item.missingRequirementCount > 0 ? `needs ${item.missingRequirementCount}/${item.requirementCount}` : `ready ${item.requirementCount}/${item.requirementCount}`)
+        : '',
       item.reviewState,
       item.startCount !== undefined ? `starts ${item.startCount}` : '',
     ].filter(Boolean).join(' / ');
@@ -162,6 +165,9 @@ function localLibraryLines(
       bold: selected || item.active === true,
     });
     lines.push({ text: `  ${item.description}${tags}${triggers}`, fg: PALETTE.muted });
+    if (item.missingRequirements && item.missingRequirements.length > 0) {
+      lines.push({ text: `  missing setup: ${item.missingRequirements.join(', ')}`, fg: PALETTE.warn });
+    }
   }
   if (items.length > 8) {
     lines.push({ text: `${items.length - 8} more item(s). Open the library command for the full list.`, fg: PALETTE.dim });

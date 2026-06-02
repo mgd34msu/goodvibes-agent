@@ -4,6 +4,9 @@ import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-
 import { discoverSkills, type SkillRecord } from '../agent/skill-discovery.ts';
 import {
   AgentSkillRegistry,
+  buildAgentSkillRequirements,
+  evaluateAgentSkillReadiness,
+  formatAgentSkillRequirement,
   type AgentSkillBundleRecord,
   type AgentSkillRecord,
 } from '../agent/skill-registry.ts';
@@ -204,7 +207,9 @@ function discoveredPersonaFrontmatterList(persona: DiscoveredPersonaRecord, key:
 function summarizeSkill(skill: AgentSkillRecord): string {
   const enabled = skill.enabled ? 'enabled' : 'disabled';
   const tags = skill.tags.length > 0 ? ` tags=${skill.tags.join(',')}` : '';
-  return `  ${skill.id}  ${enabled}  ${skill.reviewState}  ${skill.name} - ${skill.description}${tags}`;
+  const readiness = evaluateAgentSkillReadiness(skill);
+  const ready = readiness.ready ? 'ready' : `needs ${readiness.missing.map(formatAgentSkillRequirement).join(',')}`;
+  return `  ${skill.id}  ${enabled}  ${skill.reviewState}  ${ready}  ${skill.name} - ${skill.description}${tags}`;
 }
 
 function summarizeBundle(bundle: AgentSkillBundleRecord): string {
@@ -273,6 +278,14 @@ function discoveredFrontmatterList(skill: SkillRecord, key: string): readonly st
   return value.split(',').map((entry) => entry.trim()).filter(Boolean);
 }
 
+function discoveredFrontmatterAnyList(skill: SkillRecord, keys: readonly string[]): readonly string[] {
+  for (const key of keys) {
+    const values = discoveredFrontmatterList(skill, key);
+    if (values.length > 0) return values;
+  }
+  return [];
+}
+
 function renderBundleList(title: string, path: string, bundles: readonly AgentSkillBundleRecord[]): string {
   if (bundles.length === 0) {
     return [
@@ -289,10 +302,14 @@ function renderBundleList(title: string, path: string, bundles: readonly AgentSk
 }
 
 function renderSkill(skill: AgentSkillRecord): string {
+  const readiness = evaluateAgentSkillReadiness(skill);
   return [
     `Skill ${skill.name}`,
     `  id: ${skill.id}`,
     `  enabled: ${skill.enabled ? 'yes' : 'no'}`,
+    `  readiness: ${readiness.ready ? 'ready' : 'needs setup'}`,
+    `  requirements: ${skill.requirements.map(formatAgentSkillRequirement).join(', ') || '(none)'}`,
+    readiness.missing.length > 0 ? `  missing: ${readiness.missing.map(formatAgentSkillRequirement).join(', ')}` : '',
     `  review: ${skill.reviewState}`,
     `  source: ${skill.source}`,
     `  provenance: ${skill.provenance}`,
@@ -330,7 +347,7 @@ function usagePersonas(): string {
 }
 
 function usageSkills(): string {
-  return 'Usage: goodvibes-agent skills [list|enabled|active|discover|import-discovered <name> --yes|search <query>|show <id>|create|update <id>|enable <id>|disable <id>|review <id>|stale <id> <reason>|delete <id> --yes|bundle ...]';
+  return 'Usage: goodvibes-agent skills [list|enabled|active|discover|import-discovered <name> --yes|search <query>|show <id>|create [--requires-env A,B] [--requires-command gh,jq]|update <id>|enable <id>|disable <id>|review <id>|stale <id> <reason>|delete <id> --yes|bundle ...]';
 }
 
 function usageBundles(): string {
@@ -473,6 +490,7 @@ function skillPayloadFromOptions(options: ParsedOptions): {
   readonly procedure: string;
   readonly tags: readonly string[] | undefined;
   readonly triggers: readonly string[] | undefined;
+  readonly requirements: ReturnType<typeof buildAgentSkillRequirements>;
   readonly enabled: boolean | undefined;
   readonly provenance: string;
 } {
@@ -483,6 +501,10 @@ function skillPayloadFromOptions(options: ParsedOptions): {
     procedure: requiredOption(options, 'procedure', usage),
     tags: csvOption(options, 'tags'),
     triggers: csvOption(options, 'triggers'),
+    requirements: buildAgentSkillRequirements({
+      env: csvOption(options, 'requires-env'),
+      commands: csvOption(options, 'requires-command') ?? csvOption(options, 'requires-commands'),
+    }),
     enabled: hasFlag(options, 'enabled') ? true : undefined,
     provenance: optionValue(options, 'provenance') ?? 'cli',
   };
@@ -616,6 +638,10 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
         procedure: discovered.body,
         tags: discoveredFrontmatterList(discovered, 'tags'),
         triggers: discoveredFrontmatterList(discovered, 'triggers'),
+        requirements: buildAgentSkillRequirements({
+          env: discoveredFrontmatterAnyList(discovered, ['requiresEnv', 'requires-env', 'requires_env']),
+          commands: discoveredFrontmatterAnyList(discovered, ['requiresCommands', 'requires-commands', 'requires_commands', 'commands']),
+        }),
         enabled: hasFlag(options, 'enabled'),
         source: 'imported',
         provenance: `discovered:${discovered.origin}:${discovered.path}`,
@@ -648,6 +674,12 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
         procedure: optionValue(options, 'procedure'),
         tags: csvOption(options, 'tags'),
         triggers: csvOption(options, 'triggers'),
+        requirements: options.values.has('requires-env') || options.values.has('requires-command') || options.values.has('requires-commands')
+          ? buildAgentSkillRequirements({
+            env: csvOption(options, 'requires-env'),
+            commands: csvOption(options, 'requires-command') ?? csvOption(options, 'requires-commands'),
+          })
+          : undefined,
         provenance: optionValue(options, 'provenance'),
       });
       return success(runtime, 'agent.skills.update', skill, `Agent skill updated: ${skill.id}`);

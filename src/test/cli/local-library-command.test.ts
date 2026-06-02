@@ -213,6 +213,10 @@ describe('local Agent library CLI commands', () => {
       'Review Agent Knowledge, work plans, approvals, and routines.',
       '--triggers',
       'morning,daily',
+      '--requires-env',
+      'GOODVIBES_AGENT_TEST_MISSING_TOKEN',
+      '--requires-command',
+      'definitely-missing-goodvibes-agent-test-bin',
       '--enabled',
     ], home);
     expect(created.exitCode).toBe(0);
@@ -221,6 +225,18 @@ describe('local Agent library CLI commands', () => {
 
     const active = await runCli(['skills', 'active'], home);
     expect(active.output).toContain('Daily Brief');
+    expect(active.output).toContain('needs env:GOODVIBES_AGENT_TEST_MISSING_TOKEN,command:definitely-missing-goodvibes-agent-test-bin');
+
+    const shown = await runCli(['skills', 'show', 'daily-brief', '--json'], home);
+    const shownParsed = JSON.parse(shown.output) as {
+      readonly kind?: unknown;
+      readonly data?: { readonly requirements?: readonly { readonly kind?: unknown; readonly name?: unknown }[] };
+    };
+    expect(shownParsed.kind).toBe('agent.skills.show');
+    expect(shownParsed.data?.requirements?.map((requirement) => `${String(requirement.kind)}:${String(requirement.name)}`)).toEqual([
+      'env:GOODVIBES_AGENT_TEST_MISSING_TOKEN',
+      'command:definitely-missing-goodvibes-agent-test-bin',
+    ]);
 
     const bundle = await runCli([
       'skills',

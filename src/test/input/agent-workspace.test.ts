@@ -553,9 +553,18 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
     feedText(workspace, 'ops');
     feedKey(workspace, 'enter');
+    feedText(workspace, 'GOODVIBES_AGENT_TEST_MISSING_TOKEN');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'definitely-missing-goodvibes-agent-test-bin');
+    feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
 
-    expect(AgentSkillRegistry.fromShellPaths(shellPaths).snapshot().enabledSkills[0]?.name).toBe('Briefing');
+    const skillSnapshot = AgentSkillRegistry.fromShellPaths(shellPaths).snapshot();
+    expect(skillSnapshot.enabledSkills[0]?.name).toBe('Briefing');
+    expect(skillSnapshot.enabledSkills[0]?.requirements.map((requirement) => `${requirement.kind}:${requirement.name}`)).toEqual([
+      'env:GOODVIBES_AGENT_TEST_MISSING_TOKEN',
+      'command:definitely-missing-goodvibes-agent-test-bin',
+    ]);
     expect(workspace.localEditor).toBeNull();
     expect(workspace.lastActionResult?.title).toBe('Created skill');
 
@@ -1185,6 +1194,8 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
     feedText(workspace, ' Then summarize risks.');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');

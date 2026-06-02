@@ -113,6 +113,8 @@ export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind | 'knowled
         { id: 'procedure', label: 'Procedure', value: '', required: true, multiline: true, hint: 'Reusable steps. Ctrl-J inserts a new line.' },
         { id: 'triggers', label: 'Triggers', value: '', required: false, multiline: false, hint: 'Comma-separated words that suggest this skill.' },
         { id: 'tags', label: 'Tags', value: '', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+        { id: 'requiresEnv', label: 'Required env vars', value: '', required: false, multiline: false, hint: 'Comma-separated env var names. Values are never stored.' },
+        { id: 'requiresCommands', label: 'Required commands', value: '', required: false, multiline: false, hint: 'Comma-separated binaries that must be on PATH.' },
         { id: 'enabled', label: 'Enable now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
       ],
     };
@@ -184,6 +186,8 @@ export function createSkillUpdateEditor(record: AgentSkillRecord): AgentWorkspac
       { id: 'procedure', label: 'Procedure', value: record.procedure, required: true, multiline: true, hint: 'Reusable steps. Ctrl-J inserts a new line.' },
       { id: 'triggers', label: 'Triggers', value: record.triggers.join(', '), required: false, multiline: false, hint: 'Comma-separated words that suggest this skill.' },
       { id: 'tags', label: 'Tags', value: record.tags.join(', '), required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+      { id: 'requiresEnv', label: 'Required env vars', value: record.requirements.filter((requirement) => requirement.kind === 'env').map((requirement) => requirement.name).join(', '), required: false, multiline: false, hint: 'Comma-separated env var names. Values are never stored.' },
+      { id: 'requiresCommands', label: 'Required commands', value: record.requirements.filter((requirement) => requirement.kind === 'command').map((requirement) => requirement.name).join(', '), required: false, multiline: false, hint: 'Comma-separated binaries that must be on PATH.' },
       { id: 'enabled', label: 'Enabled', value: record.enabled ? 'yes' : 'no', required: false, multiline: false, hint: 'yes/no.' },
     ],
   };

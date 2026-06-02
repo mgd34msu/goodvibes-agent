@@ -129,6 +129,9 @@ export interface AgentWorkspaceLocalLibraryItem {
   readonly confidence?: number;
   readonly active?: boolean;
   readonly enabled?: boolean;
+  readonly requirementCount?: number;
+  readonly missingRequirementCount?: number;
+  readonly missingRequirements?: readonly string[];
   readonly startCount?: number;
 }
 

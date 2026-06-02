@@ -1,11 +1,24 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { delimiter, dirname, join } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
 
 export type AgentSkillSource = 'user' | 'agent' | 'imported' | 'system';
 export type AgentSkillReviewState = 'fresh' | 'reviewed' | 'stale';
+export type AgentSkillRequirementKind = 'env' | 'command';
+
+export interface AgentSkillRequirement {
+  readonly kind: AgentSkillRequirementKind;
+  readonly name: string;
+  readonly description?: string;
+}
+
+export interface AgentSkillReadiness {
+  readonly ready: boolean;
+  readonly met: readonly AgentSkillRequirement[];
+  readonly missing: readonly AgentSkillRequirement[];
+}
 
 export interface AgentSkillRecord {
   readonly id: string;
@@ -14,6 +27,7 @@ export interface AgentSkillRecord {
   readonly procedure: string;
   readonly triggers: readonly string[];
   readonly tags: readonly string[];
+  readonly requirements: readonly AgentSkillRequirement[];
   readonly enabled: boolean;
   readonly source: AgentSkillSource;
   readonly provenance: string;
@@ -45,6 +59,7 @@ export interface AgentSkillCreateInput {
   readonly procedure: string;
   readonly triggers?: readonly string[];
   readonly tags?: readonly string[];
+  readonly requirements?: readonly AgentSkillRequirement[];
   readonly enabled?: boolean;
   readonly source?: AgentSkillSource;
   readonly provenance?: string;
@@ -65,6 +80,7 @@ export interface AgentSkillUpdateInput {
   readonly procedure?: string;
   readonly triggers?: readonly string[];
   readonly tags?: readonly string[];
+  readonly requirements?: readonly AgentSkillRequirement[];
   readonly provenance?: string;
 }
 
@@ -105,6 +121,11 @@ function readStringArray(value: unknown): string[] {
   return value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean);
 }
 
+function readRequirementKind(value: unknown): AgentSkillRequirementKind | null {
+  if (value === 'env' || value === 'command') return value;
+  return null;
+}
+
 function normalizeName(name: string): string {
   return name.trim().replace(/\s+/g, ' ');
 }
@@ -123,6 +144,48 @@ function normalizeList(values: readonly string[] | undefined): string[] {
   return result;
 }
 
+function validateRequirementName(requirement: AgentSkillRequirement): void {
+  if (requirement.kind === 'env' && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(requirement.name)) {
+    throw new Error(`Invalid skill env requirement: ${requirement.name}`);
+  }
+  if (requirement.kind === 'command' && !/^[A-Za-z0-9._+-]+$/.test(requirement.name)) {
+    throw new Error(`Invalid skill command requirement: ${requirement.name}`);
+  }
+}
+
+function normalizeRequirements(values: readonly AgentSkillRequirement[] | undefined): AgentSkillRequirement[] {
+  const seen = new Set<string>();
+  const result: AgentSkillRequirement[] = [];
+  for (const value of values ?? []) {
+    const kind = readRequirementKind(value.kind);
+    const name = typeof value.name === 'string' ? value.name.trim() : '';
+    if (!kind || !name) continue;
+    const description = typeof value.description === 'string' ? value.description.trim() : '';
+    const requirement: AgentSkillRequirement = {
+      kind,
+      name,
+      ...(description ? { description } : {}),
+    };
+    validateRequirementName(requirement);
+    const key = `${requirement.kind}:${requirement.name.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(requirement);
+  }
+  return result;
+}
+
+function parseRequirements(value: unknown): AgentSkillRequirement[] {
+  if (!Array.isArray(value)) return [];
+  return normalizeRequirements(value
+    .filter(isRecord)
+    .map((entry) => ({
+      kind: readRequirementKind(entry.kind) ?? 'env',
+      name: readString(entry.name).trim(),
+      description: readString(entry.description).trim(),
+    })));
+}
+
 function slugify(value: string): string {
   const slug = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return slug || 'skill';
@@ -130,6 +193,23 @@ function slugify(value: string): string {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function canExecute(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function commandExists(command: string, pathValue: string | undefined): boolean {
+  if (!pathValue) return false;
+  return pathValue
+    .split(delimiter)
+    .filter(Boolean)
+    .some((pathEntry) => canExecute(join(pathEntry, command)));
 }
 
 function parseSkill(value: unknown): AgentSkillRecord | null {
@@ -150,6 +230,7 @@ function parseSkill(value: unknown): AgentSkillRecord | null {
     procedure,
     triggers: readStringArray(value.triggers),
     tags: readStringArray(value.tags),
+    requirements: parseRequirements(value.requirements),
     enabled: value.enabled === true,
     source,
     provenance: readString(value.provenance, source).trim() || source,
@@ -286,7 +367,8 @@ export class AgentSkillRegistry {
     const description = input.description.trim();
     const procedure = input.procedure.trim();
     this.validateRequired(name, description, procedure);
-    assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? [])]);
+    const requirements = normalizeRequirements(input.requirements);
+    assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])]);
     const duplicate = store.skills.find((skill) => skill.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Skill already exists: ${duplicate.id}`);
     const timestamp = nowIso();
@@ -297,6 +379,7 @@ export class AgentSkillRegistry {
       procedure,
       triggers: normalizeList(input.triggers),
       tags: normalizeList(input.tags),
+      requirements,
       enabled: input.enabled === true,
       source: input.source ?? 'user',
       provenance: input.provenance?.trim() || input.source || 'user',
@@ -342,7 +425,8 @@ export class AgentSkillRegistry {
     const description = input.description === undefined ? existing.description : input.description.trim();
     const procedure = input.procedure === undefined ? existing.procedure : input.procedure.trim();
     this.validateRequired(name, description, procedure);
-    assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? [])]);
+    const requirements = input.requirements === undefined ? existing.requirements : normalizeRequirements(input.requirements);
+    assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])]);
     const duplicate = store.skills.find((skill) => skill.id !== existing.id && skill.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Skill already exists: ${duplicate.id}`);
     const updated: AgentSkillRecord = {
@@ -352,6 +436,7 @@ export class AgentSkillRegistry {
       procedure,
       triggers: input.triggers === undefined ? existing.triggers : normalizeList(input.triggers),
       tags: input.tags === undefined ? existing.tags : normalizeList(input.tags),
+      requirements,
       provenance: input.provenance === undefined ? existing.provenance : input.provenance.trim() || existing.provenance,
       reviewState: 'fresh',
       staleReason: undefined,
@@ -585,6 +670,41 @@ export class AgentSkillRegistry {
   }
 }
 
+export function buildAgentSkillRequirements(input: {
+  readonly env?: readonly string[];
+  readonly commands?: readonly string[];
+}): readonly AgentSkillRequirement[] {
+  return normalizeRequirements([
+    ...(input.env ?? []).map((name) => ({ kind: 'env' as const, name })),
+    ...(input.commands ?? []).map((name) => ({ kind: 'command' as const, name })),
+  ]);
+}
+
+export function formatAgentSkillRequirement(requirement: AgentSkillRequirement): string {
+  return `${requirement.kind}:${requirement.name}`;
+}
+
+export function evaluateAgentSkillReadiness(
+  skill: AgentSkillRecord,
+  options: {
+    readonly env?: Readonly<Record<string, string | undefined>>;
+    readonly pathValue?: string;
+  } = {},
+): AgentSkillReadiness {
+  const env = options.env ?? process.env;
+  const pathValue = options.pathValue ?? env.PATH;
+  const met: AgentSkillRequirement[] = [];
+  const missing: AgentSkillRequirement[] = [];
+  for (const requirement of skill.requirements) {
+    const present = requirement.kind === 'env'
+      ? typeof env[requirement.name] === 'string' && (env[requirement.name] ?? '').length > 0
+      : commandExists(requirement.name, pathValue);
+    if (present) met.push(requirement);
+    else missing.push(requirement);
+  }
+  return { ready: missing.length === 0, met, missing };
+}
+
 export function buildEnabledSkillsPrompt(shellPaths: ShellPathService): string | null {
   const snapshot = AgentSkillRegistry.fromShellPaths(shellPaths).snapshot();
   const active = snapshot.activeSkills;
@@ -605,6 +725,7 @@ export function buildEnabledSkillsPrompt(shellPaths: ShellPathService): string |
       `Description: ${skill.description}`,
       `Review state: ${skill.reviewState}`,
       `Triggers: ${skill.triggers.join(', ') || '(manual)'}`,
+      `Readiness: ${evaluateAgentSkillReadiness(skill).ready ? 'ready' : `missing ${evaluateAgentSkillReadiness(skill).missing.map(formatAgentSkillRequirement).join(', ')}`}`,
       skill.procedure,
       '',
     ]),

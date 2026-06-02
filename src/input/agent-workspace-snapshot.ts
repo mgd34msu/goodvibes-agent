@@ -3,7 +3,7 @@ import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
-import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
+import { AgentSkillRegistry, evaluateAgentSkillReadiness, formatAgentSkillRequirement, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
 import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-summary.ts';
 import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
@@ -83,6 +83,7 @@ function summarizePersonaItem(persona: AgentPersonaRecord, activePersonaId: stri
 }
 
 function summarizeSkillItem(skill: AgentSkillRecord): AgentWorkspaceLocalLibraryItem {
+  const readiness = evaluateAgentSkillReadiness(skill);
   return {
     id: skill.id,
     name: skill.name,
@@ -92,6 +93,9 @@ function summarizeSkillItem(skill: AgentSkillRecord): AgentWorkspaceLocalLibrary
     tags: skill.tags,
     triggers: skill.triggers,
     enabled: skill.enabled,
+    requirementCount: skill.requirements.length,
+    missingRequirementCount: readiness.missing.length,
+    missingRequirements: readiness.missing.map(formatAgentSkillRequirement),
   };
 }
 

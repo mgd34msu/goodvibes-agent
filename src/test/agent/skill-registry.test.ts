@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AgentSkillRegistry, buildEnabledSkillsPrompt } from '../../agent/skill-registry.ts';
+import { AgentSkillRegistry, buildEnabledSkillsPrompt, evaluateAgentSkillReadiness, formatAgentSkillRequirement } from '../../agent/skill-registry.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
 function tempRegistry(): { readonly registry: AgentSkillRegistry; readonly paths: ReturnType<typeof createShellPathService> } {
@@ -72,6 +72,37 @@ describe('AgentSkillRegistry', () => {
     expect(prompt).toContain('same serial assistant conversation');
     expect(prompt).not.toContain('/api/knowledge');
     expect(prompt).not.toContain('non-Agent knowledge fallback');
+  });
+
+  test('stores setup requirements and reports readiness without secret values', () => {
+    const { registry, paths } = tempRegistry();
+    const skill = registry.create({
+      name: 'Issue Brief',
+      description: 'Summarize issues through an installed CLI.',
+      procedure: 'Use the CLI and token-backed API to gather issue state.',
+      requirements: [
+        { kind: 'env', name: 'GOODVIBES_AGENT_TEST_MISSING_TOKEN' },
+        { kind: 'command', name: 'definitely-missing-goodvibes-agent-test-bin' },
+      ],
+      enabled: true,
+    });
+
+    expect(skill.requirements.map(formatAgentSkillRequirement)).toEqual([
+      'env:GOODVIBES_AGENT_TEST_MISSING_TOKEN',
+      'command:definitely-missing-goodvibes-agent-test-bin',
+    ]);
+
+    const readiness = evaluateAgentSkillReadiness(skill, {
+      env: { GOODVIBES_AGENT_TEST_MISSING_TOKEN: 'redacted', PATH: '' },
+      pathValue: '',
+    });
+    expect(readiness.ready).toBe(false);
+    expect(readiness.met.map(formatAgentSkillRequirement)).toEqual(['env:GOODVIBES_AGENT_TEST_MISSING_TOKEN']);
+    expect(readiness.missing.map(formatAgentSkillRequirement)).toEqual(['command:definitely-missing-goodvibes-agent-test-bin']);
+
+    const prompt = buildEnabledSkillsPrompt(paths);
+    expect(prompt).toContain('command:definitely-missing-goodvibes-agent-test-bin');
+    expect(prompt).not.toContain('redacted');
   });
 
   test('creates enabled skill bundles that activate member skills together', () => {

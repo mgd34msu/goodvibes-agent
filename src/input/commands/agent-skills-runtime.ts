@@ -1,4 +1,11 @@
-import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../../agent/skill-registry.ts';
+import {
+  AgentSkillRegistry,
+  buildAgentSkillRequirements,
+  evaluateAgentSkillReadiness,
+  formatAgentSkillRequirement,
+  type AgentSkillBundleRecord,
+  type AgentSkillRecord,
+} from '../../agent/skill-registry.ts';
 import { discoverSkills, type SkillRecord } from '../../agent/skill-discovery.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
@@ -53,7 +60,9 @@ function requiredFlag(flags: ReadonlyMap<string, string>, key: string): string {
 function summarizeSkill(skill: AgentSkillRecord): string {
   const enabled = skill.enabled ? 'enabled' : 'disabled';
   const tags = skill.tags.length > 0 ? ` tags=${skill.tags.join(',')}` : '';
-  return `  ${skill.id}  ${enabled}  ${skill.reviewState}  ${skill.name} - ${skill.description}${tags}`;
+  const readiness = evaluateAgentSkillReadiness(skill);
+  const ready = readiness.ready ? 'ready' : `needs ${readiness.missing.map(formatAgentSkillRequirement).join(',')}`;
+  return `  ${skill.id}  ${enabled}  ${skill.reviewState}  ${ready}  ${skill.name} - ${skill.description}${tags}`;
 }
 
 function summarizeBundle(bundle: AgentSkillBundleRecord): string {
@@ -120,6 +129,14 @@ function frontmatterList(skill: SkillRecord, key: string): readonly string[] {
   return splitList(value);
 }
 
+function frontmatterAnyList(skill: SkillRecord, keys: readonly string[]): readonly string[] {
+  for (const key of keys) {
+    const values = frontmatterList(skill, key);
+    if (values.length > 0) return values;
+  }
+  return [];
+}
+
 async function importDiscoveredSkill(args: readonly string[], ctx: CommandContext, skillRegistry: AgentSkillRegistry): Promise<void> {
   const parsed = parseSkillArgs(args);
   const name = parsed.rest.join(' ').trim();
@@ -150,6 +167,10 @@ async function importDiscoveredSkill(args: readonly string[], ctx: CommandContex
     procedure: discovered.body,
     triggers: frontmatterList(discovered, 'triggers'),
     tags: frontmatterList(discovered, 'tags'),
+    requirements: buildAgentSkillRequirements({
+      env: frontmatterAnyList(discovered, ['requiresEnv', 'requires-env', 'requires_env']),
+      commands: frontmatterAnyList(discovered, ['requiresCommands', 'requires-commands', 'requires_commands', 'commands']),
+    }),
     enabled: parsed.flags.get('enabled') === 'true',
     source: 'imported',
     provenance: `discovered:${discovered.origin}:${discovered.path}`,
@@ -172,10 +193,14 @@ function renderBundleList(title: string, registry: AgentSkillRegistry, bundles: 
 }
 
 function renderSkill(skill: AgentSkillRecord): string {
+  const readiness = evaluateAgentSkillReadiness(skill);
   return [
     `Skill ${skill.name}`,
     `  id: ${skill.id}`,
     `  enabled: ${skill.enabled ? 'yes' : 'no'}`,
+    `  readiness: ${readiness.ready ? 'ready' : 'needs setup'}`,
+    `  requirements: ${skill.requirements.map(formatAgentSkillRequirement).join(', ') || '(none)'}`,
+    readiness.missing.length > 0 ? `  missing: ${readiness.missing.map(formatAgentSkillRequirement).join(', ')}` : '',
     `  review: ${skill.reviewState}`,
     `  source: ${skill.source}`,
     `  provenance: ${skill.provenance}`,
@@ -373,6 +398,10 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
         procedure,
         triggers: splitList(parsed.flags.get('triggers')),
         tags: splitList(parsed.flags.get('tags')),
+        requirements: buildAgentSkillRequirements({
+          env: splitList(parsed.flags.get('requires-env')),
+          commands: splitList(parsed.flags.get('requires-command') ?? parsed.flags.get('requires-commands')),
+        }),
         enabled: parsed.flags.get('enabled') === 'true',
         source: 'user',
         provenance: 'slash-command',
@@ -393,6 +422,12 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
         procedure: parsed.flags.get('procedure'),
         triggers: parsed.flags.has('triggers') ? splitList(parsed.flags.get('triggers')) : undefined,
         tags: parsed.flags.has('tags') ? splitList(parsed.flags.get('tags')) : undefined,
+        requirements: parsed.flags.has('requires-env') || parsed.flags.has('requires-command') || parsed.flags.has('requires-commands')
+          ? buildAgentSkillRequirements({
+            env: splitList(parsed.flags.get('requires-env')),
+            commands: splitList(parsed.flags.get('requires-command') ?? parsed.flags.get('requires-commands')),
+          })
+          : undefined,
         provenance: 'slash-command',
       });
       ctx.print(`Updated Agent skill ${updated.id}: ${updated.name}`);
@@ -454,7 +489,7 @@ export function registerAgentSkillsRuntimeCommands(registry: CommandRegistry): v
     name: 'agent-skills',
     aliases: ['askills', 'local-skills', 'skills', 'skill'],
     description: 'Manage local GoodVibes Agent skills',
-    usage: '[list|enabled|discover|import-discovered <name> --yes|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps>|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
+    usage: '[list|enabled|discover|import-discovered <name> --yes|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps> [--requires-env A,B] [--requires-command gh,jq]|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
     handler: runAgentSkillsRuntimeCommand,
   });
 }

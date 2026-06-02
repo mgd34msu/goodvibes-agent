@@ -39,6 +39,10 @@ describe('/agent-skills command', () => {
       'Summarize senders, urgency, and next actions. Do not send external messages.',
       '--tags',
       'ops,communication',
+      '--requires-env',
+      'GOODVIBES_AGENT_TEST_MISSING_TOKEN',
+      '--requires-command',
+      'definitely-missing-goodvibes-agent-test-bin',
     ], ctx);
     await registry.execute('agent-skills', ['enable', 'inbox-triage'], ctx);
     await registry.execute('agent-skills', ['enabled'], ctx);
@@ -48,6 +52,8 @@ describe('/agent-skills command', () => {
     const text = out.join('\n');
     expect(text).toContain('Created Agent skill inbox-triage');
     expect(text).toContain('Enabled Agent skill inbox-triage');
+    expect(text).toContain('needs env:GOODVIBES_AGENT_TEST_MISSING_TOKEN,command:definitely-missing-goodvibes-agent-test-bin');
+    expect(text).toContain('missing: env:GOODVIBES_AGENT_TEST_MISSING_TOKEN, command:definitely-missing-goodvibes-agent-test-bin');
     expect(text).toContain('Inbox Triage - Prioritize messages');
     expect(text).toContain('Do not send external messages');
     expect(text).toContain('Disabled Agent skill inbox-triage');

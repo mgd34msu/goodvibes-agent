@@ -199,6 +199,7 @@ function liveCommandContext(): CommandContext {
     name: 'Briefing',
     description: 'Summarize state before action.',
     procedure: 'Review current daemon, tasks, and approvals first.',
+    requirements: [{ kind: 'env', name: 'GOODVIBES_AGENT_TEST_MISSING_TOKEN' }],
     enabled: true,
   });
   skills.createBundle({
@@ -488,6 +489,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Create bundle');
     expect(output).toContain('edit skill-bundle');
     expect(output).toContain('Skill Bundles');
+    expect(output).toContain('needs 1/1');
+    expect(output).toContain('missing setup: env:GOODVIBES_AGENT_TEST_MISSING_TOKEN');
     expect(output).toContain('operator-pack: Operator Pack');
     expect(output).toContain('Skills: briefing');
   });
