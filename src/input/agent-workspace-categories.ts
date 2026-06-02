@@ -120,6 +120,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'conversation-return', label: 'Return to composer', detail: 'Close the workspace and keep working in the main Agent conversation.', kind: 'guidance', safety: 'safe' },
       { id: 'conversation-context', label: 'Context usage', detail: 'Inspect context-window usage, token pressure, and message breakdown.', command: '/context', kind: 'command', safety: 'read-only' },
+      { id: 'conversation-context-refs', label: 'Context references', detail: 'Type @file, @folder, or @https://... in the composer to add bounded context to the main Agent turn. Use !@file only when you want raw file injection.', kind: 'guidance', safety: 'safe' },
       { id: 'conversation-compact', label: 'Compact conversation', detail: 'Summarize the current conversation to free context while preserving useful working state.', command: '/compact', kind: 'command', safety: 'safe' },
       { id: 'conversation-title', label: 'Show conversation title', detail: 'Show the current conversation title. Use title-edit actions from saved session forms for naming workflows.', command: '/title', kind: 'command', safety: 'read-only' },
       { id: 'conversation-save', label: 'Save current session', detail: 'Open a confirmed form that saves the current Agent session under a local name.', editorKind: 'session-save', kind: 'editor', safety: 'safe' },

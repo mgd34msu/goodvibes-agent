@@ -37,6 +37,8 @@ The installed `goodvibes-agent` command launches the TUI by default. Subcommands
 
 Host-management and coding-first commands that would imply connected-host lifecycle ownership, local worker creation, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 
+The main composer supports inline context references. Type `@path/to/file`, `@path/to/folder`, or `@https://example.test/page` in a normal prompt to add bounded context for that turn. `!@path/to/file` remains the raw file-injection form. These references do not ingest anything into Agent Knowledge unless the user explicitly runs a Knowledge ingest action.
+
 Local memory capture/add commands are explicit Agent-local actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
 
 ## Agent Knowledge

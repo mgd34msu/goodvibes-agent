@@ -1,4 +1,5 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
+import { basename, relative } from 'node:path';
 import { copyToClipboard, pasteFromClipboard, pasteImageFromClipboard } from '../utils/clipboard.ts';
 import type { InfiniteBuffer } from '../core/history.ts';
 import type { ConversationManager } from '../core/conversation';
@@ -30,6 +31,11 @@ export const BINARY_IMAGE_MAGIC: {
 ];
 
 export const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+const MAX_CONTEXT_FILE_BYTES = 64 * 1024;
+const MAX_CONTEXT_DIRECTORY_ENTRIES = 200;
+const URL_REFERENCE_REGEX = /^https?:\/\/[^\s]+$/i;
+const CONTEXT_REFERENCE_REGEX = /(^|\s)@([^\s]+)/g;
+const CONTEXT_REFERENCE_TRAILING_PUNCTUATION = /[),.;:!?]+$/;
 
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
@@ -44,6 +50,86 @@ export function mediaTypeFromExt(ext: string): string {
     case '.gif': return 'image/gif';
     default: return 'image/jpeg';
   }
+}
+
+function stripTrailingReferencePunctuation(value: string): { readonly core: string; readonly suffix: string } {
+  const match = CONTEXT_REFERENCE_TRAILING_PUNCTUATION.exec(value);
+  if (!match) return { core: value, suffix: '' };
+  return {
+    core: value.slice(0, -match[0].length),
+    suffix: match[0],
+  };
+}
+
+function escapeContextAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function readContextFileBlock(reference: string, projectRoot: string): string | null {
+  let resolvedPath: string;
+  try {
+    resolvedPath = resolveAndValidatePath(reference, projectRoot);
+  } catch (error) {
+    logger.debug('expandPrompt: context reference rejected', { reference, error: summarizeError(error) });
+    return null;
+  }
+  if (!existsSync(resolvedPath)) return null;
+
+  const stat = lstatSync(resolvedPath);
+  const label = escapeContextAttribute(relative(projectRoot, resolvedPath) || basename(resolvedPath));
+  if (stat.isDirectory()) {
+    const entries = readdirSync(resolvedPath, { withFileTypes: true })
+      .slice(0, MAX_CONTEXT_DIRECTORY_ENTRIES)
+      .map((entry) => `${entry.isDirectory() ? 'dir ' : 'file'} ${entry.name}`)
+      .join('\n');
+    return [
+      `<context-folder path="${label}">`,
+      entries || '(empty directory)',
+      stat.isDirectory() ? `</context-folder>` : '',
+    ].filter(Boolean).join('\n');
+  }
+
+  if (!stat.isFile()) return null;
+  if (stat.size > MAX_CONTEXT_FILE_BYTES) {
+    return [
+      `<context-file path="${label}" truncated="true" bytes="${stat.size}">`,
+      readFileSync(resolvedPath, 'utf-8').slice(0, MAX_CONTEXT_FILE_BYTES),
+      '</context-file>',
+    ].join('\n');
+  }
+
+  return [
+    `<context-file path="${label}" bytes="${stat.size}">`,
+    readFileSync(resolvedPath, 'utf-8'),
+    '</context-file>',
+  ].join('\n');
+}
+
+function buildContextUrlBlock(reference: string): string {
+  const href = escapeContextAttribute(reference);
+  return [
+    `<context-url href="${href}">`,
+    'The user referenced this URL in the prompt. Use connected tools only if content retrieval is needed; do not ingest it into Agent Knowledge unless the user explicitly asks.',
+    '</context-url>',
+  ].join('\n');
+}
+
+function expandContextReferences(text: string, projectRoot: string): string {
+  return text.replace(CONTEXT_REFERENCE_REGEX, (full: string, prefix: string, rawReference: string): string => {
+    if (rawReference.startsWith('model:')) return full;
+    const { core, suffix } = stripTrailingReferencePunctuation(rawReference);
+    if (!core || core.startsWith('@')) return full;
+    if (URL_REFERENCE_REGEX.test(core)) {
+      return `${prefix}${buildContextUrlBlock(core)}${suffix}`;
+    }
+    const fileBlock = readContextFileBlock(core, projectRoot);
+    if (!fileBlock) return full;
+    return `${prefix}${fileBlock}${suffix}`;
+  });
 }
 
 export type PasteRegistryState = {
@@ -170,6 +256,8 @@ export function expandPrompt(
       logger.debug('expandPrompt: failed to read injected file', { path: filePath, error: summarizeError(err) });
     }
   }
+
+  expanded = expandContextReferences(expanded, projectRoot);
 
   const imageMarkerRegex = /\[IMAGE: (img\d+), [^\]]+\]/g;
   const imageMarkers: { marker: string; index: number; id: string }[] = [];

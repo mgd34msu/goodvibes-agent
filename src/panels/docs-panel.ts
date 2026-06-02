@@ -45,6 +45,8 @@ const SHORTCUTS: Array<{ key: string; desc: string }> = [
   { key: 'PageUp/Down', desc: 'Scroll conversation' },
   { key: 'Alt+PgUp/Dn', desc: 'Scroll panel' },
   { key: 'Tab',         desc: 'Path completion / tab panels' },
+  { key: '@path',       desc: 'Attach bounded file/folder/URL context in composer' },
+  { key: '!@path',      desc: 'Inject raw file contents in composer' },
   { key: '/',           desc: 'Start slash command' },
   { key: 'Enter',       desc: 'Submit prompt' },
   { key: 'Esc',         desc: 'Close overlay / cancel search' },
