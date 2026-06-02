@@ -106,9 +106,9 @@ function containsSecretLikeText(text: string): boolean {
   return SECRET_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-export function assertNoSecretLikeText(fields: readonly string[]): void {
+export function assertNoSecretLikeText(fields: readonly string[], ownerLabel = 'Agent local records'): void {
   if (fields.some((field) => containsSecretLikeText(field))) {
-    throw new Error('Personas cannot store secret-looking values. Store a secret reference or remove the sensitive text.');
+    throw new Error(`${ownerLabel} cannot store secret-looking values. Store a secret reference or remove the sensitive text.`);
   }
 }
 
@@ -213,7 +213,7 @@ export class AgentPersonaRegistry {
     const description = input.description.trim();
     const body = input.body.trim();
     this.validateRequired(name, description, body);
-    assertNoSecretLikeText([name, description, body, ...(input.tags ?? []), ...(input.triggers ?? [])]);
+    assertNoSecretLikeText([name, description, body, ...(input.tags ?? []), ...(input.triggers ?? [])], 'Personas');
     const duplicate = store.personas.find((persona) => persona.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Persona already exists: ${duplicate.id}`);
     const timestamp = nowIso();
@@ -242,7 +242,7 @@ export class AgentPersonaRegistry {
     const description = input.description === undefined ? existing.description : input.description.trim();
     const body = input.body === undefined ? existing.body : input.body.trim();
     this.validateRequired(name, description, body);
-    assertNoSecretLikeText([name, description, body, ...(input.tags ?? []), ...(input.triggers ?? [])]);
+    assertNoSecretLikeText([name, description, body, ...(input.tags ?? []), ...(input.triggers ?? [])], 'Personas');
     const duplicate = store.personas.find((persona) => persona.id !== existing.id && persona.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Persona already exists: ${duplicate.id}`);
     const updated: AgentPersonaRecord = {

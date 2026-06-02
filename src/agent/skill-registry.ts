@@ -375,7 +375,7 @@ export class AgentSkillRegistry {
     const procedure = input.procedure.trim();
     this.validateRequired(name, description, procedure);
     const requirements = normalizeRequirements(input.requirements);
-    assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])]);
+    assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])], 'Skills');
     const duplicate = store.skills.find((skill) => skill.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Skill already exists: ${duplicate.id}`);
     const timestamp = nowIso();
@@ -404,7 +404,7 @@ export class AgentSkillRegistry {
     const description = input.description.trim();
     const skillIds = this.normalizeExistingSkillIds(store, input.skillIds);
     this.validateBundleRequired(name, description, skillIds);
-    assertNoSecretLikeText([name, description, ...skillIds]);
+    assertNoSecretLikeText([name, description, ...skillIds], 'Skill bundles');
     const duplicate = store.bundles.find((bundle) => bundle.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Skill bundle already exists: ${duplicate.id}`);
     const timestamp = nowIso();
@@ -433,7 +433,7 @@ export class AgentSkillRegistry {
     const procedure = input.procedure === undefined ? existing.procedure : input.procedure.trim();
     this.validateRequired(name, description, procedure);
     const requirements = input.requirements === undefined ? existing.requirements : normalizeRequirements(input.requirements);
-    assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])]);
+    assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])], 'Skills');
     const duplicate = store.skills.find((skill) => skill.id !== existing.id && skill.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Skill already exists: ${duplicate.id}`);
     const updated: AgentSkillRecord = {
@@ -465,7 +465,7 @@ export class AgentSkillRegistry {
     const description = input.description === undefined ? existing.description : input.description.trim();
     const skillIds = input.skillIds === undefined ? existing.skillIds : this.normalizeExistingSkillIds(store, input.skillIds);
     this.validateBundleRequired(name, description, skillIds);
-    assertNoSecretLikeText([name, description, ...skillIds]);
+    assertNoSecretLikeText([name, description, ...skillIds], 'Skill bundles');
     const duplicate = store.bundles.find((bundle) => bundle.id !== existing.id && bundle.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Skill bundle already exists: ${duplicate.id}`);
     const updated: AgentSkillBundleRecord = {

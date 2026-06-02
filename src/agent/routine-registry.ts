@@ -228,7 +228,7 @@ export class AgentRoutineRegistry {
     const steps = input.steps.trim();
     this.validateRequired(name, description, steps);
     const requirements = normalizeAgentSkillRequirements(input.requirements);
-    assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])]);
+    assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])], 'Routines');
     const duplicate = store.routines.find((routine) => routine.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Routine already exists: ${duplicate.id}`);
     const timestamp = nowIso();
@@ -261,7 +261,7 @@ export class AgentRoutineRegistry {
     const steps = input.steps === undefined ? existing.steps : input.steps.trim();
     this.validateRequired(name, description, steps);
     const requirements = input.requirements === undefined ? existing.requirements : normalizeAgentSkillRequirements(input.requirements);
-    assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])]);
+    assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])], 'Routines');
     const duplicate = store.routines.find((routine) => routine.id !== existing.id && routine.name.toLowerCase() === name.toLowerCase());
     if (duplicate) throw new Error(`Routine already exists: ${duplicate.id}`);
     const updated: AgentRoutineRecord = {
