@@ -75,6 +75,8 @@ describe('renderHelpOverlay', () => {
     const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 13, TALL_VIEWPORT);
     const texts = linesToText(lines).join('\n');
     expect(texts).toContain('Overlays And Workspace');
+    expect(texts).toContain('Search all Agent workspace actions');
+    expect(texts).toContain('Open selected action or form');
   });
 
   test('contains Quick Start section when featured commands are registered', () => {
@@ -83,6 +85,7 @@ describe('renderHelpOverlay', () => {
     const lines = renderHelpOverlay(W, KEYBINDINGS, cmds, 14, TALL_VIEWPORT);
     const texts = linesToText(lines).join('\n');
     expect(texts).toContain('Quick Start');
+    expect(texts).toContain('press / there to search every action');
   });
 
   test('shows the setup quick-start row when setup is registered', () => {

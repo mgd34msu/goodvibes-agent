@@ -62,6 +62,8 @@ export function renderHelpOverlay(
     `  ${'?'.padEnd(20)}  Toggle help`,
     `  ${'/shortcuts'.padEnd(20)}  Full keyboard shortcuts`,
     `  ${kb('panel-picker').padEnd(20)}  Open the Agent operator workspace`,
+    `  ${'Workspace /'.padEnd(20)}  Search all Agent workspace actions`,
+    `  ${'Workspace Enter'.padEnd(20)}  Open selected action or form`,
     '',
   ];
 
@@ -69,10 +71,10 @@ export function renderHelpOverlay(
   // Each entry is [commandName, subcommandOrArgHint, description].
   // Commands not registered in the live registry are omitted at render time.
   const FEATURED_COMMANDS: Array<[name: string, argHint: string, desc: string]> = [
-    ['agent',        '',           'Open the Agent operator workspace'],
-    ['agent',        'setup',      'Open setup, local behavior, channel, and voice workspaces'],
-    ['agent',        'knowledge',  'Open isolated Agent Knowledge workflows'],
-    ['agent',        'voice-media', 'Open voice, image, browser, and media setup'],
+    ['agent',        '',           'Open workspace; press / there to search every action'],
+    ['agent',        'setup',      'Open setup workspace for local behavior, channels, and voice'],
+    ['agent',        'knowledge',  'Open isolated Agent Knowledge workspace actions'],
+    ['agent',        'voice-media', 'Open voice, image, browser, and media workspace actions'],
     ['setup',        '',           'Open Agent setup with current settings preloaded'],
     ['knowledge',    'status',     'Inspect isolated Agent Knowledge readiness'],
     ['memory',       '',           'Manage local Agent memory records'],

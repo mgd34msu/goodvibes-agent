@@ -57,7 +57,7 @@ describe('renderHelpOverlay Quick Start sourced from live registry (β3)', () =>
     const commands: SlashCommand[] = [makeCmd('agent'), makeCmd('setup')];
     const text = renderText(commands);
     expect(text).toContain('/agent');
-    expect(text).toContain('Open the Agent operator workspace');
+    expect(text).toContain('Open workspace; press / there to search every action');
     expect(text).toContain('/agent setup');
     expect(text).toContain('/agent knowledge');
     expect(text).toContain('/agent voice-media');
