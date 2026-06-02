@@ -23,6 +23,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'help', label: 'Browse commands', detail: 'Open registry-driven command help.', command: '/help', kind: 'command', safety: 'safe' },
       { id: 'health', label: 'Review health', detail: 'Show local health and connected-host status without starting or mutating anything.', command: '/health review', kind: 'command', safety: 'read-only' },
       { id: 'doctor', label: 'Doctor diagnostics', detail: 'Run the same Agent doctor diagnostics from the TUI home workspace instead of relying on the CLI.', command: '/doctor', kind: 'command', safety: 'read-only' },
+      { id: 'compat', label: 'Host compatibility', detail: 'Inspect Agent SDK pin, connected-host version, and isolated Agent Knowledge route readiness from the TUI.', command: '/compat', kind: 'command', safety: 'read-only' },
     ],
   },
   {

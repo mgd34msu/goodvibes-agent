@@ -40,6 +40,14 @@ export GOODVIBES_AGENT_RUNTIME_URL=http://127.0.0.1:3421
 
 If the connected host is unavailable, unauthenticated, or on an incompatible SDK version, Agent commands report actionable diagnostics without printing token values.
 
+Use the TUI first for those checks:
+
+- Agent Workspace -> Home -> Host compatibility
+- Agent Workspace -> Home -> Doctor diagnostics
+- Agent Workspace -> Home -> Review health
+
+`goodvibes-agent status --json`, `goodvibes-agent doctor`, and `goodvibes-agent compat` are scriptable equivalents for install checks and automation.
+
 ## Product Boundary
 
 Agent owns the operator assistant TUI, local profiles, local memory/routines/skills/personas, isolated Agent Knowledge calls, companion chat, approvals/automation visibility, and explicit build delegation.
