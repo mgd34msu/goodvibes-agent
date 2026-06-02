@@ -366,7 +366,6 @@ const HELP_ALIASES: Record<string, string> = {
   skill: 'skills',
   'agent-skills': 'skills',
   memories: 'memory',
-  recall: 'memory',
   subscriptions: 'subscription',
   secret: 'secrets',
   session: 'sessions',

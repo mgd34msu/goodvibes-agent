@@ -43,10 +43,10 @@ afterEach(() => {
 });
 
 describe('Agent memory CLI command', () => {
-  test('parses memory command and recall aliases', () => {
+  test('parses memory command aliases without accepting copied recall as a CLI command', () => {
     expect(parseGoodVibesCli(['memory', 'list']).command).toBe('memory');
     expect(parseGoodVibesCli(['memories', 'list']).command).toBe('memory');
-    expect(parseGoodVibesCli(['recall', 'list']).command).toBe('memory');
+    expect(parseGoodVibesCli(['recall', 'list']).command).not.toBe('memory');
   });
 
   test('adds lists searches reviews and deletes Agent-owned memory', async () => {

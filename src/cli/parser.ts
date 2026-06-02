@@ -26,7 +26,6 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   'agent-skills': 'skills',
   memory: 'memory',
   memories: 'memory',
-  recall: 'memory',
   routines: 'routines',
   routine: 'routines',
   auth: 'auth',
