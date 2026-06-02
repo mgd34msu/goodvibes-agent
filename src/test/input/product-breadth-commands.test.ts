@@ -23,6 +23,7 @@ const hiddenCopiedBreadthCommands = [
   'orchestration',
   'policy',
   'plugin',
+  'profiles',
   'profilesync',
   'recall',
   'remote',

@@ -199,7 +199,6 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly runtimeStarterTemplateCount: number;
   readonly localStarterTemplateCount: number;
   readonly runtimeStarterTemplates: readonly AgentWorkspaceRuntimeStarterTemplateItem[];
-  readonly configProfileCount: number;
   readonly setupChecklist: readonly AgentWorkspaceSetupChecklistItem[];
   readonly warnings: readonly string[];
 }

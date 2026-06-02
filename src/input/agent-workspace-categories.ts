@@ -116,10 +116,9 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     id: 'profiles',
     group: 'SETUP',
     label: 'Profiles',
-    summary: 'Isolated Agent homes, config profiles, and setup bundles.',
-    detail: 'Profiles isolate Agent state. Named homes and starter templates let one install behave like separate assistants for household, research, travel, operations, or personal workflows.',
+    summary: 'Isolated Agent homes, starter templates, and setup bundles.',
+    detail: 'Agent profiles isolate Agent state. Named homes and starter templates let one install behave like separate assistants for household, research, travel, operations, or personal workflows.',
     actions: [
-      { id: 'profiles-open', label: 'Open config profiles', detail: 'Open the config profile picker for display/provider/behavior profile files.', command: '/profiles', kind: 'command', safety: 'safe' },
       { id: 'runtime-profile-guide', label: 'Starter authoring guide', detail: 'Open the Agent-local starter authoring flow inside the Agent TUI.', command: '/agent-profile guide', kind: 'command', safety: 'safe' },
       { id: 'runtime-profile-templates', label: 'Browse starter templates', detail: 'List built-in and local Agent starter templates with persona, skill, routine, and source details.', command: '/agent-profile templates', kind: 'command', safety: 'read-only' },
       { id: 'runtime-profile-list', label: 'List Agent profiles', detail: 'List isolated Agent profile homes under this Agent home.', command: '/agent-profile list', kind: 'command', safety: 'read-only' },

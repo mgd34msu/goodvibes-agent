@@ -96,7 +96,7 @@ Memory, personas, routines, and reusable Agent skills are local to GoodVibes Age
 /channels
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
 /agent-skills enabled
-/skills local list
+/skills list
 /memory add fact "Prefers concise morning briefings" --scope project --tags preference
 /memory search morning
 ```

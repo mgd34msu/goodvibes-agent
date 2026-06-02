@@ -295,7 +295,6 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Active Agent profile: ${snapshot.activeRuntimeProfile}`, fg: PALETTE.info },
       { text: `Agent profiles under this home: ${snapshot.runtimeProfileCount}`, fg: PALETTE.info },
       { text: `Starter templates: ${snapshot.runtimeStarterTemplateCount}; local custom: ${snapshot.localStarterTemplateCount}`, fg: PALETTE.info },
-      { text: `Config profiles: ${snapshot.configProfileCount}`, fg: PALETTE.info },
       { text: `Starter ids: ${snapshot.runtimeStarterTemplates.map((template) => template.id).join(', ') || 'none'}`, fg: PALETTE.info },
       { text: 'Starter Templates', fg: PALETTE.title, bold: true },
       { text: `Agent profile root: ${snapshot.runtimeProfileRoot}`, fg: PALETTE.muted },

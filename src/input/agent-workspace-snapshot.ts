@@ -240,13 +240,6 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return [];
     }
   })();
-  const configProfileCount = (() => {
-    try {
-      return context.workspace?.profileManager?.list?.().length ?? 0;
-    } catch {
-      return 0;
-    }
-  })();
   const runtimeStarterTemplates = (() => {
     try {
       return listAgentRuntimeProfileTemplates(context.workspace?.shellPaths?.homeDirectory ?? '');
@@ -388,7 +381,6 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     runtimeStarterTemplateCount: runtimeStarterTemplates.length,
     localStarterTemplateCount: runtimeStarterTemplates.filter((template) => template.source === 'local').length,
     runtimeStarterTemplates: runtimeStarterTemplates.map(summarizeStarterTemplate),
-    configProfileCount,
     setupChecklist,
     warnings,
   };

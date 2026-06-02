@@ -1434,7 +1434,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening image input');
   });
 
-  test('summarizes runtime and config profile posture', () => {
+  test('summarizes isolated Agent profile posture', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-profiles-'));
     createAgentRuntimeProfile(root, 'household');
     const snapshot = buildAgentWorkspaceRuntimeSnapshot({
@@ -1443,12 +1443,6 @@ describe('AgentWorkspace', () => {
         shellPaths: {
           workingDirectory: root,
           homeDirectory: root,
-        },
-        profileManager: {
-          list: () => [
-            { name: 'operator', timestamp: Date.now() },
-            { name: 'travel', timestamp: Date.now() - 1000 },
-          ],
         },
       },
       platform: {
@@ -1463,7 +1457,6 @@ describe('AgentWorkspace', () => {
     expect(snapshot.runtimeProfileRoot).toContain('profile-homes');
     expect(snapshot.runtimeStarterTemplateCount).toBeGreaterThan(4);
     expect(snapshot.localStarterTemplateCount).toBe(0);
-    expect(snapshot.configProfileCount).toBe(2);
   });
 
   test('agent profile command guides starter authoring and imports local starters', async () => {

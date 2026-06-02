@@ -66,6 +66,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerDelegationRuntimeCommands(registry);
   registerConfigCommand(registry);
   registerOperatorRuntimeCommands(registry);
+  registry.unregister('profiles');
   registerNotifyRuntimeCommands(registry);
   registerProductRuntimeCommands(registry);
   registerPlatformAccessRuntimeCommands(registry);

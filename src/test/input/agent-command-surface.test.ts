@@ -33,6 +33,7 @@ const hiddenCopiedCommands = [
   'panel',
   'plugin',
   'policy',
+  'profiles',
   'profilesync',
   'provider-opt',
   'recall',

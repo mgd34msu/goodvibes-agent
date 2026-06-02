@@ -90,7 +90,7 @@ Local Agent behavior is editable from the TUI:
 /schedule reconcile
 /channels
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
-/skills local list
+/skills list
 /memory add fact "Prefers concise morning briefings" --scope project --tags preference
 /memory search morning
 ```

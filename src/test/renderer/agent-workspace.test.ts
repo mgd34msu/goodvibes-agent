@@ -624,8 +624,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Profiles');
     expect(output).toContain('Active Agent profile: (default home)');
     expect(output).toContain('Agent profiles under this home: 1');
-    expect(output).toContain('Config profiles: 2');
-    expect(output).toContain('/profiles');
+    expect(output).not.toContain('Config profiles:');
+    expect(output).not.toContain('/profiles');
     expect(output).toContain('Starter authoring guide');
     expect(output).toContain('/agent-profile guide');
     expect(output).toContain('/agent-profile templates');
