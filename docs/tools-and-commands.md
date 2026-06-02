@@ -22,6 +22,7 @@ High-signal Agent TUI paths:
 - `/health` and `/auth` for runtime/auth/SDK diagnostics inside the TUI.
 - `/model` and `/provider` for provider/model selection and visibility.
 - `/agent` for the fullscreen operator workspace: setup, provider/model, Agent Knowledge, memory, personas, skills, routines, channels, MCP/tools, secrets, voice/media, work state, automation, and build delegation.
+- Agent Workspace -> Research for read-only web research, URL inspection, source triage, and explicit source-to-Agent-Knowledge handoff.
 - `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
 - `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.
@@ -38,6 +39,8 @@ The installed `goodvibes-agent` command launches the TUI by default. Subcommands
 Host-management and coding-first commands that would imply connected-host lifecycle ownership, local worker creation, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 
 The main composer supports inline context references. Type `@path/to/file`, `@path/to/folder`, or `@https://example.test/page` in a normal prompt to add bounded context for that turn. `!@path/to/file` remains the raw file-injection form. These references do not ingest anything into Agent Knowledge unless the user explicitly runs a Knowledge ingest action.
+
+The Research workspace submits web research and URL inspection forms to the normal main conversation. These requests are read-only by default, may use connected web tools when the user asks, and do not ingest sources. Use confirmed Agent Knowledge ingest actions only after a source should become durable Agent-owned knowledge.
 
 Local memory capture/add commands are explicit Agent-local actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
 

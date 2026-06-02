@@ -378,6 +378,17 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: 'Review: queue, issues, candidates, reports, reindex, and consolidation stay inside the Agent segment.', fg: PALETTE.muted },
       { text: 'Agent-owned content appears here only after explicit Agent knowledge ingestion.', fg: PALETTE.muted },
     );
+  } else if (category.id === 'research') {
+    base.push(
+      { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
+      { text: `Agent Knowledge route: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
+      { text: `Browser tools: ${snapshot.voiceMediaReadiness.browserToolState}; public base URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: snapshot.voiceMediaReadiness.browserToolNextStep, fg: PALETTE.muted },
+      { text: 'Research requests are submitted to the main conversation. Agent may use connected read-only web tools when the user asks.', fg: PALETTE.good },
+      { text: 'URL references and web research do not ingest into Agent Knowledge. Ingestion is a separate confirmed Agent Knowledge action.', fg: PALETTE.warn },
+      { text: 'Use Agent Knowledge ask/search first for known source-backed context; use web research for current or external sources.', fg: PALETTE.info },
+      { text: 'External sends, browser-side effects, package installs, and connected-host mutations are outside this read-only research lane.', fg: PALETTE.warn },
+    );
   } else if (category.id === 'tools') {
     base.push(
       { text: `MCP servers: ${snapshot.mcpConnectedServerCount}/${snapshot.mcpServerCount} connected; quarantined ${snapshot.mcpQuarantinedServerCount}; allow-all ${snapshot.mcpAllowAllServerCount}.`, fg: snapshot.mcpQuarantinedServerCount > 0 || snapshot.mcpAllowAllServerCount > 0 ? PALETTE.warn : PALETTE.info },

@@ -3,6 +3,7 @@ import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEdi
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
 import { createReminderScheduleEditor } from './agent-workspace-reminder-schedule-editor.ts';
 import { createRoutineScheduleEditor } from './agent-workspace-routine-schedule-editor.ts';
+import { createAgentWorkspaceWebResearchEditor } from './agent-workspace-web-research-editor.ts';
 import { parseSlashCommand } from './slash-command-parser.ts';
 import type {
   AgentWorkspaceActionResult,
@@ -137,6 +138,8 @@ function createWorkspaceEditor(
 ): AgentWorkspaceLocalEditor {
   if (editorKind === 'profile') return createProfileEditor(workspace.runtimeSnapshot?.runtimeStarterTemplates ?? []);
   if (editorKind === 'learned-behavior') return createLearnedBehaviorEditor();
+  if (editorKind === 'web-research') return createAgentWorkspaceWebResearchEditor('research');
+  if (editorKind === 'web-fetch') return createAgentWorkspaceWebResearchEditor('fetch');
   if (editorKind && isAgentWorkspaceBasicCommandEditorKind(editorKind)) return createAgentWorkspaceBasicCommandEditor(editorKind);
   if (editorKind === 'knowledge-ask') return createAgentKnowledgeQueryEditor('ask');
   if (editorKind === 'knowledge-search') return createAgentKnowledgeQueryEditor('search');

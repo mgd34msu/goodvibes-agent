@@ -412,21 +412,36 @@ export class InputHandler {
     this.panelFocused = false;
     this.indicatorFocused = false;
     this.modalOpened('agentWorkspace');
-    this.agentWorkspace.open(context, (command) => this.dispatchAgentWorkspaceCommand(command, context), categoryId);
+    this.agentWorkspace.open(
+      context,
+      (command) => this.dispatchAgentWorkspaceCommand(command, context),
+      categoryId,
+      (prompt) => this.dispatchAgentWorkspacePrompt(prompt, context),
+    );
     this.requestRender();
   }
 
-  private dispatchAgentWorkspaceCommand(command: string, context: CommandContext): void {
+  private closeAgentWorkspaceModal(): void {
     this.agentWorkspace.close();
     for (let index = this.modalStack.length - 1; index >= 0; index -= 1) {
       if (this.modalStack[index] === 'agentWorkspace') this.modalStack.splice(index, 1);
     }
+  }
+
+  private dispatchAgentWorkspaceCommand(command: string, context: CommandContext): void {
+    this.closeAgentWorkspaceModal();
     const { name, args } = parseSlashCommand(command);
     if (!name) return;
     void context.executeCommand?.(name, [...args]).catch((error: unknown) => {
       context.print(`Agent workspace command failed: ${error instanceof Error ? error.message : String(error)}`);
       this.requestRender();
     });
+    this.requestRender();
+  }
+
+  private dispatchAgentWorkspacePrompt(prompt: string, context: CommandContext): void {
+    this.closeAgentWorkspaceModal();
+    context.submitInput?.(prompt);
     this.requestRender();
   }
   public handleModelPickerCommit(): boolean { return handleModelPickerCommitForHandler(this); }

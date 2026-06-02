@@ -13,6 +13,8 @@ export type AgentWorkspaceLocalEditorKind = 'memory' | 'persona' | 'skill' | 'ro
 
 export type AgentWorkspaceEditorKind =
   | AgentWorkspaceLocalEditorKind
+  | 'web-research'
+  | 'web-fetch'
   | 'knowledge-url'
   | 'knowledge-urls'
   | 'knowledge-file'
@@ -235,6 +237,7 @@ export interface AgentWorkspaceActionSearchResult {
 }
 
 export type AgentWorkspaceCommandDispatcher = (command: string) => void;
+export type AgentWorkspacePromptDispatcher = (prompt: string) => void;
 
 export type AgentWorkspaceActionResultKind = 'guidance' | 'blocked' | 'dispatched' | 'refreshed' | 'error';
 

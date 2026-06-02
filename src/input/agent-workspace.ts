@@ -18,10 +18,10 @@ import { jumpAgentWorkspaceSelection, moveAgentWorkspaceSelection, selectAgentWo
 import { buildAgentWorkspaceRequirements } from './agent-workspace-requirements.ts';
 import { appendAgentWorkspaceActionSearchText, backspaceAgentWorkspaceActionSearch, beginAgentWorkspaceActionSearch, clearAgentWorkspaceActionSearch, commitAgentWorkspaceActionSearchSelection, searchAgentWorkspaceActions } from './agent-workspace-search.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
-import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
 export type { AgentWorkspaceChannelRisk, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
-export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 export { AGENT_WORKSPACE_MODAL_NAME } from './agent-workspace-types.ts';
 export { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 export { handleAgentWorkspaceToken } from './agent-workspace-token.ts';
@@ -46,10 +46,12 @@ export class AgentWorkspace {
   };
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
+  private dispatchPrompt: AgentWorkspacePromptDispatcher | null = null;
 
-  open(context: CommandContext, dispatchCommand: AgentWorkspaceCommandDispatcher, categoryId?: string): void {
+  open(context: CommandContext, dispatchCommand: AgentWorkspaceCommandDispatcher, categoryId?: string, dispatchPrompt?: AgentWorkspacePromptDispatcher): void {
     this.context = context;
     this.dispatchCommand = dispatchCommand;
+    this.dispatchPrompt = dispatchPrompt ?? null;
     this.runtimeSnapshot = buildAgentWorkspaceRuntimeSnapshot(context);
     this.active = true;
     this.focusPane = 'actions';
@@ -255,8 +257,16 @@ export class AgentWorkspace {
     return Boolean(this.context?.executeCommand && this.dispatchCommand);
   }
 
+  hasPromptDispatch(): boolean {
+    return Boolean(this.context?.submitInput && this.dispatchPrompt);
+  }
+
   dispatchWorkspaceCommand(command: string): void {
     this.dispatchCommand?.(command);
+  }
+
+  dispatchWorkspacePrompt(prompt: string): void {
+    this.dispatchPrompt?.(prompt);
   }
 
   clampSelection(): void {
@@ -645,7 +655,7 @@ export class AgentWorkspace {
   }
 
   private submitCommandEditor(editor: AgentWorkspaceLocalEditor): void {
-    const result = buildAgentWorkspaceCommandEditorSubmission(editor, (fieldId) => this.editorField(fieldId), this.hasCommandDispatch());
+    const result = buildAgentWorkspaceCommandEditorSubmission(editor, (fieldId) => this.editorField(fieldId), this.hasCommandDispatch(), this.hasPromptDispatch());
     if (result.kind === 'editor') {
       this.localEditor = result.editor;
       this.status = result.status;
@@ -656,6 +666,10 @@ export class AgentWorkspace {
     this.localEditor = null;
     this.status = result.status;
     this.lastActionResult = result.actionResult;
+    if (result.kind === 'prompt') {
+      this.dispatchWorkspacePrompt(result.prompt);
+      return;
+    }
     this.dispatchWorkspaceCommand(result.command);
   }
 
