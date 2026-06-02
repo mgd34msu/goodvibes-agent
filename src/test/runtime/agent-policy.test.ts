@@ -96,10 +96,11 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(offenders).toEqual([]);
   });
 
-  test('operator policy tells the model to use local registry memory for durable recall', () => {
+  test('operator policy tells the model to use local registry notes and memory for durable recall', () => {
     const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
-    expect(source).toContain('durable memory, reusable persona, skill, skill bundle, or routine');
-    expect(source).toContain('records local, non-secret, source/provenance tagged');
+    expect(source).toContain('scratchpad note, durable memory, reusable persona, skill, skill bundle, or routine');
+    expect(source).toContain('records Agent-local, non-secret, source/provenance tagged');
+    expect(source).toContain('Notes are for temporary/source-triage context');
     expect(source).toContain('Review memory with a confidence score');
     expect(source).toContain('buildReviewedMemoryPrompt(services.memoryRegistry)');
   });

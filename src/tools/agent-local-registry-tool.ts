@@ -8,11 +8,12 @@ import {
   type MemoryScope,
 } from '@pellux/goodvibes-sdk/platform/state';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
+import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
 import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
 
-export type AgentLocalRegistryDomain = 'memory' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
+export type AgentLocalRegistryDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
 export type AgentLocalRegistryAction =
   | 'list'
   | 'search'
@@ -37,9 +38,11 @@ export interface AgentLocalRegistryToolArgs {
   readonly summary?: unknown;
   readonly detail?: unknown;
   readonly confidence?: unknown;
+  readonly title?: unknown;
   readonly name?: unknown;
   readonly description?: unknown;
   readonly body?: unknown;
+  readonly sourceUrl?: unknown;
   readonly procedure?: unknown;
   readonly steps?: unknown;
   readonly skills?: unknown;
@@ -51,7 +54,7 @@ export interface AgentLocalRegistryToolArgs {
   readonly provenance?: unknown;
 }
 
-const DOMAINS: readonly AgentLocalRegistryDomain[] = ['memory', 'persona', 'skill', 'skill_bundle', 'routine'];
+const DOMAINS: readonly AgentLocalRegistryDomain[] = ['memory', 'note', 'persona', 'skill', 'skill_bundle', 'routine'];
 const ACTIONS: readonly AgentLocalRegistryAction[] = [
   'list',
   'search',
@@ -239,6 +242,60 @@ async function handleMemory(registry: MemoryRegistry, action: AgentLocalRegistry
       return `Marked Agent-local memory ${record.id} stale.`;
     }
     throw new Error(`Action ${action} is not valid for memory.`);
+}
+
+function formatNote(note: AgentNoteRecord): string {
+  const tags = note.tags.length > 0 ? ` tags=${note.tags.join(',')}` : '';
+  const sourceUrl = note.sourceUrl ? ` source=${note.sourceUrl}` : '';
+  return `${note.id}  ${note.reviewState}  ${note.source}${tags}${sourceUrl}  ${note.title}`;
+}
+
+function listNotes(records: readonly AgentNoteRecord[], title: string): string {
+  return records.length === 0
+    ? `${title}\nNo Agent-local notes.`
+    : [title, ...records.map(formatNote)].join('\n');
+}
+
+function handleNote(shellPaths: ShellPathService, action: AgentLocalRegistryAction, args: AgentLocalRegistryToolArgs): string {
+  const registry = AgentNoteRegistry.fromShellPaths(shellPaths);
+  if (action === 'list') return listNotes(registry.list(), 'Agent-local notes');
+  if (action === 'search') return listNotes(registry.search(readString(args.query)), 'Agent-local notes search');
+  if (action === 'get') {
+    const note = registry.get(requireId(args));
+    if (!note) return `Unknown Agent-local note: ${readString(args.id)}`;
+    return [
+      formatNote(note),
+      `created: ${note.createdAt}`,
+      `updated: ${note.updatedAt}`,
+      `provenance: ${note.provenance}`,
+      '',
+      note.body,
+    ].join('\n');
+  }
+  if (action === 'create') {
+    const note = registry.create({
+      title: requireTextField(args.title ?? args.name ?? args.summary, 'title'),
+      body: requireTextField(args.body ?? args.detail ?? args.description, 'body'),
+      tags: readStringList(args.tags),
+      sourceUrl: readString(args.sourceUrl) || undefined,
+      source: 'agent',
+      provenance: readString(args.provenance) || 'agent-local-registry-tool',
+    });
+    return `Created Agent-local note ${note.id}: ${note.title}`;
+  }
+  if (action === 'update') {
+    const note = registry.update(requireId(args), {
+      title: readString(args.title ?? args.name ?? args.summary) || undefined,
+      body: readString(args.body ?? args.detail ?? args.description) || undefined,
+      tags: args.tags === undefined ? undefined : readStringList(args.tags),
+      sourceUrl: args.sourceUrl === undefined ? undefined : readString(args.sourceUrl),
+      provenance: readString(args.provenance) || 'agent-local-registry-tool',
+    });
+    return `Updated Agent-local note ${note.id}: ${note.title}`;
+  }
+  if (action === 'review') return `Reviewed Agent-local note ${registry.markReviewed(requireId(args)).id}.`;
+  if (action === 'stale') return `Marked Agent-local note ${registry.markStale(requireId(args), readString(args.reason)).id} stale.`;
+  throw new Error(`Action ${action} is not valid for notes.`);
 }
 
 function formatPersona(persona: AgentPersonaRecord, activeId: string | null): string {
@@ -490,8 +547,8 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
     definition: {
       name: 'agent_local_registry',
       description: [
-        'Inspect and maintain GoodVibes Agent-local memory, personas, skills, and routines from the main conversation.',
-        'Use this for safe self-improvement: remember durable non-secret facts, create or refine reusable behavior, bundle related skills, enable skills/routines, choose personas, review/stale records, and start routines in the same serial conversation.',
+        'Inspect and maintain GoodVibes Agent-local notes, memory, personas, skills, and routines from the main conversation.',
+        'Use this for safe self-improvement: capture scratchpad notes, remember durable non-secret facts, create or refine reusable behavior, bundle related skills, enable skills/routines, choose personas, review/stale records, and start routines in the same serial conversation.',
         'This tool cannot delete records, create schedules, mutate connected services, send messages, run background jobs, or delegate build work.',
       ].join(' '),
       parameters: {
@@ -506,9 +563,11 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
           summary: { type: 'string', description: 'Memory summary when domain is memory.' },
           detail: { type: 'string', description: 'Memory detail when domain is memory.' },
           confidence: { type: 'number', description: 'Memory review confidence from 0 to 100.' },
+          title: { type: 'string', description: 'Note title when domain is note.' },
           name: { type: 'string' },
           description: { type: 'string' },
-          body: { type: 'string', description: 'Persona body/instructions.' },
+          body: { type: 'string', description: 'Note body or persona body/instructions.' },
+          sourceUrl: { type: 'string', description: 'Optional source URL when domain is note.' },
           procedure: { type: 'string', description: 'Skill procedure.' },
           steps: { type: 'string', description: 'Routine steps.' },
           skills: { type: 'array', items: { type: 'string' }, description: 'Skill ids for skill_bundle create/update.' },
@@ -530,6 +589,7 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
       if (!isAction(args.action)) return registryError(`Unknown action. Valid: ${ACTIONS.join(', ')}.`);
       try {
         if (args.domain === 'memory') return registryOutput(await handleMemory(memoryRegistry, args.action, args));
+        if (args.domain === 'note') return registryOutput(handleNote(shellPaths, args.action, args));
         if (args.domain === 'persona') return registryOutput(handlePersona(shellPaths, args.action, args));
         if (args.domain === 'skill') return registryOutput(handleSkill(shellPaths, args.action, args));
         if (args.domain === 'skill_bundle') return registryOutput(handleSkillBundle(shellPaths, args.action, args));
