@@ -26,7 +26,7 @@ export function searchAgentWorkspaceActions(
   const normalized = query.trim().toLowerCase();
   if (!normalized) return [];
   const terms = normalized.split(/\s+/).filter(Boolean);
-  const results: AgentWorkspaceActionSearchResult[] = [];
+  const results: Array<{ readonly result: AgentWorkspaceActionSearchResult; readonly score: number }> = [];
   categories.forEach((category, categoryIndex) => {
     category.actions.forEach((action, actionIndex) => {
       const haystack = [
@@ -44,11 +44,54 @@ export function searchAgentWorkspaceActions(
         action.safety,
       ].join(' ').toLowerCase();
       if (terms.every((term) => haystack.includes(term))) {
-        results.push({ category, categoryIndex, action, actionIndex });
+        const result = { category, categoryIndex, action, actionIndex };
+        results.push({ result, score: scoreActionSearchResult(result, normalized, terms) });
       }
     });
   });
-  return results;
+  return results
+    .sort((left, right) => right.score - left.score || left.result.categoryIndex - right.result.categoryIndex || left.result.actionIndex - right.result.actionIndex)
+    .map((entry) => entry.result);
+}
+
+function scoreField(value: string | undefined, terms: readonly string[], exactQuery: string, exactWeight: number, termWeight: number): number {
+  const normalized = (value ?? '').toLowerCase();
+  if (!normalized) return 0;
+  const bareNormalized = normalized.replace(/^\//, '');
+  let score = bareNormalized === exactQuery || normalized === exactQuery
+    ? exactWeight
+    : exactQuery.includes(' ') && normalized.includes(exactQuery)
+      ? exactWeight
+      : 0;
+  for (const term of terms) {
+    if (normalized.includes(term)) score += termWeight;
+  }
+  return score;
+}
+
+function scoreActionSearchResult(
+  result: AgentWorkspaceActionSearchResult,
+  exactQuery: string,
+  terms: readonly string[],
+): number {
+  const { category, action } = result;
+  let score = 0;
+  score += scoreField(action.id, terms, exactQuery, 90, 28);
+  score += scoreField(action.editorKind, terms, exactQuery, 85, 26);
+  score += scoreField(action.command, terms, exactQuery, 75, 22);
+  score += scoreField(action.label, terms, exactQuery, 65, 18);
+  score += scoreField(action.localOperation, terms, exactQuery, 50, 16);
+  score += scoreField(action.targetCategoryId, terms, exactQuery, 40, 12);
+  score += scoreField(action.detail, terms, exactQuery, 24, 6);
+  score += scoreField(category.id, terms, exactQuery, 30, 8);
+  score += scoreField(category.label, terms, exactQuery, 25, 7);
+  score += scoreField(category.summary, terms, exactQuery, 12, 3);
+  score += scoreField(category.detail, terms, exactQuery, 8, 2);
+
+  if (category.id === 'setup' && !terms.includes('setup')) score -= 14;
+  if (action.id.startsWith('setup-') && !terms.includes('setup')) score -= 18;
+  if (action.kind === 'workspace' && !terms.includes('open')) score -= 4;
+  return score;
 }
 
 export function beginAgentWorkspaceActionSearch(host: AgentWorkspaceSearchHost): void {

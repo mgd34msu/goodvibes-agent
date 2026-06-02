@@ -1025,12 +1025,22 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('Opened Setup');
   });
 
-  test('setup workspace keeps personas skills and routines as direct workspaces', () => {
+  test('setup workspace keeps first-run product areas as direct workspaces', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-agent-knowledge');
+    workspace.activateSelected();
+    expect(workspace.selectedCategory.id).toBe('knowledge');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-runtime-profiles');
+    workspace.activateSelected();
+    expect(workspace.selectedCategory.id).toBe('profiles');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-personas');
     workspace.activateSelected();
     expect(workspace.selectedCategory.id).toBe('personas');
@@ -1044,6 +1054,16 @@ describe('AgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-routines');
     workspace.activateSelected();
     expect(workspace.selectedCategory.id).toBe('routines');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-memory');
+    workspace.activateSelected();
+    expect(workspace.selectedCategory.id).toBe('memory');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-voice-media');
+    workspace.activateSelected();
+    expect(workspace.selectedCategory.id).toBe('voice-media');
     expect(dispatched).toEqual([]);
   });
 
