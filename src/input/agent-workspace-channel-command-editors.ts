@@ -2,14 +2,32 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 
 export type AgentWorkspaceChannelCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'channel-show' | 'channel-doctor' | 'channel-setup'
+  'channel-show' | 'channel-doctor' | 'channel-setup' | 'channel-send'
 >;
 
 export function isAgentWorkspaceChannelCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceChannelCommandEditorKind {
-  return kind === 'channel-show' || kind === 'channel-doctor' || kind === 'channel-setup';
+  return kind === 'channel-show' || kind === 'channel-doctor' || kind === 'channel-setup' || kind === 'channel-send';
 }
 
 export function createAgentWorkspaceChannelCommandEditor(kind: AgentWorkspaceChannelCommandEditorKind): AgentWorkspaceLocalEditor {
+  if (kind === 'channel-send') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Send Channel Message',
+      selectedFieldIndex: 0,
+      message: 'Send one message through a configured delivery target. Fill exactly one target field and type yes to confirm.',
+      fields: [
+        { id: 'message', label: 'Message', value: '', required: true, multiline: true, hint: 'Plain-text message. Ctrl-J inserts a new line.' },
+        { id: 'title', label: 'Title', value: '', required: false, multiline: false, hint: 'Optional delivery title. Blank uses the Agent default.' },
+        { id: 'channel', label: 'Channel target', value: '', required: false, multiline: false, hint: 'Optional surface[:route[:label]], such as slack:ops:Ops.' },
+        { id: 'route', label: 'Route target', value: '', required: false, multiline: false, hint: 'Optional route id or route:label.' },
+        { id: 'webhook', label: 'Webhook URL', value: '', required: false, multiline: false, hint: 'Optional http(s) webhook target.' },
+        { id: 'link', label: 'Link target', value: '', required: false, multiline: false, hint: 'Optional link delivery target.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /channels send with --yes.' },
+      ],
+    };
+  }
   if (kind === 'channel-doctor') {
     return {
       kind,

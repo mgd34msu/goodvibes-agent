@@ -237,6 +237,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     voiceService: services.voiceService,
     mediaProviderRegistry: services.mediaProviders,
     artifactStore: services.artifactStore,
+    channelDeliveryRouter: services.channelDeliveryRouter,
     forensicsRegistry,
     policyRuntimeState,
     readModels: uiServices.readModels,

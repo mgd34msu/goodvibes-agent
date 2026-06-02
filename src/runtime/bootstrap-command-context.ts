@@ -40,6 +40,7 @@ import type { DirectTransport } from '@/runtime/index.ts';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
+import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import {
   createBootstrapCommandActions,
   createBootstrapCommandClientsSection,
@@ -65,6 +66,7 @@ export type CreateBootstrapCommandContextOptions = {
   voiceService?: VoiceService;
   mediaProviderRegistry?: MediaProviderRegistry;
   artifactStore?: ArtifactStore;
+  channelDeliveryRouter?: ChannelDeliveryRouter;
   forensicsRegistry: ForensicsRegistry;
   policyRuntimeState: PolicyRuntimeState;
   readModels: UiReadModels;
@@ -136,6 +138,7 @@ export function createBootstrapCommandContext(
     voiceService,
     mediaProviderRegistry,
     artifactStore,
+    channelDeliveryRouter,
     forensicsRegistry,
     policyRuntimeState,
     readModels,
@@ -243,7 +246,7 @@ export function createBootstrapCommandContext(
     projectPlanningProjectId,
     workPlanStore,
   }, shellServices);
-  const platform = createBootstrapCommandPlatformSection({ configManager, voiceProviderRegistry, voiceService, mediaProviderRegistry, artifactStore }, shellServices);
+  const platform = createBootstrapCommandPlatformSection({ configManager, voiceProviderRegistry, voiceService, mediaProviderRegistry, artifactStore, channelDeliveryRouter }, shellServices);
   const extensions = createBootstrapCommandExtensionsSection({
     toolRegistry,
     mcpRegistry,

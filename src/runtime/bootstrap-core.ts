@@ -29,6 +29,7 @@ import { registerBootstrapHookBridge } from '@/runtime/index.ts';
 import { createRuntimeServices, type RuntimeServices } from './services.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
 import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts';
+import { registerAgentChannelSendTool } from '../tools/agent-channel-send-tool.ts';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
@@ -236,6 +237,7 @@ export async function initializeBootstrapCore(
     changeTracker: services.sessionChangeTracker,
   });
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);
+  registerAgentChannelSendTool(toolRegistry, services.channelDeliveryRouter);
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
   registerAgentMediaGenerateTool(toolRegistry, services.mediaProviders, services.artifactStore);

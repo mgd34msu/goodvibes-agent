@@ -4,9 +4,27 @@ import type { CommandRegistry } from '../command-registry.ts';
 import type { CommandContext } from '../command-registry.ts';
 import type { AgentWorkspaceChannelStatus } from '../agent-workspace-channels.ts';
 import { buildAgentWorkspaceChannels } from '../agent-workspace-channels.ts';
+import {
+  buildAgentChannelDeliveryPreview,
+  deliverAgentChannelMessage,
+  formatAgentChannelDeliveryPreview,
+  formatAgentChannelDeliveryResult,
+} from '../../agent/channel-delivery.ts';
+import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 type ChannelFilter = 'all' | 'ready' | 'attention';
 type JsonRecord = Record<string, unknown>;
+
+interface ChannelSendArgs {
+  readonly message: string;
+  readonly title?: string;
+  readonly channel?: string;
+  readonly route?: string;
+  readonly webhook?: string;
+  readonly link?: string;
+  readonly yes: boolean;
+  readonly errors: readonly string[];
+}
 
 interface ChannelDaemonConnection {
   readonly baseUrl: string;
@@ -46,6 +64,58 @@ function readBoolean(record: JsonRecord, key: string, fallback = false): boolean
 function readRecordArray(record: JsonRecord, key: string): readonly JsonRecord[] {
   const value = record[key];
   return Array.isArray(value) ? value.filter(isRecord) : [];
+}
+
+function readFlagValue(args: readonly string[], index: number, flag: string, errors: string[]): string | null {
+  const value = args[index + 1];
+  if (!value || value.startsWith('--')) {
+    errors.push(`${flag} requires a value.`);
+    return null;
+  }
+  return value;
+}
+
+function parseChannelSendArgs(args: readonly string[]): ChannelSendArgs {
+  const parsed = stripYesFlag([...args]);
+  const errors: string[] = [];
+  const messageParts: string[] = [];
+  let title: string | undefined;
+  let channel: string | undefined;
+  let route: string | undefined;
+  let webhook: string | undefined;
+  let link: string | undefined;
+
+  for (let index = 0; index < parsed.rest.length; index += 1) {
+    const arg = parsed.rest[index];
+    if (arg === '--title' || arg === '--message' || arg === '--channel' || arg === '--route' || arg === '--webhook' || arg === '--link') {
+      const value = readFlagValue(parsed.rest, index, arg, errors);
+      index += 1;
+      if (!value) continue;
+      if (arg === '--title') title = value;
+      else if (arg === '--message') messageParts.push(value);
+      else if (arg === '--channel') channel = value;
+      else if (arg === '--route') route = value;
+      else if (arg === '--webhook') webhook = value;
+      else link = value;
+    } else if (arg?.startsWith('--')) {
+      errors.push(`Unknown channel send flag: ${arg}`);
+    } else if (arg) {
+      messageParts.push(arg);
+    }
+  }
+
+  const message = messageParts.join(' ').trim();
+  if (!message) errors.push('Channel send message is required.');
+  return {
+    message,
+    ...(title ? { title } : {}),
+    ...(channel ? { channel } : {}),
+    ...(route ? { route } : {}),
+    ...(webhook ? { webhook } : {}),
+    ...(link ? { link } : {}),
+    yes: parsed.yes,
+    errors,
+  };
 }
 
 function resolveChannelDaemonConnection(context: CommandContext): ChannelDaemonConnection {
@@ -336,9 +406,9 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'channels',
     aliases: ['channel'],
-    description: 'Inspect Agent channel readiness without sending messages',
-    usage: '[list|readiness|ready|attention|show <id>|accounts|policies|status|doctor <id>|setup <id>]',
-    argsHint: 'list|readiness|ready|attention|show|accounts|policies|status|doctor|setup',
+    description: 'Inspect Agent channel readiness or send an explicitly confirmed delivery message',
+    usage: '[list|readiness|ready|attention|show <id>|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]',
+    argsHint: 'list|readiness|ready|attention|show|send|accounts|policies|status|doctor|setup',
     async handler(args, ctx) {
       const channels = buildAgentWorkspaceChannels(ctx);
       const subcommand = (args[0] ?? 'readiness').trim().toLowerCase();
@@ -373,6 +443,37 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
+      if (subcommand === 'send') {
+        const router = ctx.platform.channelDeliveryRouter;
+        if (!router) {
+          ctx.print('Channel delivery is not available in this Agent runtime.');
+          return;
+        }
+        const parsed = parseChannelSendArgs(args.slice(1));
+        if (parsed.errors.length > 0) {
+          ctx.print(`[channels] ${parsed.errors.join('\n[channels] ')}`);
+          return;
+        }
+        let preview: ReturnType<typeof buildAgentChannelDeliveryPreview>;
+        try {
+          preview = buildAgentChannelDeliveryPreview(parsed);
+        } catch (error) {
+          ctx.print(`[channels] ${error instanceof Error ? error.message : String(error)}`);
+          return;
+        }
+        if (!parsed.yes) {
+          ctx.print(formatAgentChannelDeliveryPreview(preview, router.listStrategies().length));
+          requireYesFlag(ctx, 'send a channel delivery message', '/channels send --channel <surface[:route[:label]]> --message <text> --yes');
+          return;
+        }
+        try {
+          ctx.print(formatAgentChannelDeliveryResult(await deliverAgentChannelMessage(router, parsed)));
+        } catch (error) {
+          ctx.print(`[channels] Send failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        return;
+      }
+
       if (subcommand === 'accounts') {
         await printReadOnlyChannelRoute(ctx, 'Channel accounts', '/api/channels/accounts', formatChannelAccounts);
         return;
@@ -403,7 +504,7 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
-      ctx.print('Usage: /channels [list|readiness|ready|attention|show <id>|accounts|policies|status|doctor <id>|setup <id>]');
+      ctx.print('Usage: /channels [list|readiness|ready|attention|show <id>|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]');
     },
   });
 }

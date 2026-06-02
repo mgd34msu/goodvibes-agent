@@ -56,7 +56,7 @@ Use the workspace as the primary product surface:
 - Tools & MCP: MCP server setup, tool inventory, trust review, secret storage/link/test/delete, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, URL/URL-list/file/bookmark/browser-history/connector ingest, source library, review queue, and reindex.
 - Memory & Skills: local memory, learned behavior capture, personas, skills, routines, and schedule promotion.
-- Channels: companion pairing, channel readiness, notification routes, and confirmed webhook add/remove/test/send.
+- Channels: companion pairing, channel readiness, confirmed channel delivery, and confirmed webhook add/remove/test/send.
 - Voice & Media: voice review, spoken response setup, image input, confirmed image/video generation, browser-tool posture, MCP inventory, and media provider readiness.
 - Automation: reminder creation, schedule status, routine promotion, receipts, reconciliation, and explicitly confirmed approve/deny/cancel/run/pause/resume/retry actions.
 - Build Delegation: explicit handoff to GoodVibes TUI for build/fix/review work.
@@ -90,13 +90,13 @@ Local Agent behavior is editable from the TUI workspace:
 - Agent Workspace -> Routines: create routines, start a routine in the main conversation, review receipts, and explicitly promote one routine to a connected schedule.
 - Agent Workspace -> Work: review the visible local work plan, add work items, and update status from the TUI while the main assistant conversation can keep the same plan current.
 - Agent Workspace -> Memory & Skills: create memory, search memory, review/stale/delete records, export/import bundles, and rebuild the local vector index.
-- Agent Workspace -> Channels: inspect readiness, pair companion clients, and manage or send configured notification targets with confirmation.
+- Agent Workspace -> Channels: inspect readiness, pair companion clients, send one confirmed channel delivery message, and manage or send configured notification targets with confirmation.
 
 Slash commands remain available inside the TUI for power users, but the fullscreen Agent workspace is the primary path for these workflows.
 
 Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promotion to a connected schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live connected schedules through public `schedules.list`.
 
-Use `/channels` inside the TUI for a read-only channel readiness matrix. It shows enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values.
+Use `/channels` inside the TUI for channel readiness and exact confirmed sends. Readiness views show enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values. `/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit delivery through configured strategies.
 
 ## Connected Host
 

@@ -28,6 +28,7 @@ High-signal Agent TUI paths:
 - `/workplan` for durable task status over public work-plan routes.
 - `/approvals` for pending approval visibility and explicit approval actions.
 - `/schedule` for schedule visibility plus narrow explicit-user-action flows.
+- `/channels` for channel readiness and one-message confirmed channel delivery.
 - `/media` for media provider readiness and confirmed image/video artifact generation.
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
@@ -82,6 +83,12 @@ Approvals and automation are safe by default:
 - unavailable routes return structured errors rather than fallback behavior.
 
 Routine promotion is an explicit scheduling bridge: local routines stay local during normal use, and promotion creates a schedule only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or non-Agent knowledge fallback. Delivery is opt-in with explicit flags such as `--delivery-channel`, `--delivery-route`, `--delivery-webhook`, or `--delivery-link`; no delivery target is inferred from chat.
+
+## Channels
+
+Agent Workspace -> Channels is the primary channel path. It shows readiness, setup, account, policy, and status views without rendering secret values. `Send channel message` opens a confirmed form for one delivery target.
+
+`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, start services, use default Knowledge/Wiki, use HomeGraph, spawn agents, or run WRFC.
 
 ## Related Docs
 

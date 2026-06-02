@@ -1,0 +1,192 @@
+import type {
+  ChannelDeliveryRequest,
+  ChannelDeliveryRouter,
+  ChannelDeliverySurfaceKind,
+  ChannelDeliveryTarget,
+} from '@pellux/goodvibes-sdk/platform/channels';
+
+type AgentChannelDeliveryRouter = Pick<ChannelDeliveryRouter, 'deliver' | 'listStrategies'>;
+
+export interface AgentChannelDeliveryInput {
+  readonly message: string;
+  readonly title?: string;
+  readonly channel?: string;
+  readonly route?: string;
+  readonly webhook?: string;
+  readonly link?: string;
+}
+
+export interface AgentChannelDeliveryPreview {
+  readonly message: string;
+  readonly title: string;
+  readonly target: ChannelDeliveryTarget;
+  readonly request: ChannelDeliveryRequest;
+}
+
+export interface AgentChannelDeliveryResult {
+  readonly responseId?: string;
+  readonly message: string;
+  readonly title: string;
+  readonly target: ChannelDeliveryTarget;
+  readonly strategyCount: number;
+}
+
+const DELIVERY_SURFACE_KINDS: readonly ChannelDeliverySurfaceKind[] = [
+  'tui',
+  'web',
+  'slack',
+  'discord',
+  'ntfy',
+  'webhook',
+  'telegram',
+  'google-chat',
+  'signal',
+  'whatsapp',
+  'imessage',
+  'msteams',
+  'bluebubbles',
+  'mattermost',
+  'matrix',
+  'service',
+];
+
+function readText(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function isDeliverySurfaceKind(value: string): value is ChannelDeliverySurfaceKind {
+  return DELIVERY_SURFACE_KINDS.includes(value as ChannelDeliverySurfaceKind);
+}
+
+function parseChannelTarget(raw: string): ChannelDeliveryTarget {
+  const [surfaceKind = '', routeId, label] = raw.split(':');
+  if (!isDeliverySurfaceKind(surfaceKind)) {
+    throw new Error(`Unsupported delivery channel "${surfaceKind}".`);
+  }
+  return {
+    kind: 'surface',
+    surfaceKind,
+    ...(readText(routeId) ? { routeId: readText(routeId) } : {}),
+    ...(readText(label) ? { label: readText(label) } : {}),
+  };
+}
+
+function parseRouteTarget(raw: string): ChannelDeliveryTarget {
+  const [routeId = '', label] = raw.split(':');
+  const normalizedRouteId = readText(routeId);
+  if (!normalizedRouteId) throw new Error('Route delivery target requires a route id.');
+  return {
+    kind: 'surface',
+    routeId: normalizedRouteId,
+    ...(readText(label) ? { label: readText(label) } : {}),
+  };
+}
+
+function parseWebhookTarget(raw: string): ChannelDeliveryTarget {
+  const normalized = readText(raw);
+  if (!normalized) throw new Error('Webhook delivery target requires a URL.');
+  try {
+    const url = new URL(normalized);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('bad protocol');
+  } catch {
+    throw new Error('Webhook delivery target must be a valid http(s) URL.');
+  }
+  return { kind: 'webhook', address: normalized };
+}
+
+function parseLinkTarget(raw: string): ChannelDeliveryTarget {
+  const normalized = readText(raw);
+  if (!normalized) throw new Error('Link delivery target requires a URL or label.');
+  return { kind: 'link', address: normalized };
+}
+
+function selectedTargetInputs(input: AgentChannelDeliveryInput): readonly string[] {
+  return [input.channel, input.route, input.webhook, input.link].map(readText).filter((value): value is string => Boolean(value));
+}
+
+export function buildAgentChannelDeliveryPreview(input: AgentChannelDeliveryInput): AgentChannelDeliveryPreview {
+  const message = readText(input.message);
+  if (!message) throw new Error('Channel delivery message is required.');
+  const targets = selectedTargetInputs(input);
+  if (targets.length === 0) throw new Error('Choose one delivery target: channel, route, webhook, or link.');
+  if (targets.length > 1) throw new Error('Choose exactly one delivery target.');
+
+  const channel = readText(input.channel);
+  const route = readText(input.route);
+  const webhook = readText(input.webhook);
+  const link = readText(input.link);
+  const target = channel
+    ? parseChannelTarget(channel)
+    : route
+      ? parseRouteTarget(route)
+      : webhook
+        ? parseWebhookTarget(webhook)
+        : parseLinkTarget(link ?? '');
+  const title = readText(input.title) ?? 'GoodVibes Agent message';
+  return {
+    message,
+    title,
+    target,
+    request: {
+      target,
+      body: message,
+      title,
+      jobId: 'agent-channel-send',
+      runId: `agent-channel-send-${Date.now()}`,
+      status: 'completed',
+      includeLinks: true,
+      metadata: {
+        product: 'goodvibes-agent',
+        source: 'agent-channel-send',
+      },
+    },
+  };
+}
+
+export async function deliverAgentChannelMessage(
+  router: AgentChannelDeliveryRouter,
+  input: AgentChannelDeliveryInput,
+): Promise<AgentChannelDeliveryResult> {
+  const preview = buildAgentChannelDeliveryPreview(input);
+  const responseId = await router.deliver(preview.request);
+  return {
+    responseId,
+    message: preview.message,
+    title: preview.title,
+    target: preview.target,
+    strategyCount: router.listStrategies().length,
+  };
+}
+
+function formatTarget(target: ChannelDeliveryTarget): string {
+  if (target.kind === 'surface') {
+    return [
+      target.surfaceKind ?? 'route',
+      target.routeId ? `route=${target.routeId}` : '',
+      target.label ? `label=${target.label}` : '',
+    ].filter(Boolean).join(' ');
+  }
+  return target.address ? `${target.kind} ${target.address}` : target.kind;
+}
+
+export function formatAgentChannelDeliveryPreview(preview: AgentChannelDeliveryPreview, strategyCount: number): string {
+  return [
+    'Agent channel delivery preview',
+    `  title: ${preview.title}`,
+    `  target: ${formatTarget(preview.target)}`,
+    `  strategies: ${strategyCount}`,
+    `  message: ${preview.message}`,
+    '  policy: external delivery requires an explicit user request and confirmation',
+  ].join('\n');
+}
+
+export function formatAgentChannelDeliveryResult(result: AgentChannelDeliveryResult): string {
+  return [
+    'Agent channel delivery sent',
+    `  title: ${result.title}`,
+    `  target: ${formatTarget(result.target)}`,
+    `  strategies: ${result.strategyCount}`,
+    ...(result.responseId ? [`  response: ${result.responseId}`] : []),
+  ].join('\n');
+}

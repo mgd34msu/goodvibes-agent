@@ -43,6 +43,7 @@ import type { DirectTransport } from '@/runtime/index.ts';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
+import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 
 export type BootstrapCommandSessionSection = CommandContext['session'];
@@ -81,6 +82,7 @@ export interface BootstrapCommandSectionOptions {
   readonly voiceService?: VoiceService;
   readonly mediaProviderRegistry?: MediaProviderRegistry;
   readonly artifactStore?: ArtifactStore;
+  readonly channelDeliveryRouter?: ChannelDeliveryRouter;
   readonly forensicsRegistry: ForensicsRegistry;
   readonly policyRuntimeState: PolicyRuntimeState;
   readonly readModels: UiReadModels;
@@ -311,7 +313,7 @@ export function createBootstrapCommandWorkspaceSection(
 export function createBootstrapCommandPlatformSection(
   options: Pick<
     BootstrapCommandSectionOptions,
-    'configManager' | 'voiceProviderRegistry' | 'voiceService' | 'mediaProviderRegistry' | 'artifactStore'
+    'configManager' | 'voiceProviderRegistry' | 'voiceService' | 'mediaProviderRegistry' | 'artifactStore' | 'channelDeliveryRouter'
   >,
   shellServices: BootstrapCommandShellServices,
 ): BootstrapCommandPlatformSection {
@@ -322,6 +324,7 @@ export function createBootstrapCommandPlatformSection(
     voiceService: options.voiceService,
     mediaProviderRegistry: options.mediaProviderRegistry,
     artifactStore: options.artifactStore,
+    channelDeliveryRouter: options.channelDeliveryRouter,
     ...shellServices.platform,
   };
 }

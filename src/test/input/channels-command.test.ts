@@ -2,12 +2,14 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { ChannelDeliveryRequest } from '@pellux/goodvibes-sdk/platform/channels';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerChannelsRuntimeCommands } from '../../input/commands/channels-runtime.ts';
 
 function channelContext(
   overrides: Record<string, unknown> = {},
   homeDirectory?: string,
+  deliveryRequests?: ChannelDeliveryRequest[],
 ): { readonly context: CommandContext; readonly printed: string[] } {
   const values: Record<string, unknown> = {
     'controlPlane.host': '127.0.0.1',
@@ -27,6 +29,15 @@ function channelContext(
       configManager: {
         get: (key: string) => values[key],
       },
+      ...(deliveryRequests ? {
+        channelDeliveryRouter: {
+          listStrategies: () => [{ id: 'test-delivery', canHandle: () => true, deliver: async () => ({}) }],
+          deliver: async (request: ChannelDeliveryRequest) => {
+            deliveryRequests.push(request);
+            return 'delivery-response-1';
+          },
+        },
+      } : {}),
     },
     workspace: {
       shellPaths: {
@@ -209,5 +220,26 @@ describe('/channels command', () => {
     expect(output).toContain('Channel accounts: unavailable');
     expect(output).toContain('kind: auth_required');
     expect(output).toContain('no channel send/action route was called');
+  });
+
+  test('sends through the delivery router only after explicit confirmation', async () => {
+    const deliveryRequests: ChannelDeliveryRequest[] = [];
+    const { context, printed } = channelContext({}, undefined, deliveryRequests);
+
+    await runChannels(['send', '--channel', 'slack:ops:Ops', '--message', 'Review approvals'], context);
+
+    expect(deliveryRequests).toEqual([]);
+    expect(printed.join('\n')).toContain('Agent channel delivery preview');
+    expect(printed.join('\n')).toContain('without --yes');
+
+    printed.length = 0;
+    await runChannels(['send', '--channel', 'slack:ops:Ops', '--title', 'Approvals', '--message', 'Review approvals', '--yes'], context);
+
+    expect(deliveryRequests).toHaveLength(1);
+    expect(deliveryRequests[0]?.target).toMatchObject({ kind: 'surface', surfaceKind: 'slack', routeId: 'ops', label: 'Ops' });
+    expect(deliveryRequests[0]?.body).toBe('Review approvals');
+    expect(deliveryRequests[0]?.title).toBe('Approvals');
+    expect(printed.join('\n')).toContain('Agent channel delivery sent');
+    expect(printed.join('\n')).toContain('delivery-response-1');
   });
 });

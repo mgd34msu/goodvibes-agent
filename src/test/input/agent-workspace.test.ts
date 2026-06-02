@@ -2166,6 +2166,40 @@ describe('AgentWorkspace', () => {
     expect(dispatched.join('\n')).not.toContain('/notify test');
   });
 
+  test('sends channel delivery messages from the workspace only after typed confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-send');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('channel-send');
+    feedText(workspace, 'Review the approvals');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Approvals');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'slack:ops:Ops');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/channels send --title Approvals --channel slack:ops:Ops --message "Review the approvals" --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening channel delivery');
+  });
+
   test('removes notification webhook targets from the workspace only after typed confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
