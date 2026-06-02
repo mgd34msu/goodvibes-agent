@@ -2,6 +2,10 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.109 - 2026-06-02
+
+- 4152420 Let Agent remember through local registry tool
+
 ## 0.1.108 - 2026-06-02
 
 - f6b278c Harden Agent install and briefing
