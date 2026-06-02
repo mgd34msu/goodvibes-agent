@@ -47,8 +47,23 @@ describe('Agent onboarding product boundary', () => {
     expect(new Set(actions)).toEqual(new Set([
       'apply',
       'apply-and-continue',
+      'open-agent-workspace:automation',
+      'open-agent-workspace:channels',
+      'open-agent-workspace:delegate',
+      'open-agent-workspace:knowledge',
+      'open-agent-workspace:memory',
+      'open-agent-workspace:personas',
+      'open-agent-workspace:profiles',
+      'open-agent-workspace:routines',
+      'open-agent-workspace:skills',
+      'open-agent-workspace:tools',
+      'open-agent-workspace:voice-media',
       'start-openai-subscription',
     ]));
+    expect(actions.some((action) => action.includes('daemon'))).toBe(false);
+    expect(actions.some((action) => action.includes('service'))).toBe(false);
+    expect(actions.some((action) => action.includes('listener'))).toBe(false);
+    expect(actions.some((action) => action.includes('control-plane'))).toBe(false);
   });
 
   test('keeps first-run onboarding focused on Agent setup instead of host lifecycle terms', () => {
