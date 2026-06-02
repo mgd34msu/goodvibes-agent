@@ -2,6 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import { renderCompletion } from '../../cli/completion.ts';
 import { renderGoodVibesCommandHelp, renderGoodVibesHelp, renderGoodVibesVersion } from '../../cli/help.ts';
 
+const AGENT_BIN = ['goodvibes', 'agent'].join('-');
+const RETIRED_TUI_USAGE = ['tui ', '[path]'].join('');
+const RETIRED_START_COMMAND = [AGENT_BIN, 'start'].join(' ');
+const RETIRED_LAUNCH_COMMAND = [AGENT_BIN, 'launch'].join(' ');
+
 describe('CLI help/version', () => {
   test('does not report the consuming project npm_package_version', () => {
     const previous = process.env.npm_package_version;
@@ -34,16 +39,16 @@ describe('CLI help/version', () => {
     expect(help).not.toContain('submit a non-interactive task');
     expect(help).toContain('Primary use:');
     expect(help).toContain('Inside the TUI:');
-    expect(help).toContain('tui [path]');
+    expect(help).not.toContain(RETIRED_TUI_USAGE);
     expect(help).not.toContain('tui|launch|start [path]');
-    expect(help).not.toContain('goodvibes-agent launch');
-    expect(help).not.toContain('goodvibes-agent start');
+    expect(help).not.toContain(RETIRED_LAUNCH_COMMAND);
+    expect(help).not.toContain(RETIRED_START_COMMAND);
   });
 
   test('shell completion advertises product commands instead of runtime lifecycle commands', () => {
     const completion = renderCompletion('bash', 'goodvibes-agent');
 
-    expect(completion).toContain('tui');
+    expect(completion).not.toContain('tui');
     expect(completion).not.toContain('launch');
     expect(completion).not.toContain(' start ');
     expect(completion).toContain('profiles');
@@ -94,7 +99,7 @@ describe('CLI help/version', () => {
     const help = renderGoodVibesCommandHelp('start');
 
     expect(help).toContain('No detailed help is available for "start".');
-    expect(help).not.toContain('goodvibes-agent start [path]');
+    expect(help).not.toContain([RETIRED_START_COMMAND, '[path]'].join(' '));
   });
 
   test('package-facing help uses the Agent executable for command guidance', () => {

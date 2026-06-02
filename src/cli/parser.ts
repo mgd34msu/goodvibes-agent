@@ -6,7 +6,6 @@ import type {
 } from './types.ts';
 
 const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
-  tui: 'tui',
   run: 'run',
   exec: 'run',
   e: 'run',
@@ -60,7 +59,7 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   version: 'version',
 };
 
-const RETIRED_LAUNCHER_ALIASES = new Set(['app', 'launch', 'start']);
+const RETIRED_LAUNCHER_ALIASES = new Set(['app', 'launch', 'start', 'tui']);
 
 function createDefaultFlags(): GoodVibesCliFlags {
   return {

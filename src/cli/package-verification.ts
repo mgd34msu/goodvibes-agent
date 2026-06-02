@@ -104,6 +104,7 @@ const PACKAGE_FACING_FORBIDDEN_TEXT = [
   ['goodvibes-agent', 'web'].join(' '),
   ['goodvibes-agent', 'launch'].join(' '),
   ['goodvibes-agent', 'start'].join(' '),
+  ['tui ', '[path]'].join(''),
   ['tui', '|launch'].join(''),
   ['tui', '|launch|start'].join(''),
   'Every plan must have a multi-agent execution strategy',

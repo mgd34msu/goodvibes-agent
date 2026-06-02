@@ -258,7 +258,7 @@ describe('parseCliFlags', () => {
   });
 
   test('retired launcher aliases do not open the Agent TUI', () => {
-    for (const token of ['app', 'launch', 'start'] as const) {
+    for (const token of ['app', 'launch', 'start', 'tui'] as const) {
       const parsed = parseGoodVibesCli([token]);
       expect(parsed.command).toBe('unknown');
       expect(parsed.rawCommand).toBe(token);

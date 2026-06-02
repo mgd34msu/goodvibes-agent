@@ -43,7 +43,6 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
   '  /delegate                 Explicitly hand build/fix/review work to GoodVibes TUI',
     '',
     'Commands:',
-    '  tui [path]                 Start the interactive Agent terminal UI (default)',
     '  run|exec [prompt]          Run non-interactively with text/json/stream-json output',
     '  status                     Print config, provider, auth, and setup posture',
     '  doctor                     Print status plus setup warnings',
@@ -132,11 +131,6 @@ type CommandHelp = {
 };
 
 const COMMAND_HELP: Record<string, CommandHelp> = {
-  tui: {
-    usage: ['tui [path]', '[prompt]'],
-    summary: 'Start the interactive Agent terminal UI. A prompt starts Agent with that prompt seeded.',
-    examples: ['', 'tui ~/work/project', '"summarize current tasks"'],
-  },
   run: {
     usage: ['run [prompt] [--output text|json|stream-json]', 'exec [prompt]'],
     summary: 'Run a single non-interactive agent turn and write the result to stdout.',
