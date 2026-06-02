@@ -67,12 +67,14 @@ describe('renderOnboardingWizard', () => {
     const text = linesToText(renderOnboardingWizard(wizard, 188, 44)).join('\n');
 
     expect(text).toContain('Agent day-one readiness');
-    expect(text).toContain('Runtime connection snapshot');
+    expect(text).toContain('Connected services snapshot');
     expect(text).toContain('Default model route');
     expect(text).toContain('Create household from household');
     expect(text).toContain('Agent Knowledge segment');
     expect(text).toContain('Channels and notifications');
     expect(text).toContain('Build delegation');
+    expect(text).not.toContain('Runtime connection snapshot');
+    expect(text).not.toContain('GoodVibes runtime connection');
     expect(text).not.toContain(['Home', 'Graph'].join(''));
     expect(text).not.toContain('Default Knowledge/Wiki fallback: enabled');
   });

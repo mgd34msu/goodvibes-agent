@@ -114,10 +114,10 @@ function buildReviewReadinessFields(controller: OnboardingWizardController): rea
     {
       kind: 'status',
       id: 'review.readiness.connection',
-      label: 'Runtime connection snapshot',
+      label: 'Connected services snapshot',
       hint: collectionIssues > 0
         ? `${collectionIssues} setup snapshot issue(s) need attention before this Agent is day-one ready.`
-        : 'The setup snapshot loaded cleanly from the external GoodVibes runtime.',
+        : 'The setup snapshot loaded cleanly from connected GoodVibes services.',
       defaultValue: collectionIssues > 0 ? 'Needs attention' : 'Ready',
       spacerBeforeRows: 1,
     },
@@ -211,7 +211,7 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
     summaryLines: [
       'Agent owns the operator TUI and local behavior registry.',
       'Optional starter profile: create an isolated Agent home from setup.',
-      'GoodVibes runtime lifecycle is external to this product.',
+      'Setup here changes only Agent-owned settings and local state.',
       `Secret policy: ${controller.getStringFieldValue('agent-setup.secret-policy', secretPolicy)}`,
       collectionIssues > 0 ? `${collectionIssues} setup snapshot issue(s)` : 'Setup snapshot collected cleanly',
     ],
@@ -226,11 +226,11 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
       {
         kind: 'status',
         id: 'agent-setup.connection',
-        label: 'GoodVibes runtime connection',
+        label: 'Connected GoodVibes services',
         hint: collectionIssues > 0
           ? `${collectionIssues} setup snapshot issue(s) were reported. Status and doctor commands show connection details.`
-          : 'Agent connects to an already-running GoodVibes runtime for companion chat, work plans, approvals, automation, and Agent Knowledge.',
-        defaultValue: collectionIssues > 0 ? `${collectionIssues} issue(s)` : 'External',
+          : 'Agent uses connected GoodVibes services for companion chat, work plans, approvals, automation, and Agent Knowledge.',
+        defaultValue: collectionIssues > 0 ? `${collectionIssues} issue(s)` : 'Connected',
       },
       {
         kind: 'radio',
@@ -514,7 +514,7 @@ export function buildReviewStep(controller: OnboardingWizardController): Onboard
         id: 'review.apply',
         action: 'apply',
         label: 'Apply Agent settings and verify',
-        hint: 'Persist the Agent-owned settings and verify that no runtime lifecycle, non-Agent entrypoint, default wiki, or non-Agent knowledge setup was requested.',
+        hint: 'Persist Agent-owned settings and verify that setup did not request non-Agent entrypoints, default wiki access, or non-Agent knowledge setup.',
         defaultValue: 'Ready',
       },
     ],
