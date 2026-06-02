@@ -101,7 +101,7 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
     `  skills: ${snapshot.enabledSkillCount}/${snapshot.localSkillCount} enabled; bundles ${snapshot.enabledSkillBundleCount}/${snapshot.localSkillBundleCount}; active ${snapshot.activeSkillCount}`,
     `  routines: ${snapshot.enabledRoutineCount}/${snapshot.localRoutineCount} enabled`,
     `  channels: ${readyChannels}/${snapshot.channels.length} ready; ${enabledChannels} enabled`,
-    `  voice/media: ${snapshot.voiceProviderCount} voice, ${snapshot.mediaProviderCount} media; browser surface ${snapshot.browserSurfaceEnabled ? 'enabled' : 'disabled'}`,
+    `  voice/media: ${snapshot.voiceProviderCount} voice, ${snapshot.mediaProviderCount} media; browser tools ${snapshot.voiceMediaReadiness.browserToolState}`,
     formatWorkPlanLine(workPlan.total, workPlan.counts),
     `  schedules: ${enabledJobs}/${jobs.length} visible jobs enabled`,
     '',

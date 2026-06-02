@@ -1394,8 +1394,8 @@ describe('AgentWorkspace', () => {
       expect(snapshot.voiceMediaReadiness.browserToolState).toBe('public-url');
       expect(snapshot.voiceMediaReadiness.voiceProviders[0]?.missingSecretKeyOptions).toEqual(['ELEVENLABS_API_KEY', 'XI_API_KEY']);
       expect(snapshot.voiceMediaReadiness.mediaProviders[1]?.missingSecretKeyOptions).toEqual(['FAL_KEY', 'FAL_API_KEY']);
-      expect(snapshot.browserSurfaceEnabled).toBe(true);
-      expect(snapshot.browserSurfacePublicBaseUrl).toBe('https://agent.example.test');
+      expect(snapshot.browserToolExposureEnabled).toBe(true);
+      expect(snapshot.browserToolPublicBaseUrl).toBe('https://agent.example.test');
     } finally {
       for (const key of keys) {
         const value = previous.get(key);

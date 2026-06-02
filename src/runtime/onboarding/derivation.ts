@@ -179,48 +179,8 @@ function hasCustomizedWorkspaceDefaults(snapshot: OnboardingSnapshotState): bool
     || !isDeepEqual(snapshot.config.display, DEFAULT_CONFIG.display);
 }
 
-function hasAnyServerEnabled(snapshot: OnboardingSnapshotState): boolean {
-  return snapshot.bindSettings.daemonEnabled
-    || snapshot.bindSettings.controlPlane.enabled
-    || snapshot.bindSettings.httpListenerEnabled
-    || snapshot.bindSettings.web.enabled;
-}
-
-function isLoopbackHost(host: string | null | undefined): boolean {
-  const normalized = (host ?? '').trim().toLowerCase();
-  if (normalized.length === 0) return false;
-  return normalized === 'localhost'
-    || normalized === '::1'
-    || normalized === '[::1]'
-    || normalized === '0:0:0:0:0:0:0:1'
-    || /^127(?:\.\d{1,3}){3}$/.test(normalized);
-}
-
-function isRemoteBind(hostMode: string, host: string | null | undefined, allowRemote = false): boolean {
-  if (hostMode === 'network') return true;
-  if (hostMode === 'local') return allowRemote;
-  if (hostMode === 'custom') return !isLoopbackHost(host);
-  return false;
-}
-
-function hasRemoteDeviceAccess(snapshot: OnboardingSnapshotState): boolean {
-  return (
-    ((snapshot.bindSettings.daemonEnabled || snapshot.bindSettings.controlPlane.enabled)
-      && isRemoteBind(
-        snapshot.bindSettings.controlPlane.hostMode,
-        snapshot.bindSettings.controlPlane.host,
-        snapshot.bindSettings.controlPlane.allowRemote,
-      ))
-    || (snapshot.bindSettings.web.enabled && isRemoteBind(
-      snapshot.bindSettings.web.hostMode,
-      snapshot.bindSettings.web.host,
-    ))
-  );
-}
-
 function hasWebhookOrEventIngress(snapshot: OnboardingSnapshotState): boolean {
-  return snapshot.bindSettings.httpListenerEnabled
-    || hasInboundEventSurface(snapshot)
+  return hasInboundEventSurface(snapshot)
     || snapshot.services.services.some((service) => service.hasWebhookUrl || service.hasSigningSecret || service.hasPublicKey || service.hasAppToken);
 }
 
@@ -262,12 +222,8 @@ function hasAutomationReviewSignals(snapshot: OnboardingSnapshotState): boolean 
   return hasWebhookOrEventIngress(snapshot);
 }
 
-function describeOperatorTerminal(snapshot: OnboardingSnapshotState): string {
-  if (!hasAnyServerEnabled(snapshot)) {
-    return 'Use GoodVibes Agent as the terminal operator while connecting to existing GoodVibes services. Agent setup does not create new entrypoints.';
-  }
-
-  return 'Use GoodVibes Agent as the terminal operator; connection settings are shown only so setup is understandable.';
+function describeOperatorTerminal(): string {
+  return 'Use GoodVibes Agent as the terminal operator while connecting to existing GoodVibes services. Agent setup does not create new entrypoints.';
 }
 
 function describeProviderAccess(snapshot: OnboardingSnapshotState): string {
@@ -358,7 +314,7 @@ export function deriveStep1Capabilities(
       id: 'operator-terminal',
       label: 'Agent Operator TUI',
       selected: true,
-      detail: describeOperatorTerminal(snapshot),
+      detail: describeOperatorTerminal(),
     },
     {
       id: 'provider-access',
@@ -419,25 +375,8 @@ export function deriveStep1CapabilityFlags(
 export function deriveStep1_5NetworkMode(
   bindSettings: Pick<OnboardingSnapshotState, 'bindSettings'>['bindSettings'],
 ): OnboardingNetworkMode {
-  const activeModes: string[] = [];
-  const hasNetworkFacingSurface = bindSettings.httpListenerEnabled || bindSettings.web.enabled;
-
-  if (
-    (bindSettings.daemonEnabled || bindSettings.controlPlane.enabled)
-    && (!hasNetworkFacingSurface || bindSettings.controlPlane.hostMode !== 'local')
-  ) {
-    activeModes.push(bindSettings.controlPlane.hostMode);
-  }
-
-  if (bindSettings.httpListenerEnabled) {
-    activeModes.push(bindSettings.httpListener.hostMode);
-  }
-
-  if (bindSettings.web.enabled) {
-    activeModes.push(bindSettings.web.hostMode);
-  }
-
-  return activeModes.some((mode) => mode !== 'network') ? 'custom' : 'local-network-default';
+  void bindSettings;
+  return 'local-network-default';
 }
 
 export function deriveReopenEditAcknowledgementState(

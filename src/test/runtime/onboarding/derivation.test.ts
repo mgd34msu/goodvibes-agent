@@ -223,7 +223,7 @@ describe('onboarding derivation helpers', () => {
         id: 'operator-terminal',
         label: 'Agent Operator TUI',
         selected: true,
-        detail: 'Use GoodVibes Agent as the terminal operator; connection settings are shown only so setup is understandable.',
+        detail: 'Use GoodVibes Agent as the terminal operator while connecting to existing GoodVibes services. Agent setup does not create new entrypoints.',
       },
       {
         id: 'provider-access',
@@ -275,7 +275,7 @@ describe('onboarding derivation helpers', () => {
     });
   });
 
-  test('treats only enabled bind targets as part of network-mode derivation', () => {
+  test('keeps copied bind targets out of Agent setup network-mode derivation', () => {
     let snapshot = buildBaseSnapshot();
     snapshot = {
       ...snapshot,
@@ -288,8 +288,6 @@ describe('onboarding derivation helpers', () => {
       },
     };
 
-    expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('local-network-default');
-
     snapshot = {
       ...snapshot,
       bindSettings: {
@@ -301,7 +299,7 @@ describe('onboarding derivation helpers', () => {
       },
     };
 
-    expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('custom');
+    expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('local-network-default');
 
     snapshot = {
       ...buildBaseSnapshot(),
@@ -314,7 +312,7 @@ describe('onboarding derivation helpers', () => {
       },
     };
 
-    expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('custom');
+    expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('local-network-default');
 
     snapshot = {
       ...snapshot,
@@ -380,8 +378,9 @@ describe('onboarding derivation helpers', () => {
 
     expect(capabilities.map((capability) => capability.id)).not.toContain('network-access');
     expect(capabilities.map((capability) => capability.id)).not.toContain('webhook-events');
-    expect(capabilities.find((capability) => capability.id === 'automation-review')?.selected).toBe(true);
+    expect(capabilities.find((capability) => capability.id === 'automation-review')?.selected).toBe(false);
     expect(capabilities.find((capability) => capability.id === 'operator-terminal')?.detail).toContain('terminal operator');
+    expect(capabilities.find((capability) => capability.id === 'operator-terminal')?.detail).toContain('does not create new entrypoints');
   });
 
   test('does not surface browser or listener setup as Agent setup items', () => {

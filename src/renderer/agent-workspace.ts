@@ -263,7 +263,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Selected TTS readiness: ${readiness.selectedTtsProviderLabel} -> ${readiness.selectedTtsProviderStatus}; voice ${readiness.ttsVoiceConfigured ? 'configured' : 'default'}; response route ${readiness.ttsResponseRouteConfigured ? 'configured' : 'chat route'}.`, fg: readiness.selectedTtsProviderStatus === 'ready' ? PALETTE.good : PALETTE.warn },
       { text: `Media providers: ${snapshot.mediaProviderCount}; understanding: ${snapshot.mediaUnderstandingProviderCount}; generation: ${snapshot.mediaGenerationProviderCount}.`, fg: PALETTE.info },
       { text: `Ready media providers: ${readiness.readyMediaProviderCount}/${snapshot.mediaProviderCount}.`, fg: readiness.readyMediaProviderCount > 0 ? PALETTE.good : PALETTE.warn },
-      { text: `Browser tooling: ${readiness.browserToolState}; public base URL ${snapshot.browserSurfacePublicBaseUrl}.`, fg: snapshot.browserSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: `Browser tools: ${readiness.browserToolState}; public base URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
       { text: readiness.browserToolNextStep, fg: PALETTE.muted },
       { text: 'Voice provider readiness', fg: PALETTE.title, bold: true },
     );

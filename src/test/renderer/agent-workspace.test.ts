@@ -566,7 +566,7 @@ describe('renderAgentWorkspace', () => {
       expect(output).toContain('Selected TTS readiness: ElevenLabs -> needs-secret; voice configured; response route configured.');
       expect(output).toContain('Media providers: 2; understanding: 1; generation: 1.');
       expect(output).toContain('Ready media providers: 1/2.');
-      expect(output).toContain('Browser tooling: public-url; public base URL https://agent.example.test.');
+      expect(output).toContain('Browser tools: public-url; public base URL https://agent.example.test.');
       expect(output).toContain('ElevenLabs: selected; needs-secret; tts-stream, stt, realtime; needs');
       expect(output).toContain('ELEVENLABS_API_KEY|XI_API_KEY.');
       expect(output).toContain('Fal: needs-secret; generate; needs FAL_KEY|FAL_API_KEY.');

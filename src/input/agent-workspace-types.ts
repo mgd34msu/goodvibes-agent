@@ -190,8 +190,8 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly mcpConnectedServerCount: number;
   readonly mcpQuarantinedServerCount: number;
   readonly mcpAllowAllServerCount: number;
-  readonly browserSurfaceEnabled: boolean;
-  readonly browserSurfacePublicBaseUrl: string;
+  readonly browserToolExposureEnabled: boolean;
+  readonly browserToolPublicBaseUrl: string;
   readonly activeRuntimeProfile: string;
   readonly runtimeProfileCount: number;
   readonly runtimeProfiles: readonly AgentWorkspaceRuntimeProfileItem[];
