@@ -49,7 +49,7 @@ export function buildDefaultDerivedState(): OnboardingStepDerivationState {
         required: false,
         accepted: false,
         reason: 'not-needed',
-        detail: 'No external runtime auth signal needs confirmation.',
+        detail: 'No connected-service auth signal needs confirmation.',
       },
     },
   };

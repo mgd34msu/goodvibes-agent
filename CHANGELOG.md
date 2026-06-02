@@ -2,16 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
-## Unreleased
-
-- Add an in-TUI `/channels` readiness command and workspace action for read-only channel setup review without sending messages or exposing token values.
-- Add a confirmed in-workspace Agent Knowledge URL ingest form that writes only through the isolated Agent Knowledge route.
-
 ## 0.1.107 - 2026-06-01
 
-- Add `goodvibes-agent launch` and `goodvibes-agent start` as explicit aliases for starting the Agent TUI.
 - Open the Agent operator workspace automatically on normal TUI launch after first-run setup has been shown.
-- Document the Bun global install path with `goodvibes-agent launch` as the first interactive smoke.
+- Document the Bun global install path with bare `goodvibes-agent` as the interactive smoke.
+- Add an in-TUI `/channels` readiness command and workspace action for read-only channel setup review without sending messages or exposing token values.
+- Add a confirmed in-workspace Agent Knowledge URL ingest form that writes only through the isolated Agent Knowledge route.
 
 ## 0.1.106 - 2026-06-01
 
@@ -120,12 +116,10 @@ All notable changes to GoodVibes Agent will be recorded here.
 
 - 35dbf3d Show live external runtime status
 
-## Unreleased
+## 0.1.83 - 2026-06-01
 
 - Foregrounded live external-runtime reachability, SDK compatibility, operator-token state, and isolated Agent Knowledge readiness in `status`/`doctor` output.
 - Removed the deprecated `actions/cache@v4` setup step so future CI/CD runs avoid Node 20 deprecation annotations from the shared workflow setup action.
-
-## 0.1.83 - 2026-06-01
 
 - f5099c1 Hide runtime-owned settings from Agent workspace
 

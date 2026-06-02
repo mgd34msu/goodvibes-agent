@@ -41,7 +41,7 @@ export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPr
     `  delivery: ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
     '  target: GoodVibes runtime/main conversation route',
     '  policy: isolated Agent Knowledge only; no default wiki/non-Agent fallback; no WRFC unless explicitly delegated',
-    '  next: rerun with --yes to create this external schedule',
+    '  next: rerun with --yes to create this connected schedule',
   ].join('\n');
 }
 

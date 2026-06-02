@@ -332,8 +332,8 @@ export async function bootstrapRuntime(
       port,
       baseUrl: formatHostServiceBaseUrl(host, port),
       reason: service === 'daemon'
-        ? 'GoodVibes Agent connects to an externally managed GoodVibes runtime and does not start or restart it.'
-        : 'GoodVibes Agent does not own external listener lifecycle.',
+        ? 'GoodVibes Agent connects to GoodVibes services owned outside this product and does not start or restart them.'
+        : 'GoodVibes Agent does not own listener lifecycle.',
     };
   };
 
@@ -373,7 +373,7 @@ export async function bootstrapRuntime(
         daemonStatus: createExternalAgentServiceStatus('daemon'),
         httpListenerStatus: createExternalAgentServiceStatus('httpListener'),
       };
-      systemMessageRouter.high('[Startup] GoodVibes Agent does not start or restart runtime-host services. Start the GoodVibes runtime from its owner, then refresh status.');
+      systemMessageRouter.high('[Startup] GoodVibes Agent does not start or restart connected GoodVibes services. Start them from GoodVibes TUI or the owning host, then refresh status.');
       requestRender();
       return inspectExternalServices();
     },
@@ -450,8 +450,8 @@ export async function bootstrapRuntime(
   });
   bootstrapUnsubs.push(() => mcpAutoReload.stop());
   if (configManager.get('automation.enabled')) {
-    logger.warn('Local automation startup is disabled in GoodVibes Agent; use external runtime observability instead.');
-    systemMessageRouter.low('[Startup] Local automation runners are disabled in GoodVibes Agent; use read-only automation observability or explicit external-runtime actions.');
+    logger.warn('Local automation startup is disabled in GoodVibes Agent; use connected-service observability instead.');
+    systemMessageRouter.low('[Startup] Local automation runners are disabled in GoodVibes Agent; use read-only automation observability or explicit connected-service actions.');
   }
 
   // ── Phase 12: Session:start lifecycle hook ─────────────────────────────

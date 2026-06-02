@@ -30,8 +30,6 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '',
     'Primary use:',
     `  ${binary}                 Launch the interactive Agent TUI`,
-    `  ${binary} launch          Launch the same Agent TUI explicitly`,
-    `  ${binary} start           Launch the same Agent TUI explicitly`,
     `  ${binary} setup           Open first-run Agent setup`,
     '',
     'Inside the TUI:',
@@ -44,7 +42,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  /delegate                 Explicitly hand build/fix/review work to GoodVibes TUI',
     '',
     'Commands:',
-    '  tui|launch|start [path]    Start the interactive Agent terminal UI (default)',
+    '  tui [path]                 Start the interactive Agent terminal UI (default)',
     '  run|exec [prompt]          Run non-interactively with text/json/stream-json output',
     '  status                     Print config, provider, auth, and setup posture',
     '  doctor                     Print status plus setup warnings',
@@ -55,9 +53,9 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  personas                   Manage local Agent personas',
     '  skills                     Manage local Agent skills and skill bundles',
     '  memory                     Manage Agent-owned durable memory records',
-    '  routines                   Inspect local routines and explicitly promote one to an external schedule',
+    '  routines                   Inspect local routines and explicitly promote one to a connected schedule',
     '  auth                       Inspect Agent auth posture and connection token state',
-  '  compat                     Inspect Agent SDK pin, connected service version, and Agent Knowledge route readiness',
+    '  compat                     Inspect Agent SDK pin, connected service version, and Agent Knowledge route readiness',
     '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
     '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
     '  delegate                   Explicitly delegate build/fix/review work to GoodVibes TUI',
@@ -96,7 +94,6 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '',
     'Examples:',
     `  ${binary}`,
-    `  ${binary} launch`,
     `  ${binary} --no-alt-screen`,
     `  ${binary} --cd ~/work/project --model openai:gpt-5.2`,
     `  ${binary} setup`,
@@ -135,9 +132,9 @@ type CommandHelp = {
 
 const COMMAND_HELP: Record<string, CommandHelp> = {
   tui: {
-    usage: ['tui [path]', 'launch [path]', 'start [path]', '[prompt]'],
+    usage: ['tui [path]', '[prompt]'],
     summary: 'Start the interactive Agent terminal UI. A prompt starts Agent with that prompt seeded.',
-    examples: ['', 'launch', 'start', 'tui ~/work/project', '"summarize current tasks"'],
+    examples: ['', 'tui ~/work/project', '"summarize current tasks"'],
   },
   run: {
     usage: ['run [prompt] [--output text|json|stream-json]', 'exec [prompt]'],
@@ -253,7 +250,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'routines receipt <receipt-id>',
       'routines promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--timezone <tz>] [--name <schedule-name>] [--provider <id>] [--model <model>] [--delivery-channel <channel[:route[:label]]>|--delivery-route <route[:label]>|--delivery-webhook <url>|--delivery-link <url>] [--disabled] --yes',
     ],
-    summary: 'Inspect Agent-local routines, review local promotion receipts, reconcile receipts against live external schedules, and explicitly promote a reviewed routine into a GoodVibes schedule. Without --yes, promote only prints the schedules.create preview.',
+    summary: 'Inspect Agent-local routines, review local promotion receipts, reconcile receipts against live connected schedules, and explicitly promote a reviewed routine into a GoodVibes schedule. Without --yes, promote only prints the schedules.create preview.',
     examples: [
       'routines list',
       'routines show daily-operations-sweep',
@@ -358,8 +355,6 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
 };
 
 const HELP_ALIASES: Record<string, string> = {
-  app: 'tui',
-  start: 'tui',
   exec: 'run',
   onboarding: 'setup',
   provider: 'providers',

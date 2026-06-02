@@ -46,13 +46,13 @@ export function buildProviderHealthDomainSummaries(
     name: 'auth',
     level: auth.bootstrapCredentialPresent ? 'warn' : 'info',
     summary: auth.bootstrapCredentialPresent
-      ? 'external runtime bootstrap credential visible in local compatibility state'
-      : 'runtime auth administration belongs to the external runtime owner',
+      ? 'connected-service bootstrap credential visible in local compatibility state'
+      : 'connected-service auth administration belongs outside Agent',
     next: '/auth review',
     details: [
-      'GoodVibes Agent does not create, delete, rotate, revoke, or clear runtime auth users or sessions.',
+      'GoodVibes Agent does not create, delete, rotate, revoke, or clear connected-service auth users or sessions.',
       `${auth.userCount} compatibility user record(s) and ${auth.sessionCount} session record(s) are visible for diagnostics only.`,
-      auth.bootstrapCredentialPresent ? 'Runtime bootstrap cleanup must be done outside Agent.' : '',
+      auth.bootstrapCredentialPresent ? 'Bootstrap cleanup must be done in the owning GoodVibes host.' : '',
     ].filter(Boolean),
     nextSteps: auth.bootstrapCredentialPresent
       ? ['/auth review', '/provider', '/subscription providers']

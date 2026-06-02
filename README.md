@@ -16,7 +16,7 @@ Install the public alpha package with Bun:
 ```sh
 bun add -g --trust @pellux/goodvibes-agent
 goodvibes-agent --help
-goodvibes-agent launch
+goodvibes-agent
 goodvibes-agent status
 goodvibes-agent profiles templates
 goodvibes-agent personas list
@@ -34,7 +34,7 @@ export PATH="$(bun pm bin -g):$PATH"
 goodvibes-agent --help
 ```
 
-`goodvibes-agent`, `goodvibes-agent launch`, and `goodvibes-agent start` all start the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
+`goodvibes-agent` starts the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
 
 `--trust` lets Bun run the package lifecycle scripts required by the shipped SDK and parser dependencies during global install. A healthy install should report no pending lifecycle scripts:
 
@@ -87,7 +87,7 @@ goodvibes-agent --agent-profile household status
 GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
 ```
 
-Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The GoodVibes runtime is still external and shared unless the owning host is separately configured otherwise.
+Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. Connected GoodVibes services remain shared unless the owning host is separately configured otherwise.
 
 The same local behavior libraries are available without opening the TUI: `goodvibes-agent personas ...`, `goodvibes-agent skills ...`, `goodvibes-agent memory ...`, and `goodvibes-agent routines ...` list, create, review, enable, stale, export/import where relevant, and delete local Agent records with explicit confirmation for destructive actions.
 
@@ -108,15 +108,15 @@ Local Agent behavior is editable from the TUI:
 /recall search morning
 ```
 
-Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promotion to an external schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live external schedules through public `schedules.list`.
+Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promotion to a connected schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live connected schedules through public `schedules.list`.
 
 Use `/channels` inside the TUI for a read-only channel readiness matrix. It shows enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values.
 
 ## Runtime Prerequisite
 
-Start or restart the GoodVibes runtime from GoodVibes TUI or the owning host before launching Agent. Agent status and companion/knowledge routes connect to that external runtime, normally on `http://127.0.0.1:3421`.
+Start connected GoodVibes services from GoodVibes TUI or the owning host before launching Agent. Agent status and companion/knowledge routes normally connect on `http://127.0.0.1:3421`.
 
-Use `--runtime-url http://host:port` for a one-off launch, or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` when the runtime API is not on the default local port. The legacy `GOODVIBES_AGENT_BASE_URL` env var is also accepted as an alias. These only change the external runtime connection target; Agent still does not host or start the runtime.
+Use `--runtime-url http://host:port` for a one-off launch, or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` when connected GoodVibes services are not on the default local port. The legacy `GOODVIBES_AGENT_BASE_URL` env var is also accepted as an alias. These only change the connection target; Agent still does not host or start services.
 
 Agent reports unavailable, unauthenticated, or incompatible runtime state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. Runtime lifecycle commands remain outside the Agent product.
 

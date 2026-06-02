@@ -53,7 +53,7 @@ describe('parseCliFlags', () => {
     expect(flags.agentProfile).toBe('household');
   });
 
-  test('parses --runtime-url for external runtime connection overrides', () => {
+  test('parses --runtime-url for connected service connection overrides', () => {
     const flags = parseCliFlags(['--runtime-url=http://127.0.0.1:4521']);
     expect(flags.runtimeUrl).toBe('http://127.0.0.1:4521');
 
@@ -219,7 +219,7 @@ describe('parseCliFlags', () => {
     expect(subscription.commandArgs).toEqual(['login', 'openai', 'start', '--manual']);
   });
 
-  test('blocks copied auth user administration instead of creating a local runtime user store', async () => {
+  test('blocks copied auth user administration instead of creating a local connected-service user store', async () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-auth-block-'));
     try {
       const configManager = new ConfigManager({
@@ -238,7 +238,7 @@ describe('parseCliFlags', () => {
 
       expect(result.result.handled).toBe(true);
       expect(result.result.exitCode).toBe(2);
-      expect(result.output).toContain('Unsupported: runtime auth user/session administration is external to GoodVibes Agent.');
+      expect(result.output).toContain('Unsupported: connected-service auth user/session administration is outside GoodVibes Agent.');
       expect(existsSync(join(root, '.goodvibes', 'agent', 'auth-users.json'))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -257,11 +257,12 @@ describe('parseCliFlags', () => {
     expect(parseGoodVibesCli(['bundle']).command).toBe('bundle');
   });
 
-  test('launch and start aliases open the Agent TUI', () => {
-    for (const token of ['launch', 'start'] as const) {
+  test('retired launcher aliases do not open the Agent TUI', () => {
+    for (const token of ['app', 'launch', 'start'] as const) {
       const parsed = parseGoodVibesCli([token]);
-      expect(parsed.command).toBe('tui');
+      expect(parsed.command).toBe('unknown');
       expect(parsed.rawCommand).toBe(token);
+      expect(parsed.errors).toEqual([`Unknown command: ${token}`]);
       expect(parsed.commandArgs).toEqual([]);
       expect(parsed.positionals).toEqual([]);
     }
@@ -334,7 +335,7 @@ describe('parseCliFlags', () => {
     expect(reloaded.getCategory('featureFlags')).toEqual({});
   });
 
-  test('applies runtime URL overrides to external runtime connection without persisting settings', () => {
+  test('applies runtime URL overrides to connected service connection without persisting settings', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-runtime-url-'));
     const configDir = join(root, '.goodvibes', 'agent');
     const configManager = new ConfigManager({ surfaceRoot: 'agent', configDir, workingDir: root });

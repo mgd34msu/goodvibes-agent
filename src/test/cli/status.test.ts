@@ -123,7 +123,7 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('Enable service.restartOnFailure');
   });
 
-  test('status foregrounds live external runtime and Agent Knowledge readiness', () => {
+  test('status foregrounds live connected services and Agent Knowledge readiness', () => {
     const text = renderCliStatus(makeOptions());
 
     expect(text).toContain('Runtime Connection:');
@@ -131,10 +131,10 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('reachable: yes (HTTP 200)');
     expect(text).toContain('sdk: 0.33.35 expected 0.33.35');
     expect(text).toContain('Agent Knowledge: ready');
-    expect(text).toContain('Runtime Ownership:');
+    expect(text).toContain('Connected GoodVibes Services:');
     expect(text).toContain('Agent role: client/operator TUI only');
-    expect(text).toContain('hosting lifecycle: external');
-    expect(text).toContain('Agent starts runtime: no');
+    expect(text).toContain('service ownership: outside Agent');
+    expect(text).toContain('Agent starts services: no');
     expect(text).not.toContain('Runtime Endpoint Diagnostics:');
     expect(text).not.toContain('Endpoint Diagnostics:');
     expect(text).not.toContain('runtimeApi:');
@@ -143,10 +143,10 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('hostRestartOnFailure');
   });
 
-  test('doctor includes external runtime config and endpoint diagnostics', () => {
+  test('doctor includes connected-service config and endpoint diagnostics', () => {
     const text = renderCliStatus({ ...makeOptions(), doctor: true });
 
-    expect(text).toContain('External Runtime Config Signals:');
+    expect(text).toContain('Connected-Service Config Signals:');
     expect(text).toContain('host config present: yes');
     expect(text).toContain('Endpoint Diagnostics:');
     expect(text).toContain('runtimeApi: yes');

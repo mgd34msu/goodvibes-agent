@@ -160,7 +160,7 @@ function buildReviewReadinessFields(controller: OnboardingWizardController): rea
       kind: 'status',
       id: 'review.readiness.automation',
       label: 'Routines and schedules',
-      hint: automation?.detail ?? 'Local routines run in the main conversation; external schedules require explicit promotion and confirmation.',
+      hint: automation?.detail ?? 'Local routines run in the main conversation; connected schedules require explicit promotion and confirmation.',
       defaultValue: automation?.selected ? 'Review configured' : 'Local first',
     },
     {

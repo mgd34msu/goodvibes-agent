@@ -7,9 +7,6 @@ import type {
 
 const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   tui: 'tui',
-  app: 'tui',
-  launch: 'tui',
-  start: 'tui',
   run: 'run',
   exec: 'run',
   e: 'run',
@@ -62,6 +59,8 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   help: 'help',
   version: 'version',
 };
+
+const RETIRED_LAUNCHER_ALIASES = new Set(['app', 'launch', 'start']);
 
 function createDefaultFlags(): GoodVibesCliFlags {
   return {
@@ -203,7 +202,14 @@ export function parseGoodVibesCli(
 
     if (!token.startsWith('-') || token === '-') {
       if (!sawCommand) {
-        const normalized = COMMAND_ALIASES[token.toLowerCase()];
+        const commandToken = token.toLowerCase();
+        if (RETIRED_LAUNCHER_ALIASES.has(commandToken)) {
+          command = 'unknown';
+          rawCommand = token;
+          sawCommand = true;
+          continue;
+        }
+        const normalized = COMMAND_ALIASES[commandToken];
         if (normalized) {
           command = normalized;
           rawCommand = token;

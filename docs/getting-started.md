@@ -6,7 +6,7 @@ GoodVibes Agent is the installable public alpha of the personal operator assista
 
 - Bun `1.3.10` or newer
 - An already-running GoodVibes runtime compatible with `@pellux/goodvibes-sdk@0.33.35`
-- A runtime token/config path accepted by that external runtime
+- A runtime token/config path accepted by connected GoodVibes services
 
 Agent does not launch the runtime for you.
 
@@ -17,7 +17,7 @@ Use the interactive TUI first. CLI subcommands are secondary support paths for i
 ```sh
 bun add -g --trust @pellux/goodvibes-agent
 goodvibes-agent --help
-goodvibes-agent launch
+goodvibes-agent
 goodvibes-agent status
 goodvibes-agent personas list
 goodvibes-agent skills list
@@ -55,7 +55,7 @@ bun run dev
 
 `bun run dev` starts the Agent TUI. The same entrypoint backs the installed `goodvibes-agent` command.
 
-`goodvibes-agent`, `goodvibes-agent launch`, and `goodvibes-agent start` all start the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
+`goodvibes-agent` starts the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
 
 After setup has been shown once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, provider/model selection, Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
 
@@ -63,7 +63,7 @@ Use `/agent-profile guide` inside that workspace to walk through starter-profile
 
 Use the Knowledge area in that workspace to ingest a source URL without leaving the TUI. The form requires typed confirmation and writes only to the isolated Agent Knowledge segment.
 
-Use `/schedule receipts` to review redacted local routine promotion history and `/schedule reconcile` to compare those receipts with live external schedules through public `schedules.list`.
+Use `/schedule receipts` to review redacted local routine promotion history and `/schedule reconcile` to compare those receipts with live connected schedules through public `schedules.list`.
 
 The local behavior libraries are also available from the installed CLI:
 
@@ -118,9 +118,9 @@ The active persona plus enabled Agent routines, reviewed memory, and skills are 
 
 Use `/channels` inside the TUI for a read-only channel readiness matrix. It shows enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values.
 
-## External Runtime
+## Connected GoodVibes Services
 
-Start the runtime from GoodVibes TUI or the owning host before using runtime-backed Agent features. Agent expects the runtime to expose the public operator/Agent routes, including:
+Start connected GoodVibes services from GoodVibes TUI or the owning host before using service-backed Agent features. Agent expects those services to expose the public operator/Agent routes, including:
 
 - `/status`
 - `/api/goodvibes-agent/knowledge/status`
@@ -128,11 +128,11 @@ Start the runtime from GoodVibes TUI or the owning host before using runtime-bac
 - `/api/goodvibes-agent/knowledge/search`
 - `/api/goodvibes-agent/knowledge/ingest/url`
 
-If the runtime API is not on `http://127.0.0.1:3421`, use `goodvibes-agent --runtime-url http://host:port status` for a one-off check or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` before launching the TUI.
+If the GoodVibes API is not on `http://127.0.0.1:3421`, use `goodvibes-agent --runtime-url http://host:port status` for a one-off check or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` before launching the TUI.
 
 Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not fall back to default Knowledge/Wiki or other product-specific knowledge spaces.
 
-Runtime-hosting commands are not part of GoodVibes Agent. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and the Agent TUI status views for diagnostics.
+Service-hosting commands are not part of GoodVibes Agent. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and the Agent TUI status views for diagnostics.
 
 ## Current Product Notes
 

@@ -143,7 +143,7 @@ describe('renderSettingsModal', () => {
     expect(interfaceLine![interfaceIndex]?.bold).toBe(true);
   });
 
-  test('does not expose external runtime lifecycle or copied WRFC settings as Agent settings', () => {
+  test('does not expose connected-service lifecycle or copied WRFC settings as Agent settings', () => {
     const rendered: string[] = [];
     for (let index = 0; index < 20; index += 1) {
       rendered.push(linesToText(renderSettingsModal(modal, W, 40)).join('\n'));

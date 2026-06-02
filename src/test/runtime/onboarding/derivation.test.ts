@@ -606,7 +606,7 @@ describe('onboarding derivation helpers', () => {
       required: true,
       accepted: false,
       reason: 'bootstrap-credential',
-      detail: 'An external runtime bootstrap credential signal is still visible to Agent.',
+      detail: 'A connected-service bootstrap credential signal is still visible to Agent.',
     });
   });
 

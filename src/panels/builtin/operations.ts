@@ -45,7 +45,7 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     name: 'Automation',
     icon: 'M',
     category: 'monitoring',
-    description: 'Read-only automation jobs, runs, deliveries, and failure posture from the external runtime',
+    description: 'Read-only automation jobs, runs, deliveries, and failure posture from connected GoodVibes services',
     factory: () => new AutomationControlPanel(ui.readModels.automation),
   });
 
@@ -81,7 +81,7 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     name: 'Tasks',
     icon: 'J',
     category: 'monitoring',
-    description: 'Queued, running, blocked, failed, and completed task summaries from the external runtime',
+    description: 'Queued, running, blocked, failed, and completed task summaries from connected GoodVibes services',
     factory: () => new TasksPanel(ui.readModels.tasks),
   });
 

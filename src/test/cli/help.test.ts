@@ -23,7 +23,7 @@ describe('CLI help/version', () => {
 
     expect(help).not.toContain('tasks                      ');
     expect(help).toContain('profiles                   Manage isolated Agent profile homes');
-    expect(help).toContain('routines                   Inspect local routines and explicitly promote one to an external schedule');
+    expect(help).toContain('routines                   Inspect local routines and explicitly promote one to a connected schedule');
     expect(help).toContain('auth                       Inspect Agent auth posture and connection token state');
     expect(help).toContain('--runtime-url <url>');
     expect(help).not.toContain('capabilities               ');
@@ -34,17 +34,18 @@ describe('CLI help/version', () => {
     expect(help).not.toContain('submit a non-interactive task');
     expect(help).toContain('Primary use:');
     expect(help).toContain('Inside the TUI:');
-    expect(help).toContain('tui|launch|start [path]');
-    expect(help).toContain('goodvibes-agent launch');
-    expect(help).toContain('goodvibes-agent start');
+    expect(help).toContain('tui [path]');
+    expect(help).not.toContain('tui|launch|start [path]');
+    expect(help).not.toContain('goodvibes-agent launch');
+    expect(help).not.toContain('goodvibes-agent start');
   });
 
   test('shell completion advertises product commands instead of runtime lifecycle commands', () => {
     const completion = renderCompletion('bash', 'goodvibes-agent');
 
     expect(completion).toContain('tui');
-    expect(completion).toContain('launch');
-    expect(completion).toContain('start');
+    expect(completion).not.toContain('launch');
+    expect(completion).not.toContain(' start ');
     expect(completion).toContain('profiles');
     expect(completion).toContain('knowledge');
     expect(completion).toContain('delegate');
@@ -69,7 +70,7 @@ describe('CLI help/version', () => {
     expect(help).toContain('shared GoodVibes runtime');
   });
 
-  test('routines command help explains explicit external schedule promotion', () => {
+  test('routines command help explains explicit connected schedule promotion', () => {
     const help = renderGoodVibesCommandHelp('routines');
     expect(help).toContain('promote <id>');
     expect(help).toContain('routines receipts');
@@ -81,7 +82,7 @@ describe('CLI help/version', () => {
     expect(help).toContain('Without --yes');
   });
 
-  test('auth help keeps runtime user administration external', () => {
+  test('auth help keeps connected-service user administration outside Agent', () => {
     const help = renderGoodVibesCommandHelp('auth');
     expect(help).toContain('connection token state');
     expect(help).toContain('Runtime user/session administration stays outside Agent');
@@ -89,12 +90,11 @@ describe('CLI help/version', () => {
     expect(help).not.toContain('auth clear-bootstrap');
   });
 
-  test('start command help aliases to the TUI launcher', () => {
+  test('retired start launcher alias is not command help', () => {
     const help = renderGoodVibesCommandHelp('start');
 
-    expect(help).toContain('GoodVibes tui');
-    expect(help).toContain('goodvibes-agent start [path]');
-    expect(help).toContain('interactive Agent terminal UI');
+    expect(help).toContain('No detailed help is available for "start".');
+    expect(help).not.toContain('goodvibes-agent start [path]');
   });
 
   test('package-facing help uses the Agent executable for command guidance', () => {

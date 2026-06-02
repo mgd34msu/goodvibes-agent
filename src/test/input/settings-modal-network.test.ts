@@ -1,6 +1,6 @@
 /**
- * Regression tests for Agent settings boundaries around copied runtime-hosting
- * config. GoodVibes Agent connects to an external runtime; the settings
+ * Regression tests for Agent settings boundaries around copied service-hosting
+ * config. GoodVibes Agent connects to GoodVibes services owned outside this product; the settings
  * workspace must not expose controls that imply it owns daemon, listener,
  * browser host, raw network, service, or WRFC lifecycle.
  */
@@ -43,7 +43,7 @@ const emptyMcpRegistry: McpRegistry = {
   setServerTrustMode: () => {},
 } as unknown as McpRegistry;
 
-describe('SettingsModal — Agent runtime-hosting boundaries', () => {
+describe('SettingsModal — Agent service-hosting boundaries', () => {
   const originalCwd = process.cwd();
   const originalHome = process.env.HOME;
   let tmpDir: string;
@@ -87,7 +87,7 @@ describe('SettingsModal — Agent runtime-hosting boundaries', () => {
     if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('external runtime and network categories are not registered for Agent settings', () => {
+  test('service-hosting and network categories are not registered for Agent settings', () => {
     expect(SETTINGS_CATEGORIES).not.toContain('network');
     expect(SETTINGS_CATEGORIES).not.toContain('controlPlane');
     expect(SETTINGS_CATEGORIES).not.toContain('httpListener');

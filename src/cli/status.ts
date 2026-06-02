@@ -126,7 +126,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         id: 'external-runtime-unreachable',
         area: 'runtime',
         severity: 'warning',
-        summary: 'External GoodVibes runtime is not reachable.',
+        summary: 'Connected GoodVibes services are not reachable.',
         cause: `Agent could not reach ${options.externalRuntime.baseUrl}${options.externalRuntime.error ? `: ${options.externalRuntime.error}` : '.'}`,
         impact: 'Companion chat, isolated Agent Knowledge, approvals, automation status, and build delegation cannot work until connected GoodVibes services are available.',
         action: 'Start or repair the owning GoodVibes host, then rerun goodvibes-agent status.',
@@ -238,7 +238,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       severity: 'risk',
       summary: 'Network-facing runtime endpoints are enabled without a visible runtime auth signal.',
       cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but Agent cannot see runtime auth state from its local compatibility files.`,
-      impact: 'Remote access paths may be unusable or unsafe unless the external runtime owner configured auth.',
+      impact: 'Remote access paths may be unusable or unsafe unless the owning host configured auth.',
       action: 'Review runtime auth outside Agent; Agent will not create local runtime users.',
     });
   }
@@ -392,10 +392,10 @@ export function renderCliStatus(options: CliStatusOptions): string {
       '  live check: unavailable',
     ]),
     '',
-    'Runtime Ownership:',
+    'Connected GoodVibes Services:',
     '  Agent role: client/operator TUI only',
-    '  hosting lifecycle: external',
-    '  Agent starts runtime: no',
+    '  service ownership: outside Agent',
+    '  Agent starts services: no',
     ...(options.service ? [
       `  platform: ${options.service.managed.platform}`,
       `  installed: ${yesNo(options.service.managed.installed)}`,
@@ -412,7 +412,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
   if (options.doctor) {
     lines.push(
       '',
-      'External Runtime Config Signals:',
+      'Connected-Service Config Signals:',
       `  host config present: ${yesNo(serviceEnabled)}`,
       `  host autostart: ${yesNo(serviceAutostart)}`,
       `  host restart policy: ${yesNo(restartOnFailure)}`,

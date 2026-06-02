@@ -178,11 +178,11 @@ export function buildAutomationStep(): OnboardingWizardStepDefinition {
     id: 'agent-automation',
     title: 'Routines and automation',
     shortLabel: 'Routines',
-    description: 'Set the Agent automation posture: local routines run in the main conversation, while external schedules remain explicit.',
+    description: 'Set the Agent automation posture: local routines run in the main conversation, while connected schedules remain explicit.',
     summaryTitle: 'Routine and schedule posture',
     summaryLines: [
       'Local routines: reusable main-conversation workflows',
-      'External schedules: explicit promotion only',
+      'Connected schedules: explicit promotion only',
       'Runs/cancels/retries: command-confirmed side effects',
     ],
     fields: [
@@ -204,7 +204,7 @@ export function buildAutomationStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-automation.schedule-promotion',
         label: 'Routine-to-schedule promotion',
-        hint: 'Creating external schedules from routines requires a reviewed routine, a real timing expression, optional delivery target, and explicit confirmation.',
+        hint: 'Creating connected schedules from routines requires a reviewed routine, a real timing expression, optional delivery target, and explicit confirmation.',
         defaultValue: 'Explicit command',
       },
       {

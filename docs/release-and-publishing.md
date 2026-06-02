@@ -9,7 +9,7 @@ GoodVibes Agent's current installable public alpha version is recorded in `packa
 - SDK dependency: exact pin to `@pellux/goodvibes-sdk@0.33.35`
 - runtime: Bun
 - source language: TypeScript
-- runtime ownership: external only
+- connected services ownership: outside Agent
 
 End users install and run GoodVibes Agent with Bun:
 
@@ -61,7 +61,7 @@ Do not publish if package-facing docs or install commands refer to another packa
 
 Do not publish if Agent Knowledge commands can fall back to default Knowledge/Wiki or another product-specific knowledge route. Agent Knowledge must use the isolated `/api/goodvibes-agent/knowledge/*` segment.
 
-Do not ship GoodVibes runtime binaries from this package. If Agent later gets compiled artifacts, they must use Agent artifact names and remain separate from runtime ownership.
+Do not ship GoodVibes service binaries from this package. If Agent later gets compiled artifacts, they must use Agent artifact names and remain separate from connected-service ownership.
 
 ## Product Rule
 
