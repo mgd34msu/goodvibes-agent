@@ -29,6 +29,7 @@ import { registerBootstrapHookBridge } from '@/runtime/index.ts';
 import { createRuntimeServices, type RuntimeServices } from './services.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
 import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts';
+import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
 import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
@@ -228,6 +229,7 @@ export async function initializeBootstrapCore(
     overflowHandler: services.overflowHandler,
     changeTracker: services.sessionChangeTracker,
   });
+  registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
   registerAgentReminderScheduleTool(toolRegistry, services.shellPaths, configManager);
   installAgentToolPolicyGuard(toolRegistry, {
