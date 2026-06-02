@@ -56,6 +56,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'setup-tools', label: 'Tools and MCP', detail: 'Open MCP setup, trust review, and tool inventory.', targetCategoryId: 'tools', kind: 'workspace', safety: 'safe' },
       { id: 'setup-voice-media', label: 'Voice and media', detail: 'Open TTS/media settings for voice and image-capable Agent flows.', command: '/config tts', kind: 'command', safety: 'safe' },
       { id: 'provider', label: 'Provider status', detail: 'Review provider/model posture.', command: '/provider', kind: 'command', safety: 'read-only' },
+      { id: 'provider-use', label: 'Use provider', detail: 'Open a provider-id form that switches the Agent chat provider from the workspace.', editorKind: 'provider-use', kind: 'editor', safety: 'safe' },
+      { id: 'provider-inspect', label: 'Inspect provider', detail: 'Open a provider-id form for read-only provider auth/setup inspection.', editorKind: 'provider-inspect', kind: 'editor', safety: 'read-only' },
       { id: 'provider-add', label: 'Add custom provider', detail: 'Open a confirmed form that adds one OpenAI-compatible custom provider for Agent model routing.', editorKind: 'provider-add', kind: 'editor', safety: 'safe' },
       { id: 'provider-remove', label: 'Remove custom provider', detail: 'Open a confirmed form that removes one Agent custom provider config.', editorKind: 'provider-remove', kind: 'editor', safety: 'safe' },
       { id: 'provider-accounts', label: 'Provider accounts', detail: 'Review provider account routes, subscription windows, and billing-path safety without starting login or repair flows.', command: '/accounts review', kind: 'command', safety: 'read-only' },

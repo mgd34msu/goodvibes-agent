@@ -2,14 +2,38 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 
 export type AgentWorkspaceProviderCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'provider-add' | 'provider-remove'
+  'provider-add' | 'provider-remove' | 'provider-use' | 'provider-inspect'
 >;
 
 export function isAgentWorkspaceProviderCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceProviderCommandEditorKind {
-  return kind === 'provider-add' || kind === 'provider-remove';
+  return kind === 'provider-add' || kind === 'provider-remove' || kind === 'provider-use' || kind === 'provider-inspect';
 }
 
 export function createAgentWorkspaceProviderCommandEditor(kind: AgentWorkspaceProviderCommandEditorKind): AgentWorkspaceLocalEditor {
+  if (kind === 'provider-use') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Use Provider',
+      selectedFieldIndex: 0,
+      message: 'Switch the Agent chat provider through the TUI command router. Use the model picker for exact provider/model selection.',
+      fields: [
+        { id: 'provider', label: 'Provider id', value: '', required: true, multiline: false, hint: 'Provider row id, such as openai-subscriber, openai, anthropic, or a custom provider.' },
+      ],
+    };
+  }
+  if (kind === 'provider-inspect') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Inspect Provider',
+      selectedFieldIndex: 0,
+      message: 'Inspect provider auth and setup routes from the Agent TUI without changing provider selection.',
+      fields: [
+        { id: 'provider', label: 'Provider id', value: '', required: true, multiline: false, hint: 'Provider row id to inspect.' },
+      ],
+    };
+  }
   if (kind === 'provider-add') {
     return {
       kind,

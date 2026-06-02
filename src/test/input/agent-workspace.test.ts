@@ -1250,6 +1250,18 @@ describe('AgentWorkspace', () => {
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('provider-use');
+    feedText(workspace, 'openai-subscriber');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-inspect');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('provider-inspect');
+    feedText(workspace, 'openai-subscriber');
+    feedKey(workspace, 'enter');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('provider-add');
@@ -1262,14 +1274,21 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'no');
     feedKey(workspace, 'enter');
 
-    expect(dispatched).toEqual([]);
+    expect(dispatched).toEqual([
+      '/provider openai-subscriber',
+      '/accounts show openai-subscriber',
+    ]);
     expect(workspace.localEditor?.message).toContain('not confirmed');
 
     clearEditorField(workspace);
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
 
-    expect(dispatched).toEqual(['/provider add local_llm http://127.0.0.1:8000/v1 sk-local-provider-token --yes']);
+    expect(dispatched).toEqual([
+      '/provider openai-subscriber',
+      '/accounts show openai-subscriber',
+      '/provider add local_llm http://127.0.0.1:8000/v1 sk-local-provider-token --yes',
+    ]);
     expect(workspace.lastActionResult?.command).toBe('/provider add local_llm http://127.0.0.1:8000/v1 <redacted-api-key> --yes');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-remove');
@@ -1281,6 +1300,8 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
+      '/provider openai-subscriber',
+      '/accounts show openai-subscriber',
       '/provider add local_llm http://127.0.0.1:8000/v1 sk-local-provider-token --yes',
       '/provider remove local_llm --yes',
     ]);

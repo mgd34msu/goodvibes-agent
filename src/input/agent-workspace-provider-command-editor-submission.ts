@@ -39,6 +39,36 @@ export function buildAgentWorkspaceProviderCommandEditorSubmission(
   editor: AgentWorkspaceLocalEditor,
   readField: AgentWorkspaceFieldReader,
 ): AgentWorkspaceProviderCommandEditorSubmission {
+  if (editor.kind === 'provider-use') {
+    const command = `/provider ${quoteSlashCommandArg(readField('provider'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening provider selection.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening provider selection',
+        detail: 'The workspace handed provider selection to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'provider-inspect') {
+    const command = `/accounts show ${quoteSlashCommandArg(readField('provider'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening provider inspection.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening provider inspection',
+        detail: 'The workspace handed read-only provider inspection to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
   if (editor.kind === 'provider-add') {
     if (!isAffirmative(readField('confirm'))) {
       return unconfirmed(editor, 'Custom provider add');

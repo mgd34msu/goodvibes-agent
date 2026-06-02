@@ -450,6 +450,28 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
+    const useActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(useActionOutput).toContain('Use provider');
+    expect(useActionOutput).toContain('edit provider-use');
+
+    workspace.activateSelected();
+    const useEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(useEditorOutput).toContain('Use Provider');
+    expect(useEditorOutput).toContain('Provider id *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-inspect');
+    const inspectActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(inspectActionOutput).toContain('Inspect provider');
+    expect(inspectActionOutput).toContain('edit provider-inspect');
+
+    workspace.activateSelected();
+    const inspectEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(inspectEditorOutput).toContain('Inspect Provider');
+    expect(inspectEditorOutput).toContain('Provider id *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
     const addActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(addActionOutput).toContain('Add custom provider');
