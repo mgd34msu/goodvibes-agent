@@ -1,4 +1,5 @@
 import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../../agent/skill-registry.ts';
+import { discoverSkills, type SkillRecord } from '../../agent/skill-discovery.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
 
@@ -71,6 +72,89 @@ function renderList(title: string, registry: AgentSkillRegistry, skills: readonl
     `  enabled: ${snapshot.enabledSkills.length}`,
     ...skills.map(summarizeSkill),
   ].join('\n');
+}
+
+function summarizeDiscoveredSkill(skill: SkillRecord): string {
+  const description = skill.description ? ` - ${skill.description}` : '';
+  const dependencies = skill.dependencies.length > 0 ? ` deps=${skill.dependencies.join(',')}` : '';
+  const includes = skill.includes.length > 0 ? ` includes=${skill.includes.join(',')}` : '';
+  return `  ${skill.name}  ${skill.origin}${description}${dependencies}${includes}\n    path: ${skill.path}`;
+}
+
+function renderDiscoveredSkills(skills: readonly SkillRecord[]): string {
+  if (skills.length === 0) {
+    return [
+      'Discovered Agent skill files',
+      '  No SKILL.md or .md skill files found in project/global Agent skill folders.',
+      '  Search roots: .goodvibes/skills, .goodvibes/agent/skills, ~/.goodvibes/skills, ~/.goodvibes/agent/skills',
+    ].join('\n');
+  }
+  return [
+    `Discovered Agent skill files (${skills.length})`,
+    ...skills.map(summarizeDiscoveredSkill),
+    '',
+    'Import one with: /agent-skills import-discovered <name> --yes',
+  ].join('\n');
+}
+
+function discoveredSkillLookupValues(skill: SkillRecord): readonly string[] {
+  const slug = skill.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const basename = skill.path.split(/[\\/]/).pop()?.replace(/\.md$/i, '') ?? '';
+  return [
+    skill.name,
+    slug,
+    skill.path,
+    basename,
+  ].map((value) => value.trim().toLowerCase()).filter(Boolean);
+}
+
+function findDiscoveredSkill(skills: readonly SkillRecord[], idOrName: string): SkillRecord | null {
+  const lookup = idOrName.trim().toLowerCase();
+  if (!lookup) return null;
+  return skills.find((skill) => discoveredSkillLookupValues(skill).includes(lookup)) ?? null;
+}
+
+function frontmatterList(skill: SkillRecord, key: string): readonly string[] {
+  const value = skill.frontmatter[key];
+  if (!value) return [];
+  return splitList(value);
+}
+
+async function importDiscoveredSkill(args: readonly string[], ctx: CommandContext, skillRegistry: AgentSkillRegistry): Promise<void> {
+  const parsed = parseSkillArgs(args);
+  const name = parsed.rest.join(' ').trim();
+  if (!name) {
+    ctx.print('Usage: /agent-skills import-discovered <name> [--enabled] --yes');
+    return;
+  }
+  const discovered = findDiscoveredSkill(await discoverSkills(requireShellPaths(ctx)), name);
+  if (!discovered) {
+    ctx.print(`Unknown discovered Agent skill: ${name}\nRun /agent-skills discover to inspect available skill files.`);
+    return;
+  }
+  if (!parsed.yes) {
+    ctx.print([
+      'Agent skill import preview',
+      `  name: ${discovered.name}`,
+      `  origin: ${discovered.origin}`,
+      `  path: ${discovered.path}`,
+      `  description: ${discovered.description || '(none)'}`,
+      `  procedure characters: ${discovered.body.length}`,
+      '  next: rerun with --yes to import into the Agent-local skill registry',
+    ].join('\n'));
+    return;
+  }
+  const skill = skillRegistry.create({
+    name: discovered.name,
+    description: discovered.description || `Imported skill from ${discovered.origin} skill file.`,
+    procedure: discovered.body,
+    triggers: frontmatterList(discovered, 'triggers'),
+    tags: frontmatterList(discovered, 'tags'),
+    enabled: parsed.flags.get('enabled') === 'true',
+    source: 'imported',
+    provenance: `discovered:${discovered.origin}:${discovered.path}`,
+  });
+  ctx.print(`Imported Agent skill ${skill.id}: ${skill.name}`);
 }
 
 function renderBundleList(title: string, registry: AgentSkillRegistry, bundles: readonly AgentSkillBundleRecord[]): string {
@@ -248,6 +332,14 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
       runBundleCommand(args.slice(1), ctx, skillRegistry);
       return;
     }
+    if (sub === 'discover' || sub === 'discovered') {
+      ctx.print(renderDiscoveredSkills(await discoverSkills(requireShellPaths(ctx))));
+      return;
+    }
+    if (sub === 'import-discovered' || sub === 'import-skill') {
+      await importDiscoveredSkill(args.slice(1), ctx, skillRegistry);
+      return;
+    }
     if (sub === 'list' || sub === 'open') {
       ctx.print(renderList('Agent Skills', skillRegistry, skillRegistry.list()));
       return;
@@ -351,7 +443,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
       ctx.print(`Deleted Agent skill ${removed.id}: ${removed.name}`);
       return;
     }
-    ctx.print('Usage: /agent-skills [list|enabled|search|show|create|update|enable|disable|review|stale|delete|bundle]');
+    ctx.print('Usage: /agent-skills [list|enabled|discover|import-discovered|search|show|create|update|enable|disable|review|stale|delete|bundle]');
   } catch (error) {
     printError(ctx, error);
   }
@@ -362,7 +454,7 @@ export function registerAgentSkillsRuntimeCommands(registry: CommandRegistry): v
     name: 'agent-skills',
     aliases: ['askills', 'local-skills', 'skills', 'skill'],
     description: 'Manage local GoodVibes Agent skills',
-    usage: '[list|enabled|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps>|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
+    usage: '[list|enabled|discover|import-discovered <name> --yes|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps>|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
     handler: runAgentSkillsRuntimeCommand,
   });
 }

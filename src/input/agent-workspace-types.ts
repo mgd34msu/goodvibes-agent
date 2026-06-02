@@ -19,6 +19,7 @@ export type AgentWorkspaceEditorKind =
   | 'tts-prompt'
   | 'image-input'
   | 'skill-bundle'
+  | 'skill-discovery-import'
   | 'profile-template-export'
   | 'profile-template-import'
   | 'routine-schedule'

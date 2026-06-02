@@ -529,6 +529,42 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening skill bundle creation');
   });
 
+  test('discovers and imports local skill files from the workspace after confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-discover');
+    workspace.activateSelected();
+    expect(dispatched).toEqual(['/agent-skills discover']);
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-import-discovered');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-discovery-import');
+    feedText(workspace, 'Travel Planner');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    expect(workspace.localEditor?.message).toContain('Confirm is required');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    expect(dispatched).toEqual(['/agent-skills discover']);
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/agent-skills discover',
+      '/agent-skills import-discovered "Travel Planner" --enabled --yes',
+    ]);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening discovered skill import');
+  });
+
   test('creates reviews marks stale and deletes Agent memory from workspace editors', async () => {
     const records: MemoryRecord[] = [];
     const ctx = {

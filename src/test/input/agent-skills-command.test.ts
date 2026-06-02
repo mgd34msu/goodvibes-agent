@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
@@ -93,6 +93,40 @@ describe('/agent-skills command', () => {
     expect(text).toContain('active skills: 2');
     expect(text).toContain('- briefing: Briefing');
     expect(text).toContain('- approvals: Approvals');
+  });
+
+  test('discovers and imports local SKILL.md files only after confirmation', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const shellPaths = ctx.workspace?.shellPaths;
+    if (!shellPaths) throw new Error('missing shell paths');
+    const skillDir = join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'skills', 'travel-planner');
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(join(skillDir, 'SKILL.md'), [
+      '---',
+      'name: Travel Planner',
+      'description: Plan trips from preferences and constraints.',
+      'triggers: travel, trip',
+      'tags: planning, personal',
+      '---',
+      'Collect destination, dates, budget, accessibility needs, and timing constraints.',
+      'Produce options and ask before booking or messaging anyone.',
+    ].join('\n'));
+
+    await registry.execute('agent-skills', ['discover'], ctx);
+    await registry.execute('agent-skills', ['import-discovered', 'Travel', 'Planner'], ctx);
+    await registry.execute('agent-skills', ['import-discovered', 'travel-planner', '--enabled', '--yes'], ctx);
+    await registry.execute('agent-skills', ['enabled'], ctx);
+    await registry.execute('agent-skills', ['show', 'travel-planner'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Discovered Agent skill files (1)');
+    expect(text).toContain('Travel Planner  project-local');
+    expect(text).toContain('Agent skill import preview');
+    expect(text).toContain('Imported Agent skill travel-planner');
+    expect(text).toContain('travel-planner  enabled');
+    expect(text).toContain('Collect destination, dates, budget');
+    expect(text).toContain('tags: planning, personal');
+    expect(text).toContain('triggers: travel, trip');
   });
 
   test('/skills local routes to Agent-local skills through the Agent command registry', async () => {

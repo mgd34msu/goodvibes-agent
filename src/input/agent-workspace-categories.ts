@@ -152,6 +152,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'skills-list', label: 'List skills', detail: 'Print the full local Agent skill library.', command: '/agent-skills list', kind: 'command', safety: 'read-only' },
       { id: 'skills-enabled', label: 'Enabled skills', detail: 'Show only skills currently injected into Agent guidance.', command: '/agent-skills enabled', kind: 'command', safety: 'read-only' },
+      { id: 'skills-discover', label: 'Discover skill files', detail: 'Scan project and global Agent skill folders for SKILL.md or .md skills without importing them.', command: '/agent-skills discover', kind: 'command', safety: 'read-only' },
+      { id: 'skills-import-discovered', label: 'Import discovered skill', detail: 'Open an in-workspace form that imports one reviewed discovered skill file into the Agent-local skill registry after typed confirmation.', editorKind: 'skill-discovery-import', kind: 'editor', safety: 'safe' },
       { id: 'skills-bundles', label: 'Skill bundles', detail: 'List reviewable groups of local skills that can be enabled together.', command: '/agent-skills bundle list', kind: 'command', safety: 'read-only' },
       { id: 'skills-create-bundle', label: 'Create bundle', detail: 'Open an in-workspace form that creates a named skill bundle from existing local skill ids.', editorKind: 'skill-bundle', kind: 'editor', safety: 'safe' },
       { id: 'skills-prev', label: 'Previous skill', detail: 'Move the local skill selection up without changing enabled state.', localKind: 'skill', selectionDelta: -1, kind: 'local-selection', safety: 'safe' },

@@ -5,7 +5,7 @@ type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'knowledge-bookmarks' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'profile-template-export' | 'profile-template-import'
+  'knowledge-bookmarks' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
 >;
 
 export type AgentWorkspaceBasicCommandEditorSubmission =
@@ -31,6 +31,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'tts-prompt'
     || kind === 'image-input'
     || kind === 'skill-bundle'
+    || kind === 'skill-discovery-import'
     || kind === 'profile-template-export'
     || kind === 'profile-template-import';
 }
@@ -98,6 +99,20 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       fields: [
         { id: 'path', label: 'Template path', value: '', required: true, multiline: false, hint: 'Workspace-relative JSON path to import.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile template import with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'skill-discovery-import') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Import Discovered Skill',
+      selectedFieldIndex: 0,
+      message: 'Import one discovered SKILL.md or .md skill file into the Agent-local skill registry. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'name', label: 'Discovered skill', value: '', required: true, multiline: false, hint: 'Name shown by /agent-skills discover.' },
+        { id: 'enabled', label: 'Enable now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-skills import-discovered with --yes.' },
       ],
     };
   }
@@ -227,6 +242,35 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening Agent starter template import',
         detail: 'The workspace handed a confirmed starter template import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'skill-discovery-import') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Discovered skill import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent skill import not confirmed.',
+      };
+    }
+    const parts = [
+      '/agent-skills',
+      'import-discovered',
+      quoteSlashCommandArg(readField('name')),
+    ];
+    if (isAffirmative(readField('enabled'))) parts.push('--enabled');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening discovered skill import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening discovered skill import',
+        detail: 'The workspace handed a confirmed local skill import command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

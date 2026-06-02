@@ -10,6 +10,7 @@ export interface SkillRecord {
   description: string;
   path: string;
   origin: SkillOrigin;
+  body: string;
   dependencies: string[];
   includes: string[];
   frontmatter: Record<string, string>;
@@ -64,6 +65,7 @@ async function readSkillFile(path: string, origin: SkillOrigin): Promise<SkillRe
     description,
     path,
     origin,
+    body: body.trim(),
     dependencies,
     includes,
     frontmatter,
