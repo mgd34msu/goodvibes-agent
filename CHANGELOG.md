@@ -2,6 +2,14 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.115 - 2026-06-02
+
+- d0e1499 feat: guide setup to discovered profiles
+- b94ce82 feat: create profiles from discovered behaviors
+- 5590487 feat: create starters from discovered behaviors
+- 70c5261 feat: show behavior imports in onboarding
+- d836392 feat: surface discovered behaviors in setup
+
 ## 0.1.114 - 2026-06-02
 
 - 34cbe9d feat: import discovered agent routines
