@@ -681,8 +681,9 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
 
     const routine = AgentRoutineRegistry.fromShellPaths(shellPaths).get('daily-brief');
-    expect(routine?.startCount).toBe(1);
-    expect(dispatched).toEqual([]);
+    expect(routine?.startCount).toBe(0);
+    expect(dispatched).toEqual(['/routines start daily-brief']);
+    expect(workspace.lastActionResult?.title).toBe('Opening routine Daily Brief');
   });
 
   test('edits selected local library records from workspace editors without dispatching commands', () => {
@@ -960,7 +961,7 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/knowledge queue']);
     expect(workspace.status).toContain('/knowledge queue');
-    expect(workspace.selectedCategory.detail).toContain('/api/goodvibes-agent/knowledge');
+    expect(workspace.selectedCategory.detail).toContain('isolated Agent Knowledge route family only');
     expect(workspace.selectedCategory.detail).toContain('Default regular wiki and non-Agent knowledge segments are not');
   });
 

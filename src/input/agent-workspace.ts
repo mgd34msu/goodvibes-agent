@@ -9,6 +9,7 @@ import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from './agent-workspace-command-editor.ts';
+import { quoteSlashCommandArg } from './slash-command-parser.ts';
 import { createDeleteEditor, createMemoryUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
@@ -380,6 +381,19 @@ export class AgentWorkspace {
           safety: 'safe',
         };
       } else if (operation === 'routine-start') {
+        if (this.hasCommandDispatch()) {
+          const command = `/routines start ${quoteSlashCommandArg(selected.id)}`;
+          this.dispatchWorkspaceCommand(command);
+          this.status = `Opening routine: ${selected.name}.`;
+          this.lastActionResult = {
+            kind: 'dispatched',
+            title: `Opening routine ${selected.name}`,
+            detail: `${selected.name} will print its workflow steps in the main conversation. No hidden job was created.`,
+            command,
+            safety: 'safe',
+          };
+          return;
+        }
         AgentRoutineRegistry.fromShellPaths(shellPaths).markStarted(selected.id);
         this.finishLocalOperation('routine', `Started routine ${selected.name}`, `${selected.name} was marked started for this main-conversation workflow. No hidden job was created.`);
       } else if (operation === 'routine-enable') {
