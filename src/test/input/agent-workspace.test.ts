@@ -12,7 +12,7 @@ import { registerAgentRuntimeProfileRuntimeCommands } from '../../input/commands
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
-import { createAgentRuntimeProfile, listAgentRuntimeProfiles } from '../../agent/runtime-profile.ts';
+import { createAgentRuntimeProfile, listAgentRuntimeProfiles, readAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
@@ -1759,8 +1759,17 @@ describe('AgentWorkspace', () => {
     expect(await registry.execute('agent-profile', ['create', 'lab', '--template', 'lab-operator', '--yes'], ctx)).toBe(true);
     expect(calls.at(-1)).toContain('Agent profile created: lab');
     expect(calls.at(-1)).toContain('starter: lab-operator');
+    expect(await registry.execute('agent-profile', ['use', 'lab'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('without --yes');
+    expect(readAgentRuntimeProfileSelection(root)).toBeNull();
+    expect(await registry.execute('agent-profile', ['use', 'lab', '--yes'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('Default Agent profile selected: lab');
+    expect(readAgentRuntimeProfileSelection(root)?.id).toBe('lab');
+    expect(await registry.execute('agent-profile', ['default'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('Default Agent profile: lab');
     expect(await registry.execute('agent-profile', ['list'], ctx)).toBe(true);
     expect(calls.at(-1)).toContain('starter=lab-operator');
+    expect(calls.at(-1)).toContain('default: lab');
 
     expect(await registry.execute('agent-profile', ['template', 'from-discovered', 'research-desk', '--name', 'Research Desk', '--yes'], ctx)).toBe(true);
     expect(calls.at(-1)).toContain('Agent starter template created from discovered behavior: research-desk');
@@ -1806,6 +1815,31 @@ describe('AgentWorkspace', () => {
       '/agent-profile template import ./ops-starter.json --yes',
     ]);
     expect(workspace.lastActionResult?.title).toBe('Opening Agent starter template import');
+  });
+
+  test('dispatches default profile selection from the workspace form after confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-default');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('profile-default');
+    feedText(workspace, 'household');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([]);
+    expect(workspace.status).toContain('not confirmed');
+
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/agent-profile use household --yes']);
+    expect(workspace.lastActionResult?.title).toBe('Opening default Agent profile selection');
   });
 
   test('dispatches profile starter creation from discovered behavior through workspace form', () => {

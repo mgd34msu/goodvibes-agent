@@ -2,13 +2,16 @@ import {
   createAgentRuntimeProfile,
   createAgentRuntimeProfileFromDiscovered,
   createAgentRuntimeProfileTemplateFromDiscovered,
+  clearAgentRuntimeProfileSelection,
   deleteAgentRuntimeProfile,
   exportAgentRuntimeProfileTemplate,
   importAgentRuntimeProfileTemplate,
   isAgentRuntimeProfileTemplateId,
   listAgentRuntimeProfiles,
   listAgentRuntimeProfileTemplates,
+  readAgentRuntimeProfileSelection,
   resolveAgentRuntimeProfileHome,
+  setAgentRuntimeProfileSelection,
   type AgentRuntimeProfileTemplateId,
   type AgentRuntimeProfileCommandResult,
   type AgentRuntimeProfileInfo,
@@ -117,6 +120,20 @@ function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string 
       `  routines: ${result.data.template.routineNames.join(', ')}`,
       `  use: goodvibes-agent profiles create <name> --template ${result.data.template.id} --yes`,
     ].join('\n');
+  }
+  if (result.kind === 'agent.profiles.default') {
+    const selected = result.data?.selectedProfile;
+    if (!selected) return 'No default Agent profile selected. Use: goodvibes-agent profiles use <name> --yes';
+    return [
+      `Default Agent profile: ${selected.id}${selected.exists ? '' : ' (missing)'}`,
+      `  home: ${selected.homeDirectory}`,
+      selected.selectedAt ? `  selectedAt: ${selected.selectedAt}` : '',
+      `  next launch: ${result.data?.nextCommand ?? 'goodvibes-agent'}`,
+      selected.exists ? '' : '  fix: create the profile again or clear it with goodvibes-agent profiles default clear --yes',
+    ].filter(Boolean).join('\n');
+  }
+  if (result.kind === 'agent.profiles.default.clear') {
+    return 'Default Agent profile cleared. Next launch uses the base Agent home unless --agent-profile is provided.';
   }
   if (result.kind === 'agent.profiles.create_from_discovered' && result.data?.profile && result.data.template) {
     return [
@@ -296,6 +313,107 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
       };
     }
 
+    if (sub === 'default') {
+      const target = values[0];
+      if (target === 'clear' || target === 'none' || target === 'base') {
+        if (!hasYes(rawRest)) {
+          const result: AgentRuntimeProfileCommandResult = {
+            ok: false,
+            kind: 'agent.profiles.error',
+            error: 'Refusing to clear the default Agent profile without --yes.',
+          };
+          return {
+            output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+            exitCode: 2,
+          };
+        }
+        clearAgentRuntimeProfileSelection(runtime.homeDirectory);
+        const result: AgentRuntimeProfileCommandResult = {
+          ok: true,
+          kind: 'agent.profiles.default.clear',
+        };
+        return {
+          output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+          exitCode: 0,
+        };
+      }
+      if (target) {
+        if (!hasYes(rawRest)) {
+          const result: AgentRuntimeProfileCommandResult = {
+            ok: false,
+            kind: 'agent.profiles.error',
+            error: `Refusing to set default Agent profile ${target} without --yes.`,
+          };
+          return {
+            output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+            exitCode: 2,
+          };
+        }
+        const selected = setAgentRuntimeProfileSelection(runtime.homeDirectory, target);
+        const result: AgentRuntimeProfileCommandResult = {
+          ok: true,
+          kind: 'agent.profiles.default',
+          data: {
+            selectedProfile: selected,
+            nextCommand: 'goodvibes-agent',
+          },
+        };
+        return {
+          output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+          exitCode: 0,
+        };
+      }
+      const selected = readAgentRuntimeProfileSelection(runtime.homeDirectory);
+      const result: AgentRuntimeProfileCommandResult = {
+        ok: true,
+        kind: 'agent.profiles.default',
+        data: selected ? { selectedProfile: selected, nextCommand: 'goodvibes-agent' } : undefined,
+      };
+      return {
+        output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+        exitCode: 0,
+      };
+    }
+
+    if (sub === 'use' || sub === 'select' || sub === 'switch') {
+      const name = values[0];
+      if (!name) {
+        const result: AgentRuntimeProfileCommandResult = {
+          ok: false,
+          kind: 'agent.profiles.error',
+          error: 'Usage: goodvibes-agent profiles use <name> --yes',
+        };
+        return {
+          output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+          exitCode: 2,
+        };
+      }
+      if (!hasYes(rawRest)) {
+        const result: AgentRuntimeProfileCommandResult = {
+          ok: false,
+          kind: 'agent.profiles.error',
+          error: `Refusing to set default Agent profile ${name} without --yes.`,
+        };
+        return {
+          output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+          exitCode: 2,
+        };
+      }
+      const selected = setAgentRuntimeProfileSelection(runtime.homeDirectory, name);
+      const result: AgentRuntimeProfileCommandResult = {
+        ok: true,
+        kind: 'agent.profiles.default',
+        data: {
+          selectedProfile: selected,
+          nextCommand: 'goodvibes-agent',
+        },
+      };
+      return {
+        output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+        exitCode: 0,
+      };
+    }
+
     if (sub === 'show' || sub === 'path' || sub === 'home') {
       const name = values[0];
       if (!name) {
@@ -464,7 +582,7 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
     const result: AgentRuntimeProfileCommandResult = {
       ok: false,
       kind: 'agent.profiles.error',
-      error: 'Usage: goodvibes-agent profiles [list|templates|show <name>|create <name> [--template <id>] --yes|delete <name> --yes]',
+      error: 'Usage: goodvibes-agent profiles [list|templates|default [<name>|clear] --yes|use <name> --yes|show <name>|create <name> [--template <id>] --yes|delete <name> --yes]',
     };
     return {
       output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),

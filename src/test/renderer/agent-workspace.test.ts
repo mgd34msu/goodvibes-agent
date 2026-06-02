@@ -686,6 +686,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/agent-profile list');
     expect(output).toContain('edit profile-template-export');
     expect(output).toContain('edit profile-template-import');
+    expect(output).toContain('Use as default profile');
+    expect(output).toContain('edit profile-default');
     expect(output).not.toContain('/profilesync');
     expect(output).not.toContain('/setup transfer');
     expect(output).toContain('Starter templates: 5; local custom: 0');

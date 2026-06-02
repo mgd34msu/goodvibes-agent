@@ -6,6 +6,7 @@ import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { readAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
 
 async function runProfilesCli(args: readonly string[], homeDirectory: string) {
   const output: string[] = [];
@@ -78,6 +79,41 @@ describe('profiles CLI command', () => {
     const parsed = JSON.parse(result.output) as { ok?: unknown; kind?: unknown };
     expect(parsed.ok).toBe(true);
     expect(parsed.kind).toBe('agent.profiles.list');
+  });
+
+  test('sets shows and clears the default Agent profile with confirmation', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-default-'));
+    await runProfilesCli(['profiles', 'create', 'Household', '--template', 'household', '--yes'], home);
+
+    const refused = await runProfilesCli(['profiles', 'use', 'household'], home);
+    expect(refused.result.exitCode).toBe(2);
+    expect(refused.output).toContain('without --yes');
+    expect(readAgentRuntimeProfileSelection(home)).toBeNull();
+
+    const selected = await runProfilesCli(['profiles', 'use', 'household', '--yes'], home);
+    expect(selected.result.exitCode).toBe(0);
+    expect(selected.output).toContain('Default Agent profile: household');
+    expect(selected.output).toContain('next launch: goodvibes-agent');
+    expect(readAgentRuntimeProfileSelection(home)?.id).toBe('household');
+
+    const shown = await runProfilesCli(['profiles', 'default', '--json'], home);
+    const parsed = JSON.parse(shown.output) as {
+      readonly ok?: unknown;
+      readonly kind?: unknown;
+      readonly data?: { readonly selectedProfile?: { readonly id?: unknown } };
+    };
+    expect(parsed.ok).toBe(true);
+    expect(parsed.kind).toBe('agent.profiles.default');
+    expect(parsed.data?.selectedProfile?.id).toBe('household');
+
+    const clearRefused = await runProfilesCli(['profiles', 'default', 'clear'], home);
+    expect(clearRefused.result.exitCode).toBe(2);
+    expect(clearRefused.output).toContain('without --yes');
+
+    const cleared = await runProfilesCli(['profiles', 'default', 'clear', '--yes'], home);
+    expect(cleared.result.exitCode).toBe(0);
+    expect(cleared.output).toContain('Default Agent profile cleared');
+    expect(readAgentRuntimeProfileSelection(home)).toBeNull();
   });
 
   test('lists starter templates and creates a seeded profile', async () => {

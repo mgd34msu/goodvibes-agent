@@ -421,6 +421,28 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'profile-default') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Default Agent profile selection not confirmed. Type yes, then press Enter.' },
+        status: 'Default Agent profile selection not confirmed.',
+      };
+    }
+    const command = `/agent-profile use ${quoteSlashCommandArg(readField('profile'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening default Agent profile selection.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening default Agent profile selection',
+        detail: 'The workspace handed a confirmed default profile selection command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
   if (editor.kind === 'skill-discovery-import') {
     if (!isAffirmative(readField('confirm'))) {
       return {

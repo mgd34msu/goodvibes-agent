@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   assertValidAgentRuntimeProfileId,
+  clearAgentRuntimeProfileSelection,
   createAgentRuntimeProfile,
   createAgentRuntimeProfileFromDiscovered,
   deleteAgentRuntimeProfile,
@@ -14,7 +15,10 @@ import {
   listAgentRuntimeProfileTemplates,
   listAgentRuntimeProfiles,
   normalizeAgentRuntimeProfileId,
+  readAgentRuntimeProfileSelection,
   resolveAgentRuntimeProfileHome,
+  resolveSelectedAgentRuntimeProfileHome,
+  setAgentRuntimeProfileSelection,
 } from '../../agent/runtime-profile.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
@@ -55,6 +59,33 @@ describe('Agent profiles', () => {
     expect(deleteAgentRuntimeProfile(home, 'household')).toBe(true);
     expect(deleteAgentRuntimeProfile(home, 'household')).toBe(false);
     expect(listAgentRuntimeProfiles(home)).toEqual([]);
+  });
+
+  test('selects and clears a default profile for future plain launches', () => {
+    const home = makeHome();
+    const created = createAgentRuntimeProfile(home, 'Research Desk', { templateId: 'research' });
+
+    const selected = setAgentRuntimeProfileSelection(home, 'research-desk');
+    expect(selected.id).toBe('research-desk');
+    expect(selected.homeDirectory).toBe(created.homeDirectory);
+    expect(selected.exists).toBe(true);
+    expect(readAgentRuntimeProfileSelection(home)?.id).toBe('research-desk');
+    expect(resolveSelectedAgentRuntimeProfileHome(home)?.homeDirectory).toBe(created.homeDirectory);
+
+    expect(clearAgentRuntimeProfileSelection(home)).toBe(true);
+    expect(clearAgentRuntimeProfileSelection(home)).toBe(false);
+    expect(readAgentRuntimeProfileSelection(home)).toBeNull();
+    expect(resolveSelectedAgentRuntimeProfileHome(home)).toBeNull();
+  });
+
+  test('deleting the selected profile clears the default profile selection', () => {
+    const home = makeHome();
+    createAgentRuntimeProfile(home, 'Ops', { templateId: 'operations' });
+    setAgentRuntimeProfileSelection(home, 'ops');
+
+    expect(deleteAgentRuntimeProfile(home, 'ops')).toBe(true);
+    expect(readAgentRuntimeProfileSelection(home)).toBeNull();
+    expect(resolveSelectedAgentRuntimeProfileHome(home)).toBeNull();
   });
 
   test('lists curated starter profile templates', () => {

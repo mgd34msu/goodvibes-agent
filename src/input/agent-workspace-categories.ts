@@ -130,7 +130,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'runtime-profile-from-discovered', label: 'Profile from discovered behavior', detail: 'Open an in-workspace form that creates a local starter and isolated Agent profile from reviewed discovered behavior files.', editorKind: 'profile-from-discovered', kind: 'editor', safety: 'safe' },
       { id: 'runtime-profile-create', label: 'Create Agent profile', detail: 'Open an in-workspace form that creates an isolated Agent home from a built-in or local starter.', editorKind: 'profile', kind: 'editor', safety: 'safe' },
       { id: 'runtime-profile-template-edit', label: 'Customize starter', detail: 'Open the starter export form, edit the JSON file, then import it as a local starter.', editorKind: 'profile-template-export', kind: 'editor', safety: 'safe' },
-      { id: 'runtime-profile-switch', label: 'Switch Agent profile', detail: 'Launch goodvibes-agent --agent-profile NAME to use that isolated Agent home. This workspace cannot switch the current process home after startup.', kind: 'guidance', safety: 'safe' },
+      { id: 'runtime-profile-default', label: 'Use as default profile', detail: 'Select an isolated Agent profile for the next normal goodvibes-agent launch. The current session keeps using its existing Agent home.', editorKind: 'profile-default', kind: 'editor', safety: 'safe' },
     ],
   },
   {

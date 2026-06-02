@@ -5,7 +5,7 @@ export { buildAgentWorkspaceBasicCommandEditorSubmission } from './agent-workspa
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
-  | 'profile-template-from-discovered' | 'profile-from-discovered'
+  | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
@@ -26,6 +26,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'profile-template-import'
     || kind === 'profile-template-from-discovered'
     || kind === 'profile-from-discovered'
+    || kind === 'profile-default'
     || kind === 'mcp-server'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
@@ -242,6 +243,19 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
         { id: 'routines', label: 'Routines', value: '', required: false, multiline: false, hint: 'all or comma-separated discovered routine names. Blank includes all.' },
         { id: 'replace', label: 'Replace starter', value: 'no', required: false, multiline: false, hint: 'yes/no. Existing starter ids are protected unless this is yes.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile create-from-discovered with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'profile-default') {
+    return {
+      kind,
+      mode: 'update',
+      title: 'Use Default Agent Profile',
+      selectedFieldIndex: 0,
+      message: 'Select which isolated Agent profile the next normal goodvibes-agent launch should use. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'profile', label: 'Profile name', value: '', required: true, multiline: false, hint: 'Existing isolated Agent profile name from /agent-profile list.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile use with --yes.' },
       ],
     };
   }

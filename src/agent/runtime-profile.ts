@@ -36,6 +36,12 @@ export interface AgentRuntimeProfileInfo extends AgentRuntimeProfileResolution {
   readonly starterTemplateApplication?: AgentRuntimeProfileTemplateApplication;
 }
 
+export interface AgentRuntimeProfileSelection extends AgentRuntimeProfileResolution {
+  readonly selectedAt: string | null;
+  readonly path: string;
+  readonly exists: boolean;
+}
+
 export interface AgentRuntimeProfileTemplateApplication {
   readonly id: AgentRuntimeProfileTemplateId;
   readonly name: string;
@@ -76,11 +82,14 @@ export interface AgentRuntimeProfileCommandResult {
     | 'agent.profiles.template.from_discovered'
     | 'agent.profiles.create_from_discovered'
     | 'agent.profiles.create'
+    | 'agent.profiles.default'
+    | 'agent.profiles.default.clear'
     | 'agent.profiles.delete'
     | 'agent.profiles.error';
   readonly data?: {
     readonly profiles?: readonly AgentRuntimeProfileInfo[];
     readonly profile?: AgentRuntimeProfileInfo;
+    readonly selectedProfile?: AgentRuntimeProfileSelection;
     readonly templates?: readonly AgentRuntimeProfileTemplateSummary[];
     readonly appliedTemplate?: AgentRuntimeProfileTemplateApplication;
     readonly template?: AgentRuntimeProfileTemplateSummary;
@@ -91,6 +100,7 @@ export interface AgentRuntimeProfileCommandResult {
 }
 
 const PROFILE_CREATED_FILE = 'profile.json';
+const PROFILE_SELECTION_FILE = 'profile-selection.json';
 const PROFILE_ID_PATTERN = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
 
 export function normalizeAgentRuntimeProfileId(value: string): string {
@@ -122,11 +132,46 @@ export function getAgentRuntimeProfileTemplatesRoot(baseHomeDirectory: string): 
   return join(baseHomeDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'profile-starters');
 }
 
+export function getAgentRuntimeProfileSelectionPath(baseHomeDirectory: string): string {
+  return join(baseHomeDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, PROFILE_SELECTION_FILE);
+}
+
 export function resolveAgentRuntimeProfileHome(baseHomeDirectory: string, profileName: string): AgentRuntimeProfileResolution {
   const id = assertValidAgentRuntimeProfileId(profileName);
   return {
     id,
     homeDirectory: join(getAgentRuntimeProfilesRoot(baseHomeDirectory), id),
+  };
+}
+
+export function readAgentRuntimeProfileSelection(baseHomeDirectory: string): AgentRuntimeProfileSelection | null {
+  const path = getAgentRuntimeProfileSelectionPath(baseHomeDirectory);
+  if (!existsSync(path)) return null;
+  try {
+    const raw: unknown = JSON.parse(readFileSync(path, 'utf-8'));
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const record = raw as Record<string, unknown>;
+    const profileId = record.profileId;
+    if (typeof profileId !== 'string') return null;
+    const resolution = resolveAgentRuntimeProfileHome(baseHomeDirectory, profileId);
+    const selectedAt = typeof record.selectedAt === 'string' ? record.selectedAt : null;
+    return {
+      ...resolution,
+      selectedAt,
+      path,
+      exists: existsSync(resolution.homeDirectory),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function resolveSelectedAgentRuntimeProfileHome(baseHomeDirectory: string): AgentRuntimeProfileResolution | null {
+  const selection = readAgentRuntimeProfileSelection(baseHomeDirectory);
+  if (!selection?.exists) return null;
+  return {
+    id: selection.id,
+    homeDirectory: selection.homeDirectory,
   };
 }
 
@@ -573,9 +618,42 @@ export function createAgentRuntimeProfile(baseHomeDirectory: string, profileName
   };
 }
 
+export function setAgentRuntimeProfileSelection(baseHomeDirectory: string, profileName: string): AgentRuntimeProfileSelection {
+  const resolution = resolveAgentRuntimeProfileHome(baseHomeDirectory, profileName);
+  if (!existsSync(resolution.homeDirectory)) {
+    throw new Error(`Agent profile not found: ${resolution.id}`);
+  }
+  const path = getAgentRuntimeProfileSelectionPath(baseHomeDirectory);
+  mkdirSync(dirname(path), { recursive: true });
+  const selectedAt = new Date().toISOString();
+  writeFileSync(
+    path,
+    `${JSON.stringify({
+      profileId: resolution.id,
+      selectedAt,
+    }, null, 2)}\n`,
+    'utf-8',
+  );
+  return {
+    ...resolution,
+    selectedAt,
+    path,
+    exists: true,
+  };
+}
+
+export function clearAgentRuntimeProfileSelection(baseHomeDirectory: string): boolean {
+  const path = getAgentRuntimeProfileSelectionPath(baseHomeDirectory);
+  if (!existsSync(path)) return false;
+  rmSync(path, { force: true });
+  return true;
+}
+
 export function deleteAgentRuntimeProfile(baseHomeDirectory: string, profileName: string): boolean {
   const resolution = resolveAgentRuntimeProfileHome(baseHomeDirectory, profileName);
   if (!existsSync(resolution.homeDirectory)) return false;
   rmSync(resolution.homeDirectory, { recursive: true, force: true });
+  const selection = readAgentRuntimeProfileSelection(baseHomeDirectory);
+  if (selection?.id === resolution.id) clearAgentRuntimeProfileSelection(baseHomeDirectory);
   return true;
 }

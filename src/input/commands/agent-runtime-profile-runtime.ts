@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
+  clearAgentRuntimeProfileSelection,
   createAgentRuntimeProfileFromDiscovered,
   createAgentRuntimeProfileTemplateFromDiscovered,
   createAgentRuntimeProfile,
@@ -10,6 +11,8 @@ import {
   importAgentRuntimeProfileTemplate,
   listAgentRuntimeProfiles,
   listAgentRuntimeProfileTemplates,
+  readAgentRuntimeProfileSelection,
+  setAgentRuntimeProfileSelection,
   type AgentRuntimeProfileInfo,
   type AgentRuntimeProfileTemplateSummary,
 } from '../../agent/runtime-profile.ts';
@@ -49,14 +52,17 @@ function templateLine(template: AgentRuntimeProfileTemplateSummary): string {
 
 function renderProfiles(homeDirectory: string): string {
   const profiles = listAgentRuntimeProfiles(homeDirectory);
+  const selected = readAgentRuntimeProfileSelection(homeDirectory);
+  const defaultLine = selected ? `  default: ${selected.id}${selected.exists ? '' : ' (missing)'}` : '  default: (base Agent home)';
   if (profiles.length === 0) {
     return [
       'Agent Profiles',
+      defaultLine,
       '  No isolated Agent profiles yet.',
       '  Create one with /agent-profile create <name> --template <id> --yes.',
     ].join('\n');
   }
-  return ['Agent Profiles', ...profiles.map(profileLine)].join('\n');
+  return ['Agent Profiles', defaultLine, ...profiles.map(profileLine)].join('\n');
 }
 
 function renderTemplates(homeDirectory: string): string {
@@ -117,7 +123,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
     name: 'agent-profile',
     aliases: ['runtime-profile', 'agent-profiles'],
     description: 'Manage isolated Agent profiles and starter templates',
-    usage: '[list|templates|guide|template show|template export|template import|template from-discovered|create|create-from-discovered|delete]',
+    usage: '[list|default|use|templates|guide|template show|template export|template import|template from-discovered|create|create-from-discovered|delete]',
     async handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);
       const homeDirectory = shellPaths.homeDirectory;
@@ -133,6 +139,62 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
 
         if (sub === 'templates' || sub === 'starters') {
           ctx.print(renderTemplates(homeDirectory));
+          return;
+        }
+
+        if (sub === 'default') {
+          const target = commandArgs[1];
+          if (target === 'clear' || target === 'none' || target === 'base') {
+            if (!parsed.yes) {
+              requireYesFlag(ctx, 'clear the default Agent profile', '/agent-profile default clear --yes');
+              return;
+            }
+            clearAgentRuntimeProfileSelection(homeDirectory);
+            ctx.print('Default Agent profile cleared. Next launch uses the base Agent home unless --agent-profile is provided.');
+            return;
+          }
+          if (target) {
+            if (!parsed.yes) {
+              requireYesFlag(ctx, `set default Agent profile ${target}`, '/agent-profile default <name> --yes');
+              return;
+            }
+            const selected = setAgentRuntimeProfileSelection(homeDirectory, target);
+            ctx.print([
+              `Default Agent profile selected: ${selected.id}`,
+              `  home: ${selected.homeDirectory}`,
+              '  next launch: goodvibes-agent',
+              '  explicit override: goodvibes-agent --agent-profile <name>',
+            ].join('\n'));
+            return;
+          }
+          const selected = readAgentRuntimeProfileSelection(homeDirectory);
+          ctx.print(selected
+            ? [
+              `Default Agent profile: ${selected.id}${selected.exists ? '' : ' (missing)'}`,
+              `  home: ${selected.homeDirectory}`,
+              '  next launch: goodvibes-agent',
+            ].join('\n')
+            : 'No default Agent profile selected. Next launch uses the base Agent home.');
+          return;
+        }
+
+        if (sub === 'use' || sub === 'select' || sub === 'switch') {
+          const name = commandArgs[1];
+          if (!name) {
+            ctx.print('Usage: /agent-profile use <name> --yes');
+            return;
+          }
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `set default Agent profile ${name}`, '/agent-profile use <name> --yes');
+            return;
+          }
+          const selected = setAgentRuntimeProfileSelection(homeDirectory, name);
+          ctx.print([
+            `Default Agent profile selected: ${selected.id}`,
+            `  home: ${selected.homeDirectory}`,
+            '  next launch: goodvibes-agent',
+            '  explicit override: goodvibes-agent --agent-profile <name>',
+          ].join('\n'));
           return;
         }
 
@@ -283,7 +345,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           return;
         }
 
-        ctx.print('Usage: /agent-profile [list|templates|guide|template show <id>|template export <id> <path> --yes|template import <path> --yes|create <name> [--template <id>] --yes|create-from-discovered <name> --yes|delete <name> --yes]');
+        ctx.print('Usage: /agent-profile [list|default [<name>|clear] --yes|use <name> --yes|templates|guide|template show <id>|template export <id> <path> --yes|template import <path> --yes|create <name> [--template <id>] --yes|create-from-discovered <name> --yes|delete <name> --yes]');
       } catch (error) {
         ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
       }

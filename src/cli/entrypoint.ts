@@ -25,7 +25,7 @@ import {
 import { buildCliServicePosture } from './service-posture.ts';
 import { inspectCliExternalRuntime } from './external-runtime.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import { resolveAgentRuntimeProfileHome } from '../agent/runtime-profile.ts';
+import { resolveAgentRuntimeProfileHome, resolveSelectedAgentRuntimeProfileHome } from '../agent/runtime-profile.ts';
 
 type ShellEntrypointOwnership = {
   readonly workingDirectory: string;
@@ -52,14 +52,20 @@ export type PreparedShellCliRuntime = {
   readonly bootstrapHomeDirectory: string;
 };
 
-function resolveShellEntrypointOwnership(
+export function resolveShellEntrypointOwnership(
   roots: ShellEntrypointRoots,
   workingDirOverride?: string,
-  agentProfile?: string,
+  options: {
+    readonly agentProfile?: string;
+    readonly useSelectedProfile: boolean;
+  } = { useSelectedProfile: true },
 ): ShellEntrypointOwnership {
-  const homeDirectory = agentProfile
-    ? resolveAgentRuntimeProfileHome(roots.homeDirectory, agentProfile).homeDirectory
-    : roots.homeDirectory;
+  const selectedProfile = options.agentProfile
+    ? resolveAgentRuntimeProfileHome(roots.homeDirectory, options.agentProfile)
+    : options.useSelectedProfile
+      ? resolveSelectedAgentRuntimeProfileHome(roots.homeDirectory)
+      : null;
+  const homeDirectory = selectedProfile?.homeDirectory ?? roots.homeDirectory;
   return {
     workingDirectory: workingDirOverride ?? roots.defaultWorkingDirectory,
     homeDirectory,
@@ -103,7 +109,10 @@ export async function prepareShellCliRuntime(
     ownership = resolveShellEntrypointOwnership(
       roots,
       cli.flags.workingDir ?? (cli.command === 'tui' ? cli.commandArgs[0] : undefined),
-      cli.command === 'profiles' ? undefined : cli.flags.agentProfile,
+      {
+        agentProfile: cli.command === 'profiles' ? undefined : cli.flags.agentProfile,
+        useSelectedProfile: cli.command !== 'profiles',
+      },
     );
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
