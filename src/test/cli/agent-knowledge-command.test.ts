@@ -136,6 +136,74 @@ describe('Agent Knowledge CLI route isolation', () => {
     }
   });
 
+  test('ingest-file uses the Agent Knowledge artifact route and never the default wiki path', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return new Response(JSON.stringify({
+        source: {
+          id: 'src-agent-file',
+          canonicalUri: '/workspace/agent-guide.md',
+          sourceType: 'document',
+        },
+        artifactId: 'artifact-agent-file',
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleAgentKnowledgeCommand(createRuntime([
+        'ingest-file',
+        '/workspace/agent-guide.md',
+        '--title',
+        'Agent Guide',
+        '--tags',
+        'agent,guide',
+      ]));
+      const parsed = JSON.parse(result.output) as unknown;
+
+      expect(result.exitCode).toBe(2);
+      expect(requests).toHaveLength(0);
+      expect(parsed).toMatchObject({
+        ok: false,
+        kind: 'confirmation_required',
+        route: '/api/goodvibes-agent/knowledge/ingest/artifact',
+      });
+
+      const confirmed = await handleAgentKnowledgeCommand(createRuntime([
+        'ingest-file',
+        '/workspace/agent-guide.md',
+        '--title',
+        'Agent Guide',
+        '--tags',
+        'agent,guide',
+        '--yes',
+      ]));
+      const confirmedParsed = JSON.parse(confirmed.output) as unknown;
+
+      expect(confirmed.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/artifact');
+      expect(requests[0]?.url).not.toContain('/api/knowledge/');
+      expect(requests[0]?.body).toContain('"path":"/workspace/agent-guide.md"');
+      expect(requests[0]?.body).toContain('"connectorId":"goodvibes-agent-file"');
+      expect(confirmedParsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.ingest.artifact',
+        route: '/api/goodvibes-agent/knowledge/ingest/artifact',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test('rejects Knowledge space flags before any daemon request', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async () => {

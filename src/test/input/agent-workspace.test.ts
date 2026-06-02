@@ -1025,6 +1025,33 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });
 
+  test('ingests Agent Knowledge files from a confirmed workspace form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-ingest-file');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('knowledge-file');
+    expect(dispatched).toEqual([]);
+    feedText(workspace, './docs/agent-guide.md');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Agent Guide');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'docs,agent');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'guides');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/knowledge ingest-file ./docs/agent-guide.md --title "Agent Guide" --tags docs,agent --folder guides --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
+  });
+
   test('queries Agent Knowledge from workspace forms without placeholder commands', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

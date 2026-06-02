@@ -5,7 +5,7 @@ type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'knowledge-bookmarks' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
+  'knowledge-file' | 'knowledge-bookmarks' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
 >;
 
 export type AgentWorkspaceBasicCommandEditorSubmission =
@@ -28,6 +28,7 @@ function isAffirmative(value: string): boolean {
 
 export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceBasicCommandEditorKind {
   return kind === 'knowledge-bookmarks'
+    || kind === 'knowledge-file'
     || kind === 'tts-prompt'
     || kind === 'image-input'
     || kind === 'skill-bundle'
@@ -47,6 +48,22 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       fields: [
         { id: 'path', label: 'Bookmark export path', value: '', required: true, multiline: false, hint: 'Path to an HTML or JSON browser bookmark export.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge import-bookmarks with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'knowledge-file') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Ingest File into Agent Knowledge',
+      selectedFieldIndex: 0,
+      message: 'Import a local source-backed file into the isolated Agent Knowledge segment. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'path', label: 'File path', value: '', required: true, multiline: false, hint: 'Path to a local document or text file to ingest.' },
+        { id: 'title', label: 'Title', value: '', required: false, multiline: false, hint: 'Optional source title.' },
+        { id: 'tags', label: 'Tags', value: '', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+        { id: 'folder', label: 'Folder', value: '', required: false, multiline: false, hint: 'Optional Agent Knowledge folder path.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge ingest-file with --yes.' },
       ],
     };
   }
@@ -165,6 +182,36 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening Agent Knowledge bookmark import',
         detail: 'The workspace handed a confirmed bookmark import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'knowledge-file') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'File ingest not confirmed. Type yes, then press Enter.' },
+        status: 'Agent Knowledge file ingest not confirmed.',
+      };
+    }
+    const parts = ['/knowledge', 'ingest-file', quoteSlashCommandArg(readField('path'))];
+    const title = readField('title');
+    const tags = readField('tags');
+    const folder = readField('folder');
+    if (title.length > 0) parts.push('--title', quoteSlashCommandArg(title));
+    if (tags.length > 0) parts.push('--tags', quoteSlashCommandArg(tags));
+    if (folder.length > 0) parts.push('--folder', quoteSlashCommandArg(folder));
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent Knowledge file ingest.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent Knowledge file ingest',
+        detail: 'The workspace handed a confirmed file ingest command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

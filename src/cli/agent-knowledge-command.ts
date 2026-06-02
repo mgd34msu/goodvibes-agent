@@ -93,6 +93,10 @@ const AGENT_KNOWLEDGE_METHODS = {
     kind: 'agentKnowledge.ingest.url',
     route: '/api/goodvibes-agent/knowledge/ingest/url',
   },
+  ingestArtifact: {
+    kind: 'agentKnowledge.ingest.artifact',
+    route: '/api/goodvibes-agent/knowledge/ingest/artifact',
+  },
   ingestUrls: {
     kind: 'agentKnowledge.ingest.urls',
     route: '/api/goodvibes-agent/knowledge/ingest/urls',
@@ -565,6 +569,50 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     };
   }
 
+  if (normalized === 'ingest-file' || normalized === 'ingest-artifact') {
+    const values = commandValues(rest);
+    const path = values[0];
+    if (!path) return { output: 'Usage: goodvibes-agent knowledge ingest-file <path> [--title <title>] [--tags a,b] [--folder <path>] --yes', exitCode: 2 };
+    if (!confirmation.present) {
+      const failure = {
+        ok: false,
+        kind: 'confirmation_required',
+        error: `Refusing to ingest file into Agent Knowledge ${path} without --yes.`,
+        route: AGENT_KNOWLEDGE_METHODS.ingestArtifact.route,
+      };
+      return {
+        output: json ? JSON.stringify(failure, null, 2) : `${failure.error}\nUsage: goodvibes-agent knowledge ingest-file <path> [--title <title>] [--tags a,b] [--folder <path>] --yes`,
+        exitCode: 2,
+      };
+    }
+    const title = readOptionValue(rest, '--title');
+    const tags = readStringList(rest, '--tags');
+    const folderPath = readOptionValue(rest, '--folder');
+    const connectorId = readOptionValue(rest, '--connector') ?? 'goodvibes-agent-file';
+    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.ingestArtifact, async (connection) => (
+      await postAgentKnowledgeJson(connection, AGENT_KNOWLEDGE_METHODS.ingestArtifact.route, {
+        path,
+        title,
+        tags,
+        folderPath,
+        connectorId,
+        allowPrivateHosts: hasFlag(rest, '--allow-private-hosts'),
+        metadata: { originSurface: 'goodvibes-agent-cli' },
+      })
+    ));
+    if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
+    return {
+      output: formatJsonOrText(runtime.cli)(result, formatIngest(
+        result.data,
+        path,
+        'ingest-file',
+        '/api/goodvibes-agent/knowledge/ingest/artifact',
+        'file',
+      )),
+      exitCode: 0,
+    };
+  }
+
   if (normalized === 'import-urls' || normalized === 'import-bookmarks') {
     const values = commandValues(rest);
     const path = values[0];
@@ -627,7 +675,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
   }
 
   return {
-    output: 'Usage: goodvibes-agent knowledge [status|ask <question>|search <query>|list|sources|nodes|issues|get <id>|map|connectors|ingest-url <url> --yes|import-urls <path> --yes|import-bookmarks <path> --yes|reindex --yes]',
+    output: 'Usage: goodvibes-agent knowledge [status|ask <question>|search <query>|list|sources|nodes|issues|get <id>|map|connectors|ingest-url <url> --yes|ingest-file <path> --yes|import-urls <path> --yes|import-bookmarks <path> --yes|reindex --yes]',
     exitCode: 2,
   };
 }

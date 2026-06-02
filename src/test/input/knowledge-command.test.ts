@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
@@ -167,6 +167,43 @@ describe('knowledgeCommand', () => {
     );
 
     expect(printed.join('\n')).toContain('Curated Project Knowledge');
+  });
+
+  test('ingests a local file into Agent Knowledge only after confirmation', async () => {
+    const artifactStore = new ArtifactStore({
+      configManager: {
+        getControlPlaneConfigDir: () => root,
+      },
+    });
+    const knowledgeStore = new KnowledgeStore({
+      configManager: {
+        getControlPlaneConfigDir: () => root,
+      },
+    });
+    await memoryStore.init();
+    const knowledgeService = new KnowledgeService(knowledgeStore, artifactStore, undefined, { memoryRegistry });
+    const filePath = join(root, 'agent-guide.md');
+    writeFileSync(filePath, '# Agent Guide\n\nUse Agent Knowledge for product-owned references.\n');
+
+    await knowledgeCommand.handler(
+      ['ingest-file', filePath, '--title', 'Agent Guide', '--tags', 'agent,guide'],
+      makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
+    );
+
+    expect(printed.join('\n')).toContain('Refusing to ingest file into Agent Knowledge');
+    expect(knowledgeStore.listSources()).toHaveLength(0);
+
+    printed = [];
+    await knowledgeCommand.handler(
+      ['ingest-file', filePath, '--title', 'Agent Guide', '--tags', 'agent,guide', '--yes'],
+      makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
+    );
+
+    expect(printed.join('\n')).toContain('Ingested');
+    expect(printed.join('\n')).toContain('artifact:');
+    const sources = knowledgeStore.listSources();
+    expect(sources).toHaveLength(1);
+    expect(sources[0]?.connectorId).toBe('goodvibes-agent-file');
   });
 
   test('reviews a knowledge issue', async () => {

@@ -159,7 +159,7 @@ export const knowledgeCommand: SlashCommand = {
   aliases: ['know', 'kb'],
   description: 'Agent Knowledge/Wiki: isolated Agent-owned sources, graph, review queue, and compact prompt packets.',
   usage: '<subcommand> [args]',
-  argsHint: 'status|ask|ingest-url --yes|import-bookmarks --yes|list|search|get|queue|review-issue --yes',
+  argsHint: 'status|ask|ingest-url --yes|ingest-file --yes|import-bookmarks --yes|list|search|get|queue|review-issue --yes',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
     const knowledge = requireAgentKnowledgeApi(context);
     if (!knowledge) {
@@ -238,6 +238,31 @@ export const knowledgeCommand: SlashCommand = {
           connectorId: 'url',
         });
         context.print(`[knowledge] Ingested ${result.source.id} ${result.source.canonicalUri ?? result.source.sourceUri ?? url}`);
+        if (result.source.summary) context.print(`  ${result.source.summary}`);
+        if (result.artifactId) context.print(`  artifact: ${result.artifactId}`);
+        break;
+      }
+
+      case 'ingest-file':
+      case 'ingest-artifact': {
+        const [path] = positionalArgs(rest, ['--title', '--tags', '--folder', '--connector']);
+        if (!path) {
+          context.print('[knowledge] Usage: /knowledge ingest-file <path> [--title <title>] [--tags <a,b>] [--folder <path>] --yes');
+          return;
+        }
+        if (!confirmation.yes) {
+          requireYesFlag(context, `ingest file into Agent Knowledge ${path}`, '/knowledge ingest-file <path> [--title <title>] [--tags <a,b>] [--folder <path>] --yes');
+          return;
+        }
+        const result = await knowledge.ingest.artifact({
+          path,
+          title: readFlag(rest, '--title'),
+          tags: readStringListFlag(rest, '--tags'),
+          folderPath: readFlag(rest, '--folder'),
+          sessionId: context.session.runtime.sessionId,
+          connectorId: readFlag(rest, '--connector') ?? 'goodvibes-agent-file',
+        });
+        context.print(`[knowledge] Ingested ${result.source.id} ${result.source.canonicalUri ?? result.source.sourceUri ?? path}`);
         if (result.source.summary) context.print(`  ${result.source.summary}`);
         if (result.artifactId) context.print(`  artifact: ${result.artifactId}`);
         break;
@@ -564,6 +589,7 @@ export const knowledgeCommand: SlashCommand = {
           '  status',
           '  ask <query> [--limit <n>] [--mode <concise|standard|detailed>]',
           '  ingest-url <url> [--title <title>] [--tags <a,b>] [--folder <path>] --yes',
+          '  ingest-file <path> [--title <title>] [--tags <a,b>] [--folder <path>] --yes',
           '  import-bookmarks <path> --yes',
           '  import-urls <path> --yes',
           '  list [--kind <sources|nodes|issues>] [--limit <n>]',

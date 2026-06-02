@@ -261,18 +261,24 @@ export function formatSearch(data: unknown, query: string): string {
   ].join('\n');
 }
 
-export function formatIngest(data: unknown, url: string): string {
+export function formatIngest(
+  data: unknown,
+  target: string,
+  label = 'ingest-url',
+  route = '/api/goodvibes-agent/knowledge/ingest/url',
+  targetLabel = 'url',
+): string {
   const record = isRecord(data) ? data : {};
   const source = isRecord(record.source) ? record.source : record;
   const sourceId = cleanInline(source.id);
-  const canonicalUri = cleanInline(source.canonicalUri) || cleanInline(source.sourceUri) || url;
+  const canonicalUri = cleanInline(source.canonicalUri) || cleanInline(source.sourceUri) || target;
   const artifactId = cleanInline(record.artifactId);
   return [
-    'Agent Knowledge ingest-url accepted',
+    `Agent Knowledge ${label} accepted`,
     `  source: ${sourceId || '(pending)'}`,
-    `  url: ${canonicalUri}`,
+    `  ${targetLabel}: ${canonicalUri}`,
     artifactId ? `  artifact: ${artifactId}` : null,
-    '  route: /api/goodvibes-agent/knowledge/ingest/url',
+    `  route: ${route}`,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
