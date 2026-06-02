@@ -259,6 +259,30 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/brief');
   });
 
+  test('opens direct Agent workspace categories and reports unknown targets', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command), 'voice-media');
+
+    expect(workspace.active).toBe(true);
+    expect(workspace.selectedCategory.id).toBe('voice-media');
+    expect(workspace.focusPane).toBe('actions');
+    expect(workspace.lastActionResult).toBeNull();
+
+    workspace.open(commandContext(), (command) => dispatched.push(command), 'not-real');
+
+    expect(workspace.selectedCategory.id).toBe('voice-media');
+    expect(workspace.status).toContain('Unknown Agent workspace area: not-real');
+    expect(workspace.lastActionResult).toMatchObject({
+      kind: 'guidance',
+      title: 'Unknown Agent workspace area',
+      safety: 'safe',
+    });
+    expect(workspace.lastActionResult?.detail).toContain('knowledge');
+    expect(workspace.lastActionResult?.detail).toContain('delegate');
+    expect(dispatched).toEqual([]);
+  });
+
   test('work workspace reviews work plan from transcript instead of opening a panel', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

@@ -51,7 +51,16 @@ export class AgentWorkspace {
     this.status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
     this.lastActionResult = null;
     this.localEditor = null;
-    if (categoryId) this.selectCategory(categoryId);
+    if (categoryId && !this.selectCategory(categoryId)) {
+      const normalized = categoryId.trim();
+      this.status = `Unknown Agent workspace area: ${normalized}.`;
+      this.lastActionResult = {
+        kind: 'guidance',
+        title: 'Unknown Agent workspace area',
+        detail: `Use one of: ${this.categories.map((category) => category.id).join(', ')}.`,
+        safety: 'safe',
+      };
+    }
     this.clampSelection();
   }
 
