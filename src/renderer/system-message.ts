@@ -20,7 +20,7 @@ export function classifySystemMessage(content: string): SystemMessageType {
     if (/FAILED|cascade abort/i.test(content)) return 'error';
     // Review failed to reach threshold → warning (yellow, retry in progress)
     if (/spawning a fix agent/i.test(content)) return 'warning';
-    // All other WRFC messages (started, passed, auto-committed, gate passed, review ok) → info
+    // All other explicit delegated review/build messages classify as info.
     return 'info';
   }
 

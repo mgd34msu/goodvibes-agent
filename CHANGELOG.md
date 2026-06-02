@@ -213,7 +213,7 @@ All notable changes to GoodVibes Agent will be recorded here.
 - Added local Agent skill bundles so users can group related local skills, enable or disable the bundle, and inject the bundle's member procedures into the same serial assistant conversation.
 - Added `/agent-skills bundle ...` commands plus Agent workspace visibility for skill bundle counts, enabled bundle state, active skill count, and bundle membership.
 - Restored the GitHub CI eval gate script and replaced the copied release workflow with an Agent package release workflow that validates Bun global install, package contents, compiled binary launch, and optional registry publish.
-- Kept bundles Agent-local and reviewable with no connected-service lifecycle behavior, hidden background agents, or non-Agent knowledge fallback.
+- Kept bundles Agent-local and reviewable with no connected-host lifecycle behavior, hidden local workers, or non-Agent knowledge fallback.
 
 ## 0.1.80 - 2026-06-01
 

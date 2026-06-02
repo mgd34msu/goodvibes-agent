@@ -171,9 +171,9 @@ export class SystemMessagesPanel extends ScrollableListPanel<SystemMessageEntry>
         buildKeyValueLine(width, [
           { label: 'system route', value: ui.systemMessages, valueColor: C.info },
           { label: 'ops route', value: ui.operationalMessages, valueColor: C.info },
-          { label: 'wrfc route', value: ui.wrfcMessages, valueColor: C.info },
+          { label: 'review route', value: ui.wrfcMessages, valueColor: C.info },
         ], C),
-        buildGuidanceLine(width, '/settings', 'adjust where operational and WRFC messages render across panels and conversation', C),
+        buildGuidanceLine(width, '/settings', 'adjust where operational and delegated review/build messages render across panels and conversation', C),
       ];
 
       const selected = this._messages[this.selectedIndex]!;

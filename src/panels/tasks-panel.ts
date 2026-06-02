@@ -184,8 +184,8 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
           lines: buildEmptyState(
             width,
             ' Task store not wired into this panel yet.',
-            'Use the Tasks panel with live connected-service task state to review active execution, cancellations, retries, and completion results.',
-            [{ command: '/tasks', summary: 'inspect connected-service tasks without starting background work' }],
+            'Use the Tasks panel with connected-host task state to review active execution, cancellations, retries, and completion results.',
+            [{ command: '/tasks', summary: 'inspect connected-host tasks without launching local workers' }],
             C,
           ),
         }],
@@ -235,7 +235,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
       ]));
     }
     postureLines.push(
-      buildGuidanceLine(width, '/tasks', 'inspect local runtime task posture without starting background agents', C),
+      buildGuidanceLine(width, '/tasks', 'inspect connected-host task posture without launching local workers', C),
       buildGuidanceLine(width, '/delegate <task>', 'delegate explicit build/fix/review work to GoodVibes TUI when code execution is required', C),
     );
 

@@ -105,9 +105,9 @@ const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
     both: 'Show operational messages in both panels and the transcript.',
   },
   'ui.wrfcMessages': {
-    panel: 'Show explicit delegated-build WRFC messages in panels only.',
-    conversation: 'Show explicit delegated-build WRFC messages inline in the transcript.',
-    both: 'Show explicit delegated-build WRFC messages in both panels and the transcript.',
+    panel: 'Show explicit delegated build/review messages in panels only.',
+    conversation: 'Show explicit delegated build/review messages inline in the transcript.',
+    both: 'Show explicit delegated build/review messages in both panels and the transcript.',
   },
   'surfaces.telegram.mode': {
     webhook: 'Receive Telegram updates through externally hosted delivery.',

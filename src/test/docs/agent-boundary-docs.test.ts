@@ -81,6 +81,11 @@ describe('Agent boundary docs', () => {
       'Service lifecycle commands',
       'service switches',
       'services, and automation',
+      'connected-service',
+      'background agents',
+      'wrfc route',
+      'WRFC messages',
+      'configured service providers',
     ] as const;
     const offenders: string[] = [];
 

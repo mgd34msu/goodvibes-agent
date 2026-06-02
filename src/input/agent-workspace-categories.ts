@@ -157,7 +157,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'LEARN',
     label: 'Personas',
     summary: 'Local behavior profiles for the main assistant.',
-    detail: 'Personas shape the serial Agent in the main conversation. They are not background agents and they never spawn specialist roots.',
+    detail: 'Personas shape the serial Agent in the main conversation. They are local profiles and never spawn specialist roots.',
     actions: [
       { id: 'personas-list', label: 'List personas', detail: 'Print the full local persona library.', command: '/personas list', kind: 'command', safety: 'read-only' },
       { id: 'personas-active', label: 'Show active persona', detail: 'Inspect the active local persona applied to new turns.', command: '/personas active', kind: 'command', safety: 'read-only' },

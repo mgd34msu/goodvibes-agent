@@ -80,7 +80,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
     return [
       { command: '/subscription login openai start --yes', summary: 'start the first-class OpenAI subscription flow' },
       { command: '/login provider <name> start --yes', summary: 'use the front-door auth flow for supported providers' },
-      { command: '/auth review', summary: 'inspect connected-service auth posture without exposing token values' },
+      { command: '/auth review', summary: 'inspect connected-host auth posture without exposing token values' },
     ];
   }
 
@@ -196,7 +196,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
       const emptyLines = buildEmptyState(
         width,
         this.getEmptyStateMessage(),
-        'Built-in OAuth-capable providers and configured service providers will appear here once available for browser login or session import.',
+        'Built-in OAuth-capable providers and configured provider routes will appear here once available for browser login or session import.',
         this.getEmptyStateActions(),
         C,
       );
