@@ -2,6 +2,32 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.108 - 2026-06-02
+
+- f6b278c Harden Agent install and briefing
+- 46fa071 Split Agent Knowledge CLI helpers
+- ec03fc0 Add Agent Knowledge connector ingest
+- 8c908ca Add Agent Knowledge connector inspection
+- 4dda70e Add Agent Knowledge browser history import
+- 95bbdbd Add Agent Knowledge file ingest
+- 2440959 Add discovered skill import workflow
+- 692c0fa Add confirmed reminder scheduling
+- a392cc0 Use connected services product language
+- 5843cb4 Clean Agent launch and service wording
+- ee31dac Open routine starts through command router
+- c9512e5 Use Agent-first connected service language
+- 2d8d7f4 Focus onboarding on Agent setup
+- 855ed91 Trim unused root package dependencies
+- d74ae6c Add profile starter workspace forms
+- 0f7e834 Add workspace forms for bookmarks media and skill bundles
+- c140c9d Tolerate SDK overflow fail-closed refs
+- 5093419 Add Agent Knowledge workspace query forms
+- c76b249 Add routine schedule workspace form
+- 8615c68 Tighten Agent runtime boundary wording
+- f4cb026 Add Agent Knowledge URL workspace form
+- f523594 Add Agent channel readiness command
+- 65f0bfd Make Agent help TUI first
+
 ## 0.1.107 - 2026-06-01
 
 - Open the Agent operator workspace automatically on normal TUI launch after first-run setup has been shown.
