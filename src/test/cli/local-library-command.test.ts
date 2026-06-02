@@ -186,6 +186,18 @@ describe('local Agent library CLI commands', () => {
     expect(shownPayload.data?.triggers).toContain('vacation');
   });
 
+  test('empty persona discovery advertises only Agent persona roots', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-empty-personas-cli-'));
+    roots.push(home);
+
+    const discovered = await runCli(['personas', 'discover'], home);
+    expect(discovered.exitCode).toBe(0);
+    expect(discovered.output).toContain('No persona markdown files found in Agent persona folders.');
+    expect(discovered.output).toContain('.goodvibes/personas, .goodvibes/agent/personas');
+    expect(discovered.output).not.toContain('.goodvibes/agents');
+    expect(discovered.output).not.toContain('~/.goodvibes/agents');
+  });
+
   test('creates enables bundles reviews and deletes local skills', async () => {
     const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skills-cli-'));
     roots.push(home);
