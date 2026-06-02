@@ -30,6 +30,7 @@ import { createRuntimeServices, type RuntimeServices } from './services.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
 import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
+import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { registerAgentRuntimeEvents } from './agent-runtime-events.ts';
 
@@ -228,6 +229,7 @@ export async function initializeBootstrapCore(
     changeTracker: services.sessionChangeTracker,
   });
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
+  registerAgentReminderScheduleTool(toolRegistry, services.shellPaths, configManager);
   installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),
   });
