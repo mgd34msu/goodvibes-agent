@@ -83,8 +83,6 @@ const READ_ONLY_AGENT_TOOL_MODES = [
   'templates',
   'get',
   'budget',
-  'wrfc-chains',
-  'wrfc-history',
   'cohort-status',
   'cohort-report',
 ] as const;

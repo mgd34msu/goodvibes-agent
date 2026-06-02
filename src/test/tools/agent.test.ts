@@ -797,6 +797,8 @@ describe('spawn mode', () => {
     expect(enumValues).toEqual([...AGENT_READ_ONLY_TOOL_MODES]);
     expect(enumValues).not.toContain('spawn');
     expect(enumValues).not.toContain('batch-spawn');
+    expect(enumValues).not.toContain('wrfc-chains');
+    expect(enumValues).not.toContain('wrfc-history');
   });
 
   test('Agent runtime guard blocks copied local agent mutation modes beyond spawn', async () => {
