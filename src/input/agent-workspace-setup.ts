@@ -17,6 +17,8 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly sessionMemoryCount: number;
   readonly localMemoryCount: number;
   readonly localMemoryReviewQueueCount: number;
+  readonly localNoteCount: number;
+  readonly localNoteReviewQueueCount: number;
   readonly routineCount: number;
   readonly enabledRoutineCount: number;
   readonly missingRoutineRequirementCount: number;
@@ -134,6 +136,15 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         ? `${input.localMemoryCount} Agent memory record(s) are available; ${input.localMemoryReviewQueueCount} need review.`
         : 'Memory starts empty; durable facts should be stored deliberately and never include secrets.',
       command: 'Memory',
+    },
+    {
+      id: 'notes',
+      label: 'Scratchpad notes',
+      status: setupStatusForCount(input.localNoteCount, 'ready', 'optional'),
+      detail: input.localNoteCount > 0
+        ? `${input.localNoteCount} Agent scratchpad note(s) are available; ${input.localNoteReviewQueueCount} need review.`
+        : 'Notes start empty; use them for source triage, temporary decisions, and handoff before promoting anything durable.',
+      command: 'Notes',
     },
     {
       id: 'channels',

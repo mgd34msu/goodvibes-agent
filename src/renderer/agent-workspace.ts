@@ -104,6 +104,30 @@ function setupChecklistLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLi
   return lines;
 }
 
+function homeNextActionLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const blocked = snapshot.setupChecklist.filter((item) => item.status === 'blocked');
+  const recommended = snapshot.setupChecklist.filter((item) => item.status === 'recommended');
+  const optional = snapshot.setupChecklist.filter((item) => item.status === 'optional');
+  const candidates = [...blocked, ...recommended, ...optional].slice(0, 5);
+  if (candidates.length === 0) {
+    return [
+      { text: 'Next Actions', fg: PALETTE.title, bold: true },
+      { text: 'Core setup is ready. Continue normal assistant work, review Knowledge sources, or tune local skills/routines as needed.', fg: PALETTE.good },
+    ];
+  }
+  const lines: ContextLine[] = [{ text: 'Next Actions', fg: PALETTE.title, bold: true }];
+  for (const item of candidates) {
+    const command = item.command ? ` -> ${item.command}` : '';
+    lines.push({
+      text: `${item.status.toUpperCase()} ${item.label}${command}`,
+      fg: setupStatusColor(item.status),
+      bold: item.status === 'blocked',
+    });
+    lines.push({ text: `  ${item.detail}`, fg: PALETTE.muted });
+  }
+  return lines;
+}
+
 function discoverySummaryLine(label: string, summary: AgentWorkspaceRuntimeSnapshot['discoveredBehavior']['personas'], actionLabel: string): ContextLine[] {
   if (summary.count === 0) return [];
   const names = summary.names.length > 0
@@ -313,6 +337,11 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
       { text: `Session: ${snapshot.sessionId}`, fg: PALETTE.muted },
       { text: `Policy: ${snapshot.executionPolicy}; WRFC ${snapshot.wrfcPolicy}`, fg: PALETTE.good },
+      { text: `Knowledge: ${snapshot.knowledgeRoute}; ${snapshot.knowledgeIsolation}; no fallback`, fg: PALETTE.good },
+      { text: `Local: ${snapshot.localMemoryCount} memory, ${snapshot.localNoteCount} notes, ${snapshot.localPersonaCount} personas, ${snapshot.localSkillCount} skills, ${snapshot.localRoutineCount} routines.`, fg: PALETTE.info },
+      { text: `Channels: ${snapshot.channels.filter((channel) => channel.ready).length}/${snapshot.channels.length} ready; MCP ${snapshot.mcpConnectedServerCount}/${snapshot.mcpServerCount} connected; voice/media ${snapshot.voiceProviderCount}/${snapshot.mediaProviderCount}.`, fg: PALETTE.info },
+      { text: '' },
+      ...homeNextActionLines(snapshot),
     );
   } else if (category.id === 'setup') {
     base.push(

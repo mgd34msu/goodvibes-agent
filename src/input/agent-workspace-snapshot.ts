@@ -412,6 +412,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     sessionMemoryCount,
     localMemoryCount: memorySnapshot.count,
     localMemoryReviewQueueCount: memorySnapshot.reviewQueueCount,
+    localNoteCount: noteSnapshot.count,
+    localNoteReviewQueueCount: noteSnapshot.reviewQueueCount,
     routineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     missingRoutineRequirementCount: routineSnapshot.items.reduce((total, item) => total + (item.missingRequirementCount ?? 0), 0),
