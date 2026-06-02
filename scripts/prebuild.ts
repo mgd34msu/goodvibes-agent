@@ -3,8 +3,8 @@ import { syncProjectSurfaces } from './project-surfaces.ts';
 import { patchBunCompileCompatibility } from './bun-compile-compat.ts';
 
 /**
- * Prebuild script — syncs versioned surfaces and foundation artifacts before
- * compilation or staging so release assets cannot race stale source files.
+ * Prebuild script — syncs versioned package surfaces before compilation or
+ * staging so release assets cannot race stale source files.
  */
 try {
   withWorkspaceLock('sync project surfaces', () => {

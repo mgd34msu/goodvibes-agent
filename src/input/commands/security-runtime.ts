@@ -10,16 +10,11 @@ export function registerSecurityRuntimeCommands(registry: CommandRegistry): void
     description: 'Inspect security posture, attack paths, and review state',
     usage: '[review | attack-paths | tokens]',
     handler(args, ctx) {
-      if (args.length === 0) {
-        if (ctx.openSecurityPanel) {
-          ctx.openSecurityPanel();
-          return;
-        }
-        ctx.print('Security panel is not available in this runtime.');
+      const subcommand = args[0]?.toLowerCase() ?? 'review';
+      if (subcommand === 'open' || subcommand === 'panel') {
+        ctx.print('Security panels are not part of the Agent workspace. Use /security review.');
         return;
       }
-
-      const subcommand = args[0]?.toLowerCase() ?? 'review';
       const audit = requireTokenAuditor(ctx).auditAll(Date.now());
       const securitySnapshot = requireReadModels(ctx).security.getSnapshot();
       const policySnapshot = ctx.extensions.policyRuntimeState?.getSnapshot();

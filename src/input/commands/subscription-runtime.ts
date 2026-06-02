@@ -81,11 +81,6 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
-      const shellPaths = requireShellPaths(ctx);
-      if (args.length === 0 && ctx.openSubscriptionPanel) {
-        ctx.openSubscriptionPanel();
-        return;
-      }
       const sub = (commandArgs[0] ?? 'review').toLowerCase();
       const manager = requireSubscriptionManager(ctx);
       const services = requireServiceRegistry(ctx);
@@ -419,7 +414,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
           ctx.print('Usage: /subscription bundle <export|inspect> <path>');
           return;
         }
-        const targetPath = shellPaths.resolveWorkspacePath(pathArg);
+        const targetPath = requireShellPaths(ctx).resolveWorkspacePath(pathArg);
         if (mode === 'export') {
           if (!parsed.yes) {
             requireYesFlag(ctx, `export subscription bundle to ${pathArg}`, '/subscription bundle export <path> --yes');

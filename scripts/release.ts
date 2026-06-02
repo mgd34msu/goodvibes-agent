@@ -203,7 +203,7 @@ console.log(`\n[6/6] Creating git commit and tag v${next}...`);
 const tag = `v${next}`;
 const commitMsg = `chore: release ${tag}`;
 
-run('git add package.json src/version.ts README.md CHANGELOG.md docs/foundation-artifacts');
+run('git add package.json src/version.ts README.md CHANGELOG.md');
 run(`git commit -m "${commitMsg}"`);
 run(`git tag -a ${tag} -m "Release ${tag}"`);
 

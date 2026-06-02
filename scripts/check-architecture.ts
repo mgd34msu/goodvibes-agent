@@ -258,14 +258,6 @@ for (const file of testFiles) {
 
 const requiredSnippets: Array<{ file: string; snippets: readonly string[]; message: string }> = [
   {
-    file: 'scripts/project-surfaces.ts',
-    snippets: [
-      'GatewayMethodCatalog',
-      '@pellux/goodvibes-sdk/platform/control-plane',
-    ],
-    message: 'foundation artifacts must be generated from SDK control-plane surfaces',
-  },
-  {
     file: 'src/runtime/services.ts',
     snippets: ['knowledgeService: agentKnowledgeService,'],
     message: 'runtime knowledgeService compatibility alias must point at isolated Agent Knowledge',
