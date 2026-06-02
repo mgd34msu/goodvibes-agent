@@ -12,7 +12,7 @@ import { registerAgentRuntimeProfileRuntimeCommands } from '../../input/commands
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
-import { createAgentRuntimeProfile, listAgentRuntimeProfiles, readAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
+import { createAgentRuntimeProfile, getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, readAgentRuntimeProfileSelection, setAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
@@ -1675,7 +1675,8 @@ describe('AgentWorkspace', () => {
 
   test('summarizes isolated Agent profile posture', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-profiles-'));
-    createAgentRuntimeProfile(root, 'household');
+    const profile = createAgentRuntimeProfile(root, 'household');
+    setAgentRuntimeProfileSelection(root, 'household');
     const snapshot = buildAgentWorkspaceRuntimeSnapshot({
       ...commandContext(),
       workspace: {
@@ -1692,10 +1693,32 @@ describe('AgentWorkspace', () => {
     } as unknown as CommandContext);
 
     expect(snapshot.activeRuntimeProfile).toBe('(default home)');
+    expect(snapshot.selectedRuntimeProfile).toBe('household');
+    expect(snapshot.selectedRuntimeProfileExists).toBe(true);
     expect(snapshot.runtimeProfileCount).toBe(1);
-    expect(snapshot.runtimeProfileRoot).toContain('profile-homes');
+    expect(snapshot.runtimeProfileRoot).toBe(getAgentRuntimeProfilesRoot(root));
     expect(snapshot.runtimeStarterTemplateCount).toBeGreaterThan(4);
     expect(snapshot.localStarterTemplateCount).toBe(0);
+
+    const profileSnapshot = buildAgentWorkspaceRuntimeSnapshot({
+      ...commandContext(),
+      workspace: {
+        shellPaths: {
+          workingDirectory: root,
+          homeDirectory: profile.homeDirectory,
+        },
+      },
+      platform: {
+        configManager: {
+          get: () => undefined,
+        },
+      },
+    } as unknown as CommandContext);
+
+    expect(profileSnapshot.activeRuntimeProfile).toBe('household');
+    expect(profileSnapshot.selectedRuntimeProfile).toBe('household');
+    expect(profileSnapshot.runtimeProfileCount).toBe(1);
+    expect(profileSnapshot.runtimeProfileRoot).toBe(getAgentRuntimeProfilesRoot(root));
   });
 
   test('agent profile command guides starter authoring and imports local starters', async () => {
@@ -1840,6 +1863,29 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/agent-profile use household --yes']);
     expect(workspace.lastActionResult?.title).toBe('Opening default Agent profile selection');
+  });
+
+  test('dispatches default profile clearing from the workspace form after confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-clear-default');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('profile-default-clear');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([]);
+    expect(workspace.status).toContain('not confirmed');
+
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/agent-profile default clear --yes']);
+    expect(workspace.lastActionResult?.title).toBe('Opening default Agent profile clear');
   });
 
   test('dispatches profile starter creation from discovered behavior through workspace form', () => {

@@ -36,6 +36,7 @@ export type AgentWorkspaceEditorKind =
   | 'profile-template-from-discovered'
   | 'profile-from-discovered'
   | 'profile-default'
+  | 'profile-default-clear'
   | 'routine-schedule'
   | 'reminder-schedule';
 
@@ -201,6 +202,9 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly browserToolExposureEnabled: boolean;
   readonly browserToolPublicBaseUrl: string;
   readonly activeRuntimeProfile: string;
+  readonly selectedRuntimeProfile: string | null;
+  readonly selectedRuntimeProfileExists: boolean;
+  readonly selectedRuntimeProfileSelectedAt: string | null;
   readonly runtimeProfileCount: number;
   readonly runtimeProfiles: readonly AgentWorkspaceRuntimeProfileItem[];
   readonly runtimeProfileRoot: string;

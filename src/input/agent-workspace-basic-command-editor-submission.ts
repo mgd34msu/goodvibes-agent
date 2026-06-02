@@ -443,6 +443,28 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'profile-default-clear') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Default Agent profile clear not confirmed. Type yes, then press Enter.' },
+        status: 'Default Agent profile clear not confirmed.',
+      };
+    }
+    const command = '/agent-profile default clear --yes';
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening default Agent profile clear.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening default Agent profile clear',
+        detail: 'The workspace handed a confirmed default profile clear command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
   if (editor.kind === 'skill-discovery-import') {
     if (!isAffirmative(readField('confirm'))) {
       return {

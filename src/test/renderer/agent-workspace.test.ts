@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
-import { createAgentRuntimeProfile } from '../../agent/runtime-profile.ts';
+import { createAgentRuntimeProfile, setAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
@@ -169,6 +169,7 @@ function liveCommandContext(): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   createAgentRuntimeProfile(root, 'household');
+  setAgentRuntimeProfileSelection(root, 'household');
   const configValues = new Map<string, unknown>([
     ['controlPlane.host', '127.0.0.1'],
     ['controlPlane.port', 3421],
@@ -677,6 +678,7 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Profiles');
     expect(output).toContain('Active Agent profile: (default home)');
+    expect(output).toContain('Default for next launch: household');
     expect(output).toContain('Agent profiles under this home: 1');
     expect(output).not.toContain('Config profiles:');
     expect(output).not.toContain('/profiles');
@@ -693,9 +695,14 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Starter templates: 5; local custom: 0');
     expect(output).toContain('Starter ids: household, research, travel, operations, personal-productivity');
     expect(output).toContain('Agent Profiles');
-    expect(output).toContain('household starter=none');
+    expect(output).toContain('household [default] starter=none');
     expect(output).toContain('Starter Templates');
     expect(output).toContain('separate assistants for household');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-clear-default');
+    const clearOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(clearOutput).toContain('Clear default profile');
+    expect(clearOutput).toContain('edit profile-default-clear');
   });
 
   test('renders profile starter export and import forms with concrete fields', () => {

@@ -78,13 +78,15 @@ Use named Agent profiles for repeatable local identities:
 ```sh
 goodvibes-agent profiles templates
 goodvibes-agent profiles create household --template household --yes
+goodvibes-agent profiles use household --yes
+goodvibes-agent
 goodvibes-agent profiles templates export research ./research-starter.json --yes
 goodvibes-agent profiles templates import ./research-starter.json --yes
 goodvibes-agent --agent-profile household status
 goodvibes-agent --agent-profile household
 ```
 
-Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate the connected host by themselves.
+Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. `profiles use <name> --yes` makes one profile the default for the next plain `goodvibes-agent` launch; `--agent-profile <name>` still overrides it for one launch, and `profiles default clear --yes` returns plain launches to the base Agent home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate the connected host by themselves.
 
 ## Local Memory, Personas, Routines, And Skills
 

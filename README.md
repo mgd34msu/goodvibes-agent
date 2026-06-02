@@ -69,6 +69,8 @@ Use isolated Agent profiles when one machine needs separate operator identities 
 ```sh
 goodvibes-agent profiles templates
 goodvibes-agent profiles create household --template household --yes
+goodvibes-agent profiles use household --yes
+goodvibes-agent
 goodvibes-agent personas create --name "Travel Planner" --description "Plan trips" --body "Compare options before booking" --use
 goodvibes-agent skills create --name "Daily Brief" --description "Summarize operator state" --procedure "Review Agent Knowledge, work plans, approvals, and routines" --enabled
 goodvibes-agent memory add fact "Prefers concise morning briefings" --scope project --tags preference
@@ -78,7 +80,7 @@ goodvibes-agent --agent-profile household status
 GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
 ```
 
-Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The connected GoodVibes host remains shared unless that host is separately configured otherwise.
+Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. `profiles use <name> --yes` makes one isolated profile the default for the next normal `goodvibes-agent` launch; `--agent-profile <name>` still overrides that default for one launch, and `profiles default clear --yes` returns plain launches to the base Agent home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The connected GoodVibes host remains shared unless that host is separately configured otherwise.
 
 The same local behavior libraries are available without opening the TUI: `goodvibes-agent personas ...`, `goodvibes-agent skills ...`, `goodvibes-agent memory ...`, and `goodvibes-agent routines ...` list, create, review, enable, stale, export/import where relevant, and delete local Agent records with explicit confirmation for destructive actions.
 

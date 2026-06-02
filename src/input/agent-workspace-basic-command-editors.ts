@@ -5,7 +5,7 @@ export { buildAgentWorkspaceBasicCommandEditorSubmission } from './agent-workspa
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
-  | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default'
+  | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
@@ -27,6 +27,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'profile-template-from-discovered'
     || kind === 'profile-from-discovered'
     || kind === 'profile-default'
+    || kind === 'profile-default-clear'
     || kind === 'mcp-server'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
@@ -256,6 +257,18 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       fields: [
         { id: 'profile', label: 'Profile name', value: '', required: true, multiline: false, hint: 'Existing isolated Agent profile name from /agent-profile list.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile use with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'profile-default-clear') {
+    return {
+      kind,
+      mode: 'update',
+      title: 'Clear Default Agent Profile',
+      selectedFieldIndex: 0,
+      message: 'Return the next normal goodvibes-agent launch to the base Agent home. Type yes to confirm.',
+      fields: [
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-profile default clear with --yes.' },
       ],
     };
   }

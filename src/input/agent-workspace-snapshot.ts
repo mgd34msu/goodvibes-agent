@@ -6,7 +6,7 @@ import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-
 import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
 import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-summary.ts';
 import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
-import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates } from '../agent/runtime-profile.ts';
+import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
 import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
 import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
@@ -61,6 +61,12 @@ function readConfigBoolean(context: CommandContext, key: string, fallback: boole
 function inferActiveRuntimeProfile(homeDirectory: string): string {
   const marker = `${sep}.goodvibes${sep}agent${sep}profile-homes${sep}`;
   return homeDirectory.includes(marker) ? basename(homeDirectory) : '(default home)';
+}
+
+function inferRuntimeProfileBaseHome(homeDirectory: string): string {
+  const marker = `${sep}.goodvibes${sep}agent${sep}profile-homes${sep}`;
+  const markerIndex = homeDirectory.indexOf(marker);
+  return markerIndex >= 0 ? homeDirectory.slice(0, markerIndex) : homeDirectory;
 }
 
 function summarizePersonaItem(persona: AgentPersonaRecord, activePersonaId: string | null): AgentWorkspaceLocalLibraryItem {
@@ -235,18 +241,26 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     }
   })();
   const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
+  const profileBaseHome = inferRuntimeProfileBaseHome(context.workspace?.shellPaths?.homeDirectory ?? '');
   const runtimeProfiles = (() => {
     try {
-      return listAgentRuntimeProfiles(context.workspace?.shellPaths?.homeDirectory ?? '');
+      return listAgentRuntimeProfiles(profileBaseHome);
     } catch {
       return [];
     }
   })();
   const runtimeStarterTemplates = (() => {
     try {
-      return listAgentRuntimeProfileTemplates(context.workspace?.shellPaths?.homeDirectory ?? '');
+      return listAgentRuntimeProfileTemplates(profileBaseHome);
     } catch {
       return [];
+    }
+  })();
+  const selectedRuntimeProfile = (() => {
+    try {
+      return readAgentRuntimeProfileSelection(profileBaseHome);
+    } catch {
+      return null;
     }
   })();
   const voiceProviders = (() => {
@@ -381,9 +395,12 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     browserToolExposureEnabled: readConfigBoolean(context, 'web.enabled', false),
     browserToolPublicBaseUrl: readConfigString(context, 'web.publicBaseUrl', '(not configured)'),
     activeRuntimeProfile: inferActiveRuntimeProfile(context.workspace?.shellPaths?.homeDirectory ?? ''),
+    selectedRuntimeProfile: selectedRuntimeProfile?.id ?? null,
+    selectedRuntimeProfileExists: selectedRuntimeProfile?.exists ?? false,
+    selectedRuntimeProfileSelectedAt: selectedRuntimeProfile?.selectedAt ?? null,
     runtimeProfileCount: runtimeProfiles.length,
     runtimeProfiles: runtimeProfiles.map(summarizeRuntimeProfile),
-    runtimeProfileRoot: getAgentRuntimeProfilesRoot(context.workspace?.shellPaths?.homeDirectory ?? ''),
+    runtimeProfileRoot: getAgentRuntimeProfilesRoot(profileBaseHome),
     runtimeStarterTemplateCount: runtimeStarterTemplates.length,
     localStarterTemplateCount: runtimeStarterTemplates.filter((template) => template.source === 'local').length,
     runtimeStarterTemplates: runtimeStarterTemplates.map(summarizeStarterTemplate),

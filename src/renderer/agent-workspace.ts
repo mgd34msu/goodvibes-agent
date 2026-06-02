@@ -180,7 +180,16 @@ function profileLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
   for (const profile of snapshot.runtimeProfiles.slice(0, 6)) {
     const starter = profile.starterTemplateId ? ` starter=${profile.starterTemplateId}` : ' starter=none';
     const created = profile.createdAt ? ` created=${profile.createdAt.slice(0, 10)}` : '';
-    lines.push({ text: `${profile.id}${starter}${created}`, fg: PALETTE.info, bold: profile.id === snapshot.activeRuntimeProfile });
+    const states = [
+      profile.id === snapshot.activeRuntimeProfile ? 'active' : '',
+      profile.id === snapshot.selectedRuntimeProfile ? 'default' : '',
+    ].filter(Boolean).join(', ');
+    const stateText = states ? ` [${states}]` : '';
+    lines.push({
+      text: `${profile.id}${stateText}${starter}${created}`,
+      fg: profile.id === snapshot.selectedRuntimeProfile ? PALETTE.good : PALETTE.info,
+      bold: profile.id === snapshot.activeRuntimeProfile || profile.id === snapshot.selectedRuntimeProfile,
+    });
     lines.push({ text: `  home: ${profile.homeDirectory}`, fg: PALETTE.muted });
   }
   if (snapshot.runtimeProfiles.length > 6) {
@@ -317,8 +326,12 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: 'Image input uses prompt attachments; media generation/provider setup stays behind explicit commands and configured providers.', fg: PALETTE.muted },
     );
   } else if (category.id === 'profiles') {
+    const defaultProfile = snapshot.selectedRuntimeProfile
+      ? `${snapshot.selectedRuntimeProfile}${snapshot.selectedRuntimeProfileExists ? '' : ' (missing)'}`
+      : '(base Agent home)';
     base.push(
       { text: `Active Agent profile: ${snapshot.activeRuntimeProfile}`, fg: PALETTE.info },
+      { text: `Default for next launch: ${defaultProfile}`, fg: snapshot.selectedRuntimeProfileExists || !snapshot.selectedRuntimeProfile ? PALETTE.info : PALETTE.warn },
       { text: `Agent profiles under this home: ${snapshot.runtimeProfileCount}`, fg: PALETTE.info },
       { text: `Starter templates: ${snapshot.runtimeStarterTemplateCount}; local custom: ${snapshot.localStarterTemplateCount}`, fg: PALETTE.info },
       { text: `Starter ids: ${snapshot.runtimeStarterTemplates.map((template) => template.id).join(', ') || 'none'}`, fg: PALETTE.info },
