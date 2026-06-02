@@ -175,6 +175,86 @@ function localLibraryLines(
   return lines;
 }
 
+type LocalRoutineItem = AgentWorkspaceRuntimeSnapshot['localRoutines'][number];
+
+function readyRoutineItems(snapshot: AgentWorkspaceRuntimeSnapshot): readonly LocalRoutineItem[] {
+  return snapshot.localRoutines.filter((routine) =>
+    routine.enabled === true
+    && routine.reviewState === 'reviewed'
+    && (routine.missingRequirementCount ?? 0) === 0
+  );
+}
+
+function routinesNeedingSetup(snapshot: AgentWorkspaceRuntimeSnapshot): readonly LocalRoutineItem[] {
+  return snapshot.localRoutines.filter((routine) => (routine.missingRequirementCount ?? 0) > 0);
+}
+
+function routinesNeedingReview(snapshot: AgentWorkspaceRuntimeSnapshot): readonly LocalRoutineItem[] {
+  return snapshot.localRoutines.filter((routine) => routine.reviewState !== 'reviewed');
+}
+
+function routineNextActionLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
+  const discovered = snapshot.discoveredBehavior.routines.count;
+  const ready = readyRoutineItems(snapshot);
+  const needsSetup = routinesNeedingSetup(snapshot);
+  const needsReview = routinesNeedingReview(snapshot);
+
+  if (snapshot.localRoutineCount === 0 && discovered > 0) {
+    return { text: 'Next routine action: Discover routine files, preview one, then import it from this workspace.', fg: PALETTE.warn, bold: true };
+  }
+  if (snapshot.localRoutineCount === 0) {
+    return { text: 'Next routine action: Create routine for a repeatable main-conversation workflow.', fg: PALETTE.warn, bold: true };
+  }
+  if (needsSetup.length > 0) {
+    return { text: `Next routine action: Needs setup for ${needsSetup[0]?.id ?? 'a routine'} before it can be trusted for schedule promotion.`, fg: PALETTE.warn, bold: true };
+  }
+  if (needsReview.length > 0) {
+    return { text: `Next routine action: Review selected or inspect ${needsReview[0]?.id ?? 'a routine'} before schedule promotion.`, fg: PALETTE.warn, bold: true };
+  }
+  if (ready.length > 0 && snapshot.routineScheduleReceiptCount === 0) {
+    return { text: `Next routine action: Promote ${ready[0]?.id ?? 'a reviewed routine'} to a connected schedule when you have a real cadence.`, fg: PALETTE.good, bold: true };
+  }
+  return { text: 'Next routine action: Start selected in the main conversation, inspect receipts, or reconcile connected schedules.', fg: PALETTE.info, bold: true };
+}
+
+function routineScheduleReceiptLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const latest = snapshot.latestRoutineScheduleReceipt;
+  const lines: ContextLine[] = [
+    {
+      text: `Promotion receipts: ${snapshot.routineScheduleReceiptCount}; created: ${snapshot.successfulRoutineScheduleReceiptCount}; failed: ${snapshot.failedRoutineScheduleReceiptCount}`,
+      fg: snapshot.failedRoutineScheduleReceiptCount > 0 ? PALETTE.warn : PALETTE.info,
+    },
+  ];
+  if (latest) {
+    lines.push({
+      text: `Latest receipt: ${latest.id} ${latest.status} routine=${latest.routineId} schedule="${latest.scheduleName}" ${latest.scheduleKind} ${latest.scheduleValue}`,
+      fg: latest.status === 'failed' ? PALETTE.warn : PALETTE.good,
+    });
+  } else {
+    lines.push({ text: 'No schedule promotion receipts yet. Confirm a routine promotion from Automation when ready.', fg: PALETTE.muted });
+  }
+  return lines;
+}
+
+function automationNextActionLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
+  const ready = readyRoutineItems(snapshot);
+  const needsSetup = routinesNeedingSetup(snapshot);
+  const needsReview = routinesNeedingReview(snapshot);
+  if (snapshot.routineScheduleReceiptCount > 0) {
+    return { text: 'Next automation action: Reconcile schedules to compare local receipts with the connected host.', fg: PALETTE.info, bold: true };
+  }
+  if (ready.length > 0) {
+    return { text: `Next automation action: Promote ${ready[0]?.id ?? 'a reviewed routine'} or create a one-off reminder.`, fg: PALETTE.good, bold: true };
+  }
+  if (needsSetup.length > 0) {
+    return { text: `Next automation action: Resolve routine setup gaps in ${needsSetup[0]?.id ?? 'Routines'} before promotion, or create a reminder.`, fg: PALETTE.warn, bold: true };
+  }
+  if (needsReview.length > 0) {
+    return { text: `Next automation action: Review ${needsReview[0]?.id ?? 'a routine'} in Routines before schedule promotion, or create a reminder.`, fg: PALETTE.warn, bold: true };
+  }
+  return { text: 'Next automation action: Create a reminder, or create/import a routine before recurring workflow promotion.', fg: PALETTE.warn, bold: true };
+}
+
 function profileLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
   const lines: ContextLine[] = [
     { text: 'Agent Profiles', fg: PALETTE.title, bold: true },
@@ -387,10 +467,16 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       ...localLibraryLines('Skill Bundles', snapshot.localSkillBundles, 'No local skill bundles yet. Use Skill bundles and Create bundle after creating skills.', null),
     );
   } else if (category.id === 'routines') {
+    const ready = readyRoutineItems(snapshot);
+    const needsSetup = routinesNeedingSetup(snapshot);
+    const needsReview = routinesNeedingReview(snapshot);
     base.push(
       { text: `Routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
+      { text: `Schedule-ready routines: ${ready.length}; setup gaps: ${needsSetup.length}; review needed: ${needsReview.length}`, fg: needsSetup.length > 0 || needsReview.length > 0 ? PALETTE.warn : PALETTE.good },
       { text: 'Routines are repeatable main-conversation workflows. Starting one does not create hidden jobs.', fg: PALETTE.good },
       { text: 'Scheduling a reviewed routine is explicit and requires a confirmed schedule command.', fg: PALETTE.warn },
+      routineNextActionLine(snapshot),
+      ...routineScheduleReceiptLines(snapshot),
       { text: '' },
       ...localLibraryLines('Routine Library', snapshot.localRoutines, 'No local routines yet. Create one here with Create routine.', workspace.selectedLocalLibraryItem('routine')?.id ?? null),
     );
@@ -400,10 +486,16 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: 'This workspace does not approve, deny, cancel, or mutate requests by selection alone.', fg: PALETTE.good },
     );
   } else if (category.id === 'automation') {
+    const ready = readyRoutineItems(snapshot);
     base.push(
       { text: 'Automation and schedules default to read-only observability.', fg: PALETTE.info },
       { text: 'Confirmed reminders and routine promotion use connected schedules only.', fg: PALETTE.info },
       { text: 'Local scheduler mutation/run controls remain blocked.', fg: PALETTE.warn },
+      { text: 'Reminder path: Create reminder -> choose at/every/cron -> optional delivery target -> confirm yes.', fg: PALETTE.good },
+      { text: 'Routine path: Routines -> resolve setup -> review selected -> Promote routine -> Reconcile schedules.', fg: PALETTE.good },
+      { text: `Schedule-ready routines: ${ready.length}; local promotion receipts: ${snapshot.routineScheduleReceiptCount}`, fg: ready.length > 0 ? PALETTE.good : PALETTE.warn },
+      automationNextActionLine(snapshot),
+      ...routineScheduleReceiptLines(snapshot),
     );
   } else if (category.id === 'delegate') {
     base.push(

@@ -3752,6 +3752,17 @@ describe('AgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-setup-path');
+    workspace.activateSelected();
+    expect(dispatched).toEqual([]);
+    expect(workspace.lastActionResult?.kind).toBe('guidance');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-delivery-targets');
+    workspace.activateSelected();
+    expect(workspace.selectedCategory.id).toBe('channels');
+    expect(dispatched).toEqual([]);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-receipts');
 
     workspace.activateSelected();

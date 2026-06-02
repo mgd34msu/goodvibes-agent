@@ -14,11 +14,13 @@ import {
 import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-summary.ts';
 import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
+import { RoutineScheduleReceiptStore } from '../agent/routine-schedule-receipts.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
 import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
 import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
 import type {
   AgentWorkspaceLocalLibraryItem,
+  AgentWorkspaceRoutineScheduleReceiptSummary,
   AgentWorkspaceRuntimeProfileItem,
   AgentWorkspaceRuntimeSnapshot,
   AgentWorkspaceRuntimeStarterTemplateItem,
@@ -145,6 +147,21 @@ function summarizeRoutineItem(routine: AgentRoutineRecord): AgentWorkspaceLocalL
   };
 }
 
+function summarizeRoutineScheduleReceipt(
+  receipt: ReturnType<RoutineScheduleReceiptStore['snapshot']>['receipts'][number],
+): AgentWorkspaceRoutineScheduleReceiptSummary {
+  return {
+    id: receipt.id,
+    status: receipt.status,
+    routineId: receipt.routineId,
+    routineName: receipt.routineName,
+    scheduleName: receipt.scheduleName,
+    scheduleKind: receipt.scheduleKind,
+    scheduleValue: receipt.scheduleValue,
+    createdAt: receipt.createdAt,
+  };
+}
+
 function summarizeMemoryItem(record: MemoryRecord): AgentWorkspaceLocalLibraryItem {
   const detail = record.detail?.trim();
   return {
@@ -261,6 +278,21 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       };
     } catch {
       return { count: 0, enabled: 0, items: [] };
+    }
+  })();
+  const routineScheduleReceipts = (() => {
+    try {
+      const shellPaths = context.workspace?.shellPaths;
+      if (!shellPaths) return { count: 0, successful: 0, failed: 0, latest: null };
+      const receipts = RoutineScheduleReceiptStore.fromShellPaths(shellPaths).snapshot().receipts;
+      return {
+        count: receipts.length,
+        successful: receipts.filter((receipt) => receipt.status === 'created').length,
+        failed: receipts.filter((receipt) => receipt.status === 'failed').length,
+        latest: receipts[0] ? summarizeRoutineScheduleReceipt(receipts[0]) : null,
+      };
+    } catch {
+      return { count: 0, successful: 0, failed: 0, latest: null };
     }
   })();
   const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
@@ -385,6 +417,10 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,
+    routineScheduleReceiptCount: routineScheduleReceipts.count,
+    successfulRoutineScheduleReceiptCount: routineScheduleReceipts.successful,
+    failedRoutineScheduleReceiptCount: routineScheduleReceipts.failed,
+    latestRoutineScheduleReceipt: routineScheduleReceipts.latest,
     localSkillCount: skillSnapshot.count,
     enabledSkillCount: skillSnapshot.enabled,
     localSkillBundleCount: skillSnapshot.bundleCount,

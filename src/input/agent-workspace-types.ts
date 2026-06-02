@@ -271,6 +271,17 @@ export interface AgentWorkspaceRuntimeStarterTemplateItem {
   readonly source: string;
 }
 
+export interface AgentWorkspaceRoutineScheduleReceiptSummary {
+  readonly id: string;
+  readonly status: string;
+  readonly routineId: string;
+  readonly routineName: string;
+  readonly scheduleName: string;
+  readonly scheduleKind: string;
+  readonly scheduleValue: string;
+  readonly createdAt: string;
+}
+
 export interface AgentWorkspaceRuntimeSnapshot {
   readonly provider: string;
   readonly model: string;
@@ -288,6 +299,10 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];
+  readonly routineScheduleReceiptCount: number;
+  readonly successfulRoutineScheduleReceiptCount: number;
+  readonly failedRoutineScheduleReceiptCount: number;
+  readonly latestRoutineScheduleReceipt: AgentWorkspaceRoutineScheduleReceiptSummary | null;
   readonly localSkillCount: number;
   readonly enabledSkillCount: number;
   readonly localSkillBundleCount: number;

@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { createAgentRuntimeProfile, setAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
+import { routineScheduleReceiptStorePath } from '../../agent/routine-schedule-receipts.ts';
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
@@ -806,6 +807,9 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 42));
 
     expect(output).toContain('Routines: 1; enabled: 1');
+    expect(output).toContain('Schedule-ready routines: 0; setup gaps: 1; review needed: 1');
+    expect(output).toContain('Next routine action: Needs setup for daily-brief before it can be trusted for schedule promotion.');
+    expect(output).toContain('Promotion receipts: 0; created: 0; failed: 0');
     expect(output).toContain('Repeatable workflows with setup readiness');
     expect(output).toContain('Needs setup');
     expect(output).toContain('daily-brief: Daily Brief');
@@ -1012,6 +1016,59 @@ describe('renderAgentWorkspace', () => {
     const healthEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(healthEditorOutput).toContain('Show Health Repair Guidance');
     expect(healthEditorOutput).toContain('Domain *');
+  });
+
+  test('renders automation next action and local schedule receipt state', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-schedule-receipts-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const routines = AgentRoutineRegistry.fromShellPaths(shellPaths);
+    routines.create({
+      name: 'Daily Brief',
+      description: 'Summarize operator state.',
+      steps: 'Review current daemon, tasks, approvals, and Agent Knowledge status first.',
+      enabled: true,
+    });
+    routines.markReviewed('daily-brief');
+    const receiptPath = routineScheduleReceiptStorePath(shellPaths);
+    mkdirSync(dirname(receiptPath), { recursive: true });
+    writeFileSync(receiptPath, `${JSON.stringify({
+      version: 1,
+      receipts: [
+        {
+          id: 'daily-brief-20260602',
+          createdAt: '2026-06-02T12:00:00.000Z',
+          routineId: 'daily-brief',
+          routineName: 'Daily Brief',
+          route: '/api/automation/schedules',
+          method: 'schedules.create',
+          status: 'created',
+          daemonBaseUrl: 'http://127.0.0.1:3421',
+          scheduleId: 'schedule-1',
+          scheduleStatus: 'enabled',
+          scheduleName: 'Daily Brief',
+          scheduleKind: 'cron',
+          scheduleValue: '0 9 * * *',
+          enabled: true,
+          target: { kind: 'surface', surfaceKind: 'tui' },
+          deliveryMode: 'surface',
+        },
+      ],
+    }, null, 2)}\n`);
+    const workspace = new AgentWorkspace();
+    workspace.open({
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext, () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
+
+    const output = text(renderAgentWorkspace(workspace, 150, 44));
+
+    expect(output).toContain('Reminder path: Create reminder -> choose at/every/cron -> optional delivery target -> confirm yes.');
+    expect(output).toContain('Routine path: Routines -> resolve setup -> review selected -> Promote routine -> Reconcile schedules.');
+    expect(output).toContain('Schedule-ready routines: 1; local promotion receipts: 1');
+    expect(output).toContain('Next automation action: Reconcile schedules to compare local receipts with the connected host.');
+    expect(output).toContain('Promotion receipts: 1; created: 1; failed: 0');
+    expect(output).toContain('Latest receipt: daily-brief-20260602 created routine=daily-brief schedule="Daily Brief" cron 0 9 * * *');
   });
 
   test('renders voice media and browser tool setup posture', () => {
