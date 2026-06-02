@@ -737,6 +737,16 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('daily-brief: Daily Brief');
     expect(output).toContain('needs 1/1');
     expect(output).toContain('missing setup: env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipt');
+    const receiptActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(receiptActionOutput).toContain('Show promotion receipt');
+    expect(receiptActionOutput).toContain('edit routine-receipt');
+
+    workspace.activateSelected();
+    const receiptEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(receiptEditorOutput).toContain('Show Routine Promotion Receipt');
+    expect(receiptEditorOutput).toContain('Receipt id *');
   });
 
   test('renders Agent Knowledge ingest and review workflow without default wiki fallback', () => {
@@ -896,6 +906,17 @@ describe('renderAgentWorkspace', () => {
     expect(confirmOutput).toContain('Confirm *');
     expect(output).not.toContain('<routine-id>');
     expect(output).not.toContain('<expr>');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-receipt');
+    const receiptActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(receiptActionOutput).toContain('Show receipt');
+    expect(receiptActionOutput).toContain('edit schedule-receipt');
+
+    workspace.activateSelected();
+    const receiptEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(receiptEditorOutput).toContain('Show Schedule Receipt');
+    expect(receiptEditorOutput).toContain('Receipt id *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'health-repair');

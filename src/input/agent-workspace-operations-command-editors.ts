@@ -2,7 +2,7 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 
 export type AgentWorkspaceOperationsCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'plan-show' | 'plan-approve' | 'plan-override' | 'plan-clear' | 'health-repair' | 'approval-review'
+  'plan-show' | 'plan-approve' | 'plan-override' | 'plan-clear' | 'health-repair' | 'approval-review' | 'routine-receipt' | 'schedule-receipt'
 >;
 
 export function isAgentWorkspaceOperationsCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceOperationsCommandEditorKind {
@@ -11,7 +11,9 @@ export function isAgentWorkspaceOperationsCommandEditorKind(kind: AgentWorkspace
     || kind === 'plan-override'
     || kind === 'plan-clear'
     || kind === 'health-repair'
-    || kind === 'approval-review';
+    || kind === 'approval-review'
+    || kind === 'routine-receipt'
+    || kind === 'schedule-receipt';
 }
 
 export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspaceOperationsCommandEditorKind): AgentWorkspaceLocalEditor {
@@ -73,6 +75,21 @@ export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspace
       message: 'Clear planner state. This is destructive and requires typed confirmation.',
       fields: [
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /plan clear with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'routine-receipt' || kind === 'schedule-receipt') {
+    const routine = kind === 'routine-receipt';
+    return {
+      kind,
+      mode: 'create',
+      title: routine ? 'Show Routine Promotion Receipt' : 'Show Schedule Receipt',
+      selectedFieldIndex: 0,
+      message: routine
+        ? 'Show one local routine schedule-promotion receipt without reconciling or mutating connected schedules.'
+        : 'Show one local schedule receipt without reconciling or mutating connected schedules.',
+      fields: [
+        { id: 'receiptId', label: 'Receipt id', value: '', required: true, multiline: false, hint: 'Receipt id from Promotion receipts.' },
       ],
     };
   }

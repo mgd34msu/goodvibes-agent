@@ -976,6 +976,13 @@ describe('AgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipts');
     workspace.activateSelected();
     expect(dispatched).toEqual(['/personas list', '/routines receipts']);
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipt');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('routine-receipt');
+    feedText(workspace, 'receipt-123');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/routines receipt receipt-123');
   });
 
   test('workspace editors preserve multiline paste only on multiline fields', () => {
@@ -3388,6 +3395,15 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/schedule receipts']);
     expect(workspace.status).toContain('/schedule receipts');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-receipt');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('schedule-receipt');
+    feedText(workspace, 'receipt-456');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched.at(-1)).toBe('/schedule receipt receipt-456');
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
   });
 
   test('automation workspace dispatches routine schedule reconciliation', () => {

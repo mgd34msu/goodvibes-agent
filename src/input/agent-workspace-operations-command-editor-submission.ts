@@ -85,6 +85,25 @@ export function buildAgentWorkspaceOperationsCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'routine-receipt' || editor.kind === 'schedule-receipt') {
+    const routine = editor.kind === 'routine-receipt';
+    const command = `/${routine ? 'routines' : 'schedule'} receipt ${quoteSlashCommandArg(readField('receiptId'))}`;
+    const title = routine ? 'Opening routine receipt' : 'Opening schedule receipt';
+    return {
+      kind: 'dispatch',
+      command,
+      status: `${title}.`,
+      actionResult: {
+        kind: 'dispatched',
+        title,
+        detail: routine
+          ? 'The workspace handed read-only routine receipt inspection to the shell-owned command router.'
+          : 'The workspace handed read-only schedule receipt inspection to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
   const plan = editor.kind === 'plan-show';
   const approval = editor.kind === 'approval-review';
   const command = plan

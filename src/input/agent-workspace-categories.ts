@@ -318,6 +318,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'routines-delete', label: 'Delete selected', detail: 'Open a confirmation form before deleting the selected local Agent routine.', localKind: 'routine', localOperation: 'routine-delete', kind: 'local-operation', safety: 'safe' },
       { id: 'routines-promote', label: 'Promote to schedule', detail: 'Open an in-workspace form that creates one connected schedule from the selected routine with real timing and confirmation.', editorKind: 'routine-schedule', kind: 'editor', safety: 'safe' },
       { id: 'routines-receipts', label: 'Promotion receipts', detail: 'Inspect local redacted routine schedule promotion receipts.', command: '/routines receipts', kind: 'command', safety: 'read-only' },
+      { id: 'routines-receipt', label: 'Show promotion receipt', detail: 'Open a receipt-id form for read-only routine promotion receipt detail.', editorKind: 'routine-receipt', kind: 'editor', safety: 'read-only' },
     ],
   },
   {
@@ -366,6 +367,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'schedule-list', label: 'List schedules', detail: 'Inspect configured jobs and history without running or mutating them.', command: '/schedule list', kind: 'command', safety: 'read-only' },
       { id: 'schedule-promote-routine', label: 'Promote routine', detail: 'Open an in-workspace form that creates one connected schedule from a local Agent routine with real timing, optional delivery target, and explicit confirmation.', editorKind: 'routine-schedule', kind: 'editor', safety: 'safe' },
       { id: 'schedule-receipts', label: 'Promotion receipts', detail: 'Review local redacted receipt history for routine-to-schedule promotion attempts.', command: '/schedule receipts', kind: 'command', safety: 'read-only' },
+      { id: 'schedule-receipt', label: 'Show receipt', detail: 'Open a receipt-id form for read-only schedule receipt detail.', editorKind: 'schedule-receipt', kind: 'editor', safety: 'read-only' },
       { id: 'schedule-reconcile', label: 'Reconcile schedules', detail: 'Compare local promotion receipts with live connected schedules using schedules.list.', command: '/schedule reconcile', kind: 'command', safety: 'read-only' },
       { id: 'schedule-policy', label: 'Local scheduler blocked', detail: 'Local schedule add/run/remove/enable/disable remain blocked; confirmed reminders and routine promotion use connected schedules only.', kind: 'guidance', safety: 'blocked' },
       { id: 'health-services', label: 'Host status', detail: 'Inspect connected-host readiness without starting, stopping, or restarting anything.', command: '/health review', kind: 'command', safety: 'read-only' },

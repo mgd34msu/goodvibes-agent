@@ -117,6 +117,8 @@ export type AgentWorkspaceEditorKind =
   | 'plan-clear'
   | 'health-repair'
   | 'approval-review'
+  | 'routine-receipt'
+  | 'schedule-receipt'
   | 'mode-preset'
   | 'mode-domain'
   | 'model-pin'
