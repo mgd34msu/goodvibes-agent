@@ -205,9 +205,10 @@ describe('parseCliFlags', () => {
   test('does not expose copied lifecycle and transport words as Agent CLI commands', () => {
     for (const token of ['serve', 'daemon', 'server', 'web', 'service', 'services', 'surfaces', 'surface', 'listener', 'http-listener', 'webhook', 'control-plane', 'controlplane', 'cp', 'remote', 'bridge'] as const) {
       const parsed = parseGoodVibesCli([token]);
-      expect(parsed.command).toBe('tui');
-      expect(parsed.rawCommand).toBeUndefined();
-      expect(parsed.positionals).toEqual([token]);
+      expect(parsed.command).toBe('unknown');
+      expect(parsed.rawCommand).toBe(token);
+      expect(parsed.errors).toEqual([`Unknown command: ${token}`]);
+      expect(parsed.positionals).toEqual([]);
       expect(parsed.commandArgs).toEqual([]);
     }
 
@@ -237,8 +238,10 @@ describe('parseCliFlags', () => {
       '3421',
     ]);
 
-    expect(flags.command).toBe('tui');
-    expect(flags.positionals).toEqual(['serve']);
+    expect(flags.command).toBe('unknown');
+    expect(flags.rawCommand).toBe('serve');
+    expect(flags.errors).toEqual(['Unknown command: serve']);
+    expect(flags.positionals).toEqual([]);
     expect(flags.flags.workingDir).toBe('/workspace');
     expect(flags.flags.noAltScreen).toBe(true);
     expect(flags.flags.hostname).toBe('0.0.0.0');
@@ -338,8 +341,10 @@ describe('parseCliFlags', () => {
     const errors = applyRuntimeCommandEndpointFlagOverrides(configManager, cli.command, cli.flags);
 
     expect(errors).toEqual([]);
-    expect(cli.command).toBe('tui');
-    expect(cli.positionals).toEqual(['web']);
+    expect(cli.command).toBe('unknown');
+    expect(cli.rawCommand).toBe('web');
+    expect(cli.errors).toEqual(['Unknown command: web']);
+    expect(cli.positionals).toEqual([]);
     expect(configManager.get('web.hostMode')).toBe('local');
     expect(configManager.get('web.host')).toBe('127.0.0.1');
     expect(configManager.get('web.port')).not.toBe(4568);

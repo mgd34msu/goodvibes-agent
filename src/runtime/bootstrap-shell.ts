@@ -62,6 +62,43 @@ export interface BootstrapShellOptions {
   readonly completeModelSelectionSideEffect?: () => void;
 }
 
+type PlanningAnswerSubmit = (answer: string) => void;
+
+export interface PlanningAnswerSubmitBridgeOptions {
+  readonly getSubmitInput: () => PlanningAnswerSubmit | undefined;
+  readonly addSystemMessage: (message: string) => void;
+  readonly requestRender: () => void;
+  readonly defer?: (callback: () => void) => void;
+}
+
+export function submitPlanningAnswerWithShellFallback(
+  answer: string,
+  options: PlanningAnswerSubmitBridgeOptions,
+): void {
+  const submit = options.getSubmitInput();
+  if (submit) {
+    submit(answer);
+    return;
+  }
+
+  const defer = options.defer ?? ((callback) => {
+    setTimeout(callback, 0);
+  });
+  defer(() => {
+    const deferredSubmit = options.getSubmitInput();
+    if (deferredSubmit) {
+      deferredSubmit(answer);
+      return;
+    }
+
+    options.addSystemMessage([
+      '[Planning] Could not submit the selected answer because the prompt bridge is not ready.',
+      `Paste this answer into the prompt to continue planning: ${answer}`,
+    ].join('\n'));
+    options.requestRender();
+  });
+}
+
 export function createBootstrapShell(options: BootstrapShellOptions): BootstrapShellState {
   const {
     configManager,
@@ -113,10 +150,11 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     resumeSession,
     requestRender,
     submitPlanningAnswer: (answer) => {
-      if (!commandContextRef?.submitInput) {
-        throw new Error('Planning answer submission is not wired yet.');
-      }
-      commandContextRef.submitInput(answer);
+      submitPlanningAnswerWithShellFallback(answer, {
+        getSubmitInput: () => commandContextRef?.submitInput,
+        addSystemMessage: (message) => conversation.addSystemMessage(message),
+        requestRender,
+      });
     },
     dismissPlanning: () => {
       services.panelManager.close('project-planning');

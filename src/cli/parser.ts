@@ -58,7 +58,28 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   version: 'version',
 };
 
-const RETIRED_LAUNCHER_ALIASES = new Set(['app', 'launch', 'start', 'tui']);
+const BLOCKED_PRODUCT_COMMANDS = new Set([
+  'app',
+  'bridge',
+  'control-plane',
+  'controlplane',
+  'cp',
+  'daemon',
+  'http-listener',
+  'launch',
+  'listener',
+  'remote',
+  'serve',
+  'server',
+  'service',
+  'services',
+  'start',
+  'surface',
+  'surfaces',
+  'tui',
+  'web',
+  'webhook',
+]);
 
 function createDefaultFlags(): GoodVibesCliFlags {
   return {
@@ -200,7 +221,7 @@ export function parseGoodVibesCli(
     if (!token.startsWith('-') || token === '-') {
       if (!sawCommand) {
         const commandToken = token.toLowerCase();
-        if (RETIRED_LAUNCHER_ALIASES.has(commandToken)) {
+        if (BLOCKED_PRODUCT_COMMANDS.has(commandToken)) {
           command = 'unknown';
           rawCommand = token;
           sawCommand = true;
