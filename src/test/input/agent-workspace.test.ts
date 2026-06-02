@@ -419,7 +419,8 @@ describe('AgentWorkspace', () => {
     const output = linesText(renderAgentWorkspace(workspace, 150, 42));
 
     expect(workspace.runtimeSnapshot?.localMemoryCount).toBe(1);
-    expect(output).toContain('Agent memory: 1; review queue: 0');
+    expect(workspace.runtimeSnapshot?.localMemoryPromptActiveCount).toBe(1);
+    expect(output).toContain('Agent memory: 1; prompt-active: 1; review queue: 0');
     expect(output).toContain('Never fallback to non-Agent knowledge segments');
     expect(output).toContain('project/constraint');
     expect(output).not.toContain('default Knowledge/Wiki');

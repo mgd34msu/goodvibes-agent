@@ -131,7 +131,7 @@ describe('/brief command', () => {
     expect(output).toContain('chat route: openai-subscriber / GPT 5.5');
     expect(output).toContain('/api/goodvibes-agent/knowledge');
     expect(output).toContain('agent-only; no fallback');
-    expect(output).toContain('local memory: 1 record; review queue 1');
+    expect(output).toContain('local memory: 1 record; prompt-active 0; review queue 1');
     expect(output).toContain('personas: 1 persona; active Research Operator');
     expect(output).toContain('skills: 1/1 enabled');
     expect(output).toContain('routines: 1/1 enabled');

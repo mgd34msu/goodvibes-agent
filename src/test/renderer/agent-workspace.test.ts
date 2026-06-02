@@ -372,7 +372,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Local routines: 1; enabled: 1');
     expect(output).toContain('Local skills: 1; enabled: 1; bundles: 1; active skills: 1');
     expect(output).toContain('Local personas: 1; active: Research Analyst');
-    expect(output).toContain('Agent memory: 1; review queue: 1');
+    expect(output).toContain('Agent memory: 1; prompt-active: 0; review queue: 1');
     expect(output).toContain('Create memory');
     expect(output).toContain('Edit selected memory');
     expect(output).toContain('Prefers concise operator briefings');

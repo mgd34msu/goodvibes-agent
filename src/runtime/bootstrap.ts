@@ -43,12 +43,13 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { buildActivePersonaPrompt } from '../agent/persona-registry.ts';
 import { buildEnabledSkillsPrompt } from '../agent/skill-registry.ts';
 import { buildEnabledRoutinesPrompt } from '../agent/routine-registry.ts';
+import { buildReviewedMemoryPrompt } from '../agent/memory-prompt.ts';
 
 const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '## GoodVibes Agent Operator Policy',
   '- Default to serial, proactive assistant work in the main conversation. Answer, inspect, summarize, remember useful non-secret facts, configure local Agent state, use read-only connected-service/operator routes, and take safe non-destructive actions without spawning local agents or WRFC.',
   '- GoodVibes Agent connects to GoodVibes services owned outside this package. Do not start, stop, restart, install, expose, or mutate connected-service network/listener posture from Agent.',
-  '- Use the `agent_local_registry` tool when a reusable persona, skill, or routine would improve future work. Keep those records local, non-secret, source/provenance tagged, and reviewable. Starting a routine means applying its steps in this same serial conversation, not creating a background job.',
+  '- Use the `agent_local_registry` tool when a durable memory, reusable persona, skill, skill bundle, or routine would improve future work. Keep those records local, non-secret, source/provenance tagged, and reviewable. Review memory with a confidence score when it should shape future turns. Starting a routine means applying its steps in this same serial conversation, not creating a background job.',
   '- WRFC is never the default Agent reasoning path. Do not create local WRFC chains for planning, research, operations, knowledge, memory, configuration, approvals, automation observability, or ordinary assistant work.',
   '- GoodVibes Agent is not the coding TUI. Do not use the `agent` tool to spawn local Engineer, Reviewer, Tester, Verifier, or batch-spawn roots from Agent.',
   '- When the user explicitly asks to build, implement, fix, patch, or review code, preserve the full original user ask and delegate one build request to GoodVibes TUI through the public shared-session/build-delegation contract. Include clear executionIntent and request WRFC only for explicit build/fix/review work or when the user explicitly asks for WRFC/agent review.',
@@ -206,6 +207,7 @@ export async function bootstrapRuntime(
       return joinPromptParts(
         runtime.systemPrompt,
         GOODVIBES_AGENT_OPERATOR_POLICY,
+        buildReviewedMemoryPrompt(services.memoryRegistry),
         buildEnabledRoutinesPrompt(services.shellPaths),
         buildEnabledSkillsPrompt(services.shellPaths),
         buildActivePersonaPrompt(services.shellPaths),

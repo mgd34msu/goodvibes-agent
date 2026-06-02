@@ -303,7 +303,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'memory') {
     base.push(
       { text: `Session memories: ${snapshot.sessionMemoryCount}`, fg: PALETTE.info },
-      { text: `Agent memory: ${snapshot.localMemoryCount}; review queue: ${snapshot.localMemoryReviewQueueCount}`, fg: PALETTE.info },
+      { text: `Agent memory: ${snapshot.localMemoryCount}; prompt-active: ${snapshot.localMemoryPromptActiveCount}; review queue: ${snapshot.localMemoryReviewQueueCount}`, fg: PALETTE.info },
       { text: `Local routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
       { text: `Local skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}; bundles: ${snapshot.localSkillBundleCount}; active skills: ${snapshot.activeSkillCount}`, fg: PALETTE.info },
       { text: `Local personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },

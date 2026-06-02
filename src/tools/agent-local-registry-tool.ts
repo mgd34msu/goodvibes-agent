@@ -1,11 +1,18 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ShellPathService } from '@/runtime/index.ts';
+import {
+  MemoryRegistry,
+  type MemoryClass,
+  type MemoryRecord,
+  type MemoryScope,
+} from '@pellux/goodvibes-sdk/platform/state';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
-import { AgentSkillRegistry, type AgentSkillRecord } from '../agent/skill-registry.ts';
+import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
+import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
 
-export type AgentLocalRegistryDomain = 'persona' | 'skill' | 'routine';
+export type AgentLocalRegistryDomain = 'memory' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
 export type AgentLocalRegistryAction =
   | 'list'
   | 'search'
@@ -25,11 +32,18 @@ export interface AgentLocalRegistryToolArgs {
   readonly action?: unknown;
   readonly id?: unknown;
   readonly query?: unknown;
+  readonly cls?: unknown;
+  readonly scope?: unknown;
+  readonly summary?: unknown;
+  readonly detail?: unknown;
+  readonly confidence?: unknown;
   readonly name?: unknown;
   readonly description?: unknown;
   readonly body?: unknown;
   readonly procedure?: unknown;
   readonly steps?: unknown;
+  readonly skills?: unknown;
+  readonly skillIds?: unknown;
   readonly triggers?: unknown;
   readonly tags?: unknown;
   readonly reason?: unknown;
@@ -37,7 +51,7 @@ export interface AgentLocalRegistryToolArgs {
   readonly provenance?: unknown;
 }
 
-const DOMAINS: readonly AgentLocalRegistryDomain[] = ['persona', 'skill', 'routine'];
+const DOMAINS: readonly AgentLocalRegistryDomain[] = ['memory', 'persona', 'skill', 'skill_bundle', 'routine'];
 const ACTIONS: readonly AgentLocalRegistryAction[] = [
   'list',
   'search',
@@ -52,6 +66,8 @@ const ACTIONS: readonly AgentLocalRegistryAction[] = [
   'clear_active',
   'start',
 ];
+const MEMORY_CLASSES: readonly MemoryClass[] = ['decision', 'constraint', 'incident', 'pattern', 'fact', 'risk', 'runbook', 'architecture', 'ownership'];
+const MEMORY_SCOPES: readonly MemoryScope[] = ['session', 'project', 'team'];
 
 function isDomain(value: unknown): value is AgentLocalRegistryDomain {
   return typeof value === 'string' && DOMAINS.includes(value as AgentLocalRegistryDomain);
@@ -71,6 +87,28 @@ function readStringList(value: unknown): readonly string[] {
   }
   if (!Array.isArray(value)) return [];
   return value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean);
+}
+
+function readOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readOptionalConfidence(value: unknown): number | undefined {
+  const confidence = readOptionalNumber(value);
+  if (confidence === undefined) return undefined;
+  if (confidence < 0 || confidence > 100) throw new Error('confidence must be between 0 and 100.');
+  return confidence;
+}
+
+function isMemoryClass(value: unknown): value is MemoryClass {
+  return typeof value === 'string' && MEMORY_CLASSES.includes(value as MemoryClass);
+}
+
+function isMemoryScope(value: unknown): value is MemoryScope {
+  return typeof value === 'string' && MEMORY_SCOPES.includes(value as MemoryScope);
 }
 
 function registryError(message: string): { readonly success: false; readonly error: string } {
@@ -99,6 +137,104 @@ function requireDescription(args: AgentLocalRegistryToolArgs): string {
   return description;
 }
 
+function requireSummary(args: AgentLocalRegistryToolArgs): string {
+  const summary = readString(args.summary || args.description);
+  if (!summary) throw new Error('summary is required.');
+  return summary;
+}
+
+function requireMemoryClass(args: AgentLocalRegistryToolArgs): MemoryClass {
+  const cls = args.cls || 'fact';
+  if (!isMemoryClass(cls)) throw new Error(`Invalid memory class. Valid: ${MEMORY_CLASSES.join(', ')}.`);
+  return cls;
+}
+
+function readMemoryScope(args: AgentLocalRegistryToolArgs): MemoryScope {
+  const scope = args.scope || 'project';
+  if (!isMemoryScope(scope)) throw new Error(`Invalid memory scope. Valid: ${MEMORY_SCOPES.join(', ')}.`);
+  return scope;
+}
+
+function formatMemory(record: MemoryRecord): string {
+  const tags = record.tags.length > 0 ? ` tags=${record.tags.join(',')}` : '';
+  return `${record.id}  ${record.scope}/${record.cls}  ${record.reviewState}  ${record.confidence}%${tags}  ${record.summary}`;
+}
+
+async function handleMemory(registry: MemoryRegistry, action: AgentLocalRegistryAction, args: AgentLocalRegistryToolArgs): Promise<string> {
+    if (action === 'list') {
+      const records = registry.getAll();
+      return records.length === 0
+        ? 'Agent-local memory\nNo Agent-local memory records.'
+        : ['Agent-local memory', ...records.map(formatMemory)].join('\n');
+    }
+    if (action === 'search') {
+      const query = readString(args.query);
+      const records = registry.search({ query, limit: 10 });
+      return records.length === 0
+        ? `Agent-local memory search\nNo Agent-local memory records matched "${query}".`
+        : [`Agent-local memory search: ${query || '(all)'}`, ...records.map(formatMemory)].join('\n');
+    }
+    if (action === 'get') {
+      const record = registry.get(requireId(args));
+      if (!record) return `Unknown Agent-local memory: ${readString(args.id)}`;
+      return [
+        formatMemory(record),
+        `created: ${new Date(record.createdAt).toISOString()}`,
+        `updated: ${new Date(record.updatedAt).toISOString()}`,
+        `provenance: ${record.provenance.map((entry) => `${entry.kind}:${entry.ref}`).join(', ') || '(none)'}`,
+        '',
+        record.detail || '(no detail)',
+      ].join('\n');
+    }
+    if (action === 'create') {
+      const summary = requireSummary(args);
+      const detail = readString(args.detail || args.body);
+      const tags = readStringList(args.tags);
+      assertNoSecretLikeMemoryText([summary, detail, ...tags]);
+      const record = await registry.add({
+        scope: readMemoryScope(args),
+        cls: requireMemoryClass(args),
+        summary,
+        detail,
+        tags: [...tags],
+        provenance: [{ kind: 'event', ref: readString(args.provenance) || 'agent-local-registry-tool' }],
+      });
+      return `Created Agent-local memory ${record.id}: ${record.summary}`;
+    }
+    if (action === 'update') {
+      const summary = readString(args.summary || args.description);
+      const detail = readString(args.detail || args.body);
+      const tags = args.tags === undefined ? undefined : [...readStringList(args.tags)];
+      assertNoSecretLikeMemoryText([summary, detail, ...(tags ?? [])]);
+      const record = registry.update(requireId(args), {
+        summary: summary || undefined,
+        detail: detail || undefined,
+        tags,
+        scope: args.scope === undefined ? undefined : readMemoryScope(args),
+      });
+      if (!record) return `Unknown Agent-local memory: ${readString(args.id)}`;
+      return `Updated Agent-local memory ${record.id}: ${record.summary}`;
+    }
+    if (action === 'review') {
+      const record = registry.review(requireId(args), {
+        state: 'reviewed',
+        confidence: readOptionalConfidence(args.confidence),
+        reviewedBy: 'agent',
+      });
+      if (!record) return `Unknown Agent-local memory: ${readString(args.id)}`;
+      return `Reviewed Agent-local memory ${record.id}.`;
+    }
+    if (action === 'stale') {
+      const record = registry.review(requireId(args), {
+        state: 'stale',
+        staleReason: readString(args.reason) || 'Marked stale by Agent.',
+      });
+      if (!record) return `Unknown Agent-local memory: ${readString(args.id)}`;
+      return `Marked Agent-local memory ${record.id} stale.`;
+    }
+    throw new Error(`Action ${action} is not valid for memory.`);
+}
+
 function formatPersona(persona: AgentPersonaRecord, activeId: string | null): string {
   const active = persona.id === activeId ? 'active' : 'inactive';
   return `${persona.id}  ${active}  ${persona.reviewState}  ${persona.name} - ${persona.description}`;
@@ -107,6 +243,11 @@ function formatPersona(persona: AgentPersonaRecord, activeId: string | null): st
 function formatSkill(skill: AgentSkillRecord): string {
   const enabled = skill.enabled ? 'enabled' : 'disabled';
   return `${skill.id}  ${enabled}  ${skill.reviewState}  ${skill.name} - ${skill.description}`;
+}
+
+function formatSkillBundle(bundle: AgentSkillBundleRecord): string {
+  const enabled = bundle.enabled ? 'enabled' : 'disabled';
+  return `${bundle.id}  ${enabled}  ${bundle.reviewState}  ${bundle.name} - ${bundle.description} skills=${bundle.skillIds.join(',')}`;
 }
 
 function formatRoutine(routine: AgentRoutineRecord): string {
@@ -125,6 +266,12 @@ function listSkills(records: readonly AgentSkillRecord[], title: string): string
   return records.length === 0
     ? `${title}\nNo Agent-local skills.`
     : [title, ...records.map(formatSkill)].join('\n');
+}
+
+function listSkillBundles(records: readonly AgentSkillBundleRecord[], title: string): string {
+  return records.length === 0
+    ? `${title}\nNo Agent-local skill bundles.`
+    : [title, ...records.map(formatSkillBundle)].join('\n');
 }
 
 function listRoutines(records: readonly AgentRoutineRecord[], title: string): string {
@@ -232,6 +379,49 @@ function handleSkill(shellPaths: ShellPathService, action: AgentLocalRegistryAct
   throw new Error(`Action ${action} is not valid for skills.`);
 }
 
+function handleSkillBundle(shellPaths: ShellPathService, action: AgentLocalRegistryAction, args: AgentLocalRegistryToolArgs): string {
+  const registry = AgentSkillRegistry.fromShellPaths(shellPaths);
+  if (action === 'list') return listSkillBundles(registry.listBundles(), 'Agent-local skill bundles');
+  if (action === 'search') return listSkillBundles(registry.searchBundles(readString(args.query)), 'Agent-local skill bundles search');
+  if (action === 'get') {
+    const bundle = registry.getBundle(requireId(args));
+    if (!bundle) return `Unknown Agent-local skill bundle: ${readString(args.id)}`;
+    return [
+      formatSkillBundle(bundle),
+      `skills: ${bundle.skillIds.join(', ')}`,
+      '',
+      bundle.description,
+    ].join('\n');
+  }
+  if (action === 'create') {
+    const bundle = registry.createBundle({
+      name: requireName(args),
+      description: requireDescription(args),
+      skillIds: readStringList(args.skillIds ?? args.skills),
+      enabled: args.enabled === true,
+      source: 'agent',
+      provenance: readString(args.provenance) || 'agent-local-registry-tool',
+    });
+    return `Created Agent-local skill bundle ${bundle.id}: ${bundle.name}`;
+  }
+  if (action === 'update') {
+    const bundle = registry.updateBundle(requireId(args), {
+      name: readString(args.name) || undefined,
+      description: readString(args.description) || undefined,
+      skillIds: args.skillIds === undefined && args.skills === undefined ? undefined : readStringList(args.skillIds ?? args.skills),
+      provenance: readString(args.provenance) || 'agent-local-registry-tool',
+    });
+    return `Updated Agent-local skill bundle ${bundle.id}: ${bundle.name}`;
+  }
+  if (action === 'enable' || action === 'disable') {
+    const bundle = registry.setBundleEnabled(requireId(args), action === 'enable');
+    return `${action === 'enable' ? 'Enabled' : 'Disabled'} Agent-local skill bundle ${bundle.id}: ${bundle.name}`;
+  }
+  if (action === 'review') return `Reviewed Agent-local skill bundle ${registry.markBundleReviewed(requireId(args)).id}.`;
+  if (action === 'stale') return `Marked Agent-local skill bundle ${registry.markBundleStale(requireId(args), readString(args.reason)).id} stale.`;
+  throw new Error(`Action ${action} is not valid for skill bundles.`);
+}
+
 function handleRoutine(shellPaths: ShellPathService, action: AgentLocalRegistryAction, args: AgentLocalRegistryToolArgs): string {
   const registry = AgentRoutineRegistry.fromShellPaths(shellPaths);
   if (action === 'list') return listRoutines(registry.list(), 'Agent-local routines');
@@ -289,14 +479,14 @@ function handleRoutine(shellPaths: ShellPathService, action: AgentLocalRegistryA
   throw new Error(`Action ${action} is not valid for routines.`);
 }
 
-export function createAgentLocalRegistryTool(shellPaths: ShellPathService): Tool {
+export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memoryRegistry: MemoryRegistry): Tool {
   return {
     definition: {
       name: 'agent_local_registry',
       description: [
-        'Inspect and maintain GoodVibes Agent-local personas, skills, and routines from the main conversation.',
-        'Use this for safe self-improvement: create or refine reusable behavior, enable skills/routines, choose personas, review/stale records, and start routines in the same serial conversation.',
-        'This tool cannot delete records, create schedules, mutate the daemon, send messages, run background jobs, or delegate build work.',
+        'Inspect and maintain GoodVibes Agent-local memory, personas, skills, and routines from the main conversation.',
+        'Use this for safe self-improvement: remember durable non-secret facts, create or refine reusable behavior, bundle related skills, enable skills/routines, choose personas, review/stale records, and start routines in the same serial conversation.',
+        'This tool cannot delete records, create schedules, mutate connected services, send messages, run background jobs, or delegate build work.',
       ].join(' '),
       parameters: {
         type: 'object',
@@ -305,11 +495,18 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService): Tool
           action: { type: 'string', enum: [...ACTIONS] },
           id: { type: 'string' },
           query: { type: 'string' },
+          cls: { type: 'string', enum: [...MEMORY_CLASSES], description: 'Memory class when domain is memory.' },
+          scope: { type: 'string', enum: [...MEMORY_SCOPES], description: 'Memory scope when domain is memory.' },
+          summary: { type: 'string', description: 'Memory summary when domain is memory.' },
+          detail: { type: 'string', description: 'Memory detail when domain is memory.' },
+          confidence: { type: 'number', description: 'Memory review confidence from 0 to 100.' },
           name: { type: 'string' },
           description: { type: 'string' },
           body: { type: 'string', description: 'Persona body/instructions.' },
           procedure: { type: 'string', description: 'Skill procedure.' },
           steps: { type: 'string', description: 'Routine steps.' },
+          skills: { type: 'array', items: { type: 'string' }, description: 'Skill ids for skill_bundle create/update.' },
+          skillIds: { type: 'array', items: { type: 'string' }, description: 'Skill ids for skill_bundle create/update.' },
           triggers: { type: 'array', items: { type: 'string' } },
           tags: { type: 'array', items: { type: 'string' } },
           reason: { type: 'string' },
@@ -326,8 +523,10 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService): Tool
       if (!isDomain(args.domain)) return registryError(`Unknown domain. Valid: ${DOMAINS.join(', ')}.`);
       if (!isAction(args.action)) return registryError(`Unknown action. Valid: ${ACTIONS.join(', ')}.`);
       try {
+        if (args.domain === 'memory') return registryOutput(await handleMemory(memoryRegistry, args.action, args));
         if (args.domain === 'persona') return registryOutput(handlePersona(shellPaths, args.action, args));
         if (args.domain === 'skill') return registryOutput(handleSkill(shellPaths, args.action, args));
+        if (args.domain === 'skill_bundle') return registryOutput(handleSkillBundle(shellPaths, args.action, args));
         return registryOutput(handleRoutine(shellPaths, args.action, args));
       } catch (error) {
         return registryError(error instanceof Error ? error.message : String(error));
@@ -336,6 +535,6 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService): Tool
   };
 }
 
-export function registerAgentLocalRegistryTool(registry: ToolRegistry, shellPaths: ShellPathService): void {
-  registry.register(createAgentLocalRegistryTool(shellPaths));
+export function registerAgentLocalRegistryTool(registry: ToolRegistry, shellPaths: ShellPathService, memoryRegistry: MemoryRegistry): void {
+  registry.register(createAgentLocalRegistryTool(shellPaths, memoryRegistry));
 }

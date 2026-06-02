@@ -150,6 +150,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly sessionMemoryCount: number;
   readonly localMemoryCount: number;
   readonly localMemoryReviewQueueCount: number;
+  readonly localMemoryPromptActiveCount: number;
   readonly localMemories: readonly AgentWorkspaceLocalLibraryItem[];
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;

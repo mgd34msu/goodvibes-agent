@@ -4,6 +4,7 @@ import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
+import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates } from '../agent/runtime-profile.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
 import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
@@ -174,15 +175,16 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const memorySnapshot = (() => {
     try {
       const memory = context.clients?.agentKnowledgeApi?.memory;
-      if (!memory) return { count: 0, reviewQueueCount: 0, items: [] };
+      if (!memory) return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, items: [] };
       const records = [...memory.getAll()].sort((left, right) => right.updatedAt - left.updatedAt);
       return {
         count: records.length,
         reviewQueueCount: memory.reviewQueue(100).length,
+        promptActiveCount: records.filter(isPromptActiveMemory).length,
         items: records.map(summarizeMemoryItem),
       };
     } catch {
-      return { count: 0, reviewQueueCount: 0, items: [] };
+      return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, items: [] };
     }
   })();
   const personaSnapshot = (() => {
@@ -323,6 +325,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     sessionMemoryCount,
     localMemoryCount: memorySnapshot.count,
     localMemoryReviewQueueCount: memorySnapshot.reviewQueueCount,
+    localMemoryPromptActiveCount: memorySnapshot.promptActiveCount,
     localMemories: memorySnapshot.items,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,

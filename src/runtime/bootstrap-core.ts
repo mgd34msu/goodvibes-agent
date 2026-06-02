@@ -228,7 +228,7 @@ export async function initializeBootstrapCore(
     overflowHandler: services.overflowHandler,
     changeTracker: services.sessionChangeTracker,
   });
-  registerAgentLocalRegistryTool(toolRegistry, services.shellPaths);
+  registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
   installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),
   });

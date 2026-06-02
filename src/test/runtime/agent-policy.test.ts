@@ -58,6 +58,14 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(source).not.toContain('registerDelegateTool');
   });
 
+  test('operator policy tells the model to use local registry memory for durable recall', () => {
+    const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
+    expect(source).toContain('durable memory, reusable persona, skill, skill bundle, or routine');
+    expect(source).toContain('records local, non-secret, source/provenance tagged');
+    expect(source).toContain('Review memory with a confidence score');
+    expect(source).toContain('buildReviewedMemoryPrompt(services.memoryRegistry)');
+  });
+
   test('bootstrap does not start the copied local automation runner', () => {
     const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
     expect(source).not.toContain('automationManager.start(');
