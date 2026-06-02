@@ -19,10 +19,12 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly localMemoryReviewQueueCount: number;
   readonly routineCount: number;
   readonly enabledRoutineCount: number;
+  readonly missingRoutineRequirementCount: number;
   readonly skillCount: number;
   readonly enabledSkillCount: number;
   readonly skillBundleCount: number;
   readonly enabledSkillBundleCount: number;
+  readonly missingSkillRequirementCount: number;
   readonly activePersonaName: string;
   readonly discoveredPersonas: AgentBehaviorDiscoverySummary;
   readonly discoveredSkills: AgentBehaviorDiscoverySummary;
@@ -97,9 +99,15 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
     {
       id: 'skills',
       label: 'Skills',
-      status: input.enabledSkillCount > 0 || input.enabledSkillBundleCount > 0 ? 'ready' : input.skillCount > 0 || input.skillBundleCount > 0 || input.discoveredSkills.count > 0 ? 'recommended' : 'optional',
+      status: input.missingSkillRequirementCount > 0
+        ? 'recommended'
+        : input.enabledSkillCount > 0 || input.enabledSkillBundleCount > 0
+          ? 'ready'
+          : input.skillCount > 0 || input.skillBundleCount > 0 || input.discoveredSkills.count > 0
+            ? 'recommended'
+            : 'optional',
       detail: input.skillCount > 0 || input.skillBundleCount > 0
-        ? `${input.enabledSkillCount}/${input.skillCount} local skill(s) enabled; ${input.enabledSkillBundleCount}/${input.skillBundleCount} bundle(s) enabled.${input.discoveredSkills.count > 0 ? ` ${input.discoveredSkills.count} discovered skill file(s) are still available to import.` : ''}`
+        ? `${input.enabledSkillCount}/${input.skillCount} local skill(s) enabled; ${input.enabledSkillBundleCount}/${input.skillBundleCount} bundle(s) enabled.${input.missingSkillRequirementCount > 0 ? ` ${input.missingSkillRequirementCount} missing setup requirement(s).` : ''}${input.discoveredSkills.count > 0 ? ` ${input.discoveredSkills.count} discovered skill file(s) are still available to import.` : ''}`
         : input.discoveredSkills.count > 0
           ? `${input.discoveredSkills.count} discovered skill file(s) can be imported as local reusable procedures.${sampleNames(input.discoveredSkills)}`
           : 'Create reusable local skills and bundles for repeated workflows.',
@@ -108,9 +116,11 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
     {
       id: 'routines',
       label: 'Routines',
-      status: setupStatusForCount(input.enabledRoutineCount, 'ready', input.routineCount > 0 || input.discoveredRoutines.count > 0 ? 'recommended' : 'optional'),
+      status: input.missingRoutineRequirementCount > 0
+        ? 'recommended'
+        : setupStatusForCount(input.enabledRoutineCount, 'ready', input.routineCount > 0 || input.discoveredRoutines.count > 0 ? 'recommended' : 'optional'),
       detail: input.routineCount > 0
-        ? `${input.enabledRoutineCount}/${input.routineCount} local routine(s) enabled.${input.discoveredRoutines.count > 0 ? ` ${input.discoveredRoutines.count} discovered routine file(s) are still available to import.` : ''}`
+        ? `${input.enabledRoutineCount}/${input.routineCount} local routine(s) enabled.${input.missingRoutineRequirementCount > 0 ? ` ${input.missingRoutineRequirementCount} missing setup requirement(s).` : ''}${input.discoveredRoutines.count > 0 ? ` ${input.discoveredRoutines.count} discovered routine file(s) are still available to import.` : ''}`
         : input.discoveredRoutines.count > 0
           ? `${input.discoveredRoutines.count} discovered routine file(s) can be imported as main-conversation workflows.${sampleNames(input.discoveredRoutines)}`
           : 'Create local routines first; promote schedules only with explicit confirmation.',

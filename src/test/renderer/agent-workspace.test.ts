@@ -356,8 +356,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('READY Provider and model -> /model');
     expect(output).toContain('RECOMMENDED Agent Knowledge -> /knowledge status');
     expect(output).toContain('READY Persona -> /personas');
-    expect(output).toContain('READY Skills -> /agent-skills');
-    expect(output).toContain('READY Routines -> /routines');
+    expect(output).toContain('RECOMMENDED Skills -> /agent-skills');
+    expect(output).toContain('1 missing setup requirement(s).');
+    expect(output).toContain('RECOMMENDED Routines -> /routines');
     expect(output).toContain('READY Channels -> /pair');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('daemonBaseUrl');
