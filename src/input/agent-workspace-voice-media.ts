@@ -123,8 +123,8 @@ function buildProviderStatus(
   const nextStep = setupState === 'ready'
     ? `${label} is ready for explicit Agent voice/media use.`
     : setupState === 'needs-secret'
-      ? `Configure one of ${spec.secretKeyOptions.join('|')} in the owning runtime environment.`
-      : `${label} is registered; confirm any provider-specific setup in the owning runtime.`;
+      ? `Configure one of ${spec.secretKeyOptions.join('|')} in the owning GoodVibes host environment.`
+      : `${label} is registered; confirm any provider-specific setup in the owning GoodVibes host.`;
   return {
     id: provider.id,
     label,
@@ -150,7 +150,7 @@ function missingSelectedProviderStatus(selectedProviderId: string): AgentWorkspa
     secretKeyOptions: [],
     configuredSecretKeys: [],
     missingSecretKeyOptions: [],
-    nextStep: `Selected TTS provider ${selectedProviderId} is not registered in this runtime.`,
+    nextStep: `Selected TTS provider ${selectedProviderId} is not registered in connected GoodVibes services.`,
   };
 }
 
@@ -168,7 +168,7 @@ function browserToolState(context: CommandContext): AgentWorkspaceVoiceMediaRead
 }
 
 function browserToolNextStep(state: AgentWorkspaceVoiceMediaReadiness['browserToolState']): string {
-  if (state === 'disabled') return 'Inspect MCP browser/automation tools; enable browser access in the owning runtime only when needed.';
+  if (state === 'disabled') return 'Inspect MCP browser/automation tools; enable browser access in the owning GoodVibes host only when needed.';
   if (state === 'local-only') return 'Browser tooling is local-only; keep external exposure off unless explicitly configured.';
   return 'Public browser URL is configured; use explicit user action and Agent policy before browser-side effects.';
 }

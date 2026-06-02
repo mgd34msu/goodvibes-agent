@@ -5,10 +5,10 @@ GoodVibes Agent is the installable public alpha of the personal operator assista
 ## Requirements
 
 - Bun `1.3.10` or newer
-- An already-running GoodVibes runtime compatible with `@pellux/goodvibes-sdk@0.33.35`
-- A runtime token/config path accepted by connected GoodVibes services
+- Connected GoodVibes services compatible with `@pellux/goodvibes-sdk@0.33.35`
+- A token/config path accepted by connected GoodVibes services
 
-Agent does not launch the runtime for you.
+Agent does not launch connected GoodVibes services for you.
 
 Use the interactive TUI first. CLI subcommands are secondary support paths for install checks, setup inspection, and scriptable local Agent libraries.
 

@@ -41,7 +41,7 @@ const REQUIRED_TARBALL_PATHS = [
   'tsconfig.json',
   'docs/README.md',
   'docs/getting-started.md',
-  'docs/runtime-connection.md',
+  'docs/connected-services.md',
   'docs/release-and-publishing.md',
 ] as const;
 const FORBIDDEN_TARBALL_PREFIXES = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/', 'vendor/'] as const;
@@ -64,7 +64,7 @@ const PACKAGE_FACING_TEXT_PATHS = [
   'CHANGELOG.md',
   'docs/README.md',
   'docs/getting-started.md',
-  'docs/runtime-connection.md',
+  'docs/connected-services.md',
   'docs/release-and-publishing.md',
 ] as const;
 const PACKAGE_FACING_FORBIDDEN_TEXT = [
@@ -116,7 +116,7 @@ const PACKAGE_FACING_REQUIRED_TEXT: readonly {
   { path: 'README.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g --trust @pellux/goodvibes-agent', 'bun pm -g untrusted'] },
   { path: 'docs/README.md', required: ['/api/goodvibes-agent/knowledge'] },
   { path: 'docs/getting-started.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g --trust @pellux/goodvibes-agent', 'bun pm -g untrusted'] },
-  { path: 'docs/runtime-connection.md', required: ['/api/goodvibes-agent/knowledge'] },
+  { path: 'docs/connected-services.md', required: ['/api/goodvibes-agent/knowledge'] },
   { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g --trust @pellux/goodvibes-agent', 'bun pm -g untrusted'] },
 ];
 const NON_COMMAND_ROUTE_ROOTS = new Set(['api', 'status']);

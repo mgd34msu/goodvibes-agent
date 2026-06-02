@@ -55,9 +55,9 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       }
       if (target === 'service' || target === 'runtime' || target === 'listener' || target === 'daemon') {
         ctx.print([
-          'Runtime service login is external to GoodVibes Agent.',
-          'Agent does not create, exchange, store, rotate, revoke, or clear runtime/listener service sessions.',
-          'Use the owning GoodVibes runtime for runtime auth administration.',
+          'Connected-service login is outside GoodVibes Agent.',
+          'Agent does not create, exchange, store, rotate, revoke, or clear connected-service sessions.',
+          'Use the owning GoodVibes host for connected-service auth administration.',
           'Agent login supports provider subscriptions only: /login provider <name> start|finish <code> --yes.',
         ].join('\n'));
         return;
@@ -100,18 +100,18 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       const sub = commandArgs[0] ?? 'review';
       if (sub === 'local') {
         ctx.print([
-          'Local runtime auth management is external to GoodVibes Agent.',
-          'Agent connects to an already-running GoodVibes runtime and does not create, delete, rotate, revoke, or clear runtime auth users, sessions, or bootstrap credentials.',
-          'Use the owning GoodVibes runtime for runtime auth administration.',
+          'Connected-service auth management is outside GoodVibes Agent.',
+          'Agent connects to GoodVibes services owned outside this package and does not create, delete, rotate, revoke, or clear connected-service auth users, sessions, or bootstrap credentials.',
+          'Use the owning GoodVibes host for connected-service auth administration.',
           'Agent auth commands available here: /auth review, /auth show <provider>, /auth repair <provider>, /auth bundle export <path> --yes, /auth bundle inspect <path>.',
         ].join('\n'));
         return;
       }
       if (sub === 'login') {
         ctx.print([
-          'Runtime service login is external to GoodVibes Agent.',
-          'Agent does not create, exchange, store, rotate, revoke, or clear runtime/listener service sessions.',
-          'Use the owning GoodVibes runtime for runtime auth administration.',
+          'Connected-service login is outside GoodVibes Agent.',
+          'Agent does not create, exchange, store, rotate, revoke, or clear connected-service sessions.',
+          'Use the owning GoodVibes host for connected-service auth administration.',
         ].join('\n'));
         return;
       }
@@ -129,7 +129,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
         const builtinProviders = listBuiltinSubscriptionProviders().map((entry) => entry.provider);
         ctx.print([
           'Auth Review',
-          '  runtime auth: managed outside goodvibes-agent',
+          '  connected-service auth: managed outside goodvibes-agent',
           `  stored secrets: ${snapshot.secretKeyCount}`,
           `  built-in providers: ${builtinProviders.length}${builtinProviders.length > 0 ? ` (${builtinProviders.join(', ')})` : ''}`,
           `  active subscriptions: ${snapshot.activeSubscriptions}${snapshot.activeSubscriptions > 0 ? ` (${snapshot.providers.filter((provider) => provider.activeSubscription).map((provider) => provider.provider).join(', ')})` : ''}`,

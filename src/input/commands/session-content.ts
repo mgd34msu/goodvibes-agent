@@ -144,7 +144,7 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
         if (meta.title) ctx.session.conversationManager.title = meta.title;
         ctx.session.conversationManager.rebuildHistory();
         ctx.renderRequest();
-        ctx.print(`Session loaded: ${args[0]} (${messages.length} messages)${agentRecords.length > 0 ? ` [ignored ${agentRecords.length} runtime-owned local agent record${agentRecords.length !== 1 ? 's' : ''}]` : ''}`);
+        ctx.print(`Session loaded: ${args[0]} (${messages.length} messages)${agentRecords.length > 0 ? ` [ignored ${agentRecords.length} service-owned local agent record${agentRecords.length !== 1 ? 's' : ''}]` : ''}`);
       } catch (e) {
         ctx.print(`Failed to load session: ${summarizeError(e)}`);
       }

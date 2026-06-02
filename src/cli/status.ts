@@ -174,9 +174,9 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       area: 'runtime',
       severity: 'warning',
       summary: 'Connected-service settings are present while Agent service ownership is disabled by design.',
-      cause: 'One or more runtime connection, inbound events, or browser companion settings are enabled while service.enabled is false.',
+      cause: 'One or more connected API, inbound events, or browser companion settings are enabled while service.enabled is false.',
       impact: 'The owning GoodVibes host must provide availability for those endpoints; Agent will not start or enable them.',
-      action: 'Manage runtime availability from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
+      action: 'Manage connected-service availability from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
     });
   }
 
@@ -212,9 +212,9 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         area: 'runtime',
         severity: 'warning',
         summary: issue,
-        cause: 'The runtime connection inspection found a mismatch between configured endpoint state and observed host state.',
-        impact: 'Runtime API, listener, or web availability may not match the configuration.',
-        action: 'Use Agent status and doctor diagnostics here, then manage the runtime outside Agent.',
+        cause: 'The connected-service inspection found a mismatch between configured endpoint state and observed host state.',
+        impact: 'Connected API, listener, or web availability may not match the configuration.',
+        action: 'Use Agent status and doctor diagnostics here, then manage connected services outside Agent.',
       });
     }
   }
@@ -226,7 +226,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       severity: 'warning',
       summary: 'Agent setup has not been shown for this user.',
       cause: 'No global user setup check marker was found.',
-      impact: 'Important runtime, network, provider, auth, or permission choices may still be implicit defaults.',
+      impact: 'Important connected-service, network, provider, auth, or permission choices may still be implicit defaults.',
       action: 'Run /setup in GoodVibes Agent or goodvibes-agent setup status to review setup state.',
     });
   }
@@ -236,10 +236,10 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'network-endpoint-without-runtime-auth-signal',
       area: 'auth',
       severity: 'risk',
-      summary: 'Network-facing runtime endpoints are enabled without a visible runtime auth signal.',
-      cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but Agent cannot see runtime auth state from its local compatibility files.`,
+      summary: 'Network-facing connected-service endpoints are enabled without a visible auth signal.',
+      cause: `${networkFacingSurfaces.map(([name]) => name).join(', ')} are LAN/custom-bound, but Agent cannot see connected-service auth state from its local compatibility files.`,
       impact: 'Remote access paths may be unusable or unsafe unless the owning host configured auth.',
-      action: 'Review runtime auth outside Agent; Agent will not create local runtime users.',
+      action: 'Review connected-service auth outside Agent; Agent will not create local service users.',
     });
   }
 
@@ -379,7 +379,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
       ? `  operatorTokens: ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
       : '  operatorTokens: unknown',
     '',
-    'Runtime Connection:',
+    'Connected GoodVibes API:',
     ...(externalRuntime ? [
       `  baseUrl: ${externalRuntime.baseUrl}`,
       `  reachable: ${yesNo(externalRuntime.reachable)}${externalRuntime.statusCode === null ? '' : ` (HTTP ${externalRuntime.statusCode})`}`,

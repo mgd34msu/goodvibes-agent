@@ -1,6 +1,6 @@
 # Channels, Remote Access, and API
 
-GoodVibes Agent can be reached from terminal-first and companion surfaces, but the Agent product does not own transport hosting. It connects to the already-running GoodVibes runtime and uses public operator routes for status, sessions, artifacts, approvals, automation, and Agent Knowledge.
+GoodVibes Agent can be reached from terminal-first and companion surfaces, but the Agent product does not own transport hosting. It connects to GoodVibes services owned outside this package and uses public operator routes for status, sessions, artifacts, approvals, automation, and Agent Knowledge.
 
 ## Channel Posture
 
@@ -8,13 +8,13 @@ Channel setup is explicit. Agent can inspect channel readiness and guide pairing
 
 Agent channel UX should show:
 
-- which channels are enabled by the owning runtime;
+- which channels are enabled by the owning GoodVibes host;
 - whether account/token setup is present without printing secret values;
 - the default target, if configured;
 - delivery risk and public exposure warnings;
 - the command or workspace action needed to review pairing.
 
-Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved runtime request.
+Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved connected-service request.
 
 ## Companion And Session Routes
 
@@ -24,11 +24,11 @@ Do not use shared coding sessions for ordinary chat. Do not create local backgro
 
 ## Remote Access
 
-Remote-node and peer capability is runtime-owned. In Agent, remote commands are read-only unless a future Agent-safe route is designed and reviewed. The current Agent behavior should guide the user toward:
+Remote-node and peer capability is owned by connected GoodVibes services. In Agent, remote commands are read-only unless a future Agent-safe route is designed and reviewed. The current Agent behavior should guide the user toward:
 
 - inspecting remote support state;
 - checking routes and peer readiness;
-- delegating explicit build/fix/review work to GoodVibes TUI when a remote runtime is actually needed.
+- delegating explicit build/fix/review work to GoodVibes TUI when remote execution is actually needed.
 
 Agent should not start remote workers, manage peer lifecycle, or fan out hidden local agents from the main conversation.
 
@@ -40,7 +40,7 @@ Use public SDK/operator routes only. For Agent Knowledge, the only valid family 
 /api/goodvibes-agent/knowledge/*
 ```
 
-If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default Knowledge/Wiki, another product segment, or private runtime files.
+If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default Knowledge/Wiki, another product segment, or private connected-service files.
 
 ## Related Docs
 

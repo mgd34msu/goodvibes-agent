@@ -77,12 +77,12 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       if (sub === 'auth') {
         const auth = readModels.localAuth.getSnapshot();
         ctx.print([
-          'Health Review: Runtime Auth',
+          'Health Review: Connected-Service Auth',
           '  owner: connected GoodVibes services',
           `  compatibility users visible: ${auth.userCount}`,
           `  compatibility sessions visible: ${auth.sessionCount}`,
           `  bootstrap file signal: ${auth.bootstrapCredentialPresent ? 'present' : 'cleared'}`,
-          '  Agent action: review provider/subscription auth only; do not mutate runtime auth users or bootstrap credentials.',
+          '  Agent action: review provider/subscription auth only; do not mutate connected-service auth users or bootstrap credentials.',
           ...(auth.bootstrapCredentialPresent ? ['  issue: bootstrap cleanup belongs outside Agent'] : []),
         ].join('\n'));
         return;
@@ -217,7 +217,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  domain: settings');
           lines.push(...(
             settings.conflicts.length > 0
-              ? ['  /settings', '  /config <key>', '  runtime-owned managed setting repair stays external']
+              ? ['  /settings', '  /config <key>', '  service-owned managed setting repair stays external']
               : ['  no active settings repair actions suggested']
           ));
           lines.push('  verify: /health settings');
@@ -226,7 +226,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /auth review');
           lines.push('  /provider');
           lines.push('  /subscription providers');
-          lines.push('  runtime auth users/bootstrap cleanup: manage outside Agent');
+          lines.push('  connected-service auth users/bootstrap cleanup: manage outside Agent');
           lines.push('  verify: /health auth');
         } else if (domain === 'accounts') {
           lines.push('  domain: accounts');
@@ -311,7 +311,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         `  account issues: ${accountSnapshot.issueCount}`,
         `  settings conflicts: ${settingsSnapshot.conflicts.length}`,
         `  managed locks: ${settingsSnapshot.managedLockCount}`,
-        `  runtime auth owner: external`,
+        `  connected-service auth owner: outside Agent`,
         `  remote workers: ${snapshot.remoteRunnerCount}`,
         ...formatSessionMaintenanceLines(maintenance, 'guided').map((line) => `  ${line}`),
         ...(snapshot.issues.length > 0 ? ['', ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`)] : []),

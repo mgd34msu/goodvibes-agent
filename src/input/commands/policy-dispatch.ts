@@ -15,7 +15,7 @@ import { requireShellPaths } from './runtime-services.ts';
 function getPolicyState(ctx?: CommandContext): PolicyRuntimeState {
   const policyRuntimeState = ctx?.extensions.policyRuntimeState;
   if (!policyRuntimeState) {
-    throw new Error('Policy runtime state is not available in this runtime.');
+    throw new Error('Policy state is not available in this Agent session.');
   }
   return policyRuntimeState;
 }

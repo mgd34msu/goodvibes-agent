@@ -82,7 +82,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'tts-provider', label: 'Choose TTS provider', detail: 'Open provider/model routing for spoken responses through the settings flow.', command: '/config tts.provider', kind: 'command', safety: 'safe' },
       { id: 'tts-speak', label: 'Speak a prompt', detail: 'Open an in-workspace prompt form for spoken assistant replies through configured live TTS.', editorKind: 'tts-prompt', kind: 'editor', safety: 'safe' },
       { id: 'image-attach', label: 'Attach image input', detail: 'Open an in-workspace image form for attaching a real image path and optional prompt.', editorKind: 'image-input', kind: 'editor', safety: 'safe' },
-      { id: 'browser-tools', label: 'Browser tools', detail: 'Inspect browser/tool server readiness without starting inbound endpoints or mutating runtime state.', command: '/mcp servers', kind: 'command', safety: 'read-only' },
+      { id: 'browser-tools', label: 'Browser tools', detail: 'Inspect browser/tool server readiness without starting inbound endpoints or mutating connected-service state.', command: '/mcp servers', kind: 'command', safety: 'read-only' },
       { id: 'mcp-tools', label: 'MCP tool inventory', detail: 'List available MCP tools, including browser and automation roles, without changing server trust or setup.', command: '/mcp tools', kind: 'command', safety: 'read-only' },
     ],
   },

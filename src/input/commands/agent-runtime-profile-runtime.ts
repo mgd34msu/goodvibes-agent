@@ -83,7 +83,7 @@ function renderGuide(homeDirectory: string): string {
     '5. Create an Agent profile from the imported starter:',
     '   /agent-profile create <name> --template <imported-id> --yes',
     '',
-    'This writes only Agent-local starter/profile state. It does not mutate the GoodVibes runtime, default wiki, or non-Agent knowledge segments.',
+    'This writes only Agent-local starter/profile state. It does not mutate connected GoodVibes services, default wiki, or non-Agent knowledge segments.',
   ].join('\n');
 }
 

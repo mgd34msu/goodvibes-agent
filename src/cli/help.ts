@@ -148,7 +148,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   status: {
     usage: ['status', 'status --json', '--runtime-url http://127.0.0.1:3421 status'],
-    summary: 'Print Agent config, provider, auth, runtime connection, and setup posture.',
+    summary: 'Print Agent config, provider, auth, connected-service state, and setup posture.',
     examples: ['status', 'status --json', '--runtime-url http://127.0.0.1:3421 status'],
   },
   doctor: {
@@ -163,7 +163,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   profiles: {
     usage: ['profiles list', 'profiles templates', 'profiles templates export <id> <path> --yes', 'profiles templates import <path> --yes', 'profiles show <name>', 'profiles create <name> [--template <id>] --yes', 'profiles delete <name> --yes', '--agent-profile <name>'],
-    summary: 'Create and inspect isolated Agent profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing the shared GoodVibes runtime.',
+    summary: 'Create and inspect isolated Agent profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing connected GoodVibes services.',
     examples: ['profiles templates', 'profiles templates export research ./research-starter.json --yes', 'profiles templates import ./research-starter.json --yes', 'profiles create household --template household --yes', '--agent-profile household status'],
   },
   personas: {
@@ -334,7 +334,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   tasks: {
     usage: ['tasks list', 'tasks show <taskId>'],
-    summary: 'Inspect in-process runtime tasks. Agent blocks runtime-owned task submission; use run for one-shot work or delegate for explicit build/fix/review handoff.',
+    summary: 'Inspect connected-service task summaries. Agent blocks service-owned task submission; use run for one-shot work or delegate for explicit build/fix/review handoff.',
     examples: ['tasks list', 'tasks show task-123', 'run "check provider readiness"', 'delegate "fix the failing tests"'],
   },
   bundle: {

@@ -183,9 +183,9 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
         sections: [{
           lines: buildEmptyState(
             width,
-            ' Runtime store not wired into this panel yet.',
-            'Use the Tasks panel with a live runtime store to review active execution, cancellations, retries, and completion results.',
-            [{ command: '/tasks', summary: 'inspect runtime tasks without starting background work' }],
+            ' Task store not wired into this panel yet.',
+            'Use the Tasks panel with live connected-service task state to review active execution, cancellations, retries, and completion results.',
+            [{ command: '/tasks', summary: 'inspect connected-service tasks without starting background work' }],
             C,
           ),
         }],

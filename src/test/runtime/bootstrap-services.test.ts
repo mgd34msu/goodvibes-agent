@@ -78,8 +78,8 @@ describe('startExternalServices', () => {
     expect(services.httpListener).toBeNull();
     expect(services.daemonStatus.mode).toBe('external');
     expect(services.httpListenerStatus.mode).toBe('disabled');
-    expect(services.daemonStatus.reason).toContain('externally managed GoodVibes runtime');
-    expect(services.httpListenerStatus.reason).toContain('does not own external listener lifecycle');
+    expect(services.daemonStatus.reason).toContain('GoodVibes services owned outside this product');
+    expect(services.httpListenerStatus.reason).toContain('does not own listener lifecycle');
 
     await services.stop();
     expect(services.listRecentControlPlaneEvents()).toEqual([]);

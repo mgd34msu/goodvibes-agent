@@ -126,7 +126,7 @@ describe('CLI status and doctor output', () => {
   test('status foregrounds live connected services and Agent Knowledge readiness', () => {
     const text = renderCliStatus(makeOptions());
 
-    expect(text).toContain('Runtime Connection:');
+    expect(text).toContain('Connected GoodVibes API:');
     expect(text).toContain('baseUrl: http://127.0.0.1:3421');
     expect(text).toContain('reachable: yes (HTTP 200)');
     expect(text).toContain('sdk: 0.33.35 expected 0.33.35');
@@ -160,7 +160,7 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('GoodVibes onboarding status');
   });
 
-  test('doctor warns when live external runtime or Agent Knowledge is unavailable without suggesting fallback wiki use', () => {
+  test('doctor warns when connected services or Agent Knowledge are unavailable without suggesting fallback wiki use', () => {
     const findings = buildCliDoctorFindings({
       ...makeOptions(),
       externalRuntime: makeExternalRuntime({
@@ -182,7 +182,7 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('default Knowledge');
   });
 
-  test('network auth posture is flagged when LAN runtime endpoints have no local users or bootstrap is still present', () => {
+  test('network auth posture is flagged when LAN endpoints have no local users or bootstrap is still present', () => {
     const findings = buildCliDoctorFindings({
       ...makeOptions({
         'web.enabled': true,
@@ -203,7 +203,7 @@ describe('CLI status and doctor output', () => {
     expect(findings.map((finding) => finding.id)).toContain('network-endpoint-with-bootstrap-credential');
   });
 
-  test('status can render a stable JSON contract with external runtime connection details', () => {
+  test('status can render a stable JSON contract with connected-service details', () => {
     const text = renderCliStatus({
       ...makeOptions(),
       outputFormat: 'json',
@@ -216,7 +216,7 @@ describe('CLI status and doctor output', () => {
         },
         managed: {
           platform: 'manual',
-          path: 'external GoodVibes runtime',
+          path: 'connected GoodVibes services',
           installed: false,
           autostart: false,
           running: false,
@@ -224,7 +224,7 @@ describe('CLI status and doctor output', () => {
           commandPreview: 'managed outside goodvibes-agent',
           suggestedCommands: [],
           lastAction: 'status',
-          pidPath: 'external GoodVibes runtime',
+          pidPath: 'connected GoodVibes services',
           lastError: null,
         },
         endpoints: [],

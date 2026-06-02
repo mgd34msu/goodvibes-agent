@@ -5,7 +5,7 @@
 
 GoodVibes Agent is the personal operator assistant TUI for GoodVibes. It is built for day-to-day operator work: chat, setup, local profiles, routines, skills, personas, isolated Agent Knowledge, status review, approvals, automation visibility, and explicit build delegation.
 
-The Agent product connects to an already-running GoodVibes runtime. It does not install, start, stop, restart, or own that runtime.
+The Agent product connects to GoodVibes services owned outside this package. It does not install, start, stop, restart, or own those services.
 
 Most work happens in the interactive TUI. The installed CLI exists to launch that TUI, inspect setup, and script local Agent libraries when that is useful.
 
@@ -112,13 +112,13 @@ Starting a routine records local usage and prints its steps; it does not spawn b
 
 Use `/channels` inside the TUI for a read-only channel readiness matrix. It shows enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values.
 
-## Runtime Prerequisite
+## Connected Services
 
 Start connected GoodVibes services from GoodVibes TUI or the owning host before launching Agent. Agent status and companion/knowledge routes normally connect on `http://127.0.0.1:3421`.
 
 Use `--runtime-url http://host:port` for a one-off launch, or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` when connected GoodVibes services are not on the default local port. The legacy `GOODVIBES_AGENT_BASE_URL` env var is also accepted as an alias. These only change the connection target; Agent still does not host or start services.
 
-Agent reports unavailable, unauthenticated, or incompatible runtime state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. Runtime lifecycle commands remain outside the Agent product.
+Agent reports unavailable, unauthenticated, or incompatible connected-service state through `goodvibes-agent status`, `goodvibes-agent doctor`, and the TUI status views. Service lifecycle commands remain outside the Agent product.
 
 ## Product Boundary
 
@@ -135,7 +135,7 @@ GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding 
 Package-facing docs:
 
 - [Getting Started](docs/getting-started.md)
-- [Runtime Connection](docs/runtime-connection.md)
+- [Connected Services](docs/connected-services.md)
 - [Release And Publishing](docs/release-and-publishing.md)
 
 The package-facing Agent documentation is limited to the docs listed above.

@@ -36,13 +36,13 @@ function parseRuntimeUrl(rawValue: string, source: string): { readonly host: str
   }
 
   if (url.protocol !== 'http:') {
-    throw new ConfigError(`${source} must use http:// because Agent connects to the local GoodVibes runtime API.`);
+    throw new ConfigError(`${source} must use http:// because Agent connects to the local GoodVibes API.`);
   }
   if (!url.hostname) {
     throw new ConfigError(`${source} must include a hostname.`);
   }
   if ((url.pathname && url.pathname !== '/') || url.search || url.hash) {
-    throw new ConfigError(`${source} must point at the runtime root, not a path, query, or hash.`);
+    throw new ConfigError(`${source} must point at the connected GoodVibes API root, not a path, query, or hash.`);
   }
 
   const port = url.port ? Number.parseInt(url.port, 10) : 3421;

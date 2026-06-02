@@ -64,10 +64,10 @@ export function buildProviderHealthDomainSummaries(
     name: 'settings',
     level: !settings.available ? 'info' : settingIssueCount > 0 ? 'warn' : 'good',
     summary: !settings.available
-      ? 'settings runtime API unavailable'
+      ? 'settings API unavailable'
       : settingIssueCount > 0
         ? `${settings.conflictCount} conflicts / ${settings.recentFailureCount} failures${settings.hasStagedManagedBundle ? ' / staged bundle' : ''}`
-        : 'settings runtime API clean',
+        : 'settings API clean',
     next: settingIssueCount > 0 ? '/settings' : '/config <key>',
     details: [
       settings.conflictCount > 0 ? `${settings.conflictCount} unresolved import conflict(s)` : '',

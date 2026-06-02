@@ -31,7 +31,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   storage: 'Local storage posture, including secret storage policy and maximum artifact size for Agent Knowledge, artifacts, and document ingestion.',
   permissions: 'Permission mode and tool-class policy. These settings decide whether the shell prompts before read/write/exec/network/agent actions.',
   orchestration: 'Agent orchestration limits and recursion controls.',
-  wrfc: 'WRFC is external to normal Agent operation. Review these runtime compatibility values only for explicit GoodVibes TUI build delegation.',
+  wrfc: 'WRFC is external to normal Agent operation. Review these compatibility values only for explicit GoodVibes TUI build delegation.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
   service: 'Connected-service installation posture. Agent shows these compatibility keys for inspection only and does not install, start, stop, restart, or autostart anything.',
@@ -41,15 +41,15 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   batch: 'Batch execution settings reported from connected GoodVibes services. Agent does not own remote queue provisioning.',
   automation: 'Scheduled and automated run settings, concurrency, timeout, catch-up, cooldown, and retention behavior.',
   watchers: 'File/process watcher heartbeat, polling, and recovery-window behavior.',
-  runtime: 'Runtime guardrails such as companion chat limiter and event bus listener caps.',
+  runtime: 'Connected-service guardrails such as companion chat limiter and event bus listener caps.',
   telemetry: 'Telemetry payload policy.',
   cache: 'Provider and model cache behavior, TTL, and hit-rate monitoring.',
   mcp: 'MCP server trust and scope review. Trust changes can expose local files, tools, databases, browsers, or remote automation depending on the server.',
   surfaces: 'Messaging and notification channel accounts such as Slack, Discord, ntfy, Telegram, chat bridges, and delivery providers.',
   release: 'Release-channel preference.',
-  danger: 'High-impact runtime switches. Agent renders runtime-owned switches read-only; change them outside Agent.',
+  danger: 'High-impact service switches. Agent renders service-owned switches read-only; change them outside Agent.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
-  flags: 'Feature flags are SDK runtime gates. They are separate from normal config keys because they enable or disable staged runtime behavior.',
+  flags: 'Feature flags are SDK gates. They are separate from normal config keys because they enable or disable staged behavior.',
   network: 'Read-only view of connected GoodVibes API, inbound-event, and browser companion bind posture plus editable Agent network settings.',
 };
 
@@ -148,7 +148,7 @@ function buildSettingContext(modal: SettingsModal, entry: SettingEntry): string[
   ];
 
   if (entry.locked) lines.push(`Locked: ${entry.lockReason ?? 'This setting is locked by a higher-priority layer.'}`);
-  if (entry.conflict) lines.push(`Conflict: inspect with /settings and resolve runtime-owned sync state in the external host.`);
+  if (entry.conflict) lines.push(`Conflict: inspect with /settings and resolve service-owned sync state in the owning host.`);
 
   lines.push('', entry.setting.description);
 
@@ -202,7 +202,7 @@ function buildFlagContext(entry: FlagEntry | null): string[] {
     `State: ${entry.state}`,
     `Default: ${entry.flag.defaultState}`,
     `Tier: ${entry.flag.tier}`,
-    `Runtime toggleable: ${entry.flag.runtimeToggleable ? 'yes' : 'no'}`,
+    `Live toggleable: ${entry.flag.runtimeToggleable ? 'yes' : 'no'}`,
     '',
     entry.flag.description,
     ...(entry.state === 'killed' && entry.flag.killReason ? ['', `Kill reason: ${entry.flag.killReason}`] : []),

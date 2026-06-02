@@ -239,7 +239,7 @@ export function formatCliServicePosture(posture: CliServicePosture, json = false
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),
     '',
-    'Runtime connection checks:',
+    'Connected GoodVibes API checks:',
     ...posture.endpoints.map((endpoint) =>
       `  ${endpoint.label}: enabled=${yesNo(endpoint.enabled)} ${endpoint.binding.hostMode} ${endpoint.binding.host}:${endpoint.binding.port} posture=${endpoint.bindPosture.label}${endpoint.reachable === undefined ? '' : ` reachable=${yesNo(endpoint.reachable)}`}`,
     ),

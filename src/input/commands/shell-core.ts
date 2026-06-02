@@ -123,7 +123,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/routines', label: '/routines', detail: 'Create, review, start, and promote Agent routines explicitly', category: 'Agent Operator' },
           { id: '/delegate', label: '/delegate [task]', detail: 'Explicit build/fix/review handoff to GoodVibes TUI', category: 'Agent Operator' },
           { id: '/channels', label: '/channels', detail: 'Inspect messaging-channel readiness without sending messages', category: 'Agent Operator' },
-          { id: '/pair', label: '/pair', detail: 'Pair companion clients through the GoodVibes runtime', category: 'Agent Operator' },
+          { id: '/pair', label: '/pair', detail: 'Pair companion clients through connected GoodVibes services', category: 'Agent Operator' },
           { id: '/model', label: '/model [id]', detail: 'Select LLM model', category: 'Model & Provider' },
           { id: '/provider', label: '/provider [name]', detail: 'Switch provider', category: 'Model & Provider' },
           { id: '/effort', label: '/effort [level]', detail: 'Reasoning effort (instant/low/medium/high)', category: 'Model & Provider' },

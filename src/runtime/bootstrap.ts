@@ -46,8 +46,8 @@ import { buildEnabledRoutinesPrompt } from '../agent/routine-registry.ts';
 
 const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '## GoodVibes Agent Operator Policy',
-  '- Default to serial, proactive assistant work in the main conversation. Answer, inspect, summarize, remember useful non-secret facts, configure local Agent state, use read-only runtime/operator routes, and take safe non-destructive actions without spawning local agents or WRFC.',
-  '- GoodVibes Agent connects to an externally managed GoodVibes runtime. Do not start, stop, restart, install, expose, or mutate runtime network/listener posture from Agent runtime.',
+  '- Default to serial, proactive assistant work in the main conversation. Answer, inspect, summarize, remember useful non-secret facts, configure local Agent state, use read-only connected-service/operator routes, and take safe non-destructive actions without spawning local agents or WRFC.',
+  '- GoodVibes Agent connects to GoodVibes services owned outside this package. Do not start, stop, restart, install, expose, or mutate connected-service network/listener posture from Agent.',
   '- Use the `agent_local_registry` tool when a reusable persona, skill, or routine would improve future work. Keep those records local, non-secret, source/provenance tagged, and reviewable. Starting a routine means applying its steps in this same serial conversation, not creating a background job.',
   '- WRFC is never the default Agent reasoning path. Do not create local WRFC chains for planning, research, operations, knowledge, memory, configuration, approvals, automation observability, or ordinary assistant work.',
   '- GoodVibes Agent is not the coding TUI. Do not use the `agent` tool to spawn local Engineer, Reviewer, Tester, Verifier, or batch-spawn roots from Agent.',
@@ -553,7 +553,7 @@ export async function bootstrapRuntime(
   };
 
   // ── Phase 12b: Operator intervention wiring (feature-gated) ──────────────
-  // Keep runtime-owned control-plane state internal. GoodVibes Agent does not
+  // Keep service-owned control-plane state internal. GoodVibes Agent does not
   // expose the local ops-control panel; operator control is surfaced
   // through Agent-owned status, approvals, automation, and delegation flows.
   ctx.commandContext.ops.acpManager = acpManager;

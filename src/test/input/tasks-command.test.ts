@@ -90,7 +90,7 @@ function requireTasksReadModel(
 }
 
 describe('tasks command', () => {
-  test('lists, shows, and outputs runtime tasks', async () => {
+  test('lists, shows, and outputs connected-service tasks', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const tasksCommand = registry.get('tasks');
@@ -172,7 +172,7 @@ describe('tasks command', () => {
     await tasksCommand!.handler(['pause', task.id, 'waiting', 'for', 'approval'], ctx);
     expect(taskManager.getTask(task.id)?.status).toBe('running');
     expect(out.join('\n')).toContain('Task mutation "pause" is blocked in GoodVibes Agent.');
-    expect(out.join('\n')).toContain('no local runtime task state was changed');
+    expect(out.join('\n')).toContain('no local task state was changed');
 
     out.length = 0;
     await tasksCommand!.handler(['resume', task.id], ctx);

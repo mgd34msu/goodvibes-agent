@@ -517,7 +517,7 @@ describe('onboarding derivation helpers', () => {
         id: 'operator-terminal',
         label: 'Agent Operator TUI',
         selected: true,
-        detail: 'Use GoodVibes Agent as the terminal operator while connecting to the existing GoodVibes runtime. Agent setup does not create new entrypoints.',
+        detail: 'Use GoodVibes Agent as the terminal operator while connecting to existing GoodVibes services. Agent setup does not create new entrypoints.',
       },
       {
         id: 'provider-access',

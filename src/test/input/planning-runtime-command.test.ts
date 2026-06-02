@@ -169,7 +169,7 @@ describe('/plan project planning runtime command', () => {
     await registry.execute('plan', ['override', 'serial'], ctx);
 
     expect(planRuntime).toHaveBeenCalledTimes(0);
-    expect(out.join('\n')).toContain('Refusing to override planner runtime state without --yes');
+    expect(out.join('\n')).toContain('Refusing to override planner state without --yes');
 
     out.length = 0;
     await registry.execute('plan', ['override', 'serial', '--yes'], ctx);
@@ -181,7 +181,7 @@ describe('/plan project planning runtime command', () => {
     await registry.execute('plan', ['clear'], ctx);
 
     expect(planRuntime).toHaveBeenCalledTimes(1);
-    expect(out.join('\n')).toContain('Refusing to clear planner runtime state without --yes');
+    expect(out.join('\n')).toContain('Refusing to clear planner state without --yes');
 
     out.length = 0;
     await registry.execute('plan', ['clear', '--yes'], ctx);

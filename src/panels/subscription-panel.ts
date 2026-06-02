@@ -80,7 +80,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
     return [
       { command: '/subscription login openai start --yes', summary: 'start the first-class OpenAI subscription flow' },
       { command: '/login provider <name> start --yes', summary: 'use the front-door auth flow for supported providers' },
-      { command: '/auth review', summary: 'inspect runtime auth posture without exposing token values' },
+      { command: '/auth review', summary: 'inspect connected-service auth posture without exposing token values' },
     ];
   }
 

@@ -212,9 +212,9 @@ function buildChannelStatus(context: CommandContext, spec: AgentWorkspaceChannel
         ? 'needs-target'
         : 'ready';
   const nextStep = setupState === 'disabled'
-    ? `Enable ${spec.label} in the owning GoodVibes runtime before Agent can use it.`
+    ? `Enable ${spec.label} in the owning GoodVibes host before Agent can use it.`
     : setupState === 'needs-config'
-      ? `Configure ${missingRequiredKeys.join(', ')} in the owning runtime or secret manager.`
+      ? `Configure ${missingRequiredKeys.join(', ')} in the owning GoodVibes host or secret manager.`
       : setupState === 'needs-target'
         ? `Provide an explicit delivery target per send, or configure one of ${spec.defaultTargetKeys.join(', ')}.`
         : `Use explicit user action or Agent policy to send through ${spec.label}.`;

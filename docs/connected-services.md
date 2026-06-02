@@ -1,6 +1,6 @@
-# Runtime Connection
+# Connected Services
 
-GoodVibes Agent is a TUI client for an already-running GoodVibes runtime. The package exposes one executable:
+GoodVibes Agent is a TUI client for connected GoodVibes services owned outside this package. The package exposes one executable:
 
 ```sh
 goodvibes-agent
@@ -13,9 +13,9 @@ The installed command is backed by TypeScript-authored source with a Bun shebang
 - `goodvibes-agent status --json`
 - `goodvibes-agent` launches the TUI in a real PTY
 
-## Runtime Prerequisite
+## Service Prerequisite
 
-Start the GoodVibes runtime from the owning GoodVibes host before launching Agent. Agent expects the runtime to expose public operator routes and the isolated Agent Knowledge routes:
+Start connected GoodVibes services from GoodVibes TUI or the owning host before launching Agent. Agent expects those services to expose public operator routes and the isolated Agent Knowledge routes:
 
 ```text
 http://127.0.0.1:3421
@@ -24,7 +24,7 @@ http://127.0.0.1:3421
 /api/goodvibes-agent/knowledge/search
 ```
 
-If the runtime API is on a different host or port, use a one-off override:
+If the GoodVibes API is on a different host or port, use a one-off override:
 
 ```sh
 goodvibes-agent --runtime-url http://127.0.0.1:3421 status
@@ -38,7 +38,7 @@ export GOODVIBES_AGENT_RUNTIME_URL=http://127.0.0.1:3421
 
 `GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias. These values only select the connected GoodVibes API root; they do not make Agent own services.
 
-If the runtime is unavailable, unauthenticated, or on an incompatible SDK version, Agent commands report actionable diagnostics without printing token values.
+If connected GoodVibes services are unavailable, unauthenticated, or on an incompatible SDK version, Agent commands report actionable diagnostics without printing token values.
 
 ## Product Boundary
 

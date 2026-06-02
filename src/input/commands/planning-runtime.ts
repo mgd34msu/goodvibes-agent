@@ -62,7 +62,7 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
         const parsed = stripYesFlag(args);
         const subcommand = parsed.rest[0]?.toLowerCase() ?? '';
         if ((subcommand === 'override' || subcommand === 'clear') && !parsed.yes) {
-          requireYesFlag(ctx, `${subcommand} planner runtime state`, `/plan ${subcommand}${subcommand === 'override' ? ' <strategy>' : ''} --yes`);
+          requireYesFlag(ctx, `${subcommand} planner state`, `/plan ${subcommand}${subcommand === 'override' ? ' <strategy>' : ''} --yes`);
           return;
         }
         const result = ctx.ops.planRuntime

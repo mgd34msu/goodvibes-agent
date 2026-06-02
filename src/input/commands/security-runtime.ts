@@ -24,7 +24,7 @@ export function registerSecurityRuntimeCommands(registry: CommandRegistry): void
       const securitySnapshot = requireReadModels(ctx).security.getSnapshot();
       const policySnapshot = ctx.extensions.policyRuntimeState?.getSnapshot();
       if (!policySnapshot) {
-        ctx.print('Policy runtime state is not available in this runtime.');
+        ctx.print('Policy state is not available in this Agent session.');
         return;
       }
       const attackPaths = buildMcpAttackPathReview({

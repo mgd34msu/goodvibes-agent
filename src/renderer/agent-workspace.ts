@@ -218,7 +218,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       ...snapshot.channels.filter((channel) => !channel.enabled),
     ].slice(0, 6);
     base.push(
-      { text: `GoodVibes runtime: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
+      { text: `GoodVibes API: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
       { text: `Readiness: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} default target(s) configured.`, fg: PALETTE.info },
       { text: `Ready channels: ${readyChannels.join(', ') || 'none'}.`, fg: readyChannels.length > 0 ? PALETTE.good : PALETTE.warn },
       { text: `Needs default target: ${needsTarget.map((channel) => `${channel.label} -> ${channel.defaultTargetKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsTarget.length > 0 ? PALETTE.warn : PALETTE.muted },

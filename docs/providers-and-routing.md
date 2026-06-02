@@ -26,7 +26,7 @@ These files are local configuration. They are not Agent Knowledge records and sh
 
 ## Discovery And Health
 
-Provider discovery and health are runtime-owned. Agent can display discovered provider status, model context information, and route failures. It should not hide provider failures behind fallback wording that makes a failed chat or knowledge request look successful.
+Provider discovery and health are owned by connected GoodVibes services. Agent can display discovered provider status, model context information, and route failures. It should not hide provider failures behind fallback wording that makes a failed chat or knowledge request look successful.
 
 ## Search, Voice, And Media Providers
 
