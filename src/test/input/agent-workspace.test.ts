@@ -634,9 +634,25 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
     expect(dispatched.at(-1)).toBe('/conversation review');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-composer');
+    workspace.activateSelected();
+    expect(dispatched.at(-1)).toBe('/conversation composer');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-hotspots');
     workspace.activateSelected();
     expect(dispatched.at(-1)).toBe('/conversation hotspots');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-next-event');
+    workspace.activateSelected();
+    expect(dispatched.at(-1)).toBe('/conversation next');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-prev-event');
+    workspace.activateSelected();
+    expect(dispatched.at(-1)).toBe('/conversation prev');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-restore');
+    workspace.activateSelected();
+    expect(dispatched.at(-1)).toBe('/conversation restore');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-events');
     workspace.activateSelected();
@@ -742,7 +758,11 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([
       '/export markdown ./exports/session.md --yes',
       '/conversation review',
+      '/conversation composer',
       '/conversation hotspots',
+      '/conversation next',
+      '/conversation prev',
+      '/conversation restore',
       '/conversation events tool_call',
       '/conversation groups assistant_output',
       '/conversation find release user_input',
