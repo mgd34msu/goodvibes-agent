@@ -72,6 +72,16 @@ describe('package CLI install verification', () => {
     expect(parsed.files).toContain('!src/cli/package-verification.ts');
   });
 
+  test('release script requires product release notes instead of raw commit logs', () => {
+    const releaseScriptPath = resolve(import.meta.dir, '../../..', 'scripts', 'release.ts');
+    const source = readFileSync(releaseScriptPath, 'utf-8');
+
+    expect(source).toContain('GOODVIBES_AGENT_RELEASE_NOTES');
+    expect(source).toContain('--notes-file');
+    expect(source).toContain('release notes must describe product changes');
+    expect(source).not.toContain('git log --oneline');
+  });
+
   test('command sources are product-owned instead of hidden behind package exclusions', () => {
     const packagePath = resolve(import.meta.dir, '../../..', 'package.json');
     const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;

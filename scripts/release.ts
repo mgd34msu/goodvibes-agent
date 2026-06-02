@@ -11,6 +11,7 @@ import { execSync } from 'child_process';
  *   bun run scripts/release.ts              # patch bump (0.9.10 → 0.9.11)
  *   bun run scripts/release.ts --minor      # minor bump (0.9.10 → 0.10.0)
  *   bun run scripts/release.ts --major      # major bump (0.9.10 → 1.0.0)
+ *   bun run scripts/release.ts --notes-file ./release-notes.md
  *   bun run scripts/release.ts --dry-run    # preview without writing
  *
  * What it does:
@@ -25,6 +26,7 @@ import { execSync } from 'child_process';
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes('--dry-run');
 const SKIP_VALIDATION = args.includes('--skip-validation');
+const notesFileIndex = args.indexOf('--notes-file');
 const bumpMode = args.includes('--major')
   ? 'major'
   : args.includes('--minor')
@@ -37,6 +39,38 @@ if (args.includes('--major') && args.includes('--minor')) {
 }
 
 const root = process.cwd();
+
+function readReleaseNotesFromArgOrEnv(): readonly string[] {
+  const notesFile = notesFileIndex >= 0 ? args[notesFileIndex + 1] : undefined;
+  if (notesFileIndex >= 0 && (!notesFile || notesFile.startsWith('--'))) {
+    console.error('Error: --notes-file requires a markdown file path.');
+    process.exit(1);
+  }
+
+  const raw = notesFile
+    ? readFileSync(join(root, notesFile), 'utf8')
+    : process.env.GOODVIBES_AGENT_RELEASE_NOTES;
+  if (!raw || raw.trim().length === 0) {
+    if (DRY_RUN) {
+      return [
+        '- Product release notes required for real release. Pass --notes-file <path> or GOODVIBES_AGENT_RELEASE_NOTES.',
+      ];
+    }
+    console.error('Error: product release notes are required. Pass --notes-file <path> or set GOODVIBES_AGENT_RELEASE_NOTES.');
+    process.exit(1);
+  }
+
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => line.startsWith('- ') ? line : `- ${line}`);
+  if (lines.some((line) => /^- [0-9a-f]{7,40}\s/i.test(line))) {
+    console.error('Error: release notes must describe product changes, not raw commit hashes.');
+    process.exit(1);
+  }
+  return lines;
+}
 
 function run(cmd: string, opts: { silent?: boolean } = {}): string {
   if (DRY_RUN && !opts.silent) {
@@ -141,14 +175,7 @@ const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 const newSection = [
   `## ${next} - ${today}`,
   '',
-  ...(() => {
-    try {
-      const log = execSync('git log --oneline $(git describe --tags --abbrev=0 HEAD^)..HEAD 2>/dev/null || git log --oneline -20', { cwd: root, encoding: 'utf8' }).trim();
-      return log ? log.split('\n').map((line: string) => `- ${line}`) : ['- See git log for details'];
-    } catch {
-      return ['- See git log for details'];
-    }
-  })(),
+  ...readReleaseNotesFromArgOrEnv(),
   '',
 ].join('\n');
 
