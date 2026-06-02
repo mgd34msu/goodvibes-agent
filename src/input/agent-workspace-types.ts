@@ -1,6 +1,7 @@
 import type { AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
 import type { AgentWorkspaceSetupChecklistItem } from './agent-workspace-setup.ts';
 import type { AgentWorkspaceVoiceMediaReadiness } from './agent-workspace-voice-media.ts';
+import type { AgentBehaviorDiscoverySnapshot } from '../agent/behavior-discovery-summary.ts';
 
 export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
@@ -171,6 +172,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly localPersonaCount: number;
   readonly activePersonaName: string;
   readonly localPersonas: readonly AgentWorkspaceLocalLibraryItem[];
+  readonly discoveredBehavior: AgentBehaviorDiscoverySnapshot;
   readonly knowledgeRoute: '/api/goodvibes-agent/knowledge';
   readonly knowledgeIsolation: 'agent-only';
   readonly executionPolicy: 'serial-proactive';

@@ -1,3 +1,5 @@
+import type { AgentBehaviorDiscoverySummary } from '../agent/behavior-discovery-summary.ts';
+
 export type AgentWorkspaceSetupStatus = 'ready' | 'recommended' | 'optional' | 'blocked';
 
 export interface AgentWorkspaceSetupChecklistItem {
@@ -22,6 +24,9 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly skillBundleCount: number;
   readonly enabledSkillBundleCount: number;
   readonly activePersonaName: string;
+  readonly discoveredPersonas: AgentBehaviorDiscoverySummary;
+  readonly discoveredSkills: AgentBehaviorDiscoverySummary;
+  readonly discoveredRoutines: AgentBehaviorDiscoverySummary;
   readonly readyChannelCount: number;
   readonly voiceProviderCount: number;
   readonly mediaProviderCount: number;
@@ -31,6 +36,12 @@ export interface AgentWorkspaceSetupChecklistInput {
 
 function setupStatusForCount(count: number, ready: AgentWorkspaceSetupStatus, empty: AgentWorkspaceSetupStatus): AgentWorkspaceSetupStatus {
   return count > 0 ? ready : empty;
+}
+
+function sampleNames(summary: AgentBehaviorDiscoverySummary): string {
+  if (summary.names.length === 0) return '';
+  const suffix = summary.count > summary.names.length ? `, +${summary.count - summary.names.length} more` : '';
+  return ` Found: ${summary.names.join(', ')}${suffix}.`;
 }
 
 export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChecklistInput): readonly AgentWorkspaceSetupChecklistItem[] {
@@ -74,27 +85,33 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       label: 'Persona',
       status: hasActivePersona ? 'ready' : 'recommended',
       detail: hasActivePersona
-        ? `Active persona: ${input.activePersonaName}.`
-        : 'Create or choose a persona to make the assistant voice and policy explicit.',
-      command: '/personas',
+        ? `Active persona: ${input.activePersonaName}.${input.discoveredPersonas.count > 0 ? ` ${input.discoveredPersonas.count} discovered persona file(s) are still available to import.` : ''}`
+        : input.discoveredPersonas.count > 0
+          ? `${input.discoveredPersonas.count} discovered persona file(s) can be imported into the Agent-local registry.${sampleNames(input.discoveredPersonas)}`
+          : 'Create or choose a persona to make the assistant voice and policy explicit.',
+      command: input.discoveredPersonas.count > 0 ? '/personas discover' : '/personas',
     },
     {
       id: 'skills',
       label: 'Skills',
-      status: input.enabledSkillCount > 0 || input.enabledSkillBundleCount > 0 ? 'ready' : input.skillCount > 0 || input.skillBundleCount > 0 ? 'recommended' : 'optional',
+      status: input.enabledSkillCount > 0 || input.enabledSkillBundleCount > 0 ? 'ready' : input.skillCount > 0 || input.skillBundleCount > 0 || input.discoveredSkills.count > 0 ? 'recommended' : 'optional',
       detail: input.skillCount > 0 || input.skillBundleCount > 0
-        ? `${input.enabledSkillCount}/${input.skillCount} local skill(s) enabled; ${input.enabledSkillBundleCount}/${input.skillBundleCount} bundle(s) enabled.`
-        : 'Create reusable local skills and bundles for repeated workflows.',
-      command: '/agent-skills',
+        ? `${input.enabledSkillCount}/${input.skillCount} local skill(s) enabled; ${input.enabledSkillBundleCount}/${input.skillBundleCount} bundle(s) enabled.${input.discoveredSkills.count > 0 ? ` ${input.discoveredSkills.count} discovered skill file(s) are still available to import.` : ''}`
+        : input.discoveredSkills.count > 0
+          ? `${input.discoveredSkills.count} discovered skill file(s) can be imported as local reusable procedures.${sampleNames(input.discoveredSkills)}`
+          : 'Create reusable local skills and bundles for repeated workflows.',
+      command: input.discoveredSkills.count > 0 ? '/agent-skills discover' : '/agent-skills',
     },
     {
       id: 'routines',
       label: 'Routines',
-      status: setupStatusForCount(input.enabledRoutineCount, 'ready', input.routineCount > 0 ? 'recommended' : 'optional'),
+      status: setupStatusForCount(input.enabledRoutineCount, 'ready', input.routineCount > 0 || input.discoveredRoutines.count > 0 ? 'recommended' : 'optional'),
       detail: input.routineCount > 0
-        ? `${input.enabledRoutineCount}/${input.routineCount} local routine(s) enabled.`
-        : 'Create local routines first; promote schedules only with explicit confirmation.',
-      command: '/routines',
+        ? `${input.enabledRoutineCount}/${input.routineCount} local routine(s) enabled.${input.discoveredRoutines.count > 0 ? ` ${input.discoveredRoutines.count} discovered routine file(s) are still available to import.` : ''}`
+        : input.discoveredRoutines.count > 0
+          ? `${input.discoveredRoutines.count} discovered routine file(s) can be imported as main-conversation workflows.${sampleNames(input.discoveredRoutines)}`
+          : 'Create local routines first; promote schedules only with explicit confirmation.',
+      command: input.discoveredRoutines.count > 0 ? '/routines discover' : '/routines',
     },
     {
       id: 'memory',

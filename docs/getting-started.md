@@ -46,6 +46,8 @@ bun run dev
 
 After setup has been shown once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, provider/model selection, Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
 
+The setup workspace scans local Agent behavior folders and shows importable persona, skill, and routine files before asking you to create blank records. Use `/personas discover`, `/agent-skills discover`, and `/routines discover` to preview files, then use the matching import action in the workspace after review.
+
 Use `/agent-profile guide` inside that workspace to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
 Use the Knowledge area in that workspace to ingest a source URL without leaving the TUI. The form requires typed confirmation and writes only to the isolated Agent Knowledge segment.

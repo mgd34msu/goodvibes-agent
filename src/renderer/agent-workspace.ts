@@ -104,6 +104,31 @@ function setupChecklistLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLi
   return lines;
 }
 
+function discoverySummaryLine(label: string, summary: AgentWorkspaceRuntimeSnapshot['discoveredBehavior']['personas'], command: string): ContextLine[] {
+  if (summary.count === 0) return [];
+  const names = summary.names.length > 0
+    ? ` ${summary.names.join(', ')}${summary.count > summary.names.length ? `, +${summary.count - summary.names.length} more` : ''}.`
+    : '';
+  return [
+    { text: `${label}: ${summary.count} discovered; project ${summary.projectLocalCount}; global ${summary.globalCount}.`, fg: PALETTE.info, bold: true },
+    { text: `  ${command} to preview, then use the import form after review.${names}`, fg: PALETTE.muted },
+  ];
+}
+
+function behaviorDiscoveryLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const lines: ContextLine[] = [
+    ...discoverySummaryLine('Discovered personas', snapshot.discoveredBehavior.personas, '/personas discover'),
+    ...discoverySummaryLine('Discovered skills', snapshot.discoveredBehavior.skills, '/agent-skills discover'),
+    ...discoverySummaryLine('Discovered routines', snapshot.discoveredBehavior.routines, '/routines discover'),
+  ];
+  if (lines.length === 0) return [];
+  return [
+    { text: '' },
+    { text: 'Discovered Behavior Files', fg: PALETTE.title, bold: true },
+    ...lines,
+  ];
+}
+
 function localLibraryLines(
   title: string,
   items: readonly AgentWorkspaceRuntimeSnapshot['localPersonas'][number][],
@@ -199,6 +224,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Connection: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
       { text: 'Agent role: interactive operator TUI; setup changes here are Agent-local.', fg: PALETTE.good },
       ...setupChecklistLines(snapshot),
+      ...behaviorDiscoveryLines(snapshot),
       { text: '' },
       { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
       { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },

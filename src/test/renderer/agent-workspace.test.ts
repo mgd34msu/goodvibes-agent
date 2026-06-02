@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
@@ -365,6 +365,58 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('tunnel provider setup');
     expect(output).not.toContain('non-Agent assistant segment');
     expect(output).not.toContain('non-Agent graph segment');
+  });
+
+  test('renders discovered behavior files as first-run setup actions', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-discovery-'));
+    mkdirSync(join(root, '.goodvibes', 'agent', 'personas'), { recursive: true });
+    mkdirSync(join(root, '.goodvibes', 'agent', 'skills', 'daily-brief'), { recursive: true });
+    mkdirSync(join(root, '.goodvibes', 'agent', 'routines'), { recursive: true });
+    writeFileSync(join(root, '.goodvibes', 'agent', 'personas', 'research.md'), [
+      '---',
+      'name: Research Operator',
+      'description: Source-backed research posture.',
+      '---',
+      'Prefer checked sources and clear unknowns.',
+    ].join('\n'));
+    writeFileSync(join(root, '.goodvibes', 'agent', 'skills', 'daily-brief', 'SKILL.md'), [
+      '---',
+      'name: Daily Brief Skill',
+      'description: Build a concise operator brief.',
+      '---',
+      'Review work plans, approvals, routines, and Agent Knowledge before summarizing.',
+    ].join('\n'));
+    writeFileSync(join(root, '.goodvibes', 'agent', 'routines', 'evening.md'), [
+      '---',
+      'name: Evening Review',
+      'description: Review open work before shutdown.',
+      '---',
+      'Review work plan, approvals, routines, and Agent Knowledge status.',
+    ].join('\n'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const context = {
+      ...commandContext(),
+      workspace: { shellPaths },
+      session: { runtime: { provider: 'openai-subscriber', model: 'openai:gpt-5.5', sessionId: 'setup-discovery-session' } },
+      platform: { configManager: { get: (key: string) => key === 'controlPlane.host' ? '127.0.0.1' : key === 'controlPlane.port' ? 3421 : undefined } },
+    } as unknown as CommandContext;
+    const workspace = new AgentWorkspace();
+    workspace.open(context, () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    const output = text(renderAgentWorkspace(workspace, 150, 52));
+
+    expect(output).toContain('RECOMMENDED Persona -> /personas discover');
+    expect(output).toContain('RECOMMENDED Skills -> /agent-skills discover');
+    expect(output).toContain('RECOMMENDED Routines -> /routines discover');
+    expect(output).toContain('Discovered Behavior Files');
+    expect(output).toContain('Discovered personas: 1 discovered; project 1; global 0.');
+    expect(output).toContain('Research Operator');
+    expect(output).toContain('Discovered skills: 1 discovered; project 1; global 0.');
+    expect(output).toContain('Daily Brief Skill');
+    expect(output).toContain('Discovered routines: 1 discovered; project 1; global 0.');
+    expect(output).toContain('Evening Review');
+    expect(output).not.toContain('default Knowledge/Wiki');
   });
 
   test('renders first-run setup actions for skills and routines', () => {

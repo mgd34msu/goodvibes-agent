@@ -4,6 +4,7 @@ import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
+import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-summary.ts';
 import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates } from '../agent/runtime-profile.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
@@ -233,6 +234,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: 0, enabled: 0, items: [] };
     }
   })();
+  const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
   const runtimeProfiles = (() => {
     try {
       return listAgentRuntimeProfiles(context.workspace?.shellPaths?.homeDirectory ?? '');
@@ -317,6 +319,9 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     skillBundleCount: skillSnapshot.bundleCount,
     enabledSkillBundleCount: skillSnapshot.enabledBundleCount,
     activePersonaName: personaSnapshot.activeName,
+    discoveredPersonas: discoveredBehavior.personas,
+    discoveredSkills: discoveredBehavior.skills,
+    discoveredRoutines: discoveredBehavior.routines,
     readyChannelCount: channels.filter((channel) => channel.ready).length,
     voiceProviderCount: voiceProviders.length,
     mediaProviderCount: mediaProviders.length,
@@ -351,6 +356,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     localPersonaCount: personaSnapshot.count,
     activePersonaName: personaSnapshot.activeName,
     localPersonas: personaSnapshot.items,
+    discoveredBehavior,
     knowledgeRoute: '/api/goodvibes-agent/knowledge',
     knowledgeIsolation: 'agent-only',
     executionPolicy: 'serial-proactive',
