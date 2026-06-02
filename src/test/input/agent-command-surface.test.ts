@@ -232,5 +232,7 @@ describe('Agent command interface', () => {
 
       expect(metadata.toLowerCase(), commandName).not.toContain('panel');
     }
+
+    expect(registry.get('health')?.usage ?? '').not.toContain('open');
   });
 });
