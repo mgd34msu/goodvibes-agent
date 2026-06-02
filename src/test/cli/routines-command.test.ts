@@ -28,7 +28,7 @@ function runtime(argv: readonly string[]) {
   registry.create({
     name: 'Daily Operations Sweep',
     description: 'Review operations posture.',
-    steps: 'Inspect daemon status, schedules, approvals, and Agent Knowledge. Ask before external changes.',
+    steps: 'Inspect connected-host status, schedules, approvals, and Agent Knowledge. Ask before external changes.',
     enabled: true,
     tags: ['ops'],
     triggers: ['daily'],
@@ -214,7 +214,7 @@ describe('routines CLI command', () => {
     expect(shownPayload.data?.enabled).toBe(true);
   });
 
-  test('previews schedule promotion with explicit delivery without calling the daemon', async () => {
+  test('previews schedule promotion with explicit delivery without calling the connected host', async () => {
     const originalFetch = globalThis.fetch;
     let calls = 0;
     globalThis.fetch = (async () => {
@@ -318,7 +318,7 @@ describe('routines CLI command', () => {
     }
   });
 
-  test('rejects mixed delivery target kinds without calling the daemon', async () => {
+  test('rejects mixed delivery target kinds without calling the connected host', async () => {
     const originalFetch = globalThis.fetch;
     let calls = 0;
     globalThis.fetch = (async () => {

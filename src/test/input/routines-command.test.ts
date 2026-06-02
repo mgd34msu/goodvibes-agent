@@ -223,7 +223,7 @@ describe('/routines command', () => {
     expect(text).toContain('triggers: travel, trip');
   });
 
-  test('previews routine schedule promotion without calling the daemon', async () => {
+  test('previews routine schedule promotion without calling the connected host', async () => {
     const { registry, out, ctx } = commandHarness();
     const originalFetch = globalThis.fetch;
     let calls = 0;
@@ -326,7 +326,7 @@ describe('/routines command', () => {
     }
   });
 
-  test('rejects mixed routine delivery targets from slash commands without daemon calls', async () => {
+  test('rejects mixed routine delivery targets from slash commands without connected-host calls', async () => {
     const { registry, out, ctx } = commandHarness();
     const originalFetch = globalThis.fetch;
     let calls = 0;
@@ -356,7 +356,7 @@ describe('/routines command', () => {
     }
   });
 
-  test('previews reminder schedule creation without daemon calls', async () => {
+  test('previews reminder schedule creation without connected-host calls', async () => {
     const { registry, out, ctx } = commandHarness();
     const originalFetch = globalThis.fetch;
     let calls = 0;

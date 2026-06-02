@@ -493,7 +493,7 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
     ok: versionCompatible && knowledgeRouteReady,
     packageVersion: metadata.version,
     sdkPin: metadata.sdkVersion,
-    daemon: {
+    connectedHost: {
       baseUrl: connection.baseUrl,
       status: daemon.status,
       version: daemonVersion,

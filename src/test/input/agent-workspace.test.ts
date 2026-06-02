@@ -520,7 +520,7 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
     feedText(workspace, 'Summarize state before action.');
     feedKey(workspace, 'enter');
-    feedText(workspace, 'Check daemon status, work plan, approvals, and Agent Knowledge first.');
+    feedText(workspace, 'Check connected-host status, work plan, approvals, and Agent Knowledge first.');
     feedKey(workspace, 'enter');
     feedText(workspace, 'briefing,setup');
     feedKey(workspace, 'enter');

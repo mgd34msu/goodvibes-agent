@@ -38,7 +38,7 @@ describe('AgentSkillRegistry', () => {
     const { registry } = tempRegistry();
     registry.create({
       name: 'Status Review',
-      description: 'Review visible daemon status.',
+      description: 'Review visible connected-host status.',
       procedure: 'Inspect status and report concise warnings.',
     });
 

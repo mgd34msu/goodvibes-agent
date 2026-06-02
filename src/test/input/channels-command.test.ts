@@ -111,7 +111,7 @@ describe('/channels command', () => {
     expect(output).not.toContain('telegram-redacted-token');
   });
 
-  test('prints read-only daemon channel account and policy diagnostics without secret values', async () => {
+  test('prints read-only connected-host channel account and policy diagnostics without secret values', async () => {
     const { context, printed } = channelContext({}, writeTokenHome());
 
     await withMockFetch(async (input, init) => {
@@ -159,7 +159,7 @@ describe('/channels command', () => {
     expect(output).not.toContain('route-token-redacted');
   });
 
-  test('prints channel status doctor and setup schema from read-only daemon routes', async () => {
+  test('prints channel status doctor and setup schema from read-only connected-host routes', async () => {
     const { context, printed } = channelContext({}, writeTokenHome());
 
     await withMockFetch(async (input) => {
@@ -200,7 +200,7 @@ describe('/channels command', () => {
     expect(output).toContain('primary (required)');
   });
 
-  test('daemon channel routes fail closed when runtime auth is missing', async () => {
+  test('connected-host channel routes fail closed when runtime auth is missing', async () => {
     const { context, printed } = channelContext();
 
     await runChannels(['accounts'], context);
