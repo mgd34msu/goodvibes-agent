@@ -68,7 +68,7 @@ function formatTrustReview(bundle: TrustReviewBundle): string {
     'Trust Review',
     `  permission mode: ${bundle.permissionMode}`,
     `  secrets stored: ${bundle.secretKeys.length}`,
-    `  configured services: ${bundle.serviceNames.length}`,
+    `  configured integrations: ${bundle.serviceNames.length}`,
     `  plugins: ${bundle.pluginSummary.total} (trusted ${bundle.pluginSummary.trusted}, limited ${bundle.pluginSummary.limited}, untrusted ${bundle.pluginSummary.untrusted}, quarantined ${bundle.pluginSummary.quarantined})`,
     `  MCP servers: ${bundle.mcpSummary.total} (constrained ${bundle.mcpSummary.constrained}, ask-on-risk ${bundle.mcpSummary.askOnRisk}, allow-all ${bundle.mcpSummary.allowAll}, blocked ${bundle.mcpSummary.blocked}, quarantined ${bundle.mcpSummary.quarantined})`,
   ].join('\n');
@@ -81,7 +81,7 @@ function inspectTrustBundle(path: string): string {
     `  captured: ${new Date(parsed.capturedAt).toISOString()}`,
     `  permission mode: ${parsed.permissionMode}`,
     `  secrets stored: ${parsed.secretKeys.length}`,
-    `  configured services: ${parsed.serviceNames.length}`,
+    `  configured integrations: ${parsed.serviceNames.length}`,
     `  plugins: ${parsed.pluginSummary.total}`,
     `  MCP servers: ${parsed.mcpSummary.total}`,
   ].join('\n');

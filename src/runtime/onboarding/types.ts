@@ -162,7 +162,7 @@ export interface OnboardingAcknowledgementSnapshot {
 }
 
 export type OnboardingSnapshotCollectionIssueArea =
-  | 'services'
+  | 'host'
   | 'subscriptions-active'
   | 'subscriptions-pending'
   | 'auth'

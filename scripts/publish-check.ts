@@ -123,7 +123,7 @@ for (const requiredPath of [
   'tsconfig.json',
   'docs/README.md',
   'docs/getting-started.md',
-  'docs/connected-services.md',
+  'docs/connected-host.md',
   'docs/release-and-publishing.md',
 ]) {
   if (!filePaths.includes(requiredPath)) {

@@ -134,8 +134,8 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         id: 'external-runtime-version-mismatch',
         area: 'runtime',
         severity: 'warning',
-        summary: 'Connected GoodVibes service SDK version does not match Agent.',
-        cause: `Connected service reports SDK ${options.externalRuntime.version}; Agent expects ${options.externalRuntime.expectedVersion}.`,
+        summary: 'Connected GoodVibes host SDK version does not match Agent.',
+        cause: `Connected host reports SDK ${options.externalRuntime.version}; Agent expects ${options.externalRuntime.expectedVersion}.`,
         impact: 'Agent-only routes, especially isolated Agent Knowledge, may be missing or incompatible.',
         action: 'Update the owning GoodVibes host so /status matches this Agent package SDK pin.',
       });
@@ -198,8 +198,8 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       id: 'onboarding-incomplete',
       area: 'onboarding',
       severity: 'warning',
-      summary: 'Agent setup has not been shown for this user.',
-      cause: 'No global user setup check marker was found.',
+      summary: 'Agent setup has not been applied for this user.',
+      cause: 'No global user setup completion marker was found.',
       impact: 'Important connected-host, network, provider, auth, or permission choices may still be implicit defaults.',
       action: 'Run /setup in GoodVibes Agent or goodvibes-agent setup status to review setup state.',
     });

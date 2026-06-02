@@ -80,12 +80,12 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
     },
     {
       severity: (services.length === 0 && oauthProviderCount === 0 && builtinSubscriptionProviderCount === 0) ? 'warn' : serviceIssues.length === 0 ? 'pass' : 'warn',
-      area: 'services',
+      area: 'host',
       message: (services.length === 0 && oauthProviderCount === 0 && builtinSubscriptionProviderCount === 0)
-        ? 'no services configured'
+        ? 'no connected host integrations configured'
         : serviceIssues.length === 0
-          ? `${services.length} service(s), ${oauthProviderCount + builtinSubscriptionProviderCount} oauth provider(s), ${activeSubscriptionCount} active subscription override(s)`
-          : `${serviceIssues.length} service configuration issue(s)`,
+          ? `${services.length} host integration(s), ${oauthProviderCount + builtinSubscriptionProviderCount} oauth provider(s), ${activeSubscriptionCount} active subscription override(s)`
+          : `${serviceIssues.length} host integration configuration issue(s)`,
     },
     {
       severity: quarantinedPluginCount === 0 ? 'pass' : 'warn',

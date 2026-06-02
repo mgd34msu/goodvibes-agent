@@ -21,7 +21,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
     name: 'health',
     aliases: ['doctor'],
     description: 'Health workspace for startup posture, connected host readiness, provider health, and Agent continuity',
-    usage: '[review|setup|services|provider|accounts|auth|settings|remote|mcp|continuity|maintenance|repair [domain]]',
+    usage: '[review|setup|host|provider|accounts|auth|settings|remote|mcp|continuity|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
 
@@ -52,7 +52,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
 
       const readModels = requireReadModels(ctx);
 
-      if (sub === 'services') {
+      if (sub === 'host' || sub === 'services') {
         const registry = requireServiceRegistry(ctx);
         const all = registry.getAll();
         const keys = Object.keys(all);
@@ -67,10 +67,10 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
             return findings;
           });
         ctx.print([
-          'Health Review: Services',
-          `  configured: ${keys.length}`,
+          'Health Review: Connected Host Integrations',
+          `  configured integrations: ${keys.length}`,
           `  issues: ${issues.length}`,
-          ...(issues.length > 0 ? issues.map((issue) => `  ${issue}`) : ['  all configured services passed readiness checks']),
+          ...(issues.length > 0 ? issues.map((issue) => `  ${issue}`) : ['  all configured host integrations passed readiness checks']),
         ].join('\n'));
         return;
       }
@@ -255,11 +255,11 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /accounts repair <provider>');
           lines.push('  /auth show <provider>');
           lines.push('  verify: /health accounts');
-        } else if (domain === 'services') {
-          lines.push('  domain: services');
-          lines.push('  /health services');
+        } else if (domain === 'host' || domain === 'services') {
+          lines.push('  domain: host');
+          lines.push('  /health host');
           lines.push('  connected host repair belongs outside Agent');
-          lines.push('  verify: /health services');
+          lines.push('  verify: /health host');
         } else if (domain === 'remote') {
           lines.push('  domain: remote');
           lines.push('  /delegate <build/fix/review task> for explicit TUI build work');
@@ -284,7 +284,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /compact');
           lines.push('  verify: /health maintenance');
         } else {
-          lines.push('  domains: settings, auth, accounts, services, remote, mcp, continuity, maintenance');
+          lines.push('  domains: settings, auth, accounts, host, remote, mcp, continuity, maintenance');
           lines.push('  use: /health repair <domain>');
         }
         ctx.print(lines.join('\n'));
@@ -316,7 +316,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           'Health Review: Setup',
           ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`),
           ...(snapshot.serviceIssues.length > 0
-            ? ['', '  Service issues:', ...snapshot.serviceIssues.map((issue) => `    - ${issue}`)]
+            ? ['', '  Connected host integration issues:', ...snapshot.serviceIssues.map((issue) => `    - ${issue}`)]
             : []),
         ].join('\n'));
         return;
@@ -326,7 +326,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         'Health Review',
         `  session: ${snapshot.sessionId}`,
         `  setup issues: ${snapshot.issues.length}`,
-        `  service issues: ${snapshot.serviceIssues.length}`,
+        `  host integration issues: ${snapshot.serviceIssues.length}`,
         `  active subscriptions: ${snapshot.activeSubscriptionCount}`,
         `  account issues: ${accountSnapshot.issueCount}`,
         `  settings conflicts: ${settingsSnapshot.conflicts.length}`,
@@ -335,11 +335,11 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         `  remote workers: ${snapshot.remoteRunnerCount}`,
         ...formatSessionMaintenanceLines(maintenance, 'guided').map((line) => `  ${line}`),
         ...(snapshot.issues.length > 0 ? ['', ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`)] : []),
-        ...(snapshot.serviceIssues.length > 0 ? ['', ...snapshot.serviceIssues.map((issue) => `  service: ${issue}`)] : []),
+        ...(snapshot.serviceIssues.length > 0 ? ['', ...snapshot.serviceIssues.map((issue) => `  host integration: ${issue}`)] : []),
         '',
         'Next steps:',
         '  /health review',
-        '  /health services',
+        '  /health host',
         '  /health accounts',
         '  /health auth',
         '  /health settings',

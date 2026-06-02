@@ -99,7 +99,7 @@ async function buildServicesSnapshot(
       },
       issues: [
         {
-          area: 'services',
+          area: 'host',
           message: error instanceof Error ? error.message : String(error),
         },
       ],
@@ -146,7 +146,7 @@ async function buildServicesSnapshot(
           hasAppToken: false,
         } satisfies OnboardingServiceState,
         issue: {
-          area: 'services',
+          area: 'host',
           message: `${name}: ${error instanceof Error ? error.message : String(error)}`,
         } satisfies OnboardingSnapshotCollectionIssue,
       };

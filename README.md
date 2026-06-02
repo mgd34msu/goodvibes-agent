@@ -54,7 +54,7 @@ bun run package:install-check
 bun run publish:check
 ```
 
-After setup has been shown once, the Agent TUI opens directly into the operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. It is the Agent-first fullscreen workspace for setup, model/provider selection, isolated Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
+After setup has been applied once, the Agent TUI opens directly into the operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. It is the Agent-first fullscreen workspace for setup, model/provider selection, isolated Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
 The setup workspace surfaces discovered local Agent persona, skill, and routine markdown files so day-one setup can import useful behavior instead of starting from blank records.
 
@@ -126,7 +126,7 @@ GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding 
 Package-facing docs:
 
 - [Getting Started](docs/getting-started.md)
-- [Connected Host](docs/connected-services.md)
+- [Connected Host](docs/connected-host.md)
 - [Release And Publishing](docs/release-and-publishing.md)
 
 The package-facing Agent documentation is limited to the docs listed above.

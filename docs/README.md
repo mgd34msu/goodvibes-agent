@@ -5,7 +5,7 @@ These are the package-facing docs for GoodVibes Agent, the personal operator ass
 Current package docs:
 
 - [Getting Started](getting-started.md)
-- [Connected Host](connected-services.md)
+- [Connected Host](connected-host.md)
 - [Release And Publishing](release-and-publishing.md)
 
 Important baseline constraints:

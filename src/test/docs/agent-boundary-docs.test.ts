@@ -58,7 +58,7 @@ describe('Agent boundary docs', () => {
       'README.md',
       'docs/README.md',
       'docs/getting-started.md',
-      'docs/connected-services.md',
+      'docs/connected-host.md',
       'docs/release-and-publishing.md',
     ] as const;
     const productionSourcePaths = walkProductionFiles(join(ROOT, 'src'))

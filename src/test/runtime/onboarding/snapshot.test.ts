@@ -363,7 +363,7 @@ describe('collectOnboardingSnapshot', () => {
     expect(snapshot.secrets.records).toEqual([]);
     expect(snapshot.collectionIssues).toEqual([
       {
-        area: 'services',
+        area: 'host',
         message: 'webhook: service inspection unavailable',
       },
       {
@@ -442,7 +442,7 @@ describe('collectOnboardingSnapshot', () => {
     });
     expect(snapshot.collectionIssues).toEqual([
       {
-        area: 'services',
+        area: 'host',
         message: 'service registry unavailable',
       },
       {

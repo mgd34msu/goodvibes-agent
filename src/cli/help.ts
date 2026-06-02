@@ -55,7 +55,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  memory                     Manage Agent-owned durable memory records',
     '  routines                   Inspect local routines and explicitly promote one to a connected schedule',
     '  auth                       Inspect Agent auth posture and connection token state',
-    '  compat                     Inspect Agent SDK pin, connected service version, and Agent Knowledge route readiness',
+    '  compat                     Inspect Agent SDK pin, connected host version, and Agent Knowledge route readiness',
     '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
     '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
     '  delegate                   Explicitly delegate build/fix/review work to GoodVibes TUI',
@@ -138,7 +138,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   setup: {
     usage: ['setup', 'setup status', 'onboarding', 'onboarding status'],
-    summary: 'Open Agent setup, or inspect whether setup has already been shown for this user.',
+    summary: 'Open Agent setup, or inspect whether setup has already been applied for this user.',
     examples: ['setup', 'setup status', 'onboarding status'],
   },
   status: {

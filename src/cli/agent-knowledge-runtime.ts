@@ -94,7 +94,7 @@ export async function classifyKnowledgeError(error: unknown, connection: AgentDa
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `Connected GoodVibes service SDK version ${daemonVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
+        error: `Connected GoodVibes host SDK version ${daemonVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
         baseUrl: connection.baseUrl,
         route,
         daemonVersion,
