@@ -251,6 +251,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     const readyChannels = snapshot.channels.filter((channel) => channel.ready).map((channel) => channel.label);
     const needsTarget = snapshot.channels.filter((channel) => channel.setupState === 'needs-target');
     const needsConfig = snapshot.channels.filter((channel) => channel.setupState === 'needs-config');
+    const nextAttentionChannel = needsConfig[0] ?? needsTarget[0] ?? snapshot.channels.find((channel) => !channel.enabled);
     const disabledChannels = snapshot.channels.filter((channel) => !channel.enabled).map((channel) => channel.label);
     const disabledPreview = disabledChannels.slice(0, 6).join(', ');
     const disabledSuffix = disabledChannels.length > 6 ? `, +${disabledChannels.length - 6} more` : '';
@@ -261,6 +262,8 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `GoodVibes API: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
       { text: `Readiness: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} default target(s) configured.`, fg: PALETTE.info },
+      { text: 'Setup path: pair companion -> inspect readiness -> review accounts/policies/status -> fix one channel -> add explicit notification target if needed.', fg: PALETTE.good },
+      { text: `Next channel action: ${nextAttentionChannel ? `${nextAttentionChannel.label} - ${nextAttentionChannel.nextStep}` : 'All enabled channels are ready; keep delivery explicit and review policies before sending.'}`, fg: nextAttentionChannel ? PALETTE.warn : PALETTE.good },
       { text: `Ready channels: ${readyChannels.join(', ') || 'none'}.`, fg: readyChannels.length > 0 ? PALETTE.good : PALETTE.warn },
       { text: `Needs default target: ${needsTarget.map((channel) => `${channel.label} -> ${channel.defaultTargetKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsTarget.length > 0 ? PALETTE.warn : PALETTE.muted },
       { text: `Needs config: ${needsConfig.map((channel) => `${channel.label} -> ${channel.missingRequiredKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsConfig.length > 0 ? PALETTE.warn : PALETTE.muted },
@@ -275,7 +278,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       });
     }
     base.push({ text: 'Only config key names and readiness state are rendered here.', fg: PALETTE.muted });
-    base.push({ text: 'Pairing: use /pair or /qrcode; inspect notification targets with /notify list and health with /health review.', fg: PALETTE.info });
+    base.push({ text: 'Use the actions on the left for pairing, channel setup guidance, notification targets, and health review.', fg: PALETTE.info });
   } else if (category.id === 'knowledge') {
     base.push(
       { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },

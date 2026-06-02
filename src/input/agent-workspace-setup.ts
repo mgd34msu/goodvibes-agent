@@ -56,7 +56,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       label: 'Connected host',
       status: 'ready',
       detail: `Agent will connect to ${input.runtimeBaseUrl}; service ownership stays outside this product.`,
-      command: '/health',
+      command: 'Home -> Review health',
     },
     {
       id: 'provider-model',
@@ -65,14 +65,14 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       detail: providerReady
         ? `Current chat route is ${input.provider} / ${input.model}.`
         : 'Choose a provider and model before relying on assistant turns.',
-      command: '/agent setup',
+      command: 'Setup -> Provider and model',
     },
     {
       id: 'agent-knowledge',
       label: 'Agent Knowledge',
       status: 'recommended',
       detail: 'Check isolated Agent Knowledge status, then ingest source-backed material into the Agent segment only.',
-      command: '/agent knowledge',
+      command: 'Knowledge',
     },
     {
       id: 'profile',
@@ -83,7 +83,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         : discoveredBehaviorCount > 0
           ? `${discoveredBehaviorCount} discovered behavior file(s) can seed an isolated Agent profile from the Profiles workspace.`
         : `${input.runtimeStarterTemplateCount} starter template(s) are available if this machine needs separate operator identities.`,
-      command: '/agent profiles',
+      command: 'Profiles',
     },
     {
       id: 'persona',
@@ -94,7 +94,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         : input.discoveredPersonas.count > 0
           ? `${input.discoveredPersonas.count} discovered persona file(s) can be imported into the Agent-local registry.${sampleNames(input.discoveredPersonas)}`
           : 'Create or choose a persona to make the assistant voice and policy explicit.',
-      command: '/agent personas',
+      command: 'Personas',
     },
     {
       id: 'skills',
@@ -111,7 +111,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         : input.discoveredSkills.count > 0
           ? `${input.discoveredSkills.count} discovered skill file(s) can be imported as local reusable procedures.${sampleNames(input.discoveredSkills)}`
           : 'Create reusable local skills and bundles for repeated workflows.',
-      command: '/agent skills',
+      command: 'Skills',
     },
     {
       id: 'routines',
@@ -124,7 +124,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         : input.discoveredRoutines.count > 0
           ? `${input.discoveredRoutines.count} discovered routine file(s) can be imported as main-conversation workflows.${sampleNames(input.discoveredRoutines)}`
           : 'Create local routines first; promote schedules only with explicit confirmation.',
-      command: '/agent routines',
+      command: 'Routines',
     },
     {
       id: 'memory',
@@ -133,7 +133,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       detail: input.localMemoryCount > 0
         ? `${input.localMemoryCount} Agent memory record(s) are available; ${input.localMemoryReviewQueueCount} need review.`
         : 'Memory starts empty; durable facts should be stored deliberately and never include secrets.',
-      command: '/agent memory',
+      command: 'Memory',
     },
     {
       id: 'channels',
@@ -142,14 +142,14 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       detail: input.readyChannelCount > 0
         ? `${input.readyChannelCount} external channel(s) are ready.`
         : 'Pair or review channels only when you want the assistant reachable outside this terminal.',
-      command: '/agent channels',
+      command: 'Channels',
     },
     {
       id: 'voice-media',
       label: 'Voice and media',
       status: input.voiceProviderCount > 0 || input.mediaProviderCount > 0 ? 'ready' : 'optional',
       detail: `${input.voiceProviderCount} voice provider(s), ${input.mediaProviderCount} media provider(s). Configure these only when useful.`,
-      command: '/agent voice-media',
+      command: 'Voice & Media',
     },
   ];
 }

@@ -996,6 +996,20 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/pair');
   });
 
+  test('setup workspace opens channels workspace before pairing', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-channels');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.selectedCategory.id).toBe('channels');
+    expect(workspace.status).toContain('Opened Channels');
+  });
+
   test('home workspace jumps directly into setup without dispatching a command', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
@@ -2869,14 +2883,14 @@ describe('AgentWorkspace', () => {
     expect(byId.get('agent-knowledge')?.status).toBe('recommended');
     expect(byId.get('memory')?.status).toBe('ready');
     expect(byId.get('channels')?.status).toBe('ready');
-    expect(byId.get('agent-knowledge')?.command).toBe('/agent knowledge');
-    expect(byId.get('profile')?.command).toBe('/agent profiles');
-    expect(byId.get('persona')?.command).toBe('/agent personas');
-    expect(byId.get('skills')?.command).toBe('/agent skills');
-    expect(byId.get('routines')?.command).toBe('/agent routines');
-    expect(byId.get('memory')?.command).toBe('/agent memory');
-    expect(byId.get('channels')?.command).toBe('/agent channels');
-    expect(byId.get('voice-media')?.command).toBe('/agent voice-media');
+    expect(byId.get('agent-knowledge')?.command).toBe('Knowledge');
+    expect(byId.get('profile')?.command).toBe('Profiles');
+    expect(byId.get('persona')?.command).toBe('Personas');
+    expect(byId.get('skills')?.command).toBe('Skills');
+    expect(byId.get('routines')?.command).toBe('Routines');
+    expect(byId.get('memory')?.command).toBe('Memory');
+    expect(byId.get('channels')?.command).toBe('Channels');
+    expect(byId.get('voice-media')?.command).toBe('Voice & Media');
     expect(JSON.stringify(snapshot.setupChecklist)).not.toContain('SLACK_BOT_TOKEN');
   });
 

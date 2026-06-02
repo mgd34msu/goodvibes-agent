@@ -56,7 +56,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'setup-skills', label: 'Skills', detail: 'Create, review, and enable reusable local Agent skills.', targetCategoryId: 'skills', kind: 'workspace', safety: 'safe' },
       { id: 'setup-routines', label: 'Routines', detail: 'Create, review, and enable local Agent routines before any explicit schedule promotion.', targetCategoryId: 'routines', kind: 'workspace', safety: 'safe' },
       { id: 'setup-memory', label: 'Local memory', detail: 'Inspect Agent-local memory; secrets stay rejected or redacted.', command: '/memory', kind: 'command', safety: 'read-only' },
-      { id: 'setup-channels', label: 'Channels', detail: 'Open companion pairing and channel readiness setup.', command: '/pair', kind: 'command', safety: 'safe' },
+      { id: 'setup-channels', label: 'Channels', detail: 'Open companion pairing, channel readiness, delivery target, and notification setup.', targetCategoryId: 'channels', kind: 'workspace', safety: 'safe' },
       { id: 'setup-tools', label: 'Tools and MCP', detail: 'Open MCP setup, trust review, and tool inventory.', targetCategoryId: 'tools', kind: 'workspace', safety: 'safe' },
       { id: 'setup-voice-media', label: 'Voice and media', detail: 'Open TTS/media settings for voice and image-capable Agent flows.', command: '/config tts', kind: 'command', safety: 'safe' },
       { id: 'provider', label: 'Provider status', detail: 'Review provider/model posture.', command: '/provider', kind: 'command', safety: 'read-only' },
@@ -126,6 +126,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Companion pairing, channel posture, and delivery safety.',
     detail: 'Agent uses connected channel accounts. Pairing, account inspection, and readiness checks are visible here; inbound delivery and public channel exposure stay policy-gated.',
     actions: [
+      { id: 'channel-setup-path', label: 'Setup path', detail: 'Use this workspace as the channel setup guide: pair companion, inspect readiness, check accounts/policies/status, review one channel, then add delivery targets only through confirmed forms.', kind: 'guidance', safety: 'safe' },
       { id: 'pair', label: 'Pair companion', detail: 'Open the QR pairing view for companion app setup.', command: '/pair', kind: 'command', safety: 'safe' },
       { id: 'channel-readiness', label: 'Channel readiness', detail: 'Show the read-only readiness matrix.', command: '/channels', kind: 'command', safety: 'read-only' },
       { id: 'channel-attention', label: 'Needs attention', detail: 'Show enabled channels that still need setup or a delivery target.', command: '/channels attention', kind: 'command', safety: 'read-only' },

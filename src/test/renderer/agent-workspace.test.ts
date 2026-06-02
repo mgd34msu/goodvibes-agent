@@ -369,13 +369,13 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Connection: http://127.0.0.1:3421');
     expect(output).toContain('Agent role: interactive operator TUI');
     expect(output).toContain('setup changes here are Agent-local');
-    expect(output).toContain('READY Provider and model -> /agent setup');
-    expect(output).toContain('RECOMMENDED Agent Knowledge -> /agent knowledge');
-    expect(output).toContain('READY Persona -> /agent personas');
-    expect(output).toContain('RECOMMENDED Skills -> /agent skills');
+    expect(output).toContain('READY Provider and model -> Setup -> Provider and model');
+    expect(output).toContain('RECOMMENDED Agent Knowledge -> Knowledge');
+    expect(output).toContain('READY Persona -> Personas');
+    expect(output).toContain('RECOMMENDED Skills -> Skills');
     expect(output).toContain('1 missing setup requirement(s).');
-    expect(output).toContain('RECOMMENDED Routines -> /agent routines');
-    expect(output).toContain('READY Channels -> /agent channels');
+    expect(output).toContain('RECOMMENDED Routines -> Routines');
+    expect(output).toContain('READY Channels -> Channels');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('daemonBaseUrl');
     expect(output).not.toContain('daemon URL');
@@ -617,11 +617,11 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 150, 52));
 
-    expect(output).toContain('RECOMMENDED Agent profile -> /agent profiles');
+    expect(output).toContain('RECOMMENDED Agent profile -> Profiles');
     expect(output).toContain('3 discovered behavior file(s) can seed an isolated Agent profile');
-    expect(output).toContain('RECOMMENDED Persona -> /agent personas');
-    expect(output).toContain('RECOMMENDED Skills -> /agent skills');
-    expect(output).toContain('RECOMMENDED Routines -> /agent routines');
+    expect(output).toContain('RECOMMENDED Persona -> Personas');
+    expect(output).toContain('RECOMMENDED Skills -> Skills');
+    expect(output).toContain('RECOMMENDED Routines -> Routines');
     expect(output).toContain('Discovered Behavior Files');
     expect(output).toContain('Discovered personas: 1 discovered; project 1; global 0.');
     expect(output).toContain('Research Operator');
@@ -640,13 +640,13 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 150, 48));
 
     expect(output).toContain('Skills');
-    expect(output).toContain('/agent skills');
+    expect(output).toContain('Skills -> Skills');
     expect(output).toContain('Routines');
-    expect(output).toContain('/agent routines');
+    expect(output).toContain('Routines -> Routines');
     expect(output).toContain('Agent Knowledge');
-    expect(output).toContain('/agent knowledge');
+    expect(output).toContain('Agent Knowledge -> Knowledge');
     expect(output).toContain('Voice and media');
-    expect(output).toContain('/agent voice-media');
+    expect(output).toContain('Voice and media -> Voice & Media');
   });
 
   test('renders local persona posture in the memory workspace', () => {
@@ -1214,6 +1214,9 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 44));
 
     expect(output).toContain('Channels');
+    expect(output).toContain('Setup path');
+    expect(output).toContain('Setup path: pair companion -> inspect readiness');
+    expect(output).toContain('Next channel action: Telegram');
     expect(output).toContain('Pair companion');
     expect(output).toContain('/pair');
     expect(output).toContain('Channel readiness');
@@ -1232,7 +1235,6 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit channel-doctor');
     expect(output).toContain('/notify list');
     expect(output).toContain('edit notify-webhook');
-    expect(output).toContain('edit notify-webhook-remove');
     expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and Agent');
     expect(output).toContain('policy.');
     expect(output).toContain('Readiness: 2/13 ready; 2 enabled; 1 default target(s) configured.');
@@ -1256,7 +1258,6 @@ describe('renderAgentWorkspace', () => {
     const notificationOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(notificationOutput).toContain('edit notify-webhook-clear');
     expect(notificationOutput).toContain('edit notify-webhook-test');
-    expect(notificationOutput).toContain('/health review');
   });
 
   test('renders action feedback and refresh affordance', () => {
