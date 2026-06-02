@@ -64,10 +64,12 @@ afterEach(() => {
 
 describe('Agent Knowledge CLI route isolation', () => {
   test('implementation does not invoke default knowledge ingest operator method from the CLI', () => {
-    const source = readFileSync(join(process.cwd(), 'src/cli/agent-knowledge-command.ts'), 'utf-8');
-    expect(source).toContain("@pellux/goodvibes-sdk/browser/agent");
-    expect(source).not.toContain("operator.invoke('knowledge.ingest.url'");
-    expect(source).toContain('/api/goodvibes-agent/knowledge/ingest/url');
+    const commandSource = readFileSync(join(process.cwd(), 'src/cli/agent-knowledge-command.ts'), 'utf-8');
+    const runtimeSource = readFileSync(join(process.cwd(), 'src/cli/agent-knowledge-runtime.ts'), 'utf-8');
+    const methodsSource = readFileSync(join(process.cwd(), 'src/cli/agent-knowledge-methods.ts'), 'utf-8');
+    expect(runtimeSource).toContain("@pellux/goodvibes-sdk/browser/agent");
+    expect(`${commandSource}\n${runtimeSource}`).not.toContain("operator.invoke('knowledge.ingest.url'");
+    expect(methodsSource).toContain('/api/goodvibes-agent/knowledge/ingest/url');
   });
 
   test('ingest-url uses the Agent Knowledge route and never the default wiki path', async () => {

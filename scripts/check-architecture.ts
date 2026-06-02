@@ -276,12 +276,12 @@ const requiredSnippets: Array<{ file: string; snippets: readonly string[]; messa
     message: 'slash-command Knowledge API must be backed by isolated Agent Knowledge',
   },
   {
-    file: 'src/cli/agent-knowledge-command.ts',
+    file: 'src/cli/agent-knowledge-runtime.ts',
     snippets: ['@pellux/goodvibes-sdk/browser/agent'],
     message: 'CLI Knowledge commands must use the isolated browser/agent SDK seam',
   },
   {
-    file: 'src/cli/agent-knowledge-command.ts',
+    file: 'src/cli/agent-knowledge-methods.ts',
     snippets: ['/api/goodvibes-agent/knowledge/status'],
     message: 'CLI Knowledge commands must target Agent-specific daemon routes',
   },

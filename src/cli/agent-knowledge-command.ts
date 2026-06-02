@@ -1,10 +1,17 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { createBrowserAgentSdk } from '@pellux/goodvibes-sdk/browser/agent';
-import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
-import { SDK_VERSION, VERSION } from '../version.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
+import {
+  commandValues,
+  delegationTaskValues,
+  hasFlag,
+  parseConnectorInput,
+  readFirstStringList,
+  readOptionValue,
+  readPositiveInt,
+  readSinceMs,
+  readStringList,
+  stripCommandFlag,
+} from './agent-knowledge-args.ts';
 import {
   formatAsk,
   formatBatchIngest,
@@ -20,402 +27,27 @@ import {
   formatSearch,
   formatStatus,
 } from './agent-knowledge-format.ts';
+import { AGENT_KNOWLEDGE_METHODS, DELEGATION_METHOD } from './agent-knowledge-methods.ts';
+import {
+  createAgentSdk,
+  fetchDaemonStatus,
+  findDisallowedKnowledgeScopeFlag,
+  formatScopeFlagRejection,
+  getAgentKnowledgeJson,
+  isRecord,
+  postAgentKnowledgeJson,
+  readPackageMetadata,
+  readString,
+  resolveDaemonConnection,
+  runKnowledgeCall,
+} from './agent-knowledge-runtime.ts';
 import { formatJsonOrText, yesNo } from './management.ts';
-
-type JsonRecord = Record<string, unknown>;
-
-interface AgentDaemonConnection {
-  readonly baseUrl: string;
-  readonly token: string | null;
-  readonly tokenPath: string;
-}
-
-interface AgentKnowledgeFailure {
-  readonly ok: false;
-  readonly kind: 'daemon_unavailable' | 'auth_required' | 'version_mismatch' | 'daemon_route_unavailable' | 'daemon_error';
-  readonly error: string;
-  readonly baseUrl: string;
-  readonly route: string;
-  readonly daemonVersion?: string;
-  readonly expectedSdkVersion?: string;
-}
-
-interface AgentKnowledgeSuccess<TData> {
-  readonly ok: true;
-  readonly kind: string;
-  readonly route: string;
-  readonly data: TData;
-}
-
-type AgentKnowledgeResult<TData> = AgentKnowledgeSuccess<TData> | AgentKnowledgeFailure;
-
-interface DaemonCallMethod {
-  readonly kind: string;
-  readonly route: string;
-}
-
-const AGENT_KNOWLEDGE_METHODS = {
-  status: {
-    kind: 'agentKnowledge.status',
-    route: '/api/goodvibes-agent/knowledge/status',
-  },
-  ask: {
-    kind: 'agentKnowledge.ask',
-    route: '/api/goodvibes-agent/knowledge/ask',
-  },
-  search: {
-    kind: 'agentKnowledge.search',
-    route: '/api/goodvibes-agent/knowledge/search',
-  },
-  sourcesList: {
-    kind: 'agentKnowledge.sources.list',
-    route: '/api/goodvibes-agent/knowledge/sources',
-  },
-  nodesList: {
-    kind: 'agentKnowledge.nodes.list',
-    route: '/api/goodvibes-agent/knowledge/nodes',
-  },
-  issuesList: {
-    kind: 'agentKnowledge.issues.list',
-    route: '/api/goodvibes-agent/knowledge/issues',
-  },
-  itemGet: {
-    kind: 'agentKnowledge.item.get',
-    route: '/api/goodvibes-agent/knowledge/items/{id}',
-  },
-  map: {
-    kind: 'agentKnowledge.map',
-    route: '/api/goodvibes-agent/knowledge/map',
-  },
-  connectorsList: {
-    kind: 'agentKnowledge.connectors.list',
-    route: '/api/goodvibes-agent/knowledge/connectors',
-  },
-  connectorGet: {
-    kind: 'agentKnowledge.connector.get',
-    route: '/api/goodvibes-agent/knowledge/connectors/{id}',
-  },
-  connectorDoctor: {
-    kind: 'agentKnowledge.connector.doctor',
-    route: '/api/goodvibes-agent/knowledge/connectors/{id}/doctor',
-  },
-  ingestUrl: {
-    kind: 'agentKnowledge.ingest.url',
-    route: '/api/goodvibes-agent/knowledge/ingest/url',
-  },
-  ingestArtifact: {
-    kind: 'agentKnowledge.ingest.artifact',
-    route: '/api/goodvibes-agent/knowledge/ingest/artifact',
-  },
-  ingestUrls: {
-    kind: 'agentKnowledge.ingest.urls',
-    route: '/api/goodvibes-agent/knowledge/ingest/urls',
-  },
-  ingestBookmarks: {
-    kind: 'agentKnowledge.ingest.bookmarks',
-    route: '/api/goodvibes-agent/knowledge/ingest/bookmarks',
-  },
-  ingestBrowserHistory: {
-    kind: 'agentKnowledge.ingest.browserHistory',
-    route: '/api/goodvibes-agent/knowledge/ingest/browser-history',
-  },
-  ingestConnector: {
-    kind: 'agentKnowledge.ingest.connector',
-    route: '/api/goodvibes-agent/knowledge/ingest/connector',
-  },
-  reindex: {
-    kind: 'agentKnowledge.reindex',
-    route: '/api/goodvibes-agent/knowledge/reindex',
-  },
-} as const;
-
-const DELEGATION_METHOD = {
-  kind: 'sessions.messages.create',
-  route: 'sessions.messages.create',
-} as const;
 
 interface DelegationResult {
   readonly sessionId: string;
   readonly message: unknown;
   readonly task: string;
   readonly wrfcRequested: boolean;
-}
-
-function isRecord(value: unknown): value is JsonRecord {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function readString(record: JsonRecord | null, key: string): string | null {
-  const value = record?.[key];
-  return typeof value === 'string' ? value : null;
-}
-
-function commandValues(args: readonly string[]): string[] {
-  const values: string[] = [];
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index]!;
-    if (!token.startsWith('--')) {
-      values.push(token);
-      continue;
-    }
-    if (!token.includes('=') && args[index + 1] && !args[index + 1]!.startsWith('--')) index += 1;
-  }
-  return values;
-}
-
-function delegationTaskValues(args: readonly string[]): string[] {
-  const values: string[] = [];
-  for (const token of args) {
-    if (token === '--wrfc') continue;
-    if (!token.startsWith('--')) values.push(token);
-  }
-  return values;
-}
-
-function readOptionValue(args: readonly string[], name: string): string | undefined {
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index]!;
-    if (token === name) {
-      const next = args[index + 1];
-      return next && !next.startsWith('--') ? next : undefined;
-    }
-    if (token.startsWith(`${name}=`)) return token.slice(name.length + 1);
-  }
-  return undefined;
-}
-
-function readPositiveInt(args: readonly string[], name: string, fallback: number): number {
-  const raw = readOptionValue(args, name);
-  if (!raw) return fallback;
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function readStringList(args: readonly string[], name: string): readonly string[] {
-  const raw = readOptionValue(args, name);
-  if (!raw) return [];
-  return raw.split(',').map((entry) => entry.trim()).filter(Boolean);
-}
-
-function readFirstStringList(args: readonly string[], names: readonly string[]): readonly string[] {
-  for (const name of names) {
-    const values = readStringList(args, name);
-    if (values.length > 0) return values;
-  }
-  return [];
-}
-
-function readSinceMs(args: readonly string[]): number | undefined {
-  const days = readOptionValue(args, '--since-days');
-  if (!days) return undefined;
-  const parsed = Number.parseInt(days, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
-  return Date.now() - parsed * 24 * 60 * 60 * 1000;
-}
-
-function parseConnectorInput(value: string | undefined): unknown {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    try {
-      return JSON.parse(trimmed) as unknown;
-    } catch {
-      return trimmed;
-    }
-  }
-  return trimmed;
-}
-
-function hasFlag(args: readonly string[], flag: string): boolean {
-  return args.includes(flag);
-}
-
-function stripCommandFlag(args: readonly string[], flag: string): { readonly rest: readonly string[]; readonly present: boolean } {
-  const rest: string[] = [];
-  let present = false;
-  for (const arg of args) {
-    if (arg === flag) {
-      present = true;
-      continue;
-    }
-    rest.push(arg);
-  }
-  return { rest, present };
-}
-
-function readPackageMetadata(): { readonly version: string; readonly sdkVersion: string } {
-  return { version: VERSION, sdkVersion: SDK_VERSION };
-}
-
-function resolveDaemonConnection(runtime: CliCommandRuntime): AgentDaemonConnection {
-  const host = String(runtime.configManager.get('controlPlane.host') ?? '127.0.0.1');
-  const port = Number(runtime.configManager.get('controlPlane.port') ?? 3421);
-  const baseUrl = `http://${host}:${Number.isFinite(port) ? port : 3421}`;
-  const tokenPath = join(runtime.homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
-  if (!existsSync(tokenPath)) return { baseUrl, token: null, tokenPath };
-  try {
-    const parsed = JSON.parse(readFileSync(tokenPath, 'utf-8')) as unknown;
-    const token = isRecord(parsed) && typeof parsed.token === 'string' ? parsed.token : null;
-    return { baseUrl, token, tokenPath };
-  } catch {
-    return { baseUrl, token: null, tokenPath };
-  }
-}
-
-async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{ readonly ok: boolean; readonly status: number; readonly body: unknown }> {
-  try {
-    const response = await fetch(`${connection.baseUrl}/status`, {
-      headers: connection.token ? { authorization: `Bearer ${connection.token}` } : undefined,
-    });
-    const text = await response.text();
-    let body: unknown = text;
-    try {
-      body = JSON.parse(text) as unknown;
-    } catch {
-      body = text;
-    }
-    return { ok: response.ok, status: response.status, body };
-  } catch (error) {
-    return { ok: false, status: 0, body: summarizeError(error) };
-  }
-}
-
-async function classifyKnowledgeError(error: unknown, connection: AgentDaemonConnection, route: string): Promise<AgentKnowledgeFailure> {
-  const message = summarizeError(error);
-  const lower = message.toLowerCase();
-  if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('auth')) {
-    return { ok: false, kind: 'auth_required', error: message, baseUrl: connection.baseUrl, route };
-  }
-  if (lower.includes('404') || lower.includes('not found')) {
-    const metadata = readPackageMetadata();
-    const daemon = await fetchDaemonStatus(connection);
-    const daemonRecord = isRecord(daemon.body) ? daemon.body : {};
-    const daemonVersion = readString(daemonRecord, 'version') ?? 'unknown';
-    if (daemon.ok && daemonVersion !== metadata.sdkVersion) {
-      return {
-        ok: false,
-        kind: 'version_mismatch',
-        error: `Connected GoodVibes service SDK version ${daemonVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
-        baseUrl: connection.baseUrl,
-        route,
-        daemonVersion,
-        expectedSdkVersion: metadata.sdkVersion,
-      };
-    }
-    return { ok: false, kind: 'daemon_route_unavailable', error: message, baseUrl: connection.baseUrl, route };
-  }
-  if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
-    return { ok: false, kind: 'daemon_unavailable', error: message, baseUrl: connection.baseUrl, route };
-  }
-  return { ok: false, kind: 'daemon_error', error: message, baseUrl: connection.baseUrl, route };
-}
-
-function createAgentSdk(connection: AgentDaemonConnection) {
-  return createBrowserAgentSdk({
-    baseUrl: connection.baseUrl,
-    authToken: connection.token,
-  });
-}
-
-async function postAgentKnowledgeJson<TData>(
-  connection: AgentDaemonConnection,
-  route: string,
-  body: JsonRecord,
-): Promise<TData> {
-  const response = await fetch(`${connection.baseUrl}${route}`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${connection.token ?? ''}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-  const text = await response.text();
-  let parsed: unknown = text;
-  if (text.trim()) {
-    try {
-      parsed = JSON.parse(text) as unknown;
-    } catch {
-      parsed = text;
-    }
-  }
-  if (!response.ok) {
-    const detail = isRecord(parsed) && typeof parsed.error === 'string' ? parsed.error : text;
-    throw new Error(`HTTP ${response.status} ${response.statusText}${detail ? `: ${detail}` : ''}`);
-  }
-  return parsed as TData;
-}
-
-function queryRoute(route: string, query: JsonRecord): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value === undefined || value === null || value === '') continue;
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (typeof item === 'string' && item.trim().length > 0) params.append(key, item);
-      }
-      continue;
-    }
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      params.set(key, String(value));
-    }
-  }
-  const suffix = params.toString();
-  return suffix ? `${route}?${suffix}` : route;
-}
-
-async function getAgentKnowledgeJson<TData>(
-  connection: AgentDaemonConnection,
-  route: string,
-  query: JsonRecord = {},
-): Promise<TData> {
-  const response = await fetch(`${connection.baseUrl}${queryRoute(route, query)}`, {
-    headers: {
-      authorization: `Bearer ${connection.token ?? ''}`,
-    },
-  });
-  const text = await response.text();
-  let parsed: unknown = text;
-  if (text.trim()) {
-    try {
-      parsed = JSON.parse(text) as unknown;
-    } catch {
-      parsed = text;
-    }
-  }
-  if (!response.ok) {
-    const detail = isRecord(parsed) && typeof parsed.error === 'string' ? parsed.error : text;
-    throw new Error(`HTTP ${response.status} ${response.statusText}${detail ? `: ${detail}` : ''}`);
-  }
-  return parsed as TData;
-}
-
-function findDisallowedKnowledgeScopeFlag(args: readonly string[]): string | null {
-  const disallowed = [
-    '--space',
-    '--knowledge-space',
-    '--knowledge-space-id',
-    ['--knowledge', 'SpaceId'].join(''),
-    '--include-all-spaces',
-    ['--include', 'AllSpaces'].join(''),
-    ['--home', 'graph'].join(''),
-    ['--home', '-graph'].join(''),
-  ];
-  for (const token of args) {
-    for (const flag of disallowed) {
-      if (token === flag || token.startsWith(`${flag}=`)) return flag;
-    }
-  }
-  return null;
-}
-
-function formatScopeFlagRejection(flag: string): string {
-  return [
-    `Agent Knowledge is isolated; ${flag} is not accepted.`,
-    'GoodVibes Agent must not use default Knowledge/Wiki or non-Agent product spaces.',
-    'Use only /api/goodvibes-agent/knowledge/* Agent-owned routes.',
-  ].join('\n');
 }
 
 function buildDelegationBody(task: string, wrfcRequested: boolean): string {
@@ -433,29 +65,6 @@ function buildDelegationBody(task: string, wrfcRequested: boolean): string {
       ? '- WRFC was explicitly requested by the Agent user for this build/fix/review delegation.'
       : '- WRFC was not explicitly requested; do not turn this into WRFC solely because it came from Agent.',
   ].join('\n');
-}
-
-async function runKnowledgeCall<TData>(
-  runtime: CliCommandRuntime,
-  method: DaemonCallMethod,
-  call: (connection: AgentDaemonConnection) => Promise<TData>,
-): Promise<AgentKnowledgeResult<TData>> {
-  const connection = resolveDaemonConnection(runtime);
-  if (!connection.token) {
-    return {
-      ok: false,
-      kind: 'auth_required',
-      error: `No runtime operator token found at ${connection.tokenPath}`,
-      baseUrl: connection.baseUrl,
-      route: method.route,
-    };
-  }
-  try {
-    const data = await call(connection);
-    return { ok: true, kind: method.kind, route: method.route, data };
-  } catch (error) {
-    return classifyKnowledgeError(error, connection, method.route);
-  }
 }
 
 export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
