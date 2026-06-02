@@ -131,6 +131,31 @@ describe('knowledgeCommand', () => {
     memoryRegistry = new MemoryRegistry(memoryStore);
   });
 
+  test('opens Agent Knowledge workspace by default instead of copied panels or fallback APIs', async () => {
+    const opened: string[] = [];
+    const context = {
+      print: (text: string) => { printed.push(text); },
+      openAgentWorkspace: (categoryId?: string) => { opened.push(categoryId ?? ''); },
+      openKnowledgePanel: () => {
+        throw new Error('copied knowledge panel must not open');
+      },
+      clients: {
+        knowledgeApi: {
+          status: {
+            get: () => {
+              throw new Error('default knowledge API must not be called');
+            },
+          },
+        },
+      },
+    } as unknown as CommandContext;
+
+    await knowledgeCommand.handler([], context);
+
+    expect(opened).toEqual(['knowledge']);
+    expect(printed).toEqual([]);
+  });
+
   test('ingests a URL and renders a packet', async () => {
     const artifactStore = new ArtifactStore({
       configManager: {

@@ -203,12 +203,12 @@ export const knowledgeCommand: SlashCommand = {
   usage: '<subcommand> [args]',
   argsHint: 'status|ask|ingest-url --yes|ingest-file --yes|import-bookmarks --yes|list|search|get|queue|review-issue --yes',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
-    const knowledge = requireAgentKnowledgeApi(context);
-    if (!knowledge) {
+    if (args.length === 0 && context.openAgentWorkspace) {
+      context.openAgentWorkspace('knowledge');
       return;
     }
-    if (args.length === 0 && context.openKnowledgePanel) {
-      context.openKnowledgePanel();
+    const knowledge = requireAgentKnowledgeApi(context);
+    if (!knowledge) {
       return;
     }
     const sub = (args[0] ?? 'status').toLowerCase();
