@@ -30,6 +30,7 @@ export type AgentWorkspaceEditorKind =
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'skill-discovery-import'
+  | 'learned-behavior'
   | 'profile-template-export'
   | 'profile-template-import'
   | 'profile-template-from-discovered'

@@ -82,6 +82,8 @@ Profiles isolate Agent-local config, sessions, local memory, personas, skills, r
 
 The same local behavior libraries are available without opening the TUI: `goodvibes-agent personas ...`, `goodvibes-agent skills ...`, `goodvibes-agent memory ...`, and `goodvibes-agent routines ...` list, create, review, enable, stale, export/import where relevant, and delete local Agent records with explicit confirmation for destructive actions.
 
+The Agent workspace also has a `Capture learned behavior` form. Use it after reviewing a repeated workflow, lesson, or operating style; it saves one local skill, routine, or persona directly from the TUI and does not write to connected-host routes or non-Agent knowledge.
+
 Local Agent behavior is editable from the TUI:
 
 ```text

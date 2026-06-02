@@ -90,6 +90,8 @@ Named profiles isolate Agent-local config, sessions, memory, personas, skills, r
 
 Memory, personas, routines, and reusable Agent skills are local to GoodVibes Agent. They do not write into default Knowledge/Wiki or non-Agent knowledge segments.
 
+Use `Capture learned behavior` in the Agent workspace after reviewing a repeated workflow, lesson, or operating style. It saves one local skill, routine, or persona from the TUI and does not call connected-host mutation routes.
+
 ```text
 /personas list
 /personas create --name Research --description "Source-backed research" --body "Check sources, call out uncertainty, keep answers concise."

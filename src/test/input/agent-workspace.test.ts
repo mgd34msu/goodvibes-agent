@@ -36,6 +36,12 @@ function feedKey(workspace: AgentWorkspace, logicalName: string): void {
   feedWorkspaceToken(workspace, { type: 'key', logicalName, ctrl: false, shift: false, meta: false });
 }
 
+function clearEditorField(workspace: AgentWorkspace): void {
+  while (workspace.localEditor?.fields[workspace.localEditor.selectedFieldIndex]?.value) {
+    feedKey(workspace, 'backspace');
+  }
+}
+
 function commandContext(calls: string[] = []): CommandContext {
   return {
     executeCommand: async (name: string, args: string[]) => {
@@ -569,6 +575,123 @@ describe('AgentWorkspace', () => {
     expect(personaSnapshot.activePersona?.name).toBe('Research Analyst');
     expect(workspace.lastActionResult?.title).toBe('Created persona');
     expect(dispatched).toEqual([]);
+  });
+
+  test('captures learned behavior as local skill routine or persona without dispatching commands', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-learned-behavior-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, (command) => dispatched.push(command));
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'learned-behavior');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('learned-behavior');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Meeting Followup');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Follow up after meetings.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Capture decisions, owners, due dates, and unanswered questions.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'meeting,followup');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'learned,ops');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    const skill = AgentSkillRegistry.fromShellPaths(shellPaths).get('meeting-followup');
+    expect(skill?.enabled).toBe(true);
+    expect(skill?.source).toBe('agent');
+    expect(skill?.provenance).toBe('agent-workspace-learned-behavior');
+    expect(skill?.procedure).toContain('Capture decisions');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'home');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'learned-behavior-home');
+    workspace.activateSelected();
+    clearEditorField(workspace);
+    feedText(workspace, 'routine');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Weekly Reset');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Review open loops weekly.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Review tasks, stale memory, approvals, and local routines.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'weekly,reset');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'learned,review');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    const routine = AgentRoutineRegistry.fromShellPaths(shellPaths).get('weekly-reset');
+    expect(routine?.enabled).toBe(true);
+    expect(routine?.source).toBe('agent');
+    expect(routine?.provenance).toBe('agent-workspace-learned-behavior');
+    expect(routine?.steps).toContain('stale memory');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'learned-behavior');
+    workspace.activateSelected();
+    clearEditorField(workspace);
+    feedText(workspace, 'persona');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Concise Operator');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Prefer short action-first replies.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Answer with status first, then actions.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'status,concise');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'learned,style');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    const personaSnapshot = AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot();
+    expect(personaSnapshot.activePersona?.name).toBe('Concise Operator');
+    expect(personaSnapshot.activePersona?.source).toBe('agent');
+    expect(personaSnapshot.activePersona?.provenance).toBe('agent-workspace-learned-behavior');
+    expect(personaSnapshot.activePersona?.body).toContain('status first');
+    expect(dispatched).toEqual([]);
+  });
+
+  test('rejects learned behavior target outside local behavior registries', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-learned-reject-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'learned-behavior');
+
+    workspace.activateSelected();
+    clearEditorField(workspace);
+    feedText(workspace, 'habit');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Bad Target');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Should not save.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Do not create records for unsupported targets.');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    expect(workspace.localEditor?.kind).toBe('learned-behavior');
+    expect(workspace.localEditor?.message).toBe('Behavior type must be skill, routine, or persona.');
+    expect(AgentSkillRegistry.fromShellPaths(shellPaths).snapshot().skills).toHaveLength(0);
+    expect(AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot().routines).toHaveLength(0);
+    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot().personas).toHaveLength(0);
   });
 
   test('creates skill bundles from an in-workspace form with concrete skill ids', () => {

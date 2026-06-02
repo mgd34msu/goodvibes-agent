@@ -1,4 +1,4 @@
-import { createLocalEditor, createProfileEditor } from './agent-workspace-editors.ts';
+import { createLearnedBehaviorEditor, createLocalEditor, createProfileEditor } from './agent-workspace-editors.ts';
 import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
 import { createReminderScheduleEditor } from './agent-workspace-reminder-schedule-editor.ts';
@@ -134,6 +134,7 @@ function createWorkspaceEditor(
   editorKind: AgentWorkspaceCategory['actions'][number]['editorKind'],
 ): AgentWorkspaceLocalEditor {
   if (editorKind === 'profile') return createProfileEditor(workspace.runtimeSnapshot?.runtimeStarterTemplates ?? []);
+  if (editorKind === 'learned-behavior') return createLearnedBehaviorEditor();
   if (editorKind && isAgentWorkspaceBasicCommandEditorKind(editorKind)) return createAgentWorkspaceBasicCommandEditor(editorKind);
   if (editorKind === 'knowledge-ask') return createAgentKnowledgeQueryEditor('ask');
   if (editorKind === 'knowledge-search') return createAgentKnowledgeQueryEditor('search');

@@ -432,6 +432,12 @@ export class AgentWorkspace {
     return memory;
   }
 
+  private learnedBehaviorTarget(): Exclude<AgentWorkspaceLocalEditorKind, 'memory' | 'profile'> {
+    const target = this.editorField('target').trim().toLowerCase();
+    if (target === 'persona' || target === 'skill' || target === 'routine') return target;
+    throw new Error('Behavior type must be skill, routine, or persona.');
+  }
+
   private finishLocalOperation(kind: AgentWorkspaceLocalEditorKind, title: string, detail: string): void {
     this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
     this.clampLocalLibrarySelection(kind);
@@ -528,7 +534,55 @@ export class AgentWorkspace {
         this.submitLocalDeleteEditor(shellPaths, editor);
         return;
       }
-      if (editor.kind === 'profile') {
+      if (editor.kind === 'learned-behavior') {
+        const target = this.learnedBehaviorTarget();
+        const name = this.editorField('name');
+        const description = this.editorField('description');
+        const notes = this.editorField('notes');
+        const tags = splitList(this.editorField('tags'));
+        const triggers = splitList(this.editorField('triggers'));
+        const enable = isAffirmative(this.editorField('enable'));
+        if (target === 'persona') {
+          const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
+          const created = registry.create({
+            name,
+            description,
+            body: notes,
+            tags,
+            triggers,
+            source: 'agent',
+            provenance: 'agent-workspace-learned-behavior',
+          });
+          if (enable) registry.setActive(created.id);
+          this.finishLocalEditor('persona', created.id, created.name, 'Created');
+          return;
+        }
+        if (target === 'skill') {
+          const created = AgentSkillRegistry.fromShellPaths(shellPaths).create({
+            name,
+            description,
+            procedure: notes,
+            tags,
+            triggers,
+            enabled: enable,
+            source: 'agent',
+            provenance: 'agent-workspace-learned-behavior',
+          });
+          this.finishLocalEditor('skill', created.id, created.name, 'Created');
+          return;
+        }
+        const created = AgentRoutineRegistry.fromShellPaths(shellPaths).create({
+          name,
+          description,
+          steps: notes,
+          tags,
+          triggers,
+          enabled: enable,
+          source: 'agent',
+          provenance: 'agent-workspace-learned-behavior',
+        });
+        this.finishLocalEditor('routine', created.id, created.name, 'Created');
+      } else if (editor.kind === 'profile') {
         const template = this.editorField('template');
         const templateId = template && template.toLowerCase() !== 'none' ? template : undefined;
         const profile = createAgentRuntimeProfile(shellPaths.homeDirectory, this.editorField('name'), {

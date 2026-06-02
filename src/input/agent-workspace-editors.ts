@@ -30,6 +30,25 @@ export function createProfileEditor(templates: readonly AgentWorkspaceRuntimeSta
   };
 }
 
+export function createLearnedBehaviorEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'learned-behavior',
+    mode: 'create',
+    title: 'Capture Learned Behavior',
+    selectedFieldIndex: 0,
+    message: 'Turn a reviewed workflow or lesson into local Agent behavior. This writes only to local personas, skills, or routines.',
+    fields: [
+      { id: 'target', label: 'Behavior type', value: 'skill', required: true, multiline: false, hint: 'skill, routine, or persona.' },
+      { id: 'name', label: 'Name', value: '', required: true, multiline: false, hint: 'Short name for the learned behavior.' },
+      { id: 'description', label: 'Description', value: '', required: true, multiline: false, hint: 'One-line summary of when to use it.' },
+      { id: 'notes', label: 'Lesson or workflow', value: '', required: true, multiline: true, hint: 'Paste the procedure, persona guidance, or repeatable workflow. Ctrl-J inserts a new line.' },
+      { id: 'triggers', label: 'Triggers', value: '', required: false, multiline: false, hint: 'Comma-separated words that suggest this behavior.' },
+      { id: 'tags', label: 'Tags', value: 'learned', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+      { id: 'enable', label: 'Enable or activate', value: 'yes', required: false, multiline: false, hint: 'yes/no. Skills and routines enable; personas activate.' },
+    ],
+  };
+}
+
 export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind | 'knowledge-url'): AgentWorkspaceLocalEditor {
   if (kind === 'profile') return createProfileEditor([]);
   if (kind === 'knowledge-url') {
