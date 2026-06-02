@@ -603,7 +603,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 34));
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
 
     expect(output).toContain('Local routines: 1; enabled: 1');
     expect(output).toContain('Local skills: 1; enabled: 1; bundles: 1; active skills: 1');
@@ -1040,19 +1040,28 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 34));
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
 
     expect(output).toContain('Channels');
     expect(output).toContain('Pair companion');
     expect(output).toContain('/pair');
     expect(output).toContain('Channel readiness');
     expect(output).toContain('/channels');
+    expect(output).toContain('Needs attention');
+    expect(output).toContain('/channels attention');
+    expect(output).toContain('Channel accounts');
+    expect(output).toContain('/channels accounts');
+    expect(output).toContain('Channel policies');
+    expect(output).toContain('/channels policies');
+    expect(output).toContain('Live channel status');
+    expect(output).toContain('/channels status');
+    expect(output).toContain('Show channel detail');
+    expect(output).toContain('edit channel-show');
+    expect(output).toContain('Run channel doctor');
+    expect(output).toContain('edit channel-doctor');
     expect(output).toContain('/notify list');
     expect(output).toContain('edit notify-webhook');
     expect(output).toContain('edit notify-webhook-remove');
-    expect(output).toContain('edit notify-webhook-clear');
-    expect(output).toContain('edit notify-webhook-test');
-    expect(output).toContain('/health review');
     expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and Agent');
     expect(output).toContain('policy.');
     expect(output).toContain('Readiness: 2/13 ready; 2 enabled; 1 default target(s) configured.');
@@ -1066,6 +1075,17 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('WhatsApp');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('TELEGRAM_BOT_TOKEN');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-setup');
+    const setupOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(setupOutput).toContain('Setup guidance');
+    expect(setupOutput).toContain('edit channel-setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-clear-webhooks');
+    const notificationOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(notificationOutput).toContain('edit notify-webhook-clear');
+    expect(notificationOutput).toContain('edit notify-webhook-test');
+    expect(notificationOutput).toContain('/health review');
   });
 
   test('renders action feedback and refresh affordance', () => {

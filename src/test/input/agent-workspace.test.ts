@@ -1685,6 +1685,39 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening notification webhook add');
   });
 
+  test('opens channel diagnostics from workspace forms without sending messages', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('channel-show');
+    feedText(workspace, 'telegram');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/channels show telegram');
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-doctor');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('channel-doctor');
+    feedText(workspace, 'slack');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/channels doctor slack');
+    expect(workspace.lastActionResult?.title).toBe('Opening channel doctor');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-setup');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('channel-setup');
+    feedText(workspace, 'discord');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/channels setup discord');
+
+    expect(dispatched).not.toContain('/channels send telegram');
+    expect(dispatched.join('\n')).not.toContain('/notify test');
+  });
+
   test('removes notification webhook targets from the workspace only after typed confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

@@ -1,5 +1,6 @@
 import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import { buildAgentWorkspaceAccessCommandEditorSubmission, isAgentWorkspaceAccessCommandSubmissionKind } from './agent-workspace-access-command-editor-submission.ts';
+import { buildAgentWorkspaceChannelCommandEditorSubmission, isAgentWorkspaceChannelCommandSubmissionKind } from './agent-workspace-channel-command-editor-submission.ts';
 import { buildAgentWorkspaceDelegationEditorSubmission, isAgentWorkspaceDelegationEditorKind } from './agent-workspace-delegation-editor-submission.ts';
 import { buildAgentWorkspaceKnowledgeCommandEditorSubmission, isAgentWorkspaceKnowledgeCommandSubmissionKind } from './agent-workspace-knowledge-command-editor-submission.ts';
 import { buildAgentWorkspaceMemoryCommandEditorSubmission, isAgentWorkspaceMemoryCommandSubmissionKind } from './agent-workspace-memory-command-editor-submission.ts';
@@ -217,6 +218,9 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
   }
   if (isAgentWorkspaceAccessCommandSubmissionKind(editor.kind)) {
     return buildAgentWorkspaceAccessCommandEditorSubmission(editor, readField);
+  }
+  if (isAgentWorkspaceChannelCommandSubmissionKind(editor.kind)) {
+    return buildAgentWorkspaceChannelCommandEditorSubmission(editor, readField);
   }
   if (isAgentWorkspaceKnowledgeCommandSubmissionKind(editor.kind)) {
     return buildAgentWorkspaceKnowledgeCommandEditorSubmission(editor, readField);
