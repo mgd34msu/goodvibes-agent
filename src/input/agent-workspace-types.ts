@@ -51,6 +51,10 @@ export type AgentWorkspaceEditorKind =
   | 'subscription-login-finish'
   | 'subscription-logout'
   | 'delegate-task'
+  | 'workplan-add'
+  | 'workplan-status'
+  | 'workplan-delete'
+  | 'workplan-clear-completed'
   | 'routine-schedule'
   | 'reminder-schedule';
 

@@ -47,6 +47,10 @@ type AgentWorkspaceCommandEditorKind = Extract<
   | 'subscription-login-finish'
   | 'subscription-logout'
   | 'delegate-task'
+  | 'workplan-add'
+  | 'workplan-status'
+  | 'workplan-delete'
+  | 'workplan-clear-completed'
 >;
 
 type AgentWorkspaceCommandEditorSubmission =

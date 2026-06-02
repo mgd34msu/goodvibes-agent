@@ -901,4 +901,21 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Confirm *');
     expect(output).toContain('editing delegate-task');
   });
+
+  test('renders work plan edit actions in the TUI workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
+
+    expect(output).toContain('Add work item');
+    expect(output).toContain('edit workplan-add');
+    expect(output).toContain('Update work item status');
+    expect(output).toContain('edit workplan-status');
+    expect(output).toContain('Remove work item');
+    expect(output).toContain('edit workplan-delete');
+    expect(output).toContain('Clear completed work');
+    expect(output).toContain('edit workplan-clear-completed');
+  });
 });

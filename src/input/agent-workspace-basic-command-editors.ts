@@ -9,6 +9,7 @@ export type AgentWorkspaceBasicCommandEditorKind = Extract<
   | 'support-bundle-export' | 'support-bundle-inspect' | 'support-bundle-import'
   | 'subscription-inspect' | 'subscription-login-start' | 'subscription-login-finish' | 'subscription-logout'
   | 'delegate-task'
+  | 'workplan-add' | 'workplan-status' | 'workplan-delete' | 'workplan-clear-completed'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
@@ -42,6 +43,10 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'subscription-login-finish'
     || kind === 'subscription-logout'
     || kind === 'delegate-task'
+    || kind === 'workplan-add'
+    || kind === 'workplan-status'
+    || kind === 'workplan-delete'
+    || kind === 'workplan-clear-completed'
     || kind === 'mcp-server'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
@@ -479,6 +484,59 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
         { id: 'task', label: 'Original task', value: '', required: true, multiline: true, hint: 'Paste the full original user ask. Ctrl-J inserts a new line.' },
         { id: 'wrfc', label: 'Request WRFC', value: '', required: false, multiline: false, hint: 'yes/no. Blank means no WRFC request.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /delegate for this task.' },
+      ],
+    };
+  }
+  if (kind === 'workplan-add') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Add Work Plan Item',
+      selectedFieldIndex: 0,
+      message: 'Create one visible work plan item from the Agent workspace.',
+      fields: [
+        { id: 'title', label: 'Title', value: '', required: true, multiline: true, hint: 'Task title. Ctrl-J inserts a new line.' },
+        { id: 'owner', label: 'Owner', value: '', required: false, multiline: false, hint: 'Optional owner label.' },
+        { id: 'source', label: 'Source', value: '', required: false, multiline: false, hint: 'Optional source label. Blank defaults to manual.' },
+        { id: 'notes', label: 'Notes', value: '', required: false, multiline: true, hint: 'Optional notes. Ctrl-J inserts a new line.' },
+      ],
+    };
+  }
+  if (kind === 'workplan-status') {
+    return {
+      kind,
+      mode: 'update',
+      title: 'Update Work Plan Status',
+      selectedFieldIndex: 0,
+      message: 'Update one visible work plan item status from the Agent workspace.',
+      fields: [
+        { id: 'id', label: 'Work item id', value: '', required: true, multiline: false, hint: 'Existing work plan item id.' },
+        { id: 'status', label: 'Status', value: '', required: true, multiline: false, hint: 'pending, start, blocked, done, failed, or cancelled.' },
+      ],
+    };
+  }
+  if (kind === 'workplan-delete') {
+    return {
+      kind,
+      mode: 'delete',
+      title: 'Remove Work Plan Item',
+      selectedFieldIndex: 0,
+      message: 'Remove one work plan item. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'id', label: 'Work item id', value: '', required: true, multiline: false, hint: 'Existing work plan item id.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /workplan remove with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'workplan-clear-completed') {
+    return {
+      kind,
+      mode: 'delete',
+      title: 'Clear Completed Work Plan Items',
+      selectedFieldIndex: 0,
+      message: 'Clear completed and cancelled work plan items. Type yes to confirm.',
+      fields: [
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /workplan clear-completed with --yes.' },
       ],
     };
   }

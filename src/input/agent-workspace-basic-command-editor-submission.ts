@@ -1,6 +1,7 @@
 import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import { buildAgentWorkspaceDelegationEditorSubmission, isAgentWorkspaceDelegationEditorKind } from './agent-workspace-delegation-editor-submission.ts';
 import { buildAgentWorkspaceSecretEditorSubmission, isAgentWorkspaceSecretEditorKind } from './agent-workspace-secret-editor-submission.ts';
+import { buildAgentWorkspaceWorkPlanEditorSubmission, isAgentWorkspaceWorkPlanEditorKind } from './agent-workspace-workplan-editor-submission.ts';
 import { quoteSlashCommandArg, tokenizeSlashCommand } from './slash-command-parser.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
@@ -667,6 +668,7 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
     };
   }
   if (isAgentWorkspaceDelegationEditorKind(editor.kind)) return buildAgentWorkspaceDelegationEditorSubmission(editor, readField);
+  if (isAgentWorkspaceWorkPlanEditorKind(editor.kind)) return buildAgentWorkspaceWorkPlanEditorSubmission(editor, readField);
   if (editor.kind === 'skill-discovery-import') {
     if (!isAffirmative(readField('confirm'))) {
       return {

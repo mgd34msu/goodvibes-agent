@@ -358,6 +358,10 @@ describe('AgentWorkspace', () => {
     expect(commands).not.toContain('/plan panel');
     expect(commands).not.toContain('/plan approve --yes');
     expect(commands).not.toContain('/approval open');
+    expect(workspace.actions.map((action) => action.id)).toContain('workplan-add');
+    expect(workspace.actions.map((action) => action.id)).toContain('workplan-status');
+    expect(workspace.actions.map((action) => action.id)).toContain('workplan-delete');
+    expect(workspace.actions.map((action) => action.id)).toContain('workplan-clear-completed');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'workplan');
     workspace.activateSelected();
@@ -394,6 +398,71 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/tasks list', '/sessions', '/approval matrix']);
     expect(workspace.status).toContain('/approval matrix');
+  });
+
+  test('creates and updates work plan items from TUI workspace forms', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'workplan-add');
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('workplan-add');
+    feedText(workspace, 'Follow up on Agent release blockers');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'agent');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'release');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Check TUI-first workspace coverage.');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/workplan add "Follow up on Agent release blockers" --owner agent --source release --notes "Check TUI-first workspace coverage."']);
+    expect(workspace.lastActionResult?.safety).toBe('safe');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'workplan-status');
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('workplan-status');
+    feedText(workspace, 'wp-123');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'blocked');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched.at(-1)).toBe('/workplan blocked wp-123');
+  });
+
+  test('requires confirmation before destructive work plan workspace actions', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'workplan-delete');
+    workspace.activateSelected();
+    feedText(workspace, 'wp-123');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/workplan remove wp-123 --yes']);
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'workplan-clear-completed');
+    workspace.activateSelected();
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched.at(-1)).toBe('/workplan clear-completed --yes');
   });
 
   test('opens local persona library workspace from memory', () => {
