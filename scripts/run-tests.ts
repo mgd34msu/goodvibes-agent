@@ -1,5 +1,5 @@
 import { mkdirSync, readdirSync, rmSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 
 const ROOT = process.cwd();
 const SEARCH_ROOT = join(ROOT, 'src');
@@ -31,45 +31,17 @@ if (testFiles.length === 0) {
   process.exit(1);
 }
 
-let passedFiles = 0;
-let failedFiles = 0;
-const failedTestFiles: string[] = [];
+console.log(`Test files: ${testFiles.length}`);
+const result = Bun.spawnSync(['bun', 'test', ...testFiles], {
+  cwd: ROOT,
+  env: {
+    ...process.env,
+    TMPDIR: TEST_TMP_ROOT,
+    TMP: TEST_TMP_ROOT,
+    TEMP: TEST_TMP_ROOT,
+  },
+  stdio: ['inherit', 'inherit', 'inherit'],
+});
 
-for (const testFile of testFiles) {
-  const rel = relative(ROOT, testFile);
-  const testTmpDir = join(
-    TEST_TMP_ROOT,
-    rel.replace(/[^a-z0-9_.-]+/gi, '-'),
-  );
-  rmSync(testTmpDir, { recursive: true, force: true });
-  mkdirSync(testTmpDir, { recursive: true });
-  console.log(`\n==> ${rel}`);
-  const result = Bun.spawnSync(['bun', 'test', testFile], {
-    cwd: ROOT,
-    env: {
-      ...process.env,
-      TMPDIR: testTmpDir,
-      TMP: testTmpDir,
-      TEMP: testTmpDir,
-    },
-    stdio: ['inherit', 'inherit', 'inherit'],
-  });
-  rmSync(testTmpDir, { recursive: true, force: true });
-
-  if (result.exitCode === 0) {
-    passedFiles += 1;
-    continue;
-  }
-
-  failedFiles += 1;
-  failedTestFiles.push(rel);
-}
-
-console.log(`\nTest files: ${testFiles.length}, passed: ${passedFiles}, failed: ${failedFiles}`);
-if (failedTestFiles.length > 0) {
-  console.log('Failed test files:');
-  for (const failedTestFile of failedTestFiles) {
-    console.log(`- ${failedTestFile}`);
-  }
-}
-process.exit(failedFiles === 0 ? 0 : 1);
+rmSync(TEST_TMP_ROOT, { recursive: true, force: true });
+process.exit(result.exitCode ?? 1);
