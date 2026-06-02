@@ -82,6 +82,24 @@ describe('/personas command', () => {
       'Collect destination, dates, budget, accessibility needs, and timing constraints.',
       'Produce options and ask before booking or messaging anyone.',
     ].join('\n'));
+    const copiedAgentDir = join(shellPaths.workingDirectory, '.goodvibes', 'agents', 'reviewer');
+    mkdirSync(copiedAgentDir, { recursive: true });
+    writeFileSync(join(copiedAgentDir, 'AGENT.md'), [
+      '---',
+      'name: Coding Reviewer',
+      'description: Copied coding agent file that must not become an Agent persona.',
+      '---',
+      'Review code and spawn fix work.',
+    ].join('\n'));
+    const legacyMarkerDir = join(shellPaths.workingDirectory, '.goodvibes', 'agent', 'personas', 'legacy-coding-agent');
+    mkdirSync(legacyMarkerDir, { recursive: true });
+    writeFileSync(join(legacyMarkerDir, 'AGENT.md'), [
+      '---',
+      'name: Legacy Coding Agent',
+      'description: Legacy marker that must not be treated as an Agent persona.',
+      '---',
+      'Act like a coding agent.',
+    ].join('\n'));
 
     await registry.execute('personas', ['discover'], ctx);
     await registry.execute('personas', ['import-discovered', 'Travel', 'Planner'], ctx);
@@ -93,6 +111,8 @@ describe('/personas command', () => {
     const text = out.join('\n');
     expect(text).toContain('Discovered Agent persona files (1)');
     expect(text).toContain('Travel Planner  project-local');
+    expect(text).not.toContain('Coding Reviewer');
+    expect(text).not.toContain('Legacy Coding Agent');
     expect(text).toContain('Agent persona import preview');
     expect(text).toContain('No local Agent personas yet');
     expect(text).toContain('Imported Agent persona travel-planner: Travel Planner (active)');

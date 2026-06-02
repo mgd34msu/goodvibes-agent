@@ -118,12 +118,34 @@ describe('local Agent library CLI commands', () => {
       'Do not book without explicit confirmation.',
       '',
     ].join('\n'));
+    const copiedAgentDir = join(home, '.goodvibes', 'agents', 'reviewer');
+    mkdirSync(copiedAgentDir, { recursive: true });
+    writeFileSync(join(copiedAgentDir, 'AGENT.md'), [
+      '---',
+      'name: Coding Reviewer',
+      'description: Copied coding agent file that must not become an Agent persona',
+      '---',
+      'Review code and spawn fix work.',
+      '',
+    ].join('\n'));
+    const legacyMarkerDir = join(home, '.goodvibes', 'agent', 'personas', 'legacy-coding-agent');
+    mkdirSync(legacyMarkerDir, { recursive: true });
+    writeFileSync(join(legacyMarkerDir, 'AGENT.md'), [
+      '---',
+      'name: Legacy Coding Agent',
+      'description: Legacy marker that must not be treated as an Agent persona',
+      '---',
+      'Act like a coding agent.',
+      '',
+    ].join('\n'));
 
     const discovered = await runCli(['personas', 'discover'], home);
     expect(discovered.exitCode).toBe(0);
     expect(discovered.output).toContain('Discovered Agent persona files (1)');
     expect(discovered.output).toContain('Travel Planner');
     expect(discovered.output).toContain('travel-planner/PERSONA.md');
+    expect(discovered.output).not.toContain('Coding Reviewer');
+    expect(discovered.output).not.toContain('Legacy Coding Agent');
 
     const discoveredJson = await runCli(['personas', 'discover', '--json'], home);
     const discoveredPayload = JSON.parse(discoveredJson.output) as {
@@ -133,6 +155,8 @@ describe('local Agent library CLI commands', () => {
     expect(discoveredPayload.kind).toBe('agent.personas.discover');
     expect(discoveredPayload.data?.personas?.[0]?.name).toBe('Travel Planner');
     expect(discoveredPayload.data?.personas?.[0]?.origin).toBe('project-local');
+    expect(discoveredPayload.data?.personas?.map((persona) => persona.name)).not.toContain('Coding Reviewer');
+    expect(discoveredPayload.data?.personas?.map((persona) => persona.name)).not.toContain('Legacy Coding Agent');
 
     const preview = await runCli(['personas', 'import-discovered', 'travel-planner'], home);
     expect(preview.exitCode).toBe(0);

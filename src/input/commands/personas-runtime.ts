@@ -93,7 +93,7 @@ function renderDiscoveredPersonas(personas: readonly DiscoveredPersonaRecord[]):
     return [
       'Discovered Agent persona files',
       '  No persona markdown files found in project/global Agent persona folders.',
-      '  Search roots: .goodvibes/personas, .goodvibes/agent/personas, .goodvibes/agents, ~/.goodvibes/personas, ~/.goodvibes/agent/personas, ~/.goodvibes/agents',
+      '  Search roots: .goodvibes/personas, .goodvibes/agent/personas, ~/.goodvibes/personas, ~/.goodvibes/agent/personas',
     ].join('\n');
   }
   return [

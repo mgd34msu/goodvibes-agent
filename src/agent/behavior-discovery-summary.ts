@@ -126,12 +126,10 @@ function definitions(shellPaths: Pick<ShellPathService, 'workingDirectory' | 'ho
     roots: [
       { root: join(cwd, '.goodvibes', 'personas'), origin: 'project-local' },
       { root: join(cwd, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'personas'), origin: 'project-local' },
-      { root: join(cwd, '.goodvibes', 'agents'), origin: 'project-local' },
       { root: join(homeDir, '.goodvibes', 'personas'), origin: 'global' },
       { root: join(homeDir, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'personas'), origin: 'global' },
-      { root: join(homeDir, '.goodvibes', 'agents'), origin: 'global' },
     ],
-    markers: ['PERSONA.md', 'persona.md', 'AGENT.md', 'agent.md'],
+    markers: ['PERSONA.md', 'persona.md'],
     frontmatterBodyKey: 'system_prompt',
   };
   const skills: DiscoveryKindDefinition = {

@@ -14,7 +14,7 @@ export interface DiscoveredPersonaRecord {
   readonly frontmatter: Record<string, string>;
 }
 
-const DIRECTORY_MARKERS: readonly string[] = ['PERSONA.md', 'persona.md', 'AGENT.md', 'agent.md'];
+const DIRECTORY_MARKERS: readonly string[] = ['PERSONA.md', 'persona.md'];
 
 function parseFrontmatter(content: string): Record<string, string> {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
@@ -33,10 +33,8 @@ function getPersonaDirectories(cwd: string, homeDir: string): Array<{ root: stri
   return [
     { root: join(cwd, '.goodvibes', 'personas'), origin: 'project-local' },
     { root: join(cwd, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'personas'), origin: 'project-local' },
-    { root: join(cwd, '.goodvibes', 'agents'), origin: 'project-local' },
     { root: join(homeDir, '.goodvibes', 'personas'), origin: 'global' },
     { root: join(homeDir, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'personas'), origin: 'global' },
-    { root: join(homeDir, '.goodvibes', 'agents'), origin: 'global' },
   ];
 }
 
