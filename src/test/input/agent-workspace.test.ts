@@ -2947,6 +2947,15 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'issue-1');
     feedKey(workspace, 'enter');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-map');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-map');
+    feedText(workspace, 'setup');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, '25');
+    feedKey(workspace, 'enter');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-issue');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('knowledge-review-issue');
@@ -2960,7 +2969,10 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
     feedText(workspace, 'no');
     feedKey(workspace, 'enter');
-    expect(dispatched).toEqual(['/knowledge get issue-1']);
+    expect(dispatched).toEqual([
+      '/knowledge get issue-1',
+      '/knowledge map setup --limit 25',
+    ]);
     expect(workspace.localEditor?.message).toContain('not confirmed');
     clearEditorField(workspace);
     feedText(workspace, 'yes');
@@ -2990,6 +3002,7 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual([
       '/knowledge get issue-1',
+      '/knowledge map setup --limit 25',
       '/knowledge review-issue issue-1 accept --reviewer agent --value "{\\"title\\":\\"Agent setup\\"}" --yes',
       '/knowledge packet "Prepare a setup brief" --scope docs --scope setup',
       '/knowledge explain "Explain setup memory"',

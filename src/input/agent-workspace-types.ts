@@ -23,6 +23,7 @@ export type AgentWorkspaceEditorKind =
   | 'knowledge-search'
   | 'knowledge-ask'
   | 'knowledge-get'
+  | 'knowledge-map'
   | 'knowledge-review-issue'
   | 'knowledge-consolidate'
   | 'knowledge-packet'

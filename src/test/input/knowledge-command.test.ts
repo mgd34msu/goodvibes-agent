@@ -463,6 +463,31 @@ describe('knowledgeCommand', () => {
     expect(knowledgeStore.getIssue('issue-1')?.status).toBe('resolved');
   });
 
+  test('maps Agent Knowledge through the isolated service map', async () => {
+    const artifactStore = new ArtifactStore({
+      rootDir: join(root, 'artifacts'),
+      sessionId: 'knowledge-test',
+    });
+    const knowledgeStore = new KnowledgeStore({
+      configManager: {
+        getControlPlaneConfigDir: () => root,
+      },
+    });
+    await memoryStore.init();
+    const knowledgeService = new KnowledgeService(knowledgeStore, artifactStore, undefined, { memoryRegistry });
+
+    await knowledgeCommand.handler(
+      ['map', 'setup', '--limit', '25'],
+      makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
+    );
+
+    const output = printed.join('\n');
+    expect(output).toContain('Agent Knowledge map');
+    expect(output).toContain('nodes: 0');
+    expect(output).toContain('edges: 0');
+    expect(output).toContain('/api/goodvibes-agent/knowledge/map');
+  });
+
   test('asks knowledge and renders SDK semantic answer fields', async () => {
     await knowledgeCommand.handler(
       ['ask', 'what', 'does', 'the', 'manual', 'say?', '--mode', 'detailed'],

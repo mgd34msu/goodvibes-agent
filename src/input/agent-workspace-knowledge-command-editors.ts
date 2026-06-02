@@ -3,6 +3,7 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 export type AgentWorkspaceKnowledgeCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   | 'knowledge-get'
+  | 'knowledge-map'
   | 'knowledge-review-issue'
   | 'knowledge-consolidate'
   | 'knowledge-packet'
@@ -11,6 +12,7 @@ export type AgentWorkspaceKnowledgeCommandEditorKind = Extract<
 
 export function isAgentWorkspaceKnowledgeCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceKnowledgeCommandEditorKind {
   return kind === 'knowledge-get'
+    || kind === 'knowledge-map'
     || kind === 'knowledge-review-issue'
     || kind === 'knowledge-consolidate'
     || kind === 'knowledge-packet'
@@ -27,6 +29,19 @@ export function createAgentWorkspaceKnowledgeCommandEditor(kind: AgentWorkspaceK
       message: 'Show one source, node, or issue from the isolated Agent Knowledge segment.',
       fields: [
         { id: 'id', label: 'Item id', value: '', required: true, multiline: false, hint: 'Agent Knowledge source, node, or issue id.' },
+      ],
+    };
+  }
+  if (kind === 'knowledge-map') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Map Agent Knowledge',
+      selectedFieldIndex: 0,
+      message: 'Summarize the isolated Agent Knowledge graph map. Leave query blank for a bounded full map summary.',
+      fields: [
+        { id: 'query', label: 'Query', value: '', required: false, multiline: false, hint: 'Optional map filter query.' },
+        { id: 'limit', label: 'Limit', value: '50', required: false, multiline: false, hint: 'Maximum map records to summarize.' },
       ],
     };
   }

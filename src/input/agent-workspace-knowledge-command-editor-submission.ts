@@ -60,6 +60,19 @@ export function buildAgentWorkspaceKnowledgeCommandEditorSubmission(
       'read-only',
     );
   }
+  if (editor.kind === 'knowledge-map') {
+    const query = readField('query');
+    const limit = readField('limit');
+    const parts = ['/knowledge', 'map'];
+    if (query.length > 0) parts.push(quoteSlashCommandArg(query));
+    if (limit.length > 0) parts.push('--limit', quoteSlashCommandArg(limit));
+    return dispatch(
+      parts.join(' '),
+      'Opening Agent Knowledge map',
+      'The workspace handed a read-only Agent Knowledge map command to the shell-owned command router.',
+      'read-only',
+    );
+  }
   if (editor.kind === 'knowledge-review-issue') {
     if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Agent Knowledge issue review not confirmed. Type yes, then press Enter.');
     const parts = [

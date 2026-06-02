@@ -1,4 +1,4 @@
-import type { KnowledgeService } from '@pellux/goodvibes-sdk/platform/knowledge';
+import type { KnowledgeMapResult, KnowledgeService } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { BrowserKnowledgeKind, BrowserKnowledgeSourceKind } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { CommandContext, SlashCommand } from '../command-registry.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
@@ -137,6 +137,15 @@ function requireAgentKnowledgeAsk(context: CommandContext): ((input: KnowledgeAs
 
 function cleanInline(value: unknown): string {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+}
+
+function formatKnowledgeMap(result: KnowledgeMapResult): string {
+  return [
+    'Agent Knowledge map',
+    `  nodes: ${result.nodeCount}${result.totalNodeCount !== undefined && result.totalNodeCount !== result.nodeCount ? ` of ${result.totalNodeCount}` : ''}`,
+    `  edges: ${result.edgeCount}${result.totalEdgeCount !== undefined && result.totalEdgeCount !== result.edgeCount ? ` of ${result.totalEdgeCount}` : ''}`,
+    '  route: /api/goodvibes-agent/knowledge/map',
+  ].join('\n');
 }
 
 function nodeLabel(node: { readonly kind?: string; readonly title?: string; readonly summary?: string; readonly confidence?: number }): string {
@@ -502,6 +511,17 @@ export const knowledgeCommand: SlashCommand = {
         break;
       }
 
+      case 'map': {
+        const limit = readPositiveIntFlag(rest, '--limit', 50);
+        const query = positionalArgs(rest, ['--limit']).join(' ').trim();
+        const result = await knowledge.graph.map({
+          limit,
+          ...(query.length > 0 ? { query } : {}),
+        });
+        context.print(formatKnowledgeMap(result));
+        break;
+      }
+
       case 'lint': {
         const issues = await knowledge.status.lint();
         if (issues.length === 0) {
@@ -743,6 +763,7 @@ export const knowledgeCommand: SlashCommand = {
           '  list [--kind <sources|nodes|issues>] [--limit <n>]',
           '  search <query> [--limit <n>]',
           '  get <id>',
+          '  map [query] [--limit <n>]',
           '  queue [limit]',
           '  review-issue <issueId> <accept|reject|resolve|reopen|edit|forget> [--reviewer <name>] [--value <json-object>] --yes',
           '  candidates [limit]',
