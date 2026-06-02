@@ -123,6 +123,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/brief', label: '/brief', detail: 'Show a concise Agent operator briefing and next actions', category: 'Agent Operator' },
           { id: '/knowledge', label: '/knowledge', detail: 'Inspect isolated Agent Knowledge status, ask/search, and ingest flows', category: 'Agent Operator' },
           { id: '/memory', label: '/memory', detail: 'Review local Agent memory records', category: 'Agent Operator' },
+          { id: '/notes', label: '/notes', detail: 'Open Agent-local scratchpad notes for source triage and temporary context', category: 'Agent Operator' },
           { id: '/personas', label: '/personas', detail: 'Create, review, and activate local Agent personas', category: 'Agent Operator' },
           { id: '/agent-skills', label: '/agent-skills', detail: 'Create, review, and enable reusable Agent skills', category: 'Agent Operator' },
           { id: '/routines', label: '/routines', detail: 'Create, review, start, and promote Agent routines explicitly', category: 'Agent Operator' },
@@ -178,7 +179,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         });
         return;
       }
-      ctx.print('Open the Agent workspace first, then press / inside it to search every product action. Slash commands remain available: /agent, /brief, /knowledge, /memory, /personas, /agent-skills, /routines, /channels, /approval, /automation, /schedule, /delegate, /model, /provider, /config, /compat, /bundle, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
+      ctx.print('Open the Agent workspace first, then press / inside it to search every product action. Slash commands remain available: /agent, /brief, /knowledge, /memory, /notes, /personas, /agent-skills, /routines, /channels, /approval, /automation, /schedule, /delegate, /model, /provider, /config, /compat, /bundle, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
     },
   });
 

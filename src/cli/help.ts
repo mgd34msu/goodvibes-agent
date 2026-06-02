@@ -37,6 +37,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  /setup                    Open setup/config flows',
     '  /model                    Choose provider and model',
     '  /knowledge                Use isolated Agent Knowledge',
+    '  /notes                    Open Agent-local scratchpad notes',
     '  /personas, /skills        Tune local Agent behavior',
     '  /routines                 Run local routines in the main conversation',
     '  /schedule remind          Create confirmed reminders or inspect schedules',
