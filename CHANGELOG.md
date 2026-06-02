@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.114 - 2026-06-02
+
+- 34cbe9d feat: import discovered agent routines
+- 98a003a feat: add persona import workspace form
+- c205cad feat: import discovered agent personas
+
 ## 0.1.113 - 2026-06-02
 
 - efe8b9c feat: expose skill discovery in agent cli
