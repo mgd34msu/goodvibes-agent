@@ -61,14 +61,15 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'profiles',
     aliases: ['profile'],
-    description: 'Blocked copied config-profile command; Agent uses isolated profile homes',
-    usage: 'disabled',
-    argsHint: 'disabled',
+    description: 'Open isolated Agent profile homes and starter templates',
+    usage: '',
+    argsHint: '',
     handler(_args, ctx) {
-      ctx.print([
-        'Copied config profiles are disabled in GoodVibes Agent.',
-        'Open Agent Workspace -> Profiles to create and manage isolated Agent profile homes.',
-      ].join('\n'));
+      if (ctx.openAgentWorkspace) {
+        ctx.openAgentWorkspace('profiles');
+        return;
+      }
+      ctx.print('Open Agent Workspace -> Profiles, or use /agent-profile for text output.');
     },
   });
 
