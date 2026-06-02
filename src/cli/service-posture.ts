@@ -186,12 +186,6 @@ export async function buildCliServicePosture(
   if (serverBackedEnabled && !config.enabled) {
     issues.push('Connected-service settings are present, but Agent service ownership is disabled by design.');
   }
-  if (config.enabled && !config.autostart) {
-    issues.push('Connected-service autostart is off.');
-  }
-  if (config.enabled && !config.restartOnFailure) {
-    issues.push('Connected-service restart-on-failure is off.');
-  }
   for (const endpoint of endpoints) {
     if (endpoint.enabled && options.probe && endpoint.reachable === false) {
       issues.push(`${endpoint.label} is enabled but not reachable on ${endpoint.binding.host}:${endpoint.binding.port}.`);
@@ -233,8 +227,7 @@ export function formatCliServicePosture(posture: CliServicePosture, json = false
     '  ownership: managed outside goodvibes-agent',
     '  Agent owns lifecycle: no',
     `  external host config present: ${yesNo(posture.config.enabled)}`,
-    `  external host autostart config: ${yesNo(posture.config.autostart)}`,
-    `  external host restart config: ${yesNo(posture.config.restartOnFailure)}`,
+    '  external host lifecycle config: ignored by Agent',
     `  legacy host switch present: ${yesNo(posture.config.daemonEnabled)}`,
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),

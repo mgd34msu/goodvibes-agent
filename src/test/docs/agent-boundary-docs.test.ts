@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
@@ -24,6 +24,21 @@ function collectSlashCommandRoots(text: string): readonly string[] {
   return [...roots].sort();
 }
 
+function walkProductionFiles(dir: string): readonly string[] {
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === 'test') continue;
+      files.push(...walkProductionFiles(fullPath));
+      continue;
+    }
+    if (entry.isFile() && (fullPath.endsWith('.ts') || fullPath.endsWith('.md'))) files.push(fullPath);
+  }
+  return files;
+}
+
 describe('Agent boundary docs', () => {
   test('source tree does not keep copied TUI release, UAT, or WRFC artifacts as Agent docs', () => {
     const forbiddenPaths = [
@@ -35,6 +50,39 @@ describe('Agent boundary docs', () => {
     for (const path of forbiddenPaths) {
       expect(existsSync(join(ROOT, path))).toBe(false);
     }
+  });
+
+  test('package-facing docs and production source do not expose internal comparison or copied non-Agent product language', () => {
+    const packageFacingPaths = [
+      'README.md',
+      'docs/README.md',
+      'docs/getting-started.md',
+      'docs/connected-services.md',
+      'docs/release-and-publishing.md',
+    ] as const;
+    const productionSourcePaths = walkProductionFiles(join(ROOT, 'src'))
+      .map((filePath) => filePath.slice(ROOT.length + 1));
+    const forbidden = [
+      `Open${'Claw'}`,
+      `Her${'mes'}`,
+      `capabilities ${'audit'}`,
+      `capabilities-${'audit'}`,
+      `Home ${'Assistant'}`,
+      `Home${'Graph'}`,
+      `@pellux/goodvibes-${'tui'}`,
+      `@pellux/goodvibes-${'daemon'}`,
+      `goodvibes-${'daemon'}`,
+    ] as const;
+    const offenders: string[] = [];
+
+    for (const path of [...packageFacingPaths, ...productionSourcePaths]) {
+      const content = readRepoFile(path);
+      for (const token of forbidden) {
+        if (content.includes(token)) offenders.push(`${path}: ${token}`);
+      }
+    }
+
+    expect(offenders).toEqual([]);
   });
 
   test('source docs describe isolated Agent Knowledge without default wiki fallback', () => {

@@ -44,11 +44,15 @@ describe('CLI service posture', () => {
     expect(posture.managed.path).toBe('connected GoodVibes services');
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(posture.managed.suggestedCommands).toEqual([]);
+    expect(posture.issues).toEqual([]);
     expect(posture.issues).not.toContain('Connected-service config is enabled, but no platform service definition is installed.');
     expect(text).toContain('GoodVibes Agent runtime connection diagnostics');
     expect(text).toContain('ownership: managed outside goodvibes-agent');
     expect(text).toContain('Agent owns lifecycle: no');
+    expect(text).toContain('external host lifecycle config: ignored by Agent');
     expect(text).toContain('legacy host switch present: no');
+    expect(text).not.toContain('external host autostart config');
+    expect(text).not.toContain('external host restart config');
     expect(text).not.toContain(`goodvibes-${'daemon'}`);
     expect(text).not.toContain('systemctl');
     expect(text).not.toContain('runtime lifecycle flag');

@@ -148,6 +148,9 @@ describe('CLI status and doctor output', () => {
 
     expect(text).toContain('Connected-Service Config Signals:');
     expect(text).toContain('host config present: yes');
+    expect(text).toContain('lifecycle config: external to Agent');
+    expect(text).not.toContain('host autostart:');
+    expect(text).not.toContain('host restart policy:');
     expect(text).toContain('Endpoint Diagnostics:');
     expect(text).toContain('runtimeApi: yes');
     expect(text).toContain('incomingWebhook: no');

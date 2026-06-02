@@ -99,8 +99,6 @@ function bindLine(label: string, enabled: unknown, binding: { readonly hostMode:
 export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliDoctorFinding[] {
   const config = options.configManager;
   const serviceEnabled = config.get('service.enabled') === true;
-  const serviceAutostart = config.get('service.autostart') === true;
-  const restartOnFailure = config.get('service.restartOnFailure') === true;
   const daemonEnabled = config.get('danger.daemon') === true;
   const listenerEnabled = config.get('danger.httpListener') === true;
   const webEnabled = config.get('web.enabled') === true;
@@ -177,30 +175,6 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       cause: 'One or more connected API, inbound events, or browser companion settings are enabled while service.enabled is false.',
       impact: 'The owning GoodVibes host must provide availability for those endpoints; Agent will not start or enable them.',
       action: 'Manage connected-service availability from GoodVibes TUI or the owning host, then use Agent for read-only diagnostics.',
-    });
-  }
-
-  if (serviceEnabled && !serviceAutostart) {
-    findings.push({
-      id: 'runtime-autostart-disabled',
-      area: 'runtime',
-      severity: 'warning',
-      summary: 'Connected-service autostart is off.',
-      cause: 'service.enabled is true and service.autostart is false.',
-      impact: 'Connected GoodVibes services may not be available after login or reboot even though host-managed startup is selected.',
-      action: 'Configure autostart from GoodVibes TUI or the owning host; Agent will not mutate this setting.',
-    });
-  }
-
-  if (serviceEnabled && !restartOnFailure) {
-    findings.push({
-      id: 'runtime-restart-disabled',
-      area: 'runtime',
-      severity: 'warning',
-      summary: 'Connected-service restart-on-failure is off.',
-      cause: 'service.enabled is true and service.restartOnFailure is false.',
-      impact: 'A crashed connected service or listener may stay down until manually restarted.',
-      action: 'Configure restart-on-failure from GoodVibes TUI or the owning host; Agent will not mutate this setting.',
     });
   }
 
@@ -342,8 +316,6 @@ export function renderCliStatus(options: CliStatusOptions): string {
   const config = options.configManager;
   const snapshot = buildCliStatusSnapshot(options);
   const serviceEnabled = snapshot.runtimeConnection.enabled;
-  const serviceAutostart = snapshot.runtimeConnection.autostart;
-  const restartOnFailure = snapshot.runtimeConnection.restartOnFailure;
   const controlPlaneEnabled = snapshot.runtimeEndpoints.controlPlane.enabled;
   const listenerEnabled = snapshot.runtimeEndpoints.httpListener.enabled;
   const webEnabled = snapshot.runtimeEndpoints.web.enabled;
@@ -414,8 +386,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
       '',
       'Connected-Service Config Signals:',
       `  host config present: ${yesNo(serviceEnabled)}`,
-      `  host autostart: ${yesNo(serviceAutostart)}`,
-      `  host restart policy: ${yesNo(restartOnFailure)}`,
+      '  lifecycle config: external to Agent',
       '',
       'Endpoint Diagnostics:',
       bindLine('runtimeApi', controlPlaneEnabled, controlPlaneBinding),
