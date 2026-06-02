@@ -1,8 +1,127 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
+import type { CommandContext } from '../command-registry.ts';
 import type { AgentWorkspaceChannelStatus } from '../agent-workspace-channels.ts';
 import { buildAgentWorkspaceChannels } from '../agent-workspace-channels.ts';
 
 type ChannelFilter = 'all' | 'ready' | 'attention';
+type JsonRecord = Record<string, unknown>;
+
+interface ChannelDaemonConnection {
+  readonly baseUrl: string;
+  readonly token: string | null;
+  readonly tokenPath: string;
+}
+
+interface ChannelRouteSuccess {
+  readonly ok: true;
+  readonly route: string;
+  readonly body: unknown;
+}
+
+interface ChannelRouteFailure {
+  readonly ok: false;
+  readonly route: string;
+  readonly kind: 'auth_required' | 'daemon_unavailable' | 'route_unavailable' | 'daemon_error';
+  readonly message: string;
+}
+
+type ChannelRouteResult = ChannelRouteSuccess | ChannelRouteFailure;
+
+function isRecord(value: unknown): value is JsonRecord {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function readString(record: JsonRecord, key: string, fallback = ''): string {
+  const value = record[key];
+  return typeof value === 'string' ? value : fallback;
+}
+
+function readBoolean(record: JsonRecord, key: string, fallback = false): boolean {
+  const value = record[key];
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function readRecordArray(record: JsonRecord, key: string): readonly JsonRecord[] {
+  const value = record[key];
+  return Array.isArray(value) ? value.filter(isRecord) : [];
+}
+
+function resolveChannelDaemonConnection(context: CommandContext): ChannelDaemonConnection {
+  const hostValue = context.platform?.configManager?.get('controlPlane.host');
+  const portValue = context.platform?.configManager?.get('controlPlane.port');
+  const host = typeof hostValue === 'string' && hostValue.trim().length > 0 ? hostValue.trim() : '127.0.0.1';
+  const port = typeof portValue === 'number' && Number.isFinite(portValue) ? portValue : 3421;
+  const homeDirectory = context.workspace?.shellPaths?.homeDirectory ?? process.env.HOME ?? '';
+  const tokenPath = join(homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
+  if (!existsSync(tokenPath)) return { baseUrl: `http://${host}:${port}`, token: null, tokenPath };
+  try {
+    const parsed = JSON.parse(readFileSync(tokenPath, 'utf-8')) as unknown;
+    const token = isRecord(parsed) && typeof parsed.token === 'string' ? parsed.token : null;
+    return { baseUrl: `http://${host}:${port}`, token, tokenPath };
+  } catch {
+    return { baseUrl: `http://${host}:${port}`, token: null, tokenPath };
+  }
+}
+
+async function fetchChannelRoute(context: CommandContext, route: string): Promise<ChannelRouteResult> {
+  const connection = resolveChannelDaemonConnection(context);
+  if (!connection.token) {
+    return {
+      ok: false,
+      route,
+      kind: 'auth_required',
+      message: `No runtime operator token found at ${connection.tokenPath}`,
+    };
+  }
+
+  try {
+    const response = await fetch(`${connection.baseUrl}${route}`, {
+      headers: { authorization: `Bearer ${connection.token}` },
+    });
+    const text = await response.text();
+    let body: unknown = text;
+    if (text.trim().length > 0) {
+      try {
+        body = JSON.parse(text) as unknown;
+      } catch {
+        body = text;
+      }
+    }
+    if (!response.ok) {
+      const detail = isRecord(body) && typeof body.error === 'string' ? body.error : text;
+      return {
+        ok: false,
+        route,
+        kind: response.status === 401 || response.status === 403
+          ? 'auth_required'
+          : response.status === 404
+            ? 'route_unavailable'
+            : 'daemon_error',
+        message: `HTTP ${response.status}${detail ? `: ${detail}` : ''}`,
+      };
+    }
+    return { ok: true, route, body };
+  } catch (error) {
+    return {
+      ok: false,
+      route,
+      kind: 'daemon_unavailable',
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function formatChannelRouteFailure(title: string, failure: ChannelRouteFailure): string {
+  return [
+    `${title}: unavailable`,
+    `  kind: ${failure.kind}`,
+    `  route: ${failure.route}`,
+    `  error: ${failure.message}`,
+    '  policy: read-only; no channel send/action route was called',
+  ].join('\n');
+}
 
 function formatChannelLine(channel: AgentWorkspaceChannelStatus): string {
   const missing = channel.missingRequiredKeys.length > 0
@@ -83,14 +202,144 @@ function printChannelDetail(
   ].join('\n'));
 }
 
+function formatChannelAccounts(body: unknown): string {
+  const root = isRecord(body) ? body : {};
+  const accounts = readRecordArray(root, 'accounts');
+  const lines = [
+    'Channel Accounts',
+    `  accounts: ${accounts.length}`,
+    '  policy: read-only account posture; secret values are never shown',
+    '',
+  ];
+  if (accounts.length === 0) return [...lines, '  No channel accounts reported by connected services.'].join('\n');
+  for (const account of accounts.slice(0, 20)) {
+    const surface = readString(account, 'surface', 'unknown');
+    const accountId = readString(account, 'accountId', '');
+    const authState = readString(account, 'authState', readString(account, 'state', 'unknown'));
+    const configured = readBoolean(account, 'configured') ? 'configured' : 'not-configured';
+    const linked = readBoolean(account, 'linked') ? 'linked' : 'not-linked';
+    const secrets = readRecordArray(account, 'secrets')
+      .map((secret) => `${readString(secret, 'field', 'secret')}:${readString(secret, 'source', 'configured')}`)
+      .join(', ') || 'none';
+    lines.push(`  ${surface}${accountId ? `/${accountId}` : ''}: ${configured}; ${linked}; auth=${authState}; secret refs=${secrets}`);
+  }
+  if (accounts.length > 20) lines.push(`  ${accounts.length - 20} more account(s) omitted.`);
+  return lines.join('\n');
+}
+
+function formatChannelPolicies(body: unknown): string {
+  const root = isRecord(body) ? body : {};
+  const policies = readRecordArray(root, 'policies');
+  const lines = [
+    'Channel Policies',
+    `  policies: ${policies.length}`,
+    '  policy: read-only policy posture; use exact confirmed commands for changes',
+    '',
+  ];
+  if (policies.length === 0) return [...lines, '  No channel policies reported by connected services.'].join('\n');
+  for (const policy of policies.slice(0, 20)) {
+    const surface = readString(policy, 'surface', 'unknown');
+    const direct = readBoolean(policy, 'allowDirectMessages') ? 'direct=yes' : 'direct=no';
+    const users = Array.isArray(policy.allowlistUserIds) ? policy.allowlistUserIds.length : 0;
+    const groups = Array.isArray(policy.allowlistGroupIds) ? policy.allowlistGroupIds.length : 0;
+    const groupPolicies = readRecordArray(policy, 'groupPolicies').length;
+    lines.push(`  ${surface}: ${direct}; allowlist users=${users}; groups=${groups}; group policies=${groupPolicies}`);
+  }
+  if (policies.length > 20) lines.push(`  ${policies.length - 20} more policy record(s) omitted.`);
+  return lines.join('\n');
+}
+
+function formatChannelStatus(body: unknown): string {
+  const root = isRecord(body) ? body : {};
+  const channels = readRecordArray(root, 'channels');
+  const lines = [
+    'Connected Channel Status',
+    `  channels: ${channels.length}`,
+    '  policy: read-only connected-service status',
+    '',
+  ];
+  if (channels.length === 0) return [...lines, '  No connected channel status reported.'].join('\n');
+  for (const channel of channels.slice(0, 20)) {
+    const surface = readString(channel, 'surface', 'unknown');
+    const state = readString(channel, 'state', readString(channel, 'status', 'unknown'));
+    const enabled = readBoolean(channel, 'enabled') ? 'enabled' : 'disabled';
+    const ready = readBoolean(channel, 'ready') ? 'ready' : 'not-ready';
+    lines.push(`  ${surface}: ${enabled}; ${ready}; state=${state}`);
+  }
+  if (channels.length > 20) lines.push(`  ${channels.length - 20} more channel(s) omitted.`);
+  return lines.join('\n');
+}
+
+function formatChannelDoctor(surface: string, body: unknown): string {
+  const root = isRecord(body) ? body : {};
+  const checks = readRecordArray(root, 'checks');
+  const repairActions = readRecordArray(root, 'repairActions');
+  const lines = [
+    `Channel Doctor: ${readString(root, 'surface', surface)}`,
+    `  checks: ${checks.length}`,
+    `  repair actions: ${repairActions.length}`,
+    '  policy: read-only doctor report; repair actions are not run here',
+    '',
+  ];
+  if (checks.length === 0) lines.push('  No doctor checks reported.');
+  for (const check of checks.slice(0, 20)) {
+    lines.push(`  ${readString(check, 'id', 'check')}: ${readString(check, 'status', 'unknown')}`);
+  }
+  if (repairActions.length > 0) {
+    lines.push('', '  Available repair action ids:');
+    for (const action of repairActions.slice(0, 12)) lines.push(`  - ${readString(action, 'id', 'action')}`);
+  }
+  return lines.join('\n');
+}
+
+function formatChannelSetup(surface: string, body: unknown): string {
+  const root = isRecord(body) ? body : {};
+  const fields = readRecordArray(root, 'fields');
+  const secretTargets = readRecordArray(root, 'secretTargets');
+  const lines = [
+    `Channel Setup Schema: ${readString(root, 'surface', surface)}`,
+    `  version: ${typeof root.version === 'number' ? root.version : 'unknown'}`,
+    `  fields: ${fields.length}`,
+    `  secret targets: ${secretTargets.length}`,
+    '  policy: read-only setup schema; no credentials or values are printed',
+    '',
+  ];
+  if (fields.length > 0) {
+    lines.push('  Fields:');
+    for (const field of fields.slice(0, 20)) lines.push(`  - ${readString(field, 'id', 'field')}`);
+  }
+  if (secretTargets.length > 0) {
+    lines.push('', '  Secret targets:');
+    for (const target of secretTargets.slice(0, 12)) {
+      const required = readBoolean(target, 'required') ? 'required' : 'optional';
+      lines.push(`  - ${readString(target, 'id', 'secret')} (${required})`);
+    }
+  }
+  return lines.join('\n');
+}
+
+async function printReadOnlyChannelRoute(
+  context: CommandContext,
+  title: string,
+  route: string,
+  format: (body: unknown) => string,
+): Promise<void> {
+  const result = await fetchChannelRoute(context, route);
+  if (!result.ok) {
+    context.print(formatChannelRouteFailure(title, result));
+    return;
+  }
+  context.print(format(result.body));
+}
+
 export function registerChannelsRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'channels',
     aliases: ['channel'],
     description: 'Inspect Agent channel readiness without sending messages',
-    usage: '[list|readiness|ready|attention|show <id>]',
-    argsHint: 'list|readiness|ready|attention|show',
-    handler(args, ctx) {
+    usage: '[list|readiness|ready|attention|show <id>|accounts|policies|status|doctor <id>|setup <id>]',
+    argsHint: 'list|readiness|ready|attention|show|accounts|policies|status|doctor|setup',
+    async handler(args, ctx) {
       const channels = buildAgentWorkspaceChannels(ctx);
       const subcommand = (args[0] ?? 'readiness').trim().toLowerCase();
 
@@ -124,7 +373,37 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
-      ctx.print('Usage: /channels [list|readiness|ready|attention|show <id>]');
+      if (subcommand === 'accounts') {
+        await printReadOnlyChannelRoute(ctx, 'Channel accounts', '/api/channels/accounts', formatChannelAccounts);
+        return;
+      }
+
+      if (subcommand === 'policies') {
+        await printReadOnlyChannelRoute(ctx, 'Channel policies', '/api/channels/policies', formatChannelPolicies);
+        return;
+      }
+
+      if (subcommand === 'status') {
+        await printReadOnlyChannelRoute(ctx, 'Channel status', '/api/channels/status', formatChannelStatus);
+        return;
+      }
+
+      if (subcommand === 'doctor' || subcommand === 'setup') {
+        const channelId = args[1]?.trim().toLowerCase();
+        if (!channelId) {
+          ctx.print(`Usage: /channels ${subcommand} <id>`);
+          return;
+        }
+        const encoded = encodeURIComponent(channelId);
+        if (subcommand === 'doctor') {
+          await printReadOnlyChannelRoute(ctx, 'Channel doctor', `/api/channels/doctor/${encoded}`, (body) => formatChannelDoctor(channelId, body));
+          return;
+        }
+        await printReadOnlyChannelRoute(ctx, 'Channel setup', `/api/channels/setup/${encoded}`, (body) => formatChannelSetup(channelId, body));
+        return;
+      }
+
+      ctx.print('Usage: /channels [list|readiness|ready|attention|show <id>|accounts|policies|status|doctor <id>|setup <id>]');
     },
   });
 }
