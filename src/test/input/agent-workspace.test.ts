@@ -1101,6 +1101,73 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening MCP server add/update');
   });
 
+  test('stores links tests and deletes secrets from confirmed workspace forms without rendering raw values', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'secret-set');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('secret-set');
+    feedText(workspace, 'OPENAI_API_KEY');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'sk-test-secret-value');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'project');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'secure');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/secrets set OPENAI_API_KEY sk-test-secret-value --project --secure --yes']);
+    expect(workspace.lastActionResult?.command).toBe('/secrets set OPENAI_API_KEY <redacted> --project --secure --yes');
+    expect(workspace.lastActionResult?.command).not.toContain('sk-test-secret-value');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'secret-link');
+    workspace.activateSelected();
+    feedText(workspace, 'SLACK_BOT_TOKEN');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'goodvibes://secrets/env/SLACK_BOT_TOKEN');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'user');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'secure');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/secrets link SLACK_BOT_TOKEN goodvibes://secrets/env/SLACK_BOT_TOKEN --user --secure --yes');
+    expect(workspace.lastActionResult?.command).toBe('/secrets link SLACK_BOT_TOKEN <secret-ref> --user --secure --yes');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'secret-test');
+    workspace.activateSelected();
+    feedText(workspace, 'goodvibes://secrets/env/SLACK_BOT_TOKEN');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/secrets test goodvibes://secrets/env/SLACK_BOT_TOKEN');
+    expect(workspace.lastActionResult?.command).toBe('/secrets test <secret-ref>');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'secret-delete');
+    workspace.activateSelected();
+    feedText(workspace, 'OPENAI_API_KEY');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'project');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'secure');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/secrets delete OPENAI_API_KEY --project --secure --yes');
+    expect(workspace.lastActionResult?.title).toBe('Opening secret deletion');
+  });
+
   test('adds notification webhook targets from the workspace only after typed confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

@@ -1,4 +1,5 @@
 import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import { buildAgentWorkspaceSecretEditorSubmission, isAgentWorkspaceSecretEditorKind } from './agent-workspace-secret-editor-submission.ts';
 import { quoteSlashCommandArg, tokenizeSlashCommand } from './slash-command-parser.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
@@ -262,6 +263,9 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         safety: 'safe',
       },
     };
+  }
+  if (isAgentWorkspaceSecretEditorKind(editor.kind)) {
+    return buildAgentWorkspaceSecretEditorSubmission(editor, readField);
   }
   if (editor.kind === 'tts-prompt') {
     const command = `/tts ${quoteSlashCommandArg(readField('prompt'))}`;

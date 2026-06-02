@@ -723,10 +723,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/mcp config');
     expect(output).toContain('edit mcp-server');
     expect(output).toContain('typed confirmation');
-    expect(output).toContain('Trust review');
-    expect(output).toContain('/trust review');
-    expect(output).toContain('Security review');
-    expect(output).toContain('/security review');
+    expect(output).toContain('Store secret value');
+    expect(output).toContain('Link secret ref');
+    expect(output).toContain('6 more action(s) below');
     expect(output).toContain('allow-all');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-add-server');
@@ -738,6 +737,24 @@ describe('renderAgentWorkspace', () => {
     workspace.moveEditorField(9);
     const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(confirmOutput).toContain('Confirm *');
+  });
+
+  test('renders secret setup forms without exposing raw secret field values', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'secret-set');
+
+    workspace.activateSelected();
+    workspace.appendEditorText('OPENAI_API_KEY');
+    workspace.submitEditorFieldOrForm();
+    workspace.appendEditorText('sk-render-secret-value');
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
+
+    expect(output).toContain('Store Secret Value');
+    expect(output).toContain('Secret value *');
+    expect(output).toContain('************');
+    expect(output).not.toContain('sk-render-secret-value');
   });
 
   test('renders profile isolation and bundle workflow posture', () => {

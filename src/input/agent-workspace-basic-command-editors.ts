@@ -11,6 +11,7 @@ export type AgentWorkspaceBasicCommandEditorKind = Extract<
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
+  | 'secret-set' | 'secret-link' | 'secret-test' | 'secret-delete'
 >;
 
 export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceBasicCommandEditorKind {
@@ -40,7 +41,11 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'mcp-server'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
-    || kind === 'notify-webhook-test';
+    || kind === 'notify-webhook-test'
+    || kind === 'secret-set'
+    || kind === 'secret-link'
+    || kind === 'secret-test'
+    || kind === 'secret-delete';
 }
 
 export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasicCommandEditorKind): AgentWorkspaceLocalEditor {
@@ -162,6 +167,66 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       message: 'Send one test notification to configured webhook targets. Type yes on the final field to confirm.',
       fields: [
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /notify test with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'secret-set') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Store Secret Value',
+      selectedFieldIndex: 0,
+      message: 'Store one secret value through the Agent secret manager. The value is masked in this workspace. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'key', label: 'Secret key', value: '', required: true, multiline: false, hint: 'Environment-style key, such as OPENAI_API_KEY.' },
+        { id: 'value', label: 'Secret value', value: '', required: true, multiline: false, hint: 'Raw value to store. It is masked here and never rendered in action results.', redact: true },
+        { id: 'scope', label: 'Scope', value: '', required: false, multiline: false, hint: 'project or user. Blank defaults to project.' },
+        { id: 'storage', label: 'Storage', value: '', required: false, multiline: false, hint: 'secure or plaintext. Blank defaults to secure.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to store the secret value.' },
+      ],
+    };
+  }
+  if (kind === 'secret-link') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Link Secret Reference',
+      selectedFieldIndex: 0,
+      message: 'Link one key to an external goodvibes://secrets/... reference. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'key', label: 'Secret key', value: '', required: true, multiline: false, hint: 'Environment-style key, such as SLACK_BOT_TOKEN.' },
+        { id: 'ref', label: 'Secret ref', value: '', required: true, multiline: false, hint: 'goodvibes://secrets/... reference from a supported provider.' },
+        { id: 'scope', label: 'Scope', value: '', required: false, multiline: false, hint: 'project or user. Blank defaults to project.' },
+        { id: 'storage', label: 'Storage', value: '', required: false, multiline: false, hint: 'secure or plaintext. Blank defaults to secure.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to link the secret reference.' },
+      ],
+    };
+  }
+  if (kind === 'secret-test') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Test Secret Reference',
+      selectedFieldIndex: 0,
+      message: 'Resolve one goodvibes://secrets/... reference and show only resolved/missing status. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'ref', label: 'Secret ref', value: '', required: true, multiline: false, hint: 'goodvibes://secrets/... reference to test without printing its value.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to test the secret reference.' },
+      ],
+    };
+  }
+  if (kind === 'secret-delete') {
+    return {
+      kind,
+      mode: 'delete',
+      title: 'Delete Stored Secret',
+      selectedFieldIndex: 0,
+      message: 'Delete one stored secret key from the selected scope/storage. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'key', label: 'Secret key', value: '', required: true, multiline: false, hint: 'Stored key to delete.' },
+        { id: 'scope', label: 'Scope', value: '', required: false, multiline: false, hint: 'Optional project or user. Blank lets the command choose the matching stored key.' },
+        { id: 'storage', label: 'Storage', value: '', required: false, multiline: false, hint: 'Optional secure or plaintext.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to delete the stored secret key.' },
       ],
     };
   }

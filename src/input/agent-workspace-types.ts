@@ -24,6 +24,10 @@ export type AgentWorkspaceEditorKind =
   | 'notify-webhook'
   | 'notify-webhook-remove'
   | 'notify-webhook-test'
+  | 'secret-set'
+  | 'secret-link'
+  | 'secret-test'
+  | 'secret-delete'
   | 'tts-prompt'
   | 'image-input'
   | 'skill-bundle'
@@ -76,6 +80,7 @@ export interface AgentWorkspaceEditorField {
   readonly required: boolean;
   readonly multiline: boolean;
   readonly hint: string;
+  readonly redact?: boolean;
 }
 
 export interface AgentWorkspaceLocalEditor {

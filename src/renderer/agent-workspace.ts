@@ -505,7 +505,9 @@ function buildEditorFieldRows(editor: AgentWorkspaceLocalEditor, index: number, 
   const selected = index === editor.selectedFieldIndex;
   const marker = selected ? GLYPHS.navigation.selected : ' ';
   const required = field.required ? ' *' : '';
-  const value = field.value.length > 0 ? field.value : '(empty)';
+  const value = field.value.length > 0
+    ? field.redact ? '*'.repeat(Math.min(12, Math.max(6, Array.from(field.value).length))) : field.value
+    : '(empty)';
   const color = selected ? PALETTE.text : field.value.length > 0 ? PALETTE.info : PALETTE.muted;
   const rows: WorkspaceRow[] = [{
     text: `${marker} ${field.label}${required}`,
