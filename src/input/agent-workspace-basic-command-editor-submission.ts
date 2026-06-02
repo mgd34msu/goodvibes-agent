@@ -1,0 +1,534 @@
+import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import { quoteSlashCommandArg, tokenizeSlashCommand } from './slash-command-parser.ts';
+
+type AgentWorkspaceFieldReader = (fieldId: string) => string;
+
+export type AgentWorkspaceBasicCommandEditorSubmission =
+  | {
+    readonly kind: 'editor';
+    readonly editor: AgentWorkspaceLocalEditor;
+    readonly status: string;
+    readonly actionResult?: AgentWorkspaceActionResult;
+  }
+  | {
+    readonly kind: 'dispatch';
+    readonly command: string;
+    readonly status: string;
+    readonly actionResult: AgentWorkspaceActionResult;
+  };
+
+function isAffirmative(value: string): boolean {
+  return /^(y|yes|true)$/i.test(value.trim());
+}
+
+function splitCommaList(value: string): readonly string[] {
+  return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
+export function buildAgentWorkspaceBasicCommandEditorSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  commandDispatchAvailable: boolean,
+): AgentWorkspaceBasicCommandEditorSubmission {
+  if (!commandDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: { ...editor, message: 'Command dispatch is unavailable; this action cannot run from this workspace.' },
+      status: 'Command dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Command dispatch unavailable',
+        detail: 'The Agent workspace cannot hand this action to the shell-owned command router.',
+      },
+    };
+  }
+  if (editor.kind === 'knowledge-bookmarks') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Bookmark import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent Knowledge bookmark import not confirmed.',
+      };
+    }
+    const command = `/knowledge import-bookmarks ${quoteSlashCommandArg(readField('path'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent Knowledge bookmark import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent Knowledge bookmark import',
+        detail: 'The workspace handed a confirmed bookmark import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'knowledge-file') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'File ingest not confirmed. Type yes, then press Enter.' },
+        status: 'Agent Knowledge file ingest not confirmed.',
+      };
+    }
+    const parts = ['/knowledge', 'ingest-file', quoteSlashCommandArg(readField('path'))];
+    const title = readField('title');
+    const tags = readField('tags');
+    const folder = readField('folder');
+    if (title.length > 0) parts.push('--title', quoteSlashCommandArg(title));
+    if (tags.length > 0) parts.push('--tags', quoteSlashCommandArg(tags));
+    if (folder.length > 0) parts.push('--folder', quoteSlashCommandArg(folder));
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent Knowledge file ingest.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent Knowledge file ingest',
+        detail: 'The workspace handed a confirmed file ingest command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'knowledge-browser-history') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Browser history import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent Knowledge browser history import not confirmed.',
+      };
+    }
+    const parts = ['/knowledge', 'import-browser-history'];
+    const browsers = readField('browsers');
+    const sources = readField('sources');
+    const limit = readField('limit');
+    const sinceDays = readField('sinceDays');
+    if (browsers.length > 0) parts.push('--browsers', quoteSlashCommandArg(browsers));
+    if (sources.length > 0) parts.push('--sources', quoteSlashCommandArg(sources));
+    if (limit.length > 0) parts.push('--limit', quoteSlashCommandArg(limit));
+    if (sinceDays.length > 0) parts.push('--since-days', quoteSlashCommandArg(sinceDays));
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent Knowledge browser history import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent Knowledge browser history import',
+        detail: 'The workspace handed a confirmed browser-history import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'knowledge-connector-ingest') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Connector ingest not confirmed. Type yes, then press Enter.' },
+        status: 'Agent Knowledge connector ingest not confirmed.',
+      };
+    }
+    const connectorId = readField('connectorId');
+    const input = readField('input');
+    const path = readField('path');
+    const content = readField('content');
+    const parts = ['/knowledge', 'ingest-connector', quoteSlashCommandArg(connectorId)];
+    if (input.length > 0) parts.push('--input', quoteSlashCommandArg(input));
+    if (path.length > 0) parts.push('--path', quoteSlashCommandArg(path));
+    if (content.length > 0) parts.push('--content', quoteSlashCommandArg(content));
+    if (isAffirmative(readField('allowPrivateHosts'))) parts.push('--allow-private-hosts');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent Knowledge connector ingest.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent Knowledge connector ingest',
+        detail: 'The workspace handed a confirmed connector ingest command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'mcp-server') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'MCP server add/update not confirmed. Type yes, then press Enter.' },
+        status: 'MCP server add/update not confirmed.',
+      };
+    }
+    const parts = [
+      '/mcp',
+      'add',
+      quoteSlashCommandArg(readField('name')),
+      quoteSlashCommandArg(readField('command')),
+      ...tokenizeSlashCommand(readField('args')).map(quoteSlashCommandArg),
+    ];
+    const scope = readField('scope');
+    const role = readField('role');
+    const trust = readField('trust');
+    if (scope.length > 0) parts.push('--scope', quoteSlashCommandArg(scope));
+    if (role.length > 0) parts.push('--role', quoteSlashCommandArg(role));
+    if (trust.length > 0) parts.push('--trust', quoteSlashCommandArg(trust));
+    for (const env of splitCommaList(readField('env'))) parts.push('--env', quoteSlashCommandArg(env));
+    for (const path of splitCommaList(readField('paths'))) parts.push('--path', quoteSlashCommandArg(path));
+    for (const host of splitCommaList(readField('hosts'))) parts.push('--host', quoteSlashCommandArg(host));
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening MCP server add/update.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening MCP server add/update',
+        detail: 'The workspace handed a confirmed MCP server add/update command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'notify-webhook') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Notification webhook add not confirmed. Type yes, then press Enter.' },
+        status: 'Notification webhook add not confirmed.',
+      };
+    }
+    const command = `/notify add ${quoteSlashCommandArg(readField('url'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening notification webhook add.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening notification webhook add',
+        detail: 'The workspace handed a confirmed notification target command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'notify-webhook-remove') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Notification webhook remove not confirmed. Type yes, then press Enter.' },
+        status: 'Notification webhook remove not confirmed.',
+      };
+    }
+    const command = `/notify remove ${quoteSlashCommandArg(readField('url'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening notification webhook remove.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening notification webhook remove',
+        detail: 'The workspace handed a confirmed notification target remove command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'notify-webhook-test') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Notification webhook test not confirmed. Type yes, then press Enter.' },
+        status: 'Notification webhook test not confirmed.',
+      };
+    }
+    const command = '/notify test --yes';
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening notification webhook test.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening notification webhook test',
+        detail: 'The workspace handed a confirmed notification test command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'tts-prompt') {
+    const command = `/tts ${quoteSlashCommandArg(readField('prompt'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening spoken assistant prompt.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening spoken assistant prompt',
+        detail: 'The workspace handed a spoken prompt to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'image-input') {
+    const prompt = readField('prompt');
+    const command = prompt.length > 0
+      ? `/image ${quoteSlashCommandArg(readField('path'))} ${quoteSlashCommandArg(prompt)}`
+      : `/image ${quoteSlashCommandArg(readField('path'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening image input.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening image input',
+        detail: 'The workspace handed an image attachment command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'profile-template-export') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Starter template export not confirmed. Type yes, then press Enter.' },
+        status: 'Agent starter template export not confirmed.',
+      };
+    }
+    const command = `/agent-profile template export ${quoteSlashCommandArg(readField('templateId'))} ${quoteSlashCommandArg(readField('path'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent starter template export.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent starter template export',
+        detail: 'The workspace handed a confirmed starter template export command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'profile-template-import') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Starter template import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent starter template import not confirmed.',
+      };
+    }
+    const command = `/agent-profile template import ${quoteSlashCommandArg(readField('path'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent starter template import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent starter template import',
+        detail: 'The workspace handed a confirmed starter template import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'profile-template-from-discovered') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Starter-from-discovered creation not confirmed. Type yes, then press Enter.' },
+        status: 'Agent starter-from-discovered creation not confirmed.',
+      };
+    }
+    const parts = [
+      '/agent-profile',
+      'template',
+      'from-discovered',
+      quoteSlashCommandArg(readField('id')),
+    ];
+    const name = readField('name');
+    const description = readField('description');
+    const persona = readField('persona');
+    const skills = readField('skills');
+    const routines = readField('routines');
+    if (name.length > 0) parts.push('--name', quoteSlashCommandArg(name));
+    if (description.length > 0) parts.push('--description', quoteSlashCommandArg(description));
+    if (persona.length > 0) parts.push('--persona', quoteSlashCommandArg(persona));
+    if (skills.length > 0) parts.push('--skills', quoteSlashCommandArg(skills));
+    if (routines.length > 0) parts.push('--routines', quoteSlashCommandArg(routines));
+    if (isAffirmative(readField('replace'))) parts.push('--replace');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent starter-from-discovered creation.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent starter-from-discovered creation',
+        detail: 'The workspace handed a confirmed starter creation command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'profile-from-discovered') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Profile-from-discovered creation not confirmed. Type yes, then press Enter.' },
+        status: 'Agent profile-from-discovered creation not confirmed.',
+      };
+    }
+    const parts = [
+      '/agent-profile',
+      'create-from-discovered',
+      quoteSlashCommandArg(readField('profile')),
+    ];
+    const templateId = readField('templateId');
+    const name = readField('name');
+    const description = readField('description');
+    const persona = readField('persona');
+    const skills = readField('skills');
+    const routines = readField('routines');
+    if (templateId.length > 0) parts.push('--template-id', quoteSlashCommandArg(templateId));
+    if (name.length > 0) parts.push('--name', quoteSlashCommandArg(name));
+    if (description.length > 0) parts.push('--description', quoteSlashCommandArg(description));
+    if (persona.length > 0) parts.push('--persona', quoteSlashCommandArg(persona));
+    if (skills.length > 0) parts.push('--skills', quoteSlashCommandArg(skills));
+    if (routines.length > 0) parts.push('--routines', quoteSlashCommandArg(routines));
+    if (isAffirmative(readField('replace'))) parts.push('--replace');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent profile-from-discovered creation.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent profile-from-discovered creation',
+        detail: 'The workspace handed a confirmed discovered-behavior profile creation command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'skill-discovery-import') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Discovered skill import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent skill import not confirmed.',
+      };
+    }
+    const parts = [
+      '/agent-skills',
+      'import-discovered',
+      quoteSlashCommandArg(readField('name')),
+    ];
+    if (isAffirmative(readField('enabled'))) parts.push('--enabled');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening discovered skill import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening discovered skill import',
+        detail: 'The workspace handed a confirmed local skill import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'persona-discovery-import') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Discovered persona import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent persona import not confirmed.',
+      };
+    }
+    const parts = [
+      '/personas',
+      'import-discovered',
+      quoteSlashCommandArg(readField('name')),
+    ];
+    if (isAffirmative(readField('use'))) parts.push('--use');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening discovered persona import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening discovered persona import',
+        detail: 'The workspace handed a confirmed local persona import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'routine-discovery-import') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Discovered routine import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent routine import not confirmed.',
+      };
+    }
+    const parts = [
+      '/routines',
+      'import-discovered',
+      quoteSlashCommandArg(readField('name')),
+    ];
+    if (isAffirmative(readField('enabled'))) parts.push('--enabled');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening discovered routine import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening discovered routine import',
+        detail: 'The workspace handed a confirmed local routine import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  const commandParts = [
+    '/agent-skills bundle create',
+    '--name',
+    quoteSlashCommandArg(readField('name')),
+    '--description',
+    quoteSlashCommandArg(readField('description')),
+    '--skills',
+    quoteSlashCommandArg(readField('skills')),
+  ];
+  if (isAffirmative(readField('enabled'))) commandParts.push('--enabled');
+  const command = commandParts.join(' ');
+  return {
+    kind: 'dispatch',
+    command,
+    status: 'Opening skill bundle creation.',
+    actionResult: {
+      kind: 'dispatched',
+      title: 'Opening skill bundle creation',
+      detail: 'The workspace handed a concrete local skill bundle command to the shell-owned command router.',
+      command,
+      safety: 'safe',
+    },
+  };
+}
