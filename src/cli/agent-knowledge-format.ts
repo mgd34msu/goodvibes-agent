@@ -6,7 +6,7 @@ export interface AgentKnowledgeFailureLike {
   readonly error: string;
   readonly baseUrl: string;
   readonly route: string;
-  readonly daemonVersion?: string;
+  readonly connectedHostVersion?: string;
   readonly expectedSdkVersion?: string;
 }
 
@@ -361,15 +361,15 @@ export function formatFailure(failure: AgentKnowledgeFailureLike, json: boolean)
   return [
     `Agent Knowledge error: ${failure.kind}`,
     `  ${failure.error}`,
-    `  runtime: ${failure.baseUrl}`,
+    `  connected host: ${failure.baseUrl}`,
     `  route: ${failure.route}`,
-    failure.kind === 'version_mismatch' && failure.daemonVersion && failure.expectedSdkVersion
-      ? `  versions: runtime=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
+    failure.kind === 'version_mismatch' && failure.connectedHostVersion && failure.expectedSdkVersion
+      ? `  versions: connectedHost=${failure.connectedHostVersion} expected=${failure.expectedSdkVersion}`
       : null,
     failure.kind === 'version_mismatch'
       ? '  next: update the connected GoodVibes host so /status matches the Agent SDK pin.'
       : null,
-    failure.kind === 'daemon_route_unavailable'
+    failure.kind === 'connected_host_route_unavailable'
       ? '  next: update the connected GoodVibes host to the SDK version required by this Agent package.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');

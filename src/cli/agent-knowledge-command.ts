@@ -30,7 +30,7 @@ import {
 import { AGENT_KNOWLEDGE_METHODS, DELEGATION_METHOD } from './agent-knowledge-methods.ts';
 import {
   createAgentSdk,
-  fetchDaemonStatus,
+  fetchConnectedHostStatus,
   findDisallowedKnowledgeScopeFlag,
   formatScopeFlagRejection,
   getAgentKnowledgeJson,
@@ -38,7 +38,7 @@ import {
   postAgentKnowledgeJson,
   readPackageMetadata,
   readString,
-  resolveDaemonConnection,
+  resolveConnectedHostConnection,
   runKnowledgeCall,
 } from './agent-knowledge-runtime.ts';
 import { formatJsonOrText, yesNo } from './management.ts';
@@ -479,12 +479,12 @@ export async function handleAgentKnowledgeShortcutCommand(
 }
 
 export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
-  const connection = resolveDaemonConnection(runtime);
+  const connection = resolveConnectedHostConnection(runtime);
   const metadata = readPackageMetadata();
-  const daemon = await fetchDaemonStatus(connection);
-  const daemonRecord = isRecord(daemon.body) ? daemon.body : {};
-  const daemonVersion = readString(daemonRecord, 'version') ?? 'unknown';
-  const versionCompatible = daemon.ok && daemonVersion === metadata.sdkVersion;
+  const connectedHost = await fetchConnectedHostStatus(connection);
+  const connectedHostRecord = isRecord(connectedHost.body) ? connectedHost.body : {};
+  const connectedHostVersion = readString(connectedHostRecord, 'version') ?? 'unknown';
+  const versionCompatible = connectedHost.ok && connectedHostVersion === metadata.sdkVersion;
   const knowledgeRoute = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.status, async (routeConnection) => (
     await createAgentSdk(routeConnection).knowledge.status()
   ));
@@ -495,9 +495,9 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
     sdkPin: metadata.sdkVersion,
     connectedHost: {
       baseUrl: connection.baseUrl,
-      status: daemon.status,
-      version: daemonVersion,
-      reachable: daemon.ok,
+      status: connectedHost.status,
+      version: connectedHostVersion,
+      reachable: connectedHost.ok,
       compatible: versionCompatible,
     },
     auth: {
@@ -514,7 +514,7 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
     'GoodVibes Agent compatibility',
     `  package: ${metadata.version}`,
     `  SDK pin: ${metadata.sdkVersion}`,
-    `  runtime: ${daemonVersion} at ${connection.baseUrl} (${daemon.ok ? 'reachable' : 'unreachable'})`,
+    `  connected host: ${connectedHostVersion} at ${connection.baseUrl} (${connectedHost.ok ? 'reachable' : 'unreachable'})`,
     `  version compatible: ${yesNo(versionCompatible)}`,
     `  operator token: ${connection.token ? 'present' : 'missing'} (${connection.tokenPath})`,
     `  Agent knowledge route: ${knowledgeRouteReady ? 'ready' : `not ready (${knowledgeRoute.ok ? 'unknown' : knowledgeRoute.kind})`}`,

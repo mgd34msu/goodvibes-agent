@@ -4,6 +4,7 @@ import type { CliStatusOptions } from '../../cli/status.ts';
 import type { CliExternalRuntimeSnapshot } from '../../cli/external-runtime.ts';
 
 type ConfigValues = Record<string, unknown>;
+type CliStatusService = NonNullable<CliStatusOptions['service']>;
 
 function makeExternalRuntime(overrides: Partial<CliExternalRuntimeSnapshot> = {}): CliExternalRuntimeSnapshot {
   return {
@@ -77,6 +78,39 @@ function makeOptions(overrides: ConfigValues = {}): CliStatusOptions {
   };
 }
 
+function makeServicePosture(overrides: Partial<CliStatusService> = {}): CliStatusService {
+  const service: CliStatusService = {
+    config: {
+      enabled: true,
+      autostart: true,
+      restartOnFailure: true,
+      daemonEnabled: true,
+    },
+    managed: {
+      platform: 'manual',
+      path: 'connected GoodVibes host',
+      installed: false,
+      autostart: false,
+      running: false,
+      logPath: '/home/test/.goodvibes/daemon/service/manual.log',
+      commandPreview: 'managed outside goodvibes-agent',
+      suggestedCommands: [],
+      lastAction: 'status',
+      pidPath: 'connected GoodVibes host',
+      lastError: null,
+    },
+    endpoints: [],
+    log: {
+      path: '/project/.goodvibes/agent/service/manual.log',
+      exists: true,
+      size: 128,
+      modifiedAt: 1,
+    },
+    issues: [],
+  };
+  return { ...service, ...overrides };
+}
+
 describe('CLI status and doctor output', () => {
   test('renders operator-friendly labels for permission and secret policies', () => {
     const text = renderCliStatus(makeOptions({
@@ -103,21 +137,20 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('cause: permissions.mode is allow-all.');
     expect(text).toContain('impact: Powerful write, edit, network, and execution tools can run without a Human-in-the-Loop (HITL) approval prompt.');
     expect(text).toContain('action: Use Ask before powerful actions or Custom rules unless this is an intentionally trusted environment.');
-    expect(text).toContain('[warning:network:network-http-listener-enabled]');
+    expect(text).not.toContain('network-http-listener-enabled');
   });
 
   test('connected-host posture findings never instruct Agent to mutate services', () => {
-    const findings = buildCliDoctorFindings(makeOptions({
-      'service.enabled': false,
-      'service.autostart': false,
-      'service.restartOnFailure': false,
-      'danger.daemon': true,
-      'controlPlane.enabled': true,
-    }));
+    const findings = buildCliDoctorFindings({
+      ...makeOptions(),
+      service: makeServicePosture({
+        issues: ['Connected-host settings are present, but Agent host ownership is disabled by design.'],
+      }),
+    });
     const text = findings.map((finding) => `${finding.summary}\n${finding.action}`).join('\n');
 
-    expect(text).toContain('Agent host ownership is disabled');
-    expect(text).toContain('owning host');
+    expect(text).toContain('Connected-host settings are present, but Agent host ownership is disabled by design.');
+    expect(text).toContain('repair the connected GoodVibes host outside Agent');
     expect(text).not.toContain('Enable service mode');
     expect(text).not.toContain('Enable service.autostart');
     expect(text).not.toContain('Enable service.restartOnFailure');
@@ -126,15 +159,15 @@ describe('CLI status and doctor output', () => {
   test('status foregrounds live connected host and Agent Knowledge readiness', () => {
     const text = renderCliStatus(makeOptions());
 
-    expect(text).toContain('Connected GoodVibes API:');
+    expect(text).toContain('Connected GoodVibes host:');
     expect(text).toContain('baseUrl: http://127.0.0.1:3421');
     expect(text).toContain('reachable: yes (HTTP 200)');
     expect(text).toContain('sdk: 0.33.35 expected 0.33.35');
     expect(text).toContain('Agent Knowledge: ready');
-    expect(text).toContain('Connected Host:');
-    expect(text).toContain('Agent role: client/operator TUI only');
-    expect(text).toContain('lifecycle owner: outside Agent');
-    expect(text).toContain('Agent starts connected host: no');
+    expect(text).toContain('Agent role:');
+    expect(text).toContain('product: interactive operator TUI');
+    expect(text).toContain('host lifecycle: external');
+    expect(text).toContain('starts or exposes host: no');
     expect(text).not.toContain('installed:');
     expect(text).not.toContain('running:');
     expect(text).not.toContain('platform:');
@@ -146,17 +179,22 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('hostRestartOnFailure');
   });
 
-  test('doctor includes connected-host config and endpoint diagnostics', () => {
+  test('doctor keeps endpoint diagnostics out of Agent status and lists readiness checks', () => {
     const text = renderCliStatus({ ...makeOptions(), doctor: true });
 
-    expect(text).toContain('Connected Host Config Signals:');
-    expect(text).toContain('host config present: yes');
-    expect(text).toContain('lifecycle config: external to Agent');
+    expect(text).toContain('Connected GoodVibes host:');
+    expect(text).toContain('Readiness Checks:');
+    expect(text).toContain('companion chat route');
+    expect(text).toContain('isolated Agent Knowledge route');
+    expect(text).toContain('approvals and automation status routes');
+    expect(text).toContain('explicit build delegation route');
+    expect(text).not.toContain('Connected Host Config Signals:');
+    expect(text).not.toContain('host config present:');
     expect(text).not.toContain('host autostart:');
     expect(text).not.toContain('host restart policy:');
-    expect(text).toContain('Endpoint Diagnostics:');
-    expect(text).toContain('runtimeApi: yes');
-    expect(text).toContain('incomingWebhook: no');
+    expect(text).not.toContain('Endpoint Diagnostics:');
+    expect(text).not.toContain('runtimeApi: yes');
+    expect(text).not.toContain('incomingWebhook: no');
   });
 
   test('setup status is Agent-branded', () => {
@@ -188,7 +226,7 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('default Knowledge');
   });
 
-  test('network auth posture is flagged when LAN endpoints have no local users or bootstrap is still present', () => {
+  test('network endpoint config does not report Agent-owned network auth posture', () => {
     const findings = buildCliDoctorFindings({
       ...makeOptions({
         'web.enabled': true,
@@ -205,43 +243,15 @@ describe('CLI status and doctor output', () => {
       },
     });
 
-    expect(findings.map((finding) => finding.id)).toContain('network-endpoint-without-runtime-auth-signal');
-    expect(findings.map((finding) => finding.id)).toContain('network-endpoint-with-bootstrap-credential');
+    expect(findings.map((finding) => finding.id)).not.toContain('network-endpoint-without-runtime-auth-signal');
+    expect(findings.map((finding) => finding.id)).not.toContain('network-endpoint-with-bootstrap-credential');
   });
 
   test('status can render a stable JSON contract with connected-host details', () => {
     const text = renderCliStatus({
       ...makeOptions(),
       outputFormat: 'json',
-      service: {
-        config: {
-          enabled: true,
-          autostart: true,
-          restartOnFailure: true,
-          daemonEnabled: true,
-        },
-        managed: {
-          platform: 'manual',
-          path: 'connected GoodVibes host',
-          installed: false,
-          autostart: false,
-          running: false,
-          logPath: '/home/test/.goodvibes/daemon/service/manual.log',
-          commandPreview: 'managed outside goodvibes-agent',
-          suggestedCommands: [],
-          lastAction: 'status',
-          pidPath: 'connected GoodVibes host',
-          lastError: null,
-        },
-        endpoints: [],
-        log: {
-          path: '/project/.goodvibes/agent/service/manual.log',
-          exists: true,
-          size: 128,
-          modifiedAt: 1,
-        },
-        issues: [],
-      },
+      service: makeServicePosture(),
     });
 
     const parsed = JSON.parse(text) as {

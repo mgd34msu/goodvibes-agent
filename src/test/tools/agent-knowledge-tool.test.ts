@@ -197,8 +197,10 @@ describe('agent_knowledge tool', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('auth_required');
+      expect(result.error).toContain('No connected-host operator token found');
       expect(result.error).toContain('/api/goodvibes-agent/knowledge/*');
       expect(result.error).not.toContain('/api/knowledge');
+      expect(result.error).not.toContain('runtime operator token');
       expect(calls).toBe(0);
     } finally {
       globalThis.fetch = originalFetch;

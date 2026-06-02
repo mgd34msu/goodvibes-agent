@@ -3,24 +3,30 @@ import { join } from 'node:path';
 import { createBrowserAgentSdk } from '@pellux/goodvibes-sdk/browser/agent';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { SDK_VERSION, VERSION } from '../version.ts';
-import type { CliCommandRuntime } from './management.ts';
-import type { DaemonCallMethod } from './agent-knowledge-methods.ts';
+import type { ConnectedHostCallMethod } from './agent-knowledge-methods.ts';
 
 export type JsonRecord = Record<string, unknown>;
 
-export interface AgentDaemonConnection {
+export interface AgentKnowledgeConnection {
   readonly baseUrl: string;
   readonly token: string | null;
   readonly tokenPath: string;
 }
 
+export interface AgentKnowledgeConnectionRuntime {
+  readonly configManager: {
+    get(key: string): unknown;
+  };
+  readonly homeDirectory: string;
+}
+
 export interface AgentKnowledgeFailure {
   readonly ok: false;
-  readonly kind: 'daemon_unavailable' | 'auth_required' | 'version_mismatch' | 'daemon_route_unavailable' | 'daemon_error';
+  readonly kind: 'connected_host_unavailable' | 'auth_required' | 'version_mismatch' | 'connected_host_route_unavailable' | 'connected_host_error';
   readonly error: string;
   readonly baseUrl: string;
   readonly route: string;
-  readonly daemonVersion?: string;
+  readonly connectedHostVersion?: string;
   readonly expectedSdkVersion?: string;
 }
 
@@ -46,7 +52,7 @@ export function readPackageMetadata(): { readonly version: string; readonly sdkV
   return { version: VERSION, sdkVersion: SDK_VERSION };
 }
 
-export function resolveDaemonConnection(runtime: CliCommandRuntime): AgentDaemonConnection {
+export function resolveConnectedHostConnection(runtime: AgentKnowledgeConnectionRuntime): AgentKnowledgeConnection {
   const host = String(runtime.configManager.get('controlPlane.host') ?? '127.0.0.1');
   const port = Number(runtime.configManager.get('controlPlane.port') ?? 3421);
   const baseUrl = `http://${host}:${Number.isFinite(port) ? port : 3421}`;
@@ -61,7 +67,7 @@ export function resolveDaemonConnection(runtime: CliCommandRuntime): AgentDaemon
   }
 }
 
-export async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{ readonly ok: boolean; readonly status: number; readonly body: unknown }> {
+export async function fetchConnectedHostStatus(connection: AgentKnowledgeConnection): Promise<{ readonly ok: boolean; readonly status: number; readonly body: unknown }> {
   try {
     const response = await fetch(`${connection.baseUrl}/status`, {
       headers: connection.token ? { authorization: `Bearer ${connection.token}` } : undefined,
@@ -79,7 +85,7 @@ export async function fetchDaemonStatus(connection: AgentDaemonConnection): Prom
   }
 }
 
-export async function classifyKnowledgeError(error: unknown, connection: AgentDaemonConnection, route: string): Promise<AgentKnowledgeFailure> {
+export async function classifyKnowledgeError(error: unknown, connection: AgentKnowledgeConnection, route: string): Promise<AgentKnowledgeFailure> {
   const message = summarizeError(error);
   const lower = message.toLowerCase();
   if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('auth')) {
@@ -87,29 +93,29 @@ export async function classifyKnowledgeError(error: unknown, connection: AgentDa
   }
   if (lower.includes('404') || lower.includes('not found')) {
     const metadata = readPackageMetadata();
-    const daemon = await fetchDaemonStatus(connection);
-    const daemonRecord = isRecord(daemon.body) ? daemon.body : {};
-    const daemonVersion = readString(daemonRecord, 'version') ?? 'unknown';
-    if (daemon.ok && daemonVersion !== metadata.sdkVersion) {
+    const connectedHost = await fetchConnectedHostStatus(connection);
+    const connectedHostRecord = isRecord(connectedHost.body) ? connectedHost.body : {};
+    const connectedHostVersion = readString(connectedHostRecord, 'version') ?? 'unknown';
+    if (connectedHost.ok && connectedHostVersion !== metadata.sdkVersion) {
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `Connected GoodVibes host SDK version ${daemonVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
+        error: `Connected GoodVibes host SDK version ${connectedHostVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
         baseUrl: connection.baseUrl,
         route,
-        daemonVersion,
+        connectedHostVersion,
         expectedSdkVersion: metadata.sdkVersion,
       };
     }
-    return { ok: false, kind: 'daemon_route_unavailable', error: message, baseUrl: connection.baseUrl, route };
+    return { ok: false, kind: 'connected_host_route_unavailable', error: message, baseUrl: connection.baseUrl, route };
   }
   if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
-    return { ok: false, kind: 'daemon_unavailable', error: message, baseUrl: connection.baseUrl, route };
+    return { ok: false, kind: 'connected_host_unavailable', error: message, baseUrl: connection.baseUrl, route };
   }
-  return { ok: false, kind: 'daemon_error', error: message, baseUrl: connection.baseUrl, route };
+  return { ok: false, kind: 'connected_host_error', error: message, baseUrl: connection.baseUrl, route };
 }
 
-export function createAgentSdk(connection: AgentDaemonConnection) {
+export function createAgentSdk(connection: AgentKnowledgeConnection) {
   return createBrowserAgentSdk({
     baseUrl: connection.baseUrl,
     authToken: connection.token,
@@ -117,7 +123,7 @@ export function createAgentSdk(connection: AgentDaemonConnection) {
 }
 
 export async function postAgentKnowledgeJson<TData>(
-  connection: AgentDaemonConnection,
+  connection: AgentKnowledgeConnection,
   route: string,
   body: JsonRecord,
 ): Promise<TData> {
@@ -164,7 +170,7 @@ function queryRoute(route: string, query: JsonRecord): string {
 }
 
 export async function getAgentKnowledgeJson<TData>(
-  connection: AgentDaemonConnection,
+  connection: AgentKnowledgeConnection,
   route: string,
   query: JsonRecord = {},
 ): Promise<TData> {
@@ -217,16 +223,16 @@ export function formatScopeFlagRejection(flag: string): string {
 }
 
 export async function runKnowledgeCall<TData>(
-  runtime: CliCommandRuntime,
-  method: DaemonCallMethod,
-  call: (connection: AgentDaemonConnection) => Promise<TData>,
+  runtime: AgentKnowledgeConnectionRuntime,
+  method: ConnectedHostCallMethod,
+  call: (connection: AgentKnowledgeConnection) => Promise<TData>,
 ): Promise<AgentKnowledgeResult<TData>> {
-  const connection = resolveDaemonConnection(runtime);
+  const connection = resolveConnectedHostConnection(runtime);
   if (!connection.token) {
     return {
       ok: false,
       kind: 'auth_required',
-      error: `No runtime operator token found at ${connection.tokenPath}`,
+      error: `No connected-host operator token found at ${connection.tokenPath}`,
       baseUrl: connection.baseUrl,
       route: method.route,
     };

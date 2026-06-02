@@ -1,4 +1,4 @@
-export interface DaemonCallMethod {
+export interface ConnectedHostCallMethod {
   readonly kind: string;
   readonly route: string;
 }

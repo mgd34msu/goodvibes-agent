@@ -818,9 +818,49 @@ describe('Agent Knowledge CLI route isolation', () => {
         ok: false,
         kind: 'version_mismatch',
         route: '/api/goodvibes-agent/knowledge/status',
-        daemonVersion: '0.33.30',
+        connectedHostVersion: '0.33.30',
         expectedSdkVersion: readSdkPin(),
       });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('classifies missing Agent Knowledge route on compatible host without legacy daemon fields', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      const url = inputUrl(input);
+      requests.push({
+        url,
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      if (url === 'http://127.0.0.1:3421/status') {
+        return new Response(JSON.stringify({ version: readSdkPin() }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      throw new Error('Route not found: /api/goodvibes-agent/knowledge/status (404)');
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleAgentKnowledgeCommand(createRuntime(['status']));
+      const parsed = JSON.parse(result.output) as unknown;
+
+      expect(result.exitCode).toBe(1);
+      expect(requests.map((request) => request.url)).toEqual([
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/status',
+        'http://127.0.0.1:3421/status',
+      ]);
+      expect(parsed).toMatchObject({
+        ok: false,
+        kind: 'connected_host_route_unavailable',
+        route: '/api/goodvibes-agent/knowledge/status',
+      });
+      expect(Object.prototype.hasOwnProperty.call(parsed as object, 'daemonVersion')).toBe(false);
+      expect(result.output).not.toContain('daemon_');
     } finally {
       globalThis.fetch = originalFetch;
     }

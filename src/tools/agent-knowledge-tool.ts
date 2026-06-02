@@ -1,14 +1,14 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ShellPathService } from '@/runtime/index.ts';
-import type { AgentDaemonConfigReader } from '../agent/routine-schedule-promotion.ts';
-import { resolveAgentDaemonConnection } from '../agent/routine-schedule-promotion.ts';
 import {
   createAgentSdk,
   classifyKnowledgeError,
+  resolveConnectedHostConnection,
   type AgentKnowledgeFailure,
+  type AgentKnowledgeConnectionRuntime,
 } from '../cli/agent-knowledge-runtime.ts';
-import { AGENT_KNOWLEDGE_METHODS, type DaemonCallMethod } from '../cli/agent-knowledge-methods.ts';
+import { AGENT_KNOWLEDGE_METHODS, type ConnectedHostCallMethod } from '../cli/agent-knowledge-methods.ts';
 import {
   formatAsk,
   formatFailure,
@@ -66,15 +66,15 @@ function formatKnowledgeFailure(failure: AgentKnowledgeFailure): string {
 
 async function classifyToolKnowledgeError(
   error: unknown,
-  connection: ReturnType<typeof resolveAgentDaemonConnection>,
-  method: DaemonCallMethod,
+  connection: ReturnType<typeof resolveConnectedHostConnection>,
+  method: ConnectedHostCallMethod,
 ): Promise<{ readonly success: false; readonly error: string }> {
   return toolFailure(formatKnowledgeFailure(await classifyKnowledgeError(error, connection, method.route)));
 }
 
 export function createAgentKnowledgeTool(
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentKnowledgeConnectionRuntime['configManager'],
 ): Tool {
   return {
     definition: {
@@ -115,12 +115,12 @@ export function createAgentKnowledgeTool(
     execute: async (rawArgs: unknown) => {
       const args = rawArgs as AgentKnowledgeToolArgs;
       if (!isAction(args.action)) return toolFailure(`Unknown Agent Knowledge action. Valid: ${ACTIONS.join(', ')}.`);
-      const connection = resolveAgentDaemonConnection(configManager, shellPaths.homeDirectory);
+      const connection = resolveConnectedHostConnection({ configManager, homeDirectory: shellPaths.homeDirectory });
       if (!connection.token) {
         return toolFailure(formatKnowledgeFailure({
           ok: false,
           kind: 'auth_required',
-          error: `No runtime operator token found at ${connection.tokenPath}`,
+          error: `No connected-host operator token found at ${connection.tokenPath}`,
           baseUrl: connection.baseUrl,
           route: '/api/goodvibes-agent/knowledge/*',
         }));
@@ -164,7 +164,7 @@ export function createAgentKnowledgeTool(
 export function registerAgentKnowledgeTool(
   registry: ToolRegistry,
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentKnowledgeConnectionRuntime['configManager'],
 ): void {
   registry.register(createAgentKnowledgeTool(shellPaths, configManager));
 }

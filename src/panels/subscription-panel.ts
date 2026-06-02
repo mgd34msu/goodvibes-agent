@@ -172,7 +172,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
   public render(width: number, height: number): Line[] {
     this.refresh();
     this.clampSelection();
-    const intro = 'Review provider login state, subscription-backed routing, and pending browser auth handshakes.';
+    const intro = 'Review provider login state, subscription-backed routing, and pending browser sign-ins.';
 
     const activeCount = this.rows.filter((row) => row.subscription).length;
     const pendingCount = this.rows.filter((row) => row.pending).length;
@@ -187,7 +187,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
         { label: 'selected', value: (this.rows[this.selectedIndex]?.provider ?? 'none'), valueColor: this.rows[this.selectedIndex] ? C.value : C.dim },
         { label: 'status', value: this.rows[this.selectedIndex] ? statusOf(this.rows[this.selectedIndex]!) : 'n/a', valueColor: this.rows[this.selectedIndex] ? statusColor(statusOf(this.rows[this.selectedIndex]!)) : C.dim },
       ], C),
-      buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start or repair browser login for the selected provider route', C),
+      buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start browser login, then finish manually with the callback code or URL', C),
     ];
 
     // Empty state: render posture + base empty state
@@ -205,7 +205,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
         intro,
         sections: [{ lines: [...summaryLines, ...emptyLines] }],
         footerLines: [
-          buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start browser-based provider login from the packaged subscription flow', C),
+          buildGuidanceLine(width, '/subscription login <provider> start --yes', 'start browser login, then finish explicitly from the Agent command or workspace form', C),
           buildPanelLine(width, [['  Up/Down move  Enter/X sign out selected provider  r refresh', C.dim]]),
         ],
         palette: C,
