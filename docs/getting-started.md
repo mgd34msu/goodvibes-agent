@@ -59,7 +59,7 @@ The local behavior libraries are configured in the TUI first:
 - Memory & Skills -> Create memory or Capture learned behavior.
 - Personas -> Create persona, Use selected, Review selected, or Delete selected.
 - Skills -> Create skill, Create bundle, Enable selected, Review selected, or Delete selected.
-- Routines -> Create routine, Start selected, Enable selected, Promote to schedule, or Review receipts.
+- Routines -> Create routine, Start selected, Enable selected, Promote to schedule, review receipts, or run a confirmed connected schedule.
 - Work -> Add work item, Review work plan, or Update work item status.
 
 The installed CLI mirrors these libraries for scripts, but it is not the primary user workflow.
@@ -108,6 +108,8 @@ Typed slash commands are available for repeat users, but they are not required f
 The active persona plus enabled Agent routines, reviewed memory, and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or non-Agent knowledge segments.
 
 Use `/channels` inside the TUI for a read-only channel readiness matrix. It shows enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values.
+
+The main assistant conversation can perform narrow confirmed operator actions when the user explicitly asks for a specific target: approve/deny/cancel one approval, run/pause/resume one automation job, cancel/retry one automation run, or run one schedule. Those calls use only public connected-host routes, require confirmation, and do not create, edit, or delete automation definitions.
 
 ## Connected GoodVibes Host
 

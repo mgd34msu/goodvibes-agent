@@ -57,7 +57,7 @@ Use the workspace as the primary product surface:
 - Knowledge: isolated Agent Knowledge status, ask/search, URL/URL-list/file/bookmark/browser-history/connector ingest, source library, review queue, and reindex.
 - Memory & Skills: local memory, learned behavior capture, personas, skills, routines, and schedule promotion.
 - Channels: companion pairing, channel readiness, notification routes, and confirmed webhook add/remove/test/send.
-- Automation: reminder creation, schedule status, routine promotion, receipts, and reconciliation.
+- Automation: reminder creation, schedule status, routine promotion, receipts, reconciliation, and explicitly confirmed approve/deny/cancel/run/pause/resume/retry actions.
 - Build Delegation: explicit handoff to GoodVibes TUI for build/fix/review work.
 
 Inside the Agent workspace, press `/` to search every workspace action by name, category, command, or detail. This is the primary discovery path for product actions; slash commands and CLI subcommands remain power-user/scriptable mirrors.
@@ -77,6 +77,8 @@ Profiles isolate Agent-local config, sessions, local memory, personas, skills, r
 The installed CLI mirrors the same local behavior libraries for scripts and automation, but it is not the primary product path. Personas, skills, memory, and routines are created, reviewed, enabled, exported/imported where relevant, and deleted from the TUI workspace first; destructive actions still require explicit confirmation.
 
 The Agent workspace also has a `Capture learned behavior` form. Use it after reviewing a repeated workflow, lesson, or operating style; it saves one local skill, routine, or persona directly from the TUI and does not write to connected-host routes or non-Agent knowledge.
+
+When the user explicitly asks, the main assistant conversation can perform the same narrow operator actions exposed by the TUI: approve/deny/cancel a named approval, run/pause/resume a named automation job, cancel/retry a named automation run, or run a named schedule. These actions require explicit confirmation, use only public connected-host operator routes, and do not create, edit, or delete automation definitions.
 
 Local Agent behavior is editable from the TUI workspace:
 

@@ -33,6 +33,7 @@ import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-inges
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
 import { registerAgentNotifyTool } from '../tools/agent-notify-tool.ts';
+import { registerAgentOperatorActionTool } from '../tools/agent-operator-action-tool.ts';
 import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
 import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
 import { registerAgentWorkPlanTool } from '../tools/agent-work-plan-tool.ts';
@@ -237,6 +238,7 @@ export async function initializeBootstrapCore(
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
   registerAgentNotifyTool(toolRegistry, configManager, services.webhookNotifier);
+  registerAgentOperatorActionTool(toolRegistry, services.shellPaths, configManager);
   registerAgentOperatorBriefingTool(toolRegistry, services.shellPaths, configManager);
   registerAgentReminderScheduleTool(toolRegistry, services.shellPaths, configManager);
   registerAgentWorkPlanTool(toolRegistry, services.workPlanStore);
