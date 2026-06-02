@@ -15,7 +15,7 @@ Use the interactive TUI first. CLI subcommands are secondary support paths for i
 ## Install From Package
 
 ```sh
-bun add -g --trust @pellux/goodvibes-agent
+bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent
 goodvibes-agent status
@@ -24,33 +24,11 @@ goodvibes-agent skills list
 goodvibes-agent memory list
 ```
 
-The exact bare Bun command is supported too:
-
-```sh
-bun add -g @pellux/goodvibes-agent
-goodvibes-agent
-```
-
-If Bun blocks lifecycle scripts during the bare install, the executable should still be present. Run `bun pm -g untrusted` and trust the listed GoodVibes/parser dependencies before relying on provider parsing, native parser helpers, or SDK postinstall setup.
-
 If the installed command is not found, add Bun's global bin directory to `PATH`:
 
 ```sh
 export PATH="$(bun pm bin -g):$PATH"
 goodvibes-agent --help
-```
-
-`--trust` lets Bun run the lifecycle scripts required by the shipped SDK and parser dependencies. A clean global install should leave no pending lifecycle scripts:
-
-```sh
-bun pm -g untrusted
-```
-
-If you previously installed without `--trust`, run the targeted trust command once and then re-check:
-
-```sh
-bun pm trust -g @pellux/goodvibes-agent @pellux/goodvibes-sdk core-js tree-sitter-css tree-sitter-javascript tree-sitter-json tree-sitter-python tree-sitter-typescript
-bun pm -g untrusted
 ```
 
 ## Run From Source

@@ -245,7 +245,8 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     );
   } else if (category.id === 'tools') {
     base.push(
-      { text: 'MCP server setup and tool review are available from this Agent workspace.', fg: PALETTE.info },
+      { text: `MCP servers: ${snapshot.mcpConnectedServerCount}/${snapshot.mcpServerCount} connected; quarantined ${snapshot.mcpQuarantinedServerCount}; allow-all ${snapshot.mcpAllowAllServerCount}.`, fg: snapshot.mcpQuarantinedServerCount > 0 || snapshot.mcpAllowAllServerCount > 0 ? PALETTE.warn : PALETTE.info },
+      { text: 'Open MCP workspace for live server status, tool inventory, config paths, and command previews.', fg: PALETTE.info },
       { text: 'Add/update requires typed confirmation and dispatches /mcp add ... --yes through the command router.', fg: PALETTE.good },
       { text: 'Trust changes remain explicit; allow-all is kept behind the settings workspace.', fg: PALETTE.warn },
       { text: 'Useful first actions: /mcp review, /mcp tools, /mcp config, and Add MCP server.', fg: PALETTE.muted },

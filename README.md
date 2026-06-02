@@ -14,7 +14,7 @@ Most work happens in the interactive TUI. The installed CLI exists to launch tha
 Install the public alpha package with Bun:
 
 ```sh
-bun add -g --trust @pellux/goodvibes-agent
+bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent
 goodvibes-agent status
@@ -27,15 +27,6 @@ goodvibes-agent knowledge list --kind sources
 goodvibes-agent knowledge import-urls ./agent-sources.txt --yes
 ```
 
-The bare Bun global install path is also supported:
-
-```sh
-bun add -g @pellux/goodvibes-agent
-goodvibes-agent
-```
-
-If Bun reports blocked lifecycle scripts, the command should still install, but provider parsers and SDK helper dependencies may not be fully prepared until the package is trusted. Run the trust check and targeted trust command below.
-
 If `goodvibes-agent` is not found after installation, add Bun's global bin directory to `PATH`:
 
 ```sh
@@ -44,19 +35,6 @@ goodvibes-agent --help
 ```
 
 `goodvibes-agent` starts the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
-
-`--trust` lets Bun run the package lifecycle scripts required by the shipped SDK and parser dependencies during global install. A healthy install should report no pending lifecycle scripts:
-
-```sh
-bun pm -g untrusted
-```
-
-If you previously installed without `--trust`, run the targeted trust command once and then re-check:
-
-```sh
-bun pm trust -g @pellux/goodvibes-agent @pellux/goodvibes-sdk core-js tree-sitter-css tree-sitter-javascript tree-sitter-json tree-sitter-python tree-sitter-typescript
-bun pm -g untrusted
-```
 
 ## Source Usage
 

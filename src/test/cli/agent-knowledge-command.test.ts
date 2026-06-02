@@ -46,9 +46,14 @@ function createRuntime(commandArgs: readonly string[]) {
 function readSdkPin(): string {
   const parsed = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8')) as unknown;
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 'unknown';
-  const dependencies = (parsed as { readonly dependencies?: unknown }).dependencies;
-  if (!dependencies || typeof dependencies !== 'object' || Array.isArray(dependencies)) return 'unknown';
-  const version = (dependencies as Record<string, unknown>)['@pellux/goodvibes-sdk'];
+  const packageJson = parsed as { readonly dependencies?: unknown; readonly devDependencies?: unknown };
+  const dependencies = packageJson.dependencies && typeof packageJson.dependencies === 'object' && !Array.isArray(packageJson.dependencies)
+    ? packageJson.dependencies as Record<string, unknown>
+    : {};
+  const devDependencies = packageJson.devDependencies && typeof packageJson.devDependencies === 'object' && !Array.isArray(packageJson.devDependencies)
+    ? packageJson.devDependencies as Record<string, unknown>
+    : {};
+  const version = dependencies['@pellux/goodvibes-sdk'] ?? devDependencies['@pellux/goodvibes-sdk'];
   return typeof version === 'string' ? version : 'unknown';
 }
 

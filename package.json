@@ -5,12 +5,13 @@
   "description": "GoodVibes personal operator assistant TUI with a proactive Agent product brain, isolated Agent Knowledge, local profiles, routines, skills, personas, and explicit build delegation.",
   "type": "module",
   "packageManager": "bun@1.3.10",
-  "main": "src/main.ts",
+  "main": "dist/package/main.js",
   "bin": {
     "goodvibes-agent": "bin/goodvibes-agent.ts"
   },
   "files": [
     "bin",
+    "dist/package",
     "LICENSE",
     "src",
     "!src/test",
@@ -33,6 +34,7 @@
     "check:types": "bun run typecheck",
     "prebuild": "bun run scripts/prebuild.ts",
     "build": "bun build src/main.ts --compile --outfile dist/goodvibes-agent",
+    "build:package-runtime": "bun run scripts/build-package-runtime.ts",
     "build:linux-x64": "bun build src/main.ts --compile --target=bun-linux-x64 --outfile dist/goodvibes-agent-linux-x64",
     "build:linux-arm64": "bun build src/main.ts --compile --target=bun-linux-arm64 --outfile dist/goodvibes-agent-linux-arm64",
     "build:macos-x64": "bun build src/main.ts --compile --target=bun-darwin-x64 --outfile dist/goodvibes-agent-macos-x64",
@@ -81,25 +83,15 @@
   "engines": {
     "bun": ">=1.3.10"
   },
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
     "@pellux/goodvibes-sdk": "0.33.35",
     "sql.js": "^1.14.1",
     "sqlite-vec": "^0.1.9",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
+    "zustand": "^5.0.12",
     "@types/bun": "^1.3.10",
     "typescript": "^5.9.3"
   },
-  "trustedDependencies": [
-    "@pellux/goodvibes-sdk",
-    "core-js",
-    "tree-sitter-css",
-    "tree-sitter-javascript",
-    "tree-sitter-json",
-    "tree-sitter-python",
-    "tree-sitter-typescript"
-  ],
   "overrides": {
     "minimatch": "^10.2.5"
   }

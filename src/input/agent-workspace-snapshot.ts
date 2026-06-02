@@ -268,6 +268,24 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return [];
     }
   })();
+  const mcpSnapshot = (() => {
+    try {
+      const servers = context.clients?.mcpApi?.listServerSecurity?.() ?? context.extensions?.mcpRegistry?.listServerSecurity?.() ?? [];
+      return {
+        serverCount: servers.length,
+        connectedCount: servers.filter((server) => server.connected).length,
+        quarantinedCount: servers.filter((server) => server.schemaFreshness === 'quarantined').length,
+        allowAllCount: servers.filter((server) => server.trustMode === 'allow-all').length,
+      };
+    } catch {
+      return {
+        serverCount: 0,
+        connectedCount: 0,
+        quarantinedCount: 0,
+        allowAllCount: 0,
+      };
+    }
+  })();
   const voiceProviderDescriptors: readonly AgentWorkspaceVoiceMediaProviderDescriptor[] = voiceProviders.map((provider) => ({
     id: provider.id,
     label: provider.label,
@@ -357,6 +375,10 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     mediaUnderstandingProviderCount: mediaProviders.filter((entry) => entry.capabilities.includes('understand')).length,
     mediaGenerationProviderCount: mediaProviders.filter((entry) => entry.capabilities.includes('generate')).length,
     voiceMediaReadiness,
+    mcpServerCount: mcpSnapshot.serverCount,
+    mcpConnectedServerCount: mcpSnapshot.connectedCount,
+    mcpQuarantinedServerCount: mcpSnapshot.quarantinedCount,
+    mcpAllowAllServerCount: mcpSnapshot.allowAllCount,
     browserSurfaceEnabled: readConfigBoolean(context, 'web.enabled', false),
     browserSurfacePublicBaseUrl: readConfigString(context, 'web.publicBaseUrl', '(not configured)'),
     activeRuntimeProfile: inferActiveRuntimeProfile(context.workspace?.shellPaths?.homeDirectory ?? ''),

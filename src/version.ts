@@ -12,9 +12,10 @@ try {
   const pkg = JSON.parse(readFileSync(join(import.meta.dir, '..', 'package.json'), 'utf-8')) as {
     readonly version?: unknown;
     readonly dependencies?: Record<string, unknown>;
+    readonly devDependencies?: Record<string, unknown>;
   };
   _version = typeof pkg.version === 'string' ? pkg.version : _version;
-  const packageSdkVersion = pkg.dependencies?.['@pellux/goodvibes-sdk'];
+  const packageSdkVersion = pkg.dependencies?.['@pellux/goodvibes-sdk'] ?? pkg.devDependencies?.['@pellux/goodvibes-sdk'];
   _sdkVersion = typeof packageSdkVersion === 'string' ? packageSdkVersion : _sdkVersion;
 } catch {
   // Compiled binary or missing package.json — use fallback

@@ -16,6 +16,8 @@ type AgentWorkspaceCommandEditorKind = Extract<
   | 'knowledge-ask'
   | 'mcp-server'
   | 'notify-webhook'
+  | 'notify-webhook-remove'
+  | 'notify-webhook-test'
   | 'routine-schedule'
   | 'reminder-schedule'
   | 'knowledge-bookmarks'

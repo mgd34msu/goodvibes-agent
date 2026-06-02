@@ -106,10 +106,12 @@ export function syncVersionSurfaces(root = ROOT): string {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
     readonly version?: unknown;
     readonly dependencies?: Record<string, unknown>;
+    readonly devDependencies?: Record<string, unknown>;
   };
   const version = typeof pkg.version === 'string' ? pkg.version : '0.0.0';
-  const sdkVersion = typeof pkg.dependencies?.['@pellux/goodvibes-sdk'] === 'string'
-    ? pkg.dependencies['@pellux/goodvibes-sdk']
+  const packageSdkVersion = pkg.dependencies?.['@pellux/goodvibes-sdk'] ?? pkg.devDependencies?.['@pellux/goodvibes-sdk'];
+  const sdkVersion = typeof packageSdkVersion === 'string'
+    ? packageSdkVersion
     : 'unknown';
 
   const versionTsPath = join(root, 'src', 'version.ts');

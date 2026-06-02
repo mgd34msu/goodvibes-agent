@@ -114,6 +114,29 @@ function makeContext(root: string, out: string[], callLog = makeCallLog()): Comm
 }
 
 describe('/mcp runtime config commands', () => {
+  test('opens fullscreen MCP workspace when invoked without a subcommand', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    try {
+      const registry = new CommandRegistry();
+      registerMcpRuntimeCommands(registry);
+      const out: string[] = [];
+      let opened = 0;
+      const ctx = {
+        ...makeContext(root, out),
+        openMcpWorkspace: () => {
+          opened += 1;
+        },
+      } as CommandContext;
+
+      await registry.get('mcp')!.handler([], ctx);
+
+      expect(opened).toBe(1);
+      expect(out).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('refuses MCP config mutation without explicit --yes', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
     try {

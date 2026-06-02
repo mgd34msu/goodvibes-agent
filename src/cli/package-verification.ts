@@ -37,6 +37,7 @@ const REQUIRED_TARBALL_PATHS = [
   'LICENSE',
   'package.json',
   'src/main.ts',
+  'dist/package/main.js',
   'bin/goodvibes-agent.ts',
   'tsconfig.json',
   'docs/README.md',
@@ -117,11 +118,11 @@ const PACKAGE_FACING_REQUIRED_TEXT: readonly {
   readonly path: typeof PACKAGE_FACING_TEXT_PATHS[number];
   readonly required: readonly string[];
 }[] = [
-  { path: 'README.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g --trust @pellux/goodvibes-agent', 'bun pm -g untrusted'] },
+  { path: 'README.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g @pellux/goodvibes-agent'] },
   { path: 'docs/README.md', required: ['/api/goodvibes-agent/knowledge'] },
-  { path: 'docs/getting-started.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g --trust @pellux/goodvibes-agent', 'bun pm -g untrusted'] },
+  { path: 'docs/getting-started.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g @pellux/goodvibes-agent'] },
   { path: 'docs/connected-services.md', required: ['/api/goodvibes-agent/knowledge'] },
-  { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g --trust @pellux/goodvibes-agent', 'bun pm -g untrusted'] },
+  { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g @pellux/goodvibes-agent'] },
 ];
 const NON_COMMAND_ROUTE_ROOTS = new Set(['api', 'status']);
 
@@ -170,11 +171,15 @@ function verifyBin(root: string, command: typeof REQUIRED_BIN_COMMANDS[number], 
     exists: Boolean(target) && existsSync(binPath),
     executable: Boolean(target) && hasExecutableBit(binPath),
     usesBunShebang: source.startsWith('#!/usr/bin/env bun'),
-    hasSourceEntrypoint: source.includes('../src/main.ts'),
+    hasSourceEntrypoint: source.includes('dist') && source.includes('package') && source.includes('main.js'),
   };
 }
 
 function registryPackDryRun(root: string): { readonly files: readonly string[]; readonly entryCount: number; readonly unpackedSize: number } {
+  execSync('bun run build:package-runtime', {
+    cwd: root,
+    stdio: 'inherit',
+  });
   const raw = execSync('npm pack --json --dry-run', {
     cwd: root,
     encoding: 'utf-8',
@@ -240,7 +245,7 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
     if (!item.exists) issues.push(`bin target does not exist: ${item.command} -> ${item.target}`);
     if (!item.executable) issues.push(`bin target is not executable: ${item.command} -> ${item.target}`);
     if (!item.usesBunShebang) issues.push(`bin target does not use Bun shebang: ${item.command} -> ${item.target}`);
-    if (!item.hasSourceEntrypoint) issues.push(`bin target does not import the Agent source entrypoint: ${item.command}`);
+    if (!item.hasSourceEntrypoint) issues.push(`bin target does not load the packaged Agent runtime: ${item.command}`);
   }
   for (const path of REQUIRED_TARBALL_PATHS) {
     if (!pack.files.includes(path)) issues.push(`registry tarball missing required path: ${path}`);

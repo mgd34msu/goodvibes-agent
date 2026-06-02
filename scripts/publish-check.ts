@@ -58,6 +58,11 @@ for (const binTarget of [pkg.bin['goodvibes-agent']]) {
   }
 }
 
+execSync('bun run build:package-runtime', {
+  cwd: root,
+  stdio: 'inherit',
+});
+
 const packRaw = execSync('npm pack --json --dry-run', {
   cwd: root,
   encoding: 'utf8',
@@ -113,6 +118,7 @@ for (const requiredPath of [
   'CHANGELOG.md',
   'LICENSE',
   'src/main.ts',
+  'dist/package/main.js',
   'bin/goodvibes-agent.ts',
   'tsconfig.json',
   'docs/README.md',

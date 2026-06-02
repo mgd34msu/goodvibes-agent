@@ -362,6 +362,19 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
+  test('opens the fullscreen MCP workspace from Tools and MCP through the shell command router', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-workspace');
+
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/mcp']);
+    expect(workspace.lastActionResult?.title).toBe('Opening Open MCP workspace');
+  });
+
   test('renders local persona skill and routine library workspaces from live Agent state', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-local-libraries-'));
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
@@ -629,6 +642,58 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual(['/notify add https://ntfy.sh/goodvibes-agent-alerts --yes']);
     expect(workspace.localEditor).toBeNull();
     expect(workspace.lastActionResult?.title).toBe('Opening notification webhook add');
+  });
+
+  test('removes notification webhook targets from the workspace only after typed confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-remove-webhook');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('notify-webhook-remove');
+    feedText(workspace, 'https://ntfy.sh/goodvibes-agent-alerts');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/notify remove https://ntfy.sh/goodvibes-agent-alerts --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening notification webhook remove');
+  });
+
+  test('tests notification webhook targets from the workspace only after typed confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-test-webhooks');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('notify-webhook-test');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/notify test --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening notification webhook test');
   });
 
   test('discovers and imports local skill files from the workspace after confirmation', () => {

@@ -7,6 +7,7 @@ import { SDK_VERSION, VERSION } from '../../version.ts';
 type PackageJson = {
   readonly version?: string;
   readonly dependencies?: Record<string, string>;
+  readonly devDependencies?: Record<string, string>;
   readonly engines?: Record<string, string>;
   readonly scripts?: Record<string, string>;
   readonly files?: readonly string[];
@@ -47,8 +48,9 @@ describe('package CLI install verification', () => {
   test('compiled metadata fallbacks match package identity and SDK pin', () => {
     const packagePath = resolve(import.meta.dir, '../../..', 'package.json');
     const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
+    const sdkVersion = parsed.dependencies?.['@pellux/goodvibes-sdk'] ?? parsed.devDependencies?.['@pellux/goodvibes-sdk'];
     expect(VERSION).toBe(parsed.version);
-    expect(SDK_VERSION).toBe(parsed.dependencies?.['@pellux/goodvibes-sdk']);
+    expect(SDK_VERSION).toBe(sdkVersion);
   });
 
   test('package file exclusions do not carry stale concrete paths', () => {

@@ -14,11 +14,11 @@ GoodVibes Agent's current installable public alpha version is recorded in `packa
 End users install and run GoodVibes Agent with Bun:
 
 ```sh
-bun add -g --trust @pellux/goodvibes-agent
+bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 ```
 
-Do not add non-Bun install instructions for this product. The package is hosted on the public package registry, but the supported install and smoke path is Bun with `--trust`, followed by `bun pm -g untrusted` reporting zero pending lifecycle scripts.
+Do not add non-Bun install instructions for this product. The package is hosted on the public package registry, but the supported install and smoke path is the normal Bun global command above, followed by `goodvibes-agent` launching the TUI.
 
 ## Required Gates
 
@@ -47,8 +47,8 @@ Also run the package install smoke from a packed artifact. It must prove:
 - the installed command is on `PATH`
 - the bin target is `bin/goodvibes-agent.ts`
 - the Bun shebang survives pack/install
-- Bun global install uses `bun add -g --trust`
-- `bun pm -g untrusted` reports zero pending lifecycle scripts after install
+- the bundled runtime `dist/package/main.js` is present and non-empty
+- Bun global install uses `bun add -g`
 - `goodvibes-agent --help` works
 - `goodvibes-agent --version` reports the package version
 - the installed TUI launches in a PTY and does not exit immediately

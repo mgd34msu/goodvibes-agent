@@ -251,6 +251,28 @@ function liveCommandContext(): CommandContext {
       agentKnowledgeApi: {
         memory: memoryApi(),
       },
+      mcpApi: {
+        listServerSecurity: () => [
+          {
+            name: 'filesystem',
+            connected: true,
+            role: 'filesystem',
+            trustMode: 'constrained',
+            schemaFreshness: 'fresh',
+            allowedPaths: ['/home/buzzkill/Projects'],
+            allowedHosts: [],
+          },
+          {
+            name: 'browser',
+            connected: false,
+            role: 'browser',
+            trustMode: 'allow-all',
+            schemaFreshness: 'quarantined',
+            allowedPaths: [],
+            allowedHosts: ['docs.example.test'],
+          },
+        ],
+      },
     },
     platform: {
       configManager: {
@@ -572,6 +594,8 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 38));
 
     expect(output).toContain('Tools & MCP');
+    expect(output).toContain('MCP servers: 1/2 connected; quarantined 1; allow-all 1.');
+    expect(output).toContain('Open MCP workspace');
     expect(output).toContain('/mcp review');
     expect(output).toContain('/mcp tools');
     expect(output).toContain('/mcp config');
@@ -656,6 +680,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/channels');
     expect(output).toContain('/notify list');
     expect(output).toContain('edit notify-webhook');
+    expect(output).toContain('edit notify-webhook-remove');
+    expect(output).toContain('edit notify-webhook-test');
     expect(output).toContain('/health review');
     expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and Agent');
     expect(output).toContain('policy.');

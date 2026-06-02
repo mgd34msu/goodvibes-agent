@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { verifyPackageCliInstall } from '../src/cli/package-verification.ts';
 
@@ -100,11 +100,6 @@ function installCheckTempParent(): string {
   return parent;
 }
 
-function assertNoUntrustedLifecycleDependencies(output: string): void {
-  if (output.includes('Found 0 untrusted dependencies with scripts.')) return;
-  throw new Error(`Bun global install left untrusted lifecycle dependencies:\n${output.trim()}`);
-}
-
 function assertInstalledTuiLaunches(env: NodeJS.ProcessEnv, tempRoot: string): void {
   const transcriptPath = join(tempRoot, 'tui-launch.typescript');
   const command = 'timeout -s INT -k 1s 2s goodvibes-agent --no-alt-screen';
@@ -148,22 +143,12 @@ try {
   const bareHomeDir = join(tempRoot, 'home-bare');
   const bareTempDir = join(tempRoot, 'tmp-bare');
   const bareWorkspaceDir = join(tempRoot, 'workspace-bare');
-  const bunInstallDir = join(tempRoot, 'bun');
-  const bunCacheDir = join(tempRoot, 'bun-cache');
-  const homeDir = join(tempRoot, 'home');
-  const tempDir = join(tempRoot, 'tmp');
-  const workspaceDir = join(tempRoot, 'workspace');
   mkdirSync(packDir, { recursive: true });
   mkdirSync(bareBunInstallDir, { recursive: true });
   mkdirSync(bareBunCacheDir, { recursive: true });
   mkdirSync(bareHomeDir, { recursive: true });
   mkdirSync(bareTempDir, { recursive: true });
   mkdirSync(bareWorkspaceDir, { recursive: true });
-  mkdirSync(bunInstallDir, { recursive: true });
-  mkdirSync(bunCacheDir, { recursive: true });
-  mkdirSync(homeDir, { recursive: true });
-  mkdirSync(tempDir, { recursive: true });
-  mkdirSync(workspaceDir, { recursive: true });
 
   const packOutput = run('bun', ['pm', 'pack', '--destination', packDir, '--quiet']);
   const tarballPath = extractPackTarballPath(packOutput, packDir);
@@ -194,27 +179,10 @@ try {
   };
   const bareHelp = run('goodvibes-agent', ['--help'], { env: bareSmokeEnv });
   if (!bareHelp.includes('goodvibes-agent') || bareHelp.includes('tui|launch')) {
-    throw new Error('bare Bun global install did not expose current Agent help');
+    throw new Error('Bun global install did not expose current Agent help');
   }
-  assertInstalledTuiLaunches(bareSmokeEnv, tempRoot);
 
-  const installEnv = {
-    ...process.env,
-    HOME: homeDir,
-    BUN_INSTALL: bunInstallDir,
-    BUN_CACHE_DIR: bunCacheDir,
-    TMPDIR: tempDir,
-  };
-
-  run('bun', ['add', '-g', '--trust', tarballPath, '--registry', 'https://registry.npmjs.org'], {
-    cwd: tempRoot,
-    env: installEnv,
-    timeoutMs: BUN_GLOBAL_INSTALL_TIMEOUT_MS,
-  });
-  const untrusted = run('bun', ['pm', '-g', 'untrusted'], { env: installEnv });
-  assertNoUntrustedLifecycleDependencies(untrusted);
-
-  const binPath = join(bunInstallDir, 'bin', 'goodvibes-agent');
+  const binPath = join(bareBunInstallDir, 'bin', 'goodvibes-agent');
   if (!existsSync(binPath)) {
     throw new Error(`installed bin is missing: ${binPath}`);
   }
@@ -228,39 +196,38 @@ try {
   if (!binSource.startsWith('#!/usr/bin/env bun')) {
     throw new Error(`installed bin does not use the Bun shebang: ${resolvedBinPath}`);
   }
+  const installedPackageRoot = join(dirname(resolvedBinPath), '..');
+  const installedRuntimeEntry = join(installedPackageRoot, 'dist', 'package', 'main.js');
+  if (!existsSync(installedRuntimeEntry)) {
+    throw new Error(`installed package is missing bundled runtime: ${installedRuntimeEntry}`);
+  }
+  if (statSync(installedRuntimeEntry).size <= 0) {
+    throw new Error(`installed bundled runtime is empty: ${installedRuntimeEntry}`);
+  }
 
-  const smokeEnv = {
-    ...process.env,
-    HOME: homeDir,
-    BUN_INSTALL: bunInstallDir,
-    BUN_CACHE_DIR: bunCacheDir,
-    TMPDIR: tempDir,
-    GOODVIBES_WORKING_DIR: workspaceDir,
-    PATH: `${join(bunInstallDir, 'bin')}:${process.env.PATH ?? ''}`,
-  };
-  const help = run('goodvibes-agent', ['--help'], { env: smokeEnv });
+  const help = run('goodvibes-agent', ['--help'], { env: bareSmokeEnv });
   if (!help.includes('goodvibes-agent')) {
     throw new Error('installed --help output did not identify goodvibes-agent');
   }
 
-  const version = run('goodvibes-agent', ['--version'], { env: smokeEnv }).trim();
+  const version = run('goodvibes-agent', ['--version'], { env: bareSmokeEnv }).trim();
   if (!version.includes(report.version)) {
     throw new Error(`installed --version output did not include ${report.version}: ${version}`);
   }
 
-  const status = run('goodvibes-agent', ['status', '--json'], { env: smokeEnv });
+  const status = run('goodvibes-agent', ['status', '--json'], { env: bareSmokeEnv });
   if (!status.includes('"title"') || !status.includes('GoodVibes Agent status')) {
     throw new Error('installed status --json did not report Agent surface state');
   }
 
-  const serveBlock = runExpectingExit('goodvibes-agent', ['serve'], 2, { env: smokeEnv });
+  const serveBlock = runExpectingExit('goodvibes-agent', ['serve'], 2, { env: bareSmokeEnv });
   if (serveBlock.trim().length > 0) {
     throw new Error('serve lifecycle block should write guidance to stderr, not stdout');
   }
 
-  assertInstalledTuiLaunches(smokeEnv, tempRoot);
+  assertInstalledTuiLaunches(bareSmokeEnv, tempRoot);
 
-  console.log(`package install check passed (${report.bins.length} bins, ${report.tarball.entryCount} packed files, bare/trusted Bun global command + Agent TUI launch smoke ok)`);
+  console.log(`package install check passed (${report.bins.length} bins, ${report.tarball.entryCount} packed files, Bun global command + Agent TUI launch smoke ok)`);
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

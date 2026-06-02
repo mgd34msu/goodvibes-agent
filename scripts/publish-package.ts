@@ -56,6 +56,10 @@ function copyEntry(relativePath: string) {
 try {
   withWorkspaceLock('stage publish package', () => {
     syncProjectSurfaces(root);
+    execFileSync('bun', ['run', 'build:package-runtime'], {
+      cwd: root,
+      stdio: 'inherit',
+    });
 
     mkdirSync(stageDir, { recursive: true });
 

@@ -55,6 +55,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'channel-readiness', label: 'Channel readiness', detail: 'Show a read-only readiness matrix for configured messaging and notification channels.', command: '/channels', kind: 'command', safety: 'read-only' },
       { id: 'notification-routes', label: 'Notification routes', detail: 'Inspect configured webhook notification URLs without sending a test message.', command: '/notify list', kind: 'command', safety: 'read-only' },
       { id: 'notification-add-webhook', label: 'Add webhook target', detail: 'Open a confirmed form that adds one webhook notification target for explicit reminder and routine delivery.', editorKind: 'notify-webhook', kind: 'editor', safety: 'safe' },
+      { id: 'notification-remove-webhook', label: 'Remove webhook target', detail: 'Open a confirmed form that removes one exact webhook notification target from Agent delivery.', editorKind: 'notify-webhook-remove', kind: 'editor', safety: 'safe' },
+      { id: 'notification-test-webhooks', label: 'Test webhook targets', detail: 'Open a confirmed form that sends one notification test to configured webhook targets only after typed confirmation.', editorKind: 'notify-webhook-test', kind: 'editor', safety: 'safe' },
       { id: 'setup-review', label: 'Health review', detail: 'Review setup posture without changing inbound delivery or mutating channel state.', command: '/health review', kind: 'command', safety: 'read-only' },
       { id: 'channel-safety', label: 'Delivery safety', detail: 'External messages, channel DMs, and public delivery targets require explicit user action and Agent policy. Agent will not silently send or expose channels from this workspace.', kind: 'guidance', safety: 'blocked' },
     ],
@@ -66,6 +68,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'MCP server setup, trust review, and tool inventory.',
     detail: 'Configure and inspect task tools from the Agent TUI. Adding or changing tools requires typed confirmation; normal chat still chooses tools serially in the main conversation.',
     actions: [
+      { id: 'mcp-workspace', label: 'Open MCP workspace', detail: 'Open the fullscreen MCP server and tool workspace with live server status, tool list, config paths, and command previews.', command: '/mcp', kind: 'command', safety: 'safe' },
       { id: 'mcp-review', label: 'MCP review', detail: 'Inspect MCP server connection, trust, role, and quarantine posture.', command: '/mcp review', kind: 'command', safety: 'read-only' },
       { id: 'mcp-tools', label: 'Tool inventory', detail: 'List available MCP tools grouped by server.', command: '/mcp tools', kind: 'command', safety: 'read-only' },
       { id: 'mcp-config', label: 'Config locations', detail: 'Show effective MCP config locations and source scopes without mutating them.', command: '/mcp config', kind: 'command', safety: 'read-only' },

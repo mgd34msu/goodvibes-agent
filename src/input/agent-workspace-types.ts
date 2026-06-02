@@ -21,6 +21,8 @@ export type AgentWorkspaceEditorKind =
   | 'knowledge-ask'
   | 'mcp-server'
   | 'notify-webhook'
+  | 'notify-webhook-remove'
+  | 'notify-webhook-test'
   | 'tts-prompt'
   | 'image-input'
   | 'skill-bundle'
@@ -184,6 +186,10 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly mediaUnderstandingProviderCount: number;
   readonly mediaGenerationProviderCount: number;
   readonly voiceMediaReadiness: AgentWorkspaceVoiceMediaReadiness;
+  readonly mcpServerCount: number;
+  readonly mcpConnectedServerCount: number;
+  readonly mcpQuarantinedServerCount: number;
+  readonly mcpAllowAllServerCount: number;
   readonly browserSurfaceEnabled: boolean;
   readonly browserSurfacePublicBaseUrl: string;
   readonly activeRuntimeProfile: string;
