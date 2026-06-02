@@ -45,7 +45,33 @@ describe('qrcode runtime command', () => {
     const text = out.join('\n');
     expect(text).toContain('goodvibes-agent');
     expect(text).toContain('http://127.0.0.1:3421');
+    expect(text).toContain('Token:          present sha256:');
+    expect(text).toContain('rerun /pair --show-token --yes');
+    expect(text).not.toContain('existing-connected-host-token');
     expect(text).not.toContain('QR code panel');
+  });
+
+  test('prints manual token only after explicit confirmation', async () => {
+    const registry = new CommandRegistry();
+    registerQrcodeRuntimeCommands(registry);
+    const command = registry.get('pair');
+    expect(command).toBeDefined();
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-manual-'));
+    const tokenDir = join(root, '.goodvibes', 'daemon');
+    mkdirSync(tokenDir, { recursive: true });
+    writeFileSync(join(tokenDir, 'operator-tokens.json'), JSON.stringify({ token: 'manual-connected-host-token' }));
+
+    const previewOut: string[] = [];
+    await command!.handler(['--show-token'], makeContext(previewOut, root));
+    const preview = previewOut.join('\n');
+    expect(preview).toContain('Manual companion token display requires confirmation.');
+    expect(preview).not.toContain('manual-connected-host-token');
+
+    const confirmedOut: string[] = [];
+    await command!.handler(['--show-token', '--yes'], makeContext(confirmedOut, root));
+    const confirmed = confirmedOut.join('\n');
+    expect(confirmed).toContain('Manual token display was explicitly confirmed');
+    expect(confirmed).toContain('manual-connected-host-token');
   });
 
   test('does not create connected-host auth tokens when pairing token is missing', async () => {

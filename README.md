@@ -102,7 +102,7 @@ Slash commands remain available inside the TUI for power users, but the fullscre
 
 Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promotion to a connected schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live connected schedules through public `schedules.list`.
 
-Use `/channels` inside the TUI for channel readiness and exact confirmed sends. Readiness views show enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values. `/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit delivery through configured strategies.
+Use `/channels` inside the TUI for channel readiness and exact confirmed sends. Readiness views show enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values. Companion pairing is QR-first; `/pair` hides the raw token in text, and manual token display requires `/pair --show-token --yes`. `/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit delivery through configured strategies.
 
 ## Connected Host
 

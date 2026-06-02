@@ -12,10 +12,10 @@ Agent channel UX should show:
 - whether account/token setup is present without printing secret values;
 - the default target, if configured;
 - delivery risk and public exposure warnings;
-- the command or workspace action needed to review pairing;
+- the command or workspace action needed to pair companion clients through QR-first setup;
 - the confirmed `Send channel message` action when the user explicitly wants a one-off delivery.
 
-Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved connected-host request. One-off delivery uses Agent Workspace -> Channels -> Send channel message or `/channels send ... --yes`.
+Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved connected-host request. Companion pairing uses `/pair` without printing the raw token; manual token display requires `/pair --show-token --yes`. One-off delivery uses Agent Workspace -> Channels -> Send channel message or `/channels send ... --yes`.
 
 ## Companion And Session Routes
 

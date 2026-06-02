@@ -1,4 +1,5 @@
 import type { CommandRegistry } from '../command-registry.ts';
+import { createHash } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 import {
   buildCompanionConnectionInfo,
@@ -31,21 +32,37 @@ function urlHostForBindHost(host: string): string {
   return host || '127.0.0.1';
 }
 
-function formatAgentPairingBlock(info: CompanionConnectionInfo, qr: string): string {
+function tokenFingerprint(token: string): string {
+  return createHash('sha256').update(token).digest('hex').slice(0, 12);
+}
+
+function formatTokenLine(token: string, showToken: boolean): string {
+  if (showToken) return `Token:          ${token}`;
+  return `Token:          present sha256:${tokenFingerprint(token)} (hidden in text; QR contains pairing payload)`;
+}
+
+function formatAgentPairingBlock(info: CompanionConnectionInfo, qr: string, showToken: boolean): string {
   return [
     `GoodVibes Agent companion pairing v${info.version}`,
     '━━━━━━━━━━━━━━━━━━━━━━━━',
     `Connected host: ${info.url}`,
     `Surface:        ${info.surface}`,
     `User:           ${info.username}`,
-    `Token:          ${info.token}`,
+    formatTokenLine(info.token, showToken),
     '',
     'Scan to connect:',
     '',
     qr,
     '',
+    showToken
+      ? 'Manual token display was explicitly confirmed for this command.'
+      : 'For manual setup, rerun /pair --show-token --yes to print the token once.',
     'Agent is waiting for the companion app to connect to the owning GoodVibes host.',
   ].join('\n');
+}
+
+function shouldShowToken(args: readonly string[]): boolean {
+  return args.includes('--show-token') || args.includes('--manual-token');
 }
 
 export function registerQrcodeRuntimeCommands(registry: CommandRegistry): void {
@@ -54,7 +71,7 @@ export function registerQrcodeRuntimeCommands(registry: CommandRegistry): void {
     aliases: ['qr', 'pair'],
     description: 'Print companion pairing details and a QR code',
     usage: '',
-    handler(_args, ctx) {
+    handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);
       const configManager = requirePlatform(ctx).configManager;
       const tokenRecord = readConnectedHostOperatorToken(shellPaths.homeDirectory);
@@ -72,7 +89,17 @@ export function registerQrcodeRuntimeCommands(registry: CommandRegistry): void {
       });
       const payload = encodeConnectionPayload(info);
       const qr = renderQrToString(generateQrMatrix(payload));
-      ctx.print(formatAgentPairingBlock(info, qr));
+      const showToken = shouldShowToken(args);
+      if (showToken && !args.includes('--yes')) {
+        ctx.print([
+          'Manual companion token display requires confirmation.',
+          '  rerun: /pair --show-token --yes',
+          `  token fingerprint: sha256:${tokenFingerprint(tokenRecord.token)}`,
+          '  QR pairing remains available without printing the raw token.',
+        ].join('\n'));
+        return;
+      }
+      ctx.print(formatAgentPairingBlock(info, qr, showToken));
     },
   });
 }
