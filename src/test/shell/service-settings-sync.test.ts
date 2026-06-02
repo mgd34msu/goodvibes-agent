@@ -29,7 +29,7 @@ describe('syncServiceSettingToPlatform', () => {
     });
   }
 
-  test('blocks and reverts service lifecycle changes', () => {
+  test('blocks and reverts connected-host lifecycle changes', () => {
     const configManager = createConfig();
     configManager.setDynamic('service.enabled', true);
 
@@ -41,10 +41,12 @@ describe('syncServiceSettingToPlatform', () => {
     expect(configManager.get('service.enabled')).toBe(false);
     expect(result).toEqual({
       handled: true,
-      action: 'external-daemon-blocked',
+      action: 'connected-host-blocked',
       message: AGENT_EXTERNAL_DAEMON_SERVICE_MESSAGE,
-      error: 'daemon_lifecycle_external',
+      error: 'connected_host_lifecycle_external',
     });
+    expect(result.message).toContain('connected GoodVibes host');
+    expect(result.message).toContain('host lifecycle outside Agent');
   });
 
   test('does not rewrite unchanged service settings', () => {
@@ -60,7 +62,7 @@ describe('syncServiceSettingToPlatform', () => {
     expect(result).toEqual({
       handled: true,
       action: 'unchanged',
-      message: 'External daemon service setting unchanged',
+      message: 'Connected-host setting unchanged',
     });
   });
 

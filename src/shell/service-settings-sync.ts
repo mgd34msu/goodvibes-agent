@@ -1,7 +1,7 @@
 import type { ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import type { CliServiceRuntime } from '../cli/service-posture.ts';
 
-export const AGENT_EXTERNAL_DAEMON_SERVICE_MESSAGE = 'GoodVibes Agent uses connected GoodVibes services and does not install, start, stop, restart, or uninstall them. Manage service lifecycle outside Agent.';
+export const AGENT_EXTERNAL_DAEMON_SERVICE_MESSAGE = 'GoodVibes Agent uses a connected GoodVibes host and does not install, start, stop, restart, or uninstall it. Manage host lifecycle outside Agent.';
 
 export interface ServiceSettingsSyncChange {
   readonly key: ConfigKey;
@@ -11,7 +11,7 @@ export interface ServiceSettingsSyncChange {
 
 export interface ServiceSettingsSyncResult {
   readonly handled: boolean;
-  readonly action?: 'external-daemon-blocked' | 'unchanged';
+  readonly action?: 'connected-host-blocked' | 'unchanged';
   readonly message?: string;
   readonly error?: string;
 }
@@ -30,15 +30,15 @@ export function syncServiceSettingToPlatform(
     return {
       handled: true,
       action: 'unchanged',
-      message: 'External daemon service setting unchanged',
+      message: 'Connected-host setting unchanged',
     };
   }
 
   runtime.configManager.setDynamic(change.key, change.previousValue);
   return {
     handled: true,
-    action: 'external-daemon-blocked',
+    action: 'connected-host-blocked',
     message: AGENT_EXTERNAL_DAEMON_SERVICE_MESSAGE,
-    error: 'daemon_lifecycle_external',
+    error: 'connected_host_lifecycle_external',
   };
 }

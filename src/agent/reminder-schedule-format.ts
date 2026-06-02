@@ -33,7 +33,7 @@ export function formatReminderSchedulePreview(preview: ReminderSchedulePreview):
     `  schedule: ${preview.payload.kind} ${scheduleValue(preview)}`,
     `  enabled: ${preview.payload.enabled === false ? 'no' : 'yes'}`,
     `  delivery: ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
-    '  target: connected GoodVibes services/main conversation route',
+    '  target: connected GoodVibes host/main conversation route',
     '  policy: reminder delivery only; isolated Agent Knowledge only; no default wiki/non-Agent fallback',
     '  next: rerun with --yes to create this connected reminder schedule',
   ].join('\n');
@@ -57,19 +57,19 @@ export function formatReminderScheduleFailure(failure: ReminderScheduleFailure):
   return [
     `GoodVibes reminder schedule error: ${failure.kind}`,
     `  ${failure.error}`,
-    failure.baseUrl ? `  service: ${failure.baseUrl}` : null,
+    failure.baseUrl ? `  host: ${failure.baseUrl}` : null,
     `  route: ${REMINDER_SCHEDULE_METHOD} ${failure.route}`,
     failure.kind === 'version_mismatch' && failure.daemonVersion && failure.expectedSdkVersion
-      ? `  versions: service=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
+      ? `  versions: host=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
       : null,
     failure.kind === 'auth_required'
-      ? '  next: pair/authenticate with connected GoodVibes services, then retry with --yes.'
+      ? '  next: pair/authenticate with the connected GoodVibes host, then retry with --yes.'
       : null,
     failure.kind === 'daemon_unavailable'
-      ? '  next: make connected GoodVibes services available outside Agent, then retry.'
+      ? '  next: make the connected GoodVibes host available outside Agent, then retry.'
       : null,
     failure.kind === 'version_mismatch' || failure.kind === 'daemon_route_unavailable'
-      ? '  next: update connected GoodVibes services so public schedules.create is available.'
+      ? '  next: update the connected GoodVibes host so public schedules.create is available.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }

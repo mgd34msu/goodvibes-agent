@@ -174,7 +174,7 @@ const STATE_MUTATION_DENIAL = [
 const SETTINGS_MUTATION_DENIAL = [
   'GoodVibes Agent does not mutate configuration through model tools in the main conversation.',
   'Use explicit Agent CLI/slash settings commands for intentional config changes.',
-  'Secrets, tokens, passwords, daemon lifecycle settings, and service exposure settings require explicit user action outside the model tool surface.',
+  'Secrets, tokens, passwords, connected-host lifecycle settings, and connected-host exposure settings require explicit user action outside the model tool surface.',
 ].join(' ');
 
 const INSPECT_WRITE_DENIAL = [
@@ -191,8 +191,8 @@ const DURABLE_WORKFLOW_MUTATION_DENIAL = [
 
 const CONTROL_MUTATION_DENIAL = [
   'GoodVibes Agent only inspects runtime-owned product-control surfaces from the main conversation.',
-  'Product-control mutation, daemon lifecycle, and service posture changes are disabled here.',
-  'Use explicit Agent CLI/slash commands for Agent-owned changes, and keep daemon lifecycle external.',
+  'Product-control mutation, connected-host lifecycle, and connected-host posture changes are disabled here.',
+  'Use explicit Agent CLI/slash commands for Agent-owned changes, and keep connected-host lifecycle external.',
 ].join(' ');
 
 export function installAgentToolPolicyGuard(registry: ToolRegistry, options: AgentToolPolicyGuardOptions = {}): void {
@@ -250,7 +250,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
         modeSet: READ_ONLY_CONTROL_TOOL_MODE_SET,
         description: [
           'Read-only product-control inspection for GoodVibes Agent.',
-          'Command, panel, and subscription catalogs can be inspected, but product-control mutation and daemon lifecycle are external.',
+          'Command, panel, and subscription catalogs can be inspected, but product-control mutation and connected-host lifecycle are external.',
         ].join(' '),
         denial: CONTROL_MUTATION_DENIAL,
       });
