@@ -131,10 +131,13 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('reachable: yes (HTTP 200)');
     expect(text).toContain('sdk: 0.33.35 expected 0.33.35');
     expect(text).toContain('Agent Knowledge: ready');
-    expect(text).toContain('Connected GoodVibes Services:');
+    expect(text).toContain('Connected Host:');
     expect(text).toContain('Agent role: client/operator TUI only');
-    expect(text).toContain('service ownership: outside Agent');
-    expect(text).toContain('Agent starts services: no');
+    expect(text).toContain('lifecycle owner: outside Agent');
+    expect(text).toContain('Agent starts connected host: no');
+    expect(text).not.toContain('installed:');
+    expect(text).not.toContain('running:');
+    expect(text).not.toContain('platform:');
     expect(text).not.toContain('Runtime Endpoint Diagnostics:');
     expect(text).not.toContain('Endpoint Diagnostics:');
     expect(text).not.toContain('runtimeApi:');
@@ -146,7 +149,7 @@ describe('CLI status and doctor output', () => {
   test('doctor includes connected-service config and endpoint diagnostics', () => {
     const text = renderCliStatus({ ...makeOptions(), doctor: true });
 
-    expect(text).toContain('Connected-Service Config Signals:');
+    expect(text).toContain('Connected Host Config Signals:');
     expect(text).toContain('host config present: yes');
     expect(text).toContain('lifecycle config: external to Agent');
     expect(text).not.toContain('host autostart:');

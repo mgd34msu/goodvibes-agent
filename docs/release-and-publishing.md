@@ -9,7 +9,7 @@ GoodVibes Agent's current installable public alpha version is recorded in `packa
 - SDK dependency: exact pin to `@pellux/goodvibes-sdk@0.33.35`
 - runtime: Bun
 - source language: TypeScript
-- connected services ownership: outside Agent
+- connected host ownership: outside Agent
 
 End users install and run GoodVibes Agent with Bun:
 

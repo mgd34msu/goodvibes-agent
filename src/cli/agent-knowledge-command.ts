@@ -518,7 +518,7 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
     `  version compatible: ${yesNo(versionCompatible)}`,
     `  operator token: ${connection.token ? 'present' : 'missing'} (${connection.tokenPath})`,
     `  Agent knowledge route: ${knowledgeRouteReady ? 'ready' : `not ready (${knowledgeRoute.ok ? 'unknown' : knowledgeRoute.kind})`}`,
-    ...(versionCompatible ? [] : ['  next: update connected GoodVibes services so /status matches the Agent SDK pin.']),
+    ...(versionCompatible ? [] : ['  next: update the connected GoodVibes host so /status matches the Agent SDK pin.']),
   ].join('\n');
   return {
     output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text,

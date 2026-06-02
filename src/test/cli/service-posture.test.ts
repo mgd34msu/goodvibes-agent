@@ -41,16 +41,19 @@ describe('CLI service posture', () => {
     });
     const text = formatCliServicePosture(posture);
 
-    expect(posture.managed.path).toBe('connected GoodVibes services');
+    expect(posture.managed.path).toBe('connected GoodVibes host');
     expect(posture.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(posture.managed.suggestedCommands).toEqual([]);
     expect(posture.issues).toEqual([]);
     expect(posture.issues).not.toContain('Connected-service config is enabled, but no platform service definition is installed.');
-    expect(text).toContain('GoodVibes Agent runtime connection diagnostics');
-    expect(text).toContain('ownership: managed outside goodvibes-agent');
-    expect(text).toContain('Agent owns lifecycle: no');
+    expect(text).toContain('GoodVibes Agent connected-host diagnostics');
+    expect(text).toContain('lifecycle owner: outside goodvibes-agent');
+    expect(text).toContain('Agent starts connected host: no');
     expect(text).toContain('external host lifecycle config: ignored by Agent');
     expect(text).toContain('legacy host switch present: no');
+    expect(text).not.toContain('installed:');
+    expect(text).not.toContain('running:');
+    expect(text).not.toContain('platform:');
     expect(text).not.toContain('external host autostart config');
     expect(text).not.toContain('external host restart config');
     expect(text).not.toContain(`goodvibes-${'daemon'}`);
@@ -113,7 +116,7 @@ describe('CLI service posture', () => {
       issues: string[];
     };
 
-    expect(parsed.managed.path).toBe('connected GoodVibes services');
+    expect(parsed.managed.path).toBe('connected GoodVibes host');
     expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.endpoints.some((endpoint) => endpoint.id === 'controlPlane')).toBe(true);
     expect(parsed.issues).toContain('Connected-service settings are present, but Agent service ownership is disabled by design.');

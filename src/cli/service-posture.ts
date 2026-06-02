@@ -143,7 +143,7 @@ function resolveConfiguredLogPath(runtime: CliServiceRuntime): string | undefine
 function createExternalDaemonLifecycle(logPath: string | undefined): CliExternalDaemonLifecyclePosture {
   return {
     platform: 'manual',
-    path: 'connected GoodVibes services',
+    path: 'connected GoodVibes host',
     installed: false,
     autostart: false,
     running: false,
@@ -151,7 +151,7 @@ function createExternalDaemonLifecycle(logPath: string | undefined): CliExternal
     commandPreview: 'managed outside goodvibes-agent',
     suggestedCommands: [],
     lastAction: 'status',
-    pidPath: 'connected GoodVibes services',
+    pidPath: 'connected GoodVibes host',
     lastError: null,
   };
 }
@@ -223,16 +223,16 @@ function yesNo(value: boolean): string {
 export function formatCliServicePosture(posture: CliServicePosture, json = false): string {
   if (json) return JSON.stringify(posture, null, 2);
   return [
-    'GoodVibes Agent runtime connection diagnostics',
-    '  ownership: managed outside goodvibes-agent',
-    '  Agent owns lifecycle: no',
+    'GoodVibes Agent connected-host diagnostics',
+    '  lifecycle owner: outside goodvibes-agent',
+    '  Agent starts connected host: no',
     `  external host config present: ${yesNo(posture.config.enabled)}`,
     '  external host lifecycle config: ignored by Agent',
     `  legacy host switch present: ${yesNo(posture.config.daemonEnabled)}`,
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),
     '',
-    'Connected GoodVibes API checks:',
+    'Connected API checks:',
     ...posture.endpoints.map((endpoint) =>
       `  ${endpoint.label}: enabled=${yesNo(endpoint.enabled)} ${endpoint.binding.hostMode} ${endpoint.binding.host}:${endpoint.binding.port} posture=${endpoint.bindPosture.label}${endpoint.reachable === undefined ? '' : ` reachable=${yesNo(endpoint.reachable)}`}`,
     ),

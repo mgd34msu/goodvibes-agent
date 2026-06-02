@@ -1,6 +1,6 @@
 # Providers and Routing
 
-GoodVibes Agent uses the provider/model configuration exposed by connected GoodVibes services. The Agent TUI should make the active route easy to see and easy to change, but it should not duplicate provider hosting logic.
+GoodVibes Agent uses the provider/model configuration exposed by the connected GoodVibes host. The Agent TUI should make the active route easy to see and easy to change, but it should not duplicate provider hosting logic.
 
 ## Agent Expectations
 
@@ -26,7 +26,7 @@ These files are local configuration. They are not Agent Knowledge records and sh
 
 ## Discovery And Health
 
-Provider discovery and health are owned by connected GoodVibes services. Agent can display discovered provider status, model context information, and route failures. It should not hide provider failures behind fallback wording that makes a failed chat or knowledge request look successful.
+Provider discovery and health are owned by the connected GoodVibes host. Agent can display discovered provider status, model context information, and route failures. It should not hide provider failures behind fallback wording that makes a failed chat or knowledge request look successful.
 
 ## Search, Voice, And Media Providers
 

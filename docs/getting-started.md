@@ -5,10 +5,10 @@ GoodVibes Agent is the installable public alpha of the personal operator assista
 ## Requirements
 
 - Bun `1.3.10` or newer
-- Connected GoodVibes services compatible with `@pellux/goodvibes-sdk@0.33.35`
-- A token/config path accepted by connected GoodVibes services
+- A connected GoodVibes host compatible with `@pellux/goodvibes-sdk@0.33.35`
+- A token/config path accepted by the connected host
 
-Agent does not launch connected GoodVibes services for you.
+Agent does not launch the connected host for you.
 
 Use the interactive TUI first. CLI subcommands are secondary support paths for install checks, setup inspection, and scriptable local Agent libraries.
 
@@ -84,7 +84,7 @@ goodvibes-agent --agent-profile household status
 goodvibes-agent --agent-profile household
 ```
 
-Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate connected GoodVibes services by themselves.
+Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate the connected host by themselves.
 
 ## Local Memory, Personas, Routines, And Skills
 
@@ -109,9 +109,9 @@ The active persona plus enabled Agent routines, reviewed memory, and skills are 
 
 Use `/channels` inside the TUI for a read-only channel readiness matrix. It shows enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values.
 
-## Connected GoodVibes Services
+## Connected GoodVibes Host
 
-Start connected GoodVibes services from GoodVibes TUI or the owning host before using service-backed Agent features. Agent expects those services to expose the public operator/Agent routes, including:
+Start the owning GoodVibes host before using connected Agent features. Agent expects that host to expose the public operator/Agent routes, including:
 
 - `/status`
 - `/api/goodvibes-agent/knowledge/status`
@@ -123,7 +123,7 @@ If the GoodVibes API is not on `http://127.0.0.1:3421`, use `goodvibes-agent --r
 
 Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not fall back to default Knowledge/Wiki or other product-specific knowledge spaces.
 
-Service-hosting commands are not part of GoodVibes Agent. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and the Agent TUI status views for diagnostics.
+Host lifecycle commands are not part of GoodVibes Agent. Use `goodvibes-agent status`, `goodvibes-agent doctor`, and the Agent TUI status views for diagnostics.
 
 ## Current Product Notes
 

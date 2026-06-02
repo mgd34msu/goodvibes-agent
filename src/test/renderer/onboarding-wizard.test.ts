@@ -218,7 +218,8 @@ describe('renderOnboardingWizard', () => {
     const text = linesToText(renderOnboardingWizard(wizard, 188, 44)).join('\n');
 
     expect(text).toContain('Agent day-one readiness');
-    expect(text).toContain('Connected services snapshot');
+    expect(text).toContain('Connected host snapshot');
+    expect(text).not.toContain('Connected services snapshot');
     expect(text).toContain('Default model route');
     expect(text).toContain('Create household from household');
     expect(text).toContain('Agent Knowledge segment');

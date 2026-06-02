@@ -35,7 +35,7 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
     description: 'Prepare companion pairing, messaging-channel readiness, notification delivery, and safe outbound communication for day-one Agent use.',
     summaryTitle: 'Communication posture',
     summaryLines: [
-      'Companion chat: paired through connected GoodVibes services',
+      'Companion chat: paired through the connected GoodVibes host',
       'Channel accounts: inspect readiness before using them',
       'Outbound messages: explicit user action only',
     ],
@@ -44,7 +44,7 @@ export function buildCommunicationStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-communication.companion',
         label: 'Companion pairing',
-        hint: 'Use /pair from the Agent workspace to pair companion clients through connected GoodVibes services.',
+        hint: 'Use /pair from the Agent workspace to pair companion clients through the connected GoodVibes host.',
         defaultValue: 'Pair when ready',
       },
       {

@@ -158,7 +158,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   profiles: {
     usage: ['profiles list', 'profiles templates', 'profiles templates from-discovered <id> --yes', 'profiles create-from-discovered <name> --yes', 'profiles templates export <id> <path> --yes', 'profiles templates import <path> --yes', 'profiles show <name>', 'profiles create <name> [--template <id>] --yes', 'profiles delete <name> --yes', '--agent-profile <name>'],
-    summary: 'Create and inspect isolated Agent profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing connected GoodVibes services.',
+    summary: 'Create and inspect isolated Agent profile homes, with starter templates for household, research, travel, operations, personal productivity, and local imported starters. A profile changes Agent-local config, sessions, memory, personas, skills, routines, and setup paths without changing the connected GoodVibes host.',
     examples: ['profiles templates', 'profiles create-from-discovered research-desk --yes', 'profiles templates from-discovered research-desk --yes', 'profiles templates export research ./research-starter.json --yes', 'profiles templates import ./research-starter.json --yes', 'profiles create household --template household --yes', '--agent-profile household status'],
   },
   personas: {

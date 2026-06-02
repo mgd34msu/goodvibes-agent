@@ -124,9 +124,9 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         id: 'external-runtime-unreachable',
         area: 'runtime',
         severity: 'warning',
-        summary: 'Connected GoodVibes services are not reachable.',
+        summary: 'Connected GoodVibes host is not reachable.',
         cause: `Agent could not reach ${options.externalRuntime.baseUrl}${options.externalRuntime.error ? `: ${options.externalRuntime.error}` : '.'}`,
-        impact: 'Companion chat, isolated Agent Knowledge, approvals, automation status, and build delegation cannot work until connected GoodVibes services are available.',
+        impact: 'Companion chat, isolated Agent Knowledge, approvals, automation status, and build delegation cannot work until the connected GoodVibes host is available.',
         action: 'Start or repair the owning GoodVibes host, then rerun goodvibes-agent status.',
       });
     } else if (!options.externalRuntime.compatible) {
@@ -161,7 +161,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         summary: 'Isolated Agent Knowledge route is not ready.',
         cause: `${options.externalRuntime.agentKnowledge.route} returned ${options.externalRuntime.agentKnowledge.kind}${options.externalRuntime.agentKnowledge.statusCode === null ? '' : ` (${options.externalRuntime.agentKnowledge.statusCode})`}.`,
         impact: 'Agent Knowledge ask/search will not use any fallback wiki or non-Agent knowledge segment; it will fail closed until the Agent route is available.',
-        action: 'Update the connected GoodVibes services to the Agent-compatible SDK and verify goodvibes-agent compat.',
+        action: 'Update the connected GoodVibes host to the Agent-compatible SDK and verify goodvibes-agent compat.',
       });
     }
   }
@@ -188,7 +188,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         summary: issue,
         cause: 'The connected-service inspection found a mismatch between configured endpoint state and observed host state.',
         impact: 'Connected API, listener, or web availability may not match the configuration.',
-        action: 'Use Agent status and doctor diagnostics here, then manage connected services outside Agent.',
+        action: 'Use Agent status and doctor diagnostics here, then manage the connected host outside Agent.',
       });
     }
   }
@@ -364,15 +364,11 @@ export function renderCliStatus(options: CliStatusOptions): string {
       '  live check: unavailable',
     ]),
     '',
-    'Connected GoodVibes Services:',
+    'Connected Host:',
     '  Agent role: client/operator TUI only',
-    '  service ownership: outside Agent',
-    '  Agent starts services: no',
+    '  lifecycle owner: outside Agent',
+    '  Agent starts connected host: no',
     ...(options.service ? [
-      `  platform: ${options.service.managed.platform}`,
-      `  installed: ${yesNo(options.service.managed.installed)}`,
-      `  running: ${yesNo(options.service.managed.running)}`,
-      `  definition: ${options.service.managed.path}`,
       `  log: ${options.service.log.path ?? 'n/a'} (${options.service.log.exists ? 'present' : 'missing'})`,
     ] : []),
     'Onboarding:',
@@ -384,7 +380,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
   if (options.doctor) {
     lines.push(
       '',
-      'Connected-Service Config Signals:',
+      'Connected Host Config Signals:',
       `  host config present: ${yesNo(serviceEnabled)}`,
       '  lifecycle config: external to Agent',
       '',

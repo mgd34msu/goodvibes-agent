@@ -331,7 +331,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: '' },
       { text: 'Named Agent profiles isolate local config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
       { text: 'Starter authoring: browse, export, edit, import, and create Agent profiles from inside this workspace.', fg: PALETTE.info },
-      { text: 'Connected GoodVibes services stay shared unless the owning host is configured separately.', fg: PALETTE.warn },
+      { text: 'The connected GoodVibes host stays shared unless that host is configured separately.', fg: PALETTE.warn },
       { text: 'Portable bundles require explicit export/import commands with real paths and --yes.', fg: PALETTE.muted },
     );
   } else if (category.id === 'memory') {

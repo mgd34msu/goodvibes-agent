@@ -566,7 +566,7 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
   if (sub === 'users' || sub === 'sessions') {
     return formatJsonOrText(runtime.cli)(value, [
       `GoodVibes Agent auth ${sub}`,
-      '  owner: connected GoodVibes services',
+      '  owner: connected GoodVibes host',
       `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'}`,
       `  operator token path: ${paths.operatorTokenPath}`,
       `  ${sub}: managed outside Agent`,
@@ -575,7 +575,7 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
   }
   return formatJsonOrText(runtime.cli)(value, [
     'GoodVibes Agent auth',
-    '  owner: connected GoodVibes services',
+    '  owner: connected GoodVibes host',
     `  permission mode: ${String(value.permissionMode)}`,
     `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'} (${paths.operatorTokenPath})`,
     `  compatibility user store: ${paths.userStorePresent ? 'present' : 'missing'} (${paths.userStorePath})`,

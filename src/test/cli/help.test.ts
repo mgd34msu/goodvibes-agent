@@ -72,7 +72,8 @@ describe('CLI help/version', () => {
     const help = renderGoodVibesCommandHelp('profiles');
     expect(help).toContain('isolated Agent profile homes');
     expect(help).toContain('--agent-profile');
-    expect(help).toContain('connected GoodVibes services');
+    expect(help).toContain('connected GoodVibes host');
+    expect(help).not.toContain('connected GoodVibes services');
   });
 
   test('routines command help explains explicit connected schedule promotion', () => {

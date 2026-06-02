@@ -114,10 +114,10 @@ function buildReviewReadinessFields(controller: OnboardingWizardController): rea
     {
       kind: 'status',
       id: 'review.readiness.connection',
-      label: 'Connected services snapshot',
+      label: 'Connected host snapshot',
       hint: collectionIssues > 0
         ? `${collectionIssues} setup snapshot issue(s) need attention before this Agent is day-one ready.`
-        : 'The setup snapshot loaded cleanly from connected GoodVibes services.',
+        : 'The setup snapshot loaded cleanly from the connected GoodVibes host.',
       defaultValue: collectionIssues > 0 ? 'Needs attention' : 'Ready',
       spacerBeforeRows: 1,
     },
@@ -226,10 +226,10 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
       {
         kind: 'status',
         id: 'agent-setup.connection',
-        label: 'Connected GoodVibes services',
+        label: 'Connected GoodVibes host',
         hint: collectionIssues > 0
           ? `${collectionIssues} setup snapshot issue(s) were reported. Status and doctor commands show connection details.`
-          : 'Agent uses connected GoodVibes services for companion chat, work plans, approvals, automation, and Agent Knowledge.',
+          : 'Agent uses the connected GoodVibes host for companion chat, work plans, approvals, automation, and Agent Knowledge.',
         defaultValue: collectionIssues > 0 ? `${collectionIssues} issue(s)` : 'Connected',
       },
       {
