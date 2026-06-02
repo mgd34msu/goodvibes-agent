@@ -39,7 +39,6 @@ export interface GoodVibesCliFlags {
   readonly provider: string | undefined;
   readonly model: string | undefined;
   readonly agentProfile: string | undefined;
-  readonly daemonHome: string | undefined;
   readonly runtimeUrl: string | undefined;
   readonly workingDir: string | undefined;
   readonly help: boolean;

@@ -34,15 +34,6 @@ async function captureGoodVibesCliCommand(args: readonly string[], configManager
 }
 
 describe('parseCliFlags', () => {
-  // ---------------------------------------------------------------------------
-  // --daemon-home
-  // ---------------------------------------------------------------------------
-
-  test('parses --daemon-home=<path>', () => {
-    const flags = parseCliFlags(['--daemon-home=/custom/home']);
-    expect(flags.daemonHome).toBe('/custom/home');
-  });
-
   test('parses --working-dir=<path>', () => {
     const flags = parseCliFlags(['--working-dir=/custom/workspace']);
     expect(flags.workingDir).toBe('/custom/workspace');
@@ -61,13 +52,10 @@ describe('parseCliFlags', () => {
     expect(alias.runtimeUrl).toBe('127.0.0.1:4522');
   });
 
-  test('parses both --daemon-home and --working-dir together', () => {
-    const flags = parseCliFlags([
-      '--daemon-home=/home/daemon',
-      '--working-dir=/home/workspace',
-    ]);
-    expect(flags.daemonHome).toBe('/home/daemon');
-    expect(flags.workingDir).toBe('/home/workspace');
+  test('rejects copied daemon-home flags from the Agent CLI surface', () => {
+    const parsed = parseGoodVibesCli(['--daemon-home=/home/daemon']);
+    expect(parsed.errors).toEqual(['Unknown option: --daemon-home']);
+    expect(parsed.command).toBe('tui');
   });
 
   // ---------------------------------------------------------------------------
@@ -75,40 +63,12 @@ describe('parseCliFlags', () => {
   // ---------------------------------------------------------------------------
   // parseCliFlags itself does not read env vars — it only returns parsed flag
   // values. The shell entrypoint is responsible for setting env
-  // vars from the returned flags and then calling resolveDaemonCliOwnership()
-  // which reads the env vars with ?? fallback. These tests confirm the flag
-  // parser returns correct values so the caller can honour the precedence:
-  //   flag > GOODVIBES_DAEMON_HOME env > homedir()
-  //   flag > GOODVIBES_WORKING_DIR env > process.cwd()
-
-  test('env GOODVIBES_DAEMON_HOME is the fallback when flag absent', () => {
-    // The parser returns undefined when the flag is absent; the caller reads
-    // process.env['GOODVIBES_DAEMON_HOME'] as the fallback instead.
-    const flags = parseCliFlags([]);
-    expect(flags.daemonHome).toBeUndefined();
-  });
+  // vars from the returned flags. Agent exposes a working-directory override;
+  // connected-service token locations stay derived from the Agent home.
 
   test('env GOODVIBES_WORKING_DIR is the fallback when flag absent', () => {
     const flags = parseCliFlags([]);
     expect(flags.workingDir).toBeUndefined();
-  });
-
-  test('flag overrides env for daemon-home — flag present, env set', () => {
-    // Verify the flag value takes precedence: parser returns the flag value,
-    // the caller writes it to env before resolveDaemonCliOwnership() is called.
-    const savedEnv = process.env['GOODVIBES_DAEMON_HOME'];
-    try {
-      process.env['GOODVIBES_DAEMON_HOME'] = '/from/env';
-      const flags = parseCliFlags(['--daemon-home=/from/flag']);
-      // Flag value returned; caller will overwrite the env var with this.
-      expect(flags.daemonHome).toBe('/from/flag');
-    } finally {
-      if (savedEnv === undefined) {
-        delete process.env['GOODVIBES_DAEMON_HOME'];
-      } else {
-        process.env['GOODVIBES_DAEMON_HOME'] = savedEnv;
-      }
-    }
   });
 
   test('flag overrides env for working-dir — flag present, env set', () => {
@@ -165,12 +125,10 @@ describe('parseCliFlags', () => {
     const flags = parseCliFlags([
       '--provider', 'openai',
       '--model', 'gpt-4o',
-      '--daemon-home=/tmp/dh',
       '--working-dir=/tmp/wd',
     ]);
     expect(flags.provider).toBe('openai');
     expect(flags.model).toBe('gpt-4o');
-    expect(flags.daemonHome).toBe('/tmp/dh');
     expect(flags.workingDir).toBe('/tmp/wd');
   });
 
@@ -184,7 +142,6 @@ describe('parseCliFlags', () => {
     const flags = parseCliFlags([]);
     expect(flags.provider).toBeUndefined();
     expect(flags.model).toBeUndefined();
-    expect(flags.daemonHome).toBeUndefined();
     expect(flags.workingDir).toBeUndefined();
   });
 

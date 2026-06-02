@@ -65,7 +65,6 @@ function createDefaultFlags(): GoodVibesCliFlags {
     provider: undefined,
     model: undefined,
     agentProfile: undefined,
-    daemonHome: undefined,
     runtimeUrl: undefined,
     workingDir: undefined,
     help: false,
@@ -283,12 +282,6 @@ export function parseGoodVibesCli(
       const consumed = getValue(argv, index, inlineValue, name, errors);
       index = consumed.nextIndex;
       if (consumed.value !== undefined) flags = withFlag(flags, 'agentProfile', consumed.value);
-      continue;
-    }
-    if (name === '--daemon-home') {
-      const consumed = getValue(argv, index, inlineValue, name, errors);
-      index = consumed.nextIndex;
-      if (consumed.value !== undefined) flags = withFlag(flags, 'daemonHome', consumed.value);
       continue;
     }
     if (name === '--runtime-url' || name === '--runtime') {

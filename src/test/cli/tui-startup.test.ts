@@ -28,7 +28,6 @@ function makeCli(overrides: Partial<GoodVibesCliParseResult> = {}): GoodVibesCli
       provider: undefined,
       model: undefined,
       agentProfile: undefined,
-      daemonHome: undefined,
       workingDir: undefined,
       help: false,
       version: false,
