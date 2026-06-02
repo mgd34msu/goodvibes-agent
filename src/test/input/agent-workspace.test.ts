@@ -1338,6 +1338,18 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'openai-subscriber');
     feedKey(workspace, 'enter');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-routes');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('provider-routes');
+    feedText(workspace, 'openai-subscriber');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-account-repair');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('provider-account-repair');
+    feedText(workspace, 'openai-subscriber');
+    feedKey(workspace, 'enter');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('provider-add');
@@ -1353,6 +1365,8 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([
       '/provider openai-subscriber',
       '/accounts show openai-subscriber',
+      '/accounts routes openai-subscriber',
+      '/accounts repair openai-subscriber',
     ]);
     expect(workspace.localEditor?.message).toContain('not confirmed');
 
@@ -1363,6 +1377,8 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([
       '/provider openai-subscriber',
       '/accounts show openai-subscriber',
+      '/accounts routes openai-subscriber',
+      '/accounts repair openai-subscriber',
       '/provider add local_llm http://127.0.0.1:8000/v1 sk-local-provider-token --yes',
     ]);
     expect(workspace.lastActionResult?.command).toBe('/provider add local_llm http://127.0.0.1:8000/v1 <redacted-api-key> --yes');
@@ -1378,6 +1394,8 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([
       '/provider openai-subscriber',
       '/accounts show openai-subscriber',
+      '/accounts routes openai-subscriber',
+      '/accounts repair openai-subscriber',
       '/provider add local_llm http://127.0.0.1:8000/v1 sk-local-provider-token --yes',
       '/provider remove local_llm --yes',
     ]);

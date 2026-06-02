@@ -472,6 +472,28 @@ describe('renderAgentWorkspace', () => {
     expect(inspectEditorOutput).toContain('Provider id *');
 
     workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-routes');
+    const routesActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(routesActionOutput).toContain('Inspect provider routes');
+    expect(routesActionOutput).toContain('edit provider-routes');
+
+    workspace.activateSelected();
+    const routesEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(routesEditorOutput).toContain('Inspect Provider Routes');
+    expect(routesEditorOutput).toContain('Provider id *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-account-repair');
+    const accountRepairActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(accountRepairActionOutput).toContain('Provider account repair');
+    expect(accountRepairActionOutput).toContain('edit provider-account-repair');
+
+    workspace.activateSelected();
+    const accountRepairEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(accountRepairEditorOutput).toContain('Review Provider Account Repair');
+    expect(accountRepairEditorOutput).toContain('Provider id *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
     const addActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(addActionOutput).toContain('Add custom provider');

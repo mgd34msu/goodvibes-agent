@@ -74,6 +74,8 @@ export type AgentWorkspaceEditorKind =
   | 'provider-remove'
   | 'provider-use'
   | 'provider-inspect'
+  | 'provider-routes'
+  | 'provider-account-repair'
   | 'auth-show'
   | 'auth-repair'
   | 'auth-bundle-export'

@@ -69,6 +69,36 @@ export function buildAgentWorkspaceProviderCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'provider-routes') {
+    const command = `/accounts routes ${quoteSlashCommandArg(readField('provider'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening provider route inspection.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening provider route inspection',
+        detail: 'The workspace handed read-only provider route inspection to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
+  if (editor.kind === 'provider-account-repair') {
+    const command = `/accounts repair ${quoteSlashCommandArg(readField('provider'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening provider account repair review.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening provider account repair review',
+        detail: 'The workspace handed read-only provider account repair guidance to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
   if (editor.kind === 'provider-add') {
     if (!isAffirmative(readField('confirm'))) {
       return unconfirmed(editor, 'Custom provider add');

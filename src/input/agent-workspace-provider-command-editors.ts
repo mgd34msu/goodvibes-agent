@@ -2,11 +2,16 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 
 export type AgentWorkspaceProviderCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'provider-add' | 'provider-remove' | 'provider-use' | 'provider-inspect'
+  'provider-add' | 'provider-remove' | 'provider-use' | 'provider-inspect' | 'provider-routes' | 'provider-account-repair'
 >;
 
 export function isAgentWorkspaceProviderCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceProviderCommandEditorKind {
-  return kind === 'provider-add' || kind === 'provider-remove' || kind === 'provider-use' || kind === 'provider-inspect';
+  return kind === 'provider-add'
+    || kind === 'provider-remove'
+    || kind === 'provider-use'
+    || kind === 'provider-inspect'
+    || kind === 'provider-routes'
+    || kind === 'provider-account-repair';
 }
 
 export function createAgentWorkspaceProviderCommandEditor(kind: AgentWorkspaceProviderCommandEditorKind): AgentWorkspaceLocalEditor {
@@ -29,6 +34,30 @@ export function createAgentWorkspaceProviderCommandEditor(kind: AgentWorkspacePr
       title: 'Inspect Provider',
       selectedFieldIndex: 0,
       message: 'Inspect provider auth and setup routes from the Agent TUI without changing provider selection.',
+      fields: [
+        { id: 'provider', label: 'Provider id', value: '', required: true, multiline: false, hint: 'Provider row id to inspect.' },
+      ],
+    };
+  }
+  if (kind === 'provider-routes') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Inspect Provider Routes',
+      selectedFieldIndex: 0,
+      message: 'Inspect provider account routes from the Agent TUI without changing routing or auth.',
+      fields: [
+        { id: 'provider', label: 'Provider id', value: '', required: true, multiline: false, hint: 'Provider row id to inspect.' },
+      ],
+    };
+  }
+  if (kind === 'provider-account-repair') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Review Provider Account Repair',
+      selectedFieldIndex: 0,
+      message: 'Show provider account repair guidance from the Agent TUI without starting login or storing tokens.',
       fields: [
         { id: 'provider', label: 'Provider id', value: '', required: true, multiline: false, hint: 'Provider row id to inspect.' },
       ],
