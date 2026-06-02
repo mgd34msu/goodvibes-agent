@@ -102,9 +102,9 @@ export class AutomationControlPanel extends ScrollableListPanel<AutomationRun> {
         sections: [{
           lines: buildEmptyState(
             width,
-            ' Runtime store not wired.',
-            'This panel needs the shared runtime store to inspect automation jobs, runs, and deliveries.',
-            [{ command: '/schedule list', summary: 'review automation from the shell while the runtime wiring is restored' }],
+            ' Connected-host automation state is unavailable.',
+            'Use /schedule list for the supported Agent schedule summary. This deferred panel does not start or mutate automation.',
+            [{ command: '/schedule list', summary: 'review automation without starting hidden work' }],
             C,
           ),
         }],

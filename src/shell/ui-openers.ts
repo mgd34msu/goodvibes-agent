@@ -78,6 +78,17 @@ function buildConfiguredViaMap(
   return map;
 }
 
+function agentWorkspaceCategoryForPanel(panelId: string): string {
+  if (panelId === 'knowledge') return 'knowledge';
+  if (panelId === 'memory') return 'memory';
+  if (panelId === 'work-plan' || panelId === 'tasks' || panelId === 'approval') return 'work';
+  if (panelId === 'automation' || panelId === 'schedule') return 'automation';
+  if (panelId === 'provider-health' || panelId === 'providers' || panelId === 'accounts' || panelId === 'subscription') return 'setup';
+  if (panelId === 'security' || panelId === 'policy') return 'tools';
+  if (panelId === 'qr-code') return 'channels';
+  return 'home';
+}
+
 export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
   const {
     commandContext,
@@ -296,42 +307,18 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
   };
 
   commandContext.openPanelPicker = () => {
-    if (!panelManager.isVisible()) {
-      if (panelManager.getAllOpen().length === 0) {
-        try {
-          panelManager.open('panel-list');
-        } catch {
-          // non-fatal
-        }
-      }
-      panelManager.show();
-      input.panelFocused = true;
-      conversation.setSplashSuppressed(true);
-      conversation.rebuildHistory();
-    } else if (!input.panelFocused) {
-      if (panelManager.getAllOpen().length === 0) {
-        try {
-          panelManager.open('panel-list');
-        } catch {
-          // non-fatal
-        }
-      }
-      panelManager.show();
-      input.panelFocused = true;
-      conversation.setSplashSuppressed(true);
-      conversation.rebuildHistory();
-    } else {
-      panelManager.hide();
-      input.panelFocused = false;
-      conversation.setSplashSuppressed(false);
-      conversation.rebuildHistory();
-    }
+    panelManager.hide();
+    input.panelFocused = false;
+    conversation.setSplashSuppressed(false);
+    conversation.log('Panel picker is deferred in GoodVibes Agent. Opening the Agent operator workspace instead.', { fg: '214' });
+    input.openAgentWorkspace(commandContext, 'home');
+    conversation.rebuildHistory();
     render();
   };
 
   commandContext.focusPanels = () => {
-    if (!panelManager.isVisible() || panelManager.getAllOpen().length === 0) return;
-    input.panelFocused = true;
+    input.panelFocused = false;
+    input.openAgentWorkspace(commandContext, 'home');
     render();
   };
 
@@ -342,10 +329,12 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
   };
 
   commandContext.showPanel = (panelId, pane) => {
-    panelManager.open(panelId, pane);
-    panelManager.show();
-    input.panelFocused = true;
-    conversation.setSplashSuppressed(true);
+    void pane;
+    panelManager.hide();
+    input.panelFocused = false;
+    conversation.setSplashSuppressed(false);
+    conversation.log(`Panel "${panelId}" is not part of the Agent front door yet. Opening the matching Agent workspace.`, { fg: '214' });
+    input.openAgentWorkspace(commandContext, agentWorkspaceCategoryForPanel(panelId));
     conversation.rebuildHistory();
     render();
   };

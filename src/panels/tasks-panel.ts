@@ -183,8 +183,8 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
         sections: [{
           lines: buildEmptyState(
             width,
-            ' Task store not wired into this panel yet.',
-            'Use the Tasks panel with connected-host task state to review active execution, cancellations, retries, and completion results.',
+            ' Connected-host task state is unavailable.',
+            'Use /tasks list for the supported Agent task summary. This deferred panel does not start or mutate task execution.',
             [{ command: '/tasks', summary: 'inspect connected-host tasks without launching local workers' }],
             C,
           ),

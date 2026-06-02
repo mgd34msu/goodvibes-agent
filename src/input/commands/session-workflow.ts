@@ -6,7 +6,7 @@ import type { TranscriptEventKind } from '@pellux/goodvibes-sdk/platform/core';
 import type { ConversationTitleSource } from '../../core/conversation';
 import type { SessionReturnContextSummary } from '@/runtime/index.ts';
 import { formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
-import { requirePanelManager, requireProviderApi, requireSessionManager } from './runtime-services.ts';
+import { requireProviderApi, requireSessionManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
@@ -81,18 +81,8 @@ function buildTranscriptReviewLines(
 
 function reopenPanelsFromReturnContext(ctx: CommandContext, summary: SessionReturnContextSummary | undefined): string[] {
   if (!summary?.openPanels || summary.openPanels.length === 0) return [];
-  const panelManager = requirePanelManager(ctx);
-  const reopened: string[] = [];
-  for (const panelId of summary.openPanels.slice(0, 4)) {
-    try {
-      panelManager.open(panelId);
-      reopened.push(panelId);
-    } catch {
-      // Ignore unknown or currently unavailable panel ids during resume.
-    }
-  }
-  if (reopened.length > 0) panelManager.show();
-  return reopened;
+  ctx.print(`  Saved panel state ignored: ${summary.openPanels.slice(0, 4).join(', ')}. Use /agent for the Agent operator workspace.`);
+  return [];
 }
 
 function printSessionExport(
@@ -182,7 +172,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
           session.returnContext.activeTasks ? `active=${session.returnContext.activeTasks}` : null,
           session.returnContext.blockedTasks ? `blocked=${session.returnContext.blockedTasks}` : null,
           session.returnContext.pendingApprovals ? `approvals=${session.returnContext.pendingApprovals}` : null,
-          session.returnContext.openPanels?.length ? `panels=${session.returnContext.openPanels.slice(0, 3).join(',')}` : null,
+          session.returnContext.openPanels?.length ? `saved-panel-state-ignored=${session.returnContext.openPanels.slice(0, 3).join(',')}` : null,
         ].filter(Boolean).join('  ');
         if (posture) lines.push(`     posture: ${posture}`);
       }
@@ -258,6 +248,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       const returnContextMode = getReturnContextMode(ctx.platform.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {
         for (const line of formatReturnContextForDisplay(meta.returnContext)) {
+          if (line.startsWith('Open panels:')) continue;
           ctx.print(`  ${line}`);
         }
         if (reopenedPanels.length > 0) {

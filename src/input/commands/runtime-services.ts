@@ -31,7 +31,7 @@ import type {
 
 function requireContextValue<T>(value: T | null | undefined, name: string): T {
   if (value == null) {
-    throw new Error(`commandContext.${name} is required but was not wired at bootstrap`);
+    throw new Error(`commandContext.${name} is unavailable in this Agent runtime`);
   }
   return value;
 }

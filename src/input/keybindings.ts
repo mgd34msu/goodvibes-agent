@@ -59,11 +59,11 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'copy-selection':        'Copy selected text to clipboard',
   'clear-cancel':          'Clear input / cancel generation / exit (double)',
   'screen-clear':          'Repaint the screen',
-  'panel-picker':          'Open, focus, or hide the panel workspace',
-  'panel-close':            'Close the currently active panel',
-  'panel-close-all':         'Close all open panels',
-  'panel-tab-next':        'Next workspace panel tab',
-  'panel-tab-prev':        'Previous workspace panel tab',
+  'panel-picker':          'Open the Agent operator workspace',
+  'panel-close':            'Dismiss deferred panel focus',
+  'panel-close-all':         'Dismiss deferred workspace focus',
+  'panel-tab-next':        'Reserved for future Agent workspace tabs',
+  'panel-tab-prev':        'Reserved for future Agent workspace tabs',
   'history-search':        'Reverse input history search',
   'search':                'Toggle conversation search',
   'block-copy':            'Copy nearest block to clipboard',
@@ -77,7 +77,7 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'undo':                  'Undo last prompt edit',
   'redo':                  'Redo last undone edit',
   'paste':                 'Paste from clipboard (image priority)',
-  'replay-panel':          'Open / close the Replay panel',
+  'replay-panel':          'Reserved replay workspace shortcut',
 };
 
 /** Default key bindings for all actions. */

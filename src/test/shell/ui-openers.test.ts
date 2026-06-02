@@ -17,6 +17,7 @@ describe('wireShellUiOpeners', () => {
       panelFocused: false,
       modelPicker: {},
       modalOpened: mock(() => {}),
+      openAgentWorkspace: mock(() => {}),
     };
     panelManager = {
       isVisible: mock(() => false),
@@ -26,6 +27,7 @@ describe('wireShellUiOpeners', () => {
       hide: mock(() => {}),
     };
     conversation = {
+      log: mock(() => {}),
       setSplashSuppressed: mock(() => {}),
       rebuildHistory: mock(() => {}),
     };
@@ -49,39 +51,41 @@ describe('wireShellUiOpeners', () => {
     });
   });
 
-  test('openPanelPicker focuses panels when opening the workspace', () => {
+  test('openPanelPicker redirects to the Agent operator workspace', () => {
     (commandContext.openPanelPicker as () => void)();
-    expect(panelManager.open).toHaveBeenCalledWith('panel-list');
-    expect(panelManager.show).toHaveBeenCalled();
-    expect(input.panelFocused).toBe(true);
-    expect(conversation.setSplashSuppressed).toHaveBeenCalledWith(true);
-  });
-
-  test('openPanelPicker focuses an already-visible workspace instead of hiding it', () => {
-    (panelManager.isVisible as ReturnType<typeof mock>).mockReturnValue(true);
-    (panelManager.getAllOpen as ReturnType<typeof mock>).mockReturnValue([{ id: 'system-messages' }]);
-    (commandContext.openPanelPicker as () => void)();
-    expect(panelManager.hide).not.toHaveBeenCalled();
-    expect(panelManager.show).toHaveBeenCalled();
-    expect(input.panelFocused).toBe(true);
-  });
-
-  test('openPanelPicker clears panel focus when hiding the workspace', () => {
-    (panelManager.isVisible as ReturnType<typeof mock>).mockReturnValue(true);
-    (panelManager.getAllOpen as ReturnType<typeof mock>).mockReturnValue([{ id: 'docs' }]);
-    input.panelFocused = true;
-    (commandContext.openPanelPicker as () => void)();
+    expect(panelManager.open).not.toHaveBeenCalled();
     expect(panelManager.hide).toHaveBeenCalled();
     expect(input.panelFocused).toBe(false);
+    expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'home');
     expect(conversation.setSplashSuppressed).toHaveBeenCalledWith(false);
   });
 
-  test('showPanel opens, shows, and focuses the panel workspace', () => {
+  test('openPanelPicker does not focus already-visible copied panel workspace', () => {
+    (panelManager.isVisible as ReturnType<typeof mock>).mockReturnValue(true);
+    (panelManager.getAllOpen as ReturnType<typeof mock>).mockReturnValue([{ id: 'system-messages' }]);
+    (commandContext.openPanelPicker as () => void)();
+    expect(panelManager.show).not.toHaveBeenCalled();
+    expect(panelManager.hide).toHaveBeenCalled();
+    expect(input.panelFocused).toBe(false);
+    expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'home');
+  });
+
+  test('focusPanels redirects to the Agent workspace instead of copied panels', () => {
+    (panelManager.isVisible as ReturnType<typeof mock>).mockReturnValue(true);
+    (panelManager.getAllOpen as ReturnType<typeof mock>).mockReturnValue([{ id: 'docs' }]);
+    input.panelFocused = true;
+    (commandContext.focusPanels as () => void)();
+    expect(input.panelFocused).toBe(false);
+    expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'home');
+  });
+
+  test('showPanel redirects known panel ids to matching Agent workspace categories', () => {
     (commandContext.showPanel as (panelId: string) => void)('tasks');
-    expect(panelManager.open).toHaveBeenCalledWith('tasks', undefined);
-    expect(panelManager.show).toHaveBeenCalled();
-    expect(input.panelFocused).toBe(true);
-    expect(conversation.setSplashSuppressed).toHaveBeenCalledWith(true);
+    expect(panelManager.open).not.toHaveBeenCalled();
+    expect(panelManager.hide).toHaveBeenCalled();
+    expect(input.panelFocused).toBe(false);
+    expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'work');
+    expect(conversation.setSplashSuppressed).toHaveBeenCalledWith(false);
   });
 
   test('openOnboardingWizard delegates through the shared opener seam', () => {

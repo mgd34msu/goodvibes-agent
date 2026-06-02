@@ -30,7 +30,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   behavior: 'Day-to-day shell behavior: approval posture, compaction, history, guidance, notifications, stale-context warnings, return context, and Human-in-the-Loop mode.',
   storage: 'Local storage posture, including secret storage policy and maximum artifact size for Agent Knowledge, artifacts, and document ingestion.',
   permissions: 'Permission mode and tool-class policy. These settings decide whether the shell prompts before read/write/exec/network/agent actions.',
-  orchestration: 'Hidden compatibility settings from the copied foundation. Normal Agent operation stays serial and does not expose local spawn fanout.',
+  orchestration: 'Hidden compatibility settings. Normal Agent operation stays serial and does not expose local spawn fanout.',
   wrfc: 'Build-review routing is external to normal Agent operation. Review these compatibility values only for explicit delegated build work.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',

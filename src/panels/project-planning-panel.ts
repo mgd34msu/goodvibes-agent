@@ -600,7 +600,7 @@ export class ProjectPlanningPanel extends BasePanel {
       return;
     }
     if (!this.submitAnswer) {
-      this.setError('Planning answer submission is not wired in this runtime.');
+      this.setError('Planning answer submission is unavailable in this Agent runtime. Return to the composer and answer there.');
       this.requestRender();
       return;
     }

@@ -82,7 +82,7 @@ export interface BuiltinPanelDeps {
   componentHealthMonitor: ComponentHealthMonitor;
   /** Copied shell dependency kept inert in Agent; build worktree UX belongs to GoodVibes TUI delegation. */
   worktreeRegistry: WorktreeRegistry;
-  /** Sandbox session registry used by MCP isolation; Agent does not expose sandbox/QEMU command UX. */
+  /** Isolation session registry used by MCP internals; Agent does not expose local execution-isolation command UX. */
   sandboxSessionRegistry: SandboxSessionRegistry;
   /**
    * Resolved connected-host token directory (e.g. `~/.goodvibes/daemon`) — owned by the

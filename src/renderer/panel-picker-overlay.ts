@@ -46,7 +46,7 @@ export function renderPanelPickerOverlay(
 
   // ── Title bar ──────────────────────────────────────────────────────────────
   const titleLine = createOverlayBorderLine(width, layout, '┌', '─', '┐', borderFg);
-  putOverlayText(titleLine, layout.margin + 2, layout.width - 4, 'Open Panel Workspace', { fg: titleFg, bold: true });
+  putOverlayText(titleLine, layout.margin + 2, layout.width - 4, 'Deferred Workspace Picker', { fg: titleFg, bold: true });
   lines.push(titleLine);
 
   // ── Search bar (shown when query is non-empty) ──────────────────────────────

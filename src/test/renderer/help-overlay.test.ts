@@ -71,10 +71,10 @@ describe('renderHelpOverlay', () => {
     expect(texts).toContain('Prompt And Editing');
   });
 
-  test('contains Overlays And Panels section', () => {
+  test('contains Overlays And Workspace section', () => {
     const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 13, TALL_VIEWPORT);
     const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Overlays And Panels');
+    expect(texts).toContain('Overlays And Workspace');
   });
 
   test('contains Quick Start section when featured commands are registered', () => {
