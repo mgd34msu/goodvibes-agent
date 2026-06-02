@@ -46,7 +46,7 @@ bun run package:install-check
 bun run publish:check
 ```
 
-After setup has been applied once, the Agent TUI opens directly into the operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. It is the Agent-first fullscreen workspace for setup, conversation/session controls, model/provider selection, isolated Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
+After setup has been applied once, the Agent TUI opens directly into the operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. It is the Agent-first fullscreen workspace for setup, conversation/session controls, model/provider selection, isolated Agent Knowledge, local memory/notes/skills/routines/personas, channel readiness, voice/media setup, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
 Use the workspace as the primary product surface:
 
@@ -57,7 +57,8 @@ Use the workspace as the primary product surface:
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Tools & MCP: MCP server setup, tool inventory, trust review, secret storage/link/test/delete, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, URL/URL-list/file/bookmark/browser-history/connector ingest, source library, review queue, and reindex.
-- Memory & Skills: local memory, learned behavior capture, personas, skills, routines, and schedule promotion.
+- Memory & Skills: local memory, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
+- Notes: Agent-local scratchpad for source triage, temporary decisions, and operator handoff. Notes do not become memory or Agent Knowledge unless you explicitly promote or ingest something.
 - Channels: companion pairing, channel readiness, confirmed channel delivery, and confirmed webhook add/remove/test/send.
 - Voice & Media: voice review, spoken response setup, image input, confirmed image/video generation, browser-tool posture, MCP inventory, and media provider readiness.
 - Automation: reminder creation, schedule status, routine promotion, receipts, reconciliation, and explicitly confirmed approve/deny/cancel/run/pause/resume/retry actions.
@@ -79,7 +80,7 @@ The Voice & Media workspace includes `Generate media`, a confirmed form for imag
 
 Use isolated Agent profiles when one machine needs separate operator identities or local state. In the TUI, open Agent Workspace -> Profiles to browse starters, create a profile, use it as the default for the next launch, clear the default, and export/import starter JSON. The same profile selection is available for one launch with `goodvibes-agent --agent-profile <name>`.
 
-Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The connected GoodVibes host remains shared unless that host is separately configured otherwise.
+Profiles isolate Agent-local config, sessions, local memory, scratchpad notes, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The connected GoodVibes host remains shared unless that host is separately configured otherwise.
 
 The installed CLI mirrors the same local behavior libraries for scripts and automation, but it is not the primary product path. Personas, skills, memory, and routines are created, reviewed, enabled, exported/imported where relevant, and deleted from the TUI workspace first; destructive actions still require explicit confirmation.
 
@@ -94,6 +95,7 @@ Local Agent behavior is editable from the TUI workspace:
 - Agent Workspace -> Routines: create routines, start a routine in the main conversation, review receipts, and explicitly promote one routine to a connected schedule.
 - Agent Workspace -> Work: review the visible local work plan, add work items, and update status from the TUI while the main assistant conversation can keep the same plan current.
 - Agent Workspace -> Memory & Skills: create memory, search memory, review/stale/delete records, export/import bundles, and rebuild the local vector index.
+- Agent Workspace -> Notes: create, edit, review, stale, and delete Agent-local scratchpad notes for source triage and temporary context.
 - Agent Workspace -> Channels: inspect readiness, pair companion clients, send one confirmed channel delivery message, and manage or send configured notification targets with confirmation.
 
 Slash commands remain available inside the TUI for power users, but the fullscreen Agent workspace is the primary path for these workflows.
@@ -112,7 +114,7 @@ Agent reports unavailable, unauthenticated, or incompatible connected-host state
 
 ## Product Boundary
 
-GoodVibes Agent owns the operator assistant TUI: serial assistant flow, proactive safe actions, local memory/routines/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
+GoodVibes Agent owns the operator assistant TUI: serial assistant flow, proactive safe actions, local memory/notes/routines/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
 Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
 

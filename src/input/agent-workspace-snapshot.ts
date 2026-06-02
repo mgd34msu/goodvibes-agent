@@ -1,6 +1,7 @@
 import { basename, sep } from 'node:path';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from './command-registry.ts';
+import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import {
@@ -178,6 +179,22 @@ function summarizeMemoryItem(record: MemoryRecord): AgentWorkspaceLocalLibraryIt
   };
 }
 
+function summarizeNoteItem(note: AgentNoteRecord): AgentWorkspaceLocalLibraryItem {
+  const preview = note.body.replace(/\s+/g, ' ').trim();
+  const description = note.sourceUrl
+    ? `${preview.slice(0, 160)}${preview.length > 160 ? '...' : ''} Source: ${note.sourceUrl}`
+    : preview;
+  return {
+    id: note.id,
+    name: note.title,
+    description,
+    reviewState: note.reviewState,
+    source: note.source,
+    tags: note.tags,
+    triggers: [],
+  };
+}
+
 function summarizeRuntimeProfile(profile: ReturnType<typeof listAgentRuntimeProfiles>[number]): AgentWorkspaceRuntimeProfileItem {
   return {
     id: profile.id,
@@ -246,6 +263,20 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       };
     } catch {
       return { count: 0, activeName: '(unavailable)', items: [] };
+    }
+  })();
+  const noteSnapshot = (() => {
+    try {
+      const shellPaths = context.workspace?.shellPaths;
+      if (!shellPaths) return { count: 0, reviewQueueCount: 0, items: [] };
+      const snapshot = AgentNoteRegistry.fromShellPaths(shellPaths).snapshot();
+      return {
+        count: snapshot.notes.length,
+        reviewQueueCount: snapshot.reviewQueue.length,
+        items: snapshot.notes.map(summarizeNoteItem),
+      };
+    } catch {
+      return { count: 0, reviewQueueCount: 0, items: [] };
     }
   })();
   const skillSnapshot = (() => {
@@ -414,6 +445,9 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     localMemoryReviewQueueCount: memorySnapshot.reviewQueueCount,
     localMemoryPromptActiveCount: memorySnapshot.promptActiveCount,
     localMemories: memorySnapshot.items,
+    localNoteCount: noteSnapshot.count,
+    localNoteReviewQueueCount: noteSnapshot.reviewQueueCount,
+    localNotes: noteSnapshot.items,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,

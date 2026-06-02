@@ -126,6 +126,7 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
     'Readiness',
     `  setup: ${setupReady}/${snapshot.setupChecklist.length} ready; ${setupRecommended} recommended; ${setupBlocked} blocked`,
     `  local memory: ${plural(snapshot.localMemoryCount, 'record')}; prompt-active ${snapshot.localMemoryPromptActiveCount}; review queue ${snapshot.localMemoryReviewQueueCount}`,
+    `  scratchpad notes: ${plural(snapshot.localNoteCount, 'note')}; review queue ${snapshot.localNoteReviewQueueCount}`,
     `  personas: ${plural(snapshot.localPersonaCount, 'persona')}; active ${snapshot.activePersonaName}`,
     `  skills: ${snapshot.enabledSkillCount}/${snapshot.localSkillCount} enabled; bundles ${snapshot.enabledSkillBundleCount}/${snapshot.localSkillBundleCount}; active ${snapshot.activeSkillCount}; setup gaps ${skillSetupGaps} skill, ${skillBundleSetupGaps} bundle`,
     `  routines: ${snapshot.enabledRoutineCount}/${snapshot.localRoutineCount} enabled; setup gaps ${routineSetupGaps}`,

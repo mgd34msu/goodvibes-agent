@@ -50,7 +50,7 @@ Use the TUI first for those checks:
 
 ## Product Boundary
 
-Agent owns the operator assistant TUI, local profiles, local memory/routines/skills/personas, isolated Agent Knowledge calls, companion chat, approvals/automation visibility, and explicit build delegation.
+Agent owns the operator assistant TUI, local profiles, local memory/notes/routines/skills/personas, isolated Agent Knowledge calls, companion chat, approvals/automation visibility, and explicit build delegation.
 
 Agent does not own connected-host lifecycle. It does not provide commands to install, expose, start, stop, restart, or mutate the connected GoodVibes host.
 

@@ -1,13 +1,13 @@
 # Tools and Commands
 
-GoodVibes Agent is an operator assistant TUI. Its command set is centered on main-conversation assistant work, isolated Agent Knowledge/Wiki, local memory/routines/skills/personas, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
+GoodVibes Agent is an operator assistant TUI. Its command set is centered on main-conversation assistant work, isolated Agent Knowledge/Wiki, local memory/notes/routines/skills/personas, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
 
 ## Product Boundaries
 
 - Normal chat stays in the main Agent conversation.
 - Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`.
 - Agent never falls back to default Knowledge/Wiki or arbitrary non-Agent knowledge spaces.
-- Local memory, routines, skills, and personas remain Agent-local until a stable shared registry contract exists.
+- Local memory, notes, routines, skills, and personas remain Agent-local until a stable shared registry contract exists.
 - Runtime hosting is external. Agent connects to it and reports health; it does not start, stop, restart, or install it.
 - WRFC is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, review, or WRFC work.
 - Code-building work is delegated to GoodVibes TUI through public shared-session/task contracts.
@@ -21,8 +21,9 @@ High-signal Agent TUI paths:
 - `/help` for registry-driven command discovery.
 - `/health` and `/auth` for runtime/auth/SDK diagnostics inside the TUI.
 - `/model` and `/provider` for provider/model selection and visibility.
-- `/agent` for the fullscreen operator workspace: setup, provider/model, Agent Knowledge, memory, personas, skills, routines, channels, MCP/tools, secrets, voice/media, work state, automation, and build delegation.
+- `/agent` for the fullscreen operator workspace: setup, provider/model, Agent Knowledge, memory, notes, personas, skills, routines, channels, MCP/tools, secrets, voice/media, work state, automation, and build delegation.
 - Agent Workspace -> Research for read-only web research, URL inspection, source triage, and explicit source-to-Agent-Knowledge handoff.
+- Agent Workspace -> Notes for local source-triage notes, temporary decisions, and operator handoff. Notes do not write memory or Agent Knowledge by themselves.
 - `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
 - `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.

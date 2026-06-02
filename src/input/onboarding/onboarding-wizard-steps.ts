@@ -154,7 +154,7 @@ function buildReviewReadinessFields(controller: OnboardingWizardController): rea
       kind: 'status',
       id: 'review.readiness.local-behavior',
       label: 'Local behavior library',
-      hint: localBehavior?.detail ?? 'Agent-local memory, routines, skills, and personas remain local until a stable shared registry exists.',
+      hint: localBehavior?.detail ?? 'Agent-local memory, notes, routines, skills, and personas remain local until a stable shared registry exists.',
       defaultValue: localBehavior?.selected ? 'Customized' : 'Starter ready',
     },
     {

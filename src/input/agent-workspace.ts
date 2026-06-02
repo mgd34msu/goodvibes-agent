@@ -2,6 +2,7 @@ import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { ShellPathService } from '@/runtime/index.ts';
 import type { CommandContext } from './command-registry.ts';
+import { AgentNoteRegistry } from '../agent/note-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
 import { createAgentRuntimeProfile, type AgentRuntimeProfileInfo } from '../agent/runtime-profile.ts';
@@ -10,7 +11,7 @@ import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from './agent-workspace-command-editor.ts';
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
-import { createDeleteEditor, createMemoryUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
+import { createDeleteEditor, createMemoryUpdateEditor, createNoteUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from './agent-workspace-learned-behavior.ts';
 import { clampAgentWorkspaceLocalLibrarySelection, moveAgentWorkspaceLocalLibraryItemSelection, selectedAgentWorkspaceLocalLibraryItem, type AgentWorkspaceLocalSelectionIndexes } from './agent-workspace-local-selection.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
@@ -39,6 +40,7 @@ export class AgentWorkspace {
   public actionSearchQuery = '';
   public readonly selectedLibraryItemIndexes: AgentWorkspaceLocalSelectionIndexes = {
     memory: 0,
+    note: 0,
     persona: 0,
     skill: 0,
     routine: 0,
@@ -273,6 +275,7 @@ export class AgentWorkspace {
     this.selectedCategoryIndex = Math.max(0, Math.min(this.selectedCategoryIndex, this.categories.length - 1));
     this.selectedActionIndex = Math.max(0, Math.min(this.selectedActionIndex, this.actions.length - 1));
     clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, 'memory');
+    clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, 'note');
     clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, 'persona');
     clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, 'skill');
     clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, 'routine');
@@ -332,6 +335,25 @@ export class AgentWorkspace {
         this.finishLocalOperation('memory', `Marked memory stale ${record.id}`, `${record.summary} needs review before reuse.`);
       } else if (operation === 'memory-delete') {
         this.openDeleteEditor('memory', selected);
+      } else if (operation === 'note-edit') {
+        const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
+        if (!note) throw new Error(`Unknown note: ${selected.id}`);
+        this.localEditor = createNoteUpdateEditor(note);
+        this.status = `Editing note: ${note.title}.`;
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: this.localEditor.title,
+          detail: this.localEditor.message,
+          safety: 'safe',
+        };
+      } else if (operation === 'note-review') {
+        const note = AgentNoteRegistry.fromShellPaths(shellPaths).markReviewed(selected.id);
+        this.finishLocalOperation('note', `Reviewed note ${note.title}`, `${note.title} is marked reviewed in the local scratchpad.`);
+      } else if (operation === 'note-stale') {
+        const note = AgentNoteRegistry.fromShellPaths(shellPaths).markStale(selected.id, 'Marked stale from Agent workspace');
+        this.finishLocalOperation('note', `Marked note stale ${note.title}`, `${note.title} needs review before reuse.`);
+      } else if (operation === 'note-delete') {
+        this.openDeleteEditor('note', selected);
       } else if (operation === 'persona-edit') {
         const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
         const persona = registry.get(selected.id);
@@ -426,6 +448,7 @@ export class AgentWorkspace {
 
   private selectedItemForOperation(operation: AgentWorkspaceLocalOperation): AgentWorkspaceLocalLibraryItem | null {
     if (operation.startsWith('memory-')) return this.selectedLocalLibraryItem('memory');
+    if (operation.startsWith('note-')) return this.selectedLocalLibraryItem('note');
     if (operation.startsWith('persona-')) return this.selectedLocalLibraryItem('persona');
     if (operation.startsWith('skill-')) return this.selectedLocalLibraryItem('skill');
     return this.selectedLocalLibraryItem('routine');
@@ -437,7 +460,7 @@ export class AgentWorkspace {
     return memory;
   }
 
-  private learnedBehaviorTarget(): Exclude<AgentWorkspaceLocalEditorKind, 'memory' | 'profile'> {
+  private learnedBehaviorTarget(): Exclude<AgentWorkspaceLocalEditorKind, 'memory' | 'note' | 'profile'> {
     const target = this.editorField('target').trim().toLowerCase();
     if (target === 'persona' || target === 'skill' || target === 'routine') return target;
     throw new Error('Behavior type must be skill, routine, or persona.');
@@ -557,6 +580,28 @@ export class AgentWorkspace {
           ...(templateId ? { templateId } : {}),
         });
         this.finishProfileEditor(profile);
+      } else if (editor.kind === 'note') {
+        const registry = AgentNoteRegistry.fromShellPaths(shellPaths);
+        if (editor.mode === 'update' && editor.recordId) {
+          const updated = registry.update(editor.recordId, {
+            title: this.editorField('title'),
+            body: this.editorField('body'),
+            sourceUrl: this.editorField('sourceUrl'),
+            tags: splitList(this.editorField('tags')),
+            provenance: 'agent-workspace',
+          });
+          this.finishLocalEditor(editor.kind, updated.id, updated.title, 'Updated');
+          return;
+        }
+        const created = registry.create({
+          title: this.editorField('title'),
+          body: this.editorField('body'),
+          sourceUrl: this.editorField('sourceUrl'),
+          tags: splitList(this.editorField('tags')),
+          source: 'user',
+          provenance: 'agent-workspace',
+        });
+        this.finishLocalEditor(editor.kind, created.id, created.title, 'Created');
       } else if (editor.kind === 'persona') {
         const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
         if (editor.mode === 'update' && editor.recordId) {
@@ -691,6 +736,9 @@ export class AgentWorkspace {
     } else if (editor.kind === 'persona') {
       const removed = AgentPersonaRegistry.fromShellPaths(shellPaths).deletePersona(expectedId);
       this.finishLocalDelete(editor.kind, removed.id, removed.name);
+    } else if (editor.kind === 'note') {
+      const removed = AgentNoteRegistry.fromShellPaths(shellPaths).deleteNote(expectedId);
+      this.finishLocalDelete(editor.kind, removed.id, removed.title);
     } else if (editor.kind === 'skill') {
       const removed = AgentSkillRegistry.fromShellPaths(shellPaths).deleteSkill(expectedId);
       this.finishLocalDelete(editor.kind, removed.id, removed.name);

@@ -5,7 +5,7 @@ import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import type { AgentWorkspaceLocalEditorKind } from './agent-workspace-types.ts';
 
 export interface AgentWorkspaceLearnedBehaviorInput {
-  readonly target: Exclude<AgentWorkspaceLocalEditorKind, 'memory' | 'profile'>;
+  readonly target: Exclude<AgentWorkspaceLocalEditorKind, 'memory' | 'note' | 'profile'>;
   readonly name: string;
   readonly description: string;
   readonly notes: string;
@@ -15,7 +15,7 @@ export interface AgentWorkspaceLearnedBehaviorInput {
 }
 
 export interface AgentWorkspaceLearnedBehaviorResult {
-  readonly kind: Exclude<AgentWorkspaceLocalEditorKind, 'memory' | 'profile'>;
+  readonly kind: Exclude<AgentWorkspaceLocalEditorKind, 'memory' | 'note' | 'profile'>;
   readonly id: string;
   readonly name: string;
 }

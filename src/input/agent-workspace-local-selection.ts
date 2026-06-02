@@ -20,6 +20,7 @@ export function agentWorkspaceLocalLibraryItems(
   kind: AgentWorkspaceLocalEditorKind,
 ): readonly AgentWorkspaceLocalLibraryItem[] {
   if (kind === 'memory') return snapshot?.localMemories ?? [];
+  if (kind === 'note') return snapshot?.localNotes ?? [];
   if (kind === 'persona') return snapshot?.localPersonas ?? [];
   if (kind === 'skill') return snapshot?.localSkills ?? [];
   if (kind === 'profile') return [];

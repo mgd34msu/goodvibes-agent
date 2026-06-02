@@ -212,10 +212,10 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
     shortLabel: 'Behavior',
     description: discoveredCount > 0
       ? 'Review importable Agent-local behavior files, then create an isolated profile from them or import individual records.'
-      : 'Review the Agent-local behavior model. Memory, personas, skills, routines, and Agent profiles stay local until a stable shared registry exists.',
+      : 'Review the Agent-local behavior model. Memory, notes, personas, skills, routines, and Agent profiles stay local until a stable shared registry exists.',
     summaryTitle: 'Local Agent state',
     summaryLines: [
-      'Memory/personas/skills/routines: local Agent registries',
+      'Memory/notes/personas/skills/routines: local Agent registries',
       `Discovered behavior files: ${discoverySummary(discovery)}`,
       'Secrets: rejected or stored by secret reference',
       'Profiles: isolated Agent homes',
@@ -228,6 +228,14 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         label: 'Local memory',
         hint: 'Open the Memory & Skills workspace to create, review, stale, search, and delete Agent-local memory records.',
         defaultValue: 'Open Memory',
+      },
+      {
+        kind: 'action',
+        id: 'agent-local-state.notes',
+        action: 'open-agent-workspace:notes',
+        label: 'Scratchpad notes',
+        hint: 'Open the Notes workspace to capture source triage, temporary decisions, and operator handoff without writing memory or Agent Knowledge.',
+        defaultValue: 'Open Notes',
       },
       {
         kind: 'action',

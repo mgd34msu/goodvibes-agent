@@ -40,7 +40,7 @@ bun run dev
 
 `goodvibes-agent` starts the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
 
-After setup has been applied once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, conversation/session controls, provider/model selection, read-only web research, Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
+After setup has been applied once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, conversation/session controls, provider/model selection, read-only web research, Agent Knowledge, local memory/notes/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
 
 Press `/` inside the Agent workspace to search every workspace action by name, category, command, or detail. Use that finder before reaching for shell commands; CLI subcommands are scriptable mirrors of these TUI workflows.
 
@@ -60,7 +60,8 @@ Use the Routines workspace receipt actions to review redacted local routine prom
 
 The local behavior libraries are configured in the TUI first:
 
-- Memory & Skills -> Create memory or Capture learned behavior.
+- Memory & Skills -> Create memory, Create note, or Capture learned behavior.
+- Notes -> Create note for source triage, temporary decisions, or operator handoff without writing memory or Agent Knowledge.
 - Personas -> Create persona, Use selected, Review selected, or Delete selected.
 - Skills -> Create skill, Create bundle, Enable selected, Review selected, or Delete selected.
 - Routines -> Create routine, Start selected, Enable selected, Promote to schedule, review receipts, or run a confirmed connected schedule.
@@ -91,22 +92,24 @@ goodvibes-agent --agent-profile household status
 goodvibes-agent --agent-profile household
 ```
 
-Named profiles isolate Agent-local config, sessions, memory, personas, skills, routines, and setup state under a profile-specific home. `profiles use <name> --yes` makes one profile the default for the next plain `goodvibes-agent` launch; `--agent-profile <name>` still overrides it for one launch, and `profiles default clear --yes` returns plain launches to the base Agent home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate the connected host by themselves.
+Named profiles isolate Agent-local config, sessions, memory, notes, personas, skills, routines, and setup state under a profile-specific home. `profiles use <name> --yes` makes one profile the default for the next plain `goodvibes-agent` launch; `--agent-profile <name>` still overrides it for one launch, and `profiles default clear --yes` returns plain launches to the base Agent home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. They do not start or isolate the connected host by themselves.
 
 ## Local Memory, Personas, Routines, And Skills
 
-Memory, personas, routines, and reusable Agent skills are local to GoodVibes Agent. First-run setup, TUI workspace forms, and CLI commands all write them to Agent-local registries. They do not write into default Knowledge/Wiki or non-Agent knowledge segments.
+Memory, notes, personas, routines, and reusable Agent skills are local to GoodVibes Agent. First-run setup, TUI workspace forms, and CLI commands all write them to Agent-local registries. They do not write into default Knowledge/Wiki or non-Agent knowledge segments.
 
 Use `Capture learned behavior` in the Agent workspace after reviewing a repeated workflow, lesson, or operating style. It saves one local skill, routine, or persona from the TUI and does not call connected-host mutation routes.
 
 Use Agent Workspace -> Research for web research and URL inspection. Research requests run in the normal main conversation, can use connected read-only web tools when you ask, and do not ingest sources. Use confirmed Agent Knowledge ingest actions only when a reviewed source should become durable Agent-owned knowledge.
+
+Use Agent Workspace -> Notes for source triage and temporary context. Notes are a scratchpad: they are reviewable local records, but they do not become durable memory or Agent Knowledge unless you explicitly create memory or run a confirmed Agent Knowledge ingest action.
 
 Day-one local behavior setup should stay in the fullscreen workspace:
 
 - Personas -> Create persona, then Use selected.
 - Routines -> Create routine, Start selected, or Promote to schedule after entering real timing and confirmation.
 - Skills -> Create skill, Enable selected, and review setup requirements.
-- Memory & Skills -> Create memory or Search memory.
+- Memory & Skills -> Create memory, Create note, or Search memory.
 - Channels -> inspect readiness, send one explicit channel delivery message, add notification targets, and send notification messages only through confirmed actions.
 
 Typed slash commands are available for repeat users, but they are not required for the first-run workflow.

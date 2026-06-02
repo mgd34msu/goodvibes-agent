@@ -1,6 +1,7 @@
 import type { AgentPersonaRecord } from '../agent/persona-registry.ts';
 import type { AgentRoutineRecord } from '../agent/routine-registry.ts';
 import type { AgentSkillRecord } from '../agent/skill-registry.ts';
+import type { AgentNoteRecord } from '../agent/note-registry.ts';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type {
   AgentWorkspaceLocalEditor,
@@ -83,6 +84,21 @@ export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind | 'knowled
       ],
     };
   }
+  if (kind === 'note') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Create Note',
+      selectedFieldIndex: 0,
+      message: 'Capture a local working note or source-triage note. Notes stay in the Agent-local scratchpad and are not memory or Agent Knowledge.',
+      fields: [
+        { id: 'title', label: 'Title', value: '', required: true, multiline: false, hint: 'Short note title.' },
+        { id: 'body', label: 'Note', value: '', required: true, multiline: true, hint: 'Working note, source triage, or temporary decision. Ctrl-J inserts a new line.' },
+        { id: 'sourceUrl', label: 'Source URL', value: '', required: false, multiline: false, hint: 'Optional reviewed URL. This does not ingest the URL into Agent Knowledge.' },
+        { id: 'tags', label: 'Tags', value: 'scratchpad', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+      ],
+    };
+  }
   if (kind === 'persona') {
     return {
       kind,
@@ -150,6 +166,23 @@ export function createMemoryUpdateEditor(record: MemoryRecord): AgentWorkspaceLo
       { id: 'scope', label: 'Scope', value: record.scope, required: true, multiline: false, hint: 'session, project, or team.' },
       { id: 'summary', label: 'Summary', value: record.summary, required: true, multiline: false, hint: 'One durable sentence. Do not store secrets.' },
       { id: 'detail', label: 'Detail', value: record.detail ?? '', required: false, multiline: true, hint: 'Optional supporting detail. Ctrl-J inserts a new line.' },
+      { id: 'tags', label: 'Tags', value: record.tags.join(', '), required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+    ],
+  };
+}
+
+export function createNoteUpdateEditor(record: AgentNoteRecord): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'note',
+    mode: 'update',
+    recordId: record.id,
+    title: 'Edit Note',
+    selectedFieldIndex: 0,
+    message: `Editing ${record.title}. Saving keeps it in the Agent-local scratchpad only.`,
+    fields: [
+      { id: 'title', label: 'Title', value: record.title, required: true, multiline: false, hint: 'Short note title.' },
+      { id: 'body', label: 'Note', value: record.body, required: true, multiline: true, hint: 'Working note, source triage, or temporary decision. Ctrl-J inserts a new line.' },
+      { id: 'sourceUrl', label: 'Source URL', value: record.sourceUrl ?? '', required: false, multiline: false, hint: 'Optional reviewed URL. This does not ingest the URL into Agent Knowledge.' },
       { id: 'tags', label: 'Tags', value: record.tags.join(', '), required: false, multiline: false, hint: 'Comma-separated optional tags.' },
     ],
   };
@@ -242,6 +275,7 @@ export function isAffirmative(value: string): boolean {
 
 export function editorCategoryId(kind: AgentWorkspaceLocalEditorKind): string {
   if (kind === 'memory') return 'memory';
+  if (kind === 'note') return 'notes';
   if (kind === 'profile') return 'profiles';
   if (kind === 'persona') return 'personas';
   if (kind === 'skill') return 'skills';

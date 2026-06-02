@@ -74,7 +74,7 @@ The TUI workspace exposes the common confirmed ingest and reindex flows. The CLI
 
 All of these commands target `/api/goodvibes-agent/knowledge/*`; none of them call default Knowledge/Wiki.
 
-Do not map local memory, routines, skills, personas, or default wiki documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
+Do not map local memory, notes, routines, skills, personas, or default wiki documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
 
 ## Artifacts And Multimodal
 
@@ -82,7 +82,7 @@ Artifacts are first-class runtime objects for files, images, audio, video, gener
 
 Agent Workspace -> Voice & Media -> Generate media creates image/video artifacts through configured media providers after typed confirmation. The main conversation can perform the same confirmed action with the `agent_media_generate` tool when the user explicitly asks for generated media. Generated media output is summarized as artifact ids, MIME types, filenames, and source URLs when present; inline base64 is not printed into the transcript.
 
-Until dedicated Agent artifact-ingest route coverage exists, multimodal outputs should stay in the conversation, artifacts, local memory, or explicit delegation results rather than being inserted into default Knowledge/Wiki.
+Until dedicated Agent artifact-ingest route coverage exists, multimodal outputs should stay in the conversation, artifacts, local notes or memory, or explicit delegation results rather than being inserted into default Knowledge/Wiki.
 
 ## Related Docs
 

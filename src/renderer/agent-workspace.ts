@@ -462,13 +462,23 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `Session memories: ${snapshot.sessionMemoryCount}`, fg: PALETTE.info },
       { text: `Agent memory: ${snapshot.localMemoryCount}; prompt-active: ${snapshot.localMemoryPromptActiveCount}; review queue: ${snapshot.localMemoryReviewQueueCount}`, fg: PALETTE.info },
+      { text: `Scratchpad notes: ${snapshot.localNoteCount}; review queue: ${snapshot.localNoteReviewQueueCount}`, fg: PALETTE.info },
       { text: `Local routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
       { text: `Local skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}; bundles: ${snapshot.localSkillBundleCount}; active skills: ${snapshot.activeSkillCount}`, fg: PALETTE.info },
       { text: `Local personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
-      { text: 'Durable memory, routines, skills, and personas remain Agent-local until shared registry contracts exist.', fg: PALETTE.good },
+      { text: 'Durable memory, scratchpad notes, routines, skills, and personas remain Agent-local until shared registry contracts exist.', fg: PALETTE.good },
       { text: 'Secrets are rejected/redacted; store secret references instead of secret values.', fg: PALETTE.warn },
       { text: '' },
       ...localLibraryLines('Agent Memory', snapshot.localMemories, 'No Agent memory yet. Create one here with Create memory.', workspace.selectedLocalLibraryItem('memory')?.id ?? null),
+    );
+  } else if (category.id === 'notes') {
+    base.push(
+      { text: `Scratchpad notes: ${snapshot.localNoteCount}; review queue: ${snapshot.localNoteReviewQueueCount}`, fg: PALETTE.info },
+      { text: 'Notes are Agent-local working context for source triage, temporary decisions, and operator handoff.', fg: PALETTE.good },
+      { text: 'Notes do not become memory and are not ingested into Agent Knowledge unless the user takes a separate explicit action.', fg: PALETTE.warn },
+      { text: 'Use reviewed notes to decide what deserves durable memory, an Agent Knowledge source, or a reusable skill/routine.', fg: PALETTE.muted },
+      { text: '' },
+      ...localLibraryLines('Scratchpad Notes', snapshot.localNotes, 'No local notes yet. Create one here with Create note.', workspace.selectedLocalLibraryItem('note')?.id ?? null),
     );
   } else if (category.id === 'personas') {
     base.push(
