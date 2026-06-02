@@ -3,7 +3,14 @@ import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../agent/routine-registry.ts';
-import { AgentSkillRegistry, evaluateAgentSkillReadiness, formatAgentSkillRequirement, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
+import {
+  AgentSkillRegistry,
+  evaluateAgentSkillBundleReadiness,
+  evaluateAgentSkillReadiness,
+  formatAgentSkillRequirement,
+  type AgentSkillBundleRecord,
+  type AgentSkillRecord,
+} from '../agent/skill-registry.ts';
 import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-summary.ts';
 import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
@@ -99,7 +106,12 @@ function summarizeSkillItem(skill: AgentSkillRecord): AgentWorkspaceLocalLibrary
   };
 }
 
-function summarizeSkillBundleItem(bundle: AgentSkillBundleRecord): AgentWorkspaceLocalLibraryItem {
+function summarizeSkillBundleItem(bundle: AgentSkillBundleRecord, skills: readonly AgentSkillRecord[]): AgentWorkspaceLocalLibraryItem {
+  const readiness = evaluateAgentSkillBundleReadiness(bundle, skills);
+  const missing = [
+    ...readiness.missingRequirements.map(formatAgentSkillRequirement),
+    ...readiness.missingSkillIds.map((skillId) => `skill:${skillId}`),
+  ];
   return {
     id: bundle.id,
     name: bundle.name,
@@ -109,6 +121,9 @@ function summarizeSkillBundleItem(bundle: AgentSkillBundleRecord): AgentWorkspac
     tags: bundle.skillIds,
     triggers: [],
     enabled: bundle.enabled,
+    requirementCount: readiness.includedSkills.reduce((total, skill) => total + skill.requirements.length, 0) + readiness.missingSkillIds.length,
+    missingRequirementCount: missing.length,
+    missingRequirements: missing,
   };
 }
 
@@ -228,7 +243,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
         bundleCount: snapshot.bundles.length,
         enabledBundleCount: snapshot.enabledBundles.length,
         items: snapshot.skills.map(summarizeSkillItem),
-        bundleItems: snapshot.bundles.map(summarizeSkillBundleItem),
+        bundleItems: snapshot.bundles.map((bundle) => summarizeSkillBundleItem(bundle, snapshot.skills)),
       };
     } catch {
       return { count: 0, enabled: 0, active: 0, bundleCount: 0, enabledBundleCount: 0, items: [], bundleItems: [] };

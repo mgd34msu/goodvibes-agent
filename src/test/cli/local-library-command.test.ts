@@ -263,6 +263,16 @@ describe('local Agent library CLI commands', () => {
     expect(parsed.kind).toBe('agent.skills.bundles.show');
     expect(parsed.data?.skillIds).toContain('daily-brief');
 
+    const bundleShown = await runCli(['skills', 'bundle', 'show', 'ops-pack'], home);
+    expect(bundleShown.output).toContain('readiness: needs setup');
+    expect(bundleShown.output).toContain('missing: env:GOODVIBES_AGENT_TEST_MISSING_TOKEN, command:definitely-missing-goodvibes-agent-test-bin');
+
+    const bundleAttention = await runCli(['skills', 'bundle', 'attention'], home);
+    expect(bundleAttention.exitCode).toBe(0);
+    expect(bundleAttention.output).toContain('Agent skill bundles needing setup');
+    expect(bundleAttention.output).toContain('ops-pack');
+    expect(bundleAttention.output).toContain('needs env:GOODVIBES_AGENT_TEST_MISSING_TOKEN,command:definitely-missing-goodvibes-agent-test-bin');
+
     const stale = await runCli(['skills', 'stale', 'daily-brief', 'Needs update'], home);
     expect(stale.exitCode).toBe(0);
     expect(stale.output).toContain('daily-brief');
@@ -353,6 +363,7 @@ describe('local Agent library CLI commands', () => {
     expect(skillsHelp).toContain('GoodVibes skills');
     expect(skillsHelp).toContain('skills discover');
     expect(skillsHelp).toContain('skills import-discovered');
+    expect(skillsHelp).toContain('skills bundle attention');
     expect(skillsHelp).toContain('skills bundle create');
   });
 });

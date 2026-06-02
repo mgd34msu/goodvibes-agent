@@ -147,13 +147,13 @@ function discoveredRoutineFrontmatterAnyList(routine: DiscoveredRoutineRecord, k
   return [];
 }
 
-function renderRoutineList(title: string, path: string, routines: readonly AgentRoutineRecord[]): string {
+function renderRoutineList(title: string, path: string, routines: readonly AgentRoutineRecord[], emptyMessage?: string): string {
   if (routines.length === 0) {
     return [
       title,
-      '  No local Agent routines yet.',
-      '  Create routines inside the Agent TUI with /routines create, or create an Agent profile from a starter template.',
-    ].join('\n');
+      `  ${emptyMessage ?? 'No local Agent routines yet.'}`,
+      emptyMessage ? '' : '  Create routines inside the Agent TUI with /routines create, or create an Agent profile from a starter template.',
+    ].filter(Boolean).join('\n');
   }
   return [
     `${title} (${routines.length})`,
@@ -282,6 +282,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
             : 'Agent routines',
         snapshot.path,
         routines,
+        normalized === 'attention' || normalized === 'needs-setup' ? 'No local Agent routines need setup.' : undefined,
       )),
       exitCode: 0,
     };

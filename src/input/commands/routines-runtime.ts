@@ -81,10 +81,12 @@ function summarizeRoutine(routine: AgentRoutineRecord): string {
   return `  ${routine.id}  ${enabled}  ${routine.reviewState}  ${ready}  starts=${routine.startCount}  ${routine.name} - ${routine.description}${tags}`;
 }
 
-function renderList(title: string, registry: AgentRoutineRegistry, routines: readonly AgentRoutineRecord[]): string {
+function renderList(title: string, registry: AgentRoutineRegistry, routines: readonly AgentRoutineRecord[], emptyMessage?: string): string {
   const snapshot = registry.snapshot();
   if (routines.length === 0) {
-    return `${title}\n  No local Agent routines yet. Create one with /routines create --name <name> --description <summary> --steps <steps>.`;
+    return emptyMessage
+      ? `${title}\n  ${emptyMessage}`
+      : `${title}\n  No local Agent routines yet. Create one with /routines create --name <name> --description <summary> --steps <steps>.`;
   }
   return [
     `${title} (${routines.length})`,
@@ -252,7 +254,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
     }
     if (sub === 'attention' || sub === 'needs-setup') {
       const routines = routineRegistry.list().filter((routine) => !evaluateAgentRoutineReadiness(routine).ready);
-      ctx.print(renderList('Agent Routines needing setup', routineRegistry, routines));
+      ctx.print(renderList('Agent Routines needing setup', routineRegistry, routines, 'No local Agent routines need setup.'));
       return;
     }
     if (sub === 'discover' || sub === 'discovered') {

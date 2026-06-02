@@ -20,6 +20,13 @@ export interface AgentSkillReadiness {
   readonly missing: readonly AgentSkillRequirement[];
 }
 
+export interface AgentSkillBundleReadiness {
+  readonly ready: boolean;
+  readonly includedSkills: readonly AgentSkillRecord[];
+  readonly missingSkillIds: readonly string[];
+  readonly missingRequirements: readonly AgentSkillRequirement[];
+}
+
 export interface AgentSkillRecord {
   readonly id: string;
   readonly name: string;
@@ -709,6 +716,41 @@ export function evaluateAgentSkillReadiness(
   return { ready: missing.length === 0, met, missing };
 }
 
+export function evaluateAgentSkillBundleReadiness(
+  bundle: Pick<AgentSkillBundleRecord, 'skillIds'>,
+  skills: readonly AgentSkillRecord[],
+  options: {
+    readonly env?: Readonly<Record<string, string | undefined>>;
+    readonly pathValue?: string;
+  } = {},
+): AgentSkillBundleReadiness {
+  const skillById = new Map(skills.map((skill) => [skill.id, skill]));
+  const includedSkills: AgentSkillRecord[] = [];
+  const missingSkillIds: string[] = [];
+  const missingRequirements: AgentSkillRequirement[] = [];
+  const seenRequirements = new Set<string>();
+  for (const skillId of bundle.skillIds) {
+    const skill = skillById.get(skillId);
+    if (!skill) {
+      missingSkillIds.push(skillId);
+      continue;
+    }
+    includedSkills.push(skill);
+    for (const requirement of evaluateAgentSkillReadiness(skill, options).missing) {
+      const key = `${requirement.kind}:${requirement.name.toLowerCase()}`;
+      if (seenRequirements.has(key)) continue;
+      seenRequirements.add(key);
+      missingRequirements.push(requirement);
+    }
+  }
+  return {
+    ready: missingSkillIds.length === 0 && missingRequirements.length === 0,
+    includedSkills,
+    missingSkillIds,
+    missingRequirements,
+  };
+}
+
 export function buildEnabledSkillsPrompt(shellPaths: ShellPathService): string | null {
   const snapshot = AgentSkillRegistry.fromShellPaths(shellPaths).snapshot();
   const active = snapshot.activeSkills;
@@ -717,13 +759,21 @@ export function buildEnabledSkillsPrompt(shellPaths: ShellPathService): string |
     '## Enabled GoodVibes Agent Skills',
     'Use these local reusable procedures inside the same serial assistant conversation when they fit the user request.',
     '',
-    ...snapshot.enabledBundles.slice(0, 4).flatMap((bundle) => [
-      `### Skill Bundle: ${bundle.name}`,
-      `Description: ${bundle.description}`,
-      `Review state: ${bundle.reviewState}`,
-      `Included skills: ${bundle.skillIds.join(', ')}`,
-      '',
-    ]),
+    ...snapshot.enabledBundles.slice(0, 4).flatMap((bundle) => {
+      const readiness = evaluateAgentSkillBundleReadiness(bundle, snapshot.skills);
+      const missing = [
+        ...readiness.missingRequirements.map(formatAgentSkillRequirement),
+        ...readiness.missingSkillIds.map((skillId) => `skill:${skillId}`),
+      ];
+      return [
+        `### Skill Bundle: ${bundle.name}`,
+        `Description: ${bundle.description}`,
+        `Review state: ${bundle.reviewState}`,
+        `Readiness: ${readiness.ready ? 'ready' : `missing ${missing.join(', ')}`}`,
+        `Included skills: ${bundle.skillIds.join(', ')}`,
+        '',
+      ];
+    }),
     ...active.slice(0, 8).flatMap((skill) => [
       `### ${skill.name}`,
       `Description: ${skill.description}`,

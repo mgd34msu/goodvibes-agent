@@ -5,6 +5,7 @@ import { discoverSkills, type SkillRecord } from '../agent/skill-discovery.ts';
 import {
   AgentSkillRegistry,
   buildAgentSkillRequirements,
+  evaluateAgentSkillBundleReadiness,
   evaluateAgentSkillReadiness,
   formatAgentSkillRequirement,
   type AgentSkillBundleRecord,
@@ -212,18 +213,24 @@ function summarizeSkill(skill: AgentSkillRecord): string {
   return `  ${skill.id}  ${enabled}  ${skill.reviewState}  ${ready}  ${skill.name} - ${skill.description}${tags}`;
 }
 
-function summarizeBundle(bundle: AgentSkillBundleRecord): string {
+function summarizeBundle(bundle: AgentSkillBundleRecord, skills: readonly AgentSkillRecord[]): string {
   const enabled = bundle.enabled ? 'enabled' : 'disabled';
-  return `  ${bundle.id}  ${enabled}  ${bundle.reviewState}  ${bundle.name} - ${bundle.description} skills=${bundle.skillIds.join(',')}`;
+  const readiness = evaluateAgentSkillBundleReadiness(bundle, skills);
+  const missing = [
+    ...readiness.missingRequirements.map(formatAgentSkillRequirement),
+    ...readiness.missingSkillIds.map((skillId) => `skill:${skillId}`),
+  ];
+  const ready = readiness.ready ? 'ready' : `needs ${missing.join(',')}`;
+  return `  ${bundle.id}  ${enabled}  ${bundle.reviewState}  ${ready}  ${bundle.name} - ${bundle.description} skills=${bundle.skillIds.join(',')}`;
 }
 
-function renderSkillList(title: string, path: string, skills: readonly AgentSkillRecord[]): string {
+function renderSkillList(title: string, path: string, skills: readonly AgentSkillRecord[], emptyMessage?: string): string {
   if (skills.length === 0) {
     return [
       title,
-      '  No local Agent skills yet.',
-      '  Create one with: goodvibes-agent skills create --name <name> --description <summary> --procedure <steps>',
-    ].join('\n');
+      `  ${emptyMessage ?? 'No local Agent skills yet.'}`,
+      emptyMessage ? '' : '  Create one with: goodvibes-agent skills create --name <name> --description <summary> --procedure <steps>',
+    ].filter(Boolean).join('\n');
   }
   return [
     `${title} (${skills.length})`,
@@ -286,18 +293,18 @@ function discoveredFrontmatterAnyList(skill: SkillRecord, keys: readonly string[
   return [];
 }
 
-function renderBundleList(title: string, path: string, bundles: readonly AgentSkillBundleRecord[]): string {
+function renderBundleList(title: string, path: string, bundles: readonly AgentSkillBundleRecord[], skills: readonly AgentSkillRecord[], emptyMessage?: string): string {
   if (bundles.length === 0) {
     return [
       title,
-      '  No local Agent skill bundles yet.',
-      '  Create one with: goodvibes-agent skills bundle create --name <name> --description <summary> --skills <id,id>',
-    ].join('\n');
+      `  ${emptyMessage ?? 'No local Agent skill bundles yet.'}`,
+      emptyMessage ? '' : '  Create one with: goodvibes-agent skills bundle create --name <name> --description <summary> --skills <id,id>',
+    ].filter(Boolean).join('\n');
   }
   return [
     `${title} (${bundles.length})`,
     `  store: ${path}`,
-    ...bundles.map(summarizeBundle),
+    ...bundles.map((bundle) => summarizeBundle(bundle, skills)),
   ].join('\n');
 }
 
@@ -325,11 +332,18 @@ function renderSkill(skill: AgentSkillRecord): string {
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
-function renderBundle(bundle: AgentSkillBundleRecord): string {
+function renderBundle(bundle: AgentSkillBundleRecord, skills: readonly AgentSkillRecord[]): string {
+  const readiness = evaluateAgentSkillBundleReadiness(bundle, skills);
+  const missing = [
+    ...readiness.missingRequirements.map(formatAgentSkillRequirement),
+    ...readiness.missingSkillIds.map((skillId) => `skill:${skillId}`),
+  ];
   return [
     `Skill bundle ${bundle.name}`,
     `  id: ${bundle.id}`,
     `  enabled: ${bundle.enabled ? 'yes' : 'no'}`,
+    `  readiness: ${readiness.ready ? 'ready' : 'needs setup'}`,
+    missing.length > 0 ? `  missing: ${missing.join(', ')}` : '',
     `  review: ${bundle.reviewState}`,
     `  source: ${bundle.source}`,
     `  provenance: ${bundle.provenance}`,
@@ -351,7 +365,7 @@ function usageSkills(): string {
 }
 
 function usageBundles(): string {
-  return 'Usage: goodvibes-agent skills bundle [list|enabled|search <query>|show <id>|create|update <id>|enable <id>|disable <id>|review <id>|stale <id> <reason>|delete <id> --yes]';
+  return 'Usage: goodvibes-agent skills bundle [list|enabled|attention|search <query>|show <id>|create|update <id>|enable <id>|disable <id>|review <id>|stale <id> <reason>|delete <id> --yes]';
 }
 
 function errorOutput(runtime: CliCommandRuntime, error: unknown, kind: string): CliCommandOutput {
@@ -517,22 +531,26 @@ async function handleSkillBundleCommand(runtime: CliCommandRuntime, args: readon
     const registry = skillRegistry(runtime);
     const snapshot = registry.snapshot();
     if (normalized === 'list' || normalized === 'ls') {
-      return success(runtime, 'agent.skills.bundles.list', { path: snapshot.path, bundles: snapshot.bundles }, renderBundleList('Agent skill bundles', snapshot.path, snapshot.bundles));
+      return success(runtime, 'agent.skills.bundles.list', { path: snapshot.path, bundles: snapshot.bundles }, renderBundleList('Agent skill bundles', snapshot.path, snapshot.bundles, snapshot.skills));
     }
     if (normalized === 'enabled') {
-      return success(runtime, 'agent.skills.bundles.enabled', { path: snapshot.path, bundles: snapshot.enabledBundles }, renderBundleList('Enabled Agent skill bundles', snapshot.path, snapshot.enabledBundles));
+      return success(runtime, 'agent.skills.bundles.enabled', { path: snapshot.path, bundles: snapshot.enabledBundles }, renderBundleList('Enabled Agent skill bundles', snapshot.path, snapshot.enabledBundles, snapshot.skills));
+    }
+    if (normalized === 'attention' || normalized === 'needs-setup') {
+      const bundles = snapshot.bundles.filter((bundle) => !evaluateAgentSkillBundleReadiness(bundle, snapshot.skills).ready);
+      return success(runtime, 'agent.skills.bundles.attention', { path: snapshot.path, bundles }, renderBundleList('Agent skill bundles needing setup', snapshot.path, bundles, snapshot.skills, 'No local Agent skill bundles need setup.'));
     }
     if (normalized === 'search' || normalized === 'find') {
       const query = rest.join(' ').trim();
       const results = registry.searchBundles(query);
-      return success(runtime, 'agent.skills.bundles.search', { query, results }, renderBundleList(`Agent skill bundles matching "${query}"`, snapshot.path, results));
+      return success(runtime, 'agent.skills.bundles.search', { query, results }, renderBundleList(`Agent skill bundles matching "${query}"`, snapshot.path, results, snapshot.skills));
     }
     if (normalized === 'show' || normalized === 'get') {
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_skill_bundle_command', 'Usage: goodvibes-agent skills bundle show <id>', 2);
       const bundle = registry.getBundle(id);
       if (!bundle) return failure(runtime, 'skill_bundle_not_found', `Unknown Agent skill bundle: ${id}`, 1);
-      return success(runtime, 'agent.skills.bundles.show', bundle, renderBundle(bundle));
+      return success(runtime, 'agent.skills.bundles.show', bundle, renderBundle(bundle, snapshot.skills));
     }
     if (normalized === 'create') {
       const options = parseOptions(rest);
@@ -606,12 +624,12 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
     if (normalized === 'active') {
       return success(runtime, 'agent.skills.active', { path: snapshot.path, skills: snapshot.activeSkills, bundles: snapshot.enabledBundles }, [
         renderSkillList('Active Agent skills', snapshot.path, snapshot.activeSkills),
-        snapshot.enabledBundles.length > 0 ? renderBundleList('Enabled Agent skill bundles', snapshot.path, snapshot.enabledBundles) : '',
+        snapshot.enabledBundles.length > 0 ? renderBundleList('Enabled Agent skill bundles', snapshot.path, snapshot.enabledBundles, snapshot.skills) : '',
       ].filter(Boolean).join('\n\n'));
     }
     if (normalized === 'attention' || normalized === 'needs-setup') {
       const skills = snapshot.skills.filter((skill) => !evaluateAgentSkillReadiness(skill).ready);
-      return success(runtime, 'agent.skills.attention', { path: snapshot.path, skills }, renderSkillList('Agent skills needing setup', snapshot.path, skills));
+      return success(runtime, 'agent.skills.attention', { path: snapshot.path, skills }, renderSkillList('Agent skills needing setup', snapshot.path, skills, 'No local Agent skills need setup.'));
     }
     if (normalized === 'discover') {
       const discovered = await discoverSkills(shellPaths(runtime));

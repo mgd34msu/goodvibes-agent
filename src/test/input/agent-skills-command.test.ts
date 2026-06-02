@@ -77,7 +77,17 @@ describe('/agent-skills command', () => {
   test('creates and enables local skill bundles', async () => {
     const { registry, out, ctx } = commandHarness();
 
-    await registry.execute('agent-skills', ['create', '--name', 'Briefing', '--description', 'Summarize status.', '--procedure', 'Review state and report next actions.'], ctx);
+    await registry.execute('agent-skills', [
+      'create',
+      '--name',
+      'Briefing',
+      '--description',
+      'Summarize status.',
+      '--procedure',
+      'Review state and report next actions.',
+      '--requires-env',
+      'GOODVIBES_AGENT_TEST_MISSING_TOKEN',
+    ], ctx);
     await registry.execute('agent-skills', ['create', '--name', 'Approvals', '--description', 'Review approvals.', '--procedure', 'Explain pending approval risk and decision.'], ctx);
     await registry.execute('agent-skills', [
       'bundle',
@@ -91,12 +101,17 @@ describe('/agent-skills command', () => {
     ], ctx);
     await registry.execute('agent-skills', ['bundle', 'enable', 'operator-pack'], ctx);
     await registry.execute('agent-skills', ['bundle', 'enabled'], ctx);
+    await registry.execute('agent-skills', ['bundle', 'attention'], ctx);
     await registry.execute('agent-skills', ['bundle', 'show', 'operator-pack'], ctx);
 
     const text = out.join('\n');
     expect(text).toContain('Created Agent skill bundle operator-pack');
     expect(text).toContain('Enabled Agent skill bundle operator-pack');
     expect(text).toContain('Operator Pack - Use briefing and approval review together.');
+    expect(text).toContain('needs env:GOODVIBES_AGENT_TEST_MISSING_TOKEN');
+    expect(text).toContain('Agent Skill Bundles needing setup');
+    expect(text).toContain('readiness: needs setup');
+    expect(text).toContain('missing: env:GOODVIBES_AGENT_TEST_MISSING_TOKEN');
     expect(text).toContain('active skills: 2');
     expect(text).toContain('- briefing: Briefing');
     expect(text).toContain('- approvals: Approvals');

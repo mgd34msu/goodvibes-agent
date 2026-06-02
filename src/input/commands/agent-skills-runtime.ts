@@ -1,6 +1,7 @@
 import {
   AgentSkillRegistry,
   buildAgentSkillRequirements,
+  evaluateAgentSkillBundleReadiness,
   evaluateAgentSkillReadiness,
   formatAgentSkillRequirement,
   type AgentSkillBundleRecord,
@@ -65,15 +66,23 @@ function summarizeSkill(skill: AgentSkillRecord): string {
   return `  ${skill.id}  ${enabled}  ${skill.reviewState}  ${ready}  ${skill.name} - ${skill.description}${tags}`;
 }
 
-function summarizeBundle(bundle: AgentSkillBundleRecord): string {
+function summarizeBundle(bundle: AgentSkillBundleRecord, skills: readonly AgentSkillRecord[]): string {
   const enabled = bundle.enabled ? 'enabled' : 'disabled';
-  return `  ${bundle.id}  ${enabled}  ${bundle.reviewState}  ${bundle.name} - ${bundle.description}  skills=${bundle.skillIds.join(',')}`;
+  const readiness = evaluateAgentSkillBundleReadiness(bundle, skills);
+  const missing = [
+    ...readiness.missingRequirements.map(formatAgentSkillRequirement),
+    ...readiness.missingSkillIds.map((skillId) => `skill:${skillId}`),
+  ];
+  const ready = readiness.ready ? 'ready' : `needs ${missing.join(',')}`;
+  return `  ${bundle.id}  ${enabled}  ${bundle.reviewState}  ${ready}  ${bundle.name} - ${bundle.description}  skills=${bundle.skillIds.join(',')}`;
 }
 
-function renderList(title: string, registry: AgentSkillRegistry, skills: readonly AgentSkillRecord[]): string {
+function renderList(title: string, registry: AgentSkillRegistry, skills: readonly AgentSkillRecord[], emptyMessage?: string): string {
   const snapshot = registry.snapshot();
   if (skills.length === 0) {
-    return `${title}\n  No local Agent skills yet. Create one with /agent-skills create --name <name> --description <summary> --procedure <steps>.`;
+    return emptyMessage
+      ? `${title}\n  ${emptyMessage}`
+      : `${title}\n  No local Agent skills yet. Create one with /agent-skills create --name <name> --description <summary> --procedure <steps>.`;
   }
   return [
     `${title} (${skills.length})`,
@@ -178,17 +187,19 @@ async function importDiscoveredSkill(args: readonly string[], ctx: CommandContex
   ctx.print(`Imported Agent skill ${skill.id}: ${skill.name}`);
 }
 
-function renderBundleList(title: string, registry: AgentSkillRegistry, bundles: readonly AgentSkillBundleRecord[]): string {
+function renderBundleList(title: string, registry: AgentSkillRegistry, bundles: readonly AgentSkillBundleRecord[], emptyMessage?: string): string {
   const snapshot = registry.snapshot();
   if (bundles.length === 0) {
-    return `${title}\n  No local Agent skill bundles yet. Create one with /agent-skills bundle create --name <name> --description <summary> --skills <id,id>.`;
+    return emptyMessage
+      ? `${title}\n  ${emptyMessage}`
+      : `${title}\n  No local Agent skill bundles yet. Create one with /agent-skills bundle create --name <name> --description <summary> --skills <id,id>.`;
   }
   return [
     `${title} (${bundles.length})`,
     `  store: ${snapshot.path}`,
     `  enabled bundles: ${snapshot.enabledBundles.length}`,
     `  active skills: ${snapshot.activeSkills.length}`,
-    ...bundles.map(summarizeBundle),
+    ...bundles.map((bundle) => summarizeBundle(bundle, snapshot.skills)),
   ].join('\n');
 }
 
@@ -220,10 +231,17 @@ function renderBundle(bundle: AgentSkillBundleRecord, registry: AgentSkillRegist
   const skills = bundle.skillIds
     .map((skillId) => registry.get(skillId))
     .filter((skill): skill is AgentSkillRecord => skill !== null);
+  const readiness = evaluateAgentSkillBundleReadiness(bundle, registry.snapshot().skills);
+  const missing = [
+    ...readiness.missingRequirements.map(formatAgentSkillRequirement),
+    ...readiness.missingSkillIds.map((skillId) => `skill:${skillId}`),
+  ];
   return [
     `Skill Bundle ${bundle.name}`,
     `  id: ${bundle.id}`,
     `  enabled: ${bundle.enabled ? 'yes' : 'no'}`,
+    `  readiness: ${readiness.ready ? 'ready' : 'needs setup'}`,
+    missing.length > 0 ? `  missing: ${missing.join(', ')}` : '',
     `  review: ${bundle.reviewState}`,
     `  source: ${bundle.source}`,
     `  provenance: ${bundle.provenance}`,
@@ -251,6 +269,12 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
   if (sub === 'enabled') {
     const snapshot = skillRegistry.snapshot();
     ctx.print(renderBundleList('Enabled Agent Skill Bundles', skillRegistry, snapshot.enabledBundles));
+    return;
+  }
+  if (sub === 'attention' || sub === 'needs-setup') {
+    const snapshot = skillRegistry.snapshot();
+    const bundles = snapshot.bundles.filter((bundle) => !evaluateAgentSkillBundleReadiness(bundle, snapshot.skills).ready);
+    ctx.print(renderBundleList('Agent Skill Bundles needing setup', skillRegistry, bundles, 'No local Agent skill bundles need setup.'));
     return;
   }
   if (sub === 'search') {
@@ -342,7 +366,7 @@ function runBundleCommand(args: readonly string[], ctx: CommandContext, skillReg
     ctx.print(`Deleted Agent skill bundle ${removed.id}: ${removed.name}`);
     return;
   }
-  ctx.print('Usage: /agent-skills bundle [list|enabled|search|show|create|update|enable|disable|review|stale|delete]');
+  ctx.print('Usage: /agent-skills bundle [list|enabled|attention|search|show|create|update|enable|disable|review|stale|delete]');
 }
 
 export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
@@ -376,7 +400,7 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
     }
     if (sub === 'attention' || sub === 'needs-setup') {
       const skills = skillRegistry.list().filter((skill) => !evaluateAgentSkillReadiness(skill).ready);
-      ctx.print(renderList('Agent Skills needing setup', skillRegistry, skills));
+      ctx.print(renderList('Agent Skills needing setup', skillRegistry, skills, 'No local Agent skills need setup.'));
       return;
     }
     if (sub === 'search') {
