@@ -2,6 +2,11 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.116 - 2026-06-02
+
+- Includes the behavior-discovery and profile setup work prepared in 0.1.115; 0.1.115 was superseded before npm publish.
+- 8fcd30f fix: split architecture-gated modules
+
 ## 0.1.115 - 2026-06-02
 
 - d0e1499 feat: guide setup to discovered profiles
