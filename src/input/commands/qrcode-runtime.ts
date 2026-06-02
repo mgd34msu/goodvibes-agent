@@ -2,8 +2,8 @@ import type { CommandRegistry } from '../command-registry.ts';
 import { networkInterfaces } from 'node:os';
 import {
   buildCompanionConnectionInfo,
+  type CompanionConnectionInfo,
   encodeConnectionPayload,
-  formatConnectionBlock,
   generateQrMatrix,
   renderQrToString,
 } from '@pellux/goodvibes-sdk/platform/pairing';
@@ -31,6 +31,23 @@ function urlHostForBindHost(host: string): string {
   return host || '127.0.0.1';
 }
 
+function formatAgentPairingBlock(info: CompanionConnectionInfo, qr: string): string {
+  return [
+    `GoodVibes Agent companion pairing v${info.version}`,
+    '━━━━━━━━━━━━━━━━━━━━━━━━',
+    `Connected host: ${info.url}`,
+    `Surface:        ${info.surface}`,
+    `User:           ${info.username}`,
+    `Token:          ${info.token}`,
+    '',
+    'Scan to connect:',
+    '',
+    qr,
+    '',
+    'Agent is waiting for the companion app to connect to the owning GoodVibes host.',
+  ].join('\n');
+}
+
 export function registerQrcodeRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'qrcode',
@@ -55,7 +72,7 @@ export function registerQrcodeRuntimeCommands(registry: CommandRegistry): void {
       });
       const payload = encodeConnectionPayload(info);
       const qr = renderQrToString(generateQrMatrix(payload));
-      ctx.print([formatConnectionBlock(info, payload), '', qr].join('\n'));
+      ctx.print(formatAgentPairingBlock(info, qr));
     },
   });
 }
