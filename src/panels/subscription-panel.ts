@@ -79,7 +79,7 @@ export class SubscriptionPanel extends ScrollableListPanel<SubscriptionRow> {
   protected override getEmptyStateActions() {
     return [
       { command: '/subscription login openai start --yes', summary: 'start the first-class OpenAI subscription flow' },
-      { command: '/login provider <name> start --yes', summary: 'use the front-door auth flow for supported providers' },
+      { command: '/subscription login <provider> finish <code> --yes', summary: 'finish a pending provider subscription login' },
       { command: '/auth review', summary: 'inspect connected-host auth posture without exposing token values' },
     ];
   }

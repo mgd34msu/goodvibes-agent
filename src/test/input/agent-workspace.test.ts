@@ -265,8 +265,6 @@ describe('AgentWorkspace', () => {
     const workspaceFormBackedCommands = new Set([
       'bundle',
       'image',
-      'login',
-      'logout',
       'tts',
       'unpin',
     ]);
@@ -471,6 +469,16 @@ describe('AgentWorkspace', () => {
 
     expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/plan show plan-123', '/tasks list', '/sessions', '/approval matrix']);
     expect(workspace.status).toContain('/approval matrix');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approval-review');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('approval-review');
+    clearEditorField(workspace);
+    feedText(workspace, 'mcp');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched.at(-1)).toBe('/approval review mcp');
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
   });
 
   test('opens runtime task inspection from workspace forms without mutating tasks', () => {

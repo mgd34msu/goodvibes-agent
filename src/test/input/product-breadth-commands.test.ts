@@ -65,8 +65,6 @@ const visibleAgentBreadthCommands = [
   'brief',
   'health',
   'knowledge',
-  'login',
-  'logout',
   'mcp',
   'memory',
   'notify',

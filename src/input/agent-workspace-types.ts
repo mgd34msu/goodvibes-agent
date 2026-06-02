@@ -113,6 +113,7 @@ export type AgentWorkspaceEditorKind =
   | 'task-output'
   | 'plan-show'
   | 'health-repair'
+  | 'approval-review'
   | 'mode-preset'
   | 'mode-domain'
   | 'model-pin'

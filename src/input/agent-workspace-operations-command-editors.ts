@@ -2,11 +2,11 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 
 export type AgentWorkspaceOperationsCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'plan-show' | 'health-repair'
+  'plan-show' | 'health-repair' | 'approval-review'
 >;
 
 export function isAgentWorkspaceOperationsCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceOperationsCommandEditorKind {
-  return kind === 'plan-show' || kind === 'health-repair';
+  return kind === 'plan-show' || kind === 'health-repair' || kind === 'approval-review';
 }
 
 export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspaceOperationsCommandEditorKind): AgentWorkspaceLocalEditor {
@@ -19,6 +19,18 @@ export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspace
       message: 'Show health repair guidance for one domain. Agent does not start services or mutate connected-host lifecycle.',
       fields: [
         { id: 'domain', label: 'Domain', value: 'settings', required: true, multiline: false, hint: 'settings, auth, accounts, host, remote, mcp, continuity, or maintenance.' },
+      ],
+    };
+  }
+  if (kind === 'approval-review') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Review Approval Class',
+      selectedFieldIndex: 0,
+      message: 'Review one approval class without approving, denying, or mutating pending requests.',
+      fields: [
+        { id: 'kind', label: 'Approval kind', value: 'shell', required: true, multiline: false, hint: 'shell, file, network, delegate, mcp, remote, hook, or plugin.' },
       ],
     };
   }

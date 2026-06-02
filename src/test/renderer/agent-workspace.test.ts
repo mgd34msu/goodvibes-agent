@@ -1202,6 +1202,17 @@ describe('renderAgentWorkspace', () => {
     expect(planEditorOutput).toContain('Plan id *');
 
     workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approval-review');
+    const approvalActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(approvalActionOutput).toContain('Review approval class');
+    expect(approvalActionOutput).toContain('edit approval-review');
+
+    workspace.activateSelected();
+    const approvalEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(approvalEditorOutput).toContain('Review Approval Class');
+    expect(approvalEditorOutput).toContain('Approval kind *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-show');
     const taskOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(taskOutput).toContain('Inspect runtime task');

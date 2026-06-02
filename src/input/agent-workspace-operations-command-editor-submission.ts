@@ -28,10 +28,13 @@ export function buildAgentWorkspaceOperationsCommandEditorSubmission(
   readField: AgentWorkspaceFieldReader,
 ): AgentWorkspaceOperationsCommandEditorSubmission {
   const plan = editor.kind === 'plan-show';
+  const approval = editor.kind === 'approval-review';
   const command = plan
     ? `/plan show ${quoteSlashCommandArg(readField('planId'))}`
-    : `/health repair ${quoteSlashCommandArg(readField('domain'))}`;
-  const title = plan ? 'Opening saved plan' : 'Opening health repair guidance';
+    : approval
+      ? `/approval review ${quoteSlashCommandArg(readField('kind'))}`
+      : `/health repair ${quoteSlashCommandArg(readField('domain'))}`;
+  const title = plan ? 'Opening saved plan' : approval ? 'Opening approval review' : 'Opening health repair guidance';
   return {
     kind: 'dispatch',
     command,
@@ -41,7 +44,9 @@ export function buildAgentWorkspaceOperationsCommandEditorSubmission(
       title,
       detail: plan
         ? 'The workspace handed read-only saved-plan inspection to the shell-owned command router.'
-        : 'The workspace handed read-only health repair guidance to the shell-owned command router.',
+        : approval
+          ? 'The workspace handed read-only approval class review to the shell-owned command router.'
+          : 'The workspace handed read-only health repair guidance to the shell-owned command router.',
       command,
       safety: 'read-only',
     },

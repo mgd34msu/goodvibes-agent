@@ -28,69 +28,6 @@ function inspectAuthBundle(bundle: AuthReviewBundle): string {
 
 export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
-    name: 'login',
-    description: 'Front-door login flow for provider subscriptions',
-    usage: 'provider <name> start|finish <code> --yes',
-    async handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const commandArgs = [...parsed.rest];
-      const target = (commandArgs[0] ?? '').toLowerCase();
-      if (target === 'provider') {
-        const provider = commandArgs[1];
-        const mode = commandArgs[2]?.toLowerCase();
-        if (!provider || !mode) {
-          ctx.print('Usage: /login provider <name> start|finish <code> --yes');
-          return;
-        }
-        if (!parsed.yes) {
-          requireYesFlag(ctx, `${mode} provider subscription login for ${provider}`, '/login provider <name> start|finish <code> --yes');
-          return;
-        }
-        if (ctx.executeCommand) {
-          await ctx.executeCommand('subscription', ['login', provider, mode, ...commandArgs.slice(3), '--yes']);
-          return;
-        }
-        ctx.print(`Use /subscription login ${provider} ${mode}${commandArgs[3] ? ` ${commandArgs[3]}` : ''} --yes`);
-        return;
-      }
-      if (target === 'service' || target === 'runtime' || target === 'listener' || target === 'daemon') {
-        ctx.print([
-          'Connected-host login is outside GoodVibes Agent.',
-          'Agent does not create, exchange, store, rotate, revoke, or clear connected-host sessions.',
-          'Use the owning GoodVibes host for connected-host auth administration.',
-          'Agent login supports provider subscriptions only: /login provider <name> start|finish <code> --yes.',
-        ].join('\n'));
-        return;
-      }
-      ctx.print('Usage: /login provider <name> start|finish <code> --yes');
-    },
-  });
-
-  registry.register({
-    name: 'logout',
-    description: 'Front-door logout flow for provider subscription sessions and supported overrides',
-    usage: 'provider <name> --yes',
-    async handler(args, ctx) {
-      const parsed = stripYesFlag(args);
-      const commandArgs = [...parsed.rest];
-      const target = (commandArgs[0] ?? '').toLowerCase();
-      if (target !== 'provider' || !commandArgs[1]) {
-        ctx.print('Usage: /logout provider <name> --yes');
-        return;
-      }
-      if (!parsed.yes) {
-        requireYesFlag(ctx, `log out provider subscription ${commandArgs[1]}`, '/logout provider <name> --yes');
-        return;
-      }
-      if (ctx.executeCommand) {
-        await ctx.executeCommand('subscription', ['logout', commandArgs[1], '--yes']);
-        return;
-      }
-      ctx.print(`Use /subscription logout ${commandArgs[1]} --yes`);
-    },
-  });
-
-  registry.register({
     name: 'auth',
     description: 'Review provider auth posture and export redacted auth review bundles',
     usage: '[review|show <provider>|repair <provider>|bundle export <path> --yes|bundle inspect <path>]',

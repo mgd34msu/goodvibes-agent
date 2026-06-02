@@ -347,6 +347,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'task-output', label: 'Show task output', detail: 'Open a task-id form for read-only connected-host task output.', editorKind: 'task-output', kind: 'editor', safety: 'read-only' },
       { id: 'sessions-list', label: 'Saved sessions', detail: 'Browse saved Agent sessions from the TUI without using a shell-only command.', command: '/sessions', kind: 'command', safety: 'read-only' },
       { id: 'approvals', label: 'Review approvals', detail: 'Print the approval matrix without approving or denying requests.', command: '/approval matrix', kind: 'command', safety: 'read-only' },
+      { id: 'approval-review', label: 'Review approval class', detail: 'Open an approval-kind form for read-only review of one approval class.', editorKind: 'approval-review', kind: 'editor', safety: 'read-only' },
     ],
   },
   {

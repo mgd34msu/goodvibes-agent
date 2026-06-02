@@ -118,21 +118,20 @@ describe('Agent command interface', () => {
     }
   });
 
-  test('auth and login command discovery does not advertise runtime service session exchange', () => {
+  test('auth command discovery does not advertise runtime service session exchange or duplicate login aliases', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
 
-    const login = registry.get('login');
     const auth = registry.get('auth');
 
-    expect(login?.description).toBe('Front-door login flow for provider subscriptions');
-    expect(login?.usage).toBe('provider <name> start|finish <code> --yes');
+    expect(registry.get('login')).toBeUndefined();
+    expect(registry.get('logout')).toBeUndefined();
     expect(auth?.description).toBe('Review provider auth posture and export redacted auth review bundles');
     expect(auth?.usage).not.toContain('listener');
     expect(auth?.usage).not.toContain('service');
   });
 
-  test('runtime service login paths fail closed in Agent commands', async () => {
+  test('runtime service login paths fail closed in Agent auth commands', async () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const printed: string[] = [];
@@ -145,12 +144,11 @@ describe('Agent command interface', () => {
       },
     } as unknown as CommandContext;
 
-    await registry.execute('login', ['service', 'runtime', 'http://127.0.0.1:3421', 'user', 'pass', '--yes'], context);
     await registry.execute('auth', ['login', 'runtime', 'http://127.0.0.1:3421', 'user', 'pass', '--yes'], context);
 
     expect(dispatched).toEqual([]);
     expect(printed.join('\n')).toContain('Connected-host login is outside GoodVibes Agent.');
-    expect(printed.join('\n')).toContain('provider subscriptions only');
+    expect(printed.join('\n')).toContain('Use the owning GoodVibes host for connected-host auth administration.');
   });
 
   test('routes /skills to the Agent-local skills command, not the copied TUI skill-pack command', () => {
