@@ -863,7 +863,15 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
     expect(workspace.status).toContain('/security review');
 
-    expect(dispatched).toEqual(['/trust review', '/security review']);
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'security-attack-paths');
+    workspace.activateSelected();
+    expect(workspace.status).toContain('/security attack-paths');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'security-tokens');
+    workspace.activateSelected();
+    expect(workspace.status).toContain('/security tokens');
+
+    expect(dispatched).toEqual(['/trust review', '/security review', '/security attack-paths', '/security tokens']);
   });
 
   test('renders local persona skill and routine library workspaces from live Agent state', () => {

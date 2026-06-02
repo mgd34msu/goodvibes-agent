@@ -965,7 +965,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Repair guidance');
     expect(output).toContain('edit mcp-repair');
     expect(output).toContain('typed confirmation');
-    expect(output).toContain('10 more action(s) below');
+    expect(output).toContain('12 more action(s) below');
     expect(output).toContain('allow-all');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-tools-server');
@@ -990,6 +990,16 @@ describe('renderAgentWorkspace', () => {
     expect(repairEditorOutput).toContain('Server name *');
 
     workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'security-attack-paths');
+    const attackPathOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(attackPathOutput).toContain('MCP attack paths');
+    expect(attackPathOutput).toContain('/security attack-paths');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'security-tokens');
+    const tokenOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(tokenOutput).toContain('Token audit');
+    expect(tokenOutput).toContain('/security tokens');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-add-server');
     workspace.activateSelected();
     const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));

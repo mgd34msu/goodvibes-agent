@@ -128,6 +128,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'trust-bundle-export', label: 'Export trust bundle', detail: 'Open a confirmed form that exports a redacted trust review bundle.', editorKind: 'trust-bundle-export', kind: 'editor', safety: 'safe' },
       { id: 'trust-bundle-inspect', label: 'Inspect trust bundle', detail: 'Open a form that inspects a trust review bundle before setup review.', editorKind: 'trust-bundle-inspect', kind: 'editor', safety: 'read-only' },
       { id: 'security-review', label: 'Security review', detail: 'Inspect token audit, MCP attack paths, policy lint, and plugin risk without mutating security state.', command: '/security review', kind: 'command', safety: 'read-only' },
+      { id: 'security-attack-paths', label: 'MCP attack paths', detail: 'Inspect MCP attack-path findings without changing trust or quarantine state.', command: '/security attack-paths', kind: 'command', safety: 'read-only' },
+      { id: 'security-tokens', label: 'Token audit', detail: 'Inspect registered API token scope and rotation posture without printing token values.', command: '/security tokens', kind: 'command', safety: 'read-only' },
       { id: 'mcp-settings', label: 'Settings workspace', detail: 'Open settings at the MCP section for deeper review, including allow-all decisions.', command: '/settings mcp', kind: 'command', safety: 'safe' },
       { id: 'mcp-safety', label: 'Tool safety', detail: 'Agent may inspect and add reviewed MCP servers by explicit command, but will not silently install packages, change trust, or expose tools from ordinary chat.', kind: 'guidance', safety: 'blocked' },
     ],
