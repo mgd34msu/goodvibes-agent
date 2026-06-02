@@ -75,22 +75,15 @@ For scripts and automation, the installed CLI mirrors the same local behavior li
 
 The Agent workspace also has a `Capture learned behavior` form. Use it after reviewing a repeated workflow, lesson, or operating style; it saves one local skill, routine, or persona directly from the TUI and does not write to connected-host routes or non-Agent knowledge.
 
-Local Agent behavior is editable from the TUI:
+Local Agent behavior is editable from the TUI workspace:
 
-```text
-/personas create --name Research --description "Source-backed research" --body "Check sources, call out uncertainty, keep answers concise."
-/personas use research
-/routines create --name "Evening Review" --description "Review open work before shutdown" --steps "Check work plan, approvals, and Agent Knowledge status before summarizing." --enabled true
-/routines start evening-review
-/schedule promote-routine evening-review --cron "0 17 * * 1-5" --timezone America/Chicago --delivery-channel slack --yes
-/schedule receipts
-/schedule reconcile
-/channels
-/agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
-/skills list
-/memory add fact "Prefers concise morning briefings" --scope project --tags preference
-/memory search morning
-```
+- Agent Workspace -> Personas: create, inspect, activate, review, stale, and delete local personas.
+- Agent Workspace -> Skills: create skills, import discovered skills, enable or disable them, and manage skill bundles.
+- Agent Workspace -> Routines: create routines, start a routine in the main conversation, review receipts, and explicitly promote one routine to a connected schedule.
+- Agent Workspace -> Memory & Skills: create memory, search memory, review/stale/delete records, export/import bundles, and rebuild the local vector index.
+- Agent Workspace -> Channels: inspect readiness, pair companion clients, and manage notification targets with confirmation.
+
+Slash commands remain available inside the TUI for power users, but the fullscreen Agent workspace is the primary path for these workflows.
 
 Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promotion to a connected schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live connected schedules through public `schedules.list`.
 

@@ -92,20 +92,15 @@ Memory, personas, routines, and reusable Agent skills are local to GoodVibes Age
 
 Use `Capture learned behavior` in the Agent workspace after reviewing a repeated workflow, lesson, or operating style. It saves one local skill, routine, or persona from the TUI and does not call connected-host mutation routes.
 
-```text
-/personas list
-/personas create --name Research --description "Source-backed research" --body "Check sources, call out uncertainty, keep answers concise."
-/personas use research
-/routines create --name "Evening Review" --description "Review open work before shutdown" --steps "Check work plan, approvals, and Agent Knowledge status before summarizing." --enabled true
-/routines start evening-review
-/schedule promote-routine evening-review --cron "0 17 * * 1-5" --timezone America/Chicago --yes
-/channels
-/agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
-/agent-skills enabled
-/skills list
-/memory add fact "Prefers concise morning briefings" --scope project --tags preference
-/memory search morning
-```
+Day-one local behavior setup should stay in the fullscreen workspace:
+
+- Personas -> Create persona, then Use selected.
+- Routines -> Create routine, Start selected, or Promote to schedule after entering real timing and confirmation.
+- Skills -> Create skill, Enable selected, and review setup requirements.
+- Memory & Skills -> Create memory or Search memory.
+- Channels -> inspect readiness before enabling notification delivery.
+
+Typed slash commands are available for repeat users, but they are not required for the first-run workflow.
 
 The active persona plus enabled Agent routines, reviewed memory, and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or non-Agent knowledge segments.
 
