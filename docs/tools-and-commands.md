@@ -35,7 +35,7 @@ High-signal Agent TUI paths:
 
 The installed `goodvibes-agent` command launches the TUI by default. Subcommands such as `status`, `compat`, `knowledge ...`, `ask <question>`, and `search <query>` are secondary scriptable equivalents for diagnostics and automation over the same Agent workspace features.
 
-Host-management and coding-first commands that would imply connected-host lifecycle ownership, local agent spawning, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
+Host-management and coding-first commands that would imply connected-host lifecycle ownership, local worker creation, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 
 Local memory capture/add commands are explicit Agent-local actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
 
@@ -69,7 +69,7 @@ Use `/workplan` when the work already has concrete tasks and needs durable statu
 
 ## Delegation
 
-`/delegate` is for explicit build, fix, review, or implementation work. It sends a single delegated request to GoodVibes TUI/shared-session routes with the original user ask and execution intent. Agent does not create local Engineer/Reviewer/Tester root agents and does not run WRFC by default.
+`/delegate` is for explicit build, fix, review, or implementation work. It sends a single delegated request to GoodVibes TUI/shared-session routes with the original user ask and execution intent. Agent does not create local coding-role workers and does not run WRFC by default.
 
 Use WRFC only when the user explicitly asks for WRFC or when the delegated build/fix/review request explicitly calls for it.
 
@@ -107,7 +107,7 @@ Routine promotion is an explicit scheduling bridge: local routines stay local du
 
 Agent Workspace -> Channels is the primary channel path. It shows readiness, setup, account, policy, and status views without rendering secret values. `Send channel message` opens a confirmed form for one delivery target.
 
-`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage runtime hosting, use default Knowledge/Wiki, use non-Agent knowledge segments, spawn agents, or run WRFC.
+`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage connected-host hosting, use default Knowledge/Wiki, use non-Agent knowledge segments, create local workers, or run WRFC.
 
 ## Related Docs
 

@@ -472,7 +472,7 @@ export class ProjectPlanningCoordinator {
 
     return [
       'Agent-owned planning loop is active for this turn.',
-      'Do not execute code changes, spawn agents, or claim implementation is complete unless the user explicitly approves execution after the plan is structurally ready.',
+      'Do not execute code changes, create local workers, or claim implementation is complete unless the user explicitly approves execution after the plan is structurally ready.',
       'Be relentless and thorough: challenge vague wording, inspect relevant context before proposing execution, and ask exactly one focused question when information is missing.',
       'Do not ask broad questions like "what is in scope?" without examples. Break broad planning gaps into concrete choices, explain tradeoffs, and recommend a default the user can accept or correct.',
       '',

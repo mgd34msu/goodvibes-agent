@@ -261,7 +261,7 @@ export class ProjectPlanningPanel extends BasePanel {
         ['r', C.info],
         [' refresh  ', C.dim],
         ['a', C.info],
-        [' approve execution-ready plan  Esc prompt focus  Ctrl+X close panel', C.dim],
+        [' mark planning ready  Esc prompt focus  Ctrl+X close panel', C.dim],
       ]),
     ];
   }

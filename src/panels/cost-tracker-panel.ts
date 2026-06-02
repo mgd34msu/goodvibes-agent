@@ -198,7 +198,7 @@ export class CostTrackerPanel extends BasePanel {
       turnEvents.on('TURN_COMPLETED', () => this.onTurnComplete()),
     );
 
-    // Track agent spawns
+    // Track copied runtime worker events for cost attribution only.
     this.unsubs.push(
       agentEvents.on('AGENT_SPAWNING', (payload) => {
         this.agents.set(payload.agentId, {

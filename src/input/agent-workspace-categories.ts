@@ -208,9 +208,9 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'trust-review', label: 'Trust review', detail: 'Review permission, secret, plugin, and MCP trust posture without exporting bundles or changing trust.', command: '/trust review', kind: 'command', safety: 'read-only' },
       { id: 'trust-bundle-export', label: 'Export trust bundle', detail: 'Open a confirmed form that exports a redacted trust review bundle.', editorKind: 'trust-bundle-export', kind: 'editor', safety: 'safe' },
       { id: 'trust-bundle-inspect', label: 'Inspect trust bundle', detail: 'Open a form that inspects a trust review bundle before setup review.', editorKind: 'trust-bundle-inspect', kind: 'editor', safety: 'read-only' },
-      { id: 'security-review', label: 'Security review', detail: 'Inspect token audit, MCP attack paths, policy lint, and plugin risk without mutating security state.', command: '/security review', kind: 'command', safety: 'read-only' },
+      { id: 'security-review', label: 'Security review', detail: 'Inspect token posture, MCP attack paths, policy lint, and plugin risk without mutating security state.', command: '/security review', kind: 'command', safety: 'read-only' },
       { id: 'security-attack-paths', label: 'MCP attack paths', detail: 'Inspect MCP attack-path findings without changing trust or quarantine state.', command: '/security attack-paths', kind: 'command', safety: 'read-only' },
-      { id: 'security-tokens', label: 'Token audit', detail: 'Inspect registered API token scope and rotation posture without printing token values.', command: '/security tokens', kind: 'command', safety: 'read-only' },
+      { id: 'security-tokens', label: 'Token review', detail: 'Inspect registered API token scope and rotation posture without printing token values.', command: '/security tokens', kind: 'command', safety: 'read-only' },
       { id: 'mcp-settings', label: 'Settings workspace', detail: 'Open settings at the MCP section for deeper review, including allow-all decisions.', command: '/settings mcp', kind: 'command', safety: 'safe' },
       { id: 'mcp-safety', label: 'Tool safety', detail: 'Agent may inspect and add reviewed MCP servers by explicit command, but will not silently install packages, change trust, or expose tools from ordinary chat.', kind: 'guidance', safety: 'blocked' },
     ],
@@ -338,7 +338,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'LEARN',
     label: 'Personas',
     summary: 'Local behavior profiles for the main assistant.',
-    detail: 'Personas shape the serial Agent in the main conversation. They are local profiles and never spawn specialist roots.',
+    detail: 'Personas shape the serial Agent in the main conversation. They are local behavior profiles, not separate worker identities.',
     actions: [
       { id: 'personas-list', label: 'List personas', detail: 'Print the full local persona library.', command: '/personas list', kind: 'command', safety: 'read-only' },
       { id: 'personas-active', label: 'Show active persona', detail: 'Inspect the active local persona applied to new turns.', command: '/personas active', kind: 'command', safety: 'read-only' },
@@ -480,7 +480,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'WATCH',
     label: 'Automation',
     summary: 'Reminders, schedule observability, and explicit routine promotion.',
-    detail: 'Agent does not create local automation jobs or hidden scheduler spawns. Confirmed reminders, reviewed routine promotion, and explicit run/pause/resume controls go through the connected host with confirmation.',
+    detail: 'Agent does not create hidden local automation workers. Confirmed reminders, reviewed routine promotion, and explicit run/pause/resume controls go through the connected host with confirmation.',
     actions: [
       { id: 'schedule-setup-path', label: 'Schedule setup path', detail: 'Create a reminder or promote a reviewed routine, pick a real cadence, optionally choose a delivery target, confirm, then reconcile receipts with connected schedules.', kind: 'guidance', safety: 'safe' },
       { id: 'schedule-next-action', label: 'Next schedule action', detail: 'Use the detail pane to choose whether to create a reminder, prepare a routine, promote a routine, or reconcile existing receipts.', kind: 'guidance', safety: 'safe' },
@@ -509,7 +509,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Explicit handoff to GoodVibes TUI for code work.',
     detail: 'Agent does not become the coding TUI. Build, implement, fix, patch, and review work must be handed to GoodVibes TUI with the full original ask and WRFC only when explicitly requested.',
     actions: [
-      { id: 'delegate-guidance', label: 'Delegation rule', detail: 'For build/fix/review work, delegate one request to GoodVibes TUI instead of spawning local Engineer/Reviewer/Tester roots.', kind: 'guidance', safety: 'delegates' },
+      { id: 'delegate-guidance', label: 'Delegation rule', detail: 'For build/fix/review work, delegate one request to GoodVibes TUI instead of creating local coding-role workers.', kind: 'guidance', safety: 'delegates' },
       { id: 'delegate-task', label: 'Delegate build task', detail: 'Open a confirmed form that sends one explicit build/fix/review task to GoodVibes TUI/shared-session routes.', editorKind: 'delegate-task', kind: 'editor', safety: 'delegates' },
       { id: 'review-command', label: 'Review delegation command', detail: 'Use the confirmed delegation form only when the user explicitly asks for code review/build execution. Include the actual task text, preserve the full original ask, and request WRFC only when asked.', kind: 'guidance', safety: 'delegates' },
       { id: 'delegation-status', label: 'Delegation status', detail: 'Inspect build-delegation receipts and shared-session status without starting coding work.', command: '/delegate status', kind: 'command', safety: 'read-only' },

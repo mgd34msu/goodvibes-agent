@@ -511,7 +511,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     deliveryManager,
     spawnTask: (input) => {
       throw new Error([
-        'GoodVibes Agent does not spawn local automation agents.',
+        'GoodVibes Agent does not create local automation workers.',
         `Received automation prompt: ${input.prompt}`,
         'Use read-only automation observability here; explicit build/fix/review execution belongs to GoodVibes TUI delegation.',
       ].join(' '));

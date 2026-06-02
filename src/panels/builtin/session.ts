@@ -58,23 +58,23 @@ export function registerSessionPanels(manager: PanelManager, deps: ResolvedBuilt
     name: 'QR Code',
     icon: 'Q',
     category: 'session',
-    description: 'QR code for companion app pairing — scan to connect a mobile or desktop companion',
+    description: 'QR code for companion app pairing through the connected GoodVibes host',
     factory: () => {
-      if (!deps.daemonHomeDir) throw new Error('daemonHomeDir must be provided to the session panel factory via BuiltinPanelDeps');
+      if (!deps.daemonHomeDir) throw new Error('connected host token directory must be provided to the session panel factory via BuiltinPanelDeps');
       const token = readOperatorToken(`${deps.daemonHomeDir}/operator-tokens.json`);
-      const daemonPort = deps.configManager.get('controlPlane.port');
-      const daemonHost = String(process.env['GOODVIBES_DAEMON_HOST'] ?? getLocalNetworkIp());
-      const daemonUrl = `http://${daemonHost}:${daemonPort}`;
+      const connectedHostPort = deps.configManager.get('controlPlane.port');
+      const connectedHostName = String(process.env['GOODVIBES_AGENT_RUNTIME_HOST'] ?? process.env['GOODVIBES_DAEMON_HOST'] ?? getLocalNetworkIp());
+      const connectedHostUrl = `http://${connectedHostName}:${connectedHostPort}`;
       const bootstrapPassword = readBootstrapPassword(deps.localUserAuthManager.getBootstrapCredentialPath());
       const connectionInfo = token
         ? buildCompanionConnectionInfo({
-          daemonUrl,
+          daemonUrl: connectedHostUrl,
           token,
           password: bootstrapPassword,
           surface: GOODVIBES_AGENT_PAIRING_SURFACE,
         })
         : {
-          url: daemonUrl,
+          url: connectedHostUrl,
           token: '',
           username: 'admin',
           ...(bootstrapPassword !== undefined ? { password: bootstrapPassword } : {}),

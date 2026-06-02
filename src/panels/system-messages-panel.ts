@@ -145,7 +145,7 @@ export class SystemMessagesPanel extends ScrollableListPanel<SystemMessageEntry>
               'Model switches, scan notices, provider/system state, and other operational updates will appear here once the runtime starts emitting them.',
               [
                 { command: '/help', summary: 'review commands and operator workflows' },
-                { command: '/cockpit', summary: 'open the unified runtime control room' },
+                { command: '/agent', summary: 'open the Agent operator workspace' },
               ],
               C,
             ),

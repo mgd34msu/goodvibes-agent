@@ -462,7 +462,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'personas') {
     base.push(
       { text: `Personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
-      { text: 'Personas are local behavior profiles for the serial main-conversation assistant, not spawned agents.', fg: PALETTE.good },
+      { text: 'Personas are local behavior profiles for the serial main-conversation assistant, not separate workers.', fg: PALETTE.good },
       { text: 'Use them for tone, role, domain constraints, tool posture, and repeatable operating preferences.', fg: PALETTE.muted },
       { text: '' },
       ...localLibraryLines('Persona Library', snapshot.localPersonas, 'No local personas yet. Create one here with Create persona.', workspace.selectedLocalLibraryItem('persona')?.id ?? null),
@@ -514,7 +514,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: 'Build/fix/review work is handed to GoodVibes TUI/shared-session contracts.', fg: PALETTE.info },
       { text: `WRFC policy: ${snapshot.wrfcPolicy}`, fg: PALETTE.warn },
-      { text: 'Agent does not spawn local Engineer/Reviewer/Tester roots.', fg: PALETTE.good },
+      { text: 'Agent does not create local coding-role workers.', fg: PALETTE.good },
     );
   }
   if (snapshot.warnings.length > 0) {

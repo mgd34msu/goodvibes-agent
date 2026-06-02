@@ -81,7 +81,7 @@ export function createAgentNotifyTool(
       description: [
         'Send one plain-text notification to configured GoodVibes Agent webhook notification targets from the main conversation.',
         'Use only when the user explicitly asks Agent to notify, message, alert, or send a configured notification.',
-        'This uses Agent-local notification webhook targets; it does not create channel routes, authorize accounts, manage runtime hosting, spawn local workers, run WRFC, or write to default Knowledge/Wiki or non-Agent knowledge segments.',
+        'This uses Agent-local notification webhook targets; it does not create channel routes, authorize accounts, manage connected-host hosting, create local workers, run WRFC, or write to default Knowledge/Wiki or non-Agent knowledge segments.',
         'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
       ].join(' '),
       parameters: {

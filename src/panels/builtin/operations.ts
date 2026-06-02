@@ -72,7 +72,7 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     name: 'Security',
     icon: 'U',
     category: 'monitoring',
-    description: 'Security review workspace for token audit, policy posture, MCP quarantine, and incident pressure',
+    description: 'Security review workspace for token posture, policy posture, MCP quarantine, and incident pressure',
     factory: () => new SecurityPanel(ui.readModels.security),
   });
 

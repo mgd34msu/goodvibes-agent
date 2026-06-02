@@ -71,7 +71,7 @@ export class SecurityPanel extends ScrollableListPanel<TokenAuditResult> {
   }
 
   protected override getPalette() { return C; }
-  protected override getEmptyStateMessage() { return ' No API tokens are registered with the security auditor yet.'; }
+  protected override getEmptyStateMessage() { return ' No API tokens are registered for security review yet.'; }
   protected override getEmptyStateActions() {
     return [
       { command: '/storage review', summary: 'inspect secure secret storage and environment overrides' },
@@ -117,7 +117,7 @@ export class SecurityPanel extends ScrollableListPanel<TokenAuditResult> {
     const quarantinedPlugins = snapshot.quarantinedPlugins;
     const untrustedPlugins = snapshot.untrustedPlugins;
     const attackPathReview = snapshot.attackPathReview;
-    const intro = 'Token audit, policy posture, MCP attack-path review, plugin trust, and incident pressure.';
+    const intro = 'Token review, policy posture, MCP attack-path review, plugin trust, and incident pressure.';
     const footerLine = buildGuidanceLine(width, '/policy preflight', 'run a proactive policy review before risky work starts', C);
 
     const governanceLines: Line[] = [
@@ -179,7 +179,7 @@ export class SecurityPanel extends ScrollableListPanel<TokenAuditResult> {
         ...buildEmptyState(
           width,
           this.getEmptyStateMessage(),
-          'The security control room can already review policy, MCP, plugin, and incident posture, but token-specific scope and rotation audit data has not been registered.',
+          'The security control room can already review policy, MCP, plugin, and incident posture, but token-specific scope and rotation data has not been registered.',
           this.getEmptyStateActions(),
           C,
         ),
@@ -245,7 +245,7 @@ export class SecurityPanel extends ScrollableListPanel<TokenAuditResult> {
         [String(Math.floor(selected.rotation.ageMs / (24 * 60 * 60 * 1000))), C.value],
       ]));
       detailLines.push(buildPanelLine(width, [[
-        `Last audit: ${view.lastAuditAt ? new Date(view.lastAuditAt).toISOString() : 'never'}  Press r to refresh.`,
+        `Last review: ${view.lastAuditAt ? new Date(view.lastAuditAt).toISOString() : 'never'}  Press r to refresh.`,
         C.dim,
       ]]));
       if (preflightStatus !== 'n/a') {

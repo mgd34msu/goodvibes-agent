@@ -29,11 +29,11 @@ export function registerSecurityRuntimeCommands(registry: CommandRegistry): void
 
       if (subcommand === 'tokens') {
         if (audit.results.length === 0) {
-          ctx.print('No registered API tokens are currently under audit.');
+          ctx.print('No registered API tokens are currently available for security review.');
           return;
         }
         ctx.print([
-          `Token Audit (${audit.results.length})`,
+          `Token Review (${audit.results.length})`,
           ...audit.results.map((result) => (
             `  ${result.label}  policy=${result.scope.policyId}  scope=${result.scope.outcome}  rotation=${result.rotation.outcome}  blocked=${result.blocked ? 'yes' : 'no'}`
           )),

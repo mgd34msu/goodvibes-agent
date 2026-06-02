@@ -46,10 +46,10 @@ function formatDuration(startedAt?: number, endedAt?: number): string {
 function kindLabel(kind: RuntimeTask['kind']): string {
   switch (kind) {
     case 'exec': return 'exec';
-    case 'agent': return 'agent';
-    case 'acp': return 'acp';
+    case 'agent': return 'task';
+    case 'acp': return 'delegate';
     case 'scheduler': return 'scheduler';
-    case 'daemon': return 'daemon';
+    case 'daemon': return 'host';
     case 'mcp': return 'mcp';
     case 'plugin': return 'plugin';
     case 'integration': return 'integration';
@@ -137,7 +137,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
   protected override getEmptyStateMessage() { return ' No tasks recorded yet.'; }
   protected override getEmptyStateActions() {
     return [
-      { command: '/tasks create', summary: 'create a tracked task from the shell' },
+      { command: '/workplan', summary: 'track visible Agent work in the workspace' },
       { command: '/delegate <task>', summary: 'send explicit build/fix/review work to GoodVibes TUI' },
     ];
   }
@@ -173,7 +173,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
 
   public render(width: number, height: number): Line[] {
     this.clampSelection();
-    const intro = 'Live task lifecycle, ownership, retries, and result/error details across runtime execution domains.';
+    const intro = 'Connected-host task lifecycle, ownership, retries, and result/error details for operator visibility.';
     const footerLines = [buildPanelLine(width, [['  Up/Down move  Home/End jump', C.dim]])];
 
     if (!this.readModel) {
@@ -229,7 +229,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
         ['  status ', C.label],
         [selected.status, statusColor(selected.status)],
         ['  kind ', C.label],
-        [selected.kind, C.value],
+        [kindLabel(selected.kind), C.value],
         ['  owner ', C.label],
         [selected.owner.slice(0, Math.max(0, width - 46)), C.dim],
       ]));

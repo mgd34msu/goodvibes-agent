@@ -80,14 +80,13 @@ function formatEveryInterval(intervalMs: number): string {
 // ---------------------------------------------------------------------------
 
 /**
- * SchedulePanel — displays all scheduled tasks with next run time,
- * enable/disable toggle, and run history.
+ * SchedulePanel — displays connected schedule posture with next run time and run history.
+ * It does not create, enable, disable, or run schedules from panel keypresses.
  */
 export class SchedulePanel extends BasePanel {
   private items: ViewItem[] = [];
   private selectedIndex = 0;
   private scrollOffset = 0;
-  private refreshTimerId: ReturnType<typeof setInterval> | null = null;
   private readonly automationManager: ScheduleAutomationManager;
 
   constructor(automationManager: ScheduleAutomationManager) {
@@ -102,17 +101,10 @@ export class SchedulePanel extends BasePanel {
   override onActivate(): void {
     super.onActivate();
     this.rebuild();
-    this.refreshTimerId = this.registerTimer(setInterval(() => {
-      this.rebuild();
-      this.markDirty();
-    }, 5_000));
   }
 
   override onDeactivate(): void {
-    if (this.refreshTimerId !== null) {
-      this.clearTimer(this.refreshTimerId);
-      this.refreshTimerId = null;
-    }
+    this.scrollOffset = 0;
   }
 
   override onDestroy(): void {
@@ -171,11 +163,11 @@ export class SchedulePanel extends BasePanel {
       }
       case 'return':
       case ' ': {
-        this.setError('Schedule mutation is read-only in GoodVibes Agent; use explicit runtime approval routes later.');
+        this.setError('Schedule changes require an exact command with --yes; panel keypresses never mutate connected schedules.');
         return true;
       }
       case 'r': {
-        this.setError('Schedule run is blocked in GoodVibes Agent; local automation spawns are disabled.');
+        this.setError('Use /schedule run <schedule-id> --yes only when you explicitly want to run that connected schedule.');
         return true;
       }
       case 'R': {
@@ -205,7 +197,7 @@ export class SchedulePanel extends BasePanel {
             lines: buildEmptyState(
               width,
               ' No scheduled tasks',
-              'Schedule mutation and run controls are blocked in GoodVibes Agent. Use /schedule list for read-only history.',
+              'Schedule mutation is command-confirmed in GoodVibes Agent. Use /schedule list for read-only history, or exact --yes commands for connected schedule actions.',
               [],
               DEFAULT_PANEL_PALETTE,
             ),
@@ -213,7 +205,7 @@ export class SchedulePanel extends BasePanel {
         ],
         footerLines: [
           ...(this.renderErrorLine(width) ? [this.renderErrorLine(width)!] : []),
-          buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim], ['   mutation/run blocked', DEFAULT_PANEL_PALETTE.warn]]),
+          buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim], ['   no keypress mutations', DEFAULT_PANEL_PALETTE.warn]]),
         ],
         palette: DEFAULT_PANEL_PALETTE,
       });
@@ -236,7 +228,7 @@ export class SchedulePanel extends BasePanel {
       intro: 'Review recurring scheduled tasks, next run timing, recent history, and enablement state.',
       footerLines: [
         ...(this.renderErrorLine(width) ? [this.renderErrorLine(width)!] : []),
-        buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim], ['   mutation/run blocked', DEFAULT_PANEL_PALETTE.warn]]),
+        buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim], ['   no keypress mutations', DEFAULT_PANEL_PALETTE.warn]]),
       ],
       palette: DEFAULT_PANEL_PALETTE,
       beforeSections: [summarySection],
@@ -260,7 +252,7 @@ export class SchedulePanel extends BasePanel {
       sections,
       footerLines: [
         ...(this.renderErrorLine(width) ? [this.renderErrorLine(width)!] : []),
-        buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim], ['   mutation/run blocked', DEFAULT_PANEL_PALETTE.warn]]),
+        buildPanelLine(width, [[' Up/Down', DEFAULT_PANEL_PALETTE.info], [' navigate', DEFAULT_PANEL_PALETTE.dim], ['   R', DEFAULT_PANEL_PALETTE.info], [' refresh', DEFAULT_PANEL_PALETTE.dim], ['   no keypress mutations', DEFAULT_PANEL_PALETTE.warn]]),
       ],
       palette: DEFAULT_PANEL_PALETTE,
     });

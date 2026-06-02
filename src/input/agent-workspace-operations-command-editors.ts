@@ -50,7 +50,7 @@ export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspace
       mode: 'create',
       title: 'Seed Planning Goal',
       selectedFieldIndex: 0,
-      message: 'Seed Agent planning state from a concrete goal. This stays in the main Agent planning flow and does not spawn coding agents.',
+      message: 'Seed Agent planning state from a concrete goal. This stays in the main Agent planning flow and does not create local coding workers.',
       fields: [
         { id: 'goal', label: 'Planning goal', value: '', required: true, multiline: true, hint: 'Describe the goal or operating plan to evaluate. Ctrl-J inserts a new line.' },
       ],
@@ -62,7 +62,7 @@ export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspace
       mode: 'create',
       title: 'Show Health Repair Guidance',
       selectedFieldIndex: 0,
-      message: 'Show health repair guidance for one domain. Agent does not manage runtime hosting or mutate connected-host lifecycle.',
+      message: 'Show health repair guidance for one domain. Agent does not manage connected-host hosting or mutate connected-host lifecycle.',
       fields: [
         { id: 'domain', label: 'Domain', value: 'settings', required: true, multiline: false, hint: 'settings, auth, accounts, host, remote, mcp, continuity, or maintenance.' },
       ],

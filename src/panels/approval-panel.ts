@@ -18,7 +18,7 @@ const APPROVAL_ROWS = [
   ['shell', 'why prompted: side effects, destructive ops, secret exposure, escalation', 'review via /security and /policy preflight'],
   ['file', 'why prompted: config mutation, notebook edits, secret-bearing paths', 'review via /approval review file'],
   ['network', 'why prompted: external hosts, fetch scope, egress policy', 'review via /approval review network'],
-  ['delegate', 'why prompted: recursive agents, spawn ceilings, write-set inheritance', 'review via /approval review delegate'],
+  ['delegate', 'why prompted: explicit TUI build handoff, write scope, result ownership', 'review via /delegate <task>'],
   ['mcp', 'why prompted: trust escalation, host scope, path scope, coherence mismatch', 'review via /mcp trust and /security'],
   ['remote', 'why prompted: runner trust, remote write scope, artifact requirements', 'review delegated TUI execution context'],
   ['hook', 'why prompted: deny/mutate authority, blocking behavior, runner provenance', 'review via /hooks and /security'],

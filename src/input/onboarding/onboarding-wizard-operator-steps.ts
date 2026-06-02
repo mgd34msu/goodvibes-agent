@@ -313,7 +313,7 @@ export function buildAutomationStep(): OnboardingWizardStepDefinition {
         id: 'agent-automation.local-routines',
         action: 'open-agent-workspace:routines',
         label: 'Local routine library',
-        hint: 'Open the Routines workspace to create, review, enable, and start local routines without spawning hidden jobs.',
+        hint: 'Open the Routines workspace to create, review, enable, and start local routines without hidden jobs.',
         defaultValue: 'Open Routines',
       },
       {

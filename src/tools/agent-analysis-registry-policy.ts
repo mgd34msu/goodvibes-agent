@@ -23,7 +23,6 @@ const READ_ONLY_ANALYZE_TOOL_MODES = [
   'surface',
   'breaking',
   'permissions',
-  'env_audit',
   'test_find',
 ] as const;
 
