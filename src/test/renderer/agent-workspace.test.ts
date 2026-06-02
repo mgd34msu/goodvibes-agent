@@ -455,6 +455,18 @@ describe('renderAgentWorkspace', () => {
     expect(useActionOutput).toContain('Use provider');
     expect(useActionOutput).toContain('edit provider-use');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-effort');
+    const effortActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(effortActionOutput).toContain('Reasoning effort');
+    expect(effortActionOutput).toContain('edit effort-level');
+
+    workspace.activateSelected();
+    const effortEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(effortEditorOutput).toContain('Set Reasoning Effort');
+    expect(effortEditorOutput).toContain('Effort level *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
     workspace.activateSelected();
     const useEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(useEditorOutput).toContain('Use Provider');

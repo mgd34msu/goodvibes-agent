@@ -108,6 +108,7 @@ export type AgentWorkspaceEditorKind =
   | 'conversation-events'
   | 'conversation-groups'
   | 'conversation-find'
+  | 'effort-level'
   | 'channel-show'
   | 'channel-doctor'
   | 'channel-setup'

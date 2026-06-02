@@ -82,6 +82,14 @@ export function buildAgentWorkspaceSessionCommandEditorSubmission(
       'read-only',
     );
   }
+  if (editor.kind === 'effort-level') {
+    return dispatch(
+      `/effort ${quoteSlashCommandArg(readField('level'))}`,
+      'Opening reasoning effort change',
+      'The workspace handed reasoning effort selection to the shell-owned command router.',
+      'safe',
+    );
+  }
   if (editor.kind === 'session-save') {
     if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Session save not confirmed. Type yes, then press Enter.');
     return dispatch(

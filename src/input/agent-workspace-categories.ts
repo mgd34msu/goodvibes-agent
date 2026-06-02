@@ -38,6 +38,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'setup-model-refresh', label: 'Refresh model catalog', detail: 'Refresh model catalog, benchmark, and token-limit metadata from the Agent TUI.', command: '/refresh-models', kind: 'command', safety: 'safe' },
       { id: 'setup-model-pin', label: 'Pin model', detail: 'Open a form that pins one model registry key for quick reuse.', editorKind: 'model-pin', kind: 'editor', safety: 'safe' },
       { id: 'setup-model-unpin', label: 'Unpin model', detail: 'Open a form that removes one pinned model registry key.', editorKind: 'model-unpin', kind: 'editor', safety: 'safe' },
+      { id: 'setup-effort', label: 'Reasoning effort', detail: 'Open a form that sets reasoning effort for normal Agent chat turns when supported by the selected model.', editorKind: 'effort-level', kind: 'editor', safety: 'safe' },
       { id: 'setup-mode-show', label: 'Interaction mode', detail: 'Review current Agent interaction mode and domain verbosity.', command: '/mode show', kind: 'command', safety: 'read-only' },
       { id: 'setup-mode-preset', label: 'Set interaction mode', detail: 'Open a confirmed form for quiet, balanced, or operator interaction mode.', editorKind: 'mode-preset', kind: 'editor', safety: 'safe' },
       { id: 'setup-mode-domain', label: 'Set domain verbosity', detail: 'Open a confirmed form for one interaction-domain verbosity override.', editorKind: 'mode-domain', kind: 'editor', safety: 'safe' },

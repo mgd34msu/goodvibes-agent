@@ -6,6 +6,7 @@ export type AgentWorkspaceSessionCommandEditorKind = Extract<
   | 'conversation-events'
   | 'conversation-groups'
   | 'conversation-find'
+  | 'effort-level'
   | 'session-save'
   | 'session-load'
   | 'session-rename'
@@ -25,6 +26,7 @@ export function isAgentWorkspaceSessionCommandEditorKind(kind: AgentWorkspaceEdi
     || kind === 'conversation-events'
     || kind === 'conversation-groups'
     || kind === 'conversation-find'
+    || kind === 'effort-level'
     || kind === 'session-save'
     || kind === 'session-load'
     || kind === 'session-rename'
@@ -79,6 +81,18 @@ export function createAgentWorkspaceSessionCommandEditor(kind: AgentWorkspaceSes
       fields: [
         { id: 'query', label: 'Search query', value: '', required: true, multiline: false, hint: 'Text to find in the current transcript.' },
         { id: 'kind', label: 'Event kind', value: '', required: false, multiline: false, hint: 'Optional transcript event kind.' },
+      ],
+    };
+  }
+  if (kind === 'effort-level') {
+    return {
+      kind,
+      mode: 'update',
+      title: 'Set Reasoning Effort',
+      selectedFieldIndex: 0,
+      message: 'Set the reasoning effort used by normal Agent chat turns when the selected model supports it.',
+      fields: [
+        { id: 'level', label: 'Effort level', value: 'medium', required: true, multiline: false, hint: 'instant, low, medium, or high.' },
       ],
     };
   }

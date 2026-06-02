@@ -341,6 +341,14 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-effort');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('effort-level');
+    clearEditorField(workspace);
+    feedText(workspace, 'high');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/effort high');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-mode-domain');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('mode-domain');
@@ -355,6 +363,7 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([
       '/mode show',
       '/mode operator --yes',
+      '/effort high',
       '/mode set-domain approvals verbose --yes',
     ]);
   });
