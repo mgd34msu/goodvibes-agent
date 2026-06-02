@@ -185,7 +185,7 @@ export class AgentWorkspace {
     if (!editor || text.length === 0) return;
     const field = editor.fields[editor.selectedFieldIndex];
     if (!field) return;
-    this.replaceEditorField(editor.selectedFieldIndex, `${field.value}${text}`, editor.message);
+    this.replaceEditorField(editor.selectedFieldIndex, `${field.value}${field.multiline ? text.replace(/\r\n?/g, '\n') : text.replace(/[\r\n]+/g, ' ')}`, editor.message);
   }
 
   appendEditorNewline(): void {

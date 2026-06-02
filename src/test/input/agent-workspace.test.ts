@@ -508,6 +508,27 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual(['/personas list', '/routines receipts']);
   });
 
+  test('workspace editors preserve multiline paste only on multiline fields', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create');
+    workspace.activateSelected();
+    feedText(workspace, 'Briefing\nAssistant');
+    expect(workspace.localEditor?.fields[0]?.value).toBe('Briefing Assistant');
+
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'One line\r\nTwo line');
+    expect(workspace.localEditor?.fields[1]?.value).toBe('One line Two line');
+
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Step one\r\nStep two');
+    feedWorkspaceToken(workspace, { type: 'key', logicalName: 'j', ctrl: true, shift: false, meta: false });
+    feedText(workspace, 'Step three');
+    expect(workspace.localEditor?.fields[2]?.value).toBe('Step one\nStep two\nStep three');
+  });
+
   test('creates local skill routine and persona records from workspace editors', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-editor-'));
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
