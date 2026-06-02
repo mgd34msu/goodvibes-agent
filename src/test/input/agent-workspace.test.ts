@@ -2508,6 +2508,68 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toBe('Opening Agent Knowledge ask.');
   });
 
+  test('reviews and maintains Agent Knowledge from workspace forms', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-get');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-get');
+    feedText(workspace, 'issue-1');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-issue');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-review-issue');
+    feedText(workspace, 'issue-1');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'accept');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, '{"title":"Agent setup"}');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/knowledge get issue-1']);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-packet');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-packet');
+    feedText(workspace, 'Prepare a setup brief');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'docs,setup');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-explain');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-explain');
+    feedText(workspace, 'Explain setup memory');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-consolidate');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('knowledge-consolidate');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/knowledge get issue-1',
+      '/knowledge review-issue issue-1 accept --reviewer agent --value "{\\"title\\":\\"Agent setup\\"}" --yes',
+      '/knowledge packet "Prepare a setup brief" --scope docs --scope setup',
+      '/knowledge explain "Explain setup memory"',
+      '/knowledge consolidate light --yes',
+    ]);
+  });
+
   test('imports Agent Knowledge bookmarks from a confirmed workspace form', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

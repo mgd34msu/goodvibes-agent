@@ -687,10 +687,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/knowledge queue');
     expect(output).toContain('Source library');
     expect(output).toContain('/knowledge list --kind sources');
-    expect(output).toContain('2 more action(s) below');
+    expect(output).toContain('more action(s) below');
     expect(output).not.toContain('/knowledge search <query>');
-    expect(output).not.toContain('Consolidation review');
-    expect(output).not.toContain('/knowledge candidates');
     expect(output).not.toContain('/api/knowledge');
     expect(output).not.toContain('non-Agent product setup');
   });
@@ -715,6 +713,34 @@ describe('renderAgentWorkspace', () => {
     expect(askOutput).toContain('Question *');
     expect(askOutput).toContain('fails closed instead of using');
     expect(askOutput).toContain('another wiki');
+  });
+
+  test('renders Agent Knowledge maintenance forms from the workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-issue');
+    workspace.activateSelected();
+    const reviewOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(reviewOutput).toContain('Review Agent Knowledge Issue');
+    expect(reviewOutput).toContain('Issue id *');
+    expect(reviewOutput).toContain('Action *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-packet');
+    workspace.activateSelected();
+    const packetOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(packetOutput).toContain('Build Prompt Packet');
+    expect(packetOutput).toContain('Task *');
+    expect(packetOutput).toContain('Scopes');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-consolidate');
+    workspace.activateSelected();
+    const consolidateOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(consolidateOutput).toContain('Consolidate Agent Knowledge');
+    expect(consolidateOutput).toContain('Confirm *');
   });
 
   test('renders bookmark media and skill bundle command forms with concrete fields', () => {
