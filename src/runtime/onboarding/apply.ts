@@ -10,6 +10,7 @@ import {
   resolveAgentRuntimeProfileHome,
   setAgentRuntimeProfileSelection,
 } from '../../agent/runtime-profile.ts';
+import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentPersonaRegistry, assertNoSecretLikeText } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
@@ -287,6 +288,21 @@ function validateCreateLocalRoutineOperation(
   if (duplicate) throw new Error(`Routine already exists: ${duplicate.id}`);
 }
 
+function validateCreateLocalNoteOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-note' }>,
+): void {
+  const registry = AgentNoteRegistry.fromShellPaths(deps.shellPaths);
+  const title = operation.title.trim();
+  const body = operation.body.trim();
+  const tags = operation.tags ?? [];
+  if (!title) throw new Error('Note title is required.');
+  if (!body) throw new Error('Note body is required.');
+  assertNoSecretLikeText([title, body, ...tags]);
+  const duplicate = registry.get(title);
+  if (duplicate) throw new Error(`Note already exists: ${duplicate.id}`);
+}
+
 function applyConfigOperation(
   deps: OnboardingApplyDependencies,
   operation: Extract<OnboardingApplyOperation, { kind: 'set-config' }>,
@@ -390,6 +406,11 @@ async function buildRollbackAction(
   if (operation.kind === 'select-agent-profile') {
     const path = getAgentRuntimeProfileSelectionPath(deps.shellPaths.homeDirectory);
     return snapshotFileRollback(path);
+  }
+
+  if (operation.kind === 'create-local-note') {
+    const registry = AgentNoteRegistry.fromShellPaths(deps.shellPaths);
+    return snapshotFileRollback(registry.snapshot().path);
   }
 
   if (operation.kind === 'create-local-persona') {
@@ -516,6 +537,23 @@ function applyCreateLocalRoutineOperation(
   };
 }
 
+function applyCreateLocalNoteOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-note' }>,
+): OnboardingAppliedOperation {
+  const note = AgentNoteRegistry.fromShellPaths(deps.shellPaths).create({
+    title: operation.title,
+    body: operation.body,
+    tags: operation.tags ?? [],
+    source: 'user',
+    provenance: 'onboarding',
+  });
+  return {
+    kind: operation.kind,
+    summary: `Created local Agent note ${note.id}.`,
+  };
+}
+
 function orderApplyOperations(
   operations: readonly OnboardingApplyOperation[],
 ): readonly OnboardingApplyOperation[] {
@@ -530,7 +568,8 @@ function orderApplyOperations(
   const agentProfileOperations = operations.filter((operation) => operation.kind === 'create-agent-profile');
   const agentProfileSelectionOperations = operations.filter((operation) => operation.kind === 'select-agent-profile');
   const localBehaviorOperations = operations.filter((operation) => (
-    operation.kind === 'create-local-persona'
+    operation.kind === 'create-local-note'
+    || operation.kind === 'create-local-persona'
     || operation.kind === 'create-local-skill'
     || operation.kind === 'create-local-routine'
   ));
@@ -602,6 +641,11 @@ function prevalidateApplyRequest(
         continue;
       }
 
+      if (operation.kind === 'create-local-note') {
+        validateCreateLocalNoteOperation(deps, operation);
+        continue;
+      }
+
       if (operation.kind === 'create-local-skill') {
         validateCreateLocalSkillOperation(deps, operation);
         continue;
@@ -632,6 +676,7 @@ function getVerificationFailureKind(itemId: string): OnboardingApplyOperation['k
   if (itemId.startsWith('acknowledge:')) return 'acknowledge';
   if (itemId.startsWith('agent-profile:')) return 'create-agent-profile';
   if (itemId.startsWith('selected-agent-profile:')) return 'select-agent-profile';
+  if (itemId.startsWith('local-note:')) return 'create-local-note';
   if (itemId.startsWith('local-persona:')) return 'create-local-persona';
   if (itemId.startsWith('local-skill:')) return 'create-local-skill';
   if (itemId.startsWith('local-routine:')) return 'create-local-routine';
@@ -699,6 +744,12 @@ export async function applyOnboardingRequest(
 
         if (operation.kind === 'create-local-persona') {
           applied.push(applyCreateLocalPersonaOperation(deps, operation));
+          rollbacks.push(rollback);
+          continue;
+        }
+
+        if (operation.kind === 'create-local-note') {
+          applied.push(applyCreateLocalNoteOperation(deps, operation));
           rollbacks.push(rollback);
           continue;
         }

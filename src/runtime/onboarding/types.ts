@@ -260,6 +260,12 @@ export type OnboardingApplyOperation =
       readonly name: string;
     }
   | {
+      readonly kind: 'create-local-note';
+      readonly title: string;
+      readonly body: string;
+      readonly tags?: readonly string[];
+    }
+  | {
       readonly kind: 'create-local-persona';
       readonly name: string;
       readonly description: string;

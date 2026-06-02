@@ -22,6 +22,18 @@ export function buildOnboardingApplyRequest(controller: OnboardingWizardControll
       });
     };
     const readText = (fieldId: string): string => controller.getStringFieldValue(fieldId, '').trim();
+    const readList = (fieldId: string): readonly string[] => readText(fieldId).split(',').map((entry) => entry.trim()).filter(Boolean);
+    const maybeCreateLocalNote = (): void => {
+      const title = readText('agent-local-state.note-title');
+      const body = readText('agent-local-state.note-body');
+      if (!title && !body) return;
+      operations.push({
+        kind: 'create-local-note',
+        title,
+        body,
+        tags: readList('agent-local-state.note-tags'),
+      });
+    };
     const maybeCreateLocalPersona = (): void => {
       const name = readText('agent-local-state.persona-name');
       const description = readText('agent-local-state.persona-description');
@@ -93,6 +105,7 @@ export function buildOnboardingApplyRequest(controller: OnboardingWizardControll
         });
       }
     }
+    maybeCreateLocalNote();
     maybeCreateLocalPersona();
     maybeCreateLocalSkill();
     maybeCreateLocalRoutine();

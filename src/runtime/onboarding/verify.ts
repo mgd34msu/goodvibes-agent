@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { isSecretRefInput } from '@pellux/goodvibes-sdk/platform/config';
+import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { readAgentRuntimeProfileSelection, resolveAgentRuntimeProfileHome } from '../../agent/runtime-profile.ts';
@@ -219,6 +220,23 @@ function verifyCreateLocalRoutineOperation(
   };
 }
 
+function verifyCreateLocalNoteOperation(
+  deps: OnboardingVerificationDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-note' }>,
+): OnboardingVerificationItem {
+  const note = AgentNoteRegistry.fromShellPaths(deps.shellPaths).get(operation.title);
+  const ok = note !== null && note.body.trim() === operation.body.trim();
+  const target = note?.id ?? operation.title.trim();
+  return {
+    id: `local-note:${target}`,
+    status: ok ? 'pass' : 'fail',
+    message: ok
+      ? `${target} local Agent note exists.`
+      : `${target} local Agent note was not created.`,
+    target,
+  };
+}
+
 async function verifyOperation(
   deps: OnboardingVerificationDependencies,
   operation: OnboardingApplyOperation,
@@ -229,6 +247,7 @@ async function verifyOperation(
   if (operation.kind === 'acknowledge') return verifyAcknowledgementOperation(deps, operation);
   if (operation.kind === 'create-agent-profile') return verifyCreateAgentProfileOperation(deps, operation);
   if (operation.kind === 'select-agent-profile') return verifySelectAgentProfileOperation(deps, operation);
+  if (operation.kind === 'create-local-note') return verifyCreateLocalNoteOperation(deps, operation);
   if (operation.kind === 'create-local-persona') return verifyCreateLocalPersonaOperation(deps, operation);
   if (operation.kind === 'create-local-skill') return verifyCreateLocalSkillOperation(deps, operation);
   return verifyCreateLocalRoutineOperation(deps, operation);
