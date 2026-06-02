@@ -97,7 +97,6 @@ export const restoreRuntimeModel = bootstrap.restoreRuntimeModel;
 export const restoreSavedModel = bootstrap.restoreRuntimeModel;
 export const synchronizeConfiguredServices = bootstrap.synchronizeConfiguredServices;
 export const syncConfiguredServices = bootstrap.synchronizeConfiguredServices;
-export const registerBootstrapRuntimeEvents = bootstrap.registerBootstrapRuntimeEvents;
 export const registerHostRuntimeEvents = bootstrap.registerHostRuntimeEvents;
 function agentExternalHostStatus(
   config: Bootstrap.HostServicesConfig,

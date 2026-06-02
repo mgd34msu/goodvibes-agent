@@ -26,12 +26,12 @@ import {
 } from '@/runtime/index.ts';
 import { loadBootstrapSystemPrompt, syncConfiguredServices } from '@/runtime/index.ts';
 import { registerBootstrapHookBridge } from '@/runtime/index.ts';
-import { registerBootstrapRuntimeEvents } from '@/runtime/index.ts';
 import { createRuntimeServices, type RuntimeServices } from './services.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
 import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { registerAgentRuntimeEvents } from './agent-runtime-events.ts';
 
 export interface BootstrapCoreState {
   readonly userSessionId: string;
@@ -211,7 +211,6 @@ export async function initializeBootstrapCore(
     agentManager: services.agentManager,
     agentMessageBus: services.agentMessageBus,
     archetypeLoader: services.archetypeLoader,
-    wrfcController: services.wrfcController,
     webSearchService: services.webSearchService,
     channelRegistry: services.channelPlugins,
     remoteRunnerRegistry: services.remoteRunnerRegistry,
@@ -314,7 +313,7 @@ export async function initializeBootstrapCore(
   const runtimeSessionIdRef = { value: userSessionId };
   const systemMessageRouterRef: { value: SystemMessageRouter | null } = { value: null };
   const conversationFollowUpRef: { value: ((item: ConversationFollowUpItem) => void) | null } = { value: null };
-  const { unsubs: runtimeUnsubs, agentStatusIntervalRef } = registerBootstrapRuntimeEvents({
+  const { unsubs: runtimeUnsubs, agentStatusIntervalRef } = registerAgentRuntimeEvents({
     runtimeBus,
     domainDispatch,
     getSystemMessageRouter: () => systemMessageRouterRef.value,
@@ -322,7 +321,6 @@ export async function initializeBootstrapCore(
     requestRender,
     configManager,
     agentManager: services.agentManager,
-    wrfcController: services.wrfcController,
   });
 
   // Subscribe to companion main-chat messages received from the daemon's HTTP layer.

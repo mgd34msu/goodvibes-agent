@@ -72,6 +72,18 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(source).not.toContain('constraint violation');
   });
 
+  test('production runtime does not construct or register a local WRFC controller', () => {
+    const srcRoot = join(import.meta.dir, '../..');
+    const offenders: string[] = [];
+    for (const file of productionSourceFiles(srcRoot)) {
+      const content = readFileSync(file, 'utf8');
+      for (const pattern of ['new WrfcController', 'setWrfcController', 'registerBootstrapRuntimeEvents']) {
+        if (content.includes(pattern)) offenders.push(`${file.slice(srcRoot.length + 1)}: ${pattern}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   test('operator policy tells the model to use local registry memory for durable recall', () => {
     const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
     expect(source).toContain('durable memory, reusable persona, skill, skill bundle, or routine');

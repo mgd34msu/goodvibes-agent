@@ -23,7 +23,7 @@ import { MediaProviderRegistry, ensureBuiltinMediaProviders } from '@pellux/good
 import { MultimodalService } from '@pellux/goodvibes-sdk/platform/multimodal';
 import { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
-import { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
+import type { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
 import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
@@ -335,7 +335,7 @@ export interface RuntimeServices {
   readonly agentManager: AgentManager;
   readonly agentMessageBus: AgentMessageBus;
   readonly agentOrchestrator: AgentOrchestrator;
-  readonly wrfcController: WrfcController;
+  readonly wrfcController: Pick<WrfcController, 'listChains'>;
   readonly processManager: ProcessManager;
   readonly modeManager: ModeManager;
   readonly fileUndoManager: FileUndoManager;
@@ -443,12 +443,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     configManager,
   });
   agentManager.setRuntimeBus(options.runtimeBus);
-  const wrfcController = new WrfcController(options.runtimeBus, agentMessageBus, {
-    agentManager,
-    configManager,
-    projectRoot: workingDirectory,
-  });
-  agentManager.setWrfcController(wrfcController);
+  const wrfcController: Pick<WrfcController, 'listChains'> = {
+    listChains: () => [],
+  };
   const hookDispatcher = new HookDispatcher({ toolLLM, projectRoot: workingDirectory }, hookActivityTracker);
   configManager.attachHookDispatcher(hookDispatcher);
   const hookWorkbench = createHookWorkbench({

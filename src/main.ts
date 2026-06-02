@@ -113,7 +113,6 @@ async function main() {
     sessionLineageTracker: ctx.services.sessionLineageTracker,
     idempotencyStore: ctx.services.idempotencyStore,
   });
-  ctx.services.wrfcController.setPlanManager(ctx.services.planManager);
   let activeConversationWidth = stdout.columns || 80;
   conversation.setWidthProvider(() => activeConversationWidth);
   {
