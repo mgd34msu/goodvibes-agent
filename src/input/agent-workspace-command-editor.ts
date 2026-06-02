@@ -9,9 +9,11 @@ type AgentWorkspaceFieldReader = (fieldId: string) => string;
 type AgentWorkspaceCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   'knowledge-url'
+  | 'knowledge-urls'
   | 'knowledge-file'
   | 'knowledge-browser-history'
   | 'knowledge-connector-ingest'
+  | 'knowledge-reindex'
   | 'knowledge-search'
   | 'knowledge-ask'
   | 'mcp-server'

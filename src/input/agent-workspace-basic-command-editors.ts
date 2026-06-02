@@ -4,7 +4,7 @@ export { buildAgentWorkspaceBasicCommandEditorSubmission } from './agent-workspa
 
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
+  'knowledge-file' | 'knowledge-urls' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'knowledge-reindex' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
   | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
   | 'support-bundle-export' | 'support-bundle-inspect' | 'support-bundle-import'
   | 'subscription-inspect' | 'subscription-login-start' | 'subscription-login-finish' | 'subscription-logout'
@@ -17,8 +17,10 @@ export type AgentWorkspaceBasicCommandEditorKind = Extract<
 export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceBasicCommandEditorKind {
   return kind === 'knowledge-bookmarks'
     || kind === 'knowledge-file'
+    || kind === 'knowledge-urls'
     || kind === 'knowledge-browser-history'
     || kind === 'knowledge-connector-ingest'
+    || kind === 'knowledge-reindex'
     || kind === 'tts-prompt'
     || kind === 'image-input'
     || kind === 'skill-bundle'
@@ -78,6 +80,20 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       ],
     };
   }
+  if (kind === 'knowledge-urls') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Import URL List into Agent Knowledge',
+      selectedFieldIndex: 0,
+      message: 'Import a local newline-delimited URL list into the isolated Agent Knowledge segment. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'path', label: 'URL list path', value: '', required: true, multiline: false, hint: 'Path to a local file containing one URL per line.' },
+        { id: 'allowPrivateHosts', label: 'Allow private hosts', value: '', required: false, multiline: false, hint: 'yes/no. Blank defaults to no.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge import-urls with --yes.' },
+      ],
+    };
+  }
   if (kind === 'knowledge-browser-history') {
     return {
       kind,
@@ -108,6 +124,18 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
         { id: 'content', label: 'Content', value: '', required: false, multiline: true, hint: 'Optional raw content for connectors that accept text.' },
         { id: 'allowPrivateHosts', label: 'Allow private hosts', value: 'no', required: false, multiline: false, hint: 'yes/no. Defaults to no.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge ingest-connector with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'knowledge-reindex') {
+    return {
+      kind,
+      mode: 'update',
+      title: 'Reindex Agent Knowledge',
+      selectedFieldIndex: 0,
+      message: 'Rebuild the isolated Agent Knowledge index. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /knowledge reindex with --yes.' },
       ],
     };
   }

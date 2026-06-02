@@ -17,14 +17,6 @@ Install the public alpha package with Bun:
 bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent
-goodvibes-agent status
-goodvibes-agent profiles templates
-goodvibes-agent personas list
-goodvibes-agent skills list
-goodvibes-agent memory list
-goodvibes-agent knowledge status
-goodvibes-agent knowledge list --kind sources
-goodvibes-agent knowledge import-urls ./agent-sources.txt --yes
 ```
 
 If `goodvibes-agent` is not found after installation, add Bun's global bin directory to `PATH`:
@@ -56,33 +48,30 @@ bun run publish:check
 
 After setup has been applied once, the Agent TUI opens directly into the operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. It is the Agent-first fullscreen workspace for setup, model/provider selection, isolated Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
+Use the workspace as the primary product surface:
+
+- Home: normal assistant chat, operator briefing, model selection, setup, and health.
+- Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
+- Tools & MCP: MCP server setup, tool inventory, trust review, secret storage/link/test/delete, and settings.
+- Knowledge: isolated Agent Knowledge status, ask/search, URL/URL-list/file/bookmark/browser-history/connector ingest, source library, review queue, and reindex.
+- Memory & Skills: local memory, learned behavior capture, personas, skills, routines, and schedule promotion.
+- Channels: companion pairing, channel readiness, notification routes, and webhook add/remove/test.
+- Automation: reminder creation, schedule status, routine promotion, receipts, and reconciliation.
+- Build Delegation: explicit handoff to GoodVibes TUI for build/fix/review work.
+
 The setup workspace surfaces discovered local Agent persona, skill, and routine markdown files so day-one setup can import useful behavior instead of starting from blank records. It can also create one initial local persona, skill, and routine directly during first-run setup; those records stay in Agent-local registries and never write to default Knowledge/Wiki or non-Agent segments.
 
 Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
 
-Use `profiles create-from-discovered <name> --yes` or the Profiles workspace form to turn reviewed discovered persona, skill, and routine files into a local starter template and isolated Agent profile in one confirmed flow. `profiles templates from-discovered <id> --yes` is still available when you only want to save the starter first.
+Use the Profiles workspace form to turn reviewed discovered persona, skill, and routine files into a local starter template and isolated Agent profile in one confirmed flow. The scriptable equivalent is `profiles create-from-discovered <name> --yes`; `profiles templates from-discovered <id> --yes` is still available when you only want to save the starter first.
 
 The Knowledge area includes an in-workspace URL ingest form. It writes only to Agent Knowledge, requires typed confirmation, and dispatches the existing isolated `/knowledge ingest-url ... --yes` route.
 
-Use isolated Agent profiles when one machine needs separate operator identities or local state:
+Use isolated Agent profiles when one machine needs separate operator identities or local state. In the TUI, open Agent Workspace -> Profiles to browse starters, create a profile, use it as the default for the next launch, clear the default, and export/import starter JSON. The same profile selection is available for one launch with `goodvibes-agent --agent-profile <name>`.
 
-```sh
-goodvibes-agent profiles templates
-goodvibes-agent profiles create household --template household --yes
-goodvibes-agent profiles use household --yes
-goodvibes-agent
-goodvibes-agent personas create --name "Travel Planner" --description "Plan trips" --body "Compare options before booking" --use
-goodvibes-agent skills create --name "Daily Brief" --description "Summarize operator state" --procedure "Review Agent Knowledge, work plans, approvals, and routines" --enabled
-goodvibes-agent memory add fact "Prefers concise morning briefings" --scope project --tags preference
-goodvibes-agent profiles templates export research ./research-starter.json --yes
-goodvibes-agent profiles templates import ./research-starter.json --yes
-goodvibes-agent --agent-profile household status
-GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
-```
+Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The connected GoodVibes host remains shared unless that host is separately configured otherwise.
 
-Profiles isolate Agent-local config, sessions, local memory, personas, skills, routines, and setup state. `profiles use <name> --yes` makes one isolated profile the default for the next normal `goodvibes-agent` launch; `--agent-profile <name>` still overrides that default for one launch, and `profiles default clear --yes` returns plain launches to the base Agent home. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The connected GoodVibes host remains shared unless that host is separately configured otherwise.
-
-The same local behavior libraries are available without opening the TUI: `goodvibes-agent personas ...`, `goodvibes-agent skills ...`, `goodvibes-agent memory ...`, and `goodvibes-agent routines ...` list, create, review, enable, stale, export/import where relevant, and delete local Agent records with explicit confirmation for destructive actions.
+For scripts and automation, the installed CLI mirrors the same local behavior libraries: `goodvibes-agent personas ...`, `goodvibes-agent skills ...`, `goodvibes-agent memory ...`, and `goodvibes-agent routines ...` can list, create, review, enable, stale, export/import where relevant, and delete local Agent records with explicit confirmation for destructive actions. The TUI workspace is the primary user experience.
 
 The Agent workspace also has a `Capture learned behavior` form. Use it after reviewing a repeated workflow, lesson, or operating style; it saves one local skill, routine, or persona directly from the TUI and does not write to connected-host routes or non-Agent knowledge.
 

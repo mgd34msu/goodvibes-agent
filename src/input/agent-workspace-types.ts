@@ -14,10 +14,12 @@ export type AgentWorkspaceLocalEditorKind = 'memory' | 'persona' | 'skill' | 'ro
 export type AgentWorkspaceEditorKind =
   | AgentWorkspaceLocalEditorKind
   | 'knowledge-url'
+  | 'knowledge-urls'
   | 'knowledge-file'
   | 'knowledge-bookmarks'
   | 'knowledge-browser-history'
   | 'knowledge-connector-ingest'
+  | 'knowledge-reindex'
   | 'knowledge-search'
   | 'knowledge-ask'
   | 'mcp-server'

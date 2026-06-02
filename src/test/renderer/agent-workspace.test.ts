@@ -573,6 +573,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit knowledge-search');
     expect(output).toContain('Ingest URL');
     expect(output).toContain('edit knowledge-url');
+    expect(output).toContain('Import URL list');
+    expect(output).toContain('edit knowledge-urls');
     expect(output).toContain('Import bookmarks');
     expect(output).toContain('edit knowledge-bookmarks');
     expect(output).toContain('in-workspace form');
@@ -580,8 +582,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/knowledge queue');
     expect(output).toContain('Source library');
     expect(output).toContain('/knowledge list --kind sources');
-    expect(output).toContain('Ask Agent knowledge');
-    expect(output).toContain('edit knowledge-ask');
+    expect(output).toContain('2 more action(s) below');
     expect(output).not.toContain('/knowledge search <query>');
     expect(output).not.toContain('Consolidation review');
     expect(output).not.toContain('/knowledge candidates');
@@ -642,6 +643,27 @@ describe('renderAgentWorkspace', () => {
     workspace.moveEditorField(2);
     const bundleSkillsOutput = text(renderAgentWorkspace(workspace, 132, 38));
     expect(bundleSkillsOutput).toContain('Skill ids *');
+  });
+
+  test('renders Agent Knowledge URL-list and reindex forms with confirmation fields', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-import-urls');
+    workspace.activateSelected();
+    const urlListOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(urlListOutput).toContain('Import URL List into Agent Knowledge');
+    expect(urlListOutput).toContain('URL list path *');
+    expect(urlListOutput).toContain('Allow private hosts');
+    expect(urlListOutput).toContain('Confirm *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-reindex');
+    workspace.activateSelected();
+    const reindexOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(reindexOutput).toContain('Reindex Agent Knowledge');
+    expect(reindexOutput).toContain('Confirm *');
   });
 
   test('renders routine schedule promotion as an in-workspace form', () => {

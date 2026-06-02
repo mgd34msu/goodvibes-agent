@@ -95,6 +95,31 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'knowledge-urls') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'URL list import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent Knowledge URL list import not confirmed.',
+      };
+    }
+    const parts = ['/knowledge', 'import-urls', quoteSlashCommandArg(readField('path'))];
+    if (isAffirmative(readField('allowPrivateHosts'))) parts.push('--allow-private-hosts');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent Knowledge URL list import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent Knowledge URL list import',
+        detail: 'The workspace handed a confirmed URL list import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
   if (editor.kind === 'knowledge-browser-history') {
     if (!isAffirmative(readField('confirm'))) {
       return {
@@ -154,6 +179,28 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening Agent Knowledge connector ingest',
         detail: 'The workspace handed a confirmed connector ingest command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'knowledge-reindex') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Agent Knowledge reindex not confirmed. Type yes, then press Enter.' },
+        status: 'Agent Knowledge reindex not confirmed.',
+      };
+    }
+    const command = '/knowledge reindex --yes';
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent Knowledge reindex.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent Knowledge reindex',
+        detail: 'The workspace handed a confirmed reindex command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

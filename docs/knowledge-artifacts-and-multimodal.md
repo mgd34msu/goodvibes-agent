@@ -41,7 +41,7 @@ Agent Knowledge writes are explicit-user-action paths. Slash commands that inges
 
 ## Ask And Search
 
-`/knowledge ask <query>` and `goodvibes-agent ask <query>` render the Agent Knowledge answer. Default output is concise:
+Use Agent Workspace -> Knowledge -> Ask Agent knowledge for source-backed Agent Knowledge answers. `/knowledge ask <query>` and `goodvibes-agent ask <query>` are scriptable equivalents over the same route. Default output is concise:
 
 - answer text or a clear no-match state;
 - confidence when present;
@@ -52,20 +52,21 @@ Agent Knowledge writes are explicit-user-action paths. Slash commands that inges
 
 The command layer does not turn search results into an answer locally and does not apply client-side filters to hide contamination. Isolation must come from the Agent Knowledge route itself.
 
-`/knowledge search <query>` and `goodvibes-agent search <query>` query the isolated Agent Knowledge search route and render bounded results with title, id, type, score, source, URL, and snippets when available. Empty Agent stores return an explicit empty state.
+Use Agent Workspace -> Knowledge -> Search Agent knowledge for interactive search. `/knowledge search <query>` and `goodvibes-agent search <query>` query the isolated Agent Knowledge search route and render bounded results with title, id, type, score, source, URL, and snippets when available. Empty Agent stores return an explicit empty state.
 
-Read-only inspection is available from both TUI slash commands and CLI commands:
+Read-only inspection is available from the TUI Knowledge workspace first, with CLI equivalents for scripts:
 
-- `goodvibes-agent knowledge list --kind sources|nodes|issues`
-- `goodvibes-agent knowledge get <id>`
-- `goodvibes-agent knowledge connectors`
-- `goodvibes-agent knowledge map`
+- Source library and review queue in Agent Workspace -> Knowledge.
+- `/knowledge list --kind sources|nodes|issues`
+- `/knowledge get <id>`
+- `/knowledge connectors`
+- `/knowledge map`
 
 ## Ingest
 
-`/knowledge ingest-url <url> --yes` and `goodvibes-agent knowledge ingest-url <url> --yes` ingest URL sources into Agent Knowledge only.
+Use Agent Workspace -> Knowledge for URL, URL-list, file, bookmark, browser-history, connector ingest, and reindex forms. `/knowledge ingest-url <url> --yes` and `goodvibes-agent knowledge ingest-url <url> --yes` ingest URL sources into Agent Knowledge only.
 
-The CLI also exposes the Agent-specific batch routes:
+The TUI workspace exposes the common confirmed ingest and reindex flows. The CLI also exposes Agent-specific batch routes for scripts:
 
 - `goodvibes-agent knowledge import-urls <path> --yes`
 - `goodvibes-agent knowledge import-bookmarks <path> --yes`

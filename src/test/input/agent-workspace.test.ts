@@ -1854,6 +1854,29 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });
 
+  test('imports Agent Knowledge URL lists from a confirmed workspace form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-import-urls');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('knowledge-urls');
+    expect(dispatched).toEqual([]);
+    feedText(workspace, './agent sources.txt');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/knowledge import-urls "./agent sources.txt" --allow-private-hosts --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
+  });
+
   test('imports browser history into Agent Knowledge from a confirmed workspace form', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
@@ -1953,6 +1976,28 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual(['/knowledge import-bookmarks "./exports/browser bookmarks.html" --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
+  });
+
+  test('reindexes Agent Knowledge only from a confirmed workspace form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-reindex');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('knowledge-reindex');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('Confirm is required');
+
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/knowledge reindex --yes']);
     expect(workspace.localEditor).toBeNull();
     expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });

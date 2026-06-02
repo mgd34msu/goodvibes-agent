@@ -18,10 +18,6 @@ Use the interactive TUI first. CLI subcommands are secondary support paths for i
 bun add -g @pellux/goodvibes-agent
 goodvibes-agent --help
 goodvibes-agent
-goodvibes-agent status
-goodvibes-agent personas list
-goodvibes-agent skills list
-goodvibes-agent memory list
 ```
 
 If the installed command is not found, add Bun's global bin directory to `PATH`:
@@ -50,20 +46,20 @@ The setup workspace scans local Agent behavior folders and shows importable pers
 
 Use `/agent-profile guide` inside that workspace to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
-Use `goodvibes-agent profiles create-from-discovered research-desk --yes` or the Profiles workspace form to assemble a local starter template and isolated Agent profile from reviewed discovered persona, skill, and routine files. Use `profiles templates from-discovered <id> --yes` only when you want to save the starter before creating a profile.
+Use the Profiles workspace form to assemble a local starter template and isolated Agent profile from reviewed discovered persona, skill, and routine files. The scriptable equivalent is `goodvibes-agent profiles create-from-discovered research-desk --yes`; use `profiles templates from-discovered <id> --yes` only when you want to save the starter before creating a profile.
 
 Use the Knowledge area in that workspace to ingest a source URL without leaving the TUI. The form requires typed confirmation and writes only to the isolated Agent Knowledge segment.
 
 Use `/schedule receipts` to review redacted local routine promotion history and `/schedule reconcile` to compare those receipts with live connected schedules through public `schedules.list`.
 
-The local behavior libraries are also available from the installed CLI:
+The local behavior libraries are configured in the TUI first:
 
-```sh
-goodvibes-agent personas create --name "Research Analyst" --description "Source-backed research" --body "Check sources and call out uncertainty" --use
-goodvibes-agent skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, routines, and Agent Knowledge before summarizing" --enabled
-goodvibes-agent memory add fact "Prefers concise morning briefings" --scope project --tags preference
-goodvibes-agent routines list
-```
+- Memory & Skills -> Create memory or Capture learned behavior.
+- Personas -> Create persona, Use selected, Review selected, or Delete selected.
+- Skills -> Create skill, Create bundle, Enable selected, Review selected, or Delete selected.
+- Routines -> Create routine, Start selected, Enable selected, Promote to schedule, or Review receipts.
+
+The installed CLI mirrors these libraries for scripts, but it is not the primary user workflow.
 
 ## Isolated Agent Profiles
 
@@ -73,7 +69,9 @@ Use a separate Agent home when you want isolated local state:
 GOODVIBES_AGENT_HOME=/path/to/agent-home goodvibes-agent status
 ```
 
-Use named Agent profiles for repeatable local identities:
+Use named Agent profiles for repeatable local identities from Agent Workspace -> Profiles. The workspace can browse starter templates, create isolated Agent profiles, set or clear the default profile for the next launch, and export/import starter JSON.
+
+Scriptable equivalents:
 
 ```sh
 goodvibes-agent profiles templates

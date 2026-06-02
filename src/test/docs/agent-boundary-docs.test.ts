@@ -146,4 +146,25 @@ describe('Agent boundary docs', () => {
 
     expect(missingRoots).toEqual([]);
   });
+
+  test('package-facing onboarding stays TUI-first instead of CLI-first', () => {
+    const readme = readRepoFile('README.md');
+    const gettingStarted = readRepoFile('docs/getting-started.md');
+    const tools = readRepoFile('docs/tools-and-commands.md');
+
+    const readmeInstallSection = readme.slice(0, readme.indexOf('## Source Usage'));
+    const gettingStartedInstallSection = gettingStarted.slice(0, gettingStarted.indexOf('## Run From Source'));
+
+    expect(readmeInstallSection).toContain('goodvibes-agent\n```');
+    expect(readmeInstallSection).not.toContain('goodvibes-agent personas');
+    expect(readmeInstallSection).not.toContain('goodvibes-agent skills');
+    expect(readmeInstallSection).not.toContain('goodvibes-agent memory');
+    expect(readmeInstallSection).not.toContain('goodvibes-agent knowledge');
+    expect(gettingStartedInstallSection).not.toContain('goodvibes-agent personas');
+    expect(gettingStartedInstallSection).not.toContain('goodvibes-agent skills');
+    expect(gettingStartedInstallSection).not.toContain('goodvibes-agent memory');
+    expect(tools).not.toContain(`goodvibes-agent ${'automation'}`);
+    expect(readme).toContain('Use the workspace as the primary product surface');
+    expect(gettingStarted).toContain('configured in the TUI first');
+  });
 });

@@ -14,22 +14,22 @@ GoodVibes Agent is an operator assistant TUI. Its command set is centered on mai
 
 ## Operator Commands
 
-High-signal Agent command families:
+High-signal Agent TUI surfaces:
 
 - `/help` for registry-driven command discovery.
 - `/health` and `/auth` for runtime/auth/SDK diagnostics inside the TUI.
-- `goodvibes-agent status` and `goodvibes-agent compat` for CLI diagnostics.
 - `/model` and `/provider` for provider/model selection and visibility.
-- `/knowledge` and `goodvibes-agent knowledge` for isolated Agent Knowledge/Wiki ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
-- `goodvibes-agent ask <question>` and `goodvibes-agent search <query>` are CLI shortcuts for the same isolated Agent Knowledge routes.
+- `/agent` for the fullscreen operator workspace: setup, provider/model, Agent Knowledge, memory, personas, skills, routines, channels, MCP/tools, secrets, voice/media, work state, automation, and build delegation.
+- `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
 - `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
 - `/approvals` for pending approval visibility and explicit approval actions.
 - `/schedule` for schedule visibility plus narrow explicit-user-action flows.
-- `goodvibes-agent automation ...` for CLI automation views and explicit confirmed automation actions.
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
 - `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
+
+The installed `goodvibes-agent` CLI launches the TUI by default. Its subcommands are secondary scriptable equivalents for diagnostics and local library automation, for example `goodvibes-agent status`, `goodvibes-agent compat`, `goodvibes-agent knowledge ...`, `goodvibes-agent ask <question>`, and `goodvibes-agent search <query>`.
 
 Host-management and coding-first commands that would imply connected-host lifecycle ownership, local agent spawning, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 
@@ -43,9 +43,9 @@ Local memory capture/add commands are explicit Agent-local actions. Deletes, imp
 
 `/knowledge ingest-url <url> --yes` ingests into Agent Knowledge through `/api/goodvibes-agent/knowledge/ingest/url`. Knowledge ingestion, imports, issue review, reindex, and consolidation are Agent-owned mutations and require `--yes`.
 
-`goodvibes-agent knowledge list --kind sources|nodes|issues`, `goodvibes-agent knowledge get <id>`, `goodvibes-agent knowledge connectors`, and `goodvibes-agent knowledge map` are read-only CLI inspection paths over the same isolated Agent route family.
+The Knowledge workspace exposes status, source library, connector review, ask, search, and confirmed ingest forms. Scriptable equivalents such as `goodvibes-agent knowledge list --kind sources|nodes|issues`, `goodvibes-agent knowledge get <id>`, `goodvibes-agent knowledge connectors`, and `goodvibes-agent knowledge map` are read-only CLI inspection paths over the same isolated Agent route family.
 
-`goodvibes-agent knowledge import-urls <path> --yes`, `goodvibes-agent knowledge import-bookmarks <path> --yes`, and `goodvibes-agent knowledge reindex --yes` are confirmed Agent Knowledge maintenance paths. They call only `/api/goodvibes-agent/knowledge/*`.
+Workspace ingest forms are the primary user workflow. Scriptable equivalents such as `goodvibes-agent knowledge import-urls <path> --yes`, `goodvibes-agent knowledge import-bookmarks <path> --yes`, and `goodvibes-agent knowledge reindex --yes` are confirmed Agent Knowledge maintenance paths. They call only `/api/goodvibes-agent/knowledge/*`.
 
 The Agent command layer rejects flags that would route knowledge work into another space, including `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces`. If Agent Knowledge is unavailable, the command fails closed instead of querying a default store.
 
