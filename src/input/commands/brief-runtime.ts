@@ -34,6 +34,10 @@ function plural(count: number, singular: string, pluralWord = `${singular}s`): s
   return `${count} ${count === 1 ? singular : pluralWord}`;
 }
 
+function countSetupGaps(items: readonly { readonly missingRequirementCount?: number }[]): number {
+  return items.filter((item) => (item.missingRequirementCount ?? 0) > 0).length;
+}
+
 function formatWorkPlanLine(total: number, counts: StatusCounts): string {
   if (total === 0) return '  work plan: empty';
   const active = counts.pending + counts.in_progress + counts.blocked;
@@ -62,6 +66,10 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
   const setupBlocked = countReady(snapshot.setupChecklist, 'blocked');
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
   const enabledChannels = snapshot.channels.filter((channel) => channel.enabled).length;
+  const skillSetupGaps = countSetupGaps(snapshot.localSkills);
+  const skillBundleSetupGaps = countSetupGaps(snapshot.localSkillBundles);
+  const routineSetupGaps = countSetupGaps(snapshot.localRoutines);
+  const hasLocalSkillBehavior = snapshot.localSkillCount > 0 || snapshot.localSkillBundleCount > 0;
 
   const nextActions = [
     snapshot.provider === 'unknown' || snapshot.model === 'unknown'
@@ -72,14 +80,23 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
       : snapshot.localMemoryReviewQueueCount > 0
         ? `Review ${plural(snapshot.localMemoryReviewQueueCount, 'memory record')} with /memory queue.`
         : '',
-    snapshot.localSkillCount === 0 && snapshot.localSkillBundleCount === 0
+    !hasLocalSkillBehavior
       ? 'Create reusable procedures with /agent-skills create or import reviewed skill files.'
-      : snapshot.activeSkillCount === 0
-        ? 'Enable reviewed skills or bundles with /agent-skills enabled and /agent-skills bundle enabled.'
-        : '',
+      : '',
+    skillSetupGaps > 0
+      ? `Resolve ${plural(skillSetupGaps, 'skill')} with setup gaps using /agent-skills attention.`
+      : '',
+    skillBundleSetupGaps > 0
+      ? `Resolve ${plural(skillBundleSetupGaps, 'skill bundle')} with setup gaps using /agent-skills bundle attention.`
+      : '',
+    hasLocalSkillBehavior && skillSetupGaps === 0 && skillBundleSetupGaps === 0 && snapshot.activeSkillCount === 0
+      ? 'Enable reviewed skills or bundles with /agent-skills enabled and /agent-skills bundle enabled.'
+      : '',
     snapshot.localRoutineCount === 0
       ? 'Create repeatable workflows with /routines create; promote schedules only with explicit confirmation.'
-      : snapshot.enabledRoutineCount === 0
+      : routineSetupGaps > 0
+        ? `Resolve ${plural(routineSetupGaps, 'routine')} with setup gaps using /routines attention.`
+        : snapshot.enabledRoutineCount === 0
         ? 'Enable reviewed routines with /routines enable.'
         : '',
     'Use /knowledge status, /knowledge search, and explicit ingest forms for Agent Knowledge only.',
@@ -98,8 +115,8 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
     `  setup: ${setupReady}/${snapshot.setupChecklist.length} ready; ${setupRecommended} recommended; ${setupBlocked} blocked`,
     `  local memory: ${plural(snapshot.localMemoryCount, 'record')}; prompt-active ${snapshot.localMemoryPromptActiveCount}; review queue ${snapshot.localMemoryReviewQueueCount}`,
     `  personas: ${plural(snapshot.localPersonaCount, 'persona')}; active ${snapshot.activePersonaName}`,
-    `  skills: ${snapshot.enabledSkillCount}/${snapshot.localSkillCount} enabled; bundles ${snapshot.enabledSkillBundleCount}/${snapshot.localSkillBundleCount}; active ${snapshot.activeSkillCount}`,
-    `  routines: ${snapshot.enabledRoutineCount}/${snapshot.localRoutineCount} enabled`,
+    `  skills: ${snapshot.enabledSkillCount}/${snapshot.localSkillCount} enabled; bundles ${snapshot.enabledSkillBundleCount}/${snapshot.localSkillBundleCount}; active ${snapshot.activeSkillCount}; setup gaps ${skillSetupGaps} skill, ${skillBundleSetupGaps} bundle`,
+    `  routines: ${snapshot.enabledRoutineCount}/${snapshot.localRoutineCount} enabled; setup gaps ${routineSetupGaps}`,
     `  channels: ${readyChannels}/${snapshot.channels.length} ready; ${enabledChannels} enabled`,
     `  voice/media: ${snapshot.voiceProviderCount} voice, ${snapshot.mediaProviderCount} media; browser tools ${snapshot.voiceMediaReadiness.browserToolState}`,
     formatWorkPlanLine(workPlan.total, workPlan.counts),

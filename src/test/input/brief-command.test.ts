@@ -54,10 +54,18 @@ function makeContext(printed: string[] = []): CommandContext {
     body: 'Inspect current state, then act.',
   });
   personaRegistry.setActive(persona.id);
-  AgentSkillRegistry.fromShellPaths(shellPaths).create({
+  const skillRegistry = AgentSkillRegistry.fromShellPaths(shellPaths);
+  const skill = skillRegistry.create({
     name: 'Inbox Triage',
     description: 'Summarize inbound messages.',
     procedure: 'Group unread items, identify blockers, ask before replies.',
+    enabled: true,
+    requirements: [{ kind: 'env', name: 'GOODVIBES_AGENT_BRIEF_TEST_REQUIRED_ENV_DO_NOT_SET' }],
+  });
+  skillRegistry.createBundle({
+    name: 'Daily Operator Bundle',
+    description: 'Operator skills for recurring briefing work.',
+    skillIds: [skill.id],
     enabled: true,
   });
   AgentRoutineRegistry.fromShellPaths(shellPaths).create({
@@ -65,6 +73,7 @@ function makeContext(printed: string[] = []): CommandContext {
     description: 'Review tasks and reminders.',
     steps: 'Check work plan, approvals, and Agent Knowledge first.',
     enabled: true,
+    requirements: [{ kind: 'env', name: 'GOODVIBES_AGENT_ROUTINE_TEST_REQUIRED_ENV_DO_NOT_SET' }],
   });
 
   const item: WorkPlanItem = {
@@ -133,8 +142,11 @@ describe('/brief command', () => {
     expect(output).toContain('agent-only; no fallback');
     expect(output).toContain('local memory: 1 record; prompt-active 0; review queue 1');
     expect(output).toContain('personas: 1 persona; active Research Operator');
-    expect(output).toContain('skills: 1/1 enabled');
-    expect(output).toContain('routines: 1/1 enabled');
+    expect(output).toContain('skills: 1/1 enabled; bundles 1/1; active 1; setup gaps 1 skill, 1 bundle');
+    expect(output).toContain('routines: 1/1 enabled; setup gaps 1');
+    expect(output).toContain('Resolve 1 skill with setup gaps using /agent-skills attention.');
+    expect(output).toContain('Resolve 1 skill bundle with setup gaps using /agent-skills bundle attention.');
+    expect(output).toContain('Resolve 1 routine with setup gaps using /routines attention.');
     expect(output).toContain('work plan: 1 item; active 1');
     expect(output).toContain('Use /delegate only for explicit build');
     expect(output).not.toContain('default wiki');
