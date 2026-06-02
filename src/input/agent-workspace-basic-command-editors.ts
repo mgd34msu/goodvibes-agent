@@ -12,7 +12,7 @@ export type AgentWorkspaceBasicCommandEditorKind = Extract<
   | 'workplan-add' | 'workplan-status' | 'workplan-delete' | 'workplan-clear-completed'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
-  | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
+  | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-clear' | 'notify-webhook-test'
   | 'secret-set' | 'secret-link' | 'secret-test' | 'secret-delete'
 >;
 
@@ -50,6 +50,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'mcp-server'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
+    || kind === 'notify-webhook-clear'
     || kind === 'notify-webhook-test'
     || kind === 'secret-set'
     || kind === 'secret-link'
@@ -190,6 +191,18 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       fields: [
         { id: 'url', label: 'Webhook URL', value: '', required: true, multiline: false, hint: 'Exact HTTP(S) webhook URL to remove from configured notification targets.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /notify remove with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'notify-webhook-clear') {
+    return {
+      kind,
+      mode: 'delete',
+      title: 'Clear Notification Webhooks',
+      selectedFieldIndex: 0,
+      message: 'Remove every configured webhook notification target. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /notify clear with --yes.' },
       ],
     };
   }

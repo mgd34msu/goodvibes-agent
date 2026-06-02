@@ -25,6 +25,7 @@ export type AgentWorkspaceEditorKind =
   | 'mcp-server'
   | 'notify-webhook'
   | 'notify-webhook-remove'
+  | 'notify-webhook-clear'
   | 'notify-webhook-test'
   | 'secret-set'
   | 'secret-link'

@@ -1291,6 +1291,31 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening notification webhook remove');
   });
 
+  test('clears notification webhook targets from the workspace only after typed confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-clear-webhooks');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('notify-webhook-clear');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/notify clear --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening notification webhook clear');
+  });
+
   test('tests notification webhook targets from the workspace only after typed confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

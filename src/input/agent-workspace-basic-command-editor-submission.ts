@@ -1,5 +1,6 @@
 import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import { buildAgentWorkspaceDelegationEditorSubmission, isAgentWorkspaceDelegationEditorKind } from './agent-workspace-delegation-editor-submission.ts';
+import { buildAgentWorkspaceNotifyEditorSubmission, isAgentWorkspaceNotifyEditorKind } from './agent-workspace-notify-editor-submission.ts';
 import { buildAgentWorkspaceSecretEditorSubmission, isAgentWorkspaceSecretEditorKind } from './agent-workspace-secret-editor-submission.ts';
 import { buildAgentWorkspaceWorkPlanEditorSubmission, isAgentWorkspaceWorkPlanEditorKind } from './agent-workspace-workplan-editor-submission.ts';
 import { quoteSlashCommandArg, tokenizeSlashCommand } from './slash-command-parser.ts';
@@ -247,72 +248,7 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       },
     };
   }
-  if (editor.kind === 'notify-webhook') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Notification webhook add not confirmed. Type yes, then press Enter.' },
-        status: 'Notification webhook add not confirmed.',
-      };
-    }
-    const command = `/notify add ${quoteSlashCommandArg(readField('url'))} --yes`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening notification webhook add.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening notification webhook add',
-        detail: 'The workspace handed a confirmed notification target command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'notify-webhook-remove') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Notification webhook remove not confirmed. Type yes, then press Enter.' },
-        status: 'Notification webhook remove not confirmed.',
-      };
-    }
-    const command = `/notify remove ${quoteSlashCommandArg(readField('url'))} --yes`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening notification webhook remove.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening notification webhook remove',
-        detail: 'The workspace handed a confirmed notification target remove command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'notify-webhook-test') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Notification webhook test not confirmed. Type yes, then press Enter.' },
-        status: 'Notification webhook test not confirmed.',
-      };
-    }
-    const command = '/notify test --yes';
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening notification webhook test.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening notification webhook test',
-        detail: 'The workspace handed a confirmed notification test command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
+  if (isAgentWorkspaceNotifyEditorKind(editor.kind)) return buildAgentWorkspaceNotifyEditorSubmission(editor, readField);
   if (isAgentWorkspaceSecretEditorKind(editor.kind)) {
     return buildAgentWorkspaceSecretEditorSubmission(editor, readField);
   }

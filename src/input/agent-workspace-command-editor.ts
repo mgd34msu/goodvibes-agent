@@ -19,6 +19,7 @@ type AgentWorkspaceCommandEditorKind = Extract<
   | 'mcp-server'
   | 'notify-webhook'
   | 'notify-webhook-remove'
+  | 'notify-webhook-clear'
   | 'notify-webhook-test'
   | 'secret-set'
   | 'secret-link'

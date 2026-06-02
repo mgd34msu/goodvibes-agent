@@ -854,6 +854,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/notify list');
     expect(output).toContain('edit notify-webhook');
     expect(output).toContain('edit notify-webhook-remove');
+    expect(output).toContain('edit notify-webhook-clear');
     expect(output).toContain('edit notify-webhook-test');
     expect(output).toContain('/health review');
     expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and Agent');
