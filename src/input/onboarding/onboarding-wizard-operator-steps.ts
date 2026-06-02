@@ -162,7 +162,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
     title: 'Local memory and behavior',
     shortLabel: 'Behavior',
     description: discoveredCount > 0
-      ? 'Review importable Agent-local behavior files before creating blank memory, personas, skills, or routines.'
+      ? 'Review importable Agent-local behavior files, then create an isolated profile from them or import individual records.'
       : 'Review the Agent-local behavior model. Memory, personas, skills, routines, and Agent profiles stay local until a stable shared registry exists.',
     summaryTitle: 'Local Agent state',
     summaryLines: [
@@ -184,7 +184,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         id: 'agent-local-state.personas',
         label: 'Personas',
         hint: discovery?.personas.count && discovery.personas.count > 0
-          ? `${discovery.personas.count} persona file(s) are available to preview with /personas discover and import from the Agent workspace.`
+          ? `${discovery.personas.count} persona file(s) are available. Use the Profiles workspace to create a profile from discovered behavior, or preview individual files with /personas discover.`
           : 'Use /personas to create and activate serial operating modes for the main conversation.',
         defaultValue: discovery?.personas.count && discovery.personas.count > 0 ? `${discovery.personas.count} discovered` : 'Local registry',
       },
@@ -193,7 +193,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         id: 'agent-local-state.skills',
         label: 'Skills',
         hint: discovery?.skills.count && discovery.skills.count > 0
-          ? `${discovery.skills.count} skill file(s) are available to preview with /agent-skills discover and import from the Agent workspace.`
+          ? `${discovery.skills.count} skill file(s) are available. Use the Profiles workspace to create a profile from discovered behavior, or preview individual files with /agent-skills discover.`
           : 'Use /agent-skills and /skills local to manage reusable Agent procedures.',
         defaultValue: discovery?.skills.count && discovery.skills.count > 0 ? `${discovery.skills.count} discovered` : 'Local registry',
       },
@@ -202,7 +202,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         id: 'agent-local-state.routines',
         label: 'Routines',
         hint: discovery?.routines.count && discovery.routines.count > 0
-          ? `${discovery.routines.count} routine file(s) are available to preview with /routines discover and import from the Agent workspace. ${discoverySample(discovery)}`
+          ? `${discovery.routines.count} routine file(s) are available. Use the Profiles workspace to create a profile from discovered behavior, or preview individual files with /routines discover. ${discoverySample(discovery)}`
           : 'Use /routines for reusable local procedures. Starting a routine prints steps in the main conversation and does not spawn hidden work.',
         defaultValue: discovery?.routines.count && discovery.routines.count > 0 ? `${discovery.routines.count} discovered` : 'Local registry',
       },

@@ -406,6 +406,8 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 150, 52));
 
+    expect(output).toContain('RECOMMENDED Agent profile -> /agent-profile guide');
+    expect(output).toContain('3 discovered behavior file(s) can seed an isolated Agent profile');
     expect(output).toContain('RECOMMENDED Persona -> /personas discover');
     expect(output).toContain('RECOMMENDED Skills -> /agent-skills discover');
     expect(output).toContain('RECOMMENDED Routines -> /routines discover');

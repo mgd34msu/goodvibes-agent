@@ -200,6 +200,7 @@ describe('renderOnboardingWizard', () => {
     expect(text).toContain('Local memory and behavior');
     expect(text).toContain('Routines');
     expect(text).toContain('1 discovered');
+    expect(text).toContain('profile from discovered behavior');
     expect(text).toContain('Import');
     expect(text).toContain('candidates: Research Operator');
     expect(text).toContain('Research Operator');

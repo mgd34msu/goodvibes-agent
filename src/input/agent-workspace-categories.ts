@@ -33,6 +33,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'setup-provider-model', label: 'Provider and model', detail: 'Choose the provider/model route for normal assistant chat.', command: '/model', kind: 'command', safety: 'safe' },
       { id: 'setup-agent-knowledge', label: 'Agent Knowledge', detail: 'Inspect the isolated Agent Knowledge store before ingesting source-backed material.', command: '/knowledge status', kind: 'command', safety: 'read-only' },
       { id: 'setup-runtime-profiles', label: 'Agent profiles', detail: 'Browse starter templates for isolated Agent homes and operator identities.', command: '/agent-profile templates', kind: 'command', safety: 'read-only' },
+      { id: 'setup-profile-from-discovered', label: 'Profile from discovered behavior', detail: 'Create an isolated Agent profile directly from reviewed local persona, skill, and routine files.', editorKind: 'profile-from-discovered', kind: 'editor', safety: 'safe' },
       { id: 'setup-personas', label: 'Personas', detail: 'Create or select the active local Agent persona.', targetCategoryId: 'personas', kind: 'workspace', safety: 'safe' },
       { id: 'setup-skills', label: 'Skills', detail: 'Create, review, and enable reusable local Agent skills.', targetCategoryId: 'skills', kind: 'workspace', safety: 'safe' },
       { id: 'setup-routines', label: 'Routines', detail: 'Create, review, and enable local Agent routines before any explicit schedule promotion.', targetCategoryId: 'routines', kind: 'workspace', safety: 'safe' },

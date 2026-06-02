@@ -47,6 +47,7 @@ function sampleNames(summary: AgentBehaviorDiscoverySummary): string {
 export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChecklistInput): readonly AgentWorkspaceSetupChecklistItem[] {
   const providerReady = input.provider !== 'unknown' && input.model !== 'unknown';
   const hasActivePersona = input.activePersonaName !== '(none)' && input.activePersonaName !== '(unavailable)';
+  const discoveredBehaviorCount = input.discoveredPersonas.count + input.discoveredSkills.count + input.discoveredRoutines.count;
   return [
     {
       id: 'runtime',
@@ -74,11 +75,13 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
     {
       id: 'profile',
       label: 'Agent profile',
-      status: setupStatusForCount(input.runtimeProfileCount, 'ready', 'optional'),
+      status: input.runtimeProfileCount > 0 ? 'ready' : discoveredBehaviorCount > 0 ? 'recommended' : 'optional',
       detail: input.runtimeProfileCount > 0
         ? `${input.runtimeProfileCount} isolated Agent profile(s) are available.`
+        : discoveredBehaviorCount > 0
+          ? `${discoveredBehaviorCount} discovered behavior file(s) can seed an isolated Agent profile from the Profiles workspace.`
         : `${input.runtimeStarterTemplateCount} starter template(s) are available if this machine needs separate operator identities.`,
-      command: '/agent-profile templates',
+      command: discoveredBehaviorCount > 0 && input.runtimeProfileCount === 0 ? '/agent-profile guide' : '/agent-profile templates',
     },
     {
       id: 'persona',
