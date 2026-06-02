@@ -158,14 +158,16 @@ function formatStore(store: PersonaStoreFile): string {
   return `${JSON.stringify(store, null, 2)}\n`;
 }
 
-export function personaStorePath(shellPaths: ShellPathService): string {
+type AgentLocalStorePaths = Pick<ShellPathService, 'resolveUserPath'>;
+
+export function personaStorePath(shellPaths: AgentLocalStorePaths): string {
   return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'personas', 'personas.json');
 }
 
 export class AgentPersonaRegistry {
   public constructor(private readonly storePath: string) {}
 
-  public static fromShellPaths(shellPaths: ShellPathService): AgentPersonaRegistry {
+  public static fromShellPaths(shellPaths: AgentLocalStorePaths): AgentPersonaRegistry {
     return new AgentPersonaRegistry(personaStorePath(shellPaths));
   }
 

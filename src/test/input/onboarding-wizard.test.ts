@@ -280,6 +280,15 @@ describe('OnboardingWizardController', () => {
     wizard.setFieldValue('agent-setup.secret-policy', 'plaintext_allowed');
     wizard.setFieldValue('agent-setup.profile-name', 'research-desk');
     wizard.setFieldValue('agent-setup.profile-template', 'research');
+    wizard.setFieldValue('agent-local-state.persona-name', 'Household Operator');
+    wizard.setFieldValue('agent-local-state.persona-description', 'Coordinates personal operating work.');
+    wizard.setFieldValue('agent-local-state.persona-body', 'Stay concise, proactive, and serial.');
+    wizard.setFieldValue('agent-local-state.skill-name', 'Daily Briefing');
+    wizard.setFieldValue('agent-local-state.skill-description', 'Summarizes the day.');
+    wizard.setFieldValue('agent-local-state.skill-procedure', 'Check tasks, approvals, and priorities.');
+    wizard.setFieldValue('agent-local-state.routine-name', 'Evening Reset');
+    wizard.setFieldValue('agent-local-state.routine-description', 'Closes the day.');
+    wizard.setFieldValue('agent-local-state.routine-steps', 'Review open work, pending approvals, and tomorrow priorities.');
     wizard.setFieldValue('providers.openai-api-key', 'sk-test-openai');
 
     const request = wizard.buildApplyRequest();
@@ -303,6 +312,27 @@ describe('OnboardingWizardController', () => {
       kind: 'create-agent-profile',
       name: 'research-desk',
       templateId: 'research',
+    });
+    expect(request.operations).toContainEqual({
+      kind: 'create-local-persona',
+      name: 'Household Operator',
+      description: 'Coordinates personal operating work.',
+      body: 'Stay concise, proactive, and serial.',
+      activate: true,
+    });
+    expect(request.operations).toContainEqual({
+      kind: 'create-local-skill',
+      name: 'Daily Briefing',
+      description: 'Summarizes the day.',
+      procedure: 'Check tasks, approvals, and priorities.',
+      enabled: true,
+    });
+    expect(request.operations).toContainEqual({
+      kind: 'create-local-routine',
+      name: 'Evening Reset',
+      description: 'Closes the day.',
+      steps: 'Review open work, pending approvals, and tomorrow priorities.',
+      enabled: true,
     });
   });
 
@@ -355,6 +385,9 @@ describe('OnboardingWizardController', () => {
     expect(text).toContain('image');
     expect(text).toContain('Agent Knowledge');
     expect(text).toContain('Create starter profile');
+    expect(text).toContain('Initial persona name');
+    expect(text).toContain('Initial skill name');
+    expect(text).toContain('Initial routine name');
     expect(text).toContain('Research Analyst');
     expect(text).not.toContain('Default Knowledge/Wiki fallback: enabled');
     expect(text).not.toContain('start services');

@@ -21,6 +21,46 @@ export function buildOnboardingApplyRequest(controller: OnboardingWizardControll
         medium,
       });
     };
+    const readText = (fieldId: string): string => controller.getStringFieldValue(fieldId, '').trim();
+    const maybeCreateLocalPersona = (): void => {
+      const name = readText('agent-local-state.persona-name');
+      const description = readText('agent-local-state.persona-description');
+      const body = readText('agent-local-state.persona-body');
+      if (!name && !description && !body) return;
+      operations.push({
+        kind: 'create-local-persona',
+        name,
+        description,
+        body,
+        activate: true,
+      });
+    };
+    const maybeCreateLocalSkill = (): void => {
+      const name = readText('agent-local-state.skill-name');
+      const description = readText('agent-local-state.skill-description');
+      const procedure = readText('agent-local-state.skill-procedure');
+      if (!name && !description && !procedure) return;
+      operations.push({
+        kind: 'create-local-skill',
+        name,
+        description,
+        procedure,
+        enabled: true,
+      });
+    };
+    const maybeCreateLocalRoutine = (): void => {
+      const name = readText('agent-local-state.routine-name');
+      const description = readText('agent-local-state.routine-description');
+      const steps = readText('agent-local-state.routine-steps');
+      if (!name && !description && !steps) return;
+      operations.push({
+        kind: 'create-local-routine',
+        name,
+        description,
+        steps,
+        enabled: true,
+      });
+    };
 
     // GoodVibes Agent onboarding owns only Agent-local setup and provider
     // routing. Server lifecycle, non-Agent entrypoints, and non-Agent knowledge
@@ -47,6 +87,9 @@ export function buildOnboardingApplyRequest(controller: OnboardingWizardControll
         ...(selectedTemplate.length > 0 && selectedTemplate !== 'none' ? { templateId: selectedTemplate } : {}),
       });
     }
+    maybeCreateLocalPersona();
+    maybeCreateLocalSkill();
+    maybeCreateLocalRoutine();
 
     return {
       mode: controller.mode,

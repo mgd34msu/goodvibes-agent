@@ -271,6 +271,27 @@ export type OnboardingApplyOperation =
       readonly kind: 'create-agent-profile';
       readonly name: string;
       readonly templateId?: string;
+    }
+  | {
+      readonly kind: 'create-local-persona';
+      readonly name: string;
+      readonly description: string;
+      readonly body: string;
+      readonly activate?: boolean;
+    }
+  | {
+      readonly kind: 'create-local-skill';
+      readonly name: string;
+      readonly description: string;
+      readonly procedure: string;
+      readonly enabled?: boolean;
+    }
+  | {
+      readonly kind: 'create-local-routine';
+      readonly name: string;
+      readonly description: string;
+      readonly steps: string;
+      readonly enabled?: boolean;
     };
 
 export interface OnboardingApplyRequest {

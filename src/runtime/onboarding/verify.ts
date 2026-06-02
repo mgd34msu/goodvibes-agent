@@ -1,7 +1,10 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { isSecretRefInput } from '@pellux/goodvibes-sdk/platform/config';
+import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { resolveAgentRuntimeProfileHome } from '../../agent/runtime-profile.ts';
+import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { readOnboardingRuntimeState } from './state.ts';
 import type {
   OnboardingApplyOperation,
@@ -144,6 +147,61 @@ function verifyCreateAgentProfileOperation(
   };
 }
 
+function verifyCreateLocalPersonaOperation(
+  deps: OnboardingVerificationDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-persona' }>,
+): OnboardingVerificationItem {
+  const registry = AgentPersonaRegistry.fromShellPaths(deps.shellPaths);
+  const persona = registry.get(operation.name);
+  const activeOk = operation.activate === false || registry.snapshot().activePersonaId === persona?.id;
+  const ok = persona !== null && activeOk;
+  const target = persona?.id ?? operation.name.trim();
+  return {
+    id: `local-persona:${target}`,
+    status: ok ? 'pass' : 'fail',
+    message: ok
+      ? `${target} local Agent persona exists${operation.activate === false ? '' : ' and is active'}.`
+      : `${target} local Agent persona was not created${operation.activate === false ? '' : ' or activated'}.`,
+    target,
+  };
+}
+
+function verifyCreateLocalSkillOperation(
+  deps: OnboardingVerificationDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-skill' }>,
+): OnboardingVerificationItem {
+  const skill = AgentSkillRegistry.fromShellPaths(deps.shellPaths).get(operation.name);
+  const enabledOk = operation.enabled === false || skill?.enabled === true;
+  const ok = skill !== null && enabledOk;
+  const target = skill?.id ?? operation.name.trim();
+  return {
+    id: `local-skill:${target}`,
+    status: ok ? 'pass' : 'fail',
+    message: ok
+      ? `${target} local Agent skill exists${operation.enabled === false ? '' : ' and is enabled'}.`
+      : `${target} local Agent skill was not created${operation.enabled === false ? '' : ' or enabled'}.`,
+    target,
+  };
+}
+
+function verifyCreateLocalRoutineOperation(
+  deps: OnboardingVerificationDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-routine' }>,
+): OnboardingVerificationItem {
+  const routine = AgentRoutineRegistry.fromShellPaths(deps.shellPaths).get(operation.name);
+  const enabledOk = operation.enabled === false || routine?.enabled === true;
+  const ok = routine !== null && enabledOk;
+  const target = routine?.id ?? operation.name.trim();
+  return {
+    id: `local-routine:${target}`,
+    status: ok ? 'pass' : 'fail',
+    message: ok
+      ? `${target} local Agent routine exists${operation.enabled === false ? '' : ' and is enabled'}.`
+      : `${target} local Agent routine was not created${operation.enabled === false ? '' : ' or enabled'}.`,
+    target,
+  };
+}
+
 async function verifyOperation(
   deps: OnboardingVerificationDependencies,
   operation: OnboardingApplyOperation,
@@ -152,7 +210,10 @@ async function verifyOperation(
   if (operation.kind === 'set-secret') return verifySecretOperation(deps, operation);
   if (operation.kind === 'ensure-auth-user') return verifyAuthOperation(deps, operation);
   if (operation.kind === 'acknowledge') return verifyAcknowledgementOperation(deps, operation);
-  return verifyCreateAgentProfileOperation(deps, operation);
+  if (operation.kind === 'create-agent-profile') return verifyCreateAgentProfileOperation(deps, operation);
+  if (operation.kind === 'create-local-persona') return verifyCreateLocalPersonaOperation(deps, operation);
+  if (operation.kind === 'create-local-skill') return verifyCreateLocalSkillOperation(deps, operation);
+  return verifyCreateLocalRoutineOperation(deps, operation);
 }
 
 export async function verifyOnboardingRequest(

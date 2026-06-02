@@ -206,14 +206,16 @@ function formatStore(store: SkillStoreFile): string {
   return `${JSON.stringify(store, null, 2)}\n`;
 }
 
-export function skillStorePath(shellPaths: ShellPathService): string {
+type AgentLocalStorePaths = Pick<ShellPathService, 'resolveUserPath'>;
+
+export function skillStorePath(shellPaths: AgentLocalStorePaths): string {
   return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'skills', 'skills.json');
 }
 
 export class AgentSkillRegistry {
   public constructor(private readonly storePath: string) {}
 
-  public static fromShellPaths(shellPaths: ShellPathService): AgentSkillRegistry {
+  public static fromShellPaths(shellPaths: AgentLocalStorePaths): AgentSkillRegistry {
     return new AgentSkillRegistry(skillStorePath(shellPaths));
   }
 

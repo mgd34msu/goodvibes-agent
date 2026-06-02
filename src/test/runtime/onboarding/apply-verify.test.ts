@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
+import { AgentPersonaRegistry } from '../../../agent/persona-registry.ts';
+import { AgentRoutineRegistry } from '../../../agent/routine-registry.ts';
 import { listAgentRuntimeProfiles, resolveAgentRuntimeProfileHome } from '../../../agent/runtime-profile.ts';
+import { AgentSkillRegistry } from '../../../agent/skill-registry.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../../config/surface.ts';
 import { SecretsManager } from '../../../config/secrets.ts';
 import {
@@ -162,6 +165,98 @@ describe('onboarding apply and verify helpers', () => {
     expect(second.ok).toBe(false);
     expect(second.applied).toEqual([]);
     expect(second.errors.map((error) => error.message).join('\n')).toContain('Agent profile already exists: research-desk');
+  });
+
+  test('creates local personas, skills, and routines during Agent onboarding', async () => {
+    const request = {
+      mode: 'new' as const,
+      source: 'wizard',
+      operations: [
+        {
+          kind: 'create-local-persona' as const,
+          name: 'Household Operator',
+          description: 'Coordinates day-to-day operator work.',
+          body: 'Stay serial, proactive, and concise.',
+          activate: true,
+        },
+        {
+          kind: 'create-local-skill' as const,
+          name: 'Daily Briefing',
+          description: 'Summarizes priorities and blockers.',
+          procedure: 'Inspect tasks, approvals, and current priorities before asking follow-ups.',
+          enabled: true,
+        },
+        {
+          kind: 'create-local-routine' as const,
+          name: 'Evening Reset',
+          description: 'Closes the day cleanly.',
+          steps: 'Review unfinished work, pending approvals, and tomorrow priorities.',
+          enabled: true,
+        },
+      ],
+    };
+    const deps = {
+      clock: () => 100,
+      config: configManager,
+      shellPaths,
+      acknowledgementScope: 'project' as const,
+    };
+
+    const applied = await applyOnboardingRequest(deps, request);
+    const verification = await verifyOnboardingRequest(deps, request);
+    const personas = AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot();
+    const skills = AgentSkillRegistry.fromShellPaths(shellPaths).snapshot();
+    const routines = AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot();
+
+    expect(applied.ok).toBe(true);
+    expect(applied.applied.map((operation) => operation.kind)).toEqual([
+      'create-local-persona',
+      'create-local-skill',
+      'create-local-routine',
+    ]);
+    expect(verification.ok).toBe(true);
+    expect(personas.activePersona?.name).toBe('Household Operator');
+    expect(skills.enabledSkills.map((skill) => skill.name)).toContain('Daily Briefing');
+    expect(routines.enabledRoutines.map((routine) => routine.name)).toContain('Evening Reset');
+  });
+
+  test('rejects partial local behavior setup before writing any local registry', async () => {
+    const request = {
+      mode: 'new' as const,
+      source: 'wizard',
+      operations: [
+        {
+          kind: 'create-local-persona' as const,
+          name: 'Incomplete Persona',
+          description: '',
+          body: 'Has instructions but no description.',
+          activate: true,
+        },
+        {
+          kind: 'create-local-skill' as const,
+          name: 'Should Not Persist',
+          description: 'Would be valid if the first operation passed.',
+          procedure: 'Do not write this when prevalidation fails.',
+          enabled: true,
+        },
+      ],
+    };
+
+    const applied = await applyOnboardingRequest(
+      {
+        clock: () => 100,
+        config: configManager,
+        shellPaths,
+        acknowledgementScope: 'project',
+      },
+      request,
+    );
+
+    expect(applied.ok).toBe(false);
+    expect(applied.applied).toEqual([]);
+    expect(applied.errors.map((error) => error.message).join('\n')).toContain('Persona description is required.');
+    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).list()).toEqual([]);
+    expect(AgentSkillRegistry.fromShellPaths(shellPaths).list()).toEqual([]);
   });
 
   test('prevalidates all config operations before mutating settings', async () => {

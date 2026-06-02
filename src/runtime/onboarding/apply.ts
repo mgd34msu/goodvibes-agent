@@ -7,6 +7,9 @@ import {
   getAgentRuntimeProfileTemplate,
   resolveAgentRuntimeProfileHome,
 } from '../../agent/runtime-profile.ts';
+import { AgentPersonaRegistry, assertNoSecretLikeText } from '../../agent/persona-registry.ts';
+import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
+import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import type { FeatureFlagConfigKey } from '../surface-feature-flags.ts';
 import {
   getOnboardingRuntimeStatePath,
@@ -222,6 +225,53 @@ function validateCreateAgentProfileOperation(
   if (templateId) getAgentRuntimeProfileTemplate(templateId, deps.shellPaths.homeDirectory);
 }
 
+function validateCreateLocalPersonaOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-persona' }>,
+): void {
+  const name = operation.name.trim();
+  const description = operation.description.trim();
+  const body = operation.body.trim();
+  if (!name) throw new Error('Persona name is required.');
+  if (!description) throw new Error('Persona description is required.');
+  if (!body) throw new Error('Persona body is required.');
+  assertNoSecretLikeText([name, description, body]);
+  const duplicate = AgentPersonaRegistry.fromShellPaths(deps.shellPaths).get(name);
+  if (duplicate) throw new Error(`Persona already exists: ${duplicate.id}`);
+}
+
+function validateCreateLocalSkillOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-skill' }>,
+): void {
+  const registry = AgentSkillRegistry.fromShellPaths(deps.shellPaths);
+  const name = operation.name.trim();
+  const description = operation.description.trim();
+  const procedure = operation.procedure.trim();
+  if (!name) throw new Error('Skill name is required.');
+  if (!description) throw new Error('Skill description is required.');
+  if (!procedure) throw new Error('Skill procedure is required.');
+  assertNoSecretLikeText([name, description, procedure]);
+  const duplicate = registry.get(name);
+  if (duplicate) throw new Error(`Skill already exists: ${duplicate.id}`);
+}
+
+function validateCreateLocalRoutineOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-routine' }>,
+): void {
+  const registry = AgentRoutineRegistry.fromShellPaths(deps.shellPaths);
+  const name = operation.name.trim();
+  const description = operation.description.trim();
+  const steps = operation.steps.trim();
+  if (!name) throw new Error('Routine name is required.');
+  if (!description) throw new Error('Routine description is required.');
+  if (!steps) throw new Error('Routine steps are required.');
+  assertNoSecretLikeText([name, description, steps]);
+  const duplicate = registry.get(name);
+  if (duplicate) throw new Error(`Routine already exists: ${duplicate.id}`);
+}
+
 function applyConfigOperation(
   deps: OnboardingApplyDependencies,
   operation: Extract<OnboardingApplyOperation, { kind: 'set-config' }>,
@@ -322,6 +372,21 @@ async function buildRollbackAction(
     };
   }
 
+  if (operation.kind === 'create-local-persona') {
+    const registry = AgentPersonaRegistry.fromShellPaths(deps.shellPaths);
+    return snapshotFileRollback(registry.snapshot().path);
+  }
+
+  if (operation.kind === 'create-local-skill') {
+    const registry = AgentSkillRegistry.fromShellPaths(deps.shellPaths);
+    return snapshotFileRollback(registry.snapshot().path);
+  }
+
+  if (operation.kind === 'create-local-routine') {
+    const registry = AgentRoutineRegistry.fromShellPaths(deps.shellPaths);
+    return snapshotFileRollback(registry.snapshot().path);
+  }
+
   const neverOperation: never = operation;
   throw new Error(`Unsupported onboarding operation: ${JSON.stringify(neverOperation)}`);
 }
@@ -364,6 +429,61 @@ function applyCreateAgentProfileOperation(
   };
 }
 
+function applyCreateLocalPersonaOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-persona' }>,
+): OnboardingAppliedOperation {
+  const registry = AgentPersonaRegistry.fromShellPaths(deps.shellPaths);
+  const persona = registry.create({
+    name: operation.name,
+    description: operation.description,
+    body: operation.body,
+    source: 'user',
+    provenance: 'onboarding',
+  });
+  if (operation.activate !== false) registry.setActive(persona.id);
+  return {
+    kind: operation.kind,
+    summary: `Created local Agent persona ${persona.id}.`,
+  };
+}
+
+function applyCreateLocalSkillOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-skill' }>,
+): OnboardingAppliedOperation {
+  const skill = AgentSkillRegistry.fromShellPaths(deps.shellPaths).create({
+    name: operation.name,
+    description: operation.description,
+    procedure: operation.procedure,
+    enabled: operation.enabled !== false,
+    source: 'user',
+    provenance: 'onboarding',
+  });
+  return {
+    kind: operation.kind,
+    summary: `Created local Agent skill ${skill.id}.`,
+  };
+}
+
+function applyCreateLocalRoutineOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'create-local-routine' }>,
+): OnboardingAppliedOperation {
+  const routine = AgentRoutineRegistry.fromShellPaths(deps.shellPaths).create({
+    name: operation.name,
+    description: operation.description,
+    steps: operation.steps,
+    enabled: operation.enabled !== false,
+    source: 'user',
+    provenance: 'onboarding',
+  });
+  return {
+    kind: operation.kind,
+    summary: `Created local Agent routine ${routine.id}.`,
+  };
+}
+
 function orderApplyOperations(
   operations: readonly OnboardingApplyOperation[],
 ): readonly OnboardingApplyOperation[] {
@@ -376,6 +496,11 @@ function orderApplyOperations(
     operation.kind === 'set-config' && operation.key !== 'storage.secretPolicy'
   ));
   const agentProfileOperations = operations.filter((operation) => operation.kind === 'create-agent-profile');
+  const localBehaviorOperations = operations.filter((operation) => (
+    operation.kind === 'create-local-persona'
+    || operation.kind === 'create-local-skill'
+    || operation.kind === 'create-local-routine'
+  ));
   const finalOperations = operations.filter((operation) => (
     operation.kind === 'acknowledge'
   ));
@@ -386,6 +511,7 @@ function orderApplyOperations(
     ...secretOperations,
     ...configOperations,
     ...agentProfileOperations,
+    ...localBehaviorOperations,
     ...finalOperations,
   ];
 }
@@ -427,6 +553,21 @@ function prevalidateApplyRequest(
         continue;
       }
 
+      if (operation.kind === 'create-local-persona') {
+        validateCreateLocalPersonaOperation(deps, operation);
+        continue;
+      }
+
+      if (operation.kind === 'create-local-skill') {
+        validateCreateLocalSkillOperation(deps, operation);
+        continue;
+      }
+
+      if (operation.kind === 'create-local-routine') {
+        validateCreateLocalRoutineOperation(deps, operation);
+        continue;
+      }
+
       const neverOperation: never = operation;
       throw new Error(`Unsupported onboarding operation: ${JSON.stringify(neverOperation)}`);
     } catch (error) {
@@ -446,6 +587,9 @@ function getVerificationFailureKind(itemId: string): OnboardingApplyOperation['k
   if (itemId.startsWith('auth:')) return 'ensure-auth-user';
   if (itemId.startsWith('acknowledge:')) return 'acknowledge';
   if (itemId.startsWith('agent-profile:')) return 'create-agent-profile';
+  if (itemId.startsWith('local-persona:')) return 'create-local-persona';
+  if (itemId.startsWith('local-skill:')) return 'create-local-skill';
+  if (itemId.startsWith('local-routine:')) return 'create-local-routine';
   return 'set-config';
 }
 
@@ -498,6 +642,24 @@ export async function applyOnboardingRequest(
 
         if (operation.kind === 'create-agent-profile') {
           applied.push(applyCreateAgentProfileOperation(deps, operation));
+          rollbacks.push(rollback);
+          continue;
+        }
+
+        if (operation.kind === 'create-local-persona') {
+          applied.push(applyCreateLocalPersonaOperation(deps, operation));
+          rollbacks.push(rollback);
+          continue;
+        }
+
+        if (operation.kind === 'create-local-skill') {
+          applied.push(applyCreateLocalSkillOperation(deps, operation));
+          rollbacks.push(rollback);
+          continue;
+        }
+
+        if (operation.kind === 'create-local-routine') {
+          applied.push(applyCreateLocalRoutineOperation(deps, operation));
           rollbacks.push(rollback);
           continue;
         }

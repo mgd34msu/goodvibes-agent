@@ -151,14 +151,16 @@ function formatStore(store: RoutineStoreFile): string {
   return `${JSON.stringify(store, null, 2)}\n`;
 }
 
-export function routineStorePath(shellPaths: ShellPathService): string {
+type AgentLocalStorePaths = Pick<ShellPathService, 'resolveUserPath'>;
+
+export function routineStorePath(shellPaths: AgentLocalStorePaths): string {
   return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'routines', 'routines.json');
 }
 
 export class AgentRoutineRegistry {
   public constructor(private readonly storePath: string) {}
 
-  public static fromShellPaths(shellPaths: ShellPathService): AgentRoutineRegistry {
+  public static fromShellPaths(shellPaths: AgentLocalStorePaths): AgentRoutineRegistry {
     return new AgentRoutineRegistry(routineStorePath(shellPaths));
   }
 
