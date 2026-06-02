@@ -101,7 +101,7 @@ function buildFallbackModelDefinition(provider: string, modelId: string): ModelD
     description: 'Configured model available before the model catalog cache has loaded.',
     capabilities: {
       toolCalling: true,
-      codeEditing: true,
+      codeEditing: false,
       reasoning: isReasoningProvider,
       multimodal: isReasoningProvider,
     },

@@ -240,7 +240,6 @@ export function renderModelPickerOverlay(
       if (caps.reasoning)  capParts.push('Reasoning: \u2713');
       if (caps.multimodal) capParts.push('Vision: \u2713');
       if (caps.toolCalling) capParts.push('Tools: \u2713');
-      if (caps.codeEditing) capParts.push('Code: \u2713');
       const capText = capParts.join('  ');
       const capLine = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
       putRowText(capLine, layout.margin + 2, contentW, fitDisplay(truncateDisplay(capText, contentW), contentW), '244');

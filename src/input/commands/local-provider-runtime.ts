@@ -91,13 +91,13 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
               id: defaultModel,
               displayName: defaultModel,
               contextWindow: 8192,
-              capabilities: { toolCalling: true, codeEditing: true, reasoning: false, multimodal: false },
+              capabilities: { toolCalling: true, codeEditing: false, reasoning: false, multimodal: false },
             }]
           : discoveredModelIds.map((id) => ({
               id,
               displayName: id,
               contextWindow: contextWindows[id] ?? 8192,
-              capabilities: { toolCalling: true, codeEditing: true, reasoning: false, multimodal: false },
+              capabilities: { toolCalling: true, codeEditing: false, reasoning: false, multimodal: false },
             }));
         const config: CustomProviderConfig = {
           name,

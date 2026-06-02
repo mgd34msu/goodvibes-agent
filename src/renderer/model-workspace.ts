@@ -184,7 +184,6 @@ function detailLines(picker: ModelPickerModal, width: number): string[] {
         caps.reasoning ? 'reasoning' : '',
         caps.multimodal ? 'vision' : '',
         caps.toolCalling ? 'tools' : '',
-        caps.codeEditing ? 'code' : '',
       ].filter(Boolean).join(', ') || 'standard';
       lines.push(`Selected: ${modelKey(selected)} | ${selected.displayName} | context ${formatContext(selected.contextWindow)} | ${capText}`);
     }
@@ -261,7 +260,6 @@ function renderModelRows(picker: ModelPickerModal, lines: Line[], rows: number, 
       caps.reasoning ? 'R' : '-',
       caps.multimodal ? 'V' : '-',
       caps.toolCalling ? 'T' : '-',
-      caps.codeEditing ? 'C' : '-',
     ].join('');
     let x = startX + 1;
     writeText(line, x, 2, padDisplay(marker, 2), { fg: PALETTE.text, bg, bold: selected }); x += 2;

@@ -108,6 +108,14 @@ describe('renderModelWorkspace', () => {
     expect(text).toContain('Claude Test');
   });
 
+  test('does not advertise code-editing capability in Agent model UI', () => {
+    const text = linesToText(renderModelWorkspace(makePicker(), W, H)).join('\n');
+
+    expect(text).toContain('reasoning, tools');
+    expect(text).not.toContain('reasoning, tools, code');
+    expect(text).not.toContain('RVTC');
+  });
+
   test('provider mode renders provider table and configuration state', () => {
     const picker = makePicker();
     picker.openProviders(['openai', 'anthropic'], 'openai');

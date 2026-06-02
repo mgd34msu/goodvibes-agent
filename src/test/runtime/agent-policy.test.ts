@@ -58,6 +58,14 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(source).not.toContain('registerDelegateTool');
   });
 
+  test('bootstrap core does not emit copied local WRFC chain telemetry', () => {
+    const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap-core.ts'), 'utf8');
+    expect(source).not.toContain('WORKFLOW_CONSTRAINTS_ENUMERATED');
+    expect(source).not.toContain('WORKFLOW_FIX_ATTEMPTED');
+    expect(source).not.toContain('Engineer enumerated');
+    expect(source).not.toContain('constraint violation');
+  });
+
   test('operator policy tells the model to use local registry memory for durable recall', () => {
     const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
     expect(source).toContain('durable memory, reusable persona, skill, skill bundle, or routine');

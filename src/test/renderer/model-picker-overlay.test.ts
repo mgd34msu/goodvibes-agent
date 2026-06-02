@@ -251,6 +251,13 @@ describe('renderModelPickerOverlay — model mode', () => {
     expect(texts).toContain('Vision');
   });
 
+  test('capability panel does not advertise code editing in Agent UI', () => {
+    const picker = makePicker({ selectedIndex: 1 });
+    const texts = linesToText(renderModelPickerOverlay(picker, W)).join('\n');
+    expect(texts).toContain('Tools:');
+    expect(texts).not.toContain('Code:');
+  });
+
   test('null capabilities guard — model without capabilities still renders', () => {
     const picker = makePicker();
     // Simulate missing capabilities
