@@ -5,6 +5,18 @@ import { quoteSlashCommandArg } from './slash-command-parser.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
+function isAffirmative(value: string): boolean {
+  return /^(y|yes|true)$/i.test(value.trim());
+}
+
+function unconfirmed(editor: AgentWorkspaceLocalEditor, message: string): AgentWorkspaceOperationsCommandEditorSubmission {
+  return {
+    kind: 'editor',
+    editor: { ...editor, message },
+    status: message,
+  };
+}
+
 export type AgentWorkspaceOperationsCommandEditorSubmission =
   | {
     readonly kind: 'editor';
@@ -27,6 +39,52 @@ export function buildAgentWorkspaceOperationsCommandEditorSubmission(
   editor: AgentWorkspaceLocalEditor,
   readField: AgentWorkspaceFieldReader,
 ): AgentWorkspaceOperationsCommandEditorSubmission {
+  if (editor.kind === 'plan-approve') {
+    if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Planning approval not confirmed. Type yes, then press Enter.');
+    return {
+      kind: 'dispatch',
+      command: '/plan approve --yes',
+      status: 'Opening planning approval.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening planning approval',
+        detail: 'The workspace handed confirmed planning approval to the shell-owned command router.',
+        command: '/plan approve --yes',
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'plan-override') {
+    if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Planning strategy override not confirmed. Type yes, then press Enter.');
+    const command = `/plan override ${quoteSlashCommandArg(readField('strategy'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening planning strategy override.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening planning strategy override',
+        detail: 'The workspace handed a confirmed planning strategy override to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'plan-clear') {
+    if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Planning clear not confirmed. Type yes, then press Enter.');
+    return {
+      kind: 'dispatch',
+      command: '/plan clear --yes',
+      status: 'Opening planning clear.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening planning clear',
+        detail: 'The workspace handed confirmed planning-state clearing to the shell-owned command router.',
+        command: '/plan clear --yes',
+        safety: 'safe',
+      },
+    };
+  }
   const plan = editor.kind === 'plan-show';
   const approval = editor.kind === 'approval-review';
   const command = plan

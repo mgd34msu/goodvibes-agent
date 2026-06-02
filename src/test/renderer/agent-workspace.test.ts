@@ -1202,6 +1202,39 @@ describe('renderAgentWorkspace', () => {
     expect(planEditorOutput).toContain('Plan id *');
 
     workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-approve');
+    const approveActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(approveActionOutput).toContain('Approve planning state');
+    expect(approveActionOutput).toContain('edit plan-approve');
+
+    workspace.activateSelected();
+    const approveEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(approveEditorOutput).toContain('Approve Planning State');
+    expect(approveEditorOutput).toContain('Confirm *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-override');
+    const overrideActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(overrideActionOutput).toContain('Override planning strategy');
+    expect(overrideActionOutput).toContain('edit plan-override');
+
+    workspace.activateSelected();
+    const overrideEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(overrideEditorOutput).toContain('Override Planning Strategy');
+    expect(overrideEditorOutput).toContain('Strategy *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-clear');
+    const clearActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(clearActionOutput).toContain('Clear planning state');
+    expect(clearActionOutput).toContain('edit plan-clear');
+
+    workspace.activateSelected();
+    const clearEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(clearEditorOutput).toContain('Clear Planning State');
+    expect(clearEditorOutput).toContain('Confirm *');
+
+    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approval-review');
     const approvalActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(approvalActionOutput).toContain('Review approval class');

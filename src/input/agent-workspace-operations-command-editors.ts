@@ -2,11 +2,16 @@ import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agen
 
 export type AgentWorkspaceOperationsCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
-  'plan-show' | 'health-repair' | 'approval-review'
+  'plan-show' | 'plan-approve' | 'plan-override' | 'plan-clear' | 'health-repair' | 'approval-review'
 >;
 
 export function isAgentWorkspaceOperationsCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceOperationsCommandEditorKind {
-  return kind === 'plan-show' || kind === 'health-repair' || kind === 'approval-review';
+  return kind === 'plan-show'
+    || kind === 'plan-approve'
+    || kind === 'plan-override'
+    || kind === 'plan-clear'
+    || kind === 'health-repair'
+    || kind === 'approval-review';
 }
 
 export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspaceOperationsCommandEditorKind): AgentWorkspaceLocalEditor {
@@ -31,6 +36,43 @@ export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspace
       message: 'Review one approval class without approving, denying, or mutating pending requests.',
       fields: [
         { id: 'kind', label: 'Approval kind', value: 'shell', required: true, multiline: false, hint: 'shell, file, network, delegate, mcp, remote, hook, or plugin.' },
+      ],
+    };
+  }
+  if (kind === 'plan-approve') {
+    return {
+      kind,
+      mode: 'update',
+      title: 'Approve Planning State',
+      selectedFieldIndex: 0,
+      message: 'Approve the current Agent planning state for execution. This changes planning state and requires typed confirmation.',
+      fields: [
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /plan approve with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'plan-override') {
+    return {
+      kind,
+      mode: 'update',
+      title: 'Override Planning Strategy',
+      selectedFieldIndex: 0,
+      message: 'Override the planner strategy through the runtime bridge. This changes planner state and requires typed confirmation.',
+      fields: [
+        { id: 'strategy', label: 'Strategy', value: 'serial', required: true, multiline: false, hint: 'Planner strategy, such as serial.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /plan override with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'plan-clear') {
+    return {
+      kind,
+      mode: 'delete',
+      title: 'Clear Planning State',
+      selectedFieldIndex: 0,
+      message: 'Clear planner state. This is destructive and requires typed confirmation.',
+      fields: [
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /plan clear with --yes.' },
       ],
     };
   }

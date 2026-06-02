@@ -506,6 +506,42 @@ describe('AgentWorkspace', () => {
     expect(dispatched).not.toContain('/tasks retry task-123');
   });
 
+  test('requires confirmation before planning approval override and clear workspace actions', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-approve');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('plan-approve');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/plan approve --yes']);
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-override');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('plan-override');
+    clearEditorField(workspace);
+    feedText(workspace, 'serial');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/plan override serial --yes');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'plan-clear');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('plan-clear');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/plan clear --yes');
+  });
+
   test('exports conversation and manages saved session continuity from work workspace forms', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
