@@ -6,6 +6,14 @@ import type { OnboardingWizardController } from './onboarding-wizard.ts';
 import type { OnboardingWizardActionFieldDefinition, OnboardingWizardFieldDefinition, OnboardingWizardModelPickerFieldDefinition, OnboardingWizardRadioFieldDefinition, OnboardingWizardRadioOption, OnboardingWizardStepDefinition } from './onboarding-wizard-types.ts';
 import type { OnboardingProviderAccountRecord, OnboardingStep1CapabilityId, OnboardingStep1CapabilityItem } from '../../runtime/onboarding/index.ts';
 
+const DEFAULT_STARTER_TEMPLATE_ID = 'personal-productivity';
+
+function defaultStarterTemplateId(): string {
+  const templates = listAgentRuntimeProfileTemplates();
+  if (templates.some((template) => template.id === DEFAULT_STARTER_TEMPLATE_ID)) return DEFAULT_STARTER_TEMPLATE_ID;
+  return templates[0]?.id ?? 'none';
+}
+
 function buildStarterTemplateOptions(): readonly OnboardingWizardRadioOption[] {
   return [
     {
@@ -260,9 +268,9 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
         kind: 'radio',
         id: 'agent-setup.profile-template',
         label: 'Starter profile template',
-        hint: 'Choose the persona, skills, and routine bundle to seed into the optional new Agent profile.',
+        hint: 'Choose the persona, skills, and routine bundle to seed into the optional new Agent profile. Select No profile only when you intentionally want an empty Agent home.',
         options: buildStarterTemplateOptions(),
-        defaultValue: 'none',
+        defaultValue: defaultStarterTemplateId(),
       },
       {
         kind: 'checklist',

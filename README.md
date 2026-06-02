@@ -80,7 +80,7 @@ The Voice & Media workspace includes `Generate media`, a confirmed form for imag
 
 Use isolated Agent profiles when one machine needs separate operator identities or local state. In the TUI, open Agent Workspace -> Profiles to browse starters, create a profile, use it as the default for the next launch, clear the default, and export/import starter JSON. The same profile selection is available for one launch with `goodvibes-agent --agent-profile <name>`.
 
-Profiles isolate Agent-local config, sessions, local memory, scratchpad notes, personas, skills, routines, and setup state. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The connected GoodVibes host remains shared unless that host is separately configured otherwise.
+Profiles isolate Agent-local config, sessions, local memory, scratchpad notes, personas, skills, routines, and setup state. First-run setup seeds new profiles from a built-in starter by default unless you explicitly choose `No profile`. Starter templates seed local personas, skills, and routines for household, research, travel, operations, and personal productivity profiles; exported starter JSON can be edited and re-imported as a local starter. The connected GoodVibes host remains shared unless that host is separately configured otherwise.
 
 The installed CLI mirrors the same local behavior libraries for scripts and automation, but it is not the primary product path. Personas, skills, memory, and routines are created, reviewed, enabled, exported/imported where relevant, and deleted from the TUI workspace first; destructive actions still require explicit confirmation.
 
