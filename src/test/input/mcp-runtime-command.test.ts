@@ -71,15 +71,17 @@ function makeContext(root: string, out: string[], callLog = makeCallLog()): Comm
       const result = removeMcpServerConfig(shellPaths, scope, serverName);
       return { path: result.path, removed: result.removed, reload: await reload() };
     },
-    listServerSecurity: () => connectedNames.map((name) => ({
-      name,
-      connected: true,
-      role: 'general' as const,
-      trustMode: 'constrained' as const,
-      allowedPaths: [],
-      allowedHosts: [],
-      schemaFreshness: 'fresh' as const,
-    })),
+    listServerSecurity: () => loadMcpEffectiveConfig(shellPaths).servers
+      .filter((entry) => connectedNames.includes(entry.server.name))
+      .map((entry) => ({
+        name: entry.server.name,
+        connected: true,
+        role: entry.server.role ?? 'general',
+        trustMode: entry.server.trustMode ?? 'constrained',
+        allowedPaths: entry.server.allowedPaths ?? [],
+        allowedHosts: entry.server.allowedHosts ?? [],
+        schemaFreshness: 'fresh' as const,
+      })),
     listAllTools: async () => [],
     listServers: () => [],
     listServerNames: () => connectedNames,
@@ -132,6 +134,41 @@ describe('/mcp runtime config commands', () => {
 
       expect(opened).toBe(1);
       expect(out).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('/mcp servers prints read-only server readiness without opening workspace or mutating config', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    try {
+      const registry = new CommandRegistry();
+      registerMcpRuntimeCommands(registry);
+      const out: string[] = [];
+      const callLog = makeCallLog();
+      let opened = 0;
+      const ctx = {
+        ...makeContext(root, out, callLog),
+        openMcpWorkspace: () => {
+          opened += 1;
+        },
+      } as CommandContext;
+
+      await registry.get('mcp')!.handler(['add', 'browser-tools', 'node', 'browser-server.js', '--role', 'browser', '--yes'], ctx);
+      out.length = 0;
+      callLog.reloads = 0;
+      callLog.upserts = 0;
+
+      await registry.get('mcp')!.handler(['servers'], ctx);
+
+      const output = out.join('\n');
+      expect(opened).toBe(0);
+      expect(callLog.reloads).toBe(0);
+      expect(callLog.upserts).toBe(0);
+      expect(output).toContain('MCP Servers (1/1 connected):');
+      expect(output).toContain('browser-tools');
+      expect(output).toContain('role=browser');
+      expect(output).toContain('/mcp tools');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -137,8 +137,8 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
     name: 'mcp',
     aliases: [],
     description: 'Manage MCP servers and their tools',
-    usage: '[add|remove|reload|config|review|tools [<server>]|auth-review|repair [server]]',
-    argsHint: '[review|tools|config|add --yes|remove --yes]',
+    usage: '[servers|review|tools [<server>]|config|add|remove|reload|auth-review|repair [server]]',
+    argsHint: '[servers|review|tools|config|add --yes|remove --yes]',
     async handler(args, ctx) {
       const mcpApi = requireMcpApi(ctx);
       const listServerSecurity = () => mcpApi.listServerSecurity();
@@ -161,6 +161,25 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
           '  next: /mcp auth-review',
           '  next: /mcp repair <server>',
         ].join('\n'));
+        return;
+      }
+      if (subcommand === 'servers') {
+        const servers = listServerSecurity();
+        if (servers.length === 0) {
+          ctx.print(
+            'No MCP servers configured.\n'
+            + 'Add servers to one of these locations (scanned in order):\n'
+            + '  ~/.config/mcp/mcp.json               (global XDG)\n'
+            + '  ~/.mcp/mcp.json                      (global dotdir)\n'
+            + '  ~/.config/claude/claude_desktop_config.json  (Claude Desktop)\n'
+            + '  .mcp/mcp.json                        (project-local)\n'
+            + '  .goodvibes/mcp.json                  (goodvibes project)\n'
+            + '\nAdd one from inside Agent with explicit confirmation:\n'
+            + '  /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem . --scope project --role filesystem --yes'
+          );
+          return;
+        }
+        ctx.print(formatMcpServerList(servers));
         return;
       }
       if (subcommand === 'tools') {
@@ -434,30 +453,36 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      const connected = servers.filter(s => s.connected);
-      const disconnected = servers.filter(s => !s.connected);
-      const lines: string[] = [`MCP Servers (${connected.length}/${servers.length} connected):`];
-      for (const s of servers) {
-        const pathScope = s.allowedPaths.length > 0 ? ` paths=${s.allowedPaths.length}` : '';
-        const hostScope = s.allowedHosts.length > 0 ? ` hosts=${s.allowedHosts.length}` : '';
-        const freshness = ` freshness=${s.schemaFreshness}`;
-        const quarantine = s.schemaFreshness === 'quarantined' ? ` quarantine=${s.quarantineReason ?? 'unknown'}` : '';
-        lines.push(`  ${s.connected ? '[connected]   ' : '[disconnected]'}  ${s.name}  trust=${s.trustMode}  role=${s.role}${freshness}${quarantine}${pathScope}${hostScope}`);
-      }
-      if (connected.length > 0) {
-        lines.push('');
-        lines.push('Run "/mcp tools" to list all tools, or "/mcp tools <server>" for a specific server.');
-        lines.push('Run "/mcp" to open the fullscreen MCP workspace, or "/mcp add <name> <command> [args...] [--scope project|global] --yes" to add/update.');
-        lines.push('Run "/mcp reload --yes" after editing MCP config outside Agent.');
-        lines.push('Run "/mcp trust <server> <mode> --yes" to change trust mode, or "/mcp role <server> <role> --yes" to change its coherence role.');
-        lines.push('Run "/mcp quarantine <server> [detail] --yes" to block a server, or "/mcp quarantine <server> approve [operatorId] --yes" to approve a temporary override.');
-        lines.push('Use /settings → MCP to explicitly enable allow-all for a server.');
-      }
-      if (disconnected.length > 0) {
-        lines.push('');
-        lines.push(`${disconnected.length} server(s) failed to connect. Check server command and args in your config.`);
-      }
-      ctx.print(lines.join('\n'));
+      ctx.print(formatMcpServerList(servers));
     },
   });
+}
+
+type McpSecurityServer = ReturnType<NonNullable<NonNullable<CommandContext['clients']>['mcpApi']>['listServerSecurity']>[number];
+
+function formatMcpServerList(servers: readonly McpSecurityServer[]): string {
+  const connected = servers.filter(s => s.connected);
+  const disconnected = servers.filter(s => !s.connected);
+  const lines: string[] = [`MCP Servers (${connected.length}/${servers.length} connected):`];
+  for (const s of servers) {
+    const pathScope = s.allowedPaths.length > 0 ? ` paths=${s.allowedPaths.length}` : '';
+    const hostScope = s.allowedHosts.length > 0 ? ` hosts=${s.allowedHosts.length}` : '';
+    const freshness = ` freshness=${s.schemaFreshness}`;
+    const quarantine = s.schemaFreshness === 'quarantined' ? ` quarantine=${s.quarantineReason ?? 'unknown'}` : '';
+    lines.push(`  ${s.connected ? '[connected]   ' : '[disconnected]'}  ${s.name}  trust=${s.trustMode}  role=${s.role}${freshness}${quarantine}${pathScope}${hostScope}`);
+  }
+  if (connected.length > 0) {
+    lines.push('');
+    lines.push('Run "/mcp tools" to list all tools, or "/mcp tools <server>" for a specific server.');
+    lines.push('Run "/mcp" to open the fullscreen MCP workspace, or "/mcp add <name> <command> [args...] [--scope project|global] --yes" to add/update.');
+    lines.push('Run "/mcp reload --yes" after editing MCP config outside Agent.');
+    lines.push('Run "/mcp trust <server> <mode> --yes" to change trust mode, or "/mcp role <server> <role> --yes" to change its coherence role.');
+    lines.push('Run "/mcp quarantine <server> [detail] --yes" to block a server, or "/mcp quarantine <server> approve [operatorId] --yes" to approve a temporary override.');
+    lines.push('Use /settings -> MCP to explicitly enable allow-all for a server.');
+  }
+  if (disconnected.length > 0) {
+    lines.push('');
+    lines.push(`${disconnected.length} server(s) failed to connect. Check server command and args in your config.`);
+  }
+  return lines.join('\n');
 }
