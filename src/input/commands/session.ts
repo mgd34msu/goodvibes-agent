@@ -2,13 +2,12 @@
  * /session command handler — Multi-session Orchestration.
  *
  * Implements read-only session graph inspection plus session continuity commands.
- * Copied local task graph mutation commands are blocked in Agent; explicit
- * build/fix/review handoff must use `/delegate` so GoodVibes TUI owns execution.
+ * Local task graph mutation commands are blocked in Agent; explicit build/fix/review
+ * handoff must use `/delegate` so GoodVibes TUI owns execution.
  */
 
 import type { SlashCommand, CommandContext } from '../command-registry.ts';
-import type { CancellationScope, CrossSessionTaskRef } from '@pellux/goodvibes-sdk/platform/sessions';
-import { VALID_SCOPES } from '@pellux/goodvibes-sdk/platform/sessions';
+import type { CrossSessionTaskRef } from '@pellux/goodvibes-sdk/platform/sessions';
 import { handleSessionWorkflowCommand } from './session-workflow.ts';
 import { requireSessionOrchestration } from './runtime-services.ts';
 
@@ -22,21 +21,6 @@ function flagValue(args: string[], flag: string): string | undefined {
   const idx = args.indexOf(flag);
   if (idx === -1 || idx + 1 >= args.length) return undefined;
   return args[idx + 1];
-}
-
-/**
- * Parse a cross-session task ref from a string of the form
- * `<sessionId>:<taskId>` or just `<taskId>` (uses currentSessionId as owner).
- */
-function parseRef(
-  raw: string,
-  currentSessionId: string,
-): { sessionId: string; taskId: string } {
-  const parts = raw.split(':', 2);
-  if (parts.length === 2) {
-    return { sessionId: parts[0]!, taskId: parts[1]! };
-  }
-  return { sessionId: currentSessionId, taskId: raw };
 }
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
@@ -67,101 +51,6 @@ function printSessionGraphMutationBlocked(context: CommandContext): void {
     '[session] Use /session graph for read-only inspection.',
     '[session] Use /delegate <task> for explicit build/fix/review handoff to GoodVibes TUI.',
   ].join('\n'));
-}
-
-// ── /session link-task ────────────────────────────────────────────────────────
-
-function handleLinkTask(args: string[], context: CommandContext): void {
-  const taskId = args[0];
-  if (!taskId) {
-    context.print(
-      '[session] Usage: /session link-task <taskId> [--session <sessionId>] ' +
-      '[--depends-on <sessionId:taskId>] [--label <label>]',
-    );
-    return;
-  }
-
-  // Defense-in-depth: parser splits on whitespace but guard against future changes
-  if (!taskId.trim()) {
-    context.print('Error: taskId cannot be empty or whitespace.');
-    return;
-  }
-
-  if (taskId.includes(':')) {
-    context.print('Error: taskId cannot contain ":" — it conflicts with the composite key format.');
-    return;
-  }
-
-  const sessionId = flagValue(args, '--session') ?? context.session.runtime.sessionId;
-  const dependsOnRaw = flagValue(args, '--depends-on');
-  const label = flagValue(args, '--label');
-
-  const orchestration = requireSessionOrchestration(context);
-
-  const ref: CrossSessionTaskRef = {
-    sessionId,
-    taskId,
-    title: label ?? taskId,
-    status: 'queued',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    label,
-  };
-
-  const dependsOn = dependsOnRaw ? parseRef(dependsOnRaw, sessionId) : undefined;
-
-  const result = orchestration.linkTask(ref, dependsOn);
-
-  if (!result.ok) {
-    context.print(`[session] link-task failed: ${result.error}`);
-    return;
-  }
-
-  context.print(
-    `[session] Task linked: ${sessionId.slice(0, 8)}...:${taskId}` +
-    (label ? ` [${label}]` : '') +
-    (dependsOn ? ` → depends on ${dependsOnRaw}` : ''),
-  );
-}
-
-// ── /session handoff ──────────────────────────────────────────────────────────
-
-function handleHandoff(args: string[], context: CommandContext): void {
-  const taskId = args[0];
-  const toSessionId = flagValue(args, '--to');
-  const fromSessionId = flagValue(args, '--session') ?? context.session.runtime.sessionId;
-  const reason = flagValue(args, '--reason');
-
-  if (!taskId || !toSessionId) {
-    context.print(
-      '[session] Usage: /session handoff <taskId> --to <sessionId> ' +
-      '[--session <fromSessionId>] [--reason <reason>]',
-    );
-    return;
-  }
-
-  const orchestration = requireSessionOrchestration(context);
-
-  const result = orchestration.initiateHandoff(
-    { sessionId: fromSessionId, taskId },
-    fromSessionId,
-    toSessionId,
-    reason,
-  );
-
-  if (!result.ok) {
-    context.print(`[session] handoff failed: ${result.error}`);
-    return;
-  }
-
-  context.print(
-    `[session] Handoff initiated: ${taskId} (${fromSessionId.slice(0, 8)}...) → (${toSessionId.slice(0, 8)}...)` +
-    (reason ? `  reason: ${reason}` : '') +
-    `\n[session] handoffId: ${result.handoffId}`,
-  );
-  context.print(
-    '[session] The task is now blocked pending acknowledgement from the destination session.',
-  );
 }
 
 // ── /session graph ────────────────────────────────────────────────────────────
@@ -245,66 +134,6 @@ function handleGraph(args: string[], context: CommandContext): void {
         `task:${h.taskRef.taskId.slice(0, 8)}...  [${ack}]` +
         (h.reason ? `  reason: ${h.reason}` : ''),
       );
-    }
-  }
-
-  context.print(lines.join('\n'));
-}
-
-// ── /session cancel ───────────────────────────────────────────────────────────
-
-function handleCancel(args: string[], context: CommandContext): void {
-  const scopeRaw = flagValue(args, '--scope');
-  if (scopeRaw && !VALID_SCOPES.includes(scopeRaw as CancellationScope)) {
-    context.print(`Invalid --scope: "${scopeRaw}". Valid: ${VALID_SCOPES.join(', ')}`);
-    return;
-  }
-  const scope: CancellationScope = (scopeRaw as CancellationScope) ?? 'task';
-  const sessionId = flagValue(args, '--session') ?? context.session.runtime.sessionId;
-  const reason = flagValue(args, '--reason');
-
-  // For session scope, taskId is not required
-  const taskId = scope === 'session' ? undefined : args[0];
-
-  if (scope !== 'session' && !taskId) {
-    context.print(
-      '[session] Usage: /session cancel <taskId> [--scope task|subtree|session] ' +
-      '[--session <sessionId>] [--reason <reason>]\n' +
-      '  --scope task     Cancel only this task (default)\n' +
-      '  --scope subtree  Cancel this task and all tasks that transitively depend on it\n' +
-      '  --scope session  Cancel all tasks in the session',
-    );
-    return;
-  }
-
-  const orchestration = requireSessionOrchestration(context);
-
-  const result = orchestration.cancel({
-    sessionId,
-    taskId,
-    scope,
-    reason,
-    requestedAt: Date.now(),
-  });
-
-  if (!result.ok) {
-    context.print(`[session] cancel failed: ${result.error}`);
-    return;
-  }
-
-  const lines: string[] = [
-    `[session] Cancelled ${result.cancelled.length} task${result.cancelled.length !== 1 ? 's' : ''} ` +
-    `(scope=${scope}):`,
-  ];
-
-  for (const t of result.cancelled) {
-    lines.push(`  [x] ${t.sessionId.slice(0, 8)}...:${t.taskId.slice(0, 8)}...  "${t.title}"`);
-  }
-
-  if (result.skipped.length > 0) {
-    lines.push(`  Skipped ${result.skipped.length} (already terminal):`);
-    for (const s of result.skipped) {
-      lines.push(`  [-] ${s.sessionId.slice(0, 8)}...:${s.taskId.slice(0, 8)}...  "${s.title}"  (${s.reason})`);
     }
   }
 
