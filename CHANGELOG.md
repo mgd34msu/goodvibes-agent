@@ -2,6 +2,12 @@
 
 All notable changes to GoodVibes Agent will be recorded here.
 
+## 0.1.113 - 2026-06-02
+
+- efe8b9c feat: expose skill discovery in agent cli
+- 13ef595 fix: align agent docs and launch identity
+- 26fb57b fix: keep agent diagnostics product scoped
+
 ## 0.1.112 - 2026-06-02
 
 - 566995c test: align operator visibility gate
