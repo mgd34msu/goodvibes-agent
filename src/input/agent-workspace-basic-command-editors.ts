@@ -34,7 +34,7 @@ export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEd
   | 'workplan-add' | 'workplan-show' | 'workplan-status' | 'workplan-delete' | 'workplan-clear-completed'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
-  | 'mcp-server' | 'mcp-tools-server' | 'mcp-repair' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-clear' | 'notify-webhook-test'
+  | 'mcp-server' | 'mcp-tools-server' | 'mcp-repair' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-clear' | 'notify-webhook-test' | 'notify-send'
   | 'secret-set' | 'secret-link' | 'secret-test' | 'secret-delete'
 >;
 
@@ -92,6 +92,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'notify-webhook-remove'
     || kind === 'notify-webhook-clear'
     || kind === 'notify-webhook-test'
+    || kind === 'notify-send'
     || kind === 'secret-set'
     || kind === 'secret-link'
     || kind === 'secret-test'
@@ -309,6 +310,19 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       message: 'Send one test notification to configured webhook targets. Type yes on the final field to confirm.',
       fields: [
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /notify test with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'notify-send') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Send Notification',
+      selectedFieldIndex: 0,
+      message: 'Send one message to configured Agent notification webhook targets. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'message', label: 'Message', value: '', required: true, multiline: true, hint: 'Plain-text message to send. Ctrl-J inserts a new line.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /notify send with --yes.' },
       ],
     };
   }

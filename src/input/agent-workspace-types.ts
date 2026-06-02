@@ -55,6 +55,7 @@ export type AgentWorkspaceEditorKind =
   | 'notify-webhook-remove'
   | 'notify-webhook-clear'
   | 'notify-webhook-test'
+  | 'notify-send'
   | 'secret-set'
   | 'secret-link'
   | 'secret-test'

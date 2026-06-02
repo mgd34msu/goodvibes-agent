@@ -1291,7 +1291,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Run channel doctor');
     expect(output).toContain('edit channel-doctor');
     expect(output).toContain('/notify list');
-    expect(output).toContain('edit notify-webhook');
+    expect(output).toContain('edit notify-send');
     expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and Agent');
     expect(output).toContain('policy.');
     expect(output).toContain('Readiness: 2/13 ready; 2 enabled; 1 default target(s) configured.');
@@ -1313,8 +1313,10 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-clear-webhooks');
     const notificationOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(notificationOutput).toContain('edit notify-webhook');
     expect(notificationOutput).toContain('edit notify-webhook-clear');
     expect(notificationOutput).toContain('edit notify-webhook-test');
+    expect(notificationOutput).toContain('edit notify-send');
   });
 
   test('renders action feedback and refresh affordance', () => {

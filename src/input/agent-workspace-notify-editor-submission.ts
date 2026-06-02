@@ -3,7 +3,7 @@ import { quoteSlashCommandArg } from './slash-command-parser.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
-export type AgentWorkspaceNotifyEditorKind = 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-clear' | 'notify-webhook-test';
+export type AgentWorkspaceNotifyEditorKind = 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-clear' | 'notify-webhook-test' | 'notify-send';
 
 export type AgentWorkspaceNotifyEditorSubmission =
   | {
@@ -23,7 +23,8 @@ export function isAgentWorkspaceNotifyEditorKind(kind: string): kind is AgentWor
   return kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
     || kind === 'notify-webhook-clear'
-    || kind === 'notify-webhook-test';
+    || kind === 'notify-webhook-test'
+    || kind === 'notify-send';
 }
 
 function isAffirmative(value: string): boolean {
@@ -92,6 +93,19 @@ export function buildAgentWorkspaceNotifyEditorSubmission(
       'Opening notification webhook clear',
       'Opening notification webhook clear.',
       'The workspace handed a confirmed notification target cleanup command to the shell-owned command router.',
+    );
+  }
+
+  if (editor.kind === 'notify-send') {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Notification send not confirmed. Type yes, then press Enter.', 'Notification send not confirmed.');
+    }
+    const command = `/notify send ${quoteSlashCommandArg(readField('message'))} --yes`;
+    return dispatch(
+      command,
+      'Opening notification send',
+      'Opening notification send.',
+      'The workspace handed a confirmed notification send command to the shell-owned command router.',
     );
   }
 

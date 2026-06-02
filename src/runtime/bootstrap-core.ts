@@ -29,8 +29,11 @@ import { registerBootstrapHookBridge } from '@/runtime/index.ts';
 import { createRuntimeServices, type RuntimeServices } from './services.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
 import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts';
+import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
+import { registerAgentNotifyTool } from '../tools/agent-notify-tool.ts';
+import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
 import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { registerAgentRuntimeEvents } from './agent-runtime-events.ts';
@@ -229,8 +232,11 @@ export async function initializeBootstrapCore(
     overflowHandler: services.overflowHandler,
     changeTracker: services.sessionChangeTracker,
   });
+  registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
+  registerAgentNotifyTool(toolRegistry, configManager, services.webhookNotifier);
+  registerAgentOperatorBriefingTool(toolRegistry, services.shellPaths, configManager);
   registerAgentReminderScheduleTool(toolRegistry, services.shellPaths, configManager);
   installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),

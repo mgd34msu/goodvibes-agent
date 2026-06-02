@@ -100,7 +100,7 @@ Day-one local behavior setup should stay in the fullscreen workspace:
 - Routines -> Create routine, Start selected, or Promote to schedule after entering real timing and confirmation.
 - Skills -> Create skill, Enable selected, and review setup requirements.
 - Memory & Skills -> Create memory or Search memory.
-- Channels -> inspect readiness before enabling notification delivery.
+- Channels -> inspect readiness, add notification targets, and send notification messages only through confirmed actions.
 
 Typed slash commands are available for repeat users, but they are not required for the first-run workflow.
 

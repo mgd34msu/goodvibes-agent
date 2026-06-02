@@ -23,6 +23,7 @@ interface SideEffectCalls {
   notificationConfigWrites: number;
   notificationUrlWrites: number;
   notificationTests: number;
+  notificationSends: number;
 }
 
 function makeCalls(): SideEffectCalls {
@@ -32,6 +33,7 @@ function makeCalls(): SideEffectCalls {
     notificationConfigWrites: 0,
     notificationUrlWrites: 0,
     notificationTests: 0,
+    notificationSends: 0,
   };
 }
 
@@ -69,6 +71,15 @@ function makeContext(root: string, out: string[], calls: SideEffectCalls): Comma
       calls.notificationTests += 1;
       return [{ ok: true, url: 'https://ntfy.sh/goodvibes-agent-test' }];
     },
+    send: async () => {
+      calls.notificationSends += 1;
+      return {
+        attempted: 1,
+        delivered: 1,
+        failed: 0,
+        results: [{ ok: true, url: 'https://ntfy.sh/goodvibes-agent-test' }],
+      };
+    },
   };
 
   return {
@@ -102,11 +113,19 @@ describe('side-effecting slash command confirmation', () => {
       await registry.get('notify')!.handler(['remove', 'https://ntfy.sh/goodvibes-agent-test'], ctx);
       await registry.get('notify')!.handler(['clear'], ctx);
       await registry.get('notify')!.handler(['test'], ctx);
+      await registry.get('notify')!.handler(['send', 'hello'], ctx);
 
       expect(calls.notificationConfigWrites).toBe(0);
       expect(calls.notificationUrlWrites).toBe(0);
       expect(calls.notificationTests).toBe(0);
+      expect(calls.notificationSends).toBe(0);
       expect(out.join('\n')).toContain('without --yes');
+
+      out.length = 0;
+      await registry.get('notify')!.handler(['send', 'hello', '--yes'], ctx);
+      expect(calls.notificationUrlWrites).toBe(1);
+      expect(calls.notificationSends).toBe(1);
+      expect(out.join('\n')).toContain('Notification sent');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

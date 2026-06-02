@@ -2243,6 +2243,33 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening notification webhook test');
   });
 
+  test('sends notification webhook messages from the workspace only after typed confirmation', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-send');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('notify-send');
+    feedText(workspace, 'Review the new approvals');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/notify send "Review the new approvals" --yes']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Opening notification send');
+  });
+
   test('discovers and imports local skill files from the workspace after confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

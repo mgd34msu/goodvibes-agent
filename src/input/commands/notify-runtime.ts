@@ -6,9 +6,9 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'notify',
     aliases: [],
-    description: 'Manage webhook notification URLs (ntfy.sh format)',
-    usage: 'add <url> --yes | remove <url> --yes | list | clear --yes | test --yes',
-    argsHint: 'list|add --yes|remove --yes|test --yes',
+    description: 'Manage and send configured Agent webhook notifications',
+    usage: 'add <url> --yes | remove <url> --yes | list | clear --yes | test --yes | send <message> --yes',
+    argsHint: 'list|add --yes|remove --yes|test --yes|send --yes',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
@@ -96,7 +96,36 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      ctx.print('Usage: /notify add <url> --yes | remove <url> --yes | list | clear --yes | test --yes');
+      if (sub === 'send') {
+        const message = commandArgs.slice(1).join(' ').trim();
+        if (!message) {
+          ctx.print('Usage: /notify send <message> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, 'send a notification to configured webhook targets', '/notify send <message> --yes');
+          return;
+        }
+        if (urls.length === 0) {
+          ctx.print('No webhook URLs configured. Use: /notify add <url>');
+          return;
+        }
+        notifier.setUrls(urls);
+        const result = await notifier.send(message);
+        ctx.print([
+          'Notification sent',
+          `  attempted: ${result.attempted}`,
+          `  delivered: ${result.delivered}`,
+          `  failed: ${result.failed}`,
+          ...result.results.slice(0, 20).map((delivery, index) => (
+            `  target ${index + 1}: ${delivery.ok ? 'ok' : `failed${delivery.error ? ` (${delivery.error})` : ''}`}`
+          )),
+          ...(result.results.length > 20 ? [`  ${result.results.length - 20} more target(s) omitted.`] : []),
+        ].join('\n'));
+        return;
+      }
+
+      ctx.print('Usage: /notify add <url> --yes | remove <url> --yes | list | clear --yes | test --yes | send <message> --yes');
     },
   });
 }

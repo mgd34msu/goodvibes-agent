@@ -22,6 +22,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'notify-webhook-remove'
   | 'notify-webhook-clear'
   | 'notify-webhook-test'
+  | 'notify-send'
   | 'secret-set'
   | 'secret-link'
   | 'secret-test'

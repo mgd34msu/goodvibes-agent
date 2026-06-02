@@ -56,7 +56,7 @@ Use the workspace as the primary product surface:
 - Tools & MCP: MCP server setup, tool inventory, trust review, secret storage/link/test/delete, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, URL/URL-list/file/bookmark/browser-history/connector ingest, source library, review queue, and reindex.
 - Memory & Skills: local memory, learned behavior capture, personas, skills, routines, and schedule promotion.
-- Channels: companion pairing, channel readiness, notification routes, and webhook add/remove/test.
+- Channels: companion pairing, channel readiness, notification routes, and confirmed webhook add/remove/test/send.
 - Automation: reminder creation, schedule status, routine promotion, receipts, and reconciliation.
 - Build Delegation: explicit handoff to GoodVibes TUI for build/fix/review work.
 
@@ -84,7 +84,7 @@ Local Agent behavior is editable from the TUI workspace:
 - Agent Workspace -> Skills: create skills, import discovered skills, enable or disable them, and manage skill bundles.
 - Agent Workspace -> Routines: create routines, start a routine in the main conversation, review receipts, and explicitly promote one routine to a connected schedule.
 - Agent Workspace -> Memory & Skills: create memory, search memory, review/stale/delete records, export/import bundles, and rebuild the local vector index.
-- Agent Workspace -> Channels: inspect readiness, pair companion clients, and manage notification targets with confirmation.
+- Agent Workspace -> Channels: inspect readiness, pair companion clients, and manage or send configured notification targets with confirmation.
 
 Slash commands remain available inside the TUI for power users, but the fullscreen Agent workspace is the primary path for these workflows.
 
