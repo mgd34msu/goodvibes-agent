@@ -220,6 +220,70 @@ describe('AgentWorkspace', () => {
     expect(missingCommands).toEqual([]);
   });
 
+  test('first-class product commands have Agent workspace access', () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const workspaceCommandRoots = new Set(AGENT_WORKSPACE_CATEGORIES.flatMap((category) => (
+      category.actions.flatMap((action) => {
+        const command = action.command?.trim();
+        if (!command?.startsWith('/')) return [];
+        const root = command.slice(1).split(/\s+/)[0];
+        return root ? [root] : [];
+      })
+    )));
+    const shellOnlyCommands = new Set([
+      'agent',
+      'bookmarks',
+      'clear',
+      'collapse',
+      'commands',
+      'compact',
+      'context',
+      'conversation',
+      'effort',
+      'expand',
+      'export',
+      'help',
+      'image',
+      'keybindings',
+      'load',
+      'login',
+      'logout',
+      'mode',
+      'next-error',
+      'paste',
+      'pin',
+      'prev-error',
+      'qrcode',
+      'quit',
+      'redo',
+      'refresh-models',
+      'reset',
+      'retry',
+      'save',
+      'session',
+      'shortcuts',
+      'title',
+      'tts',
+      'undo',
+      'unpin',
+      'voice',
+      'welcome',
+    ]);
+    const workspaceFormBackedCommands = new Set([
+      'bundle',
+    ]);
+
+    const missingWorkspaceAccess = registry.list()
+      .map((command) => command.name)
+      .filter((name) => !workspaceCommandRoots.has(name))
+      .filter((name) => !shellOnlyCommands.has(name))
+      .filter((name) => !workspaceFormBackedCommands.has(name))
+      .sort();
+
+    expect(missingWorkspaceAccess).toEqual([]);
+  });
+
   test('opens as an operator workspace and keeps guidance actions local', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
@@ -283,7 +347,7 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
-  test('work workspace reviews work plan tasks sessions and approvals from transcript instead of opening a panel', () => {
+  test('work workspace reviews planning work plan tasks sessions and approvals from transcript instead of opening a panel', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -291,6 +355,8 @@ describe('AgentWorkspace', () => {
 
     const commands = workspace.actions.map((action) => action.command).filter(Boolean);
     expect(commands).not.toContain('/workplan panel');
+    expect(commands).not.toContain('/plan panel');
+    expect(commands).not.toContain('/plan approve --yes');
     expect(commands).not.toContain('/approval open');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'workplan');
@@ -299,22 +365,34 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual(['/workplan list']);
     expect(workspace.status).toContain('/workplan list');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'planning-status');
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/workplan list', '/plan status']);
+    expect(workspace.status).toContain('/plan status');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'planning-list');
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list']);
+    expect(workspace.status).toContain('/plan list');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tasks-list');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/tasks list']);
+    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/tasks list']);
     expect(workspace.status).toContain('/tasks list');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'sessions-list');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/tasks list', '/sessions']);
+    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/tasks list', '/sessions']);
     expect(workspace.status).toContain('/sessions');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approvals');
     workspace.activateSelected();
 
-    expect(dispatched).toEqual(['/workplan list', '/tasks list', '/sessions', '/approval matrix']);
+    expect(dispatched).toEqual(['/workplan list', '/plan status', '/plan list', '/tasks list', '/sessions', '/approval matrix']);
     expect(workspace.status).toContain('/approval matrix');
   });
 

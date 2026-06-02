@@ -245,6 +245,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Use this workspace to inspect active operator state. Side-effecting approval decisions require explicit commands and confirmation outside this workspace.',
     actions: [
       { id: 'workplan', label: 'Review work plan', detail: 'Print a concise work plan summary in the main Agent transcript.', command: '/workplan list', kind: 'command', safety: 'read-only' },
+      { id: 'planning-status', label: 'Planning status', detail: 'Inspect current Agent planning readiness, mode, and next question without seeding or approving planning state.', command: '/plan status', kind: 'command', safety: 'read-only' },
+      { id: 'planning-list', label: 'Saved plans', detail: 'List local execution plans without opening copied planning panels or changing planning state.', command: '/plan list', kind: 'command', safety: 'read-only' },
       { id: 'tasks-list', label: 'Runtime tasks', detail: 'Inspect connected-host task state without creating, retrying, or mutating tasks.', command: '/tasks list', kind: 'command', safety: 'read-only' },
       { id: 'sessions-list', label: 'Saved sessions', detail: 'Browse saved Agent sessions from the TUI without using a shell-only command.', command: '/sessions', kind: 'command', safety: 'read-only' },
       { id: 'approvals', label: 'Review approvals', detail: 'Print the approval matrix without approving or denying requests.', command: '/approval matrix', kind: 'command', safety: 'read-only' },
