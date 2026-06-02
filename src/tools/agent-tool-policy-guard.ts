@@ -361,7 +361,7 @@ export function wrapBlockedSettingsToolForAgentPolicy(tool: Tool): void {
   tool.definition.description = [
     'Blocked in GoodVibes Agent main conversation: configuration mutation.',
     'Use explicit Agent CLI/slash settings commands for intentional config changes.',
-    'Daemon lifecycle and service exposure remain externally managed by GoodVibes TUI/daemon.',
+    'Connected-host lifecycle and service exposure remain externally managed outside GoodVibes Agent.',
   ].join(' ');
   tool.definition.sideEffects = [];
   tool.definition.parameters = {

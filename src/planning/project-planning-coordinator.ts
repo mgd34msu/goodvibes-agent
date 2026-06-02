@@ -288,7 +288,7 @@ export class ProjectPlanningCoordinator {
     const cleanGoal = goal.trim() || 'the requested change';
     return [
       `First pass: make "${cleanGoal}" work end-to-end for the primary local TUI workflow.`,
-      'Include the minimum TUI, daemon wiring, configuration persistence, documentation, and verification required for the feature to actually work.',
+      'Include the minimum TUI, connected-host wiring, configuration persistence, documentation, and verification required for the feature to actually work.',
       'Exclude unrelated cleanup, broad refactors, polish-only changes, third-party integrations, and advanced distributed behavior unless they directly block the primary workflow.',
     ].join(' ');
   }
@@ -344,7 +344,7 @@ export class ProjectPlanningCoordinator {
       {
         id: 'wire-user-surface',
         title: `Wire the user-facing path for ${cleanGoal}`,
-        why: 'The feature must be reachable through the intended TUI/daemon/config surface, not just internal code.',
+        why: 'The feature must be reachable through the intended TUI/connected-host/config surface, not just internal code.',
         status: 'pending',
         dependencies: ['implement-core-behavior'],
         verification: ['A command, panel, route, or setting path exercises the behavior from the user-facing entry point.'],

@@ -4,10 +4,10 @@
  * Shared helper that enumerates the legacy workspace-scoped `operator-tokens.json`
  * locations earlier GoodVibes builds may have written. Used by the in-process
  * bootstrap path so stale-token pruning has a single source of truth for where
- * to look. GoodVibes Agent itself does not own daemon startup.
+ * to look. GoodVibes Agent itself does not own connected-host startup.
  *
  * Adding a new legacy location: append to `workspaceOperatorTokenCandidates` and
- * the new path will be inspected on the next daemon boot.
+ * the new path will be inspected on the next connected-host boot.
  */
 
 import { join } from 'node:path';

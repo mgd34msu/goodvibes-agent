@@ -345,7 +345,7 @@ export interface RuntimeServices {
    * Agent memory is home/profile-owned and intentionally does not move on workspace swap.
    * Called by WorkspaceSwapManager after the new directory has been verified.
    * Stores that require a process restart emit a warn-level log; they continue serving
-   * the old path until the daemon restarts with the new --working-dir.
+   * the old path until the externally owned GoodVibes host restarts with the new --working-dir.
    */
   rerootStores(newWorkingDir: string): Promise<void>;
 }

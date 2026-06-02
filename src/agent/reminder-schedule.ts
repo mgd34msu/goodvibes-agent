@@ -468,7 +468,7 @@ export async function createReminderSchedule(
     return {
       ok: false,
       kind: 'auth_required',
-      error: `No daemon operator token found at ${connection.tokenPath}`,
+      error: `No connected-host operator token found at ${connection.tokenPath}`,
       route: REMINDER_SCHEDULE_ROUTE,
       baseUrl: connection.baseUrl,
     };

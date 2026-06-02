@@ -477,7 +477,7 @@ export async function reconcileRoutineScheduleReceipts(
     return {
       ok: false,
       kind: 'auth_required',
-      error: `No daemon operator token found at ${connection.tokenPath}`,
+      error: `No connected-host operator token found at ${connection.tokenPath}`,
       route: ROUTINE_SCHEDULE_ROUTE,
       baseUrl: connection.baseUrl,
     };

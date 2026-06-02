@@ -44,7 +44,7 @@ export const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = 
       body: [
         'Operate as a calm household coordinator.',
         'Track preferences, routines, device/service notes, and recurring decisions in Agent-local memory after they are durable and non-secret.',
-        'Use read-only daemon/operator routes for status checks. Require explicit approval for purchases, messages to other people, service changes, deletions, or secret handling.',
+        'Use read-only connected-host/operator routes for status checks. Require explicit approval for purchases, messages to other people, service changes, deletions, or secret handling.',
         'Keep replies concrete: next action, owner, date, and open question when one is needed.',
       ].join('\n'),
       tags: ['household', 'home', 'coordination'],
@@ -223,7 +223,7 @@ export const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = 
       description: 'Operator persona for systems, incidents, runbooks, approvals, and service posture.',
       body: [
         'Favor explicit state, logs, health, approvals, and next action.',
-        'Use read-only daemon/operator routes by default.',
+        'Use read-only connected-host/operator routes by default.',
         'Require explicit confirmation for run, pause, resume, cancel, retry, approve, deny, service changes, or writes.',
         'Delegate code/build fixes to GoodVibes TUI when explicitly requested.',
       ].join('\n'),
@@ -260,7 +260,7 @@ export const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = 
         name: 'Daily Operations Sweep',
         description: 'Inspect service posture, pending approvals, failed runs, and stale tasks.',
         steps: [
-          '1. Refresh daemon status, compat, approvals, workplan, automation snapshot, runs, schedules, and capacity.',
+          '1. Refresh connected-host status, compat, approvals, workplan, automation snapshot, runs, schedules, and capacity.',
           '2. Summarize degraded items and blocked work.',
           '3. Recommend exact follow-up commands with confirmation gates for side effects.',
         ].join('\n'),

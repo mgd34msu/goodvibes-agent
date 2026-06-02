@@ -323,8 +323,8 @@ export async function initializeBootstrapCore(
     agentManager: services.agentManager,
   });
 
-  // Subscribe to companion main-chat messages received from the daemon's HTTP layer.
-  // The daemon emits COMPANION_MESSAGE_RECEIVED on the runtime bus when a companion
+  // Subscribe to companion main-chat messages received from the connected host's HTTP layer.
+  // The connected host emits COMPANION_MESSAGE_RECEIVED on the runtime bus when a companion
   // POST /api/sessions/:id/messages with kind='message' arrives.
   //
   // bootstrap.ts patches orchestratorHandleUserInputRef.value after the Orchestrator

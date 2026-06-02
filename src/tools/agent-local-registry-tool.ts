@@ -469,7 +469,7 @@ function handleRoutine(shellPaths: ShellPathService, action: AgentLocalRegistryA
     const routine = registry.markStarted(requireId(args));
     return [
       `Started Agent-local routine ${routine.id}: ${routine.name}`,
-      'Policy: same main conversation; no hidden background job, daemon mutation, or external side effect was started.',
+      'Policy: same main conversation; no hidden background job, connected-host mutation, or external side effect was started.',
       '',
       routine.steps,
     ].join('\n');
