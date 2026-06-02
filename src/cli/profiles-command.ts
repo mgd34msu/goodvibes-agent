@@ -1,5 +1,6 @@
 import {
   createAgentRuntimeProfile,
+  createAgentRuntimeProfileFromDiscovered,
   createAgentRuntimeProfileTemplateFromDiscovered,
   deleteAgentRuntimeProfile,
   exportAgentRuntimeProfileTemplate,
@@ -115,6 +116,17 @@ function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string 
       `  skills: ${result.data.template.skillNames.join(', ')}`,
       `  routines: ${result.data.template.routineNames.join(', ')}`,
       `  use: goodvibes-agent profiles create <name> --template ${result.data.template.id} --yes`,
+    ].join('\n');
+  }
+  if (result.kind === 'agent.profiles.create_from_discovered' && result.data?.profile && result.data.template) {
+    return [
+      `Agent profile created from discovered behavior: ${result.data.profile.id}`,
+      `  home: ${result.data.profile.homeDirectory}`,
+      `  starter: ${result.data.template.id}`,
+      `  persona: ${result.data.template.personaName}`,
+      `  skills: ${result.data.template.skillNames.join(', ')}`,
+      `  routines: ${result.data.template.routineNames.join(', ')}`,
+      `  launch: ${result.data.nextCommand ?? `goodvibes-agent --agent-profile ${result.data.profile.id}`}`,
     ].join('\n');
   }
   const profile = result.data?.profile;
@@ -345,6 +357,59 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
           profile,
           appliedTemplate: profile.starterTemplateApplication,
           nextCommand: `goodvibes-agent --agent-profile ${profile.id}`,
+        },
+      };
+      return {
+        output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+        exitCode: 0,
+      };
+    }
+
+    if (sub === 'create-from-discovered' || sub === 'create-discovered') {
+      const name = values[0];
+      if (!name) {
+        const result: AgentRuntimeProfileCommandResult = {
+          ok: false,
+          kind: 'agent.profiles.error',
+          error: 'Usage: goodvibes-agent profiles create-from-discovered <name> [--template-id <id>] [--profile-name <display>] [--description <summary>] [--persona <name>] [--skills all|name,name] [--routines all|name,name] [--replace] --yes',
+        };
+        return {
+          output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+          exitCode: 2,
+        };
+      }
+      if (!hasYes(rawRest)) {
+        const result: AgentRuntimeProfileCommandResult = {
+          ok: false,
+          kind: 'agent.profiles.error',
+          error: `Refusing to create Agent profile ${name} from discovered behavior without --yes.`,
+        };
+        return {
+          output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
+          exitCode: 2,
+        };
+      }
+      const created = await createAgentRuntimeProfileFromDiscovered({
+        homeDirectory: runtime.homeDirectory,
+        workingDirectory: runtime.workingDirectory,
+      }, {
+        profileName: name,
+        templateId: flagValue(rawRest, ['--template-id', '--starter-id']) ?? undefined,
+        name: flagValue(rawRest, ['--profile-name', '--name']) ?? undefined,
+        description: flagValue(rawRest, ['--description']) ?? undefined,
+        persona: flagValue(rawRest, ['--persona']) ?? undefined,
+        skills: parseCsvFlag(rawRest, ['--skills']),
+        routines: parseCsvFlag(rawRest, ['--routines']),
+        replace: rawRest.includes('--replace'),
+      });
+      const result: AgentRuntimeProfileCommandResult = {
+        ok: true,
+        kind: 'agent.profiles.create_from_discovered',
+        data: {
+          profile: created.profile,
+          appliedTemplate: created.profile.starterTemplateApplication,
+          template: created.template,
+          nextCommand: `goodvibes-agent --agent-profile ${created.profile.id}`,
         },
       };
       return {

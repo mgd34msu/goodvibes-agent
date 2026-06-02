@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
+  createAgentRuntimeProfileFromDiscovered,
   createAgentRuntimeProfileTemplateFromDiscovered,
   createAgentRuntimeProfile,
   deleteAgentRuntimeProfile,
@@ -69,6 +70,7 @@ function renderTemplates(homeDirectory: string): string {
     '  edit the JSON file',
     '  /agent-profile template import ./agent-starter.json --yes',
     '  /agent-profile create <name> --template <imported-id> --yes',
+    '  /agent-profile create-from-discovered <name> --yes',
   ].join('\n');
 }
 
@@ -115,7 +117,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
     name: 'agent-profile',
     aliases: ['runtime-profile', 'agent-profiles'],
     description: 'Manage isolated Agent profiles and starter templates',
-    usage: '[list|templates|guide|template show|template export|template import|template from-discovered|create|delete]',
+    usage: '[list|templates|guide|template show|template export|template import|template from-discovered|create|create-from-discovered|delete]',
     async handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);
       const homeDirectory = shellPaths.homeDirectory;
@@ -235,6 +237,38 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           return;
         }
 
+        if (sub === 'create-from-discovered' || sub === 'create-discovered') {
+          const profileName = commandArgs[1];
+          if (!profileName) {
+            ctx.print('Usage: /agent-profile create-from-discovered <name> [--template-id <id>] [--profile-name <display>] [--description <summary>] [--persona <name>] [--skills all|name,name] [--routines all|name,name] [--replace] --yes');
+            return;
+          }
+          if (!parsed.yes) {
+            requireYesFlag(ctx, `create Agent profile ${profileName} from discovered behavior`, '/agent-profile create-from-discovered <name> --yes');
+            return;
+          }
+          const created = await createAgentRuntimeProfileFromDiscovered(shellPaths, {
+            profileName,
+            templateId: parseFlag(commandArgs, '--template-id') ?? parseFlag(commandArgs, '--starter-id'),
+            name: parseFlag(commandArgs, '--profile-name') ?? parseFlag(commandArgs, '--name'),
+            description: parseFlag(commandArgs, '--description'),
+            persona: parseFlag(commandArgs, '--persona'),
+            skills: parseCsvFlag(commandArgs, '--skills'),
+            routines: parseCsvFlag(commandArgs, '--routines'),
+            replace: commandArgs.includes('--replace'),
+          });
+          ctx.print([
+            `Agent profile created from discovered behavior: ${created.profile.id}`,
+            `  home: ${created.profile.homeDirectory}`,
+            `  starter: ${created.template.id}`,
+            `  persona: ${created.template.personaName}`,
+            `  skills: ${created.template.skillNames.join(', ')}`,
+            `  routines: ${created.template.routineNames.join(', ')}`,
+            `  launch: goodvibes-agent --agent-profile ${created.profile.id}`,
+          ].join('\n'));
+          return;
+        }
+
         if (sub === 'delete') {
           const name = commandArgs[1];
           if (!name) {
@@ -249,7 +283,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           return;
         }
 
-        ctx.print('Usage: /agent-profile [list|templates|guide|template show <id>|template export <id> <path> --yes|template import <path> --yes|create <name> [--template <id>] --yes|delete <name> --yes]');
+        ctx.print('Usage: /agent-profile [list|templates|guide|template show <id>|template export <id> <path> --yes|template import <path> --yes|create <name> [--template <id>] --yes|create-from-discovered <name> --yes|delete <name> --yes]');
       } catch (error) {
         ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
       }

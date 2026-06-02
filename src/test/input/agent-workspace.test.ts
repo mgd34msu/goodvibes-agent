@@ -1622,6 +1622,10 @@ describe('AgentWorkspace', () => {
     expect(calls.at(-1)).toContain('Agent starter template created from discovered behavior: research-desk');
     expect(await registry.execute('agent-profile', ['create', 'desk', '--template', 'research-desk', '--yes'], ctx)).toBe(true);
     expect(calls.at(-1)).toContain('starter: research-desk');
+
+    expect(await registry.execute('agent-profile', ['create-from-discovered', 'field-desk', '--template-id', 'field-desk-starter', '--name', 'Field Desk', '--yes'], ctx)).toBe(true);
+    expect(calls.at(-1)).toContain('Agent profile created from discovered behavior: field-desk');
+    expect(calls.at(-1)).toContain('starter: field-desk-starter');
   });
 
   test('exports and imports profile starter templates from in-workspace forms', () => {
@@ -1691,6 +1695,41 @@ describe('AgentWorkspace', () => {
       '/agent-profile template from-discovered research-desk --name "Research Desk" --description "Imported starter for research operations." --persona "Research Operator" --skills all --routines all --yes',
     ]);
     expect(workspace.lastActionResult?.title).toBe('Opening Agent starter-from-discovered creation');
+  });
+
+  test('dispatches profile creation from discovered behavior through workspace form', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-from-discovered');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('profile-from-discovered');
+    feedText(workspace, 'research-desk');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'research-desk-starter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Research Desk');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Imported profile for research operations.');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Research Operator');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'all');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'all');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/agent-profile create-from-discovered research-desk --template-id research-desk-starter --name "Research Desk" --description "Imported profile for research operations." --persona "Research Operator" --skills all --routines all --yes',
+    ]);
+    expect(workspace.lastActionResult?.title).toBe('Opening Agent profile-from-discovered creation');
   });
 
   test('keeps profile starter template forms local until typed confirmation', () => {

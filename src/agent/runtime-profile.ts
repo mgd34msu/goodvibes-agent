@@ -59,6 +59,11 @@ export interface CreateAgentRuntimeProfileTemplateFromDiscoveredOptions {
   readonly replace?: boolean;
 }
 
+export interface CreateAgentRuntimeProfileFromDiscoveredOptions extends Omit<CreateAgentRuntimeProfileTemplateFromDiscoveredOptions, 'id'> {
+  readonly profileName: string;
+  readonly templateId?: AgentRuntimeProfileTemplateId;
+}
+
 export interface AgentRuntimeProfileCommandResult {
   readonly ok: boolean;
   readonly kind:
@@ -68,6 +73,7 @@ export interface AgentRuntimeProfileCommandResult {
     | 'agent.profiles.template.export'
     | 'agent.profiles.template.import'
     | 'agent.profiles.template.from_discovered'
+    | 'agent.profiles.create_from_discovered'
     | 'agent.profiles.create'
     | 'agent.profiles.delete'
     | 'agent.profiles.error';
@@ -765,6 +771,32 @@ export async function createAgentRuntimeProfileTemplateFromDiscovered(
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, `${JSON.stringify(templateFilePayload(template), null, 2)}\n`, 'utf-8');
   return summarizeTemplate(template);
+}
+
+export async function createAgentRuntimeProfileFromDiscovered(
+  shellPaths: Pick<ShellPathService, 'homeDirectory' | 'workingDirectory'>,
+  options: CreateAgentRuntimeProfileFromDiscoveredOptions,
+): Promise<{
+  readonly profile: AgentRuntimeProfileInfo;
+  readonly template: AgentRuntimeProfileTemplateSummary;
+}> {
+  const profileId = assertValidAgentRuntimeProfileId(options.profileName);
+  const resolution = resolveAgentRuntimeProfileHome(shellPaths.homeDirectory, profileId);
+  if (existsSync(resolution.homeDirectory)) {
+    throw new Error(`Agent profile already exists: ${resolution.id}`);
+  }
+  const templateId = assertValidAgentRuntimeProfileId(options.templateId ?? profileId);
+  const template = await createAgentRuntimeProfileTemplateFromDiscovered(shellPaths, {
+    id: templateId,
+    name: options.name,
+    description: options.description,
+    persona: options.persona,
+    skills: options.skills,
+    routines: options.routines,
+    replace: options.replace,
+  });
+  const profile = createAgentRuntimeProfile(shellPaths.homeDirectory, profileId, { templateId: template.id });
+  return { profile, template };
 }
 
 function createMissingSkill(registry: AgentSkillRegistry, template: AgentRuntimeProfileStarterTemplate['skills'][number]): string {

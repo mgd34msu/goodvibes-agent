@@ -30,6 +30,7 @@ type AgentWorkspaceCommandEditorKind = Extract<
   | 'profile-template-export'
   | 'profile-template-import'
   | 'profile-template-from-discovered'
+  | 'profile-from-discovered'
 >;
 
 type AgentWorkspaceCommandEditorSubmission =

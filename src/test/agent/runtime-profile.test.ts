@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   assertValidAgentRuntimeProfileId,
   createAgentRuntimeProfile,
+  createAgentRuntimeProfileFromDiscovered,
   deleteAgentRuntimeProfile,
   exportAgentRuntimeProfileTemplate,
   getAgentRuntimeProfilesRoot,
@@ -161,6 +162,51 @@ describe('Agent profiles', () => {
     const persona = new AgentPersonaRegistry(join(profile.homeDirectory, '.goodvibes', 'agent', 'personas', 'personas.json')).snapshot();
     const skills = new AgentSkillRegistry(join(profile.homeDirectory, '.goodvibes', 'agent', 'skills', 'skills.json')).snapshot();
     const routines = new AgentRoutineRegistry(join(profile.homeDirectory, '.goodvibes', 'agent', 'routines', 'routines.json')).snapshot();
+    expect(persona.activePersona?.name).toBe('Research Operator');
+    expect(skills.enabledSkills.map((skill) => skill.name)).toEqual(['Daily Brief Skill']);
+    expect(routines.enabledRoutines.map((routine) => routine.name)).toEqual(['Evening Review']);
+  });
+
+  test('creates a profile directly from discovered Agent behavior files', async () => {
+    const home = makeHome();
+    const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-direct-discovery-'));
+    mkdirSync(join(workspace, '.goodvibes', 'agent', 'personas'), { recursive: true });
+    mkdirSync(join(workspace, '.goodvibes', 'agent', 'skills', 'briefing'), { recursive: true });
+    mkdirSync(join(workspace, '.goodvibes', 'agent', 'routines'), { recursive: true });
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'personas', 'research.md'), [
+      '---',
+      'name: Research Operator',
+      '---',
+      'Prefer checked sources and clear unknowns.',
+    ].join('\n'));
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'skills', 'briefing', 'SKILL.md'), [
+      '---',
+      'name: Daily Brief Skill',
+      '---',
+      'Review work plans, approvals, routines, and Agent Knowledge before summarizing.',
+    ].join('\n'));
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'routines', 'evening.md'), [
+      '---',
+      'name: Evening Review',
+      '---',
+      'Review work plan, approvals, routines, and Agent Knowledge status.',
+    ].join('\n'));
+
+    const created = await createAgentRuntimeProfileFromDiscovered({
+      homeDirectory: home,
+      workingDirectory: workspace,
+    }, {
+      profileName: 'desk',
+      templateId: 'research-desk',
+      name: 'Research Desk',
+    });
+
+    expect(created.template.id).toBe('research-desk');
+    expect(created.profile.id).toBe('desk');
+    expect(created.profile.starterTemplateId).toBe('research-desk');
+    const persona = new AgentPersonaRegistry(join(created.profile.homeDirectory, '.goodvibes', 'agent', 'personas', 'personas.json')).snapshot();
+    const skills = new AgentSkillRegistry(join(created.profile.homeDirectory, '.goodvibes', 'agent', 'skills', 'skills.json')).snapshot();
+    const routines = new AgentRoutineRegistry(join(created.profile.homeDirectory, '.goodvibes', 'agent', 'routines', 'routines.json')).snapshot();
     expect(persona.activePersona?.name).toBe('Research Operator');
     expect(skills.enabledSkills.map((skill) => skill.name)).toEqual(['Daily Brief Skill']);
     expect(routines.enabledRoutines.map((routine) => routine.name)).toEqual(['Evening Review']);

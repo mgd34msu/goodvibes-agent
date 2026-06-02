@@ -193,4 +193,42 @@ describe('profiles CLI command', () => {
     const personaRegistry = new AgentPersonaRegistry(join(home, '.goodvibes', 'agent', 'profile-homes', 'desk', '.goodvibes', 'agent', 'personas', 'personas.json'));
     expect(personaRegistry.snapshot().activePersona?.name).toBe('Research Operator');
   });
+
+  test('creates a profile directly from discovered behavior through the CLI', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-direct-discovered-'));
+    mkdirSync(join(home, '.goodvibes', 'agent', 'personas'), { recursive: true });
+    mkdirSync(join(home, '.goodvibes', 'agent', 'skills', 'briefing'), { recursive: true });
+    mkdirSync(join(home, '.goodvibes', 'agent', 'routines'), { recursive: true });
+    writeFileSync(join(home, '.goodvibes', 'agent', 'personas', 'research.md'), [
+      '---',
+      'name: Research Operator',
+      '---',
+      'Prefer checked sources and clear unknowns.',
+    ].join('\n'));
+    writeFileSync(join(home, '.goodvibes', 'agent', 'skills', 'briefing', 'SKILL.md'), [
+      '---',
+      'name: Daily Brief Skill',
+      '---',
+      'Review work plans, approvals, routines, and Agent Knowledge before summarizing.',
+    ].join('\n'));
+    writeFileSync(join(home, '.goodvibes', 'agent', 'routines', 'evening.md'), [
+      '---',
+      'name: Evening Review',
+      '---',
+      'Review work plan, approvals, routines, and Agent Knowledge status.',
+    ].join('\n'));
+
+    const refused = await runProfilesCli(['profiles', 'create-from-discovered', 'desk'], home);
+    expect(refused.result.exitCode).toBe(2);
+    expect(refused.output).toContain('without --yes');
+
+    const created = await runProfilesCli(['profiles', 'create-from-discovered', 'desk', '--template-id', 'research-desk', '--name', 'Research Desk', '--yes'], home);
+    expect(created.result.exitCode).toBe(0);
+    expect(created.output).toContain('Agent profile created from discovered behavior: desk');
+    expect(created.output).toContain('starter: research-desk');
+    expect(created.output).toContain('launch: goodvibes-agent --agent-profile desk');
+
+    const personaRegistry = new AgentPersonaRegistry(join(home, '.goodvibes', 'agent', 'profile-homes', 'desk', '.goodvibes', 'agent', 'personas', 'personas.json'));
+    expect(personaRegistry.snapshot().activePersona?.name).toBe('Research Operator');
+  });
 });
