@@ -353,6 +353,21 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'profile-template-show') {
+    const command = `/agent-profile template show ${quoteSlashCommandArg(readField('id'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent starter template preview.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent starter template preview',
+        detail: 'The workspace handed a read-only starter template preview command to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
   if (editor.kind === 'profile-template-from-discovered') {
     if (!isAffirmative(readField('confirm'))) {
       return {
@@ -473,6 +488,28 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening default Agent profile clear',
         detail: 'The workspace handed a confirmed default profile clear command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'profile-delete') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Agent profile delete not confirmed. Type yes, then press Enter.' },
+        status: 'Agent profile delete not confirmed.',
+      };
+    }
+    const command = `/agent-profile delete ${quoteSlashCommandArg(readField('profile'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening Agent profile deletion.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening Agent profile deletion',
+        detail: 'The workspace handed a confirmed profile deletion command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

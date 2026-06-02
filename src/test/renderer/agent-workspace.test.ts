@@ -944,6 +944,11 @@ describe('renderAgentWorkspace', () => {
     const clearOutput = text(renderAgentWorkspace(workspace, 132, 38));
     expect(clearOutput).toContain('Clear default profile');
     expect(clearOutput).toContain('edit profile-default-clear');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-delete');
+    const deleteOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(deleteOutput).toContain('Delete Agent profile');
+    expect(deleteOutput).toContain('edit profile-delete');
   });
 
   test('renders profile starter export and import forms with concrete fields', () => {
@@ -968,6 +973,13 @@ describe('renderAgentWorkspace', () => {
     expect(importOutput).toContain('Import Agent Starter Template');
     expect(importOutput).toContain('Template path *');
     expect(importOutput).toContain('Confirm *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-show');
+    workspace.activateSelected();
+    const previewOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    expect(previewOutput).toContain('Preview Agent Starter Template');
+    expect(previewOutput).toContain('Starter id *');
   });
 
   test('renders channel onboarding and delivery safety posture', () => {

@@ -2891,6 +2891,39 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening Agent starter template import');
   });
 
+  test('previews starter templates and deletes profiles from workspace forms', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('profile-template-show');
+    feedText(workspace, 'operations');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-delete');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('profile-delete');
+    feedText(workspace, 'old-profile');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/agent-profile template show operations']);
+    expect(workspace.status).toContain('not confirmed');
+
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/agent-profile template show operations',
+      '/agent-profile delete old-profile --yes',
+    ]);
+    expect(workspace.lastActionResult?.title).toBe('Opening Agent profile deletion');
+  });
+
   test('dispatches default profile selection from the workspace form after confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
