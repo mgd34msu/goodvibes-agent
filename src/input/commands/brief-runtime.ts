@@ -66,6 +66,7 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
   const setupBlocked = countReady(snapshot.setupChecklist, 'blocked');
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
   const enabledChannels = snapshot.channels.filter((channel) => channel.enabled).length;
+  const channelSetupGaps = snapshot.channels.filter((channel) => channel.enabled && !channel.ready).length;
   const skillSetupGaps = countSetupGaps(snapshot.localSkills);
   const skillBundleSetupGaps = countSetupGaps(snapshot.localSkillBundles);
   const routineSetupGaps = countSetupGaps(snapshot.localRoutines);
@@ -99,6 +100,9 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
         : snapshot.enabledRoutineCount === 0
         ? 'Enable reviewed routines with /routines enable.'
         : '',
+    channelSetupGaps > 0
+      ? `Review ${plural(channelSetupGaps, 'enabled channel')} needing setup with /channels attention.`
+      : '',
     'Use /knowledge status, /knowledge search, and explicit ingest forms for Agent Knowledge only.',
     'Use /delegate only for explicit build, fix, implementation, or review handoff to GoodVibes TUI.',
   ].filter((line): line is string => line.length > 0);
@@ -117,7 +121,7 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
     `  personas: ${plural(snapshot.localPersonaCount, 'persona')}; active ${snapshot.activePersonaName}`,
     `  skills: ${snapshot.enabledSkillCount}/${snapshot.localSkillCount} enabled; bundles ${snapshot.enabledSkillBundleCount}/${snapshot.localSkillBundleCount}; active ${snapshot.activeSkillCount}; setup gaps ${skillSetupGaps} skill, ${skillBundleSetupGaps} bundle`,
     `  routines: ${snapshot.enabledRoutineCount}/${snapshot.localRoutineCount} enabled; setup gaps ${routineSetupGaps}`,
-    `  channels: ${readyChannels}/${snapshot.channels.length} ready; ${enabledChannels} enabled`,
+    `  channels: ${readyChannels}/${snapshot.channels.length} ready; ${enabledChannels} enabled; setup gaps ${channelSetupGaps}`,
     `  voice/media: ${snapshot.voiceProviderCount} voice, ${snapshot.mediaProviderCount} media; browser tools ${snapshot.voiceMediaReadiness.browserToolState}`,
     formatWorkPlanLine(workPlan.total, workPlan.counts),
     `  schedules: ${enabledJobs}/${jobs.length} visible jobs enabled`,

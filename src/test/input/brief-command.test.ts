@@ -47,6 +47,11 @@ function workPlanStore(items: readonly WorkPlanItem[]): WorkPlanStore {
 function makeContext(printed: string[] = []): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-brief-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+  const configValues = new Map<string, unknown>([
+    ['controlPlane.host', '127.0.0.1'],
+    ['controlPlane.port', 3421],
+    ['surfaces.telegram.enabled', true],
+  ]);
   const personaRegistry = AgentPersonaRegistry.fromShellPaths(shellPaths);
   const persona = personaRegistry.create({
     name: 'Research Operator',
@@ -110,11 +115,7 @@ function makeContext(printed: string[] = []): CommandContext {
     },
     platform: {
       configManager: {
-        get: (key: string) => {
-          if (key === 'controlPlane.host') return '127.0.0.1';
-          if (key === 'controlPlane.port') return 3421;
-          return undefined;
-        },
+        get: (key: string) => configValues.get(key),
       },
     },
     ops: {},
@@ -147,6 +148,8 @@ describe('/brief command', () => {
     expect(output).toContain('Resolve 1 skill with setup gaps using /agent-skills attention.');
     expect(output).toContain('Resolve 1 skill bundle with setup gaps using /agent-skills bundle attention.');
     expect(output).toContain('Resolve 1 routine with setup gaps using /routines attention.');
+    expect(output).toContain('channels: 0/13 ready; 1 enabled; setup gaps 1');
+    expect(output).toContain('Review 1 enabled channel needing setup with /channels attention.');
     expect(output).toContain('work plan: 1 item; active 1');
     expect(output).toContain('Use /delegate only for explicit build');
     expect(output).not.toContain('default wiki');
