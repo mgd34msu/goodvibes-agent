@@ -70,6 +70,8 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
   const skillSetupGaps = countSetupGaps(snapshot.localSkills);
   const skillBundleSetupGaps = countSetupGaps(snapshot.localSkillBundles);
   const routineSetupGaps = countSetupGaps(snapshot.localRoutines);
+  const voiceSetupNeedsReview = snapshot.voiceSurfaceEnabled && snapshot.voiceMediaReadiness.selectedTtsProviderStatus !== 'ready';
+  const mediaSetupNeedsReview = snapshot.mediaProviderCount > 0 && snapshot.voiceMediaReadiness.readyMediaProviderCount === 0;
   const hasLocalSkillBehavior = snapshot.localSkillCount > 0 || snapshot.localSkillBundleCount > 0;
 
   const nextActions = [
@@ -102,6 +104,12 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
         : '',
     channelSetupGaps > 0
       ? `Review ${plural(channelSetupGaps, 'enabled channel')} needing setup with /channels attention.`
+      : '',
+    voiceSetupNeedsReview
+      ? 'Review voice setup with /agent voice-media before relying on spoken replies.'
+      : '',
+    mediaSetupNeedsReview
+      ? 'Review media provider setup with /agent voice-media before relying on image or media workflows.'
       : '',
     'Use /knowledge status, /knowledge search, and explicit ingest forms for Agent Knowledge only.',
     'Use /delegate only for explicit build, fix, implementation, or review handoff to GoodVibes TUI.',

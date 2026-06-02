@@ -51,6 +51,8 @@ function makeContext(printed: string[] = []): CommandContext {
     ['controlPlane.host', '127.0.0.1'],
     ['controlPlane.port', 3421],
     ['surfaces.telegram.enabled', true],
+    ['ui.voiceEnabled', true],
+    ['tts.provider', 'missing-goodvibes-agent-tts-provider'],
   ]);
   const personaRegistry = AgentPersonaRegistry.fromShellPaths(shellPaths);
   const persona = personaRegistry.create({
@@ -117,6 +119,14 @@ function makeContext(printed: string[] = []): CommandContext {
       configManager: {
         get: (key: string) => configValues.get(key),
       },
+      voiceProviderRegistry: {
+        list: () => [],
+      },
+      mediaProviderRegistry: {
+        list: () => [
+          { id: 'custom-media-review', label: 'Custom Media Review', capabilities: ['generate'] },
+        ],
+      },
     },
     ops: {},
     extensions: {},
@@ -150,6 +160,8 @@ describe('/brief command', () => {
     expect(output).toContain('Resolve 1 routine with setup gaps using /routines attention.');
     expect(output).toContain('channels: 0/13 ready; 1 enabled; setup gaps 1');
     expect(output).toContain('Review 1 enabled channel needing setup with /channels attention.');
+    expect(output).toContain('Review voice setup with /agent voice-media before relying on spoken replies.');
+    expect(output).toContain('Review media provider setup with /agent voice-media before relying on image or media workflows.');
     expect(output).toContain('work plan: 1 item; active 1');
     expect(output).toContain('Use /delegate only for explicit build');
     expect(output).not.toContain('default wiki');
