@@ -314,6 +314,10 @@ describe('OnboardingWizardController', () => {
       templateId: 'research',
     });
     expect(request.operations).toContainEqual({
+      kind: 'select-agent-profile',
+      name: 'research-desk',
+    });
+    expect(request.operations).toContainEqual({
       kind: 'create-local-persona',
       name: 'Household Operator',
       description: 'Coordinates personal operating work.',
@@ -385,6 +389,7 @@ describe('OnboardingWizardController', () => {
     expect(text).toContain('image');
     expect(text).toContain('Agent Knowledge');
     expect(text).toContain('Create starter profile');
+    expect(text).toContain('Use created profile by default');
     expect(text).toContain('Initial persona name');
     expect(text).toContain('Initial skill name');
     expect(text).toContain('Initial routine name');

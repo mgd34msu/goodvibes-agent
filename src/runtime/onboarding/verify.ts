@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { isSecretRefInput } from '@pellux/goodvibes-sdk/platform/config';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
-import { resolveAgentRuntimeProfileHome } from '../../agent/runtime-profile.ts';
+import { readAgentRuntimeProfileSelection, resolveAgentRuntimeProfileHome } from '../../agent/runtime-profile.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { readOnboardingRuntimeState } from './state.ts';
 import type {
@@ -147,6 +147,23 @@ function verifyCreateAgentProfileOperation(
   };
 }
 
+function verifySelectAgentProfileOperation(
+  deps: OnboardingVerificationDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'select-agent-profile' }>,
+): OnboardingVerificationItem {
+  const resolution = resolveAgentRuntimeProfileHome(deps.shellPaths.homeDirectory, operation.name);
+  const selection = readAgentRuntimeProfileSelection(deps.shellPaths.homeDirectory);
+  const ok = selection?.id === resolution.id && selection.exists;
+  return {
+    id: `selected-agent-profile:${resolution.id}`,
+    status: ok ? 'pass' : 'fail',
+    message: ok
+      ? `${resolution.id} Agent profile is selected for future launches.`
+      : `${resolution.id} Agent profile is not selected for future launches.`,
+    target: resolution.id,
+  };
+}
+
 function verifyCreateLocalPersonaOperation(
   deps: OnboardingVerificationDependencies,
   operation: Extract<OnboardingApplyOperation, { kind: 'create-local-persona' }>,
@@ -211,6 +228,7 @@ async function verifyOperation(
   if (operation.kind === 'ensure-auth-user') return verifyAuthOperation(deps, operation);
   if (operation.kind === 'acknowledge') return verifyAcknowledgementOperation(deps, operation);
   if (operation.kind === 'create-agent-profile') return verifyCreateAgentProfileOperation(deps, operation);
+  if (operation.kind === 'select-agent-profile') return verifySelectAgentProfileOperation(deps, operation);
   if (operation.kind === 'create-local-persona') return verifyCreateLocalPersonaOperation(deps, operation);
   if (operation.kind === 'create-local-skill') return verifyCreateLocalSkillOperation(deps, operation);
   return verifyCreateLocalRoutineOperation(deps, operation);

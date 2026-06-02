@@ -273,6 +273,10 @@ export type OnboardingApplyOperation =
       readonly templateId?: string;
     }
   | {
+      readonly kind: 'select-agent-profile';
+      readonly name: string;
+    }
+  | {
       readonly kind: 'create-local-persona';
       readonly name: string;
       readonly description: string;

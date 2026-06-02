@@ -86,6 +86,12 @@ export function buildOnboardingApplyRequest(controller: OnboardingWizardControll
         name: profileName,
         ...(selectedTemplate.length > 0 && selectedTemplate !== 'none' ? { templateId: selectedTemplate } : {}),
       });
+      if (controller.getBooleanFieldValue('agent-setup.profile-default', true)) {
+        operations.push({
+          kind: 'select-agent-profile',
+          name: profileName,
+        });
+      }
     }
     maybeCreateLocalPersona();
     maybeCreateLocalSkill();

@@ -30,15 +30,15 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   behavior: 'Day-to-day shell behavior: approval posture, compaction, history, guidance, notifications, stale-context warnings, return context, and Human-in-the-Loop mode.',
   storage: 'Local storage posture, including secret storage policy and maximum artifact size for Agent Knowledge, artifacts, and document ingestion.',
   permissions: 'Permission mode and tool-class policy. These settings decide whether the shell prompts before read/write/exec/network/agent actions.',
-  orchestration: 'Agent orchestration limits and recursion controls.',
-  wrfc: 'WRFC is external to normal Agent operation. Review these compatibility values only for explicit GoodVibes TUI build delegation.',
+  orchestration: 'Hidden compatibility settings from the copied foundation. Normal Agent operation stays serial and does not expose local spawn fanout.',
+  wrfc: 'Build-review routing is external to normal Agent operation. Review these compatibility values only for explicit delegated build work.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
-  service: 'Connected-host install/status posture. Agent shows these compatibility keys for inspection only and does not install, start, stop, restart, or autostart anything.',
-  controlPlane: 'Connected-host API settings. Agent uses these settings for access and does not mutate bind posture.',
-  httpListener: 'Inbound event endpoint settings owned by the connected GoodVibes host. Agent inspects readiness and does not expose endpoints.',
+  service: 'Connected-host status posture. Agent inspects these values only and does not install, start, stop, restart, or autostart anything.',
+  controlPlane: 'Connected API settings. Agent uses these values for access and does not mutate bind posture.',
+  httpListener: 'Inbound delivery endpoint settings owned by the connected GoodVibes host. Agent inspects readiness and does not expose endpoints.',
   web: 'External browser companion settings. Agent does not own browser hosting or network bind lifecycle.',
-  batch: 'Batch execution settings reported from the connected GoodVibes host. Agent does not own remote queue provisioning.',
+  batch: 'Queued execution settings reported from the connected GoodVibes host. Agent does not own remote queue provisioning.',
   automation: 'Scheduled and automated run settings, concurrency, timeout, catch-up, cooldown, and retention behavior.',
   watchers: 'File/process watcher heartbeat, polling, and recovery-window behavior.',
   runtime: 'Connected-host guardrails such as companion chat limits and event-stream caps.',
@@ -50,7 +50,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   danger: 'High-impact host switches. Agent renders host-owned switches read-only; change them outside Agent.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
   flags: 'Feature flags are SDK gates. They are separate from normal config keys because they enable or disable staged behavior.',
-  network: 'Read-only view of connected GoodVibes API, inbound-event, and browser companion bind posture plus editable Agent network settings.',
+  network: 'Read-only view of connected GoodVibes API, inbound delivery, and browser companion bind posture plus editable Agent network settings.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
@@ -105,9 +105,9 @@ const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
     both: 'Show operational messages in both panels and the transcript.',
   },
   'ui.wrfcMessages': {
-    panel: 'Show explicit delegated build/review messages in panels only.',
-    conversation: 'Show explicit delegated build/review messages inline in the transcript.',
-    both: 'Show explicit delegated build/review messages in both panels and the transcript.',
+    panel: 'Show explicit delegated build messages in panels only.',
+    conversation: 'Show explicit delegated build messages inline in the transcript.',
+    both: 'Show explicit delegated build messages in both panels and the transcript.',
   },
   'surfaces.telegram.mode': {
     webhook: 'Receive Telegram updates through externally hosted delivery.',

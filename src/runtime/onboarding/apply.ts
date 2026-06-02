@@ -5,7 +5,10 @@ import { CONFIG_SCHEMA, DEFAULT_CONFIG } from '../../config/index.ts';
 import {
   createAgentRuntimeProfile,
   getAgentRuntimeProfileTemplate,
+  getAgentRuntimeProfileSelectionPath,
+  readAgentRuntimeProfileSelection,
   resolveAgentRuntimeProfileHome,
+  setAgentRuntimeProfileSelection,
 } from '../../agent/runtime-profile.ts';
 import { AgentPersonaRegistry, assertNoSecretLikeText } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
@@ -225,6 +228,18 @@ function validateCreateAgentProfileOperation(
   if (templateId) getAgentRuntimeProfileTemplate(templateId, deps.shellPaths.homeDirectory);
 }
 
+function validateSelectAgentProfileOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'select-agent-profile' }>,
+): void {
+  const name = operation.name.trim();
+  if (name.length === 0) throw new Error('Agent profile name is required.');
+  const resolution = resolveAgentRuntimeProfileHome(deps.shellPaths.homeDirectory, name);
+  if (!existsSync(resolution.homeDirectory)) {
+    throw new Error(`Agent profile does not exist: ${resolution.id}`);
+  }
+}
+
 function validateCreateLocalPersonaOperation(
   deps: OnboardingApplyDependencies,
   operation: Extract<OnboardingApplyOperation, { kind: 'create-local-persona' }>,
@@ -372,6 +387,11 @@ async function buildRollbackAction(
     };
   }
 
+  if (operation.kind === 'select-agent-profile') {
+    const path = getAgentRuntimeProfileSelectionPath(deps.shellPaths.homeDirectory);
+    return snapshotFileRollback(path);
+  }
+
   if (operation.kind === 'create-local-persona') {
     const registry = AgentPersonaRegistry.fromShellPaths(deps.shellPaths);
     return snapshotFileRollback(registry.snapshot().path);
@@ -426,6 +446,18 @@ function applyCreateAgentProfileOperation(
     summary: profile.starterTemplateId
       ? `Created Agent profile ${profile.id} from ${profile.starterTemplateId}.`
       : `Created Agent profile ${profile.id}.`,
+  };
+}
+
+function applySelectAgentProfileOperation(
+  deps: OnboardingApplyDependencies,
+  operation: Extract<OnboardingApplyOperation, { kind: 'select-agent-profile' }>,
+): OnboardingAppliedOperation {
+  validateSelectAgentProfileOperation(deps, operation);
+  const selection = setAgentRuntimeProfileSelection(deps.shellPaths.homeDirectory, operation.name);
+  return {
+    kind: operation.kind,
+    summary: `Selected Agent profile ${selection.id} for future launches.`,
   };
 }
 
@@ -496,6 +528,7 @@ function orderApplyOperations(
     operation.kind === 'set-config' && operation.key !== 'storage.secretPolicy'
   ));
   const agentProfileOperations = operations.filter((operation) => operation.kind === 'create-agent-profile');
+  const agentProfileSelectionOperations = operations.filter((operation) => operation.kind === 'select-agent-profile');
   const localBehaviorOperations = operations.filter((operation) => (
     operation.kind === 'create-local-persona'
     || operation.kind === 'create-local-skill'
@@ -511,6 +544,7 @@ function orderApplyOperations(
     ...secretOperations,
     ...configOperations,
     ...agentProfileOperations,
+    ...agentProfileSelectionOperations,
     ...localBehaviorOperations,
     ...finalOperations,
   ];
@@ -553,6 +587,16 @@ function prevalidateApplyRequest(
         continue;
       }
 
+      if (operation.kind === 'select-agent-profile') {
+        const createdEarlier = orderedOperations.some((candidate) => (
+          candidate.kind === 'create-agent-profile'
+          && resolveAgentRuntimeProfileHome(deps.shellPaths.homeDirectory, candidate.name).id
+            === resolveAgentRuntimeProfileHome(deps.shellPaths.homeDirectory, operation.name).id
+        ));
+        if (!createdEarlier) validateSelectAgentProfileOperation(deps, operation);
+        continue;
+      }
+
       if (operation.kind === 'create-local-persona') {
         validateCreateLocalPersonaOperation(deps, operation);
         continue;
@@ -587,6 +631,7 @@ function getVerificationFailureKind(itemId: string): OnboardingApplyOperation['k
   if (itemId.startsWith('auth:')) return 'ensure-auth-user';
   if (itemId.startsWith('acknowledge:')) return 'acknowledge';
   if (itemId.startsWith('agent-profile:')) return 'create-agent-profile';
+  if (itemId.startsWith('selected-agent-profile:')) return 'select-agent-profile';
   if (itemId.startsWith('local-persona:')) return 'create-local-persona';
   if (itemId.startsWith('local-skill:')) return 'create-local-skill';
   if (itemId.startsWith('local-routine:')) return 'create-local-routine';
@@ -642,6 +687,12 @@ export async function applyOnboardingRequest(
 
         if (operation.kind === 'create-agent-profile') {
           applied.push(applyCreateAgentProfileOperation(deps, operation));
+          rollbacks.push(rollback);
+          continue;
+        }
+
+        if (operation.kind === 'select-agent-profile') {
+          applied.push(applySelectAgentProfileOperation(deps, operation));
           rollbacks.push(rollback);
           continue;
         }

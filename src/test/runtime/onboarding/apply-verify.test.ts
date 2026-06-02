@@ -6,7 +6,7 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
 import { AgentPersonaRegistry } from '../../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../../agent/routine-registry.ts';
-import { listAgentRuntimeProfiles, resolveAgentRuntimeProfileHome } from '../../../agent/runtime-profile.ts';
+import { listAgentRuntimeProfiles, readAgentRuntimeProfileSelection, resolveAgentRuntimeProfileHome } from '../../../agent/runtime-profile.ts';
 import { AgentSkillRegistry } from '../../../agent/skill-registry.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../../config/surface.ts';
 import { SecretsManager } from '../../../config/secrets.ts';
@@ -108,6 +108,10 @@ describe('onboarding apply and verify helpers', () => {
           name: 'research-desk',
           templateId: 'research',
         },
+        {
+          kind: 'select-agent-profile' as const,
+          name: 'research-desk',
+        },
       ],
     };
 
@@ -120,14 +124,21 @@ describe('onboarding apply and verify helpers', () => {
     const applied = await applyOnboardingRequest(deps, request);
     const verification = await verifyOnboardingRequest(deps, request);
     const profile = listAgentRuntimeProfiles(shellPaths.homeDirectory).find((entry) => entry.id === 'research-desk');
+    const selection = readAgentRuntimeProfileSelection(shellPaths.homeDirectory);
 
     expect(applied.ok).toBe(true);
     expect(applied.applied).toContainEqual({
       kind: 'create-agent-profile',
       summary: 'Created Agent profile research-desk from research.',
     });
+    expect(applied.applied).toContainEqual({
+      kind: 'select-agent-profile',
+      summary: 'Selected Agent profile research-desk for future launches.',
+    });
     expect(verification.ok).toBe(true);
     expect(profile?.starterTemplateId).toBe('research');
+    expect(selection?.id).toBe('research-desk');
+    expect(selection?.exists).toBe(true);
     expect(existsSync(join(resolveAgentRuntimeProfileHome(shellPaths.homeDirectory, 'research-desk').homeDirectory, 'profile.json'))).toBe(true);
   });
 
