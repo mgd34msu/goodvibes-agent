@@ -87,10 +87,10 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
       ? 'Create reusable procedures with /agent-skills create or import reviewed skill files.'
       : '',
     skillSetupGaps > 0
-      ? `Resolve ${plural(skillSetupGaps, 'skill')} with setup gaps using /agent-skills attention.`
+      ? `Resolve ${plural(skillSetupGaps, 'skill')} with setup gaps from /agent skills.`
       : '',
     skillBundleSetupGaps > 0
-      ? `Resolve ${plural(skillBundleSetupGaps, 'skill bundle')} with setup gaps using /agent-skills bundle attention.`
+      ? `Resolve ${plural(skillBundleSetupGaps, 'skill bundle')} with setup gaps from /agent skills.`
       : '',
     hasLocalSkillBehavior && skillSetupGaps === 0 && skillBundleSetupGaps === 0 && snapshot.activeSkillCount === 0
       ? 'Enable reviewed skills or bundles with /agent-skills enabled and /agent-skills bundle enabled.'
@@ -98,12 +98,12 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
     snapshot.localRoutineCount === 0
       ? 'Create repeatable workflows with /routines create; promote schedules only with explicit confirmation.'
       : routineSetupGaps > 0
-        ? `Resolve ${plural(routineSetupGaps, 'routine')} with setup gaps using /routines attention.`
+        ? `Resolve ${plural(routineSetupGaps, 'routine')} with setup gaps from /agent routines.`
         : snapshot.enabledRoutineCount === 0
         ? 'Enable reviewed routines with /routines enable.'
         : '',
     channelSetupGaps > 0
-      ? `Review ${plural(channelSetupGaps, 'enabled channel')} needing setup with /channels attention.`
+      ? `Review ${plural(channelSetupGaps, 'enabled channel')} needing setup from /agent channels.`
       : '',
     voiceSetupNeedsReview
       ? 'Review voice setup with /agent voice-media before relying on spoken replies.'
@@ -111,7 +111,7 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
     mediaSetupNeedsReview
       ? 'Review media provider setup with /agent voice-media before relying on image or media workflows.'
       : '',
-    'Use /knowledge status, /knowledge search, and explicit ingest forms for Agent Knowledge only.',
+    'Use /agent knowledge for Agent Knowledge status, search, and explicit ingest forms.',
     'Use /delegate only for explicit build, fix, implementation, or review handoff to GoodVibes TUI.',
   ].filter((line): line is string => line.length > 0);
 
