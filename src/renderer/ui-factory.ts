@@ -28,7 +28,7 @@ export class UIFactory {
     const CYAN = '#00ffff';
     const GREY = '244';
     const TITLE_COLOR = '250';
-    const brand = ` GoodVibes `;
+    const brand = ` GoodVibes Agent `;
     const ver = `v${VERSION} `;
     const stats = ` ${model} `;
     const prov = `(${provider}) `;

@@ -9,7 +9,7 @@ The Agent owns:
 - natural-language planning intent detection in the main terminal conversation;
 - one-question-at-a-time clarification;
 - the Agent-owned planning loop;
-- the planning panel or fullscreen planning view;
+- transcript-first planning summaries and the Agent operator workspace planning state;
 - explicit execution approval;
 - delegation metadata when work needs GoodVibes TUI.
 
@@ -29,7 +29,7 @@ The Agent derives a stable `projectId` from the workspace path and passes it to 
 
 Normal conversation can start planning when the user asks for an execution strategy, dependency graph, verification gates, or delegation handoff. The Agent then:
 
-- opens the planning surface;
+- prints a concise planning summary in the main transcript;
 - persists the current planning state through public SDK/runtime seams;
 - records active open questions and user answers;
 - calls readiness evaluation for gaps and the suggested next question;
@@ -37,9 +37,9 @@ Normal conversation can start planning when the user asks for an execution strat
 
 The planning loop can be paused with natural language such as "stop planning" or "pause planning".
 
-## Planning Surface
+## Planning View
 
-The planning surface shows:
+The planning view is transcript-first today. It shows:
 
 - workspace project id and planning namespace;
 - readiness and approval state;
@@ -50,19 +50,19 @@ The planning surface shows:
 - durable decisions;
 - project language and ambiguity resolutions.
 
-Keyboard behavior should match the rest of the Agent TUI: predictable focus, scroll, submit, dismiss, and return-to-chat behavior.
+Keyboard behavior stays in the main Agent TUI: predictable prompt editing, scroll, submit, dismiss, and return-to-chat behavior.
 
 ## `/plan`
 
 `/plan` remains a command workspace for inspection and seeding:
 
-- `/plan` prints current planning readiness and opens the planning surface;
-- `/plan panel` opens the planning surface;
+- `/plan` prints current planning readiness and the next planning question;
+- `/plan panel` is guidance-only in Agent and points back to `/plan status` or `/plan list`;
 - `/plan approve` records explicit execution approval;
 - `/plan <goal>` seeds Agent workspace planning state;
 - `/plan list` and `/plan show <id>` inspect older execution-plan records.
 
-Use natural language or the surface dismiss action when planning should pause and normal chat should continue.
+Use natural language such as "pause planning" or "stop planning" when planning should pause and normal chat should continue.
 
 ## Work Plan
 

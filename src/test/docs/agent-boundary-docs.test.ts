@@ -45,6 +45,7 @@ describe('Agent boundary docs', () => {
       'docs/releases',
       'docs/uat',
       'docs/wrfc',
+      'docs/panel-authoring.md',
     ] as const;
 
     for (const path of forbiddenPaths) {
@@ -124,6 +125,8 @@ describe('Agent boundary docs', () => {
     expect(coordinatorSource).not.toContain('Knowledge space:');
     expect(combined).not.toContain('TUI-owned');
     expect(combined).not.toContain('non-Agent product setup');
+    expect(docsSource).not.toContain('opens the planning surface');
+    expect(docsSource).not.toContain('planning panel or fullscreen planning view');
   });
 
   test('tools command guide only names registered slash commands', () => {
