@@ -36,6 +36,10 @@ type AgentWorkspaceCommandEditorKind = Extract<
   | 'support-bundle-export'
   | 'support-bundle-inspect'
   | 'support-bundle-import'
+  | 'subscription-inspect'
+  | 'subscription-login-start'
+  | 'subscription-login-finish'
+  | 'subscription-logout'
 >;
 
 type AgentWorkspaceCommandEditorSubmission =

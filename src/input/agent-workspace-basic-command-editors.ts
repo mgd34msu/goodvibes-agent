@@ -7,6 +7,7 @@ export type AgentWorkspaceBasicCommandEditorKind = Extract<
   'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
   | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
   | 'support-bundle-export' | 'support-bundle-inspect' | 'support-bundle-import'
+  | 'subscription-inspect' | 'subscription-login-start' | 'subscription-login-finish' | 'subscription-logout'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
@@ -32,6 +33,10 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'support-bundle-export'
     || kind === 'support-bundle-inspect'
     || kind === 'support-bundle-import'
+    || kind === 'subscription-inspect'
+    || kind === 'subscription-login-start'
+    || kind === 'subscription-login-finish'
+    || kind === 'subscription-logout'
     || kind === 'mcp-server'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
@@ -311,6 +316,60 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       fields: [
         { id: 'path', label: 'Bundle path', value: 'goodvibes-agent-bundle.json', required: true, multiline: false, hint: 'Workspace-relative bundle JSON path to import.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /bundle import with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'subscription-inspect') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Inspect Provider Subscription',
+      selectedFieldIndex: 0,
+      message: 'Inspect one provider subscription route without starting login or printing token values.',
+      fields: [
+        { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Subscription provider id from /subscription providers.' },
+      ],
+    };
+  }
+  if (kind === 'subscription-login-start') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Start Provider Subscription Login',
+      selectedFieldIndex: 0,
+      message: 'Start one provider subscription OAuth login. Type yes on the final field to confirm browser/pending-login side effects.',
+      fields: [
+        { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Subscription provider id from /subscription providers.' },
+        { id: 'openBrowser', label: 'Open browser', value: 'yes', required: false, multiline: false, hint: 'yes/no. Use no to print the authorization URL only.' },
+        { id: 'manual', label: 'Manual callback', value: 'no', required: false, multiline: false, hint: 'yes/no. Use yes to avoid the local callback listener and finish manually.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /subscription login <provider> start with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'subscription-login-finish') {
+    return {
+      kind,
+      mode: 'update',
+      title: 'Finish Provider Subscription Login',
+      selectedFieldIndex: 0,
+      message: 'Finish a pending provider subscription OAuth login from a code or redirected URL. Type yes on the final field to confirm token storage.',
+      fields: [
+        { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Provider id used when starting login.' },
+        { id: 'code', label: 'Code or redirect URL', value: '', required: true, multiline: false, hint: 'OAuth code or full redirect URL containing code=...' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /subscription login <provider> finish with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'subscription-logout') {
+    return {
+      kind,
+      mode: 'delete',
+      title: 'Logout Provider Subscription',
+      selectedFieldIndex: 0,
+      message: 'Remove one stored provider subscription session. Ambient API key resolution applies again if configured. Type yes to confirm.',
+      fields: [
+        { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Stored subscription provider id.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /subscription logout with --yes.' },
       ],
     };
   }

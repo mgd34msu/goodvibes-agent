@@ -389,6 +389,32 @@ describe('renderAgentWorkspace', () => {
     expect(importOutput).toContain('Import support bundle');
   });
 
+  test('renders provider subscription login forms in the setup workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-login-start');
+
+    const actionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(actionOutput).toContain('Start subscription login');
+    expect(actionOutput).toContain('edit subscription-login-start');
+
+    workspace.activateSelected();
+    const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(editorOutput).toContain('Start Provider Subscription Login');
+    expect(editorOutput).toContain('Provider *');
+    workspace.moveEditorField(1);
+    const browserOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(browserOutput).toContain('Start Provider Subscription Login');
+    expect(browserOutput).toContain('Open browser');
+    workspace.moveEditorField(1);
+    const manualOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(manualOutput).toContain('Manual callback');
+    workspace.moveEditorField(1);
+    const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(confirmOutput).toContain('Editing: Confirm (required)');
+  });
+
   test('renders discovered behavior files as first-run setup actions', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-discovery-'));
     mkdirSync(join(root, '.goodvibes', 'agent', 'personas'), { recursive: true });

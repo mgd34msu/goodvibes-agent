@@ -971,6 +971,91 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening Agent support bundle import');
   });
 
+  test('starts finishes inspects and logs out provider subscriptions from workspace forms', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-inspect');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('subscription-inspect');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/subscription inspect openai']);
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-login-start');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('subscription-login-start');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/subscription inspect openai']);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/subscription inspect openai',
+      '/subscription login openai start --no-browser --manual --yes',
+    ]);
+    expect(workspace.lastActionResult?.title).toBe('Opening provider subscription login start');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-login-finish');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('subscription-login-finish');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'abc-code');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/subscription inspect openai',
+      '/subscription login openai start --no-browser --manual --yes',
+    ]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/subscription inspect openai',
+      '/subscription login openai start --no-browser --manual --yes',
+      '/subscription login openai finish abc-code --yes',
+    ]);
+    expect(workspace.lastActionResult?.title).toBe('Opening provider subscription login finish');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-logout');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('subscription-logout');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/subscription inspect openai',
+      '/subscription login openai start --no-browser --manual --yes',
+      '/subscription login openai finish abc-code --yes',
+    ]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/subscription inspect openai',
+      '/subscription login openai start --no-browser --manual --yes',
+      '/subscription login openai finish abc-code --yes',
+      '/subscription logout openai --yes',
+    ]);
+    expect(workspace.lastActionResult?.title).toBe('Opening provider subscription logout');
+  });
+
   test('adds MCP servers from the workspace only after typed confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

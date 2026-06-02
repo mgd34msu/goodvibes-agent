@@ -40,6 +40,10 @@ export type AgentWorkspaceEditorKind =
   | 'support-bundle-export'
   | 'support-bundle-inspect'
   | 'support-bundle-import'
+  | 'subscription-inspect'
+  | 'subscription-login-start'
+  | 'subscription-login-finish'
+  | 'subscription-logout'
   | 'routine-schedule'
   | 'reminder-schedule';
 

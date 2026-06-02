@@ -524,6 +524,96 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       },
     };
   }
+  if (editor.kind === 'subscription-inspect') {
+    const command = `/subscription inspect ${quoteSlashCommandArg(readField('provider'))}`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening provider subscription inspection.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening provider subscription inspection',
+        detail: 'The workspace handed a read-only provider subscription inspection command to the shell-owned command router.',
+        command,
+        safety: 'read-only',
+      },
+    };
+  }
+  if (editor.kind === 'subscription-login-start') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Provider subscription login start not confirmed. Type yes, then press Enter.' },
+        status: 'Provider subscription login start not confirmed.',
+      };
+    }
+    const parts = [
+      '/subscription',
+      'login',
+      quoteSlashCommandArg(readField('provider')),
+      'start',
+    ];
+    if (!isAffirmative(readField('openBrowser'))) parts.push('--no-browser');
+    if (isAffirmative(readField('manual'))) parts.push('--manual');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening provider subscription login start.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening provider subscription login start',
+        detail: 'The workspace handed a confirmed subscription-login start command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'subscription-login-finish') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Provider subscription login finish not confirmed. Type yes, then press Enter.' },
+        status: 'Provider subscription login finish not confirmed.',
+      };
+    }
+    const command = `/subscription login ${quoteSlashCommandArg(readField('provider'))} finish ${quoteSlashCommandArg(readField('code'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening provider subscription login finish.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening provider subscription login finish',
+        detail: 'The workspace handed a confirmed subscription-login finish command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'subscription-logout') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Provider subscription logout not confirmed. Type yes, then press Enter.' },
+        status: 'Provider subscription logout not confirmed.',
+      };
+    }
+    const command = `/subscription logout ${quoteSlashCommandArg(readField('provider'))} --yes`;
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening provider subscription logout.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening provider subscription logout',
+        detail: 'The workspace handed a confirmed provider subscription logout command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
   if (editor.kind === 'skill-discovery-import') {
     if (!isAffirmative(readField('confirm'))) {
       return {
