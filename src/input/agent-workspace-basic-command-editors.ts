@@ -6,6 +6,7 @@ type AgentWorkspaceFieldReader = (fieldId: string) => string;
 export type AgentWorkspaceBasicCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
+  | 'persona-discovery-import'
   | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
 >;
 
@@ -39,6 +40,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'tts-prompt'
     || kind === 'image-input'
     || kind === 'skill-bundle'
+    || kind === 'persona-discovery-import'
     || kind === 'skill-discovery-import'
     || kind === 'profile-template-export'
     || kind === 'profile-template-import'
@@ -233,6 +235,20 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
         { id: 'name', label: 'Discovered skill', value: '', required: true, multiline: false, hint: 'Name shown by /agent-skills discover.' },
         { id: 'enabled', label: 'Enable now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /agent-skills import-discovered with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'persona-discovery-import') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Import Discovered Persona',
+      selectedFieldIndex: 0,
+      message: 'Import one discovered persona markdown file into the Agent-local persona registry. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'name', label: 'Discovered persona', value: '', required: true, multiline: false, hint: 'Name shown by /personas discover.' },
+        { id: 'use', label: 'Use now', value: 'yes', required: false, multiline: false, hint: 'yes/no.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /personas import-discovered with --yes.' },
       ],
     };
   }
@@ -590,6 +606,35 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening discovered skill import',
         detail: 'The workspace handed a confirmed local skill import command to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'persona-discovery-import') {
+    if (!isAffirmative(readField('confirm'))) {
+      return {
+        kind: 'editor',
+        editor: { ...editor, message: 'Discovered persona import not confirmed. Type yes, then press Enter.' },
+        status: 'Agent persona import not confirmed.',
+      };
+    }
+    const parts = [
+      '/personas',
+      'import-discovered',
+      quoteSlashCommandArg(readField('name')),
+    ];
+    if (isAffirmative(readField('use'))) parts.push('--use');
+    parts.push('--yes');
+    const command = parts.join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening discovered persona import.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening discovered persona import',
+        detail: 'The workspace handed a confirmed local persona import command to the shell-owned command router.',
         command,
         safety: 'safe',
       },

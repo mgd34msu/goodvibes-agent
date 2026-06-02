@@ -158,6 +158,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'personas-list', label: 'List personas', detail: 'Print the full local persona library.', command: '/personas list', kind: 'command', safety: 'read-only' },
       { id: 'personas-active', label: 'Show active persona', detail: 'Inspect the active local persona applied to new turns.', command: '/personas active', kind: 'command', safety: 'read-only' },
+      { id: 'personas-discover', label: 'Discover persona files', detail: 'Scan project and global Agent persona folders for persona markdown without importing it.', command: '/personas discover', kind: 'command', safety: 'read-only' },
+      { id: 'personas-import-discovered', label: 'Import discovered persona', detail: 'Open an in-workspace form that imports one reviewed persona markdown file into the Agent-local persona registry after typed confirmation.', editorKind: 'persona-discovery-import', kind: 'editor', safety: 'safe' },
       { id: 'personas-prev', label: 'Previous persona', detail: 'Move the local persona selection up without changing active state.', localKind: 'persona', selectionDelta: -1, kind: 'local-selection', safety: 'safe' },
       { id: 'personas-next', label: 'Next persona', detail: 'Move the local persona selection down without changing active state.', localKind: 'persona', selectionDelta: 1, kind: 'local-selection', safety: 'safe' },
       { id: 'personas-create', label: 'Create persona', detail: 'Open an in-workspace form for a local persona that writes Agent-local state only.', editorKind: 'persona', kind: 'editor', safety: 'safe' },
