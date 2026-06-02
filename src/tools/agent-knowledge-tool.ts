@@ -82,7 +82,7 @@ export function createAgentKnowledgeTool(
       description: [
         'Read isolated GoodVibes Agent Knowledge from the main conversation.',
         'Use for Agent-owned knowledge status, ask, and search only.',
-        'This tool calls /api/goodvibes-agent/knowledge/* on the connected GoodVibes host and must never fall back to default Knowledge/Wiki, HomeGraph, or non-Agent knowledge spaces.',
+        'This tool calls /api/goodvibes-agent/knowledge/* on the connected GoodVibes host and must never fall back to default Knowledge/Wiki or non-Agent knowledge spaces.',
         'It is read-only and does not ingest, reindex, mutate, or create background work.',
       ].join(' '),
       parameters: {

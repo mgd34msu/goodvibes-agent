@@ -35,15 +35,7 @@ function buildConfigSnapshot(
       llmProvider: config.get('tools.llmProvider'),
       llmModel: config.get('tools.llmModel'),
     },
-    danger: config.getCategory('danger'),
-    controlPlane: config.getCategory('controlPlane'),
-    httpListener: config.getCategory('httpListener'),
-    web: config.getCategory('web'),
-    network: config.getCategory('network'),
     surfaces: config.getCategory('surfaces'),
-    service: config.getCategory('service'),
-    featureFlags: config.getCategory('featureFlags'),
-    batch: config.getCategory('batch'),
   };
 }
 
@@ -388,13 +380,6 @@ export async function collectOnboardingSnapshot(
     },
     auth: {
       snapshot: authSnapshotResult.value,
-    },
-    bindSettings: {
-      daemonEnabled: Boolean(config.danger.daemon),
-      httpListenerEnabled: Boolean(config.danger.httpListener),
-      controlPlane: config.controlPlane,
-      httpListener: config.httpListener,
-      web: config.web,
     },
     surfaces: {
       configuredEnabledKinds: buildConfiguredSurfaceKinds(config.surfaces),

@@ -10,10 +10,6 @@ import {
 } from '../../../runtime/onboarding/index.ts';
 
 function buildBaseSnapshot(): OnboardingSnapshotState {
-  const controlPlane = structuredClone(DEFAULT_CONFIG.controlPlane);
-  const httpListener = structuredClone(DEFAULT_CONFIG.httpListener);
-  const web = structuredClone(DEFAULT_CONFIG.web);
-
   return {
     capturedAt: 0,
     config: {
@@ -28,15 +24,7 @@ function buildBaseSnapshot(): OnboardingSnapshotState {
         llmProvider: DEFAULT_CONFIG.tools.llmProvider,
         llmModel: DEFAULT_CONFIG.tools.llmModel,
       },
-      danger: structuredClone(DEFAULT_CONFIG.danger),
-      controlPlane,
-      httpListener,
-      web,
-      network: structuredClone(DEFAULT_CONFIG.network),
       surfaces: structuredClone(DEFAULT_CONFIG.surfaces),
-      service: structuredClone(DEFAULT_CONFIG.service),
-      featureFlags: structuredClone(DEFAULT_CONFIG.featureFlags),
-      batch: structuredClone(DEFAULT_CONFIG.batch),
     },
     providerRouting: {
       primaryProviderId: DEFAULT_CONFIG.provider.provider,
@@ -101,13 +89,6 @@ function buildBaseSnapshot(): OnboardingSnapshotState {
         sessions: [],
       },
     },
-    bindSettings: {
-      daemonEnabled: false,
-      httpListenerEnabled: false,
-      controlPlane,
-      httpListener,
-      web,
-    },
     surfaces: {
       configuredEnabledKinds: [],
       records: [],
@@ -167,24 +148,6 @@ describe('onboarding derivation helpers', () => {
         snapshot: {
           ...snapshot.auth.snapshot,
           userCount: 1,
-        },
-      },
-      bindSettings: {
-        ...snapshot.bindSettings,
-        daemonEnabled: true,
-        httpListenerEnabled: true,
-        controlPlane: {
-          ...snapshot.bindSettings.controlPlane,
-          hostMode: 'network',
-        },
-        httpListener: {
-          ...snapshot.bindSettings.httpListener,
-          hostMode: 'network',
-        },
-        web: {
-          ...snapshot.bindSettings.web,
-          enabled: true,
-          hostMode: 'network',
         },
       },
       surfaces: {
@@ -310,104 +273,11 @@ describe('onboarding derivation helpers', () => {
   });
 
   test('keeps copied bind targets out of Agent setup network-mode derivation', () => {
-    let snapshot = buildBaseSnapshot();
-    snapshot = {
-      ...snapshot,
-      bindSettings: {
-        ...snapshot.bindSettings,
-        web: {
-          ...snapshot.bindSettings.web,
-          hostMode: 'custom',
-        },
-      },
-    };
-
-    snapshot = {
-      ...snapshot,
-      bindSettings: {
-        ...snapshot.bindSettings,
-        web: {
-          ...snapshot.bindSettings.web,
-          enabled: true,
-        },
-      },
-    };
-
-    expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('local-network-default');
-
-    snapshot = {
-      ...buildBaseSnapshot(),
-      bindSettings: {
-        ...buildBaseSnapshot().bindSettings,
-        web: {
-          ...buildBaseSnapshot().bindSettings.web,
-          enabled: true,
-        },
-      },
-    };
-
-    expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('local-network-default');
-
-    snapshot = {
-      ...snapshot,
-      bindSettings: {
-        ...snapshot.bindSettings,
-        web: {
-          ...snapshot.bindSettings.web,
-          hostMode: 'network',
-        },
-      },
-    };
-
-    expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('local-network-default');
-  });
-
-  test('does not treat a local runtime API as custom when listener is LAN-facing', () => {
-    const snapshot: OnboardingSnapshotState = {
-      ...buildBaseSnapshot(),
-      bindSettings: {
-        ...buildBaseSnapshot().bindSettings,
-        daemonEnabled: true,
-        httpListenerEnabled: true,
-        controlPlane: {
-          ...buildBaseSnapshot().bindSettings.controlPlane,
-          enabled: true,
-          hostMode: 'local',
-          host: '127.0.0.1',
-          allowRemote: false,
-        },
-        httpListener: {
-          ...buildBaseSnapshot().bindSettings.httpListener,
-          hostMode: 'network',
-          host: '0.0.0.0',
-        },
-      },
-    };
-
-    expect(deriveStep1_5NetworkMode(snapshot.bindSettings)).toBe('local-network-default');
+    expect(deriveStep1_5NetworkMode()).toBe('local-network-default');
   });
 
   test('keeps host posture out of first-run Agent capabilities', () => {
-    const snapshot: OnboardingSnapshotState = {
-      ...buildBaseSnapshot(),
-      bindSettings: {
-        ...buildBaseSnapshot().bindSettings,
-        daemonEnabled: true,
-        httpListenerEnabled: true,
-        controlPlane: {
-          ...buildBaseSnapshot().bindSettings.controlPlane,
-          enabled: true,
-          hostMode: 'local',
-          host: '127.0.0.1',
-          allowRemote: false,
-        },
-        httpListener: {
-          ...buildBaseSnapshot().bindSettings.httpListener,
-          hostMode: 'network',
-          host: '0.0.0.0',
-        },
-      },
-    };
+    const snapshot = buildBaseSnapshot();
     const capabilities = deriveStep1Capabilities(snapshot);
 
     expect(capabilities.map((capability) => capability.id)).not.toContain('network-access');
@@ -418,25 +288,7 @@ describe('onboarding derivation helpers', () => {
   });
 
   test('does not surface browser or listener setup as Agent setup items', () => {
-    const snapshot: OnboardingSnapshotState = {
-      ...buildBaseSnapshot(),
-      bindSettings: {
-        ...buildBaseSnapshot().bindSettings,
-        daemonEnabled: true,
-        controlPlane: {
-          ...buildBaseSnapshot().bindSettings.controlPlane,
-          enabled: true,
-          hostMode: 'custom',
-          host: '127.0.0.1',
-        },
-        web: {
-          ...buildBaseSnapshot().bindSettings.web,
-          enabled: true,
-          hostMode: 'custom',
-          host: 'localhost',
-        },
-      },
-    };
+    const snapshot = buildBaseSnapshot();
 
     const rendered = deriveStep1Capabilities(snapshot).map((capability) => `${capability.label}\n${capability.detail}`).join('\n');
     expect(rendered).not.toContain('Browser Access');

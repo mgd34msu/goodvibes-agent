@@ -265,7 +265,7 @@ export function createAgentKnowledgeIngestTool(
         'Ingest explicit sources into isolated GoodVibes Agent Knowledge from the main conversation.',
         'Use only when the user explicitly asks Agent to add, remember, import, or ingest a URL, local file, URL-list file, bookmarks file, browser history, or connector input into its Agent Knowledge/Wiki.',
         'This writes only to /api/goodvibes-agent/knowledge/* ingest routes on the connected GoodVibes host.',
-        'It must never call default Knowledge/Wiki, HomeGraph, non-Agent knowledge spaces, background workers, local schedulers, or WRFC.',
+        'It must never call default Knowledge/Wiki, non-Agent knowledge spaces, local workers, local schedulers, or WRFC.',
         'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
       ].join(' '),
       parameters: {

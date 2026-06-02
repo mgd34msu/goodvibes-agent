@@ -10,9 +10,6 @@ import type { OnboardingSnapshotState, OnboardingStepDerivationState } from '../
 import { linesToText } from '../setup.ts';
 
 function onboardingSnapshotWithDiscovery(discovery: AgentBehaviorDiscoverySnapshot): OnboardingSnapshotState {
-  const controlPlane = structuredClone(DEFAULT_CONFIG.controlPlane);
-  const httpListener = structuredClone(DEFAULT_CONFIG.httpListener);
-  const web = structuredClone(DEFAULT_CONFIG.web);
   return {
     capturedAt: 0,
     config: {
@@ -27,15 +24,7 @@ function onboardingSnapshotWithDiscovery(discovery: AgentBehaviorDiscoverySnapsh
         llmProvider: DEFAULT_CONFIG.tools.llmProvider,
         llmModel: DEFAULT_CONFIG.tools.llmModel,
       },
-      danger: structuredClone(DEFAULT_CONFIG.danger),
-      controlPlane,
-      httpListener,
-      web,
-      network: structuredClone(DEFAULT_CONFIG.network),
       surfaces: structuredClone(DEFAULT_CONFIG.surfaces),
-      service: structuredClone(DEFAULT_CONFIG.service),
-      featureFlags: structuredClone(DEFAULT_CONFIG.featureFlags),
-      batch: structuredClone(DEFAULT_CONFIG.batch),
     },
     providerRouting: {
       primaryProviderId: DEFAULT_CONFIG.provider.provider,
@@ -99,13 +88,6 @@ function onboardingSnapshotWithDiscovery(discovery: AgentBehaviorDiscoverySnapsh
         users: [],
         sessions: [],
       },
-    },
-    bindSettings: {
-      daemonEnabled: false,
-      httpListenerEnabled: false,
-      controlPlane,
-      httpListener,
-      web,
     },
     surfaces: {
       configuredEnabledKinds: [],

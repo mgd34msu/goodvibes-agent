@@ -48,15 +48,7 @@ function makeOnboardingSnapshot(
       llmProvider: DEFAULT_CONFIG.tools.llmProvider,
       llmModel: DEFAULT_CONFIG.tools.llmModel,
     },
-    danger: structuredClone(DEFAULT_CONFIG.danger),
-    controlPlane: structuredClone(DEFAULT_CONFIG.controlPlane),
-    httpListener: structuredClone(DEFAULT_CONFIG.httpListener),
-    web: structuredClone(DEFAULT_CONFIG.web),
-    network: structuredClone(DEFAULT_CONFIG.network),
     surfaces: structuredClone(DEFAULT_CONFIG.surfaces),
-    service: structuredClone(DEFAULT_CONFIG.service),
-    featureFlags: structuredClone(DEFAULT_CONFIG.featureFlags),
-    batch: structuredClone(DEFAULT_CONFIG.batch),
   };
 
   return {
@@ -124,13 +116,6 @@ function makeOnboardingSnapshot(
         users: [],
         sessions: [],
       },
-    },
-    bindSettings: {
-      daemonEnabled: false,
-      httpListenerEnabled: false,
-      controlPlane: config.controlPlane,
-      httpListener: config.httpListener,
-      web: config.web,
     },
     surfaces: {
       configuredEnabledKinds: [],
@@ -353,9 +338,15 @@ describe('OnboardingWizardController', () => {
     expect(text).not.toContain(`${'Home'}${'Graph'}`);
     expect(text).not.toContain(`${'Cloud'}${'flare'}`);
     expect(text).not.toContain('non-Agent product setup');
+    expect(text).not.toContain('daemon');
+    expect(text).not.toContain('service lifecycle');
+    expect(text).not.toContain('start services');
+    expect(text).not.toContain('stop services');
     expect(text).not.toContain('HTTP listener');
     expect(text).not.toContain('control-plane');
     expect(text).not.toContain('network setup');
+    expect(text).not.toContain('/api/knowledge');
+    expect(text).not.toContain('/api/home');
   });
 
   test('onboarding slash-command guidance resolves through the Agent command registry', () => {

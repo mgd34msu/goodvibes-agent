@@ -57,7 +57,7 @@ The Agent command layer rejects flags that would route knowledge work into anoth
 
 Agent Workspace -> Voice & Media is the primary media path. Use `Generate media` for a confirmed form that calls configured media providers and stores outputs as GoodVibes artifacts.
 
-`/media providers` lists media provider readiness. `/media generate [--provider <id>] [--model <id>] [--mime <mime>] <prompt> --yes` is the power-user mirror for confirmed image/video generation. Media generation output returns artifact ids and metadata; it does not print inline base64 and does not write to default Knowledge/Wiki or HomeGraph.
+`/media providers` lists media provider readiness. `/media generate [--provider <id>] [--model <id>] [--mime <mime>] <prompt> --yes` is the power-user mirror for confirmed image/video generation. Media generation output returns artifact ids and metadata; it does not print inline base64 and does not write to default Knowledge/Wiki or non-Agent knowledge segments.
 
 ## Planning
 
@@ -88,7 +88,7 @@ Routine promotion is an explicit scheduling bridge: local routines stay local du
 
 Agent Workspace -> Channels is the primary channel path. It shows readiness, setup, account, policy, and status views without rendering secret values. `Send channel message` opens a confirmed form for one delivery target.
 
-`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, start services, use default Knowledge/Wiki, use HomeGraph, spawn agents, or run WRFC.
+`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage runtime hosting, use default Knowledge/Wiki, use non-Agent knowledge segments, spawn agents, or run WRFC.
 
 ## Related Docs
 

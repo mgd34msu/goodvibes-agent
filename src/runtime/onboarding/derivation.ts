@@ -391,10 +391,7 @@ export function deriveStep1CapabilityFlags(
   };
 }
 
-export function deriveStep1_5NetworkMode(
-  bindSettings: Pick<OnboardingSnapshotState, 'bindSettings'>['bindSettings'],
-): OnboardingNetworkMode {
-  void bindSettings;
+export function deriveStep1_5NetworkMode(): OnboardingNetworkMode {
   return 'local-network-default';
 }
 
@@ -488,7 +485,7 @@ export function deriveOnboardingStepState(
 ): OnboardingStepDerivationState {
   return {
     step1Capabilities: deriveStep1Capabilities(snapshot),
-    step1_5NetworkMode: deriveStep1_5NetworkMode(snapshot.bindSettings),
+    step1_5NetworkMode: deriveStep1_5NetworkMode(),
     reopenEditAcknowledgements: deriveReopenEditAcknowledgementState(snapshot),
   };
 }

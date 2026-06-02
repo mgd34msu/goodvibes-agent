@@ -264,26 +264,6 @@ describe('AgentWorkspace', () => {
     }
     const shellOnlyCommands = new Set([
       'agent',
-      'bookmarks',
-      'clear',
-      'collapse',
-      'commands',
-      'compact',
-      'context',
-      'expand',
-      'help',
-      'keybindings',
-      'next-error',
-      'paste',
-      'prev-error',
-      'quit',
-      'redo',
-      'reset',
-      'retry',
-      'shortcuts',
-      'title',
-      'undo',
-      'welcome',
     ]);
 
     const missingWorkspaceAccess = registry.list()

@@ -40,15 +40,7 @@ export interface OnboardingConfigSnapshot {
   readonly permissions: GoodVibesConfig['permissions'];
   readonly helper: GoodVibesConfig['helper'];
   readonly tools: Pick<GoodVibesConfig['tools'], 'llmEnabled' | 'llmProvider' | 'llmModel'>;
-  readonly danger: GoodVibesConfig['danger'];
-  readonly controlPlane: GoodVibesConfig['controlPlane'];
-  readonly httpListener: GoodVibesConfig['httpListener'];
-  readonly web: GoodVibesConfig['web'];
-  readonly network: GoodVibesConfig['network'];
   readonly surfaces: GoodVibesConfig['surfaces'];
-  readonly service: GoodVibesConfig['service'];
-  readonly featureFlags: GoodVibesConfig['featureFlags'];
-  readonly batch: GoodVibesConfig['batch'];
 }
 
 export interface OnboardingProviderRoutingSnapshot {
@@ -100,14 +92,6 @@ export interface OnboardingSecretsSnapshot {
 
 export interface OnboardingAuthSnapshot {
   readonly snapshot: LocalAuthSnapshot;
-}
-
-export interface OnboardingBindSettingsSnapshot {
-  readonly daemonEnabled: boolean;
-  readonly httpListenerEnabled: boolean;
-  readonly controlPlane: GoodVibesConfig['controlPlane'];
-  readonly httpListener: GoodVibesConfig['httpListener'];
-  readonly web: GoodVibesConfig['web'];
 }
 
 export interface OnboardingSurfaceRecord {
@@ -187,7 +171,6 @@ export interface OnboardingSnapshotState {
   readonly subscriptions: OnboardingSubscriptionsSnapshot;
   readonly secrets: OnboardingSecretsSnapshot;
   readonly auth: OnboardingAuthSnapshot;
-  readonly bindSettings: OnboardingBindSettingsSnapshot;
   readonly surfaces: OnboardingSurfacesSnapshot;
   readonly providerAccounts: OnboardingProviderAccountsSnapshot | null;
   readonly localBehaviorDiscovery: AgentBehaviorDiscoverySnapshot;

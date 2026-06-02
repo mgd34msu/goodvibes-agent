@@ -36,7 +36,7 @@ export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspace
       mode: 'create',
       title: 'Show Health Repair Guidance',
       selectedFieldIndex: 0,
-      message: 'Show health repair guidance for one domain. Agent does not start services or mutate connected-host lifecycle.',
+      message: 'Show health repair guidance for one domain. Agent does not manage runtime hosting or mutate connected-host lifecycle.',
       fields: [
         { id: 'domain', label: 'Domain', value: 'settings', required: true, multiline: false, hint: 'settings, auth, accounts, host, remote, mcp, continuity, or maintenance.' },
       ],
