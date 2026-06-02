@@ -40,13 +40,13 @@ bun run dev
 
 `goodvibes-agent` starts the interactive Agent TUI. On a fresh Agent home, the TUI opens Agent setup first.
 
-After setup has been applied once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, provider/model selection, Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
+After setup has been applied once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, conversation/session controls, provider/model selection, Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
 
 Press `/` inside the Agent workspace to search every workspace action by name, category, command, or detail. Use that finder before reaching for shell commands; CLI subcommands are scriptable mirrors of these TUI workflows.
 
-The setup workspace scans local Agent behavior folders and shows importable persona, skill, and routine files before asking you to create blank records. It can also create one initial local persona, skill, and routine from the setup form. Use `/personas discover`, `/agent-skills discover`, and `/routines discover` to preview files, then use the matching import action in the workspace after review.
+The setup workspace scans local Agent behavior folders and shows importable persona, skill, and routine files before asking you to create blank records. It can also create one initial local persona, skill, and routine from the setup form. Use the workspace action finder to search for local behavior discovery/import actions, preview files, then import reviewed records from the matching workspace.
 
-Use `/agent-profile guide` inside that workspace to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
+Use the Profiles workspace Starter authoring guide to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
 Use the Profiles workspace form to assemble a local starter template and isolated Agent profile from reviewed discovered persona, skill, and routine files. Scriptable profile commands mirror the same flow for automation; use them only when you intentionally want a shell-driven setup path.
 

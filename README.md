@@ -46,11 +46,12 @@ bun run package:install-check
 bun run publish:check
 ```
 
-After setup has been applied once, the Agent TUI opens directly into the operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. It is the Agent-first fullscreen workspace for setup, model/provider selection, isolated Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
+After setup has been applied once, the Agent TUI opens directly into the operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. It is the Agent-first fullscreen workspace for setup, conversation/session controls, model/provider selection, isolated Agent Knowledge, local memory/skills/routines/personas, channel readiness, voice/media setup, work-plan/approval review, automation observability, and explicit build delegation to GoodVibes TUI.
 
 Use the workspace as the primary product surface:
 
 - Home: normal assistant chat, operator briefing, model selection, setup, and health.
+- Conversation: context usage, compaction, title/session save/load/search/export, transcript search, bookmarks, paste/image/TTS helpers, undo/redo/retry, clear/reset, shortcuts, and keybindings.
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Tools & MCP: MCP server setup, tool inventory, trust review, secret storage/link/test/delete, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, URL/URL-list/file/bookmark/browser-history/connector ingest, source library, review queue, and reindex.
@@ -63,7 +64,7 @@ Inside the Agent workspace, press `/` to search every workspace action by name, 
 
 The setup workspace surfaces discovered local Agent persona, skill, and routine markdown files so day-one setup can import useful behavior instead of starting from blank records. It can also create one initial local persona, skill, and routine directly during first-run setup; those records stay in Agent-local registries and never write to default Knowledge/Wiki or non-Agent segments.
 
-Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
+In the Profiles workspace, choose Starter authoring guide to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
 
 Use the Profiles workspace form to turn reviewed discovered persona, skill, and routine files into a local starter template and isolated Agent profile in one confirmed flow. The scriptable equivalent is `profiles create-from-discovered <name> --yes`; `profiles templates from-discovered <id> --yes` is still available when you only want to save the starter first.
 
