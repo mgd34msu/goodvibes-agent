@@ -515,8 +515,8 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
 
 export function registerAgentSkillsRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
-    name: 'agent-skills',
-    aliases: ['askills', 'local-skills', 'skills', 'skill'],
+    name: 'skills',
+    aliases: ['skill', 'agent-skills', 'askills', 'local-skills'],
     description: 'Manage local GoodVibes Agent skills',
     usage: '[list|enabled|attention|discover|import-discovered <name> --yes|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps> [--requires-env A,B] [--requires-command gh,jq]|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
     handler: runAgentSkillsRuntimeCommand,

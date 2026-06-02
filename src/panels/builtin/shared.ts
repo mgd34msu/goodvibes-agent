@@ -80,7 +80,7 @@ export interface BuiltinPanelDeps {
   tokenAuditor: ApiTokenAuditor;
   /** Shared component-health monitor for rate-limited panels and diagnostics. */
   componentHealthMonitor: ComponentHealthMonitor;
-  /** Copied shell dependency kept inert in Agent; build worktree UX belongs to GoodVibes TUI delegation. */
+  /** Inert shell dependency in Agent; build worktree UX belongs to GoodVibes TUI delegation. */
   worktreeRegistry: WorktreeRegistry;
   /** Isolation session registry used by MCP internals; Agent does not expose local execution-isolation command UX. */
   sandboxSessionRegistry: SandboxSessionRegistry;
