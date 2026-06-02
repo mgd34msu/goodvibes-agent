@@ -64,7 +64,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         ctx.print([
           `Approval Review: ${entry[0]}`,
           `  ${entry[1]}`,
-          '  Related workspaces: /security, /policy preflight, /trust, /mcp',
+          '  Related workspaces: /security, /trust, /mcp',
         ].join('\n'));
         return;
       }

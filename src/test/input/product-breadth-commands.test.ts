@@ -21,14 +21,17 @@ const hiddenCopiedBreadthCommands = [
   'memory-sync',
   'ops',
   'orchestration',
+  'policy',
   'plugin',
   'profilesync',
+  'recall',
   'remote',
   'remote-env',
   'remote-setup',
   'replay',
   'scan',
   'services',
+  'session-memory',
   'settingssync',
   'share',
   'storage',
@@ -56,10 +59,8 @@ const visibleAgentBreadthCommands = [
   'memory',
   'notify',
   'personas',
-  'policy',
   'provider',
   'qrcode',
-  'recall',
   'routines',
   'schedule',
   'secrets',
@@ -89,5 +90,8 @@ describe('product breadth commands', () => {
     for (const commandName of visibleAgentBreadthCommands) {
       expect(registry.get(commandName)?.name).toBe(commandName);
     }
+
+    expect(registry.get('policy')).toBeUndefined();
+    expect(registry.get('recall')).toBeUndefined();
   });
 });

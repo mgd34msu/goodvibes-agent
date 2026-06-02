@@ -18,11 +18,11 @@ export function handleRecallExport(args: string[], context: CommandContext): voi
 
   const pathArg = commandArgs[0];
   if (!pathArg) {
-    context.print('[recall] Usage: /recall export <path> [--scope <scope>] [--cls <class>] --yes');
+    context.print('[memory] Usage: /memory export <path> [--scope <scope>] [--cls <class>] --yes');
     return;
   }
   if (!parsed.yes) {
-    requireYesFlag(context, `export durable memory bundle to ${pathArg}`, '/recall export <path> [--scope <scope>] [--cls <class>] --yes');
+    requireYesFlag(context, `export durable memory bundle to ${pathArg}`, '/memory export <path> [--scope <scope>] [--cls <class>] --yes');
     return;
   }
 
@@ -31,7 +31,7 @@ export function handleRecallExport(args: string[], context: CommandContext): voi
   if (scopeIdx !== -1 && commandArgs[scopeIdx + 1]) {
     const scope = commandArgs[scopeIdx + 1];
     if (!isValidScope(scope)) {
-      context.print(`[recall] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
+      context.print(`[memory] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
       return;
     }
     filter.scope = scope;
@@ -41,7 +41,7 @@ export function handleRecallExport(args: string[], context: CommandContext): voi
   if (clsIdx !== -1 && commandArgs[clsIdx + 1]) {
     const cls = commandArgs[clsIdx + 1];
     if (!isValidClass(cls)) {
-      context.print(`[recall] Unknown class "${cls}". Valid: ${VALID_CLASSES.join(', ')}`);
+      context.print(`[memory] Unknown class "${cls}". Valid: ${VALID_CLASSES.join(', ')}`);
       return;
     }
     filter.cls = cls;
@@ -51,7 +51,7 @@ export function handleRecallExport(args: string[], context: CommandContext): voi
   const targetPath = resolveBundlePath(pathArg, requireShellPaths(context));
   mkdirSync(dirname(targetPath), { recursive: true });
   writeFileSync(targetPath, JSON.stringify(bundle, null, 2) + '\n', 'utf-8');
-  context.print(`[recall] Exported ${bundle.recordCount} record(s) and ${bundle.linkCount} link(s) to ${targetPath}`);
+  context.print(`[memory] Exported ${bundle.recordCount} record(s) and ${bundle.linkCount} link(s) to ${targetPath}`);
 }
 
 export async function handleRecallImport(args: string[], context: CommandContext): Promise<void> {
@@ -64,11 +64,11 @@ export async function handleRecallImport(args: string[], context: CommandContext
 
   const pathArg = commandArgs[0];
   if (!pathArg) {
-    context.print('[recall] Usage: /recall import <path> --yes');
+    context.print('[memory] Usage: /memory import <path> --yes');
     return;
   }
   if (!parsed.yes) {
-    requireYesFlag(context, `import durable memory bundle from ${pathArg}`, '/recall import <path> --yes');
+    requireYesFlag(context, `import durable memory bundle from ${pathArg}`, '/memory import <path> --yes');
     return;
   }
 
@@ -77,12 +77,12 @@ export async function handleRecallImport(args: string[], context: CommandContext
   try {
     bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as MemoryBundle;
   } catch (error) {
-    context.print(`[recall] Failed to read memory bundle: ${summarizeError(error)}`);
+    context.print(`[memory] Failed to read memory bundle: ${summarizeError(error)}`);
     return;
   }
 
   const result = await memory.importBundle(bundle);
-  context.print(`[recall] Imported bundle from ${targetPath}`);
+  context.print(`[memory] Imported bundle from ${targetPath}`);
   context.print(`  Records: imported=${result.importedRecords} skipped=${result.skippedRecords}`);
   context.print(`  Links:   imported=${result.importedLinks}`);
 }
@@ -106,30 +106,30 @@ export function handleRecallHandoffExport(args: string[], context: CommandContex
   }
   const pathArg = commandArgs[0];
   if (!pathArg) {
-    context.print('[recall] Usage: /recall handoff-export <path> [--scope <scope>] --yes');
+    context.print('[memory] Usage: /memory handoff-export <path> [--scope <scope>] --yes');
     return;
   }
   if (!parsed.yes) {
-    requireYesFlag(context, `export memory handoff bundle to ${pathArg}`, '/recall handoff-export <path> [--scope <scope>] --yes');
+    requireYesFlag(context, `export memory handoff bundle to ${pathArg}`, '/memory handoff-export <path> [--scope <scope>] --yes');
     return;
   }
   const scopeIdx = commandArgs.indexOf('--scope');
   const scopeRaw = scopeIdx !== -1 ? commandArgs[scopeIdx + 1] : 'team';
   if (!scopeRaw || !isValidScope(scopeRaw)) {
-    context.print(`[recall] Unknown scope "${scopeRaw ?? ''}". Valid: ${VALID_SCOPES.join(', ')}`);
+    context.print(`[memory] Unknown scope "${scopeRaw ?? ''}". Valid: ${VALID_SCOPES.join(', ')}`);
     return;
   }
   const bundle = memory.exportBundle({ scope: scopeRaw });
   const targetPath = resolveBundlePath(pathArg, requireShellPaths(context));
   mkdirSync(dirname(targetPath), { recursive: true });
   writeFileSync(targetPath, JSON.stringify(bundle, null, 2) + '\n', 'utf-8');
-  context.print(`[recall] Exported ${scopeRaw} handoff bundle to ${targetPath}`);
+  context.print(`[memory] Exported ${scopeRaw} handoff bundle to ${targetPath}`);
 }
 
 export function handleRecallHandoffInspect(args: string[], context: CommandContext): void {
   const pathArg = args[0];
   if (!pathArg) {
-    context.print('[recall] Usage: /recall handoff-inspect <path>');
+    context.print('[memory] Usage: /memory handoff-inspect <path>');
     return;
   }
   const targetPath = resolveBundlePath(pathArg, requireShellPaths(context));
@@ -137,7 +137,7 @@ export function handleRecallHandoffInspect(args: string[], context: CommandConte
     const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as MemoryBundle;
     context.print(inspectBundle(bundle));
   } catch (error) {
-    context.print(`[recall] Failed to inspect handoff bundle: ${summarizeError(error)}`);
+    context.print(`[memory] Failed to inspect handoff bundle: ${summarizeError(error)}`);
   }
 }
 
@@ -146,7 +146,7 @@ export async function handleRecallHandoffImport(args: string[], context: Command
   const commandArgs = [...parsed.rest];
   const pathArg = commandArgs[0];
   if (!pathArg) {
-    context.print('[recall] Usage: /recall handoff-import <path> --yes');
+    context.print('[memory] Usage: /memory handoff-import <path> --yes');
     return;
   }
   await handleRecallImport([pathArg, ...(parsed.yes ? ['--yes'] : [])], context);

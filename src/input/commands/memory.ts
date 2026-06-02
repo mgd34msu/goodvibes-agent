@@ -1,16 +1,16 @@
 /**
- * /recall command handler.
+ * /memory command handler.
  *
  * Implements the Project Memory Substrate commands:
  *
- *   /recall add <class> <summary>           — Add a new memory record
- *   /recall add <class> <summary> --detail <text> --tags <tag,tag>
- *   /recall search [query]                  — Search memory records
- *   /recall search --cls <class>            — Filter by class
- *   /recall link <fromId> <toId> <relation> --yes — Link two records
- *   /recall get <id>                        — Show a single record with provenance
- *   /recall list [class]                    — List all records (optionally by class)
- *   /recall remove <id> --yes               — Delete a record
+ *   /memory add <class> <summary>           — Add a new memory record
+ *   /memory add <class> <summary> --detail <text> --tags <tag,tag>
+ *   /memory search [query]                  — Search memory records
+ *   /memory search --cls <class>            — Filter by class
+ *   /memory link <fromId> <toId> <relation> --yes — Link two records
+ *   /memory get <id>                        — Show a single record with provenance
+ *   /memory list [class]                    — List all records (optionally by class)
+ *   /memory remove <id> --yes               — Delete a record
  */
 
 import type { SlashCommand, CommandContext } from '../command-registry.ts';
@@ -118,7 +118,7 @@ export const recallCommand: SlashCommand = {
 
       default: {
         const usage = [
-          'Usage: /recall <subcommand>',
+          'Usage: /memory <subcommand>',
           '  add <class> <summary> [--scope <session|project|team>] [--detail <text>] [--tags <t,t>] [--session <id>] [--task <id>] [--file <path>]',
           `       classes: ${VALID_CLASSES.join(', ')}`,
           '  capture incident <id|latest>                    — Capture a forensics incident as durable memory',

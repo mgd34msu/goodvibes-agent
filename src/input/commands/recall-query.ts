@@ -7,8 +7,8 @@ import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 export function getMemoryApi(context: CommandContext): MemoryApi | null {
   const memoryApi = context.clients?.agentKnowledgeApi?.memory;
   if (!memoryApi) {
-    context.print('[recall] Agent Memory API is not available in this runtime.');
-    context.print('[recall] Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback.');
+    context.print('[memory] Agent Memory API is not available in this runtime.');
+    context.print('[memory] Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback.');
     return null;
   }
   return memoryApi;
@@ -29,7 +29,7 @@ export function handleRecallSearch(args: string[], context: CommandContext): voi
     const cls = args[clsIdx + 1];
     if (isValidClass(cls)) filter.cls = cls;
     else {
-      context.print(`[recall] Unknown class "${cls}". Valid: ${VALID_CLASSES.join(', ')}`);
+      context.print(`[memory] Unknown class "${cls}". Valid: ${VALID_CLASSES.join(', ')}`);
       return;
     }
   }
@@ -39,7 +39,7 @@ export function handleRecallSearch(args: string[], context: CommandContext): voi
     const scope = args[scopeIdx + 1];
     if (isValidScope(scope)) filter.scope = scope;
     else {
-      context.print(`[recall] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
+      context.print(`[memory] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
       return;
     }
   }
@@ -59,11 +59,11 @@ export function handleRecallSearch(args: string[], context: CommandContext): voi
   const semanticResults = semantic ? memory.searchSemantic(filter) : [];
   const results = semantic ? semanticResults.map((entry) => entry.record) : memory.search(filter);
   if (!results.length) {
-    context.print('[recall] No records found.');
+    context.print('[memory] No records found.');
     return;
   }
 
-  context.print(`[recall] ${results.length} ${semantic ? 'semantic ' : ''}record(s):`);
+  context.print(`[memory] ${results.length} ${semantic ? 'semantic ' : ''}record(s):`);
   for (const record of results) {
     const semanticEntry = semanticResults.find((entry) => entry.record.id === record.id);
     const ts = new Date(record.createdAt).toISOString().slice(0, 16).replace('T', ' ');
@@ -93,7 +93,7 @@ export function handleRecallVector(args: string[], context: CommandContext): voi
     context.print(formatVectorStats(memory.vectorStats(), sub));
     return;
   }
-  context.print('[recall] Usage: /recall vector [status|doctor|rebuild]');
+  context.print('[memory] Usage: /memory vector [status|doctor|rebuild]');
 }
 
 function formatVectorStats(
@@ -101,7 +101,7 @@ function formatVectorStats(
   label: string,
 ): string {
   return [
-    `[recall] Vector index ${label}`,
+    `[memory] Vector index ${label}`,
     `  backend: ${stats.backend}`,
     `  enabled: ${stats.enabled ? 'yes' : 'no'}`,
     `  available: ${stats.available ? 'yes' : 'no'}`,
@@ -119,16 +119,16 @@ export function handleRecallGet(args: string[], context: CommandContext): void {
   }
   const id = args[0];
   if (!id) {
-    context.print('[recall] Usage: /recall get <id>');
+    context.print('[memory] Usage: /memory get <id>');
     return;
   }
   const record = memory.get(id);
   if (!record) {
-    context.print(`[recall] Record not found: ${id}`);
+    context.print(`[memory] Record not found: ${id}`);
     return;
   }
   const ts = new Date(record.createdAt).toISOString().slice(0, 19).replace('T', ' ');
-  context.print(`[recall] ${record.id}`);
+  context.print(`[memory] ${record.id}`);
   context.print(`  Scope:   ${record.scope}`);
   context.print(`  Class:   ${record.cls}`);
   context.print(`  Summary: ${record.summary}`);
@@ -163,19 +163,19 @@ export async function handleRecallLink(args: string[], context: CommandContext):
   const parsed = stripYesFlag(args);
   const [fromId, toId, relation] = parsed.rest;
   if (!fromId || !toId || !relation) {
-    context.print('[recall] Usage: /recall link <fromId> <toId> <relation> --yes');
+    context.print('[memory] Usage: /memory link <fromId> <toId> <relation> --yes');
     return;
   }
   if (!parsed.yes) {
-    requireYesFlag(context, `link memory records ${fromId} and ${toId}`, '/recall link <fromId> <toId> <relation> --yes');
+    requireYesFlag(context, `link memory records ${fromId} and ${toId}`, '/memory link <fromId> <toId> <relation> --yes');
     return;
   }
   const link = await memory.link(fromId, toId, relation);
   if (!link) {
-    context.print('[recall] Link failed — check that both IDs exist.');
+    context.print('[memory] Link failed — check that both IDs exist.');
     return;
   }
-  context.print(`[recall] Linked: ${fromId} -> ${toId} [${relation}]`);
+  context.print(`[memory] Linked: ${fromId} -> ${toId} [${relation}]`);
 }
 
 export function handleRecallRemove(args: string[], context: CommandContext): void {
@@ -186,19 +186,19 @@ export function handleRecallRemove(args: string[], context: CommandContext): voi
   const parsed = stripYesFlag(args);
   const id = parsed.rest[0];
   if (!id) {
-    context.print('[recall] Usage: /recall remove <id> --yes');
+    context.print('[memory] Usage: /memory remove <id> --yes');
     return;
   }
   if (!parsed.yes) {
-    requireYesFlag(context, `delete durable memory record ${id}`, '/recall remove <id> --yes');
+    requireYesFlag(context, `delete durable memory record ${id}`, '/memory remove <id> --yes');
     return;
   }
   const removed = memory.delete(id);
   if (!removed) {
-    context.print(`[recall] Record not found: ${id}`);
+    context.print(`[memory] Record not found: ${id}`);
     return;
   }
-  context.print(`[recall] Deleted: ${id}`);
+  context.print(`[memory] Deleted: ${id}`);
 }
 
 export function handleRecallList(args: string[], context: CommandContext): void {
@@ -213,7 +213,7 @@ export function handleRecallList(args: string[], context: CommandContext): void 
   if (scopeIdx !== -1 && args[scopeIdx + 1]) {
     const scope = args[scopeIdx + 1];
     if (!isValidScope(scope)) {
-      context.print(`[recall] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
+      context.print(`[memory] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
       return;
     }
     filter.scope = scope;
@@ -221,7 +221,7 @@ export function handleRecallList(args: string[], context: CommandContext): void 
 
   const records = memory.search(filter);
   if (!records.length) {
-    context.print('[recall] No records.');
+    context.print('[memory] No records.');
     return;
   }
 
@@ -232,7 +232,7 @@ export function handleRecallList(args: string[], context: CommandContext): void 
   }
 
   for (const [clsName, group] of Object.entries(grouped)) {
-    context.print(`\n[recall] ${clsName.toUpperCase()} (${group.length}):`);
+    context.print(`\n[memory] ${clsName.toUpperCase()} (${group.length}):`);
     for (const record of group) {
       const tagStr = record.tags.length ? ` [${record.tags.join(', ')}]` : '';
       context.print(`  ${record.id} [${record.scope}]${tagStr}  ${record.summary}`);

@@ -97,8 +97,8 @@ Memory, personas, routines, and reusable Agent skills are local to GoodVibes Age
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
 /agent-skills enabled
 /skills local list
-/recall add fact Prefers concise morning briefings --scope project --tags preference
-/recall search morning
+/memory add fact "Prefers concise morning briefings" --scope project --tags preference
+/memory search morning
 ```
 
 The active persona plus enabled Agent routines, reviewed memory, and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or non-Agent knowledge segments.

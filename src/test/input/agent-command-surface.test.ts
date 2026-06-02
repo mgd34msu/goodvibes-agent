@@ -32,14 +32,17 @@ const hiddenCopiedCommands = [
   'orchestration',
   'panel',
   'plugin',
+  'policy',
   'profilesync',
   'provider-opt',
+  'recall',
   'remote',
   'remote-env',
   'remote-setup',
   'replay',
   'scan',
   'services',
+  'session-memory',
   'settingssync',
   'share',
   'storage',
@@ -148,8 +151,7 @@ describe('Agent command interface', () => {
     expect(registry.get('memory')?.description).toContain('Agent-local memory');
     expect(registry.get('memory')?.description).not.toContain('session memories');
     expect(registry.get('mem')?.name).toBe('memory');
-    expect(registry.get('session-memory')?.description).toContain('conversation-pinned memories');
-    expect(registry.get('smemory')?.name).toBe('session-memory');
+    expect(registry.get('recall')).toBeUndefined();
   });
 
   test('keeps undo and redo conversation-scoped instead of file-edit scoped', () => {

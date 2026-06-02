@@ -11,10 +11,10 @@ export function handleRecallQueue(args: string[], context: CommandContext): void
   const limit = Math.max(1, parseInt(args[0] ?? '10', 10) || 10);
   const queue = memory.reviewQueue(limit);
   if (!queue.length) {
-    context.print('[recall] Review queue is empty.');
+    context.print('[memory] Review queue is empty.');
     return;
   }
-  context.print(`[recall] Review queue (${queue.length}):`);
+  context.print(`[memory] Review queue (${queue.length}):`);
   for (const record of queue) {
     const reason = record.staleReason ? ` — ${record.staleReason}` : '';
     context.print(`  ${record.id} [${record.scope}/${record.cls}] ${record.reviewState} ${record.confidence}%  ${record.summary}${reason}`);
@@ -29,7 +29,7 @@ export function handleRecallReview(args: string[], context: CommandContext): voi
 
   const [id, stateRaw, ...rest] = args;
   if (!id || !stateRaw || !isValidReviewState(stateRaw)) {
-    context.print(`[recall] Usage: /recall review <id> <${VALID_REVIEW_STATES.join('|')}> [--confidence <0-100>] [--by <name>] [--reason <text>]`);
+    context.print(`[memory] Usage: /memory review <id> <${VALID_REVIEW_STATES.join('|')}> [--confidence <0-100>] [--by <name>] [--reason <text>]`);
     return;
   }
 
@@ -48,10 +48,10 @@ export function handleRecallReview(args: string[], context: CommandContext): voi
   });
 
   if (!record) {
-    context.print(`[recall] Record not found: ${id}`);
+    context.print(`[memory] Record not found: ${id}`);
     return;
   }
-  context.print(`[recall] Reviewed ${record.id}: ${record.reviewState} ${record.confidence}%`);
+  context.print(`[memory] Reviewed ${record.id}: ${record.reviewState} ${record.confidence}%`);
 }
 
 export function handleRecallExplain(args: string[], context: CommandContext): void {
@@ -68,15 +68,15 @@ export function handleRecallExplain(args: string[], context: CommandContext): vo
   });
   const task = taskTokens.join(' ').trim();
   if (!task) {
-    context.print('[recall] Usage: /recall explain <task description...> [--scope <write-scope> ...]');
+    context.print('[memory] Usage: /memory explain <task description...> [--scope <write-scope> ...]');
     return;
   }
   const explanation = memory.explain(task, scopeValues);
   if (explanation.injections.length === 0) {
-    context.print('[recall] No reviewed project knowledge was selected for that task.');
+    context.print('[memory] No reviewed project knowledge was selected for that task.');
     return;
   }
-  context.print(explanation.prompt ?? '[recall] No explainable project knowledge was selected.');
+  context.print(explanation.prompt ?? '[memory] No explainable project knowledge was selected.');
 }
 
 export function handleRecallPromote(args: string[], context: CommandContext): void {
@@ -88,17 +88,17 @@ export function handleRecallPromote(args: string[], context: CommandContext): vo
   const id = parsed.rest[0];
   const scope = parsed.rest[1];
   if (!id || !scope || !isValidScope(scope)) {
-    context.print(`[recall] Usage: /recall promote <id> <${VALID_SCOPES.join('|')}> --yes`);
+    context.print(`[memory] Usage: /memory promote <id> <${VALID_SCOPES.join('|')}> --yes`);
     return;
   }
   if (!parsed.yes) {
-    requireYesFlag(context, `promote durable memory record ${id} to ${scope} scope`, '/recall promote <id> <scope> --yes');
+    requireYesFlag(context, `promote durable memory record ${id} to ${scope} scope`, '/memory promote <id> <scope> --yes');
     return;
   }
   const record = memory.update(id, { scope });
   if (!record) {
-    context.print(`[recall] Record not found: ${id}`);
+    context.print(`[memory] Record not found: ${id}`);
     return;
   }
-  context.print(`[recall] Promoted ${record.id} to ${record.scope} scope.`);
+  context.print(`[memory] Promoted ${record.id} to ${record.scope} scope.`);
 }

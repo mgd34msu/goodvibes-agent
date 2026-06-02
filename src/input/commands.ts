@@ -1,6 +1,5 @@
 import type { CommandRegistry } from './command-registry.ts';
 import type { CommandContext } from './command-registry.ts';
-import { policyCommand } from './commands/policy.ts';
 import { sessionCommand } from './commands/session.ts';
 import { recallCommand } from './commands/memory.ts';
 import { knowledgeCommand } from './commands/knowledge.ts';
@@ -89,16 +88,11 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerPlanningRuntimeCommands(registry);
   registerScheduleRuntimeCommands(registry);
   registerSessionContentCommands(registry);
+  registry.unregister('session-memory');
   registerAgentMemoryCommand(registry);
-
-  // ── /policy ───────────────────────────────────────────────────────────────
-  registry.register(policyCommand);
 
   // ── /session ─────────────────────────────────────────────────────────────
   registry.register(sessionCommand);
-
-  // ── /recall ──────────────────────────────────────────────────────────────
-  registry.register(recallCommand);
 
   // ── /knowledge ───────────────────────────────────────────────────────────
   registry.register(knowledgeCommand);

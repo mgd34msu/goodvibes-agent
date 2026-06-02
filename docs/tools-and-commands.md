@@ -22,7 +22,7 @@ High-signal Agent command families:
 - `/model` and `/provider` for provider/model selection and visibility.
 - `/knowledge` and `goodvibes-agent knowledge` for isolated Agent Knowledge/Wiki ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
 - `goodvibes-agent ask <question>` and `goodvibes-agent search <query>` are CLI shortcuts for the same isolated Agent Knowledge routes.
-- `/recall`, `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
+- `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
 - `/approvals` for pending approval visibility and explicit approval actions.
@@ -33,7 +33,7 @@ High-signal Agent command families:
 
 Host-management and coding-first commands that would imply connected-service lifecycle ownership, local agent spawning, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 
-Local recall capture/add commands are explicit Agent-local memory actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
+Local memory capture/add commands are explicit Agent-local actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
 
 ## Agent Knowledge
 

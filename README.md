@@ -91,8 +91,8 @@ Local Agent behavior is editable from the TUI:
 /channels
 /agent-skills create --name "Morning Brief" --description "Daily briefing flow" --procedure "Check tasks, approvals, calendar, and unread state before summarizing." --enabled true
 /skills local list
-/recall add fact Prefers concise morning briefings --scope project --tags preference
-/recall search morning
+/memory add fact "Prefers concise morning briefings" --scope project --tags preference
+/memory search morning
 ```
 
 Starting a routine records local usage and prints its steps; it does not spawn background agents or automation jobs. Promotion to a connected schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live connected schedules through public `schedules.list`.

@@ -17,7 +17,7 @@ export async function handleRecallAdd(args: string[], context: CommandContext): 
 
   const cls = args[0];
   if (!cls || !isValidClass(cls)) {
-    context.print(`[recall] Invalid class "${cls ?? ''}". Valid: ${VALID_CLASSES.join(', ')}`);
+    context.print(`[memory] Invalid class "${cls ?? ''}". Valid: ${VALID_CLASSES.join(', ')}`);
     return;
   }
 
@@ -36,7 +36,7 @@ export async function handleRecallAdd(args: string[], context: CommandContext): 
   const scope = scopeRaw && isValidScope(scopeRaw) ? scopeRaw : 'project';
 
   if (scopeRaw && !isValidScope(scopeRaw)) {
-    context.print(`[recall] Invalid scope "${scopeRaw}". Valid: ${VALID_SCOPES.join(', ')}`);
+    context.print(`[memory] Invalid scope "${scopeRaw}". Valid: ${VALID_SCOPES.join(', ')}`);
     return;
   }
 
@@ -55,12 +55,12 @@ export async function handleRecallAdd(args: string[], context: CommandContext): 
   }
   const summary = summaryTokens.join(' ');
   if (!summary.trim()) {
-    context.print('[recall] Usage: /recall add <class> <summary> [--detail <text>] [--tags <t1,t2>]');
+    context.print('[memory] Usage: /memory add <class> <summary> [--detail <text>] [--tags <t1,t2>]');
     return;
   }
 
   const record = await memory.add({ scope, cls, summary, detail, tags, provenance });
-  context.print(`[recall] Added ${cls}: ${record.id}`);
+  context.print(`[memory] Added ${cls}: ${record.id}`);
   context.print(`  Scope:   ${record.scope}`);
   context.print(`  Summary: ${record.summary}`);
   if (record.tags.length) context.print(`  Tags: ${record.tags.join(', ')}`);
@@ -76,7 +76,7 @@ export async function handleRecallCapture(args: string[], context: CommandContex
     return;
   }
   if (!context.extensions.forensicsRegistry) {
-    context.print('[recall] Forensics registry not available.');
+    context.print('[memory] Forensics registry not available.');
     return;
   }
 
@@ -87,66 +87,66 @@ export async function handleRecallCapture(args: string[], context: CommandContex
       ? context.extensions.forensicsRegistry.latest()
       : context.extensions.forensicsRegistry.getById(requestedId);
     if (!report) {
-      context.print(`[recall] Incident not found: ${requestedId ?? 'latest'}`);
+      context.print(`[memory] Incident not found: ${requestedId ?? 'latest'}`);
       return;
     }
     const bundle = context.extensions.forensicsRegistry.buildBundle(report.id);
     if (!bundle) {
-      context.print(`[recall] Failed to build incident bundle: ${report.id}`);
+      context.print(`[memory] Failed to build incident bundle: ${report.id}`);
       return;
     }
     const record = await memory.add(buildIncidentMemoryAddOptions(bundle));
-    context.print(`[recall] Captured incident ${report.id} into memory as ${record.id}`);
+    context.print(`[memory] Captured incident ${report.id} into memory as ${record.id}`);
     return;
   }
 
   if (target === 'policy') {
     const review = context.extensions.policyRuntimeState?.getSnapshot().lastPreflightReview;
     if (!review) {
-      context.print('[recall] No policy preflight review is available to capture.');
+      context.print('[memory] No policy preflight review is available to capture.');
       return;
     }
     const record = await memory.add(buildPolicyPreflightMemoryAddOptions(review));
-    context.print(`[recall] Captured policy preflight into memory as ${record.id}`);
+    context.print(`[memory] Captured policy preflight into memory as ${record.id}`);
     return;
   }
 
   if (target === 'mcp') {
     const serverName = args[1];
     if (!serverName) {
-      context.print('[recall] Usage: /recall capture mcp <server>');
+      context.print('[memory] Usage: /memory capture mcp <server>');
       return;
     }
     const server = context.extensions.mcpRegistry.listServerSecurity().find((entry) => entry.name === serverName);
     if (!server) {
-      context.print(`[recall] MCP server not found: ${serverName}`);
+      context.print(`[memory] MCP server not found: ${serverName}`);
       return;
     }
     const record = await memory.add(buildMcpSecurityMemoryAddOptions(server));
-    context.print(`[recall] Captured MCP server ${server.name} into memory as ${record.id}`);
+    context.print(`[memory] Captured MCP server ${server.name} into memory as ${record.id}`);
     return;
   }
 
   if (target === 'plugin') {
     if (!pluginManager) {
-      context.print('[recall] Plugin manager not available.');
+      context.print('[memory] Plugin manager not available.');
       return;
     }
     const pluginName = args[1];
     if (!pluginName) {
-      context.print('[recall] Usage: /recall capture plugin <name>');
+      context.print('[memory] Usage: /memory capture plugin <name>');
       return;
     }
     const plugin = pluginManager.list().find((entry) => entry.name === pluginName);
     if (!plugin) {
-      context.print(`[recall] Plugin not found: ${pluginName}`);
+      context.print(`[memory] Plugin not found: ${pluginName}`);
       return;
     }
     const quarantineReason = pluginManager.getQuarantineRecord(plugin.name)?.reason;
     const record = await memory.add(buildPluginSecurityMemoryAddOptions(plugin, quarantineReason));
-    context.print(`[recall] Captured plugin ${plugin.name} into memory as ${record.id}`);
+    context.print(`[memory] Captured plugin ${plugin.name} into memory as ${record.id}`);
     return;
   }
 
-  context.print('[recall] Usage: /recall capture incident <id|latest> | /recall capture policy | /recall capture mcp <server> | /recall capture plugin <name>');
+  context.print('[memory] Usage: /memory capture incident <id|latest> | /memory capture policy | /memory capture mcp <server> | /memory capture plugin <name>');
 }
