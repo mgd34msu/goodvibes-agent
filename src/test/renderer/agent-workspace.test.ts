@@ -1134,6 +1134,18 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit workplan-delete');
     expect(output).toContain('Clear completed work');
     expect(output).toContain('edit workplan-clear-completed');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-show');
+    const taskOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(taskOutput).toContain('Inspect runtime task');
+    expect(taskOutput).toContain('edit task-show');
+    expect(taskOutput).toContain('Show task output');
+    expect(taskOutput).toContain('edit task-output');
+
+    workspace.activateSelected();
+    const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(editorOutput).toContain('Inspect Runtime Task');
+    expect(editorOutput).toContain('Task id *');
   });
 
   test('renders session continuity and interaction mode forms in the workspace', () => {

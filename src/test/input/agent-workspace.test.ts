@@ -466,6 +466,31 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/approval matrix');
   });
 
+  test('opens runtime task inspection from workspace forms without mutating tasks', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('task-show');
+    feedText(workspace, 'task-123');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/tasks show task-123');
+    expect(workspace.lastActionResult?.safety).toBe('read-only');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-output');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('task-output');
+    feedText(workspace, 'task-123');
+    feedKey(workspace, 'enter');
+    expect(dispatched.at(-1)).toBe('/tasks output task-123');
+
+    expect(dispatched).not.toContain('/tasks cancel task-123');
+    expect(dispatched).not.toContain('/tasks retry task-123');
+  });
+
   test('exports conversation and manages saved session continuity from work workspace forms', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

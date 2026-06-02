@@ -105,6 +105,8 @@ export type AgentWorkspaceEditorKind =
   | 'session-export-saved'
   | 'session-search'
   | 'session-delete'
+  | 'task-show'
+  | 'task-output'
   | 'mode-preset'
   | 'mode-domain'
   | 'model-pin'

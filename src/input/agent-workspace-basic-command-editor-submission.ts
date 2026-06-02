@@ -4,13 +4,15 @@ import { buildAgentWorkspaceChannelCommandEditorSubmission, isAgentWorkspaceChan
 import { buildAgentWorkspaceDelegationEditorSubmission, isAgentWorkspaceDelegationEditorKind } from './agent-workspace-delegation-editor-submission.ts';
 import { buildAgentWorkspaceKnowledgeCommandEditorSubmission, isAgentWorkspaceKnowledgeCommandSubmissionKind } from './agent-workspace-knowledge-command-editor-submission.ts';
 import { buildAgentWorkspaceMemoryCommandEditorSubmission, isAgentWorkspaceMemoryCommandSubmissionKind } from './agent-workspace-memory-command-editor-submission.ts';
+import { buildAgentWorkspaceMcpCommandEditorSubmission, isAgentWorkspaceMcpCommandSubmissionKind } from './agent-workspace-mcp-command-editor-submission.ts';
 import { buildAgentWorkspaceNotifyEditorSubmission, isAgentWorkspaceNotifyEditorKind } from './agent-workspace-notify-editor-submission.ts';
 import { buildAgentWorkspaceProviderCommandEditorSubmission, isAgentWorkspaceProviderCommandSubmissionKind } from './agent-workspace-provider-command-editor-submission.ts';
 import { buildAgentWorkspaceSecretEditorSubmission, isAgentWorkspaceSecretEditorKind } from './agent-workspace-secret-editor-submission.ts';
 import { buildAgentWorkspaceSessionCommandEditorSubmission, isAgentWorkspaceSessionCommandSubmissionKind } from './agent-workspace-session-command-editor-submission.ts';
 import { buildAgentWorkspaceSkillBundleCommandEditorSubmission, isAgentWorkspaceSkillBundleCommandSubmissionKind } from './agent-workspace-skill-bundle-command-editor-submission.ts';
+import { buildAgentWorkspaceTaskCommandEditorSubmission, isAgentWorkspaceTaskCommandSubmissionKind } from './agent-workspace-task-command-editor-submission.ts';
 import { buildAgentWorkspaceWorkPlanEditorSubmission, isAgentWorkspaceWorkPlanEditorKind } from './agent-workspace-workplan-editor-submission.ts';
-import { quoteSlashCommandArg, tokenizeSlashCommand } from './slash-command-parser.ts';
+import { quoteSlashCommandArg } from './slash-command-parser.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
@@ -30,10 +32,6 @@ export type AgentWorkspaceBasicCommandEditorSubmission =
 
 function isAffirmative(value: string): boolean {
   return /^(y|yes|true)$/i.test(value.trim());
-}
-
-function splitCommaList(value: string): readonly string[] {
-  return value.split(',').map((entry) => entry.trim()).filter(Boolean);
 }
 
 export function buildAgentWorkspaceBasicCommandEditorSubmission(
@@ -237,44 +235,11 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
   if (isAgentWorkspaceSkillBundleCommandSubmissionKind(editor.kind)) {
     return buildAgentWorkspaceSkillBundleCommandEditorSubmission(editor, readField);
   }
-  if (editor.kind === 'mcp-server') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'MCP server add/update not confirmed. Type yes, then press Enter.' },
-        status: 'MCP server add/update not confirmed.',
-      };
-    }
-    const parts = [
-      '/mcp',
-      'add',
-      quoteSlashCommandArg(readField('name')),
-      quoteSlashCommandArg(readField('command')),
-      ...tokenizeSlashCommand(readField('args')).map(quoteSlashCommandArg),
-    ];
-    const scope = readField('scope');
-    const role = readField('role');
-    const trust = readField('trust');
-    if (scope.length > 0) parts.push('--scope', quoteSlashCommandArg(scope));
-    if (role.length > 0) parts.push('--role', quoteSlashCommandArg(role));
-    if (trust.length > 0) parts.push('--trust', quoteSlashCommandArg(trust));
-    for (const env of splitCommaList(readField('env'))) parts.push('--env', quoteSlashCommandArg(env));
-    for (const path of splitCommaList(readField('paths'))) parts.push('--path', quoteSlashCommandArg(path));
-    for (const host of splitCommaList(readField('hosts'))) parts.push('--host', quoteSlashCommandArg(host));
-    parts.push('--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening MCP server add/update.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening MCP server add/update',
-        detail: 'The workspace handed a confirmed MCP server add/update command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
+  if (isAgentWorkspaceTaskCommandSubmissionKind(editor.kind)) {
+    return buildAgentWorkspaceTaskCommandEditorSubmission(editor, readField);
+  }
+  if (isAgentWorkspaceMcpCommandSubmissionKind(editor.kind)) {
+    return buildAgentWorkspaceMcpCommandEditorSubmission(editor, readField);
   }
   if (isAgentWorkspaceNotifyEditorKind(editor.kind)) return buildAgentWorkspaceNotifyEditorSubmission(editor, readField);
   if (isAgentWorkspaceSecretEditorKind(editor.kind)) {
