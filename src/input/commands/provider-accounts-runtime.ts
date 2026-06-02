@@ -28,7 +28,7 @@ export function registerProviderAccountsRuntimeCommands(registry: CommandRegistr
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
       if (sub === 'panel' || sub === 'open') {
-        ctx.print('Provider account panels are not part of the Agent workspace. Use /accounts review.');
+        ctx.print('Open Agent Workspace -> Setup -> Provider accounts for the workspace view, or run /accounts review for compact command output.');
         return;
       }
       const snapshot = await loadProviderAccountSnapshot(ctx);

@@ -76,43 +76,43 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
 
   const nextActions = [
     snapshot.provider === 'unknown' || snapshot.model === 'unknown'
-      ? 'Choose the assistant model with /model.'
+      ? 'Choose the assistant model from Agent Workspace -> Home -> Choose model.'
       : '',
     snapshot.localMemoryCount === 0
-      ? 'Store durable non-secret facts with /memory add or the Agent workspace memory form.'
+      ? 'Store durable non-secret facts from Agent Workspace -> Memory -> Add memory.'
       : snapshot.localMemoryReviewQueueCount > 0
-        ? `Review ${plural(snapshot.localMemoryReviewQueueCount, 'memory record')} with /memory queue.`
+        ? `Review ${plural(snapshot.localMemoryReviewQueueCount, 'memory record')} from Agent Workspace -> Memory -> Review queue.`
         : '',
     !hasLocalSkillBehavior
-      ? 'Create reusable procedures with /agent-skills create or import reviewed skill files.'
+      ? 'Create reusable procedures from Agent Workspace -> Skills or import reviewed skill files.'
       : '',
     skillSetupGaps > 0
-      ? `Resolve ${plural(skillSetupGaps, 'skill')} with setup gaps from /agent skills.`
+      ? `Resolve ${plural(skillSetupGaps, 'skill')} with setup gaps from Agent Workspace -> Skills.`
       : '',
     skillBundleSetupGaps > 0
-      ? `Resolve ${plural(skillBundleSetupGaps, 'skill bundle')} with setup gaps from /agent skills.`
+      ? `Resolve ${plural(skillBundleSetupGaps, 'skill bundle')} with setup gaps from Agent Workspace -> Skills.`
       : '',
     hasLocalSkillBehavior && skillSetupGaps === 0 && skillBundleSetupGaps === 0 && snapshot.activeSkillCount === 0
-      ? 'Enable reviewed skills or bundles with /agent-skills enabled and /agent-skills bundle enabled.'
+      ? 'Enable reviewed skills or bundles from Agent Workspace -> Skills.'
       : '',
     snapshot.localRoutineCount === 0
-      ? 'Create repeatable workflows with /routines create; promote schedules only with explicit confirmation.'
+      ? 'Create repeatable workflows from Agent Workspace -> Routines; promote schedules only with explicit confirmation.'
       : routineSetupGaps > 0
-        ? `Resolve ${plural(routineSetupGaps, 'routine')} with setup gaps from /agent routines.`
+        ? `Resolve ${plural(routineSetupGaps, 'routine')} with setup gaps from Agent Workspace -> Routines.`
         : snapshot.enabledRoutineCount === 0
-        ? 'Enable reviewed routines with /routines enable.'
+        ? 'Enable reviewed routines from Agent Workspace -> Routines.'
         : '',
     channelSetupGaps > 0
-      ? `Review ${plural(channelSetupGaps, 'enabled channel')} needing setup from /agent channels.`
+      ? `Review ${plural(channelSetupGaps, 'enabled channel')} needing setup from Agent Workspace -> Channels.`
       : '',
     voiceSetupNeedsReview
-      ? 'Review voice setup with /agent voice-media before relying on spoken replies.'
+      ? 'Review voice setup from Agent Workspace -> Voice & Media before relying on spoken replies.'
       : '',
     mediaSetupNeedsReview
-      ? 'Review media provider setup with /agent voice-media before relying on image or media workflows.'
+      ? 'Review media provider setup from Agent Workspace -> Voice & Media before relying on image or media workflows.'
       : '',
-    'Use /agent knowledge for Agent Knowledge status, search, and explicit ingest forms.',
-    'Use /delegate only for explicit build, fix, implementation, or review handoff to GoodVibes TUI.',
+    'Use Agent Workspace -> Knowledge for Agent Knowledge status, search, and explicit ingest forms.',
+    'Use Agent Workspace -> Build Delegation only for explicit build, fix, implementation, or review handoff to GoodVibes TUI.',
   ].filter((line): line is string => line.length > 0);
 
   return [

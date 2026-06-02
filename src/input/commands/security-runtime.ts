@@ -12,7 +12,7 @@ export function registerSecurityRuntimeCommands(registry: CommandRegistry): void
     handler(args, ctx) {
       const subcommand = args[0]?.toLowerCase() ?? 'review';
       if (subcommand === 'open' || subcommand === 'panel') {
-        ctx.print('Security panels are not part of the Agent workspace. Use /security review.');
+        ctx.print('Open Agent Workspace -> Tools & MCP -> Security review for the workspace view, or run /security review for compact command output.');
         return;
       }
       const audit = requireTokenAuditor(ctx).auditAll(Date.now());

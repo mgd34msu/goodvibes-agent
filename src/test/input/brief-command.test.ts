@@ -155,15 +155,15 @@ describe('/brief command', () => {
     expect(output).toContain('personas: 1 persona; active Research Operator');
     expect(output).toContain('skills: 1/1 enabled; bundles 1/1; active 1; setup gaps 1 skill, 1 bundle');
     expect(output).toContain('routines: 1/1 enabled; setup gaps 1');
-    expect(output).toContain('Resolve 1 skill with setup gaps from /agent skills.');
-    expect(output).toContain('Resolve 1 skill bundle with setup gaps from /agent skills.');
-    expect(output).toContain('Resolve 1 routine with setup gaps from /agent routines.');
+    expect(output).toContain('Resolve 1 skill with setup gaps from Agent Workspace -> Skills.');
+    expect(output).toContain('Resolve 1 skill bundle with setup gaps from Agent Workspace -> Skills.');
+    expect(output).toContain('Resolve 1 routine with setup gaps from Agent Workspace -> Routines.');
     expect(output).toContain('channels: 0/13 ready; 1 enabled; setup gaps 1');
-    expect(output).toContain('Review 1 enabled channel needing setup from /agent channels.');
-    expect(output).toContain('Review voice setup with /agent voice-media before relying on spoken replies.');
-    expect(output).toContain('Review media provider setup with /agent voice-media before relying on image or media workflows.');
+    expect(output).toContain('Review 1 enabled channel needing setup from Agent Workspace -> Channels.');
+    expect(output).toContain('Review voice setup from Agent Workspace -> Voice & Media before relying on spoken replies.');
+    expect(output).toContain('Review media provider setup from Agent Workspace -> Voice & Media before relying on image or media workflows.');
     expect(output).toContain('work plan: 1 item; active 1');
-    expect(output).toContain('Use /delegate only for explicit build');
+    expect(output).toContain('Use Agent Workspace -> Build Delegation only for explicit build');
     expect(output).not.toContain('default wiki');
     expect(output).not.toContain('daemon');
   });
@@ -172,6 +172,6 @@ describe('/brief command', () => {
     const output = formatAgentOperatorBriefing(makeContext());
 
     expect(output).toContain('Next Actions');
-    expect(output).toContain('Use /agent knowledge for Agent Knowledge status');
+    expect(output).toContain('Use Agent Workspace -> Knowledge for Agent Knowledge status');
   });
 });

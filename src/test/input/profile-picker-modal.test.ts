@@ -111,7 +111,7 @@ describe('ProfilePickerModal', () => {
     const result = modal.saveCurrentAs('my-profile', cm);
     expect(result).toBe(false);
     expect(modal.statusMessage).toContain('Config-profile saving is disabled');
-    expect(modal.statusMessage).toContain('/agent profiles');
+    expect(modal.statusMessage).toContain('Agent Workspace -> Profiles');
   });
 
   test('saveCurrentAs with empty name returns false', () => {
@@ -128,7 +128,7 @@ describe('ProfilePickerModal', () => {
     expect(result).toBe(false);
     expect(modal.deleteConfirmationTarget).toBeNull();
     expect(modal.statusMessage).toContain('Config-profile deletion is disabled');
-    expect(modal.statusMessage).toContain('/agent profiles');
+    expect(modal.statusMessage).toContain('Agent Workspace -> Profiles');
     expect(pm.list().some((profile) => profile.name === 'test-profile')).toBe(true);
   });
 

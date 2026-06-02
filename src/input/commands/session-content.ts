@@ -217,7 +217,7 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       const sessions = sessionManager.list();
       if (ctx.openSelection) {
         const items: SelectionItem[] = sessions.length === 0
-          ? [{ id: '_empty', label: 'No saved sessions', detail: 'Use /save [name] to save' }]
+          ? [{ id: '_empty', label: 'No saved sessions', detail: 'Open Agent Workspace -> Conversation -> Save current session' }]
           : sessions.map(s => ({ id: s.name, label: s.name, detail: s.title || '(untitled)', actions: 'Enter to load' }));
         ctx.openSelection('Sessions', items, { allowSearch: true }, (result) => {
           if (!result) return;

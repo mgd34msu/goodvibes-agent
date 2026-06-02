@@ -81,7 +81,7 @@ function buildTranscriptReviewLines(
 
 function reopenPanelsFromReturnContext(ctx: CommandContext, summary: SessionReturnContextSummary | undefined): string[] {
   if (!summary?.openPanels || summary.openPanels.length === 0) return [];
-  ctx.print(`  Saved panel state ignored: ${summary.openPanels.slice(0, 4).join(', ')}. Use /agent for the Agent operator workspace.`);
+  ctx.print(`  Saved panel state ignored: ${summary.openPanels.slice(0, 4).join(', ')}. Open the Agent workspace for current operator controls.`);
   return [];
 }
 

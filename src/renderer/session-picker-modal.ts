@@ -51,7 +51,7 @@ export function renderSessionPickerModal(
     });
     sections.push({
       type: 'text',
-      content: 'Use /save [name] to save the current session.',
+      content: 'Open Agent Workspace -> Conversation -> Save current session.',
       style: { fg: '240', dim: true },
     });
   } else {

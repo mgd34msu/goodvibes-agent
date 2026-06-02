@@ -111,7 +111,7 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
       }
 
       if (args[0] === 'panel') {
-        ctx.print('Planning panels are not part of the Agent workspace. Use /plan status or /plan list.');
+        ctx.print('Open Agent Workspace -> Work -> Planning status or Saved plans for the workspace view, or run /plan status for compact command output.');
         return;
       }
 

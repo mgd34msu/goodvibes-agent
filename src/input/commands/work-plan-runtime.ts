@@ -83,7 +83,7 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
       const subcommand = (commandArgs[0] ?? 'list').toLowerCase();
       try {
         if (subcommand === 'panel' || subcommand === 'open') {
-          ctx.print('Work plan panels are not part of the Agent workspace. Use /workplan list.');
+          ctx.print('Open Agent Workspace -> Work -> Work plan for the workspace view, or run /workplan list for compact command output.');
           return;
         }
         if (subcommand === 'list') {
@@ -106,7 +106,7 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
             ...(addArgs.notes ? { notes: addArgs.notes } : {}),
           };
           const item = store.addItem(addArgs.title, addOptions);
-          ctx.print(`Added work plan item ${item.id}. Use /workplan list to review.`);
+          ctx.print(`Added work plan item ${item.id}. Open Agent Workspace -> Work -> Work plan to review.`);
           return;
         }
         if (subcommand === 'remove' || subcommand === 'delete' || subcommand === 'rm') {

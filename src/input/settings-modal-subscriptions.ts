@@ -23,7 +23,7 @@ export function buildSubscriptionEntries(
       activeRoute: 'unconfigured',
       authFreshness: 'unconfigured',
       routeReason: 'Built-in subscription adapter is available, but no active subscription session is stored yet.',
-      nextActions: [`Open /agent setup and choose Start subscription login for ${provider}.`],
+      nextActions: [`Open Agent Workspace -> Setup -> Start subscription login for ${provider}.`],
     });
   }
 
@@ -38,7 +38,7 @@ export function buildSubscriptionEntries(
       activeRoute: providers.get(provider)?.activeRoute ?? 'unconfigured',
       authFreshness: providers.get(provider)?.authFreshness ?? 'unconfigured',
       routeReason: providers.get(provider)?.routeReason ?? 'OAuth metadata is configured for this provider.',
-      nextActions: providers.get(provider)?.nextActions ?? [`Open /agent setup and choose Start subscription login for ${provider}.`],
+      nextActions: providers.get(provider)?.nextActions ?? [`Open Agent Workspace -> Setup -> Start subscription login for ${provider}.`],
     });
   }
 
@@ -51,7 +51,7 @@ export function buildSubscriptionEntries(
       activeRoute: 'unconfigured',
       authFreshness: 'pending',
       routeReason: 'OAuth login is pending completion for this provider.',
-      nextActions: [`Open /agent setup and choose Finish subscription login for ${pending.provider}.`],
+      nextActions: [`Open Agent Workspace -> Setup -> Finish subscription login for ${pending.provider}.`],
     });
   }
 

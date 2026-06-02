@@ -104,22 +104,22 @@ function setupChecklistLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLi
   return lines;
 }
 
-function discoverySummaryLine(label: string, summary: AgentWorkspaceRuntimeSnapshot['discoveredBehavior']['personas'], command: string): ContextLine[] {
+function discoverySummaryLine(label: string, summary: AgentWorkspaceRuntimeSnapshot['discoveredBehavior']['personas'], actionLabel: string): ContextLine[] {
   if (summary.count === 0) return [];
   const names = summary.names.length > 0
     ? ` ${summary.names.join(', ')}${summary.count > summary.names.length ? `, +${summary.count - summary.names.length} more` : ''}.`
     : '';
   return [
     { text: `${label}: ${summary.count} discovered; project ${summary.projectLocalCount}; global ${summary.globalCount}.`, fg: PALETTE.info, bold: true },
-    { text: `  ${command} to preview, then use the import form after review.${names}`, fg: PALETTE.muted },
+    { text: `  Choose ${actionLabel} to preview, then use the import form after review.${names}`, fg: PALETTE.muted },
   ];
 }
 
 function behaviorDiscoveryLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
   const lines: ContextLine[] = [
-    ...discoverySummaryLine('Discovered personas', snapshot.discoveredBehavior.personas, '/personas discover'),
-    ...discoverySummaryLine('Discovered skills', snapshot.discoveredBehavior.skills, '/agent-skills discover'),
-    ...discoverySummaryLine('Discovered routines', snapshot.discoveredBehavior.routines, '/routines discover'),
+    ...discoverySummaryLine('Discovered personas', snapshot.discoveredBehavior.personas, 'Personas -> Discover persona files'),
+    ...discoverySummaryLine('Discovered skills', snapshot.discoveredBehavior.skills, 'Skills -> Discover skill files'),
+    ...discoverySummaryLine('Discovered routines', snapshot.discoveredBehavior.routines, 'Routines -> Discover routine files'),
   ];
   if (lines.length === 0) return [];
   return [

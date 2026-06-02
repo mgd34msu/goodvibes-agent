@@ -130,7 +130,7 @@ describe('renderContextInspector', () => {
     conv.addUserMessage('A'.repeat(400));
     const lines = renderContextInspector(conv, W, H);
     const text = linesToText(lines).join('\n');
-    expect(text).toContain('compact');
+    expect(text).toContain('Agent Workspace -> Conversation -> Compact conversation');
   });
 
   test('footer contains [Esc] Close hint', () => {

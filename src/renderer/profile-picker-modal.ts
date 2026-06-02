@@ -51,7 +51,7 @@ export function renderProfilePickerModal(
     });
     sections.push({
       type: 'text',
-      content: 'Use /agent profiles to create and manage isolated Agent profile homes.',
+      content: 'Open Agent Workspace -> Profiles to create and manage isolated Agent profile homes.',
       style: { fg: '240', dim: true },
     });
   } else {

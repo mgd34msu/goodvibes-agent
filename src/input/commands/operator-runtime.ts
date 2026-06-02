@@ -67,7 +67,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
     handler(_args, ctx) {
       ctx.print([
         'Copied config profiles are disabled in GoodVibes Agent.',
-        'Use /agent profiles or /agent-profile to create and manage isolated Agent profile homes.',
+        'Open Agent Workspace -> Profiles to create and manage isolated Agent profile homes.',
       ].join('\n'));
     },
   });

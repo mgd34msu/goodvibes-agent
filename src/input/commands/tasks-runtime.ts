@@ -56,7 +56,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
     handler(args, ctx) {
       const subcommand = args[0]?.toLowerCase() ?? 'list';
       if (subcommand === 'open' || subcommand === 'panel') {
-        ctx.print('Task panels are not part of the Agent workspace. Use /tasks list.');
+        ctx.print('Open Agent Workspace -> Work -> Runtime tasks for the workspace view, or run /tasks list for compact command output.');
         return;
       }
 

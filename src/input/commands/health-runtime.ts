@@ -26,7 +26,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       const sub = (args[0] ?? 'review').toLowerCase();
 
       if (sub === 'open' || sub === 'panel') {
-        ctx.print('Health panels are not part of the Agent workspace. Use /health review.');
+        ctx.print('Open Agent Workspace -> Home -> Review health for the workspace view, or run /health review for the compact command output.');
         return;
       }
 

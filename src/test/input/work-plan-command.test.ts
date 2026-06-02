@@ -61,7 +61,7 @@ describe('workplan command', () => {
     const item = store.listItems()[0]!;
     expect(item.title).toBe('Ship persistent plan');
     expect(item.owner).toBe('tui');
-    expect(out.join('\n')).toContain('Use /workplan list to review');
+    expect(out.join('\n')).toContain('Agent Workspace -> Work -> Work plan to review');
 
     await command!.handler(['done', item.id.slice(0, 8)], ctx);
     expect(store.listItems()[0]?.status).toBe('done');
@@ -110,7 +110,7 @@ describe('workplan command', () => {
     await command!.handler(['panel'], ctx);
 
     expect(opened).toEqual([]);
-    expect(out.join('\n')).toContain('Use /workplan list');
+    expect(out.join('\n')).toContain('Agent Workspace -> Work -> Work plan');
   });
 
   test('requires --yes for destructive work plan cleanup', async () => {

@@ -151,7 +151,7 @@ export function renderContextInspector(
   if (contextWindow > 0 && totalTokens / contextWindow >= 0.80) {
     sections.push({
       type: 'text',
-      content: 'WARNING: context is 80%+ full. Run /compact to free space.',
+      content: 'WARNING: context is 80%+ full. Open Agent Workspace -> Conversation -> Compact conversation.',
       style: { fg: '#ff9900', bold: true },
     });
   }
@@ -203,7 +203,7 @@ export function renderContextInspector(
     });
     sections.push({
       type: 'text',
-      content: 'Run /compact to summarise and reduce context size.',
+      content: 'Open Agent Workspace -> Conversation -> Compact conversation to summarise and reduce context size.',
       style: { dim: true },
     });
   }

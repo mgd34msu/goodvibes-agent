@@ -29,7 +29,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
     async handler(args, ctx) {
       const sub = (args[0] ?? 'matrix').toLowerCase();
       if (sub === 'open' || sub === 'panel') {
-        ctx.print('Approval panels are not part of the Agent workspace. Use /approval matrix.');
+        ctx.print('Open Agent Workspace -> Work -> Review approvals for the workspace view, or run /approval matrix for the compact command output.');
         return;
       }
       const matrix = [

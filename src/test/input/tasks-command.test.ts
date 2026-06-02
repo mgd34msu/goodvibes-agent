@@ -152,7 +152,7 @@ describe('tasks command', () => {
 
     await tasksCommand!.handler(['open'], ctx);
 
-    expect(out.join('\n')).toContain('Use /tasks list');
+    expect(out.join('\n')).toContain('Agent Workspace -> Work -> Runtime tasks');
   });
 
   test('blocks copied runtime task interventions in Agent', async () => {
