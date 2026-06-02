@@ -16,7 +16,7 @@ export const MCP_WORKSPACE_MODAL_NAME = 'mcpWorkspace';
 const MCP_ROLES = ['general', 'docs', 'filesystem', 'git', 'database', 'browser', 'automation', 'ops', 'remote'] as const;
 const MCP_FORM_TRUST_MODES = ['constrained', 'ask-on-risk', 'blocked'] as const;
 
-export type McpWorkspaceMode = 'browse' | 'form' | 'delete-confirm';
+export type McpWorkspaceMode = 'browse' | 'form' | 'delete-confirm' | 'reload-confirm';
 
 export interface McpWorkspaceServerRow {
   readonly name: string;
@@ -62,6 +62,7 @@ export interface McpWorkspaceForm {
   env: string;
   allowedPaths: string;
   allowedHosts: string;
+  confirm: string;
 }
 
 interface McpWorkspaceSnapshot {
@@ -71,8 +72,12 @@ interface McpWorkspaceSnapshot {
   readonly servers: readonly McpWorkspaceServerRow[];
 }
 
-function isTextField(field: keyof McpWorkspaceForm | 'save' | 'cancel'): field is 'name' | 'command' | 'args' | 'env' | 'allowedPaths' | 'allowedHosts' {
-  return field === 'name' || field === 'command' || field === 'args' || field === 'env' || field === 'allowedPaths' || field === 'allowedHosts';
+function isTextField(field: keyof McpWorkspaceForm | 'save' | 'cancel'): field is 'name' | 'command' | 'args' | 'env' | 'allowedPaths' | 'allowedHosts' | 'confirm' {
+  return field === 'name' || field === 'command' || field === 'args' || field === 'env' || field === 'allowedPaths' || field === 'allowedHosts' || field === 'confirm';
+}
+
+function isAffirmative(value: string): boolean {
+  return /^(y|yes|true)$/i.test(value.trim());
 }
 
 function splitList(value: string): string[] {
@@ -141,6 +146,7 @@ function serverConfigToForm(server?: McpServerConfig): McpWorkspaceForm {
     env: server?.env ? Object.entries(server.env).map(([key, value]) => `${key}=${value}`).join(', ') : '',
     allowedPaths: server?.allowedPaths?.join(', ') ?? '',
     allowedHosts: server?.allowedHosts?.join(', ') ?? '',
+    confirm: '',
   };
 }
 
@@ -214,7 +220,7 @@ export class McpWorkspace {
   public formIndex = 0;
   public form: McpWorkspaceForm = serverConfigToForm();
   public editingServerName: string | null = null;
-  public status = 'Ready. Inspect MCP servers and tools. Config writes/reloads require explicit /mcp ... --yes commands.';
+  public status = 'Ready. Inspect MCP servers and tools. Config writes/reloads require explicit workspace confirmation.';
   public tools: readonly RegisteredTool[] = [];
   public loadingTools = false;
   public lastError: string | null = null;
@@ -257,8 +263,8 @@ export class McpWorkspace {
   get rows(): readonly McpWorkspaceRow[] {
     return [
       ...this.snapshot.servers.map((server): McpWorkspaceRow => ({ type: 'server', server })),
-      { type: 'action', id: 'add', label: 'Add server preview', detail: `Draft server details here, then run /mcp add ... --scope ${this.form.scope} --yes to write config.` },
-      { type: 'action', id: 'reload', label: 'Reload guidance', detail: 'Runtime reload is blocked from the workspace; run /mcp reload --yes explicitly.' },
+      { type: 'action', id: 'add', label: 'Add or update server', detail: `Open a confirmed Agent workspace form to save an MCP server in ${this.form.scope} scope.` },
+      { type: 'action', id: 'reload', label: 'Reload runtime', detail: 'Confirm an MCP runtime reload from this workspace after external config edits.' },
       { type: 'action', id: 'refresh-tools', label: 'Refresh tools', detail: 'Fetch the currently available MCP tool list from connected servers.' },
       { type: 'action', id: 'config', label: 'Config locations', detail: 'Show SDK-scanned config files and writable project/global paths.' },
     ];
@@ -284,7 +290,8 @@ export class McpWorkspace {
       { id: 'env', label: 'Environment', value: this.form.env, help: 'Comma-separated KEY=VALUE entries. Prefer env var references or secure secrets for sensitive values.', editable: true },
       { id: 'allowedPaths', label: 'Allowed paths', value: this.form.allowedPaths, help: 'Comma-separated path prefixes for filesystem-oriented servers.', editable: true },
       { id: 'allowedHosts', label: 'Allowed hosts', value: this.form.allowedHosts, help: 'Comma-separated hostnames for network-oriented servers.', editable: true },
-      { id: 'save', label: 'Show save command', value: '', help: 'No workspace write. Shows the explicit /mcp add ... --yes command to run from the prompt.', editable: false },
+      { id: 'confirm', label: 'Confirm', value: this.form.confirm, help: 'Type yes to save this MCP server through the TUI command dispatcher.', editable: true },
+      { id: 'save', label: 'Save server', value: '', help: 'Dispatch the confirmed MCP server add/update through the workspace.', editable: false },
       { id: 'cancel', label: 'Cancel', value: '', help: 'Return to the MCP server browser without changing config.', editable: false },
     ];
   }
@@ -323,11 +330,15 @@ export class McpWorkspace {
     }
   }
 
-  async reloadRuntime(): Promise<void> {
-    if (!this.context) return;
+  requestReload(): void {
     this.lastError = null;
-    this.status = 'MCP runtime reload is blocked in the workspace. Run /mcp reload --yes from the prompt to explicitly reload.';
-    this.context.renderRequest();
+    this.mode = 'reload-confirm';
+    this.status = 'Confirm MCP runtime reload. Press Enter or y to reload; Esc or n cancels.';
+    this.context?.renderRequest();
+  }
+
+  async reloadRuntime(): Promise<void> {
+    await this.dispatchMcpCommand(['reload', '--yes'], 'MCP runtime reload');
   }
 
   openAddForm(): void {
@@ -335,7 +346,7 @@ export class McpWorkspace {
     this.formIndex = 0;
     this.editingServerName = null;
     this.form = serverConfigToForm();
-    this.status = 'Draft an MCP server. Saving from this workspace is blocked; use the shown /mcp add ... --yes command.';
+    this.status = 'Draft an MCP server. Type yes on the Confirm field, then press Enter on Save server.';
   }
 
   openEditForm(serverName: string): void {
@@ -345,7 +356,7 @@ export class McpWorkspace {
     this.editingServerName = serverName;
     this.form = { ...serverConfigToForm(entry?.server), scope: entry?.source.scope === 'global' ? 'global' : 'project' };
     this.status = entry
-      ? `Viewing ${serverName}. Workspace saves are blocked; copy the generated /mcp add ... --yes command if you intend to change it.`
+      ? `Editing ${serverName}. Type yes on the Confirm field, then press Enter on Save server to update it.`
       : `Viewing ${serverName}. Runtime status exists, but no launch config was found.`;
   }
 
@@ -354,23 +365,38 @@ export class McpWorkspace {
     this.editingServerName = serverName;
     const entry = this.snapshot.effectiveConfig.servers.find((configEntry) => configEntry.server.name === serverName);
     const scope = entry?.source.scope === 'global' ? 'global' : 'project';
-    this.status = `MCP server removal is blocked in the workspace. Run /mcp remove ${serverName} --scope ${scope} --yes from the prompt.`;
+    this.status = `Confirm removal of ${serverName} from ${scope} MCP config. Press Enter or y to remove; Esc or n cancels.`;
   }
 
   async saveForm(): Promise<void> {
     if (!this.context) return;
     try {
+      if (!isAffirmative(this.form.confirm)) {
+        this.status = 'MCP server add/update not confirmed. Type yes on the Confirm field, then press Enter on Save server.';
+        this.context.renderRequest();
+        return;
+      }
       const server = formToServerConfig(this.form);
+      const args = [
+        'add',
+        server.name,
+        server.command,
+        ...(server.args ?? []),
+        '--scope',
+        this.form.scope,
+      ];
+      if (server.role) args.push('--role', server.role);
+      if (server.trustMode) args.push('--trust', server.trustMode);
+      for (const [key, value] of Object.entries(server.env ?? {})) args.push('--env', `${key}=${value}`);
+      for (const path of server.allowedPaths ?? []) args.push('--path', path);
+      for (const host of server.allowedHosts ?? []) args.push('--host', host);
+      args.push('--yes');
       this.mode = 'browse';
       this.editingServerName = null;
-      const args = server.args?.length ? ` ${server.args.join(' ')}` : '';
-      const role = server.role ? ` --role ${server.role}` : '';
-      const trust = server.trustMode ? ` --trust ${server.trustMode}` : '';
-      this.status = `MCP config write blocked here. Run: /mcp add ${server.name} ${server.command}${args} --scope ${this.form.scope}${role}${trust} --yes`;
-      this.context.renderRequest();
+      await this.dispatchMcpCommand(args, `MCP server ${server.name} add/update`);
     } catch (error) {
       this.lastError = summarizeError(error);
-      this.status = `Save command preview failed: ${this.lastError}`;
+      this.status = `MCP server save failed before dispatch: ${this.lastError}`;
       this.context.renderRequest();
     }
   }
@@ -382,14 +408,42 @@ export class McpWorkspace {
     const scope = server?.source.scope === 'global' ? 'global' : 'project';
     this.mode = 'browse';
     this.editingServerName = null;
-    this.status = `MCP removal blocked here. Run: /mcp remove ${name} --scope ${scope} --yes`;
-    this.context.renderRequest();
+    await this.dispatchMcpCommand(['remove', name, '--scope', scope, '--yes'], `MCP server ${name} removal`);
   }
 
   cancelForm(): void {
     this.mode = 'browse';
     this.editingServerName = null;
     this.status = 'Returned to MCP server browser.';
+  }
+
+  private async dispatchMcpCommand(args: readonly string[], summary: string): Promise<void> {
+    const context = this.context;
+    if (!context?.executeCommand) {
+      this.status = `${summary} blocked: command dispatch is unavailable in this workspace.`;
+      this.lastError = 'Command dispatch is unavailable.';
+      context?.renderRequest();
+      return;
+    }
+    this.status = `${summary} dispatched from MCP workspace.`;
+    this.lastError = null;
+    context.renderRequest();
+    try {
+      const handled = await context.executeCommand('mcp', [...args]);
+      if (!handled) {
+        this.status = `${summary} failed: the command router did not handle /mcp.`;
+        this.lastError = 'Command router did not handle /mcp.';
+        context.renderRequest();
+        return;
+      }
+      this.refreshSnapshot();
+      this.status = `${summary} completed through MCP workspace.`;
+    } catch (error) {
+      this.lastError = summarizeError(error);
+      this.status = `${summary} failed: ${this.lastError}`;
+    } finally {
+      context.renderRequest();
+    }
   }
 
   moveSelection(delta: number): void {
@@ -413,6 +467,11 @@ export class McpWorkspace {
       await this.confirmDelete();
       return;
     }
+    if (this.mode === 'reload-confirm') {
+      this.mode = 'browse';
+      await this.reloadRuntime();
+      return;
+    }
     const row = this.selectedRow;
     if (!row) return;
     if (row.type === 'server') {
@@ -420,7 +479,7 @@ export class McpWorkspace {
       return;
     }
     if (row.id === 'add') this.openAddForm();
-    else if (row.id === 'reload') await this.reloadRuntime();
+    else if (row.id === 'reload') this.requestReload();
     else if (row.id === 'refresh-tools') await this.refreshTools();
     else if (row.id === 'config') {
       this.status = [
@@ -478,12 +537,17 @@ export function handleMcpWorkspaceToken(
     } else if (workspace.mode === 'delete-confirm') {
       if (token.value.toLowerCase() === 'y') void workspace.confirmDelete();
       else if (token.value.toLowerCase() === 'n') workspace.cancelForm();
+    } else if (workspace.mode === 'reload-confirm') {
+      if (token.value.toLowerCase() === 'y') {
+        workspace.mode = 'browse';
+        void workspace.reloadRuntime();
+      } else if (token.value.toLowerCase() === 'n') workspace.cancelForm();
     } else {
       const value = token.value.toLowerCase();
       if (value === 'a') workspace.openAddForm();
       else if (value === 'e' && workspace.selectedServer) workspace.openEditForm(workspace.selectedServer.name);
       else if (value === 'd' && workspace.selectedServer) workspace.requestDelete(workspace.selectedServer.name);
-      else if (value === 'r') void workspace.reloadRuntime();
+      else if (value === 'r') workspace.requestReload();
       else if (value === 't') void workspace.refreshTools();
     }
     requestRender();
@@ -492,7 +556,7 @@ export function handleMcpWorkspaceToken(
 
   if (token.type !== 'key') return true;
   if (token.logicalName === 'escape') {
-    if (workspace.mode === 'form' || workspace.mode === 'delete-confirm') {
+    if (workspace.mode === 'form' || workspace.mode === 'delete-confirm' || workspace.mode === 'reload-confirm') {
       workspace.cancelForm();
       requestRender();
     } else {
@@ -520,7 +584,7 @@ export function handleMcpWorkspaceToken(
   } else if (token.logicalName === 'd' && workspace.mode === 'browse' && workspace.selectedServer) {
     workspace.requestDelete(workspace.selectedServer.name);
   } else if (token.logicalName === 'r' && workspace.mode === 'browse') {
-    void workspace.reloadRuntime();
+    workspace.requestReload();
   } else if (token.logicalName === 't' && workspace.mode === 'browse') {
     void workspace.refreshTools();
   }

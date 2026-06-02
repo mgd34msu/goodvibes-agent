@@ -174,8 +174,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
             + '  ~/.config/claude/claude_desktop_config.json  (Claude Desktop)\n'
             + '  .mcp/mcp.json                        (project-local)\n'
             + '  .goodvibes/mcp.json                  (goodvibes project)\n'
-            + '\nAdd one from inside Agent with explicit confirmation:\n'
-            + '  /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem . --scope project --role filesystem --yes'
+            + '\nOpen /mcp and choose Add or update server, or use Agent Workspace -> Tools & MCP -> Add MCP server.'
           );
           return;
         }
@@ -265,7 +264,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         const mode = commandArgs[2] as 'constrained' | 'ask-on-risk' | 'allow-all' | 'blocked' | undefined;
         if (serverName && mode) {
           if (mode === 'allow-all') {
-            ctx.print(`Use /settings → MCP to explicitly enable allow-all for ${serverName}. Direct CLI escalation is blocked.`);
+            ctx.print(`Use /settings → MCP to explicitly enable allow-all for ${serverName}. Direct command escalation is blocked.`);
             ctx.openSettingsModal?.();
             return;
           }
@@ -399,9 +398,9 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
             }),
             '',
             'Add or update from inside Agent with explicit confirmation:',
+            '  Open /mcp and choose Add or update server, or use Agent Workspace -> Tools & MCP -> Add MCP server.',
+            'Automation equivalent:',
             '  /mcp add <name> <command> [args...] [--scope project|global] [--role <role>] [--trust <mode>] --yes',
-            'Example:',
-            '  /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem . --scope project --role filesystem --trust constrained --yes',
           ].join('\n'));
         } catch (error) {
           ctx.print(`MCP config read failed: ${summarizeError(error)}`);
@@ -446,8 +445,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
           + '  ~/.config/claude/claude_desktop_config.json  (Claude Desktop)\n'
           + '  .mcp/mcp.json                        (project-local)\n'
           + '  .goodvibes/mcp.json                  (goodvibes project)\n'
-          + '\nAdd one from inside Agent with explicit confirmation:\n'
-          + '  /mcp add filesystem npx -y @modelcontextprotocol/server-filesystem . --scope project --role filesystem --yes\n'
+          + '\nOpen /mcp and choose Add or update server, or use Agent Workspace -> Tools & MCP -> Add MCP server.\n'
           + '\nFormat: { "servers": [{ "name": "my-server", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"] }] }'
         );
         return;
@@ -473,11 +471,9 @@ function formatMcpServerList(servers: readonly McpSecurityServer[]): string {
   }
   if (connected.length > 0) {
     lines.push('');
-    lines.push('Run "/mcp tools" to list all tools, or "/mcp tools <server>" for a specific server.');
-    lines.push('Run "/mcp" to open the fullscreen MCP workspace, or "/mcp add <name> <command> [args...] [--scope project|global] --yes" to add/update.');
-    lines.push('Run "/mcp reload --yes" after editing MCP config outside Agent.');
-    lines.push('Run "/mcp trust <server> <mode> --yes" to change trust mode, or "/mcp role <server> <role> --yes" to change its coherence role.');
-    lines.push('Run "/mcp quarantine <server> [detail] --yes" to block a server, or "/mcp quarantine <server> approve [operatorId] --yes" to approve a temporary override.');
+    lines.push('Open "/mcp" for the fullscreen MCP workspace with server status, tools, config paths, and confirmed add/remove/reload actions.');
+    lines.push('Use "/mcp tools" for a compact tool list, or "/mcp tools <server>" for one server.');
+    lines.push('Use Settings -> MCP for allow-all decisions; trust, role, and quarantine command actions still require explicit --yes confirmation.');
     lines.push('Use /settings -> MCP to explicitly enable allow-all for a server.');
   }
   if (disconnected.length > 0) {

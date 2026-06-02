@@ -81,7 +81,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'MCP server setup, trust review, and tool inventory.',
     detail: 'Configure and inspect task tools from the Agent TUI. Adding or changing tools requires typed confirmation; normal chat still chooses tools serially in the main conversation.',
     actions: [
-      { id: 'mcp-workspace', label: 'Open MCP workspace', detail: 'Open the fullscreen MCP server and tool workspace with live server status, tool list, config paths, and command previews.', command: '/mcp', kind: 'command', safety: 'safe' },
+      { id: 'mcp-workspace', label: 'Open MCP workspace', detail: 'Open the fullscreen MCP server and tool workspace with live server status, tool list, config paths, and confirmed add/remove/reload actions.', command: '/mcp', kind: 'command', safety: 'safe' },
       { id: 'mcp-review', label: 'MCP review', detail: 'Inspect MCP server connection, trust, role, and quarantine posture.', command: '/mcp review', kind: 'command', safety: 'read-only' },
       { id: 'mcp-tools', label: 'Tool inventory', detail: 'List available MCP tools grouped by server.', command: '/mcp tools', kind: 'command', safety: 'read-only' },
       { id: 'mcp-config', label: 'Config locations', detail: 'Show effective MCP config locations and source scopes without mutating them.', command: '/mcp config', kind: 'command', safety: 'read-only' },

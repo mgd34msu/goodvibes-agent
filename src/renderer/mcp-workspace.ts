@@ -82,16 +82,22 @@ function selectedDetailLines(workspace: McpWorkspace, width: number): WorkspaceR
   if (workspace.mode === 'form') {
     const field = workspace.formFields[workspace.formIndex];
     lines.push(
-      workspace.editingServerName ? `Previewing server: ${workspace.editingServerName}` : 'Drafting an MCP server command',
-      'Workspace writes/reloads are blocked. Use the generated /mcp add ... --yes command from the prompt.',
+      workspace.editingServerName ? `Editing server: ${workspace.editingServerName}` : 'Drafting an MCP server',
+      'Workspace writes require explicit confirmation. Type yes on the Confirm field, then save from here.',
       field ? `${field.label}: ${field.help}` : '',
-      'Project/global config locations are shown for review. This workspace does not write or reload MCP config.',
+      'Project/global config locations are shown for review. The workspace dispatches confirmed MCP changes through the TUI command router.',
     );
   } else if (workspace.mode === 'delete-confirm') {
     lines.push(
-      `Removal blocked for server: ${workspace.editingServerName ?? '(unknown)'}`,
-      'Use /mcp remove <server> --scope <project|global> --yes from the prompt for explicit removal.',
-      'Press n or Esc to return.',
+      `Remove server: ${workspace.editingServerName ?? '(unknown)'}`,
+      'Press Enter or y to remove through the TUI command router.',
+      'Press n or Esc to return without changing config.',
+    );
+  } else if (workspace.mode === 'reload-confirm') {
+    lines.push(
+      'Reload MCP runtime',
+      'Press Enter or y to reload MCP runtime from the current config through the TUI command router.',
+      'Press n or Esc to return without reloading.',
     );
   } else {
     const selected = workspace.selectedRow;
@@ -200,27 +206,40 @@ function buildDeleteRows(workspace: McpWorkspace, height: number): WorkspaceRow[
   return rows.slice(0, height);
 }
 
+function buildReloadRows(height: number): WorkspaceRow[] {
+  const rows: WorkspaceRow[] = [
+    { text: `${GLYPHS.navigation.selected} Confirm MCP runtime reload`, selected: true, fg: PALETTE.warn, bold: true },
+    { text: '  Cancel and return to MCP server browser', fg: PALETTE.muted },
+  ];
+  while (rows.length < height) rows.push({ text: '', kind: 'empty' });
+  return rows.slice(0, height);
+}
+
 function buildControlRows(workspace: McpWorkspace, width: number, height: number): WorkspaceRow[] {
   if (workspace.mode === 'form') return buildFormRows(workspace, width, height);
   if (workspace.mode === 'delete-confirm') return buildDeleteRows(workspace, height);
+  if (workspace.mode === 'reload-confirm') return buildReloadRows(height);
   return buildToolRows(workspace, width, height);
 }
 
 function footerText(workspace: McpWorkspace): string {
-  if (workspace.mode === 'form') return 'Focus server command preview · Up/Down field · Left/Right cycle · Type edit · Enter show command · Esc back';
-  if (workspace.mode === 'delete-confirm') return 'Focus remove guidance · n/Esc cancel';
-  return 'Focus MCP workspace · Up/Down choose · Enter view/action · a draft · d removal command · r reload command · t tools · Esc close';
+  if (workspace.mode === 'form') return 'Focus MCP server form · Up/Down field · Left/Right cycle · Type edit · Enter save/cancel · Esc back';
+  if (workspace.mode === 'delete-confirm') return 'Focus remove confirmation · Enter/y remove · n/Esc cancel';
+  if (workspace.mode === 'reload-confirm') return 'Focus reload confirmation · Enter/y reload · n/Esc cancel';
+  return 'Focus MCP workspace · Up/Down choose · Enter view/action · a add · d remove · r reload · t tools · Esc close';
 }
 
 export function renderMcpWorkspace(workspace: McpWorkspace, width: number, height: number): Line[] {
   const metrics = getFullscreenWorkspaceMetrics({ width, height });
   const connected = workspace.servers.filter((server) => server.connected).length;
-  const stateLabel = workspace.mode === 'browse' ? 'Browse' : workspace.mode === 'form' ? 'Command Preview' : 'Remove Guidance';
+  const stateLabel = workspace.mode === 'browse' ? 'Browse' : workspace.mode === 'form' ? 'Server Form' : workspace.mode === 'delete-confirm' ? 'Remove Confirm' : 'Reload Confirm';
   const mainHeader = workspace.mode === 'form'
-    ? 'MCP server command preview'
+    ? 'MCP server form'
     : workspace.mode === 'delete-confirm'
-      ? 'MCP remove command'
-      : `Servers ${connected}/${workspace.servers.length} connected · Tools ${workspace.tools.length}`;
+      ? 'MCP remove confirmation'
+      : workspace.mode === 'reload-confirm'
+        ? 'MCP reload confirmation'
+        : `Servers ${connected}/${workspace.servers.length} connected · Tools ${workspace.tools.length}`;
 
   return renderFullscreenWorkspace({
     width,
