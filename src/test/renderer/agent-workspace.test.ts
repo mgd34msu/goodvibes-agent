@@ -885,4 +885,20 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/delegate status');
     expect(output).toContain('R refresh');
   });
+
+  test('renders build delegation form as a confirmed TUI workflow', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegate-task');
+    workspace.activateSelected();
+
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
+
+    expect(output).toContain('Delegate Build Work to GoodVibes TUI');
+    expect(output).toContain('Original task *');
+    expect(output).toContain('Request WRFC');
+    expect(output).toContain('Confirm *');
+    expect(output).toContain('editing delegate-task');
+  });
 });

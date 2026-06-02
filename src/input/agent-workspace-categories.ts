@@ -286,6 +286,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent does not become the coding TUI. Build, implement, fix, patch, and review work must be handed to GoodVibes TUI with the full original ask and WRFC only when explicitly requested.',
     actions: [
       { id: 'delegate-guidance', label: 'Delegation rule', detail: 'For build/fix/review work, delegate one request to GoodVibes TUI instead of spawning local Engineer/Reviewer/Tester roots.', kind: 'guidance', safety: 'delegates' },
+      { id: 'delegate-task', label: 'Delegate build task', detail: 'Open a confirmed form that sends one explicit build/fix/review task to GoodVibes TUI/shared-session routes.', editorKind: 'delegate-task', kind: 'editor', safety: 'delegates' },
       { id: 'review-command', label: 'Review delegation command', detail: 'Use /delegate --wrfc TASK only when the user explicitly asks for code review/build execution. Return to the composer and include the actual task text.', kind: 'guidance', safety: 'delegates' },
       { id: 'delegation-status', label: 'Delegation status', detail: 'Inspect build-delegation receipts and shared-session status without starting coding work.', command: '/delegate status', kind: 'command', safety: 'read-only' },
     ],

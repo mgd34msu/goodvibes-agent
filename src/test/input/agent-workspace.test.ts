@@ -2631,8 +2631,57 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
     expect(actionText).toContain('delegation-status');
     expect(actionText).toContain('/delegate status');
+    expect(actionText).toContain('delegate-task');
+    expect(actionText).toContain('Open a confirmed form');
     expect(actionText).not.toContain('remote runner');
     expect(actionText).not.toContain('/remote dispatch');
+  });
+
+  test('delegates build work from a confirmed workspace form without default WRFC', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegate-task');
+
+    workspace.activateSelected();
+
+    expect(workspace.localEditor?.kind).toBe('delegate-task');
+    feedText(workspace, 'Fix the installer crash and add a regression test');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+
+    feedKey(workspace, 'backspace');
+    feedKey(workspace, 'backspace');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/delegate "Fix the installer crash and add a regression test"']);
+    expect(workspace.localEditor).toBeNull();
+    expect(workspace.lastActionResult?.safety).toBe('delegates');
+  });
+
+  test('delegation workspace requests WRFC only when explicitly selected', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegate-task');
+
+    workspace.activateSelected();
+
+    feedText(workspace, 'Review the release workflow implementation');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/delegate --wrfc "Review the release workflow implementation"']);
   });
 
   test('does not dispatch template delegation commands from the workspace', () => {

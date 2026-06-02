@@ -50,6 +50,7 @@ export type AgentWorkspaceEditorKind =
   | 'subscription-login-start'
   | 'subscription-login-finish'
   | 'subscription-logout'
+  | 'delegate-task'
   | 'routine-schedule'
   | 'reminder-schedule';
 

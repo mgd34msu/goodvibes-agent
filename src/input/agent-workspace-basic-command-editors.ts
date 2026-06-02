@@ -8,6 +8,7 @@ export type AgentWorkspaceBasicCommandEditorKind = Extract<
   | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
   | 'support-bundle-export' | 'support-bundle-inspect' | 'support-bundle-import'
   | 'subscription-inspect' | 'subscription-login-start' | 'subscription-login-finish' | 'subscription-logout'
+  | 'delegate-task'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'mcp-server' | 'notify-webhook' | 'notify-webhook-remove' | 'notify-webhook-test'
@@ -40,6 +41,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || kind === 'subscription-login-start'
     || kind === 'subscription-login-finish'
     || kind === 'subscription-logout'
+    || kind === 'delegate-task'
     || kind === 'mcp-server'
     || kind === 'notify-webhook'
     || kind === 'notify-webhook-remove'
@@ -463,6 +465,20 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       fields: [
         { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Stored subscription provider id.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /subscription logout with --yes.' },
+      ],
+    };
+  }
+  if (kind === 'delegate-task') {
+    return {
+      kind,
+      mode: 'create',
+      title: 'Delegate Build Work to GoodVibes TUI',
+      selectedFieldIndex: 0,
+      message: 'Send one explicit build/fix/review task to GoodVibes TUI/shared-session routes. Type yes on the final field to confirm.',
+      fields: [
+        { id: 'task', label: 'Original task', value: '', required: true, multiline: true, hint: 'Paste the full original user ask. Ctrl-J inserts a new line.' },
+        { id: 'wrfc', label: 'Request WRFC', value: '', required: false, multiline: false, hint: 'yes/no. Blank means no WRFC request.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /delegate for this task.' },
       ],
     };
   }
