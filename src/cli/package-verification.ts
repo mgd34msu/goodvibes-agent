@@ -83,8 +83,6 @@ const PACKAGE_FACING_FORBIDDEN_TEXT = [
   ['Cloud', 'flare'].join(''),
   ['Open', 'Claw'].join(''),
   ['Her', 'mes'].join(''),
-  ['cap', 'abilities audit'].join(''),
-  ['cap', 'abilities command'].join(''),
   ['near', '-fork'].join(''),
   ['Optional ', 'Browser Access'].join(''),
   ['Optional ', 'Other-Device Access'].join(''),

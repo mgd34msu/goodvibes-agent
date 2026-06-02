@@ -24,9 +24,6 @@ import { generateQrMatrix, renderQrToString } from '@pellux/goodvibes-sdk/platfo
 import type { GoodVibesCliParseResult } from './types.ts';
 import { formatProviderAuthRoute, summarizeProviderAuthRoutes } from './provider-auth-routes.ts';
 import { classifyProviderSetup } from './provider-classification.ts';
-import { resolveRuntimeEndpointBinding } from './endpoints.ts';
-import { applyRuntimeEndpointFlagOverrides } from './config-overrides.ts';
-import type { RuntimeEndpointId } from './endpoints.ts';
 import { handleBundleCommand } from './bundle-command.ts';
 import { handleSecrets, handleSessions, handleTasks, renderPairing, renderSubscriptions } from './management-commands.ts';
 import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand, handleCompatCommand, handleDelegateCommand } from './agent-knowledge-command.ts';
@@ -130,46 +127,6 @@ function connectHostForBindHost(host: string): string {
 export function urlHostForBindHost(host: string): string {
   if (host === '0.0.0.0' || host === '::') return getLocalNetworkIp();
   return host || '127.0.0.1';
-}
-
-export function enableServicePosture(config: ConfigManager): void {
-  config.setDynamic('service.enabled', true);
-  config.setDynamic('service.autostart', true);
-  config.setDynamic('service.restartOnFailure', true);
-}
-
-export function enableEndpointLanDefault(config: ConfigManager, endpoint: RuntimeEndpointId): void {
-  const binding = resolveRuntimeEndpointBinding(config, endpoint);
-  if (binding.hostMode === 'custom') return;
-  if (endpoint === 'controlPlane') {
-    config.setDynamic('controlPlane.hostMode', 'network');
-    config.setDynamic('controlPlane.host', '0.0.0.0');
-    config.setDynamic('controlPlane.allowRemote', true);
-    return;
-  }
-  if (endpoint === 'httpListener') {
-    config.setDynamic('httpListener.hostMode', 'network');
-    config.setDynamic('httpListener.host', '0.0.0.0');
-    return;
-  }
-  config.setDynamic('web.hostMode', 'network');
-  config.setDynamic('web.host', '0.0.0.0');
-}
-
-export function applyTargetEndpointFlagsOrDefault(
-  runtime: CliCommandRuntime,
-  endpoint: RuntimeEndpointId,
-): string | null {
-  const errors = applyRuntimeEndpointFlagOverrides(runtime.configManager, endpoint, runtime.cli.flags);
-  if (errors.length > 0) return errors.join('\n');
-  if (runtime.cli.flags.hostname === undefined) {
-    enableEndpointLanDefault(runtime.configManager, endpoint);
-  }
-  if (endpoint === 'controlPlane') {
-    const binding = resolveRuntimeEndpointBinding(runtime.configManager, endpoint);
-    runtime.configManager.setDynamic('controlPlane.allowRemote', binding.hostMode !== 'local');
-  }
-  return null;
 }
 
 export function openBrowser(url: string): string {
