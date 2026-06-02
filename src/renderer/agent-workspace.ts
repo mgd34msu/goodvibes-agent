@@ -128,6 +128,20 @@ function homeNextActionLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLi
   return lines;
 }
 
+function companionAccessLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
+  const access = snapshot.companionAccess;
+  const tokenState = access.tokenReadable
+    ? `ready sha256:${access.tokenFingerprint ?? 'unknown'}`
+    : access.tokenPresent
+      ? 'present but unreadable'
+      : 'missing';
+  const error = access.tokenError ? `; token read error ${access.tokenError}` : '';
+  return {
+    text: `Companion: ${access.surface}; token ${tokenState}; QR ${access.qrCommand}; manual token text hidden${error}.`,
+    fg: access.pairingReady ? PALETTE.good : PALETTE.warn,
+  };
+}
+
 function discoverySummaryLine(label: string, summary: AgentWorkspaceRuntimeSnapshot['discoveredBehavior']['personas'], actionLabel: string): ContextLine[] {
   if (summary.count === 0) return [];
   const names = summary.names.length > 0
@@ -378,9 +392,10 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     const orderedChannels = [
       ...snapshot.channels.filter((channel) => channel.enabled),
       ...snapshot.channels.filter((channel) => !channel.enabled),
-    ].slice(0, 6);
+    ].slice(0, 3);
     base.push(
       { text: `GoodVibes API: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
+      companionAccessLine(snapshot),
       { text: `Readiness: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} default target(s) configured.`, fg: PALETTE.info },
       { text: 'Setup path: pair companion -> inspect readiness -> review accounts/policies/status -> fix one channel -> add explicit notification target if needed.', fg: PALETTE.good },
       { text: `Next channel action: ${nextAttentionChannel ? `${nextAttentionChannel.label} - ${nextAttentionChannel.nextStep}` : 'All enabled channels are ready; keep delivery explicit and review policies before sending.'}`, fg: nextAttentionChannel ? PALETTE.warn : PALETTE.good },
@@ -397,8 +412,6 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
         fg: channel.ready ? PALETTE.good : channel.enabled ? PALETTE.warn : PALETTE.dim,
       });
     }
-    base.push({ text: 'Only config key names and readiness state are rendered here.', fg: PALETTE.muted });
-    base.push({ text: 'Use the actions on the left for pairing, channel setup guidance, notification targets, and health review.', fg: PALETTE.info });
   } else if (category.id === 'knowledge') {
     base.push(
       { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },

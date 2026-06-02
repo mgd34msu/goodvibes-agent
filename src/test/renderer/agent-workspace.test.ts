@@ -169,6 +169,9 @@ function memoryApi(records: MemoryRecord[] = [memoryRecord()]): MemoryApi {
 function liveCommandContext(): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+  const tokenDir = join(root, '.goodvibes', 'daemon');
+  mkdirSync(tokenDir, { recursive: true });
+  writeFileSync(join(tokenDir, 'operator-tokens.json'), JSON.stringify({ token: 'goodvibes-agent-test-token' }));
   createAgentRuntimeProfile(root, 'household');
   setAgentRuntimeProfileSelection(root, 'household');
   const configValues = new Map<string, unknown>([
@@ -357,6 +360,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('openai-subscriber / GPT-5.5');
     expect(output).toContain('agent-session-1');
     expect(output).toContain('serial-proactive');
+    expect(output).not.toContain('goodvibes-agent-test-token');
   });
 
   test('renders setup checklist in the setup workspace', () => {
@@ -757,11 +761,11 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Skills: 1; enabled: 1; bundles: 1; enabled bundles: 1; active skills: 1');
     expect(output).toContain('Skill bundles');
-    expect(output).toContain('/agent-skills bundle list');
+    expect(output).toContain('/skills bundle list');
     expect(output).toContain('Needs setup');
     expect(output).toContain('Create bundle');
     expect(output).toContain('Bundle setup gaps');
-    expect(output).toContain('/agent-skills bundle attention');
+    expect(output).toContain('/skills bundle attention');
     expect(output).toContain('edit skill-bundle');
     expect(output).toContain('Skill Bundles');
     expect(output).toContain('needs 1/1');
@@ -1272,6 +1276,9 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Channels');
     expect(output).toContain('Setup path');
+    expect(output).toContain('Companion: goodvibes-agent; token ready sha256:');
+    expect(output).toContain('manual token text hidden');
+    expect(output).not.toContain('goodvibes-agent-test-token');
     expect(output).toContain('Setup path: pair companion -> inspect readiness');
     expect(output).toContain('Next channel action: Telegram');
     expect(output).toContain('Pair companion');

@@ -1,5 +1,4 @@
 import type { CommandRegistry } from '../command-registry.ts';
-import { createHash } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 import {
   buildCompanionConnectionInfo,
@@ -10,7 +9,7 @@ import {
 } from '@pellux/goodvibes-sdk/platform/pairing';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../../config/surface.ts';
 import { resolveRuntimeEndpointBinding } from '../../cli/endpoints.ts';
-import { connectedHostTokenRequiredMessage, readConnectedHostOperatorToken } from '../../runtime/connected-host-auth.ts';
+import { connectedHostOperatorTokenFingerprint, connectedHostTokenRequiredMessage, readConnectedHostOperatorToken } from '../../runtime/connected-host-auth.ts';
 import { requirePlatform, requireShellPaths } from './runtime-services.ts';
 
 function getLocalNetworkIp(): string {
@@ -32,13 +31,9 @@ function urlHostForBindHost(host: string): string {
   return host || '127.0.0.1';
 }
 
-function tokenFingerprint(token: string): string {
-  return createHash('sha256').update(token).digest('hex').slice(0, 12);
-}
-
 function formatTokenLine(token: string, showToken: boolean): string {
   if (showToken) return `Token:          ${token}`;
-  return `Token:          present sha256:${tokenFingerprint(token)} (hidden in text; QR contains pairing payload)`;
+  return `Token:          present sha256:${connectedHostOperatorTokenFingerprint(token)} (hidden in text; QR contains pairing payload)`;
 }
 
 function formatAgentPairingBlock(info: CompanionConnectionInfo, qr: string, showToken: boolean): string {
@@ -94,7 +89,7 @@ export function registerQrcodeRuntimeCommands(registry: CommandRegistry): void {
         ctx.print([
           'Manual companion token display requires confirmation.',
           '  rerun: /pair --show-token --yes',
-          `  token fingerprint: sha256:${tokenFingerprint(tokenRecord.token)}`,
+          `  token fingerprint: sha256:${connectedHostOperatorTokenFingerprint(tokenRecord.token)}`,
           '  QR pairing remains available without printing the raw token.',
         ].join('\n'));
         return;

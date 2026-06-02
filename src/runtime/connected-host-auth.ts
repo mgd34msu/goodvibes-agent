@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -30,6 +31,10 @@ export function readConnectedHostOperatorToken(homeDirectory: string): Connected
   } catch (error) {
     return { path, present: true, token: null, error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+export function connectedHostOperatorTokenFingerprint(token: string): string {
+  return createHash('sha256').update(token).digest('hex').slice(0, 12);
 }
 
 export function connectedHostTokenRequiredMessage(path: string): string {

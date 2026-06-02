@@ -17,6 +17,7 @@ export type OnboardingWizardStepId =
   | 'agent-communication'
   | 'agent-tools'
   | 'agent-knowledge'
+  | 'agent-research'
   | 'agent-local-state'
   | 'agent-automation'
   | 'agent-voice-media'

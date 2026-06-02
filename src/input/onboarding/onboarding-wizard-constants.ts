@@ -6,6 +6,7 @@ export const STEP_ORDER: readonly OnboardingWizardStepId[] = [
   'default-model',
   'agent-communication',
   'agent-tools',
+  'agent-research',
   'agent-knowledge',
   'agent-local-state',
   'agent-automation',

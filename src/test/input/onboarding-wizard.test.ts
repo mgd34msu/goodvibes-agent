@@ -209,6 +209,7 @@ describe('OnboardingWizardController', () => {
       'default-model',
       'agent-communication',
       'agent-tools',
+      'agent-research',
       'agent-knowledge',
       'agent-local-state',
       'agent-automation',
@@ -368,6 +369,7 @@ describe('OnboardingWizardController', () => {
     const byId = new Map(wizard.steps.map((step) => [step.id, step]));
     expect(byId.get('agent-communication')?.summaryLines).toContain('Outbound messages: explicit user action only');
     expect(byId.get('agent-tools')?.summaryLines).toContain('MCP and tools: inspect before use');
+    expect(byId.get('agent-research')?.summaryLines).toContain('Web research: read-only main-conversation requests');
     expect(byId.get('agent-automation')?.summaryLines).toContain('Local routines: reusable main-conversation workflows');
     expect(byId.get('agent-voice-media')?.summaryLines).toContain('Voice and speech: optional operator tools');
     expect(byId.get('agent-setup')?.summaryLines).toContain('Optional starter profile: create an isolated Agent home from setup.');
@@ -379,6 +381,7 @@ describe('OnboardingWizardController', () => {
     expect(text).toContain('local routines');
     expect(text).toContain('image');
     expect(text).toContain('Agent Knowledge');
+    expect(text).toContain('Research and source triage');
     expect(text).toContain('Create starter profile');
     expect(text).toContain('Use created profile by default');
     expect(text).toContain('Initial persona name');
@@ -431,7 +434,7 @@ describe('OnboardingWizardController', () => {
   test('local behavior setup fields support multiline instructions without making all text fields multiline', () => {
     const wizard = new OnboardingWizardController();
     wizard.open('new');
-    wizard.setStep(6);
+    wizard.setStep(wizard.steps.findIndex((step) => step.id === 'agent-local-state'));
 
     const routeState = {
       onboardingWizard: wizard,

@@ -306,6 +306,20 @@ export interface AgentWorkspaceRoutineScheduleReceiptSummary {
   readonly createdAt: string;
 }
 
+export interface AgentWorkspaceCompanionAccessSummary {
+  readonly surface: 'goodvibes-agent';
+  readonly hostUrl: string;
+  readonly tokenPath: string;
+  readonly tokenPresent: boolean;
+  readonly tokenReadable: boolean;
+  readonly tokenFingerprint: string | null;
+  readonly tokenError: string | null;
+  readonly pairingReady: boolean;
+  readonly qrCommand: '/pair';
+  readonly manualTokenCommand: '/pair --show-token --yes';
+  readonly nextStep: string;
+}
+
 export interface AgentWorkspaceRuntimeSnapshot {
   readonly provider: string;
   readonly model: string;
@@ -345,6 +359,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly knowledgeIsolation: 'agent-only';
   readonly executionPolicy: 'serial-proactive';
   readonly wrfcPolicy: 'explicit-build-delegation-only';
+  readonly companionAccess: AgentWorkspaceCompanionAccessSummary;
   readonly channels: readonly AgentWorkspaceChannelStatus[];
   readonly voiceProviderCount: number;
   readonly voiceStreamingProviderCount: number;

@@ -16,6 +16,8 @@ import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-sum
 import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
 import { RoutineScheduleReceiptStore } from '../agent/routine-schedule-receipts.ts';
+import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
+import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken, type ConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
 import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
 import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
@@ -399,6 +401,32 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const ttsLlmProvider = readConfigString(context, 'tts.llmProvider', '');
   const ttsLlmModel = readConfigString(context, 'tts.llmModel', '');
   const runtimeBaseUrl = `http://${host}:${port}`;
+  const companionAccess = (() => {
+    const homeDirectory = context.workspace?.shellPaths?.homeDirectory ?? '';
+    const tokenRecord: ConnectedHostOperatorToken = homeDirectory.length > 0
+      ? readConnectedHostOperatorToken(homeDirectory)
+      : { path: '(Agent home unavailable)', present: false, token: null };
+    const tokenFingerprint = tokenRecord.token ? connectedHostOperatorTokenFingerprint(tokenRecord.token) : null;
+    const pairingReady = Boolean(tokenRecord.token);
+    const nextStep = tokenRecord.error
+      ? 'Repair the connected-host operator token file through the owning GoodVibes host, then rerun /pair.'
+      : pairingReady
+        ? 'Use /pair to scan the QR code. Manual token display stays hidden unless /pair --show-token --yes is used.'
+        : 'Pair or provision connected-host access through the owning GoodVibes host, then rerun /pair.';
+    return {
+      surface: GOODVIBES_AGENT_PAIRING_SURFACE,
+      hostUrl: runtimeBaseUrl,
+      tokenPath: tokenRecord.path,
+      tokenPresent: tokenRecord.present,
+      tokenReadable: Boolean(tokenRecord.token),
+      tokenFingerprint,
+      tokenError: tokenRecord.error ?? null,
+      pairingReady,
+      qrCommand: '/pair',
+      manualTokenCommand: '/pair --show-token --yes',
+      nextStep,
+    } as const;
+  })();
   const channels = buildAgentWorkspaceChannels(context);
   const voiceMediaReadiness = buildAgentWorkspaceVoiceMediaReadiness({
     context,
@@ -472,6 +500,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     knowledgeIsolation: 'agent-only',
     executionPolicy: 'serial-proactive',
     wrfcPolicy: 'explicit-build-delegation-only',
+    companionAccess,
     channels,
     voiceProviderCount: voiceProviders.length,
     voiceStreamingProviderCount: voiceProviders.filter((entry) => entry.capabilities.includes('tts-stream')).length,
