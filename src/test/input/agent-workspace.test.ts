@@ -1561,6 +1561,8 @@ describe('AgentWorkspace', () => {
     expect(workspace.localEditor?.kind).toBe('provider-use');
     feedText(workspace, 'openai-subscriber');
     feedKey(workspace, 'enter');
+    feedText(workspace, 'gpt-5.5');
+    feedKey(workspace, 'enter');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-inspect');
     workspace.activateSelected();
@@ -1593,7 +1595,7 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
-      '/provider openai-subscriber',
+      '/provider openai-subscriber gpt-5.5',
       '/accounts show openai-subscriber',
       '/accounts routes openai-subscriber',
       '/accounts repair openai-subscriber',
@@ -1605,7 +1607,7 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
-      '/provider openai-subscriber',
+      '/provider openai-subscriber gpt-5.5',
       '/accounts show openai-subscriber',
       '/accounts routes openai-subscriber',
       '/accounts repair openai-subscriber',
@@ -1622,7 +1624,7 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
-      '/provider openai-subscriber',
+      '/provider openai-subscriber gpt-5.5',
       '/accounts show openai-subscriber',
       '/accounts routes openai-subscriber',
       '/accounts repair openai-subscriber',

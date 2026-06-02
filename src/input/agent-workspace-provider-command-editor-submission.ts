@@ -40,7 +40,12 @@ export function buildAgentWorkspaceProviderCommandEditorSubmission(
   readField: AgentWorkspaceFieldReader,
 ): AgentWorkspaceProviderCommandEditorSubmission {
   if (editor.kind === 'provider-use') {
-    const command = `/provider ${quoteSlashCommandArg(readField('provider'))}`;
+    const model = readField('model');
+    const command = [
+      '/provider',
+      quoteSlashCommandArg(readField('provider')),
+      ...(model.length > 0 ? [quoteSlashCommandArg(model)] : []),
+    ].join(' ');
     return {
       kind: 'dispatch',
       command,

@@ -241,6 +241,34 @@ describe('provider command provider-api migration', () => {
     expect(printed.join('\n')).toContain('Switched to provider: anthropic (model: claude-sonnet)');
   });
 
+  test('/provider accepts an explicit model id for exact provider/model selection', async () => {
+    const registry = new CommandRegistry();
+    registerLocalProviderRuntimeCommands(registry);
+    const selected = createModelRecord({
+      modelId: 'claude-opus',
+      providerId: 'anthropic',
+      current: true,
+    });
+    const { context, configWrites } = createCommandContext({
+      providerApi: createProviderApiStub({
+        listProviderIds: () => ['anthropic', 'openai'],
+        listModels: async (query) => query?.providerId === 'anthropic' ? [selected] : [],
+        selectModel: async (modelRef) => {
+          expect(modelRef).toBe('anthropic:claude-opus');
+          return selected;
+        },
+      }),
+    });
+
+    await registry.execute('provider', ['anthropic', 'claude-opus'], context);
+
+    expect(context.session.runtime.provider).toBe('anthropic');
+    expect(context.session.runtime.model).toBe('anthropic:claude-opus');
+    expect(configWrites).toEqual([
+      { key: 'provider.model', value: 'anthropic:claude-opus' },
+    ]);
+  });
+
   test('/provider add requires explicit confirmation before writing local provider config', async () => {
     const registry = new CommandRegistry();
     registerLocalProviderRuntimeCommands(registry);

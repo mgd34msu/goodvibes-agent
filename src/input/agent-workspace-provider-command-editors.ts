@@ -21,9 +21,10 @@ export function createAgentWorkspaceProviderCommandEditor(kind: AgentWorkspacePr
       mode: 'create',
       title: 'Use Provider',
       selectedFieldIndex: 0,
-      message: 'Switch the Agent chat provider through the TUI command router. Use the model picker for exact provider/model selection.',
+      message: 'Switch the Agent chat provider through the TUI command router. Add a model id when you want an exact provider/model route.',
       fields: [
         { id: 'provider', label: 'Provider id', value: '', required: true, multiline: false, hint: 'Provider row id, such as openai-subscriber, openai, anthropic, or a custom provider.' },
+        { id: 'model', label: 'Model id', value: '', required: false, multiline: false, hint: 'Optional model id or provider:model registry key. Blank uses the provider default selectable model.' },
       ],
     };
   }
