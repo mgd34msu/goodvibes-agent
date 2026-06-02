@@ -5,7 +5,7 @@ import type { CommandContext } from './command-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
 import { createAgentRuntimeProfile, type AgentRuntimeProfileInfo } from '../agent/runtime-profile.ts';
-import { AgentSkillRegistry, buildAgentSkillRequirements } from '../agent/skill-registry.ts';
+import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from './agent-workspace-command-editor.ts';
@@ -13,23 +13,12 @@ import { quoteSlashCommandArg } from './slash-command-parser.ts';
 import { createDeleteEditor, createMemoryUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from './agent-workspace-learned-behavior.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
+import { buildAgentWorkspaceRequirements } from './agent-workspace-requirements.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
 export type { AgentWorkspaceChannelRisk, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
-export type {
-  AgentWorkspaceAction,
-  AgentWorkspaceActionResult,
-  AgentWorkspaceCategory,
-  AgentWorkspaceCommandDispatcher,
-  AgentWorkspaceEditorField,
-  AgentWorkspaceFocusPane,
-  AgentWorkspaceLocalEditor,
-  AgentWorkspaceLocalEditorKind,
-  AgentWorkspaceLocalLibraryItem,
-  AgentWorkspaceLocalOperation,
-  AgentWorkspaceRuntimeSnapshot,
-} from './agent-workspace-types.ts';
+export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 export { AGENT_WORKSPACE_MODAL_NAME } from './agent-workspace-types.ts';
 export { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 export { handleAgentWorkspaceToken } from './agent-workspace-token.ts';
@@ -590,10 +579,7 @@ export class AgentWorkspace {
             procedure: this.editorField('procedure'),
             triggers: splitList(this.editorField('triggers')),
             tags: splitList(this.editorField('tags')),
-            requirements: buildAgentSkillRequirements({
-              env: splitList(this.editorField('requiresEnv')),
-              commands: splitList(this.editorField('requiresCommands')),
-            }),
+            requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
             provenance: 'agent-workspace',
           });
           registry.setEnabled(updated.id, isAffirmative(this.editorField('enabled')));
@@ -606,10 +592,7 @@ export class AgentWorkspace {
           procedure: this.editorField('procedure'),
           triggers: splitList(this.editorField('triggers')),
           tags: splitList(this.editorField('tags')),
-          requirements: buildAgentSkillRequirements({
-            env: splitList(this.editorField('requiresEnv')),
-            commands: splitList(this.editorField('requiresCommands')),
-          }),
+          requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
           enabled: isAffirmative(this.editorField('enabled')),
           source: 'user',
           provenance: 'agent-workspace',
@@ -624,10 +607,7 @@ export class AgentWorkspace {
             steps: this.editorField('steps'),
             triggers: splitList(this.editorField('triggers')),
             tags: splitList(this.editorField('tags')),
-            requirements: buildAgentSkillRequirements({
-              env: splitList(this.editorField('requiresEnv')),
-              commands: splitList(this.editorField('requiresCommands')),
-            }),
+            requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
             provenance: 'agent-workspace',
           });
           registry.setEnabled(updated.id, isAffirmative(this.editorField('enabled')));
@@ -640,10 +620,7 @@ export class AgentWorkspace {
           steps: this.editorField('steps'),
           triggers: splitList(this.editorField('triggers')),
           tags: splitList(this.editorField('tags')),
-          requirements: buildAgentSkillRequirements({
-            env: splitList(this.editorField('requiresEnv')),
-            commands: splitList(this.editorField('requiresCommands')),
-          }),
+          requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
           enabled: isAffirmative(this.editorField('enabled')),
           source: 'user',
           provenance: 'agent-workspace',
