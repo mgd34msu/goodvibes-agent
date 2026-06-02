@@ -35,6 +35,7 @@ interface AgentWorkspaceActivationHost {
   applyLocalLibraryOperation(operation: AgentWorkspaceLocalOperation): void;
   hasCommandDispatch(): boolean;
   dispatchWorkspaceCommand: AgentWorkspaceCommandDispatcher;
+  commitActionSearchSelection(): boolean;
 }
 
 export function activateAgentWorkspaceSelection(
@@ -49,6 +50,7 @@ export function activateAgentWorkspaceSelection(
     workspace.focusActions();
     return;
   }
+  if (!workspace.commitActionSearchSelection()) return;
   const action = workspace.selectedAction;
   if (!action) return;
   if (action.kind === 'editor' && action.editorKind) {

@@ -59,6 +59,8 @@ Use the workspace as the primary product surface:
 - Automation: reminder creation, schedule status, routine promotion, receipts, and reconciliation.
 - Build Delegation: explicit handoff to GoodVibes TUI for build/fix/review work.
 
+Inside the Agent workspace, press `/` to search every workspace action by name, category, command, or detail. This is the primary discovery path for product capabilities; slash commands and CLI subcommands remain power-user/scriptable mirrors.
+
 The setup workspace surfaces discovered local Agent persona, skill, and routine markdown files so day-one setup can import useful behavior instead of starting from blank records. It can also create one initial local persona, skill, and routine directly during first-run setup; those records stay in Agent-local registries and never write to default Knowledge/Wiki or non-Agent segments.
 
 Inside the workspace, use `/agent-profile guide` to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.

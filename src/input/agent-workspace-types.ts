@@ -215,6 +215,13 @@ export interface AgentWorkspaceCategory {
   readonly actions: readonly AgentWorkspaceAction[];
 }
 
+export interface AgentWorkspaceActionSearchResult {
+  readonly category: AgentWorkspaceCategory;
+  readonly categoryIndex: number;
+  readonly action: AgentWorkspaceAction;
+  readonly actionIndex: number;
+}
+
 export type AgentWorkspaceCommandDispatcher = (command: string) => void;
 
 export type AgentWorkspaceActionResultKind = 'guidance' | 'blocked' | 'dispatched' | 'refreshed' | 'error';

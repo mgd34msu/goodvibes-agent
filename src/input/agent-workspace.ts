@@ -12,14 +12,16 @@ import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEdit
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
 import { createDeleteEditor, createMemoryUpdateEditor, createPersonaUpdateEditor, createRoutineUpdateEditor, createSkillUpdateEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from './agent-workspace-learned-behavior.ts';
+import { clampAgentWorkspaceLocalLibrarySelection, moveAgentWorkspaceLocalLibraryItemSelection, selectedAgentWorkspaceLocalLibraryItem, type AgentWorkspaceLocalSelectionIndexes } from './agent-workspace-local-selection.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
 import { jumpAgentWorkspaceSelection, moveAgentWorkspaceSelection, selectAgentWorkspaceCategory } from './agent-workspace-navigation.ts';
 import { buildAgentWorkspaceRequirements } from './agent-workspace-requirements.ts';
+import { appendAgentWorkspaceActionSearchText, backspaceAgentWorkspaceActionSearch, beginAgentWorkspaceActionSearch, clearAgentWorkspaceActionSearch, commitAgentWorkspaceActionSearchSelection, searchAgentWorkspaceActions } from './agent-workspace-search.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
-import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
 export type { AgentWorkspaceChannelRisk, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
-export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 export { AGENT_WORKSPACE_MODAL_NAME } from './agent-workspace-types.ts';
 export { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 export { handleAgentWorkspaceToken } from './agent-workspace-token.ts';
@@ -33,7 +35,9 @@ export class AgentWorkspace {
   public runtimeSnapshot: AgentWorkspaceRuntimeSnapshot | null = null;
   public lastActionResult: AgentWorkspaceActionResult | null = null;
   public localEditor: AgentWorkspaceLocalEditor | null = null;
-  private readonly selectedLibraryItemIndexes: Record<AgentWorkspaceLocalEditorKind, number> = {
+  public actionSearchActive = false;
+  public actionSearchQuery = '';
+  public readonly selectedLibraryItemIndexes: AgentWorkspaceLocalSelectionIndexes = {
     memory: 0,
     persona: 0,
     skill: 0,
@@ -52,6 +56,8 @@ export class AgentWorkspace {
     this.status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
     this.lastActionResult = null;
     this.localEditor = null;
+    this.actionSearchActive = false;
+    this.actionSearchQuery = '';
     if (categoryId && !this.selectCategory(categoryId)) {
       const normalized = categoryId.trim();
       this.status = `Unknown Agent workspace area: ${normalized}.`;
@@ -73,6 +79,8 @@ export class AgentWorkspace {
   close(): void {
     this.active = false;
     this.localEditor = null;
+    this.actionSearchActive = false;
+    this.actionSearchQuery = '';
   }
 
   get categories(): readonly AgentWorkspaceCategory[] {
@@ -84,6 +92,7 @@ export class AgentWorkspace {
   }
 
   get actions(): readonly AgentWorkspaceAction[] {
+    if (this.actionSearchActive) return this.actionSearchResults.map((result) => result.action);
     return this.selectedCategory.actions;
   }
 
@@ -91,15 +100,26 @@ export class AgentWorkspace {
     return this.actions[this.selectedActionIndex] ?? null;
   }
 
+  get selectedActionCategory(): AgentWorkspaceCategory {
+    if (this.actionSearchActive) return this.selectedActionSearchResult?.category ?? this.selectedCategory;
+    return this.selectedCategory;
+  }
+
+  get actionSearchResults(): readonly AgentWorkspaceActionSearchResult[] {
+    return this.actionSearchActive ? searchAgentWorkspaceActions(this.categories, this.actionSearchQuery) : [];
+  }
+
+  get selectedActionSearchResult(): AgentWorkspaceActionSearchResult | null {
+    if (!this.actionSearchActive) return null;
+    return this.actionSearchResults[this.selectedActionIndex] ?? null;
+  }
+
   selectCategory(categoryIdOrLabel: string): boolean {
     return selectAgentWorkspaceCategory(this, categoryIdOrLabel);
   }
 
   selectedLocalLibraryItem(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null {
-    const items = this.localLibraryItems(kind);
-    if (items.length === 0) return null;
-    const index = Math.max(0, Math.min(this.selectedLibraryItemIndexes[kind], items.length - 1));
-    return items[index] ?? null;
+    return selectedAgentWorkspaceLocalLibraryItem(this.runtimeSnapshot, this.selectedLibraryItemIndexes, kind);
   }
 
   focusCategories(): void {
@@ -159,6 +179,26 @@ export class AgentWorkspace {
       title: `${title} cancelled`,
       detail: 'No local Agent registry changes were written.',
     };
+  }
+
+  beginActionSearch(): void {
+    beginAgentWorkspaceActionSearch(this);
+  }
+
+  appendActionSearchText(text: string): void {
+    appendAgentWorkspaceActionSearchText(this, text);
+  }
+
+  actionSearchBackspace(): void {
+    backspaceAgentWorkspaceActionSearch(this);
+  }
+
+  clearActionSearch(): void {
+    clearAgentWorkspaceActionSearch(this);
+  }
+
+  commitActionSearchSelection(): boolean {
+    return commitAgentWorkspaceActionSearchSelection(this, this.selectedActionSearchResult);
   }
 
   moveEditorField(delta: number): void {
@@ -222,48 +262,14 @@ export class AgentWorkspace {
   clampSelection(): void {
     this.selectedCategoryIndex = Math.max(0, Math.min(this.selectedCategoryIndex, this.categories.length - 1));
     this.selectedActionIndex = Math.max(0, Math.min(this.selectedActionIndex, this.actions.length - 1));
-    this.clampLocalLibrarySelection('memory');
-    this.clampLocalLibrarySelection('persona');
-    this.clampLocalLibrarySelection('skill');
-    this.clampLocalLibrarySelection('routine');
-  }
-
-  private localLibraryItems(kind: AgentWorkspaceLocalEditorKind): readonly AgentWorkspaceLocalLibraryItem[] {
-    if (kind === 'memory') return this.runtimeSnapshot?.localMemories ?? [];
-    if (kind === 'persona') return this.runtimeSnapshot?.localPersonas ?? [];
-    if (kind === 'skill') return this.runtimeSnapshot?.localSkills ?? [];
-    if (kind === 'profile') return [];
-    return this.runtimeSnapshot?.localRoutines ?? [];
-  }
-
-  private clampLocalLibrarySelection(kind: AgentWorkspaceLocalEditorKind): void {
-    const length = this.localLibraryItems(kind).length;
-    this.selectedLibraryItemIndexes[kind] = length === 0
-      ? 0
-      : Math.max(0, Math.min(this.selectedLibraryItemIndexes[kind], length - 1));
+    clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, 'memory');
+    clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, 'persona');
+    clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, 'skill');
+    clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, 'routine');
   }
 
   moveLocalLibraryItemSelection(kind: AgentWorkspaceLocalEditorKind, delta: number): void {
-    const items = this.localLibraryItems(kind);
-    if (items.length === 0) {
-      this.status = `No local ${kind} records to select.`;
-      this.lastActionResult = {
-        kind: 'guidance',
-        title: `No ${kind} records`,
-        detail: `Create a local ${kind} before using selection actions.`,
-        safety: 'safe',
-      };
-      return;
-    }
-    this.selectedLibraryItemIndexes[kind] = Math.max(0, Math.min(items.length - 1, this.selectedLibraryItemIndexes[kind] + delta));
-    const selected = this.selectedLocalLibraryItem(kind);
-    this.status = selected ? `Selected ${kind}: ${selected.name}.` : `Selected ${kind} updated.`;
-    this.lastActionResult = {
-      kind: 'guidance',
-      title: selected ? `Selected ${selected.name}` : `Selected ${kind}`,
-      detail: selected ? `${selected.name} (${selected.id}) is now the selected local ${kind}.` : `Selection changed for ${kind}.`,
-      safety: 'safe',
-    };
+    moveAgentWorkspaceLocalLibraryItemSelection(this, kind, delta);
   }
 
   applyLocalLibraryOperation(operation: AgentWorkspaceLocalOperation): void {
@@ -429,7 +435,7 @@ export class AgentWorkspace {
 
   private finishLocalOperation(kind: AgentWorkspaceLocalEditorKind, title: string, detail: string): void {
     this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
-    this.clampLocalLibrarySelection(kind);
+    clampAgentWorkspaceLocalLibrarySelection(this.runtimeSnapshot, this.selectedLibraryItemIndexes, kind);
     this.status = title;
     this.lastActionResult = {
       kind: 'refreshed',

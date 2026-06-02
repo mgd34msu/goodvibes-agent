@@ -316,6 +316,23 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Enter open/action');
   });
 
+  test('renders workspace action search as a TUI-native finder', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined);
+    workspace.beginActionSearch();
+    workspace.appendActionSearchText('doctor');
+
+    const output = text(renderAgentWorkspace(workspace, 120, 32));
+
+    expect(output).toContain('Search actions');
+    expect(output).toContain('Action Search');
+    expect(output).toContain('Query: doctor');
+    expect(output).toContain('Home / Doctor diagnostics');
+    expect(output).toContain('/doctor');
+    expect(output).toContain('type filter');
+    expect(output).toContain('Esc clear');
+  });
+
   test('renders build delegation as an explicit TUI handoff area', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined);

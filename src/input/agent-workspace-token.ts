@@ -25,6 +25,18 @@ export function handleAgentWorkspaceToken(
   }
 
   if (token.type === 'key') {
+    if (workspace.actionSearchActive) {
+      if (token.logicalName === 'escape') workspace.clearActionSearch();
+      else if (token.logicalName === 'enter') workspace.activateSelected(requestRender);
+      else if (token.logicalName === 'up') workspace.moveUp();
+      else if (token.logicalName === 'down') workspace.moveDown();
+      else if (token.logicalName === 'home') workspace.jumpHome();
+      else if (token.logicalName === 'end') workspace.jumpEnd();
+      else if (token.logicalName === 'backspace' || token.logicalName === 'delete') workspace.actionSearchBackspace();
+      else if (token.logicalName === 'space') workspace.appendActionSearchText(' ');
+      requestRender();
+      return true;
+    }
     if (token.logicalName === 'escape') {
       handleEscape();
       return true;
@@ -38,7 +50,9 @@ export function handleAgentWorkspaceToken(
     else if (token.logicalName === 'home') workspace.jumpHome();
     else if (token.logicalName === 'end') workspace.jumpEnd();
   } else if (token.type === 'text') {
-    if (token.value === 'h') workspace.focusCategories();
+    if (workspace.actionSearchActive) workspace.appendActionSearchText(token.value);
+    else if (token.value === '/') workspace.beginActionSearch();
+    else if (token.value === 'h') workspace.focusCategories();
     else if (token.value === 'l') workspace.focusActions();
     else if (token.value === 'j') workspace.moveDown();
     else if (token.value === 'k') workspace.moveUp();

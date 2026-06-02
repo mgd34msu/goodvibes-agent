@@ -440,6 +440,17 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
     { text: '' },
     { text: category.detail, fg: PALETTE.text },
     { text: '' },
+    ...(workspace.actionSearchActive ? [
+      { text: 'Action Search', fg: PALETTE.title, bold: true },
+      {
+        text: workspace.actionSearchQuery.length > 0
+          ? `Query: ${workspace.actionSearchQuery} (${workspace.actionSearchResults.length} result${workspace.actionSearchResults.length === 1 ? '' : 's'})`
+          : 'Type to search every Agent workspace action.',
+        fg: workspace.actionSearchQuery.length > 0 && workspace.actionSearchResults.length === 0 ? PALETTE.warn : PALETTE.info,
+      },
+      { text: 'Enter opens the selected result. Esc clears search and returns to normal workspace navigation.', fg: PALETTE.muted },
+      { text: '' },
+    ] satisfies ContextLine[] : []),
     ...(workspace.localEditor ? editorContextLines(workspace.localEditor) : []),
     ...(workspace.localEditor ? [{ text: '' }] : []),
     ...snapshotLines(workspace, category, workspace.runtimeSnapshot),
@@ -532,23 +543,32 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   const labelWidth = Math.min(28, Math.max(16, Math.floor(width * 0.30)));
   const safetyWidth = 10;
   const commandWidth = Math.max(10, width - labelWidth - safetyWidth - 9);
+  if (workspace.actionSearchActive) {
+    rows.push({
+      text: `  Search: ${workspace.actionSearchQuery || '(type to filter actions)'}`,
+      fg: workspace.actionSearchQuery.length > 0 && workspace.actions.length === 0 ? PALETTE.warn : PALETTE.info,
+      bold: true,
+    });
+  }
   rows.push({
-    text: `  ${padDisplay('Action', labelWidth)}  ${padDisplay('Safety', safetyWidth)}  ${padDisplay('Command', commandWidth)}`,
+    text: `  ${padDisplay(workspace.actionSearchActive ? 'Result' : 'Action', labelWidth)}  ${padDisplay('Safety', safetyWidth)}  ${padDisplay('Command', commandWidth)}`,
     fg: PALETTE.muted,
     bold: true,
   });
 
   const actions = workspace.actions;
-  const visible = Math.max(1, height - 2);
+  const visible = Math.max(1, height - (workspace.actionSearchActive ? 3 : 2));
   const window = stableWindow(actions.length, workspace.selectedActionIndex, visible);
   if (window.start > 0) rows.push({ text: `${GLYPHS.navigation.moreAbove} ${window.start} more action(s) above`, kind: 'more', fg: PALETTE.dim, dim: true });
 
   for (let index = window.start; index < window.end; index += 1) {
     const action = actions[index]!;
     const selected = index === workspace.selectedActionIndex;
+    const searchResult = workspace.actionSearchActive ? workspace.actionSearchResults[index] : null;
+    const label = searchResult ? `${searchResult.category.label} / ${action.label}` : action.label;
     const marker = selected ? GLYPHS.navigation.selected : ' ';
     rows.push({
-      text: `${marker} ${padDisplay(action.label, labelWidth)}  ${padDisplay(action.safety, safetyWidth)}  ${padDisplay(actionCommand(action), commandWidth)}`,
+      text: `${marker} ${padDisplay(label, labelWidth)}  ${padDisplay(action.safety, safetyWidth)}  ${padDisplay(actionCommand(action), commandWidth)}`,
       selected: selected && workspace.focusPane === 'actions',
       fg: safetyColor(action),
       bold: selected,
@@ -577,12 +597,15 @@ function footerText(workspace: AgentWorkspace): string {
   if (workspace.localEditor) {
     return `Agent workspace · editing ${workspace.localEditor.kind} · Enter next/save · Ctrl-J newline · Esc cancel`;
   }
+  if (workspace.actionSearchActive) {
+    return 'Agent workspace · action search · type filter · Up/Down results · Enter open · Esc clear';
+  }
   const focus = workspace.focusPane === 'categories' ? 'categories' : 'actions';
-  return `Agent workspace · focus ${focus} · Up/Down navigate · Left/Right pane · Enter open/action · R refresh · Esc close`;
+  return `Agent workspace · focus ${focus} · / search actions · Up/Down navigate · Left/Right pane · Enter open/action · R refresh · Esc close`;
 }
 
 export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, height: number): Line[] {
-  const category = workspace.selectedCategory;
+  const category = workspace.selectedActionCategory;
   const action = workspace.selectedAction;
   const setupCategory = category.id === 'setup';
   const layoutOptions = {
@@ -598,9 +621,11 @@ export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, h
     width,
     height,
     title: 'GoodVibes Agent / Operator Workspace',
-    stateLabel: workspace.localEditor ? 'Editor' : workspace.focusPane === 'categories' ? 'Categories' : 'Actions',
+    stateLabel: workspace.localEditor ? 'Editor' : workspace.actionSearchActive ? 'Search' : workspace.focusPane === 'categories' ? 'Categories' : 'Actions',
     leftHeader: 'Operator Areas',
-    mainHeader: `${category.label} · ${category.actions.length} action(s)`,
+    mainHeader: workspace.actionSearchActive
+      ? `Search actions · ${workspace.actions.length} result(s)`
+      : `${category.label} · ${category.actions.length} action(s)`,
     leftRows: buildLeftRows(workspace, metrics.bodyRows),
     contextRows: buildContextRows(workspace, category, action, metrics.contextWidth),
     controlRows: buildActionRows(workspace, metrics.contextWidth, metrics.controlRows),

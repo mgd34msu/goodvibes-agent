@@ -461,6 +461,79 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
+  test('searches workspace actions from the TUI and dispatches the selected result', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+
+    feedText(workspace, '/');
+    expect(workspace.actionSearchActive).toBe(true);
+    expect(workspace.actions).toHaveLength(0);
+
+    feedText(workspace, 'doctor');
+    expect(workspace.actions.length).toBeGreaterThan(0);
+    expect(workspace.selectedAction?.id).toBe('doctor');
+
+    feedKey(workspace, 'enter');
+
+    expect(workspace.actionSearchActive).toBe(false);
+    expect(workspace.selectedCategory.id).toBe('home');
+    expect(workspace.selectedAction?.id).toBe('doctor');
+    expect(dispatched).toEqual(['/doctor']);
+  });
+
+  test('search opens cross-category actions without making users know slash commands', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+
+    feedText(workspace, '/');
+    feedText(workspace, 'agent knowledge reindex');
+    expect(workspace.actionSearchActive).toBe(true);
+    expect(workspace.selectedAction?.id).toBe('knowledge-reindex');
+
+    feedKey(workspace, 'enter');
+
+    expect(workspace.actionSearchActive).toBe(false);
+    expect(workspace.selectedCategory.id).toBe('knowledge');
+    expect(workspace.localEditor?.kind).toBe('knowledge-reindex');
+    expect(dispatched).toEqual([]);
+  });
+
+  test('search accepts tokenizer space keys for multi-word queries', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext());
+
+    feedText(workspace, '/');
+    feedText(workspace, 'agent');
+    feedKey(workspace, 'space');
+    feedText(workspace, 'knowledge');
+
+    expect(workspace.actionSearchQuery).toBe('agent knowledge');
+    expect(workspace.actions.some((action) => action.id === 'knowledge-status')).toBe(true);
+  });
+
+  test('search no-match and escape stay inside the workspace', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+
+    feedText(workspace, '/');
+    feedText(workspace, 'not a real operator action');
+    expect(workspace.actionSearchActive).toBe(true);
+    expect(workspace.actions).toHaveLength(0);
+
+    feedKey(workspace, 'enter');
+    expect(workspace.actionSearchActive).toBe(true);
+    expect(workspace.lastActionResult?.title).toBe('No action selected');
+    expect(dispatched).toEqual([]);
+
+    feedKey(workspace, 'escape');
+    expect(workspace.active).toBe(true);
+    expect(workspace.actionSearchActive).toBe(false);
+    expect(workspace.status).toBe('Action search cleared.');
+  });
+
   test('work workspace reviews planning work plan tasks sessions and approvals from transcript instead of opening a panel', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
