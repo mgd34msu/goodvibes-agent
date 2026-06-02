@@ -461,7 +461,7 @@ describe('renderAgentWorkspace', () => {
     expect(browserOutput).toContain('Open browser');
     workspace.moveEditorField(1);
     const manualOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(manualOutput).toContain('Manual callback');
+    expect(manualOutput).toContain('Manual completion');
     workspace.moveEditorField(1);
     const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(confirmOutput).toContain('Editing: Confirm (required)');

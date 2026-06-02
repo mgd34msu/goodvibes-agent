@@ -1,4 +1,3 @@
-import { createOAuthLocalListener } from '@pellux/goodvibes-sdk/platform/config';
 import { beginOpenAICodexLogin, exchangeOpenAICodexCode } from '@pellux/goodvibes-sdk/platform/config';
 import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
@@ -328,7 +327,6 @@ export async function refreshOnboardingHydrationForHandler(handler: InputHandler
 export async function handleOpenAiSubscriptionStartForHandler(handler: InputHandler): Promise<void> {
     if (handler.onboardingApplyPending) return;
     handler.onboardingApplyPending = true;
-    let listener: Awaited<ReturnType<typeof createOAuthLocalListener>> | null = null;
     try {
       const started = await beginOpenAICodexLogin();
       handler.uiServices.platform.subscriptionManager.savePending({
@@ -338,12 +336,6 @@ export async function handleOpenAiSubscriptionStartForHandler(handler: InputHand
         redirectUri: started.redirectUri,
         createdAt: Date.now(),
       });
-      listener = await createOAuthLocalListener({
-        expectedState: started.state,
-        host: '127.0.0.1',
-        port: 1455,
-        path: '/auth/callback',
-      }).catch(() => null);
       const browserOpened = await openExternalUrl(started.authorizationUrl);
       await handler.refreshOnboardingHydration({ preserveValues: true, targetStepId: 'provider-access' });
       handler.onboardingWizard.setFieldValue('providers.openai-authorization-url', started.authorizationUrl);
@@ -351,31 +343,14 @@ export async function handleOpenAiSubscriptionStartForHandler(handler: InputHand
       if (providerIndex >= 0) handler.onboardingWizard.setStep(providerIndex);
       handler.requestRender();
 
-      if (listener && browserOpened) {
-        const serial = ++handler.onboardingOpenAiListenerSerial;
-        handler.commandContext?.print?.([
-          'OpenAI subscription sign-in started from onboarding.',
-          '  callback listener: waiting on 127.0.0.1:1455',
-          '  authorizationUrl: shown in the wizard provider step',
-          'You can also paste the callback code or URL into the OpenAI callback field.',
-        ].join('\n'));
-        void handler.completeOpenAiSubscriptionFromListener(listener, started.verifier, serial);
-        listener = null;
-        handler.requestRender();
-        return;
-      }
-
-      listener?.close();
       handler.commandContext?.print?.([
         'OpenAI subscription sign-in started from onboarding.',
         `  browser: ${browserOpened ? 'opened' : 'open failed'}`,
-        `  callback listener: ${listener ? 'ready' : 'unavailable'}`,
+        '  completion: paste callback code or URL into the OpenAI callback field',
         '  authorizationUrl: shown in the wizard provider step',
-        'Paste the callback code or URL into the OpenAI callback field after sign-in.',
       ].join('\n'));
       handler.requestRender();
     } catch (error) {
-      listener?.close();
       handler.commandContext?.print?.([
         'OpenAI subscription sign-in could not start.',
         `  ${error instanceof Error ? error.message : String(error)}`,
@@ -383,51 +358,6 @@ export async function handleOpenAiSubscriptionStartForHandler(handler: InputHand
       handler.requestRender();
     } finally {
       handler.onboardingApplyPending = false;
-    }
-  }
-
-export async function completeOpenAiSubscriptionFromListenerForHandler(
-  handler: InputHandler,
-    listener: Awaited<ReturnType<typeof createOAuthLocalListener>>,
-    verifier: string,
-    serial: number,
-  ): Promise<void> {
-    try {
-      const callback = await listener.waitForCode();
-      const pending = handler.uiServices.platform.subscriptionManager.getPending('openai');
-      if (!pending || pending.verifier !== verifier || serial !== handler.onboardingOpenAiListenerSerial) return;
-      const token = await exchangeOpenAICodexCode(callback.code, verifier);
-      const now = Date.now();
-      const existing = handler.uiServices.platform.subscriptionManager.get('openai');
-      handler.uiServices.platform.subscriptionManager.saveSubscription({
-        provider: 'openai',
-        accessToken: token.accessToken,
-        refreshToken: token.refreshToken,
-        tokenType: token.tokenType,
-        expiresAt: token.expiresAt,
-        ...(token.scopes ? { scopes: token.scopes } : {}),
-        authMode: 'oauth',
-        overrideAmbientApiKeys: false,
-        createdAt: existing?.createdAt ?? now,
-        updatedAt: now,
-      });
-      handler.uiServices.platform.subscriptionManager.clearPending('openai');
-      handler.onboardingOpenAiListenerSerial += 1;
-      handler.commandContext?.print?.([
-        'OpenAI subscription sign-in completed from onboarding.',
-        `  tokenType: ${token.tokenType}`,
-        `  expiresAt: ${token.expiresAt ? new Date(token.expiresAt).toISOString() : 'n/a'}`,
-      ].join('\n'));
-      await handler.refreshOnboardingHydration({ preserveValues: true, targetStepId: 'provider-access' });
-    } catch (error) {
-      handler.commandContext?.print?.([
-        'OpenAI subscription listener could not complete automatically.',
-        `  listener: ${error instanceof Error ? error.message : String(error)}`,
-        'Paste the callback code or URL into the OpenAI callback field to finish in onboarding.',
-      ].join('\n'));
-      handler.requestRender();
-    } finally {
-      listener.close();
     }
   }
 

@@ -1,12 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { InputTokenizer } from '@pellux/goodvibes-sdk/platform/core';
-import { createOAuthLocalListener } from '@pellux/goodvibes-sdk/platform/config';
 import { clearModalStackForHandler, cleanupMarkerRegistryForHandler, executeBlockActionForHandler, expandPromptForHandler, findMarkerAtPosForHandler, getImageAttachmentsForHandler, handleBlockCopyForHandler, handleBlockRerunForHandler, handleBlockSaveForHandler, handleBlockToggleForHandler, handleBookmarkForHandler, handleCopyForHandler, handleCtrlCForHandler, handleEscapeForHandler, hydrateOnboardingWizardFromRuntimeForHandler, modalOpenedForHandler, openOnboardingWizardForHandler, registerPasteForHandler } from './handler-interactions.ts';
-import { clearOnboardingModelPickerCancelStateForHandler, clearOnboardingPendingModelPickerTargetForHandler, completeOpenAiSubscriptionFromListenerForHandler, getOnboardingConfigValueForHandler, getOnboardingRuntimePostureForHandler, handleModelPickerCommitForHandler, handleOnboardingActionForHandler, handleOpenAiSubscriptionFinishForHandler, handleOpenAiSubscriptionStartForHandler, openModelPickerWithTargetForHandler, openProviderModelPickerWithTargetForHandler, refreshOnboardingHydrationForHandler, restartOnboardingExternalServicesIfNeededForHandler, restoreOnboardingModelPickerCancelStateForHandler, syncRuntimeFromOnboardingRequestForHandler, verifyOnboardingRuntimePostureForHandler, type OnboardingRuntimePosture } from './handler-onboarding.ts';
-import { beginOpenAICodexLogin, exchangeOpenAICodexCode } from '@pellux/goodvibes-sdk/platform/config';
-import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
-import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
+import { clearOnboardingModelPickerCancelStateForHandler, clearOnboardingPendingModelPickerTargetForHandler, getOnboardingConfigValueForHandler, getOnboardingRuntimePostureForHandler, handleModelPickerCommitForHandler, handleOnboardingActionForHandler, handleOpenAiSubscriptionFinishForHandler, handleOpenAiSubscriptionStartForHandler, openModelPickerWithTargetForHandler, openProviderModelPickerWithTargetForHandler, refreshOnboardingHydrationForHandler, restartOnboardingExternalServicesIfNeededForHandler, restoreOnboardingModelPickerCancelStateForHandler, syncRuntimeFromOnboardingRequestForHandler, verifyOnboardingRuntimePostureForHandler, type OnboardingRuntimePosture } from './handler-onboarding.ts';
 import { SelectionManager } from './selection.ts';
 import type { InfiniteBuffer } from '../core/history.ts';
 import type { CommandRegistry, CommandContext } from './command-registry.ts';
@@ -163,7 +159,6 @@ export class InputHandler {
   public onboardingModelPickerCancelSnapshot: OnboardingWizardSnapshot | null = null;
   public onboardingHydrationSerial = 0;
   public onboardingApplyPending = false;
-  public onboardingOpenAiListenerSerial = 0;
 
   /**
    * Modal navigation stack. Each element is the name of an open modal.
@@ -448,7 +443,6 @@ export class InputHandler {
   public async handleOnboardingAction(action: OnboardingWizardAction): Promise<void> { await handleOnboardingActionForHandler(this, action); }
   public async refreshOnboardingHydration(options: { readonly preserveValues?: boolean; readonly targetStepId?: string } = {}): Promise<void> { await refreshOnboardingHydrationForHandler(this, options); }
   public async handleOpenAiSubscriptionStart(): Promise<void> { await handleOpenAiSubscriptionStartForHandler(this); }
-  public async completeOpenAiSubscriptionFromListener(listener: Awaited<ReturnType<typeof createOAuthLocalListener>>, verifier: string, serial: number): Promise<void> { await completeOpenAiSubscriptionFromListenerForHandler(this, listener, verifier, serial); }
   public async handleOpenAiSubscriptionFinish(): Promise<void> { await handleOpenAiSubscriptionFinishForHandler(this); }
   public syncRuntimeFromOnboardingRequest(request: ReturnType<OnboardingWizardController['buildApplyRequest']>): void { syncRuntimeFromOnboardingRequestForHandler(this, request); }
   public getOnboardingConfigValue(request: OnboardingApplyRequest, key: string): unknown { return getOnboardingConfigValueForHandler(this, request, key); }

@@ -163,7 +163,7 @@ export class QrPanel extends BasePanel {
       );
       lines.push(
         buildPanelLine(width, [
-          [' Start or repair the owning GoodVibes host, then reopen this panel. ', C.dim],
+          [' Provision or repair connected-host access through the owning GoodVibes host, then reopen this panel. ', C.dim],
         ]),
       );
     }

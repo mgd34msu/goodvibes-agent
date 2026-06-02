@@ -231,6 +231,9 @@ describe('AgentWorkspace', () => {
         return root ? [root] : [];
       })
     )));
+    for (const category of AGENT_WORKSPACE_CATEGORIES) {
+      workspaceCommandRoots.add(category.id);
+    }
     const workspaceSubmissionFiles = [
       'src/input/agent-workspace-basic-command-editor-submission.ts',
       'src/input/agent-workspace-provider-command-editor-submission.ts',
@@ -1244,14 +1247,14 @@ describe('AgentWorkspace', () => {
     expect(workspace.localEditor?.kind).toBe('skill-search');
     feedText(workspace, 'briefing');
     feedKey(workspace, 'enter');
-    expect(dispatched.at(-1)).toBe('/agent-skills search briefing');
+    expect(dispatched.at(-1)).toBe('/skills search briefing');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-show');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('skill-show');
     feedText(workspace, 'briefing');
     feedKey(workspace, 'enter');
-    expect(dispatched.at(-1)).toBe('/agent-skills show briefing');
+    expect(dispatched.at(-1)).toBe('/skills show briefing');
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-search');
@@ -1523,7 +1526,7 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
-      '/agent-skills bundle create --name "Daily Ops" --description "Daily operations bundle" --skills briefing,calendar-review --enabled',
+      '/skills bundle create --name "Daily Ops" --description "Daily operations bundle" --skills briefing,calendar-review --enabled',
     ]);
     expect(workspace.localEditor).toBeNull();
     expect(workspace.lastActionResult?.title).toBe('Opening skill bundle creation');
@@ -1561,8 +1564,8 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'no');
     feedKey(workspace, 'enter');
     expect(dispatched).toEqual([
-      '/agent-skills bundle search daily',
-      '/agent-skills bundle show bundle-daily',
+      '/skills bundle search daily',
+      '/skills bundle show bundle-daily',
     ]);
     expect(workspace.localEditor?.message).toContain('not confirmed');
     clearEditorField(workspace);
@@ -1612,14 +1615,14 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
-      '/agent-skills bundle search daily',
-      '/agent-skills bundle show bundle-daily',
-      '/agent-skills bundle update bundle-daily --name "Daily Ops" --description "Updated operations bundle" --skills briefing,calendar-review',
-      '/agent-skills bundle enable bundle-daily',
-      '/agent-skills bundle disable bundle-daily',
-      '/agent-skills bundle review bundle-daily',
-      '/agent-skills bundle stale bundle-daily "Needs provider setup review"',
-      '/agent-skills bundle delete bundle-daily --yes',
+      '/skills bundle search daily',
+      '/skills bundle show bundle-daily',
+      '/skills bundle update bundle-daily --name "Daily Ops" --description "Updated operations bundle" --skills briefing,calendar-review',
+      '/skills bundle enable bundle-daily',
+      '/skills bundle disable bundle-daily',
+      '/skills bundle review bundle-daily',
+      '/skills bundle stale bundle-daily "Needs provider setup review"',
+      '/skills bundle delete bundle-daily --yes',
     ]);
   });
 
@@ -1847,6 +1850,24 @@ describe('AgentWorkspace', () => {
       '/subscription logout openai --yes',
     ]);
     expect(workspace.lastActionResult?.title).toBe('Opening provider subscription logout');
+  });
+
+  test('defaults provider subscription login start to manual completion', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-login-start');
+
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('subscription-login-start');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual(['/subscription login openai start --manual --yes']);
   });
 
   test('exposes auth trust subscription and voice bundles from workspace forms', () => {
@@ -2292,7 +2313,7 @@ describe('AgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-discover');
     workspace.activateSelected();
-    expect(dispatched).toEqual(['/agent-skills discover']);
+    expect(dispatched).toEqual(['/skills discover']);
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-import-discovered');
     workspace.activateSelected();
@@ -2305,7 +2326,7 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'no');
     feedKey(workspace, 'enter');
     expect(workspace.localEditor?.message).toContain('not confirmed');
-    expect(dispatched).toEqual(['/agent-skills discover']);
+    expect(dispatched).toEqual(['/skills discover']);
 
     feedKey(workspace, 'backspace');
     feedKey(workspace, 'backspace');
@@ -2313,8 +2334,8 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
-      '/agent-skills discover',
-      '/agent-skills import-discovered "Travel Planner" --enabled --yes',
+      '/skills discover',
+      '/skills import-discovered "Travel Planner" --enabled --yes',
     ]);
     expect(workspace.localEditor).toBeNull();
     expect(workspace.lastActionResult?.title).toBe('Opening discovered skill import');

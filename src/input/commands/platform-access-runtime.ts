@@ -71,7 +71,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           `  built-in providers: ${builtinProviders.length}${builtinProviders.length > 0 ? ` (${builtinProviders.join(', ')})` : ''}`,
           `  active subscriptions: ${snapshot.activeSubscriptions}${snapshot.activeSubscriptions > 0 ? ` (${snapshot.providers.filter((provider) => provider.activeSubscription).map((provider) => provider.provider).join(', ')})` : ''}`,
           `  pending subscriptions: ${snapshot.pendingSubscriptions}${snapshot.pendingSubscriptions > 0 ? ` (${snapshot.providers.filter((provider) => provider.pendingLogin).map((provider) => provider.provider).join(', ')})` : ''}`,
-          ...snapshot.providers.map((provider) => `  ${provider.provider}  freshness=${provider.freshness}  mode=${provider.callbackMode}  configured=${provider.configured ? 'yes' : 'no'}`),
+          ...snapshot.providers.map((provider) => `  ${provider.provider}  freshness=${provider.freshness}  finish=manual  configured=${provider.configured ? 'yes' : 'no'}`),
         ].join('\n'));
         return;
       }
@@ -92,9 +92,8 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           `  configured: ${inspection.configured ? 'yes' : 'no'}`,
           ...(inspection.source ? [`  source: ${inspection.source}`] : []),
           `  freshness: ${inspection.freshness}`,
-          `  callbackMode: ${inspection.callbackMode}`,
+          '  finishMode: explicit manual',
           ...(inspection.redirectUri ? [`  redirectUri: ${inspection.redirectUri}`] : []),
-          ...(inspection.localCallback ? [`  localCallback: ${inspection.localCallback}`] : []),
           `  activeSubscription: ${inspection.activeSubscription ? 'yes' : 'no'}`,
           `  pendingLogin: ${inspection.pendingLogin ? 'yes' : 'no'}`,
           `  overrideAmbientApiKeys: ${inspection.overrideAmbientApiKeys ? 'yes' : 'no'}`,
@@ -121,7 +120,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           `Auth Repair ${provider}`,
           `  configured: ${inspection.configured ? 'yes' : 'no'}`,
           `  freshness: ${inspection.freshness}`,
-          `  callbackMode: ${inspection.callbackMode}`,
+          '  finishMode: explicit manual',
           ...inspection.issues.map((issue) => `  issue: ${issue}`),
           ...(inspection.nextActions.length > 0
             ? ['  next:', ...inspection.nextActions.map((action) => `    ${action}`)]

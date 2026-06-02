@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import { SecretsManager } from '../config/secrets.ts';
 import { BUILTIN_SECRET_PROVIDER_SOURCES, describeSecretRef, isSecretRefInput, resolveSecretRef } from '@pellux/goodvibes-sdk/platform/config';
 import { getSubscriptionProviderConfig, listAvailableSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
+import type { OAuthProviderConfig } from '@pellux/goodvibes-sdk/platform/config';
 import { beginOpenAICodexLogin, exchangeOpenAICodexCode } from '@pellux/goodvibes-sdk/platform/config';
 import { inspectProviderAuth } from '@/runtime/index.ts';
 import { buildCompanionConnectionInfo, encodeConnectionPayload, formatConnectionBlock } from '@pellux/goodvibes-sdk/platform/pairing';
@@ -12,6 +13,12 @@ import type { CliCommandRuntime } from './management.ts';
 import { extractAuthorizationCode, formatJsonOrText, hasCommandFlag, openBrowser, urlHostForBindHost, withRuntimeServices, yesNo } from './management.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 import { connectedHostTokenRequiredMessage, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
+
+function resolveManualSubscriptionConfig(config: OAuthProviderConfig): OAuthProviderConfig {
+  return config.manualRedirectUri
+    ? { ...config, redirectUri: config.manualRedirectUri }
+    : config;
+}
 
 export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<string> {
   return await withRuntimeServices(runtime, async (services) => {
@@ -43,7 +50,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
         `GoodVibes subscription ${provider}`,
         `  configured: ${yesNo(inspection.configured)}`,
         `  freshness: ${inspection.freshness}`,
-        `  callbackMode: ${inspection.callbackMode}`,
+        '  finishMode: explicit manual',
         ...(resolved ? [
           `  source: ${resolved.source}`,
           `  redirectUri: ${resolved.oauth.redirectUri}`,
@@ -80,12 +87,14 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
           `  state: ${started.state}`,
           `  redirectUri: ${started.redirectUri}`,
           ...(openResult ? [`  open: ${openResult}`] : []),
+          '  completion: paste the callback code or redirect URL into the finish command',
           `  next: ${binary} subscription login ${provider} finish <code-or-url>`,
           '  authorizationUrl:',
           `  ${started.authorizationUrl}`,
         ].join('\n');
       }
-      const started = await services.subscriptionManager.beginOAuthLogin(provider, resolved.oauth);
+      const activeConfig = resolveManualSubscriptionConfig(resolved.oauth);
+      const started = await services.subscriptionManager.beginOAuthLogin(provider, activeConfig);
       const openResult = runtime.cli.flags.open || hasCommandFlag(rest, '--open') ? openBrowser(started.authorizationUrl) : null;
       return [
         `Subscription OAuth started: ${provider}`,
@@ -93,6 +102,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
         `  state: ${started.pending.state}`,
         `  redirectUri: ${started.pending.redirectUri}`,
         ...(openResult ? [`  open: ${openResult}`] : []),
+        '  completion: paste the callback code or redirect URL into the finish command',
         `  next: ${binary} subscription login ${provider} finish <code-or-url>`,
         '  authorizationUrl:',
         `  ${started.authorizationUrl}`,
@@ -124,7 +134,8 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
         });
         return `Subscription stored: ${provider} token=${record.tokenType} expires=${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'n/a'}`;
       }
-      const record = await services.subscriptionManager.completeOAuthLogin(provider, resolved.oauth, code);
+      const activeConfig = resolveManualSubscriptionConfig(resolved.oauth);
+      const record = await services.subscriptionManager.completeOAuthLogin(provider, activeConfig, code);
       return `Subscription stored: ${provider} token=${record.tokenType} expires=${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'n/a'}`;
     }
     if (sub === 'refresh') {

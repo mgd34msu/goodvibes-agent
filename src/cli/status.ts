@@ -108,7 +108,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         summary: 'Connected GoodVibes host is not reachable.',
         cause: `Agent could not reach ${options.externalRuntime.baseUrl}${options.externalRuntime.error ? `: ${options.externalRuntime.error}` : '.'}`,
         impact: 'Companion chat, isolated Agent Knowledge, approvals, automation status, and build delegation cannot work until the connected GoodVibes host is available.',
-        action: 'Start or repair the owning GoodVibes host, then rerun goodvibes-agent status.',
+        action: 'Make the owning GoodVibes host available, then rerun goodvibes-agent status.',
       });
     } else if (!options.externalRuntime.compatible) {
       findings.push({

@@ -616,7 +616,7 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
       'start',
     ];
     if (!isAffirmative(readField('openBrowser'))) parts.push('--no-browser');
-    if (isAffirmative(readField('manual'))) parts.push('--manual');
+    parts.push('--manual');
     parts.push('--yes');
     const command = parts.join(' ');
     return {

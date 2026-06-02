@@ -623,11 +623,11 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       mode: 'create',
       title: 'Start Provider Subscription Login',
       selectedFieldIndex: 0,
-      message: 'Start one provider subscription OAuth login. Type yes on the final field to confirm browser/pending-login side effects.',
+      message: 'Begin one provider subscription OAuth login. Type yes on the final field to confirm browser and pending-login side effects.',
       fields: [
         { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Subscription provider id from /subscription providers.' },
         { id: 'openBrowser', label: 'Open browser', value: 'yes', required: false, multiline: false, hint: 'yes/no. Use no to print the authorization URL only.' },
-        { id: 'manual', label: 'Manual callback', value: 'no', required: false, multiline: false, hint: 'yes/no. Use yes to avoid the local callback listener and finish manually.' },
+        { id: 'manual', label: 'Manual completion', value: 'yes', required: false, multiline: false, hint: 'Agent always finishes subscription login through the explicit finish form.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /subscription login <provider> start with --yes.' },
       ],
     };
