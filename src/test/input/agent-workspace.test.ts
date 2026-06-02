@@ -982,6 +982,100 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening skill bundle creation');
   });
 
+  test('manages skill bundles from in-workspace lifecycle forms', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-search-bundle');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-bundle-search');
+    feedText(workspace, 'daily');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-show-bundle');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-bundle-show');
+    feedText(workspace, 'bundle-daily');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-update-bundle');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-bundle-update');
+    feedText(workspace, 'bundle-daily');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Daily Ops');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Updated operations bundle');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'briefing,calendar-review');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual([
+      '/agent-skills bundle search daily',
+      '/agent-skills bundle show bundle-daily',
+    ]);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-enable-bundle');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-bundle-enable');
+    feedText(workspace, 'bundle-daily');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-disable-bundle');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-bundle-disable');
+    feedText(workspace, 'bundle-daily');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-review-bundle');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-bundle-review');
+    feedText(workspace, 'bundle-daily');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-stale-bundle');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-bundle-stale');
+    feedText(workspace, 'bundle-daily');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Needs provider setup review');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-delete-bundle');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('skill-bundle-delete');
+    feedText(workspace, 'bundle-daily');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/agent-skills bundle search daily',
+      '/agent-skills bundle show bundle-daily',
+      '/agent-skills bundle update bundle-daily --name "Daily Ops" --description "Updated operations bundle" --skills briefing,calendar-review',
+      '/agent-skills bundle enable bundle-daily',
+      '/agent-skills bundle disable bundle-daily',
+      '/agent-skills bundle review bundle-daily',
+      '/agent-skills bundle stale bundle-daily "Needs provider setup review"',
+      '/agent-skills bundle delete bundle-daily --yes',
+    ]);
+  });
+
   test('exposes Agent support bundle export inspect and import from the setup workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

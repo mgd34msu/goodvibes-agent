@@ -621,6 +621,35 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Skills: briefing');
   });
 
+  test('renders skill bundle lifecycle forms in the skills workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-update-bundle');
+    workspace.activateSelected();
+    const updateOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(updateOutput).toContain('Update Skill Bundle');
+    expect(updateOutput).toContain('Bundle id *');
+    workspace.moveEditorField(3);
+    const updateSkillsOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(updateSkillsOutput).toContain('Skill ids');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-stale-bundle');
+    workspace.activateSelected();
+    const staleOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(staleOutput).toContain('Mark Skill Bundle Stale');
+    expect(staleOutput).toContain('Reason *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-delete-bundle');
+    workspace.activateSelected();
+    const deleteOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(deleteOutput).toContain('Delete Skill Bundle');
+    expect(deleteOutput).toContain('Confirm *');
+  });
+
   test('renders routine setup readiness in the routines workspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
