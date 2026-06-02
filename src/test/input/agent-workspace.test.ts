@@ -1167,6 +1167,109 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening provider subscription logout');
   });
 
+  test('exposes auth trust subscription and voice bundles from workspace forms', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-show');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('auth-show');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-repair');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('auth-repair');
+    clearEditorField(workspace);
+    feedText(workspace, 'anthropic');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-bundle-export');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('auth-bundle-export');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    expect(dispatched).toEqual(['/auth show openai', '/auth repair anthropic']);
+    expect(workspace.localEditor?.message).toContain('not confirmed');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-bundle-inspect');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('auth-bundle-inspect');
+    clearEditorField(workspace);
+    feedText(workspace, 'auth/custom.json');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-bundle-export');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('subscription-bundle-export');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-bundle-inspect');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('subscription-bundle-inspect');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'trust-bundle-export');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('trust-bundle-export');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'trust-bundle-inspect');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('trust-bundle-inspect');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'voice-enable');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('voice-enable');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'voice-disable');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('voice-disable');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'voice-bundle-export');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('voice-bundle-export');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'voice-bundle-inspect');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('voice-bundle-inspect');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/auth show openai',
+      '/auth repair anthropic',
+      '/auth bundle export auth-review-bundle.json --yes',
+      '/auth bundle inspect auth/custom.json',
+      '/subscription bundle export subscription-bundle.json --yes',
+      '/subscription bundle inspect subscription-bundle.json',
+      '/trust bundle export trust-review-bundle.json --yes',
+      '/trust bundle inspect trust-review-bundle.json',
+      '/voice enable --yes',
+      '/voice disable --yes',
+      '/voice bundle export voice-bundle.json --yes',
+      '/voice bundle inspect voice-bundle.json',
+    ]);
+  });
+
   test('adds MCP servers from the workspace only after typed confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

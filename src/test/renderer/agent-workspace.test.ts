@@ -440,6 +440,41 @@ describe('renderAgentWorkspace', () => {
     expect(removeActionOutput).toContain('edit provider-remove');
   });
 
+  test('renders auth trust subscription and voice bundle forms in the workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-bundle-export');
+    workspace.activateSelected();
+    const authOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(authOutput).toContain('Export Auth Review Bundle');
+    expect(authOutput).toContain('Output path *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-bundle-inspect');
+    workspace.activateSelected();
+    const subscriptionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(subscriptionOutput).toContain('Inspect Subscription Bundle');
+    expect(subscriptionOutput).toContain('Bundle path *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'trust-bundle-export');
+    workspace.activateSelected();
+    const trustOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(trustOutput).toContain('Export Trust Bundle');
+    expect(trustOutput).toContain('Confirm *');
+
+    workspace.cancelLocalEditor();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'voice-enable');
+    workspace.activateSelected();
+    const voiceOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(voiceOutput).toContain('Enable Voice Interaction');
+    expect(voiceOutput).toContain('Confirm *');
+  });
+
   test('renders discovered behavior files as first-run setup actions', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-discovery-'));
     mkdirSync(join(root, '.goodvibes', 'agent', 'personas'), { recursive: true });
@@ -789,7 +824,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('typed confirmation');
     expect(output).toContain('Store secret value');
     expect(output).toContain('Link secret ref');
-    expect(output).toContain('6 more action(s) below');
+    expect(output).toContain('8 more action(s) below');
     expect(output).toContain('allow-all');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-add-server');

@@ -1,4 +1,6 @@
 import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceAccessCommandEditorKind } from './agent-workspace-access-command-editors.ts';
+import { createAgentWorkspaceAccessCommandEditor, isAgentWorkspaceAccessCommandEditorKind } from './agent-workspace-access-command-editors.ts';
 import type { AgentWorkspaceMemoryCommandEditorKind } from './agent-workspace-memory-command-editors.ts';
 import { createAgentWorkspaceMemoryCommandEditor, isAgentWorkspaceMemoryCommandEditorKind } from './agent-workspace-memory-command-editors.ts';
 import type { AgentWorkspaceProviderCommandEditorKind } from './agent-workspace-provider-command-editors.ts';
@@ -6,7 +8,7 @@ import { createAgentWorkspaceProviderCommandEditor, isAgentWorkspaceProviderComm
 export type { AgentWorkspaceBasicCommandEditorSubmission } from './agent-workspace-basic-command-editor-submission.ts';
 export { buildAgentWorkspaceBasicCommandEditorSubmission } from './agent-workspace-basic-command-editor-submission.ts';
 
-export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceMemoryCommandEditorKind | AgentWorkspaceProviderCommandEditorKind | Extract<
+export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEditorKind | AgentWorkspaceMemoryCommandEditorKind | AgentWorkspaceProviderCommandEditorKind | Extract<
   AgentWorkspaceEditorKind,
   'knowledge-file' | 'knowledge-urls' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'knowledge-reindex' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import' | 'profile-template-export' | 'profile-template-import'
   | 'profile-template-from-discovered' | 'profile-from-discovered' | 'profile-default' | 'profile-default-clear'
@@ -21,7 +23,8 @@ export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceMemoryCommandEd
 >;
 
 export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceBasicCommandEditorKind {
-  return isAgentWorkspaceMemoryCommandEditorKind(kind)
+  return isAgentWorkspaceAccessCommandEditorKind(kind)
+    || isAgentWorkspaceMemoryCommandEditorKind(kind)
     || isAgentWorkspaceProviderCommandEditorKind(kind)
     || kind === 'knowledge-bookmarks'
     || kind === 'knowledge-file'
@@ -65,6 +68,9 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
 }
 
 export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasicCommandEditorKind): AgentWorkspaceLocalEditor {
+  if (isAgentWorkspaceAccessCommandEditorKind(kind)) {
+    return createAgentWorkspaceAccessCommandEditor(kind);
+  }
   if (isAgentWorkspaceMemoryCommandEditorKind(kind)) {
     return createAgentWorkspaceMemoryCommandEditor(kind);
   }
