@@ -78,7 +78,7 @@ function determineFreshness(input: {
   readonly hasSubscription: boolean;
   readonly expiresAt?: number;
   readonly pending: boolean;
-  readonly hasServiceOAuth: boolean;
+  readonly hasUsableServiceOAuth: boolean;
   readonly hasApiKey: boolean;
 }): ProviderAuthFreshness {
   if (input.hasSubscription) {
@@ -87,7 +87,7 @@ function determineFreshness(input: {
     if (input.pending) return 'pending';
     return 'healthy';
   }
-  if (input.hasServiceOAuth || input.hasApiKey) return 'healthy';
+  if (input.hasUsableServiceOAuth || input.hasApiKey) return 'healthy';
   return 'unconfigured';
 }
 
@@ -99,6 +99,19 @@ function builtinWindowsForProvider(providerId: string): readonly ProviderUsageWi
     ];
   }
   return [];
+}
+
+function readProviderEnvVars(model: unknown): readonly string[] {
+  if (typeof model !== 'object' || model === null) return [];
+  const value = (model as { readonly providerEnvVars?: unknown }).providerEnvVars;
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+}
+
+function defaultProviderEnvKeys(providerId: string): readonly string[] {
+  const normalized = providerId.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (normalized.length === 0) return [];
+  return [`${normalized}_API_KEY`, `${normalized}_KEY`];
 }
 
 export async function buildProviderAccountSnapshot(
@@ -125,20 +138,27 @@ export async function buildProviderAccountSnapshot(
 
   const providerIds = new Set<string>([
     ...models.map((model) => model.provider),
-    ...Object.keys(services),
+    ...Object.values(services).map((service) => service.providerId ?? service.name),
     ...subscriptions.list().map((entry) => entry.provider),
     ...subscriptions.listPending().map((entry) => entry.provider),
     ...builtinSubscriptionProviders,
   ]);
 
   const providers = await Promise.all([...providerIds].sort((a, b) => a.localeCompare(b)).map(async (providerId) => {
+    const providerModels = models.filter((model) => model.provider === providerId);
     const subscription = subscriptions.get(providerId);
     const pending = subscriptions.getPending(providerId);
     const serviceConfig = Object.values(services).find((entry) => (entry.providerId ?? entry.name) === providerId) ?? null;
     const serviceOauth = serviceOauthByProvider.get(providerId);
-    const hasApiKey = Boolean(serviceConfig?.tokenKey && deps.environment.hasEnvironmentVariable(serviceConfig.tokenKey));
+    const apiKeyCandidates = new Set<string>([
+      ...(serviceConfig?.tokenKey ? [serviceConfig.tokenKey] : []),
+      ...providerModels.flatMap((model) => readProviderEnvVars(model)),
+      ...defaultProviderEnvKeys(providerId),
+    ]);
+    const hasApiKey = [...apiKeyCandidates].some((key) => deps.environment.hasEnvironmentVariable(key));
     const hasSubscription = subscription != null;
-    const hasServiceOAuth = Boolean(serviceOauth?.configured);
+    const hasServiceOAuth = Boolean(serviceOauth?.configured || serviceConfig?.authType === 'oauth' || serviceConfig?.oauth);
+    const hasUsableServiceOAuth = Boolean(serviceOauth?.usable);
     const routes: ProviderAuthRoute[] = [];
     if (hasApiKey) routes.push('api-key');
     if (hasSubscription) routes.push('subscription');
@@ -148,15 +168,15 @@ export async function buildProviderAccountSnapshot(
     const usableRoutes: Exclude<ProviderAuthRoute, 'unconfigured'>[] = [];
     if (hasApiKey) usableRoutes.push('api-key');
     if (hasSubscription && !isExpired(subscription.expiresAt)) usableRoutes.push('subscription');
-    if (hasServiceOAuth) usableRoutes.push('service-oauth');
+    if (hasUsableServiceOAuth) usableRoutes.push('service-oauth');
 
-    const activeRoute = determineActiveRoute(usableRoutes.length > 0 ? usableRoutes : routes);
+    const activeRoute = determineActiveRoute(usableRoutes);
     const preferredRoute = determineActiveRoute(routes);
     const freshness = determineFreshness({
       hasSubscription,
       expiresAt: subscription?.expiresAt,
       pending: pending != null,
-      hasServiceOAuth,
+      hasUsableServiceOAuth,
       hasApiKey,
     });
     const usageWindows = builtinWindowsForProvider(providerId);
@@ -185,20 +205,22 @@ export async function buildProviderAccountSnapshot(
     if (hasServiceOAuth) {
       routeRecords.push({
         route: 'service-oauth',
-        usable: true,
-        freshness: 'healthy',
-        detail: 'Service OAuth credential is available for this provider.',
-        issues: [],
+        usable: hasUsableServiceOAuth,
+        freshness: hasUsableServiceOAuth ? 'healthy' : 'unconfigured',
+        detail: hasUsableServiceOAuth
+          ? 'Provider OAuth credential is available for this provider.'
+          : 'Provider OAuth is configured but missing a usable credential.',
+        issues: hasUsableServiceOAuth ? [] : ['Provider OAuth credential is missing or unavailable.'],
       });
     }
 
     const issues: string[] = [];
-    const notes: string[] = [`${models.filter((model) => model.provider === providerId).length} model${models.filter((model) => model.provider === providerId).length === 1 ? '' : 's'} registered`];
-    if (serviceConfig) notes.push(`service config: ${serviceConfig.authType}`);
+    const notes: string[] = [`${providerModels.length} model${providerModels.length === 1 ? '' : 's'} registered`];
+    if (serviceConfig) notes.push(`provider config: ${serviceConfig.authType}`);
     const recommendedActions: string[] = [];
     if (routes.length === 1 && routes[0] === 'unconfigured') {
       issues.push('Provider has no configured auth route.');
-      recommendedActions.push(`Configure API keys, subscriptions, or service OAuth for ${providerId}.`);
+      recommendedActions.push(`Configure API keys, subscriptions, or provider OAuth for ${providerId}.`);
     }
     if (hasSubscription && isExpired(subscription?.expiresAt)) {
       issues.push('Stored subscription session is expired and needs refresh.');
@@ -215,16 +237,16 @@ export async function buildProviderAccountSnapshot(
       issues.push('Provider has both subscription and API-key auth paths; routing must remain explicit.');
       recommendedActions.push('Review provider routing before switching models or auth paths.');
     }
-    if (hasServiceOAuth && !serviceOauth?.usable) {
-      issues.push('Service OAuth is configured but missing a usable credential.');
-      recommendedActions.push(`Repair service OAuth credentials for ${providerId} in /settings or the owning GoodVibes host.`);
+    if (hasServiceOAuth && !hasUsableServiceOAuth) {
+      issues.push('Provider OAuth is configured but missing a usable credential.');
+      recommendedActions.push(`Repair provider OAuth credentials for ${providerId} in /settings or the owning GoodVibes host.`);
     }
 
     return {
       providerId,
       active: activeRoute !== 'unconfigured',
-      modelCount: models.filter((model) => model.provider === providerId).length,
-      configured: hasApiKey || hasSubscription || hasServiceOAuth || models.some((model) => model.provider === providerId),
+      modelCount: providerModels.length,
+      configured: hasApiKey || hasSubscription || hasServiceOAuth || providerModels.length > 0,
       oauthReady: Boolean(serviceConfig?.oauth),
       pendingLogin: Boolean(pending),
       availableRoutes: routes,
@@ -233,13 +255,17 @@ export async function buildProviderAccountSnapshot(
       activeRouteReason: activeRoute === 'subscription'
         ? 'Subscription route is currently preferred.'
         : activeRoute === 'service-oauth'
-          ? 'Service OAuth route is currently preferred.'
+          ? 'Provider OAuth route is currently preferred.'
           : activeRoute === 'api-key'
             ? 'Ambient API-key route is currently preferred.'
             : 'No usable auth route is configured for this provider.',
       authFreshness: freshness,
-      fallbackRoute: activeRoute !== preferredRoute ? preferredRoute : undefined,
-      fallbackRisk: hasSubscription && hasApiKey ? 'Both subscription and API key are present; check route priority.' : undefined,
+      fallbackRoute: activeRoute !== preferredRoute ? activeRoute : undefined,
+      fallbackRisk: hasSubscription && hasApiKey
+        ? (isExpired(subscription?.expiresAt)
+          ? 'preferred subscription path is expired; active route falls back to API key.'
+          : 'Both subscription and API key are present; check route priority.')
+        : undefined,
       expiresAt: subscription?.expiresAt,
       tokenType: subscription?.tokenType,
       notes,

@@ -2,13 +2,23 @@ import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import type {
   ProviderAccountRecord,
   ProviderAccountSnapshot,
-} from '@/runtime/index.ts';
+} from '../../panels/provider-account-snapshot.ts';
+import { buildProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
 import {
-  requireOperatorClient,
+  requireProvider,
+  requireServiceRegistry,
+  requireSubscriptionManager,
 } from './runtime-services.ts';
 
 async function loadProviderAccountSnapshot(context: CommandContext): Promise<ProviderAccountSnapshot> {
-  return await requireOperatorClient(context).providers.accountSnapshot();
+  return await buildProviderAccountSnapshot({
+    providerModels: requireProvider(context).providerRegistry,
+    services: requireServiceRegistry(context),
+    subscriptions: requireSubscriptionManager(context),
+    environment: {
+      hasEnvironmentVariable: (name: string) => Boolean(process.env[name]),
+    },
+  });
 }
 
 function findProviderAccountRecord(

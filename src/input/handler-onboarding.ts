@@ -1,7 +1,7 @@
 import { beginOpenAICodexLogin, exchangeOpenAICodexCode } from '@pellux/goodvibes-sdk/platform/config';
 import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
-import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
+import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
 import { OnboardingWizardController, type OnboardingWizardAction, type OnboardingWizardApplyFeedback } from './onboarding/onboarding-wizard.ts';
 import { applyOnboardingRequest, collectOnboardingSnapshot, verifyOnboardingRequest, writeOnboardingCheckMarker } from '../runtime/onboarding/index.ts';
 import type { OnboardingApplyRequest, OnboardingVerificationItem } from '../runtime/onboarding/index.ts';
@@ -302,10 +302,12 @@ export async function refreshOnboardingHydrationForHandler(handler: InputHandler
         },
         providerAccounts: {
           loadSnapshot: () => buildProviderAccountSnapshot({
-            providerRegistry: handler.uiServices.providers.providerRegistry,
-            serviceRegistry: handler.uiServices.platform.serviceRegistry,
-            subscriptionManager: handler.uiServices.platform.subscriptionManager,
-            secretsManager: handler.uiServices.platform.secretsManager,
+            providerModels: handler.uiServices.providers.providerRegistry,
+            services: handler.uiServices.platform.serviceRegistry,
+            subscriptions: handler.uiServices.platform.subscriptionManager,
+            environment: {
+              hasEnvironmentVariable: (name: string) => Boolean(process.env[name]),
+            },
           }),
         },
       });

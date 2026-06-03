@@ -1,4 +1,4 @@
-import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
+import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
 import type { OnboardingWizardMode } from './onboarding/onboarding-wizard.ts';
 import { collectOnboardingSnapshot } from '../runtime/onboarding/index.ts';
 import { cleanupMarkerRegistry, expandPrompt, findMarkerAtPos, handleBlockCopy, handleBlockRerun, handleBlockSave, handleBlockToggle, handleBookmark, handleClipboardPaste, handleCopy, handleCtrlC, registerPaste } from './handler-content-actions.ts';
@@ -37,10 +37,12 @@ export async function hydrateOnboardingWizardFromRuntimeForHandler(handler: Inpu
         },
         providerAccounts: {
           loadSnapshot: () => buildProviderAccountSnapshot({
-            providerRegistry: handler.uiServices.providers.providerRegistry,
-            serviceRegistry: handler.uiServices.platform.serviceRegistry,
-            subscriptionManager: handler.uiServices.platform.subscriptionManager,
-            secretsManager: handler.uiServices.platform.secretsManager,
+            providerModels: handler.uiServices.providers.providerRegistry,
+            services: handler.uiServices.platform.serviceRegistry,
+            subscriptions: handler.uiServices.platform.subscriptionManager,
+            environment: {
+              hasEnvironmentVariable: (name: string) => Boolean(process.env[name]),
+            },
           }),
         },
       });

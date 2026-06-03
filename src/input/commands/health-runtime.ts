@@ -1,13 +1,14 @@
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { evaluateSessionMaintenance, formatSessionMaintenanceLines } from '@/runtime/index.ts';
 import { estimateConversationTokens } from '@pellux/goodvibes-sdk/platform/core';
-import type { CommandRegistry } from '../command-registry.ts';
+import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { buildSetupReviewSnapshot } from './local-setup-review.ts';
-import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
+import { buildProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
 import { getSettingsControlPlaneSnapshot } from '@/runtime/index.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
 import {
   requireOperatorClient,
+  requireProvider,
   requireProviderApi,
   requireReadModels,
   requireSecretsManager,
@@ -15,6 +16,17 @@ import {
   requireSubscriptionManager,
   requireSessionMemoryStore,
 } from './runtime-services.ts';
+
+async function loadProviderAccountSnapshot(ctx: CommandContext) {
+  return await buildProviderAccountSnapshot({
+    providerModels: requireProvider(ctx).providerRegistry,
+    services: requireServiceRegistry(ctx),
+    subscriptions: requireSubscriptionManager(ctx),
+    environment: {
+      hasEnvironmentVariable: (name: string) => Boolean(process.env[name]),
+    },
+  });
+}
 
 export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
@@ -33,7 +45,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       if (sub === 'provider') {
         const providerApi = requireProviderApi(ctx);
         const currentModel = await providerApi.getCurrentModel().catch(() => null);
-        const accounts = await requireOperatorClient(ctx).providers.accountSnapshot();
+        const accounts = await loadProviderAccountSnapshot(ctx);
         ctx.print([
           'Health Review: Provider',
           `  selected model: ${currentModel?.registryKey ?? 'unknown'}`,
@@ -76,8 +88,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'accounts') {
-        const operatorClient = requireOperatorClient(ctx);
-        const accounts = await operatorClient.providers.accountSnapshot();
+        const accounts = await loadProviderAccountSnapshot(ctx);
         ctx.print([
           'Health Review: Accounts',
           `  providers: ${accounts.providers.length}`,
@@ -309,7 +320,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
 
       const snapshot = await buildSetupReviewSnapshot(ctx);
       const operatorClient = requireOperatorClient(ctx);
-      const accountSnapshot = await operatorClient.providers.accountSnapshot();
+      const accountSnapshot = await loadProviderAccountSnapshot(ctx);
       const settingsSnapshot = getSettingsControlPlaneSnapshot(ctx.platform.configManager);
       if (sub === 'setup') {
         ctx.print([

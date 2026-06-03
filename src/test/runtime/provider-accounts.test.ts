@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildProviderAccountSnapshot } from '@/runtime/index.ts';
+import { buildProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
 import { createTestManagers } from '../helpers/test-managers.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
@@ -60,10 +60,12 @@ describe('provider account snapshot', () => {
       subscriptionManager: testManagers.subscriptionManager,
     });
     const snapshot = await buildProviderAccountSnapshot({
-      providerRegistry: testManagers.providerRegistry,
-      serviceRegistry,
-      subscriptionManager: testManagers.subscriptionManager,
-      secretsManager: new SecretsManager({ projectRoot: root, globalHome: root }),
+      providerModels: testManagers.providerRegistry,
+      services: serviceRegistry,
+      subscriptions: testManagers.subscriptionManager,
+      environment: {
+        hasEnvironmentVariable: (name: string) => Boolean(process.env[name]),
+      },
     });
     const openai = snapshot.providers.find((entry) => entry.providerId === 'openai');
     expect(openai).toBeDefined();
@@ -74,7 +76,7 @@ describe('provider account snapshot', () => {
     expect(openai?.issues.some((issue) => issue.includes('expired'))).toBe(true);
   });
 
-  test('surfaces unusable service OAuth posture as a repair issue', async () => {
+  test('surfaces unusable provider OAuth posture as a repair issue', async () => {
     mkdirSync(join(root, '.goodvibes', 'tui'), { recursive: true });
     writeFileSync(join(root, '.goodvibes', 'tui', 'services.json'), JSON.stringify({
       testsvc: {
@@ -97,16 +99,19 @@ describe('provider account snapshot', () => {
       subscriptionManager: testManagers.subscriptionManager,
     });
     const snapshot = await buildProviderAccountSnapshot({
-      providerRegistry: testManagers.providerRegistry,
-      serviceRegistry,
-      subscriptionManager: testManagers.subscriptionManager,
-      secretsManager: new SecretsManager({ projectRoot: root, globalHome: root }),
+      providerModels: testManagers.providerRegistry,
+      services: serviceRegistry,
+      subscriptions: testManagers.subscriptionManager,
+      environment: {
+        hasEnvironmentVariable: (name: string) => Boolean(process.env[name]),
+      },
     });
     const provider = snapshot.providers.find((entry) => entry.providerId === 'test-provider');
     expect(provider).toBeDefined();
     expect(provider?.oauthReady).toBe(true);
     expect(provider?.activeRoute).toBe('unconfigured');
     expect(provider?.issues.some((issue) => issue.includes('missing a usable credential'))).toBe(true);
-    expect(provider?.recommendedActions.some((action) => action.includes('/services'))).toBe(true);
+    expect(provider?.recommendedActions.some((action) => action.includes('provider OAuth credentials'))).toBe(true);
+    expect(provider?.recommendedActions.some((action) => action.includes('/services'))).toBe(false);
   });
 });
