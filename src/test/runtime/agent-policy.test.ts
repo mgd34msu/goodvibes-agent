@@ -108,7 +108,7 @@ describe('Agent operator policy hidden spawn gates', () => {
   test('bootstrap does not start the copied local automation runner', () => {
     const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
     expect(source).not.toContain('automationManager.start(');
-    expect(source).toContain('Local automation runners are disabled in GoodVibes Agent');
+    expect(source).toContain('Local automation execution is disabled in GoodVibes Agent');
   });
 
   test('production runtime does not call copied local spawn, cancel, or daemon ownership paths', () => {

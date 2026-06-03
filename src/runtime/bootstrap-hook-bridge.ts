@@ -74,7 +74,7 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
           options.conversation.log(`Resume: Reopened panels: ${reopenedPanels.join(', ')}`, { fg: '244' });
         }
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
-          options.conversation.log('Resume: Remote runner recovery belongs outside Agent; delegate explicit build/fix/review recovery from Agent.', { fg: '244' });
+          options.conversation.log('Resume: Remote build-host recovery belongs outside Agent; delegate explicit build/fix/review recovery from Agent.', { fg: '244' });
         }
         if (returnContextMode === 'assisted') {
           const helperModel = new HelperModel({

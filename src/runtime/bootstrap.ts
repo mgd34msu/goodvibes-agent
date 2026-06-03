@@ -449,7 +449,7 @@ export async function bootstrapRuntime(
   bootstrapUnsubs.push(() => mcpAutoReload.stop());
   if (configManager.get('automation.enabled')) {
     logger.warn('Local automation startup is disabled in GoodVibes Agent; use connected-host observability instead.');
-    systemMessageRouter.low('[Startup] Local automation runners are disabled in GoodVibes Agent; use read-only automation observability or explicit connected-host actions.');
+    systemMessageRouter.low('[Startup] Local automation execution is disabled in GoodVibes Agent; use read-only automation observability or explicit connected-host actions.');
   }
 
   // ── Phase 12: Session:start lifecycle hook ─────────────────────────────

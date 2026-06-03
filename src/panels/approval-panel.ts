@@ -20,8 +20,8 @@ const APPROVAL_ROWS = [
   ['network', 'why prompted: external hosts, fetch scope, egress policy', 'review via /approval review network'],
   ['delegate', 'why prompted: explicit TUI build handoff, write scope, result ownership', 'review via /approval review delegate'],
   ['mcp', 'why prompted: trust escalation, host scope, path scope, coherence mismatch', 'review via /approval review mcp'],
-  ['remote', 'why prompted: runner trust, remote write scope, artifact requirements', 'review via /approval review remote'],
-  ['hook', 'why prompted: deny/mutate authority, blocking behavior, runner provenance', 'review via /approval review hook'],
+  ['remote', 'why prompted: build-host trust, remote write scope, artifact requirements', 'review via /approval review remote'],
+  ['hook', 'why prompted: deny/mutate authority, blocking behavior, execution provenance', 'review via /approval review hook'],
   ['plugin', 'why prompted: install/update lifecycle, provenance, capability grants', 'review via /approval review plugin'],
 ] as const;
 
