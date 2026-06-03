@@ -69,7 +69,7 @@ function formatReturnContextLines(returnContext: SessionInfo['returnContext']): 
     lines.push(`remote build hosts: ${returnContext.remoteRunners.join(', ')}`);
   }
   if (returnContext.openPanels?.length) {
-    lines.push(`open panels: ${returnContext.openPanels.join(', ')}`);
+    lines.push(`saved panels ignored: ${returnContext.openPanels.join(', ')}`);
   }
   return lines;
 }
@@ -260,8 +260,8 @@ export class SessionBrowserPanel extends BasePanel {
             buildPanelLine(width, [
               [' Remote ', DEFAULT_PANEL_PALETTE.label],
               [String(selected.returnContext?.remoteRunners?.length ?? 0), (selected.returnContext?.remoteRunners?.length ?? 0) > 0 ? DEFAULT_PANEL_PALETTE.info : DEFAULT_PANEL_PALETTE.dim],
-              ['   Panels ', DEFAULT_PANEL_PALETTE.label],
-              [String(selected.returnContext?.openPanels?.length ?? 0), (selected.returnContext?.openPanels?.length ?? 0) > 0 ? DEFAULT_PANEL_PALETTE.good : DEFAULT_PANEL_PALETTE.dim],
+              ['   Saved Panels ', DEFAULT_PANEL_PALETTE.label],
+              [String(selected.returnContext?.openPanels?.length ?? 0), (selected.returnContext?.openPanels?.length ?? 0) > 0 ? DEFAULT_PANEL_PALETTE.warn : DEFAULT_PANEL_PALETTE.dim],
             ]),
             ...formatReturnContextLines(selected.returnContext).map((line) =>
               buildPanelLine(width, [[' ', DEFAULT_PANEL_PALETTE.dim], [truncateDisplay(line, Math.max(0, width - 2)), DEFAULT_PANEL_PALETTE.dim]])

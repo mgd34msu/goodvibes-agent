@@ -41,7 +41,10 @@ describe('SessionBrowserPanel', () => {
     panel.onDestroy();
 
     expect(text).toContain('remote build hosts: runner-a, runner-b');
+    expect(text).toContain('Saved Panels');
+    expect(text).toContain('saved panels ignored: approval');
     expect(text).not.toContain('remote runners');
     expect(text).not.toContain('remote workers');
+    expect(text).not.toContain('open panels: approval');
   });
 });
