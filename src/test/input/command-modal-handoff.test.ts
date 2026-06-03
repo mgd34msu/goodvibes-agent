@@ -298,7 +298,7 @@ describe('command modal handoff', () => {
     expect(state.nextImageId).toBe(2);
   });
 
-  test('slash panel commands can hand focus directly to the panel workspace', async () => {
+  test('slash panel commands keep prompt focus after registered panel routing', async () => {
     const modalStack = ['command'];
     const registry = new CommandRegistry();
     let showPanelCalled = false;
@@ -333,7 +333,7 @@ describe('command modal handoff', () => {
 
     expect(handled).toBe(true);
     expect(showPanelCalled).toBe(true);
-    expect(state.panelFocused).toBe(true);
+    expect(state.panelFocused).toBe(false);
     expect(state.commandMode).toBe(false);
   });
 

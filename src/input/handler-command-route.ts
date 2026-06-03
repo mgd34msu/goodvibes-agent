@@ -121,27 +121,24 @@ export function handleCommandModeToken(state: CommandModeRouteState, token: Inpu
 }
 
 function withPanelFocusSync(context: CommandContext, state: CommandModeRouteState): CommandContext {
-  const panelIsFocusable = (): boolean =>
-    state.panelManager.isVisible() && state.panelManager.getAllOpen().length > 0;
-
   return {
     ...context,
     openPanelPicker: context.openPanelPicker
       ? () => {
           context.openPanelPicker?.();
-          state.panelFocused = panelIsFocusable();
+          state.panelFocused = false;
         }
       : undefined,
     showPanel: context.showPanel
       ? (panelId, pane) => {
           context.showPanel?.(panelId, pane);
-          state.panelFocused = panelIsFocusable();
+          state.panelFocused = false;
         }
       : undefined,
     focusPanels: context.focusPanels
       ? () => {
           context.focusPanels?.();
-          state.panelFocused = panelIsFocusable();
+          state.panelFocused = false;
         }
       : undefined,
     focusPrompt: context.focusPrompt
