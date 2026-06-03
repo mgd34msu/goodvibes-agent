@@ -165,7 +165,7 @@ export class InputHandler {
    * Used to support back-navigation via Escape.
    */
   public modalStack: string[] = [];
-  public modalReturnFocus: 'prompt' | 'panel' | 'indicator' = 'prompt';
+  public modalReturnFocus: 'prompt' | 'indicator' = 'prompt';
   public sessionPickerModal: SessionPickerModal;
   public profilePickerModal: ProfilePickerModal;
   /** True when the help overlay is visible. */

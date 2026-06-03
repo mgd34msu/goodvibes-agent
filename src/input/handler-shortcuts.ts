@@ -116,7 +116,7 @@ export function handleGlobalShortcutToken(
 
     case 'panel-picker':
       state.commandContext?.openPanelPicker?.();
-      state.panelFocused = state.panelManager.isVisible() && state.panelManager.getAllOpen().length > 0;
+      state.panelFocused = false;
       state.requestRender();
       return true;
 

@@ -23,8 +23,8 @@ export function routeSubmissionIntent(input: SubmissionRouterInput): SubmissionI
 
   if (!trimmed) {
     return {
-      kind: input.panelFocused ? 'panel-action' : 'empty',
-      label: input.panelFocused ? 'panel action' : 'prompt',
+      kind: 'empty',
+      label: 'prompt',
       hasAttachments,
     };
   }
@@ -46,7 +46,7 @@ export function routeSubmissionIntent(input: SubmissionRouterInput): SubmissionI
       return { kind: 'delegation', label: 'TUI delegation', commandName, hasAttachments };
     }
     if (PANEL_COMMANDS.has(commandName)) {
-      return { kind: 'panel-action', label: 'panel action', commandName, hasAttachments };
+      return { kind: 'slash-command', label: 'Agent workspace', commandName, hasAttachments };
     }
     if (ORCHESTRATION_COMMANDS.has(commandName)) {
       return { kind: 'orchestration', label: 'orchestration', commandName, hasAttachments };

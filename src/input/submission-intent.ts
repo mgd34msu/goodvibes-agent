@@ -5,7 +5,6 @@ export type SubmissionIntentKind =
   | 'orchestration'
   | 'delegation'
   | 'plan'
-  | 'panel-action'
   | 'shell'
   | 'memory-pin';
 

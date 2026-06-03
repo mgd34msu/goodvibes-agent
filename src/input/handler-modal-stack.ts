@@ -8,7 +8,7 @@ import type { SelectionResult } from './selection-modal.ts';
 
 export type ModalStackState = ActiveModalState & {
   modalStack: string[];
-  modalReturnFocus?: 'prompt' | 'panel' | 'indicator';
+  modalReturnFocus?: 'prompt' | 'indicator';
   panelFocused: boolean;
   indicatorFocused: boolean;
 };
@@ -20,7 +20,7 @@ export function modalOpened(state: ModalStackState, name: string): void {
   if (state.modalStack[state.modalStack.length - 1] === name) return;
   if (state.modalStack.includes(name)) return;
   if (state.modalStack.length === 0) {
-    state.modalReturnFocus = state.indicatorFocused ? 'indicator' : state.panelFocused ? 'panel' : 'prompt';
+    state.modalReturnFocus = state.indicatorFocused ? 'indicator' : 'prompt';
   }
   state.modalStack.push(name);
 }
@@ -86,7 +86,7 @@ export function handleEscape(state: EscapeState): {
       shortcutsOverlayActive,
       commandMode,
     }) !== null) return;
-    panelFocused = modalReturnFocus === 'panel';
+    panelFocused = false;
     indicatorFocused = modalReturnFocus === 'indicator';
     modalReturnFocus = 'prompt';
     state.modalReturnFocus = 'prompt';

@@ -101,7 +101,7 @@ describe('applyConversationOverlays onboarding shell', () => {
     expect(input.modelPicker.active).toBe(false);
     expect(input.onboardingWizard.active).toBe(true);
     expect(input.modalStack).toEqual(['onboarding']);
-    expect(input.modalReturnFocus).toBe('panel');
+    expect(input.modalReturnFocus).toBe('prompt');
     expect(input.panelFocused).toBe(false);
 
     input.feed('\x1b');
@@ -109,7 +109,7 @@ describe('applyConversationOverlays onboarding shell', () => {
     expect(input.onboardingWizard.active).toBe(false);
     expect(input.modalStack).toEqual([]);
     expect(input.modalReturnFocus).toBe('prompt');
-    expect(input.panelFocused).toBe(true);
+    expect(input.panelFocused).toBe(false);
   });
 
   test('restores onboarding snapshot when a nested model picker is cancelled', () => {

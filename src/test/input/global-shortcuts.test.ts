@@ -59,6 +59,7 @@ describe('handleGlobalShortcutToken', () => {
 
     expect(handled).toBe(true);
     expect(state.commandContext?.openPanelPicker).toHaveBeenCalled();
+    expect(state.panelFocused).toBe(false);
     expect(state.requestRender).toHaveBeenCalled();
   });
 
