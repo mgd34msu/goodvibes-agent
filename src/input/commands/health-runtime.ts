@@ -7,7 +7,6 @@ import { buildProviderAccountSnapshot } from '../../panels/provider-account-snap
 import { getSettingsControlPlaneSnapshot } from '@/runtime/index.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
 import {
-  requireOperatorClient,
   requireProvider,
   requireProviderApi,
   requireReadModels,
@@ -319,15 +318,14 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       });
 
       const snapshot = await buildSetupReviewSnapshot(ctx);
-      const operatorClient = requireOperatorClient(ctx);
       const accountSnapshot = await loadProviderAccountSnapshot(ctx);
       const settingsSnapshot = getSettingsControlPlaneSnapshot(ctx.platform.configManager);
       if (sub === 'setup') {
         ctx.print([
           'Health Review: Setup',
           ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`),
-          ...(snapshot.serviceIssues.length > 0
-            ? ['', '  Connected host integration issues:', ...snapshot.serviceIssues.map((issue) => `    - ${issue}`)]
+          ...(snapshot.hostIntegrationIssues.length > 0
+            ? ['', '  Connected host integration issues:', ...snapshot.hostIntegrationIssues.map((issue) => `    - ${issue}`)]
             : []),
         ].join('\n'));
         return;
@@ -337,7 +335,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         'Health Review',
         `  session: ${snapshot.sessionId}`,
         `  setup issues: ${snapshot.issues.length}`,
-        `  host integration issues: ${snapshot.serviceIssues.length}`,
+        `  host integration issues: ${snapshot.hostIntegrationIssues.length}`,
         `  active subscriptions: ${snapshot.activeSubscriptionCount}`,
         `  account issues: ${accountSnapshot.issueCount}`,
         `  settings conflicts: ${settingsSnapshot.conflicts.length}`,
@@ -345,7 +343,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         `  connected-host auth owner: outside Agent`,
         ...formatSessionMaintenanceLines(maintenance, 'guided').map((line) => `  ${line}`),
         ...(snapshot.issues.length > 0 ? ['', ...snapshot.issues.map((issue) => `  [${issue.severity.toUpperCase()}] ${issue.area}: ${issue.message}`)] : []),
-        ...(snapshot.serviceIssues.length > 0 ? ['', ...snapshot.serviceIssues.map((issue) => `  host integration: ${issue}`)] : []),
+        ...(snapshot.hostIntegrationIssues.length > 0 ? ['', ...snapshot.hostIntegrationIssues.map((issue) => `  host integration: ${issue}`)] : []),
         '',
         'Next steps:',
         '  /health review',

@@ -13,7 +13,7 @@ export interface SetupReviewSnapshot {
   readonly builtinSubscriptionProviderCount: number;
   readonly activeSubscriptionCount: number;
   readonly pendingSubscriptionCount: number;
-  readonly serviceIssues: string[];
+  readonly hostIntegrationIssues: string[];
   readonly skillCount: number;
   readonly pluginCount: number;
   readonly quarantinedPluginCount: number;
@@ -33,11 +33,11 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
   const serviceRegistry = requireServiceRegistry(ctx);
   const services = Object.keys(serviceRegistry.getAll()).sort((a, b) => a.localeCompare(b));
   const serviceConfigs = serviceRegistry.getAll();
-  const serviceIssues: string[] = [];
+  const hostIntegrationIssues: string[] = [];
   for (const name of services) {
     const inspection = await serviceRegistry.inspect(name);
     if (!inspection?.hasPrimaryCredential) {
-      serviceIssues.push(`${name}: missing primary credential`);
+      hostIntegrationIssues.push(`${name}: missing primary credential`);
     }
   }
 
@@ -79,13 +79,13 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
       message: providerCount > 0 ? `${providerCount} model(s) available` : 'no models available',
     },
     {
-      severity: (services.length === 0 && oauthProviderCount === 0 && builtinSubscriptionProviderCount === 0) ? 'warn' : serviceIssues.length === 0 ? 'pass' : 'warn',
+      severity: (services.length === 0 && oauthProviderCount === 0 && builtinSubscriptionProviderCount === 0) ? 'warn' : hostIntegrationIssues.length === 0 ? 'pass' : 'warn',
       area: 'host',
       message: (services.length === 0 && oauthProviderCount === 0 && builtinSubscriptionProviderCount === 0)
         ? 'no connected host integrations configured'
-        : serviceIssues.length === 0
+        : hostIntegrationIssues.length === 0
           ? `${services.length} host integration(s), ${oauthProviderCount + builtinSubscriptionProviderCount} oauth provider(s), ${activeSubscriptionCount} active subscription override(s)`
-          : `${serviceIssues.length} host integration configuration issue(s)`,
+          : `${hostIntegrationIssues.length} host integration configuration issue(s)`,
     },
     {
       severity: quarantinedPluginCount === 0 ? 'pass' : 'warn',
@@ -111,7 +111,7 @@ export async function buildSetupReviewSnapshot(ctx: CommandContext): Promise<Set
     builtinSubscriptionProviderCount,
     activeSubscriptionCount,
     pendingSubscriptionCount,
-    serviceIssues,
+    hostIntegrationIssues,
     skillCount: skills.length,
     pluginCount: plugins.length,
     quarantinedPluginCount,
