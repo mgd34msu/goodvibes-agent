@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.12 - 2026-06-03
+
+- Expose command browser, reasoning-effort picker, and live process output as model-visible confirmation-gated harness UI surfaces.
+- Allow confirmed run_workspace_action execution for local memory, note, persona, skill, and routine create editors through agent_local_registry with required-field validation.
+- Refresh package-facing docs for current 1.0.x harness parity and keep coverage aligned with the completed user-facing and model-facing surface map.
+
 ## 1.0.11 - 2026-06-03
 
 - Model-visible harness parity now opens conversation search, prompt history search, slash-command mode, file picker, and nearest-block actions through confirmation-gated visible shell routes.
