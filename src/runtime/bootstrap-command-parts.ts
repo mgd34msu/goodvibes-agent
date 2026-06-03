@@ -154,7 +154,6 @@ export function createBootstrapCommandActions(
   | 'exit'
   | 'reloadSystemPrompt'
   | 'showPanel'
-  | 'openPolicyPanel'
   | 'openMcpWorkspace'
   | 'openAgentWorkspace'
   | 'openSecurityPanel'
@@ -242,9 +241,6 @@ export function createBootstrapCommandActions(
     exit: () => unwiredShellAction('exit'),
     reloadSystemPrompt: loadSystemPrompt,
     showPanel,
-    openPolicyPanel: () => {
-      showPanel('policy');
-    },
     openMcpWorkspace: () => unwiredShellAction('openMcpWorkspace'),
     openAgentWorkspace: () => unwiredShellAction('openAgentWorkspace'),
     openSecurityPanel: () => {

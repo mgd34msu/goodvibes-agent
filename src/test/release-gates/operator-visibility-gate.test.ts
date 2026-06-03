@@ -88,4 +88,18 @@ describe('operator visibility gate', () => {
       expect(registry.get(commandName)?.name).toBe(commandName);
     }
   });
+
+  test('does not route to retired standalone policy surfaces', () => {
+    const operationsSource = readFileSync(join(process.cwd(), 'src/panels/builtin/operations.ts'), 'utf8');
+    const bootstrapSource = readFileSync(join(process.cwd(), 'src/runtime/bootstrap-command-parts.ts'), 'utf8');
+    const commandContextSource = readFileSync(join(process.cwd(), 'src/input/command-registry.ts'), 'utf8');
+
+    expect(operationsSource).not.toContain("id: 'policy'");
+    expect(operationsSource).not.toContain("name: 'Policy'");
+    expect(operationsSource).toContain("id: 'security'");
+
+    expect(bootstrapSource).not.toContain('openPolicyPanel');
+    expect(bootstrapSource).not.toContain("showPanel('policy'");
+    expect(commandContextSource).not.toContain('openPolicyPanel');
+  });
 });

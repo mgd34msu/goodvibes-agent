@@ -7,7 +7,6 @@ import { SecurityPanel } from '../security-panel.ts';
 import { TasksPanel } from '../tasks-panel.ts';
 import { ProviderStatsPanel } from '../provider-stats-panel.ts';
 import { ProviderHealthPanel } from '../provider-health-panel.ts';
-import { PolicyPanel } from '../policy-panel.ts';
 import { createProviderAccountSnapshotQuery } from '../provider-account-snapshot.ts';
 import {
   createEnvironmentVariableQuery,
@@ -119,12 +118,4 @@ export function registerOperationsPanels(manager: PanelManager, deps: ResolvedBu
     ),
   });
 
-  manager.registerType({
-    id: 'policy',
-    name: 'Policy',
-    icon: 'U',
-    category: 'monitoring',
-    description: 'Policy governance: active/candidate bundles, divergence gate, rollout history, and simulation evidence',
-    factory: () => new PolicyPanel(deps.policyRuntimeState),
-  });
 }
