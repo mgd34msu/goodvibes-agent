@@ -55,12 +55,23 @@ export function activateAgentWorkspaceSelection(
   const action = workspace.selectedAction;
   if (!action) return;
   if (action.kind === 'editor' && action.editorKind) {
-    workspace.localEditor = createWorkspaceEditor(workspace, action.editorKind);
-    workspace.status = `Editing ${workspace.localEditor.title}.`;
+    const editor = createWorkspaceEditor(workspace, action.editorKind);
+    if (!editor) {
+      workspace.status = `Editor unavailable: ${action.editorKind}.`;
+      workspace.lastActionResult = {
+        kind: 'error',
+        title: 'Editor unavailable',
+        detail: `No Agent workspace editor exists for ${action.editorKind}.`,
+        safety: action.safety,
+      };
+      return;
+    }
+    workspace.localEditor = editor;
+    workspace.status = `Editing ${editor.title}.`;
     workspace.lastActionResult = {
       kind: 'guidance',
-      title: workspace.localEditor.title,
-      detail: workspace.localEditor.message,
+      title: editor.title,
+      detail: editor.message,
       safety: action.safety,
     };
     return;
@@ -134,8 +145,8 @@ export function activateAgentWorkspaceSelection(
 
 function createWorkspaceEditor(
   workspace: AgentWorkspaceActivationHost,
-  editorKind: AgentWorkspaceCategory['actions'][number]['editorKind'],
-): AgentWorkspaceLocalEditor {
+  editorKind: NonNullable<AgentWorkspaceCategory['actions'][number]['editorKind']>,
+): AgentWorkspaceLocalEditor | null {
   if (editorKind === 'profile') return createProfileEditor(workspace.runtimeSnapshot?.runtimeStarterTemplates ?? []);
   if (editorKind === 'learned-behavior') return createLearnedBehaviorEditor();
   if (editorKind === 'web-research') return createAgentWorkspaceWebResearchEditor('research');
@@ -145,7 +156,17 @@ function createWorkspaceEditor(
   if (editorKind === 'knowledge-search') return createAgentKnowledgeQueryEditor('search');
   if (editorKind === 'reminder-schedule') return createReminderScheduleEditor();
   if (editorKind === 'routine-schedule') return createRoutineScheduleEditor(workspace.selectedLocalLibraryItem('routine'));
-  return createLocalEditor(editorKind ?? 'memory');
+  if (
+    editorKind === 'memory'
+    || editorKind === 'note'
+    || editorKind === 'persona'
+    || editorKind === 'skill'
+    || editorKind === 'routine'
+    || editorKind === 'knowledge-url'
+  ) {
+    return createLocalEditor(editorKind);
+  }
+  return null;
 }
 
 function handleGuidanceOrWorkspaceAction(

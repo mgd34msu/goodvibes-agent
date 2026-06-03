@@ -3,6 +3,17 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
+import { activateAgentWorkspaceSelection } from '../../input/agent-workspace-activation.ts';
+import type {
+  AgentWorkspaceAction,
+  AgentWorkspaceActionResult,
+  AgentWorkspaceCategory,
+  AgentWorkspaceFocusPane,
+  AgentWorkspaceLocalEditor,
+  AgentWorkspaceLocalEditorKind,
+  AgentWorkspaceLocalLibraryItem,
+  AgentWorkspaceLocalOperation,
+} from '../../input/agent-workspace-types.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 
@@ -74,6 +85,57 @@ function hasCoverage(coverage: WorkspaceCoverage, requirement: CoverageRequireme
 }
 
 describe('Agent workspace command parity', () => {
+  test('unsupported editor kinds fail closed instead of falling back to a local editor', () => {
+    const malformedAction = {
+      id: 'bad-editor',
+      label: 'Bad editor',
+      detail: 'This malformed action should never open a fallback editor.',
+      editorKind: 'unknown-editor' as unknown as AgentWorkspaceAction['editorKind'],
+      kind: 'editor',
+      safety: 'safe',
+    } satisfies AgentWorkspaceAction;
+    const category: AgentWorkspaceCategory = {
+      id: 'bad-category',
+      group: 'TEST',
+      label: 'Bad Category',
+      summary: 'Malformed test category.',
+      detail: 'Malformed test category.',
+      actions: [malformedAction],
+    };
+    const host = {
+      categories: [category],
+      selectedCategory: category,
+      selectedAction: malformedAction,
+      runtimeSnapshot: null,
+      localEditor: null as AgentWorkspaceLocalEditor | null,
+      focusPane: 'actions' as AgentWorkspaceFocusPane,
+      selectedCategoryIndex: 0,
+      selectedActionIndex: 0,
+      status: '',
+      lastActionResult: null as AgentWorkspaceActionResult | null,
+      submitEditorFieldOrForm: () => {},
+      focusActions: () => {},
+      clampSelection: () => {},
+      moveLocalLibraryItemSelection: (_kind: AgentWorkspaceLocalEditorKind, _delta: number) => {},
+      selectedLocalLibraryItem: (_kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null => null,
+      applyLocalLibraryOperation: (_operation: AgentWorkspaceLocalOperation) => {},
+      hasCommandDispatch: () => true,
+      dispatchWorkspaceCommand: (_command: string) => {},
+      commitActionSearchSelection: () => true,
+    };
+
+    activateAgentWorkspaceSelection(host);
+
+    expect(host.localEditor).toBeNull();
+    expect(host.status).toBe('Editor unavailable: unknown-editor.');
+    expect(host.lastActionResult).toEqual({
+      kind: 'error',
+      title: 'Editor unavailable',
+      detail: 'No Agent workspace editor exists for unknown-editor.',
+      safety: 'safe',
+    });
+  });
+
   test('workspace actions point to registered commands, real categories, and concrete editors', () => {
     const registry = makeRegisteredCommands();
     const categoryIds = new Set(AGENT_WORKSPACE_CATEGORIES.map((category) => category.id));
