@@ -1262,6 +1262,74 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('resolves settings by key, target, and query without guessing ambiguous matches', async () => {
+    const fixture = makeFixture();
+    try {
+      const byTarget = await fixture.tool.execute({
+        mode: 'get_setting',
+        target: 'PROVIDER.MODEL',
+      });
+      expect(byTarget.success).toBe(true);
+      const targetSetting = JSON.parse(byTarget.output);
+      expect(targetSetting.key).toBe('provider.model');
+      expect(targetSetting.lookup).toEqual({
+        source: 'target',
+        input: 'PROVIDER.MODEL',
+        resolvedBy: 'case-insensitive-key',
+      });
+
+      const byQuery = await fixture.tool.execute({
+        mode: 'get_setting',
+        query: 'reasoning',
+        prefix: 'provider.reasoningEffort',
+      });
+      expect(byQuery.success).toBe(true);
+      const querySetting = JSON.parse(byQuery.output);
+      expect(querySetting.key).toBe('provider.reasoningEffort');
+      expect(querySetting.lookup).toEqual({
+        source: 'query',
+        input: 'reasoning',
+        resolvedBy: 'search',
+      });
+
+      const setByQuery = await fixture.tool.execute({
+        mode: 'set_setting',
+        query: 'reasoning',
+        prefix: 'provider.reasoningEffort',
+        value: 'high',
+        confirm: true,
+        explicitUserRequest: 'Use high reasoning effort.',
+      });
+      expect(setByQuery.success).toBe(true);
+      expect(fixture.configManager.get('provider.reasoningEffort')).toBe('high');
+      const setResult = JSON.parse(setByQuery.output);
+      expect(setResult.key).toBe('provider.reasoningEffort');
+      expect(setResult.lookup.resolvedBy).toBe('search');
+
+      const resetByTarget = await fixture.tool.execute({
+        mode: 'reset_setting',
+        target: 'PROVIDER.REASONINGEFFORT',
+        confirm: true,
+        explicitUserRequest: 'Reset reasoning effort.',
+      });
+      expect(resetByTarget.success).toBe(true);
+      expect(fixture.configManager.get('provider.reasoningEffort')).not.toBe('high');
+      const resetResult = JSON.parse(resetByTarget.output);
+      expect(resetResult.key).toBe('provider.reasoningEffort');
+      expect(resetResult.lookup.resolvedBy).toBe('case-insensitive-key');
+
+      const ambiguous = await fixture.tool.execute({
+        mode: 'get_setting',
+        query: 'provider',
+      });
+      expect(ambiguous.success).toBe(false);
+      expect(ambiguous.error).toContain('Ambiguous setting provider');
+      expect(ambiguous.error).toContain('provider.model');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('persists secret-backed setting values through the secret manager and redacts output', async () => {
     const fixture = makeFixture();
     try {

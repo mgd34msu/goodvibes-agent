@@ -23,7 +23,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   query: {
     type: 'string',
-    description: 'Search text for command, workspace action, setting, tool, or UI surface catalogs; also a slash-command lookup for mode command.',
+    description: 'Search text for command, workspace action, setting, tool, or UI surface catalogs; also a slash-command lookup for mode command or setting lookup for get_setting/set_setting/reset_setting.',
   },
   command: {
     type: 'string',
@@ -78,7 +78,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   key: {
     type: 'string',
-    description: 'Agent setting key for get_setting, set_setting, or reset_setting.',
+    description: 'Agent setting key for get_setting, set_setting, or reset_setting. target or query can also look up one setting when the exact key is not known.',
   },
   value: {
     anyOf: [
@@ -90,7 +90,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   target: {
     type: 'string',
-    description: 'Optional lookup target, such as a model-picker target, workspace action id/search text, slash command root or invocation, settings key, model tool name, or connected-host capability id.',
+    description: 'Optional lookup target, such as a model-picker target, workspace action id/search text, slash command root or invocation, setting key/search text, model tool name, or connected-host capability id.',
   },
   capabilityId: {
     type: 'string',

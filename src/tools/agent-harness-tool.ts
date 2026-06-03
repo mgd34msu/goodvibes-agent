@@ -33,9 +33,9 @@ import {
 } from './agent-harness-metadata.ts';
 import {
   formatHarnessError,
-  getHarnessSetting,
   listHarnessSettings,
   resetHarnessSetting,
+  resolveHarnessSetting,
   setHarnessSetting,
 } from '../agent/harness-control.ts';
 
@@ -107,6 +107,17 @@ function isMode(value: unknown): value is AgentHarnessMode {
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function settingLookupArgs(args: AgentHarnessToolArgs) {
+  return {
+    key: readString(args.key) || undefined,
+    target: readString(args.target) || undefined,
+    query: readString(args.query) || undefined,
+    category: readString(args.category) || undefined,
+    prefix: readString(args.prefix) || undefined,
+    includeHidden: args.includeHidden === true,
+  };
 }
 
 function readLimit(value: unknown, fallback: number): number {
@@ -589,7 +600,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
               slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
               workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" with actionId, command, target, or query for one action and editor schema; set includeParameters:true on workspace_actions to inline editor schemas.',
-              settings: 'Use mode:"settings", mode:"get_setting", mode:"set_setting", and mode:"reset_setting".',
+              settings: 'Use mode:"settings" to list and mode:"get_setting" with key, target, or query for one setting. Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest.',
               tools: 'Use mode:"tools" to list first-class model tools, or mode:"tool" with toolName, target, or query to inspect one schema.',
               connectedHost: 'Use mode:"connected_host" for the connected-host capability map and blocked boundaries. Use mode:"connected_host_capability" with capabilityId, target, or query for one allowed or blocked capability.',
               connectedHostStatus: 'Use mode:"connected_host_status" for live read-only host reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
@@ -681,33 +692,48 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return output({ settings, returned: settings.length, policy: settingsPolicySummary() });
         }
         if (args.mode === 'get_setting') {
-          const key = readString(args.key);
-          const setting = getHarnessSetting(deps.commandContext.platform.configManager, key);
-          return setting ? output(setting) : error(`Unknown setting ${key || '<missing>'}.`);
+          const setting = resolveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));
+          if (setting?.status === 'found') return output(setting.setting);
+          if (setting?.status === 'ambiguous') {
+            return error(`Ambiguous setting ${setting.input}. Candidates: ${JSON.stringify(setting.candidates)}`);
+          }
+          return error(`Unknown setting ${readString(args.key || args.target || args.query) || '<missing>'}. Use mode:"settings" to inspect available settings.`);
         }
         if (args.mode === 'set_setting') {
           const confirmationError = requireConfirmedAction(args, 'Setting mutation');
           if (confirmationError) return error(confirmationError);
           if (args.value === undefined) return error('set_setting requires value.');
-          const key = readString(args.key);
+          const setting = resolveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));
+          if (setting?.status === 'ambiguous') {
+            return error(`Ambiguous setting ${setting.input}. Candidates: ${JSON.stringify(setting.candidates)}`);
+          }
+          if (setting?.status !== 'found') {
+            return error(`Unknown setting ${readString(args.key || args.target || args.query) || '<missing>'}. Use mode:"settings" to inspect available settings.`);
+          }
           const result = await setHarnessSetting(
             deps.commandContext.platform.configManager,
             deps.commandContext.platform.secretsManager,
-            key,
+            setting.setting.key,
             args.value,
           );
-          return output(result);
+          return output({ ...result, lookup: setting.lookup });
         }
         if (args.mode === 'reset_setting') {
           const confirmationError = requireConfirmedAction(args, 'Setting reset');
           if (confirmationError) return error(confirmationError);
-          const key = readString(args.key);
+          const setting = resolveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));
+          if (setting?.status === 'ambiguous') {
+            return error(`Ambiguous setting ${setting.input}. Candidates: ${JSON.stringify(setting.candidates)}`);
+          }
+          if (setting?.status !== 'found') {
+            return error(`Unknown setting ${readString(args.key || args.target || args.query) || '<missing>'}. Use mode:"settings" to inspect available settings.`);
+          }
           const result = await resetHarnessSetting(
             deps.commandContext.platform.configManager,
             deps.commandContext.platform.secretsManager,
-            key,
+            setting.setting.key,
           );
-          return output(result);
+          return output({ ...result, lookup: setting.lookup });
         }
         if (args.mode === 'workspace' || args.mode === 'workspace_categories') {
           return output({

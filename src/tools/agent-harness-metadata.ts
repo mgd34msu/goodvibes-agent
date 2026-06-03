@@ -462,8 +462,8 @@ export function blockedConnectedHostCapabilities(): readonly Record<string, unkn
 
 export function settingsPolicySummary(): Record<string, unknown> {
   return {
-    discovery: 'Use mode:"settings" for the setting catalog and mode:"get_setting" for one key. Hidden/scriptable settings require includeHidden:true.',
-    mutation: 'Use mode:"set_setting" or mode:"reset_setting" with confirm:true and explicitUserRequest.',
+    discovery: 'Use mode:"settings" for the setting catalog and mode:"get_setting" with key, target, or query for one setting. Hidden/scriptable settings require includeHidden:true unless the exact key is supplied.',
+    mutation: 'Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest; ambiguous setting lookups are refused.',
     secretHandling: 'Raw secret values are persisted through the secret manager; config receives only a secret reference and tool output is redacted.',
     writablePolicy: 'Each setting descriptor includes writable, visibleInWorkspace, and lockReason when applicable.',
     readOnlyHostOwnedPrefixes: ['service.*', 'controlPlane.*', 'httpListener.*', 'web.*', 'danger.daemon.*', 'danger.httpListener.*'],

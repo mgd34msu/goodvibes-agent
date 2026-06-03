@@ -23,6 +23,45 @@ export interface HarnessSettingFilters {
   readonly limit?: number;
 }
 
+export type HarnessSettingLookupSource = 'key' | 'target' | 'query';
+export type HarnessSettingResolvedBy = 'key' | 'case-insensitive-key' | 'search';
+
+export interface HarnessSettingLookup {
+  readonly source: HarnessSettingLookupSource;
+  readonly input: string;
+  readonly resolvedBy: HarnessSettingResolvedBy;
+}
+
+export interface HarnessSettingLookupArgs {
+  readonly key?: string;
+  readonly target?: string;
+  readonly query?: string;
+  readonly category?: string;
+  readonly prefix?: string;
+  readonly includeHidden?: boolean;
+}
+
+export interface HarnessSettingCandidate {
+  readonly key: string;
+  readonly category: string;
+  readonly type: ConfigSetting['type'];
+  readonly writable: boolean;
+  readonly visibleInWorkspace: boolean;
+  readonly description: string;
+}
+
+export type HarnessSettingResolution =
+  | {
+    readonly status: 'found';
+    readonly setting: HarnessSettingDescriptor;
+    readonly lookup: HarnessSettingLookup;
+  }
+  | {
+    readonly status: 'ambiguous';
+    readonly input: string;
+    readonly candidates: readonly HarnessSettingCandidate[];
+  };
+
 export interface HarnessSettingDescriptor {
   readonly key: string;
   readonly category: string;
@@ -35,6 +74,7 @@ export interface HarnessSettingDescriptor {
   readonly lockReason?: string;
   readonly description: string;
   readonly enumValues?: readonly string[];
+  readonly lookup?: HarnessSettingLookup;
 }
 
 export interface HarnessSettingMutationResult {
@@ -61,6 +101,36 @@ function findSetting(configManager: Pick<ConfigManager, 'getSchema'>, rawKey: st
   return configManager.getSchema().find((setting) => setting.key === rawKey) ?? null;
 }
 
+function settingLookupText(setting: ConfigSetting): string {
+  return [setting.key, setting.description, setting.type, ...(setting.enumValues ?? [])].join('\n').toLowerCase();
+}
+
+function settingMatchesSearch(setting: ConfigSetting, query: string): boolean {
+  return settingLookupText(setting).includes(query);
+}
+
+function settingCandidate(setting: ConfigSetting): HarnessSettingCandidate {
+  const hostOwned = isExternalHostOwnedSettingKey(setting.key);
+  return {
+    key: setting.key,
+    category: setting.key.split('.')[0] ?? '',
+    type: setting.type,
+    writable: !hostOwned,
+    visibleInWorkspace: !isAgentHiddenSettingKey(setting.key),
+    description: setting.description,
+  };
+}
+
+function settingLookupFromArgs(args: HarnessSettingLookupArgs): { source: HarnessSettingLookupSource; input: string } | null {
+  const key = args.key?.trim();
+  if (key) return { source: 'key', input: key };
+  const target = args.target?.trim();
+  if (target) return { source: 'target', input: target };
+  const query = args.query?.trim();
+  if (query) return { source: 'query', input: query };
+  return null;
+}
+
 export function redactHarnessSettingValue(key: string, value: unknown): unknown {
   if (typeof value !== 'string') return value;
   if (!value) return value;
@@ -74,6 +144,7 @@ export function redactHarnessSettingValue(key: string, value: unknown): unknown 
 export function describeHarnessSetting(
   configManager: Pick<ConfigManager, 'get'>,
   setting: ConfigSetting,
+  options: { readonly lookup?: HarnessSettingLookup } = {},
 ): HarnessSettingDescriptor {
   const value = configManager.get(setting.key as ConfigKey);
   const hostOwned = isExternalHostOwnedSettingKey(setting.key);
@@ -89,6 +160,7 @@ export function describeHarnessSetting(
     ...(hostOwned ? { lockReason: AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON } : {}),
     description: setting.description,
     ...(setting.enumValues ? { enumValues: setting.enumValues } : {}),
+    ...(options.lookup ? { lookup: options.lookup } : {}),
   };
 }
 
@@ -109,8 +181,7 @@ export function listHarnessSettings(
       if (prefix && !setting.key.startsWith(prefix)) return false;
       if (!filters.includeHidden && isAgentHiddenSettingKey(setting.key)) return false;
       if (query) {
-        const text = [setting.key, setting.description, setting.type, ...(setting.enumValues ?? [])].join('\n').toLowerCase();
-        if (!text.includes(query)) return false;
+        if (!settingMatchesSearch(setting, query)) return false;
       }
       return true;
     })
@@ -121,9 +192,73 @@ export function listHarnessSettings(
 export function getHarnessSetting(
   configManager: Pick<ConfigManager, 'get' | 'getSchema'>,
   key: string,
+  lookup?: HarnessSettingLookup,
 ): HarnessSettingDescriptor | null {
   const setting = findSetting(configManager, key);
-  return setting ? describeHarnessSetting(configManager, setting) : null;
+  return setting ? describeHarnessSetting(configManager, setting, { lookup }) : null;
+}
+
+export function resolveHarnessSetting(
+  configManager: Pick<ConfigManager, 'get' | 'getSchema'>,
+  args: HarnessSettingLookupArgs,
+): HarnessSettingResolution | null {
+  const lookup = settingLookupFromArgs(args);
+  if (!lookup) return null;
+
+  const exact = findSetting(configManager, lookup.input);
+  if (exact) {
+    const resolvedLookup = { ...lookup, resolvedBy: 'key' as const };
+    return {
+      status: 'found',
+      setting: describeHarnessSetting(configManager, exact, { lookup: resolvedLookup }),
+      lookup: resolvedLookup,
+    };
+  }
+
+  const inputLower = lookup.input.toLowerCase();
+  const schema = configManager.getSchema();
+  const caseInsensitiveMatches = schema.filter((setting) => setting.key.toLowerCase() === inputLower);
+  if (caseInsensitiveMatches.length === 1) {
+    const resolvedLookup = { ...lookup, resolvedBy: 'case-insensitive-key' as const };
+    return {
+      status: 'found',
+      setting: describeHarnessSetting(configManager, caseInsensitiveMatches[0]!, { lookup: resolvedLookup }),
+      lookup: resolvedLookup,
+    };
+  }
+  if (caseInsensitiveMatches.length > 1) {
+    return {
+      status: 'ambiguous',
+      input: lookup.input,
+      candidates: caseInsensitiveMatches.map(settingCandidate).slice(0, 8),
+    };
+  }
+
+  const category = args.category?.trim();
+  const prefix = args.prefix?.trim();
+  const searchMatches = schema.filter((setting) => {
+    if (category && setting.key.split('.')[0] !== category) return false;
+    if (prefix && !setting.key.startsWith(prefix)) return false;
+    if (!args.includeHidden && isAgentHiddenSettingKey(setting.key)) return false;
+    return settingMatchesSearch(setting, inputLower);
+  });
+  if (searchMatches.length === 1) {
+    const resolvedLookup = { ...lookup, resolvedBy: 'search' as const };
+    return {
+      status: 'found',
+      setting: describeHarnessSetting(configManager, searchMatches[0]!, { lookup: resolvedLookup }),
+      lookup: resolvedLookup,
+    };
+  }
+  if (searchMatches.length > 1) {
+    return {
+      status: 'ambiguous',
+      input: lookup.input,
+      candidates: searchMatches.map(settingCandidate).slice(0, 8),
+    };
+  }
+
+  return null;
 }
 
 function coerceBoolean(value: unknown): boolean {
