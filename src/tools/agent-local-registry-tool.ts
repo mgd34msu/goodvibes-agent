@@ -549,7 +549,7 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
       description: [
         'Inspect and maintain GoodVibes Agent-local notes, memory, personas, skills, and routines from the main conversation.',
         'Use this for safe self-improvement: capture scratchpad notes, remember durable non-secret facts, create or refine reusable behavior, bundle related skills, enable skills/routines, choose personas, review/stale records, and start routines in the same serial conversation.',
-        'This tool cannot delete records, create schedules, mutate connected services, send messages, run background jobs, or delegate build work.',
+        'This tool cannot delete records, create schedules, mutate connected hosts, send messages, run background jobs, or delegate build work.',
       ].join(' '),
       parameters: {
         type: 'object',

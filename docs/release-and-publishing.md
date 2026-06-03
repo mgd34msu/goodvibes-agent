@@ -63,7 +63,7 @@ Do not publish if package-facing docs or install commands refer to another packa
 
 Do not publish if Agent Knowledge commands can fall back to default knowledge or another product-specific knowledge route. Agent Knowledge must use the isolated `/api/goodvibes-agent/knowledge/*` segment.
 
-Do not ship GoodVibes service binaries from this package. If Agent later gets compiled artifacts, they must use Agent artifact names and remain separate from connected-host ownership.
+Do not ship connected-host binaries from this package. If Agent later gets compiled artifacts, they must use Agent artifact names and remain separate from connected-host ownership.
 
 ## Product Rule
 
