@@ -4,7 +4,7 @@ export const AGENT_HARNESS_MODES = [
   'shortcuts', 'keybindings', 'keybinding', 'set_keybinding', 'reset_keybinding',
   'commands', 'command', 'run_command', 'settings', 'get_setting', 'set_setting',
   'reset_setting', 'workspace', 'workspace_categories', 'workspace_actions',
-  'workspace_action', 'run_workspace_action', 'tools', 'connected_host',
+  'workspace_action', 'run_workspace_action', 'tools', 'connected_host', 'connected_host_status',
 ] as const;
 
 const KEY_COMBO_PARAMETER_SCHEMA = {

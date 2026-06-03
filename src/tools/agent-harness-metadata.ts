@@ -366,6 +366,7 @@ export function connectedHostSummary(context: CommandContext, toolRegistry: Tool
     tokenPath: connection.tokenPath,
     ownership: 'external-connected-host',
     lifecycle: 'GoodVibes Agent can use public connected-host operator routes, but does not start, stop, restart, install, expose, or mutate the host listener.',
+    statusMode: 'Use agent_harness mode:"connected_host_status" for live read-only reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
     routeFamilies: connectedHostRouteFamilies(),
     capabilities: connectedHostCapabilityMap(toolRegistry),
     blockedCapabilities: blockedConnectedHostCapabilities(),

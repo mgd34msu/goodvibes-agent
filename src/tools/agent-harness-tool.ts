@@ -20,6 +20,7 @@ import { parseSlashCommand } from '../input/slash-command-parser.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
 import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
+import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
 import { describeLocalWorkspaceModelExecution, runLocalWorkspaceAction } from './agent-harness-local-operations.ts';
 import { listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
@@ -543,6 +544,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               settings: 'Use mode:"settings", mode:"get_setting", mode:"set_setting", and mode:"reset_setting".',
               tools: 'Use mode:"tools" with includeParameters:true to inspect first-class model tool schemas.',
               connectedHost: 'Use mode:"connected_host" for the connected-host capability map and blocked boundaries.',
+              connectedHostStatus: 'Use mode:"connected_host_status" for live read-only host reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
             },
             settingsPolicy: settingsPolicySummary(),
             connectedHost: connectedHostSummary(deps.commandContext, deps.toolRegistry),
@@ -680,6 +682,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return output({ tools, returned: tools.length, total: deps.toolRegistry.getToolDefinitions().length });
         }
         if (args.mode === 'connected_host') return output(connectedHostSummary(deps.commandContext, deps.toolRegistry));
+        if (args.mode === 'connected_host_status') return output(await connectedHostStatusSummary(deps.commandContext, deps.toolRegistry));
         return error(`Unhandled agent_harness mode: ${args.mode}`);
       } catch (err) {
         return error(formatHarnessError(err));

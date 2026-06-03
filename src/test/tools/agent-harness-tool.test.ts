@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
@@ -21,6 +21,7 @@ import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-t
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
+import { SDK_VERSION } from '../../version.ts';
 
 type ShellPaths = ReturnType<typeof createShellPathService>;
 
@@ -232,6 +233,17 @@ function registerStubTool(toolRegistry: ToolRegistry, name: string): void {
     execute: async () => ({ success: true, output: `${name} executed` }),
   };
   toolRegistry.register(tool);
+}
+
+function readAuthorizationHeader(headers: HeadersInit | undefined): string | null {
+  if (!headers) return null;
+  if (headers instanceof Headers) return headers.get('authorization');
+  if (Array.isArray(headers)) {
+    const entry = headers.find(([key]) => key.toLowerCase() === 'authorization');
+    return entry ? String(entry[1]) : null;
+  }
+  const value = Object.entries(headers).find(([key]) => key.toLowerCase() === 'authorization')?.[1];
+  return typeof value === 'string' ? value : null;
 }
 
 describe('agent_harness tool', () => {
@@ -528,6 +540,56 @@ describe('agent_harness tool', () => {
       expect(result.output).toContain('connected-host-lifecycle');
       expect(result.output).toContain('arbitrary-connected-host-mutations');
     } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('reports live connected-host status without exposing the operator token', async () => {
+    const fixture = makeFixture();
+    const originalFetch = globalThis.fetch;
+    const token = 'gvop-test-token-value';
+    const requests: Array<{ readonly url: string; readonly authorization: string | null }> = [];
+    try {
+      writeFileSync(join(fixture.root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token }));
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        requests.push({ url, authorization: readAuthorizationHeader(init?.headers) });
+        if (url.endsWith('/status')) {
+          return new Response(JSON.stringify({ version: SDK_VERSION }), { status: 200 });
+        }
+        if (url.endsWith('/api/goodvibes-agent/knowledge/status')) {
+          return new Response(JSON.stringify({ ready: true }), { status: 200 });
+        }
+        return new Response('not found', { status: 404 });
+      }) as typeof globalThis.fetch;
+
+      const result = await fixture.tool.execute({ mode: 'connected_host_status' });
+      expect(result.success).toBe(true);
+      if (!result.success) throw new Error(result.error);
+      const payload = JSON.parse(result.output) as {
+        readonly liveStatus: {
+          readonly reachable: boolean;
+          readonly compatible: boolean;
+          readonly agentKnowledge: { readonly ready: boolean };
+        };
+        readonly operatorToken: {
+          readonly usable: boolean;
+          readonly fingerprint: string | null;
+        };
+      };
+      expect(payload.liveStatus.reachable).toBe(true);
+      expect(payload.liveStatus.compatible).toBe(true);
+      expect(payload.liveStatus.agentKnowledge.ready).toBe(true);
+      expect(payload.operatorToken.usable).toBe(true);
+      expect(payload.operatorToken.fingerprint?.startsWith('sha256:')).toBe(true);
+      expect(result.output).not.toContain(token);
+      expect(requests.map((request) => request.url)).toEqual([
+        'http://127.0.0.1:3421/status',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/status',
+      ]);
+      expect(requests.every((request) => request.authorization === `Bearer ${token}`)).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
       fixture.cleanup();
     }
   });
