@@ -4,8 +4,8 @@ import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineR
 import { buildAgentSkillRequirements, formatAgentSkillRequirement } from '../agent/skill-registry.ts';
 import {
   buildRoutineSchedulePreview,
-  promoteRoutineToDaemonSchedule,
-  resolveAgentDaemonConnection,
+  promoteRoutineToConnectedSchedule,
+  resolveAgentConnectedHostConnection,
 } from '../agent/routine-schedule-promotion.ts';
 import { parseRoutineSchedulePromotionArgs } from '../agent/routine-schedule-args.ts';
 import {
@@ -286,8 +286,8 @@ async function handleRoutinePromotion(runtime: CliCommandRuntime, args: readonly
       exitCode: 0,
     };
   }
-  const connection = resolveAgentDaemonConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await promoteRoutineToDaemonSchedule(connection, preview);
+  const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
+  const result = await promoteRoutineToConnectedSchedule(connection, preview);
   const receipt = routineReceiptStore(runtime).append(connection, preview, result);
   if (!result.ok) {
     return {
@@ -491,7 +491,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
   if (normalized === 'reconcile' || normalized === 'sync' || normalized === 'status') {
     const store = routineReceiptStore(runtime);
     const result = await reconcileRoutineScheduleReceipts(
-      resolveAgentDaemonConnection(runtime.configManager, runtime.homeDirectory),
+      resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory),
       store.snapshot(),
     );
     return {

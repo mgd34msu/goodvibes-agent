@@ -5,7 +5,7 @@ import {
   buildReminderSchedulePreview,
   createReminderSchedule,
   parseReminderScheduleArgs,
-  resolveReminderDaemonConnection,
+  resolveReminderConnectedHostConnection,
   type ReminderScheduleResult,
 } from '../agent/reminder-schedule.ts';
 import {
@@ -13,7 +13,7 @@ import {
   formatReminderSchedulePreview,
   formatReminderScheduleSuccess,
 } from '../agent/reminder-schedule-format.ts';
-import type { AgentDaemonConfigReader } from '../agent/routine-schedule-promotion.ts';
+import type { AgentConnectedHostConfigReader } from '../agent/routine-schedule-promotion.ts';
 
 type ReminderScheduleKind = 'at' | 'every' | 'cron';
 
@@ -115,7 +115,7 @@ function confirmationError(preview: ReturnType<typeof buildReminderSchedulePrevi
 
 export function createAgentReminderScheduleTool(
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentConnectedHostConfigReader,
 ): Tool {
   return {
     definition: {
@@ -216,7 +216,7 @@ export function createAgentReminderScheduleTool(
             error: confirmationError(preview),
           };
         }
-        const connection = resolveReminderDaemonConnection(configManager, shellPaths.homeDirectory);
+        const connection = resolveReminderConnectedHostConnection(configManager, shellPaths.homeDirectory);
         return outputForResult(await createReminderSchedule(connection, preview));
       } catch (error) {
         return {
@@ -231,7 +231,7 @@ export function createAgentReminderScheduleTool(
 export function registerAgentReminderScheduleTool(
   registry: ToolRegistry,
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentConnectedHostConfigReader,
 ): void {
   registry.register(createAgentReminderScheduleTool(shellPaths, configManager));
 }

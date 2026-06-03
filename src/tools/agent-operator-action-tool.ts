@@ -1,8 +1,8 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ShellPathService } from '@/runtime/index.ts';
-import type { AgentDaemonConfigReader } from '../agent/routine-schedule-promotion.ts';
-import { resolveAgentDaemonConnection } from '../agent/routine-schedule-promotion.ts';
+import type { AgentConnectedHostConfigReader } from '../agent/routine-schedule-promotion.ts';
+import { resolveAgentConnectedHostConnection } from '../agent/routine-schedule-promotion.ts';
 import {
   buildOperatorActionRequest,
   formatOperatorActionFailure,
@@ -30,7 +30,7 @@ interface OperatorActionToolArgs {
 
 export function createAgentOperatorActionTool(
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentConnectedHostConfigReader,
 ): Tool {
   return {
     definition: {
@@ -111,11 +111,11 @@ export function createAgentOperatorActionTool(
           error: formatOperatorActionToolPreview(request, explicitUserRequest),
         };
       }
-      const connection = resolveAgentDaemonConnection(configManager, shellPaths.homeDirectory);
+      const connection = resolveAgentConnectedHostConnection(configManager, shellPaths.homeDirectory);
       if (!connection.token) {
         return {
           success: false,
-          error: `auth_required: no runtime operator token found at ${connection.tokenPath}`,
+          error: `auth_required: no connected-host operator token found at ${connection.tokenPath}`,
         };
       }
       const result = await postOperatorAction(connection, request);
@@ -131,7 +131,7 @@ export function createAgentOperatorActionTool(
 export function registerAgentOperatorActionTool(
   registry: ToolRegistry,
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentConnectedHostConfigReader,
 ): void {
   registry.register(createAgentOperatorActionTool(shellPaths, configManager));
 }

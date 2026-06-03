@@ -8,7 +8,7 @@ import {
   buildReminderSchedulePreview,
   createReminderSchedule,
   parseReminderScheduleArgs,
-  resolveReminderDaemonConnection,
+  resolveReminderConnectedHostConnection,
 } from '../../agent/reminder-schedule.ts';
 import {
   formatReminderScheduleFailure,
@@ -18,8 +18,8 @@ import {
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import {
   buildRoutineSchedulePreview,
-  promoteRoutineToDaemonSchedule,
-  resolveAgentDaemonConnection,
+  promoteRoutineToConnectedSchedule,
+  resolveAgentConnectedHostConnection,
 } from '../../agent/routine-schedule-promotion.ts';
 import { parseRoutineSchedulePromotionArgs } from '../../agent/routine-schedule-args.ts';
 import {
@@ -93,8 +93,8 @@ async function promoteRoutineSchedule(args: readonly string[], ctx: CommandConte
     ctx.print(formatRoutineSchedulePreview(preview));
     return;
   }
-  const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
-  const result = await promoteRoutineToDaemonSchedule(connection, preview);
+  const connection = resolveAgentConnectedHostConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+  const result = await promoteRoutineToConnectedSchedule(connection, preview);
   const receipt = RoutineScheduleReceiptStore.fromShellPaths(shellPaths).append(connection, preview, result);
   ctx.print(result.ok ? `${formatRoutineScheduleSuccess(result)}\n  receipt: ${receipt.id}` : `${formatRoutineScheduleFailure(result)}\n  receipt: ${receipt.id}`);
 }
@@ -114,7 +114,7 @@ async function createReminder(args: readonly string[], ctx: CommandContext): Pro
     return;
   }
   const shellPaths = requireShellPaths(ctx);
-  const connection = resolveReminderDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+  const connection = resolveReminderConnectedHostConnection(ctx.platform.configManager, shellPaths.homeDirectory);
   const result = await createReminderSchedule(connection, preview);
   ctx.print(result.ok ? formatReminderScheduleSuccess(result) : formatReminderScheduleFailure(result));
 }
@@ -146,7 +146,7 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
 
       if (sub === 'reconcile' || sub === 'sync' || sub === 'status') {
         const shellPaths = requireShellPaths(ctx);
-        const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+        const connection = resolveAgentConnectedHostConnection(ctx.platform.configManager, shellPaths.homeDirectory);
         const result = await reconcileRoutineScheduleReceipts(connection, RoutineScheduleReceiptStore.fromShellPaths(shellPaths).snapshot());
         ctx.print(formatRoutineScheduleCorrelation(result));
         return;

@@ -198,7 +198,34 @@ describe('agent_operator_action tool', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('auth_required');
+      expect(result.error).toContain('no connected-host operator token found');
+      expect(result.error).not.toContain('runtime operator token');
       expect(calls).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('reports connected-host route failures without legacy daemon kinds', async () => {
+    const paths = shellPaths();
+    const tool = createAgentOperatorActionTool(paths, configManager(paths));
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(JSON.stringify({ error: 'missing route' }), {
+      status: 404,
+      headers: { 'content-type': 'application/json' },
+    })) satisfies typeof fetch;
+
+    try {
+      const result = await tool.execute({
+        action: 'automation.jobs.run',
+        jobId: 'job-1',
+        confirm: true,
+        explicitUserRequest: 'Run job-1 now.',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Agent operator action failed: connected_host_route_unavailable');
+      expect(result.error).not.toContain('daemon_');
     } finally {
       globalThis.fetch = originalFetch;
     }

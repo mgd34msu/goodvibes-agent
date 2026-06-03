@@ -35,11 +35,11 @@ export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPr
     'GoodVibes schedule preview for Agent routine',
     `  routine: ${preview.routineName} (${preview.routineId})`,
     `  route: ${preview.method} ${preview.route}`,
-    `  name: ${String(preview.payload.name ?? '(runtime default)')}`,
+    `  name: ${String(preview.payload.name ?? '(connected-host default)')}`,
     `  schedule: ${preview.payload.kind} ${schedule}`,
     `  enabled: ${preview.payload.enabled === false ? 'no' : 'yes'}`,
     `  delivery: ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
-    '  target: GoodVibes runtime/main conversation route',
+    '  target: connected GoodVibes host/main conversation route',
     '  policy: isolated Agent Knowledge only; no default wiki/non-Agent fallback; no WRFC unless explicitly delegated',
     '  next: rerun with --yes to create this connected schedule',
   ].join('\n');
@@ -88,7 +88,7 @@ export function formatRoutineScheduleReceipt(receipt: RoutineScheduleReceipt): s
     `  status: ${receipt.status}`,
     `  routine: ${receipt.routineName} (${receipt.routineId})`,
     `  route: ${receipt.method} ${receipt.route}`,
-    `  runtime: ${receipt.daemonBaseUrl}`,
+    `  connected host: ${receipt.connectedHostBaseUrl}`,
     `  schedule: ${receipt.scheduleName}${receipt.scheduleId ? ` (${receipt.scheduleId})` : ''}`,
     receipt.scheduleStatus ? `  schedule status: ${receipt.scheduleStatus}` : '',
     `  cadence: ${receipt.scheduleKind} ${receipt.scheduleValue}${receipt.timezone ? ` [${receipt.timezone}]` : ''}`,
@@ -108,15 +108,15 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
     return [
       `GoodVibes schedule reconciliation error: ${result.kind}`,
       `  ${result.error}`,
-      result.baseUrl ? `  runtime: ${result.baseUrl}` : null,
+      result.baseUrl ? `  connected host: ${result.baseUrl}` : null,
       `  route: ${ROUTINE_SCHEDULE_LIST_METHOD} ${result.route}`,
       result.kind === 'auth_required'
         ? '  next: pair/authenticate with the connected GoodVibes host, then retry.'
         : null,
-      result.kind === 'daemon_unavailable'
+      result.kind === 'connected_host_unavailable'
         ? '  next: make the connected GoodVibes host available outside Agent, then retry.'
         : null,
-      result.kind === 'version_mismatch' || result.kind === 'daemon_route_unavailable'
+      result.kind === 'version_mismatch' || result.kind === 'connected_host_route_unavailable'
         ? '  next: update the connected GoodVibes host so public schedules.list is available.'
         : null,
     ].filter((line): line is string => Boolean(line)).join('\n');
@@ -125,7 +125,7 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
   if (result.receiptCount === 0) {
     return [
       'Agent routine schedule reconciliation',
-      `  runtime: ${result.baseUrl}`,
+      `  connected host: ${result.baseUrl}`,
       `  route: ${result.kind} ${result.route}`,
       `  live schedules: ${result.scheduleCount}`,
       '  No local routine promotion receipts exist yet.',
@@ -137,7 +137,7 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
   const failed = result.correlations.filter((entry) => entry.liveStatus === 'failed-receipt').length;
   return [
     'Agent routine schedule reconciliation',
-    `  runtime: ${result.baseUrl}`,
+    `  connected host: ${result.baseUrl}`,
     `  route: ${result.kind} ${result.route}`,
     `  receipts: ${result.receiptCount}; live schedules: ${result.scheduleCount}; matched: ${matched}; missing: ${missing}; failed receipts: ${failed}`,
     ...correlations.map((entry) => {
@@ -160,18 +160,18 @@ export function formatRoutineScheduleFailure(failure: RoutineSchedulePromotionFa
   return [
     `GoodVibes schedule error: ${failure.kind}`,
     `  ${failure.error}`,
-    failure.baseUrl ? `  runtime: ${failure.baseUrl}` : null,
+    failure.baseUrl ? `  connected host: ${failure.baseUrl}` : null,
     `  route: ${ROUTINE_SCHEDULE_METHOD} ${failure.route}`,
-    failure.kind === 'version_mismatch' && failure.daemonVersion && failure.expectedSdkVersion
-      ? `  versions: runtime=${failure.daemonVersion} expected=${failure.expectedSdkVersion}`
+    failure.kind === 'version_mismatch' && failure.connectedHostVersion && failure.expectedSdkVersion
+      ? `  versions: connectedHost=${failure.connectedHostVersion} expected=${failure.expectedSdkVersion}`
       : null,
     failure.kind === 'auth_required'
       ? '  next: pair/authenticate with the connected GoodVibes host, then retry with --yes.'
       : null,
-    failure.kind === 'daemon_unavailable'
-        ? '  next: make the connected GoodVibes host available outside Agent, then retry.'
+    failure.kind === 'connected_host_unavailable'
+      ? '  next: make the connected GoodVibes host available outside Agent, then retry.'
       : null,
-    failure.kind === 'version_mismatch' || failure.kind === 'daemon_route_unavailable'
+    failure.kind === 'version_mismatch' || failure.kind === 'connected_host_route_unavailable'
       ? '  next: update the connected GoodVibes host so public schedules.create is available.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');

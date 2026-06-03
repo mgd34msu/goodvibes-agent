@@ -53,9 +53,9 @@ export interface OperatorActionFailure {
   readonly ok: false;
   readonly kind:
     | 'auth_required'
-    | 'daemon_unavailable'
-    | 'daemon_route_unavailable'
-    | 'daemon_error';
+    | 'connected_host_unavailable'
+    | 'connected_host_route_unavailable'
+    | 'connected_host_error';
   readonly error: string;
   readonly methodId: OperatorActionId;
   readonly path: string;
@@ -226,8 +226,8 @@ function classifyHttpFailure(
     kind: status === 401 || status === 403
       ? 'auth_required'
       : status === 404
-        ? 'daemon_route_unavailable'
-        : 'daemon_error',
+        ? 'connected_host_route_unavailable'
+        : 'connected_host_error',
     error: `HTTP ${status}${detail ? `: ${detail}` : ''}`,
   };
 }
@@ -244,7 +244,7 @@ export async function postOperatorAction(
       methodId: request.descriptor.action,
       path,
       kind: 'auth_required',
-      error: connection.tokenPath ? `no runtime operator token found at ${connection.tokenPath}` : 'no runtime operator token found',
+      error: connection.tokenPath ? `no connected-host operator token found at ${connection.tokenPath}` : 'no connected-host operator token found',
     };
   }
   const headers: HeadersInit = {
@@ -273,7 +273,7 @@ export async function postOperatorAction(
       ok: false,
       methodId: request.descriptor.action,
       path,
-      kind: 'daemon_unavailable',
+      kind: 'connected_host_unavailable',
       error: summarizeError(error),
     };
   }

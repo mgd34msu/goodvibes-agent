@@ -4,11 +4,11 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
 import { SDK_VERSION } from '../version.ts';
 import {
-  resolveAgentDaemonConnection,
+  resolveAgentConnectedHostConnection,
   ROUTINE_SCHEDULE_METHOD,
   ROUTINE_SCHEDULE_ROUTE,
-  type AgentDaemonConfigReader,
-  type AgentDaemonConnection,
+  type AgentConnectedHostConfigReader,
+  type AgentConnectedHostConnection,
   type RoutineScheduleDeliveryKind,
   type RoutineScheduleDeliverySurfaceKind,
   type RoutineScheduleDeliveryTargetSpec,
@@ -58,14 +58,14 @@ export interface ReminderScheduleFailure {
   readonly kind:
     | 'confirmation_required'
     | 'auth_required'
-    | 'daemon_unavailable'
+    | 'connected_host_unavailable'
     | 'version_mismatch'
-    | 'daemon_route_unavailable'
-    | 'daemon_error';
+    | 'connected_host_route_unavailable'
+    | 'connected_host_error';
   readonly error: string;
   readonly route: typeof REMINDER_SCHEDULE_ROUTE;
   readonly baseUrl?: string;
-  readonly daemonVersion?: string;
+  readonly connectedHostVersion?: string;
   readonly expectedSdkVersion?: string;
 }
 
@@ -406,7 +406,7 @@ export function buildReminderSchedulePreview(parsed: ParsedReminderScheduleArgs)
   };
 }
 
-async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{
+async function fetchConnectedHostStatus(connection: AgentConnectedHostConnection): Promise<{
   readonly ok: boolean;
   readonly status: number;
   readonly body: unknown;
@@ -430,7 +430,7 @@ async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{
 
 async function classifyReminderScheduleError(
   error: unknown,
-  connection: AgentDaemonConnection,
+  connection: AgentConnectedHostConnection,
 ): Promise<ReminderScheduleFailure> {
   const message = summarizeError(error);
   const lower = message.toLowerCase();
@@ -438,30 +438,30 @@ async function classifyReminderScheduleError(
     return { ok: false, kind: 'auth_required', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
   }
   if (lower.includes('404') || lower.includes('not found')) {
-    const daemon = await fetchDaemonStatus(connection);
-    const record = isRecord(daemon.body) ? daemon.body : {};
-    const daemonVersion = readString(record, 'version') ?? 'unknown';
-    if (daemon.ok && daemonVersion !== SDK_VERSION) {
+    const connectedHost = await fetchConnectedHostStatus(connection);
+    const record = isRecord(connectedHost.body) ? connectedHost.body : {};
+    const connectedHostVersion = readString(record, 'version') ?? 'unknown';
+    if (connectedHost.ok && connectedHostVersion !== SDK_VERSION) {
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `Connected GoodVibes service SDK version ${daemonVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
+        error: `Connected GoodVibes service SDK version ${connectedHostVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
         route: REMINDER_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
-        daemonVersion,
+        connectedHostVersion,
         expectedSdkVersion: SDK_VERSION,
       };
     }
-    return { ok: false, kind: 'daemon_route_unavailable', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+    return { ok: false, kind: 'connected_host_route_unavailable', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
   }
   if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
-    return { ok: false, kind: 'daemon_unavailable', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+    return { ok: false, kind: 'connected_host_unavailable', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
   }
-  return { ok: false, kind: 'daemon_error', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  return { ok: false, kind: 'connected_host_error', error: message, route: REMINDER_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
 }
 
 export async function createReminderSchedule(
-  connection: AgentDaemonConnection,
+  connection: AgentConnectedHostConnection,
   preview: ReminderSchedulePreview,
 ): Promise<ReminderScheduleResult> {
   if (!connection.token) {
@@ -489,6 +489,6 @@ export async function createReminderSchedule(
   }
 }
 
-export function resolveReminderDaemonConnection(configManager: AgentDaemonConfigReader, homeDirectory: string): AgentDaemonConnection {
-  return resolveAgentDaemonConnection(configManager, homeDirectory);
+export function resolveReminderConnectedHostConnection(configManager: AgentConnectedHostConfigReader, homeDirectory: string): AgentConnectedHostConnection {
+  return resolveAgentConnectedHostConnection(configManager, homeDirectory);
 }

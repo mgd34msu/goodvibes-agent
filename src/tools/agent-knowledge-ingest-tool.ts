@@ -1,8 +1,8 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ShellPathService } from '@/runtime/index.ts';
-import type { AgentDaemonConfigReader } from '../agent/routine-schedule-promotion.ts';
-import { resolveAgentDaemonConnection } from '../agent/routine-schedule-promotion.ts';
+import type { AgentConnectedHostConfigReader } from '../agent/routine-schedule-promotion.ts';
+import { resolveAgentConnectedHostConnection } from '../agent/routine-schedule-promotion.ts';
 import {
   classifyKnowledgeError,
   postAgentKnowledgeJson,
@@ -256,7 +256,7 @@ function requestForArgs(args: AgentKnowledgeIngestToolArgs): AgentKnowledgeInges
 
 export function createAgentKnowledgeIngestTool(
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentConnectedHostConfigReader,
 ): Tool {
   return {
     definition: {
@@ -367,12 +367,12 @@ export function createAgentKnowledgeIngestTool(
         ].join('\n'));
       }
 
-      const connection = resolveAgentDaemonConnection(configManager, shellPaths.homeDirectory);
+      const connection = resolveAgentConnectedHostConnection(configManager, shellPaths.homeDirectory);
       if (!connection.token) {
         return failure(formatKnowledgeFailure({
           ok: false,
           kind: 'auth_required',
-          error: `No runtime operator token found at ${connection.tokenPath}`,
+          error: `No connected-host operator token found at ${connection.tokenPath}`,
           baseUrl: connection.baseUrl,
           route: request.method.route,
         }));
@@ -399,7 +399,7 @@ export function createAgentKnowledgeIngestTool(
 export function registerAgentKnowledgeIngestTool(
   registry: ToolRegistry,
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentConnectedHostConfigReader,
 ): void {
   registry.register(createAgentKnowledgeIngestTool(shellPaths, configManager));
 }

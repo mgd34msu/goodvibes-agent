@@ -1,8 +1,8 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ShellPathService } from '@/runtime/index.ts';
-import type { AgentDaemonConfigReader } from '../agent/routine-schedule-promotion.ts';
-import { resolveAgentDaemonConnection } from '../agent/routine-schedule-promotion.ts';
+import type { AgentConnectedHostConfigReader } from '../agent/routine-schedule-promotion.ts';
+import { resolveAgentConnectedHostConnection } from '../agent/routine-schedule-promotion.ts';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -20,7 +20,7 @@ interface OperatorRouteSuccess {
 interface OperatorRouteFailure {
   readonly ok: false;
   readonly route: OperatorRouteDescriptor;
-  readonly kind: 'auth_required' | 'daemon_unavailable' | 'route_unavailable' | 'daemon_error';
+  readonly kind: 'auth_required' | 'connected_host_unavailable' | 'route_unavailable' | 'connected_host_error';
   readonly error: string;
 }
 
@@ -81,7 +81,7 @@ function classifyHttpFailure(route: OperatorRouteDescriptor, status: number, bod
       ? 'auth_required'
       : status === 404
         ? 'route_unavailable'
-        : 'daemon_error',
+        : 'connected_host_error',
     error: `HTTP ${status}${detail ? `: ${detail}` : ''}`,
   };
 }
@@ -102,7 +102,7 @@ async function fetchOperatorRoute(
     return {
       ok: false,
       route,
-      kind: 'daemon_unavailable',
+      kind: 'connected_host_unavailable',
       error: summarizeFetchError(error),
     };
   }
@@ -163,7 +163,7 @@ function formatBriefing(baseUrl: string, results: readonly OperatorRouteResult[]
 
 export function createAgentOperatorBriefingTool(
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentConnectedHostConfigReader,
 ): Tool {
   return {
     definition: {
@@ -182,11 +182,11 @@ export function createAgentOperatorBriefingTool(
       sideEffects: ['network'],
     },
     execute: async () => {
-      const connection = resolveAgentDaemonConnection(configManager, shellPaths.homeDirectory);
+      const connection = resolveAgentConnectedHostConnection(configManager, shellPaths.homeDirectory);
       if (!connection.token) {
         return {
           success: false,
-          error: `auth_required: no runtime operator token found at ${connection.tokenPath}`,
+          error: `auth_required: no connected-host operator token found at ${connection.tokenPath}`,
         };
       }
       const results: OperatorRouteResult[] = [];
@@ -204,7 +204,7 @@ export function createAgentOperatorBriefingTool(
 export function registerAgentOperatorBriefingTool(
   registry: ToolRegistry,
   shellPaths: ShellPathService,
-  configManager: AgentDaemonConfigReader,
+  configManager: AgentConnectedHostConfigReader,
 ): void {
   registry.register(createAgentOperatorBriefingTool(shellPaths, configManager));
 }

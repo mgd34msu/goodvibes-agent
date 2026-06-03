@@ -16,11 +16,11 @@ type ScheduleCreateOutput = OperatorMethodOutput<'schedules.create'>;
 type ScheduleDeliveryInput = NonNullable<ScheduleCreateInput['delivery']>;
 type ScheduleDeliveryTargetInput = ScheduleDeliveryInput['targets'] extends readonly (infer T)[] ? T : never;
 
-export interface AgentDaemonConfigReader {
+export interface AgentConnectedHostConfigReader {
   get(key: string): unknown;
 }
 
-export interface AgentDaemonConnection {
+export interface AgentConnectedHostConnection {
   readonly baseUrl: string;
   readonly token: string | null;
   readonly tokenPath: string;
@@ -105,14 +105,14 @@ export interface RoutineSchedulePromotionFailure {
   readonly kind:
     | 'confirmation_required'
     | 'auth_required'
-    | 'daemon_unavailable'
+    | 'connected_host_unavailable'
     | 'version_mismatch'
-    | 'daemon_route_unavailable'
-    | 'daemon_error';
+    | 'connected_host_route_unavailable'
+    | 'connected_host_error';
   readonly error: string;
   readonly route: typeof ROUTINE_SCHEDULE_ROUTE;
   readonly baseUrl?: string;
-  readonly daemonVersion?: string;
+  readonly connectedHostVersion?: string;
   readonly expectedSdkVersion?: string;
 }
 
@@ -128,7 +128,7 @@ export interface RoutineScheduleReceipt {
   readonly route: typeof ROUTINE_SCHEDULE_ROUTE;
   readonly method: typeof ROUTINE_SCHEDULE_METHOD;
   readonly status: 'created' | 'failed';
-  readonly daemonBaseUrl: string;
+  readonly connectedHostBaseUrl: string;
   readonly scheduleId?: string;
   readonly scheduleStatus?: string;
   readonly scheduleName: string;
@@ -191,14 +191,14 @@ export interface RoutineScheduleCorrelationFailure {
   readonly ok: false;
   readonly kind:
     | 'auth_required'
-    | 'daemon_unavailable'
+    | 'connected_host_unavailable'
     | 'version_mismatch'
-    | 'daemon_route_unavailable'
-    | 'daemon_error';
+    | 'connected_host_route_unavailable'
+    | 'connected_host_error';
   readonly error: string;
   readonly route: typeof ROUTINE_SCHEDULE_ROUTE;
   readonly baseUrl?: string;
-  readonly daemonVersion?: string;
+  readonly connectedHostVersion?: string;
   readonly expectedSdkVersion?: string;
 }
 
@@ -243,10 +243,10 @@ function toDeliveryTargetInput(target: RoutineScheduleDeliveryTargetSpec): Sched
   };
 }
 
-export function resolveAgentDaemonConnection(
-  configManager: AgentDaemonConfigReader,
+export function resolveAgentConnectedHostConnection(
+  configManager: AgentConnectedHostConfigReader,
   homeDirectory: string,
-): AgentDaemonConnection {
+): AgentConnectedHostConnection {
   const host = String(configManager.get('controlPlane.host') ?? '127.0.0.1');
   const port = Number(configManager.get('controlPlane.port') ?? 3421);
   const tokenPath = join(homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
@@ -354,7 +354,7 @@ export function buildRoutineSchedulePreview(
   };
 }
 
-async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{
+async function fetchConnectedHostStatus(connection: AgentConnectedHostConnection): Promise<{
   readonly ok: boolean;
   readonly status: number;
   readonly body: unknown;
@@ -378,7 +378,7 @@ async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{
 
 async function classifyScheduleError(
   error: unknown,
-  connection: AgentDaemonConnection,
+  connection: AgentConnectedHostConnection,
 ): Promise<RoutineSchedulePromotionFailure> {
   const message = summarizeError(error);
   const lower = message.toLowerCase();
@@ -386,30 +386,30 @@ async function classifyScheduleError(
     return { ok: false, kind: 'auth_required', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
   }
   if (lower.includes('404') || lower.includes('not found')) {
-    const daemon = await fetchDaemonStatus(connection);
-    const record = isRecord(daemon.body) ? daemon.body : {};
-    const daemonVersion = readString(record, 'version') ?? 'unknown';
-    if (daemon.ok && daemonVersion !== SDK_VERSION) {
+    const connectedHost = await fetchConnectedHostStatus(connection);
+    const record = isRecord(connectedHost.body) ? connectedHost.body : {};
+    const connectedHostVersion = readString(record, 'version') ?? 'unknown';
+    if (connectedHost.ok && connectedHostVersion !== SDK_VERSION) {
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `Connected GoodVibes service SDK version ${daemonVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
+        error: `Connected GoodVibes service SDK version ${connectedHostVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
         route: ROUTINE_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
-        daemonVersion,
+        connectedHostVersion,
         expectedSdkVersion: SDK_VERSION,
       };
     }
-    return { ok: false, kind: 'daemon_route_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+    return { ok: false, kind: 'connected_host_route_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
   }
   if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
-    return { ok: false, kind: 'daemon_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+    return { ok: false, kind: 'connected_host_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
   }
-  return { ok: false, kind: 'daemon_error', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  return { ok: false, kind: 'connected_host_error', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
 }
 
-export async function promoteRoutineToDaemonSchedule(
-  connection: AgentDaemonConnection,
+export async function promoteRoutineToConnectedSchedule(
+  connection: AgentConnectedHostConnection,
   preview: RoutineSchedulePromotionPreview,
 ): Promise<RoutineSchedulePromotionResult> {
   if (!connection.token) {

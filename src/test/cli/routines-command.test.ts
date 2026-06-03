@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
+import { routineScheduleReceiptStorePath } from '../../agent/routine-schedule-receipts.ts';
 import { handleRoutinesCommand } from '../../cli/routines-command.ts';
 import { parseGoodVibesCli } from '../../cli/parser.ts';
+import { SDK_VERSION } from '../../version.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
 const roots: string[] = [];
@@ -385,19 +387,123 @@ describe('routines CLI command', () => {
       const receipt = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'receipt', receiptId!]) });
       expect(receipt.exitCode).toBe(0);
       expect(receipt.output).toContain('Agent routine schedule receipt');
+      expect(receipt.output).toContain('connected host: http://127.0.0.1:3421');
       expect(receipt.output).toContain('cadence: cron 0 8 * * *');
       expect(receipt.output).toContain('delivery: surface');
       expect(receipt.output).toContain('delivery target: channel/slack route=route-slack label=Ops');
+      expect(receipt.output).not.toContain('runtime:');
+
+      const receiptJson = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'receipt', receiptId!, '--json']) });
+      const receiptPayload = JSON.parse(receiptJson.output) as {
+        readonly data?: {
+          readonly connectedHostBaseUrl?: unknown;
+          readonly daemonBaseUrl?: unknown;
+        };
+      };
+      expect(receiptPayload.data?.connectedHostBaseUrl).toBe('http://127.0.0.1:3421');
+      expect(Object.prototype.hasOwnProperty.call(receiptPayload.data as object, 'daemonBaseUrl')).toBe(false);
 
       const reconciled = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'reconcile']) });
       expect(reconciled.exitCode).toBe(0);
       expect(reconciled.output).toContain('Agent routine schedule reconciliation');
+      expect(reconciled.output).toContain('connected host: http://127.0.0.1:3421');
       expect(reconciled.output).toContain('matched: 1');
       expect(reconciled.output).toContain('live=sched-cli-1');
       expect(requests.some((request) => request.method === 'GET' && request.url === 'http://127.0.0.1:3421/api/automation/schedules')).toBe(true);
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  test('normalizes connected-host schedule failures and writes new receipt host fields', async () => {
+    const requests: Array<{ readonly url: string; readonly method: string }> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      const url = inputUrl(input);
+      requests.push({ url, method: init?.method ?? 'GET' });
+      if (url === 'http://127.0.0.1:3421/status') {
+        return new Response(JSON.stringify({ version: SDK_VERSION }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      throw new Error('Route not found: /api/automation/schedules (404)');
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleRoutinesCommand(runtime([
+        'promote',
+        'daily-operations-sweep',
+        '--cron',
+        '0 8 * * *',
+        '--yes',
+        '--json',
+      ]));
+      const payload = JSON.parse(result.output) as {
+        readonly kind?: unknown;
+        readonly connectedHostVersion?: unknown;
+        readonly daemonVersion?: unknown;
+        readonly receipt?: {
+          readonly connectedHostBaseUrl?: unknown;
+          readonly daemonBaseUrl?: unknown;
+          readonly failureKind?: unknown;
+        };
+      };
+
+      expect(result.exitCode).toBe(1);
+      expect(requests.map((request) => request.url)).toEqual([
+        'http://127.0.0.1:3421/api/automation/schedules',
+        'http://127.0.0.1:3421/status',
+      ]);
+      expect(payload.kind).toBe('connected_host_route_unavailable');
+      expect(payload.connectedHostVersion).toBeUndefined();
+      expect(Object.prototype.hasOwnProperty.call(payload as object, 'daemonVersion')).toBe(false);
+      expect(payload.receipt?.connectedHostBaseUrl).toBe('http://127.0.0.1:3421');
+      expect(payload.receipt?.failureKind).toBe('connected_host_route_unavailable');
+      expect(Object.prototype.hasOwnProperty.call(payload.receipt as object, 'daemonBaseUrl')).toBe(false);
+      expect(result.output).not.toContain('daemon_');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('reads legacy daemon-named schedule receipts as connected-host receipts', async () => {
+    const baseRuntime = runtime(['receipt', 'legacy-receipt']);
+    const shellPaths = createShellPathService({
+      workingDirectory: baseRuntime.workingDirectory,
+      homeDirectory: baseRuntime.homeDirectory,
+    });
+    const receiptPath = routineScheduleReceiptStorePath(shellPaths);
+    mkdirSync(dirname(receiptPath), { recursive: true });
+    writeFileSync(receiptPath, `${JSON.stringify({
+      version: 1,
+      receipts: [
+        {
+          id: 'legacy-receipt',
+          createdAt: '2026-06-02T12:00:00.000Z',
+          routineId: 'daily-operations-sweep',
+          routineName: 'Daily Operations Sweep',
+          route: '/api/automation/schedules',
+          method: 'schedules.create',
+          status: 'failed',
+          daemonBaseUrl: 'http://127.0.0.1:3421',
+          scheduleName: 'Agent routine: Daily Operations Sweep',
+          scheduleKind: 'cron',
+          scheduleValue: '0 8 * * *',
+          enabled: true,
+          target: { kind: 'main', surfaceKind: 'service' },
+          failureKind: 'daemon_unavailable',
+          failureError: 'connect failed',
+        },
+      ],
+    }, null, 2)}\n`);
+
+    const result = await handleRoutinesCommand(baseRuntime);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain('connected host: http://127.0.0.1:3421');
+    expect(result.output).toContain('failure: connected_host_unavailable');
+    expect(result.output).not.toContain('runtime:');
   });
 
   test('rejects mixed delivery target kinds without calling the connected host', async () => {

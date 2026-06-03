@@ -12,7 +12,7 @@ import {
   ROUTINE_SCHEDULE_LIST_METHOD,
   ROUTINE_SCHEDULE_METHOD,
   ROUTINE_SCHEDULE_ROUTE,
-  type AgentDaemonConnection,
+  type AgentConnectedHostConnection,
   type RoutineScheduleCorrelation,
   type RoutineScheduleCorrelationFailure,
   type RoutineScheduleCorrelationResult,
@@ -82,6 +82,15 @@ function redactedDeliveryTargets(delivery: ScheduleDeliveryInput | undefined): r
   }));
 }
 
+function normalizeFailureKind(value: unknown): RoutineScheduleReceipt['failureKind'] {
+  if (value === 'confirmation_required' || value === 'auth_required' || value === 'version_mismatch') return value;
+  if (value === 'connected_host_unavailable' || value === 'connected_host_route_unavailable' || value === 'connected_host_error') return value;
+  if (value === 'daemon_unavailable') return 'connected_host_unavailable';
+  if (value === 'daemon_route_unavailable') return 'connected_host_route_unavailable';
+  if (value === 'daemon_error') return 'connected_host_error';
+  return undefined;
+}
+
 function readReceipt(value: unknown): RoutineScheduleReceipt | null {
   if (!isRecord(value)) return null;
   const id = readString(value, 'id')?.trim();
@@ -120,7 +129,7 @@ function readReceipt(value: unknown): RoutineScheduleReceipt | null {
     route: ROUTINE_SCHEDULE_ROUTE,
     method: ROUTINE_SCHEDULE_METHOD,
     status,
-    daemonBaseUrl: readString(value, 'daemonBaseUrl') ?? '',
+    connectedHostBaseUrl: readString(value, 'connectedHostBaseUrl') ?? readString(value, 'daemonBaseUrl') ?? '',
     scheduleId: readString(value, 'scheduleId') ?? undefined,
     scheduleStatus: readString(value, 'scheduleStatus') ?? undefined,
     scheduleName: readString(value, 'scheduleName') ?? routineName,
@@ -138,14 +147,7 @@ function readReceipt(value: unknown): RoutineScheduleReceipt | null {
     },
     deliveryMode: readString(value, 'deliveryMode') ?? undefined,
     deliveryTargets,
-    failureKind: value.failureKind === 'confirmation_required'
-      || value.failureKind === 'auth_required'
-      || value.failureKind === 'daemon_unavailable'
-      || value.failureKind === 'version_mismatch'
-      || value.failureKind === 'daemon_route_unavailable'
-      || value.failureKind === 'daemon_error'
-      ? value.failureKind
-      : undefined,
+    failureKind: normalizeFailureKind(value.failureKind),
     failureError: readString(value, 'failureError') ?? undefined,
   };
 }
@@ -209,7 +211,7 @@ function resultScheduleRecord(result: RoutineSchedulePromotionResult): Record<st
 
 function buildReceipt(
   existing: readonly RoutineScheduleReceipt[],
-  connection: AgentDaemonConnection,
+  connection: AgentConnectedHostConnection,
   preview: RoutineSchedulePromotionPreview,
   result: RoutineSchedulePromotionResult,
 ): RoutineScheduleReceipt {
@@ -226,7 +228,7 @@ function buildReceipt(
     route: ROUTINE_SCHEDULE_ROUTE,
     method: ROUTINE_SCHEDULE_METHOD,
     status: result.ok ? 'created' : 'failed',
-    daemonBaseUrl: connection.baseUrl,
+    connectedHostBaseUrl: connection.baseUrl,
     scheduleId,
     scheduleStatus,
     scheduleName: String(preview.payload.name ?? `Agent routine: ${preview.routineName}`),
@@ -269,7 +271,7 @@ export class RoutineScheduleReceiptStore {
     return this.snapshot().receipts.find((receipt) => receipt.id.toLowerCase() === normalized) ?? null;
   }
 
-  public append(connection: AgentDaemonConnection, preview: RoutineSchedulePromotionPreview, result: RoutineSchedulePromotionResult): RoutineScheduleReceipt {
+  public append(connection: AgentConnectedHostConnection, preview: RoutineSchedulePromotionPreview, result: RoutineSchedulePromotionResult): RoutineScheduleReceipt {
     const store = this.readStore();
     const receipt = buildReceipt(store.receipts, connection, preview, result);
     this.writeStore({ ...store, receipts: [...store.receipts, receipt] });
@@ -415,7 +417,7 @@ function correlateReceipts(
   });
 }
 
-async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{
+async function fetchConnectedHostStatus(connection: AgentConnectedHostConnection): Promise<{
   readonly ok: boolean;
   readonly status: number;
   readonly body: unknown;
@@ -439,7 +441,7 @@ async function fetchDaemonStatus(connection: AgentDaemonConnection): Promise<{
 
 async function classifyScheduleListError(
   error: unknown,
-  connection: AgentDaemonConnection,
+  connection: AgentConnectedHostConnection,
 ): Promise<RoutineScheduleCorrelationFailure> {
   const message = summarizeError(error);
   const lower = message.toLowerCase();
@@ -447,30 +449,30 @@ async function classifyScheduleListError(
     return { ok: false, kind: 'auth_required', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
   }
   if (lower.includes('404') || lower.includes('not found')) {
-    const daemon = await fetchDaemonStatus(connection);
-    const record = isRecord(daemon.body) ? daemon.body : {};
-    const daemonVersion = readString(record, 'version') ?? 'unknown';
-    if (daemon.ok && daemonVersion !== SDK_VERSION) {
+    const connectedHost = await fetchConnectedHostStatus(connection);
+    const record = isRecord(connectedHost.body) ? connectedHost.body : {};
+    const connectedHostVersion = readString(record, 'version') ?? 'unknown';
+    if (connectedHost.ok && connectedHostVersion !== SDK_VERSION) {
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `Connected GoodVibes service SDK version ${daemonVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.list is unavailable.`,
+        error: `Connected GoodVibes service SDK version ${connectedHostVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.list is unavailable.`,
         route: ROUTINE_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
-        daemonVersion,
+        connectedHostVersion,
         expectedSdkVersion: SDK_VERSION,
       };
     }
-    return { ok: false, kind: 'daemon_route_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+    return { ok: false, kind: 'connected_host_route_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
   }
   if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
-    return { ok: false, kind: 'daemon_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+    return { ok: false, kind: 'connected_host_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
   }
-  return { ok: false, kind: 'daemon_error', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  return { ok: false, kind: 'connected_host_error', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
 }
 
 export async function reconcileRoutineScheduleReceipts(
-  connection: AgentDaemonConnection,
+  connection: AgentConnectedHostConnection,
   snapshot: RoutineScheduleReceiptSnapshot,
 ): Promise<RoutineScheduleCorrelationResult> {
   if (!connection.token) {

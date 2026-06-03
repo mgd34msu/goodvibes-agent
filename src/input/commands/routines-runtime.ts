@@ -3,8 +3,8 @@ import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineR
 import { buildAgentSkillRequirements, formatAgentSkillRequirement } from '../../agent/skill-registry.ts';
 import {
   buildRoutineSchedulePreview,
-  promoteRoutineToDaemonSchedule,
-  resolveAgentDaemonConnection,
+  promoteRoutineToConnectedSchedule,
+  resolveAgentConnectedHostConnection,
 } from '../../agent/routine-schedule-promotion.ts';
 import { parseRoutineSchedulePromotionArgs } from '../../agent/routine-schedule-args.ts';
 import {
@@ -233,8 +233,8 @@ async function promoteRoutine(args: readonly string[], routineRegistry: AgentRou
     return;
   }
   const shellPaths = requireShellPaths(ctx);
-  const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
-  const result = await promoteRoutineToDaemonSchedule(connection, preview);
+  const connection = resolveAgentConnectedHostConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+  const result = await promoteRoutineToConnectedSchedule(connection, preview);
   const receipt = receiptStoreFromContext(ctx).append(connection, preview, result);
   ctx.print(result.ok ? `${formatRoutineScheduleSuccess(result)}\n  receipt: ${receipt.id}` : `${formatRoutineScheduleFailure(result)}\n  receipt: ${receipt.id}`);
 }
@@ -286,7 +286,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
     }
     if (sub === 'reconcile' || sub === 'sync' || sub === 'status') {
       const shellPaths = requireShellPaths(ctx);
-      const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+      const connection = resolveAgentConnectedHostConnection(ctx.platform.configManager, shellPaths.homeDirectory);
       const result = await reconcileRoutineScheduleReceipts(connection, receiptStoreFromContext(ctx).snapshot());
       ctx.print(formatRoutineScheduleCorrelation(result));
       return;

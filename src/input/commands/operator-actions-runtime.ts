@@ -7,7 +7,7 @@ import {
   postOperatorAction,
   type OperatorActionId,
 } from '../../agent/operator-actions.ts';
-import { resolveAgentDaemonConnection } from '../../agent/routine-schedule-promotion.ts';
+import { resolveAgentConnectedHostConnection } from '../../agent/routine-schedule-promotion.ts';
 import { requireShellPaths } from './runtime-services.ts';
 import { stripYesFlag } from './confirmation.ts';
 
@@ -76,7 +76,7 @@ export async function executeConfirmedOperatorAction(
     return;
   }
   const shellPaths = requireShellPaths(ctx);
-  const connection = resolveAgentDaemonConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+  const connection = resolveAgentConnectedHostConnection(ctx.platform.configManager, shellPaths.homeDirectory);
   const result = await postOperatorAction(connection, request);
   ctx.print(result.ok ? formatOperatorActionSuccess(connection.baseUrl, result) : formatOperatorActionFailure(result));
 }
