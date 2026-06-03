@@ -345,6 +345,14 @@ describe('package CLI install verification', () => {
     expect(source).not.toContain("assertPackagePolicy(stageDir, 'staged package')");
   });
 
+  test('release workflow can smoke test a just-published Bun registry version', () => {
+    const releaseWorkflowPath = resolve(import.meta.dir, '../../..', '.github', 'workflows', 'release.yml');
+    const source = readFileSync(releaseWorkflowPath, 'utf-8');
+
+    expect(source).toContain('Bun registry install smoke');
+    expect(source).toContain('bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org --minimum-release-age 0');
+  });
+
   test('release script stages the 1.0 release evidence bundle', () => {
     const paths = releaseMetadataPaths(resolve(import.meta.dir, '../../..'));
 

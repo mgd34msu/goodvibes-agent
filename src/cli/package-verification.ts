@@ -1413,7 +1413,7 @@ function verifyGithubReleaseWorkflowPolicy(root: string): readonly string[] {
     { marker: 'Bun registry install smoke', label: 'registry install smoke step' },
     { marker: 'TOKEN_SENTINEL="goodvibes-agent-registry-smoke-token-do-not-print', label: 'connected-host token sentinel' },
     { marker: 'operator-tokens.json', label: 'connected-host token sentinel fixture' },
-    { marker: 'bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org', label: 'exact Bun global registry install' },
+    { marker: 'bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org --minimum-release-age 0', label: 'exact Bun global registry install' },
     { marker: 'grep -Fq "${TOKEN_SENTINEL}"', label: 'token sentinel leak check' },
     { marker: 'run_installed_agent "--version"', label: 'installed --version smoke' },
     { marker: 'run_installed_agent "--help"', label: 'installed --help smoke' },

@@ -239,7 +239,7 @@ jobs:
           export BUN_INSTALL="${TMP_ROOT}/bun"
           export GOODVIBES_WORKING_DIR="${TMP_ROOT}/workspace"
 
-          bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org
+          bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org --minimum-release-age 0
           export PATH="${TMP_ROOT}/bun/bin:${PATH}"
 
           redact() {
