@@ -456,7 +456,7 @@ async function classifyScheduleListError(
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `Connected GoodVibes service SDK version ${connectedHostVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.list is unavailable.`,
+        error: `Connected GoodVibes host SDK version ${connectedHostVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.list is unavailable.`,
         route: ROUTINE_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
         connectedHostVersion,

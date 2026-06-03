@@ -445,7 +445,7 @@ async function classifyReminderScheduleError(
       return {
         ok: false,
         kind: 'version_mismatch',
-        error: `Connected GoodVibes service SDK version ${connectedHostVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
+        error: `Connected GoodVibes host SDK version ${connectedHostVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
         route: REMINDER_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
         connectedHostVersion,
