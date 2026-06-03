@@ -125,12 +125,12 @@ export class MemoryPanel extends SearchableListPanel<MemoryRecord> {
   protected override getEmptyStateMessage() {
     return this.searchQuery
       ? ` No records matching "${this.searchQuery}"`
-      : ' No memory records. Use /recall add <class> <summary> to create one.';
+      : ' No memory records. Use /memory add <class> <summary> to create one.';
   }
   protected override getEmptyStateActions() {
     return [
-      { command: '/recall add fact <summary>', summary: 'capture a durable fact directly' },
-      { command: '/recall capture incident latest', summary: 'promote the latest incident into memory' },
+      { command: '/memory add fact <summary>', summary: 'capture a durable fact directly' },
+      { command: '/memory capture incident latest', summary: 'promote the latest incident into memory' },
     ];
   }
 
@@ -189,7 +189,7 @@ export class MemoryPanel extends SearchableListPanel<MemoryRecord> {
         { label: 'runbooks', value: String(byClass.get('runbook') ?? 0), valueColor: C.runbook },
       ], C),
       filterLine,
-      buildGuidanceLine(width, '/recall review', 'review durable knowledge and queue posture from the command workspace', C),
+      buildGuidanceLine(width, '/memory review', 'review durable memory and queue posture from the command workspace', C),
     ];
 
     const selected = records[this.selectedIndex];

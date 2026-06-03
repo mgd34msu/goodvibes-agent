@@ -43,6 +43,8 @@ describe('KnowledgePanel', () => {
     expect(text).toContain('/api/goodvibes-agent/knowledge/*');
     expect(text).toContain('No Agent Knowledge sources or local memory review records');
     expect(text).toContain('Suggested next steps');
+    expect(text).toContain('/memory add fact <summary>');
+    expect(text).not.toContain('/recall');
   });
 
   test('renders isolated Agent Knowledge status when service is available', async () => {
@@ -92,6 +94,8 @@ describe('KnowledgePanel', () => {
     expect(text).toContain('MCP deploy surface');
     expect(text).toContain('Review Queue');
     expect(text).toContain('stale');
+    expect(text).toContain('/memory review');
+    expect(text).not.toContain('/recall');
   });
 
   test('supports operator review actions from the panel', async () => {

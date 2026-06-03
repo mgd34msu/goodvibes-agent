@@ -105,7 +105,7 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
       { command: '/knowledge status', summary: 'inspect the isolated Agent Knowledge store' },
       { command: '/knowledge ingest-url <url> --yes', summary: 'ingest source-backed material into Agent Knowledge only' },
       { command: '/knowledge queue', summary: 'review Agent Knowledge issues' },
-      { command: '/recall add fact <summary>', summary: 'capture a local non-secret memory record when appropriate' },
+      { command: '/memory add fact <summary>', summary: 'capture a local non-secret memory record when appropriate' },
     ];
   }
 
@@ -335,7 +335,7 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
         ['  project ', C.label], [String(byScope.get('project') ?? 0), C.value],
         ['  team ', C.label], [String(byScope.get('team') ?? 0), C.good],
       ]),
-      buildGuidanceLine(width, '/recall review', 'work the stale and contradicted queue from the command workspace', C),
+      buildGuidanceLine(width, '/memory review', 'work the stale and contradicted queue from the command workspace', C),
     ];
 
     const recentSummaryLines: Line[] = [];
