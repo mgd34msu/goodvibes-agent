@@ -19,6 +19,10 @@ interface CommandDetailLookup {
   readonly resolvedBy: 'name' | 'alias' | 'case-insensitive-name' | 'case-insensitive-alias' | 'description' | 'prefix';
 }
 
+type CommandDetailResolution =
+  | { readonly status: 'found'; readonly command: SlashCommand; readonly lookup: CommandDetailLookup }
+  | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] };
+
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -67,6 +71,16 @@ function describeCommand(command: SlashCommand, lookup?: CommandDetailLookup): R
   };
 }
 
+function describeCommandCandidate(command: SlashCommand): Record<string, unknown> {
+  return {
+    name: command.name,
+    slash: `/${command.name}`,
+    aliases: command.aliases ?? [],
+    description: command.description,
+    usage: command.usage ?? '',
+  };
+}
+
 function commandDetailLookupFromArgs(args: AgentHarnessCommandCatalogArgs): Omit<CommandDetailLookup, 'resolvedBy'> | null {
   const rawCommand = readString(args.command);
   if (rawCommand) {
@@ -97,12 +111,13 @@ function commandDetailLookupFromArgs(args: AgentHarnessCommandCatalogArgs): Omit
   return null;
 }
 
-function resolveCommandDetail(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): { readonly command: SlashCommand; readonly lookup: CommandDetailLookup } | null {
+function resolveCommandDetail(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): CommandDetailResolution | null {
   const lookup = commandDetailLookupFromArgs(args);
   if (!lookup?.parsedName) return null;
   const direct = commandRegistry.get(lookup.parsedName);
   if (direct) {
     return {
+      status: 'found',
       command: direct,
       lookup: {
         ...lookup,
@@ -114,21 +129,35 @@ function resolveCommandDetail(commandRegistry: CommandRegistry, args: AgentHarne
   const normalized = lookup.parsedName.toLowerCase();
   for (const command of commandRegistry.list()) {
     if (command.name.toLowerCase() === normalized) {
-      return { command, lookup: { ...lookup, resolvedBy: 'case-insensitive-name' } };
+      return { status: 'found', command, lookup: { ...lookup, resolvedBy: 'case-insensitive-name' } };
     }
     if ((command.aliases ?? []).some((alias) => alias.toLowerCase() === normalized)) {
-      return { command, lookup: { ...lookup, resolvedBy: 'case-insensitive-alias' } };
+      return { status: 'found', command, lookup: { ...lookup, resolvedBy: 'case-insensitive-alias' } };
     }
   }
 
   const descriptionMatches = commandRegistry.list().filter((command) => commandMatches(command, lookup.input));
   if (descriptionMatches.length === 1) {
-    return { command: descriptionMatches[0]!, lookup: { ...lookup, resolvedBy: 'description' } };
+    return { status: 'found', command: descriptionMatches[0]!, lookup: { ...lookup, resolvedBy: 'description' } };
+  }
+  if (descriptionMatches.length > 1) {
+    return {
+      status: 'ambiguous',
+      input: lookup.input,
+      candidates: descriptionMatches.map(describeCommandCandidate).slice(0, 8),
+    };
   }
 
   const prefixMatches = commandRegistry.fuzzyMatch(lookup.parsedName).filter((entry) => entry.score >= 80);
   if (prefixMatches.length === 1) {
-    return { command: prefixMatches[0]!.command, lookup: { ...lookup, resolvedBy: 'prefix' } };
+    return { status: 'found', command: prefixMatches[0]!.command, lookup: { ...lookup, resolvedBy: 'prefix' } };
+  }
+  if (prefixMatches.length > 1) {
+    return {
+      status: 'ambiguous',
+      input: lookup.input,
+      candidates: prefixMatches.map((entry) => describeCommandCandidate(entry.command)).slice(0, 8),
+    };
   }
   return null;
 }
@@ -145,5 +174,7 @@ export function listHarnessCommands(commandRegistry: CommandRegistry, args: Agen
 
 export function describeHarnessCommand(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): Record<string, unknown> | null {
   const detail = resolveCommandDetail(commandRegistry, args);
-  return detail ? describeCommand(detail.command, detail.lookup) : null;
+  if (detail?.status === 'found') return describeCommand(detail.command, detail.lookup);
+  if (detail?.status === 'ambiguous') return { status: 'ambiguous', input: detail.input, candidates: detail.candidates };
+  return null;
 }

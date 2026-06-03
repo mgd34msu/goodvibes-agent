@@ -1274,6 +1274,12 @@ describe('agent_harness tool', () => {
         usage: '<action>',
         handler: () => {},
       });
+      fixture.commandRegistry.register({
+        name: 'memory-review',
+        description: 'Review Agent-local memory records',
+        usage: '<id>',
+        handler: () => {},
+      });
 
       const typed = await fixture.tool.execute({ mode: 'command', command: '/mem list --reviewed' });
       expect(typed.success).toBe(true);
@@ -1304,6 +1310,12 @@ describe('agent_harness tool', () => {
       expect(described.success).toBe(true);
       expect(described.output).toContain('"resolvedBy": "description"');
       expect(described.output).toContain('"name": "brief"');
+
+      const ambiguous = await fixture.tool.execute({ mode: 'command', query: 'Agent-local memory records' });
+      expect(ambiguous.success).toBe(true);
+      expect(ambiguous.output).toContain('"status": "ambiguous"');
+      expect(ambiguous.output).toContain('"name": "memory"');
+      expect(ambiguous.output).toContain('"name": "memory-review"');
 
       const missing = await fixture.tool.execute({ mode: 'command', query: 'not-a-command' });
       expect(missing.success).toBe(false);
