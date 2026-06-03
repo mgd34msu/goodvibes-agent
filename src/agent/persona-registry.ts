@@ -376,6 +376,6 @@ export function buildActivePersonaPrompt(shellPaths: ShellPathService): string |
     '',
     active.body,
     '',
-    'Apply this persona inside the same serial assistant conversation. Do not launch local workers because a persona is active.',
+    'Apply this persona inside the same serial assistant conversation. Do not spawn separate Agent jobs because a persona is active.',
   ].join('\n');
 }

@@ -50,7 +50,7 @@ export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspace
       mode: 'create',
       title: 'Seed Planning Goal',
       selectedFieldIndex: 0,
-      message: 'Seed Agent planning state from a concrete goal. This stays in the main Agent planning flow and does not create local coding workers.',
+      message: 'Seed Agent planning state from a concrete goal. This stays in the main Agent planning flow and does not create coding-role Agent jobs.',
       fields: [
         { id: 'goal', label: 'Planning goal', value: '', required: true, multiline: true, hint: 'Describe the goal or operating plan to evaluate. Ctrl-J inserts a new line.' },
       ],

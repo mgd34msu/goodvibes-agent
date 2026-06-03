@@ -114,7 +114,7 @@ Day-one local behavior setup should stay in the fullscreen workspace:
 
 Typed slash commands are available for repeat users, but they are not required for the first-run workflow.
 
-The active persona plus enabled Agent routines, reviewed memory, and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default knowledge or non-Agent knowledge segments.
+The active persona plus enabled Agent routines, reviewed memory, and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps in the main conversation; it does not start background automation. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default knowledge or non-Agent knowledge segments.
 
 Use `/channels` inside the TUI for channel readiness and exact confirmed sends. Readiness views show enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values. Companion pairing is QR-first; `/pair` hides the raw token in text, and manual token display requires `/pair --show-token --yes`. `/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit delivery through configured strategies.
 
@@ -138,4 +138,4 @@ Host lifecycle commands are not part of GoodVibes Agent. Use Agent Workspace -> 
 
 ## Current Product Notes
 
-Agent uses the mature GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/worker fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.
+Agent uses the mature GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/job fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.

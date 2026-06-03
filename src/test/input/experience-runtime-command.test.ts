@@ -23,7 +23,8 @@ describe('experience runtime commands', () => {
     await command!.handler(['open'], makeContext(out, opened));
 
     expect(opened).toEqual([]);
-    expect(out.join('\n')).toContain('Use /approval matrix');
+    expect(out.join('\n')).toContain('Open Agent Workspace -> Work -> Review approvals');
+    expect(out.join('\n')).toContain('or run /approval matrix');
   });
 
   test('approval matrix remains a read-only transcript summary', async () => {
@@ -50,7 +51,8 @@ describe('experience runtime commands', () => {
     await command!.handler(['open'], makeContext(out, opened));
 
     expect(opened).toEqual([]);
-    expect(out.join('\n')).toContain('Use /accounts review');
+    expect(out.join('\n')).toContain('Open Agent Workspace -> Setup -> Provider accounts');
+    expect(out.join('\n')).toContain('or run /accounts review');
   });
 
   test('health open is guidance-only in Agent before read-model requirements', async () => {
@@ -62,6 +64,7 @@ describe('experience runtime commands', () => {
 
     await command!.handler(['open'], makeContext(out, []));
 
-    expect(out.join('\n')).toContain('Use /health review');
+    expect(out.join('\n')).toContain('Open Agent Workspace -> Home -> Review health');
+    expect(out.join('\n')).toContain('or run /health review');
   });
 });

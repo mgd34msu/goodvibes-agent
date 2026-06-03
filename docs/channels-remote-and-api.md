@@ -21,7 +21,7 @@ Agent-local memory, routines, skills, and personas are not automatically broadca
 
 Normal assistant chat uses companion chat routes. Build/fix/review delegation uses shared-session or task routes only when the user explicitly asks for implementation work.
 
-Do not use shared coding sessions for ordinary chat. Do not create local background workers for routine assistant work.
+Do not use shared coding sessions for ordinary chat. Do not start background automation for routine assistant work.
 
 ## Remote Access
 

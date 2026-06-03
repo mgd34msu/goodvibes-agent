@@ -85,6 +85,9 @@ describe('Agent boundary docs', () => {
       'Knowledge/Wiki',
       'default Knowledge',
       'Default Knowledge',
+      'local worker',
+      'local workers',
+      'local background workers',
     ] as const;
     const offenders: string[] = [];
 

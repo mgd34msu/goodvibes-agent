@@ -184,7 +184,7 @@ describe('Agent operator policy hidden spawn gates', () => {
       enabled: false,
     });
 
-    await expect(services.automationManager.runNow(job.id)).rejects.toThrow('does not create local automation workers');
+    await expect(services.automationManager.runNow(job.id)).rejects.toThrow('does not create local automation jobs');
     expect(services.agentManager.list()).toHaveLength(0);
   });
 
@@ -216,7 +216,7 @@ describe('Agent operator policy hidden spawn gates', () => {
 
     const text = out.join('\n');
     expect(text).toContain('schedule commands are read-only');
-    expect(text).toContain('no hidden local Agent automation workers or immediate automation runs');
+    expect(text).toContain('no hidden local Agent automation jobs or immediate automation runs');
     expect(manager.start).toHaveBeenCalledTimes(0);
     expect(manager.createJob).toHaveBeenCalledTimes(0);
     expect(manager.removeJob).toHaveBeenCalledTimes(0);

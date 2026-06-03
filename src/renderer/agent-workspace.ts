@@ -577,7 +577,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: 'Build/fix/review work is handed to GoodVibes TUI/shared-session contracts.', fg: PALETTE.info },
       { text: `WRFC policy: ${snapshot.wrfcPolicy}`, fg: PALETTE.warn },
-      { text: 'Agent does not create local coding-role workers.', fg: PALETTE.good },
+      { text: 'Agent does not create coding-role Agent jobs.', fg: PALETTE.good },
     );
   }
   if (snapshot.warnings.length > 0) {

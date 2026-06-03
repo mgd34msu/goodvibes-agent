@@ -122,7 +122,7 @@ const READ_ONLY_QUERY_TOOL_MODE_SET = new Set<string>(READ_ONLY_QUERY_TOOL_MODES
 const READ_ONLY_CONTROL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CONTROL_TOOL_MODES);
 
 const LOCAL_AGENT_DENIAL = [
-  'GoodVibes Agent does not create local coding-role workers or run local WRFC chains.',
+  'GoodVibes Agent does not create coding-role Agent jobs or run local WRFC chains.',
   'Keep ordinary assistant work serial in the main conversation.',
   'For explicit build/fix/review work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract with the full original user ask.',
 ].join(' ');
@@ -614,7 +614,7 @@ function isPresent(value: unknown): boolean {
 function narrowAgentToolDefinitionForAgentPolicy(tool: Tool): void {
   tool.definition.description = [
     'Read-only local Agent inspection for GoodVibes Agent.',
-    'This product does not create local worker agents or run local WRFC chains.',
+    'This product does not create separate Agent jobs or run local WRFC chains.',
     'For build/fix/review work, delegate to GoodVibes TUI through the explicit build-delegation path instead.',
   ].join(' ');
   tool.definition.sideEffects = [];
@@ -624,7 +624,7 @@ function narrowAgentToolDefinitionForAgentPolicy(tool: Tool): void {
   const modeProperty = properties.mode;
   if (!isRecord(modeProperty)) return;
   modeProperty.enum = [...READ_ONLY_AGENT_TOOL_MODES];
-  modeProperty.description = 'Read-only Agent inspection mode. Local worker creation, batch creation, cancel, message, wait, and plan modes are disabled in GoodVibes Agent.';
+  modeProperty.description = 'Read-only Agent inspection mode. Separate Agent job creation, batch creation, cancel, message, wait, and plan modes are disabled in GoodVibes Agent.';
 }
 
 function narrowExecToolDefinitionForAgentPolicy(tool: Tool): void {

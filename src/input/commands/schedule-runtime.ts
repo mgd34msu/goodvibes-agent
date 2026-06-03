@@ -66,7 +66,7 @@ function printReadOnlyScheduleBoundary(print: (text: string) => void, requestedA
   print([
     'GoodVibes Agent local schedule commands are read-only in this runtime.',
     `  requested: ${requestedAction}`,
-    '  policy: no hidden local Agent automation workers or immediate automation runs',
+    '  policy: no hidden local Agent automation jobs or immediate automation runs',
     '  use: /schedule list',
     '  connected run route: /automation schedule run <schedule-id> --yes',
     '  schedule route: use /schedule promote-routine <routine> --cron <expr> --yes to create a connected schedule explicitly',

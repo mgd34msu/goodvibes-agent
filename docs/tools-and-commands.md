@@ -37,7 +37,7 @@ High-signal Agent TUI paths:
 
 The installed `goodvibes-agent` command launches the TUI by default. Subcommands such as `status`, `compat`, `knowledge ...`, `ask <question>`, and `search <query>` are secondary scriptable equivalents for diagnostics and automation over the same Agent workspace features.
 
-Host-management and coding-first commands that would imply connected-host lifecycle ownership, local worker creation, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
+Host-management and coding-first commands that would imply connected-host lifecycle ownership, separate Agent job creation, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 
 The main composer supports inline context references. Type `@path/to/file`, `@path/to/folder`, or `@https://example.test/page` in a normal prompt to add bounded context for that turn. `!@path/to/file` remains the raw file-injection form. These references do not ingest anything into Agent Knowledge unless the user explicitly runs a Knowledge ingest action.
 
@@ -75,7 +75,7 @@ Use `/workplan` when the work already has concrete tasks and needs durable statu
 
 ## Delegation
 
-`/delegate` is for explicit build, fix, review, or implementation work. It sends a single delegated request to GoodVibes TUI/shared-session routes with the original user ask and execution intent. Agent does not create local coding-role workers and does not run WRFC by default.
+`/delegate` is for explicit build, fix, review, or implementation work. It sends a single delegated request to GoodVibes TUI/shared-session routes with the original user ask and execution intent. Agent does not create coding-role Agent jobs and does not run WRFC by default.
 
 Use WRFC only when the user explicitly asks for WRFC or when the delegated build/fix/review request explicitly calls for it.
 
@@ -113,7 +113,7 @@ Routine promotion is an explicit scheduling bridge: local routines stay local du
 
 Agent Workspace -> Channels is the primary channel path. It shows readiness, setup, account, policy, and status views without rendering secret values. `Send channel message` opens a confirmed form for one delivery target.
 
-`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create local workers, or run WRFC.
+`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create separate Agent jobs, or run WRFC.
 
 ## Related Docs
 

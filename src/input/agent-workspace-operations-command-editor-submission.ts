@@ -59,7 +59,7 @@ export function buildAgentWorkspaceOperationsCommandEditorSubmission(
       actionResult: {
         kind: 'dispatched',
         title: 'Opening planning goal seeding',
-        detail: 'The workspace handed a concrete planning goal to the shell-owned command router without creating local coding workers.',
+        detail: 'The workspace handed a concrete planning goal to the shell-owned command router without creating coding-role Agent jobs.',
         command,
         safety: 'safe',
       },
