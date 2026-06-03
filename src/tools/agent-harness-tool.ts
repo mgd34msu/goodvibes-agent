@@ -27,6 +27,7 @@ import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
 import {
   connectedHostSummary,
+  describeConnectedHostCapability,
   describeCommandPolicy,
   settingsPolicySummary,
 } from './agent-harness-metadata.ts';
@@ -58,6 +59,7 @@ interface AgentHarnessToolArgs {
   readonly key?: unknown;
   readonly value?: unknown;
   readonly target?: unknown;
+  readonly capabilityId?: unknown;
   readonly category?: unknown;
   readonly prefix?: unknown;
   readonly includeHidden?: unknown;
@@ -513,7 +515,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
       name: 'agent_harness',
       description: [
         'Discover and operate the GoodVibes Agent harness from the main conversation.',
-        'Use this tool to inspect Agent workspace actions, built-in panels, top-level CLI mirrors, UI surfaces, keybindings, slash commands with policy metadata, model tools, connected-host capabilities, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
+        'Use this tool to inspect Agent workspace actions, built-in panels, top-level CLI mirrors, UI surfaces, keybindings, slash commands with policy metadata, model tools, connected-host capabilities or one connected-host capability detail, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
         'Discovery modes are read-only. Setting/keybinding writes, resets, UI routing, slash command invocation, and workspace action invocation require confirm:true plus explicitUserRequest.',
         'This tool preserves Agent product boundaries: connected-host lifecycle and listener posture stay externally owned, connected-host mode reports allowed and blocked route families, and secret-backed settings store raw values through the secret manager while config receives only a secret reference.',
       ].join(' '),
@@ -552,7 +554,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" for editor schemas; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings", mode:"get_setting", mode:"set_setting", and mode:"reset_setting".',
               tools: 'Use mode:"tools" with includeParameters:true to inspect first-class model tool schemas.',
-              connectedHost: 'Use mode:"connected_host" for the connected-host capability map and blocked boundaries.',
+              connectedHost: 'Use mode:"connected_host" for the connected-host capability map and blocked boundaries. Use mode:"connected_host_capability" with capabilityId, target, or query for one allowed or blocked capability.',
               connectedHostStatus: 'Use mode:"connected_host_status" for live read-only host reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
             },
             settingsPolicy: settingsPolicySummary(),
@@ -691,6 +693,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return output({ tools, returned: tools.length, total: deps.toolRegistry.getToolDefinitions().length });
         }
         if (args.mode === 'connected_host') return output(connectedHostSummary(deps.commandContext, deps.toolRegistry));
+        if (args.mode === 'connected_host_capability') {
+          const query = readString(args.capabilityId || args.target || args.query);
+          const capability = describeConnectedHostCapability(deps.toolRegistry, query);
+          return capability
+            ? output(capability)
+            : error(`Unknown connected-host capability ${query || '<missing>'}. Use mode:"connected_host" to inspect allowed and blocked capability ids.`);
+        }
         if (args.mode === 'connected_host_status') return output(await connectedHostStatusSummary(deps.commandContext, deps.toolRegistry));
         return error(`Unhandled agent_harness mode: ${args.mode}`);
       } catch (err) {

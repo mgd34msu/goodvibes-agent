@@ -5,6 +5,7 @@ export const AGENT_HARNESS_MODES = [
   'commands', 'command', 'run_command', 'settings', 'get_setting', 'set_setting',
   'reset_setting', 'workspace', 'workspace_categories', 'workspace_actions',
   'workspace_action', 'run_workspace_action', 'tools', 'connected_host', 'connected_host_status',
+  'connected_host_capability',
 ] as const;
 
 const KEY_COMBO_PARAMETER_SCHEMA = {
@@ -90,6 +91,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   target: {
     type: 'string',
     description: 'Optional UI target, such as a model-picker target or settings target key.',
+  },
+  capabilityId: {
+    type: 'string',
+    description: 'Connected-host allowed or blocked capability id for mode connected_host_capability, such as agent-knowledge-read or connected-host-lifecycle.',
   },
   category: {
     type: 'string',

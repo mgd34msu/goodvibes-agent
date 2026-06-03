@@ -356,6 +356,68 @@ export function connectedHostRouteFamilies(): readonly Record<string, unknown>[]
   ];
 }
 
+function normalizeCapabilityQuery(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function recordTextMatches(record: Record<string, unknown>, query: string): boolean {
+  if (!query) return false;
+  const values = Object.values(record).flatMap((value) => Array.isArray(value) ? value : [value]);
+  return values
+    .filter((value): value is string | number | boolean => (
+      typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ))
+    .map((value) => String(value).toLowerCase())
+    .some((value) => value === query || value.includes(query));
+}
+
+function relatedConnectedHostRouteFamilies(capability: Record<string, unknown>): readonly Record<string, unknown>[] {
+  const modelTools = Array.isArray(capability.modelTools)
+    ? capability.modelTools.filter((tool): tool is string => typeof tool === 'string')
+    : [];
+  const capabilityId = typeof capability.id === 'string' ? capability.id : '';
+  return connectedHostRouteFamilies().filter((family) => {
+    const familyTools = Array.isArray(family.modelTools)
+      ? family.modelTools.filter((tool): tool is string => typeof tool === 'string')
+      : [];
+    if (familyTools.some((tool) => modelTools.includes(tool))) return true;
+    return capabilityId.length > 0 && recordTextMatches(family, capabilityId);
+  });
+}
+
+export function describeConnectedHostCapability(
+  toolRegistry: ToolRegistry,
+  rawQuery: string,
+): Record<string, unknown> | null {
+  const query = normalizeCapabilityQuery(rawQuery);
+  if (!query) return null;
+
+  const allowedCapability = connectedHostCapabilityMap(toolRegistry).find((capability) => recordTextMatches(capability, query));
+  if (allowedCapability) {
+    return {
+      status: 'allowed',
+      capability: allowedCapability,
+      relatedRouteFamilies: relatedConnectedHostRouteFamilies(allowedCapability),
+      statusMode: 'Use agent_harness mode:"connected_host_status" for live read-only reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
+      boundary: 'Use only the listed first-class model tools, slash-command families, and workspace categories. Mutations still require explicit confirmation through those tools or command bridges.',
+    };
+  }
+
+  const blockedCapability = blockedConnectedHostCapabilities().find((capability) => recordTextMatches(capability, query));
+  if (blockedCapability) {
+    return {
+      status: 'blocked',
+      capability: blockedCapability,
+      allowed: false,
+      available: false,
+      boundary: 'This connected-host surface is intentionally not exposed to the model as an Agent operation.',
+      statusMode: 'Use agent_harness mode:"connected_host_status" only for read-only readiness diagnostics.',
+    };
+  }
+
+  return null;
+}
+
 export function connectedHostSummary(context: CommandContext, toolRegistry: ToolRegistry): Record<string, unknown> {
   const shellPaths = context.workspace.shellPaths;
   const homeDirectory = shellPaths?.homeDirectory ?? context.platform.configManager.getHomeDirectory() ?? '';

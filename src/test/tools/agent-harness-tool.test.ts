@@ -826,6 +826,31 @@ describe('agent_harness tool', () => {
       expect(result.output).toContain('"blockedCapabilities"');
       expect(result.output).toContain('connected-host-lifecycle');
       expect(result.output).toContain('arbitrary-connected-host-mutations');
+
+      const allowed = await fixture.tool.execute({
+        mode: 'connected_host_capability',
+        capabilityId: 'agent-knowledge-read',
+      });
+      expect(allowed.success).toBe(true);
+      expect(allowed.output).toContain('"status": "allowed"');
+      expect(allowed.output).toContain('"agent_knowledge"');
+      expect(allowed.output).toContain('/api/goodvibes-agent/knowledge/*');
+
+      const blocked = await fixture.tool.execute({
+        mode: 'connected_host_capability',
+        capabilityId: 'connected-host-lifecycle',
+      });
+      expect(blocked.success).toBe(true);
+      expect(blocked.output).toContain('"status": "blocked"');
+      expect(blocked.output).toContain('start');
+      expect(blocked.output).toContain('not exposed to the model as an Agent operation');
+
+      const missing = await fixture.tool.execute({
+        mode: 'connected_host_capability',
+        capabilityId: 'not-a-capability',
+      });
+      expect(missing.success).toBe(false);
+      expect(missing.error).toContain('Unknown connected-host capability');
     } finally {
       fixture.cleanup();
     }
