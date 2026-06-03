@@ -29,6 +29,10 @@ describe('verification ledger', () => {
     expect(markdown).toContain('# GoodVibes Verification Ledger');
     expect(markdown).toContain('Local verification signal');
     expect(markdown).toContain('External outcome required');
+    expect(markdown).toContain('in-process command harness');
+    expect(markdown).toContain('test read models');
+    expect(markdown).not.toContain('fake context');
+    expect(markdown).not.toContain('fake read models');
   });
 
   test('does not count hidden host lifecycle commands as Agent verification scope', () => {

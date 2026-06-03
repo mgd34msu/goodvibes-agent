@@ -111,6 +111,19 @@ describe('Agent operator policy hidden spawn gates', () => {
     expect(source).toContain('Local automation execution is disabled in GoodVibes Agent');
   });
 
+  test('bootstrap describes connected-host posture without service ownership wording', () => {
+    const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap.ts'), 'utf8');
+    const runtimeIndexSource = readFileSync(join(import.meta.dir, '../../runtime/index.ts'), 'utf8');
+    const combined = `${source}\n${runtimeIndexSource}`;
+
+    expect(source).toContain('Phase 7: Connected-host posture + deferred startup');
+    expect(source).toContain('createAgentDependencyStatus');
+    expect(combined).toContain('does not start or restart it');
+    expect(combined).not.toContain('Phase 7: External services + deferred startup');
+    expect(combined).not.toContain('createExternalAgentServiceStatus');
+    expect(combined).not.toContain('does not start or restart them');
+  });
+
   test('production runtime does not call copied local spawn, cancel, or daemon ownership paths', () => {
     const srcRoot = join(import.meta.dir, '../..');
     const forbidden = [

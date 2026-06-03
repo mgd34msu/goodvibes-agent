@@ -144,7 +144,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localSignalVerified: slashCommands,
       localBehaviorVerified: slashCommands - externalSlashCommands,
       externalOutcomeRequired: externalSlashCommands,
-      notes: 'Every command can be routed and invoked with a fake context; external/provider/device commands need live outcome checks.',
+      notes: 'Every command can be routed and invoked through an in-process command harness; external/provider/device commands need live outcome checks.',
     },
     {
       area: 'Built-in panels',
@@ -152,7 +152,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localSignalVerified: panels,
       localBehaviorVerified: panels,
       externalOutcomeRequired: 0,
-      notes: 'Panels can be rendered and input-tested against fake read models and real cached state.',
+      notes: 'Panels can be rendered and input-tested against test read models and real cached state.',
     },
     {
       area: 'Top-level CLI commands',
