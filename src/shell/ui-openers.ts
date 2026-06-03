@@ -249,6 +249,12 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     render();
   };
 
+  commandContext.openProcessModal = () => {
+    input.modalOpened('process');
+    input.processModal.open();
+    render();
+  };
+
   commandContext.openHelpOverlay = () => {
     if (!input.helpOverlayActive) input.modalOpened('help');
     input.helpOverlayActive = !input.helpOverlayActive;

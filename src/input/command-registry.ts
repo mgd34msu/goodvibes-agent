@@ -92,6 +92,7 @@ export interface CommandShellUiOpeners {
   openProviderPicker?: () => void;
   openContextInspector?: () => void;
   openBookmarkModal?: () => void;
+  openProcessModal?: () => void;
   jumpToBookmark?: (key: string) => void;
   scrollToLine?: (line: number) => void;
   openHelpOverlay?: () => void;

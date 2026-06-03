@@ -181,6 +181,9 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     openBookmarkModal: () => {
       openedSurfaces.push({ id: 'bookmark-modal' });
     },
+    openProcessModal: () => {
+      openedSurfaces.push({ id: 'process-monitor' });
+    },
     openContextInspector: () => {
       openedSurfaces.push({ id: 'context-inspector' });
     },
@@ -451,6 +454,11 @@ describe('agent_harness tool', () => {
       expect(operatorSurfaces.output).toContain('"id": "knowledge-panel"');
       expect(operatorSurfaces.output).toContain('"id": "subscription-panel"');
 
+      const activitySurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'activity' });
+      expect(activitySurfaces.success).toBe(true);
+      expect(activitySurfaces.output).toContain('"id": "process-monitor"');
+      expect(activitySurfaces.output).toContain('visible supervision of runtime activity');
+
       const settings = await fixture.tool.execute({ mode: 'ui_surface', surfaceId: 'settings' });
       expect(settings.success).toBe(true);
       expect(settings.output).toContain('"id": "settings"');
@@ -522,6 +530,16 @@ describe('agent_harness tool', () => {
       });
       expect(openedSubscription.success).toBe(true);
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'setup' });
+
+      const openedProcessMonitor = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'process-monitor',
+        confirm: true,
+        explicitUserRequest: 'Open the runtime activity monitor.',
+      });
+      expect(openedProcessMonitor.success).toBe(true);
+      expect(openedProcessMonitor.output).toContain('"status": "opened"');
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'process-monitor' });
 
       fixture.configManager.setDynamic('tts.provider', 'stream-voice');
       fixture.configManager.setDynamic('tts.voice', '');

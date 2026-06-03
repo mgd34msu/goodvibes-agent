@@ -394,6 +394,21 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     },
   },
   {
+    id: 'process-monitor',
+    label: 'Runtime Activity Monitor',
+    kind: 'modal',
+    summary: 'Visible running-process and live-output monitor opened by the same shell route as F2.',
+    command: 'F2',
+    preferredModelRoute: 'Use this only for visible supervision of runtime activity; use first-class model tools or confirmed commands for actual operations.',
+    available: (context) => typeof context.openProcessModal === 'function',
+    open: (context) => {
+      const surface = findSurfaceById('process-monitor')!;
+      if (!context.openProcessModal) return routeUnavailable(surface);
+      context.openProcessModal();
+      return opened(surface);
+    },
+  },
+  {
     id: 'help-overlay',
     label: 'Help Overlay',
     kind: 'overlay',
