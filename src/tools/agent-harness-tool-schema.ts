@@ -23,7 +23,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   query: {
     type: 'string',
-    description: 'Search text for command, workspace action, setting, tool, or UI surface catalogs; also a slash-command lookup for mode command or setting lookup for get_setting/set_setting/reset_setting.',
+    description: 'Search text for command, panel, UI surface, keybinding, workspace action, setting, or tool catalogs; also slash-command, setting, panel, UI surface, or keybinding lookup for single-item modes.',
   },
   command: {
     type: 'string',
@@ -48,15 +48,15 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   surfaceId: {
     type: 'string',
-    description: 'UI surface id for ui_surface or open_ui_surface modes.',
+    description: 'UI surface id for ui_surface or open_ui_surface modes. target or query can also look up one UI surface when the exact id is not known.',
   },
   panelId: {
     type: 'string',
-    description: 'Built-in panel id for panel or open_panel modes.',
+    description: 'Built-in panel id for panel or open_panel modes. target or query can also look up one panel when the exact id is not known.',
   },
   actionId: {
     type: 'string',
-    description: 'Agent workspace action id for workspace_action or run_workspace_action, or keybinding action id for keybinding/set_keybinding/reset_keybinding.',
+    description: 'Agent workspace action id for workspace_action or run_workspace_action, or keybinding action id for keybinding/set_keybinding/reset_keybinding. target or query can also look up one keybinding action.',
   },
   fields: {
     type: 'object',
@@ -90,7 +90,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   target: {
     type: 'string',
-    description: 'Optional lookup target, such as a model-picker target, workspace action id/search text, slash command root or invocation, setting key/search text, model tool name, or connected-host capability id.',
+    description: 'Optional lookup target, such as a model-picker target, panel id/search text, UI surface id/search text, workspace action id/search text, slash command root or invocation, setting key/search text, keybinding action/search text, model tool name, or connected-host capability id.',
   },
   capabilityId: {
     type: 'string',

@@ -541,6 +541,27 @@ describe('agent_harness tool', () => {
       expect(panel.output).toContain('"categoryId": "knowledge"');
       expect(panel.output).toContain('"command": "/agent knowledge"');
 
+      const panelByQuery = await fixture.tool.execute({ mode: 'panel', query: 'isolated Agent Knowledge' });
+      expect(panelByQuery.success).toBe(true);
+      const panelByQueryJson = JSON.parse(panelByQuery.output);
+      expect(panelByQueryJson.id).toBe('knowledge');
+      expect(panelByQueryJson.lookup).toEqual({
+        source: 'query',
+        input: 'isolated Agent Knowledge',
+        resolvedBy: 'search',
+      });
+
+      const ambiguousPanel = await fixture.tool.execute({
+        mode: 'open_panel',
+        query: 'Agent',
+        confirm: true,
+        explicitUserRequest: 'Open an Agent panel.',
+      });
+      expect(ambiguousPanel.success).toBe(true);
+      expect(ambiguousPanel.output).toContain('"status": "ambiguous_panel"');
+      expect(ambiguousPanel.output).toContain('provider-health');
+      expect(fixture.routedPanels).toEqual([]);
+
       const denied = await fixture.tool.execute({
         mode: 'open_panel',
         panelId: 'knowledge',
@@ -622,6 +643,19 @@ describe('agent_harness tool', () => {
       expect(settings.output).toContain('"id": "settings"');
       expect(settings.output).toContain('settings/get_setting/set_setting/reset_setting');
 
+      const settingsByQuery = await fixture.tool.execute({
+        mode: 'ui_surface',
+        query: 'fullscreen settings workspace',
+      });
+      expect(settingsByQuery.success).toBe(true);
+      const settingsByQueryJson = JSON.parse(settingsByQuery.output);
+      expect(settingsByQueryJson.id).toBe('settings');
+      expect(settingsByQueryJson.lookup).toEqual({
+        source: 'query',
+        input: 'fullscreen settings workspace',
+        resolvedBy: 'search',
+      });
+
       const denied = await fixture.tool.execute({
         mode: 'open_ui_surface',
         surfaceId: 'settings',
@@ -641,6 +675,17 @@ describe('agent_harness tool', () => {
       });
       expect(openedSettings.success).toBe(true);
       expect(openedSettings.output).toContain('"status": "opened"');
+      expect(fixture.openedSurfaces).toEqual([{ id: 'settings', detail: 'provider.model' }]);
+
+      const ambiguousSurface = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        query: 'picker',
+        confirm: true,
+        explicitUserRequest: 'Open a picker.',
+      });
+      expect(ambiguousSurface.success).toBe(true);
+      expect(ambiguousSurface.output).toContain('"status": "ambiguous_ui_surface"');
+      expect(ambiguousSurface.output).toContain('model-picker');
       expect(fixture.openedSurfaces).toEqual([{ id: 'settings', detail: 'provider.model' }]);
 
       const openedWorkspace = await fixture.tool.execute({
@@ -809,6 +854,16 @@ describe('agent_harness tool', () => {
         preSelectId: 'stream-voice',
       });
 
+      const openedTtsProviderByQuery = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        query: 'streaming TTS provider picker',
+        confirm: true,
+        explicitUserRequest: 'Open the TTS provider picker.',
+      });
+      expect(openedTtsProviderByQuery.success).toBe(true);
+      expect(openedTtsProviderByQuery.output).toContain('"status": "opened"');
+      expect(openedTtsProviderByQuery.output).toContain('"source": "query"');
+
       const openedTtsVoice = await fixture.tool.execute({
         mode: 'open_ui_surface',
         surfaceId: 'tts-voice-picker',
@@ -849,6 +904,21 @@ describe('agent_harness tool', () => {
       expect(keybinding.output).toContain('Ctrl+F');
       expect(keybinding.output).toContain('"customized": false');
 
+      const keybindingByQuery = await fixture.tool.execute({ mode: 'keybinding', query: 'Ctrl+F' });
+      expect(keybindingByQuery.success).toBe(true);
+      const keybindingByQueryJson = JSON.parse(keybindingByQuery.output);
+      expect(keybindingByQueryJson.action).toBe('search');
+      expect(keybindingByQueryJson.lookup).toEqual({
+        source: 'query',
+        input: 'Ctrl+F',
+        resolvedBy: 'search',
+      });
+
+      const ambiguousKeybinding = await fixture.tool.execute({ mode: 'keybinding', query: 'workspace' });
+      expect(ambiguousKeybinding.success).toBe(true);
+      expect(ambiguousKeybinding.output).toContain('"status": "ambiguous"');
+      expect(ambiguousKeybinding.output).toContain('panel-picker');
+
       const denied = await fixture.tool.execute({
         mode: 'set_keybinding',
         actionId: 'search',
@@ -861,7 +931,7 @@ describe('agent_harness tool', () => {
 
       const updated = await fixture.tool.execute({
         mode: 'set_keybinding',
-        actionId: 'search',
+        query: 'Ctrl+F',
         combo: { key: 'g', ctrl: true },
         confirm: true,
         explicitUserRequest: 'Change search to Ctrl+G.',
@@ -869,19 +939,21 @@ describe('agent_harness tool', () => {
       expect(updated.success).toBe(true);
       expect(updated.output).toContain('"status": "updated"');
       expect(updated.output).toContain('Ctrl+G');
+      expect(updated.output).toContain('"resolvedBy": "search"');
       expect(updated.output).toContain('"customized": true');
       expect(fixture.keybindingsManager.matches('search', { logicalName: 'g', ctrl: true })).toBe(true);
       expect(fixture.keybindingsManager.matches('search', { logicalName: 'f', ctrl: true })).toBe(false);
 
       const reset = await fixture.tool.execute({
         mode: 'reset_keybinding',
-        actionId: 'search',
+        target: 'Toggle conversation search',
         confirm: true,
         explicitUserRequest: 'Reset search keybinding.',
       });
       expect(reset.success).toBe(true);
       expect(reset.output).toContain('"status": "reset"');
       expect(reset.output).toContain('Ctrl+F');
+      expect(reset.output).toContain('"source": "target"');
       expect(reset.output).toContain('"customized": false');
       expect(fixture.keybindingsManager.matches('search', { logicalName: 'f', ctrl: true })).toBe(true);
     } finally {

@@ -27,6 +27,24 @@ interface UiSurfaceDefinition {
   readonly open: (context: CommandContext, args: AgentHarnessUiSurfaceArgs) => Record<string, unknown> | Promise<Record<string, unknown>>;
 }
 
+interface UiSurfaceLookup {
+  readonly source: 'surfaceId' | 'target' | 'query';
+  readonly input: string;
+  readonly resolvedBy: 'id' | 'case-insensitive-id' | 'label' | 'case-insensitive-label' | 'search';
+}
+
+type UiSurfaceResolution =
+  | {
+    readonly status: 'found';
+    readonly surface: UiSurfaceDefinition;
+    readonly lookup: UiSurfaceLookup;
+  }
+  | {
+    readonly status: 'ambiguous';
+    readonly input: string;
+    readonly candidates: readonly Record<string, unknown>[];
+  };
+
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -668,13 +686,55 @@ function surfaceMatches(surface: Record<string, unknown>, query: string): boolea
   ].map((value) => String(value ?? '')).join('\n').toLowerCase().includes(query.toLowerCase());
 }
 
-function describeSurface(context: CommandContext, surface: UiSurfaceDefinition): Record<string, unknown> {
+function surfaceLookupFromArgs(args: AgentHarnessUiSurfaceArgs): { readonly source: UiSurfaceLookup['source']; readonly input: string } | null {
+  const surfaceId = readString(args.surfaceId);
+  if (surfaceId) return { source: 'surfaceId', input: surfaceId };
+  const query = readString(args.query);
+  if (query) return { source: 'query', input: query };
+  const target = readString(args.target);
+  if (target) return { source: 'target', input: target };
+  return null;
+}
+
+function surfaceCandidate(surface: UiSurfaceDefinition): Record<string, unknown> {
   return {
     id: surface.id,
     label: surface.label,
     kind: surface.kind,
     summary: surface.summary,
     command: surface.command,
+    preferredModelRoute: surface.preferredModelRoute,
+  };
+}
+
+function resolveHarnessUiSurface(args: AgentHarnessUiSurfaceArgs): UiSurfaceResolution | null {
+  const lookup = surfaceLookupFromArgs(args);
+  if (!lookup) return null;
+  const exactId = UI_SURFACES.find((surface) => surface.id === lookup.input);
+  if (exactId) return { status: 'found', surface: exactId, lookup: { ...lookup, resolvedBy: 'id' } };
+  const exactLabel = UI_SURFACES.find((surface) => surface.label === lookup.input);
+  if (exactLabel) return { status: 'found', surface: exactLabel, lookup: { ...lookup, resolvedBy: 'label' } };
+  const inputLower = lookup.input.toLowerCase();
+  const ciId = UI_SURFACES.filter((surface) => surface.id.toLowerCase() === inputLower);
+  if (ciId.length === 1) return { status: 'found', surface: ciId[0]!, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } };
+  if (ciId.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: ciId.map(surfaceCandidate).slice(0, 8) };
+  const ciLabel = UI_SURFACES.filter((surface) => surface.label.toLowerCase() === inputLower);
+  if (ciLabel.length === 1) return { status: 'found', surface: ciLabel[0]!, lookup: { ...lookup, resolvedBy: 'case-insensitive-label' } };
+  if (ciLabel.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: ciLabel.map(surfaceCandidate).slice(0, 8) };
+  const search = UI_SURFACES.filter((surface) => surfaceMatches(surfaceCandidate(surface), lookup.input));
+  if (search.length === 1) return { status: 'found', surface: search[0]!, lookup: { ...lookup, resolvedBy: 'search' } };
+  if (search.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: search.map(surfaceCandidate).slice(0, 8) };
+  return null;
+}
+
+function describeSurface(context: CommandContext, surface: UiSurfaceDefinition, lookup?: UiSurfaceLookup): Record<string, unknown> {
+  return {
+    id: surface.id,
+    label: surface.label,
+    kind: surface.kind,
+    summary: surface.summary,
+    command: surface.command,
+    ...(lookup ? { lookup } : {}),
     preferredModelRoute: surface.preferredModelRoute,
     parameters: surface.parameters ?? [],
     available: surface.available(context),
@@ -700,25 +760,29 @@ export function listHarnessUiSurfaces(context: CommandContext, args: AgentHarnes
 }
 
 export function describeHarnessUiSurface(context: CommandContext, args: AgentHarnessUiSurfaceArgs): Record<string, unknown> | null {
-  const surfaceId = readString(args.surfaceId || args.query);
-  if (!surfaceId) return null;
-  const surface = UI_SURFACES.find((entry) => entry.id === surfaceId || entry.label.toLowerCase() === surfaceId.toLowerCase());
-  return surface ? describeSurface(context, surface) : null;
+  const resolved = resolveHarnessUiSurface(args);
+  if (resolved?.status === 'found') return describeSurface(context, resolved.surface, resolved.lookup);
+  if (resolved?.status === 'ambiguous') {
+    return { status: 'ambiguous', input: resolved.input, candidates: resolved.candidates };
+  }
+  return null;
 }
 
 export async function openHarnessUiSurface(context: CommandContext, args: AgentHarnessUiSurfaceArgs): Promise<Record<string, unknown>> {
-  const surfaceId = readString(args.surfaceId || args.query);
-  const surface = UI_SURFACES.find((entry) => entry.id === surfaceId || entry.label.toLowerCase() === surfaceId.toLowerCase());
-  if (!surface) {
+  const resolved = resolveHarnessUiSurface(args);
+  if (resolved?.status === 'ambiguous') {
+    return { status: 'ambiguous_ui_surface', input: resolved.input, candidates: resolved.candidates };
+  }
+  if (!resolved) {
     return {
       status: 'unknown_ui_surface',
-      surfaceId: surfaceId || '<missing>',
+      surfaceId: readString(args.surfaceId || args.query || args.target) || '<missing>',
       availableSurfaces: UI_SURFACES.map((entry) => entry.id),
     };
   }
-  const routed = await surface.open(context, args);
+  const routed = await resolved.surface.open(context, args);
   return {
     ...routed,
-    descriptor: describeSurface(context, surface),
+    descriptor: describeSurface(context, resolved.surface, resolved.lookup),
   };
 }

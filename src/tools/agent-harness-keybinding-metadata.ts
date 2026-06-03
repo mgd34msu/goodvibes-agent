@@ -23,6 +23,7 @@ const FIXED_SHORTCUTS: readonly Record<string, string>[] = [
 interface HarnessKeybindingArgs {
   readonly query?: unknown;
   readonly actionId?: unknown;
+  readonly target?: unknown;
   readonly key?: unknown;
   readonly fields?: unknown;
   readonly combo?: unknown;
@@ -32,6 +33,24 @@ interface HarnessKeybindingArgs {
 }
 
 type KeybindingsOverrideFile = Record<string, unknown>;
+
+interface KeybindingLookup {
+  readonly source: 'actionId' | 'target' | 'key' | 'query';
+  readonly input: string;
+  readonly resolvedBy: 'action' | 'case-insensitive-action' | 'search';
+}
+
+type KeybindingResolution =
+  | {
+    readonly status: 'found';
+    readonly action: KeyAction;
+    readonly lookup: KeybindingLookup;
+  }
+  | {
+    readonly status: 'ambiguous';
+    readonly input: string;
+    readonly candidates: readonly Record<string, unknown>[];
+  };
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -56,11 +75,6 @@ function requireKeybindingsManager(context: CommandContext): KeybindingsManager 
 
 function isKeyAction(action: string): action is KeyAction {
   return Object.hasOwn(ACTION_DESCRIPTIONS, action);
-}
-
-function actionFromArgs(args: HarnessKeybindingArgs): KeyAction | null {
-  const action = readString(args.actionId || args.key || args.query);
-  return action && isKeyAction(action) ? action : null;
 }
 
 function readBoolean(value: unknown): boolean | undefined {
@@ -138,22 +152,63 @@ function describeCombo(manager: KeybindingsManager, combo: KeyCombo): Record<str
   };
 }
 
-function bindingMatches(entry: { readonly action: KeyAction; readonly description: string; readonly combos: KeyCombo[] }, query: string): boolean {
-  if (!query) return true;
-  const haystack = [
+function keybindingLookupFromArgs(args: HarnessKeybindingArgs): { readonly source: KeybindingLookup['source']; readonly input: string } | null {
+  const actionId = readString(args.actionId);
+  if (actionId) return { source: 'actionId', input: actionId };
+  const target = readString(args.target);
+  if (target) return { source: 'target', input: target };
+  const key = readString(args.key);
+  if (key) return { source: 'key', input: key };
+  const query = readString(args.query);
+  if (query) return { source: 'query', input: query };
+  return null;
+}
+
+function bindingSearchText(manager: KeybindingsManager, entry: { readonly action: KeyAction; readonly description: string; readonly combos: KeyCombo[] }): string {
+  return [
     entry.action,
     entry.description,
     ...entry.combos.map((combo) => comboFingerprint(combo)),
+    ...entry.combos.map((combo) => manager.formatCombo(combo)),
   ].join('\n').toLowerCase();
-  return haystack.includes(query.toLowerCase());
 }
 
-function describeBinding(manager: KeybindingsManager, action: KeyAction, combos: KeyCombo[]): Record<string, unknown> {
+function bindingCandidate(manager: KeybindingsManager, entry: { readonly action: KeyAction; readonly description: string; readonly combos: KeyCombo[] }): Record<string, unknown> {
+  return {
+    action: entry.action,
+    description: entry.description,
+    labels: entry.combos.map((combo) => manager.formatCombo(combo)),
+  };
+}
+
+function bindingMatches(manager: KeybindingsManager, entry: { readonly action: KeyAction; readonly description: string; readonly combos: KeyCombo[] }, query: string): boolean {
+  if (!query) return true;
+  return bindingSearchText(manager, entry).includes(query.toLowerCase());
+}
+
+function resolveHarnessKeybinding(context: CommandContext, args: HarnessKeybindingArgs): KeybindingResolution | null {
+  const manager = requireKeybindingsManager(context);
+  const lookup = keybindingLookupFromArgs(args);
+  if (!lookup) return null;
+  const entries = manager.getAll();
+  if (isKeyAction(lookup.input)) return { status: 'found', action: lookup.input, lookup: { ...lookup, resolvedBy: 'action' } };
+  const inputLower = lookup.input.toLowerCase();
+  const ciActions = entries.filter((entry) => entry.action.toLowerCase() === inputLower);
+  if (ciActions.length === 1) return { status: 'found', action: ciActions[0]!.action, lookup: { ...lookup, resolvedBy: 'case-insensitive-action' } };
+  if (ciActions.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: ciActions.map((entry) => bindingCandidate(manager, entry)).slice(0, 8) };
+  const matches = entries.filter((entry) => bindingMatches(manager, entry, lookup.input));
+  if (matches.length === 1) return { status: 'found', action: matches[0]!.action, lookup: { ...lookup, resolvedBy: 'search' } };
+  if (matches.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: matches.map((entry) => bindingCandidate(manager, entry)).slice(0, 8) };
+  return null;
+}
+
+function describeBinding(manager: KeybindingsManager, action: KeyAction, combos: KeyCombo[], lookup?: KeybindingLookup): Record<string, unknown> {
   const defaults = DEFAULT_KEYBINDINGS[action];
   const customized = !combosEqual(combos, defaults);
   return {
     action,
     description: ACTION_DESCRIPTIONS[action],
+    ...(lookup ? { lookup } : {}),
     bindings: combos.map((combo) => describeCombo(manager, combo)),
     labels: combos.map((combo) => manager.formatCombo(combo)),
     defaultBindings: defaults.map((combo) => describeCombo(manager, combo)),
@@ -205,7 +260,7 @@ export function listHarnessKeybindings(context: CommandContext, args: HarnessKey
   const manager = requireKeybindingsManager(context);
   const query = readString(args.query);
   const entries = manager.getAll()
-    .filter((entry) => bindingMatches(entry, query))
+    .filter((entry) => bindingMatches(manager, entry, query))
     .slice(0, readLimit(args.limit, 200))
     .map((entry) => describeBinding(manager, entry.action, entry.combos));
   return {
@@ -219,44 +274,49 @@ export function listHarnessKeybindings(context: CommandContext, args: HarnessKey
 
 export function describeHarnessKeybinding(context: CommandContext, args: HarnessKeybindingArgs): Record<string, unknown> | null {
   const manager = requireKeybindingsManager(context);
-  const action = actionFromArgs(args);
-  if (!action) return null;
-  const entry = manager.getAll().find((candidate) => candidate.action === action);
+  const resolved = resolveHarnessKeybinding(context, args);
+  if (resolved?.status === 'ambiguous') return { status: 'ambiguous', input: resolved.input, candidates: resolved.candidates };
+  if (!resolved) return null;
+  const entry = manager.getAll().find((candidate) => candidate.action === resolved.action);
   return entry ? {
     configPath: manager.getConfigPath(),
-    ...describeBinding(manager, entry.action, entry.combos),
+    ...describeBinding(manager, entry.action, entry.combos, resolved.lookup),
   } : null;
 }
 
 export function setHarnessKeybinding(context: CommandContext, args: HarnessKeybindingArgs): Record<string, unknown> {
   const manager = requireKeybindingsManager(context);
-  const action = actionFromArgs(args);
-  if (!action) throw new Error('set_keybinding requires a valid keybinding action id.');
+  const resolved = resolveHarnessKeybinding(context, args);
+  if (resolved?.status === 'ambiguous') throw new Error(`Ambiguous keybinding action ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+  if (!resolved) throw new Error('set_keybinding requires a valid keybinding action id, target, or query.');
   const combos = combosFromArgs(args);
   const configPath = manager.getConfigPath();
   const overrides = readOverrideFile(configPath);
-  overrides[action] = combos.length === 1 ? combos[0] : combos;
+  overrides[resolved.action] = combos.length === 1 ? combos[0] : combos;
   writeOverrideFile(configPath, overrides);
   manager.loadFromDisk();
   return {
     status: 'updated',
     configPath,
-    keybinding: describeHarnessKeybinding(context, { actionId: action }),
+    keybinding: describeHarnessKeybinding(context, { actionId: resolved.action }),
+    lookup: resolved.lookup,
   };
 }
 
 export function resetHarnessKeybinding(context: CommandContext, args: HarnessKeybindingArgs): Record<string, unknown> {
   const manager = requireKeybindingsManager(context);
-  const action = actionFromArgs(args);
-  if (!action) throw new Error('reset_keybinding requires a valid keybinding action id.');
+  const resolved = resolveHarnessKeybinding(context, args);
+  if (resolved?.status === 'ambiguous') throw new Error(`Ambiguous keybinding action ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+  if (!resolved) throw new Error('reset_keybinding requires a valid keybinding action id, target, or query.');
   const configPath = manager.getConfigPath();
   const overrides = readOverrideFile(configPath);
-  delete overrides[action];
+  delete overrides[resolved.action];
   writeOverrideFile(configPath, overrides);
   manager.loadFromDisk();
   return {
     status: 'reset',
     configPath,
-    keybinding: describeHarnessKeybinding(context, { actionId: action }),
+    keybinding: describeHarnessKeybinding(context, { actionId: resolved.action }),
+    lookup: resolved.lookup,
   };
 }

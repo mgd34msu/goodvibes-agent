@@ -5,10 +5,29 @@ import type { PanelRegistration } from '../panels/types.ts';
 export interface AgentHarnessPanelArgs {
   readonly query?: unknown;
   readonly panelId?: unknown;
+  readonly target?: unknown;
   readonly category?: unknown;
   readonly limit?: unknown;
   readonly pane?: unknown;
 }
+
+interface PanelLookup {
+  readonly source: 'panelId' | 'target' | 'query';
+  readonly input: string;
+  readonly resolvedBy: 'id' | 'case-insensitive-id' | 'name' | 'case-insensitive-name' | 'search';
+}
+
+type PanelResolution =
+  | {
+    readonly status: 'found';
+    readonly registration: PanelRegistration;
+    readonly lookup: PanelLookup;
+  }
+  | {
+    readonly status: 'ambiguous';
+    readonly input: string;
+    readonly candidates: readonly Record<string, unknown>[];
+  };
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -32,10 +51,59 @@ function panelMatches(panel: Record<string, unknown>, query: string): boolean {
     panel.category,
     panel.description,
     panel.workspaceRoute,
-  ].map((value) => String(value ?? '')).join('\n').toLowerCase().includes(query.toLowerCase());
+  ].map((value) => typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')).join('\n').toLowerCase().includes(query.toLowerCase());
 }
 
-function describePanelRegistration(context: CommandContext, registration: PanelRegistration): Record<string, unknown> {
+function panelLookupFromArgs(args: AgentHarnessPanelArgs): { readonly source: PanelLookup['source']; readonly input: string } | null {
+  const panelId = readString(args.panelId);
+  if (panelId) return { source: 'panelId', input: panelId };
+  const target = readString(args.target);
+  if (target) return { source: 'target', input: target };
+  const query = readString(args.query);
+  if (query) return { source: 'query', input: query };
+  return null;
+}
+
+function panelCandidate(registration: PanelRegistration): Record<string, unknown> {
+  return {
+    id: registration.id,
+    name: registration.name,
+    category: registration.category,
+    description: registration.description,
+    workspaceRoute: {
+      categoryId: agentWorkspaceCategoryForPanel(registration.id),
+      command: agentWorkspaceCommandForPanel(registration.id),
+    },
+  };
+}
+
+function resolveHarnessPanel(context: CommandContext, args: AgentHarnessPanelArgs): PanelResolution | null {
+  const manager = panelManager(context);
+  const lookup = panelLookupFromArgs(args);
+  if (!manager || !lookup) return null;
+  const registrations = manager.getRegisteredTypes();
+  const exactId = registrations.find((panel) => panel.id === lookup.input);
+  if (exactId) return { status: 'found', registration: exactId, lookup: { ...lookup, resolvedBy: 'id' } };
+  const inputLower = lookup.input.toLowerCase();
+  const exactName = registrations.find((panel) => panel.name === lookup.input);
+  if (exactName) return { status: 'found', registration: exactName, lookup: { ...lookup, resolvedBy: 'name' } };
+  const ciId = registrations.filter((panel) => panel.id.toLowerCase() === inputLower);
+  if (ciId.length === 1) return { status: 'found', registration: ciId[0]!, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } };
+  if (ciId.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: ciId.map(panelCandidate).slice(0, 8) };
+  const ciName = registrations.filter((panel) => panel.name.toLowerCase() === inputLower);
+  if (ciName.length === 1) return { status: 'found', registration: ciName[0]!, lookup: { ...lookup, resolvedBy: 'case-insensitive-name' } };
+  if (ciName.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: ciName.map(panelCandidate).slice(0, 8) };
+  const category = readString(args.category);
+  const search = registrations.filter((registration) => {
+    if (category && registration.category !== category) return false;
+    return panelMatches(panelCandidate(registration), lookup.input);
+  });
+  if (search.length === 1) return { status: 'found', registration: search[0]!, lookup: { ...lookup, resolvedBy: 'search' } };
+  if (search.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: search.map(panelCandidate).slice(0, 8) };
+  return null;
+}
+
+function describePanelRegistration(context: CommandContext, registration: PanelRegistration, lookup?: PanelLookup): Record<string, unknown> {
   const manager = panelManager(context);
   const openPanel = manager?.getPanel(registration.id) ?? null;
   const pane = manager?.getPaneOf(registration.id) ?? null;
@@ -46,6 +114,7 @@ function describePanelRegistration(context: CommandContext, registration: PanelR
     icon: registration.icon,
     category: registration.category,
     description: registration.description,
+    ...(lookup ? { lookup } : {}),
     preload: registration.preload === true,
     open: openPanel !== null,
     pane,
@@ -82,26 +151,27 @@ export function listHarnessPanels(context: CommandContext, args: AgentHarnessPan
 }
 
 export function describeHarnessPanel(context: CommandContext, args: AgentHarnessPanelArgs): Record<string, unknown> | null {
-  const manager = panelManager(context);
-  if (!manager) return null;
-  const panelId = readString(args.panelId || args.query);
-  if (!panelId) return null;
-  const registration = manager.getRegisteredTypes().find((panel) => (
-    panel.id === panelId
-    || panel.name.toLowerCase() === panelId.toLowerCase()
-  ));
-  return registration ? describePanelRegistration(context, registration) : null;
+  const resolved = resolveHarnessPanel(context, args);
+  if (resolved?.status === 'found') return describePanelRegistration(context, resolved.registration, resolved.lookup);
+  if (resolved?.status === 'ambiguous') {
+    return { status: 'ambiguous', input: resolved.input, candidates: resolved.candidates };
+  }
+  return null;
 }
 
 export function openHarnessPanel(context: CommandContext, args: AgentHarnessPanelArgs): Record<string, unknown> {
-  const panel = describeHarnessPanel(context, args);
-  if (!panel) {
+  const resolved = resolveHarnessPanel(context, args);
+  if (resolved?.status === 'ambiguous') {
+    return { status: 'ambiguous_panel', input: resolved.input, candidates: resolved.candidates };
+  }
+  if (!resolved) {
     return {
       status: 'unknown_panel',
-      panelId: readString(args.panelId || args.query) || '<missing>',
+      panelId: readString(args.panelId || args.target || args.query) || '<missing>',
       availablePanels: listHarnessPanels(context, { limit: 50 }).map((entry) => entry.id),
     };
   }
+  const panel = describePanelRegistration(context, resolved.registration, resolved.lookup);
   const requestedPane = readString(args.pane);
   const pane = requestedPane === 'bottom' || requestedPane === 'top' ? requestedPane : undefined;
   if (!context.showPanel) {

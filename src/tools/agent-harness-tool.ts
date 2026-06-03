@@ -595,9 +595,9 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             tools: deps.toolRegistry.getToolDefinitions().length,
             modelAccess: {
               cliCommands: 'Use mode:"cli_commands" and mode:"cli_command" to inspect package CLI mirrors and their preferred in-process model routes. CLI modes are discovery-only.',
-              panels: 'Use mode:"panels" and mode:"panel" to inspect built-in panel catalog/open state; use mode:"open_panel" with confirm:true plus explicitUserRequest to route a visible panel/workspace change.',
-              uiSurfaces: 'Use mode:"ui_surfaces" and mode:"ui_surface" to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
-              shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
+              panels: 'Use mode:"panels" to list and mode:"panel" with panelId, target, or query to inspect built-in panel catalog/open state; use mode:"open_panel" with confirm:true plus explicitUserRequest to route a visible panel/workspace change.',
+              uiSurfaces: 'Use mode:"ui_surfaces" to list and mode:"ui_surface" with surfaceId, target, or query to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
+              shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"keybinding" with actionId, target, key, or query; use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
               slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
               workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" with actionId, command, target, or query for one action and editor schema; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings" to list and mode:"get_setting" with key, target, or query for one setting. Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest.',
@@ -633,7 +633,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'panel') {
           const panel = describeHarnessPanel(deps.commandContext, args);
-          return panel ? output(panel) : error(`Unknown panel ${readString(args.panelId || args.query) || '<missing>'}.`);
+          return panel ? output(panel) : error(`Unknown panel ${readString(args.panelId || args.target || args.query) || '<missing>'}.`);
         }
         if (args.mode === 'open_panel') {
           const confirmationError = requireConfirmedAction(args, 'Panel routing');
@@ -646,7 +646,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'ui_surface') {
           const surface = describeHarnessUiSurface(deps.commandContext, args);
-          return surface ? output(surface) : error(`Unknown UI surface ${readString(args.surfaceId || args.query) || '<missing>'}.`);
+          return surface ? output(surface) : error(`Unknown UI surface ${readString(args.surfaceId || args.query || args.target) || '<missing>'}.`);
         }
         if (args.mode === 'open_ui_surface') {
           const confirmationError = requireConfirmedAction(args, 'UI surface routing');
@@ -657,7 +657,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         if (args.mode === 'keybindings') return output(listHarnessKeybindings(deps.commandContext, args));
         if (args.mode === 'keybinding') {
           const binding = describeHarnessKeybinding(deps.commandContext, args);
-          return binding ? output(binding) : error(`Unknown keybinding action ${readString(args.actionId || args.key || args.query) || '<missing>'}.`);
+          return binding ? output(binding) : error(`Unknown keybinding action ${readString(args.actionId || args.target || args.key || args.query) || '<missing>'}.`);
         }
         if (args.mode === 'set_keybinding') {
           const confirmationError = requireConfirmedAction(args, 'Keybinding mutation');
