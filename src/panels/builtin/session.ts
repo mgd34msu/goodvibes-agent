@@ -60,8 +60,8 @@ export function registerSessionPanels(manager: PanelManager, deps: ResolvedBuilt
     category: 'session',
     description: 'QR code for companion app pairing through the connected GoodVibes host',
     factory: () => {
-      if (!deps.daemonHomeDir) throw new Error('connected host token directory must be provided to the session panel factory via BuiltinPanelDeps');
-      const token = readOperatorToken(`${deps.daemonHomeDir}/operator-tokens.json`);
+      if (!deps.connectedHostTokenDir) throw new Error('connected host token directory must be provided to the session panel factory via BuiltinPanelDeps');
+      const token = readOperatorToken(`${deps.connectedHostTokenDir}/operator-tokens.json`);
       const connectedHostPort = deps.configManager.get('controlPlane.port');
       const connectedHostName = String(process.env['GOODVIBES_AGENT_RUNTIME_HOST'] ?? process.env['GOODVIBES_DAEMON_HOST'] ?? getLocalNetworkIp());
       const connectedHostUrl = `http://${connectedHostName}:${connectedHostPort}`;

@@ -180,7 +180,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     hookActivityTracker: services.hookActivityTracker,
     hookWorkbench: services.hookWorkbench,
     mcpRegistry: services.mcpRegistry,
-    daemonHomeDir: join(services.homeDirectory, '.goodvibes', 'daemon'),
+    connectedHostTokenDir: join(services.homeDirectory, '.goodvibes', 'daemon'),
   });
   services.panelManager.prewarmRegistered();
 

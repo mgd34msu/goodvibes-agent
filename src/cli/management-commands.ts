@@ -317,9 +317,9 @@ export async function renderPairing(runtime: CliCommandRuntime): Promise<string>
   const tokenRecord = readConnectedHostOperatorToken(runtime.homeDirectory);
   if (!tokenRecord.token) return connectedHostTokenRequiredMessage(tokenRecord.path);
   const binding = resolveRuntimeEndpointBinding(runtime.configManager, 'controlPlane');
-  const daemonUrl = `http://${urlHostForBindHost(binding.host)}:${binding.port}`;
+  const connectedHostUrl = `http://${urlHostForBindHost(binding.host)}:${binding.port}`;
   const info = buildCompanionConnectionInfo({
-    daemonUrl,
+    daemonUrl: connectedHostUrl,
     token: tokenRecord.token,
     username: 'admin',
     surface: GOODVIBES_AGENT_PAIRING_SURFACE,

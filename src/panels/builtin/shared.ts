@@ -88,7 +88,7 @@ export interface BuiltinPanelDeps {
    * Resolved connected-host token directory (e.g. `~/.goodvibes/daemon`) — owned by the
    * composition root and passed explicitly so panel factories do not discover cwd/home implicitly.
    */
-  daemonHomeDir?: string;
+  connectedHostTokenDir?: string;
   /** Session memory store for context and token budget panels. */
   sessionMemoryStore?: SessionMemoryStore;
   /** Execution plan manager for plan dashboard panels. */
