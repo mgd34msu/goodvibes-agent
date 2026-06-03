@@ -135,7 +135,7 @@ function withPanelFocusSync(context: CommandContext, state: CommandModeRouteStat
     showPanel: context.showPanel
       ? (panelId, pane) => {
           context.showPanel?.(panelId, pane);
-          state.panelFocused = true;
+          state.panelFocused = panelIsFocusable();
         }
       : undefined,
     focusPanels: context.focusPanels

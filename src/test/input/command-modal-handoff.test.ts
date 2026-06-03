@@ -337,6 +337,52 @@ describe('command modal handoff', () => {
     expect(state.commandMode).toBe(false);
   });
 
+  test('slash panel commands keep prompt focus when panel route redirects to Agent workspace', async () => {
+    const modalStack = ['command'];
+    const registry = new CommandRegistry();
+    let panelVisible = true;
+    let openPanels: Array<{ readonly id: string }> = [{ id: 'panel-list' }];
+    let showPanelCalled = false;
+    registry.register({
+      name: 'agent-panel',
+      description: 'Open Agent workspace through panel route',
+      handler: (_args, ctx) => {
+        ctx.showPanel?.('tasks');
+      },
+    });
+    const state = {
+      commandMode: true,
+      prompt: '/agent-panel',
+      cursorPos: '/agent-panel'.length,
+      autocomplete: null,
+      modalStack,
+      commandRegistry: registry,
+      commandContext: makeCommandContext({
+        showPanel: () => {
+          showPanelCalled = true;
+          panelVisible = false;
+          openPanels = [];
+        },
+      }),
+      panelFocused: true,
+      panelManager: makePanelManager({
+        isVisible: () => panelVisible,
+        getAllOpen: () => openPanels,
+      }),
+      conversationManager: { log: () => {} } as never,
+      requestRender: () => {},
+      handleEscape: () => {},
+    };
+
+    const handled = handleCommandModeToken(state, key('enter'));
+    await Promise.resolve();
+
+    expect(handled).toBe(true);
+    expect(showPanelCalled).toBe(true);
+    expect(state.panelFocused).toBe(false);
+    expect(state.commandMode).toBe(false);
+  });
+
   test('after escape closes slash mode, subsequent typing stays in normal prompt mode until / is typed again', async () => {
     let resetCount = 0;
     const { handleEscape } = await import('../../input/handler-modal-stack.ts');
