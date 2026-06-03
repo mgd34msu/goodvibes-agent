@@ -565,6 +565,8 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/plan explain');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'planning-list');
+    expect(workspace.actions[workspace.selectedActionIndex]?.detail).toContain('saved Agent execution plans');
+    expect(workspace.actions[workspace.selectedActionIndex]?.detail).not.toContain('deferred');
     workspace.activateSelected();
 
     expect(dispatched.at(-1)).toBe('/plan list');
