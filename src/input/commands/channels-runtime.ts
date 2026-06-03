@@ -26,7 +26,7 @@ interface ChannelSendArgs {
   readonly errors: readonly string[];
 }
 
-interface ChannelDaemonConnection {
+interface ChannelConnectedHostConnection {
   readonly baseUrl: string;
   readonly token: string | null;
   readonly tokenPath: string;
@@ -41,7 +41,8 @@ interface ChannelRouteSuccess {
 interface ChannelRouteFailure {
   readonly ok: false;
   readonly route: string;
-  readonly kind: 'auth_required' | 'daemon_unavailable' | 'route_unavailable' | 'daemon_error';
+  readonly kind: 'auth_required' | 'connected_host_unavailable' | 'connected_host_route_unavailable' | 'connected_host_error';
+  readonly baseUrl: string;
   readonly message: string;
 }
 
@@ -118,7 +119,7 @@ function parseChannelSendArgs(args: readonly string[]): ChannelSendArgs {
   };
 }
 
-function resolveChannelDaemonConnection(context: CommandContext): ChannelDaemonConnection {
+function resolveChannelConnectedHostConnection(context: CommandContext): ChannelConnectedHostConnection {
   const hostValue = context.platform?.configManager?.get('controlPlane.host');
   const portValue = context.platform?.configManager?.get('controlPlane.port');
   const host = typeof hostValue === 'string' && hostValue.trim().length > 0 ? hostValue.trim() : '127.0.0.1';
@@ -136,13 +137,14 @@ function resolveChannelDaemonConnection(context: CommandContext): ChannelDaemonC
 }
 
 async function fetchChannelRoute(context: CommandContext, route: string): Promise<ChannelRouteResult> {
-  const connection = resolveChannelDaemonConnection(context);
+  const connection = resolveChannelConnectedHostConnection(context);
   if (!connection.token) {
     return {
       ok: false,
       route,
       kind: 'auth_required',
-      message: `No runtime operator token found at ${connection.tokenPath}`,
+      baseUrl: connection.baseUrl,
+      message: `No connected-host operator token found at ${connection.tokenPath}`,
     };
   }
 
@@ -167,8 +169,9 @@ async function fetchChannelRoute(context: CommandContext, route: string): Promis
         kind: response.status === 401 || response.status === 403
           ? 'auth_required'
           : response.status === 404
-            ? 'route_unavailable'
-            : 'daemon_error',
+            ? 'connected_host_route_unavailable'
+            : 'connected_host_error',
+        baseUrl: connection.baseUrl,
         message: `HTTP ${response.status}${detail ? `: ${detail}` : ''}`,
       };
     }
@@ -177,7 +180,8 @@ async function fetchChannelRoute(context: CommandContext, route: string): Promis
     return {
       ok: false,
       route,
-      kind: 'daemon_unavailable',
+      kind: 'connected_host_unavailable',
+      baseUrl: connection.baseUrl,
       message: error instanceof Error ? error.message : String(error),
     };
   }
@@ -187,6 +191,7 @@ function formatChannelRouteFailure(title: string, failure: ChannelRouteFailure):
   return [
     `${title}: unavailable`,
     `  kind: ${failure.kind}`,
+    `  connected host: ${failure.baseUrl}`,
     `  route: ${failure.route}`,
     `  error: ${failure.message}`,
     '  policy: read-only; no channel send/action route was called',

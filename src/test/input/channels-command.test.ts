@@ -219,7 +219,28 @@ describe('/channels command', () => {
     const output = printed.join('\n');
     expect(output).toContain('Channel accounts: unavailable');
     expect(output).toContain('kind: auth_required');
+    expect(output).toContain('connected host: http://127.0.0.1:3421');
+    expect(output).toContain('No connected-host operator token found');
+    expect(output).not.toContain('runtime operator token');
     expect(output).toContain('no channel send/action route was called');
+  });
+
+  test('connected-host channel route failures avoid legacy daemon kinds', async () => {
+    const { context, printed } = channelContext({}, writeTokenHome());
+
+    await withMockFetch(async () => new Response(JSON.stringify({ error: 'missing route' }), {
+      status: 404,
+      headers: { 'content-type': 'application/json' },
+    }), async () => {
+      await runChannels(['accounts'], context);
+    });
+
+    const output = printed.join('\n');
+    expect(output).toContain('Channel accounts: unavailable');
+    expect(output).toContain('kind: connected_host_route_unavailable');
+    expect(output).toContain('connected host: http://127.0.0.1:3421');
+    expect(output).not.toContain('kind: route_unavailable');
+    expect(output).not.toContain('daemon_');
   });
 
   test('sends through the delivery router only after explicit confirmation', async () => {
