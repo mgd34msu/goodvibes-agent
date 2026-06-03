@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.17 - 2026-06-03
+
+- Add agent_harness setting lookup by key, target, or query for get_setting, set_setting, and reset_setting.
+- Return setting lookup metadata on successful single-setting operations and refuse ambiguous matches with candidate settings instead of guessing.
+- Refresh package-facing docs and focused harness coverage for model-visible setting inspection and confirmed mutation lookup.
+
 ## 1.0.16 - 2026-06-03
 
 - Add agent_harness workspace_action lookup by actionId, command, target, or query with resolved lookup metadata.
