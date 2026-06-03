@@ -26,7 +26,7 @@ export interface CliExternalRuntimeSnapshot {
   readonly agentKnowledge: {
     readonly route: '/api/goodvibes-agent/knowledge/status';
     readonly ready: boolean;
-    readonly kind: 'ok' | 'auth_required' | 'daemon_unavailable' | 'version_mismatch' | 'route_unavailable' | 'runtime_error';
+    readonly kind: 'ok' | 'auth_required' | 'connected_host_unavailable' | 'version_mismatch' | 'connected_host_route_unavailable' | 'connected_host_error';
     readonly statusCode: number | null;
   };
   readonly error: string | null;
@@ -112,7 +112,7 @@ export async function inspectCliExternalRuntime(
         agentKnowledge: {
           route,
           ready: false,
-          kind: status.status === 401 ? 'auth_required' : 'daemon_unavailable',
+          kind: status.status === 401 ? 'auth_required' : 'connected_host_unavailable',
           statusCode: status.status,
         },
         error: typeof status.body === 'string' ? status.body : `HTTP ${status.status}`,
@@ -169,7 +169,13 @@ export async function inspectCliExternalRuntime(
       agentKnowledge: {
         route,
         ready: knowledge.ok,
-        kind: knowledge.ok ? 'ok' : knowledge.status === 401 ? 'auth_required' : knowledge.status === 404 ? 'route_unavailable' : 'runtime_error',
+        kind: knowledge.ok
+          ? 'ok'
+          : knowledge.status === 401
+            ? 'auth_required'
+            : knowledge.status === 404
+              ? 'connected_host_route_unavailable'
+              : 'connected_host_error',
         statusCode: knowledge.status,
       },
       error: knowledge.ok ? null : typeof knowledge.body === 'string' ? knowledge.body : `HTTP ${knowledge.status}`,
@@ -186,7 +192,7 @@ export async function inspectCliExternalRuntime(
       agentKnowledge: {
         route,
         ready: false,
-        kind: 'daemon_unavailable',
+        kind: 'connected_host_unavailable',
         statusCode: null,
       },
       error: summarizeError(error),

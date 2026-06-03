@@ -20,7 +20,7 @@ interface OperatorRouteSuccess {
 interface OperatorRouteFailure {
   readonly ok: false;
   readonly route: OperatorRouteDescriptor;
-  readonly kind: 'auth_required' | 'connected_host_unavailable' | 'route_unavailable' | 'connected_host_error';
+  readonly kind: 'auth_required' | 'connected_host_unavailable' | 'connected_host_route_unavailable' | 'connected_host_error';
   readonly error: string;
 }
 
@@ -80,7 +80,7 @@ function classifyHttpFailure(route: OperatorRouteDescriptor, status: number, bod
     kind: status === 401 || status === 403
       ? 'auth_required'
       : status === 404
-        ? 'route_unavailable'
+        ? 'connected_host_route_unavailable'
         : 'connected_host_error',
     error: `HTTP ${status}${detail ? `: ${detail}` : ''}`,
   };

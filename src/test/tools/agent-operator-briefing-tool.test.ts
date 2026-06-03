@@ -158,7 +158,8 @@ describe('agent_operator_briefing tool', () => {
       const result = await tool.execute({});
 
       expect(result.success).toBe(true);
-      expect(result.output).toContain('approvals.list: unavailable (route_unavailable');
+      expect(result.output).toContain('approvals.list: unavailable (connected_host_route_unavailable');
+      expect(result.output).not.toContain('approvals.list: unavailable (route_unavailable');
       expect(result.output).toContain('warnings: 1 route(s) unavailable');
     } finally {
       globalThis.fetch = originalFetch;

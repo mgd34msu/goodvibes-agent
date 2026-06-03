@@ -213,7 +213,7 @@ describe('CLI status and doctor output', () => {
         agentKnowledge: {
           route: '/api/goodvibes-agent/knowledge/status',
           ready: false,
-          kind: 'route_unavailable',
+          kind: 'connected_host_route_unavailable',
           statusCode: 404,
         },
         error: 'HTTP 404',
@@ -222,6 +222,8 @@ describe('CLI status and doctor output', () => {
     const text = findings.map((finding) => `${finding.summary}\n${finding.impact}\n${finding.action}`).join('\n');
 
     expect(findings.map((finding) => finding.id)).toContain('agent-knowledge-route-not-ready');
+    expect(findings.map((finding) => finding.cause).join('\n')).toContain('/api/goodvibes-agent/knowledge/status returned connected_host_route_unavailable (404).');
+    expect(findings.map((finding) => finding.cause).join('\n')).not.toContain('/api/goodvibes-agent/knowledge/status returned route_unavailable (404).');
     expect(text).toContain('Agent Knowledge ask/search will not use any fallback wiki or non-Agent knowledge segment');
     expect(text).not.toContain('default Knowledge');
   });
