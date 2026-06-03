@@ -24,6 +24,17 @@ describe('provider auth route formatting', () => {
     })).toBe('OpenAI subscription [subscription-oauth; configured, not usable, expired] - Stored token expired.');
   });
 
+  test('normalizes provider OAuth route labels for Agent-facing output', () => {
+    expect(formatProviderAuthRoute({
+      route: 'service-oauth',
+      label: 'Service OAuth',
+      configured: true,
+      usable: true,
+      freshness: 'healthy',
+      detail: 'Provider OAuth credential is available.',
+    })).toBe('Provider OAuth [provider-oauth; configured, usable, healthy] - Provider OAuth credential is available.');
+  });
+
   test('returns n/a when no route metadata is available', () => {
     expect(summarizeProviderAuthRoutes(undefined)).toBe('n/a');
     expect(summarizeProviderAuthRoutes([])).toBe('n/a');

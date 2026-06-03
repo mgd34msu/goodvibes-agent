@@ -7,13 +7,8 @@ import { createInitialTasksState } from '@/runtime/index.ts';
 import { TasksPanel } from '../../panels/tasks-panel.ts';
 import { PanelManager } from '../../panels/panel-manager.ts';
 import type { Line } from '../../types/grid.ts';
-import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import { SecretsManager } from '../../config/secrets.ts';
-import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
-import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
-import { createTestProviderRegistry } from '../helpers/test-managers.ts';
 import { createTasksReadModel } from '../helpers/ui-read-models.ts';
-import { buildProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
+import type { ProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
 
 function linesText(lines: Line[]): string {
   return lines
@@ -32,14 +27,6 @@ describe('TasksPanel', () => {
   afterEach(() => {
     rmSync(root, { recursive: true, force: true });
   });
-
-  function createConfigManager(): ConfigManager {
-    return new ConfigManager({ surfaceRoot: 'tui',
-      workingDir: root,
-      homeDir: root,
-      configDir: join(root, '.goodvibes', 'global-tui'),
-    });
-  }
 
   test('renders empty guidance when no tasks exist', () => {
     const store = createRuntimeStore();
@@ -188,30 +175,46 @@ describe('TasksPanel', () => {
 
   test('provider accounts panel renders posture-first summaries', async () => {
     const { ProviderAccountsPanel } = await import('../../panels/provider-accounts-panel.ts');
+    const snapshot: ProviderAccountSnapshot = {
+      capturedAt: Date.now(),
+      configuredCount: 1,
+      issueCount: 0,
+      providers: [{
+        providerId: 'openai',
+        active: true,
+        modelCount: 1,
+        configured: true,
+        oauthReady: true,
+        pendingLogin: false,
+        availableRoutes: ['service-oauth'],
+        preferredRoute: 'service-oauth',
+        activeRoute: 'service-oauth',
+        activeRouteReason: 'Provider OAuth route is currently preferred.',
+        authFreshness: 'healthy',
+        notes: ['1 model registered'],
+        usageWindows: [],
+        issues: [],
+        recommendedActions: [],
+        routeRecords: [{
+          route: 'service-oauth',
+          usable: true,
+          freshness: 'healthy',
+          detail: 'Provider OAuth credential is available for this provider.',
+          issues: [],
+        }],
+      }],
+    };
 
     const accountsPanel = new ProviderAccountsPanel({
       providerAccounts: {
-        loadSnapshot: () => {
-          const secretsManager = new SecretsManager({ projectRoot: root, globalHome: root });
-          const subscriptionManager = new SubscriptionManager(join(root, '.goodvibes', 'tui', 'subscriptions.json'));
-          const serviceRegistry = new ServiceRegistry(join(root, '.goodvibes', 'tui', 'services.json'), {
-            secretsManager,
-            subscriptionManager,
-          });
-          return buildProviderAccountSnapshot({
-            providerModels: createTestProviderRegistry(),
-            services: serviceRegistry,
-            subscriptions: subscriptionManager,
-            environment: {
-              hasEnvironmentVariable: (name: string) => Boolean(process.env[name]),
-            },
-          });
-        },
+        loadSnapshot: () => Promise.resolve(snapshot),
       },
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
     const accountsText = linesText(accountsPanel.render(120, 18));
     expect(accountsText).toContain('Provider posture');
     expect(accountsText).toContain('/accounts repair <provider>');
+    expect(accountsText).toContain('provider-oauth');
+    expect(accountsText).not.toContain('service-oauth');
   });
 });

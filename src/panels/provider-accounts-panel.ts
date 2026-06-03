@@ -15,10 +15,12 @@ import {
   type PanelWorkspaceSection,
 } from './polish.ts';
 import {
+  type ProviderAuthRoute,
   type ProviderAccountRecord,
   type ProviderAccountSnapshot,
   type ProviderAccountSnapshotQuery,
 } from './provider-account-snapshot.ts';
+import { formatProviderAuthRouteId } from '../provider-auth-route-display.ts';
 
 export interface ProviderAccountsPanelDeps {
   readonly providerAccounts: ProviderAccountSnapshotQuery;
@@ -28,6 +30,18 @@ const C = {
   ...DEFAULT_PANEL_PALETTE,
   selectBg: '#1e293b',
 } as const;
+
+function routeColor(route: ProviderAuthRoute): string {
+  if (route === 'subscription') return C.info;
+  if (route === 'api-key') return C.warn;
+  if (route === 'service-oauth') return C.value;
+  if (route === 'unconfigured') return C.bad;
+  return C.dim;
+}
+
+function formatRouteList(routes: readonly ProviderAuthRoute[]): string {
+  return routes.map((route) => formatProviderAuthRouteId(route)).join(', ');
+}
 
 export class ProviderAccountsPanel extends ScrollableListPanel<ProviderAccountRecord> {
   private records: ProviderAccountRecord[] = [];
@@ -51,9 +65,10 @@ export class ProviderAccountsPanel extends ScrollableListPanel<ProviderAccountRe
   }
 
   protected renderItem(item: ProviderAccountRecord, _index: number, selected: boolean, width: number): Line {
+    const activeRoute = formatProviderAuthRouteId(item.activeRoute);
     return buildPanelListRow(width, [
       { text: item.providerId.padEnd(16), fg: item.active ? C.good : C.value },
-      { text: ` ${item.activeRoute.padEnd(14)}`, fg: item.activeRoute === 'subscription' ? C.info : item.activeRoute === 'api-key' ? C.warn : item.activeRoute === 'service-oauth' ? C.value : C.dim },
+      { text: ` ${activeRoute.padEnd(14)}`, fg: routeColor(item.activeRoute) },
       { text: ` models=${String(item.modelCount).padEnd(4)}`, fg: C.dim },
       { text: ` ${item.authFreshness.padEnd(10)}`, fg: item.authFreshness === 'expired' ? C.bad : item.authFreshness === 'expiring' || item.authFreshness === 'pending' ? C.warn : C.dim },
       { text: ` issues=${String(item.issues.length).padEnd(2)}`, fg: item.issues.length > 0 ? C.bad : C.good },
@@ -123,7 +138,7 @@ export class ProviderAccountsPanel extends ScrollableListPanel<ProviderAccountRe
       buildKeyValueLine(width, [
         { label: 'total issues', value: String(issueCount), valueColor: issueCount > 0 ? C.bad : C.good },
         { label: 'selected', value: selected.providerId, valueColor: C.info },
-        { label: 'route', value: selected.activeRoute, valueColor: selected.activeRoute === 'subscription' ? C.info : selected.activeRoute === 'api-key' ? C.warn : C.value },
+        { label: 'route', value: formatProviderAuthRouteId(selected.activeRoute), valueColor: routeColor(selected.activeRoute) },
         { label: 'freshness', value: selected.authFreshness, valueColor: selected.authFreshness === 'expired' ? C.bad : selected.authFreshness === 'expiring' || selected.authFreshness === 'pending' ? C.warn : C.good },
       ], C),
       buildGuidanceLine(width, '/accounts repair <provider>', 'review routing safety, fallback cost, and provider-specific recovery steps', C),
@@ -131,8 +146,8 @@ export class ProviderAccountsPanel extends ScrollableListPanel<ProviderAccountRe
     const detailRows: Line[] = [
       buildKeyValueLine(width, [
         { label: 'provider', value: selected.providerId, valueColor: C.value },
-        { label: 'active route', value: selected.activeRoute, valueColor: selected.activeRoute === 'subscription' ? C.info : selected.activeRoute === 'api-key' ? C.warn : selected.activeRoute === 'service-oauth' ? C.value : C.bad },
-        { label: 'preferred route', value: selected.preferredRoute, valueColor: C.dim },
+        { label: 'active route', value: formatProviderAuthRouteId(selected.activeRoute), valueColor: routeColor(selected.activeRoute) },
+        { label: 'preferred route', value: formatProviderAuthRouteId(selected.preferredRoute), valueColor: C.dim },
         { label: 'freshness', value: selected.authFreshness, valueColor: selected.authFreshness === 'expired' ? C.bad : selected.authFreshness === 'expiring' || selected.authFreshness === 'pending' ? C.warn : C.good },
       ], C),
       buildKeyValueLine(width, [
@@ -141,7 +156,7 @@ export class ProviderAccountsPanel extends ScrollableListPanel<ProviderAccountRe
         { label: 'pending login', value: selected.pendingLogin ? 'yes' : 'no', valueColor: selected.pendingLogin ? C.warn : C.dim },
       ], C),
       buildPanelLine(width, [[`  Active route reason: ${selected.activeRouteReason}`.slice(0, width), C.dim]]),
-      buildPanelLine(width, [[`  Available routes: ${selected.availableRoutes.join(', ') || 'unconfigured'}`.slice(0, width), C.dim]]),
+      buildPanelLine(width, [[`  Available routes: ${formatRouteList(selected.availableRoutes) || 'unconfigured'}`.slice(0, width), C.dim]]),
     ];
     if (selected.expiresAt) {
       detailRows.push(buildPanelLine(width, [
@@ -156,7 +171,7 @@ export class ProviderAccountsPanel extends ScrollableListPanel<ProviderAccountRe
     }
     for (const route of selected.routeRecords) {
       detailRows.push(buildPanelLine(width, [[
-        `  route ${route.route}: ${route.usable ? 'usable' : 'blocked'} • ${route.freshness} • ${route.detail}`.slice(0, width),
+        `  route ${formatProviderAuthRouteId(route.route)}: ${route.usable ? 'usable' : 'blocked'} • ${route.freshness} • ${route.detail}`.slice(0, width),
         route.usable ? C.dim : C.bad,
       ]]));
       for (const issue of route.issues) {

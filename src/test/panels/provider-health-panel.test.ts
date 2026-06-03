@@ -9,6 +9,7 @@ import { createTestManagers } from '../helpers/test-managers.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { buildMcpAttackPathReview } from '@/runtime/index.ts';
 import { createProviderApi } from '@pellux/goodvibes-sdk/platform/providers';
+import type { ProviderAuthRouteDescriptor } from '@pellux/goodvibes-sdk/platform/providers';
 import { createProviderRuntimeInspectionQuery } from '../../runtime/ui-service-queries.ts';
 
 function linesText(lines: Line[]): string {
@@ -18,7 +19,10 @@ function linesText(lines: Line[]): string {
     .join('\n');
 }
 
-function createPanel(runtimeBus = new RuntimeEventBus()): ProviderHealthPanel {
+function createPanel(
+  runtimeBus = new RuntimeEventBus(),
+  authRoutes?: readonly ProviderAuthRouteDescriptor[],
+): ProviderHealthPanel {
   const managers = createTestManagers();
   managers.configManager.setDynamic('provider.model', 'openai:model-1');
   managers.providerRegistry.register({
@@ -44,6 +48,20 @@ function createPanel(runtimeBus = new RuntimeEventBus()): ProviderHealthPanel {
   const providerRuntime = {
     listProviderIds: () => ['openai'],
     inspectAll: async () => {
+      if (authRoutes) {
+        return [{
+          providerId: 'openai',
+          active: true,
+          modelCount: 1,
+          runtime: {
+            auth: {
+              mode: 'oauth',
+              configured: true,
+              routes: authRoutes,
+            },
+          },
+        }];
+      }
       const snapshot = await baseProviderRuntime.inspect('openai');
       return snapshot ? [snapshot] : [];
     },
@@ -222,5 +240,22 @@ describe('ProviderHealthPanel', () => {
     const text = linesText(panel.render(140, 28));
     expect(text).toContain('openai');
     expect(text).toContain('online');
+  });
+
+  test('renders provider OAuth route without leaking legacy route ids', async () => {
+    const panel = createPanel(new RuntimeEventBus(), [{
+      route: 'service-oauth',
+      label: 'Service OAuth',
+      configured: true,
+      usable: true,
+      freshness: 'healthy',
+      detail: 'Provider OAuth credential is available.',
+    }]);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const text = linesText(panel.render(140, 28));
+    expect(text).toContain('provider-oauth');
+    expect(text).not.toContain('service-oauth');
   });
 });

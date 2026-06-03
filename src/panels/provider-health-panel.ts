@@ -37,6 +37,7 @@ import {
   resolvePrimaryScrollableSection,
   type PanelWorkspaceSection,
 } from './polish.ts';
+import { formatProviderAuthRouteId } from '../provider-auth-route-display.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -646,8 +647,8 @@ export class ProviderHealthPanel extends BasePanel {
       }
       if (selectedAccount) {
         selectedLines.push(buildKeyValueLine(width, [
-          { label: 'route', value: selectedAccount.activeRoute, valueColor: routeColor(selectedAccount.activeRoute) },
-          { label: 'preferred', value: selectedAccount.preferredRoute, valueColor: C.dim },
+          { label: 'route', value: formatProviderAuthRouteId(selectedAccount.activeRoute), valueColor: routeColor(selectedAccount.activeRoute) },
+          { label: 'preferred', value: formatProviderAuthRouteId(selectedAccount.preferredRoute), valueColor: C.dim },
           { label: 'freshness', value: selectedAccount.authFreshness, valueColor: freshnessColor(selectedAccount.authFreshness) },
         ], { ...DEFAULT_PANEL_PALETTE, header: C.title, headerBg: '#0f172a' }));
         selectedLines.push(buildKeyValueLine(width, [

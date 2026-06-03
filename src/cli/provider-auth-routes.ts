@@ -1,4 +1,5 @@
 import type { ProviderAuthRouteDescriptor } from '@pellux/goodvibes-sdk/platform/providers';
+import { formatProviderAuthRouteId, formatProviderAuthRouteLabel } from '../provider-auth-route-display.ts';
 
 function routeUsable(route: ProviderAuthRouteDescriptor): boolean {
   return route.usable ?? route.configured;
@@ -18,5 +19,5 @@ export function formatProviderAuthRoute(route: ProviderAuthRouteDescriptor): str
     route.freshness,
   ].filter((part): part is string => Boolean(part));
   const detail = route.detail?.trim();
-  return `${route.label} [${route.route}; ${status.join(', ')}]${detail ? ` - ${detail}` : ''}`;
+  return `${formatProviderAuthRouteLabel(route.route, route.label)} [${formatProviderAuthRouteId(route.route)}; ${status.join(', ')}]${detail ? ` - ${detail}` : ''}`;
 }
