@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.16 - 2026-06-03
+
+- Add agent_harness workspace_action lookup by actionId, command, target, or query with resolved lookup metadata.
+- Reuse the user-facing workspace action search fields for single-action inspection while reporting ambiguity with candidate actions instead of guessing.
+- Refresh package-facing docs and focused harness coverage for the updated model-visible workspace action inspection path.
+
 ## 1.0.15 - 2026-06-03
 
 - Add forgiving agent_harness slash-command detail lookup by command, commandName, target, or query with parsed invocation metadata.
