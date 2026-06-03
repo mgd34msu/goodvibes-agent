@@ -3,6 +3,7 @@ import { fitDisplay, getDisplayWidth, truncateDisplay } from '../utils/terminal-
 import type { PanelPicker } from '../panels/panel-picker.ts';
 import { CATEGORY_LABELS, CATEGORY_ORDER } from '../panels/panel-picker.ts';
 import type { PanelCategory, PanelRegistration } from '../panels/types.ts';
+import { agentWorkspaceCategoryForPanel, agentWorkspaceCommandForPanel } from '../input/agent-workspace-panel-route.ts';
 import {
   createOverlayBorderLine,
   createOverlayBoxLayout,
@@ -20,8 +21,8 @@ const BODY_FG = '252';
 const BORDER_FG = DEFAULT_OVERLAY_PALETTE.borderFg;
 
 /**
- * Render the panel picker modal as Line[] for overlay in the viewport.
- * Panels are grouped by category. Category headers are inserted between groups.
+ * Render the legacy panel route picker as Line[] for overlay in the viewport.
+ * Routes are grouped by source panel category. Category headers are inserted between groups.
  * When a search query is active a search-bar row is shown beneath the title.
  */
 export function renderPanelPickerOverlay(
@@ -46,7 +47,7 @@ export function renderPanelPickerOverlay(
 
   // ── Title bar ──────────────────────────────────────────────────────────────
   const titleLine = createOverlayBorderLine(width, layout, '┌', '─', '┐', borderFg);
-  putOverlayText(titleLine, layout.margin + 2, layout.width - 4, 'Deferred Workspace Picker', { fg: titleFg, bold: true });
+  putOverlayText(titleLine, layout.margin + 2, layout.width - 4, 'Agent Workspace Routes', { fg: titleFg, bold: true });
   lines.push(titleLine);
 
   // ── Search bar (shown when query is non-empty) ──────────────────────────────
@@ -61,7 +62,7 @@ export function renderPanelPickerOverlay(
 
     lines.push(createOverlayBorderLine(width, layout, '├', '─', '┤', borderFg));
   } else {
-    const placeholder = ' Browse by category or start typing to filter by panel name, purpose, or category.';
+    const placeholder = ' Browse registered routes or type to filter by panel name, purpose, or category.';
     const row = createOverlayContentLine(width, layout, borderFg);
     putOverlayText(row, layout.margin + 2, contentW, fitDisplay(placeholder, contentW), { fg: '244', dim: true });
     lines.push(row);
@@ -70,7 +71,7 @@ export function renderPanelPickerOverlay(
   const visible = picker.getVisible();
 
   if (visible.length === 0) {
-    const noResults = 'No panels match your search';
+    const noResults = 'No Agent workspace routes match your search';
     const noRow = createOverlayContentLine(width, layout, borderFg);
     putOverlayText(noRow, layout.margin + 2, contentW, fitDisplay(noResults, contentW), { fg: '244', dim: true });
     lines.push(noRow);
@@ -174,10 +175,12 @@ export function renderPanelPickerOverlay(
     if (selected) {
       lines.push(createOverlayBorderLine(width, layout, '├', '─', '┤', borderFg));
       const categoryLabel = CATEGORY_LABELS[selected.category].toUpperCase();
+      const routeCommand = agentWorkspaceCommandForPanel(selected.id);
+      const routeArea = agentWorkspaceCategoryForPanel(selected.id).toUpperCase();
       const selectedLine = createOverlayContentLine(width, layout, borderFg);
-      putOverlayText(selectedLine, layout.margin + 2, contentW, fitDisplay(`${selected.icon} ${selected.name}  [${categoryLabel}]`, contentW), { fg: SELECTED_FG });
+      putOverlayText(selectedLine, layout.margin + 2, contentW, fitDisplay(`${selected.icon} ${selected.name}  [${categoryLabel}]  ${routeCommand}`, contentW), { fg: SELECTED_FG });
       lines.push(selectedLine);
-      const desc = fitDisplay(truncateDisplay(selected.description, contentW), contentW);
+      const desc = fitDisplay(truncateDisplay(`${selected.description}  route: ${routeArea}`, contentW), contentW);
       const descRow = createOverlayContentLine(width, layout, borderFg);
       putOverlayText(descRow, layout.margin + 2, contentW, desc, { fg: '244', dim: true });
       lines.push(descRow);
@@ -193,7 +196,7 @@ export function renderPanelPickerOverlay(
   }
 
   // ── Bottom border with hints ───────────────────────────────────────────────
-  const hints = '[Up/Down] Navigate  [Enter] Open  [/] Filter  [Esc] Cancel';
+  const hints = '[Up/Down] Navigate  [Enter] Route  [/] Filter  [Esc] Cancel';
   const bottomLine = createOverlayBorderLine(width, layout, '└', '─', '┘', borderFg);
   putOverlayText(bottomLine, layout.margin + 2, layout.width - 4, truncateDisplay(hints, layout.width - 4), { fg: '240', dim: true });
   lines.push(bottomLine);

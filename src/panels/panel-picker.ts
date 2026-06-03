@@ -41,7 +41,7 @@ export class PanelPicker {
   }
 
   /**
-   * Filter the list by name or description (case-insensitive).
+   * Filter the list by name, description, or category (case-insensitive).
    * Resets selectedIndex to 0.
    */
   search(query: string): void {
@@ -88,7 +88,8 @@ export class PanelPicker {
       ? this.items.filter(
           r =>
             r.name.toLowerCase().includes(q) ||
-            r.description.toLowerCase().includes(q),
+            r.description.toLowerCase().includes(q) ||
+            r.category.toLowerCase().includes(q),
         )
       : [...this.items];
 

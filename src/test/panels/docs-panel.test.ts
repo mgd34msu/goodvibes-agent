@@ -44,6 +44,8 @@ describe('DocsPanel', () => {
     const text = linesText(lines);
     expect(text).toContain('Keyboard Shortcuts');
     expect(text).toContain('Ctrl+C');
+    expect(text).toContain('Open Agent operator workspace');
+    expect(text).not.toContain('Open panel picker');
   });
 
   test('up at top focuses search before section hotkeys apply', () => {

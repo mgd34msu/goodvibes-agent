@@ -73,9 +73,21 @@ describe('panel navigation chrome', () => {
     picker.moveDown();
     const lines = renderPanelPickerOverlay(picker, 100);
     const text = linesToText(lines).join('\n');
-    expect(text).toContain('Deferred Workspace Picker');
+    expect(text).toContain('Agent Workspace Routes');
     expect(text).toContain('Cockpit');
+    expect(text).toContain('/agent home');
     expect(text).toContain('[MONITORING]');
     expect(text).toContain('Unified operator cockpit');
+  });
+
+  test('panel picker filter includes source panel category', () => {
+    const picker = new PanelPicker();
+    picker.open([
+      makeRegistration('cockpit', 'Cockpit', 'monitoring', 'Unified operator cockpit'),
+      makeRegistration('state', 'State', 'agent', 'Agent state review'),
+    ]);
+    picker.search('agent');
+    const visible = picker.getVisible();
+    expect(visible.map((reg) => reg.id)).toEqual(['state']);
   });
 });

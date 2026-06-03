@@ -36,15 +36,15 @@ const C = {
 // ---------------------------------------------------------------------------
 const SHORTCUTS: Array<{ key: string; desc: string }> = [
   { key: 'Ctrl+C',      desc: 'Cancel generation / exit (double)' },
-  { key: 'Ctrl+P',      desc: 'Open panel picker' },
+  { key: 'Ctrl+P',      desc: 'Open Agent operator workspace' },
   { key: 'Ctrl+F',      desc: 'Search conversation' },
   { key: 'Ctrl+K',      desc: 'Copy last response to clipboard' },
   { key: 'Ctrl+L',      desc: 'Clear screen' },
   { key: 'Ctrl+Z',      desc: 'Undo input' },
   { key: 'Alt+Enter',   desc: 'Insert newline in prompt' },
   { key: 'PageUp/Down', desc: 'Scroll conversation' },
-  { key: 'Alt+PgUp/Dn', desc: 'Scroll panel' },
-  { key: 'Tab',         desc: 'Path completion / tab panels' },
+  { key: 'Alt+PgUp/Dn', desc: 'Scroll active workspace surface' },
+  { key: 'Tab',         desc: 'Path completion / workspace focus' },
   { key: '@path',       desc: 'Attach bounded file/folder/URL context in composer' },
   { key: '!@path',      desc: 'Inject raw file contents in composer' },
   { key: '/',           desc: 'Start slash command' },
