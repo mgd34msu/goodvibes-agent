@@ -445,7 +445,7 @@ export function getOnboardingRuntimePostureForHandler(handler: InputHandler, req
 export async function restartOnboardingExternalServicesIfNeededForHandler(handler: InputHandler, request: OnboardingApplyRequest): Promise<OnboardingVerificationItem[]> {
     const externalServices = handler.uiServices.platform.externalServices;
     const state = externalServices?.inspect();
-    const hostStatus = state?.daemonStatus?.reason ?? (state?.daemonRunning ? 'connected GoodVibes host appears active' : 'connected GoodVibes host is not verified from this shell');
+    const hostStatus = state?.connectedHostStatus?.reason ?? (state?.connectedHostRunning ? 'connected GoodVibes host appears active' : 'connected GoodVibes host is not verified from this shell');
     return [{
       id: 'runtime:external-host-owned',
       status: 'pass',

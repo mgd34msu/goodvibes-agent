@@ -343,11 +343,11 @@ export async function bootstrapRuntime(
     const daemonStatus = externalServices.daemonStatus;
     const httpListenerStatus = externalServices.httpListenerStatus;
     return {
-      daemonRunning: hostServiceIsActive(daemonStatus),
-      daemonPortInUse: hostServiceIsBlocked(daemonStatus),
+      connectedHostRunning: hostServiceIsActive(daemonStatus),
+      connectedHostPortInUse: hostServiceIsBlocked(daemonStatus),
       httpListenerRunning: hostServiceIsActive(httpListenerStatus),
       httpListenerPortInUse: hostServiceIsBlocked(httpListenerStatus),
-      daemonStatus,
+      connectedHostStatus: daemonStatus,
       httpListenerStatus,
     };
   };

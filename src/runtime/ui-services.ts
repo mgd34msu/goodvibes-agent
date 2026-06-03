@@ -58,19 +58,19 @@ export interface UiPlatformServices {
   readonly policyRuntimeState: RuntimeServices['policyRuntimeState'];
   readonly externalServices?: {
     inspect(): {
-      readonly daemonRunning: boolean;
-      readonly daemonPortInUse?: boolean;
+      readonly connectedHostRunning: boolean;
+      readonly connectedHostPortInUse?: boolean;
       readonly httpListenerRunning: boolean;
       readonly httpListenerPortInUse?: boolean;
-      readonly daemonStatus?: HostServiceStatus;
+      readonly connectedHostStatus?: HostServiceStatus;
       readonly httpListenerStatus?: HostServiceStatus;
     };
     restart(): Promise<{
-      readonly daemonRunning: boolean;
-      readonly daemonPortInUse?: boolean;
+      readonly connectedHostRunning: boolean;
+      readonly connectedHostPortInUse?: boolean;
       readonly httpListenerRunning: boolean;
       readonly httpListenerPortInUse?: boolean;
-      readonly daemonStatus?: HostServiceStatus;
+      readonly connectedHostStatus?: HostServiceStatus;
       readonly httpListenerStatus?: HostServiceStatus;
     }>;
   };
