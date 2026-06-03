@@ -233,7 +233,7 @@ export class PanelListPanel extends BasePanel {
     }
     const start = Date.now();
     this.needsRender = false;
-    const intro = 'Browse registered panel routes and jump to the matching Agent workspace area without opening copied panels.';
+    const intro = 'Browse registered panel routes and jump to the matching Agent workspace area.';
     const entries = this._buildEntries();
 
     if (entries.length === 0) {
@@ -441,7 +441,7 @@ export class PanelListPanel extends BasePanel {
   private _setRouteMessage(reg: PanelRegistration): void {
     const command = agentWorkspaceCommandForPanel(reg.id);
     const area = agentWorkspaceCategoryForPanel(reg.id);
-    this._routeMessage = `${reg.name} routes through ${command} (${area}). Open Agent Workspace instead of copied panels.`;
+    this._routeMessage = `${reg.name} routes through ${command} (${area}) in Agent workspace.`;
   }
 
   /** Move selection to the previous panel entry. */

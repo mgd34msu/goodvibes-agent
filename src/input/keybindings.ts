@@ -61,7 +61,7 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'screen-clear':          'Repaint the screen',
   'panel-picker':          'Open the Agent operator workspace',
   'panel-close':            'Dismiss Agent workspace',
-  'panel-close-all':         'Dismiss Agent workspace and copied panel focus',
+  'panel-close-all':         'Dismiss Agent workspace focus',
   'panel-tab-next':        'Cycle Agent workspace category forward',
   'panel-tab-prev':        'Cycle Agent workspace category backward',
   'history-search':        'Reverse input history search',
