@@ -313,6 +313,32 @@ describe('/mcp runtime config commands', () => {
     }
   });
 
+  test('MCP trust and role usage include confirmation and invalid values fail closed', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    try {
+      const registry = new CommandRegistry();
+      registerMcpRuntimeCommands(registry);
+      const out: string[] = [];
+      const callLog = makeCallLog();
+      const ctx = makeContext(root, out, callLog);
+
+      await registry.get('mcp')!.handler(['trust', 'docs'], ctx);
+      await registry.get('mcp')!.handler(['role', 'docs'], ctx);
+      await registry.get('mcp')!.handler(['trust', 'docs', 'god-mode', '--yes'], ctx);
+      await registry.get('mcp')!.handler(['role', 'docs', 'superuser', '--yes'], ctx);
+
+      const output = out.join('\n');
+      expect(callLog.trustChanges).toBe(0);
+      expect(callLog.roleChanges).toBe(0);
+      expect(output).toContain('Usage: /mcp trust <server> <constrained|ask-on-risk|blocked> --yes');
+      expect(output).toContain('Usage: /mcp role <server> <general|docs|filesystem|git|database|browser|automation|ops|remote> --yes');
+      expect(output).toContain('Invalid MCP trust mode "god-mode"');
+      expect(output).toContain('Invalid MCP role "superuser"');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('/mcp repair quotes quarantined server names in next-step commands', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
     try {

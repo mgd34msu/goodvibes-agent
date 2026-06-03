@@ -7,6 +7,8 @@ import { quoteSlashCommandArg } from '../slash-command-parser.ts';
 
 const MCP_ROLES = ['general', 'docs', 'filesystem', 'git', 'database', 'browser', 'automation', 'ops', 'remote'] as const;
 const MCP_TRUST_MODES = ['constrained', 'ask-on-risk', 'allow-all', 'blocked'] as const;
+const MCP_TRUST_COMMAND_USAGE = '/mcp trust <server> <constrained|ask-on-risk|blocked> --yes';
+const MCP_ROLE_COMMAND_USAGE = '/mcp role <server> <general|docs|filesystem|git|database|browser|automation|ops|remote> --yes';
 
 interface ParsedMcpAddArgs {
   readonly scope: McpConfigScope;
@@ -282,41 +284,51 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
 
       if (subcommand === 'trust') {
         const serverName = commandArgs[1];
-        const mode = commandArgs[2] as 'constrained' | 'ask-on-risk' | 'allow-all' | 'blocked' | undefined;
-        if (serverName && mode) {
+        const requestedMode = commandArgs[2];
+        if (serverName && requestedMode) {
+          if (!isMcpTrustMode(requestedMode)) {
+            ctx.print(`Invalid MCP trust mode "${requestedMode}". Expected constrained, ask-on-risk, blocked, or allow-all.\nUsage: ${MCP_TRUST_COMMAND_USAGE}\nUse /settings -> MCP to explicitly enable allow-all.`);
+            return;
+          }
+          const mode = requestedMode;
           if (mode === 'allow-all') {
             ctx.print(`Use /settings → MCP to explicitly enable allow-all for ${serverName}. Direct command escalation is blocked.`);
             ctx.openSettingsModal?.();
             return;
           }
           if (!confirmation.yes) {
-            requireYesFlag(ctx, `change MCP trust mode for ${serverName}`, '/mcp trust <server> <constrained|ask-on-risk|blocked> --yes');
+            requireYesFlag(ctx, `change MCP trust mode for ${serverName}`, MCP_TRUST_COMMAND_USAGE);
             return;
           }
           mcpApi.setServerTrustMode(serverName, mode);
           ctx.print(`Updated MCP trust mode for ${serverName} to ${formatMcpTrustMode(mode)}.`);
           return;
         }
-        if (serverName || mode) {
-          ctx.print('Usage: /mcp trust <server> <constrained|ask-on-risk|blocked>\nUse /settings → MCP to explicitly enable allow-all.');
+        if (serverName || requestedMode) {
+          ctx.print(`Usage: ${MCP_TRUST_COMMAND_USAGE}\nUse /settings -> MCP to explicitly enable allow-all.`);
           return;
         }
       }
 
       if (subcommand === 'role') {
         const serverName = commandArgs[1];
-        const role = commandArgs[2] as 'general' | 'docs' | 'filesystem' | 'git' | 'database' | 'browser' | 'automation' | 'ops' | 'remote' | undefined;
-        if (serverName && role) {
+        const requestedRole = commandArgs[2];
+        if (serverName && requestedRole) {
+          if (!isMcpRole(requestedRole)) {
+            ctx.print(`Invalid MCP role "${requestedRole}". Expected one of ${MCP_ROLES.join(', ')}.\nUsage: ${MCP_ROLE_COMMAND_USAGE}`);
+            return;
+          }
+          const role = requestedRole;
           if (!confirmation.yes) {
-            requireYesFlag(ctx, `change MCP role for ${serverName}`, '/mcp role <server> <general|docs|filesystem|git|database|browser|automation|ops|remote> --yes');
+            requireYesFlag(ctx, `change MCP role for ${serverName}`, MCP_ROLE_COMMAND_USAGE);
             return;
           }
           mcpApi.setServerRole(serverName, role);
           ctx.print(`Updated MCP role for ${serverName} to ${formatMcpRole(role)}.`);
           return;
         }
-        if (serverName || role) {
-          ctx.print('Usage: /mcp role <server> <general|docs|filesystem|git|database|browser|automation|ops|remote>');
+        if (serverName || requestedRole) {
+          ctx.print(`Usage: ${MCP_ROLE_COMMAND_USAGE}`);
           return;
         }
       }
