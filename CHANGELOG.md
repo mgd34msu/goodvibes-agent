@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.21 - 2026-06-03
+
+- Resolve agent_harness run_workspace_action by actionId, command, target, or query using the same lookup contract as workspace_action inspection.
+- Refuse ambiguous workspace action run requests with candidate actions instead of requiring exact action ids or guessing.
+- Refresh package-facing docs and focused harness coverage for workspace action run parity.
+
 ## 1.0.20 - 2026-06-03
 
 - Add agent_harness run_keybinding for confirmation-gated shell-safe shortcut equivalents such as search, prompt-history search, paste, clear screen, cancel generation, panel focus/close routes, and visible block-action routing.
