@@ -23,7 +23,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   query: {
     type: 'string',
-    description: 'Search text for command, CLI mirror, panel, UI surface, keybinding, workspace action, setting, or tool catalogs; also slash-command, CLI mirror, setting, panel, UI surface, or keybinding lookup for single-item modes.',
+    description: 'Search text for slash-command, CLI mirror, panel, UI surface, keybinding, workspace action, model tool, setting, or connected-host capability catalogs; also lookup text for the matching single-item modes.',
   },
   command: {
     type: 'string',
@@ -90,7 +90,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   target: {
     type: 'string',
-    description: 'Optional lookup target, such as a model-picker target, top-level CLI mirror/search text, panel id/search text, UI surface id/search text, workspace action id/search text, slash command root or invocation, setting key/search text, keybinding action/search text, model tool name, or connected-host capability id.',
+    description: 'Optional lookup target, such as a model-picker target, top-level CLI mirror/search text, panel id/search text, UI surface id/search text, workspace action id/search text, slash command root or invocation, setting key/search text, keybinding action/search text, model tool name/search text, or connected-host capability id/search text.',
   },
   capabilityId: {
     type: 'string',
@@ -127,10 +127,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   confirm: {
     type: 'boolean',
-    description: 'Required true for set_setting, reset_setting, run_keybinding, run_command, open_panel, open_ui_surface, and mutating run_workspace_action calls after an explicit user request.',
+    description: 'Required true for set_setting, reset_setting, run_keybinding, run_command, open_panel, open_ui_surface, and executable or mutating run_workspace_action calls after an explicit user request.',
   },
   explicitUserRequest: {
     type: 'string',
-    description: 'Exact user request or faithful short summary authorizing a setting mutation, keybinding action, or harness UI/command invocation.',
+    description: 'Exact user request or faithful short summary authorizing a setting mutation, keybinding change/action, harness UI routing, slash-command invocation, or workspace-action invocation.',
   },
 } as const;

@@ -455,6 +455,18 @@ describe('agent_harness tool', () => {
         execute: async () => ({ success: true, output: 'custom action executed' }),
       };
       fixture.toolRegistry.register(tool);
+      fixture.toolRegistry.register({
+        definition: {
+          name: 'agent_custom_report',
+          description: 'Inspect a custom Agent report',
+          parameters: {
+            type: 'object',
+            properties: {},
+            additionalProperties: false,
+          },
+        },
+        execute: async () => ({ success: true, output: 'custom report inspected' }),
+      });
 
       const summary = await fixture.tool.execute({ mode: 'summary' });
       expect(summary.success).toBe(true);
@@ -470,9 +482,22 @@ describe('agent_harness tool', () => {
       const detail = await fixture.tool.execute({ mode: 'tool', toolName: 'agent_custom_action' });
       expect(detail.success).toBe(true);
       expect(detail.output).toContain('"name": "agent_custom_action"');
+      expect(detail.output).toContain('"resolvedBy": "name"');
       expect(detail.output).toContain('"concurrency": "serial"');
       expect(detail.output).toContain('"targetId"');
       expect(detail.output).toContain('Use the returned JSON schema directly');
+
+      const targetLookup = await fixture.tool.execute({ mode: 'tool', target: 'confirmed custom Agent action' });
+      expect(targetLookup.success).toBe(true);
+      expect(targetLookup.output).toContain('"name": "agent_custom_action"');
+      expect(targetLookup.output).toContain('"source": "target"');
+      expect(targetLookup.output).toContain('"resolvedBy": "search"');
+
+      const ambiguous = await fixture.tool.execute({ mode: 'tool', query: 'custom Agent' });
+      expect(ambiguous.success).toBe(false);
+      expect(ambiguous.error).toContain('Ambiguous model tool custom Agent');
+      expect(ambiguous.error).toContain('agent_custom_action');
+      expect(ambiguous.error).toContain('agent_custom_report');
 
       const missing = await fixture.tool.execute({ mode: 'tool', toolName: 'not_a_tool' });
       expect(missing.success).toBe(false);
@@ -1062,12 +1087,47 @@ describe('agent_harness tool', () => {
       expect(blocked.output).toContain('start');
       expect(blocked.output).toContain('not exposed to the model as an Agent operation');
 
+      const blockedByTarget = await fixture.tool.execute({
+        mode: 'connected_host_capability',
+        target: 'default-knowledge',
+      });
+      expect(blockedByTarget.success).toBe(true);
+      expect(blockedByTarget.output).toContain('"status": "blocked"');
+      expect(blockedByTarget.output).toContain('non-agent-knowledge');
+
+      const ambiguous = await fixture.tool.execute({
+        mode: 'connected_host_capability',
+        query: 'agent',
+      });
+      expect(ambiguous.success).toBe(false);
+      expect(ambiguous.error).toContain('Ambiguous connected-host capability agent');
+      expect(ambiguous.error).toContain('agent-knowledge-read');
+      expect(ambiguous.error).toContain('agent-knowledge-ingest');
+
       const missing = await fixture.tool.execute({
         mode: 'connected_host_capability',
         capabilityId: 'not-a-capability',
       });
       expect(missing.success).toBe(false);
       expect(missing.error).toContain('Unknown connected-host capability');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('describes shared lookup and confirmation parameters for model-visible harness modes', () => {
+    const fixture = makeFixture();
+    try {
+      const properties = (fixture.tool.definition.parameters as {
+        readonly properties: Record<string, { readonly description?: string }>;
+      }).properties;
+      expect(properties.query?.description).toContain('workspace action');
+      expect(properties.query?.description).toContain('model tool');
+      expect(properties.query?.description).toContain('connected-host capability');
+      expect(properties.target?.description).toContain('model tool name/search text');
+      expect(properties.target?.description).toContain('connected-host capability id/search text');
+      expect(properties.confirm?.description).toContain('executable or mutating run_workspace_action');
+      expect(properties.explicitUserRequest?.description).toContain('workspace-action invocation');
     } finally {
       fixture.cleanup();
     }

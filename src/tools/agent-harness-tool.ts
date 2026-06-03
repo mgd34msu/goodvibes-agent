@@ -756,18 +756,18 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'tool') {
           const query = readString(args.toolName || args.target || args.query);
-          const tool = describeHarnessModelTool(deps.toolRegistry, args);
-          return tool
-            ? output(tool)
-            : error(`Unknown model tool ${query || '<missing>'}. Use mode:"tools" to inspect available model tools.`);
+          const resolved = describeHarnessModelTool(deps.toolRegistry, args);
+          if (resolved?.status === 'found') return output(resolved.tool);
+          if (resolved?.status === 'ambiguous') return error(`Ambiguous model tool ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(`Unknown model tool ${query || '<missing>'}. Use mode:"tools" to inspect available model tools.`);
         }
         if (args.mode === 'connected_host') return output(connectedHostSummary(deps.commandContext, deps.toolRegistry));
         if (args.mode === 'connected_host_capability') {
           const query = readString(args.capabilityId || args.target || args.query);
-          const capability = describeConnectedHostCapability(deps.toolRegistry, query);
-          return capability
-            ? output(capability)
-            : error(`Unknown connected-host capability ${query || '<missing>'}. Use mode:"connected_host" to inspect allowed and blocked capability ids.`);
+          const resolved = describeConnectedHostCapability(deps.toolRegistry, query);
+          if (resolved?.status === 'found') return output(resolved.detail);
+          if (resolved?.status === 'ambiguous') return error(`Ambiguous connected-host capability ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(`Unknown connected-host capability ${query || '<missing>'}. Use mode:"connected_host" to inspect allowed and blocked capability ids.`);
         }
         if (args.mode === 'connected_host_status') return output(await connectedHostStatusSummary(deps.commandContext, deps.toolRegistry));
         return error(`Unhandled agent_harness mode: ${args.mode}`);

@@ -9,6 +9,10 @@ export interface CommandExecutionPolicy {
   readonly boundary: string;
 }
 
+export type ConnectedHostCapabilityResolution =
+  | { readonly status: 'found'; readonly detail: Record<string, unknown> }
+  | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] };
+
 export function describeCommandPolicy(commandName: string): CommandExecutionPolicy {
   const root = commandName.replace(/^\//, '').trim().toLowerCase();
   const confirmation = 'agent_harness mode:"run_command" requires confirm:true and explicitUserRequest for every slash command invocation.';
@@ -105,7 +109,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'ui-navigation',
       confirmation,
-      preferredModelTool: 'agent_harness workspace/workspace_actions/workspace_action',
+      preferredModelTool: 'agent_harness workspace/workspace_actions/workspace_action/run_workspace_action',
       boundary: 'Navigation and discovery commands should be inspected through agent_harness when possible.',
     };
   }
@@ -168,7 +172,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: root === 'tui' || root === 'onboarding' ? 'ui-navigation' : 'read-only',
       confirmation,
-      preferredModelTool: root === 'onboarding' || root === 'tui' ? 'agent_harness workspace/workspace_actions' : 'agent_harness cli_commands/cli_command',
+      preferredModelTool: root === 'onboarding' || root === 'tui' ? 'agent_harness workspace/workspace_actions/workspace_action/run_workspace_action' : 'agent_harness cli_commands/cli_command',
       boundary: 'Top-level CLI launch, setup, help, version, and completion commands are package entrypoint surfaces; use in-process workspace and slash-command bridges from the model when operating inside the TUI.',
     };
   }
@@ -191,7 +195,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: 'local-state',
       confirmation,
-      preferredModelTool: root === 'profiles' ? 'agent_harness workspace_actions/run_workspace_action' : 'agent_local_registry',
+      preferredModelTool: root === 'profiles' ? 'agent_harness workspace_actions/workspace_action/run_workspace_action' : 'agent_local_registry',
       boundary: 'Local library/profile/session/bundle CLI commands operate on Agent-local data. Mutations require explicit user intent and should use first-class Agent-local tools where available.',
     };
   }
@@ -385,35 +389,55 @@ function relatedConnectedHostRouteFamilies(capability: Record<string, unknown>):
   });
 }
 
-export function describeConnectedHostCapability(
-  toolRegistry: ToolRegistry,
-  rawQuery: string,
-): Record<string, unknown> | null {
-  const query = normalizeCapabilityQuery(rawQuery);
-  if (!query) return null;
+function describeConnectedHostCapabilityCandidates(
+  entries: readonly { readonly status: 'allowed' | 'blocked'; readonly capability: Record<string, unknown> }[],
+): readonly Record<string, unknown>[] {
+  return entries.slice(0, 8).map((entry) => ({
+    status: entry.status,
+    capabilityId: typeof entry.capability.id === 'string' ? entry.capability.id : '',
+    purpose: typeof entry.capability.purpose === 'string' ? entry.capability.purpose : undefined,
+    reason: typeof entry.capability.reason === 'string' ? entry.capability.reason : undefined,
+  }));
+}
 
-  const allowedCapability = connectedHostCapabilityMap(toolRegistry).find((capability) => recordTextMatches(capability, query));
-  if (allowedCapability) {
+function connectedHostCapabilityDetail(entry: { readonly status: 'allowed' | 'blocked'; readonly capability: Record<string, unknown> }): Record<string, unknown> {
+  if (entry.status === 'allowed') {
     return {
       status: 'allowed',
-      capability: allowedCapability,
-      relatedRouteFamilies: relatedConnectedHostRouteFamilies(allowedCapability),
+      capability: entry.capability,
+      relatedRouteFamilies: relatedConnectedHostRouteFamilies(entry.capability),
       statusMode: 'Use agent_harness mode:"connected_host_status" for live read-only reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
       boundary: 'Use only the listed first-class model tools, slash-command families, and workspace categories. Mutations still require explicit confirmation through those tools or command bridges.',
     };
   }
+  return {
+    status: 'blocked',
+    capability: entry.capability,
+    allowed: false,
+    available: false,
+    boundary: 'This connected-host surface is intentionally not exposed to the model as an Agent operation.',
+    statusMode: 'Use agent_harness mode:"connected_host_status" only for read-only readiness diagnostics.',
+  };
+}
 
-  const blockedCapability = blockedConnectedHostCapabilities().find((capability) => recordTextMatches(capability, query));
-  if (blockedCapability) {
-    return {
-      status: 'blocked',
-      capability: blockedCapability,
-      allowed: false,
-      available: false,
-      boundary: 'This connected-host surface is intentionally not exposed to the model as an Agent operation.',
-      statusMode: 'Use agent_harness mode:"connected_host_status" only for read-only readiness diagnostics.',
-    };
-  }
+export function describeConnectedHostCapability(
+  toolRegistry: ToolRegistry,
+  rawQuery: string,
+): ConnectedHostCapabilityResolution | null {
+  const query = normalizeCapabilityQuery(rawQuery);
+  if (!query) return null;
+
+  const entries = [
+    ...connectedHostCapabilityMap(toolRegistry).map((capability) => ({ status: 'allowed' as const, capability })),
+    ...blockedConnectedHostCapabilities().map((capability) => ({ status: 'blocked' as const, capability })),
+  ];
+  const exact = entries.find((entry) => entry.capability.id === rawQuery);
+  if (exact) return { status: 'found', detail: connectedHostCapabilityDetail(exact) };
+  const insensitive = entries.find((entry) => typeof entry.capability.id === 'string' && entry.capability.id.toLowerCase() === query);
+  if (insensitive) return { status: 'found', detail: connectedHostCapabilityDetail(insensitive) };
+  const searched = entries.filter((entry) => recordTextMatches(entry.capability, query));
+  if (searched.length === 1) return { status: 'found', detail: connectedHostCapabilityDetail(searched[0]!) };
+  if (searched.length > 1) return { status: 'ambiguous', input: rawQuery, candidates: describeConnectedHostCapabilityCandidates(searched) };
 
   return null;
 }
