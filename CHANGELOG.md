@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.19 - 2026-06-03
+
+- Add agent_harness cli_command lookup by cliCommand, command, commandName, target, or query while preserving parsed metadata for concrete invocations.
+- Search the top-level CLI mirror catalog for descriptive lookup text and return candidate mirrors instead of treating broad text as a hidden CLI command.
+- Redact CLI config override values in lookup metadata and refresh package-facing docs plus focused harness coverage.
+
 ## 1.0.18 - 2026-06-03
 
 - Add agent_harness panel lookup by panelId, target, or query, with ambiguity candidates for visible panel routing.
