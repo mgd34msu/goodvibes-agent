@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.11 - 2026-06-03
+
+- Model-visible harness parity now opens conversation search, prompt history search, slash-command mode, file picker, and nearest-block actions through confirmation-gated visible shell routes.
+- Documentation now names the current UI surface inventory for 1.0.x so users and the model share the same harness map.
+- Harness assertions cover the new visible surface routes and preserve the existing safety boundary.
+
 ## 1.0.10 - 2026-06-03
 
 - Expose the runtime activity monitor as a model-visible, confirmation-gated harness UI surface, wire the shell opener through CommandContext, and refresh package-facing docs and focused coverage for the current 1.0.x surface map.
