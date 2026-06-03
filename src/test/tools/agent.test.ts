@@ -779,7 +779,7 @@ describe('spawn mode', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('does not spawn local');
+    expect(result.error).toBe(AGENT_LOCAL_SPAWN_DENIAL_MESSAGE);
     expect(guarded.manager.list()).toHaveLength(0);
   });
 
@@ -884,7 +884,7 @@ describe('spawn mode', () => {
     }
   });
 
-  test('Agent runtime guard narrows remote runner tool to read-only modes', async () => {
+  test('Agent runtime guard narrows remote build-host tool to read-only modes', async () => {
     const registry = new ToolRegistry();
     const guarded = makeAgentHarness();
     registry.register(guarded.agentTool);
@@ -893,7 +893,8 @@ describe('spawn mode', () => {
     installAgentToolPolicyGuard(registry);
 
     const remoteDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'remote');
-    expect(remoteDefinition?.description).toContain('Read-only remote runner inspection');
+    expect(remoteDefinition?.description).toContain('Read-only remote build-host inspection');
+    expect(remoteDefinition?.description).not.toContain('remote runner');
     const properties = remoteDefinition?.parameters.properties as Record<string, unknown>;
     const modeProperty = getRecordProperty(properties, 'mode');
     expect(modeProperty?.enum).toEqual([...AGENT_READ_ONLY_REMOTE_TOOL_MODES]);

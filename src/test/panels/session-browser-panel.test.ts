@@ -11,7 +11,7 @@ function linesText(lines: Line[]): string {
 }
 
 describe('SessionBrowserPanel', () => {
-  test('labels return-context remote entries as runners', () => {
+  test('labels return-context remote entries as build hosts', () => {
     const session = {
       name: 'session-a',
       title: 'Recover deployment review',
@@ -40,7 +40,8 @@ describe('SessionBrowserPanel', () => {
     const text = linesText(panel.render(140, 24));
     panel.onDestroy();
 
-    expect(text).toContain('remote runners: runner-a, runner-b');
+    expect(text).toContain('remote build hosts: runner-a, runner-b');
+    expect(text).not.toContain('remote runners');
     expect(text).not.toContain('remote workers');
   });
 });

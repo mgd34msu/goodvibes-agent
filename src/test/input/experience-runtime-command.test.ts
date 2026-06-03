@@ -68,7 +68,7 @@ describe('experience runtime commands', () => {
     expect(out.join('\n')).toContain('or run /health review');
   });
 
-  test('health remote repair guidance uses remote runner wording', async () => {
+  test('health remote repair guidance uses remote build-host wording', async () => {
     const registry = new CommandRegistry();
     registerHealthRuntimeCommands(registry);
     const command = registry.get('health');
@@ -94,7 +94,8 @@ describe('experience runtime commands', () => {
     await command!.handler(['remote'], context);
 
     const text = out.join('\n');
-    expect(text).toContain('repair remote runner state outside Agent');
+    expect(text).toContain('repair remote build-host state outside Agent');
+    expect(text).not.toContain('repair remote runner state');
     expect(text).not.toContain('repair remote worker state');
   });
 });

@@ -140,7 +140,7 @@ const BACKGROUND_EXEC_DENIAL = [
 ].join(' ');
 
 const REMOTE_MUTATION_DENIAL = [
-  'GoodVibes Agent only inspects remote runner pools, contracts, artifacts, and review summaries from the main conversation.',
+  'GoodVibes Agent only inspects remote build-host pools, contracts, artifacts, and review summaries from the main conversation.',
   'Remote pool creation, assignment, unassignment, and artifact import are disabled here.',
   'Use explicit GoodVibes TUI delegation for build/fix/review execution changes.',
 ].join(' ');
@@ -207,8 +207,8 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
         allowedModes: READ_ONLY_REMOTE_TOOL_MODES,
         modeSet: READ_ONLY_REMOTE_TOOL_MODE_SET,
         description: [
-          'Read-only remote runner inspection for GoodVibes Agent.',
-          'Pool creation, runner assignment, unassignment, and artifact import are disabled in the main conversation.',
+          'Read-only remote build-host inspection for GoodVibes Agent.',
+          'Pool creation, host assignment, unassignment, and artifact import are disabled in the main conversation.',
         ].join(' '),
         denial: REMOTE_MUTATION_DENIAL,
       });

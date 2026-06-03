@@ -162,7 +162,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           `  degraded: ${snapshot.degradedConnections}`,
           ...(issues.length > 0 ? issues.map((issue) => `  issue: ${issue}`) : ['  no active remote recovery issues detected']),
           '  next: /delegate <build/fix/review task> for explicit TUI build work',
-          '  next: repair remote runner state outside Agent',
+          '  next: repair remote build-host state outside Agent',
         ].join('\n'));
         return;
       }
@@ -273,7 +273,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         } else if (domain === 'remote') {
           lines.push('  domain: remote');
           lines.push('  /delegate <build/fix/review task> for explicit TUI build work');
-          lines.push('  remote runner setup and recovery belong outside Agent');
+          lines.push('  remote build-host setup and recovery belong outside Agent');
           lines.push('  verify: /health remote');
         } else if (domain === 'mcp') {
           lines.push('  domain: mcp');
