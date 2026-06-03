@@ -41,7 +41,7 @@ describe('UI roadmap gate', () => {
     expect(conversation.prevTranscriptEventLine(999, 'tool_result')).toBe(toolLine);
   });
 
-  test('routes deferred panel openers through the Agent workspace path', () => {
+  test('routes legacy panel openers through the Agent workspace path', () => {
     const testManagers = createTestManagers();
     let openedWorkspaceCategory: string | null = null;
     const input = {

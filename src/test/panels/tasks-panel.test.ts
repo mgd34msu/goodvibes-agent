@@ -47,6 +47,18 @@ describe('TasksPanel', () => {
     const text = linesText(panel.render(120, 12));
     expect(text).toContain('Task Control Room');
     expect(text).toContain('No tasks recorded yet');
+    expect(text).not.toContain('deferred');
+  });
+
+  test('renders unavailable state as a read-only operator view', () => {
+    const panel = new TasksPanel(undefined);
+    const text = linesText(panel.render(120, 12));
+
+    expect(text).toContain('Task Control Room');
+    expect(text).toContain('Connected-host task state is unavailable');
+    expect(text).toContain('This operator view is read-only');
+    expect(text).toContain('/tasks list');
+    expect(text).not.toContain('deferred');
   });
 
   test('renders task summaries and selection detail from the runtime store', () => {

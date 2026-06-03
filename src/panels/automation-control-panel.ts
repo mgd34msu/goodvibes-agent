@@ -103,7 +103,7 @@ export class AutomationControlPanel extends ScrollableListPanel<AutomationRun> {
           lines: buildEmptyState(
             width,
             ' Connected-host automation state is unavailable.',
-            'Use /schedule list for the supported Agent schedule summary. This deferred panel does not start or mutate automation.',
+            'This operator view is read-only. Use /schedule list for compact transcript output; automation stays unchanged.',
             [{ command: '/schedule list', summary: 'review automation without starting hidden work' }],
             C,
           ),

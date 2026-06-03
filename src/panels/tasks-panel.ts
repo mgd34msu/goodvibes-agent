@@ -184,7 +184,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
           lines: buildEmptyState(
             width,
             ' Connected-host task state is unavailable.',
-            'Use /tasks list for the supported Agent task summary. This deferred panel does not start or mutate task execution.',
+            'This operator view is read-only. Use /tasks list for compact transcript output; task execution stays unchanged.',
             [{ command: '/tasks', summary: 'review connected-host tasks without changing execution' }],
             C,
           ),
