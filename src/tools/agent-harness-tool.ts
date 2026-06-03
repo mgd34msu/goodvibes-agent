@@ -273,16 +273,6 @@ function listWorkspaceActions(deps: AgentHarnessToolDeps, args: AgentHarnessTool
     .map((entry) => describeWorkspaceAction(entry.category, entry.action, { includeEditor, editorContext }));
 }
 
-function findWorkspaceAction(args: AgentHarnessToolArgs): { readonly category: AgentWorkspaceCategory; readonly action: AgentWorkspaceAction } | null {
-  const actionId = readString(args.actionId || args.query);
-  const categoryId = readString(args.categoryId || args.category);
-  if (!actionId) return null;
-  return allWorkspaceActions().find((entry) => {
-    if (categoryId && entry.category.id !== categoryId) return false;
-    return entry.action.id === actionId || entry.action.label.toLowerCase() === actionId.toLowerCase();
-  }) ?? null;
-}
-
 function workspaceActionLookupFromArgs(args: AgentHarnessToolArgs): { readonly source: WorkspaceActionLookup['source']; readonly input: string } | null {
   const actionId = readString(args.actionId);
   if (actionId) return { source: 'actionId', input: actionId };
@@ -509,9 +499,10 @@ async function runWorkspaceAction(
   deps: AgentHarnessToolDeps,
   args: AgentHarnessToolArgs,
 ): Promise<{ readonly success: boolean; readonly output?: string; readonly error?: string }> {
-  const found = findWorkspaceAction(args);
-  if (!found) return error('run_workspace_action requires a valid actionId. Use mode:"workspace_actions" to inspect available actions.');
-  const { category, action } = found;
+  const resolved = resolveWorkspaceActionDetail(args);
+  if (resolved?.status === 'ambiguous') return error(`Ambiguous Agent workspace action ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+  if (!resolved) return error('run_workspace_action requires a valid actionId, command, target, or query. Use mode:"workspace_actions" to inspect available actions.');
+  const { category, action, lookup } = resolved;
 
   if (action.safety === 'blocked') {
     return error(`Workspace action ${action.id} is blocked in Agent: ${action.detail}`);
@@ -520,14 +511,14 @@ async function runWorkspaceAction(
     const editorContext = buildWorkspaceEditorContext(deps.commandContext, args);
     return output({
       status: 'guidance',
-      action: describeWorkspaceAction(category, action, { includeEditor: true, editorContext }),
+      action: describeWorkspaceAction(category, action, { includeEditor: true, editorContext, lookup }),
     });
   }
   if (action.kind === 'workspace' && action.targetCategoryId) {
     const target = AGENT_WORKSPACE_CATEGORIES.find((entry) => entry.id === action.targetCategoryId);
     return output({
       status: 'workspace_target',
-      action: describeWorkspaceAction(category, action),
+      action: describeWorkspaceAction(category, action, { lookup }),
       targetCategory: target ? describeWorkspaceCategory(target) : action.targetCategoryId,
       targetActions: target ? target.actions.map((entry) => describeWorkspaceAction(target, entry)).slice(0, 40) : [],
     });
@@ -536,7 +527,7 @@ async function runWorkspaceAction(
     if (/<[^>\s]+(?:\s+[^>]*)?>/.test(action.command)) {
       return output({
         status: 'needs_concrete_command',
-        action: describeWorkspaceAction(category, action),
+        action: describeWorkspaceAction(category, action, { lookup }),
         note: 'This workspace action is a command template. Provide concrete values with mode:"run_command" once the exact command is known.',
       });
     }
@@ -553,7 +544,7 @@ async function runWorkspaceAction(
   const editorContext = buildWorkspaceEditorContext(deps.commandContext, args);
   return output({
     status: 'no_direct_effect',
-    action: describeWorkspaceAction(category, action, { includeEditor: true, editorContext }),
+    action: describeWorkspaceAction(category, action, { includeEditor: true, editorContext, lookup }),
   });
 }
 
@@ -599,7 +590,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               uiSurfaces: 'Use mode:"ui_surfaces" to list and mode:"ui_surface" with surfaceId, target, or query to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
               shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"keybinding" with actionId, target, key, or query; use mode:"run_keybinding" for confirmation-gated shell-safe shortcut equivalents; use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
               slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
-              workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" with actionId, command, target, or query for one action and editor schema; set includeParameters:true on workspace_actions to inline editor schemas.',
+              workspace: 'Use mode:"workspace_actions" to list, mode:"workspace_action" with actionId, command, target, or query for one action and editor schema, and mode:"run_workspace_action" with the same lookup fields plus confirmation for executable actions; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings" to list and mode:"get_setting" with key, target, or query for one setting. Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest.',
               tools: 'Use mode:"tools" to list first-class model tools, or mode:"tool" with toolName, target, or query to inspect one schema.',
               connectedHost: 'Use mode:"connected_host" for the connected-host capability map and blocked boundaries. Use mode:"connected_host_capability" with capabilityId, target, or query for one allowed or blocked capability.',

@@ -1254,19 +1254,84 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('runs command-backed workspace actions through the same command registry', async () => {
+  test('runs command-backed workspace actions through id and command lookups', async () => {
     const fixture = makeFixture();
     try {
-      const result = await fixture.tool.execute({
+      const byId = await fixture.tool.execute({
         mode: 'run_workspace_action',
         actionId: 'brief',
         confirm: true,
         explicitUserRequest: 'Open the operator briefing.',
       });
 
-      expect(result.success).toBe(true);
-      expect(result.output).toContain('Command /brief completed.');
-      expect(result.output).toContain('briefing output');
+      expect(byId.success).toBe(true);
+      expect(byId.output).toContain('Command /brief completed.');
+      expect(byId.output).toContain('briefing output');
+
+      const byCommand = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        command: '/brief',
+        confirm: true,
+        explicitUserRequest: 'Open the operator briefing.',
+      });
+
+      expect(byCommand.success).toBe(true);
+      expect(byCommand.output).toContain('Command /brief completed.');
+      expect(byCommand.output).toContain('briefing output');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs workspace actions by target and query without guessing ambiguous requests', async () => {
+    const fixture = makeFixture();
+    try {
+      const memoryRegistry = await createMemoryRegistry(fixture.paths, fixture.configManager);
+      fixture.toolRegistry.register(createAgentLocalRegistryTool(fixture.paths, memoryRegistry));
+
+      const targetRun = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        categoryId: 'notes',
+        target: 'Create note',
+        fields: {
+          title: 'Lookup parity note',
+          body: 'Target lookup should execute the same workspace editor as an exact action id.',
+          tags: 'harness,lookup',
+        },
+        confirm: true,
+        explicitUserRequest: 'Create a note through workspace action lookup.',
+      });
+      expect(targetRun.success).toBe(true);
+      expect(targetRun.output).toContain('"status": "executed_model_tool"');
+      expect(targetRun.output).toContain('Created Agent-local note');
+      const note = AgentNoteRegistry.fromShellPaths(fixture.paths).get('lookup-parity-note');
+      expect(note?.body).toContain('Target lookup should execute');
+
+      const queryRun = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        query: 'durable non-secret default knowledge fallback',
+        fields: {
+          summary: 'Lookup execution preserves Agent-local memory only.',
+          detail: 'Query lookup should execute the same workspace editor as an exact memory action id.',
+          tags: 'harness,lookup',
+        },
+        confirm: true,
+        explicitUserRequest: 'Create a memory through workspace action lookup.',
+      });
+      expect(queryRun.success).toBe(true);
+      expect(queryRun.output).toContain('"status": "executed_model_tool"');
+      expect(queryRun.output).toContain('Created Agent-local memory');
+      expect(memoryRegistry.getAll().some((entry) => entry.summary === 'Lookup execution preserves Agent-local memory only.')).toBe(true);
+
+      const ambiguous = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        query: 'memory',
+        confirm: true,
+        explicitUserRequest: 'Run the memory action.',
+      });
+      expect(ambiguous.success).toBe(false);
+      expect(ambiguous.error).toContain('Ambiguous Agent workspace action memory');
+      expect(ambiguous.error).toContain('memory-create');
     } finally {
       fixture.cleanup();
     }

@@ -27,7 +27,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   command: {
     type: 'string',
-    description: 'Full slash command string for mode command, workspace_action lookup, or run_command, for example "/settings get provider.model". In cli_command mode this may also hold a top-level CLI string such as "goodvibes-agent status --json".',
+    description: 'Full slash command string for mode command, workspace_action/run_workspace_action lookup, or run_command, for example "/settings get provider.model". In cli_command mode this may also hold a top-level CLI string such as "goodvibes-agent status --json".',
   },
   cliCommand: {
     type: 'string',
@@ -56,7 +56,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   actionId: {
     type: 'string',
-    description: 'Agent workspace action id for workspace_action or run_workspace_action, or keybinding action id for keybinding/run_keybinding/set_keybinding/reset_keybinding. target or query can also look up one keybinding action.',
+    description: 'Agent workspace action id for workspace_action or run_workspace_action, or keybinding action id for keybinding/run_keybinding/set_keybinding/reset_keybinding. command, target, or query can also look up one workspace action; target or query can also look up one keybinding action.',
   },
   fields: {
     type: 'object',
