@@ -74,6 +74,27 @@ describe('/agent-skills command', () => {
     expect(text).toContain('secret-looking');
   });
 
+  test('preserves option-looking skill procedure values', async () => {
+    const { registry, out, ctx } = commandHarness();
+
+    await registry.execute('agent-skills', [
+      'create',
+      '--name',
+      'Flag Procedure',
+      '--description=Capture command-line guidance.',
+      '--procedure',
+      '--dry-run first, then ask before external writes.',
+      '--tags=cli,flags',
+    ], ctx);
+    await registry.execute('agent-skills', ['show', 'flag-procedure'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Created Agent skill flag-procedure');
+    expect(text).toContain('Capture command-line guidance.');
+    expect(text).toContain('--dry-run first, then ask before external writes.');
+    expect(text).toContain('tags: cli, flags');
+  });
+
   test('creates and enables local skill bundles', async () => {
     const { registry, out, ctx } = commandHarness();
 

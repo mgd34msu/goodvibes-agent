@@ -10,38 +10,13 @@ import {
 import { discoverSkills, type SkillRecord } from '../../agent/skill-discovery.ts';
 import { formatAgentRecordOrigin, formatAgentRecordReviewState } from '../../agent/record-labels.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
+import { parseAgentLocalLibraryArgs, type ParsedAgentLocalLibraryArgs } from './agent-local-library-args.ts';
 import { requireShellPaths } from './runtime-services.ts';
 
-interface ParsedSkillArgs {
-  readonly rest: readonly string[];
-  readonly flags: ReadonlyMap<string, string>;
-  readonly yes: boolean;
-}
+const SKILL_VALUE_FLAGS = ['name', 'description', 'procedure', 'tags', 'triggers', 'requires-env', 'requires-command', 'requires-commands', 'skills'] as const;
 
-function parseSkillArgs(args: readonly string[]): ParsedSkillArgs {
-  const flags = new Map<string, string>();
-  const rest: string[] = [];
-  let yes = false;
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index] ?? '';
-    if (token === '--yes') {
-      yes = true;
-      continue;
-    }
-    if (token.startsWith('--')) {
-      const key = token.slice(2);
-      const next = args[index + 1];
-      if (next !== undefined && !next.startsWith('--')) {
-        flags.set(key, next);
-        index += 1;
-      } else {
-        flags.set(key, 'true');
-      }
-      continue;
-    }
-    rest.push(token);
-  }
-  return { rest, flags, yes };
+function parseSkillArgs(args: readonly string[]): ParsedAgentLocalLibraryArgs {
+  return parseAgentLocalLibraryArgs(args, { valueFlags: SKILL_VALUE_FLAGS });
 }
 
 function splitList(value: string | undefined): readonly string[] {

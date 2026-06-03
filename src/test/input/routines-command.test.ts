@@ -196,6 +196,29 @@ describe('/routines command', () => {
     expect(text).toContain('secret-looking');
   });
 
+  test('preserves option-looking routine step values', async () => {
+    const { registry, out, ctx } = commandHarness();
+
+    await registry.execute('routines', [
+      'create',
+      '--name',
+      'Flag Routine',
+      '--description=Run command-line checks.',
+      '--steps',
+      '--dry-run first, summarize risk, then ask before external effects.',
+      '--tags=cli,flags',
+      '--enabled',
+    ], ctx);
+    await registry.execute('routines', ['show', 'flag-routine'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Created Agent routine flag-routine');
+    expect(text).toContain('Routine Flag Routine');
+    expect(text).toContain('Run command-line checks.');
+    expect(text).toContain('--dry-run first, summarize risk, then ask before external effects.');
+    expect(text).toContain('tags: cli, flags');
+  });
+
   test('discovers and imports local routine markdown only after confirmation', async () => {
     const { registry, out, ctx } = commandHarness();
     const shellPaths = ctx.workspace?.shellPaths;

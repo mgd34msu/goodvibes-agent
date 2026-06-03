@@ -224,6 +224,34 @@ describe('routines CLI command', () => {
     expect(String(payload.error)).toContain('Missing --description');
   });
 
+  test('preserves option-looking routine values from the CLI', async () => {
+    const baseRuntime = runtime([
+      'create',
+      '--name=Flag Routine',
+      '--description',
+      '--run-command-checks',
+      '--steps',
+      '--dry-run first, summarize risk, then ask before external effects.',
+      '--tags=cli,flags',
+    ]);
+    const created = await handleRoutinesCommand(baseRuntime);
+    expect(created.exitCode).toBe(0);
+
+    const shown = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'show', 'flag-routine', '--json']) });
+    const payload = JSON.parse(shown.output) as {
+      readonly data?: {
+        readonly description?: unknown;
+        readonly steps?: unknown;
+        readonly tags?: readonly string[];
+      };
+    };
+
+    expect(shown.exitCode).toBe(0);
+    expect(payload.data?.description).toBe('--run-command-checks');
+    expect(payload.data?.steps).toBe('--dry-run first, summarize risk, then ask before external effects.');
+    expect(payload.data?.tags).toEqual(['cli', 'flags']);
+  });
+
   test('discovers previews and imports local routine markdown only after confirmation', async () => {
     const baseRuntime = runtime(['discover']);
     const routineDir = join(baseRuntime.workingDirectory, '.goodvibes', 'agent', 'routines', 'travel-prep');

@@ -2,38 +2,13 @@ import { discoverPersonas, type DiscoveredPersonaRecord } from '../../agent/pers
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../../agent/persona-registry.ts';
 import { formatAgentRecordOrigin, formatAgentRecordReviewState } from '../../agent/record-labels.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
+import { parseAgentLocalLibraryArgs, type ParsedAgentLocalLibraryArgs } from './agent-local-library-args.ts';
 import { requireShellPaths } from './runtime-services.ts';
 
-interface ParsedPersonaArgs {
-  readonly rest: readonly string[];
-  readonly flags: ReadonlyMap<string, string>;
-  readonly yes: boolean;
-}
+const PERSONA_VALUE_FLAGS = ['name', 'description', 'body', 'tags', 'triggers'] as const;
 
-function parsePersonaArgs(args: readonly string[]): ParsedPersonaArgs {
-  const flags = new Map<string, string>();
-  const rest: string[] = [];
-  let yes = false;
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index] ?? '';
-    if (token === '--yes') {
-      yes = true;
-      continue;
-    }
-    if (token.startsWith('--')) {
-      const key = token.slice(2);
-      const next = args[index + 1];
-      if (next !== undefined && !next.startsWith('--')) {
-        flags.set(key, next);
-        index += 1;
-      } else {
-        flags.set(key, 'true');
-      }
-      continue;
-    }
-    rest.push(token);
-  }
-  return { rest, flags, yes };
+function parsePersonaArgs(args: readonly string[]): ParsedAgentLocalLibraryArgs {
+  return parseAgentLocalLibraryArgs(args, { valueFlags: PERSONA_VALUE_FLAGS });
 }
 
 function splitList(value: string | undefined): readonly string[] {

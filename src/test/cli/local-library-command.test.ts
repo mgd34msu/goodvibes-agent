@@ -102,6 +102,44 @@ describe('local Agent library CLI commands', () => {
     expect(result.output).toContain('cannot store secret-looking values');
   });
 
+  test('preserves option-looking persona and skill values from the CLI', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-local-library-flag-values-'));
+    roots.push(home);
+
+    const persona = await runCli([
+      'personas',
+      'create',
+      '--name=Flag Persona',
+      '--description',
+      '--prefer-explicit-approval',
+      '--body',
+      '--ask before sending, scheduling, or changing services.',
+      '--tags=ops,flags',
+    ], home);
+    expect(persona.exitCode).toBe(0);
+
+    const skill = await runCli([
+      'skills',
+      'create',
+      '--name=Flag Skill',
+      '--description',
+      'Capture command-line procedure text.',
+      '--procedure',
+      '--dry-run first, then ask before external writes.',
+      '--tags=cli,flags',
+    ], home);
+    expect(skill.exitCode).toBe(0);
+
+    const shownPersona = await runCli(['personas', 'show', 'flag-persona'], home);
+    const shownSkill = await runCli(['skills', 'show', 'flag-skill'], home);
+
+    expect(shownPersona.output).toContain('--prefer-explicit-approval');
+    expect(shownPersona.output).toContain('--ask before sending, scheduling, or changing services.');
+    expect(shownPersona.output).toContain('tags: ops, flags');
+    expect(shownSkill.output).toContain('--dry-run first, then ask before external writes.');
+    expect(shownSkill.output).toContain('tags: cli, flags');
+  });
+
   test('discovers previews and imports persona files from the CLI', async () => {
     const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-personas-discovery-cli-'));
     roots.push(home);

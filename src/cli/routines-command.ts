@@ -43,6 +43,7 @@ interface ParsedRoutineOptions {
 }
 
 const ROUTINE_CREATE_USAGE = 'Usage: goodvibes-agent routines create --name <name> --description <summary> --steps <steps> [--tags a,b] [--triggers a,b] [--requires-env A,B] [--requires-command gh,jq] [--enabled]';
+const ROUTINE_VALUE_OPTIONS = ['name', 'description', 'steps', 'tags', 'triggers', 'requires-env', 'requires-command', 'requires-commands'] as const;
 
 function jsonOrText(runtime: CliCommandRuntime, value: unknown, text: string): string {
   return runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text;
@@ -83,19 +84,30 @@ function splitList(value: string | undefined): readonly string[] {
 }
 
 function parseRoutineOptions(args: readonly string[]): ParsedRoutineOptions {
+  const valued: ReadonlySet<string> = new Set(ROUTINE_VALUE_OPTIONS);
   const flags = new Map<string, string>();
   const positionals: string[] = [];
   let yes = false;
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index] ?? '';
+    if (token === '--') {
+      positionals.push(...args.slice(index + 1));
+      break;
+    }
     if (token === '--yes') {
       yes = true;
       continue;
     }
-    if (token.startsWith('--')) {
-      const key = token.slice(2);
+    if (token.startsWith('--') && token.length > 2) {
+      const raw = token.slice(2);
+      const equalIndex = raw.indexOf('=');
+      if (equalIndex >= 0) {
+        flags.set(raw.slice(0, equalIndex), raw.slice(equalIndex + 1));
+        continue;
+      }
+      const key = raw;
       const next = args[index + 1];
-      if (next !== undefined && !next.startsWith('--')) {
+      if (next !== undefined && (valued.has(key) || !next.startsWith('--'))) {
         flags.set(key, next);
         index += 1;
       } else {

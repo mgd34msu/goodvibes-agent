@@ -66,6 +66,28 @@ describe('/personas command', () => {
     expect(text).toContain('secret-looking');
   });
 
+  test('preserves option-looking persona field values', async () => {
+    const { registry, out, ctx } = commandHarness();
+
+    await registry.execute('personas', [
+      'create',
+      '--name',
+      'Flag Aware',
+      '--description',
+      '--prefer-direct-constraints',
+      '--body',
+      '--ask before scheduling, sending, or changing services',
+      '--tags=ops,flags',
+    ], ctx);
+    await registry.execute('personas', ['show', 'flag-aware'], ctx);
+
+    const text = out.join('\n');
+    expect(text).toContain('Created Agent persona flag-aware');
+    expect(text).toContain('--prefer-direct-constraints');
+    expect(text).toContain('--ask before scheduling, sending, or changing services');
+    expect(text).toContain('tags: ops, flags');
+  });
+
   test('discovers and imports local persona markdown only after confirmation', async () => {
     const { registry, out, ctx } = commandHarness();
     const shellPaths = ctx.workspace?.shellPaths;

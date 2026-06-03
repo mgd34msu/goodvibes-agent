@@ -33,6 +33,20 @@ interface ParsedOptions {
   readonly positionals: readonly string[];
 }
 
+const LOCAL_LIBRARY_VALUE_OPTIONS = [
+  'name',
+  'description',
+  'body',
+  'procedure',
+  'tags',
+  'triggers',
+  'requires-env',
+  'requires-command',
+  'requires-commands',
+  'skills',
+  'provenance',
+] as const;
+
 function jsonOrText(runtime: CliCommandRuntime, value: unknown, text: string): string {
   return runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text;
 }
@@ -50,24 +64,30 @@ function failure(runtime: CliCommandRuntime, kind: string, error: string, exitCo
   };
 }
 
-function parseOptions(args: readonly string[]): ParsedOptions {
+function parseOptions(args: readonly string[], valueOptions: readonly string[] = LOCAL_LIBRARY_VALUE_OPTIONS): ParsedOptions {
+  const valued = new Set(valueOptions);
   const values = new Map<string, string>();
   const flags = new Set<string>();
   const positionals: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] ?? '';
+    if (arg === '--') {
+      positionals.push(...args.slice(index + 1));
+      break;
+    }
     if (!arg.startsWith('--')) {
       positionals.push(arg);
       continue;
     }
-    const equalIndex = arg.indexOf('=');
+    const raw = arg.slice(2);
+    const equalIndex = raw.indexOf('=');
     if (equalIndex >= 0) {
-      values.set(arg.slice(2, equalIndex), arg.slice(equalIndex + 1));
+      values.set(raw.slice(0, equalIndex), raw.slice(equalIndex + 1));
       continue;
     }
-    const name = arg.slice(2);
+    const name = raw;
     const next = args[index + 1];
-    if (next !== undefined && !next.startsWith('--')) {
+    if (next !== undefined && (valued.has(name) || !next.startsWith('--'))) {
       values.set(name, next);
       index += 1;
       continue;
