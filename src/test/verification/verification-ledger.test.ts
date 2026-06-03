@@ -4,6 +4,7 @@ import {
   renderVerificationLedgerMarkdown,
 } from '../../verification/verification-ledger.ts';
 import { join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 const projectRoot = resolve(join(import.meta.dir, '..', '..', '..'));
 
@@ -28,5 +29,28 @@ describe('verification ledger', () => {
     expect(markdown).toContain('# GoodVibes Verification Ledger');
     expect(markdown).toContain('Local verification signal');
     expect(markdown).toContain('External outcome required');
+  });
+
+  test('does not count hidden host lifecycle commands as Agent verification scope', () => {
+    const source = readFileSync(join(projectRoot, 'src/verification/verification-ledger.ts'), 'utf8');
+    const markdown = renderVerificationLedgerMarkdown(buildVerificationLedger(projectRoot));
+    const hiddenCommandTokens = [
+      "'bridge'",
+      "'control-plane'",
+      "'listener'",
+      "'remote'",
+      "'runner-pool'",
+      "'serve'",
+      "'service'",
+      "'surfaces'",
+      "'tunnel'",
+      "'web'",
+    ] as const;
+
+    for (const token of hiddenCommandTokens) {
+      expect(source).not.toContain(token);
+    }
+    expect(markdown).not.toContain('TUI/service/remote');
+    expect(markdown).toContain('interactive TUI, run, auth, pair, knowledge, provider, subscription, and secret flows');
   });
 });

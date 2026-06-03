@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import type { LiveVerificationReport } from '../../verification/live-verifier.ts';
 import { buildAgentKnowledgeLiveSkipCheck, renderLiveVerificationReportMarkdown } from '../../verification/live-verifier.ts';
+
+const projectRoot = resolve(join(import.meta.dir, '..', '..', '..'));
 
 describe('live verification report', () => {
   it('renders summary counts and check rows', () => {
@@ -20,11 +24,11 @@ describe('live verification report', () => {
           summary: '100% local verification signal.',
         },
         {
-          id: 'surface',
-          title: 'CLI surfaces readiness command',
+          id: 'agent-knowledge-status',
+          title: 'Agent Knowledge CLI status command',
           status: 'warn',
-          summary: 'Web surface is not reachable.',
-          detail: 'web enabled but not reachable on 0.0.0.0:3423',
+          summary: 'Agent Knowledge route is not available.',
+          detail: '/api/goodvibes-agent/knowledge/status returned 404',
         },
       ],
     };
@@ -35,9 +39,21 @@ describe('live verification report', () => {
     expect(markdown).toContain('Binary: `/repo/dist/goodvibes-agent`');
     expect(markdown).toContain('Connected host: `http://127.0.0.1:3421`');
     expect(markdown).not.toContain('daemonBaseUrl');
-    expect(markdown).toContain('| CLI surfaces readiness command | warn | Web surface is not reachable. |');
-    expect(markdown).toContain('web enabled but not reachable');
+    expect(markdown).toContain('| Agent Knowledge CLI status command | warn | Agent Knowledge route is not available. |');
+    expect(markdown).toContain('/api/goodvibes-agent/knowledge/status');
     expect(markdown).toContain('Result: PASS');
+  });
+
+  it('does not invoke retired host lifecycle commands during live Agent verification', () => {
+    const source = readFileSync(join(projectRoot, 'src/verification/live-verifier.ts'), 'utf8');
+
+    expect(source).toContain("await runCommand(binaryPath, ['status', '--json'], projectRoot)");
+    expect(source).toContain("await runCommand(binaryPath, ['knowledge', 'status', '--json'], projectRoot)");
+    expect(source).toContain("await runCommand(binaryPath, ['doctor', '--output', 'text'], projectRoot)");
+    expect(source).not.toContain("await runCommand(binaryPath, ['control-plane', 'status'], projectRoot)");
+    expect(source).not.toContain("await runCommand(binaryPath, ['listener', 'test'], projectRoot)");
+    expect(source).not.toContain("await runCommand(binaryPath, ['surfaces', 'check'], projectRoot)");
+    expect(source).not.toContain("await runCommand(binaryPath, ['service', 'check'], projectRoot)");
   });
 
   it('skips Agent Knowledge route validation when the connected host SDK is older than the Agent pin', () => {

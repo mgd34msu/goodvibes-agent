@@ -359,34 +359,6 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
       'Provider inventory rendered successfully.',
     ));
     checks.push(commandCheck(
-      'cli-control-plane-status',
-      'Read-only control-plane status command',
-      await runCommand(binaryPath, ['control-plane', 'status'], projectRoot),
-      'Control-plane status rendered successfully.',
-      { warnOnNonZero: true },
-    ));
-    checks.push(commandCheck(
-      'cli-listener-test',
-      'Read-only listener readiness command',
-      await runCommand(binaryPath, ['listener', 'test'], projectRoot),
-      'Incoming webhook listener readiness rendered successfully.',
-      { warnOnNonZero: true },
-    ));
-    checks.push(commandCheck(
-      'cli-surfaces-check',
-      'Read-only surfaces readiness command',
-      await runCommand(binaryPath, ['surfaces', 'check'], projectRoot),
-      'Surface readiness rendered successfully.',
-      { warnOnNonZero: true },
-    ));
-    checks.push(commandCheck(
-      'cli-service-check',
-      'Read-only service posture command',
-      await runCommand(binaryPath, ['service', 'check'], projectRoot),
-      'Service posture rendered successfully.',
-      { warnOnNonZero: true },
-    ));
-    checks.push(commandCheck(
       'cli-doctor',
       'CLI doctor command',
       await runCommand(binaryPath, ['doctor', '--output', 'text'], projectRoot),

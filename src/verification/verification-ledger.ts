@@ -29,39 +29,29 @@ export interface VerificationLedger {
 
 const EXTERNAL_SLASH_COMMANDS = new Set([
   'auth',
-  'bridge',
+  'channels',
   'health',
-  'listener',
-  'login',
-  'logout',
+  'knowledge',
   'mcp',
   'notify',
   'pair',
+  'provider',
   'qrcode',
-  'remote',
-  'remote-env',
-  'remote-setup',
-  'runner-pool',
-  'scan',
   'secrets',
-  'services',
   'subscription',
-  'teleport',
   'tts',
-  'tunnel',
   'voice',
 ]);
 
 const EXTERNAL_CLI_COMMANDS = new Set([
-  'bridge',
-  'listener',
+  'auth',
+  'knowledge',
   'pair',
-  'remote',
+  'providers',
   'run',
-  'serve',
-  'service',
+  'secrets',
+  'subscription',
   'tui',
-  'web',
 ]);
 
 const ONBOARDING_CAPABILITIES = [
@@ -170,7 +160,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localSignalVerified: cliCommands,
       localBehaviorVerified: cliCommands - externalCliCommands,
       externalOutcomeRequired: externalCliCommands,
-      notes: 'Parser/help/status/package behavior is local; long-running TUI/service/remote flows require process or external checks.',
+      notes: 'Parser/help/status/package behavior is local; interactive TUI, run, auth, pair, knowledge, provider, subscription, and secret flows require process or external checks.',
     },
     {
       area: 'External surfaces',
