@@ -1,4 +1,6 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import type { CommandContext } from '../input/command-registry.ts';
+import { resolveAgentConnectedHostConnection } from '../agent/routine-schedule-promotion.ts';
 
 export interface CommandExecutionPolicy {
   readonly effect: 'read-only' | 'local-state' | 'connected-host-state' | 'external-network' | 'ui-navigation' | 'session-lifecycle' | 'delegated-work' | 'mixed' | 'unknown';
@@ -132,6 +134,96 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
   };
 }
 
+export function describeCliCommandPolicy(commandName: string): CommandExecutionPolicy {
+  const root = commandName.trim().toLowerCase();
+  const confirmation = 'agent_harness CLI command modes are discovery-only. Use first-class model tools, workspace actions, slash-command mirrors, or an explicit external shell request to execute equivalent CLI workflows.';
+  if ([
+    'app',
+    'bridge',
+    'control-plane',
+    'controlplane',
+    'cp',
+    'daemon',
+    'http-listener',
+    'launch',
+    'listener',
+    'remote',
+    'serve',
+    'server',
+    'service',
+    'services',
+    'start',
+    'surface',
+    'surfaces',
+    'web',
+    'webhook',
+  ].includes(root)) {
+    return {
+      effect: 'unknown',
+      confirmation,
+      boundary: 'Blocked package CLI token. Agent can launch its own TUI and use public connected-host routes, but it does not manage connected-host lifecycle, listeners, servers, bridges, remotes, web surfaces, or webhook listeners.',
+    };
+  }
+  if (root === 'tui' || root === 'onboarding' || root === 'help' || root === 'version' || root === 'completion') {
+    return {
+      effect: root === 'tui' || root === 'onboarding' ? 'ui-navigation' : 'read-only',
+      confirmation,
+      preferredModelTool: root === 'onboarding' || root === 'tui' ? 'agent_harness workspace/workspace_actions' : 'agent_harness cli_commands/cli_command',
+      boundary: 'Top-level CLI launch, setup, help, version, and completion commands are package entrypoint surfaces; use in-process workspace and slash-command bridges from the model when operating inside the TUI.',
+    };
+  }
+  if (root === 'run') {
+    return {
+      effect: 'mixed',
+      confirmation,
+      boundary: 'The CLI run command starts a non-interactive Agent turn from a process entrypoint. Do not create hidden nested turns from agent_harness; answer the user directly in the current conversation.',
+    };
+  }
+  if (root === 'status' || root === 'doctor' || root === 'auth' || root === 'compat' || root === 'models' || root === 'providers' || root === 'tasks') {
+    return {
+      effect: 'read-only',
+      confirmation,
+      preferredModelTool: root === 'tasks' ? 'agent_operator_briefing' : 'agent_harness connected_host/settings/tools',
+      boundary: 'Diagnostics and posture commands are readable from Agent-owned settings, provider, model, and connected-host capability surfaces without taking connected-host lifecycle ownership.',
+    };
+  }
+  if (root === 'profiles' || root === 'personas' || root === 'skills' || root === 'memory' || root === 'routines' || root === 'sessions' || root === 'bundle') {
+    return {
+      effect: 'local-state',
+      confirmation,
+      preferredModelTool: root === 'profiles' ? 'agent_harness workspace_actions/run_workspace_action' : 'agent_local_registry',
+      boundary: 'Local library/profile/session/bundle CLI commands operate on Agent-local data. Mutations require explicit user intent and should use first-class Agent-local tools where available.',
+    };
+  }
+  if (root === 'knowledge' || root === 'ask' || root === 'search') {
+    return {
+      effect: 'mixed',
+      confirmation,
+      preferredModelTool: root === 'knowledge' ? 'agent_knowledge or agent_knowledge_ingest' : 'agent_knowledge',
+      boundary: 'Agent Knowledge CLI commands must stay on isolated Agent Knowledge routes and never fall back to default or non-Agent knowledge spaces.',
+    };
+  }
+  if (root === 'delegate') {
+    return {
+      effect: 'delegated-work',
+      confirmation,
+      boundary: 'Delegation is explicit user-directed work only; no hidden background review or separate Agent job should be created implicitly.',
+    };
+  }
+  if (root === 'subscription' || root === 'secrets' || root === 'pair') {
+    return {
+      effect: root === 'pair' ? 'external-network' : 'mixed',
+      confirmation,
+      boundary: 'Provider subscription, secret, and pairing flows can expose credentials or external account state. Use only explicit user-directed flows and prefer secret refs over raw values.',
+    };
+  }
+  return {
+    effect: 'unknown',
+    confirmation,
+    boundary: 'Inspect the CLI help, parser result, and preferred model routes before using an equivalent command path.',
+  };
+}
+
 function toolIsAvailable(toolRegistry: ToolRegistry, toolName: string): boolean {
   return toolRegistry.getToolDefinitions().some((tool) => tool.name === toolName);
 }
@@ -262,6 +354,22 @@ export function connectedHostRouteFamilies(): readonly Record<string, unknown>[]
       boundary: 'Connected schedules only; no hidden local scheduler or separate Agent job.',
     },
   ];
+}
+
+export function connectedHostSummary(context: CommandContext, toolRegistry: ToolRegistry): Record<string, unknown> {
+  const shellPaths = context.workspace.shellPaths;
+  const homeDirectory = shellPaths?.homeDirectory ?? context.platform.configManager.getHomeDirectory() ?? '';
+  const connection = resolveAgentConnectedHostConnection(context.platform.configManager, homeDirectory);
+  return {
+    baseUrl: connection.baseUrl,
+    operatorToken: connection.token ? 'configured' : 'missing',
+    tokenPath: connection.tokenPath,
+    ownership: 'external-connected-host',
+    lifecycle: 'GoodVibes Agent can use public connected-host operator routes, but does not start, stop, restart, install, expose, or mutate the host listener.',
+    routeFamilies: connectedHostRouteFamilies(),
+    capabilities: connectedHostCapabilityMap(toolRegistry),
+    blockedCapabilities: blockedConnectedHostCapabilities(),
+  };
 }
 
 export function blockedConnectedHostCapabilities(): readonly Record<string, unknown>[] {

@@ -17,11 +17,12 @@ import type {
   AgentWorkspaceRuntimeSnapshot,
 } from '../input/agent-workspace-types.ts';
 import { parseSlashCommand } from '../input/slash-command-parser.ts';
+import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
+import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { describeLocalWorkspaceModelExecution, runLocalWorkspaceAction } from './agent-harness-local-operations.ts';
+import { listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import {
-  blockedConnectedHostCapabilities,
-  connectedHostCapabilityMap,
-  connectedHostRouteFamilies,
+  connectedHostSummary,
   describeCommandPolicy,
   settingsPolicySummary,
 } from './agent-harness-metadata.ts';
@@ -32,10 +33,14 @@ import {
   resetHarnessSetting,
   setHarnessSetting,
 } from '../agent/harness-control.ts';
-import { resolveAgentConnectedHostConnection } from '../agent/routine-schedule-promotion.ts';
 
 type AgentHarnessMode =
   | 'summary'
+  | 'cli_commands'
+  | 'cli_command'
+  | 'panels'
+  | 'panel'
+  | 'open_panel'
   | 'commands'
   | 'command'
   | 'run_command'
@@ -55,9 +60,11 @@ interface AgentHarnessToolArgs {
   readonly mode?: unknown;
   readonly query?: unknown;
   readonly command?: unknown;
+  readonly cliCommand?: unknown;
   readonly commandName?: unknown;
   readonly args?: unknown;
   readonly categoryId?: unknown;
+  readonly panelId?: unknown;
   readonly actionId?: unknown;
   readonly recordId?: unknown;
   readonly fields?: unknown;
@@ -68,6 +75,7 @@ interface AgentHarnessToolArgs {
   readonly includeHidden?: unknown;
   readonly includeParameters?: unknown;
   readonly limit?: unknown;
+  readonly pane?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -85,6 +93,11 @@ interface WorkspaceEditorContext {
 
 const MODES: readonly AgentHarnessMode[] = [
   'summary',
+  'cli_commands',
+  'cli_command',
+  'panels',
+  'panel',
+  'open_panel',
   'commands',
   'command',
   'run_command',
@@ -307,28 +320,6 @@ function listCommands(commandRegistry: CommandRegistry, args: AgentHarnessToolAr
     .map(describeCommand);
 }
 
-function listTools(toolRegistry: ToolRegistry, args: AgentHarnessToolArgs): readonly Record<string, unknown>[] {
-  const query = readString(args.query).toLowerCase();
-  const includeParameters = args.includeParameters === true;
-  const limit = readLimit(args.limit, 200);
-  return toolRegistry.getToolDefinitions()
-    .filter((tool) => {
-      if (!query) return true;
-      return [tool.name, tool.description, ...(tool.sideEffects ?? [])].join('\n').toLowerCase().includes(query);
-    })
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, limit)
-    .map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      sideEffects: tool.sideEffects ?? [],
-      concurrency: tool.concurrency ?? 'parallel',
-      supportsProgress: tool.supportsProgress ?? false,
-      supportsStreamingOutput: tool.supportsStreamingOutput ?? false,
-      ...(includeParameters ? { parameters: tool.parameters } : {}),
-    }));
-}
-
 function requireConfirmedAction(args: AgentHarnessToolArgs, action: string): string | null {
   const explicitUserRequest = readString(args.explicitUserRequest);
   if (!explicitUserRequest) return `${action} requires explicitUserRequest with the user's exact request or a short faithful summary.`;
@@ -544,29 +535,13 @@ async function runWorkspaceAction(
   });
 }
 
-function connectedHostSummary(context: CommandContext, toolRegistry: ToolRegistry): Record<string, unknown> {
-  const shellPaths = context.workspace.shellPaths;
-  const homeDirectory = shellPaths?.homeDirectory ?? context.platform.configManager.getHomeDirectory() ?? '';
-  const connection = resolveAgentConnectedHostConnection(context.platform.configManager, homeDirectory);
-  return {
-    baseUrl: connection.baseUrl,
-    operatorToken: connection.token ? 'configured' : 'missing',
-    tokenPath: connection.tokenPath,
-    ownership: 'external-connected-host',
-    lifecycle: 'GoodVibes Agent can use public connected-host operator routes, but does not start, stop, restart, install, expose, or mutate the host listener.',
-    routeFamilies: connectedHostRouteFamilies(),
-    capabilities: connectedHostCapabilityMap(toolRegistry),
-    blockedCapabilities: blockedConnectedHostCapabilities(),
-  };
-}
-
 export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
   return {
     definition: {
       name: 'agent_harness',
       description: [
         'Discover and operate the GoodVibes Agent harness from the main conversation.',
-        'Use this tool to inspect Agent workspace actions, slash commands with policy metadata, model tools, connected-host capabilities, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
+        'Use this tool to inspect Agent workspace actions, built-in panels, top-level CLI mirrors, slash commands with policy metadata, model tools, connected-host capabilities, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
         'Discovery modes are read-only. Setting writes, resets, slash command invocation, and workspace action invocation require confirm:true plus explicitUserRequest.',
         'This tool preserves Agent product boundaries: connected-host lifecycle and listener posture stay externally owned, connected-host mode reports allowed and blocked route families, and secret-backed settings store raw values through the secret manager while config receives only a secret reference.',
       ].join(' '),
@@ -584,11 +559,15 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           },
           command: {
             type: 'string',
-            description: 'Full slash command string for mode run_command, for example "/settings get provider.model".',
+            description: 'Full slash command string for mode run_command, for example "/settings get provider.model". In cli_command mode this may also hold a top-level CLI string such as "goodvibes-agent status --json".',
+          },
+          cliCommand: {
+            type: 'string',
+            description: 'Top-level CLI command string for mode cli_command, for example "goodvibes-agent status --json" or "profiles list". This mode is read-only metadata/parse inspection.',
           },
           commandName: {
             type: 'string',
-            description: 'Slash command root without the leading slash for mode command or run_command.',
+            description: 'Slash command root without the leading slash for mode command or run_command, or a top-level CLI command token for cli_command.',
           },
           args: {
             type: 'array',
@@ -598,6 +577,10 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           categoryId: {
             type: 'string',
             description: 'Agent workspace category id for workspace action filtering.',
+          },
+          panelId: {
+            type: 'string',
+            description: 'Built-in panel id for panel or open_panel modes.',
           },
           actionId: {
             type: 'string',
@@ -644,9 +627,14 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             type: 'number',
             description: 'Maximum catalog entries to return.',
           },
+          pane: {
+            type: 'string',
+            enum: ['top', 'bottom'],
+            description: 'Preferred panel pane for open_panel when the current shell supports panel routing.',
+          },
           confirm: {
             type: 'boolean',
-            description: 'Required true for set_setting, reset_setting, run_command, and mutating run_workspace_action calls after an explicit user request.',
+            description: 'Required true for set_setting, reset_setting, run_command, open_panel, and mutating run_workspace_action calls after an explicit user request.',
           },
           explicitUserRequest: {
             type: 'string',
@@ -665,12 +653,17 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
       try {
         if (args.mode === 'summary') {
           return output({
+            cliCommands: totalHarnessCliCommands(),
+            blockedCliCommandTokens: blockedHarnessCliCommandTokens(),
+            panels: totalHarnessPanels(deps.commandContext),
             commands: deps.commandRegistry.list().length,
             settings: deps.commandContext.platform.configManager.getSchema().length,
             workspaceCategories: AGENT_WORKSPACE_CATEGORIES.length,
             workspaceActions: allWorkspaceActions().length,
             tools: deps.toolRegistry.getToolDefinitions().length,
             modelAccess: {
+              cliCommands: 'Use mode:"cli_commands" and mode:"cli_command" to inspect package CLI mirrors and their preferred in-process model routes. CLI modes are discovery-only.',
+              panels: 'Use mode:"panels" and mode:"panel" to inspect built-in panel catalog/open state; use mode:"open_panel" with confirm:true plus explicitUserRequest to route a visible panel/workspace change.',
               slashCommands: 'Use mode:"commands" and mode:"command" to inspect; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
               workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" for editor schemas; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings", mode:"get_setting", mode:"set_setting", and mode:"reset_setting".',
@@ -680,6 +673,37 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             settingsPolicy: settingsPolicySummary(),
             connectedHost: connectedHostSummary(deps.commandContext, deps.toolRegistry),
           });
+        }
+        if (args.mode === 'cli_commands') {
+          const commands = listHarnessCliCommands(args);
+          return output({
+            commands,
+            returned: commands.length,
+            total: totalHarnessCliCommands(),
+            blockedTokens: blockedHarnessCliCommandTokens(),
+            policy: 'CLI modes are read-only discovery. Use first-class model tools, workspace actions, settings modes, or confirmed slash-command mirrors for in-process operation.',
+          });
+        }
+        if (args.mode === 'cli_command') {
+          return output(describeHarnessCliCommand(args));
+        }
+        if (args.mode === 'panels') {
+          const panels = listHarnessPanels(deps.commandContext, args);
+          return output({
+            panels,
+            returned: panels.length,
+            total: totalHarnessPanels(deps.commandContext),
+            policy: 'Panel modes expose Agent/TUI operator view catalog and open state. open_panel is confirmation-gated and routes through the current Agent shell bridge.',
+          });
+        }
+        if (args.mode === 'panel') {
+          const panel = describeHarnessPanel(deps.commandContext, args);
+          return panel ? output(panel) : error(`Unknown panel ${readString(args.panelId || args.query) || '<missing>'}.`);
+        }
+        if (args.mode === 'open_panel') {
+          const confirmationError = requireConfirmedAction(args, 'Panel routing');
+          if (confirmationError) return error(confirmationError);
+          return output(openHarnessPanel(deps.commandContext, args));
         }
         if (args.mode === 'commands') {
           const commands = listCommands(deps.commandRegistry, args);
@@ -749,7 +773,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'run_workspace_action') return runWorkspaceAction(deps, args);
         if (args.mode === 'tools') {
-          const tools = listTools(deps.toolRegistry, args);
+          const tools = listHarnessModelTools(deps.toolRegistry, args);
           return output({ tools, returned: tools.length, total: deps.toolRegistry.getToolDefinitions().length });
         }
         if (args.mode === 'connected_host') return output(connectedHostSummary(deps.commandContext, deps.toolRegistry));

@@ -131,6 +131,15 @@ type CommandHelp = {
   readonly examples?: readonly string[];
 };
 
+export interface GoodVibesCommandHelpDescriptor {
+  readonly command: string;
+  readonly aliases: readonly string[];
+  readonly summary: string;
+  readonly usage: readonly string[];
+  readonly subcommands: readonly string[];
+  readonly examples: readonly string[];
+}
+
 const COMMAND_HELP: Record<string, CommandHelp> = {
   run: {
     usage: ['run [prompt] [--output text|json|stream-json]', 'exec [prompt]'],
@@ -414,6 +423,23 @@ function normalizeHelpTopic(topic: string): string {
 
 export function hasGoodVibesCommandHelp(topic: string): boolean {
   return COMMAND_HELP[normalizeHelpTopic(topic)] !== undefined;
+}
+
+export function describeGoodVibesCommandHelp(topic: string): GoodVibesCommandHelpDescriptor | null {
+  const normalized = normalizeHelpTopic(topic);
+  const help = COMMAND_HELP[normalized];
+  if (!help) return null;
+  return {
+    command: normalized,
+    aliases: Object.entries(HELP_ALIASES)
+      .filter(([, target]) => target === normalized)
+      .map(([alias]) => alias)
+      .sort(),
+    summary: help.summary,
+    usage: help.usage,
+    subcommands: help.subcommands ?? [],
+    examples: help.examples ?? [],
+  };
 }
 
 export function renderGoodVibesCommandHelp(topic: string, binary = 'goodvibes-agent'): string {

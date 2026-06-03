@@ -6,6 +6,8 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
+import { PanelManager } from '../../panels/panel-manager.ts';
+import type { Panel, PanelCategory } from '../../panels/types.ts';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { SecretsManager } from '../../config/secrets.ts';
@@ -27,9 +29,11 @@ interface HarnessFixture {
   readonly commandRegistry: CommandRegistry;
   readonly configManager: ConfigManager;
   readonly secretsManager: SecretsManager | null;
+  readonly panelManager: PanelManager;
   readonly toolRegistry: ToolRegistry;
   readonly tool: ReturnType<typeof createAgentHarnessTool>;
   readonly printed: string[];
+  readonly routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }>;
   readonly cleanup: () => void;
 }
 
@@ -52,6 +56,51 @@ function makeConfig(paths: ShellPaths): ConfigManager {
   });
 }
 
+function createFakePanel(id: string, name: string, icon: string, category: PanelCategory): Panel {
+  return {
+    id,
+    name,
+    icon,
+    category,
+    isTransient: false,
+    isPinned: false,
+    needsRender: true,
+    onActivate: () => {},
+    onDeactivate: () => {},
+    onDestroy: () => {},
+    render: () => [],
+    invalidate: () => {},
+    markRendered: () => {},
+  };
+}
+
+function registerHarnessFixturePanels(panelManager: PanelManager): void {
+  panelManager.registerType({
+    id: 'provider-health',
+    name: 'Health',
+    icon: 'N',
+    category: 'monitoring',
+    description: 'Provider health dashboard for current Agent provider posture',
+    factory: () => createFakePanel('provider-health', 'Health', 'N', 'monitoring'),
+  });
+  panelManager.registerType({
+    id: 'knowledge',
+    name: 'Knowledge',
+    icon: 'K',
+    category: 'agent',
+    description: 'Isolated Agent Knowledge and local memory review',
+    factory: () => createFakePanel('knowledge', 'Knowledge', 'K', 'agent'),
+  });
+  panelManager.registerType({
+    id: 'panel-list',
+    name: 'Panel List',
+    icon: 'L',
+    category: 'session',
+    description: 'Browse all registered panels grouped by category',
+    factory: () => createFakePanel('panel-list', 'Panel List', 'L', 'session'),
+  });
+}
+
 function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixture {
   const { root, paths, cleanup } = makeShellPaths();
   const commandRegistry = new CommandRegistry();
@@ -59,8 +108,11 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
   const secretsManager = options.secrets === false
     ? null
     : new SecretsManager({ projectRoot: root, globalHome: root, configManager });
+  const panelManager = new PanelManager();
+  registerHarnessFixturePanels(panelManager);
   const toolRegistry = new ToolRegistry();
   const printed: string[] = [];
+  const routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }> = [];
 
   commandRegistry.register({
     name: 'brief',
@@ -73,7 +125,10 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
   const context = {
     print: (text: string) => printed.push(text),
     renderRequest: () => {},
-    workspace: { shellPaths: paths },
+    showPanel: (panelId: string, pane?: 'top' | 'bottom') => {
+      routedPanels.push({ panelId, pane });
+    },
+    workspace: { shellPaths: paths, panelManager },
     platform: { configManager, ...(secretsManager ? { secretsManager } : {}) },
     session: {},
     provider: {},
@@ -94,9 +149,11 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     commandRegistry,
     configManager,
     secretsManager,
+    panelManager,
     toolRegistry,
     tool,
     printed,
+    routedPanels,
     cleanup,
   };
 }
@@ -187,6 +244,89 @@ describe('agent_harness tool', () => {
       expect(settings.output).toContain('"effect": "mixed"');
       expect(settings.output).toContain('agent_harness settings/get_setting/set_setting/reset_setting');
       expect(settings.output).toContain('Connected-host lifecycle/listener settings remain read-only');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes top-level CLI mirror metadata without enabling hidden CLI execution', async () => {
+    const fixture = makeFixture();
+    try {
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      expect(summary.output).toContain('"cliCommands"');
+      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly cliCommands?: string } };
+      expect(summaryJson.modelAccess?.cliCommands).toContain('mode:"cli_commands"');
+
+      const catalog = await fixture.tool.execute({ mode: 'cli_commands', query: 'knowledge' });
+      expect(catalog.success).toBe(true);
+      expect(catalog.output).toContain('"name": "knowledge"');
+      expect(catalog.output).toContain('agent_knowledge or agent_knowledge_ingest');
+      expect(catalog.output).toContain('"blockedTokens"');
+      expect(catalog.output).toContain('"daemon"');
+      expect(catalog.output).toContain('CLI modes are read-only discovery');
+
+      const parsed = await fixture.tool.execute({
+        mode: 'cli_command',
+        cliCommand: 'goodvibes-agent status --json --config surfaces.slack.botToken=xoxb-secret-value',
+      });
+      expect(parsed.success).toBe(true);
+      expect(parsed.output).toContain('"name": "status"');
+      expect(parsed.output).toContain('"outputFormat": "json"');
+      expect(parsed.output).toContain('surfaces.slack.botToken=<redacted>');
+      expect(parsed.output).not.toContain('xoxb-secret-value');
+
+      const blocked = await fixture.tool.execute({ mode: 'cli_command', cliCommand: 'daemon start' });
+      expect(blocked.success).toBe(true);
+      expect(blocked.output).toContain('"supported": false');
+      expect(blocked.output).toContain('Unsupported command: daemon');
+      expect(blocked.output).toContain('connected-host');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes built-in panel catalog state and confirmation-gated routing', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.panelManager.open('provider-health');
+
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      expect(summary.output).toContain('"panels": 3');
+      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly panels?: string } };
+      expect(summaryJson.modelAccess?.panels).toContain('mode:"panels"');
+
+      const panels = await fixture.tool.execute({ mode: 'panels', category: 'monitoring' });
+      expect(panels.success).toBe(true);
+      expect(panels.output).toContain('"id": "provider-health"');
+      expect(panels.output).toContain('"open": true');
+      expect(panels.output).toContain('"command": "/agent setup"');
+
+      const panel = await fixture.tool.execute({ mode: 'panel', panelId: 'knowledge' });
+      expect(panel.success).toBe(true);
+      expect(panel.output).toContain('"categoryId": "knowledge"');
+      expect(panel.output).toContain('"command": "/agent knowledge"');
+
+      const denied = await fixture.tool.execute({
+        mode: 'open_panel',
+        panelId: 'knowledge',
+        explicitUserRequest: 'Show the knowledge panel.',
+      });
+      expect(denied.success).toBe(false);
+      expect(denied.error).toContain('confirm:true');
+      expect(fixture.routedPanels).toEqual([]);
+
+      const routed = await fixture.tool.execute({
+        mode: 'open_panel',
+        panelId: 'knowledge',
+        pane: 'bottom',
+        confirm: true,
+        explicitUserRequest: 'Show the knowledge panel.',
+      });
+      expect(routed.success).toBe(true);
+      expect(routed.output).toContain('"status": "routed"');
+      expect(fixture.routedPanels).toEqual([{ panelId: 'knowledge', pane: 'bottom' }]);
     } finally {
       fixture.cleanup();
     }
