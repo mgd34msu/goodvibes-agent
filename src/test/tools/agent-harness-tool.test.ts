@@ -136,6 +136,9 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     showPanel: (panelId: string, pane?: 'top' | 'bottom') => {
       routedPanels.push({ panelId, pane });
     },
+    openPanelPicker: () => {
+      openedSurfaces.push({ id: 'panel-picker', detail: 'home' });
+    },
     openAgentWorkspace: (categoryId?: string) => {
       openedSurfaces.push({ id: 'agent-workspace', detail: categoryId });
     },
@@ -412,6 +415,13 @@ describe('agent_harness tool', () => {
       expect(catalog.output).toContain('"id": "provider-picker"');
       expect(catalog.output).toContain('preferredModelRoute');
 
+      const operatorSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'operator' });
+      expect(operatorSurfaces.success).toBe(true);
+      expect(operatorSurfaces.output).toContain('"id": "panel-picker"');
+      expect(operatorSurfaces.output).toContain('"id": "security-panel"');
+      expect(operatorSurfaces.output).toContain('"id": "knowledge-panel"');
+      expect(operatorSurfaces.output).toContain('"id": "subscription-panel"');
+
       const settings = await fixture.tool.execute({ mode: 'ui_surface', surfaceId: 'settings' });
       expect(settings.success).toBe(true);
       expect(settings.output).toContain('"id": "settings"');
@@ -447,6 +457,42 @@ describe('agent_harness tool', () => {
       });
       expect(openedWorkspace.success).toBe(true);
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'knowledge' });
+
+      const openedPanelPicker = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'panel-picker',
+        confirm: true,
+        explicitUserRequest: 'Open the operator panel picker.',
+      });
+      expect(openedPanelPicker.success).toBe(true);
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'panel-picker', detail: 'home' });
+
+      const openedSecurity = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'security-panel',
+        confirm: true,
+        explicitUserRequest: 'Open the security operator surface.',
+      });
+      expect(openedSecurity.success).toBe(true);
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'tools' });
+
+      const openedKnowledge = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'knowledge-panel',
+        confirm: true,
+        explicitUserRequest: 'Open the knowledge operator surface.',
+      });
+      expect(openedKnowledge.success).toBe(true);
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'knowledge' });
+
+      const openedSubscription = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'subscription-panel',
+        confirm: true,
+        explicitUserRequest: 'Open the subscription operator surface.',
+      });
+      expect(openedSubscription.success).toBe(true);
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'setup' });
     } finally {
       fixture.cleanup();
     }
