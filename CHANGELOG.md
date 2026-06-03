@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.3 - 2026-06-03
+
+- Model-visible harness discovery now includes top-level CLI mirrors with parser output, blocked command tokens, redacted launch overrides, and preferred in-process routes.
+- Model-visible harness discovery now includes built-in panel catalog/open-state inspection plus confirmation-gated visible panel routing through the Agent shell bridge.
+- Harness metadata was split into focused catalog helpers to keep architecture boundaries and source-size limits intact.
+- Documentation now describes CLI mirror and panel harness visibility, including the no-hidden-CLI-process and connected-host boundary rules.
+
 ## 1.0.2 - 2026-06-03
 
 - Model-visible harness control now exposes command, settings, workspace, tool, and connected-host surfaces through agent_harness.
