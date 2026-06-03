@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.7 - 2026-06-03
+
+- Refreshed package-facing docs index so the latest 1.0.x release is derived from package.json and the top changelog entry instead of a stale hard-coded patch number.
+- Updated the docs baseline constraints to include live connected-host readiness as part of the model-visible Agent-owned harness surface.
+
 ## 1.0.6 - 2026-06-03
 
 - Added agent_harness mode connected_host_status for live read-only connected-host readiness: status-route reachability, SDK compatibility, token posture, endpoint bindings, Agent Knowledge route readiness, findings, and lifecycle boundaries.
