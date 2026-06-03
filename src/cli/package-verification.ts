@@ -128,6 +128,32 @@ function readPackageJson(root: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')) as Record<string, unknown>;
 }
 
+function readTopChangelogVersion(root: string): string | null {
+  const changelogPath = join(root, 'CHANGELOG.md');
+  if (!existsSync(changelogPath)) return null;
+  const changelog = readFileSync(changelogPath, 'utf-8');
+  const match = /^##\s+([0-9]+\.[0-9]+\.[0-9]+)(?:\s|$)/m.exec(changelog);
+  return match?.[1] ?? null;
+}
+
+export function verifyReleaseMetadata(root: string): readonly string[] {
+  const issues: string[] = [];
+  const pkg = readPackageJson(root);
+  const packageVersion = typeof pkg.version === 'string' ? pkg.version : '';
+  if (packageVersion.length === 0) {
+    issues.push('package.json is missing a string version.');
+  }
+
+  const changelogVersion = readTopChangelogVersion(root);
+  if (changelogVersion === null) {
+    issues.push('CHANGELOG.md is missing a top release heading like "## 1.0.0 - YYYY-MM-DD".');
+  } else if (packageVersion.length > 0 && changelogVersion !== packageVersion) {
+    issues.push(`CHANGELOG.md top release ${changelogVersion} does not match package.json version ${packageVersion}.`);
+  }
+
+  return issues;
+}
+
 function buildRegisteredSlashCommandNames(): ReadonlySet<string> {
   const registry = new CommandRegistry();
   registerBuiltinCommands(registry);
@@ -253,6 +279,9 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
   }
   for (const failure of packageFacingText.failures) {
     issues.push(failure);
+  }
+  for (const issue of verifyReleaseMetadata(root)) {
+    issues.push(issue);
   }
 
   return {

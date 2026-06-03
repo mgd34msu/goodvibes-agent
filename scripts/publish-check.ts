@@ -2,7 +2,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { verifyPackageFacingText } from '../src/cli/package-verification.ts';
+import { verifyPackageFacingText, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
 
 const root = process.cwd();
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -157,6 +157,9 @@ for (const check of packagedGuidanceChecks) {
 const packageFacingText = verifyPackageFacingText(root);
 for (const failure of packageFacingText.failures) {
   throw new Error(failure);
+}
+for (const issue of verifyReleaseMetadata(root)) {
+  throw new Error(issue);
 }
 
 if (typeof packResult.size === 'number' && packResult.size > 50 * 1024 * 1024) {

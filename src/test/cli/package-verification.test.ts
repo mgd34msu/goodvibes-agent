@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { verifyPackageCliInstall } from '../../cli/package-verification.ts';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { verifyPackageCliInstall, verifyReleaseMetadata } from '../../cli/package-verification.ts';
 import { SDK_VERSION, VERSION } from '../../version.ts';
 
 type PackageJson = {
@@ -51,6 +52,24 @@ describe('package CLI install verification', () => {
     const sdkVersion = parsed.dependencies?.['@pellux/goodvibes-sdk'] ?? parsed.devDependencies?.['@pellux/goodvibes-sdk'];
     expect(VERSION).toBe(parsed.version);
     expect(SDK_VERSION).toBe(sdkVersion);
+  });
+
+  test('release metadata keeps package.json and changelog top entry in sync', () => {
+    expect(verifyReleaseMetadata(resolve(import.meta.dir, '../../..'))).toEqual([]);
+  });
+
+  test('release metadata rejects a mismatched changelog top entry', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ version: '1.0.0' }));
+      writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 0.9.9 - 2026-06-03\n\n- Old notes.\n');
+
+      expect(verifyReleaseMetadata(dir)).toEqual([
+        'CHANGELOG.md top release 0.9.9 does not match package.json version 1.0.0.',
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test('package file exclusions do not carry stale concrete paths', () => {
