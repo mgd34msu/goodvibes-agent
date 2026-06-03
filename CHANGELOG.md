@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.8 - 2026-06-03
+
+- Added model-visible UI surface entries for the panel-picker compatibility route and the security, knowledge, and subscription operator surfaces.
+- Routed those named operator surfaces through Agent Workspace or the existing panel bridge with confirmation.
+- Updated package-facing docs and focused harness coverage so the documented 1.0.x model-visible surface map matches the TUI routes.
+
 ## 1.0.7 - 2026-06-03
 
 - Refreshed package-facing docs index so the latest 1.0.x release is derived from package.json and the top changelog entry instead of a stale hard-coded patch number.
