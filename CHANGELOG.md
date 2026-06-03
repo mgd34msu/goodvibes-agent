@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.20 - 2026-06-03
+
+- Add agent_harness run_keybinding for confirmation-gated shell-safe shortcut equivalents such as search, prompt-history search, paste, clear screen, cancel generation, panel focus/close routes, and visible block-action routing.
+- Add modelOperation route metadata to every configurable keybinding so the model can distinguish supported shell routes from prompt-editor-only or direct-interaction shortcuts.
+- Refresh package-facing docs and focused harness coverage for keybinding operation parity.
+
 ## 1.0.19 - 2026-06-03
 
 - Add agent_harness cli_command lookup by cliCommand, command, commandName, target, or query while preserving parsed metadata for concrete invocations.
