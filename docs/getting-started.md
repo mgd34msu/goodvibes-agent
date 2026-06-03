@@ -54,7 +54,7 @@ Use the Profiles workspace form to assemble a local starter template and isolate
 
 Use the Knowledge area in that workspace to ingest source URLs, local files, URL-list files, bookmarks, browser history, and connector input without leaving the TUI. Every ingest path requires typed confirmation and writes only to the isolated Agent Knowledge segment.
 
-Use the Voice & Media area to review media provider readiness, attach images to conversation prompts, and generate image/video artifacts from a confirmed form. Generated media stays in GoodVibes artifact storage and returns artifact ids for follow-up conversation or delegation; it is not written into default Knowledge/Wiki or non-Agent knowledge segments.
+Use the Voice & Media area to review media provider readiness, attach images to conversation prompts, and generate image/video artifacts from a confirmed form. Generated media stays in GoodVibes artifact storage and returns artifact ids for follow-up conversation or delegation; it is not written into default knowledge or non-Agent knowledge segments.
 
 Use the Routines workspace receipt actions to review redacted local routine promotion history and reconcile those receipts with live connected schedules through public `schedules.list`. The `/schedule receipts` and `/schedule reconcile` commands are the power-user equivalents inside the TUI.
 
@@ -96,7 +96,7 @@ Named profiles isolate Agent-local config, sessions, memory, notes, personas, sk
 
 ## Local Memory, Personas, Routines, And Skills
 
-Memory, notes, personas, routines, and reusable Agent skills are local to GoodVibes Agent. First-run setup, TUI workspace forms, and CLI commands all write them to Agent-local registries. They do not write into default Knowledge/Wiki or non-Agent knowledge segments.
+Memory, notes, personas, routines, and reusable Agent skills are local to GoodVibes Agent. First-run setup, TUI workspace forms, and CLI commands all write them to Agent-local registries. They do not write into default knowledge or non-Agent knowledge segments.
 
 Use `Capture learned behavior` in the Agent workspace after reviewing a repeated workflow, lesson, or operating style. It saves one local skill, routine, or persona from the TUI and does not call connected-host mutation routes.
 
@@ -114,7 +114,7 @@ Day-one local behavior setup should stay in the fullscreen workspace:
 
 Typed slash commands are available for repeat users, but they are not required for the first-run workflow.
 
-The active persona plus enabled Agent routines, reviewed memory, and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default Knowledge/Wiki or non-Agent knowledge segments.
+The active persona plus enabled Agent routines, reviewed memory, and skills are injected into the main serial assistant conversation. Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promoting a routine to a schedule is an explicit `schedules.create` call, requires `--yes`, writes a local redacted promotion receipt, and preserves the rule that Agent Knowledge never falls back to default knowledge or non-Agent knowledge segments.
 
 Use `/channels` inside the TUI for channel readiness and exact confirmed sends. Readiness views show enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values. Companion pairing is QR-first; `/pair` hides the raw token in text, and manual token display requires `/pair --show-token --yes`. `/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit delivery through configured strategies.
 
@@ -132,7 +132,7 @@ Start the owning GoodVibes host before using connected Agent features. Agent exp
 
 If the GoodVibes API is not on `http://127.0.0.1:3421`, pass `--runtime-url http://host:port` for a one-off TUI launch or set `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` before launching the TUI.
 
-Agent Knowledge/Wiki is an Agent-owned product segment. Agent commands must not fall back to default Knowledge/Wiki or other product-specific knowledge spaces.
+Agent Knowledge is an Agent-owned product segment. Agent commands must not fall back to default knowledge or other product-specific knowledge spaces.
 
 Host lifecycle commands are not part of GoodVibes Agent. Use Agent Workspace -> Home -> Host compatibility, Doctor diagnostics, and Review health for diagnostics. CLI status/doctor/compat commands are scriptable mirrors for install checks.
 

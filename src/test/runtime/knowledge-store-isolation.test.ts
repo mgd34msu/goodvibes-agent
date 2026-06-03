@@ -46,7 +46,7 @@ afterEach(() => {
 });
 
 describe('runtime knowledge store isolation', () => {
-  test('Agent Knowledge is the only runtime wiki surface created by Agent', async () => {
+  test('Agent Knowledge is the only runtime knowledge surface created by Agent', async () => {
     const { configManager, services } = makeRuntime();
     const controlPlaneDir = configManager.getControlPlaneConfigDir();
 

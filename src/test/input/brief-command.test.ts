@@ -164,7 +164,7 @@ describe('/brief command', () => {
     expect(output).toContain('Review media provider setup from Agent Workspace -> Voice & Media before relying on image or media workflows.');
     expect(output).toContain('work plan: 1 item; active 1');
     expect(output).toContain('Use Agent Workspace -> Build Delegation only for explicit build');
-    expect(output).not.toContain('default wiki');
+    expect(output).not.toContain('default knowledge');
     expect(output).not.toContain('daemon');
   });
 

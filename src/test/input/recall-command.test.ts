@@ -239,7 +239,7 @@ describe('recallCommand', () => {
     });
   });
 
-  test('refuses a generic default Knowledge/Wiki memory client', async () => {
+  test('refuses a generic default knowledge memory client', async () => {
     const context = {
       ...makeRecallCommandContext(printed, {
         memoryRegistry: makeRegistry(),
@@ -256,7 +256,7 @@ describe('recallCommand', () => {
 
     const output = printed.join('\n');
     expect(output).toContain('Agent Memory API is not available');
-    expect(output).toContain('Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback');
+    expect(output).toContain('Refusing to use default knowledge or non-Agent knowledge fallback');
   });
 
   test('captures the latest incident into memory', async () => {

@@ -1,12 +1,12 @@
 # Tools and Commands
 
-GoodVibes Agent is an operator assistant TUI. Its command set is centered on main-conversation assistant work, isolated Agent Knowledge/Wiki, local memory/notes/routines/skills/personas, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
+GoodVibes Agent is an operator assistant TUI. Its command set is centered on main-conversation assistant work, isolated Agent Knowledge, local memory/notes/routines/skills/personas, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
 
 ## Product Boundaries
 
 - Normal chat stays in the main Agent conversation.
-- Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`.
-- Agent never falls back to default Knowledge/Wiki or arbitrary non-Agent knowledge spaces.
+- Agent Knowledge uses only `/api/goodvibes-agent/knowledge/*`.
+- Agent never falls back to default knowledge or arbitrary non-Agent knowledge spaces.
 - Local memory, notes, routines, skills, and personas remain Agent-local until a stable shared registry contract exists.
 - Runtime hosting is external. Agent connects to it and reports health; it does not start, stop, restart, or install it.
 - WRFC is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, review, or WRFC work.
@@ -24,7 +24,7 @@ High-signal Agent TUI paths:
 - `/agent` for the fullscreen operator workspace: setup, provider/model, Agent Knowledge, memory, notes, personas, skills, routines, channels, MCP/tools, secrets, voice/media, work state, automation, and build delegation.
 - Agent Workspace -> Research for read-only web research, URL inspection, source triage, and explicit source-to-Agent-Knowledge handoff.
 - Agent Workspace -> Notes for local source-triage notes, temporary decisions, and operator handoff. Notes do not write memory or Agent Knowledge by themselves; reviewed notes can prefill memory, skills, routines, personas, or an isolated Agent Knowledge URL ingest.
-- `/knowledge` for isolated Agent Knowledge/Wiki ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
+- `/knowledge` for isolated Agent Knowledge ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
 - `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
@@ -47,7 +47,7 @@ Local memory capture/add commands are explicit Agent-local actions. Deletes, imp
 
 ## Agent Knowledge
 
-`/knowledge ask <query>` asks the isolated Agent Knowledge/Wiki environment for a source-backed answer through `/api/goodvibes-agent/knowledge/ask`.
+`/knowledge ask <query>` asks the isolated Agent Knowledge environment for a source-backed answer through `/api/goodvibes-agent/knowledge/ask`.
 
 `/knowledge search <query>` searches the same isolated Agent environment through `/api/goodvibes-agent/knowledge/search`.
 
@@ -63,13 +63,13 @@ The Agent command layer rejects flags that would route knowledge work into anoth
 
 Agent Workspace -> Voice & Media is the primary media path. Use `Generate media` for a confirmed form that calls configured media providers and stores outputs as GoodVibes artifacts.
 
-`/media providers` lists media provider readiness. `/media generate [--provider <id>] [--model <id>] [--mime <mime>] <prompt> --yes` is the power-user mirror for confirmed image/video generation. Media generation output returns artifact ids and metadata; it does not print inline base64 and does not write to default Knowledge/Wiki or non-Agent knowledge segments.
+`/media providers` lists media provider readiness. `/media generate [--provider <id>] [--model <id>] [--mime <mime>] <prompt> --yes` is the power-user mirror for confirmed image/video generation. Media generation output returns artifact ids and metadata; it does not print inline base64 and does not write to default knowledge or non-Agent knowledge segments.
 
 ## Planning
 
 `/plan` inspects or seeds Agent workspace planning state. The planning loop belongs to the main Agent conversation: the Agent asks focused questions, records decisions and gaps, and keeps execution separate until the user gives an explicit action.
 
-The SDK planning service may expose a namespace such as `project:<projectId>` because that is the stable contract shape. In Agent UI and docs this is treated as a planning namespace, not as permission to query default Knowledge/Wiki or another product knowledge segment.
+The SDK planning service may expose a namespace such as `project:<projectId>` because that is the stable contract shape. In Agent UI and docs this is treated as a planning namespace, not as permission to query default knowledge or another product knowledge segment.
 
 Use `/workplan` when the work already has concrete tasks and needs durable status tracking rather than another planning interview.
 
@@ -107,13 +107,13 @@ Power-user slash mirrors are exact and confirmation-gated:
 - `/automation schedule run <schedule-id> --yes`
 - `/schedule run <schedule-id> --yes`
 
-Routine promotion is an explicit scheduling bridge: local routines stay local during normal use, and promotion creates a schedule only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default Knowledge/Wiki or non-Agent knowledge fallback. Delivery is opt-in with explicit flags such as `--delivery-channel`, `--delivery-route`, `--delivery-webhook`, or `--delivery-link`; no delivery target is inferred from chat.
+Routine promotion is an explicit scheduling bridge: local routines stay local during normal use, and promotion creates a schedule only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default knowledge or non-Agent knowledge fallback. Delivery is opt-in with explicit flags such as `--delivery-channel`, `--delivery-route`, `--delivery-webhook`, or `--delivery-link`; no delivery target is inferred from chat.
 
 ## Channels
 
 Agent Workspace -> Channels is the primary channel path. It shows readiness, setup, account, policy, and status views without rendering secret values. `Send channel message` opens a confirmed form for one delivery target.
 
-`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage connected-host hosting, use default Knowledge/Wiki, use non-Agent knowledge segments, create local workers, or run WRFC.
+`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create local workers, or run WRFC.
 
 ## Related Docs
 

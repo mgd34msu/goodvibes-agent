@@ -306,7 +306,7 @@ function usage(): string {
     '  handoff-inspect <path>',
     '  vector [status|doctor|rebuild]',
     '',
-    'Agent memory is local to GoodVibes Agent and never falls back to default Knowledge/Wiki or non-Agent knowledge segments.',
+    'Agent memory is local to GoodVibes Agent and never falls back to default knowledge or non-Agent knowledge segments.',
   ].join('\n');
 }
 

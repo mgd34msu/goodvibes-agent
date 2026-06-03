@@ -175,7 +175,7 @@ describe('renderOnboardingWizard', () => {
       derived: emptyDerivedState(),
     });
     wizard.setStep(wizard.steps.findIndex((step) => step.id === 'agent-local-state'));
-    wizard.moveSelection(3, getOnboardingWizardVisibleFieldCount(42));
+    wizard.moveSelection(7, getOnboardingWizardVisibleFieldCount(42));
 
     const text = linesToText(renderOnboardingWizard(wizard, 188, 42)).join('\n');
 
@@ -210,7 +210,7 @@ describe('renderOnboardingWizard', () => {
     expect(text).not.toContain('Runtime connection snapshot');
     expect(text).not.toContain('GoodVibes runtime connection');
     expect(text).not.toContain(['Home', 'Graph'].join(''));
-    expect(text).not.toContain('Default Knowledge/Wiki fallback: enabled');
+    expect(text).not.toContain('Default knowledge fallback: enabled');
   });
 
   test('shows scroll affordances for the field body when the current step exceeds the visible window', () => {

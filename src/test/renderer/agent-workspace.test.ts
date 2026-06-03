@@ -634,7 +634,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Daily Brief Skill');
     expect(output).toContain('Discovered routines: 1 discovered; project 1; global 0.');
     expect(output).toContain('Evening Review');
-    expect(output).not.toContain('default Knowledge/Wiki');
+    expect(output).not.toContain('default knowledge');
   });
 
   test('renders first-run setup actions for skills and routines', () => {
@@ -831,7 +831,7 @@ describe('renderAgentWorkspace', () => {
     expect(receiptEditorOutput).toContain('Receipt id *');
   });
 
-  test('renders Agent Knowledge ingest and review workflow without default wiki fallback', () => {
+  test('renders Agent Knowledge ingest and review workflow without default knowledge fallback', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
@@ -840,7 +840,7 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 38));
 
     expect(output).toContain('/api/goodvibes-agent/knowledge');
-    expect(output).toContain('no default Knowledge/Wiki or non-Agent fallback');
+    expect(output).toContain('no default knowledge or non-Agent fallback');
     expect(output).toContain('Search Agent knowledge');
     expect(output).toContain('edit knowledge-search');
     expect(output).toContain('Ingest URL');
@@ -889,7 +889,7 @@ describe('renderAgentWorkspace', () => {
     expect(askOutput).toContain('Ask Agent Knowledge');
     expect(askOutput).toContain('Question *');
     expect(askOutput).toContain('fails closed instead of using');
-    expect(askOutput).toContain('another wiki');
+    expect(askOutput).toContain('another knowledge segment');
   });
 
   test('renders Agent Knowledge maintenance forms from the workspace', () => {

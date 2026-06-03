@@ -182,7 +182,7 @@ describe('agent_knowledge tool', () => {
     }
   });
 
-  test('fails closed without token and does not call default wiki routes', async () => {
+  test('fails closed without token and does not call default knowledge routes', async () => {
     const paths = shellPaths(false);
     const tool = createAgentKnowledgeTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;

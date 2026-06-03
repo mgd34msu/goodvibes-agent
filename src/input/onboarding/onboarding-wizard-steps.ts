@@ -148,7 +148,7 @@ function buildReviewReadinessFields(controller: OnboardingWizardController): rea
       kind: 'status',
       id: 'review.readiness.knowledge',
       label: 'Agent Knowledge segment',
-      hint: 'Ask, search, status, and ingest stay on /api/goodvibes-agent/knowledge/* with no default wiki or non-Agent fallback.',
+      hint: 'Ask, search, status, and ingest stay on /api/goodvibes-agent/knowledge/* with no default knowledge or non-Agent fallback.',
       defaultValue: 'Isolated',
     },
     {
@@ -538,7 +538,7 @@ export function buildReviewStep(controller: OnboardingWizardController): Onboard
         id: 'review.apply',
         action: 'apply',
         label: 'Apply Agent settings and verify',
-        hint: 'Persist Agent-owned settings and verify that setup did not request non-Agent entrypoints, default wiki access, or non-Agent knowledge setup.',
+        hint: 'Persist Agent-owned settings and verify that setup did not request non-Agent entrypoints, default knowledge access, or non-Agent knowledge setup.',
         defaultValue: 'Ready',
       },
     ],

@@ -73,7 +73,7 @@ export function createLocalEditor(kind: AgentWorkspaceLocalEditorKind | 'knowled
       mode: 'create',
       title: 'Create Memory',
       selectedFieldIndex: 0,
-      message: 'Record a durable, non-secret Agent memory. This stays in the Agent-owned memory store and never writes to default Knowledge/Wiki.',
+      message: 'Record a durable, non-secret Agent memory. This stays in the Agent-owned memory store and never writes to default knowledge.',
       fields: [
         { id: 'cls', label: 'Class', value: 'fact', required: true, multiline: false, hint: 'fact, decision, constraint, incident, pattern, risk, runbook, architecture, or ownership.' },
         { id: 'scope', label: 'Scope', value: 'project', required: true, multiline: false, hint: 'session, project, or team.' },

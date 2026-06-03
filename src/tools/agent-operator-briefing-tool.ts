@@ -151,7 +151,7 @@ function formatBriefing(baseUrl: string, results: readonly OperatorRouteResult[]
   return [
     'Agent operator briefing',
     `  connected host: ${baseUrl}`,
-    '  policy: read-only public operator routes; no connected-host lifecycle, mutation routes, local workers, WRFC, default Knowledge/Wiki, or non-Agent knowledge segments',
+    '  policy: read-only public operator routes; no connected-host lifecycle, mutation routes, local workers, WRFC, default knowledge, or non-Agent knowledge segments',
     '',
     ...results.map(formatRoute),
     '',
@@ -172,7 +172,7 @@ export function createAgentOperatorBriefingTool(
         'Read connected GoodVibes operator state for a concise main-conversation briefing.',
         'Use when the user asks what needs attention, what is pending, what is scheduled, or what the operator status is.',
         'This is read-only and calls only public work-plan, approvals, automation, schedules, and scheduler routes.',
-        'It never uses default Knowledge/Wiki, non-Agent knowledge segments, channel send routes, mutation routes, connected-host lifecycle, local workers, or WRFC.',
+        'It never uses default knowledge, non-Agent knowledge segments, channel send routes, mutation routes, connected-host lifecycle, local workers, or WRFC.',
       ].join(' '),
       parameters: {
         type: 'object',

@@ -1,6 +1,6 @@
 # Project Planning
 
-GoodVibes Agent owns the active planning loop for operator work. Planning is part of the Agent main conversation, not a hidden worker flow and not a default Knowledge/Wiki query.
+GoodVibes Agent owns the active planning loop for operator work. Planning is part of the Agent main conversation, not a hidden worker flow and not a default knowledge query.
 
 ## Boundary
 
@@ -21,7 +21,7 @@ The SDK/runtime owns durable storage and route contracts:
 - task, dependency, verification, and assignment metadata;
 - passive operator methods.
 
-Other surfaces can store or inspect planning artifacts, but conversation control stays in Agent. Agent planning state is not default Knowledge/Wiki, another product segment, or arbitrary wiki data.
+Other surfaces can store or inspect planning artifacts, but conversation control stays in Agent. Agent planning state is not default knowledge, another product segment, or arbitrary knowledge data.
 
 ## Agent Behavior
 
@@ -72,7 +72,7 @@ Use `/workplan` when the work already has tasks and needs status tracking. Use `
 
 ## Agent Knowledge Boundary
 
-Planning may link to Agent Knowledge evidence, but it must not query or ingest through default Knowledge/Wiki. Source-backed facts for Agent belong under:
+Planning may link to Agent Knowledge evidence, but it must not query or ingest through default knowledge. Source-backed facts for Agent belong under:
 
 ```text
 /api/goodvibes-agent/knowledge/*

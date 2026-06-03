@@ -374,7 +374,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Agent Knowledge route: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
       { text: `Media providers: ${mediaReady}/${snapshot.mediaProviderCount} ready; generation-capable ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
       { text: 'Use this area for concrete files and generated output: attach images, export transcripts, ingest reviewed sources, inspect source records, and generate media.', fg: PALETTE.good },
-      { text: 'Agent Knowledge ingest writes only to the isolated Agent segment. Default Knowledge/Wiki and non-Agent routes are not fallback storage.', fg: PALETTE.warn },
+      { text: 'Agent Knowledge ingest writes only to the isolated Agent segment. Default knowledge and non-Agent routes are not fallback storage.', fg: PALETTE.warn },
       { text: 'Generated media is stored as artifacts and referenced by id; the TUI should not print inline base64.', fg: PALETTE.muted },
       { text: `Workspace path: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
     );
@@ -415,7 +415,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'knowledge') {
     base.push(
       { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },
-      { text: `Isolation: ${snapshot.knowledgeIsolation}; no default Knowledge/Wiki or non-Agent fallback`, fg: PALETTE.good },
+      { text: `Isolation: ${snapshot.knowledgeIsolation}; no default knowledge or non-Agent fallback`, fg: PALETTE.good },
       { text: 'Ingest: URL, URL-list, and bookmark imports require explicit --yes and write only to Agent Knowledge.', fg: PALETTE.info },
       { text: 'Review: queue, issues, candidates, reports, reindex, and consolidation stay inside the Agent segment.', fg: PALETTE.muted },
       { text: 'Agent-owned content appears here only after explicit Agent knowledge ingestion.', fg: PALETTE.muted },

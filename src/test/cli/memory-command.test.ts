@@ -168,6 +168,6 @@ describe('Agent memory CLI command', () => {
     const memoryHelp = renderGoodVibesCommandHelp('memory');
     expect(memoryHelp).toContain('GoodVibes Agent memory');
     expect(memoryHelp).toContain('memory add');
-    expect(memoryHelp).toContain('never falls back to default Knowledge/Wiki or non-Agent knowledge segments');
+    expect(memoryHelp).toContain('never falls back to default knowledge or non-Agent knowledge segments');
   });
 });

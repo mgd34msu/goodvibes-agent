@@ -308,7 +308,7 @@ describe('/routines command', () => {
         address: 'https://hooks.example.test/routine/secret-token',
       }));
       expect(payload.prompt).toContain('Use isolated Agent Knowledge routes only');
-      expect(payload.prompt).toContain('never use default Knowledge/Wiki or non-Agent knowledge spaces');
+      expect(payload.prompt).toContain('never use default knowledge or non-Agent knowledge spaces');
       const promotionText = out.join('\n');
       const receiptId = promotionText.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
       expect(promotionText).toContain('Created GoodVibes schedule for Agent routine');
@@ -445,7 +445,7 @@ describe('/routines command', () => {
         routeId: 'ops',
       }));
       expect(payload.prompt).toContain('GoodVibes Agent scheduled reminder');
-      expect(payload.prompt).toContain('never use default Knowledge/Wiki or non-Agent knowledge spaces');
+      expect(payload.prompt).toContain('never use default knowledge or non-Agent knowledge spaces');
       expect(payload.prompt).toContain('Do not request WRFC from a reminder');
       expect(out.join('\n')).toContain('Created GoodVibes schedule for Agent reminder');
     } finally {

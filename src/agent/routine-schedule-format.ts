@@ -40,7 +40,7 @@ export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPr
     `  enabled: ${preview.payload.enabled === false ? 'no' : 'yes'}`,
     `  delivery: ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
     '  target: connected GoodVibes host/main conversation route',
-    '  policy: isolated Agent Knowledge only; no default wiki/non-Agent fallback; no WRFC unless explicitly delegated',
+    '  policy: isolated Agent Knowledge only; no default knowledge/non-Agent fallback; no WRFC unless explicitly delegated',
     '  next: rerun with --yes to create this connected schedule',
   ].join('\n');
 }

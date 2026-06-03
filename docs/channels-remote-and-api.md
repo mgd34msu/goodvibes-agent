@@ -41,7 +41,7 @@ Use public SDK/operator routes only. For Agent Knowledge, the only valid family 
 /api/goodvibes-agent/knowledge/*
 ```
 
-If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default Knowledge/Wiki, another product segment, or private connected-host files.
+If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default knowledge, another product segment, or private connected-host files.
 
 ## Related Docs
 

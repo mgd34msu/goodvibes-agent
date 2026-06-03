@@ -61,7 +61,7 @@ Also run the package install smoke from a packed artifact. It must prove:
 
 Do not publish if package-facing docs or install commands refer to another package name, another executable, or Agent-owned connected-host lifecycle.
 
-Do not publish if Agent Knowledge commands can fall back to default Knowledge/Wiki or another product-specific knowledge route. Agent Knowledge must use the isolated `/api/goodvibes-agent/knowledge/*` segment.
+Do not publish if Agent Knowledge commands can fall back to default knowledge or another product-specific knowledge route. Agent Knowledge must use the isolated `/api/goodvibes-agent/knowledge/*` segment.
 
 Do not ship GoodVibes service binaries from this package. If Agent later gets compiled artifacts, they must use Agent artifact names and remain separate from connected-host ownership.
 

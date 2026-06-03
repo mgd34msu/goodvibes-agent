@@ -45,7 +45,7 @@ export function createAgentChannelSendTool(
         'Send one explicitly confirmed message through a configured GoodVibes Agent delivery target from the main conversation.',
         'Use only when the user explicitly asks Agent to send, message, alert, or notify a channel target.',
         'Exactly one target must be supplied: channel, route, webhook, or link.',
-        'This tool does not create channel routes, authorize accounts, manage connected-host hosting, use default Knowledge/Wiki, use non-Agent knowledge segments, create local workers, run WRFC, or invoke arbitrary routes.',
+        'This tool does not create channel routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create local workers, run WRFC, or invoke arbitrary routes.',
         'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
       ].join(' '),
       parameters: {

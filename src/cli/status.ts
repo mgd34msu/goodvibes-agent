@@ -141,7 +141,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         severity: 'warning',
         summary: 'Isolated Agent Knowledge route is not ready.',
         cause: `${options.externalRuntime.agentKnowledge.route} returned ${options.externalRuntime.agentKnowledge.kind}${options.externalRuntime.agentKnowledge.statusCode === null ? '' : ` (${options.externalRuntime.agentKnowledge.statusCode})`}.`,
-        impact: 'Agent Knowledge ask/search will not use any fallback wiki or non-Agent knowledge segment; it will fail closed until the Agent route is available.',
+        impact: 'Agent Knowledge ask/search will not use default or non-Agent knowledge fallback; it will fail closed until the Agent route is available.',
         action: 'Update the connected GoodVibes host to the Agent-compatible SDK and verify goodvibes-agent compat.',
       });
     }

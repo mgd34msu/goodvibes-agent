@@ -1,6 +1,6 @@
 # Knowledge, Artifacts, and Multimodal
 
-GoodVibes Agent has its own Knowledge/Wiki segment. It must not query or ingest through default Knowledge/Wiki or other product-specific knowledge spaces.
+GoodVibes Agent has its own Knowledge segment. It must not query or ingest through default knowledge or other product-specific knowledge spaces.
 
 ## Context Layers
 
@@ -9,10 +9,10 @@ GoodVibes Agent uses these context layers:
 - current conversation context for the active turn;
 - local Agent memory records for durable but private assistant facts and preferences;
 - local Agent routines, skills, and personas for reusable behavior profiles;
-- isolated Agent Knowledge/Wiki for source-backed documents, search, and semantic answers;
+- isolated Agent Knowledge for source-backed documents, search, and semantic answers;
 - artifacts for uploaded/generated files that can be referenced by chat, delegation, or explicit Agent Knowledge ingestion.
 
-These layers are intentionally separate. Local memory/routines/skills/personas are not automatically promoted into Agent Knowledge. Agent Knowledge records are not copied into default Knowledge/Wiki. Secrets are rejected or represented only by explicit secret references.
+These layers are intentionally separate. Local memory/routines/skills/personas are not automatically promoted into Agent Knowledge. Agent Knowledge records are not copied into default knowledge. Secrets are rejected or represented only by explicit secret references.
 
 ## Agent Knowledge Boundary
 
@@ -33,7 +33,7 @@ POST /api/goodvibes-agent/knowledge/ingest/bookmarks
 POST /api/goodvibes-agent/knowledge/reindex
 ```
 
-If those routes are unavailable, Agent commands fail closed with a structured error. They do not retry against the default Knowledge/Wiki routes or arbitrary knowledge-space selectors.
+If those routes are unavailable, Agent commands fail closed with a structured error. They do not retry against the default knowledge routes or arbitrary knowledge-space selectors.
 
 The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces` because those would violate the Agent product boundary.
 
@@ -72,9 +72,9 @@ The TUI workspace exposes the common confirmed ingest and reindex flows. The CLI
 - `goodvibes-agent knowledge import-bookmarks <path> --yes`
 - `goodvibes-agent knowledge reindex --yes`
 
-All of these commands target `/api/goodvibes-agent/knowledge/*`; none of them call default Knowledge/Wiki.
+All of these commands target `/api/goodvibes-agent/knowledge/*`; none of them call default knowledge.
 
-Do not map local memory, notes, routines, skills, personas, or default wiki documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
+Do not map local memory, notes, routines, skills, personas, or default knowledge documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
 
 ## Artifacts And Multimodal
 
@@ -82,7 +82,7 @@ Artifacts are first-class runtime objects for files, images, audio, video, gener
 
 Agent Workspace -> Voice & Media -> Generate media creates image/video artifacts through configured media providers after typed confirmation. The main conversation can perform the same confirmed action with the `agent_media_generate` tool when the user explicitly asks for generated media. Generated media output is summarized as artifact ids, MIME types, filenames, and source URLs when present; inline base64 is not printed into the transcript.
 
-Until dedicated Agent artifact-ingest route coverage exists, multimodal outputs should stay in the conversation, artifacts, local notes or memory, or explicit delegation results rather than being inserted into default Knowledge/Wiki.
+Until dedicated Agent artifact-ingest route coverage exists, multimodal outputs should stay in the conversation, artifacts, local notes or memory, or explicit delegation results rather than being inserted into default knowledge.
 
 ## Related Docs
 

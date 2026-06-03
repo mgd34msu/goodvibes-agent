@@ -8,7 +8,7 @@ export function getMemoryApi(context: CommandContext): MemoryApi | null {
   const memoryApi = context.clients?.agentKnowledgeApi?.memory;
   if (!memoryApi) {
     context.print('[memory] Agent Memory API is not available in this runtime.');
-    context.print('[memory] Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback.');
+    context.print('[memory] Refusing to use default knowledge or non-Agent knowledge fallback.');
     return null;
   }
   return memoryApi;

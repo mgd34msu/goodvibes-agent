@@ -83,7 +83,7 @@ describe('agent_knowledge_ingest tool', () => {
         url: 'https://example.com/agent-docs',
         tags: ['docs', 'agent'],
         confirm: false,
-        explicitUserRequest: 'Add this docs URL to your Agent wiki.',
+        explicitUserRequest: 'Add this docs URL to your Agent Knowledge.',
       });
 
       expect(result.success).toBe(false);
@@ -139,7 +139,7 @@ describe('agent_knowledge_ingest tool', () => {
         title: 'Agent docs',
         tags: ['docs', 'agent'],
         confirm: true,
-        explicitUserRequest: 'Add this docs URL to your Agent wiki.',
+        explicitUserRequest: 'Add this docs URL to your Agent Knowledge.',
       });
 
       expect(result.success).toBe(true);
@@ -181,7 +181,7 @@ describe('agent_knowledge_ingest tool', () => {
         title: 'Agent notes',
         tags: ['notes'],
         confirm: true,
-        explicitUserRequest: 'Add this local notes file to your Agent wiki.',
+        explicitUserRequest: 'Add this local notes file to your Agent Knowledge.',
       });
 
       expect(result.success).toBe(true);
@@ -308,7 +308,7 @@ describe('agent_knowledge_ingest tool', () => {
     }
   });
 
-  test('fails closed without token and does not call default wiki routes', async () => {
+  test('fails closed without token and does not call default knowledge routes', async () => {
     const paths = shellPaths(false);
     const tool = createAgentKnowledgeIngestTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
@@ -322,7 +322,7 @@ describe('agent_knowledge_ingest tool', () => {
       const result = await tool.execute({
         url: 'https://example.com/agent-docs',
         confirm: true,
-        explicitUserRequest: 'Add this docs URL to your Agent wiki.',
+        explicitUserRequest: 'Add this docs URL to your Agent Knowledge.',
       });
 
       expect(result.success).toBe(false);

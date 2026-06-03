@@ -25,7 +25,7 @@ export function createAgentKnowledgeQueryEditor(mode: AgentKnowledgeQueryMode): 
     title: mode === 'ask' ? 'Ask Agent Knowledge' : 'Search Agent Knowledge',
     selectedFieldIndex: 0,
     message: mode === 'ask'
-      ? 'Ask the isolated Agent Knowledge segment. If it has no answer, it fails closed instead of using another wiki.'
+      ? 'Ask the isolated Agent Knowledge segment. If it has no answer, it fails closed instead of using another knowledge segment.'
       : 'Search the isolated Agent Knowledge segment. Results come from Agent-owned sources only.',
     fields: [
       {

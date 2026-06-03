@@ -57,7 +57,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  routines                   Inspect local routines and explicitly promote one to a connected schedule',
     '  auth                       Inspect Agent auth posture and connection token state',
     '  compat                     Inspect Agent SDK pin, connected host version, and Agent Knowledge route readiness',
-    '  knowledge                  Use isolated Agent Knowledge/Wiki routes',
+    '  knowledge                  Use isolated Agent Knowledge routes',
     '  ask|search                 Shortcuts for isolated Agent Knowledge ask/search',
     '  delegate                   Explicitly delegate build/fix/review work to GoodVibes TUI',
     '  subscription               Start/finish/logout provider subscription sessions',
@@ -237,7 +237,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'memory handoff-inspect <path>',
       'memory vector [status|doctor|rebuild]',
     ],
-    summary: 'Manage Agent-owned durable memory. This uses the Agent memory store only; it never falls back to default Knowledge/Wiki or non-Agent knowledge segments.',
+    summary: 'Manage Agent-owned durable memory. This uses the Agent memory store only; it never falls back to default knowledge or non-Agent knowledge segments.',
     examples: [
       'memory list',
       'memory add fact "Prefers concise morning briefings" --scope project --tags preference',
@@ -306,7 +306,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'knowledge import-browser-history [--browsers chrome,firefox] [--sources history,bookmark] --yes',
       'knowledge reindex --yes',
     ],
-    summary: 'Call isolated Agent Knowledge/Wiki routes under /api/goodvibes-agent/knowledge. No default wiki or non-Agent fallback.',
+    summary: 'Call isolated Agent Knowledge routes under /api/goodvibes-agent/knowledge. No default knowledge or non-Agent fallback.',
     examples: [
       'knowledge status',
       'knowledge ask "What is GoodVibes Agent?"',
@@ -323,12 +323,12 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   },
   ask: {
     usage: ['ask <question> [--limit <n>] [--mode concise|standard|detailed]'],
-    summary: 'Shortcut for isolated Agent Knowledge ask. This never queries default Knowledge/Wiki or non-Agent knowledge.',
+    summary: 'Shortcut for isolated Agent Knowledge ask. This never queries default knowledge or non-Agent knowledge.',
     examples: ['ask "What is GoodVibes Agent?"', 'ask "release checklist" --mode concise'],
   },
   search: {
     usage: ['search <query> [--limit <n>]'],
-    summary: 'Shortcut for isolated Agent Knowledge search. This never queries default Knowledge/Wiki or non-Agent knowledge.',
+    summary: 'Shortcut for isolated Agent Knowledge search. This never queries default knowledge or non-Agent knowledge.',
     examples: ['search "release checklist"', 'search "operator workspace" --limit 5'],
   },
   delegate: {

@@ -204,7 +204,7 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('GoodVibes onboarding status');
   });
 
-  test('doctor warns when connected host or Agent Knowledge are unavailable without suggesting fallback wiki use', () => {
+  test('doctor warns when connected host or Agent Knowledge are unavailable without suggesting fallback knowledge use', () => {
     const findings = buildCliDoctorFindings({
       ...makeOptions(),
       externalRuntime: makeExternalRuntime({
@@ -224,8 +224,8 @@ describe('CLI status and doctor output', () => {
     expect(findings.map((finding) => finding.id)).toContain('agent-knowledge-route-not-ready');
     expect(findings.map((finding) => finding.cause).join('\n')).toContain('/api/goodvibes-agent/knowledge/status returned connected_host_route_unavailable (404).');
     expect(findings.map((finding) => finding.cause).join('\n')).not.toContain('/api/goodvibes-agent/knowledge/status returned route_unavailable (404).');
-    expect(text).toContain('Agent Knowledge ask/search will not use any fallback wiki or non-Agent knowledge segment');
-    expect(text).not.toContain('default Knowledge');
+    expect(text).toContain('Agent Knowledge ask/search will not use default or non-Agent knowledge fallback');
+    expect(text).not.toContain('default knowledge');
   });
 
   test('network endpoint config does not report Agent-owned network auth posture', () => {

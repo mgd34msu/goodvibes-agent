@@ -574,10 +574,10 @@ describe('knowledgeCommand', () => {
     expect(output).not.toContain('This local snippet should not be rendered.');
   });
 
-  test('refuses default Knowledge/Wiki or non-Agent fallback when Agent Knowledge is not wired', async () => {
+  test('refuses default knowledge or non-Agent fallback when Agent Knowledge is not wired', async () => {
     const genericKnowledgeApi = createKnowledgeApi({
       getStatus: () => {
-        throw new Error('default wiki must not be called');
+        throw new Error('default knowledge must not be called');
       },
     } as never);
     const context = {
@@ -612,7 +612,7 @@ describe('knowledgeCommand', () => {
 
     const output = printed.join('\n');
     expect(output).toContain('Agent Knowledge API is not available');
-    expect(output).toContain('Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback');
+    expect(output).toContain('Refusing to use default knowledge or non-Agent knowledge fallback');
   });
 
   test('rejects space flags instead of routing Agent Knowledge to non-Agent/default spaces', async () => {
@@ -636,7 +636,7 @@ describe('knowledgeCommand', () => {
     const output = printed.join('\n');
     expect(output).toContain('Agent Knowledge is isolated');
     expect(output).toContain('--space is not accepted');
-    expect(output).toContain('must not use default Knowledge/Wiki or non-Agent product spaces');
+    expect(output).toContain('must not use default knowledge or non-Agent product spaces');
     expect(output).not.toContain('This must not render.');
   });
 

@@ -22,7 +22,7 @@ Agent-owned provider definitions live under the Agent profile root when supporte
 ~/.goodvibes/agent/providers/*.json
 ```
 
-These files are local configuration. They are not Agent Knowledge records and should not be copied into wiki/search state.
+These files are local configuration. They are not Agent Knowledge records and should not be copied into knowledge search state.
 
 ## Discovery And Health
 
@@ -37,7 +37,7 @@ Search, voice, media, and multimodal providers are valid Agent features when the
 - image/document analysis;
 - artifact creation and review.
 
-Outputs that should become durable knowledge must go through Agent Knowledge routes. No provider output should be inserted into default Knowledge/Wiki or another product segment by Agent.
+Outputs that should become durable knowledge must go through Agent Knowledge routes. No provider output should be inserted into default knowledge or another product segment by Agent.
 
 ## Related Docs
 

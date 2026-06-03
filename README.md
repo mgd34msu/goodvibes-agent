@@ -66,7 +66,7 @@ Use the workspace as the primary product surface:
 
 Inside the Agent workspace, press `/` to search every workspace action by name, category, command, or detail. This is the primary discovery path for product actions; slash commands and CLI subcommands remain power-user/scriptable mirrors.
 
-The setup workspace surfaces discovered local Agent persona, skill, and routine markdown files so day-one setup can import useful behavior instead of starting from blank records. It can also create one initial scratchpad note, local persona, skill, and routine directly during first-run setup; those records stay in Agent-local registries and never write to default Knowledge/Wiki or non-Agent segments.
+The setup workspace surfaces discovered local Agent persona, skill, and routine markdown files so day-one setup can import useful behavior instead of starting from blank records. It can also create one initial scratchpad note, local persona, skill, and routine directly during first-run setup; those records stay in Agent-local registries and never write to default knowledge or non-Agent segments.
 
 In the Profiles workspace, choose Starter authoring guide to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
 
@@ -100,7 +100,7 @@ Local Agent behavior is editable from the TUI workspace:
 
 Slash commands remain available inside the TUI for power users, but the fullscreen Agent workspace is the primary path for these workflows.
 
-Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promotion to a connected schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default Knowledge/Wiki and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live connected schedules through public `schedules.list`.
+Starting a routine records local usage and prints its steps; it does not launch local workers or automation jobs. Promotion to a connected schedule is separate and explicit: it calls the public `schedules.create` route only after `--yes`, can include explicit delivery targets such as `--delivery-channel slack`, records a redacted local receipt, and the generated scheduled prompt keeps Agent Knowledge isolated from default knowledge and non-Agent knowledge segments. Use `/schedule reconcile` to compare those local receipts against live connected schedules through public `schedules.list`.
 
 Use `/channels` inside the TUI for channel readiness and exact confirmed sends. Readiness views show enabled channels, missing config key names, delivery posture, and risk labels without sending messages or rendering token values. Companion pairing is QR-first; `/pair` hides the raw token in text, and manual token display requires `/pair --show-token --yes`. `/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit delivery through configured strategies.
 
@@ -116,7 +116,7 @@ Agent reports unavailable, unauthenticated, or incompatible connected-host state
 
 GoodVibes Agent owns the operator assistant TUI: serial assistant flow, proactive safe actions, local memory/notes/routines/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
-Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
+Agent Knowledge is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default knowledge or other product-specific knowledge routes.
 
 Agent Workspace -> Knowledge can ask/search, inspect sources/nodes/issues, inspect connectors, ingest URL/file/bookmark/browser-history/connector input, and reindex the Agent segment. CLI commands mirror those same isolated Agent Knowledge workflows for scripts. Confirmed mutations require explicit confirmation.
 

@@ -46,6 +46,6 @@ Leaving `tts.voice` empty lets the provider choose its default voice.
 
 ## Knowledge Boundary
 
-Spoken responses are conversation output. They are not automatically written to Agent Knowledge, local memory, default Knowledge/Wiki, or any other product segment.
+Spoken responses are conversation output. They are not automatically written to Agent Knowledge, local memory, default knowledge, or any other product segment.
 
 If a spoken result should become durable, store it through an explicit Agent memory command or an Agent Knowledge ingestion path.

@@ -39,7 +39,7 @@ export function createAgentOperatorActionTool(
         'Perform one explicit, confirmed connected-host operator action from the main conversation.',
         'Allowed actions are approvals.approve, approvals.deny, approvals.cancel, automation.jobs.run, automation.jobs.pause, automation.jobs.resume, automation.runs.cancel, automation.runs.retry, and schedules.run.',
         'Use only when the user explicitly asks for that exact approval, automation job, automation run, or schedule action.',
-        'This tool never creates, edits, deletes, or discovers automation definitions; never manages connected-host hosting; never uses default Knowledge/Wiki, non-Agent knowledge segments, local workers, WRFC, or arbitrary route invocation.',
+        'This tool never creates, edits, deletes, or discovers automation definitions; never manages connected-host hosting; never uses default knowledge, non-Agent knowledge segments, local workers, WRFC, or arbitrary route invocation.',
         'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
       ].join(' '),
       parameters: {

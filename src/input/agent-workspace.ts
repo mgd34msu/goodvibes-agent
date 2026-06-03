@@ -526,7 +526,7 @@ export class AgentWorkspace {
 
   private memoryApi(): MemoryApi {
     const memory = this.context?.clients?.agentKnowledgeApi?.memory;
-    if (!memory) throw new Error('Agent Memory API is unavailable; refusing default Knowledge/Wiki or non-Agent fallback.');
+    if (!memory) throw new Error('Agent Memory API is unavailable; refusing default knowledge or non-Agent fallback.');
     return memory;
   }
 

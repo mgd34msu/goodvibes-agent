@@ -34,7 +34,7 @@ export function formatReminderSchedulePreview(preview: ReminderSchedulePreview):
     `  enabled: ${preview.payload.enabled === false ? 'no' : 'yes'}`,
     `  delivery: ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
     '  target: connected GoodVibes host/main conversation route',
-    '  policy: reminder delivery only; isolated Agent Knowledge only; no default wiki/non-Agent fallback',
+    '  policy: reminder delivery only; isolated Agent Knowledge only; no default knowledge/non-Agent fallback',
     '  next: rerun with --yes to create this connected reminder schedule',
   ].join('\n');
 }

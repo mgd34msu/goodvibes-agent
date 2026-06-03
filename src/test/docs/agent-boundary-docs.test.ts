@@ -95,7 +95,7 @@ describe('Agent boundary docs', () => {
     expect(offenders).toEqual([]);
   });
 
-  test('source docs describe isolated Agent Knowledge without default wiki fallback', () => {
+  test('source docs describe isolated Agent Knowledge without default knowledge fallback', () => {
     const paths = [
       'docs/tools-and-commands.md',
       'docs/knowledge-artifacts-and-multimodal.md',
@@ -105,14 +105,14 @@ describe('Agent boundary docs', () => {
       '/api/knowledge/refinement',
       '--space <knowledgeSpaceId>',
       'TUI-owned',
-      'default Knowledge/Wiki store',
+      'default knowledge store',
       'product-specific graph',
     ] as const;
 
     for (const path of paths) {
       const content = readRepoFile(path);
       expect(content).toContain('/api/goodvibes-agent/knowledge');
-      expect(content).toContain('default Knowledge/Wiki');
+      expect(content).toContain('default knowledge');
       for (const token of forbidden) {
         expect(content).not.toContain(token);
       }

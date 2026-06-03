@@ -51,6 +51,6 @@ describe('live verification report', () => {
     expect(check.status).toBe('skip');
     expect(check.summary).toContain('connected host SDK 0.33.30');
     expect(check.summary).toContain('Agent SDK pin 0.33.35');
-    expect(check.detail).toContain('must not fall back to default Knowledge/Wiki or non-Agent knowledge segments');
+    expect(check.detail).toContain('must not fall back to default knowledge or non-Agent knowledge segments');
   });
 });

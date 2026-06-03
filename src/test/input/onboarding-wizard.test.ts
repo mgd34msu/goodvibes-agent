@@ -388,7 +388,7 @@ describe('OnboardingWizardController', () => {
     expect(text).toContain('Initial skill name');
     expect(text).toContain('Initial routine name');
     expect(text).toContain('Research Analyst');
-    expect(text).not.toContain('Default Knowledge/Wiki fallback: enabled');
+    expect(text).not.toContain('Default knowledge fallback: enabled');
     expect(text).not.toContain('start services');
   });
 

@@ -375,7 +375,7 @@ describe('routines CLI command', () => {
         label: 'Ops',
       }));
       expect(payload.prompt).toContain('Use isolated Agent Knowledge routes only');
-      expect(payload.prompt).toContain('never use default Knowledge/Wiki or non-Agent knowledge spaces');
+      expect(payload.prompt).toContain('never use default knowledge or non-Agent knowledge spaces');
       const receiptId = result.output.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
       expect(receiptId).toBeTruthy();
 

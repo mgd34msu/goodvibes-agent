@@ -293,7 +293,7 @@ export function buildAgentKnowledgeLiveSkipCheck(
     summary: `Skipped because connected host SDK ${connectedHostVersion} does not match Agent SDK pin ${expectedSdkVersion}.`,
     detail: [
       'Agent Knowledge is intentionally isolated under /api/goodvibes-agent/knowledge/*.',
-      'An older connected host cannot validate those routes, and Agent must not fall back to default Knowledge/Wiki or non-Agent knowledge segments.',
+      'An older connected host cannot validate those routes, and Agent must not fall back to default knowledge or non-Agent knowledge segments.',
       'Update the connected GoodVibes host, then rerun live verification.',
     ].join('\n'),
   };

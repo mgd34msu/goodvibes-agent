@@ -54,6 +54,6 @@ Agent owns the operator assistant TUI, local profiles, local memory/notes/routin
 
 Agent does not own connected-host lifecycle. It does not provide commands to install, expose, start, stop, restart, or mutate the connected GoodVibes host.
 
-Agent Knowledge/Wiki is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` only and must not fall back to default Knowledge/Wiki or other product-specific knowledge routes.
+Agent Knowledge is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` only and must not fall back to default knowledge or other product-specific knowledge routes.
 
 Normal assistant chat uses companion chat. Build/fix/review work is delegated explicitly to GoodVibes TUI through public runtime/session contracts, and WRFC is requested only when explicitly asked for delegated build/fix/review work.

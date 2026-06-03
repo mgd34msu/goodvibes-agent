@@ -15,7 +15,7 @@ Important baseline constraints:
 - Agent depends on `@pellux/goodvibes-sdk@0.33.35`.
 - Agent connects to a GoodVibes host owned outside this product.
 - Agent does not start, stop, restart, install, uninstall, or own the connected GoodVibes host.
-- Agent Knowledge/Wiki uses only `/api/goodvibes-agent/knowledge/*`; there is no default Knowledge/Wiki or non-Agent product fallback.
+- Agent Knowledge uses only `/api/goodvibes-agent/knowledge/*`; there is no default knowledge or non-Agent product fallback.
 - Agent supports isolated Agent homes with `GOODVIBES_AGENT_HOME=<path>` and named profile homes with `goodvibes-agent profiles create <name> --template <starter> --yes` plus `--agent-profile <name>`.
 - Agent supports connected-host URL overrides with `--runtime-url http://host:port` or `GOODVIBES_AGENT_RUNTIME_URL=http://host:port`; these only change the Agent connection target.
 - Agent ships starter profile templates for household, research, travel, operations, and personal productivity local state; `profiles templates export/import` and `/agent-profile guide` support local custom starters.

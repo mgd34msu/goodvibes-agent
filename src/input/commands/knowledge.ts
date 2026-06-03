@@ -15,7 +15,7 @@ type KnowledgeAskMode = NonNullable<KnowledgeAskInput['mode']>;
 function requireAgentKnowledgeApi(context: CommandContext) {
   const knowledgeApi = context.clients?.agentKnowledgeApi;
   if (!knowledgeApi) {
-    context.print('[knowledge] Agent Knowledge API is not available in this runtime. Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback.');
+    context.print('[knowledge] Agent Knowledge API is not available in this runtime. Refusing to use default knowledge or non-Agent knowledge fallback.');
     return null;
   }
   return knowledgeApi;
@@ -48,7 +48,7 @@ function findDisallowedKnowledgeScopeFlag(args: readonly string[]): string | nul
 function printScopeFlagRejection(context: CommandContext, flag: string): void {
   context.print([
     `[knowledge] Agent Knowledge is isolated; ${flag} is not accepted.`,
-    '[knowledge] GoodVibes Agent must not use default Knowledge/Wiki or non-Agent product spaces.',
+    '[knowledge] GoodVibes Agent must not use default knowledge or non-Agent product spaces.',
     '[knowledge] Use only /api/goodvibes-agent/knowledge/* Agent-owned routes.',
   ].join('\n'));
 }
@@ -131,7 +131,7 @@ function requireAgentKnowledgeAsk(context: CommandContext): ((input: KnowledgeAs
   const serviceAsk = context.extensions.agentKnowledgeService?.ask?.bind(context.extensions.agentKnowledgeService);
   if (serviceAsk) return serviceAsk;
 
-  context.print('[knowledge] Agent Knowledge ask is not available in this runtime. Refusing to use default Knowledge/Wiki or non-Agent knowledge fallback.');
+  context.print('[knowledge] Agent Knowledge ask is not available in this runtime. Refusing to use default knowledge or non-Agent knowledge fallback.');
   return null;
 }
 
@@ -208,7 +208,7 @@ function renderKnowledgeAskResult(result: KnowledgeAskResult): string {
 export const knowledgeCommand: SlashCommand = {
   name: 'knowledge',
   aliases: ['know', 'kb'],
-  description: 'Agent Knowledge/Wiki: isolated Agent-owned sources, graph, review queue, and compact prompt packets.',
+  description: 'Agent Knowledge: isolated Agent-owned sources, graph, review queue, and compact prompt packets.',
   usage: '<subcommand> [args]',
   argsHint: 'status|ask|ingest-url --yes|ingest-file --yes|import-bookmarks --yes|list|search|get|queue|review-issue --yes',
   handler: async (args: string[], context: CommandContext): Promise<void> => {

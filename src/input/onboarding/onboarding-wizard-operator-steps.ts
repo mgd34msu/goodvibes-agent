@@ -124,11 +124,11 @@ export function buildAgentKnowledgeStep(): OnboardingWizardStepDefinition {
     id: 'agent-knowledge',
     title: 'Agent Knowledge',
     shortLabel: 'Knowledge',
-    description: 'Agent Knowledge is isolated to the GoodVibes Agent product segment. It never falls back to default Knowledge/Wiki or any non-Agent product segment.',
+    description: 'Agent Knowledge is isolated to the GoodVibes Agent product segment. It never falls back to default knowledge or any non-Agent product segment.',
     summaryTitle: 'Knowledge isolation',
     summaryLines: [
       'Route segment: /api/goodvibes-agent/knowledge/*',
-      'Default wiki fallback: disabled',
+      'Default knowledge fallback: disabled',
       'Non-Agent route fallback: disabled',
     ],
     fields: [
@@ -142,9 +142,9 @@ export function buildAgentKnowledgeStep(): OnboardingWizardStepDefinition {
       },
       {
         kind: 'status',
-        id: 'agent-knowledge.no-default-wiki',
-        label: 'Default Knowledge/Wiki fallback',
-        hint: 'Agent setup and Agent ask/search must not query the default wiki when Agent Knowledge has no answer.',
+        id: 'agent-knowledge.no-default-knowledge',
+        label: 'Default knowledge fallback',
+        hint: 'Agent setup and Agent ask/search must not query the default knowledge when Agent Knowledge has no answer.',
         defaultValue: 'Blocked',
       },
       {
@@ -190,7 +190,7 @@ export function buildResearchStep(): OnboardingWizardStepDefinition {
         kind: 'status',
         id: 'agent-research.knowledge-boundary',
         label: 'Source-to-knowledge boundary',
-        hint: 'Reviewed sources become durable only through confirmed Agent Knowledge ingest actions. Default Knowledge/Wiki and non-Agent segments are not fallback stores.',
+        hint: 'Reviewed sources become durable only through confirmed Agent Knowledge ingest actions. Default knowledge and non-Agent segments are not fallback stores.',
         defaultValue: 'Explicit ingest',
       },
       {

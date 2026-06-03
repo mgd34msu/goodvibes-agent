@@ -1208,7 +1208,7 @@ describe('AgentWorkspace', () => {
     expect(output).toContain('Agent memory: 1; prompt-active: 1; review queue: 0');
     expect(output).toContain('Never fallback to non-Agent knowledge segments');
     expect(output).toContain('project/constraint');
-    expect(output).not.toContain('default Knowledge/Wiki');
+    expect(output).not.toContain('default knowledge');
   });
 
   test('library workspace actions open editors and dispatch only concrete commands', () => {
@@ -2976,7 +2976,7 @@ describe('AgentWorkspace', () => {
     expect(JSON.stringify(snapshot.setupChecklist)).not.toContain('SLACK_BOT_TOKEN');
   });
 
-  test('exposes Agent Knowledge review queue and list views without default wiki fallback', () => {
+  test('exposes Agent Knowledge review queue and list views without default knowledge fallback', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -2999,7 +2999,7 @@ describe('AgentWorkspace', () => {
     ]);
     expect(workspace.status).toContain('/knowledge queue');
     expect(workspace.selectedCategory.detail).toContain('isolated Agent Knowledge route family only');
-    expect(workspace.selectedCategory.detail).toContain('Default regular wiki and non-Agent knowledge segments are not');
+    expect(workspace.selectedCategory.detail).toContain('Default knowledge and non-Agent knowledge segments are not');
   });
 
   test('ingests Agent Knowledge URLs from a confirmed workspace form', () => {

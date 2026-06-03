@@ -77,7 +77,7 @@ describe('Agent Knowledge CLI route isolation', () => {
     expect(methodsSource).toContain('/api/goodvibes-agent/knowledge/ingest/url');
   });
 
-  test('ingest-url uses the Agent Knowledge route and never the default wiki path', async () => {
+  test('ingest-url uses the Agent Knowledge route and never the default knowledge path', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input, init) => {
@@ -143,7 +143,7 @@ describe('Agent Knowledge CLI route isolation', () => {
     }
   });
 
-  test('ingest-file uses the Agent Knowledge artifact route and never the default wiki path', async () => {
+  test('ingest-file uses the Agent Knowledge artifact route and never the default knowledge path', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input, init) => {
@@ -233,7 +233,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         kind: 'agent_knowledge_scope_rejected',
         route: '/api/goodvibes-agent/knowledge/*',
       });
-      expect(result.output).toContain('must not use default Knowledge/Wiki or non-Agent product spaces');
+      expect(result.output).toContain('must not use default knowledge or non-Agent product spaces');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -785,7 +785,7 @@ describe('Agent Knowledge CLI route isolation', () => {
     }
   });
 
-  test('classifies missing Agent Knowledge route on older connected host as version_mismatch without default wiki fallback', async () => {
+  test('classifies missing Agent Knowledge route on older connected host as version_mismatch without default knowledge fallback', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input, init) => {
