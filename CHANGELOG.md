@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.14 - 2026-06-03
+
+- Add agent_harness mode tool to inspect one first-class model tool schema by toolName, target, or query.
+- Keep broad tools discovery lightweight while making individual model tool parameters, side effects, concurrency, and streaming/progress support directly inspectable.
+- Refresh package-facing docs and focused harness coverage for the updated model tool discovery surface.
+
 ## 1.0.13 - 2026-06-03
 
 - Add connected_host_capability to inspect one allowed or blocked connected-host capability by id, target, or query with related route families and boundary text.
