@@ -42,6 +42,7 @@ export type GlobalShortcutRouteState = {
   handlePaste: () => void;
   handleEscape: () => void;
   cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => void;
+  dismissAgentWorkspace: () => boolean;
 };
 
 export function handleGlobalShortcutToken(
@@ -86,6 +87,10 @@ export function handleGlobalShortcutToken(
       return true;
 
     case 'panel-close-all': {
+      if (state.dismissAgentWorkspace()) {
+        state.panelFocused = false;
+        return true;
+      }
       const pm = state.panelManager;
       for (const p of pm.getAllOpen()) pm.close(p.id);
       pm.hide();
@@ -95,6 +100,10 @@ export function handleGlobalShortcutToken(
     }
 
     case 'panel-close': {
+      if (state.dismissAgentWorkspace()) {
+        state.panelFocused = false;
+        return true;
+      }
       const pm = state.panelManager;
       const active = pm.getActivePanel();
       if (active) {

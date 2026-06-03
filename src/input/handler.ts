@@ -304,6 +304,7 @@ export class InputHandler {
         registerPaste: (content: string) => this.registerPaste(content),
         executeBlockAction: (id: string) => this.executeBlockAction(id),
         cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => this.cycleAgentWorkspaceCategory(direction),
+        dismissAgentWorkspace: () => this.dismissAgentWorkspace(),
         onPanelInputConsumed: (activePanel: Panel | null, key: string) => this.handlePanelIntegrationAction(activePanel, key),
         getWrappedPromptInfo: (contentWidth: number) => this.getWrappedPromptInfo(contentWidth),
         moveCursorVertical: (direction: -1 | 1) => this.moveCursorVertical(direction),
@@ -421,6 +422,15 @@ export class InputHandler {
     for (let index = this.modalStack.length - 1; index >= 0; index -= 1) {
       if (this.modalStack[index] === 'agentWorkspace') this.modalStack.splice(index, 1);
     }
+  }
+
+  public dismissAgentWorkspace(): boolean {
+    if (!this.agentWorkspace.active) return false;
+    this.closeAgentWorkspaceModal();
+    this.panelFocused = false;
+    this.indicatorFocused = false;
+    this.requestRender();
+    return true;
   }
 
   private dispatchAgentWorkspaceCommand(command: string, context: CommandContext): void {

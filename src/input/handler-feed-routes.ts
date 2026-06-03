@@ -26,6 +26,7 @@ export type PanelFocusRouteState = {
   requestRender: () => void;
   handlePathCompletion: () => boolean;
   cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => void;
+  dismissAgentWorkspace: () => boolean;
   onPanelInputConsumed?: (activePanel: import('../panels/types.ts').Panel | null, key: string) => void;
 };
 
@@ -84,6 +85,9 @@ export function handlePanelFocusToken(state: PanelFocusRouteState, token: InputT
       return { handled: true, panelFocused: false };
     }
     if (kb.matches('panel-close-all', token)) {
+      if (state.dismissAgentWorkspace()) {
+        return { handled: true, panelFocused: false };
+      }
       const pm = state.panelManager;
       for (const p of pm.getAllOpen()) pm.close(p.id);
       panelFocused = false;
@@ -91,6 +95,9 @@ export function handlePanelFocusToken(state: PanelFocusRouteState, token: InputT
       return { handled: true, panelFocused };
     }
     if (kb.matches('panel-close', token)) {
+      if (state.dismissAgentWorkspace()) {
+        return { handled: true, panelFocused: false };
+      }
       const pm = state.panelManager;
       const active = pm.getActivePanel();
       if (active) {
