@@ -215,6 +215,39 @@ describe('/mcp runtime config commands', () => {
     }
   });
 
+  test('preserves passthrough --yes as an MCP server argument', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    try {
+      const registry = new CommandRegistry();
+      registerMcpRuntimeCommands(registry);
+      const out: string[] = [];
+      const callLog = makeCallLog();
+      const ctx = makeContext(root, out, callLog);
+
+      await registry.get('mcp')!.handler(['add', 'cli', 'node', 'server.js', '--', '--yes'], ctx);
+
+      expect(callLog.upserts).toBe(0);
+      expect(callLog.reloads).toBe(0);
+      expect(out.join('\n')).toContain('Refusing to add or update an MCP server config without --yes');
+      out.length = 0;
+
+      await registry.get('mcp')!.handler(['add', 'cli', 'node', 'server.js', '--role', 'docs', '--yes', '--', '--yes', '--profile', 'local'], ctx);
+
+      const config = JSON.parse(readFileSync(join(root, '.goodvibes', 'mcp.json'), 'utf-8')) as {
+        servers: Array<{ name: string; command: string; args?: string[]; role?: string }>;
+      };
+      expect(callLog.upserts).toBe(1);
+      expect(config.servers[0]).toMatchObject({
+        name: 'cli',
+        command: 'node',
+        args: ['server.js', '--yes', '--profile', 'local'],
+        role: 'docs',
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('adds project-local MCP server and reloads runtime registry', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
     try {

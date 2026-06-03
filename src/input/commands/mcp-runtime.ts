@@ -38,6 +38,29 @@ function isMcpScope(value: string): value is McpConfigScope {
   return value === 'project' || value === 'global';
 }
 
+function stripMcpAddYesFlag(args: readonly string[]): { readonly rest: readonly string[]; readonly yes: boolean } {
+  const rest: string[] = [];
+  let yes = false;
+  let passthrough = false;
+  for (const token of args) {
+    if (passthrough) {
+      rest.push(token);
+      continue;
+    }
+    if (token === '--') {
+      passthrough = true;
+      rest.push(token);
+      continue;
+    }
+    if (token === '--yes') {
+      yes = true;
+      continue;
+    }
+    rest.push(token);
+  }
+  return { rest, yes };
+}
+
 function formatMcpTrustMode(mode: McpDisplayTrustMode): string {
   if (mode === 'ask-on-risk') return 'ask on risky actions';
   if (mode === 'allow-all') return 'allow all actions';
@@ -174,7 +197,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
     async handler(args, ctx) {
       const mcpApi = requireMcpApi(ctx);
       const listServerSecurity = () => mcpApi.listServerSecurity();
-      const confirmation = stripYesFlag(args);
+      const confirmation = args[0] === 'add' ? stripMcpAddYesFlag(args) : stripYesFlag(args);
       const commandArgs = [...confirmation.rest];
       const subcommand = commandArgs[0];
       if (!subcommand && ctx.openMcpWorkspace) {
@@ -445,6 +468,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
             'Add or update from inside Agent with explicit confirmation',
             '  Open /mcp and choose Add or update server, or use Agent Workspace -> Tools & MCP -> Add MCP server.',
             '  Use Settings -> MCP for allow-all decisions.',
+            '  Use -- before server args that look like Agent flags.',
             'Automation equivalent',
             `  ${MCP_ADD_COMMAND_USAGE}`,
           ].join('\n'));
