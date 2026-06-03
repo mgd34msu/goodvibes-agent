@@ -383,7 +383,7 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       mode: 'delete',
       title: 'Delete Stored Secret',
       selectedFieldIndex: 0,
-      message: 'Delete one stored secret key from the selected scope/storage. Type yes on the final field to confirm.',
+      message: 'Delete one stored secret key from the selected scope and storage mode. Type yes on the final field to confirm.',
       fields: [
         { id: 'key', label: 'Secret key', value: '', required: true, multiline: false, hint: 'Stored key to delete.' },
         { id: 'scope', label: 'Scope', value: '', required: false, multiline: false, hint: 'Optional project or user. Blank lets the command choose the matching stored key.' },
