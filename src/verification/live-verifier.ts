@@ -143,6 +143,14 @@ function commandCheck(
   passSummary: string,
   options?: { warnOnNonZero?: boolean; parseJson?: boolean },
 ): LiveVerificationCheck {
+  const parseJsonOutput = (): string | null => {
+    try {
+      JSON.parse(result.stdout);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  };
   if (result.timedOut) {
     return {
       id,
@@ -153,6 +161,18 @@ function commandCheck(
     };
   }
   if (result.exitCode !== 0) {
+    if (options?.parseJson) {
+      const parseError = parseJsonOutput();
+      if (parseError !== null) {
+        return {
+          id,
+          title,
+          status: 'fail',
+          summary: `Command exited ${result.exitCode} and did not return valid JSON.`,
+          detail: compact(`${result.stdout}\n${result.stderr}\n${parseError}`),
+        };
+      }
+    }
     return {
       id,
       title,
@@ -162,15 +182,14 @@ function commandCheck(
     };
   }
   if (options?.parseJson) {
-    try {
-      JSON.parse(result.stdout);
-    } catch (error) {
+    const parseError = parseJsonOutput();
+    if (parseError !== null) {
       return {
         id,
         title,
         status: 'fail',
         summary: 'Command succeeded but did not return valid JSON.',
-        detail: error instanceof Error ? error.message : String(error),
+        detail: parseError,
       };
     }
   }
