@@ -15,6 +15,7 @@ import { buildGoodVibesSecretKey, buildGoodVibesSecretRef } from '../../config/s
 import { createShellPathService } from '@/runtime/index.ts';
 import { registerOperatorRuntimeCommands } from '../../input/commands/operator-runtime.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
+import { KeybindingsManager } from '../../input/keybindings.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
@@ -30,6 +31,7 @@ interface HarnessFixture {
   readonly configManager: ConfigManager;
   readonly secretsManager: SecretsManager | null;
   readonly panelManager: PanelManager;
+  readonly keybindingsManager: KeybindingsManager;
   readonly toolRegistry: ToolRegistry;
   readonly tool: ReturnType<typeof createAgentHarnessTool>;
   readonly printed: string[];
@@ -109,6 +111,9 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     ? null
     : new SecretsManager({ projectRoot: root, globalHome: root, configManager });
   const panelManager = new PanelManager();
+  const keybindingsManager = new KeybindingsManager({
+    configPath: paths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'keybindings.json'),
+  });
   registerHarnessFixturePanels(panelManager);
   const toolRegistry = new ToolRegistry();
   const printed: string[] = [];
@@ -128,7 +133,7 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     showPanel: (panelId: string, pane?: 'top' | 'bottom') => {
       routedPanels.push({ panelId, pane });
     },
-    workspace: { shellPaths: paths, panelManager },
+    workspace: { shellPaths: paths, panelManager, keybindingsManager },
     platform: { configManager, ...(secretsManager ? { secretsManager } : {}) },
     session: {},
     provider: {},
@@ -150,6 +155,7 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     configManager,
     secretsManager,
     panelManager,
+    keybindingsManager,
     toolRegistry,
     tool,
     printed,
@@ -327,6 +333,67 @@ describe('agent_harness tool', () => {
       expect(routed.success).toBe(true);
       expect(routed.output).toContain('"status": "routed"');
       expect(fixture.routedPanels).toEqual([{ panelId: 'knowledge', pane: 'bottom' }]);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes shortcuts and confirmation-gated keybinding edits', async () => {
+    const fixture = makeFixture();
+    try {
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      expect(summary.output).toContain('"shortcuts"');
+      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly shortcuts?: string } };
+      expect(summaryJson.modelAccess?.shortcuts).toContain('mode:"shortcuts"');
+
+      const shortcuts = await fixture.tool.execute({ mode: 'shortcuts', query: 'help' });
+      expect(shortcuts.success).toBe(true);
+      expect(shortcuts.output).toContain('"fixedShortcuts"');
+      expect(shortcuts.output).toContain('? / F1');
+      expect(shortcuts.output).toContain('"configurableKeybindings"');
+
+      const keybinding = await fixture.tool.execute({ mode: 'keybinding', actionId: 'search' });
+      expect(keybinding.success).toBe(true);
+      expect(keybinding.output).toContain('"action": "search"');
+      expect(keybinding.output).toContain('Ctrl+F');
+      expect(keybinding.output).toContain('"customized": false');
+
+      const denied = await fixture.tool.execute({
+        mode: 'set_keybinding',
+        actionId: 'search',
+        combo: { key: 'g', ctrl: true },
+        explicitUserRequest: 'Change search to Ctrl+G.',
+      });
+      expect(denied.success).toBe(false);
+      expect(denied.error).toContain('confirm:true');
+      expect(fixture.keybindingsManager.matches('search', { logicalName: 'f', ctrl: true })).toBe(true);
+
+      const updated = await fixture.tool.execute({
+        mode: 'set_keybinding',
+        actionId: 'search',
+        combo: { key: 'g', ctrl: true },
+        confirm: true,
+        explicitUserRequest: 'Change search to Ctrl+G.',
+      });
+      expect(updated.success).toBe(true);
+      expect(updated.output).toContain('"status": "updated"');
+      expect(updated.output).toContain('Ctrl+G');
+      expect(updated.output).toContain('"customized": true');
+      expect(fixture.keybindingsManager.matches('search', { logicalName: 'g', ctrl: true })).toBe(true);
+      expect(fixture.keybindingsManager.matches('search', { logicalName: 'f', ctrl: true })).toBe(false);
+
+      const reset = await fixture.tool.execute({
+        mode: 'reset_keybinding',
+        actionId: 'search',
+        confirm: true,
+        explicitUserRequest: 'Reset search keybinding.',
+      });
+      expect(reset.success).toBe(true);
+      expect(reset.output).toContain('"status": "reset"');
+      expect(reset.output).toContain('Ctrl+F');
+      expect(reset.output).toContain('"customized": false');
+      expect(fixture.keybindingsManager.matches('search', { logicalName: 'f', ctrl: true })).toBe(true);
     } finally {
       fixture.cleanup();
     }
