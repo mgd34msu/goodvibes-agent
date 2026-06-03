@@ -1,5 +1,5 @@
 /**
- * PanelListPanel — Shows legacy panel routes grouped by category.
+ * PanelListPanel — Shows registered panel routes grouped by category.
  *
  * Features:
  * - Arrow keys to navigate, Enter to show the matching Agent workspace route
@@ -193,9 +193,9 @@ export class PanelListPanel extends BasePanel {
       const selectedPanel = this._getSelectedPanelEntry(entries);
       if (selectedPanel) {
         const command = agentWorkspaceCommandForPanel(selectedPanel.reg.id);
-        this._routeMessage = `Legacy panel placement keys are inactive in Agent. Use ${command} for ${selectedPanel.reg.name}.`;
+        this._routeMessage = `Panel placement keys are inactive in Agent. Use ${command} for ${selectedPanel.reg.name}.`;
       } else {
-        this._routeMessage = 'Legacy panel placement keys are inactive in Agent. Use /agent for current operator controls.';
+        this._routeMessage = 'Panel placement keys are inactive in Agent. Use /agent for current operator controls.';
       }
       this.markDirty();
       return true;
@@ -233,7 +233,7 @@ export class PanelListPanel extends BasePanel {
     }
     const start = Date.now();
     this.needsRender = false;
-    const intro = 'Browse legacy panel registrations and route to the matching Agent workspace area without opening legacy panels.';
+    const intro = 'Browse registered panel routes and jump to the matching Agent workspace area without opening copied panels.';
     const entries = this._buildEntries();
 
     if (entries.length === 0) {
@@ -275,7 +275,7 @@ export class PanelListPanel extends BasePanel {
     const footerLines = [buildPanelLine(width, [[` [${this._selectedIndex + 1}/${panelEntries.length}] ↑/↓ nav  Enter route  / filter  Esc clear`.slice(0, width), C.hint]])];
     const postureLines: Line[] = [
       buildKeyValueLine(width, [
-        { label: 'legacy open', value: String(pm.getAllOpen().length), valueColor: pm.getAllOpen().length > 0 ? C.name : C.dim },
+        { label: 'copied open', value: String(pm.getAllOpen().length), valueColor: pm.getAllOpen().length > 0 ? C.name : C.dim },
         { label: 'agent route', value: selectedRoute, valueColor: C.info },
         { label: 'area', value: selectedArea, valueColor: C.value },
         { label: 'results', value: String(panelEntries.length), valueColor: C.value },
@@ -441,7 +441,7 @@ export class PanelListPanel extends BasePanel {
   private _setRouteMessage(reg: PanelRegistration): void {
     const command = agentWorkspaceCommandForPanel(reg.id);
     const area = agentWorkspaceCategoryForPanel(reg.id);
-    this._routeMessage = `${reg.name} routes through ${command} (${area}). Open Agent Workspace instead of legacy panels.`;
+    this._routeMessage = `${reg.name} routes through ${command} (${area}). Open Agent Workspace instead of copied panels.`;
   }
 
   /** Move selection to the previous panel entry. */

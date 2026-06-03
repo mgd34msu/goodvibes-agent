@@ -21,7 +21,7 @@ const BODY_FG = '252';
 const BORDER_FG = DEFAULT_OVERLAY_PALETTE.borderFg;
 
 /**
- * Render the legacy panel route picker as Line[] for overlay in the viewport.
+ * Render the Agent workspace route picker as Line[] for overlay in the viewport.
  * Routes are grouped by source panel category. Category headers are inserted between groups.
  * When a search query is active a search-bar row is shown beneath the title.
  */
