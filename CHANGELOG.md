@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.4 - 2026-06-03
+
+- Model-visible harness control now exposes fixed shortcuts and configurable keybindings through shortcuts, keybindings, keybinding, set_keybinding, and reset_keybinding modes.
+- Keybinding edits now write the same Agent keybindings.json file the user edits, reload the runtime keybinding manager, and require explicit confirmation.
+- Package-facing docs now describe shortcut and keybinding parity for the current 1.0.x harness surface.
+
 ## 1.0.3 - 2026-06-03
 
 - Model-visible harness discovery now includes top-level CLI mirrors with parser output, blocked command tokens, redacted launch overrides, and preferred in-process routes.
