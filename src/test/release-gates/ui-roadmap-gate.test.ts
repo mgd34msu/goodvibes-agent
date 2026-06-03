@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { DEFAULT_CONFIG } from '../../config/index.ts';
 import { ConversationManager } from '../../core/conversation';
 import type { CommandContext } from '../../input/command-registry.ts';
@@ -96,6 +98,14 @@ describe('UI roadmap gate', () => {
     expect(input.panelFocused).toBe(false);
     expect(visible).toBe(false);
     expect(openedWorkspaceCategory).toBe('home');
+  });
+
+  test('bootstrap panel fallback uses Agent Workspace guidance instead of deferred copy', () => {
+    const source = readFileSync(join(process.cwd(), 'src/runtime/bootstrap-command-parts.ts'), 'utf8');
+
+    expect(source).toContain('is handled through Agent Workspace');
+    expect(source).toContain('Use /agent for current operator controls');
+    expect(source).not.toContain('is deferred in GoodVibes Agent');
   });
 
   test('keeps overlays on shared width bands for narrow, medium, and wide terminals', () => {

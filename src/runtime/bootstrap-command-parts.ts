@@ -176,7 +176,7 @@ export function createBootstrapCommandActions(
   const showPanel = (panelId: string, pane?: 'top' | 'bottom') => {
     void pane;
     panelManager.hide();
-    conversation.log(`Panel "${panelId}" is deferred in GoodVibes Agent. Use /agent for the operator workspace.`, { fg: '214' });
+    conversation.log(`Panel route "${panelId}" is handled through Agent Workspace. Use /agent for current operator controls.`, { fg: '214' });
     requestRender();
   };
 
