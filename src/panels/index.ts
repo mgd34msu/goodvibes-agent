@@ -15,7 +15,6 @@ export { ToolInspectorPanel } from './tool-inspector-panel.ts';
 export { ContextVisualizerPanel } from './context-visualizer-panel.ts';
 export { registerBuiltinPanels } from './builtin-panels.ts';
 export type { BuiltinPanelDeps } from './builtin-panels.ts';
-export { PolicyPanel } from './policy-panel.ts';
 export { TasksPanel } from './tasks-panel.ts';
 export { SubscriptionPanel } from './subscription-panel.ts';
 export { SecurityPanel } from './security-panel.ts';

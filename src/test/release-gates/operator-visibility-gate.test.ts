@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
@@ -93,6 +93,7 @@ describe('operator visibility gate', () => {
     const operationsSource = readFileSync(join(process.cwd(), 'src/panels/builtin/operations.ts'), 'utf8');
     const bootstrapSource = readFileSync(join(process.cwd(), 'src/runtime/bootstrap-command-parts.ts'), 'utf8');
     const commandContextSource = readFileSync(join(process.cwd(), 'src/input/command-registry.ts'), 'utf8');
+    const panelsIndexSource = readFileSync(join(process.cwd(), 'src/panels/index.ts'), 'utf8');
 
     expect(operationsSource).not.toContain("id: 'policy'");
     expect(operationsSource).not.toContain("name: 'Policy'");
@@ -101,5 +102,7 @@ describe('operator visibility gate', () => {
     expect(bootstrapSource).not.toContain('openPolicyPanel');
     expect(bootstrapSource).not.toContain("showPanel('policy'");
     expect(commandContextSource).not.toContain('openPolicyPanel');
+    expect(panelsIndexSource).not.toContain('PolicyPanel');
+    expect(existsSync(join(process.cwd(), 'src/panels/policy-panel.ts'))).toBe(false);
   });
 });
