@@ -1,9 +1,8 @@
 /**
  * UX Anti-Regression: Resume/Recovery With Active State (v3 §18.5)
  *
- * Verifies that recovering a session with active panels and overlays
- * restores correct state — panels reopen, overlays remain in their
- * pre-suspend visibility state, and session metadata is reconciled.
+ * Verifies that recovering a session ignores copied panel state, keeps the
+ * main conversation available, and reconciles session metadata.
  *
  * All tests use pure state manipulation — no real I/O, no event bus.
  */
@@ -50,12 +49,13 @@ function makePanelState(openPanelIds: PanelId[], focusedPanelId: PanelId): Panel
   };
 }
 
-/** Simulate a suspended state — panels closed, session status suspended. */
+/** Simulate a suspended state — copied panels closed, session status suspended. */
 function buildSuspendedState(activeState: RuntimeState): RuntimeState {
   const activePanelState = selectPanels(activeState);
   const closedPanels = new Map(activePanelState.panels);
   for (const [id, panel] of closedPanels) {
-    closedPanels.set(id, { ...panel, open: false, focused: false });
+    const isMainConversation = id === 'main_conversation';
+    closedPanels.set(id, { ...panel, open: isMainConversation, focused: isMainConversation });
   }
 
   return {
@@ -66,6 +66,7 @@ function buildSuspendedState(activeState: RuntimeState): RuntimeState {
       revision: activePanelState.revision + 1,
       lastUpdatedAt: TEST_TIMESTAMP,
       source: 'suspend',
+      focusedPanelId: 'main_conversation',
     } as unknown as Record<string, unknown>,
     session: {
       ...activeState.session,
@@ -77,7 +78,7 @@ function buildSuspendedState(activeState: RuntimeState): RuntimeState {
   };
 }
 
-/** Simulate session recovery: restore panel state and update session metadata. */
+/** Simulate Agent session recovery: ignore copied panel state and update session metadata. */
 function applyResume(
   suspendedState: RuntimeState,
   snapshot: {
@@ -85,10 +86,11 @@ function applyResume(
     session?: Partial<SessionDomainState>;
   },
 ): RuntimeState {
+  const suspendedPanels = selectPanels(suspendedState);
   return {
     ...suspendedState,
     panels: {
-      ...snapshot.panels,
+      ...suspendedPanels,
       revision: selectPanels(suspendedState).revision + 1,
       lastUpdatedAt: TEST_TIMESTAMP,
       source: 'resume',
@@ -108,42 +110,42 @@ function applyResume(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('ux:resume-recovery — restore session with active panels and overlays', () => {
+describe('ux:resume-recovery — resume session while ignoring copied panel state', () => {
   let state: RuntimeState;
 
   beforeEach(() => {
     state = createInitialRuntimeState();
   });
 
-  describe('panel state restoration', () => {
-    test('open panels are restored from snapshot after resume', () => {
+  describe('saved panel state handling', () => {
+    test('copied panels from the snapshot stay closed after Agent resume', () => {
       const panels = selectPanels(createInitialRuntimeState());
-      const panelIds = [...panels.panels.keys()] as PanelId[];
+      const panelIds = [...panels.panels.keys()].filter((id) => id !== 'main_conversation') as PanelId[];
 
-      // Pick 2 panels to be open
       const openIds = panelIds.slice(0, 2);
       const focusId = openIds[0]!;
 
       const activePanel = makePanelState(openIds, focusId);
 
-      // Suspend (close all)
       const suspended = buildSuspendedState({ ...state, panels: activePanel as unknown as Record<string, unknown> });
-      const allClosed = [...selectPanels(suspended).panels.values()].every((p) => !p.open);
-      expect(allClosed).toBe(true);
+      const suspendedPanels = selectPanels(suspended);
+      const copiedPanelsClosed = [...suspendedPanels.panels.values()]
+        .filter((panel) => panel.id !== 'main_conversation')
+        .every((panel) => !panel.open);
+      expect(copiedPanelsClosed).toBe(true);
+      expect(suspendedPanels.panels.get('main_conversation')?.open).toBe(true);
 
-      // Resume
       const resumed = applyResume(suspended, { panels: activePanel });
 
-      // Assert panels reopened
       for (const id of openIds) {
         const panel = selectPanels(resumed).panels.get(id);
-        expect(panel?.open).toBe(true);
+        expect(panel?.open).toBe(false);
       }
     });
 
-    test('focused panel is restored correctly after resume', () => {
+    test('focused copied panel from the snapshot is not restored', () => {
       const panels = selectPanels(createInitialRuntimeState());
-      const panelIds = [...panels.panels.keys()] as PanelId[];
+      const panelIds = [...panels.panels.keys()].filter((id) => id !== 'main_conversation') as PanelId[];
       const focusId = panelIds[1]!;
       const openIds = panelIds.slice(0, 3);
 
@@ -151,12 +153,13 @@ describe('ux:resume-recovery — restore session with active panels and overlays
       const suspended = buildSuspendedState({ ...state, panels: activePanel as unknown as Record<string, unknown> });
       const resumed = applyResume(suspended, { panels: activePanel });
 
-      expect(selectPanels(resumed).focusedPanelId).toBe(focusId);
+      expect(selectPanels(resumed).focusedPanelId).toBe('main_conversation');
+      expect(selectPanels(resumed).focusedPanelId).not.toBe(focusId);
     });
 
-    test('activePanels selector returns correct panels after resume', () => {
+    test('activePanels selector excludes copied panels after Agent resume', () => {
       const panels = selectPanels(createInitialRuntimeState());
-      const panelIds = [...panels.panels.keys()] as PanelId[];
+      const panelIds = [...panels.panels.keys()].filter((id) => id !== 'main_conversation') as PanelId[];
       const openIds = panelIds.slice(0, 3);
 
       const activePanel = makePanelState(openIds, openIds[0]!);
@@ -165,24 +168,23 @@ describe('ux:resume-recovery — restore session with active panels and overlays
 
       const activePanels = selectActivePanels(resumed);
       const openPanelIds = activePanels.map((p) => p.id);
+      expect(openPanelIds).toContain('main_conversation');
       for (const id of openIds) {
-        expect(openPanelIds).toContain(id);
+        expect(openPanelIds).not.toContain(id);
       }
     });
 
-    test('panels not in open list remain closed after resume', () => {
+    test('all copied panels remain closed after resume', () => {
       const panels = selectPanels(createInitialRuntimeState());
-      const panelIds = [...panels.panels.keys()] as PanelId[];
+      const panelIds = [...panels.panels.keys()].filter((id) => id !== 'main_conversation') as PanelId[];
 
-      // Open only first 2, the rest should be closed
       const openIds = panelIds.slice(0, 2);
-      const closedIds = panelIds.slice(2);
 
       const activePanel = makePanelState(openIds, openIds[0]!);
       const suspended = buildSuspendedState({ ...state, panels: activePanel as unknown as Record<string, unknown> });
       const resumed = applyResume(suspended, { panels: activePanel });
 
-      for (const id of closedIds) {
+      for (const id of panelIds) {
         const panel = selectPanels(resumed).panels.get(id);
         expect(panel?.open).toBe(false);
       }
@@ -238,7 +240,7 @@ describe('ux:resume-recovery — restore session with active panels and overlays
 
     test('multiple resume cycles produce correct final state', () => {
       const panels = selectPanels(createInitialRuntimeState());
-      const panelIds = [...panels.panels.keys()] as PanelId[];
+      const panelIds = [...panels.panels.keys()].filter((id) => id !== 'main_conversation') as PanelId[];
       const openIds = panelIds.slice(0, 2);
       const panelSnapshot = makePanelState(openIds, openIds[0]!);
 
@@ -249,11 +251,11 @@ describe('ux:resume-recovery — restore session with active panels and overlays
         current = applyResume(current, { panels: panelSnapshot });
       }
 
-      // After 5 resume cycles, correct panels are open
       for (const id of openIds) {
         const panel = selectPanels(current).panels.get(id);
-        expect(panel?.open).toBe(true);
+        expect(panel?.open).toBe(false);
       }
+      expect(selectPanels(current).focusedPanelId).toBe('main_conversation');
       expect(selectSession(current).isResumed).toBe(true);
       expect(selectSession(current).status).toBe('active');
     });
