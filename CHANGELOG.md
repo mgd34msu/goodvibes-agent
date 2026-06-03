@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.23 - 2026-06-03
+
+- Return ambiguous agent_harness slash-command detail lookups with candidate commands instead of collapsing broad descriptive matches to unknown.
+- Keep exact slash command, alias, typed command, target, and unique descriptive lookup behavior unchanged.
+- Refresh package-facing docs and focused harness coverage for no-guess slash-command lookup parity.
+
 ## 1.0.22 - 2026-06-03
 
 - Refuse ambiguous agent_harness model-tool schema lookup with candidate tools instead of selecting the first partial match.
