@@ -22,6 +22,8 @@ import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { describeLocalWorkspaceModelExecution, runLocalWorkspaceAction } from './agent-harness-local-operations.ts';
 import { listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
+import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
+import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
 import {
   connectedHostSummary,
   describeCommandPolicy,
@@ -35,15 +37,7 @@ import {
   setHarnessSetting,
 } from '../agent/harness-control.ts';
 
-const MODES = [
-  'summary', 'cli_commands', 'cli_command', 'panels', 'panel', 'open_panel',
-  'shortcuts', 'keybindings', 'keybinding', 'set_keybinding', 'reset_keybinding',
-  'commands', 'command', 'run_command', 'settings', 'get_setting', 'set_setting',
-  'reset_setting', 'workspace', 'workspace_categories', 'workspace_actions',
-  'workspace_action', 'run_workspace_action', 'tools', 'connected_host',
-] as const;
-
-type AgentHarnessMode = typeof MODES[number];
+type AgentHarnessMode = typeof AGENT_HARNESS_MODES[number];
 
 interface AgentHarnessToolArgs {
   readonly mode?: unknown;
@@ -59,8 +53,10 @@ interface AgentHarnessToolArgs {
   readonly fields?: unknown;
   readonly combo?: unknown;
   readonly combos?: unknown;
+  readonly surfaceId?: unknown;
   readonly key?: unknown;
   readonly value?: unknown;
+  readonly target?: unknown;
   readonly category?: unknown;
   readonly prefix?: unknown;
   readonly includeHidden?: unknown;
@@ -83,7 +79,7 @@ interface WorkspaceEditorContext {
 }
 
 function isMode(value: unknown): value is AgentHarnessMode {
-  return typeof value === 'string' && MODES.includes(value as AgentHarnessMode);
+  return typeof value === 'string' && AGENT_HARNESS_MODES.includes(value as AgentHarnessMode);
 }
 
 function readString(value: unknown): string {
@@ -114,13 +110,6 @@ function output(value: unknown): { readonly success: true; readonly output: stri
 }
 
 function error(message: string): { readonly success: false; readonly error: string } { return { success: false, error: message }; }
-
-const KEY_COMBO_PARAMETER_SCHEMA = {
-  type: 'object',
-  properties: { key: { type: 'string' }, ctrl: { type: 'boolean' }, shift: { type: 'boolean' }, alt: { type: 'boolean' } },
-  required: ['key'],
-  additionalProperties: false,
-} as const;
 
 function commandMatches(command: SlashCommand, query: string): boolean {
   if (!query) return true;
@@ -514,115 +503,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
       name: 'agent_harness',
       description: [
         'Discover and operate the GoodVibes Agent harness from the main conversation.',
-        'Use this tool to inspect Agent workspace actions, built-in panels, top-level CLI mirrors, keybindings, slash commands with policy metadata, model tools, connected-host capabilities, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
-        'Discovery modes are read-only. Setting/keybinding writes, resets, slash command invocation, and workspace action invocation require confirm:true plus explicitUserRequest.',
+        'Use this tool to inspect Agent workspace actions, built-in panels, top-level CLI mirrors, UI surfaces, keybindings, slash commands with policy metadata, model tools, connected-host capabilities, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
+        'Discovery modes are read-only. Setting/keybinding writes, resets, UI routing, slash command invocation, and workspace action invocation require confirm:true plus explicitUserRequest.',
         'This tool preserves Agent product boundaries: connected-host lifecycle and listener posture stay externally owned, connected-host mode reports allowed and blocked route families, and secret-backed settings store raw values through the secret manager while config receives only a secret reference.',
       ].join(' '),
       parameters: {
         type: 'object',
-        properties: {
-          mode: {
-            type: 'string',
-            enum: MODES,
-            description: 'Harness operation to perform.',
-          },
-          query: {
-            type: 'string',
-            description: 'Search text for command, setting, or tool catalogs.',
-          },
-          command: {
-            type: 'string',
-            description: 'Full slash command string for mode run_command, for example "/settings get provider.model". In cli_command mode this may also hold a top-level CLI string such as "goodvibes-agent status --json".',
-          },
-          cliCommand: {
-            type: 'string',
-            description: 'Top-level CLI command string for mode cli_command, for example "goodvibes-agent status --json" or "profiles list". This mode is read-only metadata/parse inspection.',
-          },
-          commandName: {
-            type: 'string',
-            description: 'Slash command root without the leading slash for mode command or run_command, or a top-level CLI command token for cli_command.',
-          },
-          args: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Slash command argument tokens for mode run_command when commandName is used.',
-          },
-          categoryId: {
-            type: 'string',
-            description: 'Agent workspace category id for workspace action filtering.',
-          },
-          panelId: {
-            type: 'string',
-            description: 'Built-in panel id for panel or open_panel modes.',
-          },
-          actionId: {
-            type: 'string',
-            description: 'Agent workspace action id for workspace_action or run_workspace_action, or keybinding action id for keybinding/set_keybinding/reset_keybinding.',
-          },
-          fields: {
-            type: 'object',
-            additionalProperties: { type: 'string' },
-            description: 'Field values for run_workspace_action when the workspace action opens an editor form.',
-          },
-          combo: {
-            ...KEY_COMBO_PARAMETER_SCHEMA,
-            description: 'Single key combo for set_keybinding, for example { "key": "g", "ctrl": true }.',
-          },
-          combos: {
-            type: 'array',
-            items: KEY_COMBO_PARAMETER_SCHEMA,
-            description: 'Multiple key combos for set_keybinding.',
-          },
-          recordId: {
-            type: 'string',
-            description: 'Selected Agent-local record id for selection-based local workspace operations.',
-          },
-          key: {
-            type: 'string',
-            description: 'Agent setting key for get_setting, set_setting, or reset_setting.',
-          },
-          value: {
-            anyOf: [
-              { type: 'string' },
-              { type: 'number' },
-              { type: 'boolean' },
-            ],
-            description: 'Setting value for set_setting. Strings, booleans, numbers, and enum strings are accepted.',
-          },
-          category: {
-            type: 'string',
-            description: 'Setting category filter such as provider, behavior, tools, ui, tts, permissions, automation, or surfaces.',
-          },
-          prefix: {
-            type: 'string',
-            description: 'Setting key prefix filter such as surfaces.slack.',
-          },
-          includeHidden: {
-            type: 'boolean',
-            description: 'Include settings hidden from the Agent workspace because they are host-owned or non-Agent lifecycle settings.',
-          },
-          includeParameters: {
-            type: 'boolean',
-            description: 'Include model tool JSON schemas in tools mode, or workspace editor field schemas in workspace_actions mode.',
-          },
-          limit: {
-            type: 'number',
-            description: 'Maximum catalog entries to return.',
-          },
-          pane: {
-            type: 'string',
-            enum: ['top', 'bottom'],
-            description: 'Preferred panel pane for open_panel when the current shell supports panel routing.',
-          },
-          confirm: {
-            type: 'boolean',
-            description: 'Required true for set_setting, reset_setting, run_command, open_panel, and mutating run_workspace_action calls after an explicit user request.',
-          },
-          explicitUserRequest: {
-            type: 'string',
-            description: 'Exact user request or faithful short summary authorizing a setting mutation or slash command invocation.',
-          },
-        },
+        properties: AGENT_HARNESS_PARAMETER_PROPERTIES,
         required: ['mode'],
         additionalProperties: false,
       },
@@ -638,6 +525,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             cliCommands: totalHarnessCliCommands(),
             blockedCliCommandTokens: blockedHarnessCliCommandTokens(),
             panels: totalHarnessPanels(deps.commandContext),
+            uiSurfaces: totalHarnessUiSurfaces(),
             shortcuts: totalHarnessShortcuts(deps.commandContext),
             keybindings: totalHarnessKeybindings(deps.commandContext),
             commands: deps.commandRegistry.list().length,
@@ -648,6 +536,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             modelAccess: {
               cliCommands: 'Use mode:"cli_commands" and mode:"cli_command" to inspect package CLI mirrors and their preferred in-process model routes. CLI modes are discovery-only.',
               panels: 'Use mode:"panels" and mode:"panel" to inspect built-in panel catalog/open state; use mode:"open_panel" with confirm:true plus explicitUserRequest to route a visible panel/workspace change.',
+              uiSurfaces: 'Use mode:"ui_surfaces" and mode:"ui_surface" to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
               shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
               slashCommands: 'Use mode:"commands" and mode:"command" to inspect; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
               workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" for editor schemas; set includeParameters:true on workspace_actions to inline editor schemas.',
@@ -689,6 +578,19 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const confirmationError = requireConfirmedAction(args, 'Panel routing');
           if (confirmationError) return error(confirmationError);
           return output(openHarnessPanel(deps.commandContext, args));
+        }
+        if (args.mode === 'ui_surfaces') {
+          const surfaces = listHarnessUiSurfaces(deps.commandContext, args);
+          return output({ surfaces, returned: surfaces.length, total: totalHarnessUiSurfaces() });
+        }
+        if (args.mode === 'ui_surface') {
+          const surface = describeHarnessUiSurface(deps.commandContext, args);
+          return surface ? output(surface) : error(`Unknown UI surface ${readString(args.surfaceId || args.query) || '<missing>'}.`);
+        }
+        if (args.mode === 'open_ui_surface') {
+          const confirmationError = requireConfirmedAction(args, 'UI surface routing');
+          if (confirmationError) return error(confirmationError);
+          return output(openHarnessUiSurface(deps.commandContext, args));
         }
         if (args.mode === 'shortcuts') return output(listHarnessShortcuts(deps.commandContext, args));
         if (args.mode === 'keybindings') return output(listHarnessKeybindings(deps.commandContext, args));

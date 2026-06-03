@@ -36,6 +36,7 @@ interface HarnessFixture {
   readonly tool: ReturnType<typeof createAgentHarnessTool>;
   readonly printed: string[];
   readonly routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }>;
+  readonly openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }>;
   readonly cleanup: () => void;
 }
 
@@ -118,6 +119,7 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
   const toolRegistry = new ToolRegistry();
   const printed: string[] = [];
   const routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }> = [];
+  const openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }> = [];
 
   commandRegistry.register({
     name: 'brief',
@@ -132,6 +134,50 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     renderRequest: () => {},
     showPanel: (panelId: string, pane?: 'top' | 'bottom') => {
       routedPanels.push({ panelId, pane });
+    },
+    openAgentWorkspace: (categoryId?: string) => {
+      openedSurfaces.push({ id: 'agent-workspace', detail: categoryId });
+    },
+    openSettingsModal: (target?: string) => {
+      openedSurfaces.push({ id: 'settings', detail: target });
+    },
+    openMcpWorkspace: () => {
+      openedSurfaces.push({ id: 'mcp-workspace' });
+    },
+    openModelPicker: () => {
+      openedSurfaces.push({ id: 'model-picker' });
+    },
+    openModelPickerWithTarget: (target) => {
+      openedSurfaces.push({ id: 'model-picker', detail: target, result: true });
+      return true;
+    },
+    openProviderPicker: () => {
+      openedSurfaces.push({ id: 'provider-picker' });
+    },
+    openProviderModelPickerWithTarget: (target) => {
+      openedSurfaces.push({ id: 'provider-picker', detail: target });
+      return true;
+    },
+    openSessionPicker: () => {
+      openedSurfaces.push({ id: 'session-picker' });
+    },
+    openProfilePicker: () => {
+      openedSurfaces.push({ id: 'profile-picker' });
+    },
+    openBookmarkModal: () => {
+      openedSurfaces.push({ id: 'bookmark-modal' });
+    },
+    openContextInspector: () => {
+      openedSurfaces.push({ id: 'context-inspector' });
+    },
+    openHelpOverlay: () => {
+      openedSurfaces.push({ id: 'help-overlay' });
+    },
+    openShortcutsOverlay: () => {
+      openedSurfaces.push({ id: 'shortcuts-overlay' });
+    },
+    openOnboardingWizard: (modeOrOptions) => {
+      openedSurfaces.push({ id: 'onboarding', detail: typeof modeOrOptions === 'string' ? modeOrOptions : modeOrOptions?.mode });
     },
     workspace: { shellPaths: paths, panelManager, keybindingsManager },
     platform: { configManager, ...(secretsManager ? { secretsManager } : {}) },
@@ -160,6 +206,7 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     tool,
     printed,
     routedPanels,
+    openedSurfaces,
     cleanup,
   };
 }
@@ -333,6 +380,61 @@ describe('agent_harness tool', () => {
       expect(routed.success).toBe(true);
       expect(routed.output).toContain('"status": "routed"');
       expect(fixture.routedPanels).toEqual([{ panelId: 'knowledge', pane: 'bottom' }]);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes modal and picker UI surfaces with confirmation-gated visible routing', async () => {
+    const fixture = makeFixture();
+    try {
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      expect(summary.output).toContain('"uiSurfaces"');
+      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly uiSurfaces?: string } };
+      expect(summaryJson.modelAccess?.uiSurfaces).toContain('mode:"ui_surfaces"');
+
+      const catalog = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'picker' });
+      expect(catalog.success).toBe(true);
+      expect(catalog.output).toContain('"id": "model-picker"');
+      expect(catalog.output).toContain('"id": "provider-picker"');
+      expect(catalog.output).toContain('preferredModelRoute');
+
+      const settings = await fixture.tool.execute({ mode: 'ui_surface', surfaceId: 'settings' });
+      expect(settings.success).toBe(true);
+      expect(settings.output).toContain('"id": "settings"');
+      expect(settings.output).toContain('settings/get_setting/set_setting/reset_setting');
+
+      const denied = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'settings',
+        target: 'provider.model',
+        explicitUserRequest: 'Open settings for the model setting.',
+      });
+      expect(denied.success).toBe(false);
+      expect(denied.error).toContain('confirm:true');
+      expect(fixture.openedSurfaces).toEqual([]);
+
+      const openedSettings = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'settings',
+        target: 'provider.model',
+        confirm: true,
+        explicitUserRequest: 'Open settings for the model setting.',
+      });
+      expect(openedSettings.success).toBe(true);
+      expect(openedSettings.output).toContain('"status": "opened"');
+      expect(fixture.openedSurfaces).toEqual([{ id: 'settings', detail: 'provider.model' }]);
+
+      const openedWorkspace = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'agent-workspace',
+        categoryId: 'knowledge',
+        confirm: true,
+        explicitUserRequest: 'Open the Knowledge workspace.',
+      });
+      expect(openedWorkspace.success).toBe(true);
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'knowledge' });
     } finally {
       fixture.cleanup();
     }
