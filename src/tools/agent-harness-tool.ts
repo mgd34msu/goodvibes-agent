@@ -82,6 +82,25 @@ interface WorkspaceEditorContext {
   readonly selectedRoutine: AgentWorkspaceLocalLibraryItem | null;
 }
 
+interface WorkspaceActionLookup {
+  readonly source: 'actionId' | 'command' | 'target' | 'query';
+  readonly input: string;
+  readonly resolvedBy: 'id' | 'case-insensitive-id' | 'label' | 'case-insensitive-label' | 'command' | 'search';
+}
+
+type WorkspaceActionResolution =
+  | {
+    readonly status: 'found';
+    readonly category: AgentWorkspaceCategory;
+    readonly action: AgentWorkspaceAction;
+    readonly lookup: WorkspaceActionLookup;
+  }
+  | {
+    readonly status: 'ambiguous';
+    readonly input: string;
+    readonly candidates: readonly { readonly actionId: string; readonly categoryId: string; readonly label: string; readonly command?: string }[];
+  };
+
 function isMode(value: unknown): value is AgentHarnessMode {
   return typeof value === 'string' && AGENT_HARNESS_MODES.includes(value as AgentHarnessMode);
 }
@@ -189,7 +208,7 @@ function createWorkspaceEditor(
 function describeWorkspaceAction(
   category: AgentWorkspaceCategory,
   action: AgentWorkspaceAction,
-  options: { readonly includeEditor?: boolean; readonly editorContext?: WorkspaceEditorContext | null } = {},
+  options: { readonly includeEditor?: boolean; readonly editorContext?: WorkspaceEditorContext | null; readonly lookup?: WorkspaceActionLookup } = {},
 ): Record<string, unknown> {
   const editor = options.includeEditor && action.editorKind ? createWorkspaceEditor(action.editorKind, options.editorContext ?? null) : null;
   return {
@@ -206,6 +225,7 @@ function describeWorkspaceAction(
     ...(action.editorKind ? { editorKind: action.editorKind } : {}),
     ...(action.localKind ? { localKind: action.localKind } : {}),
     ...(action.localOperation ? { localOperation: action.localOperation } : {}),
+    ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(editor ? { editor: describeWorkspaceEditor(editor) } : {}),
     ...(action.kind === 'local-selection' || action.kind === 'local-operation' ? {
       modelExecution: describeLocalWorkspaceModelExecution(action),
@@ -250,6 +270,56 @@ function findWorkspaceAction(args: AgentHarnessToolArgs): { readonly category: A
     if (categoryId && entry.category.id !== categoryId) return false;
     return entry.action.id === actionId || entry.action.label.toLowerCase() === actionId.toLowerCase();
   }) ?? null;
+}
+
+function workspaceActionLookupFromArgs(args: AgentHarnessToolArgs): { readonly source: WorkspaceActionLookup['source']; readonly input: string } | null {
+  const actionId = readString(args.actionId);
+  if (actionId) return { source: 'actionId', input: actionId };
+  const command = readString(args.command);
+  if (command) return { source: 'command', input: command };
+  const target = readString(args.target);
+  if (target) return { source: 'target', input: target };
+  const query = readString(args.query);
+  return query ? { source: 'query', input: query } : null;
+}
+
+function describeWorkspaceActionCandidates(
+  entries: readonly { readonly category: AgentWorkspaceCategory; readonly action: AgentWorkspaceAction }[],
+): readonly { readonly actionId: string; readonly categoryId: string; readonly label: string; readonly command?: string }[] {
+  return entries.slice(0, 8).map((entry) => ({
+    actionId: entry.action.id,
+    categoryId: entry.category.id,
+    label: entry.action.label,
+    ...(entry.action.command ? { command: entry.action.command } : {}),
+  }));
+}
+
+function resolveWorkspaceActionDetail(args: AgentHarnessToolArgs): WorkspaceActionResolution | null {
+  const lookup = workspaceActionLookupFromArgs(args);
+  const categoryId = readString(args.categoryId || args.category);
+  if (!lookup) return null;
+  const entries = allWorkspaceActions().filter((entry) => !categoryId || entry.category.id === categoryId);
+  const normalized = lookup.input.toLowerCase();
+  const commandInput = lookup.source === 'command' ? lookup.input.trim() : '';
+
+  const exactId = entries.find((entry) => entry.action.id === lookup.input);
+  if (exactId) return { status: 'found', ...exactId, lookup: { ...lookup, resolvedBy: 'id' } };
+  const exactLabel = entries.find((entry) => entry.action.label === lookup.input);
+  if (exactLabel) return { status: 'found', ...exactLabel, lookup: { ...lookup, resolvedBy: 'label' } };
+  const exactCommand = commandInput ? entries.find((entry) => entry.action.command === commandInput) : null;
+  if (exactCommand) return { status: 'found', ...exactCommand, lookup: { ...lookup, resolvedBy: 'command' } };
+
+  const insensitiveId = entries.find((entry) => entry.action.id.toLowerCase() === normalized);
+  if (insensitiveId) return { status: 'found', ...insensitiveId, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } };
+  const insensitiveLabel = entries.find((entry) => entry.action.label.toLowerCase() === normalized);
+  if (insensitiveLabel) return { status: 'found', ...insensitiveLabel, lookup: { ...lookup, resolvedBy: 'case-insensitive-label' } };
+
+  const searched = searchAgentWorkspaceActions(AGENT_WORKSPACE_CATEGORIES, lookup.input)
+    .map((result) => ({ category: result.category, action: result.action }))
+    .filter((entry) => !categoryId || entry.category.id === categoryId);
+  if (searched.length === 1) return { status: 'found', ...searched[0]!, lookup: { ...lookup, resolvedBy: 'search' } };
+  if (searched.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: describeWorkspaceActionCandidates(searched) };
+  return null;
 }
 
 function requireConfirmedAction(args: AgentHarnessToolArgs, action: string): string | null {
@@ -518,7 +588,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               uiSurfaces: 'Use mode:"ui_surfaces" and mode:"ui_surface" to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
               shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
               slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
-              workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" for editor schemas; set includeParameters:true on workspace_actions to inline editor schemas.',
+              workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" with actionId, command, target, or query for one action and editor schema; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings", mode:"get_setting", mode:"set_setting", and mode:"reset_setting".',
               tools: 'Use mode:"tools" to list first-class model tools, or mode:"tool" with toolName, target, or query to inspect one schema.',
               connectedHost: 'Use mode:"connected_host" for the connected-host capability map and blocked boundaries. Use mode:"connected_host_capability" with capabilityId, target, or query for one allowed or blocked capability.',
@@ -650,11 +720,15 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return output({ actions, returned: actions.length, total: allWorkspaceActions().length });
         }
         if (args.mode === 'workspace_action') {
-          const found = findWorkspaceAction(args);
+          const resolved = resolveWorkspaceActionDetail(args);
           const editorContext = buildWorkspaceEditorContext(deps.commandContext, args);
-          return found
-            ? output(describeWorkspaceAction(found.category, found.action, { includeEditor: true, editorContext }))
-            : error(`Unknown Agent workspace action ${readString(args.actionId || args.query) || '<missing>'}.`);
+          if (resolved?.status === 'found') {
+            return output(describeWorkspaceAction(resolved.category, resolved.action, { includeEditor: true, editorContext, lookup: resolved.lookup }));
+          }
+          if (resolved?.status === 'ambiguous') {
+            return error(`Ambiguous Agent workspace action ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          }
+          return error(`Unknown Agent workspace action ${readString(args.actionId || args.command || args.target || args.query) || '<missing>'}. Use mode:"workspace_actions" to inspect available actions.`);
         }
         if (args.mode === 'run_workspace_action') return runWorkspaceAction(deps, args);
         if (args.mode === 'tools') {

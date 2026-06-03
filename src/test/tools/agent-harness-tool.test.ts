@@ -349,6 +349,45 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('inspects one workspace action from command, target, query, and action id lookups', async () => {
+    const fixture = makeFixture();
+    try {
+      const byCommand = await fixture.tool.execute({ mode: 'workspace_action', command: '/memory list' });
+      expect(byCommand.success).toBe(true);
+      if (!byCommand.success) throw new Error(byCommand.error);
+      const commandPayload = JSON.parse(byCommand.output) as {
+        readonly id: string;
+        readonly lookup: { readonly source: string; readonly resolvedBy: string };
+      };
+      expect(commandPayload.id).toBe('memory-list');
+      expect(commandPayload.lookup.source).toBe('command');
+      expect(commandPayload.lookup.resolvedBy).toBe('command');
+
+      const byTarget = await fixture.tool.execute({ mode: 'workspace_action', target: 'CREATE MEMORY' });
+      expect(byTarget.success).toBe(true);
+      expect(byTarget.output).toContain('"id": "memory-create"');
+      expect(byTarget.output).toContain('"source": "target"');
+      expect(byTarget.output).toContain('"resolvedBy": "case-insensitive-label"');
+
+      const byQuery = await fixture.tool.execute({ mode: 'workspace_action', query: 'durable non-secret default knowledge fallback' });
+      expect(byQuery.success).toBe(true);
+      expect(byQuery.output).toContain('"id": "memory-create"');
+      expect(byQuery.output).toContain('"resolvedBy": "search"');
+      expect(byQuery.output).toContain('"editorKind": "memory"');
+
+      const byId = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'MEMORY-CREATE' });
+      expect(byId.success).toBe(true);
+      expect(byId.output).toContain('"resolvedBy": "case-insensitive-id"');
+
+      const ambiguous = await fixture.tool.execute({ mode: 'workspace_action', query: 'memory' });
+      expect(ambiguous.success).toBe(false);
+      expect(ambiguous.error).toContain('Ambiguous Agent workspace action memory');
+      expect(ambiguous.error).toContain('memory-create');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('uses runtime context for model-visible profile and routine schedule editor schemas', async () => {
     const fixture = makeFixture();
     try {
