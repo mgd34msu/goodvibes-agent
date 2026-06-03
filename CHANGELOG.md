@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.22 - 2026-06-03
+
+- Refuse ambiguous agent_harness model-tool schema lookup with candidate tools instead of selecting the first partial match.
+- Refuse ambiguous connected-host capability lookup with candidate capabilities while preserving exact and unique lookup behavior.
+- Refresh model-visible harness parameter descriptions, preferred route hints, package docs, and focused harness coverage for no-guess single-item lookup parity.
+
 ## 1.0.21 - 2026-06-03
 
 - Resolve agent_harness run_workspace_action by actionId, command, target, or query using the same lookup contract as workspace_action inspection.
