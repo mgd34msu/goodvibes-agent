@@ -90,6 +90,10 @@ describe('wireShellUiOpeners', () => {
     expect(input.panelFocused).toBe(false);
     expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'work');
     expect(conversation.setSplashSuppressed).toHaveBeenCalledWith(false);
+    expect(conversation.log).toHaveBeenCalledWith(
+      'Panel route "tasks" is handled through Agent Workspace. Opening the matching operator area.',
+      { fg: '214' },
+    );
   });
 
   test('openOnboardingWizard delegates through the shared opener seam', () => {

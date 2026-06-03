@@ -333,7 +333,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     panelManager.hide();
     input.panelFocused = false;
     conversation.setSplashSuppressed(false);
-    conversation.log(`Panel "${panelId}" is not part of the Agent front door yet. Opening the matching Agent workspace.`, { fg: '214' });
+    conversation.log(`Panel route "${panelId}" is handled through Agent Workspace. Opening the matching operator area.`, { fg: '214' });
     input.openAgentWorkspace(commandContext, agentWorkspaceCategoryForPanel(panelId));
     conversation.rebuildHistory();
     render();

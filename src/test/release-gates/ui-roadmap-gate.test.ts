@@ -108,8 +108,10 @@ describe('UI roadmap gate', () => {
 
     expect(source).toContain('is handled through Agent Workspace');
     expect(source).toContain('Panel picker is handled through Agent Workspace');
+    expect(source).toContain('Opening the matching operator area');
     expect(source).toContain('Use /agent for current operator controls');
     expect(source).not.toContain('is deferred in GoodVibes Agent');
+    expect(source).not.toContain('front door yet');
   });
 
   test('keeps overlays on shared width bands for narrow, medium, and wide terminals', () => {
