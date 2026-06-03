@@ -191,8 +191,8 @@ export async function handleBundleCommand(runtime: CliCommandRuntime): Promise<C
       output: formatJsonOrText(runtime, {
         path: targetPath,
         redactedConfigPaths: redactedConfig.redactedPaths,
-        serviceIssues: service.issues,
-      }, `Bundle exported: ${targetPath}\n  redactedConfigKeys: ${redactedConfig.redactedPaths.length}\n  serviceIssues: ${service.issues.length}`),
+        hostIntegrationIssues: service.issues,
+      }, `Bundle exported: ${targetPath}\n  redactedConfigKeys: ${redactedConfig.redactedPaths.length}\n  hostIntegrationIssues: ${service.issues.length}`),
       exitCode: 0,
     };
   }
