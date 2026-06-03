@@ -41,7 +41,7 @@ export type GlobalShortcutRouteState = {
   handleRedo: () => void;
   handlePaste: () => void;
   handleEscape: () => void;
-  cyclePanelTab: (direction: 'next' | 'prev') => void;
+  cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => void;
 };
 
 export function handleGlobalShortcutToken(
@@ -112,11 +112,13 @@ export function handleGlobalShortcutToken(
       return true;
 
     case 'panel-tab-next':
-      state.cyclePanelTab('next');
+      state.cycleAgentWorkspaceCategory('next');
+      state.panelFocused = false;
       return true;
 
     case 'panel-tab-prev':
-      state.cyclePanelTab('prev');
+      state.cycleAgentWorkspaceCategory('prev');
+      state.panelFocused = false;
       return true;
 
     case 'history-search':

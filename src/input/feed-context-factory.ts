@@ -147,7 +147,7 @@ export interface FeedContextClosures {
   ensureInputCursorVisible: (contentWidth?: number) => void;
   registerPaste: (content: string) => string;
   executeBlockAction: (id: string) => void;
-  cyclePanelTab: (direction: 'next' | 'prev') => void;
+  cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => void;
   onPanelInputConsumed: (activePanel: Panel | null, key: string) => void;
   getWrappedPromptInfo: (contentWidth: number) => WrappedPromptInfo;
   moveCursorVertical: (direction: -1 | 1) => boolean;

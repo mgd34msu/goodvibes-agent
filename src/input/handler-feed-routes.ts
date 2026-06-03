@@ -25,7 +25,7 @@ export type PanelFocusRouteState = {
   autocompleteActive: boolean;
   requestRender: () => void;
   handlePathCompletion: () => boolean;
-  cyclePanelTab: (direction: 'next' | 'prev') => void;
+  cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => void;
   onPanelInputConsumed?: (activePanel: import('../panels/types.ts').Panel | null, key: string) => void;
 };
 
@@ -76,12 +76,12 @@ export function handlePanelFocusToken(state: PanelFocusRouteState, token: InputT
     }
     const kb = state.keybindingsManager;
     if (kb.matches('panel-tab-next', token)) {
-      state.cyclePanelTab('next');
-      return { handled: true, panelFocused };
+      state.cycleAgentWorkspaceCategory('next');
+      return { handled: true, panelFocused: false };
     }
     if (kb.matches('panel-tab-prev', token)) {
-      state.cyclePanelTab('prev');
-      return { handled: true, panelFocused };
+      state.cycleAgentWorkspaceCategory('prev');
+      return { handled: true, panelFocused: false };
     }
     if (kb.matches('panel-close-all', token)) {
       const pm = state.panelManager;

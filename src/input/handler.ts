@@ -303,7 +303,7 @@ export class InputHandler {
         ensureInputCursorVisible: (contentWidth?: number) => this.ensureInputCursorVisible(contentWidth),
         registerPaste: (content: string) => this.registerPaste(content),
         executeBlockAction: (id: string) => this.executeBlockAction(id),
-        cyclePanelTab: (direction: 'next' | 'prev') => this.cyclePanelTab(direction),
+        cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => this.cycleAgentWorkspaceCategory(direction),
         onPanelInputConsumed: (activePanel: Panel | null, key: string) => this.handlePanelIntegrationAction(activePanel, key),
         getWrappedPromptInfo: (contentWidth: number) => this.getWrappedPromptInfo(contentWidth),
         moveCursorVertical: (direction: -1 | 1) => this.moveCursorVertical(direction),
@@ -702,13 +702,24 @@ export class InputHandler {
    * Word-wrap a single line to fit within maxW columns.
    * Breaks at spaces; words wider than maxW are force-broken.
    */
-  public cyclePanelTab(direction: 'next' | 'prev'): void {
-    const pm = this.uiServices.shell.panelManager;
-    if (pm.isVisible()) {
-      if (direction === 'next') pm.nextWorkspaceTab();
-      else pm.prevWorkspaceTab();
-      this.requestRender();
+  public cycleAgentWorkspaceCategory(direction: 'next' | 'prev'): void {
+    const context = this.commandContext;
+    if (!this.agentWorkspace.active) {
+      if (!context) return;
+      this.panelFocused = false;
+      this.indicatorFocused = false;
+      this.modalOpened('agentWorkspace');
+      this.agentWorkspace.open(
+        context,
+        (command) => this.dispatchAgentWorkspaceCommand(command, context),
+        undefined,
+        (prompt) => this.dispatchAgentWorkspacePrompt(prompt, context),
+      );
     }
+    this.agentWorkspace.cycleCategory(direction);
+    this.panelFocused = false;
+    this.indicatorFocused = false;
+    this.requestRender();
   }
 
   public handlePanelIntegrationAction(activePanel: Panel | null, key: string): void {

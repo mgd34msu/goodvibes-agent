@@ -148,7 +148,7 @@ export interface InputFeedContext {
   readonly ensureInputCursorVisible: (contentWidth?: number) => void;
   readonly registerPaste: (content: string) => string;
   readonly executeBlockAction: (id: string) => void;
-  readonly cyclePanelTab: (direction: 'next' | 'prev') => void;
+  readonly cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => void;
   readonly onPanelInputConsumed: (activePanel: Panel | null, key: string) => void;
   readonly getWrappedPromptInfo: (contentWidth: number) => WrappedPromptInfo;
   readonly moveCursorVertical: (direction: -1 | 1) => boolean;
@@ -275,7 +275,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
         handleRedo: context.handleRedo,
         handlePaste: context.handlePaste,
         handleEscape: context.handleEscape,
-        cyclePanelTab: context.cyclePanelTab,
+        cycleAgentWorkspaceCategory: context.cycleAgentWorkspaceCategory,
         panelManager: context.panelManager,
         keybindingsManager: context.keybindingsManager,
       };
@@ -295,7 +295,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       autocompleteActive: !!context.autocomplete?.isActive,
       requestRender: context.requestRender,
       handlePathCompletion: context.handlePathCompletion,
-      cyclePanelTab: context.cyclePanelTab,
+      cycleAgentWorkspaceCategory: context.cycleAgentWorkspaceCategory,
       panelManager: context.panelManager,
       keybindingsManager: context.keybindingsManager,
       onPanelInputConsumed: context.onPanelInputConsumed,
