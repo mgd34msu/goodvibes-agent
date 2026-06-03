@@ -7,6 +7,8 @@ import { quoteSlashCommandArg } from '../slash-command-parser.ts';
 
 const MCP_ROLES = ['general', 'docs', 'filesystem', 'git', 'database', 'browser', 'automation', 'ops', 'remote'] as const;
 const MCP_TRUST_MODES = ['constrained', 'ask-on-risk', 'allow-all', 'blocked'] as const;
+const MCP_COMMAND_TRUST_MODES = ['constrained', 'ask-on-risk', 'blocked'] as const;
+const MCP_ADD_COMMAND_USAGE = '/mcp add <name> <command> ... --yes; options: --scope project|global, --role <role>, --trust constrained|ask-on-risk|blocked, --env KEY=VALUE, --path <path>, --host <host>';
 const MCP_TRUST_COMMAND_USAGE = '/mcp trust <server> <constrained|ask-on-risk|blocked> --yes';
 const MCP_ROLE_COMMAND_USAGE = '/mcp role <server> <general|docs|filesystem|git|database|browser|automation|ops|remote> --yes';
 
@@ -26,6 +28,10 @@ function isMcpRole(value: string): value is NonNullable<McpServerConfig['role']>
 
 function isMcpTrustMode(value: string): value is NonNullable<McpServerConfig['trustMode']> {
   return MCP_TRUST_MODES.includes(value as NonNullable<McpServerConfig['trustMode']>);
+}
+
+function isMcpCommandTrustMode(value: string): value is Exclude<NonNullable<McpServerConfig['trustMode']>, 'allow-all'> {
+  return MCP_COMMAND_TRUST_MODES.includes(value as Exclude<NonNullable<McpServerConfig['trustMode']>, 'allow-all'>);
 }
 
 function isMcpScope(value: string): value is McpConfigScope {
@@ -67,7 +73,7 @@ function parseAddServerArgs(args: string[]): ParsedMcpAddArgs {
   const name = args[1]?.trim();
   const command = args[2]?.trim();
   if (!name || !command) {
-    throw new Error('Usage: /mcp add <name> <command> [args...] [--scope project|global] [--role <role>] [--trust <mode>] [--env KEY=VALUE] [--path <path>] [--host <host>]');
+    throw new Error(`Usage: ${MCP_ADD_COMMAND_USAGE}`);
   }
   const nameError = validateServerName(name);
   if (nameError) throw new Error(nameError);
@@ -109,6 +115,9 @@ function parseAddServerArgs(args: string[]): ParsedMcpAddArgs {
     if (token === '--trust') {
       const value = readFlagValue(tokens, index, token);
       if (!isMcpTrustMode(value)) throw new Error(`Invalid MCP trust mode "${value}". Expected one of ${MCP_TRUST_MODES.join(', ')}.`);
+      if (!isMcpCommandTrustMode(value)) {
+        throw new Error(`Use /settings -> MCP to explicitly enable allow-all.\nUsage: ${MCP_ADD_COMMAND_USAGE}`);
+      }
       trustMode = value;
       index += 1;
       continue;
@@ -335,7 +344,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
 
       if (subcommand === 'add') {
         if (!confirmation.yes) {
-          requireYesFlag(ctx, 'add or update an MCP server config', '/mcp add <name> <command> [args...] [--scope project|global] [--role <role>] [--trust <mode>] --yes');
+          requireYesFlag(ctx, 'add or update an MCP server config', MCP_ADD_COMMAND_USAGE);
           return;
         }
         let parsedAdd: ParsedMcpAddArgs;
@@ -435,8 +444,9 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
             '',
             'Add or update from inside Agent with explicit confirmation',
             '  Open /mcp and choose Add or update server, or use Agent Workspace -> Tools & MCP -> Add MCP server.',
+            '  Use Settings -> MCP for allow-all decisions.',
             'Automation equivalent',
-            '  /mcp add <name> <command> [args...] [--scope project|global] [--role <role>] [--trust <mode>] --yes',
+            `  ${MCP_ADD_COMMAND_USAGE}`,
           ].join('\n'));
         } catch (error) {
           ctx.print(`MCP config read failed ${summarizeError(error)}`);

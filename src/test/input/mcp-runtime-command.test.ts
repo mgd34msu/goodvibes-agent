@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
@@ -188,6 +188,28 @@ describe('/mcp runtime config commands', () => {
       expect(callLog.upserts).toBe(0);
       expect(callLog.reloads).toBe(0);
       expect(out.join('\n')).toContain('Refusing to add or update an MCP server config without --yes');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('refuses direct MCP allow-all trust through add command', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    try {
+      const registry = new CommandRegistry();
+      registerMcpRuntimeCommands(registry);
+      const out: string[] = [];
+      const callLog = makeCallLog();
+      const ctx = makeContext(root, out, callLog);
+
+      await registry.get('mcp')!.handler(['add', 'docs', 'node', 'server.js', '--trust', 'allow-all', '--yes'], ctx);
+
+      const output = out.join('\n');
+      expect(callLog.upserts).toBe(0);
+      expect(callLog.reloads).toBe(0);
+      expect(existsSync(join(root, '.goodvibes', 'mcp.json'))).toBe(false);
+      expect(output).toContain('Use /settings -> MCP to explicitly enable allow-all.');
+      expect(output).toContain('--trust constrained|ask-on-risk|blocked');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
