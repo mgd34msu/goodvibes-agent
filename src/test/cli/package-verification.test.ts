@@ -332,6 +332,19 @@ describe('package CLI install verification', () => {
     expect(source).not.toContain('git log --oneline');
   });
 
+  test('publish package script keeps source release policy out of staged package policy', () => {
+    const publishScriptPath = resolve(import.meta.dir, '../../..', 'scripts', 'publish-package.ts');
+    const source = readFileSync(publishScriptPath, 'utf-8');
+
+    expect(source).toContain('function assertSourcePackagePolicy');
+    expect(source).toContain('...verifyReleaseMetadata(validationRoot)');
+    expect(source).toContain('function assertStagedPackagePolicy');
+    expect(source).toContain('const failures = verifyPackageFacingText(validationRoot).failures;');
+    expect(source).toContain('assertSourcePackagePolicy(root)');
+    expect(source).toContain('assertStagedPackagePolicy(stageDir)');
+    expect(source).not.toContain("assertPackagePolicy(stageDir, 'staged package')");
+  });
+
   test('release script stages the 1.0 release evidence bundle', () => {
     const paths = releaseMetadataPaths(resolve(import.meta.dir, '../../..'));
 

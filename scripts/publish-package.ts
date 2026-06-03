@@ -55,13 +55,20 @@ function listFilesUnder(path: string, relativeRoot = ''): readonly string[] {
   return files;
 }
 
-function assertPackagePolicy(validationRoot: string, label: string): void {
+function assertSourcePackagePolicy(validationRoot: string): void {
   const failures = [
     ...verifyReleaseMetadata(validationRoot),
     ...verifyPackageFacingText(validationRoot).failures,
   ];
   if (failures.length > 0) {
-    throw new Error(`${label} failed package policy checks:\n${failures.map((failure) => `- ${failure}`).join('\n')}`);
+    throw new Error(`source package failed package policy checks:\n${failures.map((failure) => `- ${failure}`).join('\n')}`);
+  }
+}
+
+function assertStagedPackagePolicy(validationRoot: string): void {
+  const failures = verifyPackageFacingText(validationRoot).failures;
+  if (failures.length > 0) {
+    throw new Error(`staged package failed package policy checks:\n${failures.map((failure) => `- ${failure}`).join('\n')}`);
   }
 }
 
@@ -100,7 +107,7 @@ function copyEntry(relativePath: string) {
 try {
   withWorkspaceLock('stage publish package', () => {
     syncProjectSurfaces(root);
-    assertPackagePolicy(root, 'source package');
+    assertSourcePackagePolicy(root);
     execFileSync('bun', ['run', 'build:package-runtime'], {
       cwd: root,
       stdio: 'inherit',
@@ -123,7 +130,7 @@ try {
     }
     assertNoForbiddenStagedPaths();
     assertRequiredStagedPaths();
-    assertPackagePolicy(stageDir, 'staged package');
+    assertStagedPackagePolicy(stageDir);
 
     const publishAuth = buildNpmPublishAuthEnv({
       env: process.env,
