@@ -127,6 +127,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/personas', label: '/personas', detail: 'Create, review, and activate local Agent personas', category: 'Agent Operator' },
           { id: '/skills', label: '/skills', detail: 'Create, review, and enable reusable Agent skills', category: 'Agent Operator' },
           { id: '/routines', label: '/routines', detail: 'Create, review, start, and promote Agent routines explicitly', category: 'Agent Operator' },
+          { id: '/automation', label: '/automation', detail: 'Run confirmed connected-host automation actions', category: 'Agent Operator' },
           { id: '/delegate', label: '/delegate [task]', detail: 'Explicit build/fix/review handoff to GoodVibes TUI', category: 'Agent Operator' },
           { id: '/channels', label: '/channels', detail: 'Inspect messaging-channel readiness without sending messages', category: 'Agent Operator' },
           { id: '/pair', label: '/pair', detail: 'Pair companion clients through connected GoodVibes host', category: 'Agent Operator' },

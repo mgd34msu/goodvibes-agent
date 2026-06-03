@@ -31,6 +31,7 @@ describe('/help command', () => {
     expect(ids).toContain('/personas');
     expect(ids).toContain('/skills');
     expect(ids).toContain('/routines');
+    expect(ids).toContain('/automation');
     expect(ids).toContain('/delegate');
     expect(ids).toContain('/pair');
     expect(ids).not.toContain('/debug');

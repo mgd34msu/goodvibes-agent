@@ -60,6 +60,7 @@ const visibleAgentBreadthCommands = [
   'agent',
   'agent-profile',
   'approval',
+  'automation',
   'auth',
   'brief',
   'health',
