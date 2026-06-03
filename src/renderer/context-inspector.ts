@@ -3,6 +3,45 @@ import { ModalFactory } from './modal-factory.ts';
 import type { ConversationManager } from '../core/conversation';
 import { getOverlayContentBudget, getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay-viewport.ts';
 
+const CONTEXT_INSPECTOR_TITLE = 'Context Inspector';
+const CONTEXT_INSPECTOR_EMPTY_MESSAGE = 'No messages in conversation yet.';
+const CONTEXT_INSPECTOR_CLOSE_HINTS = ['[Esc] Close'];
+const CONTEXT_INSPECTOR_CONTEXT_HINTS = ['[*] >10% of context', '[Esc] Close'];
+const CONTEXT_INSPECTOR_FULL_WARNING = 'WARNING: context is 80%+ full. Open Agent Workspace -> Conversation -> Compact conversation.';
+const CONTEXT_INSPECTOR_COMPACT_GUIDANCE = 'Open Agent Workspace -> Conversation -> Compact conversation to summarise and reduce context size.';
+
+function contextInspectorTotalText(
+  totalTokens: string,
+  messageCount: string | number,
+  capacity: string | null = null,
+): string {
+  const capacityStr = capacity ? `  |  Capacity: ${totalTokens} / ${capacity}` : '';
+  return `Total: ~${totalTokens} tokens (${messageCount} messages)${capacityStr}`;
+}
+
+function contextInspectorOlderMessagesText(count: string | number): string {
+  return `(${count} older messages not shown)`;
+}
+
+function contextInspectorCompactionHintText(count: string | number, percent: string): string {
+  const suffix = typeof count === 'number' && count === 1 ? '' : 's';
+  return `Compaction hint: ${count} message${suffix} use ${percent} of context.`;
+}
+
+export function renderContextInspectorPackageText(): string {
+  return [
+    CONTEXT_INSPECTOR_TITLE,
+    CONTEXT_INSPECTOR_EMPTY_MESSAGE,
+    contextInspectorTotalText('<tokens>', '<messages>', '<window> (<percent>)'),
+    CONTEXT_INSPECTOR_FULL_WARNING,
+    contextInspectorOlderMessagesText('<count>'),
+    contextInspectorCompactionHintText('<count>', '<percent>'),
+    CONTEXT_INSPECTOR_COMPACT_GUIDANCE,
+    ...CONTEXT_INSPECTOR_CLOSE_HINTS,
+    ...CONTEXT_INSPECTOR_CONTEXT_HINTS,
+  ].join('\n');
+}
+
 // ─── ContextInspectorModal ────────────────────────────────────────────────────
 
 /**
@@ -67,14 +106,14 @@ export function renderContextInspector(
 
   if (messages.length === 0) {
     return ModalFactory.createModal({
-      title: 'Context Inspector',
+      title: CONTEXT_INSPECTOR_TITLE,
       width: metrics.boxWidth,
       margin: metrics.margin,
       targetContentRows,
       sections: [
-        { type: 'text', content: 'No messages in conversation yet.' },
+        { type: 'text', content: CONTEXT_INSPECTOR_EMPTY_MESSAGE },
       ],
-      hints: ['[Esc] Close'],
+      hints: CONTEXT_INSPECTOR_CLOSE_HINTS,
     }, width);
   }
 
@@ -139,19 +178,17 @@ export function renderContextInspector(
   const sections: import('./modal-factory.ts').ModalSection[] = [];
 
   // Summary header
-  const capacityStr = contextWindow > 0
-    ? `  |  Capacity: ${fmtN(totalTokens)} / ${fmtN(contextWindow)} (${fmtPct(totalTokens / contextWindow)})`
-    : '';
+  const capacityStr = contextWindow > 0 ? `${fmtN(contextWindow)} (${fmtPct(totalTokens / contextWindow)})` : null;
   sections.push({
     type: 'text',
-    content: `Total: ~${fmtN(totalTokens)} tokens (${messages.length} messages)${capacityStr}`,
+    content: contextInspectorTotalText(fmtN(totalTokens), messages.length, capacityStr),
     style: { bold: true },
   });
 
   if (contextWindow > 0 && totalTokens / contextWindow >= 0.80) {
     sections.push({
       type: 'text',
-      content: 'WARNING: context is 80%+ full. Open Agent Workspace -> Conversation -> Compact conversation.',
+      content: CONTEXT_INSPECTOR_FULL_WARNING,
       style: { fg: '#ff9900', bold: true },
     });
   }
@@ -169,7 +206,7 @@ export function renderContextInspector(
   if (startOffset > 0) {
     sections.push({
       type: 'text',
-      content: `(${startOffset} older messages not shown)`,
+      content: contextInspectorOlderMessagesText(startOffset),
       style: { dim: true },
     });
   }
@@ -198,22 +235,22 @@ export function renderContextInspector(
     );
     sections.push({
       type: 'text',
-      content: `Compaction hint: ${largeMsgs.length} message${largeMsgs.length > 1 ? 's' : ''} use ${largePct} of context.`,
+      content: contextInspectorCompactionHintText(largeMsgs.length, largePct),
       style: { fg: '#00ffcc' },
     });
     sections.push({
       type: 'text',
-      content: 'Open Agent Workspace -> Conversation -> Compact conversation to summarise and reduce context size.',
+      content: CONTEXT_INSPECTOR_COMPACT_GUIDANCE,
       style: { dim: true },
     });
   }
 
   return ModalFactory.createModal({
-    title: 'Context Inspector',
+    title: CONTEXT_INSPECTOR_TITLE,
     width: metrics.boxWidth,
     margin: metrics.margin,
     targetContentRows,
     sections,
-    hints: ['[*] >10% of context', '[Esc] Close'],
+    hints: CONTEXT_INSPECTOR_CONTEXT_HINTS,
   }, width);
 }

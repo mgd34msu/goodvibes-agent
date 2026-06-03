@@ -284,13 +284,12 @@ export class InputHistory {
 
   private normalizeStoredEntry(entry: unknown): StoredInputHistoryEntry | null {
     if (typeof entry === 'string') return entry;
-    if (!entry || typeof entry !== 'object') return null;
-    const record = entry as Record<string, unknown>;
-    if (typeof record.text !== 'string') return null;
-    const text = record.text.trim();
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+    if (!('text' in entry) || typeof entry.text !== 'string') return null;
+    const text = entry.text.trim();
     if (!text) return null;
-    if (typeof record.recallText === 'string' && record.recallText.trim() && record.recallText.trim() !== text) {
-      return { text, recallText: record.recallText.trim() };
+    if ('recallText' in entry && typeof entry.recallText === 'string' && entry.recallText.trim() && entry.recallText.trim() !== text) {
+      return { text, recallText: entry.recallText.trim() };
     }
     return text;
   }

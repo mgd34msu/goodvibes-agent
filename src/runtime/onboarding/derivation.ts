@@ -83,7 +83,7 @@ function isDeepEqual(left: unknown, right: unknown): boolean {
     const rightEntries = Object.entries(right);
     if (leftEntries.length !== rightEntries.length) return false;
 
-    return leftEntries.every(([key, value]) => isDeepEqual(value, (right as Record<string, unknown>)[key]));
+    return leftEntries.every(([key, value]) => isDeepEqual(value, Reflect.get(right, key)));
   }
 
   return false;
@@ -250,7 +250,7 @@ function describeLocalBehavior(snapshot: OnboardingSnapshotState): string {
       ...discovery.routines.names,
     ].slice(0, 4);
     const sampleText = samples.length > 0 ? ` Found: ${samples.join(', ')}.` : '';
-    return `Import ${discoveredCount} discovered Agent persona/skill/routine file(s) from local Agent folders before creating blank behavior.${sampleText}`;
+    return `Import ${discoveredCount} discovered Agent persona/skill/routine file(s) from Agent-local folders before creating blank behavior.${sampleText}`;
   }
 
   if (!hasLocalBehaviorCustomization(snapshot)) {
@@ -288,7 +288,7 @@ function describeAutomationReview(snapshot: OnboardingSnapshotState): string {
 }
 
 function describeTuiDelegation(): string {
-  return 'Delegate explicit build, fix, implementation, and review work to GoodVibes TUI; WRFC is requested only when the user explicitly asks for it.';
+  return 'Delegate explicit build, fix, implementation, and review work to GoodVibes TUI; delegated review is requested only when the user explicitly asks for it.';
 }
 
 function getAcknowledgementAccepted(

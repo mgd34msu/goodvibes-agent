@@ -17,6 +17,7 @@ import {
   type AgentRuntimeProfileInfo,
   type AgentRuntimeProfileTemplateSummary,
 } from '../../agent/runtime-profile.ts';
+import { formatAgentRecordSource } from '../../agent/record-labels.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 import { requireShellPaths } from './runtime-services.ts';
@@ -35,19 +36,19 @@ function parseCsvFlag(args: readonly string[], name: string): readonly string[] 
 }
 
 function profileLine(profile: AgentRuntimeProfileInfo): string {
-  const created = profile.createdAt ? ` created=${profile.createdAt}` : '';
-  const starter = profile.starterTemplateId ? ` starter=${profile.starterTemplateId}` : '';
-  return `  ${profile.id}  home=${profile.homeDirectory}${created}${starter}`;
+  const created = profile.createdAt ? `  created ${profile.createdAt}` : '';
+  const starter = profile.starterTemplateId ? `  starter=${profile.starterTemplateId}` : '';
+  return `  ${profile.id}  home ${profile.homeDirectory}${created}${starter}`;
 }
 
 function templateLine(template: AgentRuntimeProfileTemplateSummary): string {
-  const source = template.source === 'local' ? `local ${template.path ?? ''}`.trim() : 'builtin';
+  const origin = template.source === 'local' ? `local ${template.path ?? ''}`.trim() : formatAgentRecordSource(template.source).toLowerCase();
   return [
-    `  ${template.id}  [${source}]`,
-    `    ${template.name}: ${template.description}`,
-    `    persona: ${template.personaName}`,
-    `    skills: ${template.skillNames.join(', ')}`,
-    `    routines: ${template.routineNames.join(', ')}`,
+    `  ${template.id}  [${origin}]`,
+    `    ${template.name} - ${template.description}`,
+    `    persona ${template.personaName}`,
+    `    skills ${template.skillNames.join(', ')}`,
+    `    routines ${template.routineNames.join(', ')}`,
   ].join('\n');
 }
 
@@ -72,9 +73,9 @@ function renderProfileDetail(homeDirectory: string, name: string): string {
   const starter = info.starterTemplateId ? [`  starter: ${info.starterTemplateId} (${info.starterTemplateName ?? info.starterTemplateId})`] : [];
   return [
     `Agent profile: ${profile.id}`,
-    `  home: ${profile.homeDirectory}`,
+    `  home ${profile.homeDirectory}`,
     ...starter,
-    `  use: goodvibes-agent --agent-profile ${profile.id}`,
+    `  use goodvibes-agent --agent-profile ${profile.id}`,
   ].join('\n');
 }
 
@@ -98,8 +99,8 @@ function renderGuide(homeDirectory: string): string {
   const localCount = templates.filter((template) => template.source === 'local').length;
   return [
     'Agent Starter Authoring Guide',
-    `  built-in starters: ${templates.length - localCount}`,
-    `  local starters: ${localCount}`,
+    `  built-in starters ${templates.length - localCount}`,
+    `  local starters ${localCount}`,
     '',
     '1. Pick a base starter:',
     '   /agent-profile templates',
@@ -118,13 +119,13 @@ function renderGuide(homeDirectory: string): string {
 function renderTemplatePreview(homeDirectory: string, templateId: string): string {
   const file = getAgentRuntimeProfileTemplateFile(templateId, homeDirectory);
   return [
-    `Agent Starter Template: ${file.template.id}`,
-    `  name: ${file.template.name}`,
-    `  source: ${file.template.source}`,
-    `  description: ${file.template.description}`,
-    `  persona: ${file.template.persona.name}`,
-    `  skills: ${file.template.skills.map((skill) => skill.name).join(', ')}`,
-    `  routines: ${file.template.routines.map((routine) => routine.name).join(', ')}`,
+    `Agent Starter Template ${file.template.id}`,
+    `  name ${file.template.name}`,
+    `  origin ${formatAgentRecordSource(file.template.source)}`,
+    `  description ${file.template.description}`,
+    `  persona ${file.template.persona.name}`,
+    `  skills ${file.template.skills.map((skill) => skill.name).join(', ')}`,
+    `  routines ${file.template.routines.map((routine) => routine.name).join(', ')}`,
     '',
     'Export/edit/import to customize this starter:',
     `  /agent-profile template export ${file.template.id} ./agent-starter.json --yes`,
@@ -184,9 +185,9 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             const selected = setAgentRuntimeProfileSelection(homeDirectory, target);
             ctx.print([
               `Default Agent profile selected: ${selected.id}`,
-              `  home: ${selected.homeDirectory}`,
+              `  home ${selected.homeDirectory}`,
               '  next launch: goodvibes-agent',
-              '  explicit override: goodvibes-agent --agent-profile <name>',
+              '  explicit override goodvibes-agent --agent-profile <name>',
             ].join('\n'));
             return;
           }
@@ -194,7 +195,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           ctx.print(selected
             ? [
               `Default Agent profile: ${selected.id}${selected.exists ? '' : ' (missing)'}`,
-              `  home: ${selected.homeDirectory}`,
+              `  home ${selected.homeDirectory}`,
               '  next launch: goodvibes-agent',
             ].join('\n')
             : 'No default Agent profile selected. Next launch uses the base Agent home.');
@@ -214,9 +215,9 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           const selected = setAgentRuntimeProfileSelection(homeDirectory, name);
           ctx.print([
             `Default Agent profile selected: ${selected.id}`,
-            `  home: ${selected.homeDirectory}`,
+            `  home ${selected.homeDirectory}`,
             '  next launch: goodvibes-agent',
-            '  explicit override: goodvibes-agent --agent-profile <name>',
+            '  explicit override goodvibes-agent --agent-profile <name>',
           ].join('\n'));
           return;
         }
@@ -251,7 +252,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             const targetPath = shellPaths.resolveWorkspacePath(pathArg);
             mkdirSync(dirname(targetPath), { recursive: true });
             const template = exportAgentRuntimeProfileTemplate(homeDirectory, templateId, targetPath);
-            ctx.print(`Agent starter template exported: ${template.id}\n  path: ${template.path ?? targetPath}\n  edit it, then import it with /agent-profile template import <path> --yes`);
+            ctx.print(`Agent starter template exported: ${template.id}\n  path ${template.path ?? targetPath}\n  edit it, then import it with /agent-profile template import <path> --yes`);
             return;
           }
           if (mode === 'import') {
@@ -266,7 +267,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             }
             const sourcePath = shellPaths.resolveWorkspacePath(pathArg);
             const template = importAgentRuntimeProfileTemplate(homeDirectory, sourcePath);
-            ctx.print(`Agent starter template imported: ${template.id}\n  source: ${template.source}\n  use: /agent-profile create <name> --template ${template.id} --yes`);
+            ctx.print(`Agent starter template imported: ${template.id}\n  origin ${formatAgentRecordSource(template.source).toLowerCase()}\n  use /agent-profile create <name> --template ${template.id} --yes`);
             return;
           }
           if (mode === 'from-discovered' || mode === 'import-discovered') {
@@ -290,10 +291,10 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             });
             ctx.print([
               `Agent starter template created from discovered behavior: ${template.id}`,
-              `  persona: ${template.personaName}`,
-              `  skills: ${template.skillNames.join(', ')}`,
-              `  routines: ${template.routineNames.join(', ')}`,
-              `  use: /agent-profile create <name> --template ${template.id} --yes`,
+              `  persona ${template.personaName}`,
+              `  skills ${template.skillNames.join(', ')}`,
+              `  routines ${template.routineNames.join(', ')}`,
+              `  use /agent-profile create <name> --template ${template.id} --yes`,
             ].join('\n'));
             return;
           }
@@ -315,9 +316,9 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           const profile = createAgentRuntimeProfile(homeDirectory, name, { templateId });
           ctx.print([
             `Agent profile created: ${profile.id}`,
-            `  home: ${profile.homeDirectory}`,
+            `  home ${profile.homeDirectory}`,
             profile.starterTemplateId ? `  starter: ${profile.starterTemplateId}` : '',
-            `  launch: goodvibes-agent --agent-profile ${profile.id}`,
+            `  launch goodvibes-agent --agent-profile ${profile.id}`,
           ].filter(Boolean).join('\n'));
           return;
         }
@@ -344,12 +345,12 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           });
           ctx.print([
             `Agent profile created from discovered behavior: ${created.profile.id}`,
-            `  home: ${created.profile.homeDirectory}`,
+            `  home ${created.profile.homeDirectory}`,
             `  starter: ${created.template.id}`,
-            `  persona: ${created.template.personaName}`,
-            `  skills: ${created.template.skillNames.join(', ')}`,
-            `  routines: ${created.template.routineNames.join(', ')}`,
-            `  launch: goodvibes-agent --agent-profile ${created.profile.id}`,
+            `  persona ${created.template.personaName}`,
+            `  skills ${created.template.skillNames.join(', ')}`,
+            `  routines ${created.template.routineNames.join(', ')}`,
+            `  launch goodvibes-agent --agent-profile ${created.profile.id}`,
           ].join('\n'));
           return;
         }
@@ -364,13 +365,16 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             requireYesFlag(ctx, `delete Agent profile ${name}`, '/agent-profile delete <name> --yes');
             return;
           }
-          ctx.print(deleteAgentRuntimeProfile(homeDirectory, name) ? `Agent profile deleted: ${name}` : `Agent profile not found: ${name}`);
+          ctx.print(deleteAgentRuntimeProfile(homeDirectory, name) ? `Agent profile deleted: ${name}` : `Agent profile not found ${name}`);
           return;
         }
 
         ctx.print('Usage: /agent-profile [list|show <name>|default [<name>|clear] --yes|use <name> --yes|templates|guide|template show <id>|template export <id> <path> --yes|template import <path> --yes|create <name> [--template <id>] --yes|create-from-discovered <name> --yes|delete <name> --yes]');
       } catch (error) {
-        ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        ctx.print([
+          'Error',
+          `  message ${error instanceof Error ? error.message : String(error)}`,
+        ].join('\n'));
       }
     },
   });

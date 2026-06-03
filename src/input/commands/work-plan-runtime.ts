@@ -26,7 +26,12 @@ function getStore(ctx: import('../command-registry.ts').CommandContext): WorkPla
 
 function formatList(store: WorkPlanStore): string {
   const items = store.listItems();
-  if (items.length === 0) return 'Work plan is empty. Add one with /workplan add <title>.';
+  if (items.length === 0) {
+    return [
+      'Work plan is empty',
+      '  next /workplan add <title>',
+    ].join('\n');
+  }
   return [
     `Work Plan (${items.length})`,
     ...items.map((item) => {
@@ -106,7 +111,12 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
             ...(addArgs.notes ? { notes: addArgs.notes } : {}),
           };
           const item = store.addItem(addArgs.title, addOptions);
-          ctx.print(`Added work plan item ${item.id}. Open Agent Workspace -> Work -> Work plan to review.`);
+          ctx.print([
+            'Added work plan item',
+            `  id ${item.id}`,
+            `  title ${item.title}`,
+            '  next open Agent Workspace -> Work -> Work plan to review',
+          ].join('\n'));
           return;
         }
         if (subcommand === 'remove' || subcommand === 'delete' || subcommand === 'rm') {
@@ -120,7 +130,11 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
             return;
           }
           const item = store.removeItem(id);
-          ctx.print(`Removed work plan item ${item.id}: ${item.title}`);
+          ctx.print([
+            'Removed work plan item',
+            `  id ${item.id}`,
+            `  title ${item.title}`,
+          ].join('\n'));
           return;
         }
         if (subcommand === 'clear-done' || subcommand === 'clear-completed') {
@@ -129,7 +143,10 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
             return;
           }
           const count = store.clearCompleted();
-          ctx.print(`Cleared ${count} completed/cancelled work plan item${count === 1 ? '' : 's'}.`);
+          ctx.print([
+            'Cleared completed/cancelled work plan items',
+            `  count ${count}`,
+          ].join('\n'));
           return;
         }
         if (subcommand === 'cycle' || subcommand === 'toggle') {
@@ -139,7 +156,11 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
             return;
           }
           const item = store.cycleItemStatus(id);
-          ctx.print(`Updated ${item.id}: ${item.status}.`);
+          ctx.print([
+            'Updated work plan item',
+            `  id ${item.id}`,
+            `  status ${item.status}`,
+          ].join('\n'));
           return;
         }
         const status = STATUS_COMMANDS[subcommand];
@@ -150,14 +171,18 @@ export function registerWorkPlanRuntimeCommands(registry: CommandRegistry): void
             return;
           }
           const item = store.setItemStatus(id, status);
-          ctx.print(`Updated ${item.id}: ${item.status}.`);
+          ctx.print([
+            'Updated work plan item',
+            `  id ${item.id}`,
+            `  status ${item.status}`,
+          ].join('\n'));
           return;
         }
         if (WORK_PLAN_STATUSES.includes(subcommand as WorkPlanItemStatus)) {
           ctx.print(`Usage: /workplan ${subcommand} <id>`);
           return;
         }
-        ctx.print(`Unknown workplan subcommand: ${subcommand}`);
+        ctx.print(`Unknown workplan subcommand ${subcommand}`);
       } catch (error) {
         ctx.print(summarizeError(error));
       }

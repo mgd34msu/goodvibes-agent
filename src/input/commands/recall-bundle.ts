@@ -31,7 +31,7 @@ export function handleRecallExport(args: string[], context: CommandContext): voi
   if (scopeIdx !== -1 && commandArgs[scopeIdx + 1]) {
     const scope = commandArgs[scopeIdx + 1];
     if (!isValidScope(scope)) {
-      context.print(`[memory] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
+      context.print(`[memory] Unknown scope "${scope}". Valid values ${VALID_SCOPES.join(', ')}.`);
       return;
     }
     filter.scope = scope;
@@ -41,7 +41,7 @@ export function handleRecallExport(args: string[], context: CommandContext): voi
   if (clsIdx !== -1 && commandArgs[clsIdx + 1]) {
     const cls = commandArgs[clsIdx + 1];
     if (!isValidClass(cls)) {
-      context.print(`[memory] Unknown class "${cls}". Valid: ${VALID_CLASSES.join(', ')}`);
+      context.print(`[memory] Unknown class "${cls}". Valid values ${VALID_CLASSES.join(', ')}.`);
       return;
     }
     filter.cls = cls;
@@ -77,23 +77,23 @@ export async function handleRecallImport(args: string[], context: CommandContext
   try {
     bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as MemoryBundle;
   } catch (error) {
-    context.print(`[memory] Failed to read memory bundle: ${summarizeError(error)}`);
+    context.print(`[memory] Failed to read memory bundle ${summarizeError(error)}`);
     return;
   }
 
   const result = await memory.importBundle(bundle);
   context.print(`[memory] Imported bundle from ${targetPath}`);
-  context.print(`  Records: imported=${result.importedRecords} skipped=${result.skippedRecords}`);
-  context.print(`  Links:   imported=${result.importedLinks}`);
+  context.print(`  records imported=${result.importedRecords} skipped=${result.skippedRecords}`);
+  context.print(`  links imported=${result.importedLinks}`);
 }
 
 function inspectBundle(bundle: MemoryBundle): string {
   return [
     'Memory Handoff Review',
-    `  scope: ${bundle.scope}`,
-    `  records: ${bundle.recordCount}`,
-    `  links: ${bundle.linkCount}`,
-    `  exportedAt: ${new Date(bundle.exportedAt).toISOString()}`,
+    `  scope ${bundle.scope}`,
+    `  records ${bundle.recordCount}`,
+    `  links ${bundle.linkCount}`,
+    `  exportedAt ${new Date(bundle.exportedAt).toISOString()}`,
   ].join('\n');
 }
 
@@ -116,7 +116,7 @@ export function handleRecallHandoffExport(args: string[], context: CommandContex
   const scopeIdx = commandArgs.indexOf('--scope');
   const scopeRaw = scopeIdx !== -1 ? commandArgs[scopeIdx + 1] : 'team';
   if (!scopeRaw || !isValidScope(scopeRaw)) {
-    context.print(`[memory] Unknown scope "${scopeRaw ?? ''}". Valid: ${VALID_SCOPES.join(', ')}`);
+    context.print(`[memory] Unknown scope "${scopeRaw ?? ''}". Valid values ${VALID_SCOPES.join(', ')}.`);
     return;
   }
   const bundle = memory.exportBundle({ scope: scopeRaw });
@@ -137,7 +137,7 @@ export function handleRecallHandoffInspect(args: string[], context: CommandConte
     const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as MemoryBundle;
     context.print(inspectBundle(bundle));
   } catch (error) {
-    context.print(`[memory] Failed to inspect handoff bundle: ${summarizeError(error)}`);
+    context.print(`[memory] Failed to inspect handoff bundle ${summarizeError(error)}`);
   }
 }
 

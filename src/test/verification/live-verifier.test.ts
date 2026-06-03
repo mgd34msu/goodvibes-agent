@@ -7,15 +7,19 @@ import {
   buildAgentKnowledgeLiveSkipCheck,
   buildLiveVerificationReport,
   renderLiveVerificationReportMarkdown,
+  sanitizeLiveVerificationReport,
 } from '../../verification/live-verifier.ts';
 
 const projectRoot = resolve(join(import.meta.dir, '..', '..', '..'));
 
 interface FakeAgentBinaryOptions {
+  readonly statusOutput?: string;
   readonly compatOutput: string;
   readonly compatExitCode: number;
   readonly knowledgeOutput: string;
   readonly knowledgeExitCode: number;
+  readonly providersOutput?: string;
+  readonly doctorOutput?: string;
 }
 
 function shellQuote(value: string): string {
@@ -29,11 +33,11 @@ function writeFakeAgentBinary(root: string, options: FakeAgentBinaryOptions): st
     'set -eu',
     'case "$*" in',
     '  "--version") printf "%s\\n" "0.0.0"; exit 0 ;;',
-    '  "status --json") printf "%s\\n" \'{"ok":true}\'; exit 0 ;;',
+    `  "status --json") printf "%s\\n" ${shellQuote(options.statusOutput ?? '{"ok":true}')}; exit 0 ;;`,
     `  "compat --json") printf "%s\\n" ${shellQuote(options.compatOutput)}; exit ${options.compatExitCode} ;;`,
     `  "knowledge status --json") printf "%s\\n" ${shellQuote(options.knowledgeOutput)}; exit ${options.knowledgeExitCode} ;;`,
-    '  "providers") printf "%s\\n" "provider inventory"; exit 0 ;;',
-    '  "doctor --output text") printf "%s\\n" "doctor ok"; exit 0 ;;',
+    `  "providers") printf "%s\\n" ${shellQuote(options.providersOutput ?? 'provider inventory')}; exit 0 ;;`,
+    `  "doctor --output text") printf "%s\\n" ${shellQuote(options.doctorOutput ?? 'doctor ok')}; exit 0 ;;`,
     'esac',
     'printf "unexpected command: %s\\n" "$*" >&2',
     'exit 64',
@@ -94,6 +98,47 @@ describe('live verification report', () => {
     expect(source).not.toContain("await runCommand(binaryPath, ['service', 'check'], projectRoot)");
   });
 
+  it('sanitizes local paths, tokens, and private addresses before rendering release artifacts', () => {
+    const report = sanitizeLiveVerificationReport({
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      homeDir: '/home/operator/.goodvibes',
+      binaryPath: '/workspace/goodvibes-agent/dist/goodvibes-agent',
+      connectedHostBaseUrl: 'http://192.168.0.85:3421',
+      strict: true,
+      counts: { pass: 1, warn: 0, fail: 0, skip: 0 },
+      ok: true,
+      checks: [{
+        id: 'status',
+        title: 'Status',
+        status: 'pass',
+        summary: 'Found /workspace/goodvibes-agent/dist/goodvibes-agent with Bearer abc123',
+        detail: '{"token":"secret","path":"/home/operator/.goodvibes/daemon/operator-tokens.json","cwd":"/workspace/goodvibes-agent","host":"192.168.0.85"}',
+      }],
+    }, {
+      homeDir: '/home/operator/.goodvibes',
+      userHomeDir: '/home/operator',
+      projectRoot: '/workspace/goodvibes-agent',
+      binaryPath: '/workspace/goodvibes-agent/dist/goodvibes-agent',
+    });
+
+    const rendered = JSON.stringify(report) + '\n' + renderLiveVerificationReportMarkdown(report);
+
+    expect(report.homeDir).toBe('[goodvibes-home]');
+    expect(report.binaryPath).toBe('[agent-binary]');
+    expect(report.connectedHostBaseUrl).toBe('http://[private-ip]:3421');
+    expect(rendered).toContain('[goodvibes-home]');
+    expect(rendered).toContain('[agent-binary]');
+    expect(rendered).toContain('[project-root]');
+    expect(rendered).toContain('[private-ip]');
+    expect(rendered).toContain('Bearer [redacted]');
+    expect(rendered).toContain('"token":"[redacted]"');
+    expect(rendered).not.toContain('/home/operator');
+    expect(rendered).not.toContain('/workspace/goodvibes-agent');
+    expect(rendered).not.toContain('192.168.0.85');
+    expect(rendered).not.toContain('abc123');
+    expect(rendered).not.toContain('secret');
+  });
+
   it('fails warn-only JSON command checks when the JSON contract is broken', async () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-live-verifier-'));
     try {
@@ -141,6 +186,43 @@ describe('live verification report', () => {
       expect(compatCheck?.summary).toBe('Command exited 2.');
       expect(knowledgeCheck?.status).toBe('warn');
       expect(report.ok).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('omits local provider and model details from release artifacts', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-live-verifier-'));
+    try {
+      const binaryPath = writeFakeAgentBinary(root, {
+        statusOutput: '{"provider":{"provider":"anthropic","model":"anthropic:configured-model"},"ok":true}',
+        compatOutput: '{"compatible":false}',
+        compatExitCode: 2,
+        knowledgeOutput: '{"status":"unavailable"}',
+        knowledgeExitCode: 1,
+        providersOutput: 'anthropic setup api-key configured yes via api-key',
+        doctorOutput: 'Provider\n  provider anthropic\n  model anthropic:configured-model\nAuth\n  setup credential present',
+      });
+
+      const report = await buildLiveVerificationReport({
+        homeDir: join(root, 'home'),
+        binaryPath,
+        projectRoot,
+      });
+      const statusCheck = report.checks.find((check) => check.id === 'cli-status-json');
+      const providersCheck = report.checks.find((check) => check.id === 'cli-providers');
+      const doctorCheck = report.checks.find((check) => check.id === 'cli-doctor');
+      const rendered = renderLiveVerificationReportMarkdown(report);
+
+      expect(statusCheck?.status).toBe('pass');
+      expect(statusCheck?.detail).toBe('Status JSON command completed; provider/model identifiers omitted from release artifact.');
+      expect(providersCheck?.status).toBe('pass');
+      expect(providersCheck?.detail).toBe('Provider inventory command completed; provider names and credential posture omitted from release artifact.');
+      expect(doctorCheck?.status).toBe('pass');
+      expect(doctorCheck?.detail).toBe('Doctor command completed without findings; provider/model identifiers and credential posture omitted from release artifact.');
+      expect(rendered).not.toContain('anthropic setup api-key configured yes');
+      expect(rendered).not.toContain('anthropic:configured-model');
+      expect(rendered).not.toContain('setup credential present');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

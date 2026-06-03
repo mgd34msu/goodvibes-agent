@@ -1,4 +1,5 @@
 import { createShellPathService } from '@/runtime/index.ts';
+import { formatAgentRecordOrigin, formatAgentRecordReviewState } from '../agent/record-labels.ts';
 import { discoverRoutines, type DiscoveredRoutineRecord } from '../agent/routine-discovery.ts';
 import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import { buildAgentSkillRequirements, formatAgentSkillRequirement } from '../agent/skill-registry.ts';
@@ -146,17 +147,17 @@ function parseImportFlags(args: readonly string[]): {
 
 function summarizeRoutine(routine: AgentRoutineRecord): string {
   const enabled = routine.enabled ? 'enabled' : 'disabled';
-  const tags = routine.tags.length > 0 ? ` tags=${routine.tags.join(',')}` : '';
+  const tags = routine.tags.length > 0 ? `  tags ${routine.tags.join(', ')}` : '';
   const readiness = evaluateAgentRoutineReadiness(routine);
   const ready = readiness.ready ? 'ready' : `needs ${readiness.missing.map(formatAgentSkillRequirement).join(',')}`;
-  return `  ${routine.id}  ${enabled}  ${routine.reviewState}  ${ready}  starts=${routine.startCount}  ${routine.name} - ${routine.description}${tags}`;
+  return `  ${routine.id}  ${enabled}  ${formatAgentRecordReviewState(routine.reviewState)}  ${ready}  starts ${routine.startCount}  ${routine.name} - ${routine.description}${tags}`;
 }
 
 function summarizeDiscoveredRoutine(routine: DiscoveredRoutineRecord): string {
   const description = routine.description ? ` - ${routine.description}` : '';
   return [
     `  ${routine.name}  ${routine.origin}${description}`,
-    `    path: ${routine.path}`,
+    `    path ${routine.path}`,
   ].join('\n');
 }
 
@@ -208,13 +209,13 @@ function renderRoutineList(title: string, path: string, routines: readonly Agent
   if (routines.length === 0) {
     return [
       title,
-      `  ${emptyMessage ?? 'No local Agent routines yet.'}`,
+      `  ${emptyMessage ?? 'No Agent-local routines yet.'}`,
       emptyMessage ? '' : '  Open /agent routines in the TUI, or use goodvibes-agent routines create for scripted setup.',
     ].filter(Boolean).join('\n');
   }
   return [
     `${title} (${routines.length})`,
-    `  store: ${path}`,
+    `  store ${path}`,
     ...routines.map(summarizeRoutine),
   ].join('\n');
 }
@@ -223,20 +224,19 @@ function renderRoutine(routine: AgentRoutineRecord): string {
   const readiness = evaluateAgentRoutineReadiness(routine);
   return [
     `Routine ${routine.name}`,
-    `  id: ${routine.id}`,
-    `  enabled: ${routine.enabled ? 'yes' : 'no'}`,
-    `  readiness: ${readiness.ready ? 'ready' : 'needs setup'}`,
-    `  requirements: ${routine.requirements.map(formatAgentSkillRequirement).join(', ') || '(none)'}`,
-    readiness.missing.length > 0 ? `  missing: ${readiness.missing.map(formatAgentSkillRequirement).join(', ')}` : '',
-    `  review: ${routine.reviewState}`,
-    `  source: ${routine.source}`,
-    `  provenance: ${routine.provenance}`,
-    `  tags: ${routine.tags.join(', ') || '(none)'}`,
-    `  triggers: ${routine.triggers.join(', ') || '(manual)'}`,
-    `  started: ${routine.startCount}${routine.lastStartedAt ? `; last ${routine.lastStartedAt}` : ''}`,
-    `  created: ${routine.createdAt}`,
-    `  updated: ${routine.updatedAt}`,
-    routine.staleReason ? `  stale reason: ${routine.staleReason}` : '',
+    `  id ${routine.id}`,
+    `  enabled ${routine.enabled ? 'yes' : 'no'}`,
+    `  readiness ${readiness.ready ? 'ready' : 'needs setup'}`,
+    `  requirements ${routine.requirements.map(formatAgentSkillRequirement).join(', ') || '(none)'}`,
+    readiness.missing.length > 0 ? `  missing ${readiness.missing.map(formatAgentSkillRequirement).join(', ')}` : '',
+    `  review ${formatAgentRecordReviewState(routine.reviewState)}`,
+    `  origin ${formatAgentRecordOrigin(routine.source, routine.provenance)}`,
+    `  tags ${routine.tags.join(', ') || '(none)'}`,
+    `  triggers ${routine.triggers.join(', ') || '(manual)'}`,
+    `  started ${routine.startCount}${routine.lastStartedAt ? `; last ${routine.lastStartedAt}` : ''}`,
+    `  created ${routine.createdAt}`,
+    `  updated ${routine.updatedAt}`,
+    routine.staleReason ? `  stale reason ${routine.staleReason}` : '',
     '',
     routine.description,
     '',
@@ -267,7 +267,7 @@ async function handleRoutinePromotion(runtime: CliCommandRuntime, args: readonly
     const failure: RoutinesCommandFailure = {
       ok: false,
       kind: 'routine_not_found',
-      error: `Unknown Agent routine: ${parsed.routineId ?? ''}`,
+      error: `Unknown Agent routine ${parsed.routineId ?? ''}`,
     };
     return {
       output: json ? JSON.stringify(failure, null, 2) : failure.error,
@@ -339,7 +339,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
             : 'Agent routines',
         snapshot.path,
         routines,
-        normalized === 'attention' || normalized === 'needs-setup' ? 'No local Agent routines need setup.' : undefined,
+        normalized === 'attention' || normalized === 'needs-setup' ? 'No Agent-local routines need setup.' : undefined,
       )),
       exitCode: 0,
     };
@@ -374,7 +374,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       const failure: RoutinesCommandFailure = {
         ok: false,
         kind: 'routine_discovery_not_found',
-        error: `Unknown discovered Agent routine: ${parsed.name}\nRun goodvibes-agent routines discover to inspect available routine files.`,
+        error: `Unknown discovered Agent routine ${parsed.name}\nRun goodvibes-agent routines discover to inspect available routine files.`,
       };
       return {
         output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(failure, null, 2) : failure.error,
@@ -390,12 +390,12 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       return {
         output: jsonOrText(runtime, value, [
           'Agent routine import preview',
-          `  name: ${discovered.name}`,
-          `  origin: ${discovered.origin}`,
-          `  path: ${discovered.path}`,
-          `  description: ${discovered.description || '(none)'}`,
-          `  steps characters: ${discovered.steps.length}`,
-          '  next: rerun with --yes to import into the Agent-local routine registry',
+          `  name ${discovered.name}`,
+          `  origin ${discovered.origin}`,
+          `  path ${discovered.path}`,
+          `  description ${discovered.description || '(none)'}`,
+          `  steps characters ${discovered.steps.length}`,
+          '  next rerun with --yes to import into the Agent-local routine registry',
         ].join('\n')),
         exitCode: 0,
       };
@@ -420,7 +420,11 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       data: routine,
     };
     return {
-      output: jsonOrText(runtime, value, `Imported Agent routine ${routine.id}: ${routine.name}${routine.enabled ? ' (enabled)' : ''}`),
+      output: jsonOrText(runtime, value, [
+        `Imported Agent routine ${routine.id}: ${routine.name}${routine.enabled ? ' (enabled)' : ''}`,
+        `  name ${routine.name}`,
+        `  enabled ${routine.enabled ? 'yes' : 'no'}`,
+      ].join('\n')),
       exitCode: 0,
     };
   }
@@ -447,7 +451,11 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
         data: routine,
       };
       return {
-        output: jsonOrText(runtime, value, `Created Agent routine ${routine.id}: ${routine.name}${routine.enabled ? ' (enabled)' : ''}`),
+        output: jsonOrText(runtime, value, [
+          `Created Agent routine ${routine.id}: ${routine.name}${routine.enabled ? ' (enabled)' : ''}`,
+          `  name ${routine.name}`,
+          `  enabled ${routine.enabled ? 'yes' : 'no'}`,
+        ].join('\n')),
         exitCode: 0,
       };
     } catch (error) {
@@ -504,7 +512,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
     if (!id) return { output: 'Usage: goodvibes-agent routines receipt <receipt-id>', exitCode: 2 };
     const receipt = routineReceiptStore(runtime).get(id);
     if (!receipt) {
-      const failure: RoutinesCommandFailure = { ok: false, kind: 'routine_schedule_receipt_not_found', error: `Unknown routine schedule receipt: ${id}` };
+      const failure: RoutinesCommandFailure = { ok: false, kind: 'routine_schedule_receipt_not_found', error: `Unknown routine schedule receipt ${id}` };
       return {
         output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(failure, null, 2) : failure.error,
         exitCode: 1,

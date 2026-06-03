@@ -1,7 +1,7 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs';
 import net from 'node:net';
 import { isAbsolute, join } from 'node:path';
-import type { ConfigManager } from '../config/index.ts';
+import type { ConfigKey, ConfigManager } from '../config/index.ts';
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import type { RuntimeEndpointBinding, RuntimeEndpointId } from './endpoints.ts';
 import { classifyBindPosture, isNetworkFacing } from './network-posture.ts';
@@ -60,7 +60,7 @@ export interface CliServicePosture {
   readonly issues: readonly string[];
 }
 
-const ENDPOINTS: readonly { readonly id: RuntimeEndpointId; readonly label: string; readonly enabledKey: string }[] = [
+const ENDPOINTS: readonly { readonly id: RuntimeEndpointId; readonly label: string; readonly enabledKey: ConfigKey }[] = [
   { id: 'controlPlane', label: 'runtime connection', enabledKey: 'controlPlane.enabled' },
   { id: 'httpListener', label: 'inbound events endpoint', enabledKey: 'danger.httpListener' },
   { id: 'web', label: 'browser companion route', enabledKey: 'web.enabled' },
@@ -161,7 +161,7 @@ export async function buildCliServicePosture(
   options: CliServicePostureOptions = {},
 ): Promise<CliServicePosture> {
   const endpoints = await Promise.all(ENDPOINTS.map(async (endpoint): Promise<CliServiceEndpointPosture> => {
-    const enabled = runtime.configManager.get(endpoint.enabledKey as never) === true;
+    const enabled = runtime.configManager.get(endpoint.enabledKey) === true;
     const binding = resolveRuntimeEndpointBinding(runtime.configManager, endpoint.id);
     return {
       id: endpoint.id,
@@ -232,12 +232,12 @@ export function formatCliServicePosture(posture: CliServicePosture, json = false
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),
     '',
-    'Connected API checks:',
+    'Connected API checks',
     ...posture.endpoints.map((endpoint) =>
-      `  ${endpoint.label}: enabled=${yesNo(endpoint.enabled)} ${endpoint.binding.hostMode} ${endpoint.binding.host}:${endpoint.binding.port} posture=${endpoint.bindPosture.label}${endpoint.reachable === undefined ? '' : ` reachable=${yesNo(endpoint.reachable)}`}`,
+      `  ${endpoint.label} enabled ${yesNo(endpoint.enabled)}  ${endpoint.binding.hostMode} ${endpoint.binding.host}:${endpoint.binding.port}  posture ${endpoint.bindPosture.label}${endpoint.reachable === undefined ? '' : `  reachable ${yesNo(endpoint.reachable)}`}`,
     ),
     '',
-    posture.issues.length === 0 ? 'Readiness: ready' : 'Readiness: needs attention',
+    posture.issues.length === 0 ? 'Readiness ready' : 'Readiness needs attention',
     ...posture.issues.map((issue) => `  - ${issue}`),
   ].join('\n');
 }

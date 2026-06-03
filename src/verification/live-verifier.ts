@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { buildVerificationLedger } from './verification-ledger.ts';
 import { SDK_VERSION } from '../version.ts';
@@ -9,6 +9,9 @@ const AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS = [
   ['home', 'graph'].join(''),
   ['home ', 'graph'].join(''),
 ] as const;
+const STATUS_RELEASE_DETAIL = 'Status JSON command completed; provider/model identifiers omitted from release artifact.';
+const PROVIDERS_RELEASE_DETAIL = 'Provider inventory command completed; provider names and credential posture omitted from release artifact.';
+const DOCTOR_RELEASE_DETAIL = 'Doctor command completed without findings; provider/model identifiers and credential posture omitted from release artifact.';
 
 export type LiveVerificationStatus = 'pass' | 'warn' | 'fail' | 'skip';
 
@@ -47,6 +50,13 @@ interface CommandResult {
   timedOut: boolean;
 }
 
+export interface LiveVerificationRedactionContext {
+  homeDir: string;
+  userHomeDir: string;
+  projectRoot: string;
+  binaryPath: string;
+}
+
 function readJsonFile(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
@@ -55,6 +65,31 @@ function redact(text: string): string {
   return text
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, 'Bearer [redacted]')
     .replace(/"token"\s*:\s*"[^"]+"/g, '"token":"[redacted]"');
+}
+
+function replaceLiteral(text: string, search: string, replacement: string): string {
+  return search.length > 1 ? text.split(search).join(replacement) : text;
+}
+
+function redactLocalPaths(text: string, context: LiveVerificationRedactionContext): string {
+  const replacements = [
+    [context.binaryPath, '[agent-binary]'],
+    [context.projectRoot, '[project-root]'],
+    [context.homeDir, '[goodvibes-home]'],
+    [context.userHomeDir, '[home]'],
+  ] as const;
+  return replacements
+    .filter(([value]) => value.length > 1)
+    .sort(([left], [right]) => right.length - left.length)
+    .reduce((output, [value, replacement]) => replaceLiteral(output, value, replacement), text);
+}
+
+function redactPrivateNetworkAddresses(text: string): string {
+  return text.replace(/\b(?:10|192\.168|172\.(?:1[6-9]|2[0-9]|3[0-1]))(?:\.[0-9]{1,3}){2}\b/g, '[private-ip]');
+}
+
+function redactForReleaseArtifact(text: string, context: LiveVerificationRedactionContext): string {
+  return redactPrivateNetworkAddresses(redactLocalPaths(redact(text), context));
 }
 
 function compact(text: string, maxLength = 900): string {
@@ -141,7 +176,7 @@ function commandCheck(
   title: string,
   result: CommandResult,
   passSummary: string,
-  options?: { warnOnNonZero?: boolean; parseJson?: boolean },
+  options?: { warnOnNonZero?: boolean; parseJson?: boolean; passDetail?: string },
 ): LiveVerificationCheck {
   const parseJsonOutput = (): string | null => {
     try {
@@ -198,7 +233,7 @@ function commandCheck(
     title,
     status: 'pass',
     summary: passSummary,
-    detail: compact(result.stdout || result.stderr),
+    detail: options?.passDetail ?? compact(result.stdout || result.stderr),
   };
 }
 
@@ -355,7 +390,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
       'Agent CLI status JSON command',
       await runCommand(binaryPath, ['status', '--json'], projectRoot),
       'Agent CLI status returned parseable JSON.',
-      { parseJson: true },
+      { parseJson: true, passDetail: STATUS_RELEASE_DETAIL },
     ));
     checks.push(commandCheck(
       'cli-compat-json',
@@ -376,13 +411,14 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
       'Agent CLI providers command',
       await runCommand(binaryPath, ['providers'], projectRoot),
       'Provider inventory rendered successfully.',
+      { passDetail: PROVIDERS_RELEASE_DETAIL },
     ));
     checks.push(commandCheck(
       'cli-doctor',
       'CLI doctor command',
       await runCommand(binaryPath, ['doctor', '--output', 'text'], projectRoot),
       'Doctor completed without findings.',
-      { warnOnNonZero: true },
+      { warnOnNonZero: true, passDetail: DOCTOR_RELEASE_DETAIL },
     ));
   }
 
@@ -438,6 +474,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
         return {
           status: models > 0 ? 'pass' : 'warn',
           summary: `/v1/models returned ${models} model(s).`,
+          detail: `/v1/models returned ${models} model(s); model identifiers omitted from release artifact.`,
         };
       } catch {
         return { status: 'warn', summary: '/v1/models returned 200 but was not parseable JSON.' };
@@ -530,7 +567,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
 
   const counts = countStatuses(checks);
   const ok = counts.fail === 0 && (!options.strict || counts.warn === 0);
-  return {
+  return sanitizeLiveVerificationReport({
     generatedAt: new Date().toISOString(),
     homeDir,
     binaryPath,
@@ -539,6 +576,23 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     checks,
     counts,
     ok,
+  }, { homeDir, userHomeDir: dirname(homeDir), projectRoot, binaryPath });
+}
+
+export function sanitizeLiveVerificationReport(
+  report: LiveVerificationReport,
+  context: LiveVerificationRedactionContext,
+): LiveVerificationReport {
+  return {
+    ...report,
+    homeDir: '[goodvibes-home]',
+    binaryPath: '[agent-binary]',
+    connectedHostBaseUrl: redactForReleaseArtifact(report.connectedHostBaseUrl, context),
+    checks: report.checks.map((check) => ({
+      ...check,
+      summary: redactForReleaseArtifact(check.summary, context),
+      detail: check.detail === undefined ? undefined : redactForReleaseArtifact(check.detail, context),
+    })),
   };
 }
 

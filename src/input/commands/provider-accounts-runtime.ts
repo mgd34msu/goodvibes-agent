@@ -2,6 +2,8 @@ import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import type {
   ProviderAccountRecord,
   ProviderAccountSnapshot,
+  ProviderAuthRoute,
+  ProviderRouteRecord,
 } from '../../panels/provider-account-snapshot.ts';
 import { buildProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
 import {
@@ -9,6 +11,15 @@ import {
   requireServiceRegistry,
   requireSubscriptionManager,
 } from './runtime-services.ts';
+import { formatProviderAuthRouteId } from '../../provider-auth-route-display.ts';
+
+function formatRouteList(routes: readonly ProviderAuthRoute[]): string {
+  return routes.map((route) => formatProviderAuthRouteId(route)).join(', ');
+}
+
+function formatRouteRecord(route: ProviderRouteRecord): string {
+  return `${formatProviderAuthRouteId(route.route)}  ${route.usable ? 'usable' : 'blocked'}  auth ${route.freshness}  ${route.detail}`;
+}
 
 async function loadProviderAccountSnapshot(context: CommandContext): Promise<ProviderAccountSnapshot> {
   return await buildProviderAccountSnapshot({
@@ -46,16 +57,16 @@ export function registerProviderAccountsRuntimeCommands(registry: CommandRegistr
         const providerId = args[1];
         const record = findProviderAccountRecord(snapshot, providerId);
         if (!record) {
-          ctx.print(providerId ? `Unknown provider account: ${providerId}` : 'Usage: /accounts routes <provider>');
+          ctx.print(providerId ? `Unknown provider account ${providerId}` : 'Usage: /accounts routes <provider>');
           return;
         }
         ctx.print([
           `Provider Routes ${record.providerId}`,
-          `  preferred: ${record.preferredRoute}`,
-          `  active: ${record.activeRoute}`,
-          `  reason: ${record.activeRouteReason}`,
-          ...record.routeRecords.map((route) => `  ${route.route}  usable=${route.usable ? 'yes' : 'no'}  freshness=${route.freshness}  ${route.detail}`),
-          ...record.routeRecords.flatMap((route) => route.issues.map((issue) => `    issue: ${issue}`)),
+          `  preferred route ${formatProviderAuthRouteId(record.preferredRoute)}`,
+          `  active route ${formatProviderAuthRouteId(record.activeRoute)}`,
+          `  reason ${record.activeRouteReason}`,
+          ...record.routeRecords.map((route) => `  ${formatRouteRecord(route)}`),
+          ...record.routeRecords.flatMap((route) => route.issues.map((issue) => `    issue ${issue}`)),
         ].join('\n'));
         return;
       }
@@ -63,17 +74,17 @@ export function registerProviderAccountsRuntimeCommands(registry: CommandRegistr
         const providerId = args[1];
         const record = findProviderAccountRecord(snapshot, providerId);
         if (!record) {
-          ctx.print(providerId ? `Unknown provider account: ${providerId}` : 'Usage: /accounts repair <provider>');
+          ctx.print(providerId ? `Unknown provider account ${providerId}` : 'Usage: /accounts repair <provider>');
           return;
         }
         ctx.print([
           `Provider Account Repair ${record.providerId}`,
-          `  active route: ${record.activeRoute}`,
-          `  preferred route: ${record.preferredRoute}`,
-          ...(record.fallbackRisk ? [`  fallback: ${record.fallbackRisk}`] : []),
-          ...(record.issues.map((issue) => `  issue: ${issue}`)),
+          `  active route ${formatProviderAuthRouteId(record.activeRoute)}`,
+          `  preferred route ${formatProviderAuthRouteId(record.preferredRoute)}`,
+          ...(record.fallbackRisk ? [`  routing risk ${record.fallbackRisk}`] : []),
+          ...(record.issues.map((issue) => `  issue ${issue}`)),
           ...(record.recommendedActions.length > 0
-            ? ['  next:', ...record.recommendedActions.map((action) => `    ${action}`)]
+            ? ['  next', ...record.recommendedActions.map((action) => `    ${action}`)]
             : ['  No active repair actions suggested.']),
         ].join('\n'));
         return;
@@ -82,39 +93,39 @@ export function registerProviderAccountsRuntimeCommands(registry: CommandRegistr
         const providerId = args[1];
         const record = findProviderAccountRecord(snapshot, providerId);
         if (!record) {
-          ctx.print(providerId ? `Unknown provider account: ${providerId}` : 'Usage: /accounts show <provider>');
+          ctx.print(providerId ? `Unknown provider account ${providerId}` : 'Usage: /accounts show <provider>');
           return;
         }
         ctx.print([
           `Provider Account ${record.providerId}`,
-          `  preferredRoute: ${record.preferredRoute}`,
-          `  activeRoute: ${record.activeRoute}`,
-          `  authFreshness: ${record.authFreshness}`,
-          `  configured: ${record.configured ? 'yes' : 'no'}`,
-          `  oauthReady: ${record.oauthReady ? 'yes' : 'no'}`,
-          `  pendingLogin: ${record.pendingLogin ? 'yes' : 'no'}`,
-          `  availableRoutes: ${record.availableRoutes.join(', ')}`,
-          `  modelCount: ${record.modelCount}`,
-          `  routeReason: ${record.activeRouteReason}`,
-          ...(record.fallbackRoute ? [`  fallbackRoute: ${record.fallbackRoute}`] : []),
-          ...(record.fallbackRisk ? [`  fallbackRisk: ${record.fallbackRisk}`] : []),
-          ...(record.expiresAt ? [`  expiresAt: ${new Date(record.expiresAt).toISOString()}`] : []),
-          ...record.routeRecords.map((route) => `  route ${route.route}: usable=${route.usable ? 'yes' : 'no'} freshness=${route.freshness} — ${route.detail}`),
-          ...record.routeRecords.flatMap((route) => route.issues.map((issue) => `    issue: ${issue}`)),
-          ...record.usageWindows.map((entry) => `  window: ${entry.label} — ${entry.detail}`),
-          ...record.issues.map((issue) => `  issue: ${issue}`),
-          ...record.notes.map((note) => `  note: ${note}`),
-          ...record.recommendedActions.map((action) => `  next: ${action}`),
+          `  preferred route ${formatProviderAuthRouteId(record.preferredRoute)}`,
+          `  active route ${formatProviderAuthRouteId(record.activeRoute)}`,
+          `  auth freshness ${record.authFreshness}`,
+          `  configured ${record.configured ? 'yes' : 'no'}`,
+          `  OAuth ready ${record.oauthReady ? 'yes' : 'no'}`,
+          `  pending login ${record.pendingLogin ? 'yes' : 'no'}`,
+          `  available routes ${formatRouteList(record.availableRoutes)}`,
+          `  model count ${record.modelCount}`,
+          `  route reason ${record.activeRouteReason}`,
+          ...(record.fallbackRoute ? [`  fallback route ${formatProviderAuthRouteId(record.fallbackRoute)}`] : []),
+          ...(record.fallbackRisk ? [`  routing risk ${record.fallbackRisk}`] : []),
+          ...(record.expiresAt ? [`  expires at ${new Date(record.expiresAt).toISOString()}`] : []),
+          ...record.routeRecords.map((route) => `  route ${formatRouteRecord(route)}`),
+          ...record.routeRecords.flatMap((route) => route.issues.map((issue) => `    issue ${issue}`)),
+          ...record.usageWindows.map((entry) => `  window ${entry.label} — ${entry.detail}`),
+          ...record.issues.map((issue) => `  issue ${issue}`),
+          ...record.notes.map((note) => `  note ${note}`),
+          ...record.recommendedActions.map((action) => `  next ${action}`),
         ].join('\n'));
         return;
       }
       ctx.print([
         'Provider Account Review',
-        `  providers: ${snapshot.providers.length}`,
-        `  configured: ${snapshot.configuredCount}`,
-        `  issues: ${snapshot.issueCount}`,
+        `  providers ${snapshot.providers.length}`,
+        `  configured ${snapshot.configuredCount}`,
+        `  issues ${snapshot.issueCount}`,
         ...snapshot.providers.map((record) => (
-          `  ${record.providerId}  active=${record.activeRoute}  preferred=${record.preferredRoute}  freshness=${record.authFreshness}  models=${record.modelCount}  issues=${record.issues.length}`
+          `  ${record.providerId}  active route ${formatProviderAuthRouteId(record.activeRoute)}  preferred route ${formatProviderAuthRouteId(record.preferredRoute)}  auth ${record.authFreshness}  models ${record.modelCount}  issues ${record.issues.length}`
         )),
       ].join('\n'));
     },

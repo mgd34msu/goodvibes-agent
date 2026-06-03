@@ -23,6 +23,30 @@ function formatDeliveryTargetKind(target: { readonly kind?: string; readonly sur
   return `${target.kind ?? 'unknown'}${target.surfaceKind ? `/${target.surfaceKind}` : ''}`;
 }
 
+function formatDeliveryTarget(target: {
+  readonly kind?: string;
+  readonly surfaceKind?: string;
+  readonly routeId?: string;
+  readonly address?: string;
+  readonly label?: string;
+}): string {
+  const details = [
+    target.routeId ? `route=${target.routeId}` : '',
+    target.address ? `address=${target.address}` : '',
+    target.label ? `label=${target.label}` : '',
+  ].filter(Boolean);
+  return `${formatDeliveryTargetKind(target)}${details.length > 0 ? ` ${details.join(' ')}` : ''}`;
+}
+
+function formatRoutineScheduleFailureKind(kind: string): string {
+  if (kind === 'auth_required') return 'authorization required';
+  if (kind === 'connected_host_unavailable') return 'connected host unavailable';
+  if (kind === 'connected_host_route_unavailable') return 'connected host route unavailable';
+  if (kind === 'connected_host_error') return 'connected host error';
+  if (kind === 'version_mismatch') return 'version mismatch';
+  return kind.replace(/[_-]+/g, ' ');
+}
+
 export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPreview): string {
   const schedule = preview.payload.kind === 'cron'
     ? `${preview.payload.cron}${preview.payload.timezone ? ` [${preview.payload.timezone}]` : ''}`
@@ -33,15 +57,15 @@ export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPr
   const deliveryTargetCount = delivery?.targets.length ?? 0;
   return [
     'GoodVibes schedule preview for Agent routine',
-    `  routine: ${preview.routineName} (${preview.routineId})`,
-    `  route: ${preview.method} ${preview.route}`,
-    `  name: ${String(preview.payload.name ?? '(connected-host default)')}`,
-    `  schedule: ${preview.payload.kind} ${schedule}`,
-    `  enabled: ${preview.payload.enabled === false ? 'no' : 'yes'}`,
+    `  routine ${preview.routineName} (${preview.routineId})`,
+    `  route ${preview.method} ${preview.route}`,
+    `  name ${String(preview.payload.name ?? '(connected-host default)')}`,
+    `  schedule ${preview.payload.kind} ${schedule}`,
+    `  enabled ${preview.payload.enabled === false ? 'no' : 'yes'}`,
     `  delivery: ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
-    '  target: connected GoodVibes host/main conversation route',
-    '  policy: isolated Agent Knowledge only; no default knowledge/non-Agent fallback; no WRFC unless explicitly delegated',
-    '  next: rerun with --yes to create this connected schedule',
+    '  target connected GoodVibes host/main conversation route',
+    '  policy isolated Agent Knowledge only; no default knowledge/non-Agent fallback; no delegated review unless explicitly requested',
+    '  next rerun with --yes to create this connected schedule',
   ].join('\n');
 }
 
@@ -51,11 +75,11 @@ export function formatRoutineScheduleSuccess(result: RoutineSchedulePromotionSuc
   const status = readString(record, 'status') ?? (record.enabled === false ? 'paused' : 'enabled');
   return [
     'Created GoodVibes schedule for Agent routine',
-    `  routine: ${result.routineName} (${result.routineId})`,
-    `  schedule: ${id}`,
-    `  status: ${status}`,
-    `  route: ${result.kind} ${result.route}`,
-    '  next: inspect with /schedule list or schedule observability',
+    `  routine ${result.routineName} (${result.routineId})`,
+    `  schedule ${id}`,
+    `  status ${status}`,
+    `  route ${result.kind} ${result.route}`,
+    '  next inspect with /schedule list or schedule observability',
   ].join('\n');
 }
 
@@ -64,18 +88,18 @@ export function formatRoutineScheduleReceipts(snapshot: RoutineScheduleReceiptSn
   if (snapshot.receipts.length === 0) {
     return [
       'Agent routine schedule receipts',
-      `  store: ${snapshot.path}`,
+      `  store ${snapshot.path}`,
       '  No routine schedule promotions have been recorded yet.',
       '  Create one with /schedule promote-routine <routine-id> --cron <expr> --yes.',
     ].join('\n');
   }
   return [
     `Agent routine schedule receipts (${snapshot.receipts.length})`,
-    `  store: ${snapshot.path}`,
+    `  store ${snapshot.path}`,
     ...receipts.map((receipt) => {
       const schedule = receipt.scheduleId ? ` schedule=${receipt.scheduleId}` : '';
-      const failure = receipt.status === 'failed' && receipt.failureKind ? ` failure=${receipt.failureKind}` : '';
-      return `  ${receipt.id}  ${receipt.status}  ${receipt.scheduleKind} ${receipt.scheduleValue}  routine=${receipt.routineId}${schedule}${failure}`;
+      const failure = receipt.status === 'failed' && receipt.failureKind ? ` failure ${formatRoutineScheduleFailureKind(receipt.failureKind)}` : '';
+      return `  ${receipt.id}  ${receipt.status}  ${receipt.scheduleKind} ${receipt.scheduleValue}  routine ${receipt.routineId}${schedule}${failure}`;
     }),
     snapshot.receipts.length > receipts.length ? `  ...${snapshot.receipts.length - receipts.length} more` : '',
   ].filter((line): line is string => Boolean(line)).join('\n');
@@ -84,20 +108,20 @@ export function formatRoutineScheduleReceipts(snapshot: RoutineScheduleReceiptSn
 export function formatRoutineScheduleReceipt(receipt: RoutineScheduleReceipt): string {
   return [
     `Agent routine schedule receipt ${receipt.id}`,
-    `  created: ${receipt.createdAt}`,
-    `  status: ${receipt.status}`,
-    `  routine: ${receipt.routineName} (${receipt.routineId})`,
-    `  route: ${receipt.method} ${receipt.route}`,
+    `  created ${receipt.createdAt}`,
+    `  status ${receipt.status}`,
+    `  routine ${receipt.routineName} (${receipt.routineId})`,
+    `  route ${receipt.method} ${receipt.route}`,
     `  connected host: ${receipt.connectedHostBaseUrl}`,
-    `  schedule: ${receipt.scheduleName}${receipt.scheduleId ? ` (${receipt.scheduleId})` : ''}`,
-    receipt.scheduleStatus ? `  schedule status: ${receipt.scheduleStatus}` : '',
+    `  schedule ${receipt.scheduleName}${receipt.scheduleId ? ` (${receipt.scheduleId})` : ''}`,
+    receipt.scheduleStatus ? `  schedule status ${receipt.scheduleStatus}` : '',
     `  cadence: ${receipt.scheduleKind} ${receipt.scheduleValue}${receipt.timezone ? ` [${receipt.timezone}]` : ''}`,
-    `  enabled: ${receipt.enabled ? 'yes' : 'no'}`,
-    receipt.provider ? `  provider: ${receipt.provider}` : '',
-    receipt.model ? `  model: ${receipt.model}` : '',
-    `  target: ${formatDeliveryTargetKind(receipt.target)}`,
+    `  enabled ${receipt.enabled ? 'yes' : 'no'}`,
+    receipt.provider ? `  provider ${receipt.provider}` : '',
+    receipt.model ? `  model ${receipt.model}` : '',
+    `  target ${formatDeliveryTargetKind(receipt.target)}`,
     receipt.deliveryMode ? `  delivery: ${receipt.deliveryMode}` : '',
-    ...(receipt.deliveryTargets ?? []).map((target) => `  delivery target: ${formatDeliveryTargetKind(target)}${target.routeId ? ` route=${target.routeId}` : ''}${target.address ? ` address=${target.address}` : ''}${target.label ? ` label=${target.label}` : ''}`),
+    ...(receipt.deliveryTargets ?? []).map((target) => `  delivery target: ${formatDeliveryTarget(target)}`),
     receipt.failureKind ? `  failure: ${receipt.failureKind}` : '',
     receipt.failureError ? `  error: ${receipt.failureError}` : '',
   ].filter((line): line is string => Boolean(line)).join('\n');
@@ -106,18 +130,18 @@ export function formatRoutineScheduleReceipt(receipt: RoutineScheduleReceipt): s
 export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelationResult, limit = 10): string {
   if (!result.ok) {
     return [
-      `GoodVibes schedule reconciliation error: ${result.kind}`,
+      `GoodVibes schedule reconciliation error ${formatRoutineScheduleFailureKind(result.kind)}`,
       `  ${result.error}`,
-      result.baseUrl ? `  connected host: ${result.baseUrl}` : null,
-      `  route: ${ROUTINE_SCHEDULE_LIST_METHOD} ${result.route}`,
+      result.baseUrl ? `  connected host ${result.baseUrl}` : null,
+      `  route ${ROUTINE_SCHEDULE_LIST_METHOD} ${result.route}`,
       result.kind === 'auth_required'
-        ? '  next: pair/authenticate with the connected GoodVibes host, then retry.'
+        ? '  next pair/authenticate with the connected GoodVibes host, then retry.'
         : null,
       result.kind === 'connected_host_unavailable'
-        ? '  next: make the connected GoodVibes host available outside Agent, then retry.'
+        ? '  next make the connected GoodVibes host available outside Agent, then retry.'
         : null,
       result.kind === 'version_mismatch' || result.kind === 'connected_host_route_unavailable'
-        ? '  next: update the connected GoodVibes host so public schedules.list is available.'
+        ? '  next update the connected GoodVibes host so public schedules.list is available.'
         : null,
     ].filter((line): line is string => Boolean(line)).join('\n');
   }
@@ -144,13 +168,13 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
       const receipt = entry.receipt;
       const schedule = entry.schedule;
       const live = schedule
-        ? ` live=${schedule.id} status=${schedule.status ?? (schedule.enabled === false ? 'paused' : 'enabled')}`
+        ? ` live=${schedule.id}; status ${schedule.status ?? (schedule.enabled === false ? 'paused' : 'enabled')}`
         : '';
       const runs = schedule && schedule.runCount !== undefined
-        ? ` runs=${schedule.runCount}/${schedule.successCount ?? 0}/${schedule.failureCount ?? 0}`
+        ? ` runs ${schedule.runCount}/${schedule.successCount ?? 0}/${schedule.failureCount ?? 0}`
         : '';
-      const next = schedule?.nextRunAt ? ` next=${new Date(schedule.nextRunAt).toISOString()}` : '';
-      return `  ${receipt.id}  ${entry.liveStatus}  reason=${entry.matchReason}  routine=${receipt.routineId}  receiptSchedule=${receipt.scheduleId ?? '(none)'}${live}${runs}${next}`;
+      const next = schedule?.nextRunAt ? ` next ${new Date(schedule.nextRunAt).toISOString()}` : '';
+      return `  ${receipt.id}  ${entry.liveStatus}  reason ${entry.matchReason}  routine ${receipt.routineId}  receipt schedule ${receipt.scheduleId ?? '(none)'}${live}${runs}${next}`;
     }),
     result.correlations.length > correlations.length ? `  ...${result.correlations.length - correlations.length} more` : '',
   ].filter((line): line is string => Boolean(line)).join('\n');
@@ -158,21 +182,21 @@ export function formatRoutineScheduleCorrelation(result: RoutineScheduleCorrelat
 
 export function formatRoutineScheduleFailure(failure: RoutineSchedulePromotionFailure): string {
   return [
-    `GoodVibes schedule error: ${failure.kind}`,
+    `GoodVibes schedule error ${formatRoutineScheduleFailureKind(failure.kind)}`,
     `  ${failure.error}`,
-    failure.baseUrl ? `  connected host: ${failure.baseUrl}` : null,
-    `  route: ${ROUTINE_SCHEDULE_METHOD} ${failure.route}`,
+    failure.baseUrl ? `  connected host ${failure.baseUrl}` : null,
+    `  route ${ROUTINE_SCHEDULE_METHOD} ${failure.route}`,
     failure.kind === 'version_mismatch' && failure.connectedHostVersion && failure.expectedSdkVersion
-      ? `  versions: connectedHost=${failure.connectedHostVersion} expected=${failure.expectedSdkVersion}`
+      ? `  versions connected host ${failure.connectedHostVersion}; expected ${failure.expectedSdkVersion}`
       : null,
     failure.kind === 'auth_required'
-      ? '  next: pair/authenticate with the connected GoodVibes host, then retry with --yes.'
+      ? '  next pair/authenticate with the connected GoodVibes host, then retry with --yes.'
       : null,
     failure.kind === 'connected_host_unavailable'
-      ? '  next: make the connected GoodVibes host available outside Agent, then retry.'
+      ? '  next make the connected GoodVibes host available outside Agent, then retry.'
       : null,
     failure.kind === 'version_mismatch' || failure.kind === 'connected_host_route_unavailable'
-      ? '  next: update the connected GoodVibes host so public schedules.create is available.'
+      ? '  next update the connected GoodVibes host so public schedules.create is available.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }

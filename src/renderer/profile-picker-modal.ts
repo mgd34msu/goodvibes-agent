@@ -1,5 +1,5 @@
 /**
- * renderProfilePickerModal — renders the /profiles picker modal as Line[]
+ * renderProfilePickerModal — renders the Agent profile picker modal as Line[]
  * using ModalFactory.
  *
  * Shows a list of saved profiles with:
@@ -10,6 +10,7 @@
 import type { Line } from '../types/grid.ts';
 import { ModalFactory } from './modal-factory.ts';
 import type { ProfilePickerModal } from '../input/profile-picker-modal.ts';
+import { renderProfilePickerStatePackageText } from '../input/profile-picker-modal.ts';
 import { formatTimestamp } from './modal-utils.ts';
 import { fitDisplay } from '../utils/terminal-width.ts';
 import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay-viewport.ts';
@@ -17,6 +18,23 @@ import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay
 // ---------------------------------------------------------------------------
 // Renderer
 // ---------------------------------------------------------------------------
+
+export function renderProfilePickerPackageText(): string {
+  return [
+    'Profiles',
+    'No saved profiles.',
+    'Open Agent Workspace -> Profiles to create and manage isolated Agent profile homes.',
+    'Name',
+    'Saved',
+    'Settings',
+    '(display/provider/behavior)',
+    '[Up/Down] Navigate',
+    '[Enter] Load',
+    'Agent profiles: /agent profiles',
+    '[Esc] Close',
+    renderProfilePickerStatePackageText(),
+  ].join('\n');
+}
 
 /**
  * Render the profile picker modal as Line[] for overlay in the viewport.

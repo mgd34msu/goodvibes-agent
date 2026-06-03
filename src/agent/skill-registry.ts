@@ -3,6 +3,7 @@ import { delimiter, dirname, join } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
+import { formatAgentRecordReviewState } from './record-labels.ts';
 
 export type AgentSkillSource = 'user' | 'agent' | 'imported' | 'system';
 export type AgentSkillReviewState = 'fresh' | 'reviewed' | 'stale';
@@ -153,10 +154,10 @@ function normalizeList(values: readonly string[] | undefined): string[] {
 
 function validateRequirementName(requirement: AgentSkillRequirement): void {
   if (requirement.kind === 'env' && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(requirement.name)) {
-    throw new Error(`Invalid skill env requirement: ${requirement.name}`);
+    throw new Error(`Invalid skill env requirement ${requirement.name}`);
   }
   if (requirement.kind === 'command' && !/^[A-Za-z0-9._+-]+$/.test(requirement.name)) {
-    throw new Error(`Invalid skill command requirement: ${requirement.name}`);
+    throw new Error(`Invalid skill command requirement ${requirement.name}`);
   }
 }
 
@@ -377,7 +378,7 @@ export class AgentSkillRegistry {
     const requirements = normalizeRequirements(input.requirements);
     assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])], 'Skills');
     const duplicate = store.skills.find((skill) => skill.name.toLowerCase() === name.toLowerCase());
-    if (duplicate) throw new Error(`Skill already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Skill already exists ${duplicate.id}`);
     const timestamp = nowIso();
     const skill: AgentSkillRecord = {
       id: this.nextId(name, store.skills),
@@ -406,7 +407,7 @@ export class AgentSkillRegistry {
     this.validateBundleRequired(name, description, skillIds);
     assertNoSecretLikeText([name, description, ...skillIds], 'Skill bundles');
     const duplicate = store.bundles.find((bundle) => bundle.name.toLowerCase() === name.toLowerCase());
-    if (duplicate) throw new Error(`Skill bundle already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Skill bundle already exists ${duplicate.id}`);
     const timestamp = nowIso();
     const bundle: AgentSkillBundleRecord = {
       id: this.nextBundleId(name, store.bundles),
@@ -427,7 +428,7 @@ export class AgentSkillRegistry {
   public update(idOrName: string, input: AgentSkillUpdateInput): AgentSkillRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill ${idOrName}`);
     const name = input.name === undefined ? existing.name : normalizeName(input.name);
     const description = input.description === undefined ? existing.description : input.description.trim();
     const procedure = input.procedure === undefined ? existing.procedure : input.procedure.trim();
@@ -435,7 +436,7 @@ export class AgentSkillRegistry {
     const requirements = input.requirements === undefined ? existing.requirements : normalizeRequirements(input.requirements);
     assertNoSecretLikeText([name, description, procedure, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])], 'Skills');
     const duplicate = store.skills.find((skill) => skill.id !== existing.id && skill.name.toLowerCase() === name.toLowerCase());
-    if (duplicate) throw new Error(`Skill already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Skill already exists ${duplicate.id}`);
     const updated: AgentSkillRecord = {
       ...existing,
       name,
@@ -460,14 +461,14 @@ export class AgentSkillRegistry {
   public updateBundle(idOrName: string, input: AgentSkillBundleUpdateInput): AgentSkillBundleRecord {
     const store = this.readStore();
     const existing = this.findBundleInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill bundle: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill bundle ${idOrName}`);
     const name = input.name === undefined ? existing.name : normalizeName(input.name);
     const description = input.description === undefined ? existing.description : input.description.trim();
     const skillIds = input.skillIds === undefined ? existing.skillIds : this.normalizeExistingSkillIds(store, input.skillIds);
     this.validateBundleRequired(name, description, skillIds);
     assertNoSecretLikeText([name, description, ...skillIds], 'Skill bundles');
     const duplicate = store.bundles.find((bundle) => bundle.id !== existing.id && bundle.name.toLowerCase() === name.toLowerCase());
-    if (duplicate) throw new Error(`Skill bundle already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Skill bundle already exists ${duplicate.id}`);
     const updated: AgentSkillBundleRecord = {
       ...existing,
       name,
@@ -489,7 +490,7 @@ export class AgentSkillRegistry {
   public setEnabled(idOrName: string, enabled: boolean): AgentSkillRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill ${idOrName}`);
     const updated: AgentSkillRecord = { ...existing, enabled, updatedAt: nowIso() };
     this.writeStore({
       ...store,
@@ -501,7 +502,7 @@ export class AgentSkillRegistry {
   public setBundleEnabled(idOrName: string, enabled: boolean): AgentSkillBundleRecord {
     const store = this.readStore();
     const existing = this.findBundleInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill bundle: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill bundle ${idOrName}`);
     const updated: AgentSkillBundleRecord = { ...existing, enabled, updatedAt: nowIso() };
     this.writeStore({
       ...store,
@@ -513,7 +514,7 @@ export class AgentSkillRegistry {
   public markReviewed(idOrName: string): AgentSkillRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill ${idOrName}`);
     const updated: AgentSkillRecord = {
       ...existing,
       reviewState: 'reviewed',
@@ -531,7 +532,7 @@ export class AgentSkillRegistry {
   public markBundleReviewed(idOrName: string): AgentSkillBundleRecord {
     const store = this.readStore();
     const existing = this.findBundleInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill bundle: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill bundle ${idOrName}`);
     const updated: AgentSkillBundleRecord = {
       ...existing,
       reviewState: 'reviewed',
@@ -549,7 +550,7 @@ export class AgentSkillRegistry {
   public markStale(idOrName: string, reason: string): AgentSkillRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill ${idOrName}`);
     const updated: AgentSkillRecord = {
       ...existing,
       reviewState: 'stale',
@@ -566,7 +567,7 @@ export class AgentSkillRegistry {
   public markBundleStale(idOrName: string, reason: string): AgentSkillBundleRecord {
     const store = this.readStore();
     const existing = this.findBundleInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill bundle: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill bundle ${idOrName}`);
     const updated: AgentSkillBundleRecord = {
       ...existing,
       reviewState: 'stale',
@@ -583,7 +584,7 @@ export class AgentSkillRegistry {
   public deleteSkill(idOrName: string): AgentSkillRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill ${idOrName}`);
     this.writeStore({
       ...store,
       skills: store.skills.filter((skill) => skill.id !== existing.id),
@@ -597,7 +598,7 @@ export class AgentSkillRegistry {
   public deleteBundle(idOrName: string): AgentSkillBundleRecord {
     const store = this.readStore();
     const existing = this.findBundleInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown skill bundle: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown skill bundle ${idOrName}`);
     this.writeStore({
       ...store,
       bundles: store.bundles.filter((bundle) => bundle.id !== existing.id),
@@ -655,7 +656,7 @@ export class AgentSkillRegistry {
     const normalized = normalizeList(skillIds).map(slugify);
     const known = new Set(store.skills.map((skill) => skill.id));
     for (const skillId of normalized) {
-      if (!known.has(skillId)) throw new Error(`Unknown skill for bundle: ${skillId}`);
+      if (!known.has(skillId)) throw new Error(`Unknown skill for bundle ${skillId}`);
     }
     return normalized;
   }
@@ -665,7 +666,7 @@ export class AgentSkillRegistry {
     try {
       return parseStore(readFileSync(this.storePath, 'utf-8'));
     } catch (error) {
-      throw new Error(`Could not read Agent skill store: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Could not read Agent skill store ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -768,7 +769,7 @@ export function buildEnabledSkillsPrompt(shellPaths: ShellPathService): string |
       return [
         `### Skill Bundle: ${bundle.name}`,
         `Description: ${bundle.description}`,
-        `Review state: ${bundle.reviewState}`,
+        `Review: ${formatAgentRecordReviewState(bundle.reviewState)}`,
         `Readiness: ${readiness.ready ? 'ready' : `missing ${missing.join(', ')}`}`,
         `Included skills: ${bundle.skillIds.join(', ')}`,
         '',
@@ -777,7 +778,7 @@ export function buildEnabledSkillsPrompt(shellPaths: ShellPathService): string |
     ...active.slice(0, 8).flatMap((skill) => [
       `### ${skill.name}`,
       `Description: ${skill.description}`,
-      `Review state: ${skill.reviewState}`,
+      `Review: ${formatAgentRecordReviewState(skill.reviewState)}`,
       `Triggers: ${skill.triggers.join(', ') || '(manual)'}`,
       `Readiness: ${evaluateAgentSkillReadiness(skill).ready ? 'ready' : `missing ${evaluateAgentSkillReadiness(skill).missing.map(formatAgentSkillRequirement).join(', ')}`}`,
       skill.procedure,

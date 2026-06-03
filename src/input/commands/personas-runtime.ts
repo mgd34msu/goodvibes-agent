@@ -1,5 +1,6 @@
 import { discoverPersonas, type DiscoveredPersonaRecord } from '../../agent/persona-discovery.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../../agent/persona-registry.ts';
+import { formatAgentRecordOrigin, formatAgentRecordReviewState } from '../../agent/record-labels.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
 
@@ -44,21 +45,33 @@ function registryFromContext(ctx: CommandContext): AgentPersonaRegistry {
   return AgentPersonaRegistry.fromShellPaths(requireShellPaths(ctx));
 }
 
+function formatPersonaReceipt(title: string, persona: Pick<AgentPersonaRecord, 'id' | 'name'>, extra: readonly string[] = []): string {
+  const activeSuffix = extra.some((line) => line.includes('active yes') || line.includes('active: yes')) ? ' (active)' : '';
+  const normalizedExtra = extra.map((line) => line.replace(/^  active /, '  active: '));
+  return [
+    `${title} ${persona.id}: ${persona.name}${activeSuffix}`,
+    `  id ${persona.id}`,
+    `  name ${persona.name}`,
+    ...normalizedExtra,
+  ].join('\n');
+}
+
 function summarizePersona(persona: AgentPersonaRecord, activePersonaId: string | null): string {
   const active = persona.id === activePersonaId ? 'active' : 'inactive';
-  const tags = persona.tags.length > 0 ? ` tags=${persona.tags.join(',')}` : '';
-  return `  ${persona.id}  ${active}  ${persona.reviewState}  ${persona.name} - ${persona.description}${tags}`;
+  const review = formatAgentRecordReviewState(persona.reviewState);
+  const tags = persona.tags.length > 0 ? ` tags ${persona.tags.join(', ')}` : '';
+  return `  ${persona.id}  ${active}  ${review}  ${persona.name} - ${persona.description}${tags}`;
 }
 
 function renderList(title: string, registry: AgentPersonaRegistry, personas: readonly AgentPersonaRecord[]): string {
   const snapshot = registry.snapshot();
   if (personas.length === 0) {
-    return `${title}\n  No local Agent personas yet. Create one with /personas create --name <name> --description <summary> --body <instructions>.`;
+    return `${title}\n  No local Agent personas yet.\n  No Agent-local personas yet. Create one with /personas create --name <name> --description <summary> --body <instructions>.`;
   }
   return [
     `${title} (${personas.length})`,
-    `  store: ${snapshot.path}`,
-    `  active: ${snapshot.activePersona?.name ?? '(none)'}`,
+    `  store ${snapshot.path}`,
+    `  active ${snapshot.activePersona?.name ?? '(none)'}`,
     ...personas.map((persona) => summarizePersona(persona, snapshot.activePersonaId)),
   ].join('\n');
 }
@@ -66,11 +79,10 @@ function renderList(title: string, registry: AgentPersonaRegistry, personas: rea
 function renderPersona(persona: AgentPersonaRecord, activePersonaId: string | null): string {
   return [
     `Persona ${persona.name}`,
-    `  id: ${persona.id}`,
+    `  id ${persona.id}`,
     `  active: ${persona.id === activePersonaId ? 'yes' : 'no'}`,
-    `  review: ${persona.reviewState}`,
-    `  source: ${persona.source}`,
-    `  provenance: ${persona.provenance}`,
+    `  review: ${formatAgentRecordReviewState(persona.reviewState)}`,
+    `  origin: ${formatAgentRecordOrigin(persona.source, persona.provenance)}`,
     `  tags: ${persona.tags.join(', ') || '(none)'}`,
     `  triggers: ${persona.triggers.join(', ') || '(none)'}`,
     `  created: ${persona.createdAt}`,
@@ -85,7 +97,7 @@ function renderPersona(persona: AgentPersonaRecord, activePersonaId: string | nu
 
 function summarizeDiscoveredPersona(persona: DiscoveredPersonaRecord): string {
   const description = persona.description ? ` - ${persona.description}` : '';
-  return `  ${persona.name}  ${persona.origin}${description}\n    path: ${persona.path}`;
+  return `  ${persona.name}  ${persona.origin}${description}\n    path ${persona.path}`;
 }
 
 function renderDiscoveredPersonas(personas: readonly DiscoveredPersonaRecord[]): string {
@@ -131,18 +143,18 @@ async function importDiscoveredPersona(args: readonly string[], ctx: CommandCont
   }
   const discovered = findDiscoveredPersona(await discoverPersonas(requireShellPaths(ctx)), name);
   if (!discovered) {
-    ctx.print(`Unknown discovered Agent persona: ${name}\nRun /personas discover to inspect available persona files.`);
+    ctx.print(`Unknown discovered Agent persona ${name}\nRun /personas discover to inspect available persona files.`);
     return;
   }
   if (!parsed.yes) {
     ctx.print([
       'Agent persona import preview',
-      `  name: ${discovered.name}`,
-      `  origin: ${discovered.origin}`,
-      `  path: ${discovered.path}`,
-      `  description: ${discovered.description || '(none)'}`,
-      `  body characters: ${discovered.body.length}`,
-      '  next: rerun with --yes to import into the Agent-local persona registry',
+      `  name ${discovered.name}`,
+      `  origin ${discovered.origin}`,
+      `  path ${discovered.path}`,
+      `  description ${discovered.description || '(none)'}`,
+      `  body characters ${discovered.body.length}`,
+      '  next rerun with --yes to import into the Agent-local persona registry',
     ].join('\n'));
     return;
   }
@@ -153,10 +165,10 @@ async function importDiscoveredPersona(args: readonly string[], ctx: CommandCont
     tags: frontmatterList(discovered, 'tags'),
     triggers: frontmatterList(discovered, 'triggers'),
     source: 'imported',
-    provenance: `discovered:${discovered.origin}:${discovered.path}`,
+    provenance: `Imported file (${discovered.origin}): ${discovered.path}`,
   });
   if (parsed.flags.get('use') === 'true') personaRegistry.setActive(persona.id);
-  ctx.print(`Imported Agent persona ${persona.id}: ${persona.name}${parsed.flags.get('use') === 'true' ? ' (active)' : ''}`);
+  ctx.print(formatPersonaReceipt('Imported Agent persona', persona, [`  active ${parsed.flags.get('use') === 'true' ? 'yes' : 'no'}`]));
 }
 
 function requiredFlag(flags: ReadonlyMap<string, string>, key: string): string {
@@ -166,14 +178,17 @@ function requiredFlag(flags: ReadonlyMap<string, string>, key: string): string {
 }
 
 function printError(ctx: CommandContext, error: unknown): void {
-  ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
+  ctx.print([
+    'Error',
+    `  message ${error instanceof Error ? error.message : String(error)}`,
+  ].join('\n'));
 }
 
 export function registerPersonasRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'personas',
     aliases: ['persona'],
-    description: 'Manage local GoodVibes Agent personas',
+    description: 'Manage Agent-local personas',
     usage: '[list|discover|import-discovered <name> --yes|search <query>|show <id>|create --name <name> --description <summary> --body <instructions>|update <id> [--name ...] [--description ...] [--body ...]|use <id>|active|clear|review <id>|stale <id> <reason...>|delete <id> --yes]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'list').toLowerCase();
@@ -204,7 +219,7 @@ export function registerPersonasRuntimeCommands(registry: CommandRegistry): void
           }
           const snapshot = registryStore.snapshot();
           const persona = registryStore.get(id);
-          ctx.print(persona ? renderPersona(persona, snapshot.activePersonaId) : `Unknown persona: ${id}`);
+          ctx.print(persona ? renderPersona(persona, snapshot.activePersonaId) : `Unknown Agent persona ${id}`);
           return;
         }
         if (sub === 'create') {
@@ -217,9 +232,9 @@ export function registerPersonasRuntimeCommands(registry: CommandRegistry): void
             tags: splitList(parsed.flags.get('tags')),
             triggers: splitList(parsed.flags.get('triggers')),
             source: 'user',
-            provenance: 'slash-command',
+            provenance: 'Command',
           });
-          ctx.print(`Created Agent persona ${persona.id}: ${persona.name}`);
+          ctx.print(formatPersonaReceipt('Created Agent persona', persona));
           return;
         }
         if (sub === 'update') {
@@ -235,9 +250,9 @@ export function registerPersonasRuntimeCommands(registry: CommandRegistry): void
             body: parsed.flags.get('body'),
             tags: parsed.flags.has('tags') ? splitList(parsed.flags.get('tags')) : undefined,
             triggers: parsed.flags.has('triggers') ? splitList(parsed.flags.get('triggers')) : undefined,
-            provenance: 'slash-command',
+            provenance: 'Command',
           });
-          ctx.print(`Updated Agent persona ${updated.id}: ${updated.name}`);
+          ctx.print(formatPersonaReceipt('Updated Agent persona', updated));
           return;
         }
         if (sub === 'use') {
@@ -247,7 +262,7 @@ export function registerPersonasRuntimeCommands(registry: CommandRegistry): void
             return;
           }
           const persona = registryStore.setActive(id);
-          ctx.print(`Active Agent persona: ${persona.name} (${persona.id})`);
+          ctx.print(`Active Agent persona: ${persona.name}\n${formatPersonaReceipt('Active Agent persona', persona)}`);
           return;
         }
         if (sub === 'active') {
@@ -267,7 +282,7 @@ export function registerPersonasRuntimeCommands(registry: CommandRegistry): void
             return;
           }
           const persona = registryStore.markReviewed(id);
-          ctx.print(`Reviewed Agent persona ${persona.id}.`);
+          ctx.print(formatPersonaReceipt('Reviewed Agent persona', persona));
           return;
         }
         if (sub === 'stale') {
@@ -277,7 +292,7 @@ export function registerPersonasRuntimeCommands(registry: CommandRegistry): void
             return;
           }
           const persona = registryStore.markStale(id, args.slice(2).join(' '));
-          ctx.print(`Marked Agent persona ${persona.id} stale.`);
+          ctx.print(formatPersonaReceipt('Marked Agent persona stale', persona));
           return;
         }
         if (sub === 'delete' || sub === 'remove') {
@@ -292,7 +307,7 @@ export function registerPersonasRuntimeCommands(registry: CommandRegistry): void
             return;
           }
           const removed = registryStore.deletePersona(id);
-          ctx.print(`Deleted Agent persona ${removed.id}: ${removed.name}`);
+          ctx.print(formatPersonaReceipt('Deleted Agent persona', removed));
           return;
         }
         ctx.print('Usage: /personas [list|discover|import-discovered|search <query>|show <id>|create|update|use|active|clear|review|stale|delete]');

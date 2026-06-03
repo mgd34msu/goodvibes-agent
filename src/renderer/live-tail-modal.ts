@@ -4,6 +4,28 @@ import type { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ProcessEntry } from './process-modal.ts';
 import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay-viewport.ts';
 
+const LIVE_TAIL_PROCESS_TAG = '[exec]';
+const LIVE_TAIL_EMPTY_OUTPUT = '(no output yet)';
+const LIVE_TAIL_SCROLL_HINT = '[Up/Down] Scroll';
+const LIVE_TAIL_HINTS = [LIVE_TAIL_SCROLL_HINT, '[k] Stop process', '[Esc] Back'];
+
+function liveTailTitle(label: string): string {
+  return `${LIVE_TAIL_PROCESS_TAG} ${label}`;
+}
+
+function liveTailScrollInfo(start: string | number, end: string | number, total: string | number): string {
+  return `  Lines ${start}-${end} of ${total}  ${LIVE_TAIL_SCROLL_HINT}`;
+}
+
+export function renderLiveTailModalPackageText(): string {
+  return [
+    liveTailTitle('<process>'),
+    LIVE_TAIL_EMPTY_OUTPUT,
+    liveTailScrollInfo('<start>', '<end>', '<total>'),
+    ...LIVE_TAIL_HINTS,
+  ].join('\n');
+}
+
 export interface LiveTailModalDeps {
   readonly processManager: Pick<ProcessManager, 'stop' | 'getOutput'>;
 }
@@ -45,7 +67,7 @@ export class LiveTailModal {
     const output = this.deps.processManager.getOutput(this.entry.id);
     if (!output) return '';
     const combined = [output.stdout, output.stderr].filter(Boolean).join('\n').trim();
-    return combined || '(no output yet)';
+    return combined || LIVE_TAIL_EMPTY_OUTPUT;
   }
 }
 
@@ -74,9 +96,9 @@ export function renderLiveTailModal(
   const visibleLines = allLines.slice(startIdx, endIdx);
 
   const maxLabelW = Math.max(20, width - 30);
-  const title = `[exec] ${entry.label.slice(0, maxLabelW)}`;
+  const title = liveTailTitle(entry.label.slice(0, maxLabelW));
   const scrollInfo = totalLines > maxOutputLines
-    ? `  Lines ${startIdx + 1}-${Math.min(endIdx, totalLines)} of ${totalLines}  [Up/Down] Scroll`
+    ? liveTailScrollInfo(startIdx + 1, Math.min(endIdx, totalLines), totalLines)
     : '';
 
   const sections: import('./modal-factory.ts').ModalSection[] = [];
@@ -84,7 +106,7 @@ export function renderLiveTailModal(
     sections.push({ type: 'text', content: scrollInfo });
     sections.push({ type: 'separator' });
   }
-  sections.push({ type: 'text', content: visibleLines.join('\n') || '(no output yet)' });
+  sections.push({ type: 'text', content: visibleLines.join('\n') || LIVE_TAIL_EMPTY_OUTPUT });
 
   return ModalFactory.createModal({
     title,
@@ -92,6 +114,6 @@ export function renderLiveTailModal(
     margin: 2,
     targetContentRows,
     sections,
-    hints: ['[Up/Down] Scroll', '[k] Stop process', '[Esc] Back'],
+    hints: LIVE_TAIL_HINTS,
   }, width);
 }

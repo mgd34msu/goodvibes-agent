@@ -45,3 +45,5 @@ jobs:
         run: bun run publish:check
       - name: Package install check
         run: bun run package:install-check
+      - name: Verification ledger
+        run: bun run verification:ledger

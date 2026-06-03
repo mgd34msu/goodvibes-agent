@@ -2,6 +2,7 @@ import type { ConversationManager } from '../core/conversation';
 import type { PermissionRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
+import { readConversationMessageSnapshots } from '../core/conversation-message-snapshot.ts';
 
 export type PendingPermissionState = PermissionRequest & {
   resolve: (approved: boolean, remember?: boolean) => void;
@@ -71,7 +72,7 @@ export function handleBlockingShellInput(
     if (data === '\x12') {
       const recovery = loadRecoveryConversation();
       if (recovery) {
-        conversation.fromJSON({ messages: recovery.messages as Parameters<typeof conversation.fromJSON>[0]['messages'] });
+        conversation.fromJSON({ messages: readConversationMessageSnapshots(recovery.messages) });
         systemMessageRouter.high('[Recovery] Session restored.');
       } else {
         systemMessageRouter.high('[Recovery] Failed to restore saved data.');

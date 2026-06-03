@@ -214,7 +214,7 @@ export class ProjectPlanningPanel extends BasePanel {
 
       const { lines: flattened, selectedIndex } = this.flattenSections(width, sections);
       const scroll = resolveScrollablePanelSection(width, height, {
-        intro: 'Project planning state, readiness gaps, decisions, language, task graph, verification gates, and agent handoff metadata.',
+        intro: 'Project planning state, open gaps, decisions, language, task graph, completion checks, and handoff candidates.',
         footerLines: this.footerLines(width),
         palette: C,
         section: {
@@ -227,22 +227,28 @@ export class ProjectPlanningPanel extends BasePanel {
         },
       });
       this.scrollOffset = scroll.scrollOffset;
+      const sectionLines = [...scroll.section.lines];
+      const footerSummary = flattened.length > sectionLines.length
+        ? `showing ${scroll.window.start + 1}-${scroll.window.end} of ${flattened.length}`
+        : undefined;
 
       return buildPanelWorkspace(width, height, {
         title: this.loading ? 'Project Planning - loading' : 'Project Planning',
         intro: 'SDK-backed planning artifacts for the current Agent workspace. Conversation control stays in the main Agent turn.',
-        sections: [scroll.section],
-        footerLines: this.footerLines(width),
+        sections: [{ ...scroll.section, lines: sectionLines }],
+        footerLines: this.footerLines(width, footerSummary),
         palette: C,
       });
     });
   }
 
-  private footerLines(width: number): Line[] {
+  private footerLines(width: number, scrollSummary?: string): Line[] {
     const hasQuestion = this.getCurrentQuestion() !== null;
+    const summaryParts: Array<[string, string]> = scrollSummary ? [[` ${scrollSummary}  `, C.dim]] : [];
     if (hasQuestion) {
       return [
         buildPanelLine(width, [
+          ...summaryParts,
           [' Up/Down', C.info],
           [' choose answer  ', C.dim],
           ['type', C.info],
@@ -256,6 +262,7 @@ export class ProjectPlanningPanel extends BasePanel {
     }
     return [
       buildPanelLine(width, [
+        ...summaryParts,
         [' Up/Down', C.info],
         [' scroll  ', C.dim],
         ['r', C.info],
@@ -359,12 +366,12 @@ export class ProjectPlanningPanel extends BasePanel {
     const gaps = evaluation?.gaps ?? [];
     if (gaps.length === 0) {
       return {
-        title: 'Readiness Gaps',
-        lines: [buildPanelLine(width, [[' No readiness gaps.', C.good]])],
+        title: 'Open Gaps',
+        lines: [buildPanelLine(width, [[' No open gaps.', C.good]])],
       };
     }
     return {
-      title: 'Readiness Gaps',
+      title: 'Open Gaps',
       lines: gaps.slice(0, 12).flatMap((gap) => buildBodyText(
         width,
         `${gap.severity.toUpperCase()} ${gap.kind}: ${gap.message}`,
@@ -392,7 +399,7 @@ export class ProjectPlanningPanel extends BasePanel {
     }
 
     if (state.verificationGates.length) {
-      lines.push(buildPanelLine(width, [[' Verification gates:', C.label]]));
+      lines.push(buildPanelLine(width, [[' Completion checks:', C.label]]));
       for (const gate of state.verificationGates) {
         lines.push(...buildBodyText(width, `${gate.id}: ${gate.description} [${gate.status ?? 'pending'}]`, C, gate.required === false ? C.dim : C.good));
       }
@@ -527,9 +534,9 @@ export class ProjectPlanningPanel extends BasePanel {
     if (isVerificationQuestion) {
       actions.push({
         id: 'verification-default-gates',
-        label: 'Use standard verification gates',
+        label: 'Use standard completion checks',
         detail: 'Require focused regression coverage, typecheck/build validation, and a runtime smoke where feasible.',
-        answer: 'Use standard verification gates for this goal.',
+        answer: 'Use standard completion checks for this goal.',
       });
     }
     if (question.recommendedAnswer?.trim() && !this.isGenericRecommendation(question.recommendedAnswer)) {

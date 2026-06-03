@@ -26,9 +26,12 @@ export function setNestedValue(root: Record<string, unknown>, key: string, value
 
   for (let index = 0; index < parts.length - 1; index += 1) {
     const part = parts[index]!;
-    const existing = cursor[part];
-    if (!isPlainObject(existing)) cursor[part] = {};
-    cursor = cursor[part] as Record<string, unknown>;
+    let existing = cursor[part];
+    if (!isPlainObject(existing)) {
+      existing = {};
+      cursor[part] = existing;
+    }
+    cursor = existing as Record<string, unknown>;
   }
 
   cursor[parts[parts.length - 1]!] = structuredClone(value);

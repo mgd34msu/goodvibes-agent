@@ -88,11 +88,11 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
       const durationSeconds = record.completedAt !== undefined ? Math.round((record.completedAt - record.startedAt) / 1000) : 0;
       const taskSnippet = formatAgentTask(record.task);
       withRouter(getSystemMessageRouter, (router) => {
-        router.low(`[Agent task] ${record.template} ${payload.agentId.slice(-8)} completed in ${durationSeconds}s: "${taskSnippet}"`);
+        router.low(`[Delegated task] ${record.template} ${payload.agentId.slice(-8)} completed in ${durationSeconds}s "${taskSnippet}"`);
       });
       queueConversationFollowUp?.({
         key: `agent:${payload.agentId}:completed`,
-        summary: `${record.template} agent ${payload.agentId.slice(-8)} completed "${taskSnippet}" in ${durationSeconds}s after ${record.toolCallCount} tool calls.`,
+        summary: `${record.template} delegated task ${payload.agentId.slice(-8)} completed "${taskSnippet}" in ${durationSeconds}s after ${record.toolCallCount} tool calls.`,
       });
     }
     requestRender();
@@ -103,11 +103,11 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
       const durationSeconds = record.completedAt !== undefined ? Math.round((record.completedAt - record.startedAt) / 1000) : 0;
       const taskSnippet = formatAgentTask(record.task);
       withRouter(getSystemMessageRouter, (router) => {
-        router.low(`[Agent task] ${record.template} ${payload.agentId.slice(-8)} failed in ${durationSeconds}s: ${payload.error.slice(0, 80)}`);
+        router.low(`[Delegated task] ${record.template} ${payload.agentId.slice(-8)} failed in ${durationSeconds}s ${payload.error.slice(0, 80)}`);
       });
       queueConversationFollowUp?.({
         key: `agent:${payload.agentId}:failed`,
-        summary: `${record.template} agent ${payload.agentId.slice(-8)} failed while working on "${taskSnippet}": ${payload.error.slice(0, 120)}`,
+        summary: `${record.template} delegated task ${payload.agentId.slice(-8)} failed while working on "${taskSnippet}" ${payload.error.slice(0, 120)}`,
       });
     }
     requestRender();
@@ -117,9 +117,9 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
   agentStatusIntervalRef.value = setInterval(() => {
     const running = agentManager.list().filter((agent) => agent.status === 'running');
     if (running.length === 0) return;
-    const lines = running.map((agent) => `  ${agent.id.slice(-8)}: ${agent.progress ?? agent.status}`);
+    const lines = running.map((agent) => `  ${agent.id.slice(-8)} ${agent.progress ?? agent.status}`);
     withRouter(getSystemMessageRouter, (router) => {
-      router.low(`[Agent task] ${running.length} running:\n${lines.join('\n')}`);
+      router.low(`[Delegated task] ${running.length} running\n${lines.join('\n')}`);
     });
     requestRender();
   }, AGENT_STATUS_INTERVAL_MS);

@@ -1,6 +1,7 @@
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
 import { execSync } from 'child_process';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import { packageDocPaths, verifyPackageFacingText, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
 
 /**
  * Release script — bumps version, updates CHANGELOG, creates git tag.
@@ -8,55 +9,160 @@ import { execSync } from 'child_process';
  * Defaults to patch bumps. Minor/major require explicit flags.
  *
  * Usage:
- *   bun run scripts/release.ts              # patch bump (0.9.10 → 0.9.11)
- *   bun run scripts/release.ts --minor      # minor bump (0.9.10 → 0.10.0)
- *   bun run scripts/release.ts --major      # major bump (0.9.10 → 1.0.0)
+ *   bun run scripts/release.ts              # patch bump (0.9.10 -> 0.9.11)
+ *   bun run scripts/release.ts --minor      # minor bump (0.9.10 -> 0.10.0)
+ *   bun run scripts/release.ts --major      # major bump (0.9.10 -> 1.0.0)
  *   bun run scripts/release.ts --notes-file ./release-notes.md
  *   bun run scripts/release.ts --dry-run    # preview without writing
  *
  * What it does:
- *   1. Pre-release validation (typecheck, build, package/publish smoke, diff hygiene)
+ *   1. Pre-release validation (typecheck, architecture, performance, build, package/publish smoke, ledger, diff hygiene)
  *   2. Bump package.json version
  *   3. Update src/version.ts fallback via prebuild script
  *   4. Prepend new section to CHANGELOG.md
- *   5. Stage changes, commit, create annotated git tag
+ *   5. Verify release metadata and generated diff hygiene
+ *   6. Stage changes, commit, create annotated git tag
  */
 
-const args = process.argv.slice(2);
-const DRY_RUN = args.includes('--dry-run');
-const SKIP_VALIDATION = args.includes('--skip-validation');
-const notesFileIndex = args.indexOf('--notes-file');
-const bumpMode = args.includes('--major')
-  ? 'major'
-  : args.includes('--minor')
-    ? 'minor'
-    : 'patch';
+interface ReleaseOptions {
+  readonly args: readonly string[];
+  readonly dryRun: boolean;
+  readonly skipValidation: boolean;
+  readonly notesFileIndex: number;
+  readonly bumpMode: 'patch' | 'minor' | 'major';
+}
 
-if (args.includes('--major') && args.includes('--minor')) {
-  console.error('Error: choose only one of --minor or --major.');
+function exitWithError(message: string): never {
+  console.error(message);
   process.exit(1);
 }
 
-const root = process.cwd();
+function parseReleaseOptions(args: readonly string[]): ReleaseOptions {
+  const dryRun = args.includes('--dry-run');
+  const skipValidation = args.includes('--skip-validation');
+  if (args.includes('--major') && args.includes('--minor')) {
+    exitWithError('Error: choose only one of --minor or --major.');
+  }
+  if (skipValidation && !dryRun) {
+    exitWithError('Error: --skip-validation is only allowed with --dry-run. Real releases must run validation gates.');
+  }
+  return {
+    args,
+    dryRun,
+    skipValidation,
+    notesFileIndex: args.indexOf('--notes-file'),
+    bumpMode: args.includes('--major')
+      ? 'major'
+      : args.includes('--minor')
+        ? 'minor'
+        : 'patch',
+  };
+}
 
-function readReleaseNotesFromArgOrEnv(): readonly string[] {
-  const notesFile = notesFileIndex >= 0 ? args[notesFileIndex + 1] : undefined;
-  if (notesFileIndex >= 0 && (!notesFile || notesFile.startsWith('--'))) {
-    console.error('Error: --notes-file requires a markdown file path.');
-    process.exit(1);
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+export function releaseMetadataPaths(root = process.cwd()): readonly string[] {
+  return [
+    'package.json',
+    'src/version.ts',
+    'README.md',
+    'CHANGELOG.md',
+    ...releaseEvidenceInputPaths(),
+    ...packageDocPaths(root),
+  ];
+}
+
+export function releaseEvidenceInputPaths(): readonly string[] {
+  return [
+    'release/1.0-release-notes.md',
+    'release/1.0-performance-snapshot.json',
+    'release/1.0-readiness.json',
+    'release/1.0-live-verification/live-verification.json',
+    'release/1.0-live-verification/live-verification.md',
+  ];
+}
+
+function gitStatusPath(line: string): string {
+  if (line.length < 4) return '';
+  const path = line.slice(3).trim();
+  if (path.startsWith('"') && path.endsWith('"')) {
+    try {
+      return JSON.parse(path) as string;
+    } catch {
+      return path.slice(1, -1);
+    }
+  }
+  return path.includes(' -> ') ? '' : path;
+}
+
+export function releaseBlockingGitStatusLines(
+  gitStatus: string,
+  allowedEvidencePaths: readonly string[] = releaseEvidenceInputPaths(),
+): readonly string[] {
+  const allowed = new Set(allowedEvidencePaths);
+  return gitStatus
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
+    .filter((line) => {
+      const status = line.slice(0, 2);
+      const path = gitStatusPath(line);
+      if (!allowed.has(path)) return true;
+      return status.includes('D') || status.includes('R') || status.includes('C');
+    });
+}
+
+export function releaseEvidenceHygieneIssues(
+  root = process.cwd(),
+  paths: readonly string[] = releaseEvidenceInputPaths(),
+): readonly string[] {
+  const issues: string[] = [];
+  for (const path of paths) {
+    const absolutePath = join(root, path);
+    if (!existsSync(absolutePath)) {
+      issues.push(`${path}: required release evidence file is missing.`);
+      continue;
+    }
+    const source = readFileSync(absolutePath, 'utf8');
+    if (source.length === 0) {
+      issues.push(`${path}: release evidence file is empty.`);
+      continue;
+    }
+    if (!source.endsWith('\n')) {
+      issues.push(`${path}: missing final newline.`);
+    }
+    const lines = source.split(/\n/);
+    const lineCount = source.endsWith('\n') ? lines.length - 1 : lines.length;
+    for (let index = 0; index < lineCount; index += 1) {
+      const line = (lines[index] ?? '').replace(/\r$/, '');
+      if (/[ \t]+$/.test(line)) {
+        issues.push(`${path}:${index + 1}: trailing whitespace.`);
+      }
+      if (/^ +\t/.test(line)) {
+        issues.push(`${path}:${index + 1}: space before tab in indent.`);
+      }
+    }
+  }
+  return issues;
+}
+
+function readReleaseNotesFromArgOrEnv(options: ReleaseOptions, root: string): readonly string[] {
+  const notesFile = options.notesFileIndex >= 0 ? options.args[options.notesFileIndex + 1] : undefined;
+  if (options.notesFileIndex >= 0 && (!notesFile || notesFile.startsWith('--'))) {
+    exitWithError('Error: --notes-file requires a markdown file path.');
   }
 
   const raw = notesFile
     ? readFileSync(join(root, notesFile), 'utf8')
     : process.env.GOODVIBES_AGENT_RELEASE_NOTES;
   if (!raw || raw.trim().length === 0) {
-    if (DRY_RUN) {
+    if (options.dryRun) {
       return [
         '- Product release notes required for real release. Pass --notes-file <path> or GOODVIBES_AGENT_RELEASE_NOTES.',
       ];
     }
-    console.error('Error: product release notes are required. Pass --notes-file <path> or set GOODVIBES_AGENT_RELEASE_NOTES.');
-    process.exit(1);
+    exitWithError('Error: product release notes are required. Pass --notes-file <path> or set GOODVIBES_AGENT_RELEASE_NOTES.');
   }
 
   const lines = raw
@@ -65,14 +171,13 @@ function readReleaseNotesFromArgOrEnv(): readonly string[] {
     .filter((line) => line.length > 0)
     .map((line) => line.startsWith('- ') ? line : `- ${line}`);
   if (lines.some((line) => /^- [0-9a-f]{7,40}\s/i.test(line))) {
-    console.error('Error: release notes must describe product changes, not raw commit hashes.');
-    process.exit(1);
+    exitWithError('Error: release notes must describe product changes, not raw commit hashes.');
   }
   return lines;
 }
 
-function run(cmd: string, opts: { silent?: boolean } = {}): string {
-  if (DRY_RUN && !opts.silent) {
+function run(cmd: string, options: ReleaseOptions, root: string, opts: { readonly silent?: boolean } = {}): string {
+  if (options.dryRun && !opts.silent) {
     console.log(`[dry-run] ${cmd}`);
     return '';
   }
@@ -89,7 +194,7 @@ function run(cmd: string, opts: { silent?: boolean } = {}): string {
   }
 }
 
-function runSilent(cmd: string): string {
+function runSilent(cmd: string, root: string): string {
   try {
     return execSync(cmd, { cwd: root, encoding: 'utf8', stdio: 'pipe' });
   } catch {
@@ -97,121 +202,191 @@ function runSilent(cmd: string): string {
   }
 }
 
-// --- Pre-flight checks ---
-
-// Ensure we are on a clean working tree (no uncommitted changes)
-const gitStatus = runSilent('git status --porcelain');
-if (gitStatus.trim()) {
-  console.error('Error: working tree has uncommitted changes. Commit or stash before releasing.');
-  console.error(gitStatus);
+function assertReleasePackagePolicy(label: string, root: string): void {
+  const issues = [
+    ...verifyReleaseMetadata(root),
+    ...verifyPackageFacingText(root).failures,
+  ];
+  if (issues.length === 0) return;
+  console.error(`Error: ${label} failed.`);
+  for (const issue of issues) console.error(`  - ${issue}`);
   process.exit(1);
 }
 
-// Ensure we are on main branch
-const currentBranch = runSilent('git rev-parse --abbrev-ref HEAD').trim();
-if (currentBranch !== 'main') {
-  console.error(`Error: releases must be cut from main (current branch: ${currentBranch})`);
+function assertReleaseEvidenceHygiene(label: string, root: string): void {
+  const issues = releaseEvidenceHygieneIssues(root);
+  if (issues.length === 0) return;
+  console.error(`Error: ${label} failed.`);
+  for (const issue of issues) console.error(`  - ${issue}`);
   process.exit(1);
 }
 
-// --- Read current version ---
-
-const pkgPath = join(root, 'package.json');
-const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-const current: string = pkg.version;
-
-// Parse semver
-const parts = current.split('.').map(Number);
-if (parts.length !== 3 || parts.some(isNaN)) {
-  console.error(`Error: cannot parse version '${current}' as semver`);
-  process.exit(1);
-}
-
-const [major, minor, patch] = parts;
-
-const next = bumpMode === 'major'
-  ? `${major + 1}.0.0`
-  : bumpMode === 'minor'
-    ? `${major}.${minor + 1}.0`
-    : `${major}.${minor}.${patch + 1}`;
-
-console.log(`\nRelease: ${current} → ${next}`);
-if (DRY_RUN) console.log('(dry-run mode — no files will be written)\n');
-
-// --- Pre-release validation ---
-
-if (!SKIP_VALIDATION) {
-  console.log('\n[1/5] Running release validation gates...');
-  const validationCommands = [
-    'bun run typecheck',
-    'bun run build',
-    'bun run publish:check',
-    'bun run package:install-check',
-    'bun pm pack --dry-run',
-    'git diff --check',
-  ] as const;
-  for (const command of validationCommands) {
-    console.log(`\n  ${command}`);
-    run(command);
+function nextVersion(current: string, bumpMode: ReleaseOptions['bumpMode']): string {
+  const parts = current.split('.').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    exitWithError(`Error: cannot parse version '${current}' as semver`);
   }
-} else {
-  console.log('\n[1/5] Skipping release validation gates (--skip-validation)');
+
+  const [major, minor, patch] = parts as [number, number, number];
+  return bumpMode === 'major'
+    ? `${major + 1}.0.0`
+    : bumpMode === 'minor'
+      ? `${major}.${minor + 1}.0`
+      : `${major}.${minor}.${patch + 1}`;
 }
 
-// --- Bump package.json ---
-
-console.log(`\n[2/5] Updating package.json: ${current} → ${next}`);
-if (!DRY_RUN) {
-  pkg.version = next;
-  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+export function formatLocalReleaseDate(date = new Date()): string {
+  const year = String(date.getFullYear()).padStart(4, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
-// --- Update src/version.ts via prebuild script ---
+export function main(argv = process.argv.slice(2), root = process.cwd()): void {
+  const options = parseReleaseOptions(argv);
 
-console.log('\n[3/5] Syncing src/version.ts via prebuild...');
-run('bun run scripts/prebuild.ts');
+  // --- Pre-flight checks ---
 
-// --- Update CHANGELOG.md ---
+  // Ensure product work is committed before release. Pre-generated release evidence is allowed.
+  const gitStatus = runSilent('git status --porcelain --untracked-files=all', root);
+  const blockingGitStatusLines = releaseBlockingGitStatusLines(gitStatus);
+  if (gitStatus.trim()) {
+    if (options.dryRun) {
+      console.warn('Warning: working tree has uncommitted changes. Dry-run preview will use the current files.');
+      console.warn(gitStatus);
+    } else if (blockingGitStatusLines.length > 0) {
+      console.error('Error: working tree has non-release-evidence changes. Commit or stash product changes before releasing.');
+      console.error(blockingGitStatusLines.join('\n'));
+      process.exit(1);
+    } else {
+      console.log('Pre-generated release evidence detected; it will be staged with the release commit.');
+    }
+  }
 
-console.log('\n[4/5] Updating CHANGELOG.md...');
+  // Ensure we are on main branch
+  const currentBranch = runSilent('git rev-parse --abbrev-ref HEAD', root).trim();
+  if (currentBranch !== 'main') {
+    if (options.dryRun) {
+      console.warn(`Warning: real releases must be cut from main (current branch: ${currentBranch}).`);
+    } else {
+      console.error(`Error: releases must be cut from main (current branch: ${currentBranch})`);
+      process.exit(1);
+    }
+  }
 
-const changelogPath = join(root, 'CHANGELOG.md');
-const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  // --- Read current version ---
 
-const newSection = [
-  `## ${next} - ${today}`,
-  '',
-  ...readReleaseNotesFromArgOrEnv(),
-  '',
-].join('\n');
+  const pkgPath = join(root, 'package.json');
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string };
+  const current = pkg.version;
+  const next = nextVersion(current, options.bumpMode);
 
-if (!DRY_RUN) {
-  let changelog = readFileSync(changelogPath, 'utf8');
+  console.log(`\nRelease: ${current} -> ${next}`);
+  if (options.dryRun) console.log('(dry-run mode — no files will be written)\n');
 
-  const firstReleaseHeading = changelog.search(/^## /m);
-  if (firstReleaseHeading === -1) {
-    changelog = `${changelog.trimEnd()}\n\n${newSection}\n`;
+  console.log('\n[preflight] Checking release evidence text hygiene...');
+  assertReleaseEvidenceHygiene('release evidence text hygiene', root);
+
+  // --- Pre-release validation ---
+
+  if (!options.skipValidation) {
+    console.log('\n[1/5] Running release validation gates...');
+    const validationCommands = [
+      'bun run typecheck',
+      'bun run architecture:check',
+      'bun run perf:check',
+      'bun run build',
+      'bun run publish:check',
+      'bun run package:install-check',
+      'bun run verification:ledger',
+      'bun pm pack --dry-run',
+      'git diff --check',
+    ] as const;
+    for (const command of validationCommands) {
+      console.log(`\n  ${command}`);
+      run(command, options, root);
+    }
   } else {
-    changelog = `${changelog.slice(0, firstReleaseHeading)}${newSection}\n${changelog.slice(firstReleaseHeading)}`;
+    console.log('\n[1/5] Skipping release validation gates (--skip-validation)');
   }
 
-  writeFileSync(changelogPath, changelog);
-  console.log(`CHANGELOG.md: prepended section for ${next}`);
-} else {
-  console.log('[dry-run] Would prepend to CHANGELOG.md:');
-  console.log(newSection);
+  // --- Bump package.json ---
+
+  console.log(`\n[2/5] Updating package.json: ${current} -> ${next}`);
+  if (!options.dryRun) {
+    pkg.version = next;
+    writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+  }
+
+  // --- Update src/version.ts via prebuild script ---
+
+  console.log('\n[3/5] Syncing src/version.ts via prebuild...');
+  run('bun run scripts/prebuild.ts', options, root);
+
+  // --- Update CHANGELOG.md ---
+
+  console.log('\n[4/5] Updating CHANGELOG.md...');
+
+  const changelogPath = join(root, 'CHANGELOG.md');
+  const today = formatLocalReleaseDate();
+
+  const newSection = [
+    `## ${next} - ${today}`,
+    '',
+    ...readReleaseNotesFromArgOrEnv(options, root),
+    '',
+  ].join('\n');
+
+  if (!options.dryRun) {
+    let changelog = readFileSync(changelogPath, 'utf8');
+
+    const firstReleaseHeading = changelog.search(/^## /m);
+    if (firstReleaseHeading === -1) {
+      changelog = `${changelog.trimEnd()}\n\n${newSection}\n`;
+    } else {
+      changelog = `${changelog.slice(0, firstReleaseHeading)}${newSection}\n${changelog.slice(firstReleaseHeading)}`;
+    }
+
+    writeFileSync(changelogPath, changelog);
+    console.log(`CHANGELOG.md: prepended section for ${next}`);
+  } else {
+    console.log('[dry-run] Would prepend to CHANGELOG.md:');
+    console.log(newSection);
+  }
+
+  // --- Post-mutation metadata checks ---
+
+  console.log('\n[post] Verifying release metadata and diff hygiene...');
+  if (!options.dryRun) {
+    assertReleasePackagePolicy('post-release package policy validation', root);
+    assertReleaseEvidenceHygiene('post-release evidence text hygiene', root);
+  }
+  run('git diff --check', options, root);
+
+  // --- Git commit + tag ---
+
+  console.log(options.dryRun
+    ? `\n[5/5] Previewing git commit and tag v${next}...`
+    : `\n[5/5] Creating git commit and tag v${next}...`);
+
+  const tag = `v${next}`;
+  const commitMsg = `chore: release ${tag}`;
+
+  run(`git add ${releaseMetadataPaths(root).map(shellQuote).join(' ')}`, options, root);
+  run(`git commit -m "${commitMsg}"`, options, root);
+  run(`git tag -a ${tag} -m "Release ${tag}"`, options, root);
+
+  if (options.dryRun) {
+    console.log(`\nDry-run release preview for ${tag} complete.`);
+    console.log('No files, commits, or tags were written.');
+    console.log('Next step: rerun without --dry-run from a clean main worktree after product changes are committed.');
+    return;
+  }
+
+  console.log(`\nRelease ${tag} complete.`);
+  console.log('Next step: git push && git push --tags');
 }
 
-// --- Git commit + tag ---
-
-console.log(`\n[5/5] Creating git commit and tag v${next}...`);
-
-const tag = `v${next}`;
-const commitMsg = `chore: release ${tag}`;
-
-run('git add package.json src/version.ts README.md CHANGELOG.md');
-run(`git commit -m "${commitMsg}"`);
-run(`git tag -a ${tag} -m "Release ${tag}"`);
-
-console.log(`\nRelease ${tag} complete.`);
-console.log('Next step: git push && git push --tags');
+if (import.meta.main) {
+  main();
+}

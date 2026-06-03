@@ -7,6 +7,16 @@ import { stripDangerousAnsi } from './ansi-sanitize.ts';
 const TOOL_NAME_MIN_WIDTH = 8;
 const TOOL_NAME_MAX_WIDTH = 20;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function readStringField(value: unknown, field: string): string | null {
+  if (!isRecord(value)) return null;
+  const fieldValue = value[field];
+  return typeof fieldValue === 'string' ? fieldValue : null;
+}
+
 function writeStyledText(
   line: Line,
   startCol: number,
@@ -100,32 +110,31 @@ function extractKeyArg(toolCall: ToolCall): string {
   if (Array.isArray(args.files) && args.files.length > 0) {
     const first = args.files[0];
     if (typeof first === 'string') return first;
-    if (first && typeof first === 'object' && typeof (first as Record<string, unknown>).path === 'string')
-      return (first as Record<string, unknown>).path as string;
+    const path = readStringField(first, 'path');
+    if (path) return path;
   }
   // Exec
   if (typeof args.command === 'string') return args.command;
   if (typeof args.cmd === 'string') return args.cmd;
   if (Array.isArray(args.commands) && args.commands.length > 0) {
     const first = args.commands[0];
-    if (first && typeof first === 'object' && typeof (first as Record<string, unknown>).cmd === 'string')
-      return (first as Record<string, unknown>).cmd as string;
+    const cmd = readStringField(first, 'cmd');
+    if (cmd) return cmd;
   }
   // Find/grep
   if (typeof args.pattern === 'string') return args.pattern;
   if (Array.isArray(args.queries) && args.queries.length > 0) {
     const first = args.queries[0];
-    if (first && typeof first === 'object') {
-      const firstRecord = first as Record<string, unknown>;
-      if (typeof firstRecord.query === 'string') return firstRecord.query;
-      if (typeof firstRecord.pattern === 'string') return firstRecord.pattern;
-    }
+    const query = readStringField(first, 'query');
+    if (query) return query;
+    const pattern = readStringField(first, 'pattern');
+    if (pattern) return pattern;
   }
   // Fetch
   if (Array.isArray(args.urls) && args.urls.length > 0) {
     const first = args.urls[0];
-    if (first && typeof first === 'object' && typeof (first as Record<string, unknown>).url === 'string')
-      return (first as Record<string, unknown>).url as string;
+    const url = readStringField(first, 'url');
+    if (url) return url;
   }
   // Agent
   if (typeof args.task === 'string') return args.task.slice(0, 40);

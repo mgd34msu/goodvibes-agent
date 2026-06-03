@@ -63,7 +63,7 @@ function formatReturnContextLines(returnContext: SessionInfo['returnContext']): 
   if (returnContext.activityLabel) lines.push(`activity: ${returnContext.activityLabel}`);
   if (returnContext.statusLabel) lines.push(`status: ${returnContext.statusLabel}`);
   if (returnContext.activeTasks || returnContext.blockedTasks || returnContext.pendingApprovals) {
-    lines.push(`tasks: active=${returnContext.activeTasks ?? 0} blocked=${returnContext.blockedTasks ?? 0} approvals=${returnContext.pendingApprovals ?? 0}`);
+    lines.push(`tasks: active ${returnContext.activeTasks ?? 0}; blocked ${returnContext.blockedTasks ?? 0}; approvals ${returnContext.pendingApprovals ?? 0}`);
   }
   if (returnContext.remoteRunners?.length) {
     lines.push(`remote build hosts: ${returnContext.remoteRunners.join(', ')}`);
@@ -177,14 +177,14 @@ export class SessionBrowserPanel extends BasePanel {
     const count = this.filtered.length;
     const total = this.sessions.length;
     const searchLine = this.searching
-      ? ` Search: ${this.searchQuery}_`
+      ? ` Search ${this.searchQuery}_`
       : this.loadError
-      ? ` Error: ${this.loadError}`
+      ? ` Error ${this.loadError}`
       : this.deleteError
-      ? ` Error: ${this.deleteError}`
+      ? ` Error ${this.deleteError}`
       : this.searchQuery
-      ? ` Filter: ${this.searchQuery}  (/ or up at top to edit)`
-      : ` / or up at top to search  Enter: resume  d: delete  r: refresh`;
+      ? ` Filter ${this.searchQuery}  (/ or up at top to edit)`
+      : ` / or up at top to search  Enter resume  d delete  r refresh`;
     const statusFg = this.loadError || this.deleteError ? DEFAULT_PANEL_PALETTE.bad : this.searching ? DEFAULT_PANEL_PALETTE.info : DEFAULT_PANEL_PALETTE.dim;
     const footerLines = [
       buildSearchInputLine(width, '', searchLine.trimStart(), DEFAULT_PANEL_PALETTE, { active: this.searching, valueColor: statusFg }),

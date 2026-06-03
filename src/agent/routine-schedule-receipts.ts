@@ -283,7 +283,7 @@ export class RoutineScheduleReceiptStore {
     try {
       return parseReceiptStore(readFileSync(this.storePath, 'utf-8'));
     } catch (error) {
-      throw new Error(`Could not read Agent routine schedule receipt store: ${summarizeError(error)}`);
+      throw new Error(`Could not read Agent routine schedule receipt store ${summarizeError(error)}`);
     }
   }
 

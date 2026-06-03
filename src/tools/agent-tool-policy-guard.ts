@@ -122,13 +122,13 @@ const READ_ONLY_QUERY_TOOL_MODE_SET = new Set<string>(READ_ONLY_QUERY_TOOL_MODES
 const READ_ONLY_CONTROL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CONTROL_TOOL_MODES);
 
 const LOCAL_AGENT_DENIAL = [
-  'GoodVibes Agent does not create coding-role Agent jobs or run local WRFC chains.',
+  'GoodVibes Agent does not create coding-role Agent jobs or run local delegated review chains.',
   'Keep ordinary assistant work serial in the main conversation.',
   'For explicit build/fix/review work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract with the full original user ask.',
 ].join(' ');
 
 const LOCAL_CODING_TOOL_DENIAL = [
-  'GoodVibes Agent does not perform direct local file mutation, local WRFC workflow execution, or local execution-isolation work from the main conversation.',
+  'GoodVibes Agent does not perform direct local file mutation, local delegated review workflow execution, or local execution-isolation work from the main conversation.',
   'For explicit build/fix/review/code execution work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract with the full original user ask.',
   'For durable Agent memory, skills, personas, routines, and knowledge, use the Agent-owned commands and isolated Agent Knowledge routes.',
 ].join(' ');
@@ -614,7 +614,7 @@ function isPresent(value: unknown): boolean {
 function narrowAgentToolDefinitionForAgentPolicy(tool: Tool): void {
   tool.definition.description = [
     'Read-only local Agent inspection for GoodVibes Agent.',
-    'This product does not create separate Agent jobs or run local WRFC chains.',
+    'This product does not create separate Agent jobs or run local delegated review chains.',
     'For build/fix/review work, delegate to GoodVibes TUI through the explicit build-delegation path instead.',
   ].join(' ');
   tool.definition.sideEffects = [];

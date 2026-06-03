@@ -94,8 +94,8 @@ function determineFreshness(input: {
 function builtinWindowsForProvider(providerId: string): readonly ProviderUsageWindow[] {
   if (providerId === 'openai') {
     return [
-      { label: '5-hour window', detail: 'Subscription-backed Codex access may be constrained by rolling 5-hour usage limits.' },
-      { label: '1-week window', detail: 'Subscription-backed Codex access may also be constrained by a rolling weekly limit.' },
+      { label: '5-hour window', detail: 'Subscription-backed OpenAI access may be constrained by rolling 5-hour usage limits.' },
+      { label: '1-week window', detail: 'Subscription-backed OpenAI access may also be constrained by a rolling weekly limit.' },
     ];
   }
   return [];

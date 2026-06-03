@@ -195,7 +195,7 @@ export class AgentNoteRegistry {
     const sourceUrl = input.sourceUrl?.trim() || undefined;
     assertNoNoteSecretLikeText([title, body, sourceUrl ?? '', ...(input.tags ?? [])]);
     const duplicate = store.notes.find((note) => note.title.toLowerCase() === title.toLowerCase());
-    if (duplicate) throw new Error(`Note already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Note already exists ${duplicate.id}`);
     const timestamp = nowIso();
     const note: AgentNoteRecord = {
       id: this.nextId(title, store.notes),
@@ -216,14 +216,14 @@ export class AgentNoteRegistry {
   public update(idOrTitle: string, input: AgentNoteUpdateInput): AgentNoteRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrTitle);
-    if (!existing) throw new Error(`Unknown note: ${idOrTitle}`);
+    if (!existing) throw new Error(`Unknown note ${idOrTitle}`);
     const title = input.title === undefined ? existing.title : normalizeTitle(input.title);
     const body = input.body === undefined ? existing.body : input.body.trim();
     this.validateRequired(title, body);
     const sourceUrl = input.sourceUrl === undefined ? existing.sourceUrl : input.sourceUrl.trim() || undefined;
     assertNoNoteSecretLikeText([title, body, sourceUrl ?? '', ...(input.tags ?? [])]);
     const duplicate = store.notes.find((note) => note.id !== existing.id && note.title.toLowerCase() === title.toLowerCase());
-    if (duplicate) throw new Error(`Note already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Note already exists ${duplicate.id}`);
     const updated: AgentNoteRecord = {
       ...existing,
       title,
@@ -246,7 +246,7 @@ export class AgentNoteRegistry {
   public markReviewed(idOrTitle: string): AgentNoteRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrTitle);
-    if (!existing) throw new Error(`Unknown note: ${idOrTitle}`);
+    if (!existing) throw new Error(`Unknown note ${idOrTitle}`);
     const updated: AgentNoteRecord = {
       ...existing,
       reviewState: 'reviewed',
@@ -264,7 +264,7 @@ export class AgentNoteRegistry {
   public markStale(idOrTitle: string, reason: string): AgentNoteRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrTitle);
-    if (!existing) throw new Error(`Unknown note: ${idOrTitle}`);
+    if (!existing) throw new Error(`Unknown note ${idOrTitle}`);
     const updated: AgentNoteRecord = {
       ...existing,
       reviewState: 'stale',
@@ -281,7 +281,7 @@ export class AgentNoteRegistry {
   public deleteNote(idOrTitle: string): AgentNoteRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrTitle);
-    if (!existing) throw new Error(`Unknown note: ${idOrTitle}`);
+    if (!existing) throw new Error(`Unknown note ${idOrTitle}`);
     this.writeStore({
       ...store,
       notes: store.notes.filter((note) => note.id !== existing.id),
@@ -316,7 +316,7 @@ export class AgentNoteRegistry {
     try {
       return parseStore(readFileSync(this.storePath, 'utf-8'));
     } catch (error) {
-      throw new Error(`Could not read Agent note store: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Could not read Agent note store ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

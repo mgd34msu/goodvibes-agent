@@ -1,4 +1,4 @@
-import type { ConfigKey, ConfigManager, PersistedFlagState } from '../config/index.ts';
+import type { ConfigManager, PersistedFlagState } from '../config/index.ts';
 import { surfaceFeatureGateId } from '@/runtime/index.ts';
 
 export const CONTROL_PLANE_FEATURE_FLAG = 'control-plane-gateway';
@@ -13,6 +13,42 @@ const CORE_CHANNEL_FEATURE_FLAGS = [
 ] as const;
 
 export type FeatureFlagConfigKey = 'featureFlags' | `featureFlags.${string}`;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function isFeatureFlagConfigKey(key: string): key is FeatureFlagConfigKey {
+  return key === 'featureFlags' || key.startsWith('featureFlags.');
+}
+
+function isPersistedFlagState(value: unknown): value is PersistedFlagState {
+  return value === 'enabled' || value === 'disabled';
+}
+
+export function readFeatureFlagConfigValue(config: Pick<ConfigManager, 'getCategory'>, key: FeatureFlagConfigKey): unknown {
+  const flags = config.getCategory('featureFlags');
+  if (key === 'featureFlags') return flags;
+  return flags[key.slice('featureFlags.'.length)];
+}
+
+export function mergeFeatureFlagConfigValue(config: Pick<ConfigManager, 'mergeCategory'>, key: FeatureFlagConfigKey, value: unknown): void {
+  if (key === 'featureFlags') {
+    if (!isRecord(value)) throw new Error('featureFlags expects an object value.');
+    const patch: Partial<Record<string, PersistedFlagState>> = {};
+    for (const [flagId, state] of Object.entries(value)) {
+      if (!isPersistedFlagState(state)) throw new Error(`featureFlags.${flagId} expects enabled or disabled.`);
+      patch[flagId] = state;
+    }
+    config.mergeCategory('featureFlags', patch);
+    return;
+  }
+
+  if (!isPersistedFlagState(value)) throw new Error(`${key} expects enabled or disabled.`);
+  config.mergeCategory('featureFlags', {
+    [key.slice('featureFlags.'.length)]: value,
+  });
+}
 
 export function getSurfaceFeatureFlag(surfaceId: string): string | null {
   return surfaceFeatureGateId(surfaceId);
@@ -47,7 +83,7 @@ export function getServerSurfaceFeatureFlags(options: {
 }
 
 export function isFeatureFlagEnabled(config: Pick<ConfigManager, 'getCategory'>, flagId: string): boolean {
-  const flags = (config.getCategory('featureFlags') as Record<string, PersistedFlagState | undefined>) ?? {};
+  const flags = config.getCategory('featureFlags');
   return flags[flagId] === 'enabled';
 }
 
@@ -58,8 +94,7 @@ export function getMissingSurfaceFeatureFlags(config: Pick<ConfigManager, 'getCa
   return required.filter((flagId) => !isFeatureFlagEnabled(config, flagId));
 }
 
-export function enableFeatureFlags(config: Pick<ConfigManager, 'setDynamic'>, flagIds: readonly string[]): void {
-  for (const flagId of flagIds) {
-    config.setDynamic(`featureFlags.${flagId}` as ConfigKey, 'enabled');
-  }
+export function enableFeatureFlags(config: Pick<ConfigManager, 'mergeCategory'>, flagIds: readonly string[]): void {
+  const patch = Object.fromEntries(flagIds.map((flagId) => [flagId, 'enabled'] as const));
+  config.mergeCategory('featureFlags', patch);
 }

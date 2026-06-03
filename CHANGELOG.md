@@ -25,7 +25,7 @@ Product-facing release notes for GoodVibes Agent.
 ## 0.1.80 - 0.1.107
 
 - Made the Agent operator workspace the normal TUI landing surface after first-run setup.
-- Added local Agent memory, personas, skills, skill bundles, routines, schedule receipts, and schedule reconciliation.
+- Added Agent-local memory, personas, skills, skill bundles, routines, schedule receipts, and schedule reconciliation.
 - Added connected-host diagnostics for status, compatibility, auth presence, Agent Knowledge readiness, approvals, work plans, automation, and schedules.
 - Strengthened release gates around Bun-only install, TypeScript-only source, package contents, packed install checks, and single branch-CI test execution.
 
@@ -43,9 +43,9 @@ Product-facing release notes for GoodVibes Agent.
 
 ## 0.1.2 - 0.1.47
 
-- Added isolated Agent Knowledge CLI and slash-command routing with no fallback to default Knowledge/Wiki or non-Agent knowledge segments.
-- Added local Agent personas, skills, and routines with create/list/search/show/review/stale/delete workflows and secret-looking value rejection.
-- Added explicit build/fix/review delegation to the GoodVibes build environment; WRFC is requested only through explicit delegation.
+- Added isolated Agent Knowledge CLI and slash-command routing with no fallback to default knowledge/wiki or non-Agent knowledge segments.
+- Added Agent-local personas, skills, and routines with create/list/search/show/review/stale/delete workflows and secret-looking value rejection.
+- Added explicit build/fix/review delegation to the GoodVibes build environment; delegated review is requested only through explicit delegation.
 - Established release checks for package-facing docs, installability, executable bin behavior, and Agent product policy.
 
 ## 0.1.0 - 0.1.1

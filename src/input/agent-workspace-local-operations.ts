@@ -59,7 +59,7 @@ export function applyAgentWorkspaceLocalLibraryOperation(
 ): void {
   const shellPaths = callbacks.shellPaths();
   if (!shellPaths) {
-    host.status = 'Local Agent registry files are unavailable.';
+    host.status = 'Agent-local registry files are unavailable.';
     host.lastActionResult = {
       kind: 'error',
       title: 'Local registry unavailable',
@@ -87,22 +87,22 @@ export function applyAgentWorkspaceLocalLibraryOperation(
     if (operation === 'memory-edit') {
       const memory = callbacks.memoryApi();
       const record = memory.get(selected.id);
-      if (!record) throw new Error(`Unknown Agent memory: ${selected.id}`);
-      setGuidanceEditor(host, createMemoryUpdateEditor(record), `Editing memory: ${record.id}.`);
+      if (!record) throw new Error(`Unknown Agent memory ${selected.id}`);
+      setGuidanceEditor(host, createMemoryUpdateEditor(record), `Editing memory ${record.id}.`);
     } else if (operation === 'memory-review') {
       const record = callbacks.memoryApi().review(selected.id, { state: 'reviewed', confidence: selected.confidence ?? 100, reviewedBy: 'operator' });
-      if (!record) throw new Error(`Unknown Agent memory: ${selected.id}`);
+      if (!record) throw new Error(`Unknown Agent memory ${selected.id}`);
       callbacks.finishLocalOperation('memory', `Reviewed memory ${record.id}`, `${record.summary} is marked reviewed.`);
     } else if (operation === 'memory-stale') {
       const record = callbacks.memoryApi().review(selected.id, { state: 'stale', staleReason: 'Marked stale from Agent workspace', reviewedBy: 'operator' });
-      if (!record) throw new Error(`Unknown Agent memory: ${selected.id}`);
+      if (!record) throw new Error(`Unknown Agent memory ${selected.id}`);
       callbacks.finishLocalOperation('memory', `Marked memory stale ${record.id}`, `${record.summary} needs review before reuse.`);
     } else if (operation === 'memory-delete') {
       callbacks.openDeleteEditor('memory', selected);
     } else if (operation === 'note-edit') {
       const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
-      if (!note) throw new Error(`Unknown note: ${selected.id}`);
-      setGuidanceEditor(host, createNoteUpdateEditor(note), `Editing note: ${note.title}.`);
+      if (!note) throw new Error(`Unknown note ${selected.id}`);
+      setGuidanceEditor(host, createNoteUpdateEditor(note), `Editing note ${note.title}.`);
     } else if (operation === 'note-review') {
       const note = AgentNoteRegistry.fromShellPaths(shellPaths).markReviewed(selected.id);
       callbacks.finishLocalOperation('note', `Reviewed note ${note.title}`, `${note.title} is marked reviewed in the local scratchpad.`);
@@ -113,23 +113,23 @@ export function applyAgentWorkspaceLocalLibraryOperation(
       callbacks.openDeleteEditor('note', selected);
     } else if (operation === 'note-promote-memory') {
       const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
-      if (!note) throw new Error(`Unknown note: ${selected.id}`);
-      setGuidanceEditor(host, createMemoryEditorFromNote(note), `Creating memory from note: ${note.title}.`);
+      if (!note) throw new Error(`Unknown note ${selected.id}`);
+      setGuidanceEditor(host, createMemoryEditorFromNote(note), `Creating memory from note ${note.title}.`);
     } else if (operation === 'note-promote-persona') {
       const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
-      if (!note) throw new Error(`Unknown note: ${selected.id}`);
-      setGuidanceEditor(host, createPersonaEditorFromNote(note), `Creating persona from note: ${note.title}.`);
+      if (!note) throw new Error(`Unknown note ${selected.id}`);
+      setGuidanceEditor(host, createPersonaEditorFromNote(note), `Creating persona from note ${note.title}.`);
     } else if (operation === 'note-promote-skill') {
       const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
-      if (!note) throw new Error(`Unknown note: ${selected.id}`);
-      setGuidanceEditor(host, createSkillEditorFromNote(note), `Creating skill from note: ${note.title}.`);
+      if (!note) throw new Error(`Unknown note ${selected.id}`);
+      setGuidanceEditor(host, createSkillEditorFromNote(note), `Creating skill from note ${note.title}.`);
     } else if (operation === 'note-promote-routine') {
       const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
-      if (!note) throw new Error(`Unknown note: ${selected.id}`);
-      setGuidanceEditor(host, createRoutineEditorFromNote(note), `Creating routine from note: ${note.title}.`);
+      if (!note) throw new Error(`Unknown note ${selected.id}`);
+      setGuidanceEditor(host, createRoutineEditorFromNote(note), `Creating routine from note ${note.title}.`);
     } else if (operation === 'note-promote-knowledge-url') {
       const note = AgentNoteRegistry.fromShellPaths(shellPaths).get(selected.id);
-      if (!note) throw new Error(`Unknown note: ${selected.id}`);
+      if (!note) throw new Error(`Unknown note ${selected.id}`);
       const sourceUrl = note.sourceUrl?.trim();
       if (!sourceUrl) {
         host.status = 'Selected note has no reviewed source URL.';
@@ -145,12 +145,12 @@ export function applyAgentWorkspaceLocalLibraryOperation(
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
         throw new Error('Selected note source URL must be HTTP or HTTPS before Agent Knowledge ingest.');
       }
-      setGuidanceEditor(host, createKnowledgeUrlEditorFromNote(note), `Preparing Agent Knowledge ingest from note: ${note.title}.`);
+      setGuidanceEditor(host, createKnowledgeUrlEditorFromNote(note), `Preparing Agent Knowledge ingest from note ${note.title}.`);
     } else if (operation === 'persona-edit') {
       const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
       const persona = registry.get(selected.id);
-      if (!persona) throw new Error(`Unknown persona: ${selected.id}`);
-      setGuidanceEditor(host, createPersonaUpdateEditor(persona, registry.snapshot().activePersonaId === persona.id), `Editing persona: ${persona.name}.`);
+      if (!persona) throw new Error(`Unknown persona ${selected.id}`);
+      setGuidanceEditor(host, createPersonaUpdateEditor(persona, registry.snapshot().activePersonaId === persona.id), `Editing persona ${persona.name}.`);
     } else if (operation === 'persona-use') {
       AgentPersonaRegistry.fromShellPaths(shellPaths).setActive(selected.id);
       callbacks.finishLocalOperation('persona', `Using persona ${selected.name}`, `${selected.name} will shape later main-conversation turns.`);
@@ -161,8 +161,8 @@ export function applyAgentWorkspaceLocalLibraryOperation(
       callbacks.openDeleteEditor('persona', selected);
     } else if (operation === 'skill-edit') {
       const skill = AgentSkillRegistry.fromShellPaths(shellPaths).get(selected.id);
-      if (!skill) throw new Error(`Unknown skill: ${selected.id}`);
-      setGuidanceEditor(host, createSkillUpdateEditor(skill), `Editing skill: ${skill.name}.`);
+      if (!skill) throw new Error(`Unknown skill ${selected.id}`);
+      setGuidanceEditor(host, createSkillUpdateEditor(skill), `Editing skill ${skill.name}.`);
     } else if (operation === 'skill-enable') {
       AgentSkillRegistry.fromShellPaths(shellPaths).setEnabled(selected.id, true);
       callbacks.finishLocalOperation('skill', `Enabled skill ${selected.name}`, `${selected.name} can now inform main-conversation turns.`);
@@ -176,13 +176,13 @@ export function applyAgentWorkspaceLocalLibraryOperation(
       callbacks.openDeleteEditor('skill', selected);
     } else if (operation === 'routine-edit') {
       const routine = AgentRoutineRegistry.fromShellPaths(shellPaths).get(selected.id);
-      if (!routine) throw new Error(`Unknown routine: ${selected.id}`);
-      setGuidanceEditor(host, createRoutineUpdateEditor(routine), `Editing routine: ${routine.name}.`);
+      if (!routine) throw new Error(`Unknown routine ${selected.id}`);
+      setGuidanceEditor(host, createRoutineUpdateEditor(routine), `Editing routine ${routine.name}.`);
     } else if (operation === 'routine-start') {
       if (host.hasCommandDispatch()) {
         const command = `/routines start ${quoteSlashCommandArg(selected.id)}`;
         host.dispatchWorkspaceCommand(command);
-        host.status = `Opening routine: ${selected.name}.`;
+        host.status = `Opening routine ${selected.name}.`;
         host.lastActionResult = {
           kind: 'dispatched',
           title: `Opening routine ${selected.name}`,

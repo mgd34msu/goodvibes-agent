@@ -2882,7 +2882,7 @@ describe('AgentWorkspace', () => {
     const slack = snapshot.channels.find((channel) => channel.id === 'slack');
     const discord = snapshot.channels.find((channel) => channel.id === 'discord');
 
-    expect(snapshot.channels).toHaveLength(13);
+    expect(snapshot.channels).toHaveLength(14);
     expect(slack?.ready).toBe(true);
     expect(slack?.defaultTarget).toBe('configured');
     expect(slack?.delivery).toBe('default-ready');
@@ -2917,7 +2917,7 @@ describe('AgentWorkspace', () => {
 
     const output = printed.join('\n');
     expect(output).toContain('Channel Readiness');
-    expect(output).toContain('ready: 2/13');
+    expect(output).toContain('ready: 2/14');
     expect(output).toContain('Slack: ready ready=yes delivery=default-ready risk=group');
     expect(output).toContain('Telegram: needs-target ready=yes delivery=explicit-target risk=dm');
     expect(output).toContain('policy: read-only inspection');
@@ -4086,7 +4086,7 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
 
-    expect(dispatched).toEqual(['/delegate --wrfc "Review the release workflow implementation"']);
+    expect(dispatched).toEqual(['/delegate --review "Review the release workflow implementation"']);
   });
 
   test('does not dispatch template delegation commands from the workspace', () => {

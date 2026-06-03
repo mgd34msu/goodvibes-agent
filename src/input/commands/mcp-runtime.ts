@@ -12,6 +12,11 @@ interface ParsedMcpAddArgs {
   readonly server: McpServerConfig;
 }
 
+type McpSecurityServer = ReturnType<NonNullable<NonNullable<CommandContext['clients']>['mcpApi']>['listServerSecurity']>[number];
+type McpDisplayTrustMode = NonNullable<McpServerConfig['trustMode']> | McpSecurityServer['trustMode'];
+type McpDisplayRole = NonNullable<McpServerConfig['role']> | McpSecurityServer['role'];
+type McpDisplayFreshness = McpSecurityServer['schemaFreshness'];
+
 function isMcpRole(value: string): value is NonNullable<McpServerConfig['role']> {
   return MCP_ROLES.includes(value as NonNullable<McpServerConfig['role']>);
 }
@@ -22,6 +27,21 @@ function isMcpTrustMode(value: string): value is NonNullable<McpServerConfig['tr
 
 function isMcpScope(value: string): value is McpConfigScope {
   return value === 'project' || value === 'global';
+}
+
+function formatMcpTrustMode(mode: McpDisplayTrustMode): string {
+  if (mode === 'ask-on-risk') return 'ask on risky actions';
+  if (mode === 'allow-all') return 'allow all actions';
+  return mode.replace(/[_-]+/g, ' ');
+}
+
+function formatMcpFreshness(value: McpDisplayFreshness): string {
+  if (value === 'quarantined') return 'needs review';
+  return value.replace(/[_-]+/g, ' ');
+}
+
+function formatMcpRole(value: McpDisplayRole): string {
+  return value.replace(/[_-]+/g, ' ');
 }
 
 function validateServerName(name: string): string | null {
@@ -71,7 +91,7 @@ function parseAddServerArgs(args: string[]): ParsedMcpAddArgs {
     }
     if (token === '--role') {
       const value = readFlagValue(tokens, index, token);
-      if (!isMcpRole(value)) throw new Error(`Invalid MCP role "${value}". Expected one of: ${MCP_ROLES.join(', ')}`);
+      if (!isMcpRole(value)) throw new Error(`Invalid MCP role "${value}". Expected one of ${MCP_ROLES.join(', ')}.`);
       role = value;
       index += 1;
       continue;
@@ -85,7 +105,7 @@ function parseAddServerArgs(args: string[]): ParsedMcpAddArgs {
     }
     if (token === '--trust') {
       const value = readFlagValue(tokens, index, token);
-      if (!isMcpTrustMode(value)) throw new Error(`Invalid MCP trust mode "${value}". Expected one of: ${MCP_TRUST_MODES.join(', ')}`);
+      if (!isMcpTrustMode(value)) throw new Error(`Invalid MCP trust mode "${value}". Expected one of ${MCP_TRUST_MODES.join(', ')}.`);
       trustMode = value;
       index += 1;
       continue;
@@ -157,7 +177,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
           `  servers: ${servers.length}`,
           `  connected: ${servers.filter((server) => server.connected).length}`,
           `  auth or repair attention: ${authRequired.length}`,
-          ...servers.map((server) => `  ${server.name}  trust=${server.trustMode}  role=${server.role}  freshness=${server.schemaFreshness}  connected=${server.connected ? 'yes' : 'no'}`),
+          ...servers.map((server) => `  ${server.name}  trust=${formatMcpTrustMode(server.trustMode)}  role=${formatMcpRole(server.role)}  status=${formatMcpFreshness(server.schemaFreshness)}  connected=${server.connected ? 'yes' : 'no'}`),
           '  next: /mcp auth-review',
           '  next: /mcp repair <server>',
         ].join('\n'));
@@ -218,7 +238,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
           ? [
               'MCP Auth Review',
               ...needingAttention.map((server) => (
-                `  ${server.name}  connected=${server.connected ? 'yes' : 'no'}  freshness=${server.schemaFreshness}  trust=${server.trustMode}`
+                `  ${server.name}  connected ${server.connected ? 'yes' : 'no'}  status ${formatMcpFreshness(server.schemaFreshness)}  trust ${formatMcpTrustMode(server.trustMode)}`
               )),
               '  next: /auth review',
               '  next: /mcp repair <server>',
@@ -233,7 +253,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         const selected = serverName ? servers.find((server) => server.name === serverName) : servers.find((server) => !server.connected || server.schemaFreshness === 'quarantined');
         if (!selected) {
           ctx.print(serverName
-            ? `Unknown MCP server: ${serverName}`
+            ? `Unknown MCP server ${serverName}`
             : 'MCP Repair\n  No MCP server currently needs repair.');
           return;
         }
@@ -248,9 +268,9 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         ctx.print([
           `MCP Repair: ${selected.name}`,
           `  connected: ${selected.connected ? 'yes' : 'no'}`,
-          `  trust: ${selected.trustMode}`,
-          `  role: ${selected.role}`,
-          `  freshness: ${selected.schemaFreshness}`,
+          `  trust: ${formatMcpTrustMode(selected.trustMode)}`,
+          `  role: ${formatMcpRole(selected.role)}`,
+          `  status: ${formatMcpFreshness(selected.schemaFreshness)}`,
           ...(selected.quarantineReason ? [`  quarantine: ${selected.quarantineReason}`] : []),
           ...(selected.quarantineDetail ? [`  detail: ${selected.quarantineDetail}`] : []),
           '  next:',
@@ -273,7 +293,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
             return;
           }
           mcpApi.setServerTrustMode(serverName, mode);
-          ctx.print(`Updated MCP trust mode for ${serverName} to ${mode}.`);
+          ctx.print(`Updated MCP trust mode for ${serverName} to ${formatMcpTrustMode(mode)}.`);
           return;
         }
         if (serverName || mode) {
@@ -291,7 +311,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
             return;
           }
           mcpApi.setServerRole(serverName, role);
-          ctx.print(`Updated MCP role for ${serverName} to ${role}.`);
+          ctx.print(`Updated MCP role for ${serverName} to ${formatMcpRole(role)}.`);
           return;
         }
         if (serverName || role) {
@@ -317,13 +337,16 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
           const result = await mcpApi.upsertServerConfig(shellPaths, parsedAdd.scope, parsedAdd.server);
           const connected = listServerSecurity().find((entry) => entry.name === parsedAdd.server.name)?.connected ?? false;
           ctx.print([
-            `MCP server "${parsedAdd.server.name}" saved to ${parsedAdd.scope} config: ${result.path}.`,
-            `Runtime reload: ${connected ? 'connected' : 'server saved; connection needs attention'} (+${result.reload.added} ~${result.reload.changed} -${result.reload.removed}, unchanged ${result.reload.unchanged}).`,
-            `Command: ${parsedAdd.server.command}${parsedAdd.server.args?.length ? ` ${parsedAdd.server.args.join(' ')}` : ''}`,
-            'Next: /mcp tools',
+            `MCP server "${parsedAdd.server.name}" saved`,
+            `  scope ${parsedAdd.scope}`,
+            `  path ${result.path}`,
+            ...(parsedAdd.scope === 'global' ? ['  global config'] : []),
+            `  Runtime reload: ${connected ? 'connected' : 'server saved; connection needs attention'} (+${result.reload.added} ~${result.reload.changed} -${result.reload.removed}, unchanged ${result.reload.unchanged})`,
+            `  command ${parsedAdd.server.command}${parsedAdd.server.args?.length ? ` ${parsedAdd.server.args.join(' ')}` : ''}`,
+            '  next /mcp tools',
           ].join('\n'));
         } catch (error) {
-          ctx.print(`MCP add failed: ${summarizeError(error)}`);
+          ctx.print(`MCP add failed ${summarizeError(error)}`);
         }
         return;
       }
@@ -359,10 +382,10 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         try {
           const result = await mcpApi.removeServerConfig(shellPaths, scope, serverName);
           ctx.print(result.removed
-            ? `Removed MCP server "${serverName}" from ${scope} config ${result.path}. Reload: +${result.reload.added} ~${result.reload.changed} -${result.reload.removed}, unchanged ${result.reload.unchanged}.`
+            ? `Removed MCP server "${serverName}" from ${scope} config ${result.path}. Reload +${result.reload.added} ~${result.reload.changed} -${result.reload.removed}, unchanged ${result.reload.unchanged}.`
             : `No ${scope} MCP server named "${serverName}" exists in ${result.path}.\nIf it still appears, it is coming from another config scope or external MCP config.`);
         } catch (error) {
-          ctx.print(`MCP remove failed: ${summarizeError(error)}`);
+          ctx.print(`MCP remove failed ${summarizeError(error)}`);
         }
         return;
       }
@@ -375,9 +398,9 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         try {
           const result = await reloadMcpRuntime(ctx);
           const servers = listServerSecurity();
-          ctx.print(`Reloaded MCP runtime from config. ${servers.filter((server) => server.connected).length}/${servers.length} server(s) connected. Result: +${result.added} ~${result.changed} -${result.removed}, unchanged ${result.unchanged}.`);
+          ctx.print(`Reloaded MCP runtime from config. ${servers.filter((server) => server.connected).length}/${servers.length} server(s) connected. Result +${result.added} ~${result.changed} -${result.removed}, unchanged ${result.unchanged}.`);
         } catch (error) {
-          ctx.print(`MCP reload failed: ${summarizeError(error)}`);
+          ctx.print(`MCP reload failed ${summarizeError(error)}`);
         }
         return;
       }
@@ -388,22 +411,22 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
           const effective = mcpApi.getEffectiveConfig(shellPaths);
           ctx.print([
             'MCP Config',
-            '  locations:',
+            '  locations',
             ...effective.locations.map((location) => `    ${location.scope}/${location.kind}${location.writable ? ' writable' : ' read-only'}  ${location.path}`),
-            `  effective servers: ${effective.servers.length}`,
+            `  effective servers ${effective.servers.length}`,
             ...effective.servers.map((entry) => {
               const server = entry.server;
               const envKeys = Object.keys(server.env ?? {});
-              return `  - ${server.name}: ${server.command}${server.args?.length ? ` ${server.args.join(' ')}` : ''}  source=${entry.source.scope}/${entry.source.kind}${envKeys.length ? ` envKeys=${envKeys.join(',')}` : ''}`;
+              return `  - ${server.name}: ${server.command}${server.args?.length ? ` ${server.args.join(' ')}` : ''}  origin ${entry.source.scope}/${entry.source.kind}${envKeys.length ? ` envKeys=${envKeys.join(',')}` : ''}`;
             }),
             '',
-            'Add or update from inside Agent with explicit confirmation:',
+            'Add or update from inside Agent with explicit confirmation',
             '  Open /mcp and choose Add or update server, or use Agent Workspace -> Tools & MCP -> Add MCP server.',
-            'Automation equivalent:',
+            'Automation equivalent',
             '  /mcp add <name> <command> [args...] [--scope project|global] [--role <role>] [--trust <mode>] --yes',
           ].join('\n'));
         } catch (error) {
-          ctx.print(`MCP config read failed: ${summarizeError(error)}`);
+          ctx.print(`MCP config read failed ${summarizeError(error)}`);
         }
         return;
       }
@@ -417,12 +440,12 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         }
         if (action === 'approve') {
           if (!confirmation.yes) {
-            requireYesFlag(ctx, `approve MCP schema quarantine override for ${serverName}`, '/mcp quarantine <server> approve [operatorId] --yes');
+            requireYesFlag(ctx, `approve MCP tool-definition quarantine override for ${serverName}`, '/mcp quarantine <server> approve [operatorId] --yes');
             return;
           }
           const operatorId = commandArgs[3] || 'operator';
           mcpApi.approveSchemaQuarantine(serverName, operatorId);
-          ctx.print(`Approved MCP schema quarantine override for ${serverName} as ${operatorId}. Refresh is still recommended.`);
+          ctx.print(`Approved MCP tool-definition quarantine override for ${serverName} as ${operatorId}. Refresh is still recommended.`);
           return;
         }
         if (!confirmation.yes) {
@@ -431,7 +454,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         }
         const detail = commandArgs.slice(2).join(' ') || 'quarantined by operator';
         mcpApi.quarantineSchema(serverName, 'operator_flagged', detail);
-        ctx.print(`Quarantined MCP schema for ${serverName}.\nReason: ${detail}`);
+        ctx.print(`Quarantined MCP tool definitions for ${serverName}.\nReason: ${detail}`);
         return;
       }
 
@@ -456,18 +479,16 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
   });
 }
 
-type McpSecurityServer = ReturnType<NonNullable<NonNullable<CommandContext['clients']>['mcpApi']>['listServerSecurity']>[number];
-
 function formatMcpServerList(servers: readonly McpSecurityServer[]): string {
   const connected = servers.filter(s => s.connected);
   const disconnected = servers.filter(s => !s.connected);
   const lines: string[] = [`MCP Servers (${connected.length}/${servers.length} connected):`];
   for (const s of servers) {
-    const pathScope = s.allowedPaths.length > 0 ? ` paths=${s.allowedPaths.length}` : '';
-    const hostScope = s.allowedHosts.length > 0 ? ` hosts=${s.allowedHosts.length}` : '';
-    const freshness = ` freshness=${s.schemaFreshness}`;
-    const quarantine = s.schemaFreshness === 'quarantined' ? ` quarantine=${s.quarantineReason ?? 'unknown'}` : '';
-    lines.push(`  ${s.connected ? '[connected]   ' : '[disconnected]'}  ${s.name}  trust=${s.trustMode}  role=${s.role}${freshness}${quarantine}${pathScope}${hostScope}`);
+    const pathScope = s.allowedPaths.length > 0 ? ` paths ${s.allowedPaths.length}` : '';
+    const hostScope = s.allowedHosts.length > 0 ? ` hosts ${s.allowedHosts.length}` : '';
+    const freshness = ` status ${formatMcpFreshness(s.schemaFreshness)}`;
+    const quarantine = s.schemaFreshness === 'quarantined' ? ` review reason ${s.quarantineReason ?? 'unknown'}` : '';
+    lines.push(`  ${s.connected ? '[connected]   ' : '[disconnected]'}  ${s.name}  trust=${formatMcpTrustMode(s.trustMode)}  role=${formatMcpRole(s.role)}${freshness}${quarantine}${pathScope}${hostScope}`);
   }
   if (connected.length > 0) {
     lines.push('');

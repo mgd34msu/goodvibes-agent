@@ -3,6 +3,7 @@ import type { CliCommandRuntime } from './management.ts';
 import {
   commandValues,
   delegationTaskValues,
+  hasAnyFlag,
   hasFlag,
   parseConnectorInput,
   readFirstStringList,
@@ -14,6 +15,7 @@ import {
 } from './agent-knowledge-args.ts';
 import {
   formatAsk,
+  formatAgentKnowledgeFailureKind,
   formatBatchIngest,
   formatConnector,
   formatConnectorDoctor,
@@ -47,23 +49,23 @@ interface DelegationResult {
   readonly sessionId: string;
   readonly message: unknown;
   readonly task: string;
-  readonly wrfcRequested: boolean;
+  readonly reviewRequested: boolean;
 }
 
-function buildDelegationBody(task: string, wrfcRequested: boolean): string {
+function buildDelegationBody(task: string, reviewRequested: boolean): string {
   return [
     'GoodVibes Agent explicit build delegation.',
     '',
-    'Original user ask:',
+    'Original user ask',
     task,
     '',
-    'Agent policy:',
+    'Agent policy',
     '- GoodVibes Agent is not the coding TUI.',
     '- Preserve the full original ask.',
-    '- GoodVibes TUI owns file edits, git/worktree flows, execution isolation UX, and any WRFC owner chain.',
-    wrfcRequested
-      ? '- WRFC was explicitly requested by the Agent user for this build/fix/review delegation.'
-      : '- WRFC was not explicitly requested; do not turn this into WRFC solely because it came from Agent.',
+    '- GoodVibes TUI owns file edits, git/worktree flows, execution isolation UX, and any delegated review owner chain.',
+    reviewRequested
+      ? '- Delegated review was explicitly requested by the Agent user for this build/fix/review handoff.'
+      : '- Delegated review was not explicitly requested; do not add review solely because this came from Agent.',
   ].join('\n');
 }
 
@@ -512,13 +514,13 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
   };
   const text = [
     'GoodVibes Agent compatibility',
-    `  package: ${metadata.version}`,
-    `  SDK pin: ${metadata.sdkVersion}`,
-    `  connected host: ${connectedHostVersion} at ${connection.baseUrl} (${connectedHost.ok ? 'reachable' : 'unreachable'})`,
-    `  version compatible: ${yesNo(versionCompatible)}`,
-    `  operator token: ${connection.token ? 'present' : 'missing'} (${connection.tokenPath})`,
-    `  Agent knowledge route: ${knowledgeRouteReady ? 'ready' : `not ready (${knowledgeRoute.ok ? 'unknown' : knowledgeRoute.kind})`}`,
-    ...(versionCompatible ? [] : ['  next: update the connected GoodVibes host so /status matches the Agent SDK pin.']),
+    `  package ${metadata.version}`,
+    `  SDK pin ${metadata.sdkVersion}`,
+    `  connected host ${connectedHostVersion} at ${connection.baseUrl} (${connectedHost.ok ? 'reachable' : 'unreachable'})`,
+    `  version compatible ${yesNo(versionCompatible)}`,
+    `  operator token ${connection.token ? 'present' : 'missing'} (${connection.tokenPath})`,
+    `  Agent Knowledge route ${knowledgeRouteReady ? 'ready' : `not ready (${knowledgeRoute.ok ? 'unknown' : formatAgentKnowledgeFailureKind(knowledgeRoute.kind)})`}`,
+    ...(versionCompatible ? [] : ['  next update the connected GoodVibes host so /status matches the Agent SDK pin.']),
   ].join('\n');
   return {
     output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text,
@@ -527,11 +529,11 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
 }
 
 export async function handleDelegateCommand(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
-  const wrfcRequested = hasFlag(runtime.cli.commandArgs, '--wrfc');
+  const reviewRequested = hasAnyFlag(runtime.cli.commandArgs, ['--review', '--wrfc']);
   const task = delegationTaskValues(runtime.cli.commandArgs).join(' ').trim();
   if (!task) {
     return {
-      output: 'Usage: goodvibes-agent delegate [--wrfc] <build/fix/review task>',
+      output: 'Usage: goodvibes-agent delegate [--review] <build/fix/review task>',
       exitCode: 2,
     };
   }
@@ -548,10 +550,14 @@ export async function handleDelegateCommand(runtime: CliCommandRuntime): Promise
     if (!sessionId) throw new Error('sessions.create returned no session id.');
     const message = await sdk.operator.invoke('sessions.messages.create', {
       sessionId,
-      body: buildDelegationBody(task, wrfcRequested),
+      body: buildDelegationBody(task, reviewRequested),
       surfaceKind: 'goodvibes-agent',
       surfaceId: 'goodvibes-agent-cli',
       kind: 'task',
+      metadata: {
+        reviewRequested,
+        wrfcRequested: reviewRequested,
+      },
       routing: {
         executionIntent: {
           riskClass: 'elevated',
@@ -561,15 +567,15 @@ export async function handleDelegateCommand(runtime: CliCommandRuntime): Promise
         },
       },
     });
-    return { sessionId, message, task, wrfcRequested };
+    return { sessionId, message, task, reviewRequested };
   });
   if (!result.ok) return { output: formatFailure(result, runtime.cli.flags.outputFormat === 'json'), exitCode: 1 };
   const text = [
     'Delegation submitted to GoodVibes TUI/shared-session routes.',
-    `  session: ${result.data.sessionId}`,
-    `  mode: ${result.data.wrfcRequested ? 'WRFC requested' : 'direct build delegation'}`,
-    `  task: ${result.data.task}`,
-    '  next: check GoodVibes TUI shared-session/task status for the result.',
+    `  session ${result.data.sessionId}`,
+    `  mode ${result.data.reviewRequested ? 'delegated review requested' : 'direct build delegation'}`,
+    `  task ${result.data.task}`,
+    '  next check GoodVibes TUI shared-session/task status for the result.',
   ].join('\n');
   return {
     output: formatJsonOrText(runtime.cli)(result, text),

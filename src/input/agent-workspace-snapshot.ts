@@ -3,6 +3,7 @@ import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from './command-registry.ts';
 import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
+import { formatAgentRecordOrigin } from '../agent/record-labels.ts';
 import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import {
   AgentSkillRegistry,
@@ -19,6 +20,7 @@ import { RoutineScheduleReceiptStore } from '../agent/routine-schedule-receipts.
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken, type ConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
+import { getAgentWorkspaceConfigReader } from './agent-workspace-config-reader.ts';
 import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
 import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
 import type {
@@ -29,13 +31,9 @@ import type {
   AgentWorkspaceRuntimeStarterTemplateItem,
 } from './agent-workspace-types.ts';
 
-type AgentWorkspaceConfigReader = {
-  get(key: string): unknown;
-};
-
 function readConfigString(context: CommandContext, key: string, fallback: string): string {
   try {
-    const configManager = context.platform?.configManager as unknown as AgentWorkspaceConfigReader | undefined;
+    const configManager = getAgentWorkspaceConfigReader(context);
     const value = configManager?.get(key);
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
   } catch {
@@ -45,7 +43,7 @@ function readConfigString(context: CommandContext, key: string, fallback: string
 
 function readConfigNumber(context: CommandContext, key: string, fallback: number): number {
   try {
-    const configManager = context.platform?.configManager as unknown as AgentWorkspaceConfigReader | undefined;
+    const configManager = getAgentWorkspaceConfigReader(context);
     const value = configManager?.get(key);
     const numberValue = typeof value === 'number' ? value : Number(value);
     return Number.isFinite(numberValue) ? numberValue : fallback;
@@ -56,7 +54,7 @@ function readConfigNumber(context: CommandContext, key: string, fallback: number
 
 function readConfigBoolean(context: CommandContext, key: string, fallback: boolean): boolean {
   try {
-    const configManager = context.platform?.configManager as unknown as AgentWorkspaceConfigReader | undefined;
+    const configManager = getAgentWorkspaceConfigReader(context);
     const value = configManager?.get(key);
     if (typeof value === 'boolean') return value;
     if (typeof value === 'string') {
@@ -87,7 +85,7 @@ function summarizePersonaItem(persona: AgentPersonaRecord, activePersonaId: stri
     name: persona.name,
     description: persona.description,
     reviewState: persona.reviewState,
-    source: persona.source,
+    source: formatAgentRecordOrigin(persona.source, persona.provenance),
     tags: persona.tags,
     triggers: persona.triggers,
     active: persona.id === activePersonaId,
@@ -101,7 +99,7 @@ function summarizeSkillItem(skill: AgentSkillRecord): AgentWorkspaceLocalLibrary
     name: skill.name,
     description: skill.description,
     reviewState: skill.reviewState,
-    source: skill.source,
+    source: formatAgentRecordOrigin(skill.source, skill.provenance),
     tags: skill.tags,
     triggers: skill.triggers,
     enabled: skill.enabled,
@@ -122,7 +120,7 @@ function summarizeSkillBundleItem(bundle: AgentSkillBundleRecord, skills: readon
     name: bundle.name,
     description: `${bundle.description} Skills: ${bundle.skillIds.join(', ')}`,
     reviewState: bundle.reviewState,
-    source: bundle.source,
+    source: formatAgentRecordOrigin(bundle.source, bundle.provenance),
     tags: bundle.skillIds,
     triggers: [],
     enabled: bundle.enabled,
@@ -139,7 +137,7 @@ function summarizeRoutineItem(routine: AgentRoutineRecord): AgentWorkspaceLocalL
     name: routine.name,
     description: routine.description,
     reviewState: routine.reviewState,
-    source: routine.source,
+    source: formatAgentRecordOrigin(routine.source, routine.provenance),
     tags: routine.tags,
     triggers: routine.triggers,
     enabled: routine.enabled,
@@ -172,7 +170,7 @@ function summarizeMemoryItem(record: MemoryRecord): AgentWorkspaceLocalLibraryIt
     name: record.summary,
     description: detail && detail.length > 0 ? detail : `${record.scope}/${record.cls}`,
     reviewState: record.reviewState,
-    source: 'agent-memory',
+    source: 'Agent memory',
     tags: record.tags,
     triggers: [],
     scope: record.scope,
@@ -184,14 +182,14 @@ function summarizeMemoryItem(record: MemoryRecord): AgentWorkspaceLocalLibraryIt
 function summarizeNoteItem(note: AgentNoteRecord): AgentWorkspaceLocalLibraryItem {
   const preview = note.body.replace(/\s+/g, ' ').trim();
   const description = note.sourceUrl
-    ? `${preview.slice(0, 160)}${preview.length > 160 ? '...' : ''} Source: ${note.sourceUrl}`
+    ? `${preview.slice(0, 160)}${preview.length > 160 ? '...' : ''} Origin URL ${note.sourceUrl}`
     : preview;
   return {
     id: note.id,
     name: note.title,
     description,
     reviewState: note.reviewState,
-    source: note.source,
+    source: formatAgentRecordOrigin(note.source, note.provenance),
     tags: note.tags,
     triggers: [],
   };
@@ -499,7 +497,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     knowledgeRoute: '/api/goodvibes-agent/knowledge',
     knowledgeIsolation: 'agent-only',
     executionPolicy: 'serial-proactive',
-    wrfcPolicy: 'explicit-build-delegation-only',
+    delegatedReviewPolicy: 'explicit-build-delegation-only',
     companionAccess,
     channels,
     voiceProviderCount: voiceProviders.length,

@@ -81,7 +81,7 @@ export const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = 
         description: 'Review open household commitments, pending approvals, and stale home notes.',
         steps: [
           '1. List pending local routines, workplan tasks, and approvals.',
-          '2. Summarize what changed since the last review from local Agent state.',
+          '2. Summarize what changed since the last review from Agent-local state.',
           '3. Ask for confirmation before scheduling, sending messages, purchasing, or changing services.',
           '4. Record reviewed preferences and stale notes locally.',
         ].join('\n'),
@@ -200,7 +200,7 @@ export const STARTER_TEMPLATES: readonly AgentRuntimeProfileStarterTemplate[] = 
         name: 'Pre-trip Readiness Review',
         description: 'Check documents, reservations, transport, packing, weather, and open decisions.',
         steps: [
-          '1. Review trip dates, locations, reservations, and open decisions from local Agent state.',
+          '1. Review trip dates, locations, reservations, and open decisions from Agent-local state.',
           '2. Refresh current weather, schedule, and rule data when needed.',
           '3. Summarize blockers and next confirmed action.',
           '4. Ask before external sends, purchases, or reservation changes.',

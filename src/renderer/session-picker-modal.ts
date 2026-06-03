@@ -10,6 +10,7 @@
 import type { Line } from '../types/grid.ts';
 import { ModalFactory } from './modal-factory.ts';
 import type { SessionPickerModal } from '../input/session-picker-modal.ts';
+import { renderSessionPickerStatePackageText } from '../input/session-picker-modal.ts';
 import { formatTimestamp } from './modal-utils.ts';
 import { fitDisplay } from '../utils/terminal-width.ts';
 import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay-viewport.ts';
@@ -17,6 +18,22 @@ import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay
 // ---------------------------------------------------------------------------
 // Renderer
 // ---------------------------------------------------------------------------
+
+export function renderSessionPickerPackageText(): string {
+  return [
+    'Sessions',
+    'No saved sessions.',
+    'Open Agent Workspace -> Conversation -> Save current session.',
+    'Name',
+    'Saved',
+    'Msgs',
+    '[\u2191\u2193] Navigate',
+    '[Enter] Load',
+    'Delete: /session delete <id> --yes',
+    '[Esc] Close',
+    renderSessionPickerStatePackageText(),
+  ].join('\n');
+}
 
 /**
  * Render the session picker modal as Line[] for overlay in the viewport.

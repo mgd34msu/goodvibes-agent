@@ -46,7 +46,7 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
 }> = [
   { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'permissions'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts'] },
-  { label: 'Local Agent State', categories: ['storage', 'cache', 'telemetry'] },
+  { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'mcp', 'automation'] },
   { label: 'Advanced', categories: ['flags', 'release'] },
 ];

@@ -668,7 +668,7 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       message: 'Send one explicit build/fix/review task to GoodVibes TUI/shared-session routes. Type yes on the final field to confirm.',
       fields: [
         { id: 'task', label: 'Original task', value: '', required: true, multiline: true, hint: 'Paste the full original user ask. Ctrl-J inserts a new line.' },
-        { id: 'wrfc', label: 'Request WRFC', value: '', required: false, multiline: false, hint: 'yes/no. Blank means no WRFC request.' },
+        { id: 'review', label: 'Request delegated review', value: '', required: false, multiline: false, hint: 'yes/no. Blank means no delegated review request.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /delegate for this task.' },
       ],
     };

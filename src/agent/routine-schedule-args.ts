@@ -15,6 +15,7 @@ const DELIVERY_SURFACE_KINDS: readonly RoutineScheduleDeliverySurfaceKind[] = [
   'google-chat',
   'signal',
   'whatsapp',
+  'telephony',
   'imessage',
   'msteams',
   'bluebubbles',
@@ -204,7 +205,7 @@ export function parseRoutineSchedulePromotionArgs(args: readonly string[]): Pars
       continue;
     }
     if (raw.startsWith('--')) {
-      errors.push(`Unknown option: ${raw}`);
+      errors.push(`Unknown option ${raw}`);
       continue;
     }
     if (!routineId) {

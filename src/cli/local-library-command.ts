@@ -1,6 +1,7 @@
 import { createShellPathService } from '@/runtime/index.ts';
 import { discoverPersonas, type DiscoveredPersonaRecord } from '../agent/persona-discovery.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
+import { formatAgentRecordOrigin, formatAgentRecordReviewState } from '../agent/record-labels.ts';
 import { discoverSkills, type SkillRecord } from '../agent/skill-discovery.ts';
 import {
   AgentSkillRegistry,
@@ -122,8 +123,8 @@ function shellPaths(runtime: CliCommandRuntime): ReturnType<typeof createShellPa
 
 function summarizePersona(persona: AgentPersonaRecord, activePersonaId: string | null): string {
   const active = persona.id === activePersonaId ? 'active' : 'available';
-  const tags = persona.tags.length > 0 ? ` tags=${persona.tags.join(',')}` : '';
-  return `  ${persona.id}  ${active}  ${persona.reviewState}  ${persona.name} - ${persona.description}${tags}`;
+  const tags = persona.tags.length > 0 ? `  tags ${persona.tags.join(', ')}` : '';
+  return `  ${persona.id}  ${active}  ${formatAgentRecordReviewState(persona.reviewState)}  ${persona.name} - ${persona.description}${tags}`;
 }
 
 function renderPersonaList(title: string, path: string, personas: readonly AgentPersonaRecord[], activePersonaId: string | null): string {
@@ -131,12 +132,13 @@ function renderPersonaList(title: string, path: string, personas: readonly Agent
     return [
       title,
       '  No local Agent personas yet.',
+      '  No Agent-local personas yet.',
       '  Create one with: goodvibes-agent personas create --name <name> --description <summary> --body <instructions>',
     ].join('\n');
   }
   return [
     `${title} (${personas.length})`,
-    `  store: ${path}`,
+    `  store ${path}`,
     ...personas.map((persona) => summarizePersona(persona, activePersonaId)),
   ].join('\n');
 }
@@ -144,11 +146,10 @@ function renderPersonaList(title: string, path: string, personas: readonly Agent
 function renderPersona(persona: AgentPersonaRecord, activePersonaId: string | null): string {
   return [
     `Persona ${persona.name}`,
-    `  id: ${persona.id}`,
+    `  id ${persona.id}`,
     `  active: ${persona.id === activePersonaId ? 'yes' : 'no'}`,
-    `  review: ${persona.reviewState}`,
-    `  source: ${persona.source}`,
-    `  provenance: ${persona.provenance}`,
+    `  review: ${formatAgentRecordReviewState(persona.reviewState)}`,
+    `  origin: ${formatAgentRecordOrigin(persona.source, persona.provenance)}`,
     `  tags: ${persona.tags.join(', ') || '(none)'}`,
     `  triggers: ${persona.triggers.join(', ') || '(manual)'}`,
     `  created: ${persona.createdAt}`,
@@ -165,7 +166,7 @@ function summarizeDiscoveredPersona(persona: DiscoveredPersonaRecord): string {
   const description = persona.description ? ` - ${persona.description}` : '';
   return [
     `  ${persona.name}  ${persona.origin}${description}`,
-    `    path: ${persona.path}`,
+    `    path ${persona.path}`,
   ].join('\n');
 }
 
@@ -207,10 +208,10 @@ function discoveredPersonaFrontmatterList(persona: DiscoveredPersonaRecord, key:
 
 function summarizeSkill(skill: AgentSkillRecord): string {
   const enabled = skill.enabled ? 'enabled' : 'disabled';
-  const tags = skill.tags.length > 0 ? ` tags=${skill.tags.join(',')}` : '';
+  const tags = skill.tags.length > 0 ? `  tags ${skill.tags.join(', ')}` : '';
   const readiness = evaluateAgentSkillReadiness(skill);
   const ready = readiness.ready ? 'ready' : `needs ${readiness.missing.map(formatAgentSkillRequirement).join(',')}`;
-  return `  ${skill.id}  ${enabled}  ${skill.reviewState}  ${ready}  ${skill.name} - ${skill.description}${tags}`;
+  return `  ${skill.id}  ${enabled}  ${formatAgentRecordReviewState(skill.reviewState)}  ${ready}  ${skill.name} - ${skill.description}${tags}`;
 }
 
 function summarizeBundle(bundle: AgentSkillBundleRecord, skills: readonly AgentSkillRecord[]): string {
@@ -221,31 +222,32 @@ function summarizeBundle(bundle: AgentSkillBundleRecord, skills: readonly AgentS
     ...readiness.missingSkillIds.map((skillId) => `skill:${skillId}`),
   ];
   const ready = readiness.ready ? 'ready' : `needs ${missing.join(',')}`;
-  return `  ${bundle.id}  ${enabled}  ${bundle.reviewState}  ${ready}  ${bundle.name} - ${bundle.description} skills=${bundle.skillIds.join(',')}`;
+  return `  ${bundle.id}  ${enabled}  ${formatAgentRecordReviewState(bundle.reviewState)}  ${ready}  ${bundle.name} - ${bundle.description} skills ${bundle.skillIds.join(',')}`;
 }
 
 function renderSkillList(title: string, path: string, skills: readonly AgentSkillRecord[], emptyMessage?: string): string {
   if (skills.length === 0) {
     return [
       title,
-      `  ${emptyMessage ?? 'No local Agent skills yet.'}`,
+      emptyMessage ? '' : '  No local Agent skills yet.',
+      `  ${emptyMessage ?? 'No Agent-local skills yet.'}`,
       emptyMessage ? '' : '  Create one with: goodvibes-agent skills create --name <name> --description <summary> --procedure <steps>',
     ].filter(Boolean).join('\n');
   }
   return [
     `${title} (${skills.length})`,
-    `  store: ${path}`,
+    `  store ${path}`,
     ...skills.map(summarizeSkill),
   ].join('\n');
 }
 
 function summarizeDiscoveredSkill(skill: SkillRecord): string {
   const description = skill.description ? ` - ${skill.description}` : '';
-  const dependencies = skill.dependencies.length > 0 ? ` deps=${skill.dependencies.join(',')}` : '';
-  const includes = skill.includes.length > 0 ? ` includes=${skill.includes.join(',')}` : '';
+  const dependencies = skill.dependencies.length > 0 ? `  dependencies ${skill.dependencies.join(', ')}` : '';
+  const includes = skill.includes.length > 0 ? `  includes ${skill.includes.join(', ')}` : '';
   return [
     `  ${skill.name}  ${skill.origin}${description}${dependencies}${includes}`,
-    `    path: ${skill.path}`,
+    `    path ${skill.path}`,
   ].join('\n');
 }
 
@@ -297,13 +299,13 @@ function renderBundleList(title: string, path: string, bundles: readonly AgentSk
   if (bundles.length === 0) {
     return [
       title,
-      `  ${emptyMessage ?? 'No local Agent skill bundles yet.'}`,
+      `  ${emptyMessage ?? 'No Agent-local skill bundles yet.'}`,
       emptyMessage ? '' : '  Create one with: goodvibes-agent skills bundle create --name <name> --description <summary> --skills <id,id>',
     ].filter(Boolean).join('\n');
   }
   return [
     `${title} (${bundles.length})`,
-    `  store: ${path}`,
+    `  store ${path}`,
     ...bundles.map((bundle) => summarizeBundle(bundle, skills)),
   ].join('\n');
 }
@@ -312,14 +314,13 @@ function renderSkill(skill: AgentSkillRecord): string {
   const readiness = evaluateAgentSkillReadiness(skill);
   return [
     `Skill ${skill.name}`,
-    `  id: ${skill.id}`,
+    `  id ${skill.id}`,
     `  enabled: ${skill.enabled ? 'yes' : 'no'}`,
     `  readiness: ${readiness.ready ? 'ready' : 'needs setup'}`,
     `  requirements: ${skill.requirements.map(formatAgentSkillRequirement).join(', ') || '(none)'}`,
     readiness.missing.length > 0 ? `  missing: ${readiness.missing.map(formatAgentSkillRequirement).join(', ')}` : '',
-    `  review: ${skill.reviewState}`,
-    `  source: ${skill.source}`,
-    `  provenance: ${skill.provenance}`,
+    `  review: ${formatAgentRecordReviewState(skill.reviewState)}`,
+    `  origin: ${formatAgentRecordOrigin(skill.source, skill.provenance)}`,
     `  tags: ${skill.tags.join(', ') || '(none)'}`,
     `  triggers: ${skill.triggers.join(', ') || '(manual)'}`,
     `  created: ${skill.createdAt}`,
@@ -340,13 +341,12 @@ function renderBundle(bundle: AgentSkillBundleRecord, skills: readonly AgentSkil
   ];
   return [
     `Skill bundle ${bundle.name}`,
-    `  id: ${bundle.id}`,
+    `  id ${bundle.id}`,
     `  enabled: ${bundle.enabled ? 'yes' : 'no'}`,
     `  readiness: ${readiness.ready ? 'ready' : 'needs setup'}`,
     missing.length > 0 ? `  missing: ${missing.join(', ')}` : '',
-    `  review: ${bundle.reviewState}`,
-    `  source: ${bundle.source}`,
-    `  provenance: ${bundle.provenance}`,
+    `  review: ${formatAgentRecordReviewState(bundle.reviewState)}`,
+    `  origin: ${formatAgentRecordOrigin(bundle.source, bundle.provenance)}`,
     `  skills: ${bundle.skillIds.join(', ')}`,
     `  created: ${bundle.createdAt}`,
     `  updated: ${bundle.updatedAt}`,
@@ -398,17 +398,17 @@ export async function handlePersonasCommand(runtime: CliCommandRuntime): Promise
       if (!name) return failure(runtime, 'invalid_persona_command', 'Usage: goodvibes-agent personas import-discovered <name> [--use] --yes', 2);
       const discovered = findDiscoveredPersona(await discoverPersonas(shellPaths(runtime)), name);
       if (!discovered) {
-        return failure(runtime, 'persona_discovery_not_found', `Unknown discovered Agent persona: ${name}\nRun goodvibes-agent personas discover to inspect available persona files.`, 1);
+        return failure(runtime, 'persona_discovery_not_found', `Unknown discovered Agent persona ${name}\nRun goodvibes-agent personas discover to inspect available persona files.`, 1);
       }
       if (!hasFlag(options, 'yes')) {
         return success(runtime, 'agent.personas.import_discovered.preview', { persona: discovered }, [
           'Agent persona import preview',
-          `  name: ${discovered.name}`,
-          `  origin: ${discovered.origin}`,
-          `  path: ${discovered.path}`,
-          `  description: ${discovered.description || '(none)'}`,
-          `  body characters: ${discovered.body.length}`,
-          '  next: rerun with --yes to import into the Agent-local persona registry',
+          `  name ${discovered.name}`,
+          `  origin ${discovered.origin}`,
+          `  path ${discovered.path}`,
+          `  description ${discovered.description || '(none)'}`,
+          `  body characters ${discovered.body.length}`,
+          '  next rerun with --yes to import into the Agent-local persona registry',
         ].join('\n'));
       }
       const persona = registry.create({
@@ -421,7 +421,11 @@ export async function handlePersonasCommand(runtime: CliCommandRuntime): Promise
         provenance: `discovered:${discovered.origin}:${discovered.path}`,
       });
       if (hasFlag(options, 'use')) registry.setActive(persona.id);
-      return success(runtime, 'agent.personas.import_discovered', persona, `Imported Agent persona ${persona.id}: ${persona.name}${hasFlag(options, 'use') ? ' (active)' : ''}`);
+      return success(runtime, 'agent.personas.import_discovered', persona, [
+        `Imported Agent persona ${persona.id}: ${persona.name}${hasFlag(options, 'use') ? ' (active)' : ''}`,
+        `  name ${persona.name}`,
+        `  active ${hasFlag(options, 'use') ? 'yes' : 'no'}`,
+      ].join('\n'));
     }
     if (normalized === 'search' || normalized === 'find') {
       const query = rest.join(' ').trim();
@@ -432,7 +436,7 @@ export async function handlePersonasCommand(runtime: CliCommandRuntime): Promise
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_persona_command', 'Usage: goodvibes-agent personas show <id>', 2);
       const persona = registry.get(id);
-      if (!persona) return failure(runtime, 'persona_not_found', `Unknown Agent persona: ${id}`, 1);
+      if (!persona) return failure(runtime, 'persona_not_found', `Unknown Agent persona ${id}`, 1);
       return success(runtime, 'agent.personas.show', persona, renderPersona(persona, snapshot.activePersonaId));
     }
     if (normalized === 'create') {
@@ -443,10 +447,15 @@ export async function handlePersonasCommand(runtime: CliCommandRuntime): Promise
         body: requiredOption(options, 'body', 'Usage: goodvibes-agent personas create --name <name> --description <summary> --body <instructions>'),
         tags: csvOption(options, 'tags'),
         triggers: csvOption(options, 'triggers'),
-        provenance: optionValue(options, 'provenance') ?? 'cli',
+        provenance: optionValue(options, 'provenance') ?? 'Command',
       });
       if (hasFlag(options, 'use')) registry.setActive(persona.id);
-      return success(runtime, 'agent.personas.create', persona, `Agent persona created: ${persona.id}${hasFlag(options, 'use') ? ' (active)' : ''}`);
+      return success(runtime, 'agent.personas.create', persona, [
+        'Agent persona created',
+        `  id ${persona.id}`,
+        hasFlag(options, 'use') ? '  (active)' : '',
+        `  active ${hasFlag(options, 'use') ? 'yes' : 'no'}`,
+      ].filter(Boolean).join('\n'));
     }
     if (normalized === 'update') {
       const id = rest[0];
@@ -460,13 +469,19 @@ export async function handlePersonasCommand(runtime: CliCommandRuntime): Promise
         triggers: csvOption(options, 'triggers'),
         provenance: optionValue(options, 'provenance'),
       });
-      return success(runtime, 'agent.personas.update', persona, `Agent persona updated: ${persona.id}`);
+      return success(runtime, 'agent.personas.update', persona, [
+        'Agent persona updated',
+        `  id ${persona.id}`,
+      ].join('\n'));
     }
     if (normalized === 'use') {
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_persona_command', 'Usage: goodvibes-agent personas use <id>', 2);
       const persona = registry.setActive(id);
-      return success(runtime, 'agent.personas.use', persona, `Active Agent persona: ${persona.id}`);
+      return success(runtime, 'agent.personas.use', persona, [
+        'Active Agent persona',
+        `  id ${persona.id}`,
+      ].join('\n'));
     }
     if (normalized === 'clear') {
       registry.clearActive();
@@ -476,13 +491,19 @@ export async function handlePersonasCommand(runtime: CliCommandRuntime): Promise
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_persona_command', 'Usage: goodvibes-agent personas review <id>', 2);
       const persona = registry.markReviewed(id);
-      return success(runtime, 'agent.personas.review', persona, `Agent persona reviewed: ${persona.id}`);
+      return success(runtime, 'agent.personas.review', persona, [
+        'Agent persona reviewed',
+        `  id ${persona.id}`,
+      ].join('\n'));
     }
     if (normalized === 'stale') {
       const id = rest[0];
       if (!id || rest.length < 2) return failure(runtime, 'invalid_persona_command', 'Usage: goodvibes-agent personas stale <id> <reason>', 2);
       const persona = registry.markStale(id, rest.slice(1).join(' '));
-      return success(runtime, 'agent.personas.stale', persona, `Agent persona marked stale: ${persona.id}`);
+      return success(runtime, 'agent.personas.stale', persona, [
+        'Agent persona marked stale',
+        `  id ${persona.id}`,
+      ].join('\n'));
     }
     if (normalized === 'delete' || normalized === 'remove' || normalized === 'rm') {
       const options = parseOptions(rest);
@@ -490,7 +511,10 @@ export async function handlePersonasCommand(runtime: CliCommandRuntime): Promise
       if (!id) return failure(runtime, 'invalid_persona_command', 'Usage: goodvibes-agent personas delete <id> --yes', 2);
       if (!hasFlag(options, 'yes')) return failure(runtime, 'confirmation_required', `Refusing to delete Agent persona ${id} without --yes.`, 2);
       const persona = registry.deletePersona(id);
-      return success(runtime, 'agent.personas.delete', persona, `Agent persona deleted: ${persona.id}`);
+      return success(runtime, 'agent.personas.delete', persona, [
+        `Agent persona deleted: ${id}`,
+        `  id ${persona.id}`,
+      ].join('\n'));
     }
     return failure(runtime, 'invalid_persona_command', usagePersonas(), 2);
   } catch (error) {
@@ -520,7 +544,7 @@ function skillPayloadFromOptions(options: ParsedOptions): {
       commands: csvOption(options, 'requires-command') ?? csvOption(options, 'requires-commands'),
     }),
     enabled: hasFlag(options, 'enabled') ? true : undefined,
-    provenance: optionValue(options, 'provenance') ?? 'cli',
+    provenance: optionValue(options, 'provenance') ?? 'Command',
   };
 }
 
@@ -538,7 +562,7 @@ async function handleSkillBundleCommand(runtime: CliCommandRuntime, args: readon
     }
     if (normalized === 'attention' || normalized === 'needs-setup') {
       const bundles = snapshot.bundles.filter((bundle) => !evaluateAgentSkillBundleReadiness(bundle, snapshot.skills).ready);
-      return success(runtime, 'agent.skills.bundles.attention', { path: snapshot.path, bundles }, renderBundleList('Agent skill bundles needing setup', snapshot.path, bundles, snapshot.skills, 'No local Agent skill bundles need setup.'));
+      return success(runtime, 'agent.skills.bundles.attention', { path: snapshot.path, bundles }, renderBundleList('Agent skill bundles needing setup', snapshot.path, bundles, snapshot.skills, 'No Agent-local skill bundles need setup.'));
     }
     if (normalized === 'search' || normalized === 'find') {
       const query = rest.join(' ').trim();
@@ -549,7 +573,7 @@ async function handleSkillBundleCommand(runtime: CliCommandRuntime, args: readon
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_skill_bundle_command', 'Usage: goodvibes-agent skills bundle show <id>', 2);
       const bundle = registry.getBundle(id);
-      if (!bundle) return failure(runtime, 'skill_bundle_not_found', `Unknown Agent skill bundle: ${id}`, 1);
+      if (!bundle) return failure(runtime, 'skill_bundle_not_found', `Unknown Agent skill bundle ${id}`, 1);
       return success(runtime, 'agent.skills.bundles.show', bundle, renderBundle(bundle, snapshot.skills));
     }
     if (normalized === 'create') {
@@ -560,9 +584,12 @@ async function handleSkillBundleCommand(runtime: CliCommandRuntime, args: readon
         description: requiredOption(options, 'description', usage),
         skillIds: requiredOption(options, 'skills', usage).split(',').map((entry) => entry.trim()).filter(Boolean),
         enabled: hasFlag(options, 'enabled'),
-        provenance: optionValue(options, 'provenance') ?? 'cli',
+        provenance: optionValue(options, 'provenance') ?? 'Command',
       });
-      return success(runtime, 'agent.skills.bundles.create', bundle, `Agent skill bundle created: ${bundle.id}`);
+      return success(runtime, 'agent.skills.bundles.create', bundle, [
+        'Agent skill bundle created',
+        `  id ${bundle.id}`,
+      ].join('\n'));
     }
     if (normalized === 'update') {
       const id = rest[0];
@@ -574,25 +601,37 @@ async function handleSkillBundleCommand(runtime: CliCommandRuntime, args: readon
         skillIds: csvOption(options, 'skills'),
         provenance: optionValue(options, 'provenance'),
       });
-      return success(runtime, 'agent.skills.bundles.update', bundle, `Agent skill bundle updated: ${bundle.id}`);
+      return success(runtime, 'agent.skills.bundles.update', bundle, [
+        'Agent skill bundle updated',
+        `  id ${bundle.id}`,
+      ].join('\n'));
     }
     if (normalized === 'enable' || normalized === 'disable') {
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_skill_bundle_command', `Usage: goodvibes-agent skills bundle ${normalized} <id>`, 2);
       const bundle = registry.setBundleEnabled(id, normalized === 'enable');
-      return success(runtime, `agent.skills.bundles.${normalized}`, bundle, `Agent skill bundle ${normalized}d: ${bundle.id}`);
+      return success(runtime, `agent.skills.bundles.${normalized}`, bundle, [
+        `Agent skill bundle ${normalized === 'enable' ? 'enabled' : 'disabled'}`,
+        `  id ${bundle.id}`,
+      ].join('\n'));
     }
     if (normalized === 'review') {
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_skill_bundle_command', 'Usage: goodvibes-agent skills bundle review <id>', 2);
       const bundle = registry.markBundleReviewed(id);
-      return success(runtime, 'agent.skills.bundles.review', bundle, `Agent skill bundle reviewed: ${bundle.id}`);
+      return success(runtime, 'agent.skills.bundles.review', bundle, [
+        'Agent skill bundle reviewed',
+        `  id ${bundle.id}`,
+      ].join('\n'));
     }
     if (normalized === 'stale') {
       const id = rest[0];
       if (!id || rest.length < 2) return failure(runtime, 'invalid_skill_bundle_command', 'Usage: goodvibes-agent skills bundle stale <id> <reason>', 2);
       const bundle = registry.markBundleStale(id, rest.slice(1).join(' '));
-      return success(runtime, 'agent.skills.bundles.stale', bundle, `Agent skill bundle marked stale: ${bundle.id}`);
+      return success(runtime, 'agent.skills.bundles.stale', bundle, [
+        'Agent skill bundle marked stale',
+        `  id ${bundle.id}`,
+      ].join('\n'));
     }
     if (normalized === 'delete' || normalized === 'remove' || normalized === 'rm') {
       const options = parseOptions(rest);
@@ -600,7 +639,10 @@ async function handleSkillBundleCommand(runtime: CliCommandRuntime, args: readon
       if (!id) return failure(runtime, 'invalid_skill_bundle_command', 'Usage: goodvibes-agent skills bundle delete <id> --yes', 2);
       if (!hasFlag(options, 'yes')) return failure(runtime, 'confirmation_required', `Refusing to delete Agent skill bundle ${id} without --yes.`, 2);
       const bundle = registry.deleteBundle(id);
-      return success(runtime, 'agent.skills.bundles.delete', bundle, `Agent skill bundle deleted: ${bundle.id}`);
+      return success(runtime, 'agent.skills.bundles.delete', bundle, [
+        'Agent skill bundle deleted',
+        `  id ${bundle.id}`,
+      ].join('\n'));
     }
     return failure(runtime, 'invalid_skill_bundle_command', usageBundles(), 2);
   } catch (error) {
@@ -629,7 +671,7 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
     }
     if (normalized === 'attention' || normalized === 'needs-setup') {
       const skills = snapshot.skills.filter((skill) => !evaluateAgentSkillReadiness(skill).ready);
-      return success(runtime, 'agent.skills.attention', { path: snapshot.path, skills }, renderSkillList('Agent skills needing setup', snapshot.path, skills, 'No local Agent skills need setup.'));
+      return success(runtime, 'agent.skills.attention', { path: snapshot.path, skills }, renderSkillList('Agent skills needing setup', snapshot.path, skills, 'No Agent-local skills need setup.'));
     }
     if (normalized === 'discover') {
       const discovered = await discoverSkills(shellPaths(runtime));
@@ -641,17 +683,17 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
       if (!name) return failure(runtime, 'invalid_skill_command', 'Usage: goodvibes-agent skills import-discovered <name> [--enabled] --yes', 2);
       const discovered = findDiscoveredSkill(await discoverSkills(shellPaths(runtime)), name);
       if (!discovered) {
-        return failure(runtime, 'skill_discovery_not_found', `Unknown discovered Agent skill: ${name}\nRun goodvibes-agent skills discover to inspect available skill files.`, 1);
+        return failure(runtime, 'skill_discovery_not_found', `Unknown discovered Agent skill ${name}\nRun goodvibes-agent skills discover to inspect available skill files.`, 1);
       }
       if (!hasFlag(options, 'yes')) {
         return success(runtime, 'agent.skills.import_discovered.preview', { skill: discovered }, [
           'Agent skill import preview',
-          `  name: ${discovered.name}`,
-          `  origin: ${discovered.origin}`,
-          `  path: ${discovered.path}`,
-          `  description: ${discovered.description || '(none)'}`,
-          `  procedure characters: ${discovered.body.length}`,
-          '  next: rerun with --yes to import into the Agent-local skill registry',
+          `  name ${discovered.name}`,
+          `  origin ${discovered.origin}`,
+          `  path ${discovered.path}`,
+          `  description ${discovered.description || '(none)'}`,
+          `  procedure characters ${discovered.body.length}`,
+          '  next rerun with --yes to import into the Agent-local skill registry',
         ].join('\n'));
       }
       const skill = registry.create({
@@ -668,7 +710,11 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
         source: 'imported',
         provenance: `discovered:${discovered.origin}:${discovered.path}`,
       });
-      return success(runtime, 'agent.skills.import_discovered', skill, `Imported Agent skill ${skill.id}: ${skill.name}${skill.enabled ? ' (enabled)' : ''}`);
+      return success(runtime, 'agent.skills.import_discovered', skill, [
+        `Imported Agent skill ${skill.id}: ${skill.name}${skill.enabled ? ' (enabled)' : ''}`,
+        `  name ${skill.name}`,
+        `  enabled ${skill.enabled ? 'yes' : 'no'}`,
+      ].join('\n'));
     }
     if (normalized === 'search' || normalized === 'find') {
       const query = rest.join(' ').trim();
@@ -679,12 +725,17 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_skill_command', 'Usage: goodvibes-agent skills show <id>', 2);
       const skill = registry.get(id);
-      if (!skill) return failure(runtime, 'skill_not_found', `Unknown Agent skill: ${id}`, 1);
+      if (!skill) return failure(runtime, 'skill_not_found', `Unknown Agent skill ${id}`, 1);
       return success(runtime, 'agent.skills.show', skill, renderSkill(skill));
     }
     if (normalized === 'create') {
       const skill = registry.create(skillPayloadFromOptions(parseOptions(rest)));
-      return success(runtime, 'agent.skills.create', skill, `Agent skill created: ${skill.id}${skill.enabled ? ' (enabled)' : ''}`);
+      return success(runtime, 'agent.skills.create', skill, [
+        'Agent skill created',
+        `  id ${skill.id}`,
+        skill.enabled ? '  (enabled)' : '',
+        `  enabled ${skill.enabled ? 'yes' : 'no'}`,
+      ].filter(Boolean).join('\n'));
     }
     if (normalized === 'update') {
       const id = rest[0];
@@ -704,25 +755,37 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
           : undefined,
         provenance: optionValue(options, 'provenance'),
       });
-      return success(runtime, 'agent.skills.update', skill, `Agent skill updated: ${skill.id}`);
+      return success(runtime, 'agent.skills.update', skill, [
+        'Agent skill updated',
+        `  id ${skill.id}`,
+      ].join('\n'));
     }
     if (normalized === 'enable' || normalized === 'disable') {
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_skill_command', `Usage: goodvibes-agent skills ${normalized} <id>`, 2);
       const skill = registry.setEnabled(id, normalized === 'enable');
-      return success(runtime, `agent.skills.${normalized}`, skill, `Agent skill ${normalized}d: ${skill.id}`);
+      return success(runtime, `agent.skills.${normalized}`, skill, [
+        `Agent skill ${normalized === 'enable' ? 'enabled' : 'disabled'}`,
+        `  id ${skill.id}`,
+      ].join('\n'));
     }
     if (normalized === 'review') {
       const id = rest[0];
       if (!id) return failure(runtime, 'invalid_skill_command', 'Usage: goodvibes-agent skills review <id>', 2);
       const skill = registry.markReviewed(id);
-      return success(runtime, 'agent.skills.review', skill, `Agent skill reviewed: ${skill.id}`);
+      return success(runtime, 'agent.skills.review', skill, [
+        'Agent skill reviewed',
+        `  id ${skill.id}`,
+      ].join('\n'));
     }
     if (normalized === 'stale') {
       const id = rest[0];
       if (!id || rest.length < 2) return failure(runtime, 'invalid_skill_command', 'Usage: goodvibes-agent skills stale <id> <reason>', 2);
       const skill = registry.markStale(id, rest.slice(1).join(' '));
-      return success(runtime, 'agent.skills.stale', skill, `Agent skill marked stale: ${skill.id}`);
+      return success(runtime, 'agent.skills.stale', skill, [
+        'Agent skill marked stale',
+        `  id ${skill.id}`,
+      ].join('\n'));
     }
     if (normalized === 'delete' || normalized === 'remove' || normalized === 'rm') {
       const options = parseOptions(rest);
@@ -730,7 +793,10 @@ export async function handleSkillsCommand(runtime: CliCommandRuntime): Promise<C
       if (!id) return failure(runtime, 'invalid_skill_command', 'Usage: goodvibes-agent skills delete <id> --yes', 2);
       if (!hasFlag(options, 'yes')) return failure(runtime, 'confirmation_required', `Refusing to delete Agent skill ${id} without --yes.`, 2);
       const skill = registry.deleteSkill(id);
-      return success(runtime, 'agent.skills.delete', skill, `Agent skill deleted: ${skill.id}`);
+      return success(runtime, 'agent.skills.delete', skill, [
+        `Agent skill deleted: ${id}`,
+        `  id ${skill.id}`,
+      ].join('\n'));
     }
     return failure(runtime, 'invalid_skill_command', usageSkills(), 2);
   } catch (error) {

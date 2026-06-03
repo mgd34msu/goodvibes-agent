@@ -227,16 +227,54 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
+          TOKEN_SENTINEL="goodvibes-agent-registry-smoke-token-do-not-print-12b4e68d"
           TMP_ROOT="$(mktemp -d)"
           trap 'rm -rf "${TMP_ROOT}"' EXIT
-          mkdir -p "${TMP_ROOT}/home" "${TMP_ROOT}/cache" "${TMP_ROOT}/bun"
+          mkdir -p "${TMP_ROOT}/home/.goodvibes/daemon" "${TMP_ROOT}/cache" "${TMP_ROOT}/bun" "${TMP_ROOT}/workspace"
+          printf '{"token":"%s"}\n' "${TOKEN_SENTINEL}" > "${TMP_ROOT}/home/.goodvibes/daemon/operator-tokens.json"
+          chmod 600 "${TMP_ROOT}/home/.goodvibes/daemon/operator-tokens.json"
 
-          HOME="${TMP_ROOT}/home" \
-          XDG_CACHE_HOME="${TMP_ROOT}/cache" \
-          BUN_INSTALL="${TMP_ROOT}/bun" \
-            bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org
+          export HOME="${TMP_ROOT}/home"
+          export XDG_CACHE_HOME="${TMP_ROOT}/cache"
+          export BUN_INSTALL="${TMP_ROOT}/bun"
+          export GOODVIBES_WORKING_DIR="${TMP_ROOT}/workspace"
 
+          bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org
           export PATH="${TMP_ROOT}/bun/bin:${PATH}"
-          goodvibes-agent --version | grep "goodvibes-agent ${VERSION}"
-          goodvibes-agent --help > "${TMP_ROOT}/help.txt"
+
+          redact() {
+            sed "s/${TOKEN_SENTINEL}/[redacted-connected-host-token]/g" "$1"
+          }
+
+          run_installed_agent() {
+            local label="$1"
+            local stdout_path="$2"
+            local stderr_path="$3"
+            shift 3
+
+            set +e
+            goodvibes-agent "$@" > "${stdout_path}" 2> "${stderr_path}"
+            local status="$?"
+            set -e
+
+            if grep -Fq "${TOKEN_SENTINEL}" "${stdout_path}" "${stderr_path}"; then
+              echo "installed ${label} printed the connected-host token sentinel" >&2
+              exit 1
+            fi
+            if [ "${status}" -ne 0 ]; then
+              echo "installed ${label} failed with exit ${status}" >&2
+              redact "${stdout_path}" >&2 || true
+              redact "${stderr_path}" >&2 || true
+              exit "${status}"
+            fi
+          }
+
+          run_installed_agent "--version" "${TMP_ROOT}/version.txt" "${TMP_ROOT}/version.err" --version
+          grep "goodvibes-agent ${VERSION}" "${TMP_ROOT}/version.txt"
+
+          run_installed_agent "--help" "${TMP_ROOT}/help.txt" "${TMP_ROOT}/help.err" --help
           test -s "${TMP_ROOT}/help.txt"
+
+          run_installed_agent "status --json" "${TMP_ROOT}/status.json" "${TMP_ROOT}/status.err" status --json
+          grep -q '"title"' "${TMP_ROOT}/status.json"
+          grep -q 'GoodVibes Agent status' "${TMP_ROOT}/status.json"

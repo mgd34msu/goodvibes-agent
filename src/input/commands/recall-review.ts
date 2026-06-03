@@ -1,4 +1,5 @@
 import type { CommandContext } from '../command-registry.ts';
+import { formatAgentRecordReviewState } from '../../agent/record-labels.ts';
 import { VALID_REVIEW_STATES, VALID_SCOPES, isValidReviewState, isValidScope } from './recall-shared.ts';
 import { getMemoryApi } from './recall-query.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
@@ -17,7 +18,7 @@ export function handleRecallQueue(args: string[], context: CommandContext): void
   context.print(`[memory] Review queue (${queue.length}):`);
   for (const record of queue) {
     const reason = record.staleReason ? ` — ${record.staleReason}` : '';
-    context.print(`  ${record.id} [${record.scope}/${record.cls}] ${record.reviewState} ${record.confidence}%  ${record.summary}${reason}`);
+    context.print(`  ${record.id} [${record.scope}/${record.cls}] ${formatAgentRecordReviewState(record.reviewState)} ${record.confidence}%  ${record.summary}${reason}`);
   }
 }
 

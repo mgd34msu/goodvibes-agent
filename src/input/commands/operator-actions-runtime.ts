@@ -41,7 +41,7 @@ function parseOperatorActionOptions(args: readonly string[]): OperatorActionOpti
       remember = false;
       continue;
     }
-    errors.push(`Unknown option: ${token}`);
+    errors.push(`Unknown option ${token}`);
   }
   return { note, remember, errors };
 }

@@ -7,6 +7,7 @@
 import type { Line } from '../types/grid.ts';
 import type { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import type { MemoryRecord, MemoryClass } from '@pellux/goodvibes-sdk/platform/state';
+import { formatAgentRecordReferences } from '../agent/record-labels.ts';
 import { SearchableListPanel } from './scrollable-list-panel.ts';
 import {
   buildBodyText,
@@ -170,7 +171,7 @@ export class MemoryPanel extends SearchableListPanel<MemoryRecord> {
 
   render(width: number, height: number): Line[] {
     this.clampSelection();
-    const intro = 'Durable project memory across decisions, constraints, incidents, patterns, risks, runbooks, and related provenance.';
+    const intro = 'Durable project memory across decisions, constraints, incidents, patterns, risks, runbooks, and related origin links.';
 
     const records = this.getItems();
     const byClass = new Map<MemoryClass, number>();
@@ -206,7 +207,7 @@ export class MemoryPanel extends SearchableListPanel<MemoryRecord> {
       if (selected.provenance.length) {
         selectedLines.push(...buildBodyText(
           width,
-          `Provenance: ${selected.provenance.map((p) => `${p.kind}:${p.ref}`).join('  ')}`,
+          `Origin: ${formatAgentRecordReferences(selected.provenance)}`,
           C,
           C.dim,
         ));

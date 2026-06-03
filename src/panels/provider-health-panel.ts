@@ -655,9 +655,9 @@ export class ProviderHealthPanel extends BasePanel {
           { label: 'models', value: String(selectedAccount.modelCount), valueColor: C.value },
           { label: 'active', value: selectedAccount.active ? 'yes' : 'no', valueColor: selectedAccount.active ? C.online : C.dim },
         ], { ...DEFAULT_PANEL_PALETTE, header: C.title, headerBg: '#0f172a' }));
-        selectedLines.push(...buildBodyText(width, `Auth route: ${selectedAccount.activeRouteReason}`, { ...DEFAULT_PANEL_PALETTE, header: C.title, headerBg: '#0f172a' }, C.dim));
+        selectedLines.push(...buildBodyText(width, `Route reason: ${selectedAccount.activeRouteReason}`, { ...DEFAULT_PANEL_PALETTE, header: C.title, headerBg: '#0f172a' }, C.dim));
         if (selectedAccount.fallbackRisk) {
-          selectedLines.push(...buildBodyText(width, `Fallback: ${selectedAccount.fallbackRisk}`, { ...DEFAULT_PANEL_PALETTE, header: C.title, headerBg: '#0f172a' }, C.rateLimit));
+          selectedLines.push(...buildBodyText(width, `Routing risk: ${selectedAccount.fallbackRisk}`, { ...DEFAULT_PANEL_PALETTE, header: C.title, headerBg: '#0f172a' }, C.rateLimit));
         }
         if (selectedAccount.issues.length > 0) {
           selectedLines.push(...buildBodyText(width, `Issue: ${selectedAccount.issues[0]!}`, { ...DEFAULT_PANEL_PALETTE, header: C.title, headerBg: '#0f172a' }, C.errMsg));

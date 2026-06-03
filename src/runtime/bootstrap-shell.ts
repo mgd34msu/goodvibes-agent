@@ -197,9 +197,8 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
 
   const commandRegistry = new CommandRegistry();
   registerBuiltinCommands(commandRegistry);
-  type RuntimeFoundationInput = Parameters<typeof createRuntimeFoundationClients>[0];
   const foundationClients = createRuntimeFoundationClients({
-    runtimeServices: services as unknown as RuntimeFoundationInput['runtimeServices'],
+    runtimeServices: services,
     tasksReadModel: uiServices.readModels.tasks,
     taskManager,
     opsControlPlane,

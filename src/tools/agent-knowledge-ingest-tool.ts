@@ -121,9 +121,9 @@ function formatKnowledgeFailure(failureResult: AgentKnowledgeFailure): string {
 function preview(request: AgentKnowledgeIngestRequest): string {
   return [
     `Agent Knowledge ${request.label} preview`,
-    `  target: ${request.target}`,
-    `  route: ${request.method.route}`,
-    '  policy: isolated Agent Knowledge only; no default knowledge or non-Agent fallback',
+    `  target ${request.target}`,
+    `  route ${request.method.route}`,
+    '  policy isolated Agent Knowledge only; no default knowledge or non-Agent fallback',
   ].join('\n');
 }
 
@@ -144,7 +144,7 @@ function requestForArgs(args: AgentKnowledgeIngestToolArgs): AgentKnowledgeInges
     : isSourceKind(args.sourceKind)
       ? args.sourceKind
       : null;
-  if (sourceKind === null) throw new Error(`sourceKind must be one of: ${SOURCE_KINDS.join(', ')}.`);
+  if (sourceKind === null) throw new Error(`sourceKind must be one of ${SOURCE_KINDS.join(', ')}.`);
 
   const title = readString(args.title);
   const tags = readStringList(args.tags);
@@ -265,7 +265,7 @@ export function createAgentKnowledgeIngestTool(
         'Ingest explicit sources into isolated GoodVibes Agent Knowledge from the main conversation.',
         'Use only when the user explicitly asks Agent to add, remember, import, or ingest a URL, local file, URL-list file, bookmarks file, browser history, or connector input into its Agent Knowledge.',
         'This writes only to /api/goodvibes-agent/knowledge/* ingest routes on the connected GoodVibes host.',
-        'It must never call default knowledge, non-Agent knowledge spaces, separate Agent jobs, local schedulers, or WRFC.',
+        'It must never call default knowledge, non-Agent knowledge spaces, separate Agent jobs, local schedulers, or delegated review.',
         'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
       ].join(' '),
       parameters: {
@@ -363,7 +363,7 @@ export function createAgentKnowledgeIngestTool(
         return failure([
           preview(request),
           '',
-          'Model tool confirmation required: call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to ingest this source.',
+          'Model tool confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to ingest this source.',
         ].join('\n'));
       }
 

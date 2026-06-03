@@ -89,9 +89,9 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   cache: 'Cache',
   mcp: 'MCP',
   surfaces: 'Channels',
-  release: 'Release',
+  release: 'Update Channel',
   tools: 'Tools',
-  flags: 'Feature Flags',
+  flags: 'Feature Controls',
 };
 
 export const SETTING_LABELS: Partial<Record<string, string>> = {

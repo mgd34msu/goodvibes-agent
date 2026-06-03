@@ -201,7 +201,7 @@ describe('agent_reminder_schedule tool', () => {
       }));
       expect(payload.prompt).toContain('GoodVibes Agent scheduled reminder');
       expect(payload.prompt).toContain('never use default knowledge or non-Agent knowledge spaces');
-      expect(payload.prompt).toContain('Do not request WRFC from a reminder');
+      expect(payload.prompt).toContain('Do not request GoodVibes TUI delegation from a reminder');
     } finally {
       globalThis.fetch = originalFetch;
     }

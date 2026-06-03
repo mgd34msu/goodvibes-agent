@@ -80,7 +80,7 @@ export function registerAgentPanels(manager: PanelManager, deps: ResolvedBuiltin
     name: 'Schedule',
     icon: 'Z',
     category: 'agent',
-    description: 'Read-only schedule posture from the connected GoodVibes host; local Agent schedule mutation is blocked',
+    description: 'Read-only schedule posture from the connected GoodVibes host; Agent-local schedule mutation is blocked',
     factory: () => new SchedulePanel(requireAutomationManager(deps)),
   });
 }

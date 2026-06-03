@@ -290,6 +290,13 @@ export function statusFromOperatorActionBody(body: unknown): string {
   return 'ok';
 }
 
+function formatOperatorActionFailureKind(kind: OperatorActionFailure['kind']): string {
+  if (kind === 'auth_required') return 'authorization required';
+  if (kind === 'connected_host_unavailable') return 'connected host unavailable';
+  if (kind === 'connected_host_route_unavailable') return 'connected host route unavailable';
+  return 'connected host error';
+}
+
 export function formatOperatorActionSuccess(baseUrl: string, result: OperatorActionSuccess): string {
   return [
     'Agent operator action completed',
@@ -302,7 +309,7 @@ export function formatOperatorActionSuccess(baseUrl: string, result: OperatorAct
 
 export function formatOperatorActionFailure(result: OperatorActionFailure): string {
   return [
-    `Agent operator action failed: ${result.kind}`,
+    `Agent operator action failed: ${result.kind} (${formatOperatorActionFailureKind(result.kind)})`,
     `  method: ${result.methodId}`,
     `  route: POST ${result.path}`,
     `  error: ${result.error}`,
@@ -312,11 +319,11 @@ export function formatOperatorActionFailure(result: OperatorActionFailure): stri
 export function formatOperatorActionPreview(request: OperatorActionRequest, explicitUserRequest: string): string {
   return [
     'Agent operator action preview',
-    `  method: ${request.descriptor.action}`,
-    `  action: ${request.descriptor.label}`,
-    `  target: ${request.targetId}`,
-    `  route: POST ${renderOperatorActionPath(request.descriptor, request.targetId)}`,
-    explicitUserRequest ? `  requested by: ${explicitUserRequest}` : '  requested by: (missing)',
+    `  method ${request.descriptor.action}`,
+    `  action ${request.descriptor.label}`,
+    `  target ${request.targetId}`,
+    `  route POST ${renderOperatorActionPath(request.descriptor, request.targetId)}`,
+    explicitUserRequest ? `  requested by ${explicitUserRequest}` : '  requested by (missing)',
     '',
     'Confirmation required: type yes in the workspace form or pass --yes only when the user explicitly asked GoodVibes Agent to perform this exact operator action.',
   ].join('\n');
@@ -325,12 +332,12 @@ export function formatOperatorActionPreview(request: OperatorActionRequest, expl
 export function formatOperatorActionToolPreview(request: OperatorActionRequest, explicitUserRequest: string): string {
   return [
     'Agent operator action preview',
-    `  method: ${request.descriptor.action}`,
-    `  action: ${request.descriptor.label}`,
-    `  target: ${request.targetId}`,
-    `  route: POST ${renderOperatorActionPath(request.descriptor, request.targetId)}`,
-    explicitUserRequest ? `  requested by: ${explicitUserRequest}` : '  requested by: (missing)',
+    `  method ${request.descriptor.action}`,
+    `  action ${request.descriptor.label}`,
+    `  target ${request.targetId}`,
+    `  route POST ${renderOperatorActionPath(request.descriptor, request.targetId)}`,
+    explicitUserRequest ? `  requested by ${explicitUserRequest}` : '  requested by (missing)',
     '',
-    'Model tool confirmation required: call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to perform this exact operator action.',
+    'Model tool confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to perform this exact operator action.',
   ].join('\n');
 }

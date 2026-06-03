@@ -6,6 +6,7 @@ import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { readAgentRuntimeProfileSelection, resolveAgentRuntimeProfileHome } from '../../agent/runtime-profile.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
+import { isFeatureFlagConfigKey, readFeatureFlagConfigValue } from '../surface-feature-flags.ts';
 import { readOnboardingRuntimeState } from './state.ts';
 import type {
   OnboardingApplyOperation,
@@ -35,7 +36,7 @@ function isDeepEqual(left: unknown, right: unknown): boolean {
     const rightEntries = Object.entries(right);
     if (leftEntries.length !== rightEntries.length) return false;
 
-    return leftEntries.every(([key, value]) => isDeepEqual(value, (right as Record<string, unknown>)[key]));
+    return leftEntries.every(([key, value]) => isDeepEqual(value, Reflect.get(right, key)));
   }
 
   return false;
@@ -50,7 +51,9 @@ function verifyConfigOperation(
   deps: OnboardingVerificationDependencies,
   operation: Extract<OnboardingApplyOperation, { kind: 'set-config' }>,
 ): OnboardingVerificationItem {
-  const actual = deps.config.get(operation.key as never);
+  const actual = isFeatureFlagConfigKey(operation.key)
+    ? readFeatureFlagConfigValue(deps.config, operation.key)
+    : deps.config.get(operation.key);
   const ok = isDeepEqual(actual, operation.value);
 
   return {
@@ -178,8 +181,8 @@ function verifyCreateLocalPersonaOperation(
     id: `local-persona:${target}`,
     status: ok ? 'pass' : 'fail',
     message: ok
-      ? `${target} local Agent persona exists${operation.activate === false ? '' : ' and is active'}.`
-      : `${target} local Agent persona was not created${operation.activate === false ? '' : ' or activated'}.`,
+      ? `${target} Agent-local persona exists${operation.activate === false ? '' : ' and is active'}.`
+      : `${target} Agent-local persona was not created${operation.activate === false ? '' : ' or activated'}.`,
     target,
   };
 }
@@ -196,8 +199,8 @@ function verifyCreateLocalSkillOperation(
     id: `local-skill:${target}`,
     status: ok ? 'pass' : 'fail',
     message: ok
-      ? `${target} local Agent skill exists${operation.enabled === false ? '' : ' and is enabled'}.`
-      : `${target} local Agent skill was not created${operation.enabled === false ? '' : ' or enabled'}.`,
+      ? `${target} Agent-local skill exists${operation.enabled === false ? '' : ' and is enabled'}.`
+      : `${target} Agent-local skill was not created${operation.enabled === false ? '' : ' or enabled'}.`,
     target,
   };
 }
@@ -214,8 +217,8 @@ function verifyCreateLocalRoutineOperation(
     id: `local-routine:${target}`,
     status: ok ? 'pass' : 'fail',
     message: ok
-      ? `${target} local Agent routine exists${operation.enabled === false ? '' : ' and is enabled'}.`
-      : `${target} local Agent routine was not created${operation.enabled === false ? '' : ' or enabled'}.`,
+      ? `${target} Agent-local routine exists${operation.enabled === false ? '' : ' and is enabled'}.`
+      : `${target} Agent-local routine was not created${operation.enabled === false ? '' : ' or enabled'}.`,
     target,
   };
 }
@@ -231,8 +234,8 @@ function verifyCreateLocalNoteOperation(
     id: `local-note:${target}`,
     status: ok ? 'pass' : 'fail',
     message: ok
-      ? `${target} local Agent note exists.`
-      : `${target} local Agent note was not created.`,
+      ? `${target} Agent-local note exists.`
+      : `${target} Agent-local note was not created.`,
     target,
   };
 }

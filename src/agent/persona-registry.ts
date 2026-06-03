@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { formatAgentRecordReviewState } from './record-labels.ts';
 
 export type AgentPersonaSource = 'user' | 'agent' | 'imported' | 'system';
 export type AgentPersonaReviewState = 'fresh' | 'reviewed' | 'stale';
@@ -215,7 +216,7 @@ export class AgentPersonaRegistry {
     this.validateRequired(name, description, body);
     assertNoSecretLikeText([name, description, body, ...(input.tags ?? []), ...(input.triggers ?? [])], 'Personas');
     const duplicate = store.personas.find((persona) => persona.name.toLowerCase() === name.toLowerCase());
-    if (duplicate) throw new Error(`Persona already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Persona already exists ${duplicate.id}`);
     const timestamp = nowIso();
     const persona: AgentPersonaRecord = {
       id: this.nextId(name, store.personas),
@@ -237,14 +238,14 @@ export class AgentPersonaRegistry {
   public update(idOrName: string, input: AgentPersonaUpdateInput): AgentPersonaRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown persona: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown persona ${idOrName}`);
     const name = input.name === undefined ? existing.name : normalizeName(input.name);
     const description = input.description === undefined ? existing.description : input.description.trim();
     const body = input.body === undefined ? existing.body : input.body.trim();
     this.validateRequired(name, description, body);
     assertNoSecretLikeText([name, description, body, ...(input.tags ?? []), ...(input.triggers ?? [])], 'Personas');
     const duplicate = store.personas.find((persona) => persona.id !== existing.id && persona.name.toLowerCase() === name.toLowerCase());
-    if (duplicate) throw new Error(`Persona already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Persona already exists ${duplicate.id}`);
     const updated: AgentPersonaRecord = {
       ...existing,
       name,
@@ -268,7 +269,7 @@ export class AgentPersonaRegistry {
   public setActive(idOrName: string): AgentPersonaRecord {
     const store = this.readStore();
     const persona = this.findInStore(store, idOrName);
-    if (!persona) throw new Error(`Unknown persona: ${idOrName}`);
+    if (!persona) throw new Error(`Unknown persona ${idOrName}`);
     this.writeStore({ ...store, activePersonaId: persona.id });
     return persona;
   }
@@ -281,7 +282,7 @@ export class AgentPersonaRegistry {
   public markReviewed(idOrName: string): AgentPersonaRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown persona: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown persona ${idOrName}`);
     const updated: AgentPersonaRecord = {
       ...existing,
       reviewState: 'reviewed',
@@ -299,7 +300,7 @@ export class AgentPersonaRegistry {
   public markStale(idOrName: string, reason: string): AgentPersonaRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown persona: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown persona ${idOrName}`);
     const updated: AgentPersonaRecord = {
       ...existing,
       reviewState: 'stale',
@@ -316,7 +317,7 @@ export class AgentPersonaRegistry {
   public deletePersona(idOrName: string): AgentPersonaRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown persona: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown persona ${idOrName}`);
     this.writeStore({
       ...store,
       activePersonaId: store.activePersonaId === existing.id ? null : store.activePersonaId,
@@ -353,7 +354,7 @@ export class AgentPersonaRegistry {
     try {
       return parseStore(readFileSync(this.storePath, 'utf-8'));
     } catch (error) {
-      throw new Error(`Could not read Agent persona store: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Could not read Agent persona store ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -372,7 +373,7 @@ export function buildActivePersonaPrompt(shellPaths: ShellPathService): string |
     '## Active GoodVibes Agent Persona',
     `Name: ${active.name}`,
     `Description: ${active.description}`,
-    `Review state: ${active.reviewState}`,
+    `Review: ${formatAgentRecordReviewState(active.reviewState)}`,
     '',
     active.body,
     '',

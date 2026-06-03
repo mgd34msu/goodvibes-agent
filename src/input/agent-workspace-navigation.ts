@@ -1,4 +1,4 @@
-import type { AgentWorkspaceAction, AgentWorkspaceCategory, AgentWorkspaceFocusPane } from './agent-workspace-types.ts';
+import type { AgentWorkspaceAction, AgentWorkspaceCategory, AgentWorkspaceCategoryId, AgentWorkspaceFocusPane } from './agent-workspace-types.ts';
 
 interface AgentWorkspaceNavigationHost {
   readonly categories: readonly AgentWorkspaceCategory[];
@@ -7,6 +7,42 @@ interface AgentWorkspaceNavigationHost {
   selectedCategoryIndex: number;
   selectedActionIndex: number;
   clampSelection(): void;
+}
+
+const AGENT_WORKSPACE_CATEGORY_ALIASES = {
+  connected: 'host',
+  'connected-host': 'host',
+  host: 'host',
+  mcp: 'tools',
+  tool: 'tools',
+  channel: 'channels',
+  voice: 'voice-media',
+  media: 'voice-media',
+  profile: 'profiles',
+  persona: 'personas',
+  skill: 'skills',
+  routine: 'routines',
+  schedule: 'automation',
+  schedules: 'automation',
+  plan: 'work',
+  planning: 'work',
+  task: 'host',
+  tasks: 'host',
+  note: 'notes',
+  scratchpad: 'notes',
+  kb: 'knowledge',
+} as const satisfies Readonly<Record<string, AgentWorkspaceCategoryId>>;
+
+type AgentWorkspaceCategoryAlias = keyof typeof AGENT_WORKSPACE_CATEGORY_ALIASES;
+
+function isAgentWorkspaceCategoryAlias(categoryIdOrLabel: string): categoryIdOrLabel is AgentWorkspaceCategoryAlias {
+  return Object.prototype.hasOwnProperty.call(AGENT_WORKSPACE_CATEGORY_ALIASES, categoryIdOrLabel);
+}
+
+function normalizeAgentWorkspaceCategoryRequest(categoryIdOrLabel: string): string {
+  const normalized = categoryIdOrLabel.trim().toLowerCase();
+  if (!normalized) return '';
+  return isAgentWorkspaceCategoryAlias(normalized) ? AGENT_WORKSPACE_CATEGORY_ALIASES[normalized] : normalized;
 }
 
 export function moveAgentWorkspaceSelection(host: AgentWorkspaceNavigationHost, delta: -1 | 1): void {
@@ -29,7 +65,7 @@ export function jumpAgentWorkspaceSelection(host: AgentWorkspaceNavigationHost, 
 }
 
 export function selectAgentWorkspaceCategory(host: AgentWorkspaceNavigationHost, categoryIdOrLabel: string): boolean {
-  const normalized = categoryIdOrLabel.trim().toLowerCase();
+  const normalized = normalizeAgentWorkspaceCategoryRequest(categoryIdOrLabel);
   if (!normalized) return false;
   const categoryIndex = host.categories.findIndex((category) =>
     category.id.toLowerCase() === normalized

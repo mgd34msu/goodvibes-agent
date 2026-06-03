@@ -22,10 +22,7 @@
     "tsconfig.json",
     "README.md",
     "CHANGELOG.md",
-    "docs/README.md",
-    "docs/getting-started.md",
-    "docs/connected-host.md",
-    "docs/release-and-publishing.md"
+    "docs/*.md"
   ],
   "scripts": {
     "dev": "bun run src/main.ts",

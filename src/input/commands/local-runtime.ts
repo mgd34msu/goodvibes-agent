@@ -27,7 +27,7 @@ function isMalformedGoodVibesSecretRefInput(value: string): boolean {
 function toggleBlocks(typeFilter: string, collapsed: boolean, ctx: CommandContext): void {
   const VALID_TYPES = ['all', 'thinking', 'tool', 'code'] as const;
   if (!VALID_TYPES.includes(typeFilter as typeof VALID_TYPES[number])) {
-    ctx.print(`Unknown type: ${typeFilter}\nValid types: ${VALID_TYPES.join(', ')}`);
+    ctx.print(`Unknown type ${typeFilter}\nValid types ${VALID_TYPES.join(', ')}`);
     return;
   }
   const blockRegistry = ctx.session.conversationManager.getBlockRegistry();
@@ -90,7 +90,7 @@ function parseMediaGenerateArgs(args: readonly string[]): MediaGenerateArgs {
       outputMimeType = readFlagValue(parsed.rest, index, arg, errors) ?? outputMimeType;
       index += 1;
     } else if (arg?.startsWith('--')) {
-      errors.push(`Unknown media generation flag: ${arg}`);
+      errors.push(`Unknown media generation flag ${arg}`);
     } else if (arg) {
       promptParts.push(arg);
     }
@@ -188,9 +188,12 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         }
         try {
           const resolved = await resolveSecretRef(refText, { resolveLocalSecret: (key) => mgr.get(key) });
-          ctx.print(`[secrets] ${describeSecretRef(refText)}: ${resolved.value ? 'resolved <redacted>' : 'missing'}`);
+          ctx.print([
+            `[secrets] ${describeSecretRef(refText)}`,
+            `  status ${resolved.value ? 'resolved <redacted>' : 'missing'}`,
+          ].join('\n'));
         } catch (error) {
-          ctx.print(`[secrets] ${describeSecretRef(refText)} failed: ${summarizeError(error)}`);
+          ctx.print(`[secrets] ${describeSecretRef(refText)} failed ${summarizeError(error)}`);
         }
         return;
       }
@@ -248,7 +251,10 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
           scope: flags.has('--user') ? 'user' : flags.has('--project') ? 'project' : undefined,
           medium: flags.has('--plaintext') ? 'plaintext' : flags.has('--secure') ? 'secure' : undefined,
         });
-        ctx.print(`[secrets] Deleted: ${key}`);
+        ctx.print([
+          '[secrets] Deleted',
+          `  key ${key}`,
+        ].join('\n'));
         return;
       }
       ctx.print('[secrets] Usage: /secrets set <KEY> <value> [--user|--project] [--secure|--plaintext] --yes | link <KEY> <secret-ref> [--user|--project] [--secure|--plaintext] --yes | get <KEY> | test <secret-ref> | providers | list | delete <KEY> [--user|--project] [--secure|--plaintext] --yes');
@@ -270,36 +276,42 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
       const promptText = args.slice(1).join(' ') || `Attached image: ${rawPath.split('/').pop() ?? rawPath}`;
       const projectRoot = ctx.workspace.shellPaths?.workingDirectory ?? ctx.platform.configManager.getWorkingDirectory();
       if (!projectRoot) {
-        ctx.print('Error: working directory is unavailable.');
+        ctx.print([
+          'Error',
+          '  message working directory is unavailable.',
+        ].join('\n'));
         return;
       }
       let resolvedPath: string;
       try {
         resolvedPath = resolveAndValidatePath(rawPath, projectRoot);
       } catch (err) {
-        ctx.print(`Error: ${summarizeError(err)}`);
+        ctx.print([
+          'Error',
+          `  message ${summarizeError(err)}`,
+        ].join('\n'));
         return;
       }
       if (!existsSync(resolvedPath)) {
-        ctx.print(`File not found: ${rawPath}`);
+        ctx.print(`File not found ${rawPath}`);
         return;
       }
       const ext = resolvedPath.slice(resolvedPath.lastIndexOf('.')).toLowerCase();
       const mediaType = ({ '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' } as Record<string, string>)[ext];
       if (!mediaType) {
-        ctx.print(`Unsupported image format: ${ext}\nSupported: .png, .jpg, .jpeg, .webp, .gif`);
+        ctx.print(`Unsupported image format ${ext}\nSupported .png, .jpg, .jpeg, .webp, .gif`);
         return;
       }
       const stat = statSync(resolvedPath);
       if (stat.size > 20 * 1024 * 1024) {
-        ctx.print(`Image too large (${(stat.size / 1024 / 1024).toFixed(1)}MB). Maximum: 20MB`);
+        ctx.print(`Image too large (${(stat.size / 1024 / 1024).toFixed(1)}MB). Maximum 20MB`);
         return;
       }
       let data: string;
       try {
         data = (await readFile(resolvedPath)).toString('base64');
       } catch (err) {
-        ctx.print(`Failed to read image: ${summarizeError(err)}`);
+        ctx.print(`Failed to read image ${summarizeError(err)}`);
         return;
       }
       const currentModel = await requireProviderApi(ctx).getCurrentModel();
@@ -353,7 +365,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         const result = await generateAgentMedia(registry, artifactStore, parsed);
         ctx.print(formatAgentMediaGenerationResult(result));
       } catch (error) {
-        ctx.print(`[media] Generation failed: ${summarizeError(error)}`);
+        ctx.print(`[media] Generation failed ${summarizeError(error)}`);
       }
     },
   });
@@ -372,15 +384,17 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         catalogOk = true;
         ctx.print(`Model catalog refreshed: ${catalog.modelCount} models from ${catalog.providerCount} providers`);
       } catch (e) {
-        ctx.print(`Catalog refresh failed: ${summarizeError(e)}`);
+        ctx.print(`Catalog refresh failed ${summarizeError(e)}`);
       }
       ctx.print('Refreshing benchmarks...');
       try {
         const benchmarkCount = await providerApi.refreshBenchmarks();
         benchmarksOk = true;
-        ctx.print(`Benchmarks refreshed${benchmarkCount > 0 ? `: ${benchmarkCount} model records available.` : '.'}`);
+        ctx.print(benchmarkCount > 0
+          ? `Benchmarks refreshed: ${benchmarkCount} model records available.`
+          : 'Benchmarks refreshed.');
       } catch (e) {
-        ctx.print(`Benchmarks refresh failed: ${summarizeError(e)}`);
+        ctx.print(`Benchmarks refresh failed ${summarizeError(e)}`);
       }
       ctx.print('Refreshing token limits...');
       try {
@@ -388,7 +402,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         limitsOk = true;
         ctx.print(`Token limits refreshed: ${count} models updated.`);
       } catch (e) {
-        ctx.print(`Token limits refresh failed: ${summarizeError(e)}`);
+        ctx.print(`Token limits refresh failed ${summarizeError(e)}`);
       }
       if (!catalogOk || !benchmarksOk || !limitsOk) ctx.print('Some refreshes failed — see messages above.');
     },
@@ -413,14 +427,17 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
       }
       const favorites = await providerApi.getFavorites();
       if (favorites.pinned.some((entry) => entry.modelId === modelId || entry.registryKey === modelId)) {
-        ctx.print(`Model already pinned: ${modelId}`);
+        ctx.print(`Model already pinned ${modelId}`);
         return;
       }
       try {
         await providerApi.pinModel(modelId);
         ctx.print(`Pinned: ${modelId}`);
       } catch (e) {
-        ctx.print(`Error: ${summarizeError(e)}`);
+        ctx.print([
+          'Error',
+          `  message ${summarizeError(e)}`,
+        ].join('\n'));
       }
     },
   });

@@ -4,6 +4,7 @@ import { Compositor } from './renderer/compositor.ts';
 import { type Line } from './types/grid.ts';
 import { UIFactory } from './renderer/ui-factory.ts';
 import { Orchestrator } from './core/orchestrator';
+import { conversationMessagesAsSessionRecords } from './core/conversation-message-snapshot.ts';
 import { InputHandler } from './input/handler.ts';
 import { SelectionManager } from './input/selection.ts';
 import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
@@ -38,6 +39,7 @@ import {
   persistConversation,
   writeRecoveryFile,
 } from '@/runtime/index.ts';
+import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState } from './shell/blocking-input.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
@@ -136,6 +138,16 @@ async function main() {
       openPanels: panelManager.getAllOpen().map((panel) => panel.id),
     };
   };
+  const buildCurrentSessionSnapshot = (): SessionSnapshot => {
+    const messages = conversation.getMessageSnapshot();
+    const persisted = buildPersistedSessionContext(messages, conversation.getTitleSource(), buildSessionContinuityHints());
+    return {
+      messages: conversationMessagesAsSessionRecords(messages),
+      timestamp: Date.now(),
+      title: conversation.title,
+      ...persisted,
+    };
+  };
 
   let pendingPermission: PendingPermissionState | null = null;
   approvalBroker.subscribe((approval) => {
@@ -219,8 +231,8 @@ async function main() {
   const exitApp = (): void => {
     stopSpokenOutputForExit?.();
     unsubs.forEach(fn => fn());
-    const snapshot = conversation.toJSON() as { messages: Array<import('./core/conversation.ts').ConversationMessageSnapshot>; timestamp?: number };
-    ctx.shutdown({ ...snapshot, ...buildPersistedSessionContext(snapshot.messages, conversation.getTitleSource(), buildSessionContinuityHints()) }).catch((err) => {
+    const snapshot = buildCurrentSessionSnapshot();
+    ctx.shutdown(snapshot).catch((err) => {
       logger.debug('ctx.shutdown error during exitApp (non-fatal)', { error: summarizeError(err) });
     });
     if (recoveryInterval !== null) { clearInterval(recoveryInterval); recoveryInterval = null; }
@@ -666,11 +678,10 @@ async function main() {
   unsubs.push(uiServices.events.turns.on('TURN_COMPLETED', () => {
     // Auto-save after every LLM turn so kills don't lose the session
     try {
-      const snapshot = conversation.toJSON() as { messages: Array<import('./core/conversation.ts').ConversationMessageSnapshot>; timestamp?: number };
-      const persisted = buildPersistedSessionContext(snapshot.messages, conversation.getTitleSource(), buildSessionContinuityHints());
+      const snapshot = buildCurrentSessionSnapshot();
       persistConversation(
         runtime.sessionId,
-        { ...snapshot, ...persisted },
+        snapshot,
         runtime.model,
         runtime.provider,
         conversation.title || '',
@@ -748,10 +759,9 @@ async function main() {
 
   // --- Auto-save to recovery file every 60s ---
   recoveryInterval = setInterval(() => {
-    const snapshot = conversation.toJSON() as { messages: Array<import('./core/conversation.ts').ConversationMessageSnapshot> };
-    const persisted = buildPersistedSessionContext(snapshot.messages, conversation.getTitleSource(), buildSessionContinuityHints());
+    const snapshot = buildCurrentSessionSnapshot();
     writeRecoveryFile(
-      { ...snapshot, ...persisted },
+      snapshot,
       runtime.sessionId,
       conversation.title ?? '',
       { workingDirectory: workingDir, homeDirectory },

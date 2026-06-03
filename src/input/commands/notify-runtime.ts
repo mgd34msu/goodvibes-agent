@@ -18,8 +18,8 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
       const sub = commandArgs[0];
 
       if (!sub || sub === 'list') {
-        if (urls.length === 0) ctx.print('No webhook URLs configured.\nUse: /notify add <url>');
-        else ctx.print(`Webhook URLs (${urls.length}):\n${urls.map((u, i) => `  ${i + 1}. ${u}`).join('\n')}`);
+        if (urls.length === 0) ctx.print('No webhook URLs configured.\nUse /notify add <url>');
+        else ctx.print(`Webhook URLs (${urls.length})\n${urls.map((u, i) => `  ${i + 1}. ${u}`).join('\n')}`);
         return;
       }
 
@@ -34,11 +34,11 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
           return;
         }
         try { new URL(url); } catch {
-          ctx.print(`Invalid URL: ${url}`);
+          ctx.print(`Invalid URL ${url}`);
           return;
         }
         if (urls.includes(url)) {
-          ctx.print(`Already configured: ${url}`);
+          ctx.print(`Already configured ${url}`);
           return;
         }
         urls.push(url);
@@ -86,7 +86,7 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
           return;
         }
         if (urls.length === 0) {
-          ctx.print('No webhook URLs configured. Use: /notify add <url>');
+          ctx.print('No webhook URLs configured. Use /notify add <url>');
           return;
         }
         ctx.print(`Testing ${urls.length} webhook${urls.length !== 1 ? 's' : ''}...`);
@@ -107,18 +107,18 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
           return;
         }
         if (urls.length === 0) {
-          ctx.print('No webhook URLs configured. Use: /notify add <url>');
+          ctx.print('No webhook URLs configured. Use /notify add <url>');
           return;
         }
         notifier.setUrls(urls);
         const result = await notifier.send(message);
         ctx.print([
           'Notification sent',
-          `  attempted: ${result.attempted}`,
-          `  delivered: ${result.delivered}`,
-          `  failed: ${result.failed}`,
+          `  attempted ${result.attempted}`,
+          `  delivered ${result.delivered}`,
+          `  failed ${result.failed}`,
           ...result.results.slice(0, 20).map((delivery, index) => (
-            `  target ${index + 1}: ${delivery.ok ? 'ok' : `failed${delivery.error ? ` (${delivery.error})` : ''}`}`
+            `  target ${index + 1} ${delivery.ok ? 'ok' : `failed${delivery.error ? ` (${delivery.error})` : ''}`}`
           )),
           ...(result.results.length > 20 ? [`  ${result.results.length - 20} more target(s) omitted.`] : []),
         ].join('\n'));

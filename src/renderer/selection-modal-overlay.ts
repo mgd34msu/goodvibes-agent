@@ -1,6 +1,6 @@
 import { type Line } from '../types/grid.ts';
 import { fitDisplay, getDisplayWidth, truncateDisplay } from '../utils/terminal-width.ts';
-import type { SelectionModal } from '../input/selection-modal.ts';
+import type { SelectionAction, SelectionModal } from '../input/selection-modal.ts';
 import {
   createOverlayBoxLayout,
   createOverlayContentLine,
@@ -18,6 +18,14 @@ const BODY_FG = DEFAULT_OVERLAY_PALETTE.bodyFg;
 const MUTED_FG = DEFAULT_OVERLAY_PALETTE.mutedFg;
 const CATEGORY_FG = '#4488cc';
 const SELECTED_BG = DEFAULT_OVERLAY_PALETTE.selectedBg;
+const SELECTION_MODAL_SEARCH_LABEL = ' Search';
+const SELECTION_MODAL_RESULTS_LABEL = ' Results';
+const SELECTION_MODAL_NO_MATCHING_ITEMS = 'No matching items';
+const SELECTION_MODAL_NO_ITEMS = 'No items';
+const SELECTION_MODAL_NAVIGATION_HINT = '[Up/Down] Navigate';
+const SELECTION_MODAL_CLOSE_HINT = '[Esc] Close';
+const SELECTION_MODAL_SEARCH_HINT = '[/] Search';
+const SELECTION_MODAL_SPACE_TOGGLE_HINT = '[Space] Toggle';
 
 interface CellStyle {
   fg: string;
@@ -28,6 +36,36 @@ interface CellStyle {
 
 function putText(line: Line, startX: number, maxWidth: number, text: string, style: CellStyle): void {
   putOverlayText(line, startX, maxWidth, text, style);
+}
+
+function primaryVerbForAction(primaryAction: SelectionAction | undefined): string {
+  return primaryAction === 'toggle'
+    ? '[Enter] Toggle'
+    : primaryAction === 'edit'
+    ? '[Enter] Edit'
+    : primaryAction === 'delete'
+    ? '[Enter] Delete'
+    : '[Enter] Select';
+}
+
+export function renderSelectionModalPackageText(): string {
+  return [
+    SELECTION_MODAL_SEARCH_LABEL.trim(),
+    SELECTION_MODAL_RESULTS_LABEL.trim(),
+    SELECTION_MODAL_NO_MATCHING_ITEMS,
+    SELECTION_MODAL_NO_ITEMS,
+    '(<above> above, <below> below)',
+    '(<below> below)',
+    '(<above> above)',
+    SELECTION_MODAL_NAVIGATION_HINT,
+    primaryVerbForAction(undefined),
+    primaryVerbForAction('toggle'),
+    primaryVerbForAction('edit'),
+    primaryVerbForAction('delete'),
+    SELECTION_MODAL_CLOSE_HINT,
+    SELECTION_MODAL_SEARCH_HINT,
+    SELECTION_MODAL_SPACE_TOGGLE_HINT,
+  ].join('\n');
 }
 
 /**
@@ -62,7 +100,7 @@ export function renderSelectionModalOverlay(
 
   if (modal.allowSearch) {
     const labelLine = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg);
-    putText(labelLine, layout.margin + 2, layout.innerWidth, fitDisplay(' Search', layout.innerWidth), {
+    putText(labelLine, layout.margin + 2, layout.innerWidth, fitDisplay(SELECTION_MODAL_SEARCH_LABEL, layout.innerWidth), {
       fg: CATEGORY_FG,
       dim: true,
     });
@@ -86,7 +124,7 @@ export function renderSelectionModalOverlay(
   }
 
   const listTitle = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg);
-  putText(listTitle, layout.margin + 2, layout.innerWidth, fitDisplay(' Results', layout.innerWidth), {
+  putText(listTitle, layout.margin + 2, layout.innerWidth, fitDisplay(SELECTION_MODAL_RESULTS_LABEL, layout.innerWidth), {
     fg: CATEGORY_FG,
     dim: true,
   });
@@ -95,7 +133,7 @@ export function renderSelectionModalOverlay(
   const items = modal.filteredItems;
   if (items.length === 0) {
     const line = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.bodyBg);
-    const message = modal.query ? 'No matching items' : 'No items';
+    const message = modal.query ? SELECTION_MODAL_NO_MATCHING_ITEMS : SELECTION_MODAL_NO_ITEMS;
     putText(line, layout.margin + 2, layout.innerWidth, fitDisplay(message, layout.innerWidth), { fg: MUTED_FG, dim: true });
     lines.push(line);
   } else {
@@ -189,16 +227,10 @@ export function renderSelectionModalOverlay(
 
   const footerLine = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg);
   const selectedItem = modal.getSelected();
-  const primaryVerb = selectedItem?.primaryAction === 'toggle'
-    ? '[Enter] Toggle'
-    : selectedItem?.primaryAction === 'edit'
-    ? '[Enter] Edit'
-    : selectedItem?.primaryAction === 'delete'
-    ? '[Enter] Delete'
-    : '[Enter] Select';
-  let hints = `[Up/Down] Navigate  ${primaryVerb}  [Esc] Close`;
-  if (modal.allowSearch) hints += '  [/] Search';
-  if (selectedItem?.primaryAction === 'toggle' && !selectedItem.actions) hints += '  [Space] Toggle';
+  const primaryVerb = primaryVerbForAction(selectedItem?.primaryAction);
+  let hints = `${SELECTION_MODAL_NAVIGATION_HINT}  ${primaryVerb}  ${SELECTION_MODAL_CLOSE_HINT}`;
+  if (modal.allowSearch) hints += `  ${SELECTION_MODAL_SEARCH_HINT}`;
+  if (selectedItem?.primaryAction === 'toggle' && !selectedItem.actions) hints += `  ${SELECTION_MODAL_SPACE_TOGGLE_HINT}`;
   if (selectedItem?.actions) hints += `  ${selectedItem.actions}`;
   putText(
     footerLine,

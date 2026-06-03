@@ -31,7 +31,7 @@ export class DiffEngine {
     for (let y = 0; y < newBuffer.height; y++) {
       // Skip rows that were not written in either the old or new buffer.
       // If neither side touched the row, both must match the prior frame:
-      // old row was never written this frame (clean) and new row is also
+      // old row had no write this frame (clean) and new row is also
       // clean, so the on-screen content is still correct. No diff needed.
       const newDirty = newBuffer.dirtyRows[y] ?? false;
       const oldDirty = oldBuffer ? (oldBuffer.dirtyRows[y] ?? false) : true;

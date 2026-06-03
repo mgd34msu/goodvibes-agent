@@ -34,7 +34,7 @@ export abstract class BasePanel implements Panel {
 
   /**
    * Clear a specific timer and remove it from the registry.
-   * Safe to call with an id that was never registered or already cleared.
+   * Safe to call with an unregistered or already-cleared id.
    */
   protected clearTimer(id: ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>): void {
     clearInterval(id as ReturnType<typeof setInterval>);

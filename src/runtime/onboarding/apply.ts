@@ -13,7 +13,12 @@ import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentPersonaRegistry, assertNoSecretLikeText } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
-import type { FeatureFlagConfigKey } from '../surface-feature-flags.ts';
+import {
+  isFeatureFlagConfigKey,
+  mergeFeatureFlagConfigValue,
+  readFeatureFlagConfigValue,
+  type FeatureFlagConfigKey,
+} from '../surface-feature-flags.ts';
 import {
   getOnboardingRuntimeStatePath,
   readOnboardingRuntimeState,
@@ -43,10 +48,6 @@ function isGoodVibesSecretReferenceValue(value: string): boolean {
 function isMalformedGoodVibesSecretReferenceValue(value: string): boolean {
   const normalized = value.trim();
   return normalized.startsWith('goodvibes://') && !isGoodVibesSecretReferenceValue(normalized);
-}
-
-function isFeatureFlagConfigKey(key: string): key is FeatureFlagConfigKey {
-  return key === 'featureFlags' || key.startsWith('featureFlags.');
 }
 
 function validateFeatureFlagConfigValue(operation: Extract<OnboardingApplyOperation, { kind: 'set-config' }>): boolean {
@@ -83,7 +84,7 @@ function validateConfigValue(operation: Extract<OnboardingApplyOperation, { kind
     const defaultValue = operation.key.split('.').reduce<unknown>((cursor, part) => (
       isPlainObject(cursor) ? cursor[part] : undefined
     ), DEFAULT_CONFIG);
-    if (defaultValue === undefined) throw new Error(`Unknown config key: ${operation.key}`);
+    if (defaultValue === undefined) throw new Error(`Unknown config key ${operation.key}`);
     if (typeof defaultValue === 'boolean' && typeof operation.value !== 'boolean') {
       throw new Error(`Config key ${operation.key} expects a boolean value.`);
     }
@@ -110,11 +111,11 @@ function validateConfigValue(operation: Extract<OnboardingApplyOperation, { kind
   }
 
   if (schema.type === 'enum' && schema.enumValues && stringValue !== null && !schema.enumValues.includes(stringValue)) {
-    throw new Error(`Invalid value for ${operation.key}: ${String(operation.value)}.`);
+    throw new Error(`Invalid value for ${operation.key} ${String(operation.value)}.`);
   }
 
   if (schema.validate && !schema.validate(operation.value)) {
-    throw new Error(`Invalid value for ${operation.key}: ${String(operation.value)}.`);
+    throw new Error(`Invalid value for ${operation.key} ${String(operation.value)}.`);
   }
 }
 
@@ -261,7 +262,11 @@ function applyConfigOperation(
     };
   }
 
-  deps.config.setDynamic(operation.key as never, operation.value);
+  if (isFeatureFlagConfigKey(operation.key)) {
+    mergeFeatureFlagConfigValue(deps.config, operation.key, operation.value);
+  } else {
+    deps.config.setDynamic(operation.key, operation.value);
+  }
   return {
     kind: operation.kind,
     summary: `Updated ${operation.key} in global onboarding settings.`,
@@ -314,9 +319,15 @@ async function buildRollbackAction(
       );
     }
 
-    const previous = deps.config.get(operation.key as never);
+    const previous = isFeatureFlagConfigKey(operation.key)
+      ? readFeatureFlagConfigValue(deps.config, operation.key)
+      : deps.config.get(operation.key);
     return () => {
-      deps.config.setDynamic(operation.key as never, previous);
+      if (isFeatureFlagConfigKey(operation.key)) {
+        mergeFeatureFlagConfigValue(deps.config, operation.key, previous ?? 'disabled');
+      } else {
+        deps.config.setDynamic(operation.key, previous);
+      }
     };
   }
 
@@ -436,7 +447,7 @@ function applyCreateLocalPersonaOperation(
   if (operation.activate !== false) registry.setActive(persona.id);
   return {
     kind: operation.kind,
-    summary: `Created local Agent persona ${persona.id}.`,
+    summary: `Created Agent-local persona ${persona.id}.`,
   };
 }
 
@@ -454,7 +465,7 @@ function applyCreateLocalSkillOperation(
   });
   return {
     kind: operation.kind,
-    summary: `Created local Agent skill ${skill.id}.`,
+    summary: `Created Agent-local skill ${skill.id}.`,
   };
 }
 
@@ -472,7 +483,7 @@ function applyCreateLocalRoutineOperation(
   });
   return {
     kind: operation.kind,
-    summary: `Created local Agent routine ${routine.id}.`,
+    summary: `Created Agent-local routine ${routine.id}.`,
   };
 }
 
@@ -489,7 +500,7 @@ function applyCreateLocalNoteOperation(
   });
   return {
     kind: operation.kind,
-    summary: `Created local Agent note ${note.id}.`,
+    summary: `Created Agent-local note ${note.id}.`,
   };
 }
 

@@ -16,10 +16,10 @@ const BLOCKED_TASK_MUTATIONS: ReadonlySet<string> = new Set([
 function printTaskMutationBlocked(print: (text: string) => void, subcommand: string): void {
   print([
     `Task mutation "${subcommand}" is blocked in GoodVibes Agent.`,
-    '  policy: connected-host tasks are read-only from the Agent TUI; normal work stays in the main conversation.',
-    '  durable tasks: use /workplan for visible planning and task tracking.',
-    '  build/fix/review: use /delegate <task> to hand explicit implementation work to GoodVibes TUI.',
-    '  result: no local task state was changed.',
+    '  policy connected-host tasks are read-only from the Agent TUI; normal work stays in the main conversation.',
+    '  durable tasks use /workplan for visible planning and task tracking.',
+    '  build/fix/review use /delegate <task> to hand explicit implementation work to GoodVibes TUI.',
+    '  result no local task state was changed.',
   ].join('\n'));
 }
 
@@ -90,23 +90,23 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
         }
         const task = operatorClient.tasks.get(taskId);
         if (!task) {
-          ctx.print(`Unknown task: ${taskId}`);
+          ctx.print(`Unknown task ${taskId}`);
           return;
         }
         ctx.print([
           `Task ${task.id}`,
-          `  title: ${task.title}`,
+          `  title ${task.title}`,
           `  kind: ${task.kind}`,
-          `  status: ${task.status}`,
-          `  owner: ${task.owner}`,
-          `  cancellable: ${task.cancellable ? 'yes' : 'no'}`,
-          `  queuedAt: ${new Date(task.queuedAt).toISOString()}`,
-          `  startedAt: ${task.startedAt ? new Date(task.startedAt).toISOString() : 'n/a'}`,
-          `  endedAt: ${task.endedAt ? new Date(task.endedAt).toISOString() : 'n/a'}`,
-          `  parent: ${task.parentTaskId ?? 'none'}`,
-          `  children: ${task.childTaskIds.join(', ') || '(none)'}`,
-          `  correlationId: ${task.correlationId ?? 'n/a'}`,
-          `  summary: ${summarizeTaskResult(task)}`,
+          `  status ${task.status}`,
+          `  owner ${task.owner}`,
+          `  cancellable ${task.cancellable ? 'yes' : 'no'}`,
+          `  queued at ${new Date(task.queuedAt).toISOString()}`,
+          `  started at ${task.startedAt ? new Date(task.startedAt).toISOString() : 'n/a'}`,
+          `  ended at ${task.endedAt ? new Date(task.endedAt).toISOString() : 'n/a'}`,
+          `  parent ${task.parentTaskId ?? 'none'}`,
+          `  children ${task.childTaskIds.join(', ') || '(none)'}`,
+          `  correlation ID ${task.correlationId ?? 'n/a'}`,
+          `  summary ${summarizeTaskResult(task)}`,
         ].join('\n'));
         return;
       }
@@ -119,7 +119,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
         }
         const task = operatorClient.tasks.get(taskId);
         if (!task) {
-          ctx.print(`Unknown task: ${taskId}`);
+          ctx.print(`Unknown task ${taskId}`);
           return;
         }
         const payload = typeof task.result === 'string'
@@ -131,7 +131,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      ctx.print(`Unknown tasks subcommand: ${subcommand}`);
+      ctx.print(`Unknown tasks subcommand ${subcommand}`);
     },
   });
 }

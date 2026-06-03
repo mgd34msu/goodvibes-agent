@@ -16,6 +16,7 @@ import {
   type AgentRuntimeProfileCommandResult,
   type AgentRuntimeProfileInfo,
 } from '../agent/runtime-profile.ts';
+import { formatAgentRecordSource } from '../agent/record-labels.ts';
 import type { CliCommandOutput, GoodVibesCliParseResult } from './types.ts';
 
 interface ProfilesCommandRuntime {
@@ -56,7 +57,7 @@ function parseTemplate(args: readonly string[]): AgentRuntimeProfileTemplateId |
   if (!raw || raw === 'blank') return undefined;
   const normalized = raw.trim().toLowerCase().replace(/_/g, '-');
   if (isAgentRuntimeProfileTemplateId(normalized)) return normalized;
-  throw new Error(`Unknown Agent starter profile template: ${raw}. Use profiles templates to list starters.`);
+  throw new Error(`Unknown Agent starter profile template ${raw}. Use profiles templates to list starters.`);
 }
 
 function parseCsvFlag(args: readonly string[], names: readonly string[]): readonly string[] | undefined {
@@ -66,16 +67,21 @@ function parseCsvFlag(args: readonly string[], names: readonly string[]): readon
 }
 
 function profileLine(profile: AgentRuntimeProfileInfo): string {
-  const created = profile.createdAt ? ` created=${profile.createdAt}` : '';
+  const created = profile.createdAt ? ` created ${profile.createdAt}` : '';
   const starter = profile.starterTemplateId ? ` starter=${profile.starterTemplateId}` : '';
-  return `  ${profile.id}  home=${profile.homeDirectory}${created}${starter}`;
+  return `  ${profile.id}  home ${profile.homeDirectory}${created}${starter}`;
 }
 
 function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string {
   if (!result.ok) return result.error ?? 'Agent profile command failed.';
   if (result.kind === 'agent.profiles.list') {
     const profiles = result.data?.profiles ?? [];
-    if (profiles.length === 0) return 'No Agent profiles. Use: goodvibes-agent profiles create <name> --template <id> --yes';
+    if (profiles.length === 0) {
+      return [
+        'No Agent profiles',
+        '  next goodvibes-agent profiles create <name> --template <id> --yes',
+      ].join('\n');
+    }
     return [
       `Agent profiles (${profiles.length})`,
       ...profiles.map(profileLine),
@@ -86,63 +92,71 @@ function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string 
     return [
       `Agent starter profile templates (${templates.length})`,
       ...templates.map((template) => [
-        `  ${template.id}  ${template.name} [${template.source}]`,
+        `  ${template.id}  ${template.name} [${formatAgentRecordSource(template.source).toLowerCase()}]`,
         `    ${template.description}`,
-        `    persona: ${template.personaName}`,
-        `    skills: ${template.skillNames.join(', ')}`,
-        `    routines: ${template.routineNames.join(', ')}`,
+        `    persona ${template.personaName}`,
+        `    skills ${template.skillNames.join(', ')}`,
+        `    routines ${template.routineNames.join(', ')}`,
       ].join('\n')),
-      'Use: goodvibes-agent profiles create <name> --template <id> --yes',
-      'Export/edit/import: goodvibes-agent profiles templates export <id> <path> --yes',
+      'Use goodvibes-agent profiles create <name> --template <id> --yes',
+      'Export/edit/import with goodvibes-agent profiles templates export <id> <path> --yes',
     ].join('\n');
   }
   if (result.kind === 'agent.profiles.template.export' && result.data?.template && result.data.path) {
     return [
       `Agent starter template exported: ${result.data.template.id}`,
-      `  path: ${result.data.path}`,
-      '  edit the JSON, then import it with: goodvibes-agent profiles templates import <path> --yes',
+      `  path ${result.data.path}`,
+      '  edit the JSON, then import it with goodvibes-agent profiles templates import <path> --yes',
     ].join('\n');
   }
   if (result.kind === 'agent.profiles.template.import' && result.data?.template) {
     return [
       `Agent starter template imported: ${result.data.template.id}`,
-      `  name: ${result.data.template.name}`,
-      `  source: ${result.data.template.source}`,
-      `  use: goodvibes-agent profiles create <name> --template ${result.data.template.id} --yes`,
+      `  name ${result.data.template.name}`,
+      `  origin ${formatAgentRecordSource(result.data.template.source)}`,
+      `  use goodvibes-agent profiles create <name> --template ${result.data.template.id} --yes`,
     ].join('\n');
   }
   if (result.kind === 'agent.profiles.template.from_discovered' && result.data?.template) {
     return [
       `Agent starter template created from discovered behavior: ${result.data.template.id}`,
-      `  name: ${result.data.template.name}`,
-      `  persona: ${result.data.template.personaName}`,
-      `  skills: ${result.data.template.skillNames.join(', ')}`,
-      `  routines: ${result.data.template.routineNames.join(', ')}`,
-      `  use: goodvibes-agent profiles create <name> --template ${result.data.template.id} --yes`,
+      `  name ${result.data.template.name}`,
+      `  persona ${result.data.template.personaName}`,
+      `  skills ${result.data.template.skillNames.join(', ')}`,
+      `  routines ${result.data.template.routineNames.join(', ')}`,
+      `  use goodvibes-agent profiles create <name> --template ${result.data.template.id} --yes`,
     ].join('\n');
   }
   if (result.kind === 'agent.profiles.default') {
     const selected = result.data?.selectedProfile;
-    if (!selected) return 'No default Agent profile selected. Use: goodvibes-agent profiles use <name> --yes';
+    if (!selected) {
+      return [
+        'No default Agent profile selected',
+        '  next goodvibes-agent profiles use <name> --yes',
+      ].join('\n');
+    }
     return [
       `Default Agent profile: ${selected.id}${selected.exists ? '' : ' (missing)'}`,
-      `  home: ${selected.homeDirectory}`,
-      selected.selectedAt ? `  selectedAt: ${selected.selectedAt}` : '',
+      `  home ${selected.homeDirectory}`,
+      selected.selectedAt ? `  selected ${selected.selectedAt}` : '',
       `  next launch: ${result.data?.nextCommand ?? 'goodvibes-agent'}`,
-      selected.exists ? '' : '  fix: create the profile again or clear it with goodvibes-agent profiles default clear --yes',
+      selected.exists ? '' : '  fix create the profile again or clear it with goodvibes-agent profiles default clear --yes',
     ].filter(Boolean).join('\n');
   }
   if (result.kind === 'agent.profiles.default.clear') {
-    return 'Default Agent profile cleared. Next launch uses the base Agent home unless --agent-profile is provided.';
+    return [
+      'Default Agent profile cleared',
+      '  next launch uses the base Agent home unless --agent-profile is provided',
+    ].join('\n');
   }
   if (result.kind === 'agent.profiles.create_from_discovered' && result.data?.profile && result.data.template) {
     return [
       `Agent profile created from discovered behavior: ${result.data.profile.id}`,
-      `  home: ${result.data.profile.homeDirectory}`,
+      `  home ${result.data.profile.homeDirectory}`,
       `  starter: ${result.data.template.id}`,
-      `  persona: ${result.data.template.personaName}`,
-      `  skills: ${result.data.template.skillNames.join(', ')}`,
-      `  routines: ${result.data.template.routineNames.join(', ')}`,
+      `  persona ${result.data.template.personaName}`,
+      `  skills ${result.data.template.skillNames.join(', ')}`,
+      `  routines ${result.data.template.routineNames.join(', ')}`,
       `  launch: ${result.data.nextCommand ?? `goodvibes-agent --agent-profile ${result.data.profile.id}`}`,
     ].join('\n');
   }
@@ -151,16 +165,19 @@ function renderProfilesResult(result: AgentRuntimeProfileCommandResult): string 
     const template = result.data?.appliedTemplate;
     return [
       `Agent profile created: ${profile.id}`,
-      `  home: ${profile.homeDirectory}`,
+      `  home ${profile.homeDirectory}`,
       ...(template ? [
         `  starter: ${template.id} (${template.name})`,
         `  seeded: ${template.personaIds.length} persona, ${template.skillIds.length} skills, ${template.routineIds.length} routine`,
       ] : []),
-      `  use: ${result.data?.nextCommand ?? `goodvibes-agent --agent-profile ${profile.id}`}`,
+      `  use ${result.data?.nextCommand ?? `goodvibes-agent --agent-profile ${profile.id}`}`,
     ].join('\n');
   }
   if (result.kind === 'agent.profiles.delete' && profile) {
-    return `Agent profile deleted: ${profile.id}`;
+    return [
+      `Agent profile deleted: ${profile.id}`,
+      `  id ${profile.id}`,
+    ].join('\n');
   }
   return 'Agent profile command completed.';
 }
@@ -435,7 +452,7 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
         data: { profile: info },
       };
       const starter = info.starterTemplateId ? [`  starter: ${info.starterTemplateId} (${info.starterTemplateName ?? info.starterTemplateId})`] : [];
-      const text = [`Agent profile: ${profile.id}`, `  home: ${profile.homeDirectory}`, ...starter, `  use: goodvibes-agent --agent-profile ${profile.id}`].join('\n');
+      const text = [`Agent profile: ${profile.id}`, `  home ${profile.homeDirectory}`, ...starter, `  use goodvibes-agent --agent-profile ${profile.id}`].join('\n');
       return {
         output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(result, null, 2) : text,
         exitCode: 0,
@@ -571,8 +588,8 @@ export async function handleProfilesCommand(runtime: ProfilesCommandRuntime): Pr
         : {
           ok: false,
           kind: 'agent.profiles.error',
-          error: `Agent profile not found: ${resolution.id}`,
-      };
+          error: `Agent profile not found ${resolution.id}`,
+        };
       return {
         output: renderProfilesOutput(result, runtime.cli.flags.outputFormat),
         exitCode: deleted ? 0 : 1,

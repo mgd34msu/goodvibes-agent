@@ -106,7 +106,7 @@ export function handleCommandModeToken(state: CommandModeRouteState, token: Inpu
           if (skillContent) {
             state.commandContext?.submitInput?.(skillContent);
           } else {
-            state.conversationManager?.log(`Unknown command: /${name}. Type /help for available commands.`, { fg: '#ef4444' });
+            state.conversationManager?.log(`Unknown command /${name}. Type /help for available commands.`, { fg: '#ef4444' });
             state.requestRender();
           }
         }

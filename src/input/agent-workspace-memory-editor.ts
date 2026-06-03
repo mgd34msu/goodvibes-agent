@@ -34,7 +34,7 @@ export async function submitAgentWorkspaceMemoryEditor(
       detail: detail.length > 0 ? detail : undefined,
       tags,
     });
-    if (!updated) throw new Error(`Unknown Agent memory: ${editor.recordId}`);
+    if (!updated) throw new Error(`Unknown Agent memory ${editor.recordId}`);
     return { record: updated, verb: 'Updated' };
   }
 
@@ -67,7 +67,7 @@ export function deleteAgentWorkspaceMemoryEditor(
   const expectedId = editor.recordId ?? '';
   if (!expectedId || confirmedId !== expectedId) return null;
   const removed = memory.delete(expectedId);
-  if (!removed) throw new Error(`Unknown Agent memory: ${expectedId}`);
+  if (!removed) throw new Error(`Unknown Agent memory ${expectedId}`);
   return { id: expectedId, name: expectedId };
 }
 

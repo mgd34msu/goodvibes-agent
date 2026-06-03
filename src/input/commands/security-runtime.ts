@@ -35,7 +35,7 @@ export function registerSecurityRuntimeCommands(registry: CommandRegistry): void
         ctx.print([
           `Token Review (${audit.results.length})`,
           ...audit.results.map((result) => (
-            `  ${result.label}  policy=${result.scope.policyId}  scope=${result.scope.outcome}  rotation=${result.rotation.outcome}  blocked=${result.blocked ? 'yes' : 'no'}`
+            `  ${result.label}  policy ${result.scope.policyId}  scope ${result.scope.outcome}  rotation ${result.rotation.outcome}  blocked ${result.blocked ? 'yes' : 'no'}`
           )),
         ].join('\n'));
         return;

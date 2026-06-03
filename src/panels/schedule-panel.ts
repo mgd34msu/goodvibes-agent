@@ -163,11 +163,11 @@ export class SchedulePanel extends BasePanel {
       }
       case 'return':
       case ' ': {
-        this.setError('Schedule changes require an exact command with --yes; panel keypresses never mutate connected schedules.');
+        this.setError('Schedule mutation is read-only in GoodVibes Agent. Schedule changes require an exact command with --yes; panel keypresses never mutate connected schedules.');
         return true;
       }
       case 'r': {
-        this.setError('Use /schedule run <schedule-id> --yes only when you explicitly want to run that connected schedule.');
+        this.setError('Schedule run is blocked in GoodVibes Agent. Use /schedule run <schedule-id> --yes only when you explicitly want to run that connected schedule.');
         return true;
       }
       case 'R': {
@@ -197,7 +197,7 @@ export class SchedulePanel extends BasePanel {
             lines: buildEmptyState(
               width,
               ' No scheduled tasks',
-              'Schedule mutation is command-confirmed in GoodVibes Agent. Use /schedule list for read-only history, or exact --yes commands for connected schedule actions.',
+              'Schedule mutation and run controls are blocked. Use /schedule list for read-only history, or exact --yes commands for connected schedule actions.',
               [],
               DEFAULT_PANEL_PALETTE,
             ),

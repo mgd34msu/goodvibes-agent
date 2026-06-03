@@ -30,7 +30,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
       mode: 'create',
       title: 'Search Skill Bundles',
       selectedFieldIndex: 0,
-      message: 'Search local Agent skill bundles by name, description, or member skill.',
+      message: 'Search Agent-local skill bundles by name, description, or member skill.',
       fields: [
         { id: 'query', label: 'Search query', value: '', required: false, multiline: false, hint: 'Optional text query. Blank lists every bundle.' },
       ],
@@ -42,7 +42,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
       mode: 'create',
       title: 'Show Skill Bundle',
       selectedFieldIndex: 0,
-      message: 'Show one local Agent skill bundle with readiness and member skills.',
+      message: 'Show one Agent-local skill bundle with readiness and member skills.',
       fields: [
         { id: 'id', label: 'Bundle id', value: '', required: true, multiline: false, hint: 'Existing local skill bundle id.' },
       ],
@@ -54,7 +54,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
       mode: 'update',
       title: 'Update Skill Bundle',
       selectedFieldIndex: 0,
-      message: 'Update one local Agent skill bundle. Type yes on the final field to confirm.',
+      message: 'Update one Agent-local skill bundle. Type yes on the final field to confirm.',
       fields: [
         { id: 'id', label: 'Bundle id', value: '', required: true, multiline: false, hint: 'Existing local skill bundle id.' },
         { id: 'name', label: 'Name', value: '', required: false, multiline: false, hint: 'Optional replacement name.' },
@@ -70,7 +70,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
       mode: 'update',
       title: 'Mark Skill Bundle Stale',
       selectedFieldIndex: 0,
-      message: 'Mark one local Agent skill bundle stale with a review reason. Type yes on the final field to confirm.',
+      message: 'Mark one Agent-local skill bundle stale with a review reason. Type yes on the final field to confirm.',
       fields: [
         { id: 'id', label: 'Bundle id', value: '', required: true, multiline: false, hint: 'Existing local skill bundle id.' },
         { id: 'reason', label: 'Reason', value: '', required: true, multiline: true, hint: 'Why this bundle needs review. Ctrl-J inserts a new line.' },
@@ -84,7 +84,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
       mode: 'delete',
       title: 'Delete Skill Bundle',
       selectedFieldIndex: 0,
-      message: 'Delete one local Agent skill bundle. This does not delete member skills. Type yes to confirm.',
+      message: 'Delete one Agent-local skill bundle. This does not delete member skills. Type yes to confirm.',
       fields: [
         { id: 'id', label: 'Bundle id', value: '', required: true, multiline: false, hint: 'Existing local skill bundle id.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /skills bundle delete with --yes.' },
@@ -101,7 +101,7 @@ export function createAgentWorkspaceSkillBundleCommandEditor(kind: AgentWorkspac
     mode: 'update',
     title: `${verb} Skill Bundle`,
     selectedFieldIndex: 0,
-    message: `${verb} one local Agent skill bundle. Type yes on the final field to confirm.`,
+    message: `${verb} one Agent-local skill bundle. Type yes on the final field to confirm.`,
     fields: [
       { id: 'id', label: 'Bundle id', value: '', required: true, multiline: false, hint: 'Existing local skill bundle id.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: `Type yes to run /skills bundle ${verb.toLowerCase()}.` },

@@ -72,7 +72,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerDelegationRuntimeCommands(registry);
   registerConfigCommand(registry);
   registerOperatorRuntimeCommands(registry);
-  registry.unregister('profiles');
   registerNotifyRuntimeCommands(registry);
   registerProductRuntimeCommands(registry);
   registerPlatformAccessRuntimeCommands(registry);
@@ -95,7 +94,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerPlanningRuntimeCommands(registry);
   registerScheduleRuntimeCommands(registry);
   registerSessionContentCommands(registry);
-  registry.unregister('session-memory');
   registerAgentMemoryCommand(registry);
 
   // ── /session ─────────────────────────────────────────────────────────────

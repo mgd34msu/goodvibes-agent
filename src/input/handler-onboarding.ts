@@ -429,12 +429,13 @@ export function syncRuntimeFromOnboardingRequestForHandler(handler: InputHandler
   }
 
 export function getOnboardingConfigValueForHandler(handler: InputHandler, request: OnboardingApplyRequest, key: string): unknown {
-    const config = handler.uiServices.platform.configManager;
+    const configManager: object = handler.uiServices.platform.configManager;
     for (let index = request.operations.length - 1; index >= 0; index -= 1) {
       const operation = request.operations[index];
       if (operation?.kind === 'set-config' && operation.key === key) return operation.value;
     }
-    return config.get(key as never);
+    const get = Reflect.get(configManager, 'get');
+    return typeof get === 'function' ? Reflect.apply(get, configManager, [key]) : undefined;
   }
 
 export function getOnboardingRuntimePostureForHandler(handler: InputHandler, request: OnboardingApplyRequest): OnboardingRuntimePosture {

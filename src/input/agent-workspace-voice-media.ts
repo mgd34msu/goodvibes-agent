@@ -1,4 +1,5 @@
 import type { CommandContext } from './command-registry.ts';
+import { getAgentWorkspaceConfigReader } from './agent-workspace-config-reader.ts';
 
 export type AgentWorkspaceVoiceMediaDomain = 'voice' | 'media';
 export type AgentWorkspaceVoiceMediaSetupState = 'ready' | 'registered' | 'needs-secret' | 'not-registered';
@@ -36,10 +37,6 @@ export interface AgentWorkspaceVoiceMediaReadiness {
   readonly nextSteps: readonly string[];
 }
 
-type AgentWorkspaceConfigReader = {
-  get(key: string): unknown;
-};
-
 type ProviderSecretSpec = {
   readonly id: string;
   readonly secretKeyOptions: readonly string[];
@@ -66,7 +63,7 @@ const MEDIA_SECRET_SPECS: readonly ProviderSecretSpec[] = [
 
 function readConfigString(context: CommandContext, key: string, fallback: string): string {
   try {
-    const configManager = context.platform?.configManager as unknown as AgentWorkspaceConfigReader | undefined;
+    const configManager = getAgentWorkspaceConfigReader(context);
     const value = configManager?.get(key);
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
   } catch {
@@ -76,7 +73,7 @@ function readConfigString(context: CommandContext, key: string, fallback: string
 
 function readConfigBoolean(context: CommandContext, key: string, fallback: boolean): boolean {
   try {
-    const configManager = context.platform?.configManager as unknown as AgentWorkspaceConfigReader | undefined;
+    const configManager = getAgentWorkspaceConfigReader(context);
     const value = configManager?.get(key);
     if (typeof value === 'boolean') return value;
     if (typeof value === 'string') {

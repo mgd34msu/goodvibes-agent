@@ -65,11 +65,11 @@ function formatPrompt(job: AutomationJob): string {
 function printReadOnlyScheduleBoundary(print: (text: string) => void, requestedAction: string): void {
   print([
     'GoodVibes Agent local schedule commands are read-only in this runtime.',
-    `  requested: ${requestedAction}`,
-    '  policy: no hidden local Agent automation jobs or immediate automation runs',
-    '  use: /schedule list',
-    '  connected run route: /automation schedule run <schedule-id> --yes',
-    '  schedule route: use /schedule promote-routine <routine> --cron <expr> --yes to create a connected schedule explicitly',
+    `  requested ${requestedAction}`,
+    '  policy no hidden local Agent automation jobs or immediate automation runs',
+    '  use /schedule list',
+    '  connected run route /automation schedule run <schedule-id> --yes',
+    '  schedule route use /schedule promote-routine <routine> --cron <expr> --yes to create a connected schedule explicitly',
   ].join('\n'));
 }
 
@@ -85,7 +85,7 @@ async function promoteRoutineSchedule(args: readonly string[], ctx: CommandConte
   const shellPaths = requireShellPaths(ctx);
   const routine = AgentRoutineRegistry.fromShellPaths(shellPaths).get(parsed.routineId ?? '');
   if (!routine) {
-    ctx.print(`Unknown Agent routine: ${parsed.routineId ?? ''}`);
+    ctx.print(`Unknown Agent routine ${parsed.routineId ?? ''}`);
     return;
   }
   const preview = buildRoutineSchedulePreview(routine, parsed);
@@ -123,7 +123,7 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'schedule',
     aliases: ['sched'],
-    description: 'Inspect schedules, create confirmed reminders, and explicitly promote local Agent routines to connected schedules',
+    description: 'Inspect schedules, create confirmed reminders, and explicitly promote Agent-local routines to connected schedules',
     usage: 'list | remind --at <iso> --message <text> --yes | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-channel slack] --yes',
     argsHint: 'list | remind --at <iso> --message <text> --yes | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-channel slack] --yes',
     async handler(args, ctx) {
@@ -159,7 +159,7 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
           return;
         }
         const receipt = RoutineScheduleReceiptStore.fromShellPaths(requireShellPaths(ctx)).get(id);
-        ctx.print(receipt ? formatRoutineScheduleReceipt(receipt) : `Unknown routine schedule receipt: ${id}`);
+        ctx.print(receipt ? formatRoutineScheduleReceipt(receipt) : `Unknown routine schedule receipt ${id}`);
         return;
       }
 
@@ -178,14 +178,14 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
           );
           return;
         }
-        const lines = ['Automation jobs:', ''];
+        const lines = ['Automation jobs', ''];
         for (const job of jobs) {
           const status = job.enabled ? '● enabled ' : '○ paused  ';
           const next = formatNextRun(job.nextRunAt);
           const last = job.lastRunAt ? new Date(job.lastRunAt).toLocaleString() : 'never';
-          lines.push(`  ${job.id.slice(0, 12)}  ${status} runs:${job.runCount}  next:${next}  last:${last}`);
-          lines.push(`    name: ${job.name}  schedule: ${formatSchedule(job.schedule)}`);
-          lines.push(`    prompt: ${formatPrompt(job)}`);
+          lines.push(`  ${job.id.slice(0, 12)}  ${status} runs ${job.runCount}  next ${next}  last ${last}`);
+          lines.push(`    name ${job.name}  schedule ${formatSchedule(job.schedule)}`);
+          lines.push(`    prompt ${formatPrompt(job)}`);
         }
         ctx.print(lines.join('\n'));
         return;

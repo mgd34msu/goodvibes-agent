@@ -28,6 +28,47 @@ export interface ProviderHealthDomainInputs {
   readonly session: UiSessionSnapshot;
 }
 
+type ProviderHealthMcpServer = UiSecuritySnapshot['mcpServers'][number];
+type ProviderHealthRemoteSession = UiRemoteSnapshot['supervisor']['sessions'][number];
+type ProviderHealthStatusValue =
+  | ProviderHealthMcpServer['schemaFreshness']
+  | ProviderHealthMcpServer['trustMode']
+  | ProviderHealthRemoteSession['transportState']
+  | ProviderHealthRemoteSession['heartbeat']['status'];
+
+function formatProviderHealthStatus(value: ProviderHealthStatusValue): string {
+  if (value === 'quarantined') return 'needs review';
+  return value.replace(/[_-]+/g, ' ');
+}
+
+function formatProviderHealthTrustMode(mode: ProviderHealthMcpServer['trustMode']): string {
+  if (mode === 'ask-on-risk') return 'ask on risky actions';
+  if (mode === 'allow-all') return 'allow all actions';
+  return formatProviderHealthStatus(mode);
+}
+
+function formatMcpServerDetail(server: ProviderHealthMcpServer): string {
+  const parts = [
+    `${server.name}: trust ${formatProviderHealthTrustMode(server.trustMode)}`,
+    `status ${formatProviderHealthStatus(server.schemaFreshness)}`,
+  ];
+  if (server.quarantineReason) {
+    parts.push(`review reason ${server.quarantineReason}`);
+  }
+  return parts.join('; ');
+}
+
+function formatRemoteSessionDetail(session: ProviderHealthRemoteSession): string {
+  const parts = [
+    `${session.runnerId}: transport ${formatProviderHealthStatus(session.transportState)}`,
+    `heartbeat ${formatProviderHealthStatus(session.heartbeat.status)}`,
+  ];
+  if (session.lastError) {
+    parts.push(`error ${session.lastError}`);
+  }
+  return parts.join('; ');
+}
+
 export function buildProviderHealthDomainSummaries(
   input: ProviderHealthDomainInputs,
 ): HealthDomainSummary[] {
@@ -66,13 +107,13 @@ export function buildProviderHealthDomainSummaries(
     summary: !settings.available
       ? 'settings API unavailable'
       : settingIssueCount > 0
-        ? `${settings.conflictCount} conflicts / ${settings.recentFailureCount} failures${settings.hasStagedManagedBundle ? ' / staged bundle' : ''}`
+        ? `${settings.conflictCount} conflicts / ${settings.recentFailureCount} failures${settings.hasStagedManagedBundle ? ' / pending managed bundle' : ''}`
         : 'settings API clean',
     next: settingIssueCount > 0 ? '/settings' : '/config <key>',
     details: [
       settings.conflictCount > 0 ? `${settings.conflictCount} unresolved import conflict(s)` : '',
       settings.recentFailureCount > 0 ? `${settings.recentFailureCount} recent sync or managed failure(s)` : '',
-      settings.hasStagedManagedBundle ? 'staged managed bundle awaits apply or rollback' : '',
+      settings.hasStagedManagedBundle ? 'pending managed settings bundle awaits apply or rollback' : '',
       settings.managedLockCount > 0 ? `${settings.managedLockCount} managed lock(s) enforced` : '',
     ].filter(Boolean),
     nextSteps: settingIssueCount > 0
@@ -97,7 +138,7 @@ export function buildProviderHealthDomainSummaries(
             || entry.heartbeat.status !== 'fresh'
             || Boolean(entry.lastError))
           .slice(0, 3)
-          .map((entry) => `${entry.runnerId}: transport=${entry.transportState} heartbeat=${entry.heartbeat.status}${entry.lastError ? ` error=${entry.lastError}` : ''}`),
+          .map(formatRemoteSessionDetail),
     nextSteps: remote.supervisor.degradedConnections > 0
       ? ['/delegate <build/fix/review task>', '/health remote']
       : ['/health remote'],
@@ -120,7 +161,7 @@ export function buildProviderHealthDomainSummaries(
       ? (security.mcpServers.length === 0 ? ['no MCP servers registered'] : ['all MCP servers are healthy'])
       : degradedServers
           .slice(0, 3)
-          .map((server) => `${server.name}: trust=${server.trustMode} schema=${server.schemaFreshness}${server.quarantineReason ? ` quarantine=${server.quarantineReason}` : ''}`),
+          .map(formatMcpServerDetail),
     nextSteps: degradedServers.length > 0
       ? ['/mcp review', '/mcp auth-review', '/mcp repair']
       : ['/mcp review'],

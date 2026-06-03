@@ -127,9 +127,9 @@ export function buildAgentKnowledgeStep(): OnboardingWizardStepDefinition {
     description: 'Agent Knowledge is isolated to the GoodVibes Agent product segment. It never falls back to default knowledge or any non-Agent product segment.',
     summaryTitle: 'Knowledge isolation',
     summaryLines: [
-      'Route segment: /api/goodvibes-agent/knowledge/*',
-      'Default knowledge fallback: disabled',
-      'Non-Agent route fallback: disabled',
+      'Route segment /api/goodvibes-agent/knowledge/*',
+      'Default knowledge fallback disabled',
+      'Non-Agent route fallback disabled',
     ],
     fields: [
       {
@@ -213,12 +213,12 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
     description: discoveredCount > 0
       ? 'Review importable Agent-local behavior files, then create an isolated profile from them or import individual records.'
       : 'Review the Agent-local behavior model. Memory, notes, personas, skills, routines, and Agent profiles stay local until a stable shared registry exists.',
-    summaryTitle: 'Local Agent state',
+    summaryTitle: 'Agent-local state',
     summaryLines: [
-      'Memory/notes/personas/skills/routines: local Agent registries',
-      `Discovered behavior files: ${discoverySummary(discovery)}`,
-      'Secrets: rejected or stored by secret reference',
-      'Profiles: isolated Agent homes',
+      'Memory/notes/personas/skills/routines use Agent-local registries',
+      `Discovered behavior files ${discoverySummary(discovery)}`,
+      'Secrets are rejected or stored by secret reference',
+      'Profiles use isolated Agent homes',
     ],
     fields: [
       {
@@ -241,7 +241,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         kind: 'text',
         id: 'agent-local-state.note-title',
         label: 'Initial note title',
-        hint: 'Optional: create a scratchpad note during setup. Notes are temporary working context, not durable memory or Agent Knowledge.',
+        hint: 'Optional scratchpad note created during setup. Notes are temporary working context, not durable memory or Agent Knowledge.',
         placeholder: 'First things to remember',
         defaultValue: '',
       },
@@ -296,7 +296,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         kind: 'text',
         id: 'agent-local-state.persona-name',
         label: 'Initial persona name',
-        hint: 'Optional: create and activate a serial Agent persona during setup. Leave persona fields blank to skip.',
+        hint: 'Optional serial Agent persona created and activated during setup. Leave persona fields blank to skip.',
         placeholder: 'Household Operator',
         defaultValue: '',
         spacerBeforeRows: 1,
@@ -322,7 +322,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         kind: 'text',
         id: 'agent-local-state.skill-name',
         label: 'Initial skill name',
-        hint: 'Optional: create and enable a reusable local procedure during setup.',
+        hint: 'Optional reusable local procedure created and enabled during setup.',
         placeholder: 'Daily Briefing',
         defaultValue: '',
         spacerBeforeRows: 1,
@@ -348,7 +348,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         kind: 'text',
         id: 'agent-local-state.routine-name',
         label: 'Initial routine name',
-        hint: 'Optional: create and enable a local routine. Routines print steps in the main conversation and do not launch hidden jobs.',
+        hint: 'Optional local routine created and enabled during setup. Routines print steps in the main conversation and do not launch hidden jobs.',
         placeholder: 'Evening Reset',
         defaultValue: '',
         spacerBeforeRows: 1,
@@ -470,7 +470,7 @@ export function buildDelegationPolicyStep(): OnboardingWizardStepDefinition {
     summaryLines: [
       'Normal chat: main Agent conversation',
       'Build/fix/review: explicit GoodVibes TUI delegation',
-      'WRFC: only when explicitly requested for build/fix/review',
+      'Delegated review: only when explicitly requested for build/fix/review',
     ],
     fields: [
       {
@@ -485,14 +485,14 @@ export function buildDelegationPolicyStep(): OnboardingWizardStepDefinition {
         id: 'agent-delegation.build-work',
         action: 'open-agent-workspace:delegate',
         label: 'Build/fix/review work',
-        hint: 'Open the Delegation workspace for explicit build/fix/review handoff. GoodVibes TUI owns coding execution and WRFC chains.',
+        hint: 'Open the Delegation workspace for explicit build/fix/review handoff. GoodVibes TUI owns coding execution and delegated review chains.',
         defaultValue: 'Open Delegation',
       },
       {
         kind: 'status',
-        id: 'agent-delegation.wrfc',
-        label: 'WRFC policy',
-        hint: 'Agent never uses WRFC by default; request it only for explicit build, fix, review, or implementation work.',
+        id: 'agent-delegation.review',
+        label: 'Review policy',
+        hint: 'Agent never requests delegated review by default; request it only for explicit build, fix, review, or implementation work.',
         defaultValue: 'Explicit only',
       },
     ],

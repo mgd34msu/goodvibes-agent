@@ -346,7 +346,7 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Build Delegation');
     expect(output).toContain('GoodVibes TUI');
-    expect(output).toContain('WRFC only when explicitly requested');
+    expect(output).toContain('delegated review only when explicitly');
     expect(output).not.toContain('coding transcript');
   });
 
@@ -1307,14 +1307,14 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit notify-send');
     expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and Agent');
     expect(output).toContain('policy.');
-    expect(output).toContain('Readiness: 2/13 ready; 2 enabled; 1 default target(s) configured.');
+    expect(output).toContain('Readiness: 2/14 ready; 2 enabled; 1 default target(s) configured.');
     expect(output).toContain('Ready channels: Slack, Telegram.');
     expect(output).toContain('Needs default target: Telegram -> surfaces.telegram.defaultChatId.');
     expect(output).toContain('Needs config: none.');
     expect(output).toContain('Slack: ready; ready; target configured; delivery default-ready; risk group.');
     expect(output).toContain('Telegram: needs-target; ready; target missing; delivery explicit-target; risk dm.');
     expect(output).toContain('Discord: disabled; 3 missing; target missing; delivery disabled; risk group.');
-    expect(output).toContain('Disabled channels: Discord, ntfy, Google Chat, Signal, WhatsApp, iMessage, +5 more.');
+    expect(output).toContain('Disabled channels: Discord, ntfy, Google Chat, Signal, WhatsApp, Telephony, +6 more.');
     expect(output).toContain('WhatsApp');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('TELEGRAM_BOT_TOKEN');
@@ -1358,7 +1358,7 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Delegate Build Work to GoodVibes TUI');
     expect(output).toContain('Original task *');
-    expect(output).toContain('Request WRFC');
+    expect(output).toContain('Request delegated review');
     expect(output).toContain('Confirm *');
     expect(output).toContain('editing delegate-task');
   });

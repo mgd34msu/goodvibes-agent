@@ -3,6 +3,26 @@ import { fitDisplay, getDisplayWidth, truncateDisplay } from '../utils/terminal-
 import type { SearchManager } from '../input/search.ts';
 import { createBottomBarLine, writeBottomBarText } from './bottom-bar.ts';
 
+const SEARCH_OVERLAY_LABEL = ' Find: ';
+const SEARCH_OVERLAY_NO_MATCHES = 'No matches';
+const SEARCH_OVERLAY_COUNT_SUFFIX = 'up/down';
+const SEARCH_OVERLAY_LOCKED_HINTS = '  [Up/Down] or [jk] navigate  [Bksp] edit  [Esc] close';
+const SEARCH_OVERLAY_UNLOCKED_HINTS = '  [Enter/Tab] lock  [Esc] close';
+
+function searchOverlayMatchCount(current: string | number, total: string | number): string {
+  return `${current}/${total} ${SEARCH_OVERLAY_COUNT_SUFFIX}`;
+}
+
+export function renderSearchOverlayPackageText(): string {
+  return [
+    SEARCH_OVERLAY_LABEL.trim(),
+    searchOverlayMatchCount('<current>', '<total>'),
+    SEARCH_OVERLAY_NO_MATCHES,
+    SEARCH_OVERLAY_LOCKED_HINTS.trim(),
+    SEARCH_OVERLAY_UNLOCKED_HINTS.trim(),
+  ].join('\n');
+}
+
 /**
  * Render the search bar as a single Line[] overlay at the bottom of the viewport.
  * Format: [ Find: <query>   3/17 up/down  [n] next [N] prev [Esc] close ]
@@ -14,18 +34,18 @@ export function renderSearchOverlay(
 ): Line[] {
   // Match count text — displayed in dim grey, right of query, left of hints
   const matchCount = manager.matches?.length > 0
-    ? `${manager.currentMatch + 1}/${manager.matches.length} up/down`
+    ? searchOverlayMatchCount(manager.currentMatch + 1, manager.matches.length)
     : manager.query.length > 0
-      ? 'No matches'
+      ? SEARCH_OVERLAY_NO_MATCHES
       : '';
 
   const locked = manager.locked;
   const cursor = locked ? '' : '█';
   const queryDisplay = manager.query + cursor;
   const hints = locked
-    ? '  [Up/Down] or [jk] navigate  [Bksp] edit  [Esc] close'
-    : '  [Enter/Tab] lock  [Esc] close';
-  const label = ' Find: ';
+    ? SEARCH_OVERLAY_LOCKED_HINTS
+    : SEARCH_OVERLAY_UNLOCKED_HINTS;
+  const label = SEARCH_OVERLAY_LABEL;
   const matchStr = matchCount ? ` ${matchCount}` : '';
 
   // Build left portion: label + query (no match count — that gets separate styling)

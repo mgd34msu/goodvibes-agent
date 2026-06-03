@@ -1,3 +1,4 @@
+import type { Dirent } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
@@ -160,9 +161,9 @@ export class FilePickerModal {
     if (depth > 8) return; // Limit depth
     if (files.length > 5000) return; // Limit total files
 
-    let entries: import('node:fs').Dirent[];
+    let entries: Dirent[];
     try {
-      entries = (await readdir(dir, { withFileTypes: true })) as unknown as import('node:fs').Dirent[];
+      entries = await readdir(dir, { withFileTypes: true });
     } catch {
       return;
     }

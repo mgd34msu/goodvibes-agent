@@ -32,7 +32,7 @@ export function createReminderScheduleEditor(): AgentWorkspaceLocalEditor {
       { id: 'scheduleValue', label: 'Schedule value', value: '', required: true, multiline: false, hint: 'Examples: 2026-06-01T09:00:00-05:00, 7d, or 0 9 * * *.' },
       { id: 'timezone', label: 'Timezone', value: '', required: false, multiline: false, hint: 'Optional IANA timezone for cron schedules, for example America/Chicago.' },
       { id: 'scheduleName', label: 'Schedule name', value: '', required: false, multiline: false, hint: 'Optional display name for the connected reminder.' },
-      { id: 'deliveryChannel', label: 'Delivery channel', value: '', required: false, multiline: false, hint: 'Optional channel target, for example slack or slack:ops-alerts:Ops.' },
+      { id: 'deliveryChannel', label: 'Delivery channel', value: '', required: false, multiline: false, hint: 'Optional channel target, for example slack, slack:ops-alerts:Ops, or telephony:+15551234567.' },
       { id: 'disabled', label: 'Create disabled', value: 'no', required: false, multiline: false, hint: 'yes/no. Default no.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /schedule remind with --yes.' },
     ],

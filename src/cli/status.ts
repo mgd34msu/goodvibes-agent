@@ -5,6 +5,8 @@ import type { GoodVibesCliOutputFormat } from './types.ts';
 import type { CliServicePosture } from './service-posture.ts';
 import type { CliExternalRuntimeSnapshot } from './external-runtime.ts';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
+import { formatAgentRecordSource } from '../agent/record-labels.ts';
+import { formatAgentKnowledgeFailureKind } from './agent-knowledge-format.ts';
 
 export interface CliStatusOptions {
   readonly configManager: Pick<ConfigManager, 'get'>;
@@ -256,26 +258,26 @@ export function renderCliStatus(options: CliStatusOptions): string {
 
   const lines = [
     snapshot.title,
-    `  workingDir: ${options.workingDirectory}`,
-    `  homeDir: ${options.homeDirectory}`,
+    `  working directory ${options.workingDirectory}`,
+    `  home directory ${options.homeDirectory}`,
     '',
-    'Provider:',
-    `  provider: ${getProviderIdFromModel(config.get('provider.model'))}`,
-    `  model: ${String(config.get('provider.model'))}`,
-    `  reasoning: ${String(config.get('provider.reasoningEffort'))}`,
+    'Provider',
+    `  provider ${getProviderIdFromModel(config.get('provider.model'))}`,
+    `  model ${String(config.get('provider.model'))}`,
+    `  reasoning ${String(config.get('provider.reasoningEffort'))}`,
     '',
-    'Auth:',
+    'Auth',
     `  permissions: ${permissionModeLabel(config.get('permissions.mode'))} (${String(config.get('permissions.mode'))})`,
     `  secretPolicy: ${secretPolicyLabel(config.get('storage.secretPolicy'))} (${String(config.get('storage.secretPolicy'))})`,
     options.auth
-      ? `  local auth store: ${options.auth.userStorePresent ? 'present' : 'missing'} (${options.auth.userStorePath})`
-      : '  local auth store: unknown',
+      ? `  local auth store ${options.auth.userStorePresent ? 'present' : 'missing'} (${options.auth.userStorePath})`
+      : '  local auth store unknown',
     options.auth
-      ? `  setup credential: ${options.auth.bootstrapCredentialPresent ? 'present' : 'missing'} (${options.auth.bootstrapCredentialPath})`
-      : '  setup credential: unknown',
+      ? `  setup credential ${options.auth.bootstrapCredentialPresent ? 'present' : 'missing'} (${options.auth.bootstrapCredentialPath})`
+      : '  setup credential unknown',
     options.auth
-      ? `  connected-host token: ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
-      : '  connected-host token: unknown',
+      ? `  connected host token ${options.auth.operatorTokenPresent ? 'present' : 'missing'} (${options.auth.operatorTokenPath})`
+      : '  connected host token unknown',
     '',
     'Connected GoodVibes host:',
     ...(externalRuntime ? [
@@ -284,10 +286,10 @@ export function renderCliStatus(options: CliStatusOptions): string {
       `  sdk: ${externalRuntime.version} expected ${externalRuntime.expectedVersion}`,
       `  compatible: ${yesNo(externalRuntime.compatible)}`,
       `  access token: ${externalRuntime.operatorToken.present ? 'present' : 'missing'} (${externalRuntime.operatorToken.path})`,
-      `  Agent Knowledge: ${externalRuntime.agentKnowledge.ready ? 'ready' : `not ready (${externalRuntime.agentKnowledge.kind})`}`,
+      `  Agent Knowledge: ${externalRuntime.agentKnowledge.ready ? 'ready' : `not ready (${formatAgentKnowledgeFailureKind(externalRuntime.agentKnowledge.kind)})`}`,
       ...(externalRuntime.error ? [`  error: ${externalRuntime.error}`] : []),
     ] : [
-      '  live check: unavailable',
+      '  live check unavailable',
     ]),
     '',
     'Agent role:',
@@ -295,12 +297,12 @@ export function renderCliStatus(options: CliStatusOptions): string {
     '  host lifecycle: external',
     '  starts or exposes host: no',
     ...(options.service ? [
-      `  host log signal: ${options.service.log.path ?? 'n/a'} (${options.service.log.exists ? 'present' : 'missing'})`,
+      `  host log signal ${options.service.log.path ?? 'n/a'} (${options.service.log.exists ? 'present' : 'missing'})`,
     ] : []),
-    'Onboarding:',
-    `  checked: ${marker?.exists ? 'yes' : 'no'}`,
-    `  scope: ${marker?.scope ?? 'none'}`,
-    `  updatedAt: ${marker?.payload ? new Date(marker.payload.updatedAt).toISOString() : 'n/a'}`,
+    'Onboarding',
+    `  checked ${marker?.exists ? 'yes' : 'no'}`,
+    `  scope ${marker?.scope ?? 'none'}`,
+    `  updated ${marker?.payload ? new Date(marker.payload.updatedAt).toISOString() : 'n/a'}`,
   ];
 
   if (options.doctor) {
@@ -312,7 +314,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
       '  approvals and automation status routes',
       '  explicit build delegation route',
     );
-    lines.push('', 'Warnings:');
+    lines.push('', 'Warnings');
     if (findings.length === 0) {
       lines.push('  none');
     } else {
@@ -334,11 +336,11 @@ export function renderOnboardingCliStatus(options: CliStatusOptions): string {
   const marker = options.onboardingMarkers?.effective;
   return [
     'GoodVibes Agent setup status',
-    `  checked: ${marker?.exists ? 'yes' : 'no'}`,
-    `  scope: ${marker?.scope ?? 'none'}`,
-    `  source: ${marker?.payload?.source ?? 'n/a'}`,
-    `  mode: ${marker?.payload?.mode ?? 'n/a'}`,
-    `  updatedAt: ${marker?.payload ? new Date(marker.payload.updatedAt).toISOString() : 'n/a'}`,
-    `  workingDir: ${options.workingDirectory}`,
+    `  checked ${marker?.exists ? 'yes' : 'no'}`,
+    `  scope ${marker?.scope ?? 'none'}`,
+    `  origin ${marker?.payload?.source ? formatAgentRecordSource(marker.payload.source) : 'n/a'}`,
+    `  mode ${marker?.payload?.mode ?? 'n/a'}`,
+    `  updated ${marker?.payload ? new Date(marker.payload.updatedAt).toISOString() : 'n/a'}`,
+    `  working directory ${options.workingDirectory}`,
   ].join('\n');
 }

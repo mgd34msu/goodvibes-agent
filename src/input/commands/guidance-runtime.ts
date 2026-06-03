@@ -22,10 +22,10 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
           '  /setup              - open Agent setup with current settings preloaded',
           '  /agent              - open the Agent operator workspace',
           '  /knowledge          - inspect isolated Agent Knowledge status, ask, and search',
-          '  /memory             - manage local Agent memory',
-          '  /personas           - manage local Agent personas',
-          '  /skills       - manage reusable local Agent skills',
-          '  /routines           - manage local Agent routines',
+          '  /memory             - manage Agent-local memory',
+          '  /personas           - manage Agent-local personas',
+          '  /skills       - manage reusable Agent-local skills',
+          '  /routines           - manage Agent-local routines',
           '  /delegate           - explicitly hand build/fix/review work to GoodVibes TUI',
         ].join('\n'));
         return;

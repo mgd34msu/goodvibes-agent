@@ -19,7 +19,9 @@ import {
 import { SloCollector } from '@/runtime/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { FEATURE_FLAGS } from '@/runtime/index.ts';
+import { applyAgentPerfBudgetPolicy } from '../../../scripts/perf-check.ts';
 import type { ProviderMessage } from '@pellux/goodvibes-sdk/platform/providers';
+import type { PerfReport } from '@/runtime/index.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -146,6 +148,28 @@ describe('performance gate: budget definitions', () => {
     const budget = findBudget('memory.growth.bytes_per_hour');
     expect(budget).toBeDefined();
     expect(budget!.unit).toBe('bytes');
+  });
+
+  test('Agent perf gate treats integration delivery success rate as a lower-bound budget', () => {
+    const report: PerfReport = {
+      timestamp: 1780491600000,
+      metrics: [{
+        name: 'slo.integration.delivery_success_rate',
+        value: 94,
+        unit: 'percent',
+        timestamp: 1780491600000,
+      }],
+      violations: [],
+      passed: true,
+    };
+
+    const enforced = applyAgentPerfBudgetPolicy(report);
+
+    expect(enforced.passed).toBe(false);
+    expect(enforced.violations).toHaveLength(1);
+    expect(enforced.violations[0]?.budget.metric).toBe('slo.integration.delivery_success_rate');
+    expect(enforced.violations[0]?.actual).toBe(94);
+    expect(enforced.violations[0]?.exceededBy).toBe(1);
   });
 });
 

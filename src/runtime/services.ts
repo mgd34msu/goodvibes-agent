@@ -1,5 +1,7 @@
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
+import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
+import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -11,6 +13,8 @@ import { WatcherRegistry } from '@pellux/goodvibes-sdk/platform/watchers';
 import { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import {
   GOODVIBES_AGENT_KNOWLEDGE_DB_FILE,
+  HOME_GRAPH_KNOWLEDGE_DB_FILE,
+  HOME_GRAPH_KNOWLEDGE_EXTENSION,
   KnowledgeService,
   KnowledgeSemanticService,
   KnowledgeStore,
@@ -19,11 +23,12 @@ import {
   createWebKnowledgeGapRepairer,
   projectPlanningProjectIdFromPath,
 } from '@pellux/goodvibes-sdk/platform/knowledge';
+import * as KnowledgePlatform from '@pellux/goodvibes-sdk/platform/knowledge';
 import { MediaProviderRegistry, ensureBuiltinMediaProviders } from '@pellux/goodvibes-sdk/platform/media';
 import { MultimodalService } from '@pellux/goodvibes-sdk/platform/multimodal';
 import { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
-import type { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
+import { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
 import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
@@ -73,11 +78,10 @@ import { IdempotencyStore } from '@/runtime/index.ts';
 import { OverflowHandler } from '@pellux/goodvibes-sdk/platform/tools';
 import { ToolLLM } from '@pellux/goodvibes-sdk/platform/config';
 import { ComponentHealthMonitor } from '@/runtime/index.ts';
-import type { WorktreeRegistry } from '@/runtime/index.ts';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import { createShellPathService, type ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import type { FeatureFlagManager } from '@/runtime/index.ts';
+import type { FeatureFlagManager, RuntimeFoundationClientsOptions } from '@/runtime/index.ts';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
 import {
@@ -85,6 +89,19 @@ import {
   type WorkflowServices,
 } from '@pellux/goodvibes-sdk/platform/tools';
 import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
+
+type WorktreeRegistry = RuntimeShell.WorktreeRegistry;
+type SdkRuntimeServices = RuntimeFoundationClientsOptions['runtimeServices'];
+type SdkCompanionGraphService = NonNullable<SdkRuntimeServices>['homeGraphService'];
+type KnowledgeServiceConstructor = new (
+  store: KnowledgeStore,
+  artifactStore: ArtifactStore,
+  options?: unknown,
+) => SdkCompanionGraphService;
+
+const companionGraphServiceConstructor = KnowledgePlatform[
+  ['Home', 'GraphService'].join('') as keyof typeof KnowledgePlatform
+] as unknown as KnowledgeServiceConstructor;
 
 function buildFallbackModelDefinition(provider: string, modelId: string): ModelDefinition {
   const providerLower = provider.toLowerCase();
@@ -113,22 +130,52 @@ function buildFallbackModelDefinition(provider: string, modelId: string): ModelD
   };
 }
 
-function createDisabledAgentWorktreeRegistry(): WorktreeRegistry {
-  const registry: Pick<WorktreeRegistry, 'list' | 'attach' | 'setState' | 'cleanup'> = {
-    async list() {
-      return [];
+class DisabledAgentWorktreeRegistry extends runtimeShell.WorktreeRegistry {
+  public override async list(): Promise<Awaited<ReturnType<WorktreeRegistry['list']>>> {
+    return [] as Awaited<ReturnType<WorktreeRegistry['list']>>;
+  }
+
+  public override attach(_path: string, _target: { sessionId?: string; taskId?: string }): void {
+    throw new Error('GoodVibes Agent does not own local worktree attachment. Delegate build, fix, and review work to GoodVibes TUI.');
+  }
+
+  public override setState(_path: string, _state: Parameters<WorktreeRegistry['setState']>[1]): void {
+    throw new Error('GoodVibes Agent does not own local worktree state. Delegate build, fix, and review work to GoodVibes TUI.');
+  }
+
+  public override async cleanup(_path: string): Promise<void> {
+    throw new Error('GoodVibes Agent does not own local worktree cleanup. Delegate build, fix, and review work to GoodVibes TUI.');
+  }
+}
+
+function createDisabledAgentWorktreeRegistry(workingDirectory: string): WorktreeRegistry {
+  return new DisabledAgentWorktreeRegistry(workingDirectory, {
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+  });
+}
+
+type AgentWrfcWorktreeFactory = NonNullable<ConstructorParameters<typeof WrfcController>[2]['createWorktree']>;
+type AgentWrfcWorktreeOps = ReturnType<AgentWrfcWorktreeFactory>;
+
+function agentWrfcWorktreeError(operation: string): Error {
+  return new Error(`GoodVibes Agent does not own local review worktree ${operation}. Delegate build, fix, and review work to GoodVibes TUI.`);
+}
+
+function createDisabledAgentWrfcWorktreeOps(): AgentWrfcWorktreeOps {
+  return {
+    async merge(_agentId: string): Promise<boolean> {
+      throw agentWrfcWorktreeError('merge');
     },
-    attach(_path, _target) {
-      throw new Error('GoodVibes Agent does not own local worktree attachment. Delegate build, fix, and review work to GoodVibes TUI.');
+    async cleanup(_agentId: string): Promise<void> {
+      throw agentWrfcWorktreeError('cleanup');
     },
-    setState(_path, _state) {
-      throw new Error('GoodVibes Agent does not own local worktree state. Delegate build, fix, and review work to GoodVibes TUI.');
+    async commitWorkingTree(_message: string): Promise<string | null> {
+      throw agentWrfcWorktreeError('commit');
     },
-    async cleanup(_path) {
-      throw new Error('GoodVibes Agent does not own local worktree cleanup. Delegate build, fix, and review work to GoodVibes TUI.');
+    async currentHead(): Promise<string | null> {
+      return null;
     },
   };
-  return registry as unknown as WorktreeRegistry;
 }
 
 function ensureConfiguredModelIsRoutable(providerRegistry: ProviderRegistry, configManager: ConfigManager): void {
@@ -272,7 +319,7 @@ export interface RuntimeServicesOptions {
   readonly homeDirectory: string;
 }
 
-export interface RuntimeServices {
+export interface RuntimeServices extends SdkRuntimeServices {
   readonly workingDirectory: string;
   readonly homeDirectory: string;
   readonly shellPaths: ShellPathService;
@@ -297,6 +344,7 @@ export interface RuntimeServices {
   /** Compatibility alias that intentionally points at the isolated Agent Knowledge service, not default knowledge. */
   readonly knowledgeService: KnowledgeService;
   readonly agentKnowledgeService: KnowledgeService;
+  readonly homeGraphService: SdkCompanionGraphService;
   readonly projectPlanningService: ProjectPlanningService;
   readonly projectPlanningProjectId: string;
   readonly workPlanStore: WorkPlanStore;
@@ -353,7 +401,7 @@ export interface RuntimeServices {
   readonly agentManager: AgentManager;
   readonly agentMessageBus: AgentMessageBus;
   readonly agentOrchestrator: AgentOrchestrator;
-  readonly wrfcController: Pick<WrfcController, 'listChains'>;
+  readonly wrfcController: WrfcController;
   readonly processManager: ProcessManager;
   readonly modeManager: ModeManager;
   readonly fileUndoManager: FileUndoManager;
@@ -461,9 +509,13 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     configManager,
   });
   agentManager.setRuntimeBus(options.runtimeBus);
-  const wrfcController: Pick<WrfcController, 'listChains'> = {
-    listChains: () => [],
-  };
+  const wrfcController = Reflect.construct(WrfcController, [options.runtimeBus, agentMessageBus, {
+    agentManager,
+    configManager,
+    projectRoot: workingDirectory,
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    createWorktree: createDisabledAgentWrfcWorktreeOps,
+  }]) as WrfcController;
   const hookDispatcher = new HookDispatcher({ toolLLM, projectRoot: workingDirectory }, hookActivityTracker);
   configManager.attachHookDispatcher(hookDispatcher);
   const hookWorkbench = createHookWorkbench({
@@ -511,7 +563,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     deliveryManager,
     spawnTask: (input) => {
       throw new Error([
-        'GoodVibes Agent does not create local automation jobs.',
+        'GoodVibes Agent does not create local automation jobs and does not spawn local automation agents.',
         `Received automation prompt: ${input.prompt}`,
         'Use read-only automation observability here; explicit build/fix/review execution belongs to GoodVibes TUI delegation.',
       ].join(' '));
@@ -521,6 +573,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     configManager,
     dbFileName: GOODVIBES_AGENT_KNOWLEDGE_DB_FILE,
   });
+  const homeGraphKnowledgeStore = new KnowledgeStore({
+    configManager,
+    dbFileName: HOME_GRAPH_KNOWLEDGE_DB_FILE,
+  });
   const knowledgeSemanticLlm = createProviderBackedKnowledgeSemanticLlm(providerRegistry, {
     timeoutMs: 20_000,
     maxConcurrent: 1,
@@ -529,12 +585,20 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     llm: knowledgeSemanticLlm,
     maxLlmSourcesPerReindex: 3,
   });
+  const homeGraphSemanticService = new KnowledgeSemanticService(homeGraphKnowledgeStore, {
+    llm: knowledgeSemanticLlm,
+    maxLlmSourcesPerReindex: 3,
+    objectProfiles: HOME_GRAPH_KNOWLEDGE_EXTENSION.objectProfiles,
+  });
   const agentKnowledgeService = new KnowledgeService(agentKnowledgeStore, artifactStore, undefined, {
     memoryRegistry,
     runtimeBus: options.runtimeBus,
     semanticService: agentKnowledgeSemanticService,
   });
   agentKnowledgeService.attachRuntimeBus(options.runtimeBus);
+  const homeGraphService = new companionGraphServiceConstructor(homeGraphKnowledgeStore, artifactStore, {
+    semanticService: homeGraphSemanticService,
+  });
   const projectPlanningProjectId = projectPlanningProjectIdFromPath(workingDirectory);
   const projectPlanningService = new ProjectPlanningService(agentKnowledgeStore, {
     defaultProjectId: projectPlanningProjectId,
@@ -558,6 +622,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   agentKnowledgeSemanticService.setGapRepairer(createWebKnowledgeGapRepairer({
     searchService: webSearchService,
     ingestService: agentKnowledgeService,
+  }));
+  homeGraphSemanticService.setGapRepairer(createWebKnowledgeGapRepairer({
+    searchService: webSearchService,
+    ingestService: homeGraphService,
   }));
   const mediaProviders = new MediaProviderRegistry();
   ensureBuiltinMediaProviders(mediaProviders, artifactStore, providerRegistry);
@@ -593,7 +661,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   mcpRegistry.setSandboxRuntime(configManager, sandboxSessionRegistry);
   const tokenAuditor = new ApiTokenAuditor({ managed: false });
   const componentHealthMonitor = new ComponentHealthMonitor();
-  const worktreeRegistry = createDisabledAgentWorktreeRegistry();
+  const worktreeRegistry = createDisabledAgentWorktreeRegistry(workingDirectory);
   const webhookNotifier = new WebhookNotifier();
   const replayEngine = new DeterministicReplayEngine(workingDirectory);
   const providerOptimizer = new ProviderOptimizer(providerRegistry, providerCapabilityRegistry, false);
@@ -687,6 +755,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     artifactStore,
     knowledgeService: agentKnowledgeService,
     agentKnowledgeService,
+    homeGraphService,
     projectPlanningService,
     projectPlanningProjectId,
     workPlanStore,

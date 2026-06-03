@@ -146,14 +146,14 @@ export async function generateAgentMedia(
 export function formatAgentMediaGenerationResult(result: AgentMediaGenerationResult): string {
   return [
     'Agent media generated',
-    `  provider: ${result.providerId}`,
-    `  artifacts: ${result.artifacts.length}`,
+    `  provider ${result.providerId}`,
+    `  artifacts ${result.artifacts.length}`,
     ...result.artifacts.map((artifact, index) => [
       `  ${index + 1}. ${artifact.artifactId}`,
-      `     type: ${artifact.mimeType}`,
-      `     size: ${artifact.sizeBytes} bytes`,
-      ...(artifact.filename ? [`     filename: ${artifact.filename}`] : []),
-      ...(artifact.sourceUri ? [`     source: ${artifact.sourceUri}`] : []),
+      `     type ${artifact.mimeType}`,
+      `     size ${artifact.sizeBytes} bytes`,
+      ...(artifact.filename ? [`     filename ${artifact.filename}`] : []),
+      ...(artifact.sourceUri ? [`     source ${artifact.sourceUri}`] : []),
     ].join('\n')),
   ].join('\n');
 }

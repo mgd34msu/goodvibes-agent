@@ -69,9 +69,9 @@ export class ProviderAccountsPanel extends ScrollableListPanel<ProviderAccountRe
     return buildPanelListRow(width, [
       { text: item.providerId.padEnd(16), fg: item.active ? C.good : C.value },
       { text: ` ${activeRoute.padEnd(14)}`, fg: routeColor(item.activeRoute) },
-      { text: ` models=${String(item.modelCount).padEnd(4)}`, fg: C.dim },
+      { text: ` models ${String(item.modelCount).padEnd(4)}`, fg: C.dim },
       { text: ` ${item.authFreshness.padEnd(10)}`, fg: item.authFreshness === 'expired' ? C.bad : item.authFreshness === 'expiring' || item.authFreshness === 'pending' ? C.warn : C.dim },
-      { text: ` issues=${String(item.issues.length).padEnd(2)}`, fg: item.issues.length > 0 ? C.bad : C.good },
+      { text: ` issues ${String(item.issues.length).padEnd(2)}`, fg: item.issues.length > 0 ? C.bad : C.good },
     ], C, { selected });
   }
 
@@ -133,7 +133,7 @@ export class ProviderAccountsPanel extends ScrollableListPanel<ProviderAccountRe
         { label: 'providers', value: String(this.records.length), valueColor: C.value },
         { label: 'expired auth', value: String(expiredCount), valueColor: expiredCount > 0 ? C.bad : C.good },
         { label: 'pending login', value: String(pendingCount), valueColor: pendingCount > 0 ? C.warn : C.dim },
-        { label: 'fallback risk', value: String(fallbackCount), valueColor: fallbackCount > 0 ? C.warn : C.good },
+        { label: 'routing risk', value: String(fallbackCount), valueColor: fallbackCount > 0 ? C.warn : C.good },
       ], C),
       buildKeyValueLine(width, [
         { label: 'total issues', value: String(issueCount), valueColor: issueCount > 0 ? C.bad : C.good },
@@ -155,40 +155,40 @@ export class ProviderAccountsPanel extends ScrollableListPanel<ProviderAccountRe
         { label: 'oauth ready', value: selected.oauthReady ? 'yes' : 'no', valueColor: selected.oauthReady ? C.info : C.dim },
         { label: 'pending login', value: selected.pendingLogin ? 'yes' : 'no', valueColor: selected.pendingLogin ? C.warn : C.dim },
       ], C),
-      buildPanelLine(width, [[`  Active route reason: ${selected.activeRouteReason}`.slice(0, width), C.dim]]),
-      buildPanelLine(width, [[`  Available routes: ${formatRouteList(selected.availableRoutes) || 'unconfigured'}`.slice(0, width), C.dim]]),
+      buildPanelLine(width, [[`  Route reason ${selected.activeRouteReason}`.slice(0, width), C.dim]]),
+      buildPanelLine(width, [[`  Available routes ${formatRouteList(selected.availableRoutes) || 'unconfigured'}`.slice(0, width), C.dim]]),
     ];
     if (selected.expiresAt) {
       detailRows.push(buildPanelLine(width, [
-        ['  Expires: ', C.label],
+        ['  Expires ', C.label],
         [new Date(selected.expiresAt).toISOString(), C.dim],
-        ['  Token: ', C.label],
+        ['  Token ', C.label],
         [selected.tokenType ?? 'n/a', C.value],
       ]));
     }
     if (selected.fallbackRisk) {
-      detailRows.push(buildPanelLine(width, [[`  fallback: ${selected.fallbackRisk}`.slice(0, width), C.warn]]));
+      detailRows.push(buildPanelLine(width, [[`  routing risk ${selected.fallbackRisk}`.slice(0, width), C.warn]]));
     }
     for (const route of selected.routeRecords) {
       detailRows.push(buildPanelLine(width, [[
-        `  route ${formatProviderAuthRouteId(route.route)}: ${route.usable ? 'usable' : 'blocked'} • ${route.freshness} • ${route.detail}`.slice(0, width),
+        `  route ${formatProviderAuthRouteId(route.route)} ${route.usable ? 'usable' : 'blocked'} • ${route.freshness} • ${route.detail}`.slice(0, width),
         route.usable ? C.dim : C.bad,
       ]]));
       for (const issue of route.issues) {
-        detailRows.push(buildPanelLine(width, [[`    issue: ${issue}`.slice(0, width), C.bad]]));
+        detailRows.push(buildPanelLine(width, [[`    issue ${issue}`.slice(0, width), C.bad]]));
       }
     }
     for (const windowHint of selected.usageWindows) {
-      detailRows.push(buildPanelLine(width, [[`  ${windowHint.label}: ${windowHint.detail}`.slice(0, width), C.dim]]));
+      detailRows.push(buildPanelLine(width, [[`  ${windowHint.label} ${windowHint.detail}`.slice(0, width), C.dim]]));
     }
     for (const issue of selected.issues) {
-      detailRows.push(buildPanelLine(width, [[`  issue: ${issue}`.slice(0, width), C.bad]]));
+      detailRows.push(buildPanelLine(width, [[`  issue ${issue}`.slice(0, width), C.bad]]));
     }
     for (const note of selected.notes) {
-      detailRows.push(buildPanelLine(width, [[`  note: ${note}`.slice(0, width), C.info]]));
+      detailRows.push(buildPanelLine(width, [[`  note ${note}`.slice(0, width), C.info]]));
     }
     for (const action of selected.recommendedActions) {
-      detailRows.push(buildPanelLine(width, [[`  next: ${action}`.slice(0, width), C.value]]));
+      detailRows.push(buildPanelLine(width, [[`  next ${action}`.slice(0, width), C.value]]));
     }
     if (selected.issues.length === 0 && selected.notes.length === 0 && selected.usageWindows.length === 0 && selected.recommendedActions.length === 0) {
       detailRows.push(buildPanelLine(width, [['  No active account warnings for this provider.', C.dim]]));

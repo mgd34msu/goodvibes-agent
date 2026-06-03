@@ -1,4 +1,7 @@
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
+import { AGENT_WORKSPACE_CATEGORY_IDS } from '../agent-workspace-types.ts';
+
+const AGENT_WORKSPACE_ARGS_HINT = `${AGENT_WORKSPACE_CATEGORY_IDS.join('|')}|connected-host`;
 
 export function registerAgentWorkspaceRuntimeCommands(registry: CommandRegistry): void {
   function openAgentWorkspace(ctx: CommandContext, categoryId: string | undefined): void {
@@ -14,7 +17,7 @@ export function registerAgentWorkspaceRuntimeCommands(registry: CommandRegistry)
     aliases: ['home', 'operator'],
     description: 'Open the GoodVibes Agent operator workspace',
     usage: '[category]',
-    argsHint: 'home|setup|channels|tools|knowledge|voice-media|profiles|memory|notes|personas|skills|routines|work|automation|delegate',
+    argsHint: AGENT_WORKSPACE_ARGS_HINT,
     handler(args, ctx) {
       openAgentWorkspace(ctx, args[0]);
     },

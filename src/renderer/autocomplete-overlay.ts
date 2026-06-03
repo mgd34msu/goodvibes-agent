@@ -15,6 +15,9 @@ const TITLE_FG = DEFAULT_OVERLAY_PALETTE.titleFg;
 const BODY_FG = DEFAULT_OVERLAY_PALETTE.bodyFg;
 const MUTED_FG = DEFAULT_OVERLAY_PALETTE.mutedFg;
 const SELECTED_BG = DEFAULT_OVERLAY_PALETTE.selectedBg;
+const AUTOCOMPLETE_TITLE = ' Commands';
+const AUTOCOMPLETE_EMPTY_QUERY = '/';
+const AUTOCOMPLETE_HINTS = '[Tab] Complete  [Up/Down] Navigate  [Enter] Execute  [Esc] Cancel';
 
 interface CellStyle {
   fg: string;
@@ -25,6 +28,23 @@ interface CellStyle {
 
 function putText(line: Line, startX: number, maxWidth: number, text: string, style: CellStyle): void {
   putOverlayText(line, startX, maxWidth, text, style);
+}
+
+function autocompleteQueryText(query: string): string {
+  return query ? `/${query}` : AUTOCOMPLETE_EMPTY_QUERY;
+}
+
+function autocompleteScrollText(selected: string | number, total: string | number): string {
+  return `${selected}/${total}`;
+}
+
+export function renderAutocompletePackageText(): string {
+  return [
+    AUTOCOMPLETE_TITLE.trim(),
+    autocompleteQueryText('<query>'),
+    autocompleteScrollText('<selected>', '<total>'),
+    AUTOCOMPLETE_HINTS,
+  ].join('\n');
 }
 
 /**
@@ -51,8 +71,8 @@ export function renderAutocompleteOverlay(
   lines.push(createOverlayBorderLine(width, layout, '┌', '─', '┐', BORDER_FG));
 
   const titleLine = createOverlayContentLine(width, layout);
-  const titleText = ' Commands';
-  const queryText = state.query ? `/${state.query}` : '/';
+  const titleText = AUTOCOMPLETE_TITLE;
+  const queryText = autocompleteQueryText(state.query);
   const queryWidth = Math.min(Math.floor(layout.innerWidth / 2), Math.max(8, layout.innerWidth - getDisplayWidth(titleText) - 2));
   const leftText = fitDisplay(titleText, Math.max(0, layout.innerWidth - queryWidth));
   const rightText = truncateDisplay(queryText, queryWidth);
@@ -126,8 +146,8 @@ export function renderAutocompleteOverlay(
   }
 
   if (total > maxVisible) {
-      const scrollLine = createOverlayContentLine(width, layout);
-    const scrollText = `${state.selectedIndex + 1}/${total}`;
+    const scrollLine = createOverlayContentLine(width, layout);
+    const scrollText = autocompleteScrollText(state.selectedIndex + 1, total);
     putText(
       scrollLine,
       layout.margin + 2 + Math.max(0, layout.innerWidth - getDisplayWidth(scrollText)),
@@ -139,12 +159,11 @@ export function renderAutocompleteOverlay(
   }
 
   const footerLine = createOverlayContentLine(width, layout);
-  const hints = '[Tab] Complete  [Up/Down] Navigate  [Enter] Execute  [Esc] Cancel';
   putText(
     footerLine,
     layout.margin + 2,
     layout.innerWidth,
-    fitDisplay(truncateDisplay(hints, layout.innerWidth), layout.innerWidth),
+    fitDisplay(truncateDisplay(AUTOCOMPLETE_HINTS, layout.innerWidth), layout.innerWidth),
     { fg: MUTED_FG, dim: true },
   );
   lines.push(footerLine);

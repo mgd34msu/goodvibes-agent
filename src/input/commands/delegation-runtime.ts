@@ -6,11 +6,15 @@ function hasFlag(args: readonly string[], flag: string): boolean {
   return args.includes(flag);
 }
 
+function hasAnyFlag(args: readonly string[], flags: readonly string[]): boolean {
+  return flags.some((flag) => hasFlag(args, flag));
+}
+
 function delegationTaskValues(args: readonly string[]): string[] {
   const values: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index]!;
-    if (token === '--wrfc') continue;
+    if (token === '--review' || token === '--wrfc') continue;
     if (!token.startsWith('--')) {
       values.push(token);
       continue;
@@ -19,35 +23,35 @@ function delegationTaskValues(args: readonly string[]): string[] {
   return values;
 }
 
-function buildDelegationBody(task: string, wrfcRequested: boolean): string {
+function buildDelegationBody(task: string, reviewRequested: boolean): string {
   return [
     'GoodVibes Agent explicit build delegation.',
     '',
-    'Original user ask:',
+    'Original user ask',
     task,
     '',
-    'Agent policy:',
+    'Agent policy',
     '- GoodVibes Agent is not the coding TUI.',
     '- Preserve the full original ask.',
-    '- GoodVibes TUI owns file edits, git/worktree flows, execution isolation UX, and any WRFC owner chain.',
-    wrfcRequested
-      ? '- WRFC was explicitly requested by the Agent user for this build/fix/review delegation.'
-      : '- WRFC was not explicitly requested; do not turn this into WRFC solely because it came from Agent.',
+    '- GoodVibes TUI owns file edits, git/worktree flows, execution isolation UX, and any delegated review owner chain.',
+    reviewRequested
+      ? '- Delegated review was explicitly requested by the Agent user for this build/fix/review handoff.'
+      : '- Delegated review was not explicitly requested; do not add review solely because this came from Agent.',
   ].join('\n');
 }
 
 export function registerDelegationRuntimeCommands(registry: CommandRegistry): void {
-  const makeHandler = (defaultWrfc: boolean) => async (args: string[], ctx: CommandContext): Promise<void> => {
-    const wrfcRequested = defaultWrfc || hasFlag(args, '--wrfc');
+  const makeHandler = (defaultReview: boolean) => async (args: string[], ctx: CommandContext): Promise<void> => {
+    const reviewRequested = defaultReview || hasAnyFlag(args, ['--review', '--wrfc']);
     const task = delegationTaskValues(args).join(' ').trim();
     if (!task) {
-      ctx.print(defaultWrfc ? 'Usage: /wrfc <build/fix/review task>' : 'Usage: /delegate [--wrfc] <build/fix/review task>');
+      ctx.print(defaultReview ? 'Usage: /delegate --review <build/fix/review task>' : 'Usage: /delegate [--review] <build/fix/review task>');
       return;
     }
     const operator = ctx.clients?.operator;
     if (!operator) {
       ctx.print([
-        'Delegation unavailable: no operator client is attached.',
+        'Delegation unavailable. No operator client is attached.',
         'Use the shared-session route from a configured Agent runtime, or open GoodVibes TUI in the target workspace.',
       ].join('\n'));
       return;
@@ -67,12 +71,13 @@ export function registerDelegationRuntimeCommands(registry: CommandRegistry): vo
           originSurface: 'goodvibes-agent',
           sourceSessionId: ctx.session.runtime.sessionId,
           task,
-          wrfcRequested,
+          reviewRequested,
+          wrfcRequested: reviewRequested,
         },
       });
       await operator.sessions.submitMessage({
         sessionId: session.id,
-        body: buildDelegationBody(task, wrfcRequested),
+        body: buildDelegationBody(task, reviewRequested),
         surfaceKind: participant.surfaceKind,
         surfaceId: participant.surfaceId,
         externalId: participant.externalId,
@@ -83,7 +88,8 @@ export function registerDelegationRuntimeCommands(registry: CommandRegistry): vo
           sourceSessionId: ctx.session.runtime.sessionId,
           kind: 'task',
           task,
-          wrfcRequested,
+          reviewRequested,
+          wrfcRequested: reviewRequested,
         },
         routing: {
           executionIntent: {
@@ -96,16 +102,16 @@ export function registerDelegationRuntimeCommands(registry: CommandRegistry): vo
       });
       ctx.print([
         'Delegation submitted to GoodVibes TUI/shared-session routes.',
-        `  session: ${session.id}`,
-        `  mode: ${wrfcRequested ? 'WRFC requested' : 'direct build delegation'}`,
-        `  task: ${task}`,
-        '  next: check GoodVibes TUI shared-session/task status for the result.',
+        `  session ${session.id}`,
+        `  mode ${reviewRequested ? 'delegated review requested' : 'direct build delegation'}`,
+        `  task ${task}`,
+        '  next check GoodVibes TUI shared-session/task status for the result.',
       ].join('\n'));
     } catch (error) {
       ctx.print([
         'Delegation failed.',
-        `  error: ${summarizeError(error)}`,
-        '  fallback: open GoodVibes TUI in the target workspace and paste the original task there.',
+        `  error ${summarizeError(error)}`,
+        '  fallback open GoodVibes TUI in the target workspace and paste the original task there.',
       ].join('\n'));
     }
   };
@@ -114,8 +120,8 @@ export function registerDelegationRuntimeCommands(registry: CommandRegistry): vo
     name: 'delegate',
     aliases: ['build'],
     description: 'Explicitly delegate build/fix/review work to GoodVibes TUI through shared-session routes',
-    usage: '[--wrfc] <task>',
-    argsHint: '[--wrfc] <task>',
+    usage: '[--review] <task>',
+    argsHint: '[--review] <task>',
     handler: makeHandler(false),
   });
 }

@@ -42,6 +42,15 @@ function yesNo(value: boolean): string {
   return value ? 'yes' : 'no';
 }
 
+export function formatAgentKnowledgeFailureKind(kind: string): string {
+  if (kind === 'auth_required') return 'authorization required';
+  if (kind === 'connected_host_unavailable') return 'connected host unavailable';
+  if (kind === 'connected_host_route_unavailable') return 'connected host route unavailable';
+  if (kind === 'connected_host_error') return 'connected host error';
+  if (kind === 'version_mismatch') return 'version mismatch';
+  return kind.replace(/[_-]+/g, ' ');
+}
+
 function sourceLine(value: unknown): string {
   const record = isRecord(value) ? value : {};
   const title = cleanInline(record.title)
@@ -65,9 +74,9 @@ function resultLine(value: unknown): string {
   const snippet = cleanInline(record.snippet) || cleanInline(record.summary) || cleanInline(record.text);
   const parts = [
     `[${type}] ${title}`,
-    id && id !== title ? `id=${id}` : '',
-    score !== null ? `score=${score.toFixed(3)}` : '',
-    url ? `url=${url}` : '',
+    id && id !== title ? `id ${id}` : '',
+    score !== null ? `score ${score.toFixed(3)}` : '',
+    url ? `url ${url}` : '',
   ].filter((part) => part.length > 0);
   return snippet ? `${parts.join('  ')}\n    ${snippet}` : parts.join('  ');
 }
@@ -82,9 +91,9 @@ function nodeLine(value: unknown): string {
   const summary = cleanInline(record.summary);
   const parts = [
     `[${kind}] ${title}`,
-    id && id !== title ? `id=${id}` : '',
-    status ? `status=${status}` : '',
-    confidence !== null ? `confidence=${confidence}` : '',
+    id && id !== title ? `id ${id}` : '',
+    status ? `status ${status}` : '',
+    confidence !== null ? `confidence ${confidence}` : '',
   ].filter((part) => part.length > 0);
   return summary ? `${parts.join('  ')}\n    ${summary}` : parts.join('  ');
 }
@@ -96,7 +105,7 @@ function issueLine(value: unknown): string {
   const code = cleanInline(record.code) || 'issue';
   const status = cleanInline(record.status);
   const message = cleanInline(record.message);
-  const suffix = status ? ` status=${status}` : '';
+  const suffix = status ? ` status ${status}` : '';
   return `  - ${id} [${severity}] ${code}${suffix}${message ? ` - ${message}` : ''}`;
 }
 
@@ -106,8 +115,12 @@ function connectorLine(value: unknown): string {
   const name = cleanInline(record.displayName) || id;
   const sourceType = cleanInline(record.sourceType);
   const description = cleanInline(record.description);
-  const suffix = sourceType ? ` sourceType=${sourceType}` : '';
+  const suffix = sourceType ? `  source type ${sourceType}` : '';
   return description ? `  - ${id}  ${name}${suffix}\n    ${description}` : `  - ${id}  ${name}${suffix}`;
+}
+
+function relatedKnowledgeCountsLine(relatedEdges: number, linkedSources: number, linkedNodes: number): string {
+  return `  related edges ${relatedEdges}  linked sources ${linkedSources}  linked nodes ${linkedNodes}`;
 }
 
 export function formatStatus(data: unknown): string {
@@ -120,13 +133,13 @@ export function formatStatus(data: unknown): string {
   const storagePath = readString(record, 'storagePath');
   return [
     'Agent Knowledge status',
-    `  ready: ${ready === null ? 'unknown' : yesNo(ready)}`,
-    `  sources: ${sourceCount ?? 'unknown'}`,
-    `  nodes: ${nodeCount ?? 'unknown'}`,
-    `  edges: ${edgeCount ?? 'unknown'}`,
-    `  issues: ${issueCount ?? 'unknown'}`,
-    storagePath ? `  storage: ${storagePath}` : null,
-    '  route: /api/goodvibes-agent/knowledge/status',
+    `  ready ${ready === null ? 'unknown' : yesNo(ready)}`,
+    `  sources ${sourceCount ?? 'unknown'}`,
+    `  nodes ${nodeCount ?? 'unknown'}`,
+    `  edges ${edgeCount ?? 'unknown'}`,
+    `  issues ${issueCount ?? 'unknown'}`,
+    storagePath ? `  storage ${storagePath}` : null,
+    '  route /api/goodvibes-agent/knowledge/status',
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
@@ -137,7 +150,7 @@ export function formatEntityList(data: unknown, kind: 'sources' | 'nodes' | 'iss
     return [
       `Agent Knowledge ${kind}`,
       '  no records',
-      `  route: /api/goodvibes-agent/knowledge/${kind}`,
+      `  route /api/goodvibes-agent/knowledge/${kind}`,
     ].join('\n');
   }
   const format = kind === 'sources'
@@ -163,29 +176,29 @@ export function formatItem(data: unknown, id: string): string {
   const linkedNodes = readArray(record, 'linkedNodes').length;
   if (source) {
     return [
-      `Agent Knowledge item: ${id}`,
+      `Agent Knowledge item ${id}`,
       `  ${sourceLine(source)}`,
-      `  relatedEdges=${relatedEdges} linkedSources=${linkedSources} linkedNodes=${linkedNodes}`,
+      relatedKnowledgeCountsLine(relatedEdges, linkedSources, linkedNodes),
     ].join('\n');
   }
   if (node) {
     return [
-      `Agent Knowledge item: ${id}`,
+      `Agent Knowledge item ${id}`,
       `  ${nodeLine(node)}`,
-      `  relatedEdges=${relatedEdges} linkedSources=${linkedSources} linkedNodes=${linkedNodes}`,
+      relatedKnowledgeCountsLine(relatedEdges, linkedSources, linkedNodes),
     ].join('\n');
   }
   if (issue) {
     return [
-      `Agent Knowledge item: ${id}`,
+      `Agent Knowledge item ${id}`,
       issueLine(issue),
-      `  relatedEdges=${relatedEdges} linkedSources=${linkedSources} linkedNodes=${linkedNodes}`,
+      relatedKnowledgeCountsLine(relatedEdges, linkedSources, linkedNodes),
     ].join('\n');
   }
   return [
-    `Agent Knowledge item: ${id}`,
+    `Agent Knowledge item ${id}`,
     '  not found',
-    '  route: /api/goodvibes-agent/knowledge/items/{id}',
+    '  route /api/goodvibes-agent/knowledge/items/{id}',
   ].join('\n');
 }
 
@@ -201,7 +214,7 @@ export function formatMap(data: unknown): string {
     `  nodes: ${nodes.length}`,
     `  edges: ${edges.length}`,
     `  issues: ${issues.length}`,
-    '  route: /api/goodvibes-agent/knowledge/map',
+    '  route /api/goodvibes-agent/knowledge/map',
   ].join('\n');
 }
 
@@ -212,7 +225,7 @@ export function formatConnectors(data: unknown): string {
     return [
       'Agent Knowledge connectors',
       '  no connectors',
-      '  route: /api/goodvibes-agent/knowledge/connectors',
+      '  route /api/goodvibes-agent/knowledge/connectors',
     ].join('\n');
   }
   return [
@@ -231,13 +244,13 @@ export function formatConnector(data: unknown, id: string): string {
   const capabilities = readArray(connector, 'capabilities').map(cleanInline).filter(Boolean);
   const examples = readArray(connector, 'examples');
   return [
-    `Agent Knowledge connector: ${connectorId}`,
-    `  name: ${name}`,
-    sourceType ? `  sourceType: ${sourceType}` : null,
-    description ? `  description: ${description}` : null,
+    `Agent Knowledge connector ${connectorId}`,
+    `  name ${name}`,
+    sourceType ? `  source type ${sourceType}` : null,
+    description ? `  description ${description}` : null,
     capabilities.length > 0 ? `  capabilities: ${capabilities.join(', ')}` : null,
-    `  examples: ${examples.length}`,
-    '  route: /api/goodvibes-agent/knowledge/connectors/{id}',
+    `  examples ${examples.length}`,
+    '  route /api/goodvibes-agent/knowledge/connectors/{id}',
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
@@ -248,10 +261,10 @@ export function formatConnectorDoctor(data: unknown, id: string): string {
   const checks = readArray(record, 'checks');
   const hints = readArray(record, 'hints').map(cleanInline).filter(Boolean);
   return [
-    `Agent Knowledge connector doctor: ${cleanInline(record.connectorId) || id}`,
-    `  ready: ${ready === null ? 'unknown' : yesNo(ready)}`,
-    summary ? `  summary: ${summary}` : null,
-    checks.length > 0 ? '  checks:' : null,
+    `Agent Knowledge connector doctor ${cleanInline(record.connectorId) || id}`,
+    `  ready ${ready === null ? 'unknown' : yesNo(ready)}`,
+    summary ? `  summary ${summary}` : null,
+    checks.length > 0 ? '  checks' : null,
     ...checks.slice(0, 10).map((check) => {
       const item = isRecord(check) ? check : {};
       const checkId = cleanInline(item.id) || 'check';
@@ -260,9 +273,9 @@ export function formatConnectorDoctor(data: unknown, id: string): string {
       const detail = cleanInline(item.detail);
       return `    - ${checkId} [${status}] ${label}${detail ? ` - ${detail}` : ''}`;
     }),
-    hints.length > 0 ? '  hints:' : null,
+    hints.length > 0 ? '  hints' : null,
     ...hints.slice(0, 8).map((hint) => `    - ${hint}`),
-    '  route: /api/goodvibes-agent/knowledge/connectors/{id}/doctor',
+    '  route /api/goodvibes-agent/knowledge/connectors/{id}/doctor',
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
@@ -276,16 +289,16 @@ export function formatAsk(data: unknown, query: string): string {
   const facts = readArray(answer, 'facts');
   const gaps = readArray(answer, 'gaps');
   const lines = [
-    `Agent Knowledge answer: ${query}`,
+    `Agent Knowledge answer ${query}`,
     text,
     '',
-    `confidence: ${confidence ?? 'unknown'}${synthesized === null ? '' : `  synthesized: ${yesNo(synthesized)}`}`,
+    `confidence ${confidence ?? 'unknown'}${synthesized === null ? '' : `  synthesized ${yesNo(synthesized)}`}`,
   ];
   if (sources.length > 0) {
-    lines.push('', 'Sources:', ...sources.slice(0, 8).map((source) => `  - ${sourceLine(source)}`));
+    lines.push('', 'Sources', ...sources.slice(0, 8).map((source) => `  - ${sourceLine(source)}`));
   }
-  if (facts.length > 0) lines.push('', `Facts: ${facts.length}`);
-  if (gaps.length > 0) lines.push('', `Gaps: ${gaps.length}`);
+  if (facts.length > 0) lines.push('', `Facts ${facts.length}`);
+  if (gaps.length > 0) lines.push('', `Gaps ${gaps.length}`);
   return lines.join('\n');
 }
 
@@ -295,13 +308,13 @@ export function formatSearch(data: unknown, query: string): string {
   const results = items.length > 0 ? items : readArray(record, 'results');
   if (results.length === 0) {
     return [
-      `Agent Knowledge search: ${query}`,
+      `Agent Knowledge search ${query}`,
       '  no results',
-      '  route: /api/goodvibes-agent/knowledge/search',
+      '  route /api/goodvibes-agent/knowledge/search',
     ].join('\n');
   }
   return [
-    `Agent Knowledge search: ${query}`,
+    `Agent Knowledge search ${query}`,
     ...results.slice(0, 10).map((result, index) => `  ${index + 1}. ${resultLine(result)}`),
   ].join('\n');
 }
@@ -320,10 +333,10 @@ export function formatIngest(
   const artifactId = cleanInline(record.artifactId);
   return [
     `Agent Knowledge ${label} accepted`,
-    `  source: ${sourceId || '(pending)'}`,
-    `  ${targetLabel}: ${canonicalUri}`,
+    `  knowledge source ${sourceId || '(pending)'}`,
+    `  ${targetLabel} ${canonicalUri}`,
     artifactId ? `  artifact: ${artifactId}` : null,
-    `  route: ${route}`,
+    `  route ${route}`,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
@@ -335,11 +348,11 @@ export function formatBatchIngest(data: unknown, label: string): string {
   const errors = readArray(record, 'errors');
   return [
     `Agent Knowledge ${label} accepted`,
-    `  imported: ${imported ?? sources.length}`,
-    `  failed: ${failed ?? errors.length}`,
-    `  sources: ${sources.length}`,
+    `  imported ${imported ?? sources.length}`,
+    `  failed ${failed ?? errors.length}`,
+    `  sources ${sources.length}`,
     ...sources.slice(0, 5).map((source) => `  - ${sourceLine(source)}`),
-    ...(errors.length > 0 ? ['  errors:', ...errors.slice(0, 5).map((error) => `  - ${cleanInline(error)}`)] : []),
+    ...(errors.length > 0 ? ['  errors', ...errors.slice(0, 5).map((error) => `  - ${cleanInline(error)}`)] : []),
   ].join('\n');
 }
 
@@ -348,29 +361,29 @@ export function formatReindex(data: unknown): string {
   const status = isRecord(record.status) ? record.status : {};
   return [
     'Agent Knowledge reindex complete',
-    `  sources: ${readNumber(status, 'sourceCount') ?? 'unknown'}`,
-    `  nodes: ${readNumber(status, 'nodeCount') ?? 'unknown'}`,
-    `  edges: ${readNumber(status, 'edgeCount') ?? 'unknown'}`,
-    `  issues: ${readNumber(status, 'issueCount') ?? 'unknown'}`,
-    '  route: /api/goodvibes-agent/knowledge/reindex',
+    `  sources ${readNumber(status, 'sourceCount') ?? 'unknown'}`,
+    `  nodes ${readNumber(status, 'nodeCount') ?? 'unknown'}`,
+    `  edges ${readNumber(status, 'edgeCount') ?? 'unknown'}`,
+    `  issues ${readNumber(status, 'issueCount') ?? 'unknown'}`,
+    '  route /api/goodvibes-agent/knowledge/reindex',
   ].join('\n');
 }
 
 export function formatFailure(failure: AgentKnowledgeFailureLike, json: boolean): string {
   if (json) return JSON.stringify(failure, null, 2);
   return [
-    `Agent Knowledge error: ${failure.kind}`,
+    `Agent Knowledge error ${failure.kind} (${formatAgentKnowledgeFailureKind(failure.kind)})`,
     `  ${failure.error}`,
-    `  connected host: ${failure.baseUrl}`,
-    `  route: ${failure.route}`,
+    `  connected host ${failure.baseUrl}`,
+    `  route ${failure.route}`,
     failure.kind === 'version_mismatch' && failure.connectedHostVersion && failure.expectedSdkVersion
-      ? `  versions: connectedHost=${failure.connectedHostVersion} expected=${failure.expectedSdkVersion}`
+      ? `  versions connected host ${failure.connectedHostVersion}; expected ${failure.expectedSdkVersion}`
       : null,
     failure.kind === 'version_mismatch'
-      ? '  next: update the connected GoodVibes host so /status matches the Agent SDK pin.'
+      ? '  next update the connected GoodVibes host so /status matches the Agent SDK pin.'
       : null,
     failure.kind === 'connected_host_route_unavailable'
-      ? '  next: update the connected GoodVibes host to the SDK version required by this Agent package.'
+      ? '  next update the connected GoodVibes host to the SDK version required by this Agent package.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }

@@ -33,6 +33,31 @@ const PALETTE = {
 const renderCache = new WeakMap<ModelPickerModal, { key: string; lines: Line[] }>();
 const objectIds = new WeakMap<object, number>();
 let nextObjectId = 1;
+const MODEL_WORKSPACE_TITLE = ' Model Workspace / Providers And Models ';
+const MODEL_WORKSPACE_TARGETS_TITLE = 'Targets';
+const MODEL_WORKSPACE_MODE_LABELS = {
+  provider: 'Provider list',
+  model: 'Model list',
+  effort: 'Reasoning effort',
+  contextCap: 'Context cap',
+} as const;
+const MODEL_WORKSPACE_TABLE_HEADERS = {
+  provider: 'Provider                         Configuration       Catalog',
+  effort: 'Reasoning effort                 Meaning',
+  contextCap: 'Context cap input',
+  modelKey: 'Model key',
+  displayName: 'Display name',
+  providerColumn: 'Provider',
+  context: 'Context',
+  tier: 'Tier',
+  caps: 'Caps',
+} as const;
+const MODEL_WORKSPACE_REASONING_EFFORT_DETAIL = 'Reasoning effort applies to the main chat model. Select the default effort for this model.';
+const MODEL_WORKSPACE_CONTEXT_CAP_DETAIL = 'Context cap overrides the detected local-model context window for this selection.';
+const MODEL_WORKSPACE_CONTEXT_CAP_INPUT_HELP = 'Type digits to set a cap. Enter confirms; Esc returns to the model list.';
+const MODEL_WORKSPACE_FOOTER_SEARCH_ACTIVE = 'Typing filters search; Esc clears search';
+const MODEL_WORKSPACE_FOOTER_SEARCH_INACTIVE = '/ search';
+const MODEL_WORKSPACE_FOOTER_CONTROLS = 'Up/Down navigate • Left/Right pane • Enter select • <search> • Tab price • C caps • A available • B benchmark • G group • Esc close';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -164,6 +189,65 @@ function targetLabelFor(target: string): string {
   return 'Main Chat';
 }
 
+function providerSelectionDetail(targetLabel: string): string {
+  return `Provider selection: choose a provider, then choose a model for ${targetLabel}.`;
+}
+
+function modelSelectionDetail(targetLabel: string): string {
+  return `Model selection: choose the model to store for ${targetLabel}. Use filters to narrow large catalogs.`;
+}
+
+function modelWorkspaceFilterText(
+  query: string,
+  price: string,
+  capability: string,
+  group: string,
+  availableOnly: string,
+): string {
+  return `Search: ${query} | Price: ${price} | Capability: ${capability} | Group: ${group} | Available only: ${availableOnly}`;
+}
+
+function modelWorkspaceFooterControls(searchHint: string): string {
+  return MODEL_WORKSPACE_FOOTER_CONTROLS.replace('<search>', searchHint);
+}
+
+export function renderModelWorkspacePackageText(): string {
+  return [
+    MODEL_WORKSPACE_TITLE.trim(),
+    MODEL_WORKSPACE_TARGETS_TITLE,
+    MODEL_WORKSPACE_MODE_LABELS.provider,
+    MODEL_WORKSPACE_MODE_LABELS.model,
+    MODEL_WORKSPACE_MODE_LABELS.effort,
+    MODEL_WORKSPACE_MODE_LABELS.contextCap,
+    'Target: <target> (<state>)',
+    'Current: <route>',
+    providerSelectionDetail('<target>'),
+    'Selected provider: <provider>',
+    modelSelectionDetail('<target>'),
+    'Selected: <model> | <display> | context <context> | <capabilities>',
+    MODEL_WORKSPACE_REASONING_EFFORT_DETAIL,
+    MODEL_WORKSPACE_CONTEXT_CAP_DETAIL,
+    modelWorkspaceFilterText('<query>', '<price>', '<capability>', '<group>', '<available-only>'),
+    MODEL_WORKSPACE_TABLE_HEADERS.provider,
+    MODEL_WORKSPACE_TABLE_HEADERS.effort,
+    MODEL_WORKSPACE_TABLE_HEADERS.contextCap,
+    MODEL_WORKSPACE_TABLE_HEADERS.modelKey,
+    MODEL_WORKSPACE_TABLE_HEADERS.displayName,
+    MODEL_WORKSPACE_TABLE_HEADERS.providerColumn,
+    MODEL_WORKSPACE_TABLE_HEADERS.context,
+    MODEL_WORKSPACE_TABLE_HEADERS.tier,
+    MODEL_WORKSPACE_TABLE_HEADERS.caps,
+    'Model: <model>',
+    'Detected context: <context>',
+    'Override: <cap>',
+    MODEL_WORKSPACE_CONTEXT_CAP_INPUT_HELP,
+    'Focus targets',
+    'Focus list',
+    modelWorkspaceFooterControls(MODEL_WORKSPACE_FOOTER_SEARCH_ACTIVE),
+    modelWorkspaceFooterControls(MODEL_WORKSPACE_FOOTER_SEARCH_INACTIVE),
+  ].join('\n');
+}
+
 function detailLines(picker: ModelPickerModal, width: number): string[] {
   const target = picker.getSelectedTargetInfo();
   const targetLabel = target?.label ?? targetLabelFor(picker.target);
@@ -174,10 +258,10 @@ function detailLines(picker: ModelPickerModal, width: number): string[] {
   if (target) lines.push(`Current: ${targetSummary(target)}`);
   if (picker.mode === 'provider') {
     const provider = picker.getFilteredProviders()[picker.selectedIndex] ?? '';
-    lines.push(`Provider selection: choose a provider, then choose a model for ${targetLabel}.`);
+    lines.push(providerSelectionDetail(targetLabel));
     if (provider) lines.push(`Selected provider: ${provider}`);
   } else if (picker.mode === 'model') {
-    lines.push(`Model selection: choose the model to store for ${targetLabel}. Use filters to narrow large catalogs.`);
+    lines.push(modelSelectionDetail(targetLabel));
     if (selected) {
       const caps = selected.capabilities ?? {};
       const capText = [
@@ -188,11 +272,11 @@ function detailLines(picker: ModelPickerModal, width: number): string[] {
       lines.push(`Selected: ${modelKey(selected)} | ${selected.displayName} | context ${formatContext(selected.contextWindow)} | ${capText}`);
     }
   } else if (picker.mode === 'effort') {
-    lines.push(`Reasoning effort applies to the main chat model. Select the default effort for this model.`);
+    lines.push(MODEL_WORKSPACE_REASONING_EFFORT_DETAIL);
   } else {
-    lines.push(`Context cap overrides the detected local-model context window for this selection.`);
+    lines.push(MODEL_WORKSPACE_CONTEXT_CAP_DETAIL);
   }
-  const filterText = `Search: ${picker.query || '(none)'} | Price: ${picker.categoryFilter} | Capability: ${picker.capabilityFilter} | Group: ${picker.groupBy} | Available only: ${picker.availableOnly ? 'yes' : 'no'}`;
+  const filterText = modelWorkspaceFilterText(picker.query || '(none)', picker.categoryFilter, picker.capabilityFilter, picker.groupBy, picker.availableOnly ? 'yes' : 'no');
   lines.push(filterText);
   return lines.flatMap((line) => wrapText(line, Math.max(1, width)));
 }
@@ -293,7 +377,7 @@ function renderContextCapRows(picker: ModelPickerModal, lines: Line[], rows: num
     `Model: ${model ? modelKey(model) : '(none)'}`,
     `Detected context: ${formatContext(model?.contextWindow)}`,
     `Override: ${input}`,
-    'Type digits to set a cap. Enter confirms; Esc returns to the model list.',
+    MODEL_WORKSPACE_CONTEXT_CAP_INPUT_HELP,
   ];
   for (let row = 0; row < Math.min(rows, copy.length); row += 1) {
     const line = lines[row]!;
@@ -306,15 +390,15 @@ function writeTableHeader(line: Line, picker: ModelPickerModal, startX: number, 
   fillRange(line, startX, startX + width - 1, PALETTE.footerBg);
   const style = { fg: PALETTE.muted, bg: PALETTE.footerBg, bold: true };
   if (picker.mode === 'provider') {
-    writeText(line, startX + 1, width - 2, 'Provider                         Configuration       Catalog', style);
+    writeText(line, startX + 1, width - 2, MODEL_WORKSPACE_TABLE_HEADERS.provider, style);
     return;
   }
   if (picker.mode === 'effort') {
-    writeText(line, startX + 1, width - 2, 'Reasoning effort                 Meaning', style);
+    writeText(line, startX + 1, width - 2, MODEL_WORKSPACE_TABLE_HEADERS.effort, style);
     return;
   }
   if (picker.mode === 'contextCap') {
-    writeText(line, startX + 1, width - 2, 'Context cap input', style);
+    writeText(line, startX + 1, width - 2, MODEL_WORKSPACE_TABLE_HEADERS.contextCap, style);
     return;
   }
   const providerW = clamp(Math.floor(width * 0.14), 10, 18);
@@ -324,12 +408,12 @@ function writeTableHeader(line: Line, picker: ModelPickerModal, startX: number, 
   const nameW = clamp(Math.floor(width * 0.28), 16, 36);
   const keyW = Math.max(10, width - providerW - ctxW - tierW - capsW - nameW - 10);
   let x = startX + 3;
-  writeText(line, x, keyW, padDisplay('Model key', keyW), style); x += keyW + 1;
-  writeText(line, x, nameW, padDisplay('Display name', nameW), style); x += nameW + 1;
-  writeText(line, x, providerW, padDisplay('Provider', providerW), style); x += providerW + 1;
-  writeText(line, x, ctxW, padDisplay('Context', ctxW), style); x += ctxW + 1;
-  writeText(line, x, tierW, padDisplay('Tier', tierW), style); x += tierW + 1;
-  writeText(line, x, capsW, padDisplay('Caps', capsW), style);
+  writeText(line, x, keyW, padDisplay(MODEL_WORKSPACE_TABLE_HEADERS.modelKey, keyW), style); x += keyW + 1;
+  writeText(line, x, nameW, padDisplay(MODEL_WORKSPACE_TABLE_HEADERS.displayName, nameW), style); x += nameW + 1;
+  writeText(line, x, providerW, padDisplay(MODEL_WORKSPACE_TABLE_HEADERS.providerColumn, providerW), style); x += providerW + 1;
+  writeText(line, x, ctxW, padDisplay(MODEL_WORKSPACE_TABLE_HEADERS.context, ctxW), style); x += ctxW + 1;
+  writeText(line, x, tierW, padDisplay(MODEL_WORKSPACE_TABLE_HEADERS.tier, tierW), style); x += tierW + 1;
+  writeText(line, x, capsW, padDisplay(MODEL_WORKSPACE_TABLE_HEADERS.caps, capsW), style);
 }
 
 export function renderModelWorkspace(picker: ModelPickerModal, width: number, viewportHeight: number): Line[] {
@@ -345,13 +429,13 @@ export function renderModelWorkspace(picker: ModelPickerModal, width: number, vi
   const contentW = Math.max(1, safeWidth - contentX - 1);
 
   const top = borderLine(safeWidth, GLYPHS.frame.topLeft, GLYPHS.frame.horizontal, GLYPHS.frame.topRight);
-  writeText(top, 2, safeWidth - 4, ' Model Workspace / Providers And Models ', { fg: PALETTE.title, bold: true });
+  writeText(top, 2, safeWidth - 4, MODEL_WORKSPACE_TITLE, { fg: PALETTE.title, bold: true });
   lines.push(top);
 
   const header = contentLine(safeWidth, PALETTE.footerBg);
-  writeText(header, 2, targetW - 2, 'Targets', { fg: PALETTE.subtitle, bold: true, bg: PALETTE.footerBg });
+  writeText(header, 2, targetW - 2, MODEL_WORKSPACE_TARGETS_TITLE, { fg: PALETTE.subtitle, bold: true, bg: PALETTE.footerBg });
   drawVertical(header, targetW, PALETTE.footerBg);
-  const modeLabel = picker.mode === 'provider' ? 'Provider list' : picker.mode === 'model' ? 'Model list' : picker.mode === 'effort' ? 'Reasoning effort' : 'Context cap';
+  const modeLabel = MODEL_WORKSPACE_MODE_LABELS[picker.mode];
   writeText(header, contentX + 1, contentW - 2, `${modeLabel}  •  ${picker.getItemCount()} item(s)`, { fg: PALETTE.subtitle, bold: true, bg: PALETTE.footerBg });
   lines.push(header);
 
@@ -400,8 +484,8 @@ export function renderModelWorkspace(picker: ModelPickerModal, width: number, vi
 
   const footer = contentLine(safeWidth, PALETTE.footerBg);
   const targetHint = picker.focusPane === 'targets' ? 'Focus targets' : 'Focus list';
-  const searchHint = picker.searchFocused ? 'Typing filters search; Esc clears search' : '/ search';
-  const hints = `${targetHint} • Up/Down navigate • Left/Right pane • Enter select • ${searchHint} • Tab price • C caps • A available • B benchmark • G group • Esc close`;
+  const searchHint = picker.searchFocused ? MODEL_WORKSPACE_FOOTER_SEARCH_ACTIVE : MODEL_WORKSPACE_FOOTER_SEARCH_INACTIVE;
+  const hints = `${targetHint} • ${modelWorkspaceFooterControls(searchHint)}`;
   writeText(footer, 2, safeWidth - 4, hints, { fg: PALETTE.muted, bg: PALETTE.footerBg });
   lines.push(footer);
   lines.push(borderLine(safeWidth, GLYPHS.frame.bottomLeft, GLYPHS.frame.horizontal, GLYPHS.frame.bottomRight));

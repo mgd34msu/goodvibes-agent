@@ -1,5 +1,6 @@
 import type { CommandContext } from '../command-registry.ts';
 import type { ProvenanceLink } from '@pellux/goodvibes-sdk/platform/state';
+import { formatAgentRecordReferences } from '../../agent/record-labels.ts';
 import {
   buildIncidentMemoryAddOptions,
   buildMcpSecurityMemoryAddOptions,
@@ -17,7 +18,7 @@ export async function handleRecallAdd(args: string[], context: CommandContext): 
 
   const cls = args[0];
   if (!cls || !isValidClass(cls)) {
-    context.print(`[memory] Invalid class "${cls ?? ''}". Valid: ${VALID_CLASSES.join(', ')}`);
+    context.print(`[memory] Invalid class "${cls ?? ''}". Valid values ${VALID_CLASSES.join(', ')}.`);
     return;
   }
 
@@ -36,7 +37,7 @@ export async function handleRecallAdd(args: string[], context: CommandContext): 
   const scope = scopeRaw && isValidScope(scopeRaw) ? scopeRaw : 'project';
 
   if (scopeRaw && !isValidScope(scopeRaw)) {
-    context.print(`[memory] Invalid scope "${scopeRaw}". Valid: ${VALID_SCOPES.join(', ')}`);
+    context.print(`[memory] Invalid scope "${scopeRaw}". Valid values ${VALID_SCOPES.join(', ')}.`);
     return;
   }
 
@@ -60,12 +61,13 @@ export async function handleRecallAdd(args: string[], context: CommandContext): 
   }
 
   const record = await memory.add({ scope, cls, summary, detail, tags, provenance });
-  context.print(`[memory] Added ${cls}: ${record.id}`);
-  context.print(`  Scope:   ${record.scope}`);
-  context.print(`  Summary: ${record.summary}`);
-  if (record.tags.length) context.print(`  Tags: ${record.tags.join(', ')}`);
+  context.print(`[memory] Added ${cls}`);
+  context.print(`  id ${record.id}`);
+  context.print(`  scope ${record.scope}`);
+  context.print(`  summary ${record.summary}`);
+  if (record.tags.length) context.print(`  tags ${record.tags.join(', ')}`);
   if (record.provenance.length) {
-    context.print(`  Provenance: ${record.provenance.map((entry) => `${entry.kind}:${entry.ref}`).join(', ')}`);
+    context.print(`  origin ${formatAgentRecordReferences(record.provenance)}`);
   }
 }
 
@@ -87,12 +89,12 @@ export async function handleRecallCapture(args: string[], context: CommandContex
       ? context.extensions.forensicsRegistry.latest()
       : context.extensions.forensicsRegistry.getById(requestedId);
     if (!report) {
-      context.print(`[memory] Incident not found: ${requestedId ?? 'latest'}`);
+      context.print(`[memory] Incident not found ${requestedId ?? 'latest'}`);
       return;
     }
     const bundle = context.extensions.forensicsRegistry.buildBundle(report.id);
     if (!bundle) {
-      context.print(`[memory] Failed to build incident bundle: ${report.id}`);
+      context.print(`[memory] Failed to build incident bundle ${report.id}`);
       return;
     }
     const record = await memory.add(buildIncidentMemoryAddOptions(bundle));
@@ -119,7 +121,7 @@ export async function handleRecallCapture(args: string[], context: CommandContex
     }
     const server = context.extensions.mcpRegistry.listServerSecurity().find((entry) => entry.name === serverName);
     if (!server) {
-      context.print(`[memory] MCP server not found: ${serverName}`);
+      context.print(`[memory] MCP server not found ${serverName}`);
       return;
     }
     const record = await memory.add(buildMcpSecurityMemoryAddOptions(server));
@@ -139,7 +141,7 @@ export async function handleRecallCapture(args: string[], context: CommandContex
     }
     const plugin = pluginManager.list().find((entry) => entry.name === pluginName);
     if (!plugin) {
-      context.print(`[memory] Plugin not found: ${pluginName}`);
+      context.print(`[memory] Plugin not found ${pluginName}`);
       return;
     }
     const quarantineReason = pluginManager.getQuarantineRecord(plugin.name)?.reason;

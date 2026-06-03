@@ -5,6 +5,7 @@ import { beginOpenAICodexLogin, exchangeOpenAICodexCode } from '@pellux/goodvibe
 import type { OAuthProviderConfig, ProviderSubscription } from '@pellux/goodvibes-sdk/platform/config';
 import { getSubscriptionProviderConfig, listAvailableSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import { inspectProviderAuth } from '@/runtime/index.ts';
+import { formatAgentRecordSource } from '../../agent/record-labels.ts';
 import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
@@ -22,13 +23,13 @@ function buildReviewText(ctx: CommandContext): string {
     return [
       'Subscription Review',
       '  No provider subscriptions stored yet.',
-      ...(available.length > 0 ? [`  available providers: ${available.map((entry) => entry.provider).join(', ')}`] : []),
+      ...(available.length > 0 ? [`  available providers ${available.map((entry) => entry.provider).join(', ')}`] : []),
     ].join('\n');
   }
   return [
     `Subscription Review`,
     ...subscriptions.map((subscription) => (
-      `  ${subscription.provider}  ${subscription.authMode}  token=${subscription.tokenType}  expires=${subscription.expiresAt ? new Date(subscription.expiresAt).toISOString() : 'n/a'}`
+      `  ${subscription.provider}  auth mode ${subscription.authMode}  token ${subscription.tokenType}  expires ${subscription.expiresAt ? new Date(subscription.expiresAt).toISOString() : 'n/a'}`
     )),
   ].join('\n');
 }
@@ -37,8 +38,8 @@ function inspectBundle(path: string): string {
   const bundle = JSON.parse(readFileSync(path, 'utf-8')) as SubscriptionBundle;
   return [
     'Subscription Bundle Review',
-    `  exportedAt: ${new Date(bundle.exportedAt).toISOString()}`,
-    `  subscriptions: ${bundle.subscriptions.length}`,
+    `  exported at ${new Date(bundle.exportedAt).toISOString()}`,
+    `  subscriptions ${bundle.subscriptions.length}`,
     ...bundle.subscriptions.map((subscription) => `  ${subscription.provider}  ${subscription.authMode}`),
   ].join('\n');
 }
@@ -63,8 +64,8 @@ function resolveManualLoginConfig(config: OAuthProviderConfig): OAuthProviderCon
 
 function describePrecedence(record: Pick<ProviderSubscription, 'overrideAmbientApiKeys'>): string {
   return record.overrideAmbientApiKeys
-    ? '  precedence: this now overrides ambient API keys for the provider'
-    : '  precedence: stored for subscription-backed flows only; ambient API keys are unchanged';
+    ? '  precedence this now overrides ambient API keys for the provider'
+    : '  precedence stored for subscription-backed flows only; ambient API keys are unchanged';
 }
 
 export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): void {
@@ -94,7 +95,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
         ctx.print([
           'Available Subscription Providers',
           ...available.map((provider) => (
-            `  ${provider.provider}  source=${provider.source}  redirect=${provider.oauth.redirectUri}`
+            `  ${provider.provider}  origin ${formatAgentRecordSource(provider.source)}  redirect ${provider.oauth.redirectUri}`
           )),
         ].join('\n'));
         return;
@@ -118,28 +119,28 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
         });
         ctx.print([
           `Subscription ${provider}`,
-          `  configured: ${inspection.configured ? 'yes' : 'no'}`,
-          `  freshness: ${inspection.freshness}`,
-          '  finishMode: explicit manual',
+          `  configured ${inspection.configured ? 'yes' : 'no'}`,
+          `  freshness ${inspection.freshness}`,
+          '  finish mode explicit manual',
           ...(resolved ? [
-            `  source: ${resolved.source}`,
-            `  redirectUri: ${resolved.oauth.redirectUri}`,
-            `  authUrl: ${resolved.oauth.authUrl}`,
-            `  tokenUrl: ${resolved.oauth.tokenUrl}`,
+            `  origin ${formatAgentRecordSource(resolved.source)}`,
+            `  redirect URI ${resolved.oauth.redirectUri}`,
+            `  auth URL ${resolved.oauth.authUrl}`,
+            `  token URL ${resolved.oauth.tokenUrl}`,
           ] : []),
           ...(inspection.activeSubscription ? [
-            `  authMode: ${manager.get(provider)?.authMode ?? 'oauth'}`,
-            `  tokenType: ${inspection.tokenType ?? 'n/a'}`,
-            `  createdAt: ${manager.get(provider)?.createdAt ? new Date(manager.get(provider)!.createdAt).toISOString() : 'n/a'}`,
-            `  updatedAt: ${manager.get(provider)?.updatedAt ? new Date(manager.get(provider)!.updatedAt).toISOString() : 'n/a'}`,
-            `  expiresAt: ${inspection.expiresAt ? new Date(inspection.expiresAt).toISOString() : 'n/a'}`,
-            `  refreshToken: ${manager.get(provider)?.refreshToken ? 'present' : 'absent'}`,
+            `  auth mode ${manager.get(provider)?.authMode ?? 'oauth'}`,
+            `  token type ${inspection.tokenType ?? 'n/a'}`,
+            `  created at ${manager.get(provider)?.createdAt ? new Date(manager.get(provider)!.createdAt).toISOString() : 'n/a'}`,
+            `  updated at ${manager.get(provider)?.updatedAt ? new Date(manager.get(provider)!.updatedAt).toISOString() : 'n/a'}`,
+            `  expires at ${inspection.expiresAt ? new Date(inspection.expiresAt).toISOString() : 'n/a'}`,
+            `  refresh token ${manager.get(provider)?.refreshToken ? 'present' : 'absent'}`,
             describePrecedence(manager.get(provider)!),
           ] : [
-            `  state: ${inspection.freshness === 'pending' ? 'pending login' : 'available for login'}`,
+            `  state ${inspection.freshness === 'pending' ? 'pending login' : 'available for login'}`,
           ]),
-          ...inspection.issues.map((issue) => `  issue: ${issue}`),
-          ...inspection.nextActions.map((action) => `  next: ${action}`),
+          ...inspection.issues.map((issue) => `  issue ${issue}`),
+          ...inspection.nextActions.map((action) => `  next ${action}`),
         ].join('\n'));
         return;
       }
@@ -183,14 +184,14 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
               : false;
 
             ctx.print([
-              `Subscription OAuth Start: ${provider}`,
-              `  source: ${resolved.source}`,
-              `  state: ${started.state}`,
-              `  redirectUri: ${started.redirectUri}`,
-              `  browser: ${openBrowser ? (browserOpened ? 'opened' : 'open failed') : 'skipped'}`,
-              '  completion: paste the callback code or redirect URL into the finish command',
-              `  next: /subscription login ${provider} finish <code-or-url> --yes`,
-              '  authorizationUrl:',
+              `Subscription OAuth start ${provider}`,
+              `  origin ${formatAgentRecordSource(resolved.source)}`,
+              `  state ${started.state}`,
+              `  redirect URI ${started.redirectUri}`,
+              `  browser ${openBrowser ? (browserOpened ? 'opened' : 'open failed') : 'skipped'}`,
+              '  completion paste the callback code or redirect URL into the finish command',
+              `  next /subscription login ${provider} finish <code-or-url> --yes`,
+              '  authorization URL',
               `  ${started.authorizationUrl}`,
             ].join('\n'));
             return;
@@ -202,14 +203,14 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
             : false;
 
           ctx.print([
-            `Subscription OAuth Start: ${provider}`,
-            `  source: ${resolved.source}`,
-            `  state: ${started.pending.state}`,
-            `  redirectUri: ${activeConfig.redirectUri}`,
-            `  browser: ${openBrowser ? (browserOpened ? 'opened' : 'open failed') : 'skipped'}`,
-            '  completion: paste the callback code or redirect URL into the finish command',
-            `  next: /subscription login ${provider} finish <code-or-url> --yes`,
-            '  authorizationUrl:',
+            `Subscription OAuth start ${provider}`,
+            `  origin ${formatAgentRecordSource(resolved.source)}`,
+            `  state ${started.pending.state}`,
+            `  redirect URI ${activeConfig.redirectUri}`,
+            `  browser ${openBrowser ? (browserOpened ? 'opened' : 'open failed') : 'skipped'}`,
+            '  completion paste the callback code or redirect URL into the finish command',
+            `  next /subscription login ${provider} finish <code-or-url> --yes`,
+            '  authorization URL',
             `  ${started.authorizationUrl}`,
           ].join('\n'));
           return;
@@ -243,8 +244,8 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
             });
             ctx.print([
               `Stored subscription session for ${provider}.`,
-              `  tokenType: ${record.tokenType}`,
-              `  expiresAt: ${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'n/a'}`,
+              `  token type ${record.tokenType}`,
+              `  expires at ${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'n/a'}`,
               describePrecedence(record),
             ].join('\n'));
             return;
@@ -253,8 +254,8 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
           const record = await manager.completeOAuthLogin(provider, activeConfig, code);
           ctx.print([
             `Stored subscription session for ${provider}.`,
-            `  tokenType: ${record.tokenType}`,
-            `  expiresAt: ${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'n/a'}`,
+            `  token type ${record.tokenType}`,
+            `  expires at ${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'n/a'}`,
             describePrecedence(record),
           ].join('\n'));
           return;

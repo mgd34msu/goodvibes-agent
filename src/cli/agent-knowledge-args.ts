@@ -14,7 +14,7 @@ export function commandValues(args: readonly string[]): string[] {
 export function delegationTaskValues(args: readonly string[]): string[] {
   const values: string[] = [];
   for (const token of args) {
-    if (token === '--wrfc') continue;
+    if (token === '--review' || token === '--wrfc') continue;
     if (!token.startsWith('--')) values.push(token);
   }
   return values;
@@ -77,6 +77,10 @@ export function parseConnectorInput(value: string | undefined): unknown {
 
 export function hasFlag(args: readonly string[], flag: string): boolean {
   return args.includes(flag);
+}
+
+export function hasAnyFlag(args: readonly string[], flags: readonly string[]): boolean {
+  return flags.some((flag) => args.includes(flag));
 }
 
 export function stripCommandFlag(args: readonly string[], flag: string): { readonly rest: readonly string[]; readonly present: boolean } {

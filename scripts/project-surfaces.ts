@@ -1,7 +1,15 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { isExactSemver } from '../src/cli/package-verification.ts';
 
 const ROOT = join(import.meta.dir, '..');
+
+function readRequiredExactSemver(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !isExactSemver(value)) {
+    throw new Error(`${label} must be an exact semver like 1.2.3.`);
+  }
+  return value;
+}
 
 export function syncVersionSurfaces(root = ROOT): string {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
@@ -9,20 +17,26 @@ export function syncVersionSurfaces(root = ROOT): string {
     readonly dependencies?: Record<string, unknown>;
     readonly devDependencies?: Record<string, unknown>;
   };
-  const version = typeof pkg.version === 'string' ? pkg.version : '0.0.0';
+  const version = readRequiredExactSemver(pkg.version, 'package.json version');
   const packageSdkVersion = pkg.dependencies?.['@pellux/goodvibes-sdk'] ?? pkg.devDependencies?.['@pellux/goodvibes-sdk'];
-  const sdkVersion = typeof packageSdkVersion === 'string'
-    ? packageSdkVersion
-    : 'unknown';
+  const sdkVersion = readRequiredExactSemver(packageSdkVersion, 'package.json @pellux/goodvibes-sdk dependency');
 
   const versionTsPath = join(root, 'src', 'version.ts');
-  try {
+  if (existsSync(versionTsPath)) {
     let versionTs = readFileSync(versionTsPath, 'utf8');
-    versionTs = versionTs.replace(/let _version = '[^']*'/, `let _version = '${version}'`);
-    versionTs = versionTs.replace(/let _sdkVersion = '[^']*'/, `let _sdkVersion = '${sdkVersion}'`);
+    const versionFallbackPattern = /let _version = '[^']*'/;
+    const sdkVersionFallbackPattern = /let _sdkVersion = '[^']*'/;
+    if (!versionFallbackPattern.test(versionTs)) {
+      throw new Error('src/version.ts is missing the _version fallback literal.');
+    }
+    if (!sdkVersionFallbackPattern.test(versionTs)) {
+      throw new Error('src/version.ts is missing the _sdkVersion fallback literal.');
+    }
+    versionTs = versionTs.replace(versionFallbackPattern, `let _version = '${version}'`);
+    versionTs = versionTs.replace(sdkVersionFallbackPattern, `let _sdkVersion = '${sdkVersion}'`);
     writeFileSync(versionTsPath, versionTs);
     console.log(`prebuild: src/version.ts fallback → ${version} / sdk ${sdkVersion}`);
-  } catch {
+  } else {
     console.log('prebuild: src/version.ts — not found, skipping');
   }
 

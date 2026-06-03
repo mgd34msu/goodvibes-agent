@@ -7,8 +7,8 @@ GoodVibes Agent has its own Knowledge segment. It must not query or ingest throu
 GoodVibes Agent uses these context layers:
 
 - current conversation context for the active turn;
-- local Agent memory records for durable but private assistant facts and preferences;
-- local Agent routines, skills, and personas for reusable behavior profiles;
+- Agent-local memory records for durable but private assistant facts and preferences;
+- Agent-local routines, skills, and personas for reusable behavior profiles;
 - isolated Agent Knowledge for source-backed documents, search, and semantic answers;
 - artifacts for uploaded/generated files that can be referenced by chat, delegation, or explicit Agent Knowledge ingestion.
 

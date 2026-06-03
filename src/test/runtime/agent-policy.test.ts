@@ -353,7 +353,7 @@ describe('Agent operator policy hidden spawn gates', () => {
         },
       },
     });
-    expect(out.join('\n')).toContain('WRFC requested');
+    expect(out.join('\n')).toContain('delegated review requested');
   });
 
   test('copied TUI coding commands are not registered in Agent runtime', () => {

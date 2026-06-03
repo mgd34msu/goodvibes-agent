@@ -28,6 +28,22 @@ const MODE_TITLES: Record<string, string> = {
   contextCap: 'Set Context Window',
 };
 
+const CONTEXT_WINDOW_SOURCE_LABELS = {
+  provider_api: 'provider catalog',
+  configured_cap: 'configured limit',
+  fallback: 'default limit',
+  registry: 'model registry',
+} as const satisfies Readonly<Record<string, string>>;
+
+type ContextWindowSourceKey = keyof typeof CONTEXT_WINDOW_SOURCE_LABELS;
+
+function formatContextWindowSource(value: string | undefined): string {
+  const normalized = (value ?? '').trim().toLowerCase();
+  if (!normalized) return 'configured limit';
+  if (normalized in CONTEXT_WINDOW_SOURCE_LABELS) return CONTEXT_WINDOW_SOURCE_LABELS[normalized as ContextWindowSourceKey];
+  return normalized.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+}
+
 /**
  * Number of fixed chrome lines in the model-picker overlay (title + search + divider + detail×2 + footer).
  * Used by callers to compute maxVisible item rows.
@@ -40,6 +56,46 @@ let nextObjectId = 1;
 
 function putRowText(line: Line, startX: number, maxWidth: number, text: string, fg: string, bg = '', bold = false, dim = false): void {
   putOverlayText(line, startX, maxWidth, text, { fg, bg, bold, dim });
+}
+
+export function renderModelPickerPackageText(): string {
+  return [
+    ...Object.values(MODE_TITLES),
+    'Search',
+    'Filter: All',
+    'Filter: Free',
+    'Filter: Paid',
+    'Filter: Sub',
+    'Group: provider',
+    'Group: family',
+    'Group: pricingTier',
+    'Group: qualityTier',
+    'No models available',
+    'No models match query',
+    'No providers available',
+    'No providers match query',
+    'Provider:',
+    'Context:',
+    'Reasoning:',
+    'Vision:',
+    'Tools:',
+    'Select a provider to browse its models',
+    'Context window (tokens):',
+    'Leave blank to use default',
+    'Model:',
+    'provider catalog',
+    'configured limit',
+    'default limit',
+    'model registry',
+    'configured via environment',
+    'configured via secret reference',
+    'configured via subscription',
+    'configured anonymously',
+    '[Up/Down] [Enter] [/] Search [Space] Ctx [Esc] [Tab] Filter [G] Group',
+    '[Enter] Confirm  [Esc] Cancel',
+    '[Up/Down] Nav  [Enter] Select  [Esc] Cancel',
+    ...Object.entries(EFFORT_DESCRIPTIONS).flatMap(([level, description]) => [level, description]),
+  ].join('\n');
 }
 
 /**
@@ -338,7 +394,7 @@ export function renderModelPickerOverlay(
     const capModel = picker.contextCapPendingModel;
     const modelName = capModel ? capModel.displayName : 'unknown';
     const currentCtx = capModel ? fmtContext(capModel.contextWindow) : '?';
-    const provenance = capModel?.contextWindowProvenance ?? 'configured_cap';
+    const sourceLabel = formatContextWindowSource(capModel?.contextWindowProvenance);
 
     const promptLabel = 'Context window (tokens):';
     const cursorChar = OVERLAY_GLYPHS.cursor;
@@ -349,7 +405,7 @@ export function renderModelPickerOverlay(
 
     lines.push(createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg));
 
-    const hintText = `Leave blank to use default (current: ${currentCtx}, source: ${provenance})`;
+    const hintText = `Leave blank to use default (current: ${currentCtx}, from ${sourceLabel})`;
     const hintTrunc = getDisplayWidth(hintText) > contentW
       ? hintText.slice(0, contentW - 3) + '...'
       : hintText;

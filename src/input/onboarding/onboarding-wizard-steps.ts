@@ -222,13 +222,13 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
     id: 'agent-setup',
     title: 'Agent setup',
     shortLabel: 'Agent',
-    description: 'Set up the Agent operator workspace: local identity, provider access, isolated Agent Knowledge, reusable local behavior, and explicit build delegation.',
+    description: 'Set up the Agent operator workspace with local identity, provider access, isolated Agent Knowledge, reusable local behavior, and explicit build delegation.',
     summaryTitle: 'Agent setup posture',
     summaryLines: [
       'Agent owns the operator TUI and local behavior registry.',
       'Optional starter profile: create an isolated Agent home from setup.',
       'Setup here changes only Agent-owned settings and local state.',
-      `Secret policy: ${controller.getStringFieldValue('agent-setup.secret-policy', secretPolicy)}`,
+      `Secret policy ${controller.getStringFieldValue('agent-setup.secret-policy', secretPolicy)}`,
       collectionIssues > 0 ? `${collectionIssues} setup snapshot issue(s)` : 'Setup snapshot collected cleanly',
     ],
     fields: [
@@ -260,7 +260,7 @@ export function buildAgentSetupStep(controller: OnboardingWizardController): Onb
         kind: 'text',
         id: 'agent-setup.profile-name',
         label: 'Create starter profile',
-        hint: 'Optional: enter a new Agent profile name to create an isolated home during setup. Leave blank to keep the current home.',
+        hint: 'Optional Agent profile name creates an isolated home during setup. Leave blank to keep the current home.',
         placeholder: 'research-desk',
         defaultValue: '',
       },
@@ -330,8 +330,8 @@ export function buildProviderAccessStep(controller: OnboardingWizardController):
       id: 'providers.subscription-sessions',
       label: 'Subscription sessions',
       hint: [
-        `active: ${formatBoundedList(activeSubscriptionProviders, 'none')}`,
-        `pending: ${formatBoundedList(pendingSubscriptionProviders, 'none')}`,
+        `active ${formatBoundedList(activeSubscriptionProviders, 'none')}`,
+        `pending ${formatBoundedList(pendingSubscriptionProviders, 'none')}`,
       ].join('  '),
       defaultValue: `${activeSubscriptions.length} active / ${pendingSubscriptions.length} pending`,
     },
@@ -347,8 +347,8 @@ export function buildProviderAccessStep(controller: OnboardingWizardController):
       id: 'providers.openai-api-key',
       label: 'OpenAI API key quick start',
       hint: openAiApiKeyConfigured
-        ? 'Optional quick start: an OpenAI API key is already stored. Leave blank to keep it; enter a new key to replace it through the secret manager.'
-        : 'Optional quick start: enter an OpenAI API key now. Other providers can be configured from the Setup workspace, Tools & MCP workspace, and model picker.',
+        ? 'Optional quick start already has an OpenAI API key stored. Leave blank to keep it; enter a new key to replace it through the secret manager.'
+        : 'Optional quick start can store an OpenAI API key now. Other providers can be configured from the Setup workspace, Tools & MCP workspace, and model picker.',
       placeholder: openAiApiKeyConfigured ? 'already configured' : 'sk-...',
       defaultValue: '',
     },
@@ -397,10 +397,10 @@ export function buildProviderAccessStep(controller: OnboardingWizardController):
     description: 'Review provider and model access for the Agent conversation. Credentials stay masked and provider-specific setup remains configurable.',
     summaryTitle: 'Provider access summary',
     summaryLines: [
-      `Default route: ${providerRouteLabel}`,
-      `Provider account routes: ${configuredAccounts.length}`,
-      `Subscription sessions: ${activeSubscriptions.length} active / ${pendingSubscriptions.length} pending`,
-      `Provider credential references: ${providerSecretCount}`,
+      `Default route ${providerRouteLabel}`,
+      `Provider account routes ${configuredAccounts.length}`,
+      `Subscription sessions ${activeSubscriptions.length} active / ${pendingSubscriptions.length} pending`,
+      `Provider credential references ${providerSecretCount}`,
     ],
     fields,
   };
@@ -436,8 +436,8 @@ export function buildDefaultModelStep(controller: OnboardingWizardController): O
     description: 'Choose the default provider, model, and reasoning posture for normal Agent conversation.',
     summaryTitle: 'Default model summary',
     summaryLines: [
-      `Main: ${modelSelectionLabel(controller.modelSelectionState.get('main') ?? primarySelectionField.defaultSelection)}`,
-      `Reasoning: ${controller.getFieldValueLabel(reasoningField)}`,
+      `Main ${modelSelectionLabel(controller.modelSelectionState.get('main') ?? primarySelectionField.defaultSelection)}`,
+      `Reasoning ${controller.getFieldValueLabel(reasoningField)}`,
     ],
     fields: [primarySelectionField, reasoningField],
   };
@@ -451,9 +451,9 @@ export function buildExperienceStep(controller: OnboardingWizardController): Onb
     description: 'Tune the Agent conversation style and approval posture for day-to-day operator use.',
     summaryTitle: 'Experience posture',
     summaryLines: [
-      `Human-in-the-Loop (HITL): ${controller.getStringFieldValue('experience.hitl', controller.runtimeSnapshot?.runtimeDefaults.behavior.hitlMode ?? 'balanced')}`,
-      `Guidance: ${controller.getStringFieldValue('experience.guidance', controller.runtimeSnapshot?.runtimeDefaults.behavior.guidanceMode ?? 'minimal')}`,
-      `Permissions: ${controller.getStringFieldValue('experience.permissions', controller.runtimeSnapshot?.runtimeDefaults.permissionsMode ?? 'prompt')}`,
+      `Human-in-the-Loop (HITL) ${controller.getStringFieldValue('experience.hitl', controller.runtimeSnapshot?.runtimeDefaults.behavior.hitlMode ?? 'balanced')}`,
+      `Guidance ${controller.getStringFieldValue('experience.guidance', controller.runtimeSnapshot?.runtimeDefaults.behavior.guidanceMode ?? 'minimal')}`,
+      `Permissions ${controller.getStringFieldValue('experience.permissions', controller.runtimeSnapshot?.runtimeDefaults.permissionsMode ?? 'prompt')}`,
     ],
     fields: [
       {
@@ -517,11 +517,11 @@ export function buildReviewStep(controller: OnboardingWizardController): Onboard
     description: 'Review the Agent day-one checklist and apply setup directly from the wizard.',
     summaryTitle: 'Agent day-one readiness',
     summaryLines: [
-      `Day-one readiness: ${dayOneReadiness}`,
+      `Day-one readiness ${dayOneReadiness}`,
       unsavedLabel,
       `${controller.buildApplyRequest().operations.length} Agent setting change(s) ready to apply`,
-      feedback ? `Last apply: ${feedback.title}` : 'No apply errors reported',
-      controller.isEditingTextField() ? `Editing: ${controller.editingFieldId}` : 'Ready to apply',
+      feedback ? `Last apply ${feedback.title}` : 'No apply errors reported',
+      controller.isEditingTextField() ? `Editing ${controller.editingFieldId}` : 'Ready to apply',
     ],
     fields: [
       ...feedbackFields,

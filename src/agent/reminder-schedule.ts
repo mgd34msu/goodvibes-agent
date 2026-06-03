@@ -82,6 +82,7 @@ const DELIVERY_SURFACE_KINDS: readonly RoutineScheduleDeliverySurfaceKind[] = [
   'google-chat',
   'signal',
   'whatsapp',
+  'telephony',
   'imessage',
   'msteams',
   'bluebubbles',
@@ -186,7 +187,7 @@ function deliveryModeFromTargets(targets: readonly RoutineScheduleDeliveryTarget
 function toDeliveryTargetInput(target: RoutineScheduleDeliveryTargetSpec): ScheduleDeliveryTargetInput {
   return {
     kind: target.kind,
-    surfaceKind: target.surfaceKind,
+    surfaceKind: target.surfaceKind as ScheduleDeliveryTargetInput['surfaceKind'],
     address: target.address,
     routeId: target.routeId,
     label: target.label,
@@ -312,7 +313,7 @@ export function parseReminderScheduleArgs(args: readonly string[]): ParsedRemind
       continue;
     }
     if (raw.startsWith('--')) {
-      errors.push(`Unknown option: ${raw}`);
+      errors.push(`Unknown option ${raw}`);
       continue;
     }
     positional.push(raw);
@@ -337,7 +338,7 @@ export function buildReminderSchedulePrompt(message: string): string {
     '- Treat this as a reminder delivery, not an autonomous hidden workflow.',
     '- Use isolated Agent Knowledge routes only when lookup is needed; never use default knowledge or non-Agent knowledge spaces as fallback.',
     '- Do not perform destructive, costly, externally visible, or secret-handling actions from this reminder without explicit approval.',
-    '- Do not request WRFC from a reminder. If build/fix/review work is needed, ask the user to delegate it explicitly to GoodVibes TUI.',
+    '- Do not request GoodVibes TUI delegation from a reminder. If build/fix/review work is needed, ask the user to delegate it explicitly to GoodVibes TUI.',
     '- Keep the reminder concise and state any next action the user can take.',
   ].join('\n');
 }

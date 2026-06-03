@@ -3,6 +3,7 @@ import { ScrollableListPanel } from './scrollable-list-panel.ts';
 import { type ConfirmState, handleConfirmInput, renderConfirmLines } from './confirm-state.ts';
 import type { MemoryClass, MemoryRecord, MemoryRegistry, MemoryReviewState } from '@pellux/goodvibes-sdk/platform/state';
 import type { KnowledgeStatus } from '@pellux/goodvibes-sdk/platform/knowledge';
+import { formatAgentRecordReferences } from '../agent/record-labels.ts';
 import {
   buildBodyText,
   buildGuidanceLine,
@@ -376,7 +377,7 @@ export class KnowledgePanel extends ScrollableListPanel<MemoryRecord> {
       if (selectedRecord.provenance.length) {
         selectedLines.push(...buildBodyText(
           width,
-          `Provenance: ${selectedRecord.provenance.map((p) => `${p.kind}:${p.ref}`).join(', ')}`,
+          `Origin: ${formatAgentRecordReferences(selectedRecord.provenance)}`,
           C,
           C.dim,
         ));

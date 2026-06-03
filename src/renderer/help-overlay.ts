@@ -12,6 +12,105 @@ import { getOverlaySurfaceMetrics } from './overlay-viewport.ts';
 import { getVisibleWindow } from './surface-layout.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 
+const FEATURED_HELP_COMMANDS: Array<[name: string, argHint: string, desc: string]> = [
+  ['agent',        '',           'Open workspace; press / there to search every action'],
+  ['agent',        'setup',      'Open setup workspace for local behavior, channels, and voice'],
+  ['agent',        'knowledge',  'Open isolated Agent Knowledge workspace actions'],
+  ['agent',        'voice-media', 'Open voice, image, browser, and media workspace actions'],
+  ['setup',        '',           'Open Agent setup with current settings preloaded'],
+  ['knowledge',    'status',     'Inspect isolated Agent Knowledge readiness'],
+  ['memory',       '',           'Manage Agent-local memory records'],
+  ['personas',     '',           'Manage serial Agent operating personas'],
+  ['skills',       '',           'Manage Agent-local skills and bundles'],
+  ['routines',     '',           'Manage reusable main-conversation routines'],
+  ['workplan',     '',           'Inspect shared work-plan state'],
+  ['approval',     '',           'Review and explicitly act on approvals'],
+  ['automation',   '',           'Run confirmed connected-host automation actions'],
+  ['schedule',     'remind',     'Create confirmed reminders or inspect schedules'],
+  ['delegate',     '',           'Explicitly hand build/fix/review work to GoodVibes TUI'],
+  ['mcp',          '',           'Inspect MCP servers and tool readiness'],
+  ['provider',     '',           'Choose provider or model family'],
+  ['model',        '',           'Select the active model route'],
+  ['subscription', '',           'Review provider logins and subscriptions'],
+  ['secrets',      '',           'Manage secret references without printing values'],
+  ['bundle',       'inspect',    'Inspect Agent support bundles from the TUI'],
+  ['compat',       '',           'Inspect connected-host and Agent Knowledge compatibility'],
+  ['health',       '',           'Run Agent runtime and setup diagnostics'],
+];
+
+const HELP_OVERLAY_STATIC_TEXT = [
+  'Core Navigation',
+  'Scroll / history recall',
+  'Scroll by full page',
+  'Search conversation (Ctrl+F)',
+  'Prompt And Editing',
+  'Submit message',
+  'Insert newline',
+  'Paste (image priority)',
+  'Undo / redo',
+  'Overlays And Workspace',
+  'Toggle help',
+  'Full keyboard shortcuts',
+  'Open the Agent operator workspace',
+  'Search all Agent workspace actions',
+  'Open selected action or form',
+  'Quick Start',
+  'Available Slash Commands',
+  'More Commands',
+  'Essentials',
+  'Show this help overlay',
+  'Keyboard shortcut reference',
+  'Select LLM model',
+  'Clear conversation',
+] as const;
+
+const SHORTCUT_OVERLAY_STATIC_TEXT = [
+  'Navigation',
+  'Scroll / history recall',
+  'Scroll by full page',
+  'Jump to start / end of line',
+  'Search conversation',
+  'Scroll conversation or hovered panel',
+  'Editing',
+  'Submit message',
+  'Insert newline',
+  'Open file picker',
+  'Slash command mode',
+  'Paste (image priority)',
+  'Undo / redo',
+  'Clear prompt',
+  'Delete word backward',
+  'Kill to end of line',
+  'Move to start of line',
+  'Next error / line end',
+  'Actions',
+  'Collapse/expand block',
+  'Bookmark block',
+  'Copy block to clipboard',
+  'Block file save disabled; copy or export',
+  'Copy selection',
+  'Process monitor',
+  'Help overlay',
+  'Exit',
+  'Workspace',
+  'Swap focus between input and active Agent workspace',
+  'Open the Agent operator workspace',
+  'Cycle Agent workspace category forward',
+  'Cycle Agent workspace category backward',
+  'Config: /keybindings to list and customize',
+] as const;
+
+export function renderHelpOverlayPackageText(): string {
+  return [
+    ...HELP_OVERLAY_STATIC_TEXT,
+    ...FEATURED_HELP_COMMANDS.flatMap(([name, argHint, desc]) => [
+      argHint ? `/${name} ${argHint}` : `/${name}`,
+      desc,
+    ]),
+    ...SHORTCUT_OVERLAY_STATIC_TEXT,
+  ].join('\n');
+}
+
 function toModalSections(rows: readonly string[]): import('./modal-factory.ts').ModalSection[] {
   return rows.map((row) => {
     if (row === '') return { type: 'spacer' as const };
@@ -67,35 +166,6 @@ export function renderHelpOverlay(
     '',
   ];
 
-  // Featured commands shown in the Quick Start section.
-  // Each entry is [commandName, subcommandOrArgHint, description].
-  // Commands not registered in the live registry are omitted at render time.
-  const FEATURED_COMMANDS: Array<[name: string, argHint: string, desc: string]> = [
-    ['agent',        '',           'Open workspace; press / there to search every action'],
-    ['agent',        'setup',      'Open setup workspace for local behavior, channels, and voice'],
-    ['agent',        'knowledge',  'Open isolated Agent Knowledge workspace actions'],
-    ['agent',        'voice-media', 'Open voice, image, browser, and media workspace actions'],
-    ['setup',        '',           'Open Agent setup with current settings preloaded'],
-    ['knowledge',    'status',     'Inspect isolated Agent Knowledge readiness'],
-    ['memory',       '',           'Manage local Agent memory records'],
-    ['personas',     '',           'Manage serial Agent operating personas'],
-    ['skills',       '',           'Manage local Agent skills and bundles'],
-    ['routines',     '',           'Manage reusable main-conversation routines'],
-    ['workplan',     '',           'Inspect shared work-plan state'],
-    ['approval',     '',           'Review and explicitly act on approvals'],
-    ['automation',   '',           'Run confirmed connected-host automation actions'],
-    ['schedule',     'remind',     'Create confirmed reminders or inspect schedules'],
-    ['delegate',     '',           'Explicitly hand build/fix/review work to GoodVibes TUI'],
-    ['mcp',          '',           'Inspect MCP servers and tool readiness'],
-    ['provider',     '',           'Choose provider or model family'],
-    ['model',        '',           'Select the active model route'],
-    ['subscription', '',           'Review provider logins and subscriptions'],
-    ['secrets',      '',           'Manage secret references without printing values'],
-    ['bundle',       'inspect',    'Inspect Agent support bundles from the TUI'],
-    ['compat',       '',           'Inspect connected-host and Agent Knowledge compatibility'],
-    ['health',       '',           'Run Agent runtime and setup diagnostics'],
-  ];
-
   // Build command rows from featured list, filtering out unregistered commands.
   function featuredRow(name: string, argHint: string, desc: string): string {
     const invocation = argHint ? `/${name} ${argHint}` : `/${name}`;
@@ -104,7 +174,7 @@ export function renderHelpOverlay(
 
   const quickStartRows: string[] = [];
   try {
-    for (const [name, argHint, desc] of FEATURED_COMMANDS) {
+    for (const [name, argHint, desc] of FEATURED_HELP_COMMANDS) {
       if (!hasCommand(name)) continue; // omit if not in live registry
       quickStartRows.push(featuredRow(name, argHint, desc));
     }
@@ -113,7 +183,7 @@ export function renderHelpOverlay(
     // unfiltered quick-start list so /help remains reachable.
     logger.warn(`[help-overlay] registry traversal error during command filter; using unfiltered list: ${err}`);
     quickStartRows.length = 0;
-    for (const [name, argHint, desc] of FEATURED_COMMANDS) {
+    for (const [name, argHint, desc] of FEATURED_HELP_COMMANDS) {
       quickStartRows.push(featuredRow(name, argHint, desc));
     }
   }

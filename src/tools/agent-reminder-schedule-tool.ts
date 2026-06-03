@@ -108,7 +108,7 @@ function confirmationError(preview: ReturnType<typeof buildReminderSchedulePrevi
   return [
     formatReminderSchedulePreview(preview),
     '',
-    'Model tool confirmation required: call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to create this reminder or schedule.',
+    'Model tool confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to create this reminder or schedule.',
     'Do not create reminders from vague suggestions, brainstorming, routine startup, or inferred follow-up work.',
   ].join('\n');
 }
@@ -123,7 +123,7 @@ export function createAgentReminderScheduleTool(
       description: [
         'Create one connected GoodVibes Agent reminder schedule from the main conversation.',
         'Use only when the user explicitly asks to be reminded or asks Agent to schedule a reminder.',
-        'This calls the public schedules.create route on the connected GoodVibes host; it does not manage connected-host hosting, create a local scheduler, create separate Agent jobs, use WRFC, or write to default knowledge or non-Agent knowledge segments.',
+        'This calls the public schedules.create route on the connected GoodVibes host; it does not manage connected-host hosting, create a local scheduler, create separate Agent jobs, use delegated review, or write to default knowledge or non-Agent knowledge segments.',
         'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
       ].join(' '),
       parameters: {

@@ -37,7 +37,7 @@ export function createLearnedBehaviorEditor(): AgentWorkspaceLocalEditor {
     mode: 'create',
     title: 'Capture Learned Behavior',
     selectedFieldIndex: 0,
-    message: 'Turn a reviewed workflow or lesson into local Agent behavior. This writes only to local personas, skills, or routines.',
+    message: 'Turn a reviewed workflow or lesson into Agent-local behavior. This writes only to Agent-local personas, skills, or routines.',
     fields: [
       { id: 'target', label: 'Behavior type', value: 'skill', required: true, multiline: false, hint: 'skill, routine, or persona.' },
       { id: 'name', label: 'Name', value: '', required: true, multiline: false, hint: 'Short name for the learned behavior.' },
@@ -183,7 +183,7 @@ function noteTags(note: AgentNoteRecord, extraTag: string): string {
 }
 
 export function createMemoryEditorFromNote(note: AgentNoteRecord): AgentWorkspaceLocalEditor {
-  const sourceLine = note.sourceUrl ? `\n\nSource: ${note.sourceUrl}` : '';
+  const sourceLine = note.sourceUrl ? `\n\nOrigin URL: ${note.sourceUrl}` : '';
   return {
     kind: 'memory',
     mode: 'create',

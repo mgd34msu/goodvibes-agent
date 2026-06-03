@@ -158,7 +158,7 @@ describe('/brief command', () => {
     expect(output).toContain('Resolve 1 skill with setup gaps from Agent Workspace -> Skills.');
     expect(output).toContain('Resolve 1 skill bundle with setup gaps from Agent Workspace -> Skills.');
     expect(output).toContain('Resolve 1 routine with setup gaps from Agent Workspace -> Routines.');
-    expect(output).toContain('channels: 0/13 ready; 1 enabled; setup gaps 1');
+    expect(output).toContain('channels: 0/14 ready; 1 enabled; setup gaps 1');
     expect(output).toContain('Review 1 enabled channel needing setup from Agent Workspace -> Channels.');
     expect(output).toContain('Review voice setup from Agent Workspace -> Voice & Media before relying on spoken replies.');
     expect(output).toContain('Review media provider setup from Agent Workspace -> Voice & Media before relying on image or media workflows.');

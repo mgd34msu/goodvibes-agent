@@ -11,6 +11,20 @@ import {
 } from './overlay-box.ts';
 import { getOverlaySurfaceMetrics } from './overlay-viewport.ts';
 
+const FILE_PICKER_TITLE = 'Select File';
+const FILE_PICKER_SEARCH_PREFIX = '@ ';
+const FILE_PICKER_EMPTY_MESSAGE = 'No matching files';
+const FILE_PICKER_HINTS = '[Up/Down] Navigate  [/] Search  [Enter] Select  [Esc] Cancel';
+
+export function renderFilePickerPackageText(): string {
+  return [
+    FILE_PICKER_TITLE,
+    FILE_PICKER_SEARCH_PREFIX.trim(),
+    FILE_PICKER_EMPTY_MESSAGE,
+    FILE_PICKER_HINTS,
+  ].join('\n');
+}
+
 /**
  * Render the file picker modal as Line[] for overlay in the viewport.
  * Shows a bordered box with fuzzy-matched file results.
@@ -37,13 +51,13 @@ export function renderFilePickerOverlay(
 
   // Title bar
   const titleLine = createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.topLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.topRight, borderFg, DEFAULT_OVERLAY_PALETTE.titleBg);
-  putOverlayText(titleLine, layout.margin + 2, layout.width - 4, 'Select File', { fg: titleFg, bold: true });
+  putOverlayText(titleLine, layout.margin + 2, layout.width - 4, FILE_PICKER_TITLE, { fg: titleFg, bold: true });
   lines.push(titleLine);
 
   // Search input
   const queryDisplay = picker.query || '';
   const searchLine = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.inputBg);
-  const searchPrefix = '@ ';
+  const searchPrefix = FILE_PICKER_SEARCH_PREFIX;
   const queryText = fitDisplay(`${queryDisplay}${picker.searchFocused ? OVERLAY_GLYPHS.cursor : ''}`, Math.max(0, contentW - getDisplayWidth(searchPrefix)));
   putOverlayText(searchLine, layout.margin + 2, getDisplayWidth(searchPrefix), searchPrefix, { fg: picker.searchFocused ? bodyFg : mutedFg });
   putOverlayText(searchLine, layout.margin + 2 + getDisplayWidth(searchPrefix), contentW - getDisplayWidth(searchPrefix), queryText, { fg: picker.query.length > 0 || picker.searchFocused ? bodyFg : mutedFg });
@@ -54,8 +68,8 @@ export function renderFilePickerOverlay(
 
   // Results
   if (picker.results.length === 0) {
-      const noResults = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-    putOverlayText(noResults, layout.margin + 2, contentW, fitDisplay('No matching files', contentW), { fg: '244', dim: true });
+    const noResults = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
+    putOverlayText(noResults, layout.margin + 2, contentW, fitDisplay(FILE_PICKER_EMPTY_MESSAGE, contentW), { fg: '244', dim: true });
     lines.push(noResults);
   } else {
     const maxVisible = metrics.contentRows;
@@ -92,9 +106,8 @@ export function renderFilePickerOverlay(
   }
 
   // Bottom border with hints
-  const hints = '[Up/Down] Navigate  [/] Search  [Enter] Select  [Esc] Cancel';
   const bottomLine = createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.bottomLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.bottomRight, borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
-  putOverlayText(bottomLine, layout.margin + 2, layout.width - 4, truncateDisplay(hints, layout.width - 4), { fg: mutedFg, dim: true });
+  putOverlayText(bottomLine, layout.margin + 2, layout.width - 4, truncateDisplay(FILE_PICKER_HINTS, layout.width - 4), { fg: mutedFg, dim: true });
   lines.push(bottomLine);
 
   return lines;

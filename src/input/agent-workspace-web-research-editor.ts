@@ -39,7 +39,7 @@ export function createAgentWorkspaceWebResearchEditor(mode: AgentWorkspaceWebRes
     message: 'Submit a normal Agent conversation turn that searches or reads the web through connected read-only tools. Agent should answer in the main conversation and remember only durable facts that belong in Agent memory.',
     fields: [
       { id: 'query', label: 'Research request', value: '', required: true, multiline: true, hint: 'Ask for the outcome you want, not just keywords. Ctrl-J inserts a new line.' },
-      { id: 'scope', label: 'Source or freshness hints', value: '', required: false, multiline: false, hint: 'Optional: official docs only, last 30 days, primary sources, compare products, etc.' },
+      { id: 'scope', label: 'Source or freshness hints', value: '', required: false, multiline: false, hint: 'Optional filters such as official docs only, last 30 days, primary sources, or compare products.' },
     ],
   };
 }

@@ -22,7 +22,7 @@ import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.t
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
 export type { AgentWorkspaceChannelRisk, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
-export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCategoryId, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 export { AGENT_WORKSPACE_MODAL_NAME } from './agent-workspace-types.ts';
 export { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 export { handleAgentWorkspaceToken } from './agent-workspace-token.ts';
@@ -64,11 +64,11 @@ export class AgentWorkspace {
     this.actionSearchQuery = '';
     if (categoryId && !this.selectCategory(categoryId)) {
       const normalized = categoryId.trim();
-      this.status = `Unknown Agent workspace area: ${normalized}.`;
+      this.status = `Unknown Agent workspace area: ${normalized}`;
       this.lastActionResult = {
         kind: 'guidance',
         title: 'Unknown Agent workspace area',
-        detail: `Use one of: ${this.categories.map((category) => category.id).join(', ')}.`,
+        detail: `Use one of ${this.categories.map((category) => category.id).join(', ')}.`,
         safety: 'safe',
       };
     }
@@ -192,7 +192,7 @@ export class AgentWorkspace {
     this.lastActionResult = {
       kind: 'guidance',
       title: `${title} cancelled`,
-      detail: 'No local Agent registry changes were written.',
+      detail: 'No Agent-local registry changes were written.',
     };
   }
 
@@ -409,7 +409,7 @@ export class AgentWorkspace {
     const shellPaths = this.context?.workspace?.shellPaths;
     if (!shellPaths) {
       this.localEditor = { ...editor, message: 'Cannot save because Agent shell paths are unavailable.' };
-      this.status = 'Cannot save local Agent registry item without shell paths.';
+      this.status = 'Cannot save Agent-local registry item without shell paths.';
       this.lastActionResult = {
         kind: 'error',
         title: 'Local registry unavailable',
@@ -448,7 +448,7 @@ export class AgentWorkspace {
             body: this.editorField('body'),
             sourceUrl: this.editorField('sourceUrl'),
             tags: splitList(this.editorField('tags')),
-            provenance: 'agent-workspace',
+            provenance: 'Workspace',
           });
           this.finishLocalEditor(editor.kind, updated.id, updated.title, 'Updated');
           return;
@@ -459,7 +459,7 @@ export class AgentWorkspace {
           sourceUrl: this.editorField('sourceUrl'),
           tags: splitList(this.editorField('tags')),
           source: 'user',
-          provenance: 'agent-workspace',
+          provenance: 'Workspace',
         });
         this.finishLocalEditor(editor.kind, created.id, created.title, 'Created');
       } else if (editor.kind === 'persona') {
@@ -472,7 +472,7 @@ export class AgentWorkspace {
             body: this.editorField('body'),
             tags: splitList(this.editorField('tags')),
             triggers: splitList(this.editorField('triggers')),
-            provenance: 'agent-workspace',
+            provenance: 'Workspace',
           });
           if (isAffirmative(this.editorField('activate'))) registry.setActive(updated.id);
           else if (wasActive) registry.clearActive();
@@ -486,7 +486,7 @@ export class AgentWorkspace {
           tags: splitList(this.editorField('tags')),
           triggers: splitList(this.editorField('triggers')),
           source: 'user',
-          provenance: 'agent-workspace',
+          provenance: 'Workspace',
         });
         if (isAffirmative(this.editorField('activate'))) registry.setActive(created.id);
         this.finishLocalEditor(editor.kind, created.id, created.name, 'Created');
@@ -500,7 +500,7 @@ export class AgentWorkspace {
             triggers: splitList(this.editorField('triggers')),
             tags: splitList(this.editorField('tags')),
             requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
-            provenance: 'agent-workspace',
+            provenance: 'Workspace',
           });
           registry.setEnabled(updated.id, isAffirmative(this.editorField('enabled')));
           this.finishLocalEditor(editor.kind, updated.id, updated.name, 'Updated');
@@ -515,7 +515,7 @@ export class AgentWorkspace {
           requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
           enabled: isAffirmative(this.editorField('enabled')),
           source: 'user',
-          provenance: 'agent-workspace',
+          provenance: 'Workspace',
         });
         this.finishLocalEditor(editor.kind, created.id, created.name, 'Created');
       } else {
@@ -528,7 +528,7 @@ export class AgentWorkspace {
             triggers: splitList(this.editorField('triggers')),
             tags: splitList(this.editorField('tags')),
             requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
-            provenance: 'agent-workspace',
+            provenance: 'Workspace',
           });
           registry.setEnabled(updated.id, isAffirmative(this.editorField('enabled')));
           this.finishLocalEditor(editor.kind, updated.id, updated.name, 'Updated');
@@ -543,7 +543,7 @@ export class AgentWorkspace {
           requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
           enabled: isAffirmative(this.editorField('enabled')),
           source: 'user',
-          provenance: 'agent-workspace',
+          provenance: 'Workspace',
         });
         this.finishLocalEditor(editor.kind, created.id, created.name, 'Created');
       }
@@ -591,7 +591,7 @@ export class AgentWorkspace {
     }
     if (editor.kind === 'memory') {
       const removed = this.memoryApi().delete(expectedId);
-      if (!removed) throw new Error(`Unknown Agent memory: ${expectedId}`);
+      if (!removed) throw new Error(`Unknown Agent memory ${expectedId}`);
       this.finishLocalDelete(editor.kind, expectedId, expectedId);
     } else if (editor.kind === 'persona') {
       const removed = AgentPersonaRegistry.fromShellPaths(shellPaths).deletePersona(expectedId);
@@ -606,7 +606,7 @@ export class AgentWorkspace {
       const removed = AgentRoutineRegistry.fromShellPaths(shellPaths).deleteRoutine(expectedId);
       this.finishLocalDelete(editor.kind, removed.id, removed.name);
     } else {
-      throw new Error(`Unsupported delete editor kind: ${editor.kind}`);
+      throw new Error(`Unsupported delete editor kind ${editor.kind}`);
     }
   }
 
@@ -650,7 +650,7 @@ export class AgentWorkspace {
       this.selectedCategoryIndex = categoryIndex;
       this.selectedActionIndex = 0;
     }
-    this.status = `${verb} memory: ${record.summary}.`;
+    this.status = `${verb} memory ${record.summary}.`;
     this.lastActionResult = {
       kind: 'refreshed',
       title: `${verb} memory`,
@@ -669,7 +669,7 @@ export class AgentWorkspace {
       this.selectedActionIndex = 0;
     }
     this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
-    this.status = `${verb} ${kind}: ${name}.`;
+    this.status = `${verb} ${kind} ${name}.`;
     this.lastActionResult = {
       kind: 'refreshed',
       title: `${verb} ${kind}`,
@@ -689,7 +689,7 @@ export class AgentWorkspace {
     }
     this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
     const starter = profile.starterTemplateId ? ` from ${profile.starterTemplateId}` : '';
-    this.status = `Created Agent profile: ${profile.id}.`;
+    this.status = `Created Agent profile ${profile.id}.`;
     this.lastActionResult = {
       kind: 'refreshed',
       title: 'Created Agent profile',
@@ -708,7 +708,7 @@ export class AgentWorkspace {
       this.selectedActionIndex = 0;
     }
     this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
-    this.status = `Deleted ${kind}: ${name}.`;
+    this.status = `Deleted ${kind} ${name}.`;
     this.lastActionResult = {
       kind: 'refreshed',
       title: `Deleted ${kind}`,

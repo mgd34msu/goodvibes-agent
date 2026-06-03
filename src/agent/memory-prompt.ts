@@ -1,5 +1,4 @@
 import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
-
 const DEFAULT_LIMIT = 10;
 export const MIN_PROMPT_MEMORY_CONFIDENCE = 50;
 

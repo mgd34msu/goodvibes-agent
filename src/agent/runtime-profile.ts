@@ -103,6 +103,10 @@ const PROFILE_CREATED_FILE = 'profile.json';
 const PROFILE_SELECTION_FILE = 'profile-selection.json';
 const PROFILE_ID_PATTERN = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 export function normalizeAgentRuntimeProfileId(value: string): string {
   return value
     .trim()
@@ -149,12 +153,11 @@ export function readAgentRuntimeProfileSelection(baseHomeDirectory: string): Age
   if (!existsSync(path)) return null;
   try {
     const raw: unknown = JSON.parse(readFileSync(path, 'utf-8'));
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-    const record = raw as Record<string, unknown>;
-    const profileId = record.profileId;
+    if (!isRecord(raw)) return null;
+    const profileId = raw.profileId;
     if (typeof profileId !== 'string') return null;
     const resolution = resolveAgentRuntimeProfileHome(baseHomeDirectory, profileId);
-    const selectedAt = typeof record.selectedAt === 'string' ? record.selectedAt : null;
+    const selectedAt = typeof raw.selectedAt === 'string' ? raw.selectedAt : null;
     return {
       ...resolution,
       selectedAt,
@@ -192,13 +195,11 @@ function readProfileStarterTemplate(homeDirectory: string): Pick<AgentRuntimePro
   if (!existsSync(path)) return {};
   try {
     const raw: unknown = JSON.parse(readFileSync(path, 'utf-8'));
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-    const record = raw as Record<string, unknown>;
-    const starter = record.starterTemplate;
-    if (!starter || typeof starter !== 'object' || Array.isArray(starter)) return {};
-    const starterRecord = starter as Record<string, unknown>;
-    const id = starterRecord.id;
-    const name = starterRecord.name;
+    if (!isRecord(raw)) return {};
+    const starter = raw.starterTemplate;
+    if (!isRecord(starter)) return {};
+    const id = starter.id;
+    const name = starter.name;
     if (!isAgentRuntimeProfileTemplateId(id) || typeof name !== 'string') return {};
     return {
       starterTemplateId: id,
@@ -271,7 +272,7 @@ function selectDiscoveredRecord<T extends { readonly name: string; readonly path
   if (!selector?.trim()) return records[0]!;
   const lookup = selector.trim().toLowerCase();
   const match = records.find((record) => normalizedLookupValues(record.name, record.path).includes(lookup));
-  if (!match) throw new Error(`Unknown discovered Agent ${label}: ${selector}.`);
+  if (!match) throw new Error(`Unknown discovered Agent ${label} ${selector}.`);
   return match;
 }
 
@@ -323,8 +324,8 @@ function readTemplateTextBlock(value: unknown, field: string): string {
 }
 
 function readTemplateObject(value: unknown, field: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Starter template ${field} must be an object.`);
-  return value as Record<string, unknown>;
+  if (!isRecord(value)) throw new Error(`Starter template ${field} must be an object.`);
+  return value;
 }
 
 function parseTemplateSkill(value: unknown): AgentRuntimeProfileStarterTemplate['skills'][number] {
@@ -405,7 +406,7 @@ function resolveAgentRuntimeProfileTemplate(templateId: AgentRuntimeProfileTempl
   const local = baseHomeDirectory ? listLocalTemplates(baseHomeDirectory).find((template) => template.id === id) : undefined;
   if (local) return local;
   const suffix = baseHomeDirectory ? ' Use profiles templates to list starters.' : '';
-  throw new Error(`Unknown Agent starter profile template: ${templateId}.${suffix}`);
+  throw new Error(`Unknown Agent starter profile template ${templateId}.${suffix}`);
 }
 
 export function listAgentRuntimeProfileTemplates(baseHomeDirectory?: string): readonly AgentRuntimeProfileTemplateSummary[] {
@@ -468,7 +469,7 @@ export async function createAgentRuntimeProfileTemplateFromDiscovered(
   const selectedRoutines = selectDiscoveredRecords(routines, options.routines, 'routine');
   const target = join(getAgentRuntimeProfileTemplatesRoot(shellPaths.homeDirectory), `${id}.json`);
   if (existsSync(target) && options.replace !== true) {
-    throw new Error(`Agent starter template already exists: ${id}. Rerun with --replace to overwrite it.`);
+    throw new Error(`Agent starter template already exists ${id}. Rerun with --replace to overwrite it.`);
   }
   const persona = discoveredPersonaToTemplate(selectedPersona);
   const template: AgentRuntimeProfileStarterTemplate = {
@@ -621,7 +622,7 @@ export function createAgentRuntimeProfile(baseHomeDirectory: string, profileName
 export function setAgentRuntimeProfileSelection(baseHomeDirectory: string, profileName: string): AgentRuntimeProfileSelection {
   const resolution = resolveAgentRuntimeProfileHome(baseHomeDirectory, profileName);
   if (!existsSync(resolution.homeDirectory)) {
-    throw new Error(`Agent profile not found: ${resolution.id}`);
+    throw new Error(`Agent profile not found ${resolution.id}`);
   }
   const path = getAgentRuntimeProfileSelectionPath(baseHomeDirectory);
   mkdirSync(dirname(path), { recursive: true });

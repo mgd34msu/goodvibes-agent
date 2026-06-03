@@ -53,10 +53,9 @@ export function createUiReadModels(
   runtimeServices: RuntimeServices,
   options: UiReadModelOptions = {},
 ): UiReadModels {
-  const sdkRuntimeServices = runtimeServices as unknown as Parameters<typeof createCoreReadModels>[0];
   return {
-    ...createCoreReadModels(sdkRuntimeServices),
-    ...createOperationsReadModels(sdkRuntimeServices, options),
-    ...createObservabilityReadModels(sdkRuntimeServices, options),
+    ...createCoreReadModels(runtimeServices),
+    ...createOperationsReadModels(runtimeServices, options),
+    ...createObservabilityReadModels(runtimeServices, options),
   };
 }

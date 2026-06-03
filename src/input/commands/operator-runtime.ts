@@ -57,22 +57,6 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
       else ctx.scrollToLine?.(nextLine);
     },
   });
-
-  registry.register({
-    name: 'profiles',
-    aliases: ['profile'],
-    description: 'Open isolated Agent profile homes and starter templates',
-    usage: '',
-    argsHint: '',
-    handler(_args, ctx) {
-      if (ctx.openAgentWorkspace) {
-        ctx.openAgentWorkspace('profiles');
-        return;
-      }
-      ctx.print('Open Agent Workspace -> Profiles, or use /agent-profile for text output.');
-    },
-  });
-
   registry.register({
     name: 'prev-error',
     aliases: ['pe'],
@@ -154,7 +138,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
           return;
         }
         if (verbosity !== 'minimal' && verbosity !== 'normal' && verbosity !== 'verbose') {
-          ctx.print(`Invalid verbosity "${verbosity}". Valid values: minimal, normal, verbose`);
+          ctx.print(`Invalid verbosity "${verbosity}". Valid values minimal, normal, verbose.`);
           return;
         }
         if (!parsed.yes) {
@@ -162,7 +146,11 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
           return;
         }
         mgr.setDomainVerbosity(domain, verbosity as 'minimal' | 'normal' | 'verbose');
-        ctx.print(`Domain "${domain}" verbosity set to: ${verbosity}`);
+        ctx.print([
+          'Domain verbosity set',
+          `  domain ${domain}`,
+          `  verbosity ${verbosity}`,
+        ].join('\n'));
         return;
       }
 

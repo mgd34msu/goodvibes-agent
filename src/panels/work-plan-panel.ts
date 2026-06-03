@@ -151,18 +151,18 @@ export class WorkPlanPanel extends ScrollableListPanel<WorkPlanItem> {
     const active = this.items[this.selectedIndex];
     const header = [
       line(`Persistent Work Plan`, width, { fg: '#22d3ee', bold: true }),
-      line(`Project: ${plan.projectRoot}`, width, { fg: '#cbd5e1' }),
+      line(`Project ${plan.projectRoot}`, width, { fg: '#cbd5e1' }),
       line(
-        `Items: ${plan.items.length}  pending ${counts.get('pending') ?? 0}  active ${counts.get('in_progress') ?? 0}  blocked ${counts.get('blocked') ?? 0}  done ${counts.get('done') ?? 0}`,
+        `Items ${plan.items.length}  pending ${counts.get('pending') ?? 0}  active ${counts.get('in_progress') ?? 0}  blocked ${counts.get('blocked') ?? 0}  done ${counts.get('done') ?? 0}`,
         width,
         { fg: '#94a3b8' },
       ),
-      line(`Saved: ${this.store.filePath}`, width, { fg: '#64748b' }),
+      line(`Saved ${this.store.filePath}`, width, { fg: '#64748b' }),
     ];
     if (active) {
       header.push(line('', width));
-      header.push(line(`Selected: ${active.id}  ${statusName(active.status)}  updated ${compactDate(active.updatedAt)}`, width, { fg: '#a5b4fc' }));
-      if (active.notes) header.push(line(`Notes: ${active.notes}`, width, { fg: '#cbd5e1' }));
+      header.push(line(`Selected ${active.id}  ${statusName(active.status)}  updated ${compactDate(active.updatedAt)}`, width, { fg: '#a5b4fc' }));
+      if (active.notes) header.push(line(`Notes ${active.notes}`, width, { fg: '#cbd5e1' }));
     }
     return header;
   }

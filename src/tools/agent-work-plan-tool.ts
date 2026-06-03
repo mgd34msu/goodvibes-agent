@@ -76,7 +76,7 @@ function requireTitle(args: AgentWorkPlanToolArgs): string {
 
 function readOptionalStatus(value: unknown): WorkPlanItemStatus | undefined {
   if (value === undefined || value === null || readString(value) === '') return undefined;
-  if (!isStatus(value)) throw new Error(`Invalid status. Valid: ${WORK_PLAN_STATUSES.join(', ')}.`);
+  if (!isStatus(value)) throw new Error(`Invalid status. Valid values ${WORK_PLAN_STATUSES.join(', ')}.`);
   return value;
 }
 
@@ -85,20 +85,20 @@ function formatStatus(status: WorkPlanItemStatus): string {
 }
 
 function formatItem(item: WorkPlanItem): string {
-  const owner = item.owner ? ` owner=${item.owner}` : '';
+  const owner = item.owner ? ` owner ${item.owner}` : '';
   const source = item.source ? ` source=${item.source}` : '';
-  const completed = item.completedAt ? ` completed=${new Date(item.completedAt).toISOString()}` : '';
+  const completed = item.completedAt ? ` completed ${new Date(item.completedAt).toISOString()}` : '';
   return `${item.id}  ${formatStatus(item.status)}${owner}${source}${completed}  ${item.title}`;
 }
 
 function formatItemDetail(item: WorkPlanItem): string {
   return [
     formatItem(item),
-    `created: ${new Date(item.createdAt).toISOString()}`,
-    `updated: ${new Date(item.updatedAt).toISOString()}`,
+    `created ${new Date(item.createdAt).toISOString()}`,
+    `updated ${new Date(item.updatedAt).toISOString()}`,
     item.linked
-      ? `linked: ${Object.entries(item.linked).map(([key, value]) => `${key}:${value}`).join(', ')}`
-      : 'linked: (none)',
+      ? `linked ${Object.entries(item.linked).map(([key, value]) => `${key} ${String(value)}`).join(', ')}`
+      : 'linked (none)',
     '',
     item.notes || '(no notes)',
   ].join('\n');
@@ -113,9 +113,9 @@ function resolveItem(store: WorkPlanStore, idOrPrefix: string): WorkPlanItem {
   const matches = items.filter((item) => item.id.startsWith(needle));
   if (matches.length === 1) return matches[0]!;
   if (matches.length > 1) {
-    throw new Error(`Work plan item id "${needle}" is ambiguous: ${matches.map((item) => item.id).join(', ')}`);
+    throw new Error(`Work plan item id "${needle}" is ambiguous. Matches ${matches.map((item) => item.id).join(', ')}`);
   }
-  throw new Error(`Work plan item not found: ${needle}`);
+  throw new Error(`Work plan item not found ${needle}`);
 }
 
 function listOutput(store: WorkPlanStore): string {
@@ -124,9 +124,9 @@ function listOutput(store: WorkPlanStore): string {
   for (const item of plan.items) counts.set(item.status, (counts.get(item.status) ?? 0) + 1);
   const lines = [
     'Agent local work plan',
-    `  plan: ${plan.id}`,
-    `  project: ${plan.projectRoot}`,
-    `  items: ${plan.items.length}; pending ${counts.get('pending') ?? 0}; active ${counts.get('in_progress') ?? 0}; blocked ${counts.get('blocked') ?? 0}; done ${counts.get('done') ?? 0}`,
+    `  plan ${plan.id}`,
+    `  project ${plan.projectRoot}`,
+    `  items ${plan.items.length}; pending ${counts.get('pending') ?? 0}; active ${counts.get('in_progress') ?? 0}; blocked ${counts.get('blocked') ?? 0}; done ${counts.get('done') ?? 0}`,
   ];
   if (plan.items.length === 0) {
     lines.push('', 'No local work plan items.');
@@ -143,8 +143,8 @@ function requireDestructiveConfirmation(args: AgentWorkPlanToolArgs, action: str
   if (!readBoolean(args.confirm)) {
     return [
       `Agent work plan ${action} preview`,
-      '  policy: destructive local work-plan changes require confirm:true and an explicit user request',
-      `  request: ${explicitUserRequest}`,
+      '  policy destructive local work-plan changes require confirm:true and an explicit user request',
+      `  request ${explicitUserRequest}`,
     ].join('\n');
   }
   return null;
@@ -168,7 +168,7 @@ export function createAgentWorkPlanTool(store: WorkPlanStore): Tool {
       description: [
         'Inspect and maintain the visible GoodVibes Agent local work plan from the main conversation.',
         'Use this to track concrete tasks the assistant is doing or has agreed to do, so the work is visible in the Agent TUI workspace.',
-        'This uses only Agent-local persisted work-plan state; it does not call connected-host mutation routes, start background jobs, create separate Agent jobs, use WRFC, write default knowledge, or use non-Agent knowledge segments.',
+        'This uses only Agent-local persisted work-plan state; it does not call connected-host mutation routes, start background jobs, create separate Agent jobs, use delegated review, write default knowledge, or use non-Agent knowledge segments.',
         'Create, update, and set_status are safe local state actions. remove and clear_completed require confirm:true plus explicitUserRequest.',
       ].join(' '),
       parameters: {
@@ -192,7 +192,7 @@ export function createAgentWorkPlanTool(store: WorkPlanStore): Tool {
     execute: async (rawArgs: unknown) => {
       try {
         const args = rawArgs as AgentWorkPlanToolArgs;
-        if (!isAction(args.action)) return failure(`Unknown Agent work plan action. Valid: ${ACTIONS.join(', ')}.`);
+        if (!isAction(args.action)) return failure(`Unknown Agent work plan action. Valid values ${ACTIONS.join(', ')}.`);
         if (args.action === 'list') return output(listOutput(store));
         if (args.action === 'get') return output(formatItemDetail(resolveItem(store, requireId(args))));
         if (args.action === 'create') {
@@ -202,28 +202,48 @@ export function createAgentWorkPlanTool(store: WorkPlanStore): Tool {
             source: readString(args.source) || 'main-conversation',
             notes: readString(args.notes) || undefined,
           });
-          return output(`Created Agent work plan item ${item.id}: ${item.title}`);
+          return output([
+            'Created Agent work plan item',
+            `  id ${item.id}`,
+            `  title ${item.title}`,
+          ].join('\n'));
         }
         if (args.action === 'update') {
           const item = store.updateItem(requireId(args), updatePatch(args));
-          return output(`Updated Agent work plan item ${item.id}: ${item.title}`);
+          return output([
+            'Updated Agent work plan item',
+            `  id ${item.id}`,
+            `  title ${item.title}`,
+          ].join('\n'));
         }
         if (args.action === 'set_status') {
           const status = readOptionalStatus(args.status);
           if (!status) throw new Error('status is required.');
           const item = store.setItemStatus(requireId(args), status);
-          return output(`Set Agent work plan item ${item.id} to ${formatStatus(item.status)}: ${item.title}`);
+          return output([
+            'Set Agent work plan item status',
+            `  id ${item.id}`,
+            `  status ${formatStatus(item.status)}`,
+            `  title ${item.title}`,
+          ].join('\n'));
         }
         if (args.action === 'remove') {
           const denied = requireDestructiveConfirmation(args, `remove ${readString(args.id) || '(missing id)'}`);
           if (denied) return failure(denied);
           const item = store.removeItem(requireId(args));
-          return output(`Removed Agent work plan item ${item.id}: ${item.title}`);
+          return output([
+            'Removed Agent work plan item',
+            `  id ${item.id}`,
+            `  title ${item.title}`,
+          ].join('\n'));
         }
         const denied = requireDestructiveConfirmation(args, 'clear completed');
         if (denied) return failure(denied);
         const count = store.clearCompleted();
-        return output(`Cleared ${count} completed/cancelled Agent work plan item${count === 1 ? '' : 's'}.`);
+        return output([
+          `Cleared ${count} completed/cancelled Agent work plan items`,
+          `  count ${count}`,
+        ].join('\n'));
       } catch (error) {
         return failure(error instanceof Error ? error.message : String(error));
       }

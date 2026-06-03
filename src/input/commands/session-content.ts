@@ -1,12 +1,43 @@
 import { join, resolve } from 'path';
 import { existsSync, mkdirSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
-import type { CommandRegistry } from '../command-registry.ts';
+import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import type { SelectionItem } from '../selection-modal.ts';
-import { exportToMarkdown } from '@pellux/goodvibes-sdk/platform/export';
-import { requireSessionManager, requireSessionMemoryStore, requireShellPaths } from './runtime-services.ts';
+import type { SessionMeta } from '@pellux/goodvibes-sdk/platform/sessions';
+import { exportToMarkdown, extractText } from '@pellux/goodvibes-sdk/platform/export';
+import { requireSessionManager, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
+import { readConversationMessageSnapshots } from '../../core/conversation-message-snapshot.ts';
+
+function formatSessionFailure(action: string, error: unknown): string {
+  return [
+    `Failed to ${action}`,
+    `  error ${summarizeError(error)}`,
+  ].join('\n');
+}
+
+type ConversationSnapshotReader = {
+  readonly getMessageSnapshot?: () => ReturnType<typeof readConversationMessageSnapshots>;
+  readonly toJSON?: () => unknown;
+};
+
+function isObjectArray(value: unknown): value is readonly object[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'object' && entry !== null);
+}
+
+function getCurrentConversationMessages(ctx: CommandContext): ReturnType<typeof readConversationMessageSnapshots> {
+  const manager = ctx.session.conversationManager as unknown as ConversationSnapshotReader;
+  if (typeof manager.getMessageSnapshot === 'function') return manager.getMessageSnapshot();
+  if (typeof manager.toJSON === 'function') {
+    const serialized = manager.toJSON();
+    if (serialized && typeof serialized === 'object' && 'messages' in serialized) {
+      const messages = (serialized as { readonly messages?: unknown }).messages;
+      if (isObjectArray(messages)) return readConversationMessageSnapshots(messages);
+    }
+  }
+  throw new Error('Conversation manager cannot export message snapshots.');
+}
 
 export function registerSessionContentCommands(registry: CommandRegistry): void {
   registry.register({
@@ -32,7 +63,10 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       }
       const resolvedPath = shellPaths.resolveWorkspacePath(outPath);
       if (!shellPaths.isWithinWorkingDirectory(resolvedPath)) {
-        ctx.print('Error: Export path must be within the current directory.');
+        ctx.print([
+          'Error',
+          '  message Export path must be within the current directory.',
+        ].join('\n'));
         return;
       }
       if (!yes) {
@@ -41,23 +75,10 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       }
 
       try {
-        const data = ctx.session.conversationManager.toJSON() as { messages: Array<Record<string, unknown>> };
-        const msgs = data.messages ?? [];
+        const msgs = getCurrentConversationMessages(ctx);
         let fileContent: string;
         if (format === 'markdown') {
-          const exportMsgs = msgs.map(m => ({
-            role: String(m.role ?? 'user') as 'user' | 'assistant' | 'system' | 'tool',
-            content: Array.isArray(m.content)
-              ? m.content as import('@pellux/goodvibes-sdk/platform/providers').ContentPart[]
-              : String(m.content ?? ''),
-            toolCalls: m.toolCalls as import('@pellux/goodvibes-sdk/platform/types').ToolCall[] | undefined,
-            callId: m.callId as string | undefined,
-            toolName: m.toolName as string | undefined,
-            reasoningContent: m.reasoningContent as string | undefined,
-            reasoningSummary: m.reasoningSummary as string | undefined,
-            usage: m.usage as { inputTokens: number; outputTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number } | undefined,
-          }));
-          fileContent = exportToMarkdown(exportMsgs, {
+          fileContent = exportToMarkdown(msgs, {
             model: ctx.session.runtime.model,
             provider: ctx.session.runtime.provider,
             sessionId: ctx.session.runtime.sessionId,
@@ -66,8 +87,8 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
         } else {
           const lines: string[] = [];
           for (const m of msgs) {
-            const role = String(m.role ?? 'unknown').toUpperCase();
-            const content = typeof m.content === 'string' ? m.content : '';
+            const role = m.role.toUpperCase();
+            const content = extractText(m.content);
             if (!content.trim()) continue;
             lines.push(`[${role}]`);
             lines.push(content);
@@ -79,9 +100,13 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
         const dir = dirname(resolvedPath);
         if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
         await writeFile(resolvedPath, fileContent, 'utf-8');
-        ctx.print(`Exported ${msgs.length} messages to: ${resolvedPath}`);
+        ctx.print([
+          'Exported conversation',
+          `  messages ${msgs.length}`,
+          `  path ${resolvedPath}`,
+        ].join('\n'));
       } catch (err) {
-        ctx.print(`Export failed: ${summarizeError(err)}`);
+        ctx.print(formatSessionFailure('export conversation', err));
       }
     },
   });
@@ -92,10 +117,13 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
     usage: '[text]',
     argsHint: '[text]',
     handler(args, ctx) {
-      if (args.length === 0) ctx.print(ctx.session.conversationManager.title ? `Conversation title: ${ctx.session.conversationManager.title}` : 'No title set.');
+      if (args.length === 0) ctx.print(ctx.session.conversationManager.title ? `Conversation title\n  title ${ctx.session.conversationManager.title}` : 'No title set.');
       else {
         ctx.session.conversationManager.title = args.join(' ');
-        ctx.print(`Title set to: ${ctx.session.conversationManager.title}`);
+        ctx.print([
+          'Title set',
+          `  title ${ctx.session.conversationManager.title}`,
+        ].join('\n'));
         ctx.renderRequest();
       }
     },
@@ -109,19 +137,24 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
     handler(args, ctx) {
       const sessionManager = requireSessionManager(ctx);
       const rawName = args[0] || ctx.session.conversationManager.title || `session-${Date.now()}`;
-      const exportData = ctx.session.conversationManager.toJSON() as { messages: object[] };
-      const messages = exportData.messages ?? [];
-      const meta = {
+      const messages = ctx.session.conversationManager.getMessageSnapshot();
+      const meta: SessionMeta = {
         title: ctx.session.conversationManager.title,
         model: ctx.session.runtime.model,
         provider: ctx.session.runtime.provider,
         timestamp: Date.now(),
+        titleSource: ctx.session.conversationManager.getTitleSource(),
       };
       try {
         const { filePath, sanitizedName } = sessionManager.save(rawName, messages, meta);
-        ctx.print(`Session saved: ${rawName}${sanitizedName !== rawName ? ` (saved as "${sanitizedName}")` : ''}\n  → ${filePath}`);
+        ctx.print([
+          'Session saved',
+          `  name ${rawName}`,
+          ...(sanitizedName !== rawName ? [`  saved as ${sanitizedName}`] : []),
+          `  path ${filePath}`,
+        ].join('\n'));
       } catch (e) {
-        ctx.print(`Failed to save session: ${summarizeError(e)}`);
+        ctx.print(formatSessionFailure('save session', e));
       }
     },
   });
@@ -140,13 +173,18 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
       try {
         const { meta, messages, agentRecords } = sessionManager.load(args[0]);
         ctx.session.conversationManager.resetAll();
-        ctx.session.conversationManager.fromJSON({ messages: messages as never[] });
+        ctx.session.conversationManager.fromJSON({ messages: readConversationMessageSnapshots(messages) });
         if (meta.title) ctx.session.conversationManager.title = meta.title;
         ctx.session.conversationManager.rebuildHistory();
         ctx.renderRequest();
-        ctx.print(`Session loaded: ${args[0]} (${messages.length} messages)${agentRecords.length > 0 ? ` [ignored ${agentRecords.length} host-owned local agent record${agentRecords.length !== 1 ? 's' : ''}]` : ''}`);
+        ctx.print([
+          'Session loaded',
+          `  id ${args[0]}`,
+          `  messages ${messages.length}`,
+          ...(agentRecords.length > 0 ? [`  ignored connected-host records ${agentRecords.length}`] : []),
+        ].join('\n'));
       } catch (e) {
-        ctx.print(`Failed to load session: ${summarizeError(e)}`);
+        ctx.print(formatSessionFailure('load session', e));
       }
     },
   });
@@ -224,60 +262,24 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
           try {
             const { meta, messages } = sessionManager.load(result.item.id);
             ctx.session.conversationManager.resetAll();
-            ctx.session.conversationManager.fromJSON({ messages: messages as never[] });
+            ctx.session.conversationManager.fromJSON({ messages: readConversationMessageSnapshots(messages) });
             if (meta.title) ctx.session.conversationManager.title = meta.title;
             ctx.session.conversationManager.rebuildHistory();
             ctx.renderRequest();
-            ctx.print(`Session loaded: ${result.item.id} (${messages.length} messages)`);
+            ctx.print([
+              'Session loaded',
+              `  id ${result.item.id}`,
+              `  messages ${messages.length}`,
+            ].join('\n'));
           } catch (e) {
-            ctx.print(`Failed to load session: ${summarizeError(e)}`);
+            ctx.print(formatSessionFailure('load session', e));
           }
         });
         return;
       }
-      const lines = ['Saved sessions:', ''];
+      const lines = ['Saved sessions', ''];
       for (const s of sessions) lines.push(`  ${s.name.padEnd(30)} ${(s.title || '(untitled)').padEnd(24)} ${new Date(s.timestamp).toLocaleString()}  (${s.messageCount} msgs)`);
       ctx.print(lines.join('\n'));
-    },
-  });
-
-  registry.register({
-    name: 'session-memory',
-    aliases: ['smemory'],
-    description: 'Manage conversation-pinned memories used during context compaction',
-    usage: '[list|add <text>|remove <id> --yes]',
-    argsHint: '[list|add|remove]',
-    handler(args, ctx) {
-      const sub = args[0] ?? 'list';
-      if (sub === 'list' || args.length === 0) {
-        const memories = requireSessionMemoryStore(ctx).list();
-        ctx.print(memories.length === 0
-          ? 'No conversation-pinned memories. Use !# prefix or /session-memory add <text> to create one.'
-          : [`Conversation-Pinned Memories (${memories.length}):`, ...memories.map(m => `  [${m.id}] ${m.text}`)].join('\n'));
-      } else if (sub === 'add') {
-        const text = args.slice(1).join(' ').trim();
-        if (!text) {
-          ctx.print('Usage: /session-memory add <text>');
-          return;
-        }
-        const id = requireSessionMemoryStore(ctx).add(text);
-        ctx.print(`Memory added: [${id}] ${text}`);
-      } else if (sub === 'remove') {
-        const parsed = stripYesFlag(args);
-        const id = parsed.rest[1];
-        if (!id) {
-          ctx.print('Usage: /session-memory remove <id> --yes');
-          return;
-        }
-        if (!parsed.yes) {
-          requireYesFlag(ctx, `remove conversation-pinned memory ${id}`, '/session-memory remove <id> --yes');
-          return;
-        }
-        const store = requireSessionMemoryStore(ctx);
-        ctx.print(store.remove(id) ? `Memory removed: [${id}]` : `Memory not found: ${id}`);
-      } else {
-        ctx.print('Usage: /session-memory [list|add <text>|remove <id> --yes]\n  /session-memory                    — list conversation-pinned memories\n  /session-memory list               — list conversation-pinned memories\n  /session-memory add <text>         — add a memory without sending a message\n  /session-memory remove <id> --yes  — remove a specific memory');
-      }
     },
   });
 }

@@ -137,8 +137,15 @@ function formatCapacity(body: unknown): string {
   return `  scheduler: slots ${readNumber(body, 'slotsInUse') ?? 0}/${readNumber(body, 'slotsTotal') ?? 0}; queue ${readNumber(body, 'queueDepth') ?? 0}; oldest queued ms ${readNumber(body, 'oldestQueuedAgeMs') ?? 0}`;
 }
 
+function formatRouteFailureKind(kind: OperatorRouteFailure['kind']): string {
+  if (kind === 'auth_required') return 'authorization required';
+  if (kind === 'connected_host_unavailable') return 'connected host unavailable';
+  if (kind === 'connected_host_route_unavailable') return 'connected host route unavailable';
+  return 'connected host error';
+}
+
 function formatRoute(result: OperatorRouteResult): string {
-  if (!result.ok) return `  ${result.route.id}: unavailable (${result.kind}: ${result.error})`;
+  if (!result.ok) return `  ${result.route.id}: unavailable (${result.kind}; ${result.error})`;
   if (result.route.id === 'projectPlanning.workPlan.snapshot') return formatWorkPlan(result.body);
   if (result.route.id === 'approvals.list') return formatApprovals(result.body);
   if (result.route.id === 'automation.integration.snapshot') return formatAutomation(result.body);
@@ -150,8 +157,8 @@ function formatBriefing(baseUrl: string, results: readonly OperatorRouteResult[]
   const failures = results.filter((result): result is OperatorRouteFailure => !result.ok);
   return [
     'Agent operator briefing',
-    `  connected host: ${baseUrl}`,
-    '  policy: read-only public operator routes; no connected-host lifecycle, mutation routes, separate Agent jobs, WRFC, default knowledge, or non-Agent knowledge segments',
+    `  connected host ${baseUrl}`,
+    '  policy read-only public operator routes; no connected-host lifecycle, mutation routes, separate Agent jobs, delegated review, default knowledge, or non-Agent knowledge segments',
     '',
     ...results.map(formatRoute),
     '',
@@ -172,7 +179,7 @@ export function createAgentOperatorBriefingTool(
         'Read connected GoodVibes operator state for a concise main-conversation briefing.',
         'Use when the user asks what needs attention, what is pending, what is scheduled, or what the operator status is.',
         'This is read-only and calls only public work-plan, approvals, automation, schedules, and scheduler routes.',
-        'It never uses default knowledge, non-Agent knowledge segments, channel send routes, mutation routes, connected-host lifecycle, separate Agent jobs, or WRFC.',
+        'It never uses default knowledge, non-Agent knowledge segments, channel send routes, mutation routes, connected-host lifecycle, separate Agent jobs, or delegated review.',
       ].join(' '),
       parameters: {
         type: 'object',

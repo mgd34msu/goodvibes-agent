@@ -24,8 +24,8 @@ export function createAgentWorkspaceLibraryCommandEditor(kind: AgentWorkspaceLib
     title: search ? `Search ${label}s` : `Show ${label}`,
     selectedFieldIndex: 0,
     message: search
-      ? `Search local Agent ${target}s by name, description, tags, triggers, or body.`
-      : `Show one local Agent ${target} by id.`,
+      ? `Search Agent-local ${target}s by name, description, tags, triggers, or body.`
+      : `Show one Agent-local ${target} by id.`,
     fields: [
       search
         ? { id: 'query', label: 'Search query', value: '', required: false, multiline: false, hint: `Optional text query. Blank lists every local ${target}.` }

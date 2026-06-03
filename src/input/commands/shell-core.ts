@@ -32,10 +32,17 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           ctx.session.runtime.model = selected.registryKey;
           ctx.session.runtime.provider = selected.providerId;
           ctx.platform.configManager.set('provider.model', selected.registryKey);
-          ctx.print(`Switched to model: ${selected.displayName} (${selected.providerId})`);
+          ctx.print([
+            'Switched model',
+            `  model ${selected.displayName}`,
+            `  provider ${selected.providerId}`,
+          ].join('\n'));
           void providerApi.recordModelUsage(selected.registryKey).catch((err) => { logger.debug('model usage record failed', { err }); });
         } catch (e) {
-          ctx.print(`Error: ${summarizeError(e)}`);
+          ctx.print([
+            'Error',
+            `  message ${summarizeError(e)}`,
+          ].join('\n'));
         }
       }
     },
@@ -122,9 +129,9 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
           { id: '/home', label: '/home', detail: 'Alias for the Agent operator workspace', category: 'Agent Operator' },
           { id: '/brief', label: '/brief', detail: 'Show a concise Agent operator briefing and next actions', category: 'Agent Operator' },
           { id: '/knowledge', label: '/knowledge', detail: 'Inspect isolated Agent Knowledge status, ask/search, and ingest flows', category: 'Agent Operator' },
-          { id: '/memory', label: '/memory', detail: 'Review local Agent memory records', category: 'Agent Operator' },
+          { id: '/memory', label: '/memory', detail: 'Review Agent-local memory records', category: 'Agent Operator' },
           { id: '/notes', label: '/notes', detail: 'Open Agent-local scratchpad notes for source triage and temporary context', category: 'Agent Operator' },
-          { id: '/personas', label: '/personas', detail: 'Create, review, and activate local Agent personas', category: 'Agent Operator' },
+          { id: '/personas', label: '/personas', detail: 'Create, review, and activate Agent-local personas', category: 'Agent Operator' },
           { id: '/skills', label: '/skills', detail: 'Create, review, and enable reusable Agent skills', category: 'Agent Operator' },
           { id: '/routines', label: '/routines', detail: 'Create, review, start, and promote Agent routines explicitly', category: 'Agent Operator' },
           { id: '/automation', label: '/automation', detail: 'Run confirmed connected-host automation actions', category: 'Agent Operator' },
@@ -261,20 +268,23 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
             const level = result.item.id as 'instant' | 'low' | 'medium' | 'high';
             ctx.session.runtime.reasoningEffort = level;
             ctx.platform.configManager.set('provider.reasoningEffort', level);
-            ctx.print(`Reasoning effort set to: ${level}`);
+            ctx.print([
+              'Reasoning effort set',
+              `  level ${level}`,
+            ].join('\n'));
             ctx.renderRequest();
           });
           return;
         }
         const budget = REASONING_BUDGET_MAP[current];
         const lines = [
-          `Reasoning effort: ${current}`,
-          `  Mercury-2:  reasoning_effort = '${current}'`,
-          `  Claude:     thinking.budget_tokens = ${budget}`,
-          `  Gemini:     thinking_config.thinking_budget = ${budget}`,
-          `  GPT-5:      (no-op)`,
+          `Reasoning effort ${current}`,
+          `  Mercury-2 reasoning_effort = '${current}'`,
+          `  Claude thinking.budget_tokens = ${budget}`,
+          `  Gemini thinking_config.thinking_budget = ${budget}`,
+          `  GPT-5 (no-op)`,
           '',
-          `Levels: ${validLevels.join(', ')}`,
+          `Levels ${validLevels.join(', ')}`,
         ];
         ctx.print(lines.join('\n'));
         return;
@@ -282,13 +292,16 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
 
       const level = args[0] as 'instant' | 'low' | 'medium' | 'high';
       if (!validLevels.includes(level)) {
-        ctx.print(`Invalid effort level: ${level}\nValid levels: ${validLevels.join(', ')}`);
+        ctx.print(`Invalid effort level ${level}\nValid levels ${validLevels.join(', ')}`);
         return;
       }
 
       ctx.session.runtime.reasoningEffort = level;
       ctx.platform.configManager.set('provider.reasoningEffort', level);
-      ctx.print(`Reasoning effort set to: ${level}`);
+      ctx.print([
+        'Reasoning effort set',
+        `  level ${level}`,
+      ].join('\n'));
     },
   });
 

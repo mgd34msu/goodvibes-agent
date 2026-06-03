@@ -29,6 +29,7 @@ interface AgentWorkspaceChannelSpec {
   readonly label: string;
   readonly enabledKey: string;
   readonly requiredKeys: readonly string[];
+  readonly requiredKeyGroups?: readonly (readonly string[])[];
   readonly defaultTargetKeys: readonly string[];
   readonly risk: AgentWorkspaceChannelRisk;
   readonly riskLabel: string;
@@ -97,6 +98,19 @@ const AGENT_WORKSPACE_CHANNEL_SPECS: readonly AgentWorkspaceChannelSpec[] = [
     defaultTargetKeys: ['surfaces.whatsapp.defaultRecipient'],
     risk: 'dm',
     riskLabel: 'phone-number delivery',
+  },
+  {
+    id: 'telephony',
+    label: 'Telephony',
+    enabledKey: 'surfaces.telephony.enabled',
+    requiredKeys: [],
+    requiredKeyGroups: [
+      ['surfaces.telephony.bridgeUrl'],
+      ['surfaces.telephony.accountSid', 'surfaces.telephony.authToken', 'surfaces.telephony.fromNumber'],
+    ],
+    defaultTargetKeys: ['surfaces.telephony.defaultRecipient'],
+    risk: 'dm',
+    riskLabel: 'SMS/voice phone-number delivery',
   },
   {
     id: 'imessage',
@@ -186,9 +200,28 @@ function hasConfigValue(context: CommandContext, key: string): boolean {
   }
 }
 
+function uniqueStrings(values: readonly string[]): readonly string[] {
+  return [...new Set(values)];
+}
+
+function missingKeysForBestRequiredGroup(context: CommandContext, groups: readonly (readonly string[])[]): readonly string[] {
+  if (groups.length === 0) return [];
+  const missingByGroup = groups.map((group) => group.filter((key) => !hasConfigValue(context, key)));
+  if (missingByGroup.some((missing) => missing.length === 0)) return [];
+  return missingByGroup.reduce((best, missing) => missing.length < best.length ? missing : best, missingByGroup[0] ?? []);
+}
+
 function buildChannelStatus(context: CommandContext, spec: AgentWorkspaceChannelSpec): AgentWorkspaceChannelStatus {
   const enabled = readConfigBoolean(context, spec.enabledKey, false);
-  const missingRequiredKeys = spec.requiredKeys.filter((key) => !hasConfigValue(context, key));
+  const requiredKeyGroups = spec.requiredKeyGroups ?? [];
+  const requiredKeys = uniqueStrings([
+    ...spec.requiredKeys,
+    ...requiredKeyGroups.flat(),
+  ]);
+  const missingRequiredKeys = [
+    ...spec.requiredKeys.filter((key) => !hasConfigValue(context, key)),
+    ...missingKeysForBestRequiredGroup(context, requiredKeyGroups),
+  ];
   const configuredDefaultTargetKeys = spec.defaultTargetKeys.filter((key) => hasConfigValue(context, key));
   const missingConfigCount = missingRequiredKeys.length;
   const defaultTarget = spec.defaultTargetKeys.length === 0
@@ -223,7 +256,7 @@ function buildChannelStatus(context: CommandContext, spec: AgentWorkspaceChannel
     label: spec.label,
     enabled,
     ready,
-    requiredKeys: spec.requiredKeys,
+    requiredKeys,
     missingRequiredKeys,
     missingConfigCount,
     defaultTargetKeys: spec.defaultTargetKeys,

@@ -3,6 +3,22 @@ import { getDisplayWidth } from '../utils/terminal-width.ts';
 import type { HistorySearch } from '../input/input-history.ts';
 import { createBottomBarLine, writeBottomBarText } from './bottom-bar.ts';
 
+const HISTORY_SEARCH_PREFIX = '(reverse-i-search)`';
+const HISTORY_SEARCH_FAILED_PREFIX = '(failed reverse-i-search)`';
+const HISTORY_SEARCH_QUERY_SUFFIX = "': ";
+
+function historySearchLabel(prefix: string, query: string): string {
+  return prefix + query + HISTORY_SEARCH_QUERY_SUFFIX;
+}
+
+export function renderHistorySearchOverlayPackageText(): string {
+  return [
+    historySearchLabel(HISTORY_SEARCH_PREFIX, '<query>'),
+    historySearchLabel(HISTORY_SEARCH_FAILED_PREFIX, '<query>'),
+    '<matched-command-text>',
+  ].join('\n');
+}
+
 /**
  * Truncate `text` to at most `maxWidth` display columns, then pad with spaces
  * to exactly `maxWidth` columns. CJK/emoji wide characters count as 2 columns.
@@ -42,13 +58,12 @@ export function renderHistorySearchOverlay(
   const noMatch = historySearch.query.length > 0 && !hasMatch;
 
   const prefix = noMatch
-    ? '(failed reverse-i-search)`'
-    : '(reverse-i-search)`';
-  const queryPart = historySearch.query + "': ";
+    ? HISTORY_SEARCH_FAILED_PREFIX
+    : HISTORY_SEARCH_PREFIX;
   const matchText = hasMatch ? match?.entry ?? '' : '';
 
   // Build the display string
-  const label = prefix + queryPart;
+  const label = historySearchLabel(prefix, historySearch.query);
   const full = truncateToWidth(label + matchText, width);
 
   const line = createBottomBarLine(width, { fg: '#000000', bg: '#00ffcc' });

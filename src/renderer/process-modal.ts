@@ -15,6 +15,11 @@ export interface ProcessEntry {
 
 const MAX_LABEL_LENGTH = 80;
 const MODAL_BORDER_WIDTH = 8;
+const PROCESS_MODAL_TITLE = 'Runtime Activity';
+const PROCESS_MODAL_EMPTY_MESSAGE = 'No running shell processes.';
+const PROCESS_MODAL_EMPTY_HINTS = ['[Esc] Close'];
+const PROCESS_MODAL_ACTIVE_HINTS = ['[Up/Down] Navigate', '[Enter] Output', '[k] Stop process', '[Esc] Close'];
+const PROCESS_MODAL_TYPE_TAG = '[exec]';
 
 export interface ProcessModalDeps {
   readonly processManager: Pick<ProcessManager, 'list' | 'getStatus' | 'stop'>;
@@ -101,6 +106,22 @@ export class ProcessModal {
   }
 }
 
+export function renderProcessModalPackageText(): string {
+  return [
+    PROCESS_MODAL_TITLE,
+    PROCESS_MODAL_EMPTY_MESSAGE,
+    PROCESS_MODAL_TYPE_TAG,
+    '*',
+    '!',
+    '-',
+    'running',
+    'failed',
+    '<duration>',
+    ...PROCESS_MODAL_EMPTY_HINTS,
+    ...PROCESS_MODAL_ACTIVE_HINTS,
+  ].join('\n');
+}
+
 export function renderProcessModal(modal: ProcessModal, width: number, viewportHeight = 24): Line[] {
   modal.refresh();
 
@@ -118,14 +139,14 @@ export function renderProcessModal(modal: ProcessModal, width: number, viewportH
 
   if (modal.entries.length === 0) {
     return ModalFactory.createModal({
-      title: 'Runtime Activity',
+      title: PROCESS_MODAL_TITLE,
       width: boxW,
       margin: boxMargin,
       targetContentRows,
       sections: [
-        { type: 'text', content: 'No running shell processes.' },
+        { type: 'text', content: PROCESS_MODAL_EMPTY_MESSAGE },
       ],
-      hints: ['[Esc] Close'],
+      hints: PROCESS_MODAL_EMPTY_HINTS,
     }, width);
   }
 
@@ -138,7 +159,7 @@ export function renderProcessModal(modal: ProcessModal, width: number, viewportH
     const statusIcon = entry.status === 'running' ? '*' : entry.status === 'failed' ? '!' : '-';
     const dur = formatDuration(entry.elapsedMs);
     const suffix = `  ${entry.status}  ${dur}`;
-    const typeTag = '[exec]';
+    const typeTag = PROCESS_MODAL_TYPE_TAG;
     const maxDescW = Math.max(0, maxLabelW - typeTag.length - suffix.length - 4);
     const desc = entry.label.length > maxDescW ? `${entry.label.slice(0, Math.max(0, maxDescW - 3))}...` : entry.label;
     return {
@@ -150,7 +171,7 @@ export function renderProcessModal(modal: ProcessModal, width: number, viewportH
   if (modal.entries.length > maxVisibleRows) sections.push({ type: 'separator' });
 
   return ModalFactory.createModal({
-    title: 'Runtime Activity',
+    title: PROCESS_MODAL_TITLE,
     width: boxW,
     margin: boxMargin,
     targetContentRows,
@@ -158,6 +179,6 @@ export function renderProcessModal(modal: ProcessModal, width: number, viewportH
     helpers: modal.entries.length > maxVisibleRows
       ? [{ content: `[${window.start + 1}-${window.end} of ${modal.entries.length}]` }]
       : undefined,
-    hints: ['[Up/Down] Navigate', '[Enter] Output', '[k] Stop process', '[Esc] Close'],
+    hints: PROCESS_MODAL_ACTIVE_HINTS,
   }, width);
 }

@@ -45,7 +45,7 @@ export function createAgentChannelSendTool(
         'Send one explicitly confirmed message through a configured GoodVibes Agent delivery target from the main conversation.',
         'Use only when the user explicitly asks Agent to send, message, alert, or notify a channel target.',
         'Exactly one target must be supplied: channel, route, webhook, or link.',
-        'This tool does not create channel routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create separate Agent jobs, run WRFC, or invoke arbitrary routes.',
+        'This tool does not create channel routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create separate Agent jobs, run delegated review, or invoke arbitrary routes.',
         'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
       ].join(' '),
       parameters: {
@@ -61,7 +61,7 @@ export function createAgentChannelSendTool(
           },
           channel: {
             type: 'string',
-            description: 'Optional channel target surface[:route[:label]], such as slack:ops:Ops. Use exactly one target field.',
+            description: 'Optional channel target surface[:route[:label]], such as slack:ops:Ops or telephony:+15551234567. Use exactly one target field.',
           },
           route: {
             type: 'string',
@@ -113,7 +113,7 @@ export function createAgentChannelSendTool(
         return failure([
           formatAgentChannelDeliveryPreview(preview, channelDeliveryRouter.listStrategies().length),
           '',
-          'Model tool confirmation required: call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to send this channel message.',
+          'Model tool confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to send this channel message.',
         ].join('\n'));
       }
       try {

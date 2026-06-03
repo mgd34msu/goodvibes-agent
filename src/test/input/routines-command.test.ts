@@ -446,7 +446,7 @@ describe('/routines command', () => {
       }));
       expect(payload.prompt).toContain('GoodVibes Agent scheduled reminder');
       expect(payload.prompt).toContain('never use default knowledge or non-Agent knowledge spaces');
-      expect(payload.prompt).toContain('Do not request WRFC from a reminder');
+      expect(payload.prompt).toContain('Do not request GoodVibes TUI delegation from a reminder');
       expect(out.join('\n')).toContain('Created GoodVibes schedule for Agent reminder');
     } finally {
       globalThis.fetch = originalFetch;

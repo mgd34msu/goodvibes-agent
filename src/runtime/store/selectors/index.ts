@@ -53,7 +53,7 @@ export function selectOverlays(state: RuntimeState): OverlayDomainState {
   return state.overlays;
 }
 
-/** Select the full panels domain slice. Casts from Record<string,unknown> to PanelDomainState. */
+/** Select the full panels domain slice. */
 export function selectPanels(state: RuntimeState): PanelDomainState {
   return state.panels as unknown as PanelDomainState;
 }
@@ -274,7 +274,7 @@ export function selectPermissionMode(state: RuntimeState): PermissionMode {
  */
 export function selectActivePanels(state: RuntimeState): PanelState[] {
   const result: PanelState[] = [];
-  const panelDomain = state.panels as unknown as PanelDomainState;
+  const panelDomain = selectPanels(state);
   for (const panel of panelDomain.panels.values()) {
     if (panel.open) {
       result.push(panel);
@@ -287,7 +287,7 @@ export function selectActivePanels(state: RuntimeState): PanelState[] {
  * Returns the panel currently holding focus.
  */
 export function selectFocusedPanel(state: RuntimeState): PanelState | undefined {
-  const panelDomain = state.panels as unknown as PanelDomainState;
+  const panelDomain = selectPanels(state);
   return panelDomain.panels.get(panelDomain.focusedPanelId);
 }
 

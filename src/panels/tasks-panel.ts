@@ -56,6 +56,13 @@ function kindLabel(kind: RuntimeTask['kind']): string {
   }
 }
 
+function descriptorOriginLabel(source: string | undefined): string {
+  const normalized = source?.trim();
+  if (!normalized || normalized === 'builtin/runtime') return 'runtime';
+  if (normalized === 'daemon' || normalized === 'daemon-runtime') return 'host';
+  return normalized.replace(/[-_/]+/g, ' ');
+}
+
 function statusColor(status: TaskLifecycleState): string {
   switch (status) {
     case 'queued':
@@ -248,7 +255,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
         ['  Status: ', C.label],
         [selected.status, statusColor(selected.status)],
         ['  Kind: ', C.label],
-        [selected.kind, C.value],
+        [kindLabel(selected.kind), C.value],
       ]));
       detailRows.push(buildPanelLine(width, [
         ['  Owner: ', C.label],
@@ -272,8 +279,8 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
           [descriptor?.mode ?? 'n/a', C.value],
           ['  Family: ', C.label],
           [descriptor?.family ?? 'n/a', C.info],
-          ['  Source: ', C.label],
-          [descriptor?.source ?? 'builtin/runtime', C.dim],
+          ['  Origin: ', C.label],
+          [descriptorOriginLabel(descriptor?.source), C.dim],
         ]));
       }
       if (descriptor?.reviewMode || descriptor?.executionProtocol || descriptor?.template) {
@@ -310,7 +317,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
       }
       if (selected.error) {
         detailRows.push(buildPanelLine(width, [
-          ['  Error: ', C.label],
+          ['  Error ', C.label],
           [selected.error.slice(0, Math.max(0, width - 10)), C.failed],
         ]));
       }

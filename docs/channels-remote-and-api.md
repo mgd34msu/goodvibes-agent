@@ -4,7 +4,7 @@ GoodVibes Agent can be reached from terminal-first and companion surfaces, but t
 
 ## Channel Posture
 
-Channel setup is explicit. Agent can inspect channel readiness, guide pairing, and send one confirmed delivery message through configured strategies, but it must not silently expose a new public surface or send messages to people without a user action.
+Channel setup is explicit. Agent can inspect channel readiness, guide pairing, and send one confirmed delivery message through configured strategies, including connected-host telephony targets, but it must not silently expose a new public surface or send messages to people without a user action.
 
 Agent channel UX should show:
 

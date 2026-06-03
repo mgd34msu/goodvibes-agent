@@ -5,6 +5,7 @@ import type {
   AgentWorkspaceLocalEditor,
   AgentWorkspaceRuntimeSnapshot,
 } from '../input/agent-workspace.ts';
+import { formatAgentRecordReviewState, formatAgentRecordSource } from '../agent/record-labels.ts';
 import type { Line } from '../types/grid.ts';
 import { wrapText } from '../utils/terminal-width.ts';
 import { GLYPHS } from './ui-primitives.ts';
@@ -168,11 +169,12 @@ function localLibraryLines(
       item.requirementCount !== undefined && item.requirementCount > 0
         ? (item.missingRequirementCount && item.missingRequirementCount > 0 ? `needs ${item.missingRequirementCount}/${item.requirementCount}` : `ready ${item.requirementCount}/${item.requirementCount}`)
         : '',
-      item.reviewState,
+      formatAgentRecordReviewState(item.reviewState),
+      item.source ? `origin ${item.source}` : '',
       item.startCount !== undefined ? `starts ${item.startCount}` : '',
     ].filter(Boolean).join(' / ');
-    const tags = item.tags.length > 0 ? ` tags=${item.tags.join(',')}` : '';
-    const triggers = item.triggers.length > 0 ? ` triggers=${item.triggers.join(',')}` : '';
+    const tags = item.tags.length > 0 ? ` tags ${item.tags.join(',')}` : '';
+    const triggers = item.triggers.length > 0 ? ` triggers ${item.triggers.join(',')}` : '';
     const marker = selected ? `${GLYPHS.navigation.selected} ` : '';
     lines.push({
       text: `${marker}${item.id}: ${item.name} (${status})`,
@@ -280,7 +282,7 @@ function profileLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
   }
   for (const profile of snapshot.runtimeProfiles.slice(0, 6)) {
     const starter = profile.starterTemplateId ? ` starter=${profile.starterTemplateId}` : ' starter=none';
-    const created = profile.createdAt ? ` created=${profile.createdAt.slice(0, 10)}` : '';
+    const created = profile.createdAt ? ` created ${profile.createdAt.slice(0, 10)}` : '';
     const states = [
       profile.id === snapshot.activeRuntimeProfile ? 'active' : '',
       profile.id === snapshot.selectedRuntimeProfile ? 'default' : '',
@@ -304,8 +306,9 @@ function starterTemplateLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextL
     { text: 'Starter Templates', fg: PALETTE.title, bold: true },
   ];
   for (const template of snapshot.runtimeStarterTemplates.slice(0, 6)) {
+    const origin = template.source === 'local' ? 'Local' : formatAgentRecordSource(template.source);
     lines.push({
-      text: `${template.id}: ${template.name} [${template.source}]`,
+      text: `${template.id}: ${template.name} [${origin}]`,
       fg: template.source === 'local' ? PALETTE.good : PALETTE.info,
       bold: template.id === 'research',
     });
@@ -327,7 +330,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
       { text: `Session: ${snapshot.sessionId}`, fg: PALETTE.muted },
-      { text: `Policy: ${snapshot.executionPolicy}; WRFC ${snapshot.wrfcPolicy}`, fg: PALETTE.good },
+      { text: `Policy: ${snapshot.executionPolicy}; delegated review ${snapshot.delegatedReviewPolicy}`, fg: PALETTE.good },
       { text: `Knowledge: ${snapshot.knowledgeRoute}; ${snapshot.knowledgeIsolation}; no fallback`, fg: PALETTE.good },
       { text: `Local: ${snapshot.localMemoryCount} memory, ${snapshot.localNoteCount} notes, ${snapshot.localPersonaCount} personas, ${snapshot.localSkillCount} skills, ${snapshot.localRoutineCount} routines.`, fg: PALETTE.info },
       { text: `Channels: ${snapshot.channels.filter((channel) => channel.ready).length}/${snapshot.channels.length} ready; MCP ${snapshot.mcpConnectedServerCount}/${snapshot.mcpServerCount} connected; voice/media ${snapshot.voiceProviderCount}/${snapshot.mediaProviderCount}.`, fg: PALETTE.info },
@@ -553,7 +556,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'delegate') {
     base.push(
       { text: 'Build/fix/review work is handed to GoodVibes TUI/shared-session contracts.', fg: PALETTE.info },
-      { text: `WRFC policy: ${snapshot.wrfcPolicy}`, fg: PALETTE.warn },
+      { text: `Delegated review policy: ${snapshot.delegatedReviewPolicy}`, fg: PALETTE.warn },
       { text: 'Agent does not create coding-role Agent jobs.', fg: PALETTE.good },
     );
   }

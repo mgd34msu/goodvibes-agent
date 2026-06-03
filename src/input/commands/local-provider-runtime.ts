@@ -13,6 +13,14 @@ function isValidProviderName(name: string): boolean {
   return /^[a-zA-Z0-9_-]+$/.test(name);
 }
 
+function readDiscoveredModelIds(body: unknown): string[] {
+  if (!body || typeof body !== 'object' || !('data' in body) || !Array.isArray(body.data)) return [];
+  return body.data
+    .filter((model): model is { readonly id: unknown } => Boolean(model) && typeof model === 'object' && 'id' in model)
+    .map((model) => String(model.id))
+    .filter(Boolean);
+}
+
 export function registerLocalProviderRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'provider',
@@ -36,20 +44,26 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
           return;
         }
         if (!isValidProviderName(name)) {
-          ctx.print('Error: Provider name must contain only letters, numbers, hyphens, and underscores.');
+          ctx.print([
+            'Error',
+            '  message Provider name must contain only letters, numbers, hyphens, and underscores.',
+          ].join('\n'));
           return;
         }
         let parsedUrl: URL;
         try {
           parsedUrl = new URL(baseURL);
         } catch {
-          ctx.print(`Error: '${baseURL}' is not a valid URL. Example: http://192.168.0.85:8001/v1`);
+          ctx.print([
+            'Error',
+            `  message ${baseURL} is not a valid URL. Example http://192.168.0.85:8001/v1`,
+          ].join('\n'));
           return;
         }
         const providersDir = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'providers');
         const providerFile = join(providersDir, `${name}.json`);
         if (existsSync(providerFile)) {
-          ctx.print(`Error: Provider '${name}' already exists at ${providerFile}\nRemove it first with: /provider remove ${name} --yes`);
+          ctx.print(`Provider ${name} already exists at ${providerFile}\nRemove it first with /provider remove ${name} --yes`);
           return;
         }
 
@@ -64,12 +78,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
           clearTimeout(timeoutId);
           if (res.ok) {
             const body = await res.json() as unknown;
-            if (body && typeof body === 'object' && 'data' in body && Array.isArray((body as Record<string, unknown>).data)) {
-              discoveredModelIds = ((body as { data: unknown[] }).data)
-                .filter((m): m is Record<string, unknown> => typeof m === 'object' && m !== null && 'id' in m)
-                .map((m) => String(m.id))
-                .filter(Boolean);
-            }
+            discoveredModelIds = readDiscoveredModelIds(body);
           }
         } catch {
           ctx.print(`Could not reach ${baseURL}/models — creating provider with a minimal starter config.`);
@@ -111,10 +120,10 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
           mkdirSync(providersDir, { recursive: true });
           await writeFile(providerFile, JSON.stringify(config, null, 2), 'utf-8');
         } catch (e) {
-          ctx.print(`Error writing provider file: ${summarizeError(e)}`);
+          ctx.print(`Error writing provider file ${summarizeError(e)}`);
           return;
         }
-        ctx.print(`Provider '${name}' added with ${models.length} model(s):\n${discoveredModelIds.length > 0 ? discoveredModelIds.map((id) => `  • ${id} (${(contextWindows[id] ?? 8192).toLocaleString()} ctx)`).join('\n') : `  • ${defaultModel} (starter entry)`}\nThe file watcher will auto-register it shortly.`);
+        ctx.print(`Provider ${name} added with ${models.length} model(s)\n${discoveredModelIds.length > 0 ? discoveredModelIds.map((id) => `  • ${id} (${(contextWindows[id] ?? 8192).toLocaleString()} ctx)`).join('\n') : `  • ${defaultModel} (starter entry)`}\nThe file watcher will auto-register it shortly.`);
         return;
       }
 
@@ -129,19 +138,22 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
           return;
         }
         if (!isValidProviderName(name)) {
-          ctx.print('Error: Provider name must contain only letters, numbers, hyphens, and underscores.');
+          ctx.print([
+            'Error',
+            '  message Provider name must contain only letters, numbers, hyphens, and underscores.',
+          ].join('\n'));
           return;
         }
         const providerFile = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'providers', `${name}.json`);
         if (!existsSync(providerFile)) {
-          ctx.print(`Error: No custom provider '${name}' found at ${providerFile}`);
+          ctx.print(`No custom provider ${name} found at ${providerFile}`);
           return;
         }
         try {
           await unlink(providerFile);
-          ctx.print(`Provider '${name}' removed. The file watcher will deregister it shortly.`);
+          ctx.print(`Provider ${name} removed. The file watcher will deregister it shortly.`);
         } catch (e) {
-          ctx.print(`Error removing provider file: ${summarizeError(e)}`);
+          ctx.print(`Error removing provider file ${summarizeError(e)}`);
         }
         return;
       }
@@ -152,7 +164,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
           return;
         }
         const providers = requireProviderApi(ctx).listProviderIds();
-        ctx.print(['Available providers:', ...providers.map((provider) => `  ${provider === ctx.session.runtime.provider ? '▶' : ' '} ${provider}`)].join('\n'));
+        ctx.print(['Available providers', ...providers.map((provider) => `  ${provider === ctx.session.runtime.provider ? '▶' : ' '} ${provider}`)].join('\n'));
         return;
       }
 
@@ -165,7 +177,10 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
       });
       const match = selectable[0];
       if (!match) {
-        ctx.print(`Unknown provider: ${providerName}. Available: ${providerApi.listProviderIds().join(', ')}`);
+        ctx.print([
+          `Unknown provider ${providerName}`,
+          `available providers ${providerApi.listProviderIds().join(', ')}`,
+        ].join('\n'));
         return;
       }
       try {
@@ -178,7 +193,10 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
         ctx.platform.configManager.set('provider.model', selected.registryKey);
         ctx.print(`Switched to provider: ${selected.providerId} (model: ${selected.modelId})`);
       } catch (e) {
-        ctx.print(`Error: ${summarizeError(e)}`);
+        ctx.print([
+          'Error',
+          `  message ${summarizeError(e)}`,
+        ].join('\n'));
       }
     },
   });

@@ -38,7 +38,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  /model                    Choose provider and model',
     '  /knowledge                Use isolated Agent Knowledge',
     '  /notes                    Open Agent-local scratchpad notes',
-    '  /personas, /skills        Tune local Agent behavior',
+    '  /personas, /skills        Tune Agent-local behavior',
     '  /routines                 Run local routines in the main conversation',
     '  /schedule remind          Create confirmed reminders or inspect schedules',
     '  /delegate                 Explicitly hand build/fix/review work to GoodVibes TUI',
@@ -116,7 +116,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     `  ${binary} knowledge ask "What is GoodVibes Agent?"`,
     `  ${binary} ask "What is GoodVibes Agent?"`,
     `  ${binary} search "release checklist"`,
-    `  ${binary} delegate --wrfc "fix the failing tests in ~/work/project"`,
+    `  ${binary} delegate --review "fix the failing tests in ~/work/project"`,
     `  ${binary} subscription providers`,
     `  ${binary} subscription login openai start --open`,
     `  ${binary} pair`,
@@ -332,11 +332,11 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     examples: ['search "release checklist"', 'search "operator workspace" --limit 5'],
   },
   delegate: {
-    usage: ['delegate [--wrfc] <build/fix/review task>'],
-    summary: 'Create one shared-session task request for GoodVibes TUI. WRFC is requested only with --wrfc.',
+    usage: ['delegate [--review] <build/fix/review task>'],
+    summary: 'Create one shared-session task request for GoodVibes TUI. Delegated review is requested with --review.',
     examples: [
       'delegate "fix the failing tests in this repo"',
-      'delegate --wrfc "implement the settings screen and review it"',
+      'delegate --review "implement the settings screen and review it"',
     ],
   },
   subscription: {
@@ -378,7 +378,9 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
 
 const HELP_ALIASES: Record<string, string> = {
   exec: 'run',
+  e: 'run',
   onboarding: 'setup',
+  compatibility: 'compat',
   provider: 'providers',
   model: 'models',
   profile: 'profiles',
@@ -386,17 +388,32 @@ const HELP_ALIASES: Record<string, string> = {
   skill: 'skills',
   'agent-skills': 'skills',
   memories: 'memory',
+  routine: 'routines',
+  know: 'knowledge',
+  kb: 'knowledge',
+  find: 'search',
+  build: 'delegate',
   subscriptions: 'subscription',
   secret: 'secrets',
   session: 'sessions',
   task: 'tasks',
+  bundles: 'bundle',
   qrcode: 'pair',
   qr: 'pair',
+  completions: 'completion',
 };
+
+export function listGoodVibesHelpTopics(): readonly string[] {
+  return Object.keys(COMMAND_HELP).sort();
+}
 
 function normalizeHelpTopic(topic: string): string {
   const normalized = topic.trim().toLowerCase();
   return HELP_ALIASES[normalized] ?? normalized;
+}
+
+export function hasGoodVibesCommandHelp(topic: string): boolean {
+  return COMMAND_HELP[normalizeHelpTopic(topic)] !== undefined;
 }
 
 export function renderGoodVibesCommandHelp(topic: string, binary = 'goodvibes-agent'): string {

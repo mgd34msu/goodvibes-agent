@@ -46,7 +46,7 @@ Press `/` inside the Agent workspace to search every workspace action by name, c
 
 Use the Artifacts area for concrete files and generated output: attach images to prompts, export conversations or saved sessions, ingest local source files and URL lists into Agent Knowledge, import bookmarks or browser history, inspect source records, and generate media artifacts from confirmed prompts.
 
-The setup workspace scans local Agent behavior folders and shows importable persona, skill, and routine files before asking you to create blank records. It can also create one initial scratchpad note, local persona, skill, and routine from the setup form. Use the workspace action finder to search for local behavior discovery/import actions, preview files, then import reviewed records from the matching workspace.
+The setup workspace scans Agent-local behavior folders and shows importable persona, skill, and routine files before asking you to create blank records. It can also create one initial scratchpad note, local persona, skill, and routine from the setup form. Use the workspace action finder to search for local behavior discovery/import actions, preview files, then import reviewed records from the matching workspace.
 
 Use the Profiles workspace Starter authoring guide to walk through starter-profile authoring. It lists built-in and local starters, exports a JSON starter for editing, imports the edited starter back into this Agent home, and creates isolated profiles from the result.
 
@@ -124,7 +124,7 @@ The main assistant conversation can perform narrow confirmed operator actions wh
 
 Start the owning GoodVibes host before using connected Agent features. Agent expects that host to expose the public operator/Agent routes, including:
 
-- `/status`
+- `GET /status`
 - `/api/goodvibes-agent/knowledge/status`
 - `/api/goodvibes-agent/knowledge/ask`
 - `/api/goodvibes-agent/knowledge/search`
@@ -138,4 +138,4 @@ Host lifecycle commands are not part of GoodVibes Agent. Use Agent Workspace -> 
 
 ## Current Product Notes
 
-Agent uses the mature GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. The active Agent policy is serial/proactive by default, blocks local Agent-owned WRFC/job fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.
+Agent uses the mature GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. The active Agent policy is serial/proactive by default, blocks Agent-owned review/job fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning the Agent into a coding TUI.

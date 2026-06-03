@@ -66,7 +66,7 @@ Use the workspace as the primary product surface:
 
 Inside the Agent workspace, press `/` to search every workspace action by name, category, command, or detail. This is the primary discovery path for product actions; slash commands and CLI subcommands remain power-user/scriptable mirrors.
 
-The setup workspace surfaces discovered local Agent persona, skill, and routine markdown files so day-one setup can import useful behavior instead of starting from blank records. It can also create one initial scratchpad note, local persona, skill, and routine directly during first-run setup; those records stay in Agent-local registries and never write to default knowledge or non-Agent segments.
+The setup workspace surfaces discovered Agent-local persona, skill, and routine markdown files so day-one setup can import useful behavior instead of starting from blank records. It can also create one initial scratchpad note, local persona, skill, and routine directly during first-run setup; those records stay in Agent-local registries and never write to default knowledge or non-Agent segments.
 
 In the Profiles workspace, choose Starter authoring guide to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
 
@@ -88,7 +88,7 @@ The Agent workspace also has a `Capture learned behavior` form. Use it after rev
 
 When the user explicitly asks, the main assistant conversation can perform the same narrow operator actions exposed by the TUI: approve/deny/cancel a named approval, run/pause/resume a named automation job, cancel/retry a named automation run, or run a named schedule. These actions require explicit confirmation, use only public connected-host operator routes, and do not create, edit, or delete automation definitions.
 
-Local Agent behavior is editable from the TUI workspace:
+Agent-local behavior is editable from the TUI workspace:
 
 - Agent Workspace -> Personas: create, inspect, activate, review, stale, and delete local personas.
 - Agent Workspace -> Skills: create skills, import discovered skills, enable or disable them, and manage skill bundles.
@@ -120,7 +120,7 @@ Agent Knowledge is its own product segment. Agent uses `/api/goodvibes-agent/kno
 
 Agent Workspace -> Knowledge can ask/search, inspect sources/nodes/issues, inspect connectors, ingest URL/file/bookmark/browser-history/connector input, and reindex the Agent segment. CLI commands mirror those same isolated Agent Knowledge workflows for scripts. Confirmed mutations require explicit confirmation.
 
-GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, execution isolation UX, and WRFC execution. Agent may delegate explicit build/fix/review work to TUI through public runtime/session contracts; normal assistant chat must not use shared coding sessions.
+GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, execution isolation UX, and delegated review execution. Agent may delegate explicit build/fix/review work to TUI through public runtime/session contracts; normal assistant chat must not use shared coding sessions.
 
 ## Package Docs
 
@@ -128,6 +128,12 @@ Package-facing docs:
 
 - [Getting Started](docs/getting-started.md)
 - [Connected Host](docs/connected-host.md)
+- [Knowledge, Artifacts, and Multimodal](docs/knowledge-artifacts-and-multimodal.md)
+- [Tools and Commands](docs/tools-and-commands.md)
+- [Channels, Remote Access, and API](docs/channels-remote-and-api.md)
+- [Providers and Routing](docs/providers-and-routing.md)
+- [Voice and Live TTS](docs/voice-and-live-tts.md)
+- [Project Planning](docs/project-planning.md)
 - [Release And Publishing](docs/release-and-publishing.md)
 
 The package-facing Agent documentation is limited to the docs listed above.

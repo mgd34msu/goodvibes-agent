@@ -105,7 +105,7 @@ describe('SettingsModal', () => {
     expect(SETTINGS_CATEGORY_GROUPS.map(group => group.label)).toEqual([
       'Agent Experience',
       'Models and Providers',
-      'Local Agent State',
+      'Agent-local state',
       'Channels and Tools',
       'Advanced',
     ]);

@@ -39,7 +39,7 @@ function countSetupGaps(items: readonly { readonly missingRequirementCount?: num
 }
 
 function formatWorkPlanLine(total: number, counts: StatusCounts): string {
-  if (total === 0) return '  work plan: empty';
+  if (total === 0) return '  work plan empty';
   const active = counts.pending + counts.in_progress + counts.blocked;
   return [
     `  work plan: ${plural(total, 'item')}`,
@@ -52,8 +52,8 @@ function formatWorkPlanLine(total: number, counts: StatusCounts): string {
 }
 
 function formatWarnings(warnings: readonly string[]): readonly string[] {
-  if (warnings.length === 0) return ['  warnings: none'];
-  return ['  warnings:', ...warnings.slice(0, 4).map((warning) => `    - ${warning}`)];
+  if (warnings.length === 0) return ['  warnings none'];
+  return ['  warnings', ...warnings.slice(0, 4).map((warning) => `    - ${warning}`)];
 }
 
 export function formatAgentOperatorBriefing(ctx: CommandContext): string {
@@ -118,13 +118,13 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
   return [
     'Agent Briefing',
     `  chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`,
-    `  session: ${snapshot.sessionId}`,
-    `  profile: ${snapshot.activeRuntimeProfile}`,
-    `  policy: ${snapshot.executionPolicy}; WRFC ${snapshot.wrfcPolicy}`,
-    `  knowledge: ${snapshot.knowledgeRoute} (${snapshot.knowledgeIsolation}; no fallback)`,
+    `  session ${snapshot.sessionId}`,
+    `  profile ${snapshot.activeRuntimeProfile}`,
+    `  policy ${snapshot.executionPolicy}; delegated review ${snapshot.delegatedReviewPolicy}`,
+    `  knowledge ${snapshot.knowledgeRoute} (${snapshot.knowledgeIsolation}; no fallback)`,
     '',
     'Readiness',
-    `  setup: ${setupReady}/${snapshot.setupChecklist.length} ready; ${setupRecommended} recommended; ${setupBlocked} blocked`,
+    `  setup ${setupReady}/${snapshot.setupChecklist.length} ready; ${setupRecommended} recommended; ${setupBlocked} blocked`,
     `  local memory: ${plural(snapshot.localMemoryCount, 'record')}; prompt-active ${snapshot.localMemoryPromptActiveCount}; review queue ${snapshot.localMemoryReviewQueueCount}`,
     `  scratchpad notes: ${plural(snapshot.localNoteCount, 'note')}; review queue ${snapshot.localNoteReviewQueueCount}`,
     `  personas: ${plural(snapshot.localPersonaCount, 'persona')}; active ${snapshot.activePersonaName}`,
@@ -133,7 +133,7 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
     `  channels: ${readyChannels}/${snapshot.channels.length} ready; ${enabledChannels} enabled; setup gaps ${channelSetupGaps}`,
     `  voice/media: ${snapshot.voiceProviderCount} voice, ${snapshot.mediaProviderCount} media; browser tools ${snapshot.voiceMediaReadiness.browserToolState}`,
     formatWorkPlanLine(workPlan.total, workPlan.counts),
-    `  schedules: ${enabledJobs}/${jobs.length} visible jobs enabled`,
+    `  schedules ${enabledJobs}/${jobs.length} visible jobs enabled`,
     '',
     'Next Actions',
     ...nextActions.map((line) => `  - ${line}`),

@@ -9,7 +9,7 @@ GoodVibes Agent is an operator assistant TUI. Its command set is centered on mai
 - Agent never falls back to default knowledge or arbitrary non-Agent knowledge spaces.
 - Local memory, notes, routines, skills, and personas remain Agent-local until a stable shared registry contract exists.
 - Runtime hosting is external. Agent connects to it and reports health; it does not start, stop, restart, or install it.
-- WRFC is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, review, or WRFC work.
+- Delegated review is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, or review work.
 - Code-building work is delegated to GoodVibes TUI through public shared-session/task contracts.
 
 ## TUI-First Operator Surface
@@ -25,7 +25,7 @@ High-signal Agent TUI paths:
 - Agent Workspace -> Research for read-only web research, URL inspection, source triage, and explicit source-to-Agent-Knowledge handoff.
 - Agent Workspace -> Notes for local source-triage notes, temporary decisions, and operator handoff. Notes do not write memory or Agent Knowledge by themselves; reviewed notes can prefill memory, skills, routines, personas, or an isolated Agent Knowledge URL ingest.
 - `/knowledge` for isolated Agent Knowledge ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
-- `/memory`, `/routines`, `/skills`, and `/personas` for local Agent context and reusable operator behavior.
+- `/memory`, `/routines`, `/skills`, and `/personas` for Agent-local context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
 - `/approvals` for pending approval visibility and explicit approval actions.
@@ -33,11 +33,11 @@ High-signal Agent TUI paths:
 - `/channels` for channel readiness and one-message confirmed channel delivery.
 - `/media` for media provider readiness and confirmed image/video artifact generation.
 - `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
-- `/mcp`, `/config`, `/settings`, and setup workspaces for local Agent configuration.
+- `/mcp`, `/config`, `/settings`, and setup workspaces for Agent-local configuration.
 
 The installed `goodvibes-agent` command launches the TUI by default. Subcommands such as `status`, `compat`, `knowledge ...`, `ask <question>`, and `search <query>` are secondary scriptable equivalents for diagnostics and automation over the same Agent workspace features.
 
-Host-management and coding-first commands that would imply connected-host lifecycle ownership, separate Agent job creation, execution-isolation ownership, worktree control, or implicit WRFC must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
+Host-management and coding-first commands that would imply connected-host lifecycle ownership, separate Agent job creation, execution-isolation ownership, worktree control, or implicit delegated review must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 
 The main composer supports inline context references. Type `@path/to/file`, `@path/to/folder`, or `@https://example.test/page` in a normal prompt to add bounded context for that turn. `!@path/to/file` remains the raw file-injection form. These references do not ingest anything into Agent Knowledge unless the user explicitly runs a Knowledge ingest action.
 
@@ -75,9 +75,9 @@ Use `/workplan` when the work already has concrete tasks and needs durable statu
 
 ## Delegation
 
-`/delegate` is for explicit build, fix, review, or implementation work. It sends a single delegated request to GoodVibes TUI/shared-session routes with the original user ask and execution intent. Agent does not create coding-role Agent jobs and does not run WRFC by default.
+`/delegate` is for explicit build, fix, review, or implementation work. It sends a single delegated request to GoodVibes TUI/shared-session routes with the original user ask and execution intent. Agent does not create coding-role Agent jobs and does not run delegated review by default.
 
-Use WRFC only when the user explicitly asks for WRFC or when the delegated build/fix/review request explicitly calls for it.
+Use `/delegate --review` only when the user explicitly asks for review or when the delegated build/fix/review request explicitly calls for review.
 
 ## Approvals And Automation
 
@@ -113,7 +113,7 @@ Routine promotion is an explicit scheduling bridge: local routines stay local du
 
 Agent Workspace -> Channels is the primary channel path. It shows readiness, setup, account, policy, and status views without rendering secret values. `Send channel message` opens a confirmed form for one delivery target.
 
-`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create separate Agent jobs, or run WRFC.
+`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create separate Agent jobs, or run delegated review.
 
 ## Related Docs
 

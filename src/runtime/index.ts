@@ -437,6 +437,7 @@ export const summarizeWorktreeOwnership = shell.summarizeWorktreeOwnership;
 export const listPersistedWorktreeMeta = shell.listPersistedWorktreeMeta;
 export const getPersistedWorktreeMeta = shell.getPersistedWorktreeMeta;
 export const reviewWorktreeAttachments = shell.reviewWorktreeAttachments;
+export const WorktreeRegistry = shell.WorktreeRegistry;
 
 export type MutableRuntimeState = Shell.MutableRuntimeState;
 export type ProviderAccountRecord = Shell.ProviderAccountRecord;

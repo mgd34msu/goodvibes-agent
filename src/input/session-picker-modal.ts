@@ -8,6 +8,23 @@
 import type { SessionInfo, SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 import type { ConversationManager } from '../core/conversation';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { readConversationMessageSnapshots } from '../core/conversation-message-snapshot.ts';
+
+function sessionLoadedMessage(name: string, messageCount: number): string {
+  return `Loaded session ${name} (${messageCount} messages)`;
+}
+
+function sessionDeletionCommandRequiredMessage(name: string): string {
+  return `Deletion requires an explicit command: /session delete ${name} --yes`;
+}
+
+export function renderSessionPickerStatePackageText(): string {
+  return [
+    'Loaded session <session> (<count> messages)',
+    'Error',
+    sessionDeletionCommandRequiredMessage('<session>'),
+  ].join('\n');
+}
 
 // ---------------------------------------------------------------------------
 // SessionPickerModal
@@ -78,13 +95,13 @@ export class SessionPickerModal {
     try {
       const { meta, messages } = this.sessionManager.load(session.name);
       conversationManager.resetAll();
-      conversationManager.fromJSON({ messages: messages as never[] });
+      conversationManager.fromJSON({ messages: readConversationMessageSnapshots(messages) });
       if (meta.title) conversationManager.title = meta.title;
       conversationManager.rebuildHistory();
-      this.statusMessage = `Loaded: ${session.name} (${messages.length} messages)`;
+      this.statusMessage = sessionLoadedMessage(session.name, messages.length);
       return true;
     } catch (e) {
-      this.statusMessage = `Error: ${summarizeError(e)}`;
+      this.statusMessage = `Error ${summarizeError(e)}`;
       return false;
     }
   }
@@ -93,7 +110,7 @@ export class SessionPickerModal {
     const session = this.getSelected();
     if (!session) return false;
     this.deleteConfirmationTarget = null;
-    this.statusMessage = `Deletion requires an explicit command: /session delete ${session.name} --yes`;
+    this.statusMessage = sessionDeletionCommandRequiredMessage(session.name);
     return false;
   }
 

@@ -7,6 +7,30 @@ export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
 export type AgentWorkspaceFocusPane = 'categories' | 'actions';
 
+export const AGENT_WORKSPACE_CATEGORY_IDS = [
+  'home',
+  'setup',
+  'research',
+  'artifacts',
+  'conversation',
+  'channels',
+  'tools',
+  'knowledge',
+  'voice-media',
+  'profiles',
+  'memory',
+  'notes',
+  'personas',
+  'skills',
+  'routines',
+  'work',
+  'host',
+  'automation',
+  'delegate',
+] as const;
+
+export type AgentWorkspaceCategoryId = (typeof AGENT_WORKSPACE_CATEGORY_IDS)[number];
+
 export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'local-selection' | 'local-operation';
 
 export type AgentWorkspaceLocalEditorKind = 'memory' | 'note' | 'persona' | 'skill' | 'routine' | 'profile';
@@ -220,7 +244,7 @@ export interface AgentWorkspaceAction {
   readonly label: string;
   readonly detail: string;
   readonly command?: string;
-  readonly targetCategoryId?: string;
+  readonly targetCategoryId?: AgentWorkspaceCategoryId;
   readonly editorKind?: AgentWorkspaceEditorKind;
   readonly localKind?: AgentWorkspaceLocalEditorKind;
   readonly selectionDelta?: number;
@@ -230,7 +254,7 @@ export interface AgentWorkspaceAction {
 }
 
 export interface AgentWorkspaceCategory {
-  readonly id: string;
+  readonly id: AgentWorkspaceCategoryId;
   readonly group: string;
   readonly label: string;
   readonly summary: string;
@@ -358,7 +382,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly knowledgeRoute: '/api/goodvibes-agent/knowledge';
   readonly knowledgeIsolation: 'agent-only';
   readonly executionPolicy: 'serial-proactive';
-  readonly wrfcPolicy: 'explicit-build-delegation-only';
+  readonly delegatedReviewPolicy: 'explicit-build-delegation-only';
   readonly companionAccess: AgentWorkspaceCompanionAccessSummary;
   readonly channels: readonly AgentWorkspaceChannelStatus[];
   readonly voiceProviderCount: number;

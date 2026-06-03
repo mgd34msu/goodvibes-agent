@@ -43,9 +43,9 @@ function configuredWebhookUrls(configManager: AgentNotificationConfigReader): re
 function preview(message: string, targetCount: number): string {
   return [
     'Agent notification preview',
-    `  message: ${message}`,
+    `  message ${message}`,
     `  configured targets: ${targetCount}`,
-    '  policy: external notification delivery requires an explicit user request and confirm:true',
+    '  policy external notification delivery requires an explicit user request and confirm:true',
   ].join('\n');
 }
 
@@ -57,7 +57,7 @@ function formatSendResult(result: WebhookNotifierSendResult): string {
     `  failed: ${result.failed}`,
   ];
   result.results.slice(0, 20).forEach((delivery, index) => {
-    lines.push(`  target ${index + 1}: ${delivery.ok ? 'ok' : `failed${delivery.error ? ` (${delivery.error})` : ''}`}`);
+    lines.push(`  target ${index + 1} ${delivery.ok ? 'ok' : `failed${delivery.error ? ` (${delivery.error})` : ''}`}`);
   });
   if (result.results.length > 20) lines.push(`  ${result.results.length - 20} more target(s) omitted.`);
   return lines.join('\n');
@@ -81,7 +81,7 @@ export function createAgentNotifyTool(
       description: [
         'Send one plain-text notification to configured GoodVibes Agent webhook notification targets from the main conversation.',
         'Use only when the user explicitly asks Agent to notify, message, alert, or send a configured notification.',
-        'This uses Agent-local notification webhook targets; it does not create channel routes, authorize accounts, manage connected-host hosting, create separate Agent jobs, run WRFC, or write to default knowledge or non-Agent knowledge segments.',
+        'This uses Agent-local notification webhook targets; it does not create channel routes, authorize accounts, manage connected-host hosting, create separate Agent jobs, run delegated review, or write to default knowledge or non-Agent knowledge segments.',
         'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
       ].join(' '),
       parameters: {
@@ -119,7 +119,7 @@ export function createAgentNotifyTool(
           return failure([
             preview(message, urls.length),
             '',
-            'Model tool confirmation required: call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to send this notification.',
+            'Model tool confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to send this notification.',
           ].join('\n'));
         }
         if (urls.length === 0) {

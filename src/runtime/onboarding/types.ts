@@ -397,7 +397,7 @@ export interface OnboardingSnapshotDependencies {
 
 export interface OnboardingApplyDependencies {
   readonly clock?: () => number;
-  readonly config: Pick<ConfigManager, 'get' | 'getRaw' | 'load' | 'setDynamic'>;
+  readonly config: Pick<ConfigManager, 'get' | 'getCategory' | 'getRaw' | 'load' | 'mergeCategory' | 'setDynamic'>;
   readonly secrets?: Pick<SecretsManager, 'delete' | 'get' | 'inspect' | 'set'>;
   readonly auth?: Pick<UserAuthManager, 'inspect'>;
   readonly shellPaths: OnboardingShellPaths;
@@ -406,7 +406,7 @@ export interface OnboardingApplyDependencies {
 
 export interface OnboardingVerificationDependencies {
   readonly clock?: () => number;
-  readonly config: Pick<ConfigManager, 'get'>;
+  readonly config: Pick<ConfigManager, 'get' | 'getCategory'>;
   readonly secrets?: Pick<SecretsManager, 'get'>;
   readonly auth?: Pick<UserAuthManager, 'inspect'>;
   readonly shellPaths: OnboardingShellPaths;

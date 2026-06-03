@@ -114,7 +114,7 @@ export function createAgentKnowledgeTool(
     },
     execute: async (rawArgs: unknown) => {
       const args = rawArgs as AgentKnowledgeToolArgs;
-      if (!isAction(args.action)) return toolFailure(`Unknown Agent Knowledge action. Valid: ${ACTIONS.join(', ')}.`);
+      if (!isAction(args.action)) return toolFailure(`Unknown Agent Knowledge action. Valid values ${ACTIONS.join(', ')}.`);
       const connection = resolveConnectedHostConnection({ configManager, homeDirectory: shellPaths.homeDirectory });
       if (!connection.token) {
         return toolFailure(formatKnowledgeFailure({

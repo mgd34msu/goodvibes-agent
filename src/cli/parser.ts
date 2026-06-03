@@ -81,6 +81,18 @@ const BLOCKED_PRODUCT_COMMAND_HINTS: Readonly<Partial<Record<string, (binary: st
   webhook: () => 'Unsupported command: webhook. GoodVibes Agent can send explicit channel messages, but it does not create webhook listeners.',
 };
 
+export function listGoodVibesCliCommandTokens(): readonly string[] {
+  return Object.keys(COMMAND_ALIASES).sort();
+}
+
+export function listGoodVibesCliCommands(): readonly GoodVibesCliCommand[] {
+  return [...new Set<GoodVibesCliCommand>(['tui', ...Object.values(COMMAND_ALIASES)])].sort();
+}
+
+export function listBlockedGoodVibesCliCommandTokens(): readonly string[] {
+  return Object.keys(BLOCKED_PRODUCT_COMMAND_HINTS).sort();
+}
+
 function createDefaultFlags(): GoodVibesCliFlags {
   return {
     provider: undefined,
@@ -395,7 +407,7 @@ export function parseGoodVibesCli(
 
   if (rawCommand !== undefined && command === 'unknown') {
     const blockedHint = BLOCKED_PRODUCT_COMMAND_HINTS[rawCommand.toLowerCase()];
-    errors.push(blockedHint ? blockedHint(binary) : `Unknown command: ${rawCommand}`);
+    errors.push(blockedHint ? blockedHint(binary) : `Unknown command ${rawCommand}`);
   }
 
   return {

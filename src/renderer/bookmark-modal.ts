@@ -13,6 +13,21 @@ import { BookmarkModal } from '../input/bookmark-modal.ts';
 import type { BookmarkEntry } from '@pellux/goodvibes-sdk/platform/bookmarks';
 import { getOverlayContentBudget, getStableOverlayContentRows } from './overlay-viewport.ts';
 
+const BOOKMARK_MODAL_TITLE = 'Bookmarks';
+const BOOKMARK_MODAL_EMPTY_MESSAGE = 'No bookmarks - use Ctrl+B to bookmark a block';
+const BOOKMARK_MODAL_COLUMNS = '  Key                            Label                           Time';
+const BOOKMARK_MODAL_HINTS = ['Up/Down Navigate', 'Enter Jump', 'o Open file', 'd Remove', 'Esc Close'];
+
+export function renderBookmarkModalPackageText(): string {
+  return [
+    BOOKMARK_MODAL_TITLE,
+    BOOKMARK_MODAL_EMPTY_MESSAGE,
+    BOOKMARK_MODAL_COLUMNS.trim(),
+    '[<start>-<end> of <count>]',
+    ...BOOKMARK_MODAL_HINTS,
+  ].join('\n');
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -60,7 +75,7 @@ export function renderBookmarkModal(
   const relSelected = Math.max(0, modal.selectedIndex - modal.scrollOffset);
 
   const items = visible.length === 0
-    ? [{ label: 'No bookmarks - use Ctrl+B to bookmark a block', selected: false }]
+    ? [{ label: BOOKMARK_MODAL_EMPTY_MESSAGE, selected: false }]
     : visible.map((entry, i) => ({
         label: entryLabel(entry),
         selected: i === relSelected,
@@ -68,7 +83,7 @@ export function renderBookmarkModal(
   const sections: import('./modal-factory.ts').ModalSection[] = [
     {
       type: 'text',
-      content: '  Key                            Label                           Time',
+      content: BOOKMARK_MODAL_COLUMNS,
       style: { dim: true },
     },
     { type: 'separator' },
@@ -90,11 +105,11 @@ export function renderBookmarkModal(
 
   return ModalFactory.createModal(
     {
-      title: `Bookmarks  ${totalStr}`,
+      title: `${BOOKMARK_MODAL_TITLE}  ${totalStr}`,
       width: 80,
       targetContentRows,
       sections,
-      hints: ['Up/Down Navigate', 'Enter Jump', 'o Open file', 'd Remove', 'Esc Close'],
+      hints: BOOKMARK_MODAL_HINTS,
     },
     width,
   );

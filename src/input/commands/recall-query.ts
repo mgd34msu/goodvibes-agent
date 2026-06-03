@@ -1,6 +1,7 @@
 import type { CommandContext } from '../command-registry.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemorySearchFilter } from '@pellux/goodvibes-sdk/platform/state';
+import { formatAgentRecordReference, formatAgentRecordReferences } from '../../agent/record-labels.ts';
 import { VALID_CLASSES, VALID_SCOPES, isValidClass, isValidScope } from './recall-shared.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
@@ -29,7 +30,7 @@ export function handleRecallSearch(args: string[], context: CommandContext): voi
     const cls = args[clsIdx + 1];
     if (isValidClass(cls)) filter.cls = cls;
     else {
-      context.print(`[memory] Unknown class "${cls}". Valid: ${VALID_CLASSES.join(', ')}`);
+      context.print(`[memory] Unknown class "${cls}". Valid values ${VALID_CLASSES.join(', ')}.`);
       return;
     }
   }
@@ -39,7 +40,7 @@ export function handleRecallSearch(args: string[], context: CommandContext): voi
     const scope = args[scopeIdx + 1];
     if (isValidScope(scope)) filter.scope = scope;
     else {
-      context.print(`[memory] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
+      context.print(`[memory] Unknown scope "${scope}". Valid values ${VALID_SCOPES.join(', ')}.`);
       return;
     }
   }
@@ -63,7 +64,7 @@ export function handleRecallSearch(args: string[], context: CommandContext): voi
     return;
   }
 
-  context.print(`[memory] ${results.length} ${semantic ? 'semantic ' : ''}record(s):`);
+  context.print(`[memory] ${results.length} ${semantic ? 'semantic ' : ''}record(s)`);
   for (const record of results) {
     const semanticEntry = semanticResults.find((entry) => entry.record.id === record.id);
     const ts = new Date(record.createdAt).toISOString().slice(0, 16).replace('T', ' ');
@@ -72,7 +73,7 @@ export function handleRecallSearch(args: string[], context: CommandContext): voi
     context.print(`  ${record.id}  [${record.cls}]${tagStr}  ${ts}${scoreStr}`);
     context.print(`    ${record.summary}`);
     if (record.provenance.length) {
-      context.print(`    via: ${record.provenance.map((entry) => `${entry.kind}:${entry.ref}`).join(', ')}`);
+      context.print(`    origin ${formatAgentRecordReferences(record.provenance)}`);
     }
   }
 }
@@ -124,29 +125,28 @@ export function handleRecallGet(args: string[], context: CommandContext): void {
   }
   const record = memory.get(id);
   if (!record) {
-    context.print(`[memory] Record not found: ${id}`);
+    context.print(`[memory] Record not found ${id}`);
     return;
   }
   const ts = new Date(record.createdAt).toISOString().slice(0, 19).replace('T', ' ');
   context.print(`[memory] ${record.id}`);
-  context.print(`  Scope:   ${record.scope}`);
-  context.print(`  Class:   ${record.cls}`);
-  context.print(`  Summary: ${record.summary}`);
-  if (record.detail) context.print(`  Detail:  ${record.detail}`);
-  if (record.tags.length) context.print(`  Tags:    ${record.tags.join(', ')}`);
-  context.print(`  Created: ${ts}`);
+  context.print(`  scope ${record.scope}`);
+  context.print(`  class ${record.cls}`);
+  context.print(`  summary ${record.summary}`);
+  if (record.detail) context.print(`  detail ${record.detail}`);
+  if (record.tags.length) context.print(`  tags ${record.tags.join(', ')}`);
+  context.print(`  created ${ts}`);
 
   if (record.provenance.length) {
-    context.print('  Provenance:');
+    context.print('  origin');
     for (const provenance of record.provenance) {
-      const label = provenance.label ? ` (${provenance.label})` : '';
-      context.print(`    ${provenance.kind}: ${provenance.ref}${label}`);
+      context.print(`    ${formatAgentRecordReference(provenance)}`);
     }
   }
 
   const links = memory.linksFor(id);
   if (links.length) {
-    context.print('  Links:');
+    context.print('  links');
     for (const link of links) {
       const dir = link.fromId === id ? '->' : '<-';
       const other = link.fromId === id ? link.toId : link.fromId;
@@ -175,7 +175,12 @@ export async function handleRecallLink(args: string[], context: CommandContext):
     context.print('[memory] Link failed — check that both IDs exist.');
     return;
   }
-  context.print(`[memory] Linked: ${fromId} -> ${toId} [${relation}]`);
+  context.print([
+    '[memory] Linked',
+    `  from ${fromId}`,
+    `  to ${toId}`,
+    `  relation ${relation}`,
+  ].join('\n'));
 }
 
 export function handleRecallRemove(args: string[], context: CommandContext): void {
@@ -195,10 +200,13 @@ export function handleRecallRemove(args: string[], context: CommandContext): voi
   }
   const removed = memory.delete(id);
   if (!removed) {
-    context.print(`[memory] Record not found: ${id}`);
+    context.print(`[memory] Record not found ${id}`);
     return;
   }
-  context.print(`[memory] Deleted: ${id}`);
+  context.print([
+    '[memory] Deleted',
+    `  id ${id}`,
+  ].join('\n'));
 }
 
 export function handleRecallList(args: string[], context: CommandContext): void {
@@ -213,7 +221,7 @@ export function handleRecallList(args: string[], context: CommandContext): void 
   if (scopeIdx !== -1 && args[scopeIdx + 1]) {
     const scope = args[scopeIdx + 1];
     if (!isValidScope(scope)) {
-      context.print(`[memory] Unknown scope "${scope}". Valid: ${VALID_SCOPES.join(', ')}`);
+      context.print(`[memory] Unknown scope "${scope}". Valid values ${VALID_SCOPES.join(', ')}.`);
       return;
     }
     filter.scope = scope;
@@ -232,7 +240,7 @@ export function handleRecallList(args: string[], context: CommandContext): void 
   }
 
   for (const [clsName, group] of Object.entries(grouped)) {
-    context.print(`\n[memory] ${clsName.toUpperCase()} (${group.length}):`);
+    context.print(`\n[memory] ${clsName.toUpperCase()} (${group.length})`);
     for (const record of group) {
       const tagStr = record.tags.length ? ` [${record.tags.join(', ')}]` : '';
       context.print(`  ${record.id} [${record.scope}]${tagStr}  ${record.summary}`);

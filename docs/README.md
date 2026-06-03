@@ -6,12 +6,18 @@ Current package docs:
 
 - [Getting Started](getting-started.md)
 - [Connected Host](connected-host.md)
+- [Knowledge, Artifacts, and Multimodal](knowledge-artifacts-and-multimodal.md)
+- [Tools and Commands](tools-and-commands.md)
+- [Channels, Remote Access, and API](channels-remote-and-api.md)
+- [Providers and Routing](providers-and-routing.md)
+- [Voice and Live TTS](voice-and-live-tts.md)
+- [Project Planning](project-planning.md)
 - [Release And Publishing](release-and-publishing.md)
 
 Important baseline constraints:
 
 - Agent installs one executable: `goodvibes-agent`.
-- Agent uses Bun and TypeScript-authored source.
+- Agent uses Bun `1.3.10` or newer and TypeScript-authored source.
 - Agent depends on `@pellux/goodvibes-sdk@0.33.35`.
 - Agent connects to a GoodVibes host owned outside this product.
 - Agent does not start, stop, restart, install, uninstall, or own the connected GoodVibes host.
@@ -22,6 +28,6 @@ Important baseline constraints:
 - First-run setup can seed an initial scratchpad note, local persona, skill, and routine without writing to connected-host knowledge or non-Agent segments.
 - Local memory, notes, personas, routines, and Agent skills are stored under the Agent home. Notes are scratchpad records; reviewed memory, personas, routines, and skills are injected only into the serial Agent conversation.
 - Normal assistant chat is not coding-session delegation.
-- Build/fix/review delegation to GoodVibes TUI must be explicit; WRFC is not the default Agent behavior.
+- Build/fix/review delegation to GoodVibes TUI must be explicit; delegated review is not the default Agent behavior.
 
 The Agent docs above define the supported alpha behavior.

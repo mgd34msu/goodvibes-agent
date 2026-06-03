@@ -1,61 +1,16 @@
 #!/usr/bin/env bun
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
-import { verifyPackageFacingText, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
+import { isForbiddenPackageTarballPath, requiredTarballPaths, verifyPackageFacingText, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
 
 const root = process.cwd();
-const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 
-function listFilesUnder(path: string): readonly string[] {
-  if (!existsSync(path)) return [];
-  const entries = readdirSync(path, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    const childPath = join(path, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listFilesUnder(childPath));
-      continue;
-    }
-    if (entry.isFile()) files.push(childPath);
-  }
-  return files;
+for (const issue of verifyReleaseMetadata(root)) {
+  throw new Error(issue);
 }
 
-const exampleFiles = listFilesUnder(join(root, 'examples'));
-if (exampleFiles.length > 0) {
-  throw new Error(`repo-facing copied foundation examples are not part of GoodVibes Agent:\n${exampleFiles.join('\n')}`);
-}
-
-const tsconfigText = readFileSync(join(root, 'tsconfig.json'), 'utf8');
-if (tsconfigText.includes('examples')) {
-  throw new Error('tsconfig.json must not include copied foundation examples in the Agent typecheck surface');
-}
-
-for (const field of ['name', 'version', 'description', 'license', 'homepage']) {
-  if (typeof pkg[field] !== 'string' || pkg[field].trim().length === 0) {
-    throw new Error(`package.json missing required publish field: ${field}`);
-  }
-}
-
-if (!pkg.repository || typeof pkg.repository.url !== 'string') {
-  throw new Error('package.json missing repository metadata');
-}
-
-if (!pkg.bin || typeof pkg.bin['goodvibes-agent'] !== 'string') {
-  throw new Error('package.json must expose the goodvibes-agent bin entry');
-}
-
-for (const binTarget of [pkg.bin['goodvibes-agent']]) {
-  const binPath = join(root, binTarget);
-  if (!existsSync(binPath)) {
-    throw new Error(`missing publish bin target: ${binTarget}`);
-  }
-
-  const binMode = statSync(binPath).mode;
-  if ((binMode & 0o111) === 0) {
-    throw new Error(`publish bin is not executable: ${binTarget}`);
-  }
+const packageFacingText = verifyPackageFacingText(root);
+for (const failure of packageFacingText.failures) {
+  throw new Error(failure);
 }
 
 execSync('bun run build:package-runtime', {
@@ -71,95 +26,16 @@ const packRaw = execSync('npm pack --json --dry-run', {
 
 const [packResult] = JSON.parse(packRaw);
 const filePaths = Array.isArray(packResult.files) ? packResult.files.map((entry) => entry.path) : [];
-const forbiddenPrefixes = ['.github/', 'src/test/', 'src/.test/', '.goodvibes/memory/', '.goodvibes/agents/', 'src/daemon/'];
-const forbiddenDocs = [
-  ['docs/cloud', 'flare-batch.md'].join(''),
-  ['docs/home', 'assistant-surface.md'].join(''),
-  'docs/wrfc/',
-];
-const forbiddenSourceFiles = new Set([
-  'src/panels/diff-panel.ts',
-  'src/panels/file-explorer-panel.ts',
-  'src/panels/file-preview-panel.ts',
-  'src/panels/agent-inspector-panel.ts',
-  'src/panels/agent-inspector-shared.ts',
-  'src/panels/agent-logs-panel.ts',
-  'src/panels/agent-logs-shared.ts',
-  'src/panels/git-panel.ts',
-  ['src/panels/', 'sandbox-panel.ts'].join(''),
-  'src/panels/symbol-outline-panel.ts',
-  'src/panels/worktree-panel.ts',
-  'src/panels/wrfc-panel.ts',
-  'src/input/commands/quit-shared.ts',
-  'src/cli/service-command.ts',
-  'src/cli/surface-command.ts',
-  'src/tools/wrfc-agent-guard.ts',
-  'src/renderer/agent-detail-modal.ts',
-  'src/renderer/git-status.ts',
-  'src/renderer/process-summary.ts',
-]);
 for (const filePath of filePaths) {
-  if (forbiddenPrefixes.some((prefix) => filePath.startsWith(prefix))) {
+  if (isForbiddenPackageTarballPath(filePath)) {
     throw new Error(`published tarball includes forbidden path: ${filePath}`);
-  }
-  if (forbiddenSourceFiles.has(filePath)) {
-    throw new Error(`published tarball includes copied TUI-only source file: ${filePath}`);
-  }
-  if (forbiddenDocs.some((docPath) => filePath === docPath || filePath.startsWith(docPath))) {
-    throw new Error(`published tarball includes copied TUI-only doc path: ${filePath}`);
-  }
-  if (filePath.startsWith('vendor/')) {
-    throw new Error(`published tarball should not include vendored release binaries: ${filePath}`);
   }
 }
 
-for (const requiredPath of [
-  'README.md',
-  'CHANGELOG.md',
-  'LICENSE',
-  'src/main.ts',
-  'dist/package/main.js',
-  'bin/goodvibes-agent.ts',
-  'tsconfig.json',
-  'docs/README.md',
-  'docs/getting-started.md',
-  'docs/connected-host.md',
-  'docs/release-and-publishing.md',
-]) {
+for (const requiredPath of requiredTarballPaths(root)) {
   if (!filePaths.includes(requiredPath)) {
     throw new Error(`published tarball is missing required path: ${requiredPath}`);
   }
-}
-
-const packagedGuidanceChecks: readonly {
-  readonly path: string;
-  readonly forbidden: readonly string[];
-}[] = [
-  {
-    path: '.goodvibes/skills/add-provider/SKILL.md',
-    forbidden: [
-      'goodvibes-tui',
-      ['~/.goodvibes/', 'tui/providers'].join(''),
-      '~/.goodvibes/daemon/providers',
-    ],
-  },
-];
-
-for (const check of packagedGuidanceChecks) {
-  const content = readFileSync(join(root, check.path), 'utf8');
-  for (const forbidden of check.forbidden) {
-    if (content.includes(forbidden)) {
-      throw new Error(`package-facing guidance ${check.path} contains forbidden copied TUI policy: ${forbidden}`);
-    }
-  }
-}
-
-const packageFacingText = verifyPackageFacingText(root);
-for (const failure of packageFacingText.failures) {
-  throw new Error(failure);
-}
-for (const issue of verifyReleaseMetadata(root)) {
-  throw new Error(issue);
 }
 
 if (typeof packResult.size === 'number' && packResult.size > 50 * 1024 * 1024) {

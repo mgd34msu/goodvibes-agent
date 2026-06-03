@@ -13,6 +13,9 @@ import type { RuntimeServices } from '../runtime/services.ts';
 import { SecretsManager } from '../config/secrets.ts';
 import { RuntimeEventBus, type TurnEvent } from '@/runtime/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { buildPersistedSessionContext } from '@/runtime/index.ts';
+import type { SessionSnapshot } from '@/runtime/index.ts';
+import { conversationMessagesAsSessionRecords } from '../core/conversation-message-snapshot.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { listProviderRuntimeSnapshots } from '@pellux/goodvibes-sdk/platform/providers';
 import { BUILTIN_SECRET_PROVIDER_SOURCES, describeSecretRef, isSecretRefInput, resolveSecretRef } from '@pellux/goodvibes-sdk/platform/config';
@@ -56,8 +59,8 @@ export function formatJsonOrText(cli: GoodVibesCliParseResult): Formatter {
 }
 
 function exitCodeForText(output: string): number {
-  if (output.startsWith('Usage:') || output.startsWith('Invalid ') || output.startsWith('Unsupported:')) return 2;
-  if (output.startsWith('Session not found:') || output.startsWith('Unknown task:') || output.startsWith('Task submit failed ')) return 1;
+  if (output.startsWith('Usage:') || output.startsWith('Invalid ') || output.startsWith('Unsupported')) return 2;
+  if (output.startsWith('Session not found') || output.startsWith('Unknown task') || output.startsWith('Task submit failed ')) return 1;
   if (output.startsWith('No stored ') || output.startsWith('No pending ') || output.startsWith('No model ') || output.startsWith('No provider ') || output.startsWith('No auth ')) return 1;
   if (output.startsWith('Unknown ')) return 1;
   if (output === 'Bundle has no config object to import.') return 1;
@@ -98,7 +101,7 @@ export function getNestedValue(source: unknown, key: string): unknown {
   let cursor = source;
   for (const part of key.split('.')) {
     if (cursor == null || typeof cursor !== 'object') return undefined;
-    cursor = (cursor as Record<string, unknown>)[part];
+    cursor = Reflect.get(cursor, part);
   }
   return cursor;
 }
@@ -278,7 +281,13 @@ export async function runNonInteractiveAgent(runtime: CliCommandRuntime): Promis
       }) + '\n');
     }
   } finally {
-    const snapshot = ctx.conversation.toJSON() as Parameters<typeof ctx.shutdown>[0];
+    const messages = ctx.conversation.getMessageSnapshot();
+    const snapshot: SessionSnapshot = {
+      messages: conversationMessagesAsSessionRecords(messages),
+      timestamp: Date.now(),
+      title: ctx.conversation.title,
+      ...buildPersistedSessionContext(messages, ctx.conversation.getTitleSource()),
+    };
     await ctx.shutdown(snapshot);
   }
   return exitCode;
@@ -326,18 +335,25 @@ async function renderProviders(runtime: CliCommandRuntime): Promise<string> {
         } else {
           runtime.configManager.setDynamic('provider.model', formatProviderModel(provider, getModelIdFromProviderModel(runtime.configManager.get('provider.model'))));
         }
-        return requestedModel
-          ? `Provider selected: ${provider} (${requestedModel})\n  warning: model catalog entry was not available locally; saved explicit selection.`
-          : `Provider selected: ${provider}\n  warning: model catalog entry was not available locally; model selection was left unchanged.`;
+        return [
+          'Provider selected',
+          `  provider ${provider}`,
+          ...(requestedModel ? [`  model ${requestedModel}`] : []),
+          `  warning model catalog entry was not available locally; ${requestedModel ? 'saved explicit selection' : 'model selection was left unchanged'}.`,
+        ].join('\n');
       }
       runtime.configManager.setDynamic('provider.model', selected.registryKey);
-      return `Provider selected: ${selected.provider} (${selected.registryKey})`;
+      return [
+        'Provider selected',
+        `  provider ${selected.provider}`,
+        `  model ${selected.registryKey}`,
+      ].join('\n');
     }
     if (sub === 'inspect' || sub === 'show') {
       const provider = rest[0];
       if (!provider) return `Usage: ${binary} providers inspect <provider>`;
       const snapshot = snapshots.find((candidate) => candidate.providerId === provider);
-      if (!snapshot) return `No provider found: ${provider}`;
+      if (!snapshot) return `No provider found ${provider}`;
       const setup = classifyProviderSetup({
         providerId: snapshot.providerId,
         authMode: snapshot.runtime.auth?.mode,
@@ -383,7 +399,7 @@ async function renderProviders(runtime: CliCommandRuntime): Promise<string> {
     return formatJsonOrText(runtime.cli)(value, [
       'GoodVibes providers',
       ...value.map((provider) =>
-        `  ${provider.current ? '*' : ' '} ${provider.provider.padEnd(18)} setup=${provider.setupClass} configured=${yesNo(provider.configured)} via=${provider.configuredVia ?? 'n/a'} models=${provider.models} routes=${provider.authRouteSummary} ${provider.detail ?? ''}`.trimEnd(),
+        `  ${provider.current ? '*' : ' '} ${provider.provider.padEnd(18)} setup ${provider.setupClass} configured ${yesNo(provider.configured)} via ${provider.configuredVia ?? 'n/a'} models ${provider.models} routes ${provider.authRouteSummary} ${provider.detail ?? ''}`.trimEnd(),
       ),
     ].join('\n'));
   });
@@ -436,18 +452,28 @@ async function renderModels(runtime: CliCommandRuntime): Promise<string> {
         const provider = inferProviderFromRegistryKey(modelKey);
         runtime.configManager.setDynamic('provider.model', formatProviderModel(provider, modelKey));
         await services.favoritesStore.recordUsage(modelKey);
-        return `Model selected: ${modelKey}\n  warning: model catalog entry was not available locally; saved explicit selection.`;
+        return [
+          'Model selected',
+          `  model ${modelKey}`,
+          '  warning model catalog entry was not available locally; saved explicit selection.',
+        ].join('\n');
       }
       runtime.configManager.setDynamic('provider.model', model.registryKey);
       await services.favoritesStore.recordUsage(model.registryKey);
-      return `Model selected: ${model.registryKey}`;
+      return [
+        'Model selected',
+        `  model ${model.registryKey}`,
+      ].join('\n');
     }
     if (subOrFilter === 'pin' || subOrFilter === 'unpin') {
       const modelKey = rest[0];
       if (!modelKey) return `Usage: ${binary} models ${subOrFilter} <registryKey>`;
       if (subOrFilter === 'pin') await services.favoritesStore.pinModel(modelKey);
       else await services.favoritesStore.unpinModel(modelKey);
-      return `Model ${subOrFilter === 'pin' ? 'pinned' : 'unpinned'}: ${modelKey}`;
+      return [
+        `Model ${subOrFilter === 'pin' ? 'pinned' : 'unpinned'}`,
+        `  model ${modelKey}`,
+      ].join('\n');
     }
     if (subOrFilter === 'pinned') {
       const pinned = await services.favoritesStore.getPinned();
@@ -479,7 +505,7 @@ async function renderModels(runtime: CliCommandRuntime): Promise<string> {
     }));
     return formatJsonOrText(runtime.cli)(value, [
       `GoodVibes models${filter ? ` (${filter})` : ''}`,
-      ...value.map((model) => `  ${model.current ? '*' : ' '} ${model.registryKey.padEnd(42)} setup=${model.setupClass} ctx=${model.contextWindow.toLocaleString()} ${model.displayName}`),
+      ...value.map((model) => `  ${model.current ? '*' : ' '} ${model.registryKey.padEnd(42)} setup ${model.setupClass} context ${model.contextWindow.toLocaleString()} ${model.displayName}`),
     ].join('\n'));
   });
 }
@@ -521,23 +547,23 @@ async function renderAuth(runtime: CliCommandRuntime): Promise<string> {
   if (sub === 'users' || sub === 'sessions') {
     return formatJsonOrText(runtime.cli)(value, [
       `GoodVibes Agent auth ${sub}`,
-      '  owner: connected GoodVibes host',
-      `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'}`,
-      `  operator token path: ${paths.operatorTokenPath}`,
-      `  ${sub}: managed outside Agent`,
+      '  owner connected GoodVibes host',
+      `  operator token ${paths.operatorTokenPresent ? 'present' : 'missing'}`,
+      `  operator token path ${paths.operatorTokenPath}`,
+      `  ${sub} managed outside Agent`,
       '  Agent does not enumerate or mutate connected-host users/sessions from the local CLI.',
     ].join('\n'));
   }
   return formatJsonOrText(runtime.cli)(value, [
     'GoodVibes Agent auth',
-    '  owner: connected GoodVibes host',
-    `  permission mode: ${String(value.permissionMode)}`,
-    `  operator token: ${paths.operatorTokenPresent ? 'present' : 'missing'} (${paths.operatorTokenPath})`,
-    `  compatibility user store: ${paths.userStorePresent ? 'present' : 'missing'} (${paths.userStorePath})`,
-    `  compatibility bootstrap credential: ${paths.bootstrapCredentialPresent ? 'present' : 'missing'} (${paths.bootstrapCredentialPath})`,
-    '  connected-host user/session administration: outside Agent',
-    '  next: goodvibes-agent providers',
-    '  next: goodvibes-agent subscription providers',
+    '  owner connected GoodVibes host',
+    `  permission mode ${String(value.permissionMode)}`,
+    `  operator token ${paths.operatorTokenPresent ? 'present' : 'missing'} (${paths.operatorTokenPath})`,
+    `  compatibility user store ${paths.userStorePresent ? 'present' : 'missing'} (${paths.userStorePath})`,
+    `  compatibility bootstrap credential ${paths.bootstrapCredentialPresent ? 'present' : 'missing'} (${paths.bootstrapCredentialPath})`,
+    '  connected-host user/session administration outside Agent',
+    '  next goodvibes-agent providers',
+    '  next goodvibes-agent subscription providers',
   ].join('\n'));
 }
 

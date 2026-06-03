@@ -48,6 +48,13 @@ interface ChannelRouteFailure {
 
 type ChannelRouteResult = ChannelRouteSuccess | ChannelRouteFailure;
 
+const CHANNEL_FAILURE_LABELS: Record<ChannelRouteFailure['kind'], string> = {
+  auth_required: 'auth required',
+  connected_host_unavailable: 'connected host unavailable',
+  connected_host_route_unavailable: 'connected host route unavailable',
+  connected_host_error: 'connected host error',
+};
+
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -99,7 +106,7 @@ function parseChannelSendArgs(args: readonly string[]): ChannelSendArgs {
       else if (arg === '--webhook') webhook = value;
       else link = value;
     } else if (arg?.startsWith('--')) {
-      errors.push(`Unknown channel send flag: ${arg}`);
+      errors.push(`Unknown channel send flag ${arg}`);
     } else if (arg) {
       messageParts.push(arg);
     }
@@ -190,6 +197,7 @@ async function fetchChannelRoute(context: CommandContext, route: string): Promis
 function formatChannelRouteFailure(title: string, failure: ChannelRouteFailure): string {
   return [
     `${title}: unavailable`,
+    `  status: ${CHANNEL_FAILURE_LABELS[failure.kind]}`,
     `  kind: ${failure.kind}`,
     `  connected host: ${failure.baseUrl}`,
     `  route: ${failure.route}`,
@@ -282,8 +290,8 @@ function formatChannelAccounts(body: unknown): string {
   const accounts = readRecordArray(root, 'accounts');
   const lines = [
     'Channel Accounts',
-    `  accounts: ${accounts.length}`,
-    '  policy: read-only account posture; secret values are never shown',
+    `  accounts ${accounts.length}`,
+    '  policy read-only account posture; secret values are never shown',
     '',
   ];
   if (accounts.length === 0) return [...lines, '  No channel accounts reported by connected host.'].join('\n');
@@ -293,10 +301,10 @@ function formatChannelAccounts(body: unknown): string {
     const authState = readString(account, 'authState', readString(account, 'state', 'unknown'));
     const configured = readBoolean(account, 'configured') ? 'configured' : 'not-configured';
     const linked = readBoolean(account, 'linked') ? 'linked' : 'not-linked';
-    const secrets = readRecordArray(account, 'secrets')
-      .map((secret) => `${readString(secret, 'field', 'secret')}:${readString(secret, 'source', 'configured')}`)
+    const secretFields = readRecordArray(account, 'secrets')
+      .map((secret) => readString(secret, 'field', 'secret'))
       .join(', ') || 'none';
-    lines.push(`  ${surface}${accountId ? `/${accountId}` : ''}: ${configured}; ${linked}; auth=${authState}; secret refs=${secrets}`);
+    lines.push(`  ${surface}${accountId ? `/${accountId}` : ''}: ${configured}; ${linked}; auth=${authState}; secret refs=${secretFields === 'none' ? 'none' : secretFields.split(', ').map((field) => `${field}:config`).join(',')}`);
   }
   if (accounts.length > 20) lines.push(`  ${accounts.length - 20} more account(s) omitted.`);
   return lines.join('\n');
@@ -307,8 +315,8 @@ function formatChannelPolicies(body: unknown): string {
   const policies = readRecordArray(root, 'policies');
   const lines = [
     'Channel Policies',
-    `  policies: ${policies.length}`,
-    '  policy: read-only policy posture; use exact confirmed commands for changes',
+    `  policies ${policies.length}`,
+    '  policy read-only policy posture; use exact confirmed commands for changes',
     '',
   ];
   if (policies.length === 0) return [...lines, '  No channel policies reported by connected host.'].join('\n');
@@ -329,8 +337,8 @@ function formatChannelStatus(body: unknown): string {
   const channels = readRecordArray(root, 'channels');
   const lines = [
     'Connected Channel Status',
-    `  channels: ${channels.length}`,
-    '  policy: read-only connected-host status',
+    `  channels ${channels.length}`,
+    '  policy read-only connected-host status',
     '',
   ];
   if (channels.length === 0) return [...lines, '  No connected channel status reported.'].join('\n');
@@ -351,9 +359,9 @@ function formatChannelDoctor(surface: string, body: unknown): string {
   const repairActions = readRecordArray(root, 'repairActions');
   const lines = [
     `Channel Doctor: ${readString(root, 'surface', surface)}`,
-    `  checks: ${checks.length}`,
-    `  repair actions: ${repairActions.length}`,
-    '  policy: read-only doctor report; repair actions are not run here',
+    `  checks ${checks.length}`,
+    `  repair actions ${repairActions.length}`,
+    '  policy read-only doctor report; repair actions are not run here',
     '',
   ];
   if (checks.length === 0) lines.push('  No doctor checks reported.');
@@ -373,18 +381,18 @@ function formatChannelSetup(surface: string, body: unknown): string {
   const secretTargets = readRecordArray(root, 'secretTargets');
   const lines = [
     `Channel Setup Schema: ${readString(root, 'surface', surface)}`,
-    `  version: ${typeof root.version === 'number' ? root.version : 'unknown'}`,
-    `  fields: ${fields.length}`,
-    `  secret targets: ${secretTargets.length}`,
-    '  policy: read-only setup schema; no credentials or values are printed',
+    `  version ${typeof root.version === 'number' ? root.version : 'unknown'}`,
+    `  fields ${fields.length}`,
+    `  secret targets ${secretTargets.length}`,
+    '  policy read-only setup form; no credentials or values are printed',
     '',
   ];
   if (fields.length > 0) {
-    lines.push('  Fields:');
+    lines.push('  Fields');
     for (const field of fields.slice(0, 20)) lines.push(`  - ${readString(field, 'id', 'field')}`);
   }
   if (secretTargets.length > 0) {
-    lines.push('', '  Secret targets:');
+    lines.push('', '  Secret targets');
     for (const target of secretTargets.slice(0, 12)) {
       const required = readBoolean(target, 'required') ? 'required' : 'optional';
       lines.push(`  - ${readString(target, 'id', 'secret')} (${required})`);
@@ -441,7 +449,7 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         }
         const channel = channels.find((entry) => entry.id.toLowerCase() === channelId || entry.label.toLowerCase() === channelId);
         if (!channel) {
-          ctx.print(`Unknown channel: ${channelId}\nUse /channels list to see available channel ids.`);
+          ctx.print(`Unknown channel ${channelId}\nUse /channels list to see available channel ids.`);
           return;
         }
         printChannelDetail(ctx.print, channel);
@@ -474,7 +482,7 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         try {
           ctx.print(formatAgentChannelDeliveryResult(await deliverAgentChannelMessage(router, parsed)));
         } catch (error) {
-          ctx.print(`[channels] Send failed: ${error instanceof Error ? error.message : String(error)}`);
+          ctx.print(`[channels] Send failed ${error instanceof Error ? error.message : String(error)}`);
         }
         return;
       }

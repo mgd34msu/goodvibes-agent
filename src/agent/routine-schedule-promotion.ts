@@ -5,6 +5,7 @@ import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibe
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
 import { SDK_VERSION } from '../version.ts';
+import { formatAgentRecordReviewState } from './record-labels.ts';
 import type { AgentRoutineRecord } from './routine-registry.ts';
 
 export const ROUTINE_SCHEDULE_ROUTE = '/api/automation/schedules';
@@ -46,6 +47,7 @@ export type RoutineScheduleDeliverySurfaceKind =
   | 'google-chat'
   | 'signal'
   | 'whatsapp'
+  | 'telephony'
   | 'imessage'
   | 'msteams'
   | 'bluebubbles'
@@ -236,7 +238,7 @@ function deliveryModeFromTargets(targets: readonly RoutineScheduleDeliveryTarget
 function toDeliveryTargetInput(target: RoutineScheduleDeliveryTargetSpec): ScheduleDeliveryTargetInput {
   return {
     kind: target.kind,
-    surfaceKind: target.surfaceKind,
+    surfaceKind: target.surfaceKind as ScheduleDeliveryTargetInput['surfaceKind'],
     address: target.address,
     routeId: target.routeId,
     label: target.label,
@@ -265,8 +267,8 @@ export function buildRoutineSchedulePrompt(routine: AgentRoutineRecord): string 
     'GoodVibes Agent scheduled routine.',
     '',
     `Routine: ${routine.name}`,
-    `Routine id: ${routine.id}`,
-    `Review state: ${routine.reviewState}`,
+    `Routine reference: ${routine.id}`,
+    `Review: ${formatAgentRecordReviewState(routine.reviewState)}`,
     `Tags: ${routine.tags.join(', ') || '(none)'}`,
     `Triggers: ${routine.triggers.join(', ') || '(manual)'}`,
     '',
@@ -274,7 +276,7 @@ export function buildRoutineSchedulePrompt(routine: AgentRoutineRecord): string 
     '- Run this as a serial GoodVibes Agent operator routine.',
     '- Use isolated Agent Knowledge routes only; never use default knowledge or non-Agent knowledge spaces as fallback.',
     '- Do not perform destructive, costly, externally visible, or secret-handling actions without explicit approval.',
-    '- Do not request WRFC unless this scheduled routine explicitly delegates build/fix/review work to GoodVibes TUI.',
+    '- Do not request GoodVibes TUI delegation unless this scheduled routine explicitly delegates build/fix/review work to GoodVibes TUI.',
     '- Summarize what was checked, what changed, and what still needs user review.',
     '',
     'Routine description:',

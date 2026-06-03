@@ -621,3 +621,71 @@ export class OnboardingWizardController {
   public isFieldDirtyByDefinition(field: OnboardingWizardFieldDefinition): boolean { return isFieldDirtyByDefinitionForController(this, field); }
   public isFieldSatisfied(field: OnboardingWizardFieldDefinition): boolean { return isFieldSatisfiedForController(this, field); }
 }
+
+function pushOnboardingPackageText(lines: string[], ...values: readonly (string | undefined)[]): void {
+  for (const value of values) {
+    const normalized = normalizeText(value);
+    if (normalized.length > 0) lines.push(normalized);
+  }
+}
+
+function appendOnboardingFieldPackageText(
+  lines: string[],
+  wizard: OnboardingWizardController,
+  field: OnboardingWizardFieldDefinition,
+): void {
+  pushOnboardingPackageText(lines, field.kind, field.id, field.label, field.hint, wizard.getFieldValueLabel(field));
+
+  if (field.kind === 'text' || field.kind === 'masked') {
+    pushOnboardingPackageText(lines, field.placeholder, field.defaultValue);
+    return;
+  }
+
+  if (field.kind === 'radio') {
+    for (const option of field.options) {
+      pushOnboardingPackageText(lines, option.id, option.label, option.hint);
+    }
+    return;
+  }
+
+  if (field.kind === 'action') {
+    pushOnboardingPackageText(lines, field.action, field.defaultValue);
+    return;
+  }
+
+  if (field.kind === 'acknowledgement') {
+    pushOnboardingPackageText(lines, field.reason);
+    return;
+  }
+
+  if (field.kind === 'modelPicker') {
+    pushOnboardingPackageText(
+      lines,
+      field.target,
+      field.defaultSelection.providerId,
+      field.defaultSelection.modelId,
+    );
+  }
+}
+
+export function renderOnboardingWizardPackageText(): string {
+  const wizard = new OnboardingWizardController();
+  const lines: string[] = ['GoodVibes Agent onboarding wizard'];
+
+  for (const step of wizard.steps) {
+    pushOnboardingPackageText(
+      lines,
+      step.id,
+      step.shortLabel,
+      step.title,
+      step.description,
+      step.summaryTitle,
+      ...step.summaryLines,
+    );
+    for (const field of step.fields) {
+      appendOnboardingFieldPackageText(lines, wizard, field);
+    }
+  }
+
+  return lines.join('\n');
+}

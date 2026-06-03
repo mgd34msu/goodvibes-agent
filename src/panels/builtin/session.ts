@@ -45,7 +45,7 @@ function readOperatorToken(tokenPath: string): string | null {
   try {
     const parsed = JSON.parse(readFileSync(tokenPath, 'utf-8')) as unknown;
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    const token = (parsed as Record<string, unknown>)['token'];
+    const token = 'token' in parsed ? parsed.token : undefined;
     return typeof token === 'string' && token.trim().length > 0 ? token : null;
   } catch {
     return null;

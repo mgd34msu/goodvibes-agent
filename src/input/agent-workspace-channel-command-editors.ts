@@ -20,7 +20,7 @@ export function createAgentWorkspaceChannelCommandEditor(kind: AgentWorkspaceCha
       fields: [
         { id: 'message', label: 'Message', value: '', required: true, multiline: true, hint: 'Plain-text message. Ctrl-J inserts a new line.' },
         { id: 'title', label: 'Title', value: '', required: false, multiline: false, hint: 'Optional delivery title. Blank uses the Agent default.' },
-        { id: 'channel', label: 'Channel target', value: '', required: false, multiline: false, hint: 'Optional surface[:route[:label]], such as slack:ops:Ops.' },
+        { id: 'channel', label: 'Channel target', value: '', required: false, multiline: false, hint: 'Optional surface[:route[:label]], such as slack:ops:Ops or telephony:+15551234567.' },
         { id: 'route', label: 'Route target', value: '', required: false, multiline: false, hint: 'Optional route id or route:label.' },
         { id: 'webhook', label: 'Webhook URL', value: '', required: false, multiline: false, hint: 'Optional http(s) webhook target.' },
         { id: 'link', label: 'Link target', value: '', required: false, multiline: false, hint: 'Optional link delivery target.' },
@@ -36,7 +36,7 @@ export function createAgentWorkspaceChannelCommandEditor(kind: AgentWorkspaceCha
       selectedFieldIndex: 0,
       message: 'Inspect one connected channel route without sending messages or changing delivery state.',
       fields: [
-        { id: 'channel', label: 'Channel id', value: '', required: true, multiline: false, hint: 'Channel id, such as slack, telegram, discord, ntfy, signal, or whatsapp.' },
+        { id: 'channel', label: 'Channel id', value: '', required: true, multiline: false, hint: 'Channel id, such as slack, telegram, discord, ntfy, signal, whatsapp, or telephony.' },
       ],
     };
   }
@@ -48,7 +48,7 @@ export function createAgentWorkspaceChannelCommandEditor(kind: AgentWorkspaceCha
       selectedFieldIndex: 0,
       message: 'Show read-only setup guidance for one channel. This does not pair, enable, or send through the channel.',
       fields: [
-        { id: 'channel', label: 'Channel id', value: '', required: true, multiline: false, hint: 'Channel id, such as slack, telegram, discord, ntfy, signal, or whatsapp.' },
+        { id: 'channel', label: 'Channel id', value: '', required: true, multiline: false, hint: 'Channel id, such as slack, telegram, discord, ntfy, signal, whatsapp, or telephony.' },
       ],
     };
   }
@@ -59,7 +59,7 @@ export function createAgentWorkspaceChannelCommandEditor(kind: AgentWorkspaceCha
     selectedFieldIndex: 0,
     message: 'Show one channel readiness record from the Agent workspace without changing channel state.',
     fields: [
-      { id: 'channel', label: 'Channel id', value: '', required: true, multiline: false, hint: 'Channel id, such as slack, telegram, discord, ntfy, signal, or whatsapp.' },
+      { id: 'channel', label: 'Channel id', value: '', required: true, multiline: false, hint: 'Channel id, such as slack, telegram, discord, ntfy, signal, whatsapp, or telephony.' },
     ],
   };
 }

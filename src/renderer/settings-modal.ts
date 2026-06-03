@@ -11,6 +11,7 @@ import { isExternalHostOwnedSettingKey, SETTINGS_CATEGORIES, SETTINGS_CATEGORY_G
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
 import { CATEGORY_LABELS, describeUiRouting, formatValue, getSettingLabel, inferSubscriptionRouteReason, valueColor } from './settings-modal-helpers.ts';
 import { isSecretConfigKey } from '../config/secret-config.ts';
+import { formatProviderAuthRouteId } from '../provider-auth-route-display.ts';
 import { GLYPHS } from './ui-primitives.ts';
 import {
   clamp,
@@ -37,9 +38,9 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   cache: 'Provider and model cache behavior, TTL, and hit-rate monitoring.',
   mcp: 'MCP server trust and scope review. Trust changes can expose local files, tools, databases, browsers, or remote automation depending on the server.',
   surfaces: 'Messaging and notification channel accounts such as Slack, Discord, ntfy, Telegram, chat bridges, and delivery providers.',
-  release: 'Release-channel preference.',
+  release: 'Update-channel preference.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
-  flags: 'Feature flags are SDK gates. They are separate from normal config keys because they enable or disable staged behavior.',
+  flags: 'Feature controls for optional behavior that can be enabled or disabled separately from normal configuration.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
@@ -157,8 +158,12 @@ function buildSettingContext(modal: SettingsModal, entry: SettingEntry): string[
   return lines;
 }
 
+function formatSubscriptionRoute(route: SubscriptionEntry['activeRoute'] | SubscriptionEntry['preferredRoute']): string {
+  return route ? formatProviderAuthRouteId(route) : 'n/a';
+}
+
 function buildFlagContext(entry: FlagEntry | null): string[] {
-  if (!entry) return ['Feature flags', 'No feature flag is selected.'];
+  if (!entry) return ['Feature Controls', 'No feature control is selected.'];
   return [
     entry.flag.name,
     `ID: ${entry.flag.id}`,
@@ -217,8 +222,8 @@ function buildSubscriptionContext(modal: SettingsModal, entry: SubscriptionEntry
     `State: ${entry.state}`,
     ...(routeReason ? [routeReason] : []),
     logout,
-    `Active route: ${entry.activeRoute ?? 'n/a'}`,
-    `Preferred route: ${entry.preferredRoute ?? 'n/a'}`,
+    `Active route: ${formatSubscriptionRoute(entry.activeRoute)}`,
+    `Preferred route: ${formatSubscriptionRoute(entry.preferredRoute)}`,
     `OAuth configured: ${entry.oauthConfigured ? 'yes' : 'no'}`,
     `Freshness: ${entry.authFreshness ?? 'n/a'}`,
     `Expires: ${expires}`,
@@ -413,7 +418,7 @@ function renderSubscriptionRows(modal: SettingsModal, width: number, height: num
     const entry = items[index]!;
     const selected = index === selectedIndex;
     const marker = selected ? (modal.focusPane === 'settings' ? GLYPHS.navigation.selected : '•') : ' ';
-    rows.push(`${marker} ${padDisplay(entry.provider, providerWidth)}  ${padDisplay(entry.state, stateWidth)}  ${padDisplay(entry.activeRoute ?? 'n/a', routeWidth)}  ${padDisplay(entry.authFreshness ?? 'n/a', freshnessWidth)}  ${padDisplay(entry.oauthConfigured ? 'yes' : 'no', oauthWidth)}  ${padDisplay(inferSubscriptionRouteReason(entry) ?? '', noteWidth)}`);
+    rows.push(`${marker} ${padDisplay(entry.provider, providerWidth)}  ${padDisplay(entry.state, stateWidth)}  ${padDisplay(formatSubscriptionRoute(entry.activeRoute), routeWidth)}  ${padDisplay(entry.authFreshness ?? 'n/a', freshnessWidth)}  ${padDisplay(entry.oauthConfigured ? 'yes' : 'no', oauthWidth)}  ${padDisplay(inferSubscriptionRouteReason(entry) ?? '', noteWidth)}`);
   }
   if (window.end < items.length) rows.push(`${GLYPHS.navigation.moreBelow} ${items.length - window.end} more subscription provider(s) below`);
   return rows.slice(0, height);
@@ -444,6 +449,73 @@ function footerText(modal: SettingsModal): string {
     return 'Read-only connected-host setting · Change from GoodVibes TUI or the owning host · Esc close';
   }
   return 'Focus settings · Up/Down setting · Left categories · Tab pane · Enter/Space edit/toggle · R reset · Esc close';
+}
+
+export function renderSettingsModalPackageText(): string {
+  const lines: string[] = [
+    'Configuration Workspace / Settings',
+    'Categories',
+    'Setting',
+    'Value',
+    'Type',
+    'Source',
+    'Default',
+    'Feature Flag',
+    'State',
+    'Tier',
+    'Applies',
+    'Server',
+    'Trust',
+    'Status',
+    'Scope',
+    'Provider',
+    'Route',
+    'Freshness',
+    'OAuth',
+    'Note',
+    'No settings in this category.',
+    'No feature flags registered.',
+    'No MCP servers registered.',
+    'No provider subscriptions available or configured.',
+    'No setting is selected in this category.',
+    'No feature control is selected.',
+    'No MCP server is selected.',
+    'No subscription provider is selected.',
+    'Trust meanings:',
+    'constrained: keep MCP activity inside declared paths/hosts and prompt on risk.',
+    'ask-on-risk: allow routine MCP operations but ask before risky behavior.',
+    'allow-all: allow unrestricted MCP operations for this server after explicit confirmation.',
+    'blocked: prevent this MCP server from being used.',
+    'Possible values:',
+    'true: enabled or allowed for this setting.',
+    'false: disabled or not allowed for this setting.',
+    'Secret handling: raw values entered here are stored through the secret manager and the config receives a goodvibes:// secret reference. Empty input clears the config value.',
+    'Editing: Enter opens inline edit, then type the value and press Enter to save. Arrow keys only navigate.',
+    'Editing: Enter opens inline edit. Delete the current text to save an empty value when that is valid for the setting.',
+    'Enter Confirm edit · Esc Cancel edit · text keys edit the selected field',
+    'Focus categories · Up/Down choose · Right/Enter settings · Tab pane · Esc close',
+    'Focus settings · Up/Down provider · Left categories · Tab pane · Enter review/sign out · Esc close',
+    'Focus settings · Up/Down server · Left categories · Tab pane · Enter edit trust · Esc close',
+    'Focus feature flags · Up/Down flag · Left categories · Tab pane · Enter/Space toggle · Esc close',
+    'Read-only connected-host setting · Change from GoodVibes TUI or the owning host · Esc close',
+    'Focus settings · Up/Down setting · Left categories · Tab pane · Enter/Space edit/toggle · R reset · Esc close',
+  ];
+
+  for (const group of SETTINGS_CATEGORY_GROUPS) {
+    lines.push(group.label);
+    for (const category of group.categories) {
+      lines.push(category, CATEGORY_LABELS[category], CATEGORY_INFO[category]);
+    }
+  }
+
+  for (const [key, values] of Object.entries(ENUM_VALUE_DESCRIPTIONS)) {
+    lines.push(key);
+    for (const [value, description] of Object.entries(values)) {
+      lines.push(value, description);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 export function renderSettingsModal(

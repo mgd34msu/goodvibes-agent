@@ -12,6 +12,7 @@ import type { SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control
 import type { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { readConversationMessageSnapshots } from '../core/conversation-message-snapshot.ts';
 
 export interface ResumeSessionOptions {
   readonly runtimeBus: RuntimeEventBus;
@@ -40,7 +41,7 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
         turnCount: messages.length,
       });
       options.conversation.fromJSON({
-        messages: messages as Parameters<typeof options.conversation.fromJSON>[0]['messages'],
+        messages: readConversationMessageSnapshots(messages),
         title: meta.title,
         titleSource: meta.titleSource,
       });

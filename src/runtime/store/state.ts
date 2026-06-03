@@ -76,10 +76,7 @@ export interface RuntimeState {
   model: ModelDomainState;
   conversation: ConversationDomainState;
   overlays: OverlayDomainState;
-  /**
-   * TUI panel state. Typed as Record<string,unknown> for SDK RuntimeState
-   * compatibility. Use selectPanels() which casts to PanelDomainState.
-   */
+  /** TUI panel state, exposed through the SDK-compatible runtime store shape. */
   panels: Record<string, unknown>;
   permissions: PermissionDomainState;
   tasks: TaskDomainState;

@@ -6,6 +6,13 @@ import type {
 } from '@pellux/goodvibes-sdk/platform/channels';
 
 type AgentChannelDeliveryRouter = Pick<ChannelDeliveryRouter, 'deliver' | 'listStrategies'>;
+type AgentChannelDeliverySurfaceKind = ChannelDeliverySurfaceKind | 'telephony';
+type AgentChannelDeliveryTarget = Omit<ChannelDeliveryTarget, 'surfaceKind'> & {
+  readonly surfaceKind?: AgentChannelDeliverySurfaceKind;
+};
+type AgentChannelDeliveryRequest = Omit<ChannelDeliveryRequest, 'target'> & {
+  readonly target: AgentChannelDeliveryTarget;
+};
 
 export interface AgentChannelDeliveryInput {
   readonly message: string;
@@ -19,19 +26,19 @@ export interface AgentChannelDeliveryInput {
 export interface AgentChannelDeliveryPreview {
   readonly message: string;
   readonly title: string;
-  readonly target: ChannelDeliveryTarget;
-  readonly request: ChannelDeliveryRequest;
+  readonly target: AgentChannelDeliveryTarget;
+  readonly request: AgentChannelDeliveryRequest;
 }
 
 export interface AgentChannelDeliveryResult {
   readonly responseId?: string;
   readonly message: string;
   readonly title: string;
-  readonly target: ChannelDeliveryTarget;
+  readonly target: AgentChannelDeliveryTarget;
   readonly strategyCount: number;
 }
 
-const DELIVERY_SURFACE_KINDS: readonly ChannelDeliverySurfaceKind[] = [
+const DELIVERY_SURFACE_KINDS: readonly AgentChannelDeliverySurfaceKind[] = [
   'tui',
   'web',
   'slack',
@@ -42,6 +49,7 @@ const DELIVERY_SURFACE_KINDS: readonly ChannelDeliverySurfaceKind[] = [
   'google-chat',
   'signal',
   'whatsapp',
+  'telephony',
   'imessage',
   'msteams',
   'bluebubbles',
@@ -55,11 +63,11 @@ function readText(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-function isDeliverySurfaceKind(value: string): value is ChannelDeliverySurfaceKind {
-  return DELIVERY_SURFACE_KINDS.includes(value as ChannelDeliverySurfaceKind);
+function isDeliverySurfaceKind(value: string): value is AgentChannelDeliverySurfaceKind {
+  return DELIVERY_SURFACE_KINDS.includes(value as AgentChannelDeliverySurfaceKind);
 }
 
-function parseChannelTarget(raw: string): ChannelDeliveryTarget {
+function parseChannelTarget(raw: string): AgentChannelDeliveryTarget {
   const [surfaceKind = '', routeId, label] = raw.split(':');
   if (!isDeliverySurfaceKind(surfaceKind)) {
     throw new Error(`Unsupported delivery channel "${surfaceKind}".`);
@@ -72,7 +80,7 @@ function parseChannelTarget(raw: string): ChannelDeliveryTarget {
   };
 }
 
-function parseRouteTarget(raw: string): ChannelDeliveryTarget {
+function parseRouteTarget(raw: string): AgentChannelDeliveryTarget {
   const [routeId = '', label] = raw.split(':');
   const normalizedRouteId = readText(routeId);
   if (!normalizedRouteId) throw new Error('Route delivery target requires a route id.');
@@ -83,7 +91,7 @@ function parseRouteTarget(raw: string): ChannelDeliveryTarget {
   };
 }
 
-function parseWebhookTarget(raw: string): ChannelDeliveryTarget {
+function parseWebhookTarget(raw: string): AgentChannelDeliveryTarget {
   const normalized = readText(raw);
   if (!normalized) throw new Error('Webhook delivery target requires a URL.');
   try {
@@ -95,7 +103,7 @@ function parseWebhookTarget(raw: string): ChannelDeliveryTarget {
   return { kind: 'webhook', address: normalized };
 }
 
-function parseLinkTarget(raw: string): ChannelDeliveryTarget {
+function parseLinkTarget(raw: string): AgentChannelDeliveryTarget {
   const normalized = readText(raw);
   if (!normalized) throw new Error('Link delivery target requires a URL or label.');
   return { kind: 'link', address: normalized };
@@ -149,7 +157,7 @@ export async function deliverAgentChannelMessage(
   input: AgentChannelDeliveryInput,
 ): Promise<AgentChannelDeliveryResult> {
   const preview = buildAgentChannelDeliveryPreview(input);
-  const responseId = await router.deliver(preview.request);
+  const responseId = await router.deliver(preview.request as ChannelDeliveryRequest);
   return {
     responseId,
     message: preview.message,
@@ -159,13 +167,14 @@ export async function deliverAgentChannelMessage(
   };
 }
 
-function formatTarget(target: ChannelDeliveryTarget): string {
+function formatTarget(target: AgentChannelDeliveryTarget): string {
   if (target.kind === 'surface') {
-    return [
-      target.surfaceKind ?? 'route',
-      target.routeId ? `route=${target.routeId}` : '',
-      target.label ? `label=${target.label}` : '',
-    ].filter(Boolean).join(' ');
+    const base = target.surfaceKind ?? 'route';
+    const details = [
+      target.routeId ? `route ${target.routeId}` : '',
+      target.label ? `label ${target.label}` : '',
+    ].filter(Boolean);
+    return `${base}${details.length > 0 ? ` (${details.join(', ')})` : ''}`;
   }
   return target.address ? `${target.kind} ${target.address}` : target.kind;
 }
@@ -173,20 +182,20 @@ function formatTarget(target: ChannelDeliveryTarget): string {
 export function formatAgentChannelDeliveryPreview(preview: AgentChannelDeliveryPreview, strategyCount: number): string {
   return [
     'Agent channel delivery preview',
-    `  title: ${preview.title}`,
-    `  target: ${formatTarget(preview.target)}`,
-    `  strategies: ${strategyCount}`,
-    `  message: ${preview.message}`,
-    '  policy: external delivery requires an explicit user request and confirmation',
+    `  title ${preview.title}`,
+    `  target ${formatTarget(preview.target)}`,
+    `  strategies ${strategyCount}`,
+    `  message ${preview.message}`,
+    '  policy external delivery requires an explicit user request and confirmation',
   ].join('\n');
 }
 
 export function formatAgentChannelDeliveryResult(result: AgentChannelDeliveryResult): string {
   return [
     'Agent channel delivery sent',
-    `  title: ${result.title}`,
-    `  target: ${formatTarget(result.target)}`,
-    `  strategies: ${result.strategyCount}`,
-    ...(result.responseId ? [`  response: ${result.responseId}`] : []),
+    `  title ${result.title}`,
+    `  target ${formatTarget(result.target)}`,
+    `  strategies ${result.strategyCount}`,
+    ...(result.responseId ? [`  response ${result.responseId}`] : []),
   ].join('\n');
 }

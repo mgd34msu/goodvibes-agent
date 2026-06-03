@@ -80,6 +80,19 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'replay-panel':          'Reserved replay workspace shortcut',
 };
 
+function isKeyAction(action: string): action is KeyAction {
+  return Object.hasOwn(ACTION_DESCRIPTIONS, action);
+}
+
+function isKeyCombo(value: unknown): value is KeyCombo {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (!('key' in value) || typeof value.key !== 'string' || value.key.length === 0) return false;
+  if ('ctrl' in value && value.ctrl !== undefined && typeof value.ctrl !== 'boolean') return false;
+  if ('shift' in value && value.shift !== undefined && typeof value.shift !== 'boolean') return false;
+  if ('alt' in value && value.alt !== undefined && typeof value.alt !== 'boolean') return false;
+  return true;
+}
+
 /** Default key bindings for all actions. */
 export const DEFAULT_KEYBINDINGS: Record<KeyAction, KeyCombo[]> = {
   'copy-selection':        [{ key: 'c', ctrl: true, shift: true }],
@@ -218,11 +231,7 @@ export class KeybindingsManager {
   }
 
   private validateCombos(combos: unknown[]): combos is KeyCombo[] {
-    return combos.every((c) => {
-      if (typeof c !== 'object' || c === null) return false;
-      const combo = c as Record<string, unknown>;
-      return typeof combo['key'] === 'string' && combo['key'].length > 0;
-    });
+    return combos.every(isKeyCombo);
   }
 
   /**
@@ -233,9 +242,10 @@ export class KeybindingsManager {
    *                Expects: { logicalName: string; ctrl?: boolean; shift?: boolean; alt?: boolean }
    */
   matches(
-    action: KeyAction,
+    action: string,
     token: { logicalName?: string; ctrl?: boolean; shift?: boolean; alt?: boolean },
   ): boolean {
+    if (!isKeyAction(action)) return false;
     const combos = this.bindings[action];
     if (!combos) return false;
     return combos.some((combo) => this.comboMatches(combo, token));
@@ -267,7 +277,8 @@ export class KeybindingsManager {
    * getComboLabel — Return a human-readable label for the first combo of an action.
    * Example: { key: 'f', ctrl: true } → "Ctrl+F"
    */
-  getComboLabel(action: KeyAction): string {
+  getComboLabel(action: string): string {
+    if (!isKeyAction(action)) return '(unbound)';
     const combos = this.bindings[action];
     if (!combos?.length) return '(unbound)';
     return this.formatCombo(combos[0]);

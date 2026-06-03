@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
+import { formatAgentRecordReviewState } from './record-labels.ts';
 import {
   evaluateAgentSkillReadiness,
   formatAgentSkillRequirement,
@@ -230,7 +231,7 @@ export class AgentRoutineRegistry {
     const requirements = normalizeAgentSkillRequirements(input.requirements);
     assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])], 'Routines');
     const duplicate = store.routines.find((routine) => routine.name.toLowerCase() === name.toLowerCase());
-    if (duplicate) throw new Error(`Routine already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Routine already exists ${duplicate.id}`);
     const timestamp = nowIso();
     const routine: AgentRoutineRecord = {
       id: this.nextId(name, store.routines),
@@ -255,7 +256,7 @@ export class AgentRoutineRegistry {
   public update(idOrName: string, input: AgentRoutineUpdateInput): AgentRoutineRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown routine: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown routine ${idOrName}`);
     const name = input.name === undefined ? existing.name : normalizeName(input.name);
     const description = input.description === undefined ? existing.description : input.description.trim();
     const steps = input.steps === undefined ? existing.steps : input.steps.trim();
@@ -263,7 +264,7 @@ export class AgentRoutineRegistry {
     const requirements = input.requirements === undefined ? existing.requirements : normalizeAgentSkillRequirements(input.requirements);
     assertNoSecretLikeText([name, description, steps, ...(input.tags ?? []), ...(input.triggers ?? []), ...requirements.flatMap((requirement) => [requirement.name, requirement.description ?? ''])], 'Routines');
     const duplicate = store.routines.find((routine) => routine.id !== existing.id && routine.name.toLowerCase() === name.toLowerCase());
-    if (duplicate) throw new Error(`Routine already exists: ${duplicate.id}`);
+    if (duplicate) throw new Error(`Routine already exists ${duplicate.id}`);
     const updated: AgentRoutineRecord = {
       ...existing,
       name,
@@ -288,7 +289,7 @@ export class AgentRoutineRegistry {
   public setEnabled(idOrName: string, enabled: boolean): AgentRoutineRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown routine: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown routine ${idOrName}`);
     const updated: AgentRoutineRecord = { ...existing, enabled, updatedAt: nowIso() };
     this.writeStore({
       ...store,
@@ -300,7 +301,7 @@ export class AgentRoutineRegistry {
   public markStarted(idOrName: string): AgentRoutineRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown routine: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown routine ${idOrName}`);
     const timestamp = nowIso();
     const updated: AgentRoutineRecord = {
       ...existing,
@@ -318,7 +319,7 @@ export class AgentRoutineRegistry {
   public markReviewed(idOrName: string): AgentRoutineRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown routine: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown routine ${idOrName}`);
     const updated: AgentRoutineRecord = {
       ...existing,
       reviewState: 'reviewed',
@@ -336,7 +337,7 @@ export class AgentRoutineRegistry {
   public markStale(idOrName: string, reason: string): AgentRoutineRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown routine: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown routine ${idOrName}`);
     const updated: AgentRoutineRecord = {
       ...existing,
       reviewState: 'stale',
@@ -353,7 +354,7 @@ export class AgentRoutineRegistry {
   public deleteRoutine(idOrName: string): AgentRoutineRecord {
     const store = this.readStore();
     const existing = this.findInStore(store, idOrName);
-    if (!existing) throw new Error(`Unknown routine: ${idOrName}`);
+    if (!existing) throw new Error(`Unknown routine ${idOrName}`);
     this.writeStore({
       ...store,
       routines: store.routines.filter((routine) => routine.id !== existing.id),
@@ -389,7 +390,7 @@ export class AgentRoutineRegistry {
     try {
       return parseStore(readFileSync(this.storePath, 'utf-8'));
     } catch (error) {
-      throw new Error(`Could not read Agent routine store: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Could not read Agent routine store ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -418,7 +419,7 @@ export function buildEnabledRoutinesPrompt(shellPaths: ShellPathService): string
     ...enabled.slice(0, 8).flatMap((routine) => [
       `### ${routine.name}`,
       `Description: ${routine.description}`,
-      `Review state: ${routine.reviewState}`,
+      `Review: ${formatAgentRecordReviewState(routine.reviewState)}`,
       `Triggers: ${routine.triggers.join(', ') || '(manual)'}`,
       `Readiness: ${evaluateAgentRoutineReadiness(routine).ready ? 'ready' : `missing ${evaluateAgentRoutineReadiness(routine).missing.map(formatAgentSkillRequirement).join(', ')}`}`,
       routine.steps,

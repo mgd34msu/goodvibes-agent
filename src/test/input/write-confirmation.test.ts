@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import { ProfileManager } from '@pellux/goodvibes-sdk/platform/profiles';
 import { registerOperatorRuntimeCommands } from '../../input/commands/operator-runtime.ts';
 import { registerSessionContentCommands } from '../../input/commands/session-content.ts';
 import { registerSessionWorkflowCommands } from '../../input/commands/session-workflow.ts';
@@ -71,7 +70,7 @@ describe('write/export command confirmation', () => {
     }
   });
 
-  test('session and conversation-pinned memory deletes require --yes before mutating local state', async () => {
+  test('session delete requires --yes and copied conversation-pinned memory command is not registered', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-delete-confirm-'));
     try {
       const registry = new CommandRegistry();
@@ -79,7 +78,6 @@ describe('write/export command confirmation', () => {
       registerSessionContentCommands(registry);
       const out: string[] = [];
       let deletedSession = '';
-      let removedMemory = '';
       const ctx = {
         ...baseContext(root, out),
         session: {
@@ -101,12 +99,6 @@ describe('write/export command confirmation', () => {
             },
           },
           conversationManager: {},
-          sessionMemoryStore: {
-            remove: (id: string) => {
-              removedMemory = id;
-              return true;
-            },
-          },
         },
       } as unknown as CommandContext;
 
@@ -117,15 +109,7 @@ describe('write/export command confirmation', () => {
       out.length = 0;
       await registry.get('session')!.handler(['delete', 'saved-session', '--yes'], ctx);
       expect(deletedSession).toBe('saved-session');
-
-      out.length = 0;
-      await registry.get('session-memory')!.handler(['remove', 'mem-1'], ctx);
-      expect(removedMemory).toBe('');
-      expect(out.join('\n')).toContain('Refusing to remove conversation-pinned memory mem-1 without --yes');
-
-      out.length = 0;
-      await registry.get('session-memory')!.handler(['remove', 'mem-1', '--yes'], ctx);
-      expect(removedMemory).toBe('mem-1');
+      expect(registry.get('session-memory')).toBeUndefined();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -137,52 +121,10 @@ describe('write/export command confirmation', () => {
     expect(registry.get('template')).toBeUndefined();
   });
 
-  test('copied config profile save and delete commands are disabled in Agent', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-profile-confirm-'));
-    try {
-      const registry = new CommandRegistry();
-      registerOperatorRuntimeCommands(registry);
-      const out: string[] = [];
-      const profileManager = new ProfileManager(join(root, 'profiles'));
-      const configManager = new ConfigManager({
-        surfaceRoot: 'agent',
-        workingDir: root,
-        homeDir: root,
-        configDir: join(root, '.goodvibes', 'agent'),
-      });
-      const ctx = {
-        ...baseContext(root, out),
-        platform: {
-          configManager,
-        },
-        workspace: {
-          profileManager,
-          shellPaths: makeShellPaths(root),
-        },
-      } as unknown as CommandContext;
-
-      await registry.get('profiles')!.handler(['save', 'demo'], ctx);
-      expect(profileManager.list()).toHaveLength(0);
-      expect(out.join('\n')).toContain('Copied config profiles are disabled in GoodVibes Agent.');
-      expect(out.join('\n')).toContain('/agent-profile');
-
-      out.length = 0;
-      await registry.get('profiles')!.handler(['save', 'demo', '--yes'], ctx);
-      expect(profileManager.list()).toHaveLength(0);
-      expect(out.join('\n')).toContain('Copied config profiles are disabled in GoodVibes Agent.');
-
-      out.length = 0;
-      await registry.get('profiles')!.handler(['delete', 'demo'], ctx);
-      expect(profileManager.list()).toHaveLength(0);
-      expect(out.join('\n')).toContain('Copied config profiles are disabled in GoodVibes Agent.');
-
-      out.length = 0;
-      await registry.get('profiles')!.handler(['delete', 'demo', '--yes'], ctx);
-      expect(profileManager.list()).toHaveLength(0);
-      expect(out.join('\n')).toContain('Copied config profiles are disabled in GoodVibes Agent.');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+  test('copied config profile save and delete commands are disabled in Agent', () => {
+    const registry = new CommandRegistry();
+    registerOperatorRuntimeCommands(registry);
+    expect(registry.get('profiles')).toBeUndefined();
   });
 
   test('mode preset and domain overrides require --yes before writing interaction state', async () => {

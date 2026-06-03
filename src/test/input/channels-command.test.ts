@@ -80,8 +80,8 @@ describe('/channels command', () => {
 
     const output = printed.join('\n');
     expect(output).toContain('Channel Readiness');
-    expect(output).toContain('ready: 2/13');
-    expect(output).toContain('enabled: 2/13');
+    expect(output).toContain('ready: 2/14');
+    expect(output).toContain('enabled: 2/14');
     expect(output).toContain('needs target: 1');
     expect(output).toContain('details: /channels show <id>');
     expect(output).toContain('Slack: ready ready=yes delivery=default-ready risk=group');

@@ -1,5 +1,7 @@
 import { type Line, type Cell, createEmptyLine, createEmptyCell } from '../types/grid.ts';
 
+const CELL_KEYS: readonly (keyof Cell)[] = ['char', 'fg', 'bg', 'bold', 'dim', 'underline', 'italic', 'strikethrough', 'link'];
+
 /**
  * TerminalBuffer - Represents a 2D grid of styled cells.
  * Tracks a per-row dirty bitmap so the diff engine can skip rows that were
@@ -21,8 +23,8 @@ export class TerminalBuffer {
       // already matches the current cell value (idempotent write).
       const current = this.cells[y][x]!;
       let changed = false;
-      for (const k in cell) {
-        if ((cell as unknown as Record<string, unknown>)[k] !== (current as unknown as Record<string, unknown>)[k]) {
+      for (const key of CELL_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(cell, key) && cell[key] !== current[key]) {
           changed = true;
           break;
         }

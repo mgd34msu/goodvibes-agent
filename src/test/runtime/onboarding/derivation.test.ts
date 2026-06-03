@@ -224,7 +224,7 @@ describe('onboarding derivation helpers', () => {
         id: 'tui-delegation',
         label: 'Explicit Build Delegation',
         selected: true,
-        detail: 'Delegate explicit build, fix, implementation, and review work to GoodVibes TUI; WRFC is requested only when the user explicitly asks for it.',
+        detail: 'Delegate explicit build, fix, implementation, and review work to GoodVibes TUI; delegated review is requested only when the user explicitly asks for it.',
       },
     ]);
 
@@ -438,7 +438,7 @@ describe('onboarding derivation helpers', () => {
         id: 'tui-delegation',
         label: 'Explicit Build Delegation',
         selected: true,
-        detail: 'Delegate explicit build, fix, implementation, and review work to GoodVibes TUI; WRFC is requested only when the user explicitly asks for it.',
+        detail: 'Delegate explicit build, fix, implementation, and review work to GoodVibes TUI; delegated review is requested only when the user explicitly asks for it.',
       },
     ]);
   });

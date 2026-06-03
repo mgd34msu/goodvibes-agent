@@ -1,5 +1,5 @@
 /**
- * ProfilePickerModal — state management for the /profiles picker modal.
+ * ProfilePickerModal — state management for the Agent profile picker modal.
  *
  * Lists profiles from ProfileManager.list(), tracks selected index,
  * and handles load actions.
@@ -24,20 +24,39 @@ const BEHAVIOR_KEYS: ConfigKey[] = [
   'behavior.saveHistory', 'behavior.notifyOnComplete',
 ] as const;
 
+function configProfileDeletionDisabledMessage(name: string): string {
+  return `Config-profile deletion is disabled in Agent for ${name}. Open Agent Workspace -> Profiles for isolated Agent profile homes.`;
+}
+
+function configProfileSavingDisabledMessage(name: string): string {
+  return `Config-profile saving is disabled in Agent for ${name}. Open Agent Workspace -> Profiles to create isolated Agent homes.`;
+}
+
+export function renderProfilePickerStatePackageText(): string {
+  return [
+    'Profile name cannot be empty',
+    'Loaded profile',
+    'Saved profile',
+    'Error',
+    configProfileDeletionDisabledMessage('<profile>'),
+    configProfileSavingDisabledMessage('<profile>'),
+  ].join('\n');
+}
+
 /**
  * Apply a profile data category to the config manager.
  * Iterates only known/valid keys rather than open-ended Object.entries.
  */
 function applyProfileCategory(
   cm: ConfigManager,
-  data: Record<string, unknown>,
+  data: object,
   keys: ConfigKey[],
 ): void {
   for (const key of keys) {
     const field = key.split('.')[1];
-    if (field && Object.prototype.hasOwnProperty.call(data, field)) {
+    if (field && Object.hasOwn(data, field)) {
       try {
-        cm.setDynamic(key, data[field]);
+        cm.setDynamic(key, Reflect.get(data, field));
       } catch (e) { logger.debug('applyProfileCategory: key set failed', { key, error: summarizeError(e) }); }
     }
   }
@@ -114,7 +133,7 @@ export class ProfilePickerModal {
 
       // Apply display settings using validated key list
       if (data.display) {
-        applyProfileCategory(configManager, data.display as Record<string, unknown>, DISPLAY_KEYS);
+        applyProfileCategory(configManager, data.display, DISPLAY_KEYS);
       }
 
       // Apply provider settings (model + reasoningEffort only)
@@ -129,14 +148,14 @@ export class ProfilePickerModal {
 
       // Apply behavior settings using validated key list
       if (data.behavior) {
-        applyProfileCategory(configManager, data.behavior as Record<string, unknown>, BEHAVIOR_KEYS);
+        applyProfileCategory(configManager, data.behavior, BEHAVIOR_KEYS);
       }
 
       configManager.save();
-      this.statusMessage = `Loaded profile: ${profile.name}`;
+      this.statusMessage = `Loaded profile ${profile.name}`;
       return true;
     } catch (e) {
-      this.statusMessage = `Error: ${summarizeError(e)}`;
+      this.statusMessage = `Error ${summarizeError(e)}`;
       return false;
     }
   }
@@ -145,7 +164,7 @@ export class ProfilePickerModal {
     const profile = this.getSelected();
     if (!profile) return false;
     this.deleteConfirmationTarget = null;
-    this.statusMessage = `Config-profile deletion is disabled in Agent for ${profile.name}. Open Agent Workspace -> Profiles for isolated Agent profile homes.`;
+    this.statusMessage = configProfileDeletionDisabledMessage(profile.name);
     return false;
   }
 
@@ -158,7 +177,7 @@ export class ProfilePickerModal {
       return false;
     }
     void configManager;
-    this.statusMessage = `Config-profile saving is disabled in Agent for ${name}. Open Agent Workspace -> Profiles to create isolated Agent homes.`;
+    this.statusMessage = configProfileSavingDisabledMessage(name);
     return false;
   }
 
@@ -182,11 +201,11 @@ export class ProfilePickerModal {
 
       // Reload list
       this.profiles = this.profileManager.list();
-      this.statusMessage = `Saved profile: ${name}`;
+      this.statusMessage = `Saved profile ${name}`;
       this._clampScroll();
       return true;
     } catch (e) {
-      this.statusMessage = `Error: ${summarizeError(e)}`;
+      this.statusMessage = `Error ${summarizeError(e)}`;
       return false;
     }
   }

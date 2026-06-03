@@ -1,5 +1,6 @@
 import { discoverRoutines, type DiscoveredRoutineRecord } from '../../agent/routine-discovery.ts';
 import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../../agent/routine-registry.ts';
+import { formatAgentRecordOrigin, formatAgentRecordReviewState } from '../../agent/record-labels.ts';
 import { buildAgentSkillRequirements, formatAgentSkillRequirement } from '../../agent/skill-registry.ts';
 import {
   buildRoutineSchedulePreview,
@@ -73,12 +74,23 @@ function requiredFlag(flags: ReadonlyMap<string, string>, key: string): string {
   return value;
 }
 
+function formatRoutineReceipt(title: string, routine: Pick<AgentRoutineRecord, 'id' | 'name'>, extra: readonly string[] = []): string {
+  const enabled = extra.some((line) => line.trim() === 'enabled yes');
+  return [
+    `${title} ${routine.id}: ${routine.name}${enabled ? ' (enabled)' : ''}`,
+    `  id ${routine.id}`,
+    `  name ${routine.name}`,
+    ...extra,
+  ].join('\n');
+}
+
 function summarizeRoutine(routine: AgentRoutineRecord): string {
   const enabled = routine.enabled ? 'enabled' : 'disabled';
-  const tags = routine.tags.length > 0 ? ` tags=${routine.tags.join(',')}` : '';
+  const tags = routine.tags.length > 0 ? ` tags ${routine.tags.join(', ')}` : '';
   const readiness = evaluateAgentRoutineReadiness(routine);
+  const review = formatAgentRecordReviewState(routine.reviewState);
   const ready = readiness.ready ? 'ready' : `needs ${readiness.missing.map(formatAgentSkillRequirement).join(',')}`;
-  return `  ${routine.id}  ${enabled}  ${routine.reviewState}  ${ready}  starts=${routine.startCount}  ${routine.name} - ${routine.description}${tags}`;
+  return `  ${routine.id}  ${enabled}  ${review}  ${ready}  starts ${routine.startCount}  ${routine.name} - ${routine.description}${tags}`;
 }
 
 function renderList(title: string, registry: AgentRoutineRegistry, routines: readonly AgentRoutineRecord[], emptyMessage?: string): string {
@@ -86,12 +98,12 @@ function renderList(title: string, registry: AgentRoutineRegistry, routines: rea
   if (routines.length === 0) {
     return emptyMessage
       ? `${title}\n  ${emptyMessage}`
-      : `${title}\n  No local Agent routines yet. Create one with /routines create --name <name> --description <summary> --steps <steps>.`;
+      : `${title}\n  No local Agent routines yet.\n  No Agent-local routines yet. Create one with /routines create --name <name> --description <summary> --steps <steps>.`;
   }
   return [
     `${title} (${routines.length})`,
-    `  store: ${snapshot.path}`,
-    `  enabled: ${snapshot.enabledRoutines.length}`,
+    `  store ${snapshot.path}`,
+    `  enabled ${snapshot.enabledRoutines.length}`,
     ...routines.map(summarizeRoutine),
   ].join('\n');
 }
@@ -100,20 +112,19 @@ function renderRoutine(routine: AgentRoutineRecord): string {
   const readiness = evaluateAgentRoutineReadiness(routine);
   return [
     `Routine ${routine.name}`,
-    `  id: ${routine.id}`,
-    `  enabled: ${routine.enabled ? 'yes' : 'no'}`,
+    `  id ${routine.id}`,
+    `  enabled ${routine.enabled ? 'yes' : 'no'}`,
     `  readiness: ${readiness.ready ? 'ready' : 'needs setup'}`,
-    `  requirements: ${routine.requirements.map(formatAgentSkillRequirement).join(', ') || '(none)'}`,
+    `  requirements ${routine.requirements.map(formatAgentSkillRequirement).join(', ') || '(none)'}`,
     readiness.missing.length > 0 ? `  missing: ${readiness.missing.map(formatAgentSkillRequirement).join(', ')}` : '',
-    `  review: ${routine.reviewState}`,
-    `  source: ${routine.source}`,
-    `  provenance: ${routine.provenance}`,
+    `  review ${formatAgentRecordReviewState(routine.reviewState)}`,
+    `  origin ${formatAgentRecordOrigin(routine.source, routine.provenance)}`,
     `  tags: ${routine.tags.join(', ') || '(none)'}`,
     `  triggers: ${routine.triggers.join(', ') || '(manual)'}`,
-    `  started: ${routine.startCount}${routine.lastStartedAt ? `; last ${routine.lastStartedAt}` : ''}`,
-    `  created: ${routine.createdAt}`,
-    `  updated: ${routine.updatedAt}`,
-    routine.staleReason ? `  stale reason: ${routine.staleReason}` : '',
+    `  started ${routine.startCount}${routine.lastStartedAt ? `; last ${routine.lastStartedAt}` : ''}`,
+    `  created ${routine.createdAt}`,
+    `  updated ${routine.updatedAt}`,
+    routine.staleReason ? `  stale reason ${routine.staleReason}` : '',
     '',
     routine.description,
     '',
@@ -123,7 +134,7 @@ function renderRoutine(routine: AgentRoutineRecord): string {
 
 function summarizeDiscoveredRoutine(routine: DiscoveredRoutineRecord): string {
   const description = routine.description ? ` - ${routine.description}` : '';
-  return `  ${routine.name}  ${routine.origin}${description}\n    path: ${routine.path}`;
+  return `  ${routine.name}  ${routine.origin}${description}\n    path ${routine.path}`;
 }
 
 function renderDiscoveredRoutines(routines: readonly DiscoveredRoutineRecord[]): string {
@@ -169,7 +180,10 @@ function frontmatterAnyList(routine: DiscoveredRoutineRecord, keys: readonly str
 }
 
 function printError(ctx: CommandContext, error: unknown): void {
-  ctx.print(`Error: ${error instanceof Error ? error.message : String(error)}`);
+  ctx.print([
+    'Error',
+    `  message ${error instanceof Error ? error.message : String(error)}`,
+  ].join('\n'));
 }
 
 async function importDiscoveredRoutine(args: readonly string[], ctx: CommandContext, routineRegistry: AgentRoutineRegistry): Promise<void> {
@@ -181,18 +195,18 @@ async function importDiscoveredRoutine(args: readonly string[], ctx: CommandCont
   }
   const discovered = findDiscoveredRoutine(await discoverRoutines(requireShellPaths(ctx)), name);
   if (!discovered) {
-    ctx.print(`Unknown discovered Agent routine: ${name}\nRun /routines discover to inspect available routine files.`);
+    ctx.print(`Unknown discovered Agent routine ${name}\nRun /routines discover to inspect available routine files.`);
     return;
   }
   if (!parsed.yes) {
     ctx.print([
       'Agent routine import preview',
-      `  name: ${discovered.name}`,
-      `  origin: ${discovered.origin}`,
-      `  path: ${discovered.path}`,
-      `  description: ${discovered.description || '(none)'}`,
-      `  steps characters: ${discovered.steps.length}`,
-      '  next: rerun with --yes to import into the Agent-local routine registry',
+      `  name ${discovered.name}`,
+      `  origin ${discovered.origin}`,
+      `  path ${discovered.path}`,
+      `  description ${discovered.description || '(none)'}`,
+      `  steps characters ${discovered.steps.length}`,
+      '  next rerun with --yes to import into the Agent-local routine registry',
     ].join('\n'));
     return;
   }
@@ -210,7 +224,7 @@ async function importDiscoveredRoutine(args: readonly string[], ctx: CommandCont
     source: 'imported',
     provenance: `discovered:${discovered.origin}:${discovered.path}`,
   });
-  ctx.print(`Imported Agent routine ${routine.id}: ${routine.name}${routine.enabled ? ' (enabled)' : ''}`);
+  ctx.print(formatRoutineReceipt('Imported Agent routine', routine, [`  enabled ${routine.enabled ? 'yes' : 'no'}`]));
 }
 
 async function promoteRoutine(args: readonly string[], routineRegistry: AgentRoutineRegistry, ctx: CommandContext): Promise<void> {
@@ -254,7 +268,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
     }
     if (sub === 'attention' || sub === 'needs-setup') {
       const routines = routineRegistry.list().filter((routine) => !evaluateAgentRoutineReadiness(routine).ready);
-      ctx.print(renderList('Agent Routines needing setup', routineRegistry, routines, 'No local Agent routines need setup.'));
+      ctx.print(renderList('Agent Routines needing setup', routineRegistry, routines, 'No Agent-local routines need setup.'));
       return;
     }
     if (sub === 'discover' || sub === 'discovered') {
@@ -298,7 +312,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
         return;
       }
       const receipt = receiptStoreFromContext(ctx).get(id);
-      ctx.print(receipt ? formatRoutineScheduleReceipt(receipt) : `Unknown routine schedule receipt: ${id}`);
+      ctx.print(receipt ? formatRoutineScheduleReceipt(receipt) : `Unknown routine schedule receipt ${id}`);
       return;
     }
     if (sub === 'create') {
@@ -316,9 +330,9 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
         }),
         enabled: parsed.flags.get('enabled') === 'true',
         source: 'user',
-        provenance: 'slash-command',
+        provenance: 'Command',
       });
-      ctx.print(`Created Agent routine ${routine.id}: ${routine.name}`);
+      ctx.print(formatRoutineReceipt('Created Agent routine', routine));
       return;
     }
     if (sub === 'update') {
@@ -340,9 +354,9 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
             commands: splitList(parsed.flags.get('requires-command') ?? parsed.flags.get('requires-commands')),
           })
           : undefined,
-        provenance: 'slash-command',
+        provenance: 'Command',
       });
-      ctx.print(`Updated Agent routine ${updated.id}: ${updated.name}`);
+      ctx.print(formatRoutineReceipt('Updated Agent routine', updated));
       return;
     }
     if (sub === 'enable' || sub === 'disable') {
@@ -352,7 +366,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
         return;
       }
       const routine = routineRegistry.setEnabled(id, sub === 'enable');
-      ctx.print(`${sub === 'enable' ? 'Enabled' : 'Disabled'} Agent routine ${routine.id}: ${routine.name}`);
+      ctx.print(formatRoutineReceipt(`${sub === 'enable' ? 'Enabled' : 'Disabled'} Agent routine`, routine));
       return;
     }
     if (sub === 'start' || sub === 'run') {
@@ -364,9 +378,11 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
       const routine = routineRegistry.markStarted(id);
       const readiness = evaluateAgentRoutineReadiness(routine);
       ctx.print([
-        `Started Agent routine ${routine.id}: ${routine.name}`,
+        `Started Agent routine ${routine.id}`,
+        `  id ${routine.id}`,
+        `  name ${routine.name}`,
         `  readiness: ${readiness.ready ? 'ready' : `needs setup (${readiness.missing.map(formatAgentSkillRequirement).join(', ')})`}`,
-        '  policy: same main conversation; no hidden job, runtime mutation, or external side effect was started',
+        '  policy same main conversation; no hidden job, runtime mutation, or external side effect was started',
         '',
         routine.steps,
       ].join('\n'));
@@ -379,7 +395,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
         return;
       }
       const routine = routineRegistry.markReviewed(id);
-      ctx.print(`Reviewed Agent routine ${routine.id}.`);
+      ctx.print(formatRoutineReceipt('Reviewed Agent routine', routine));
       return;
     }
     if (sub === 'stale') {
@@ -389,7 +405,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
         return;
       }
       const routine = routineRegistry.markStale(id, args.slice(2).join(' '));
-      ctx.print(`Marked Agent routine ${routine.id} stale.`);
+      ctx.print(formatRoutineReceipt('Marked Agent routine stale', routine));
       return;
     }
     if (sub === 'promote' || sub === 'schedule' || sub === 'promote-schedule') {
@@ -408,7 +424,7 @@ export async function runRoutinesRuntimeCommand(args: readonly string[], ctx: Co
         return;
       }
       const removed = routineRegistry.deleteRoutine(id);
-      ctx.print(`Deleted Agent routine ${removed.id}: ${removed.name}`);
+      ctx.print(formatRoutineReceipt('Deleted Agent routine', removed));
       return;
     }
     ctx.print('Usage: /routines [list|enabled|attention|discover|import-discovered|search|show|receipts|reconcile|receipt|create|update|enable|disable|start|review|stale|promote|delete]');
@@ -421,7 +437,7 @@ export function registerRoutinesRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'routines',
     aliases: ['routine'],
-    description: 'Manage local GoodVibes Agent routines',
+    description: 'Manage Agent-local routines',
     usage: '[list|enabled|attention|discover|import-discovered <name> --yes|search <query>|show <id>|receipts|reconcile|receipt <id>|create --name <name> --description <summary> --steps <steps> [--requires-env A,B] [--requires-command gh,jq]|update <id> [--name ...] [--description ...] [--steps ...]|enable <id>|disable <id>|start <id>|review <id>|stale <id> <reason...>|promote <id> --cron <expr> [--delivery-channel slack] --yes|delete <id> --yes]',
     handler: runRoutinesRuntimeCommand,
   });

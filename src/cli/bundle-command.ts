@@ -8,7 +8,6 @@ import { createRuntimeStore } from '../runtime/store/index.ts';
 import { getOnboardingCheckMarkerPath } from '../runtime/onboarding/index.ts';
 import { CONFIG_SCHEMA } from '../config/index.ts';
 import { SecretsManager } from '../config/secrets.ts';
-import type { ConfigKey } from '../config/index.ts';
 import type { CliCommandRuntime } from './management.ts';
 import type { CliCommandOutput } from './types.ts';
 import { getPackageVersion } from './help.ts';
@@ -35,14 +34,20 @@ function getNestedValue(source: unknown, key: string): unknown {
   let cursor = source;
   for (const part of key.split('.')) {
     if (cursor == null || typeof cursor !== 'object') return undefined;
-    cursor = (cursor as Record<string, unknown>)[part];
+    cursor = Reflect.get(cursor, part);
   }
   return cursor;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 function readJsonFile(path: string): { readonly ok: true; readonly value: Record<string, unknown> } | { readonly ok: false; readonly error: string } {
   try {
-    return { ok: true, value: JSON.parse(readFileSync(path, 'utf-8')) as Record<string, unknown> };
+    const value = JSON.parse(readFileSync(path, 'utf-8')) as unknown;
+    if (!isRecord(value)) return { ok: false, error: 'Bundle file must contain a JSON object.' };
+    return { ok: true, value };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
@@ -128,7 +133,7 @@ export async function handleBundleCommand(runtime: CliCommandRuntime): Promise<C
     if (!path) return { output: `Usage: ${runtime.cli.binary} bundle inspect <path>`, exitCode: 2 };
     const sourcePath = shellPaths.resolveWorkspacePath(path);
     const parsed = readJsonFile(sourcePath);
-    if (!parsed.ok) return { output: `Invalid bundle JSON: ${parsed.error}`, exitCode: 1 };
+    if (!parsed.ok) return { output: `Invalid bundle JSON ${parsed.error}`, exitCode: 1 };
     const summary = inspectBundle(sourcePath, parsed.value);
     return {
       output: formatJsonOrText(runtime, summary, [
@@ -202,7 +207,7 @@ export async function handleBundleCommand(runtime: CliCommandRuntime): Promise<C
     if (!path) return { output: `Usage: ${runtime.cli.binary} bundle import <path>`, exitCode: 2 };
     const sourcePath = shellPaths.resolveWorkspacePath(path);
     const parsed = readJsonFile(sourcePath);
-    if (!parsed.ok) return { output: `Invalid bundle JSON: ${parsed.error}`, exitCode: 1 };
+    if (!parsed.ok) return { output: `Invalid bundle JSON ${parsed.error}`, exitCode: 1 };
     const config = parsed.value['config'];
     if (!config || typeof config !== 'object') return { output: 'Bundle has no config object to import.', exitCode: 1 };
     let count = 0;
@@ -214,7 +219,7 @@ export async function handleBundleCommand(runtime: CliCommandRuntime): Promise<C
         skippedRedacted++;
         continue;
       }
-      runtime.configManager.setDynamic(setting.key as ConfigKey, value as never);
+      runtime.configManager.setDynamic(setting.key, value);
       count++;
     }
     return {

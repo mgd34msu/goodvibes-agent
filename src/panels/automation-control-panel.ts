@@ -182,7 +182,7 @@ export class AutomationControlPanel extends ScrollableListPanel<AutomationRun> {
       );
       if (selectedRun.error) {
         footerLines.push(buildPanelLine(width, [
-          ['  Error: ', C.label],
+          ['  Error ', C.label],
           [truncateDisplay(selectedRun.error, Math.max(0, width - 10)), C.error],
         ]));
       }

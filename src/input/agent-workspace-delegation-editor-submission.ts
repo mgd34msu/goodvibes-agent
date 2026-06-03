@@ -37,7 +37,7 @@ export function buildAgentWorkspaceDelegationEditorSubmission(
     };
   }
   const parts = ['/delegate'];
-  if (isAffirmative(readField('wrfc'))) parts.push('--wrfc');
+  if (isAffirmative(readField('review')) || isAffirmative(readField('wrfc'))) parts.push('--review');
   parts.push(quoteSlashCommandArg(readField('task')));
   const command = parts.join(' ');
   return {

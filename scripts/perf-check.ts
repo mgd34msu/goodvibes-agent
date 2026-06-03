@@ -1,10 +1,9 @@
 /**
  * perf-check.ts — CI performance budget gate.
  *
- * Runs the performance monitor against a synthetic snapshot derived
- * from the current runtime state (or a zero-state fixture in CI where
- * no live runtime is available). Outputs a formatted budget report and
- * exits non-zero if any budget is violated beyond its tolerance.
+ * Runs the performance monitor against a committed release snapshot.
+ * Outputs a formatted budget report and exits non-zero if any budget is
+ * violated beyond its tolerance.
  *
  * Usage:
  *   bun run scripts/perf-check.ts
@@ -14,42 +13,262 @@
  *   1 — one or more budgets exceeded tolerance
  */
 
-import { PerfMonitor } from '@/runtime/index.ts';
+import { DEFAULT_BUDGETS, PerfMonitor } from '@/runtime/index.ts';
 import { formatReport, exitCode } from '@/runtime/index.ts';
 import { createInitialSurfacePerfState } from '@/runtime/index.ts';
-import type { PerfSnapshot } from '@/runtime/index.ts';
+import type { PerfReport, PerfSnapshot } from '@/runtime/index.ts';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const RECORDED_PERF_SNAPSHOT_RELATIVE_PATH = 'release/1.0-performance-snapshot.json';
+const REQUIRED_EXTRA_METRIC_NAMES = [
+  'event.queue.depth',
+  'tool.executor.overhead.p95',
+  'compaction.latency.p95',
+  'slo.turn_start.p95',
+  'slo.cancel.p95',
+  'slo.reconnect_recovery.p95',
+  'slo.permission_decision.p95',
+  'slo.integration.delivery_success_rate',
+  'slo.integration.dlq_depth',
+] as const;
+const LOWER_BOUND_METRIC_NAMES = new Set<string>([
+  'slo.integration.delivery_success_rate',
+]);
+const REPORT_COLUMNS = {
+  metric: 40,
+  actual: 16,
+  budget: 16,
+  status: 10,
+} as const;
+
+type RecordValue = Record<string, unknown>;
+type SurfacePerfSnapshot = PerfSnapshot['surfacePerf'];
+type RenderCycleSnapshot = SurfacePerfSnapshot['recentCycles'][number];
+type InputLatencySnapshot = SurfacePerfSnapshot['recentInputLatency'][number];
+
+function isRecord(value: unknown): value is RecordValue {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function failSnapshot(message: string): never {
+  throw new Error(`Invalid performance snapshot fixture ${RECORDED_PERF_SNAPSHOT_RELATIVE_PATH}: ${message}`);
+}
+
+function readRecord(value: unknown, label: string): RecordValue {
+  if (!isRecord(value)) failSnapshot(`${label} must be an object.`);
+  return value;
+}
+
+function readFiniteNumber(record: RecordValue, key: string, label: string): number {
+  const value = record[key];
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    failSnapshot(`${label}.${key} must be a finite number.`);
+  }
+  return value;
+}
+
+function readOptionalFiniteNumber(record: RecordValue, key: string, label: string): number | undefined {
+  const value = record[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    failSnapshot(`${label}.${key} must be a finite number when present.`);
+  }
+  return value;
+}
+
+function readString(record: RecordValue, key: string, label: string): string {
+  const value = record[key];
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    failSnapshot(`${label}.${key} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function readBoolean(record: RecordValue, key: string, label: string): boolean {
+  const value = record[key];
+  if (typeof value !== 'boolean') failSnapshot(`${label}.${key} must be a boolean.`);
+  return value;
+}
+
+function readBudgetStatus(record: RecordValue): SurfacePerfSnapshot['budgetStatus'] {
+  const value = readString(record, 'budgetStatus', 'surfacePerf');
+  if (value !== 'ok' && value !== 'warning' && value !== 'critical') {
+    failSnapshot('surfacePerf.budgetStatus must be ok, warning, or critical.');
+  }
+  return value;
+}
+
+function parseRenderCycles(value: unknown): RenderCycleSnapshot[] {
+  if (!Array.isArray(value)) failSnapshot('surfacePerf.recentCycles must be an array.');
+  if (value.length < 10) failSnapshot('surfacePerf.recentCycles must include at least 10 render samples.');
+  return value.map((entry, index) => {
+    const record = readRecord(entry, `surfacePerf.recentCycles[${index}]`);
+    const label = `surfacePerf.recentCycles[${index}]`;
+    return {
+      cycleId: readFiniteNumber(record, 'cycleId', label),
+      requestedAt: readFiniteNumber(record, 'requestedAt', label),
+      completedAt: readFiniteNumber(record, 'completedAt', label),
+      durationMs: readFiniteNumber(record, 'durationMs', label),
+      overBudget: readBoolean(record, 'overBudget', label),
+    };
+  });
+}
+
+function parseInputLatency(value: unknown): InputLatencySnapshot[] {
+  if (!Array.isArray(value)) failSnapshot('surfacePerf.recentInputLatency must be an array.');
+  return value.map((entry, index) => {
+    const record = readRecord(entry, `surfacePerf.recentInputLatency[${index}]`);
+    const label = `surfacePerf.recentInputLatency[${index}]`;
+    return {
+      keyEventAt: readFiniteNumber(record, 'keyEventAt', label),
+      respondedAt: readFiniteNumber(record, 'respondedAt', label),
+      latencyMs: readFiniteNumber(record, 'latencyMs', label),
+    };
+  });
+}
+
+function parseExtraMetrics(value: unknown): Record<string, number> {
+  const record = readRecord(value, 'extraMetrics');
+  const extraMetrics: Record<string, number> = {};
+  for (const [key, entry] of Object.entries(record)) {
+    if (typeof entry !== 'number' || !Number.isFinite(entry)) {
+      failSnapshot(`extraMetrics.${key} must be a finite number.`);
+    }
+    extraMetrics[key] = entry;
+  }
+  for (const metricName of REQUIRED_EXTRA_METRIC_NAMES) {
+    if (!(metricName in extraMetrics)) {
+      failSnapshot(`extraMetrics.${metricName} is required.`);
+    }
+  }
+  return extraMetrics;
+}
+
+function parseSurfacePerf(value: unknown): SurfacePerfSnapshot {
+  const record = readRecord(value, 'surfacePerf');
+  const base = createInitialSurfacePerfState();
+  return {
+    ...base,
+    revision: readFiniteNumber(record, 'revision', 'surfacePerf'),
+    lastUpdatedAt: readFiniteNumber(record, 'lastUpdatedAt', 'surfacePerf'),
+    source: readString(record, 'source', 'surfacePerf'),
+    totalRenderCycles: readFiniteNumber(record, 'totalRenderCycles', 'surfacePerf'),
+    avgRenderMs: readFiniteNumber(record, 'avgRenderMs', 'surfacePerf'),
+    maxRenderMs: readFiniteNumber(record, 'maxRenderMs', 'surfacePerf'),
+    overBudgetCount: readFiniteNumber(record, 'overBudgetCount', 'surfacePerf'),
+    budgetStatus: readBudgetStatus(record),
+    targetBudgetMs: readFiniteNumber(record, 'targetBudgetMs', 'surfacePerf'),
+    recentCycles: parseRenderCycles(record.recentCycles),
+    maxCycleBuffer: readFiniteNumber(record, 'maxCycleBuffer', 'surfacePerf'),
+    avgInputLatencyMs: readFiniteNumber(record, 'avgInputLatencyMs', 'surfacePerf'),
+    maxInputLatencyMs: readFiniteNumber(record, 'maxInputLatencyMs', 'surfacePerf'),
+    recentInputLatency: parseInputLatency(record.recentInputLatency),
+    heapUsedBytes: readFiniteNumber(record, 'heapUsedBytes', 'surfacePerf'),
+    rssBytes: readFiniteNumber(record, 'rssBytes', 'surfacePerf'),
+    lastMemorySampleAt: readOptionalFiniteNumber(record, 'lastMemorySampleAt', 'surfacePerf'),
+  };
+}
+
+function readCiPerfSnapshot(root: string): PerfSnapshot {
+  const fixturePath = join(root, RECORDED_PERF_SNAPSHOT_RELATIVE_PATH);
+  if (!existsSync(fixturePath)) {
+    failSnapshot('file is missing.');
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(fixturePath, 'utf-8')) as unknown;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    failSnapshot(`JSON parse failed: ${message}`);
+  }
+  const record = readRecord(parsed, 'root');
+  const surfacePerf = parseSurfacePerf(record.surfacePerf);
+  const extraMetrics = parseExtraMetrics(record.extraMetrics);
+  return { surfacePerf, extraMetrics };
+}
 
 /**
- * Builds a PerfSnapshot for use in CI.
- *
- * In a live runtime, this would read from the Zustand store. In CI,
- * we use the initial (zero) state which represents an idle runtime;
- * this validates that the budget infrastructure itself works and that
- * no budgets are configured with thresholds below zero.
- *
- * For regression testing against recorded sessions, replace this with
- * a loader that reads a captured metrics JSON file.
+ * Builds a PerfSnapshot for use in CI from release evidence.
  */
-function buildCiSnapshot(): PerfSnapshot {
-  const surfacePerf = createInitialSurfacePerfState();
+function buildCiSnapshot(root = process.cwd()): PerfSnapshot {
+  return readCiPerfSnapshot(root);
+}
 
-  // Simulate a minimal set of extra metrics that are not yet captured
-  // by the UiPerfDomainState but must be present for full budget evaluation.
-  // In CI these default to 0 (no load). Regression tests should inject
-  // realistic values recorded from live sessions.
-  const extraMetrics: Record<string, number> = {
-    'event.queue.depth': 0,
-    'tool.executor.overhead.p95': 0,
-    'compaction.latency.p95': 0,
-    'slo.turn_start.p95': 0,
-    'slo.cancel.p95': 0,
-    'slo.reconnect_recovery.p95': 0,
-    'slo.permission_decision.p95': 0,
-    'slo.integration.delivery_success_rate': 1,
-    'slo.integration.dlq_depth': 0,
+function padColumn(value: string, width: number): string {
+  return value.length >= width ? value.slice(0, width) : value + ' '.repeat(width - value.length);
+}
+
+function formatMetricValue(value: number, unit: string): string {
+  if (unit === 'bytes') return `${(value / (1024 * 1024)).toFixed(1)} MiB/hr`;
+  if (unit === 'ms') return `${value.toFixed(2)} ms`;
+  if (unit === 'percent') return `${value.toFixed(1)}%`;
+  return `${value}`;
+}
+
+function formatAgentPerfReport(report: PerfReport): string {
+  const sdkReport = formatReport(report);
+  if (!sdkReport.includes('Infinity')) return sdkReport;
+
+  const budgetsByMetric = new Map(DEFAULT_BUDGETS.map((budget) => [budget.metric, budget]));
+  const violatedMetrics = new Set(report.violations.map((violation) => violation.budget.metric));
+  const horizontalRule = '-'.repeat(REPORT_COLUMNS.metric + REPORT_COLUMNS.actual + REPORT_COLUMNS.budget + REPORT_COLUMNS.status + 9);
+  const lines = [
+    '',
+    'Performance Budget Report',
+    new Date(report.timestamp).toISOString(),
+    horizontalRule,
+    [
+      padColumn('Metric', REPORT_COLUMNS.metric),
+      padColumn('Actual', REPORT_COLUMNS.actual),
+      padColumn('Budget', REPORT_COLUMNS.budget),
+      padColumn('Status', REPORT_COLUMNS.status),
+    ].join(' | '),
+    horizontalRule,
+  ];
+
+  for (const metric of report.metrics) {
+    const budget = budgetsByMetric.get(metric.name);
+    const unit = budget?.unit ?? metric.unit;
+    lines.push([
+      padColumn(metric.name, REPORT_COLUMNS.metric),
+      padColumn(formatMetricValue(metric.value, unit), REPORT_COLUMNS.actual),
+      padColumn(budget ? formatMetricValue(budget.threshold, unit) : 'missing', REPORT_COLUMNS.budget),
+      padColumn(violatedMetrics.has(metric.name) ? 'FAIL' : 'ok', REPORT_COLUMNS.status),
+    ].join(' | '));
+  }
+
+  lines.push(horizontalRule);
+  lines.push(report.passed
+    ? 'Result: PASSED - all budgets within tolerance'
+    : `Result: FAILED - ${report.violations.length} budget(s) exceeded tolerance`);
+  lines.push('');
+  return lines.join('\n');
+}
+
+export function applyAgentPerfBudgetPolicy(report: PerfReport): PerfReport {
+  const budgetsByMetric = new Map(DEFAULT_BUDGETS.map((budget) => [budget.metric, budget]));
+  const existingViolationMetrics = new Set(report.violations.map((violation) => violation.budget.metric));
+  const directionalViolations = report.metrics
+    .filter((metric) => LOWER_BOUND_METRIC_NAMES.has(metric.name))
+    .flatMap((metric) => {
+      if (existingViolationMetrics.has(metric.name)) return [];
+      const budget = budgetsByMetric.get(metric.name);
+      if (!budget || metric.value >= budget.threshold) return [];
+      return [{
+        budget,
+        actual: metric.value,
+        exceededBy: budget.threshold - metric.value,
+        consecutiveViolations: budget.tolerance,
+      }];
+    });
+
+  if (directionalViolations.length === 0) return report;
+  return {
+    ...report,
+    violations: [...report.violations, ...directionalViolations],
+    passed: false,
   };
-
-  return { surfacePerf, extraMetrics };
 }
 
 /**
@@ -61,12 +280,20 @@ function main(): void {
 
   // Run a single evaluation pass
   const report = monitor.evaluate(snapshot);
+  const agentReport = applyAgentPerfBudgetPolicy(report);
 
   // Print formatted table to stdout
-  process.stdout.write(formatReport(report));
+  process.stdout.write(formatAgentPerfReport(agentReport));
 
   // Exit with appropriate code for CI
-  process.exit(exitCode(report));
+  process.exit(exitCode(agentReport));
 }
 
-main();
+if (import.meta.main) {
+  try {
+    main();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+}

@@ -3,12 +3,13 @@ import { randomBytes } from 'node:crypto';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { type SessionMeta } from '@pellux/goodvibes-sdk/platform/sessions';
 import type { TranscriptEventKind } from '@pellux/goodvibes-sdk/platform/core';
-import type { ConversationTitleSource } from '../../core/conversation';
 import type { SessionReturnContextSummary } from '@/runtime/index.ts';
+import type { ConversationMessageSnapshot } from '../../core/conversation.ts';
 import { formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
 import { requireProviderApi, requireSessionManager } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
+import { readConversationMessageSnapshots } from '../../core/conversation-message-snapshot.ts';
 
 function parseTranscriptKind(raw: string | undefined): TranscriptEventKind | 'all' {
   const normalized = (raw ?? 'all').toLowerCase().replace(/-/g, '_');
@@ -32,6 +33,13 @@ function parseTranscriptKind(raw: string | undefined): TranscriptEventKind | 'al
   return allowed.has(normalized as TranscriptEventKind | 'all') ? (normalized as TranscriptEventKind | 'all') : 'all';
 }
 
+function formatSessionFailure(action: string, error: unknown): string {
+  return [
+    `Failed to ${action}`,
+    `  error ${summarizeError(error)}`,
+  ].join('\n');
+}
+
 function buildTranscriptReviewLines(
   ctx: CommandContext,
   kind: TranscriptEventKind | 'all',
@@ -43,8 +51,8 @@ function buildTranscriptReviewLines(
 
   if (mode === 'groups') {
     return [
-      `Transcript Groups${kind === 'all' ? '' : `: ${kind}`}`,
-      `  groups: ${groups.length}`,
+      `Transcript Groups${kind === 'all' ? '' : ` ${kind}`}`,
+      `  groups ${groups.length}`,
       ...groups.slice(0, 12).map((group) => (
         `  ${group.kind.padEnd(20)} ${String(group.events.length).padStart(2)} event(s)  msgs=${group.messageIndexes[0]}-${group.messageIndexes[group.messageIndexes.length - 1]}  ${group.title}`
       )),
@@ -72,8 +80,8 @@ function buildTranscriptReviewLines(
   }
 
   return [
-    `Transcript Events${kind === 'all' ? '' : `: ${kind}`}`,
-    `  events: ${events.length}`,
+    `Transcript Events${kind === 'all' ? '' : ` ${kind}`}`,
+    `  events ${events.length}`,
     ...events.slice(0, 16).map((event) => `  #${String(event.messageIndex).padStart(3)}  ${event.kind.padEnd(20)} ${event.title} — ${event.detail}`),
     ...(events.length > 16 ? [`  … ${events.length - 16} more event(s)`] : []),
   ];
@@ -98,7 +106,7 @@ function printSessionExport(
   ctx: { print: (text: string) => void },
   sessionId: string,
   title: string,
-  messages: Array<Record<string, unknown>>,
+  messages: readonly ConversationMessageSnapshot[],
   format: string,
 ): void {
   const lines: string[] = [];
@@ -106,21 +114,20 @@ function printSessionExport(
     lines.push(`# Session: ${title || sessionId}`);
     lines.push('');
     for (const msg of messages) {
-      const role = String(msg.role ?? 'unknown');
-      const content = String(msg.content ?? '');
+      const content = conversationMessageContentText(msg);
       if (!content.trim()) continue;
-      if (role === 'user') {
+      if (msg.role === 'user') {
         lines.push('## User');
         lines.push('');
         lines.push(content);
         lines.push('');
-      } else if (role === 'assistant') {
+      } else if (msg.role === 'assistant') {
         lines.push('## Assistant');
         lines.push('');
         lines.push(content);
         lines.push('');
-      } else if (role === 'tool') {
-        const toolName = String(msg.toolName ?? 'tool');
+      } else if (msg.role === 'tool') {
+        const toolName = msg.toolName ?? 'tool';
         lines.push(`## Tool Result: ${toolName}`);
         lines.push('');
         lines.push('```');
@@ -131,8 +138,8 @@ function printSessionExport(
     }
   } else {
     for (const msg of messages) {
-      const role = String(msg.role ?? 'unknown').toUpperCase();
-      const content = String(msg.content ?? '');
+      const role = msg.role.toUpperCase();
+      const content = conversationMessageContentText(msg);
       if (!content.trim()) continue;
       lines.push(`[${role}]`);
       lines.push(content);
@@ -140,6 +147,14 @@ function printSessionExport(
     }
   }
   ctx.print(lines.join('\n'));
+}
+
+function conversationMessageContentText(message: ConversationMessageSnapshot): string {
+  if (typeof message.content === 'string') return message.content;
+  return message.content.map((part) => {
+    if (part.type === 'text') return part.text;
+    return `[image: ${part.mediaType}]`;
+  }).join('\n');
 }
 
 export async function handleSessionWorkflowCommand(args: string[], ctx: CommandContext): Promise<boolean> {
@@ -154,11 +169,11 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
     const started = meta ? new Date(meta.timestamp).toLocaleString() : 'this session';
     ctx.print([
       'Current session',
-      `  ID:       ${id}`,
-      `  Name:     ${title}`,
-      `  Started:  ${started}`,
-      `  Messages: ${msgCount}`,
-      `  Model:    ${ctx.session.runtime.model} (${ctx.session.runtime.provider})`,
+      `  id ${id}`,
+      `  name ${title}`,
+      `  started ${started}`,
+      `  messages ${msgCount}`,
+      `  model ${ctx.session.runtime.model} (${ctx.session.runtime.provider})`,
     ].join('\n'));
     return true;
   }
@@ -169,7 +184,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       ctx.print('No saved sessions. Use /session save [name] to save the current session.');
       return true;
     }
-    const lines = ['Sessions (most recent first):', ''];
+    const lines = ['Sessions (most recent first)', ''];
     for (const session of sessions) {
       const date = new Date(session.timestamp).toLocaleString();
       const name = session.title || session.name;
@@ -178,12 +193,12 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       lines.push(`${active} ${session.name.padEnd(28)} ${name.slice(0, 22).padEnd(22)} ${date}  ${session.messageCount} msgs${model}`);
       if (session.returnContext?.activeTasks || session.returnContext?.blockedTasks || session.returnContext?.pendingApprovals || session.returnContext?.openPanels?.length) {
         const posture = [
-          session.returnContext.activeTasks ? `active=${session.returnContext.activeTasks}` : null,
-          session.returnContext.blockedTasks ? `blocked=${session.returnContext.blockedTasks}` : null,
-          session.returnContext.pendingApprovals ? `approvals=${session.returnContext.pendingApprovals}` : null,
-          session.returnContext.openPanels?.length ? `saved-panel-state-ignored=${session.returnContext.openPanels.slice(0, 3).join(',')}` : null,
+          session.returnContext.activeTasks ? `active ${session.returnContext.activeTasks}` : null,
+          session.returnContext.blockedTasks ? `blocked ${session.returnContext.blockedTasks}` : null,
+          session.returnContext.pendingApprovals ? `approvals ${session.returnContext.pendingApprovals}` : null,
+          session.returnContext.openPanels?.length ? `saved panels ignored ${session.returnContext.openPanels.slice(0, 3).join(',')}` : null,
         ].filter(Boolean).join('  ');
-        if (posture) lines.push(`     posture: ${posture}`);
+        if (posture) lines.push(`     posture ${posture}`);
       }
     }
     ctx.print(lines.join('\n'));
@@ -199,20 +214,23 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
     try {
       const existingMeta = sm.getMeta(ctx.session.runtime.sessionId);
       if (!existingMeta) {
-        const exportData = ctx.session.conversationManager.toJSON() as { messages: object[]; timestamp?: number };
-        sm.save(ctx.session.runtime.sessionId, exportData.messages ?? [], {
+        sm.save(ctx.session.runtime.sessionId, ctx.session.conversationManager.getMessageSnapshot(), {
           title: ctx.session.conversationManager.title || '',
           model: ctx.session.runtime.model,
           provider: ctx.session.runtime.provider,
           timestamp: Date.now(),
+          titleSource: ctx.session.conversationManager.getTitleSource(),
         });
       }
       sm.rename(ctx.session.runtime.sessionId, newName);
       ctx.session.conversationManager.title = newName;
-      ctx.print(`Session renamed to: ${newName}`);
+      ctx.print([
+        'Session renamed',
+        `  name ${newName}`,
+      ].join('\n'));
       ctx.renderRequest();
     } catch (e) {
-      ctx.print(`Failed to rename: ${summarizeError(e)}`);
+      ctx.print(formatSessionFailure('rename session', e));
     }
     return true;
   }
@@ -230,14 +248,14 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       session.title.toLowerCase() === target.toLowerCase(),
     );
     if (!found) {
-      ctx.print(`Session not found: ${target}\nUse /session list to see available sessions.`);
+      ctx.print(`Session not found ${target}\nUse /session list to see available sessions.`);
       return true;
     }
     try {
       const { meta, messages } = sm.load(found.name);
       const providerApi = requireProviderApi(ctx);
       ctx.session.conversationManager.resetAll();
-      ctx.session.conversationManager.fromJSON({ messages: messages as never[], title: meta.title, titleSource: meta.titleSource });
+      ctx.session.conversationManager.fromJSON({ messages: readConversationMessageSnapshots(messages), title: meta.title, titleSource: meta.titleSource });
       ctx.session.conversationManager.rebuildHistory();
       ctx.session.runtime.sessionId = found.name;
       if (meta.model) {
@@ -252,7 +270,13 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       }
       if (meta.provider) ctx.session.runtime.provider = meta.provider;
       ctx.renderRequest();
-      ctx.print(`Resumed session: ${found.name}\n  Name: ${meta.title || '(untitled)'}\n  Messages: ${messages.length}\n  Model: ${meta.model || ctx.session.runtime.model}`);
+      ctx.print([
+        'Resumed session',
+        `  id ${found.name}`,
+        `  name ${meta.title || '(untitled)'}`,
+        `  messages ${messages.length}`,
+        `  model ${meta.model || ctx.session.runtime.model}`,
+      ].join('\n'));
       printIgnoredPanelsFromReturnContext(ctx, meta.returnContext);
       const returnContextMode = getReturnContextMode(ctx.platform.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {
@@ -261,71 +285,78 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
           ctx.print(`  ${line}`);
         }
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
-          ctx.print('  Remote re-entry: handle remote build-host recovery outside Agent; delegate explicit build/fix/review recovery from Agent.');
+          ctx.print('  Remote re-entry. Handle remote build-host recovery outside Agent; delegate explicit build/fix/review recovery from Agent.');
         }
         if ((meta.returnContext.worktreePaths?.length ?? 0) > 0) {
-          ctx.print('  Worktree re-entry: open GoodVibes TUI in the target workspace; delegate explicit build/fix/review recovery from Agent.');
+          ctx.print('  Worktree re-entry. Open GoodVibes TUI in the target workspace; delegate explicit build/fix/review recovery from Agent.');
         }
         if (returnContextMode === 'assisted') {
           const helperModel = providerApi.createHelperModel(ctx.platform.configManager);
           void maybeAssistReturnContextSummary(ctx.platform.configManager, helperModel, meta.returnContext).then((assisted) => {
             if (!assisted.assistedNarrative) return;
-            ctx.print(`  Assist: ${assisted.assistedNarrative}`);
+            ctx.print(`  Assist ${assisted.assistedNarrative}`);
             ctx.renderRequest();
           });
         }
       }
     } catch (e) {
-      ctx.print(`Failed to resume session: ${summarizeError(e)}`);
+      ctx.print(formatSessionFailure('resume session', e));
     }
     return true;
   }
 
   if (sub === 'fork') {
+    const sourceSessionId = ctx.session.runtime.sessionId;
     const newId = `user-${randomBytes(4).toString('hex')}`;
-        const exportData = ctx.session.conversationManager.toJSON() as SessionExportData;
-        const messages = exportData.messages ?? [];
-        const currentTitle = ctx.session.conversationManager.title;
-        const forkName = args[1] ? args.slice(1).join(' ').trim() : `fork-of-${ctx.session.runtime.sessionId.slice(0, 8)}`;
-        const meta: SessionMeta = {
-          title: forkName,
-          model: ctx.session.runtime.model,
-          provider: ctx.session.runtime.provider,
+    const messages = ctx.session.conversationManager.getMessageSnapshot();
+    const currentTitle = ctx.session.conversationManager.title;
+    const forkName = args[1] ? args.slice(1).join(' ').trim() : `fork-of-${sourceSessionId.slice(0, 8)}`;
+    const meta: SessionMeta = {
+      title: forkName,
+      model: ctx.session.runtime.model,
+      provider: ctx.session.runtime.provider,
       timestamp: Date.now(),
-      titleSource: exportData.titleSource,
-      returnContext: exportData.returnContext,
+      titleSource: ctx.session.conversationManager.getTitleSource(),
     };
     try {
       sm.save(newId, messages, meta);
       ctx.session.runtime.sessionId = newId;
       ctx.session.conversationManager.title = forkName;
       ctx.renderRequest();
-      ctx.print(`Session forked:\n  New ID: ${newId}\n  Name:   ${forkName}\n  From:   ${currentTitle || ctx.session.runtime.sessionId}\n  Messages: ${messages.length}`);
+      ctx.print([
+        'Session forked',
+        `  id ${newId}`,
+        `  name ${forkName}`,
+        `  from ${currentTitle || sourceSessionId}`,
+        `  messages ${messages.length}`,
+      ].join('\n'));
     } catch (e) {
-      ctx.print(`Failed to fork session: ${summarizeError(e)}`);
+      ctx.print(formatSessionFailure('fork session', e));
     }
     return true;
   }
 
   if (sub === 'save') {
-        const exportData = ctx.session.conversationManager.toJSON() as SessionExportData;
-        const messages = exportData.messages ?? [];
-        const rawName = args[1] ? args.slice(1).join(' ').trim() : (ctx.session.conversationManager.title || ctx.session.runtime.sessionId);
-        const meta: SessionMeta = {
-          title: ctx.session.conversationManager.title,
-          model: ctx.session.runtime.model,
-          provider: ctx.session.runtime.provider,
+    const messages = ctx.session.conversationManager.getMessageSnapshot();
+    const rawName = args[1] ? args.slice(1).join(' ').trim() : (ctx.session.conversationManager.title || ctx.session.runtime.sessionId);
+    const meta: SessionMeta = {
+      title: ctx.session.conversationManager.title,
+      model: ctx.session.runtime.model,
+      provider: ctx.session.runtime.provider,
       timestamp: Date.now(),
-      titleSource: exportData.titleSource,
-      returnContext: exportData.returnContext,
+      titleSource: ctx.session.conversationManager.getTitleSource(),
     };
     try {
       const { filePath, sanitizedName } = sm.save(rawName, messages, meta);
       ctx.session.runtime.sessionId = sanitizedName;
-      const nameNote = sanitizedName !== rawName ? ` (saved as "${sanitizedName}")` : '';
-      ctx.print(`Session saved: ${rawName}${nameNote}\n  → ${filePath}`);
+      ctx.print([
+        'Session saved',
+        `  name ${rawName}`,
+        ...(sanitizedName !== rawName ? [`  saved as ${sanitizedName}`] : []),
+        `  path ${filePath}`,
+      ].join('\n'));
     } catch (e) {
-      ctx.print(`Failed to save session: ${summarizeError(e)}`);
+      ctx.print(formatSessionFailure('save session', e));
     }
     return true;
   }
@@ -335,18 +366,18 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
     const sessions = sm.list();
     const found = sessions.find((session) => session.name === target || session.name.startsWith(target));
     if (!found) {
-      ctx.print(`Session not found: ${target}`);
+      ctx.print(`Session not found ${target}`);
       return true;
     }
     const date = new Date(found.timestamp).toLocaleString();
     ctx.print([
-      `Session: ${found.name}`,
-      `  Title:    ${found.title || '(untitled)'}`,
-      `  Model:    ${found.model || '(unknown)'}`,
-      `  Provider: ${found.provider || '(unknown)'}`,
-      `  Date:     ${date}`,
-      `  Messages: ${found.messageCount}`,
-      `  File:     ${found.filePath}`,
+      `Session ${found.name}`,
+      `  title ${found.title || '(untitled)'}`,
+      `  model ${found.model || '(unknown)'}`,
+      `  provider ${found.provider || '(unknown)'}`,
+      `  date ${date}`,
+      `  messages ${found.messageCount}`,
+      `  file ${found.filePath}`,
       ...(found.returnContext ? formatAgentReturnContextForDisplay(found.returnContext).map((line) => `  ${line}`) : []),
     ].join('\n'));
     return true;
@@ -365,18 +396,18 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
     if (!found && target !== '.') {
       try {
         const { meta, messages } = sm.load(sessionId);
-        printSessionExport(ctx, sessionId, meta.title, messages as Array<Record<string, unknown>>, format);
+        printSessionExport(ctx, sessionId, meta.title, readConversationMessageSnapshots(messages), format);
       } catch {
-        ctx.print(`Session not found: ${sessionId}`);
+        ctx.print(`Session not found ${sessionId}`);
       }
       return true;
     }
     const loadName = found ? found.name : sessionId;
     try {
       const { meta, messages } = sm.load(loadName);
-      printSessionExport(ctx, loadName, meta.title, messages as Array<Record<string, unknown>>, format);
+      printSessionExport(ctx, loadName, meta.title, readConversationMessageSnapshots(messages), format);
     } catch (e) {
-      ctx.print(`Failed to export session: ${summarizeError(e)}`);
+      ctx.print(formatSessionFailure('export session', e));
     }
     return true;
   }
@@ -389,10 +420,10 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
     }
     const results = sm.search(query);
     if (results.length === 0) {
-      ctx.print(`No sessions found matching: "${query}"`);
+      ctx.print(`No sessions found matching "${query}"`);
       return true;
     }
-    const lines = [`Search results for "${query}" (${results.length} session${results.length !== 1 ? 's' : ''}):\n`];
+    const lines = [`Search results for "${query}" (${results.length} session${results.length !== 1 ? 's' : ''})\n`];
     for (const result of results) {
       const date = new Date(result.session.timestamp).toLocaleString();
       lines.push(`  ${result.session.name}  ${result.session.title || '(untitled)'}  ${date}  (${result.matchCount} match${result.matchCount !== 1 ? 'es' : ''})`);
@@ -425,7 +456,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
     const sessions = sm.list();
     const found = sessions.find((session) => session.name === target || session.name.startsWith(target));
     if (!found) {
-      ctx.print(`Session not found: ${target}`);
+      ctx.print(`Session not found ${target}`);
       return true;
     }
     if (found.name === ctx.session.runtime.sessionId) {
@@ -434,9 +465,13 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
     }
     try {
       sm.delete(found.name);
-      ctx.print(`Session deleted: ${found.name}${found.title ? ` (${found.title})` : ''}`);
+      ctx.print([
+        'Session deleted',
+        `  id ${found.name}`,
+        ...(found.title ? [`  title ${found.title}`] : []),
+      ].join('\n'));
     } catch (e) {
-      ctx.print(`Failed to delete session: ${summarizeError(e)}`);
+      ctx.print(formatSessionFailure('delete session', e));
     }
     return true;
   }
@@ -454,14 +489,12 @@ export function registerSessionWorkflowCommands(registry: CommandRegistry): void
     async handler(args, ctx) {
       const handled = await handleSessionWorkflowCommand(args, ctx);
       if (!handled) {
-        ctx.print('Unknown subcommand: ' + (args[0] ?? '') + '\nUsage: /session [list | rename <name> | resume <id> | fork [name] | save [name] | info [id] | events [kind] | groups [kind] | hotspots | export <id> [format] | search <query> | delete <id> --yes]');
+        ctx.print([
+          'Unknown session subcommand',
+          `  subcommand ${args[0] ?? ''}`,
+          'Usage: /session [list | rename <name> | resume <id> | fork [name] | save [name] | info [id] | events [kind] | groups [kind] | hotspots | export <id> [format] | search <query> | delete <id> --yes]',
+        ].join('\n'));
       }
     },
   });
-}
-interface SessionExportData {
-  readonly messages: object[];
-  readonly timestamp?: number;
-  readonly titleSource?: ConversationTitleSource;
-  readonly returnContext?: SessionReturnContextSummary;
 }
