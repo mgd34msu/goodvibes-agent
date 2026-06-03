@@ -43,16 +43,16 @@ export function handlePanelFocusToken(state: PanelFocusRouteState, token: InputT
     !state.searchActive &&
     !state.autocompleteActive
   ) {
-    const pm = state.panelManager;
-    if (pm.isVisible() && pm.getAllOpen().length > 0) {
-      if (panelFocused) {
-        panelFocused = false;
-      } else if (!state.handlePathCompletion()) {
-        panelFocused = true;
-      }
+    if (panelFocused) {
+      panelFocused = false;
       state.requestRender();
       return { handled: true, panelFocused };
     }
+    if (state.handlePathCompletion()) {
+      state.requestRender();
+      return { handled: true, panelFocused };
+    }
+    return { handled: false, panelFocused };
   }
 
   if (!panelFocused) {
