@@ -255,6 +255,79 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     render();
   };
 
+  commandContext.openConversationSearch = (query?: string) => {
+    input.searchManager.open();
+    const searchQuery = query?.trim() ?? '';
+    if (searchQuery.length > 0) {
+      input.searchManager.search(searchQuery, input.getHistory());
+    }
+    render();
+  };
+
+  commandContext.openPromptHistorySearch = (query?: string) => {
+    input.historySearch.open(input.prompt);
+    const searchQuery = query?.trim() ?? '';
+    if (searchQuery.length > 0) {
+      input.historySearch.search(searchQuery);
+    }
+    render();
+  };
+
+  commandContext.openSlashCommandMode = (query?: string): boolean => {
+    const normalizedQuery = query?.trim().replace(/^\/+/, '') ?? '';
+    if (input.prompt.length > 0 && !input.prompt.startsWith('/')) {
+      return false;
+    }
+
+    input.modalOpened('command');
+    input.commandMode = true;
+    if (input.prompt.length === 0 || !input.prompt.startsWith('/') || normalizedQuery.length > 0) {
+      input.saveUndoState();
+      input.prompt = `/${normalizedQuery}`;
+      input.cursorPos = input.prompt.length;
+    }
+
+    const commandQuery = input.prompt.startsWith('/') ? input.prompt.slice(1) : '';
+    const hasArgs = commandQuery.includes(' ');
+    if (hasArgs) input.autocomplete?.reset();
+    else input.autocomplete?.update(commandQuery);
+    input.ensureInputCursorVisible();
+    input.syncFeedContextMutableFields();
+    render();
+    return true;
+  };
+
+  commandContext.openFilePicker = (options): boolean => {
+    const injectMode = Boolean(options?.injectMode);
+    const query = options?.query?.trim() ?? '';
+    const marker = `${injectMode ? '!@' : '@'}${query}`;
+    const insertPos = input.cursorPos;
+    input.saveUndoState();
+    input.prompt = input.prompt.slice(0, insertPos) + marker + input.prompt.slice(insertPos);
+    input.cursorPos = insertPos + marker.length;
+    input.modalOpened('filePicker');
+    input.filePicker.open(insertPos, injectMode);
+    if (query.length > 0) input.filePicker.setQuery(query);
+    input.ensureInputCursorVisible();
+    input.syncFeedContextMutableFields();
+    render();
+    return true;
+  };
+
+  commandContext.openBlockActions = (): boolean => {
+    if (input.prompt.trim().length > 0 || input.commandMode) {
+      return false;
+    }
+    const nearest = conversation.findNearestBlock(input.getScrollTop());
+    if (!nearest) {
+      return false;
+    }
+    input.modalOpened('blockActions');
+    input.blockActionsMenu.open(nearest);
+    render();
+    return true;
+  };
+
   commandContext.openHelpOverlay = () => {
     if (!input.helpOverlayActive) input.modalOpened('help');
     input.helpOverlayActive = !input.helpOverlayActive;

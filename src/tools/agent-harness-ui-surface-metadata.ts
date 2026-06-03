@@ -82,6 +82,19 @@ function optionalPane(args: AgentHarnessUiSurfaceArgs): 'top' | 'bottom' | undef
   return pane === 'top' || pane === 'bottom' ? pane : undefined;
 }
 
+function surfaceInputText(args: AgentHarnessUiSurfaceArgs): string | undefined {
+  return readString(args.prefix || args.key || (args.surfaceId ? args.query : undefined) || args.target) || undefined;
+}
+
+function filePickerOptions(args: AgentHarnessUiSurfaceArgs): { injectMode: boolean; query?: string } {
+  const target = readString(args.target).toLowerCase();
+  const injectMode = target === 'inject' || target === 'inject-mode' || target === '!@';
+  return {
+    injectMode,
+    query: readString(args.prefix || args.key || (args.surfaceId ? args.query : undefined)) || undefined,
+  };
+}
+
 function openAgentWorkspaceCategory(
   context: CommandContext,
   surface: UiSurfaceDefinition,
@@ -406,6 +419,106 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
       if (!context.openProcessModal) return routeUnavailable(surface);
       context.openProcessModal();
       return opened(surface);
+    },
+  },
+  {
+    id: 'conversation-search',
+    label: 'Conversation Search',
+    kind: 'overlay',
+    summary: 'Visible transcript search overlay opened by the same shell route as Ctrl+F.',
+    command: 'Ctrl+F',
+    preferredModelRoute: 'Use conversation/session/content modes for model-readable inspection; use this surface for visible transcript search navigation.',
+    parameters: ['query', 'prefix', 'key'],
+    available: (context) => typeof context.openConversationSearch === 'function',
+    open: (context, args) => {
+      const surface = findSurfaceById('conversation-search')!;
+      if (!context.openConversationSearch) return routeUnavailable(surface);
+      const query = surfaceInputText(args);
+      context.openConversationSearch(query);
+      return opened(surface, { query: query ?? '' });
+    },
+  },
+  {
+    id: 'prompt-history-search',
+    label: 'Prompt History Search',
+    kind: 'overlay',
+    summary: 'Visible reverse prompt-history search opened by the same shell route as Ctrl+R.',
+    command: 'Ctrl+R',
+    preferredModelRoute: 'Use this only for visible prompt recall; accepting a result remains an explicit interactive shell action.',
+    parameters: ['query', 'prefix', 'key'],
+    available: (context) => typeof context.openPromptHistorySearch === 'function',
+    open: (context, args) => {
+      const surface = findSurfaceById('prompt-history-search')!;
+      if (!context.openPromptHistorySearch) return routeUnavailable(surface);
+      const query = surfaceInputText(args);
+      context.openPromptHistorySearch(query);
+      return opened(surface, { query: query ?? '' });
+    },
+  },
+  {
+    id: 'slash-command-mode',
+    label: 'Slash Command Mode',
+    kind: 'overlay',
+    summary: 'Slash-command autocomplete route opened by the same shell path as typing / in an empty prompt.',
+    command: '/',
+    preferredModelRoute: 'Use commands/command for model-readable command discovery and run_command for confirmed command execution.',
+    parameters: ['query', 'prefix', 'key'],
+    available: (context) => typeof context.openSlashCommandMode === 'function',
+    open: (context, args) => {
+      const surface = findSurfaceById('slash-command-mode')!;
+      if (!context.openSlashCommandMode) return routeUnavailable(surface);
+      const query = surfaceInputText(args);
+      const openedCommandMode = context.openSlashCommandMode(query);
+      return openedCommandMode
+        ? opened(surface, { query: query ?? '' })
+        : {
+          status: 'not_opened',
+          surface: surface.id,
+          kind: surface.kind,
+          query: query ?? '',
+          note: 'The current prompt contains a non-command draft, so the shell opener refused to replace it.',
+        };
+    },
+  },
+  {
+    id: 'file-picker',
+    label: 'File Picker',
+    kind: 'picker',
+    summary: 'Visible project file picker opened by the same prompt route as @ and !@ references.',
+    command: '@',
+    preferredModelRoute: 'Use first-class file, workspace, or artifact tools for model operation; use this for visible file reference navigation.',
+    parameters: ['target=reference|inject', 'query', 'prefix', 'key'],
+    available: (context) => typeof context.openFilePicker === 'function',
+    open: (context, args) => {
+      const surface = findSurfaceById('file-picker')!;
+      if (!context.openFilePicker) return routeUnavailable(surface);
+      const options = filePickerOptions(args);
+      const openedFilePicker = context.openFilePicker(options);
+      return openedFilePicker
+        ? opened(surface, { mode: options.injectMode ? 'inject' : 'reference', query: options.query ?? '' })
+        : routeUnavailable(surface);
+    },
+  },
+  {
+    id: 'block-actions',
+    label: 'Block Actions',
+    kind: 'overlay',
+    summary: 'Visible nearest-block action menu opened by the same shell route as pressing Enter on an empty prompt near transcript content.',
+    command: 'Enter on empty prompt',
+    preferredModelRoute: 'Use conversation/session/content modes or confirmed slash-command mirrors for concrete block operations; use this surface for visible block-action navigation.',
+    available: (context) => typeof context.openBlockActions === 'function',
+    open: (context) => {
+      const surface = findSurfaceById('block-actions')!;
+      if (!context.openBlockActions) return routeUnavailable(surface);
+      const openedBlockActions = context.openBlockActions();
+      return openedBlockActions
+        ? opened(surface)
+        : {
+          status: 'not_opened',
+          surface: surface.id,
+          kind: surface.kind,
+          note: 'The shell opener requires an empty prompt and a nearby rendered conversation block.',
+        };
     },
   },
   {

@@ -93,6 +93,11 @@ export interface CommandShellUiOpeners {
   openContextInspector?: () => void;
   openBookmarkModal?: () => void;
   openProcessModal?: () => void;
+  openConversationSearch?: (query?: string) => void;
+  openPromptHistorySearch?: (query?: string) => void;
+  openSlashCommandMode?: (query?: string) => boolean;
+  openFilePicker?: (options?: { injectMode?: boolean; query?: string }) => boolean;
+  openBlockActions?: () => boolean;
   jumpToBookmark?: (key: string) => void;
   scrollToLine?: (line: number) => void;
   openHelpOverlay?: () => void;

@@ -184,6 +184,27 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     openProcessModal: () => {
       openedSurfaces.push({ id: 'process-monitor' });
     },
+    openConversationSearch: (query?: string) => {
+      openedSurfaces.push({ id: 'conversation-search', detail: query });
+    },
+    openPromptHistorySearch: (query?: string) => {
+      openedSurfaces.push({ id: 'prompt-history-search', detail: query });
+    },
+    openSlashCommandMode: (query?: string) => {
+      openedSurfaces.push({ id: 'slash-command-mode', detail: query });
+      return true;
+    },
+    openFilePicker: (options?: { injectMode?: boolean; query?: string }) => {
+      openedSurfaces.push({
+        id: 'file-picker',
+        detail: `${options?.injectMode ? 'inject' : 'reference'}:${options?.query ?? ''}`,
+      });
+      return true;
+    },
+    openBlockActions: () => {
+      openedSurfaces.push({ id: 'block-actions' });
+      return true;
+    },
     openContextInspector: () => {
       openedSurfaces.push({ id: 'context-inspector' });
     },
@@ -445,7 +466,21 @@ describe('agent_harness tool', () => {
       expect(catalog.output).toContain('"id": "provider-picker"');
       expect(catalog.output).toContain('"id": "tts-provider-picker"');
       expect(catalog.output).toContain('"id": "tts-voice-picker"');
+      expect(catalog.output).toContain('"id": "file-picker"');
       expect(catalog.output).toContain('preferredModelRoute');
+
+      const searchSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'search' });
+      expect(searchSurfaces.success).toBe(true);
+      expect(searchSurfaces.output).toContain('"id": "conversation-search"');
+      expect(searchSurfaces.output).toContain('"id": "prompt-history-search"');
+
+      const commandSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'slash-command' });
+      expect(commandSurfaces.success).toBe(true);
+      expect(commandSurfaces.output).toContain('"id": "slash-command-mode"');
+
+      const blockSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'block action' });
+      expect(blockSurfaces.success).toBe(true);
+      expect(blockSurfaces.output).toContain('"id": "block-actions"');
 
       const operatorSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'operator' });
       expect(operatorSurfaces.success).toBe(true);
@@ -540,6 +575,61 @@ describe('agent_harness tool', () => {
       expect(openedProcessMonitor.success).toBe(true);
       expect(openedProcessMonitor.output).toContain('"status": "opened"');
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'process-monitor' });
+
+      const openedConversationSearch = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'conversation-search',
+        query: 'approval',
+        confirm: true,
+        explicitUserRequest: 'Open transcript search for approval.',
+      });
+      expect(openedConversationSearch.success).toBe(true);
+      expect(openedConversationSearch.output).toContain('"query": "approval"');
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'conversation-search', detail: 'approval' });
+
+      const openedPromptHistorySearch = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'prompt-history-search',
+        query: 'deploy',
+        confirm: true,
+        explicitUserRequest: 'Open prompt history search for deploy.',
+      });
+      expect(openedPromptHistorySearch.success).toBe(true);
+      expect(openedPromptHistorySearch.output).toContain('"query": "deploy"');
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'prompt-history-search', detail: 'deploy' });
+
+      const openedSlashCommandMode = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'slash-command-mode',
+        query: 'help',
+        confirm: true,
+        explicitUserRequest: 'Open slash command mode for help.',
+      });
+      expect(openedSlashCommandMode.success).toBe(true);
+      expect(openedSlashCommandMode.output).toContain('"query": "help"');
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'slash-command-mode', detail: 'help' });
+
+      const openedFilePicker = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'file-picker',
+        target: 'inject',
+        query: 'src',
+        confirm: true,
+        explicitUserRequest: 'Open the file picker for raw source injection.',
+      });
+      expect(openedFilePicker.success).toBe(true);
+      expect(openedFilePicker.output).toContain('"mode": "inject"');
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'file-picker', detail: 'inject:src' });
+
+      const openedBlockActions = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'block-actions',
+        confirm: true,
+        explicitUserRequest: 'Open block actions for the nearest transcript block.',
+      });
+      expect(openedBlockActions.success).toBe(true);
+      expect(openedBlockActions.output).toContain('"surface": "block-actions"');
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'block-actions' });
 
       fixture.configManager.setDynamic('tts.provider', 'stream-voice');
       fixture.configManager.setDynamic('tts.voice', '');
