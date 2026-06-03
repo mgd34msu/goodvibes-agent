@@ -14,6 +14,10 @@ function readArgValue(args: readonly string[], flag: string): string | undefined
 }
 
 const args = process.argv.slice(2);
+const connectedHostBaseUrl = readArgValue(args, '--connected-host-url')
+  ?? readArgValue(args, '--runtime-url')
+  ?? readArgValue(args, '--daemon-url');
+
 if (args.includes('--help') || args.includes('-h')) {
   console.log([
     'Usage: bun run scripts/verify-live.ts [options]',
@@ -21,7 +25,9 @@ if (args.includes('--help') || args.includes('-h')) {
     'Options:',
     '  --home <path>        GoodVibes home directory. Defaults to ~/.goodvibes.',
     '  --binary <path>      Compiled goodvibes-agent binary. Defaults to dist/goodvibes-agent.',
-    '  --daemon-url <url>   Daemon base URL. Defaults to configured control-plane port on 127.0.0.1.',
+    '  --connected-host-url <url>',
+    '                      Connected host base URL. Defaults to configured control-plane port on 127.0.0.1.',
+    '  --runtime-url <url> Alias for --connected-host-url.',
     '  --strict            Treat warnings as failures.',
     '  --json              Print JSON instead of Markdown.',
     '  --out <dir>         Write live-verification.{json,md} to a directory.',
@@ -34,7 +40,7 @@ const report = await buildLiveVerificationReport({
   homeDir: readArgValue(args, '--home') ?? process.env.GOODVIBES_HOME ?? join(homedir(), '.goodvibes'),
   binaryPath: readArgValue(args, '--binary') ?? join(resolve(join(import.meta.dir, '..')), 'dist', 'goodvibes-agent'),
   projectRoot: resolve(join(import.meta.dir, '..')),
-  daemonBaseUrl: readArgValue(args, '--daemon-url'),
+  connectedHostBaseUrl,
   strict: args.includes('--strict'),
 });
 

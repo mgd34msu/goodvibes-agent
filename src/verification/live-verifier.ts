@@ -24,7 +24,7 @@ export interface LiveVerificationOptions {
   homeDir: string;
   binaryPath: string;
   projectRoot: string;
-  daemonBaseUrl?: string;
+  connectedHostBaseUrl?: string;
   token?: string;
   strict?: boolean;
 }
@@ -33,7 +33,7 @@ export interface LiveVerificationReport {
   generatedAt: string;
   homeDir: string;
   binaryPath: string;
-  daemonBaseUrl: string;
+  connectedHostBaseUrl: string;
   strict: boolean;
   checks: LiveVerificationCheck[];
   counts: Record<LiveVerificationStatus, number>;
@@ -63,7 +63,8 @@ function compact(text: string, maxLength = 900): string {
   return `${trimmed.slice(0, maxLength - 16)}... [truncated]`;
 }
 
-function readDaemonToken(homeDir: string): string | undefined {
+function readConnectedHostToken(homeDir: string): string | undefined {
+  if (process.env.GOODVIBES_CONNECTED_HOST_TOKEN) return process.env.GOODVIBES_CONNECTED_HOST_TOKEN;
   if (process.env.GOODVIBES_DAEMON_TOKEN) return process.env.GOODVIBES_DAEMON_TOKEN;
   const tokenPath = join(homeDir, 'daemon', 'operator-tokens.json');
   if (!existsSync(tokenPath)) return undefined;
@@ -78,8 +79,10 @@ function readDaemonToken(homeDir: string): string | undefined {
   return undefined;
 }
 
-function resolveDaemonBaseUrl(homeDir: string, explicit?: string): string {
+function resolveConnectedHostBaseUrl(homeDir: string, explicit?: string): string {
   if (explicit) return explicit.replace(/\/+$/, '');
+  if (process.env.GOODVIBES_CONNECTED_HOST_URL) return process.env.GOODVIBES_CONNECTED_HOST_URL.replace(/\/+$/, '');
+  if (process.env.GOODVIBES_AGENT_RUNTIME_URL) return process.env.GOODVIBES_AGENT_RUNTIME_URL.replace(/\/+$/, '');
   if (process.env.GOODVIBES_DAEMON_URL) return process.env.GOODVIBES_DAEMON_URL.replace(/\/+$/, '');
   const settingsPath = join(homeDir, 'tui', 'settings.json');
   let port = 3421;
@@ -280,18 +283,18 @@ function countStatuses(checks: readonly LiveVerificationCheck[]): Record<LiveVer
 export function buildAgentKnowledgeLiveSkipCheck(
   id: string,
   title: string,
-  daemonVersion: string,
+  connectedHostVersion: string,
   expectedSdkVersion = SDK_VERSION,
 ): LiveVerificationCheck {
   return {
     id,
     title,
     status: 'skip',
-    summary: `Skipped because GoodVibes runtime SDK ${daemonVersion} does not match Agent SDK pin ${expectedSdkVersion}.`,
+    summary: `Skipped because connected host SDK ${connectedHostVersion} does not match Agent SDK pin ${expectedSdkVersion}.`,
     detail: [
       'Agent Knowledge is intentionally isolated under /api/goodvibes-agent/knowledge/*.',
       'An older connected host cannot validate those routes, and Agent must not fall back to default Knowledge/Wiki or non-Agent knowledge segments.',
-      'Update/restart the GoodVibes runtime, then rerun live verification.',
+      'Update the connected GoodVibes host, then rerun live verification.',
     ].join('\n'),
   };
 }
@@ -300,10 +303,10 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
   const homeDir = resolve(options.homeDir);
   const projectRoot = resolve(options.projectRoot);
   const binaryPath = resolve(options.binaryPath);
-  const daemonBaseUrl = resolveDaemonBaseUrl(homeDir, options.daemonBaseUrl);
-  const token = options.token ?? readDaemonToken(homeDir);
+  const connectedHostBaseUrl = resolveConnectedHostBaseUrl(homeDir, options.connectedHostBaseUrl);
+  const token = options.token ?? readConnectedHostToken(homeDir);
   const checks: LiveVerificationCheck[] = [];
-  let daemonSdkVersion: string | null = null;
+  let connectedHostSdkVersion: string | null = null;
 
   const ledger = buildVerificationLedger(projectRoot);
   checks.push({
@@ -393,9 +396,9 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
   }
 
   checks.push(await fetchCheck(
-    'daemon-status',
+    'connected-host-status',
     'Authenticated connected-host /status',
-    `${daemonBaseUrl}/status`,
+    `${connectedHostBaseUrl}/status`,
     token,
     (status, body) => {
       if (status !== 200) return { status: 'fail', summary: `/status returned ${status}.` };
@@ -404,7 +407,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
         const version = typeof parsed.sdkVersion === 'string'
           ? parsed.sdkVersion
           : typeof parsed.version === 'string' ? parsed.version : 'unknown';
-        daemonSdkVersion = version;
+        connectedHostSdkVersion = version;
         return { status: 'pass', summary: `/status returned 200, version ${version}.` };
       } catch {
         return { status: 'warn', summary: '/status returned 200 but was not parseable JSON.' };
@@ -413,9 +416,9 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
   ));
 
   checks.push(await fetchCheck(
-    'daemon-health',
+    'connected-host-health',
     'Authenticated connected-host /api/health',
-    `${daemonBaseUrl}/api/health`,
+    `${connectedHostBaseUrl}/api/health`,
     token,
     (status, body) => {
       if (status !== 200) return { status: 'fail', summary: `/api/health returned ${status}.` };
@@ -434,7 +437,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
   checks.push(await fetchCheck(
     'openai-compatible-models',
     'OpenAI-compatible /v1/models route',
-    `${daemonBaseUrl}/v1/models`,
+    `${connectedHostBaseUrl}/v1/models`,
     token,
     (status, body) => {
       if (status !== 200) return { status: 'fail', summary: `/v1/models returned ${status}.` };
@@ -451,19 +454,19 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     },
   ));
 
-  const daemonVersionMismatch = daemonSdkVersion !== null && daemonSdkVersion !== 'unknown' && daemonSdkVersion !== SDK_VERSION;
-  if (daemonVersionMismatch) {
-    const mismatchedDaemonVersion = daemonSdkVersion ?? 'unknown';
+  const connectedHostVersionMismatch = connectedHostSdkVersion !== null && connectedHostSdkVersion !== 'unknown' && connectedHostSdkVersion !== SDK_VERSION;
+  if (connectedHostVersionMismatch) {
+    const mismatchedConnectedHostVersion = connectedHostSdkVersion ?? 'unknown';
     checks.push(
-      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-status', 'Agent Knowledge isolated /status', mismatchedDaemonVersion),
-      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-ask-isolated', 'Agent Knowledge isolated ask', mismatchedDaemonVersion),
-      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-search-isolated', 'Agent Knowledge isolated search', mismatchedDaemonVersion),
+      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-status', 'Agent Knowledge isolated /status', mismatchedConnectedHostVersion),
+      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-ask-isolated', 'Agent Knowledge isolated ask', mismatchedConnectedHostVersion),
+      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-search-isolated', 'Agent Knowledge isolated search', mismatchedConnectedHostVersion),
     );
   } else {
     checks.push(await fetchJsonCheck(
       'agent-knowledge-status',
       'Agent Knowledge isolated /status',
-      `${daemonBaseUrl}/api/goodvibes-agent/knowledge/status`,
+      `${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/status`,
       token,
       {
         validate: (status, body) => {
@@ -481,7 +484,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     checks.push(await fetchJsonCheck(
       'agent-knowledge-ask-isolated',
       'Agent Knowledge isolated ask',
-      `${daemonBaseUrl}/api/goodvibes-agent/knowledge/ask`,
+      `${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/ask`,
       token,
       {
         method: 'POST',
@@ -512,7 +515,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     checks.push(await fetchJsonCheck(
       'agent-knowledge-search-isolated',
       'Agent Knowledge isolated search',
-      `${daemonBaseUrl}/api/goodvibes-agent/knowledge/search`,
+      `${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/search`,
       token,
       {
         method: 'POST',
@@ -540,7 +543,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     generatedAt: new Date().toISOString(),
     homeDir,
     binaryPath,
-    daemonBaseUrl,
+    connectedHostBaseUrl,
     strict: options.strict ?? false,
     checks,
     counts,
@@ -555,7 +558,7 @@ export function renderLiveVerificationReportMarkdown(report: LiveVerificationRep
     `Generated: ${report.generatedAt}`,
     `Home: \`${report.homeDir}\``,
     `Binary: \`${report.binaryPath}\``,
-    `Connected host: \`${report.daemonBaseUrl}\``,
+    `Connected host: \`${report.connectedHostBaseUrl}\``,
     '',
     '| Status | Count |',
     '|---|---:|',
