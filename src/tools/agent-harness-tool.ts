@@ -19,7 +19,7 @@ import type {
 import { parseSlashCommand } from '../input/slash-command-parser.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
 import { describeHarnessCommand, listHarnessCommands } from './agent-harness-command-catalog.ts';
-import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
+import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, runHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
 import { describeLocalWorkspaceModelExecution, runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-harness-local-operations.ts';
@@ -564,7 +564,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
       description: [
         'Discover and operate the GoodVibes Agent harness from the main conversation.',
         'Use this tool to inspect Agent workspace actions, built-in panels, top-level CLI mirrors, UI surfaces, keybindings, slash commands with policy metadata, model tools or one model tool schema, connected-host capabilities or one connected-host capability detail, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
-        'Discovery modes are read-only. Setting/keybinding writes, resets, UI routing, slash command invocation, and workspace action invocation require confirm:true plus explicitUserRequest.',
+        'Discovery modes are read-only. Setting/keybinding writes, resets, keybinding actions, UI routing, slash command invocation, and workspace action invocation require confirm:true plus explicitUserRequest.',
         'This tool preserves Agent product boundaries: connected-host lifecycle and listener posture stay externally owned, connected-host mode reports allowed and blocked route families, and secret-backed settings store raw values through the secret manager while config receives only a secret reference.',
       ].join(' '),
       parameters: {
@@ -597,7 +597,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               cliCommands: 'Use mode:"cli_commands" to list and mode:"cli_command" with cliCommand, command, commandName, target, or query to inspect package CLI mirrors and their preferred in-process model routes. CLI modes are discovery-only.',
               panels: 'Use mode:"panels" to list and mode:"panel" with panelId, target, or query to inspect built-in panel catalog/open state; use mode:"open_panel" with confirm:true plus explicitUserRequest to route a visible panel/workspace change.',
               uiSurfaces: 'Use mode:"ui_surfaces" to list and mode:"ui_surface" with surfaceId, target, or query to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
-              shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"keybinding" with actionId, target, key, or query; use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
+              shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"keybinding" with actionId, target, key, or query; use mode:"run_keybinding" for confirmation-gated shell-safe shortcut equivalents; use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
               slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
               workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" with actionId, command, target, or query for one action and editor schema; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings" to list and mode:"get_setting" with key, target, or query for one setting. Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest.',
@@ -661,13 +661,15 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'set_keybinding') {
           const confirmationError = requireConfirmedAction(args, 'Keybinding mutation');
-          if (confirmationError) return error(confirmationError);
-          return output(setHarnessKeybinding(deps.commandContext, args));
+          return confirmationError ? error(confirmationError) : output(setHarnessKeybinding(deps.commandContext, args));
         }
         if (args.mode === 'reset_keybinding') {
           const confirmationError = requireConfirmedAction(args, 'Keybinding reset');
-          if (confirmationError) return error(confirmationError);
-          return output(resetHarnessKeybinding(deps.commandContext, args));
+          return confirmationError ? error(confirmationError) : output(resetHarnessKeybinding(deps.commandContext, args));
+        }
+        if (args.mode === 'run_keybinding') {
+          const confirmationError = requireConfirmedAction(args, 'Keybinding action');
+          return confirmationError ? error(confirmationError) : output(runHarnessKeybinding(deps.commandContext, args));
         }
         if (args.mode === 'commands') {
           const commands = listHarnessCommands(deps.commandRegistry, args);

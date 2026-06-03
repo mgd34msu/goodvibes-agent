@@ -32,6 +32,25 @@ interface HarnessKeybindingArgs {
   readonly limit?: unknown;
 }
 
+type KeybindingOperationEffect =
+  | 'shell-action'
+  | 'visible-ui-navigation'
+  | 'visible-ui-interaction'
+  | 'prompt-editor-state'
+  | 'clipboard-selection'
+  | 'reserved'
+  | 'disabled';
+
+interface KeybindingOperationRoute {
+  readonly supported: boolean;
+  readonly effect: KeybindingOperationEffect;
+  readonly confirmation: string;
+  readonly preferredMode?: 'run_keybinding' | 'open_ui_surface' | 'run_command' | 'direct-user-interaction';
+  readonly surfaceId?: string;
+  readonly command?: string;
+  readonly note: string;
+}
+
 type KeybindingsOverrideFile = Record<string, unknown>;
 
 interface KeybindingLookup {
@@ -214,7 +233,132 @@ function describeBinding(manager: KeybindingsManager, action: KeyAction, combos:
     defaultBindings: defaults.map((combo) => describeCombo(manager, combo)),
     customized,
     source: customized ? 'custom' : 'default',
+    modelOperation: keybindingOperationRoute(action),
   };
+}
+
+function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
+  switch (action) {
+    case 'clear-cancel':
+      return {
+        supported: true,
+        effect: 'shell-action',
+        preferredMode: 'run_keybinding',
+        confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
+        note: 'Routes the cancel-generation side of this shortcut through commandContext.cancelGeneration. Prompt clearing and double-press exit remain direct user interaction.',
+      };
+    case 'screen-clear':
+      return {
+        supported: true,
+        effect: 'shell-action',
+        preferredMode: 'run_keybinding',
+        confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
+        note: 'Routes through commandContext.clearScreen.',
+      };
+    case 'panel-picker':
+      return {
+        supported: true,
+        effect: 'visible-ui-navigation',
+        preferredMode: 'run_keybinding',
+        surfaceId: 'agent-workspace',
+        confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
+        note: 'Opens the same Agent workspace home route as the panel-picker shortcut.',
+      };
+    case 'panel-close':
+      return {
+        supported: true,
+        effect: 'visible-ui-navigation',
+        preferredMode: 'run_keybinding',
+        confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
+        note: 'Closes the active legacy panel if present, then focuses the prompt when the shell bridge exposes focusPrompt.',
+      };
+    case 'panel-close-all':
+      return {
+        supported: true,
+        effect: 'visible-ui-navigation',
+        preferredMode: 'run_keybinding',
+        confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
+        note: 'Closes all legacy panels if present, hides the panel manager, then focuses the prompt when the shell bridge exposes focusPrompt.',
+      };
+    case 'history-search':
+      return {
+        supported: true,
+        effect: 'visible-ui-navigation',
+        preferredMode: 'run_keybinding',
+        surfaceId: 'prompt-history-search',
+        confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
+        note: 'Opens the visible prompt-history search overlay; optional search text may be supplied with value.',
+      };
+    case 'search':
+      return {
+        supported: true,
+        effect: 'visible-ui-navigation',
+        preferredMode: 'run_keybinding',
+        surfaceId: 'conversation-search',
+        confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
+        note: 'Opens the visible conversation search overlay; optional search text may be supplied with value.',
+      };
+    case 'paste':
+      return {
+        supported: true,
+        effect: 'shell-action',
+        preferredMode: 'run_keybinding',
+        command: '/paste',
+        confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
+        note: 'Routes through commandContext.pasteFromClipboard and reports whether text, image, or nothing was pasted.',
+      };
+    case 'block-copy':
+    case 'bookmark':
+    case 'block-save':
+      return {
+        supported: true,
+        effect: 'visible-ui-interaction',
+        preferredMode: 'run_keybinding',
+        surfaceId: 'block-actions',
+        confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
+        note: 'Opens the visible nearest-block actions surface. The exact block action remains an interactive visible-shell selection because it depends on cursor/scroll position.',
+      };
+    case 'panel-tab-next':
+    case 'panel-tab-prev':
+      return {
+        supported: false,
+        effect: 'visible-ui-navigation',
+        preferredMode: 'open_ui_surface',
+        surfaceId: 'agent-workspace',
+        confirmation: 'Use open_ui_surface with confirm:true and an explicit categoryId/target instead of cycling hidden UI state.',
+        note: 'Category cycling depends on the live workspace focus position. The model should open the intended Agent workspace category directly.',
+      };
+    case 'copy-selection':
+      return {
+        supported: false,
+        effect: 'clipboard-selection',
+        preferredMode: 'direct-user-interaction',
+        confirmation: 'No model operation is exposed.',
+        note: 'Terminal text selection is outside the Agent command context. Use transcript/session export or a content-specific model route when a concrete artifact is needed.',
+      };
+    case 'delete-word':
+    case 'line-start':
+    case 'next-error-line-end':
+    case 'kill-line':
+    case 'clear-prompt':
+    case 'undo':
+    case 'redo':
+      return {
+        supported: false,
+        effect: 'prompt-editor-state',
+        preferredMode: 'direct-user-interaction',
+        confirmation: 'No model operation is exposed.',
+        note: 'This shortcut mutates live prompt-buffer cursor/edit state that is not part of the model tool contract.',
+      };
+    case 'replay-panel':
+      return {
+        supported: false,
+        effect: 'reserved',
+        preferredMode: 'direct-user-interaction',
+        confirmation: 'No model operation is exposed.',
+        note: 'This shortcut is reserved and has no current Agent operation route.',
+      };
+  }
 }
 
 function readOverrideFile(configPath: string): KeybindingsOverrideFile {
@@ -252,7 +396,7 @@ export function listHarnessShortcuts(context: CommandContext, args: HarnessKeybi
     configurableKeybindings: keybindings.keybindings,
     returned: fixed.length + Number(keybindings.returned ?? 0),
     total: totalHarnessShortcuts(context),
-    policy: 'Fixed shortcuts are runtime/editor controls. Configurable keybindings can be changed with set_keybinding/reset_keybinding.',
+    policy: 'Fixed shortcuts are runtime/editor controls. Configurable keybindings can be inspected, supported shell-safe actions can be run with run_keybinding, and bindings can be changed with set_keybinding/reset_keybinding.',
   };
 }
 
@@ -268,7 +412,7 @@ export function listHarnessKeybindings(context: CommandContext, args: HarnessKey
     keybindings: entries,
     returned: entries.length,
     total: manager.getAll().length,
-    policy: 'Reads the live resolved keybindings. set_keybinding/reset_keybinding write the same keybindings.json file the user can edit and reload the runtime manager.',
+    policy: 'Reads the live resolved keybindings, including modelOperation route metadata. run_keybinding executes only supported shell-safe actions. set_keybinding/reset_keybinding write the same keybindings.json file the user can edit and reload the runtime manager.',
   };
 }
 
@@ -282,6 +426,133 @@ export function describeHarnessKeybinding(context: CommandContext, args: Harness
     configPath: manager.getConfigPath(),
     ...describeBinding(manager, entry.action, entry.combos, resolved.lookup),
   } : null;
+}
+
+function runUnavailable(action: KeyAction, route: KeybindingOperationRoute, reason?: string): Record<string, unknown> {
+  return {
+    status: 'keybinding_route_unavailable',
+    action,
+    modelOperation: route,
+    ...(reason ? { reason } : {}),
+  };
+}
+
+export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybindingArgs): Record<string, unknown> {
+  const manager = requireKeybindingsManager(context);
+  const resolved = resolveHarnessKeybinding(context, args);
+  if (resolved?.status === 'ambiguous') return { status: 'ambiguous', input: resolved.input, candidates: resolved.candidates };
+  if (!resolved) throw new Error('run_keybinding requires a valid keybinding action id, target, key, or query.');
+  const entry = manager.getAll().find((candidate) => candidate.action === resolved.action);
+  if (!entry) throw new Error(`No live keybinding entry found for ${resolved.action}.`);
+  const route = keybindingOperationRoute(resolved.action);
+  const descriptor = {
+    configPath: manager.getConfigPath(),
+    ...describeBinding(manager, entry.action, entry.combos, resolved.lookup),
+  };
+  if (!route.supported) {
+    return {
+      status: 'unsupported_keybinding_action',
+      action: resolved.action,
+      keybinding: descriptor,
+      modelOperation: route,
+    };
+  }
+
+  switch (resolved.action) {
+    case 'clear-cancel':
+      if (!context.cancelGeneration) return runUnavailable(resolved.action, route, 'commandContext.cancelGeneration is unavailable.');
+      context.cancelGeneration();
+      return { status: 'executed', action: resolved.action, effect: 'cancel-generation', keybinding: descriptor };
+    case 'screen-clear':
+      if (!context.clearScreen) return runUnavailable(resolved.action, route, 'commandContext.clearScreen is unavailable.');
+      context.clearScreen();
+      return { status: 'executed', action: resolved.action, effect: 'screen-clear', keybinding: descriptor };
+    case 'panel-picker':
+      if (context.openPanelPicker) {
+        context.openPanelPicker();
+        return { status: 'executed', action: resolved.action, effect: 'agent-workspace-opened', route: 'openPanelPicker', keybinding: descriptor };
+      }
+      if (context.openAgentWorkspace) {
+        context.openAgentWorkspace('home');
+        return { status: 'executed', action: resolved.action, effect: 'agent-workspace-opened', route: 'openAgentWorkspace', categoryId: 'home', keybinding: descriptor };
+      }
+      return runUnavailable(resolved.action, route, 'No panel picker or Agent workspace opener is available.');
+    case 'panel-close': {
+      const active = context.workspace.panelManager?.getActivePanel() ?? null;
+      if (active) context.workspace.panelManager?.close(active.id);
+      if (!active && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active legacy panel or prompt focus route is available.');
+      if (context.focusPrompt) context.focusPrompt();
+      context.renderRequest();
+      return {
+        status: 'executed',
+        action: resolved.action,
+        effect: active ? 'active-panel-closed' : 'prompt-focused',
+        ...(active ? { panelId: active.id } : {}),
+        keybinding: descriptor,
+      };
+    }
+    case 'panel-close-all': {
+      const managerPanel = context.workspace.panelManager;
+      const openPanels = managerPanel?.getAllOpen() ?? [];
+      for (const panel of openPanels) managerPanel?.close(panel.id);
+      managerPanel?.hide();
+      if (openPanels.length === 0 && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No open legacy panels or prompt focus route is available.');
+      if (context.focusPrompt) context.focusPrompt();
+      context.renderRequest();
+      return {
+        status: 'executed',
+        action: resolved.action,
+        effect: 'all-panels-closed',
+        closedPanels: openPanels.map((panel) => panel.id),
+        keybinding: descriptor,
+      };
+    }
+    case 'history-search': {
+      if (!context.openPromptHistorySearch) return runUnavailable(resolved.action, route, 'commandContext.openPromptHistorySearch is unavailable.');
+      const query = readString(args.value);
+      context.openPromptHistorySearch(query || undefined);
+      return { status: 'executed', action: resolved.action, effect: 'prompt-history-search-opened', query, keybinding: descriptor };
+    }
+    case 'search': {
+      if (!context.openConversationSearch) return runUnavailable(resolved.action, route, 'commandContext.openConversationSearch is unavailable.');
+      const query = readString(args.value);
+      context.openConversationSearch(query || undefined);
+      return { status: 'executed', action: resolved.action, effect: 'conversation-search-opened', query, keybinding: descriptor };
+    }
+    case 'paste': {
+      if (!context.pasteFromClipboard) return runUnavailable(resolved.action, route, 'commandContext.pasteFromClipboard is unavailable.');
+      const pasted = context.pasteFromClipboard();
+      return { status: 'executed', action: resolved.action, effect: 'paste-from-clipboard', pasted, keybinding: descriptor };
+    }
+    case 'block-copy':
+    case 'bookmark':
+    case 'block-save': {
+      if (!context.openBlockActions) return runUnavailable(resolved.action, route, 'commandContext.openBlockActions is unavailable.');
+      const opened = context.openBlockActions();
+      return opened
+        ? {
+          status: 'visible_interaction_required',
+          action: resolved.action,
+          effect: 'block-actions-opened',
+          keybinding: descriptor,
+          note: 'The block action surface is open. Selecting the exact nearest-block action remains visible interactive shell work.',
+        }
+        : {
+          status: 'not_opened',
+          action: resolved.action,
+          effect: 'block-actions',
+          keybinding: descriptor,
+          note: 'The current shell did not have an empty prompt plus nearby block required for block actions.',
+        };
+    }
+    default:
+      return {
+        status: 'unsupported_keybinding_action',
+        action: resolved.action,
+        keybinding: descriptor,
+        modelOperation: route,
+      };
+  }
 }
 
 export function setHarnessKeybinding(context: CommandContext, args: HarnessKeybindingArgs): Record<string, unknown> {

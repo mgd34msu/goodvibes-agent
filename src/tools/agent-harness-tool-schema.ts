@@ -1,7 +1,7 @@
 export const AGENT_HARNESS_MODES = [
   'summary', 'cli_commands', 'cli_command', 'panels', 'panel', 'open_panel',
   'ui_surfaces', 'ui_surface', 'open_ui_surface',
-  'shortcuts', 'keybindings', 'keybinding', 'set_keybinding', 'reset_keybinding',
+  'shortcuts', 'keybindings', 'keybinding', 'run_keybinding', 'set_keybinding', 'reset_keybinding',
   'commands', 'command', 'run_command', 'settings', 'get_setting', 'set_setting',
   'reset_setting', 'workspace', 'workspace_categories', 'workspace_actions',
   'workspace_action', 'run_workspace_action', 'tools', 'tool', 'connected_host', 'connected_host_status',
@@ -56,7 +56,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   actionId: {
     type: 'string',
-    description: 'Agent workspace action id for workspace_action or run_workspace_action, or keybinding action id for keybinding/set_keybinding/reset_keybinding. target or query can also look up one keybinding action.',
+    description: 'Agent workspace action id for workspace_action or run_workspace_action, or keybinding action id for keybinding/run_keybinding/set_keybinding/reset_keybinding. target or query can also look up one keybinding action.',
   },
   fields: {
     type: 'object',
@@ -86,7 +86,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
       { type: 'number' },
       { type: 'boolean' },
     ],
-    description: 'Setting value for set_setting. Strings, booleans, numbers, and enum strings are accepted.',
+    description: 'Setting value for set_setting. Strings, booleans, numbers, and enum strings are accepted. In run_keybinding, value can provide visible search text for search/history-search shortcut routes.',
   },
   target: {
     type: 'string',
@@ -127,10 +127,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   confirm: {
     type: 'boolean',
-    description: 'Required true for set_setting, reset_setting, run_command, open_panel, open_ui_surface, and mutating run_workspace_action calls after an explicit user request.',
+    description: 'Required true for set_setting, reset_setting, run_keybinding, run_command, open_panel, open_ui_surface, and mutating run_workspace_action calls after an explicit user request.',
   },
   explicitUserRequest: {
     type: 'string',
-    description: 'Exact user request or faithful short summary authorizing a setting mutation or harness UI/command invocation.',
+    description: 'Exact user request or faithful short summary authorizing a setting mutation, keybinding action, or harness UI/command invocation.',
   },
 } as const;

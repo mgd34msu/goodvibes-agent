@@ -642,7 +642,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'overlay',
     summary: 'Keyboard shortcut reference overlay.',
     command: '/shortcuts',
-    preferredModelRoute: 'Use shortcuts/keybindings modes for model-readable discovery and confirmed keybinding edits.',
+    preferredModelRoute: 'Use shortcuts/keybindings modes for model-readable discovery, run_keybinding for supported shell-safe actions, and confirmed keybinding edits for binding changes.',
     available: (context) => typeof context.openShortcutsOverlay === 'function',
     open: (context) => {
       const surface = findSurfaceById('shortcuts-overlay')!;

@@ -910,6 +910,7 @@ describe('agent_harness tool', () => {
       expect(summary.output).toContain('"shortcuts"');
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly shortcuts?: string } };
       expect(summaryJson.modelAccess?.shortcuts).toContain('mode:"shortcuts"');
+      expect(summaryJson.modelAccess?.shortcuts).toContain('mode:"run_keybinding"');
 
       const shortcuts = await fixture.tool.execute({ mode: 'shortcuts', query: 'help' });
       expect(shortcuts.success).toBe(true);
@@ -922,6 +923,9 @@ describe('agent_harness tool', () => {
       expect(keybinding.output).toContain('"action": "search"');
       expect(keybinding.output).toContain('Ctrl+F');
       expect(keybinding.output).toContain('"customized": false');
+      expect(keybinding.output).toContain('"modelOperation"');
+      expect(keybinding.output).toContain('"preferredMode": "run_keybinding"');
+      expect(keybinding.output).toContain('"surfaceId": "conversation-search"');
 
       const keybindingByQuery = await fixture.tool.execute({ mode: 'keybinding', query: 'Ctrl+F' });
       expect(keybindingByQuery.success).toBe(true);
@@ -937,6 +941,39 @@ describe('agent_harness tool', () => {
       expect(ambiguousKeybinding.success).toBe(true);
       expect(ambiguousKeybinding.output).toContain('"status": "ambiguous"');
       expect(ambiguousKeybinding.output).toContain('panel-picker');
+
+      const runDenied = await fixture.tool.execute({
+        mode: 'run_keybinding',
+        actionId: 'search',
+        explicitUserRequest: 'Open conversation search.',
+      });
+      expect(runDenied.success).toBe(false);
+      expect(runDenied.error).toContain('confirm:true');
+      expect(fixture.openedSurfaces.filter((surface) => surface.id === 'conversation-search')).toEqual([]);
+
+      const runSearch = await fixture.tool.execute({
+        mode: 'run_keybinding',
+        actionId: 'search',
+        value: 'release notes',
+        confirm: true,
+        explicitUserRequest: 'Open conversation search for release notes.',
+      });
+      expect(runSearch.success).toBe(true);
+      expect(runSearch.output).toContain('"status": "executed"');
+      expect(runSearch.output).toContain('"effect": "conversation-search-opened"');
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'conversation-search', detail: 'release notes' });
+
+      const surfaceCount = fixture.openedSurfaces.length;
+      const unsupportedRun = await fixture.tool.execute({
+        mode: 'run_keybinding',
+        actionId: 'undo',
+        confirm: true,
+        explicitUserRequest: 'Undo the last prompt edit.',
+      });
+      expect(unsupportedRun.success).toBe(true);
+      expect(unsupportedRun.output).toContain('"status": "unsupported_keybinding_action"');
+      expect(unsupportedRun.output).toContain('"preferredMode": "direct-user-interaction"');
+      expect(fixture.openedSurfaces.length).toBe(surfaceCount);
 
       const denied = await fixture.tool.execute({
         mode: 'set_keybinding',
