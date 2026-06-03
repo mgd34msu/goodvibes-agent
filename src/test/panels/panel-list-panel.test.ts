@@ -113,9 +113,9 @@ describe('PanelListPanel', () => {
       expect(text).toContain('Beta');
     });
 
-    test('shows header row "Panel Workspace"', () => {
+    test('shows header row "Agent Panel Routes"', () => {
       const text = linesText(panel.render(80, 20));
-      expect(text).toContain('Panel Workspace');
+      expect(text).toContain('Agent Panel Routes');
     });
 
     test('shows Filter bar', () => {
@@ -126,7 +126,8 @@ describe('PanelListPanel', () => {
     test('shows hint line with nav shortcuts', () => {
       const text = linesText(panel.render(80, 20));
       expect(text).toContain('Enter');
-      expect(text).toContain('T/B');
+      expect(text).toContain('/ filter');
+      expect(text).not.toContain('T/B');
     });
   });
 
@@ -243,7 +244,9 @@ describe('PanelListPanel', () => {
 
       panel.handleInput('down');
       panel.handleInput('B');
-      expect(mgr.isBottomPaneVisible()).toBe(true);
+      text = linesText(panel.render(80, 20));
+      expect(mgr.isBottomPaneVisible()).toBe(false);
+      expect(text).toContain('Legacy panel placement keys');
     });
 
     test('printable characters append to query and appear in filter bar', () => {
@@ -315,44 +318,44 @@ describe('PanelListPanel', () => {
     });
   });
 
-  // ── pane controls ────────────────────────────────────────────────────────
+  // ── retired pane controls ────────────────────────────────────────────────
 
-  describe('pane controls', () => {
-    test('b opens the selected panel in the bottom pane', () => {
+  describe('retired pane controls', () => {
+    test('b does not open the selected panel in the bottom pane', () => {
       panel.handleInput('B');
-      expect(mgr.isBottomPaneVisible()).toBe(true);
-      expect(mgr.getBottomPane().panels.map((p: Panel) => p.id)).toContain('alpha');
+      expect(mgr.isBottomPaneVisible()).toBe(false);
+      expect(mgr.getBottomPane().panels.map((p: Panel) => p.id)).not.toContain('alpha');
+      expect(linesText(panel.render(80, 20))).toContain('Legacy panel placement keys');
     });
 
-    test('t opens the selected panel in the top pane', () => {
+    test('t does not open the selected panel in the top pane', () => {
       panel.handleInput('T');
-      expect(mgr.getTopPane().panels.map((p: Panel) => p.id)).toContain('alpha');
+      expect(mgr.getTopPane().panels.map((p: Panel) => p.id)).not.toContain('alpha');
     });
 
-    test('m moves an open selected panel to the other pane', () => {
-      panel.handleInput('T');
+    test('m does not move selected panel state', () => {
       panel.handleInput('M');
-      expect(mgr.getBottomPane().panels.map((p: Panel) => p.id)).toContain('alpha');
+      expect(mgr.getBottomPane().panels.map((p: Panel) => p.id)).not.toContain('alpha');
     });
 
-    test('s toggles bottom-pane visibility', () => {
+    test('s does not toggle bottom-pane visibility', () => {
       expect(mgr.isBottomPaneVisible()).toBe(false);
       panel.handleInput('S');
-      expect(mgr.isBottomPaneVisible()).toBe(true);
+      expect(mgr.isBottomPaneVisible()).toBe(false);
     });
 
-    test('tab toggles focused pane when bottom pane is visible', () => {
-      panel.handleInput('B');
-      expect(mgr.getFocusedPane()).toBe('bottom');
+    test('tab does not toggle focused pane', () => {
+      expect(mgr.getFocusedPane()).toBe('top');
       panel.handleInput('tab');
       expect(mgr.getFocusedPane()).toBe('top');
     });
 
-    test('selected row uses Unicode placement marker instead of T* text badges', () => {
+    test('selected row uses Agent route marker instead of placement marker', () => {
       panel.handleInput('T');
       const text = linesText(panel.render(80, 20));
       expect(text).not.toContain('T*Panel List');
-      expect(text).toContain('▸ ●▲ Alpha Panel');
+      expect(text).not.toContain('▸ ●▲ Alpha Panel');
+      expect(text).toContain('▸ ○H Alpha Panel');
     });
   });
 
@@ -401,9 +404,9 @@ describe('PanelListPanel', () => {
     });
   });
 
-  // ── enter key opens selected panel ──────────────────────────────────────
+  // ── enter key routes selected panel ─────────────────────────────────────
 
-  describe('enter key — opens selected panel', () => {
+  describe('enter key — routes selected panel', () => {
     const OPENABLE_ID = 'openable-panel';
 
     beforeEach(() => {
@@ -421,7 +424,7 @@ describe('PanelListPanel', () => {
       try { mgr.close(OPENABLE_ID); } catch { /* ignore */ }
     });
 
-    test('pressing return opens the selected panel', () => {
+    test('pressing return shows the selected panel Agent route without opening it', () => {
       // Navigate to the openable panel — it is registered in 'session',
       // so navigate until its id appears as selected in getAllOpen().
       // Easier: just type its name to filter down to it as the only result.
@@ -438,10 +441,11 @@ describe('PanelListPanel', () => {
       const result = panel.handleInput('return');
       expect(result).toBe(true);
       const openIds = mgr.getAllOpen().map((p: Panel) => p.id);
-      expect(openIds).toContain(OPENABLE_ID);
+      expect(openIds).not.toContain(OPENABLE_ID);
+      expect(linesText(panel.render(80, 20))).toContain('Openable Panel routes through /agent home');
     });
 
-    test('pressing enter (alias) also opens the selected panel', () => {
+    test('pressing enter (alias) also shows route guidance without opening', () => {
       panel.handleInput('/');
       panel.handleInput('o');
       panel.handleInput('p');
@@ -455,10 +459,11 @@ describe('PanelListPanel', () => {
       const result = panel.handleInput('enter');
       expect(result).toBe(true);
       const openIds = mgr.getAllOpen().map((p: Panel) => p.id);
-      expect(openIds).toContain(OPENABLE_ID);
+      expect(openIds).not.toContain(OPENABLE_ID);
+      expect(linesText(panel.render(80, 20))).toContain('Openable Panel routes through /agent home');
     });
 
-    test('handleInput returns true for return even when no panel matches (no-op open)', () => {
+    test('handleInput returns true for return even when no panel matches', () => {
       // With an empty list (query matches nothing), return still returns true.
       panel.handleInput('/');
       panel.handleInput('z');

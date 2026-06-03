@@ -13,6 +13,7 @@ import type { SecretsManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
 import { syncServiceSettingToPlatform } from './service-settings-sync.ts';
+import { agentWorkspaceCategoryForPanel } from '../input/agent-workspace-panel-route.ts';
 
 type WireShellUiOpenersOptions = {
   commandContext: CommandContext;
@@ -76,17 +77,6 @@ function buildConfiguredViaMap(
     if (via !== undefined) map.set(p, via);
   }
   return map;
-}
-
-function agentWorkspaceCategoryForPanel(panelId: string): string {
-  if (panelId === 'knowledge') return 'knowledge';
-  if (panelId === 'memory') return 'memory';
-  if (panelId === 'work-plan' || panelId === 'tasks' || panelId === 'approval') return 'work';
-  if (panelId === 'automation' || panelId === 'schedule') return 'automation';
-  if (panelId === 'provider-health' || panelId === 'providers' || panelId === 'accounts' || panelId === 'subscription') return 'setup';
-  if (panelId === 'security' || panelId === 'policy') return 'tools';
-  if (panelId === 'qr-code') return 'channels';
-  return 'home';
 }
 
 export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {

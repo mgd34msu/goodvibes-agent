@@ -1,18 +1,15 @@
 /**
- * PanelListPanel — Shows all registered panels grouped by category.
+ * PanelListPanel — Shows legacy panel routes grouped by category.
  *
  * Features:
- * - Arrow keys to navigate, Enter to open the selected panel
+ * - Arrow keys to navigate, Enter to show the matching Agent workspace route
  * - Open/closed indicator (● open, ○ closed)
  * - Search/filter by typing
  * - Grouped by category
- * - `T` / `B` to place a panel in the top/bottom pane
- * - `M` to move an open panel to the other pane
- * - `S` to toggle the split and Tab to switch pane focus
  *
- * Open via /panel list.
+ * Open the current operator workspace via /agent.
  */
-import type { Line, Cell } from '../types/grid.ts';
+import type { Line } from '../types/grid.ts';
 import type { PanelCategory, PanelRegistration } from './types.ts';
 import { BasePanel } from './base-panel.ts';
 import type { PanelManager } from './panel-manager.ts';
@@ -39,7 +36,7 @@ import {
   isPanelSearchCommit,
   isPanelSearchPrintable,
 } from './search-focus.ts';
-import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import { agentWorkspaceCategoryForPanel, agentWorkspaceCommandForPanel } from '../input/agent-workspace-panel-route.ts';
 
 // ── Colour palette ────────────────────────────────────────────────────────────
 const C = {
@@ -60,8 +57,6 @@ const C = {
   search:      '#f97316',
   searchBg:    '#1e293b',
   dim:         '#334155',
-  paneTop:     '#38bdf8',
-  paneBottom:  '#a78bfa',
   intro:       '#94a3b8',
 } as const;
 
@@ -82,18 +77,6 @@ type ListEntry =
   | { kind: 'header'; category: PanelCategory }
   | { kind: 'panel'; reg: PanelRegistration };
 
-function panelPlacementMarker(options: {
-  isTopOpen: boolean;
-  isBottomOpen: boolean;
-  focusedPane: 'top' | 'bottom';
-}): { text: string; color: string } {
-  const { isTopOpen, isBottomOpen, focusedPane } = options;
-  if (isTopOpen && isBottomOpen) return { text: '◆', color: C.selected };
-  if (isTopOpen) return { text: focusedPane === 'top' ? '▲' : '△', color: C.paneTop };
-  if (isBottomOpen) return { text: focusedPane === 'bottom' ? '▼' : '▽', color: C.paneBottom };
-  return { text: ' ', color: C.dim };
-}
-
 function wrapPanelDescription(text: string, width: number, maxLines = 2): string[] {
   if (width <= 0) return [''];
   const lines = wrapWithHangingIndent(text, width, '', maxLines);
@@ -107,6 +90,7 @@ export class PanelListPanel extends BasePanel {
   private _scrollOffset   = 0;
   private _query          = '';
   private _filterFocused  = false;
+  private _routeMessage   = 'This list is read-only in Agent. Press Enter for the matching Agent workspace route.';
   private _cachedEntries: ListEntry[] | null = null;
   private _entriesDirty   = true;
 
@@ -123,6 +107,7 @@ export class PanelListPanel extends BasePanel {
     this._scrollOffset   = 0;
     this._query          = '';
     this._filterFocused  = false;
+    this._routeMessage   = 'This list is read-only in Agent. Press Enter for the matching Agent workspace route.';
     this._entriesDirty   = true;
   }
 
@@ -160,11 +145,7 @@ export class PanelListPanel extends BasePanel {
         this._filterFocused = false;
         const selectedPanel = this._getSelectedPanelEntry(this._buildEntries());
         if (selectedPanel) {
-          try {
-            this.panelManager.open(selectedPanel.reg.id);
-          } catch (err) {
-            logger.warn(`[panel-list] failed to open panel: ${err}`);
-          }
+          this._setRouteMessage(selectedPanel.reg);
         }
         this.markDirty();
         return true;
@@ -198,57 +179,24 @@ export class PanelListPanel extends BasePanel {
       return true;
     }
 
-    // Open selected panel
+    // Route selected panel through the Agent workspace.
     if (key === 'return' || key === 'enter') {
       const selectedPanel = this._getSelectedPanelEntry(entries);
       if (selectedPanel) {
-        try {
-          this.panelManager.open(selectedPanel.reg.id);
-        } catch (err) {
-          logger.warn(`[panel-list] failed to open panel: ${err}`);
-        }
+        this._setRouteMessage(selectedPanel.reg);
         this.markDirty();
       }
       return true;
     }
 
-    if (key === 'T' || key === 'B') {
+    if (key === 'T' || key === 'B' || key === 'M' || key === 'S' || key === 'tab') {
       const selectedPanel = this._getSelectedPanelEntry(entries);
       if (selectedPanel) {
-        const pane = key === 'T' ? 'top' : 'bottom';
-        try {
-          const pm = this.panelManager;
-          pm.open(selectedPanel.reg.id, pane);
-          pm.show();
-        } catch (err) {
-          logger.warn(`[panel-list] failed to place panel: ${err}`);
-        }
-        this.markDirty();
+        const command = agentWorkspaceCommandForPanel(selectedPanel.reg.id);
+        this._routeMessage = `Legacy panel placement keys are inactive in Agent. Use ${command} for ${selectedPanel.reg.name}.`;
+      } else {
+        this._routeMessage = 'Legacy panel placement keys are inactive in Agent. Use /agent for current operator controls.';
       }
-      return true;
-    }
-
-    if (key === 'M') {
-      const selectedPanel = this._getSelectedPanelEntry(entries);
-      if (selectedPanel) {
-        try {
-          this.panelManager.moveToOtherPane(selectedPanel.reg.id);
-        } catch (err) {
-          logger.warn(`[panel-list] failed to move panel: ${err}`);
-        }
-        this.markDirty();
-      }
-      return true;
-    }
-
-    if (key === 'S') {
-      this.panelManager.toggleBottomPane();
-      this.markDirty();
-      return true;
-    }
-
-    if (key === 'tab') {
-      this.panelManager.togglePaneFocus();
       this.markDirty();
       return true;
     }
@@ -285,12 +233,12 @@ export class PanelListPanel extends BasePanel {
     }
     const start = Date.now();
     this.needsRender = false;
-    const intro = 'Browse, place, split, and move panels without dropping into raw panel-management commands.';
+    const intro = 'Browse legacy panel registrations and route to the matching Agent workspace area without opening legacy panels.';
     const entries = this._buildEntries();
 
     if (entries.length === 0) {
       const lines = buildPanelWorkspace(width, height, {
-        title: 'Panel Workspace',
+        title: 'Agent Panel Routes',
         intro,
         sections: [{
           title: 'Filter',
@@ -305,7 +253,7 @@ export class PanelListPanel extends BasePanel {
             width,
             ' No panels match filter.',
             'Clear the filter or search for another panel by id, name, description, or category.',
-            [{ command: '/panel list', summary: 'reopen the panel workspace from the shell' }],
+            [{ command: '/agent', summary: 'open the Agent workspace' }],
             C,
           ),
         }],
@@ -321,16 +269,18 @@ export class PanelListPanel extends BasePanel {
     const pm = this.panelManager;
     const topIds = new Set(pm.getTopPane().panels.map(p => p.id));
     const bottomIds = new Set(pm.getBottomPane().panels.map(p => p.id));
-    const focusedPane = pm.getFocusedPane();
-    const footerLines = [buildPanelLine(width, [[` [${this._selectedIndex + 1}/${panelEntries.length}] ↑/↓ nav  Enter open  T/B place  M move  S split  Tab focus`.slice(0, width), C.hint]])];
+    const selectedPanel = this._getSelectedPanelEntry(entries);
+    const selectedRoute = selectedPanel ? agentWorkspaceCommandForPanel(selectedPanel.reg.id) : '/agent';
+    const selectedArea = selectedPanel ? agentWorkspaceCategoryForPanel(selectedPanel.reg.id) : 'home';
+    const footerLines = [buildPanelLine(width, [[` [${this._selectedIndex + 1}/${panelEntries.length}] ↑/↓ nav  Enter route  / filter  Esc clear`.slice(0, width), C.hint]])];
     const postureLines: Line[] = [
       buildKeyValueLine(width, [
-        { label: 'visible panels', value: String(pm.getAllOpen().length), valueColor: pm.getAllOpen().length > 0 ? C.name : C.dim },
-        { label: 'focused pane', value: focusedPane, valueColor: focusedPane === 'top' ? C.paneTop : C.paneBottom },
-        { label: 'split', value: pm.isBottomPaneVisible() ? 'dual' : 'single', valueColor: pm.isBottomPaneVisible() ? C.info : C.dim },
+        { label: 'legacy open', value: String(pm.getAllOpen().length), valueColor: pm.getAllOpen().length > 0 ? C.name : C.dim },
+        { label: 'agent route', value: selectedRoute, valueColor: C.info },
+        { label: 'area', value: selectedArea, valueColor: C.value },
         { label: 'results', value: String(panelEntries.length), valueColor: C.value },
       ], C),
-      buildPanelLine(width, [[` Filter owns input only when selected. Open and switch operations should land directly in focused panel state.`, C.intro]]),
+      buildPanelLine(width, [[` ${truncateDisplay(this._routeMessage, Math.max(0, width - 1))}`, C.intro]]),
     ];
     const entryLines: Line[] = [
       buildSearchInputLine(width, 'Filter: ', `${this._query}${this._filterFocused ? '_' : ''}`, C, {
@@ -361,11 +311,11 @@ export class PanelListPanel extends BasePanel {
         const descStartCol = PREFIX_WIDTH + NAME_COL_WIDTH + 1;
         const descWidth = Math.max(1, width - descStartCol);
         const descLines = wrapPanelDescription(entry.reg.description, descWidth, 2);
-        const placement = panelPlacementMarker({ isTopOpen, isBottomOpen, focusedPane });
+        const routeCategory = agentWorkspaceCategoryForPanel(entry.reg.id);
         const blockLines: Line[] = [
           buildPanelListRow(width, [
             { text: dot, fg: dotColor },
-            { text: placement.text, fg: placement.color },
+            { text: routeCategory.charAt(0).toUpperCase(), fg: isSelected ? C.selIcon : C.icon },
             { text: ' ', fg: C.dim },
             { text: `${nameStr} `, fg: nameColor },
             { text: descLines[0] ?? '', fg: C.desc },
@@ -390,7 +340,7 @@ export class PanelListPanel extends BasePanel {
     }
     const selectedEntryIndex = renderedBlocks.findIndex((block) => block.panelFlatIndex === this._selectedIndex);
     const selectedRow = selectedEntryIndex >= 0 ? blockStarts[selectedEntryIndex] ?? 0 : 0;
-    const postureSection: PanelWorkspaceSection = { lines: buildSummaryBlock(width, 'Panel posture', postureLines, C) };
+    const postureSection: PanelWorkspaceSection = { lines: buildSummaryBlock(width, 'Route posture', postureLines, C) };
     const resolvedSection = resolvePrimaryScrollableSection(width, height, {
       intro,
       footerLines,
@@ -416,7 +366,7 @@ export class PanelListPanel extends BasePanel {
       resolvedSection.section,
     ];
     const lines = buildPanelWorkspace(width, height, {
-      title: 'Panel Workspace',
+      title: 'Agent Panel Routes',
       intro,
       sections,
       footerLines,
@@ -486,6 +436,12 @@ export class PanelListPanel extends BasePanel {
       idx++;
     }
     return null;
+  }
+
+  private _setRouteMessage(reg: PanelRegistration): void {
+    const command = agentWorkspaceCommandForPanel(reg.id);
+    const area = agentWorkspaceCategoryForPanel(reg.id);
+    this._routeMessage = `${reg.name} routes through ${command} (${area}). Open Agent Workspace instead of legacy panels.`;
   }
 
   /** Move selection to the previous panel entry. */
