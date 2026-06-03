@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.2 - 2026-06-03
+
+- Model-visible harness control now exposes command, settings, workspace, tool, and connected-host surfaces through agent_harness.
+- Agent settings access now includes schema-aware list/get/set/reset flows with redaction, secret-manager writes, and host-owned read-only boundaries.
+- Workspace profile, routine, persona, and local-library flows now expose editor schemas and scriptable actions to the model.
+- Documentation now reflects the current 1.0.x command, tool, settings, provider, channel, knowledge, voice, connected-host, and release behavior.
+
 ## 1.0.1 - 2026-06-03
 
 - Preserved Agent Knowledge setup paths with spaces, quoted generated Agent command guidance, and hardened MCP trust and role command validation.
