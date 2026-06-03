@@ -148,7 +148,7 @@ export async function initializeBootstrapCore(
     metadata: {
       product: 'goodvibes-agent',
       surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
-      clientKindNote: 'SDK has no dedicated agent client kind yet; using service for the Agent operator surface.',
+      clientKindNote: 'SDK compatibility client kind; GoodVibes Agent remains an interactive operator TUI.',
     },
   }, 'bootstrap.control-plane');
 
