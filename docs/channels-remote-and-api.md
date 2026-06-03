@@ -17,6 +17,8 @@ Agent channel UX should show:
 
 Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved connected-host request. Companion pairing uses `/pair` without printing the raw token; manual token display requires `/pair --show-token --yes`. One-off delivery uses Agent Workspace -> Channels -> Send channel message or `/channels send ... --yes`.
 
+The model can inspect channel-facing workspace actions with `agent_harness`, and it can send one explicit configured delivery through `agent_channel_send` when the user asks for that exact effect. It must not create routes, authorize accounts, infer recipients, or expose new public surfaces from chat.
+
 ## Companion And Session Routes
 
 Normal assistant chat uses companion chat routes. Build/fix/review delegation uses shared-session or task routes only when the user explicitly asks for implementation work.
@@ -42,6 +44,8 @@ Use public SDK/operator routes only. For Agent Knowledge, the only valid family 
 ```
 
 If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default knowledge, another product segment, or private connected-host files.
+
+Harness and settings operations use the Agent-owned `agent_harness` tool. Generic settings/context mutators are not the model-facing Agent contract.
 
 ## Related Docs
 

@@ -1,6 +1,6 @@
 # Getting Started
 
-GoodVibes Agent is the installable public alpha of the personal operator assistant built on the GoodVibes TUI foundation.
+GoodVibes Agent is the installable `1.0.x` personal operator assistant built on the GoodVibes TUI foundation.
 
 ## Requirements
 
@@ -43,6 +43,8 @@ bun run dev
 After setup has been applied once, the TUI opens directly into the Agent operator workspace. You can also reopen it with `/agent`, `/home`, or `/operator`. That fullscreen workspace is the current front door for setup/config, conversation/session controls, provider/model selection, read-only web research, Agent Knowledge, local memory/notes/skills/routines/personas, channel readiness, voice/media setup, read-only work/approval/automation views, and explicit GoodVibes TUI build delegation.
 
 Press `/` inside the Agent workspace to search every workspace action by name, category, command, or detail. Use that finder before reaching for shell commands; CLI subcommands are scriptable mirrors of these TUI workflows.
+
+The model can inspect and use the same harness surface through Agent-owned tools. `agent_harness` exposes workspace action discovery, slash-command discovery, command policy metadata, command execution with confirmation, model tool discovery, settings inspection/mutation, and connected-host posture. Workspace action discovery can include editor field schemas with `includeParameters:true`, including starter-template defaults for profile creation and selected-routine defaults for routine schedule promotion when `recordId` is supplied. Selection-based local workspace actions accept a local `recordId`, so the model can use the same note promotion and local registry flows as the TUI. First-class model tools cover the main product workflows directly: Agent Knowledge, Agent Knowledge ingest, Agent-local memory/notes/personas/skills/routines, operator actions, notifications, channel sends, reminders, generated media, and work plans.
 
 Use the Artifacts area for concrete files and generated output: attach images to prompts, export conversations or saved sessions, ingest local source files and URL lists into Agent Knowledge, import bookmarks or browser history, inspect source records, and generate media artifacts from confirmed prompts.
 
@@ -120,6 +122,8 @@ Use `/channels` inside the TUI for channel readiness and exact confirmed sends. 
 
 The main assistant conversation can perform narrow confirmed operator actions when the user explicitly asks for a specific target: approve/deny/cancel one approval, run/pause/resume one automation job, cancel/retry one automation run, or run one schedule. Those calls use only public connected-host routes, require confirmation, and do not create, edit, or delete automation definitions.
 
+When the main assistant conversation needs to change Agent settings or run a user-facing harness action, it should use `agent_harness` rather than generic SDK context/settings tools. Setting descriptors report writability, workspace visibility, and lock reasons; secret-backed settings store raw values through the secret manager; connected-host lifecycle settings stay read-only in Agent; and destructive local record deletion requires explicit confirmation.
+
 ## Connected GoodVibes Host
 
 Start the owning GoodVibes host before using connected Agent features. Agent expects that host to expose the public operator/Agent routes, including:
@@ -134,7 +138,7 @@ If the GoodVibes API is not on `http://127.0.0.1:3421`, pass `--runtime-url http
 
 Agent Knowledge is an Agent-owned product segment. Agent commands must not fall back to default knowledge or other product-specific knowledge spaces.
 
-Host lifecycle commands are not part of GoodVibes Agent. Use Agent Workspace -> Home -> Host compatibility, Doctor diagnostics, and Review health for diagnostics. CLI status/doctor/compat commands are scriptable mirrors for install checks.
+Host lifecycle commands are not part of GoodVibes Agent. Use Agent Workspace -> Home -> Host compatibility, Doctor diagnostics, and Review health for diagnostics. CLI status/doctor/compat commands are scriptable mirrors for install checks. The model-visible `connected_host` harness report lists usable Agent route families, first-class tool capabilities, and blocked lifecycle/non-Agent surfaces without exposing host start/stop/restart/install operations.
 
 ## Current Product Notes
 

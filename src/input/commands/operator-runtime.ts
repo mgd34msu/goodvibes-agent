@@ -2,14 +2,150 @@ import type { CommandRegistry } from '../command-registry.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
+import {
+  formatHarnessError,
+  formatHarnessMutation,
+  formatHarnessSetting,
+  formatHarnessSettingList,
+  getHarnessSetting,
+  listHarnessSettings,
+  resetHarnessSetting,
+  setHarnessSetting,
+} from '../../agent/harness-control.ts';
+
+function readValuedFlag(args: readonly string[], flag: string): string | undefined {
+  const assignmentPrefix = `${flag}=`;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === flag) {
+      const value = args[index + 1];
+      return value && !value.startsWith('--') ? value : undefined;
+    }
+    if (arg?.startsWith(assignmentPrefix)) return arg.slice(assignmentPrefix.length);
+  }
+  return undefined;
+}
+
+function stripValuedFlag(args: readonly string[], flag: string): readonly string[] {
+  const next: string[] = [];
+  const assignmentPrefix = `${flag}=`;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === flag) {
+      const value = args[index + 1];
+      if (value && !value.startsWith('--')) index += 1;
+      continue;
+    }
+    if (arg?.startsWith(assignmentPrefix)) {
+      continue;
+    }
+    next.push(arg!);
+  }
+  return next;
+}
+
+function parseSettingListArgs(args: readonly string[]): {
+  readonly category?: string;
+  readonly prefix?: string;
+  readonly query?: string;
+  readonly includeHidden: boolean;
+  readonly limit?: number;
+} {
+  const category = readValuedFlag(args, '--category');
+  const prefix = readValuedFlag(args, '--prefix');
+  const limitText = readValuedFlag(args, '--limit');
+  const remaining = stripValuedFlag(stripValuedFlag(stripValuedFlag(args, '--category'), '--prefix'), '--limit')
+    .filter((arg) => arg !== '--include-hidden');
+  const query = remaining.join(' ').trim();
+  return {
+    ...(category ? { category } : {}),
+    ...(prefix ? { prefix } : {}),
+    ...(query ? { query } : {}),
+    includeHidden: args.includes('--include-hidden'),
+    ...(limitText ? { limit: Number(limitText) } : {}),
+  };
+}
 
 export function registerOperatorRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'settings',
     aliases: ['cfg-ui'],
-    description: 'Open the fullscreen configuration workspace',
-    handler(_args, ctx) {
-      if (ctx.openSettingsModal) ctx.openSettingsModal();
+    description: 'Open, inspect, or update Agent settings',
+    usage: '[category|key|list|get <key>|set <key> <value> --yes|reset <key> --yes]',
+    argsHint: '[list|get|set|reset]',
+    async handler(args, ctx) {
+      const parsed = stripYesFlag(args);
+      const commandArgs = [...parsed.rest];
+      const sub = commandArgs[0];
+
+      if (!sub) {
+        if (ctx.openSettingsModal) ctx.openSettingsModal();
+        else ctx.print('Configuration workspace is not available in this runtime.');
+        return;
+      }
+
+      if (sub === 'list' || sub === 'schema') {
+        ctx.print(formatHarnessSettingList(listHarnessSettings(ctx.platform.configManager, parseSettingListArgs(commandArgs.slice(1)))));
+        return;
+      }
+
+      if (sub === 'get' || sub === 'show') {
+        const key = commandArgs[1];
+        if (!key) {
+          ctx.print('Usage: /settings get <key>');
+          return;
+        }
+        ctx.print(formatHarnessSetting(getHarnessSetting(ctx.platform.configManager, key)));
+        return;
+      }
+
+      if (sub === 'set') {
+        const key = commandArgs[1];
+        const rawValue = commandArgs.slice(2).join(' ');
+        if (!key || rawValue.length === 0) {
+          ctx.print('Usage: /settings set <key> <value> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `set setting ${key}`, '/settings set <key> <value> --yes');
+          return;
+        }
+        try {
+          const result = await setHarnessSetting(ctx.platform.configManager, ctx.platform.secretsManager, key, rawValue);
+          ctx.print(formatHarnessMutation(result));
+          ctx.renderRequest();
+        } catch (error) {
+          ctx.print(formatHarnessError(error));
+        }
+        return;
+      }
+
+      if (sub === 'reset') {
+        const key = commandArgs[1];
+        if (!key) {
+          ctx.print('Usage: /settings reset <key> --yes');
+          return;
+        }
+        if (!parsed.yes) {
+          requireYesFlag(ctx, `reset setting ${key}`, '/settings reset <key> --yes');
+          return;
+        }
+        try {
+          const result = await resetHarnessSetting(ctx.platform.configManager, ctx.platform.secretsManager, key);
+          ctx.print(formatHarnessMutation(result));
+          ctx.renderRequest();
+        } catch (error) {
+          ctx.print(formatHarnessError(error));
+        }
+        return;
+      }
+
+      if (sub.includes('.')) {
+        ctx.print(formatHarnessSetting(getHarnessSetting(ctx.platform.configManager, sub)));
+        return;
+      }
+
+      if (ctx.openSettingsModal) ctx.openSettingsModal(sub);
       else ctx.print('Configuration workspace is not available in this runtime.');
     },
   });

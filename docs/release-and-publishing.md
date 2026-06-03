@@ -1,6 +1,6 @@
 # Release And Publishing
 
-GoodVibes Agent's current installable public alpha version is recorded in `package.json` and `CHANGELOG.md`.
+GoodVibes Agent's current installable `1.0.x` version is recorded in `package.json` and `CHANGELOG.md`.
 
 ## Package Identity
 
@@ -11,6 +11,7 @@ GoodVibes Agent's current installable public alpha version is recorded in `packa
 - source language: TypeScript
 - package docs: every Markdown file under `docs/*.md`
 - connected host ownership: outside Agent
+- current release line: `1.0.x`
 
 End users install and run GoodVibes Agent with Bun:
 
@@ -23,7 +24,7 @@ Do not add non-Bun install instructions for this product. The package is hosted 
 
 ## Required Gates
 
-Before any release candidate:
+Before any release candidate or patch release:
 
 ```sh
 bun install
@@ -45,13 +46,13 @@ Shared release metadata verification requires the `prebuild` and `version` packa
 
 `bun run publish:package` publishes from a staged package directory to the package registry. It re-runs the shared package policy checks against the source tree, filters forbidden package paths during staging, and verifies the staged package docs, required package paths, and metadata before invoking npm. If `NPM_CONFIG_USERCONFIG` is already set, the registry publish command uses it. Otherwise the script creates a temporary 0600 registry userconfig from `NODE_AUTH_TOKEN` or `NPM_TOKEN`, uses it for that publish command, and removes it with the staging directory. The publish script is idempotent for reruns: if the exact package version is already present on the registry, it reports that state and exits successfully instead of failing the release retry. Shared release metadata verification requires those staged source/staged policy checks, forbidden-path filtering, docs checks, auth handoff, idempotent lookup, dry-run pack, public publish, and cleanup markers to remain in the publish script.
 
-`bun run release` requires product release notes instead of raw git-log output. Pass `--notes-file ./release-notes.md` or set `GOODVIBES_AGENT_RELEASE_NOTES` before a real release. The 1.0 release candidate uses `--notes-file release/1.0-release-notes.md`, and release metadata verification requires that artifact to exist, contain product-facing notes, and be staged with the release readiness and live-verification evidence. Release notes should describe what changed for Agent users: TUI behavior, setup, Agent Knowledge, local behavior libraries, connected-host compatibility, package/install behavior, and safety policy. Do not use commit hashes as the shipped changelog content.
+`bun run release` requires product release notes instead of raw git-log output. Pass `--notes-file ./release-notes.md` or set `GOODVIBES_AGENT_RELEASE_NOTES` before a real release. For current `1.0.x` patch releases, use product-facing notes that summarize the complete patch contents, not only the first fix in the batch. The original 1.0 release candidate used `--notes-file release/1.0-release-notes.md`, and release metadata verification keeps that artifact with the release readiness and live-verification evidence. Release notes should describe what changed for Agent users: TUI behavior, setup, Agent Knowledge, local behavior libraries, connected-host compatibility, package/install behavior, model-visible harness behavior, and safety policy. Do not use commit hashes as the shipped changelog content.
 
 Before it mutates version metadata or creates a tag, `bun run release` checks the declared `release/1.0-*` evidence files for existence, non-empty content, final newlines, trailing whitespace, and space-before-tab indentation, then enforces the non-test release gates: typecheck, architecture check, performance check, build, publish check, packed install smoke, verification ledger, pack dry-run, and `git diff --check`. Dry-run previews run the same evidence text hygiene check without writing files, commits, or tags. After it writes the release version, `src/version.ts` fallback, and changelog section, it verifies release metadata and package-facing text policy again, then reruns evidence hygiene and diff hygiene before creating the commit and tag. That package policy check proves `package.json`, `CHANGELOG.md`, and the `src/version.ts` fallback literals agree on the Agent and SDK versions, that the package manifest keeps the required Agent runtime/docs files, exclusions, release/publish script entrypoints, and local CI gate entrypoints without explicitly including forbidden Agent/TUI boundary paths or leaving existing forbidden paths reachable through broad includes, that the local release script still requires product notes, real-release validation, post-mutation package policy, docs staging, and annotated tags, that the GitHub setup action uses the same Bun version as `packageManager`, and that package-facing text is present and still follows Agent docs, rendered CLI help, parser-backed CLI command snippets, parser/type/alias/help/handler/top-level help command coverage, exported package-text source coverage, autocomplete overlay text, context inspector text, in-app help overlays, file/bookmark picker text, live process output text, MCP workspace text, model picker/workspace text, profile/session picker text, process/runtime activity text, search overlays, shared selection/picker chrome, setup/onboarding wizard text, settings workspace text, slash-command registry text, Agent workspace catalog text, route boundaries, install policy, and version pins. The generated changelog heading uses the operator's local release date in `YYYY-MM-DD` form, not UTC rollover time. The prebuild version sync refuses missing, ranged, or otherwise non-exact Agent or SDK versions instead of writing placeholder fallbacks. The release commit stages those metadata files plus every package-facing `docs/*.md` page, so release docs cannot drift outside the tag. The full test suite remains a branch-CI responsibility and must already be green for the release SHA.
 
 `--skip-validation` is only allowed with `--dry-run`. Real releases must run the validation gates above.
 
-`--dry-run` is non-mutating and may be used from a dirty or non-main worktree to preview the next version and generated changelog section. For the 1.0 cut, preview with `bun run scripts/release.ts --dry-run --major --notes-file release/1.0-release-notes.md`. Real releases still require a clean worktree on `main`.
+`--dry-run` is non-mutating and may be used from a dirty or non-main worktree to preview the next version and generated changelog section. For current `1.0.x` patch previews, use `bun run scripts/release.ts --dry-run --patch --notes-file ./release-notes.md`. The historical 1.0 major cut used `bun run scripts/release.ts --dry-run --major --notes-file release/1.0-release-notes.md`. Real releases still require a clean worktree on `main`.
 
 The GitHub release workflow publishes to npm only when the repository variable `PUBLISH_NPM` is `true` and the repository secret `NPM_TOKEN` is configured. Without those repository settings, the workflow still validates and creates the GitHub release, but npm publish must be run from a local environment with an exported token. After optional npm publish, the workflow installs the exact registry version into an isolated Bun home, seeds a connected-host token sentinel, captures stdout and stderr for `--version`, `--help`, and `status --json`, and fails without printing that sentinel. Shared release metadata verification requires those publish, exact-version registry lookup, install smoke, and token-sentinel markers to remain in the release workflow.
 
@@ -67,7 +68,7 @@ Shared release metadata verification requires `perf:check` to load `release/1.0-
 
 Shared release metadata verification requires `verification:ledger` to keep JSON and Markdown evidence output plus inventory coverage for settings schema, feature flags, slash commands, built-in panels, top-level CLI commands, external surfaces, and onboarding capability bundles, including local-signal, local-behavior, and external-outcome accounting.
 
-Shared release metadata verification requires `verification:live` to keep the external-outcome audit for release candidates: compiled CLI checks, connected-host token/URL discovery, connected-host status/health/model routes, isolated Agent Knowledge status/ask/search routes, SDK-version mismatch skip policy, JSON/Markdown report artifacts, strict mode, and Agent Knowledge contamination guards.
+Shared release metadata verification requires `verification:live` to keep the external-outcome audit for release candidates and real releases: compiled CLI checks, connected-host token/URL discovery, connected-host status/health/model routes, isolated Agent Knowledge status/ask/search routes, SDK-version mismatch skip policy, JSON/Markdown report artifacts, strict mode, and Agent Knowledge contamination guards.
 
 Do not add targeted `bun test` passes or separate release-only test gates to CI, release, or aggregate scripts. Tests that matter for release must be included in the single full branch-CI suite.
 
@@ -102,4 +103,4 @@ Do not ship connected-host binaries from this package. If Agent later gets compi
 
 ## Product Rule
 
-The public alpha can include mature terminal foundation code, but package-facing behavior must follow Agent product policy. Follow-up work should continue pruning or reshaping coding-first surfaces while preserving the renderer, input, fullscreen workspace, command registry, and release bones.
+The `1.0.x` line can include mature terminal foundation code, but package-facing behavior must follow Agent product policy. Follow-up patch releases should continue pruning or reshaping coding-first surfaces while preserving the renderer, input, fullscreen workspace, command registry, and release foundation.

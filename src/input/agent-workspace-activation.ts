@@ -9,12 +9,14 @@ import type {
   AgentWorkspaceActionResult,
   AgentWorkspaceCategory,
   AgentWorkspaceCommandDispatcher,
+  AgentWorkspaceEditorKind,
   AgentWorkspaceFocusPane,
   AgentWorkspaceLocalEditor,
   AgentWorkspaceLocalEditorKind,
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceLocalOperation,
   AgentWorkspaceRuntimeSnapshot,
+  AgentWorkspaceRuntimeStarterTemplateItem,
 } from './agent-workspace-types.ts';
 
 interface AgentWorkspaceActivationHost {
@@ -55,7 +57,10 @@ export function activateAgentWorkspaceSelection(
   const action = workspace.selectedAction;
   if (!action) return;
   if (action.kind === 'editor' && action.editorKind) {
-    const editor = createWorkspaceEditor(workspace, action.editorKind);
+    const editor = createAgentWorkspaceEditor(action.editorKind, {
+      runtimeStarterTemplates: workspace.runtimeSnapshot?.runtimeStarterTemplates ?? [],
+      selectedRoutine: workspace.selectedLocalLibraryItem('routine'),
+    });
     if (!editor) {
       workspace.status = `Editor unavailable: ${action.editorKind}.`;
       workspace.lastActionResult = {
@@ -143,11 +148,14 @@ export function activateAgentWorkspaceSelection(
   workspace.dispatchWorkspaceCommand(action.command);
 }
 
-function createWorkspaceEditor(
-  workspace: AgentWorkspaceActivationHost,
-  editorKind: NonNullable<AgentWorkspaceCategory['actions'][number]['editorKind']>,
+export function createAgentWorkspaceEditor(
+  editorKind: AgentWorkspaceEditorKind,
+  options: {
+    readonly runtimeStarterTemplates?: readonly AgentWorkspaceRuntimeStarterTemplateItem[];
+    readonly selectedRoutine?: AgentWorkspaceLocalLibraryItem | null;
+  } = {},
 ): AgentWorkspaceLocalEditor | null {
-  if (editorKind === 'profile') return createProfileEditor(workspace.runtimeSnapshot?.runtimeStarterTemplates ?? []);
+  if (editorKind === 'profile') return createProfileEditor(options.runtimeStarterTemplates ?? []);
   if (editorKind === 'learned-behavior') return createLearnedBehaviorEditor();
   if (editorKind === 'web-research') return createAgentWorkspaceWebResearchEditor('research');
   if (editorKind === 'web-fetch') return createAgentWorkspaceWebResearchEditor('fetch');
@@ -155,7 +163,7 @@ function createWorkspaceEditor(
   if (editorKind === 'knowledge-ask') return createAgentKnowledgeQueryEditor('ask');
   if (editorKind === 'knowledge-search') return createAgentKnowledgeQueryEditor('search');
   if (editorKind === 'reminder-schedule') return createReminderScheduleEditor();
-  if (editorKind === 'routine-schedule') return createRoutineScheduleEditor(workspace.selectedLocalLibraryItem('routine'));
+  if (editorKind === 'routine-schedule') return createRoutineScheduleEditor(options.selectedRoutine ?? null);
   if (
     editorKind === 'memory'
     || editorKind === 'note'

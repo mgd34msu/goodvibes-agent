@@ -54,6 +54,8 @@ Agent owns the operator assistant TUI, local profiles, local memory/notes/routin
 
 Agent does not own connected-host lifecycle. It does not provide commands to install, expose, start, stop, restart, or mutate the connected GoodVibes host.
 
+The model can inspect this boundary with `agent_harness` mode `connected_host`. That report includes the configured base URL, token presence, token path, allowed route families, first-class Agent tool capabilities, tool availability, and blocked capabilities. Allowed capabilities are limited to read-only operator briefing, explicit allowlisted approval/automation/schedule actions, isolated Agent Knowledge read/ingest, confirmed channel or notification delivery, confirmed reminder schedules, and configured media generation. Blocked capabilities include connected-host lifecycle, listener mutation, default or non-Agent knowledge fallback, hidden background Agent jobs, implicit delegated review, route/account creation, and arbitrary connected-host mutations.
+
 Agent Knowledge is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` only and must not fall back to default knowledge or other product-specific knowledge routes.
 
 Normal assistant chat uses companion chat. Build/fix/review work is delegated explicitly to GoodVibes TUI through public runtime/session contracts, and delegated review is requested only when explicitly asked for build/fix/review work.

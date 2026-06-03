@@ -41,7 +41,7 @@ Agent Knowledge writes are explicit-user-action paths. Slash commands that inges
 
 ## Ask And Search
 
-Use Agent Workspace -> Knowledge -> Ask Agent knowledge for source-backed Agent Knowledge answers. `/knowledge ask <query>` and `goodvibes-agent ask <query>` are scriptable equivalents over the same route. Default output is concise:
+Use Agent Workspace -> Knowledge -> Ask Agent Knowledge for source-backed Agent Knowledge answers. `/knowledge ask <query>` and `goodvibes-agent ask <query>` are scriptable equivalents over the same route. Default output is concise:
 
 - answer text or a clear no-match state;
 - confidence when present;
@@ -52,7 +52,7 @@ Use Agent Workspace -> Knowledge -> Ask Agent knowledge for source-backed Agent 
 
 The command layer does not turn search results into an answer locally and does not apply client-side filters to hide contamination. Isolation must come from the Agent Knowledge route itself.
 
-Use Agent Workspace -> Knowledge -> Search Agent knowledge for interactive search. `/knowledge search <query>` and `goodvibes-agent search <query>` query the isolated Agent Knowledge search route and render bounded results with title, id, type, score, source, URL, and snippets when available. Empty Agent stores return an explicit empty state.
+Use Agent Workspace -> Knowledge -> Search Agent Knowledge for interactive search. `/knowledge search <query>` and `goodvibes-agent search <query>` query the isolated Agent Knowledge search route and render bounded results with title, id, type, score, source, URL, and snippets when available. Empty Agent stores return an explicit empty state.
 
 Read-only inspection is available from the TUI Knowledge workspace first, with CLI equivalents for scripts:
 
@@ -82,7 +82,9 @@ Artifacts are first-class runtime objects for files, images, audio, video, gener
 
 Agent Workspace -> Voice & Media -> Generate media creates image/video artifacts through configured media providers after typed confirmation. The main conversation can perform the same confirmed action with the `agent_media_generate` tool when the user explicitly asks for generated media. Generated media output is summarized as artifact ids, MIME types, filenames, and source URLs when present; inline base64 is not printed into the transcript.
 
-Until dedicated Agent artifact-ingest route coverage exists, multimodal outputs should stay in the conversation, artifacts, local notes or memory, or explicit delegation results rather than being inserted into default knowledge.
+The model can discover the user-facing Knowledge, artifact, research, and media actions with `agent_harness` workspace action modes. When a workspace action maps to a concrete slash command, `agent_harness` can run that command with confirmation. For common product workflows, use the first-class tools first: `agent_knowledge`, `agent_knowledge_ingest`, and `agent_media_generate`.
+
+Multimodal outputs should stay in the conversation, artifacts, local notes or memory, or explicit delegation results unless the user explicitly ingests a reviewed source through an Agent Knowledge route. They must not be inserted into default knowledge.
 
 ## Related Docs
 

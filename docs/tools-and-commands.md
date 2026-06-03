@@ -7,7 +7,7 @@ GoodVibes Agent is an operator assistant TUI. Its command set is centered on mai
 - Normal chat stays in the main Agent conversation.
 - Agent Knowledge uses only `/api/goodvibes-agent/knowledge/*`.
 - Agent never falls back to default knowledge or arbitrary non-Agent knowledge spaces.
-- Local memory, notes, routines, skills, and personas remain Agent-local until a stable shared registry contract exists.
+- Local memory, notes, routines, skills, and personas remain Agent-local unless an explicit Agent workflow promotes reviewed material into another Agent-owned surface.
 - Runtime hosting is external. Agent connects to it and reports health; it does not start, stop, restart, or install it.
 - Delegated review is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, or review work.
 - Code-building work is delegated to GoodVibes TUI through public shared-session/task contracts.
@@ -28,7 +28,7 @@ High-signal Agent TUI paths:
 - `/memory`, `/routines`, `/skills`, and `/personas` for Agent-local context and reusable operator behavior.
 - `/plan` for Agent-owned workspace planning state in the main conversation.
 - `/workplan` for durable task status over public work-plan routes.
-- `/approvals` for pending approval visibility and explicit approval actions.
+- `/approval` for pending approval visibility and explicit approval actions.
 - `/schedule` for schedule visibility plus narrow explicit-user-action flows.
 - `/channels` for channel readiness and one-message confirmed channel delivery.
 - `/media` for media provider readiness and confirmed image/video artifact generation.
@@ -39,11 +39,106 @@ The installed `goodvibes-agent` command launches the TUI by default. Subcommands
 
 Host-management and coding-first commands that would imply connected-host lifecycle ownership, separate Agent job creation, execution-isolation ownership, worktree control, or implicit delegated review must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
 
+## Model-Visible Harness Surface
+
+The main Agent model has an Agent-owned harness bridge rather than generic SDK settings/context control. Use these model tools as the supported parity layer:
+
+- `agent_harness`: inspect workspace categories/actions, inspect slash commands and command policy metadata, run concrete workspace or slash-command mirrors with confirmation, inspect model tools, inspect or change Agent settings, and inspect connected-host posture.
+- `agent_local_registry`: inspect and maintain Agent-local memory, notes, personas, skills, skill bundles, and routines. Deleting local records requires `confirm:true` and `explicitUserRequest`.
+- `agent_knowledge` and `agent_knowledge_ingest`: ask/search and ingest into the isolated Agent Knowledge segment.
+- `agent_operator_briefing` and `agent_operator_action`: inspect connected work/approval/automation posture, or run exact confirmed approval/automation actions.
+- `agent_work_plan`: keep the visible Agent-local work plan current from the conversation.
+- `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, and `agent_media_generate`: perform confirmed external delivery, notification, reminder, or media actions when the user explicitly asks.
+
+`agent_harness` discovery modes are read-only. `summary` reports the model access map; `commands` and `command` return command descriptions plus effect/confirmation/preferred-tool/boundary policy metadata; `workspace_actions` lists Agent workspace actions and can inline editor field schemas with `includeParameters:true`; `workspace_action` returns one action with its editor schema; `tools` can inline model tool JSON schemas with `includeParameters:true`; `settings` returns setting descriptors plus setting policy; and `connected_host` returns the connected-host route families, allowed capabilities, blocked capabilities, and first-class tool availability.
+
+Setting writes, setting resets, slash-command invocation, workspace-action invocation, local record deletion, channel sends, notifications, reminders, media generation, and connected-host operator mutations require explicit user request and confirmation. Secret-backed settings are stored through the secret manager, and connected-host lifecycle/listener settings remain read-only in Agent.
+
+Selection-based local workspace actions use the same bridge. `agent_harness` reports the required model tool for each local action; for actions that depend on the TUI selection, call `run_workspace_action` with the selected local `recordId`. Note promotion actions can prefill and create memory, personas, skills, routines, or isolated Agent Knowledge URL ingests through the matching first-class model tool. Profile creation schemas include the current runtime starter-template inventory, and routine schedule schemas prefill the selected routine when `recordId` or a `routineId` field matches a local routine.
+
+Use first-class Agent tools before falling back to slash-command mirrors. Slash-command execution is for harness parity and scriptable mirrors, not for bypassing Agent product boundaries.
+
 The main composer supports inline context references. Type `@path/to/file`, `@path/to/folder`, or `@https://example.test/page` in a normal prompt to add bounded context for that turn. `!@path/to/file` remains the raw file-injection form. These references do not ingest anything into Agent Knowledge unless the user explicitly runs a Knowledge ingest action.
 
 The Research workspace submits web research and URL inspection forms to the normal main conversation. These requests are read-only by default, may use connected web tools when the user asks, and do not ingest sources. Use confirmed Agent Knowledge ingest actions only after a source should become durable Agent-owned knowledge.
 
 Local memory capture/add commands are explicit Agent-local actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
+
+## Slash Command Catalog
+
+Every registered slash-command root in the Agent TUI is listed here. Aliases resolve through the same command registry but are intentionally secondary to the canonical roots.
+
+| Command | Purpose |
+| --- | --- |
+| `/accounts` | Review provider auth routes, subscription windows, and billing-path safety. |
+| `/agent` | Open the GoodVibes Agent operator workspace. |
+| `/agent-profile` | Manage isolated Agent profiles and starter templates. |
+| `/approval` | Review approval classes and run exact confirmed approval actions. |
+| `/auth` | Review provider auth posture and export redacted auth review bundles. |
+| `/automation` | Run confirmed connected-host automation actions from the Agent TUI. |
+| `/bookmarks` | List bookmarked transcript blocks. |
+| `/brief` | Show a concise Agent operator briefing and next actions. |
+| `/bundle` | Export, inspect, or import redacted Agent support bundles from the TUI. |
+| `/channels` | Inspect channel readiness or send one explicitly confirmed delivery message. |
+| `/clear` | Clear the conversation display while keeping LLM context. |
+| `/collapse` | Collapse rendered blocks by type. |
+| `/commands` | Browse all commands in a scrollable list. |
+| `/compact` | Summarize the conversation to free context window. |
+| `/compat` | Inspect Agent SDK pin, connected-host version, and Agent Knowledge route readiness. |
+| `/config` | Open the fullscreen configuration workspace. |
+| `/context` | Inspect context-window usage and token breakdown. |
+| `/conversation` | Review conversation structure, transcript hotspots, and composer posture. |
+| `/delegate` | Explicitly delegate build/fix/review work to GoodVibes TUI. |
+| `/effort` | Show or set reasoning effort level. |
+| `/expand` | Expand rendered blocks by type. |
+| `/export` | Export the current conversation to Markdown. |
+| `/health` | Review startup posture, connected-host readiness, provider health, and Agent continuity. |
+| `/help` | Show available commands and keyboard shortcuts. |
+| `/image` | Attach an image file to the next message. |
+| `/keybindings` | List keyboard bindings and the config file path. |
+| `/knowledge` | Use isolated Agent Knowledge sources, graph, review queue, ask/search, ingest, and compact prompt packets. |
+| `/load` | Load a saved Agent session. |
+| `/mcp` | Manage MCP servers, trust posture, and tool inventory. |
+| `/media` | Inspect media providers or generate media through configured providers. |
+| `/memory` | Add, search, review, stale, or delete Agent-local memory records. |
+| `/mode` | Manage Agent interaction mode and per-domain verbosity. |
+| `/model` | Select or display the current LLM model. |
+| `/next-error` | Jump to the next error message in the conversation. |
+| `/notes` | Open Agent-local scratchpad notes in the operator workspace. |
+| `/notify` | Manage and send configured Agent webhook notifications. |
+| `/paste` | Insert clipboard text or image into the prompt. |
+| `/personas` | Manage Agent-local personas. |
+| `/pin` | Pin a model to the favorites list. |
+| `/plan` | Inspect or seed Agent workspace planning state. |
+| `/prev-error` | Jump to the previous error message in the conversation. |
+| `/provider` | Switch provider or manage custom providers. |
+| `/qrcode` | Print companion pairing details and a QR code. |
+| `/quit` | Exit the application. |
+| `/redo` | Redo the last undone conversation turn. |
+| `/refresh-models` | Refresh model catalog, benchmarks, and token limits. |
+| `/reset` | Clear display and conversation context. |
+| `/retry` | Re-send the last user message, optionally with modified text. |
+| `/routines` | Manage Agent-local routines and explicit routine schedule promotion. |
+| `/save` | Save the current session. |
+| `/schedule` | Inspect schedules, create confirmed reminders, and promote routines to connected schedules. |
+| `/secrets` | Manage hierarchy-aware secrets, external secret refs, and secure/plaintext storage policy. |
+| `/security` | Inspect security posture, attack paths, and review state. |
+| `/session` | Inspect session continuity and cross-session graph state. |
+| `/sessions` | List saved sessions. |
+| `/settings` | Open, inspect, set, or reset Agent settings. |
+| `/setup` | Open Agent setup with current settings preloaded. |
+| `/shortcuts` | Show keyboard shortcuts. |
+| `/skills` | Manage Agent-local skills and skill bundles. |
+| `/subscription` | Manage provider subscription sessions. |
+| `/tasks` | Inspect connected-host tasks without starting or mutating local background work. |
+| `/title` | Show or set the conversation title. |
+| `/trust` | Review trust posture and export portable trust bundles. |
+| `/tts` | Submit a normal prompt and play the assistant response through live TTS. |
+| `/undo` | Undo the last conversation turn. |
+| `/unpin` | Unpin a model from the favorites list. |
+| `/voice` | Review voice posture and package portable voice interaction metadata. |
+| `/welcome` | Open or print the Agent setup guide. |
+| `/workplan` | Track a persistent workspace-scoped work plan. |
 
 ## Agent Knowledge
 

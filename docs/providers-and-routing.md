@@ -11,6 +11,7 @@ Provider and model state should be visible in:
 - `/model` and `/provider`;
 - the Agent operator workspace setup checklist;
 - the TTS configuration workspace when spoken turns are used.
+- `agent_harness` settings and workspace-action discovery when the model needs to inspect or change Agent-owned routing settings.
 
 When a selected model is provider-qualified, Agent keeps the runtime provider row and raw model id separate. For example, `openai-subscriber` plus `openai:gpt-5.5` should route as provider `openai-subscriber` and model `gpt-5.5` where the public route expects provider/model fields.
 
@@ -38,6 +39,8 @@ Search, voice, media, and multimodal providers are valid Agent features when the
 - artifact creation and review.
 
 Outputs that should become durable knowledge must go through Agent Knowledge routes. No provider output should be inserted into default knowledge or another product segment by Agent.
+
+Setting changes are available to the model through `agent_harness` only when the user explicitly asks. Secret-backed provider or channel values are stored through the secret manager and displayed as redacted references.
 
 ## Related Docs
 

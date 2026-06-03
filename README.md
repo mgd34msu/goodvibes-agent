@@ -1,17 +1,17 @@
 # GoodVibes Agent
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#install)
+[![Status: 1.0.x](https://img.shields.io/badge/status-1.0.x-green.svg)](#install)
 
 GoodVibes Agent is the personal operator assistant TUI for GoodVibes. It is built for day-to-day operator work: chat, setup, local profiles, routines, skills, personas, isolated Agent Knowledge, status review, approvals, automation visibility, and explicit build delegation.
 
 The Agent product connects to a GoodVibes host owned outside this package. It does not install, start, stop, restart, or own that host.
 
-Most work happens in the interactive TUI. The installed CLI exists to launch that TUI and provide scriptable mirrors for workflows that are already reachable from the workspace.
+Most work happens in the interactive TUI. The installed CLI exists to launch that TUI and provide scriptable mirrors for workflows that are already reachable from the workspace. The main Agent model can inspect the same harness surface through Agent-owned tools: workspace actions, slash commands, command policy metadata, settings, model tools, local registries, and connected-host capability boundaries are all discoverable from the conversation without exposing connected-host lifecycle control.
 
 ## Install
 
-Install the public alpha package with Bun:
+Install the current `1.0.x` package with Bun:
 
 ```sh
 bun add -g @pellux/goodvibes-agent
@@ -66,6 +66,8 @@ Use the workspace as the primary product surface:
 
 Inside the Agent workspace, press `/` to search every workspace action by name, category, command, or detail. This is the primary discovery path for product actions; slash commands and CLI subcommands remain power-user/scriptable mirrors.
 
+The model has the same harness map through `agent_harness`: it can list Agent workspace actions, list slash commands, inspect command policy metadata, inspect model tool definitions, inspect or change Agent settings with confirmation, run concrete workspace or slash-command mirrors with confirmation, and report connected-host posture. Workspace action discovery can inline editor field schemas with `includeParameters:true`; profile editors use the current starter-template inventory, and routine schedule editors can prefill a selected local routine from `recordId`. Selection-based local workspace actions accept a local `recordId` so the model can use the same note promotion and local registry flows as the TUI. The connected-host report includes route families, allowed capabilities, blocked lifecycle/non-Agent surfaces, and availability for the first-class Agent tools. The model uses those first-class tools for product workflows where they exist, such as Agent Knowledge, local memory/notes/personas/skills/routines, channel sends, notifications, reminders, media generation, work plans, and connected-host operator actions.
+
 The setup workspace surfaces discovered Agent-local persona, skill, and routine markdown files so day-one setup can import useful behavior instead of starting from blank records. It can also create one initial scratchpad note, local persona, skill, and routine directly during first-run setup; those records stay in Agent-local registries and never write to default knowledge or non-Agent segments.
 
 In the Profiles workspace, choose Starter authoring guide to author custom profile starters without leaving the Agent TUI. The guided flow lists starters, exports starter JSON, imports edited local starters, and creates isolated Agent profiles from them.
@@ -87,6 +89,8 @@ The installed CLI mirrors the same local behavior libraries for scripts and auto
 The Agent workspace also has a `Capture learned behavior` form. Use it after reviewing a repeated workflow, lesson, or operating style; it saves one local skill, routine, or persona directly from the TUI and does not write to connected-host routes or non-Agent knowledge.
 
 When the user explicitly asks, the main assistant conversation can perform the same narrow operator actions exposed by the TUI: approve/deny/cancel a named approval, run/pause/resume a named automation job, cancel/retry a named automation run, or run a named schedule. These actions require explicit confirmation, use only public connected-host operator routes, and do not create, edit, or delete automation definitions.
+
+When the user explicitly asks the model to operate the harness itself, it should use Agent-owned harness tools rather than generic SDK settings or context mutators. Setting writes, slash-command invocation, workspace action invocation, local record deletion, external delivery, media generation, reminder scheduling, and connected-host operator actions remain confirmation-gated.
 
 Agent-local behavior is editable from the TUI workspace:
 
@@ -114,7 +118,7 @@ Agent reports unavailable, unauthenticated, or incompatible connected-host state
 
 ## Product Boundary
 
-GoodVibes Agent owns the operator assistant TUI: serial assistant flow, proactive safe actions, local memory/notes/routines/skills/personas, Agent knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
+GoodVibes Agent owns the operator assistant TUI: serial assistant flow, proactive safe actions, local memory/notes/routines/skills/personas, Agent Knowledge routes, companion chat, approvals/automation observability, and explicit build delegation.
 
 Agent Knowledge is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` and must not fall back to default knowledge or other product-specific knowledge routes.
 

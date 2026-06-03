@@ -1,33 +1,17 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ShellPathService } from '@/runtime/index.ts';
-import {
-  MemoryRegistry,
-  type MemoryClass,
-  type MemoryRecord,
-  type MemoryScope,
-} from '@pellux/goodvibes-sdk/platform/state';
+import { MemoryRegistry, type MemoryClass, type MemoryRecord, type MemoryScope } from '@pellux/goodvibes-sdk/platform/state';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
 import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
 import { formatAgentRecordOrigin, formatAgentRecordReference, formatAgentRecordReviewState } from '../agent/record-labels.ts';
+import { buildAgentLocalRequirements } from './agent-local-registry-requirements.ts';
 
 export type AgentLocalRegistryDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
-export type AgentLocalRegistryAction =
-  | 'list'
-  | 'search'
-  | 'get'
-  | 'create'
-  | 'update'
-  | 'enable'
-  | 'disable'
-  | 'review'
-  | 'stale'
-  | 'use'
-  | 'clear_active'
-  | 'start';
+export type AgentLocalRegistryAction = 'list' | 'search' | 'get' | 'create' | 'update' | 'enable' | 'disable' | 'review' | 'stale' | 'use' | 'clear_active' | 'start' | 'delete';
 
 export interface AgentLocalRegistryToolArgs {
   readonly domain?: unknown;
@@ -48,28 +32,20 @@ export interface AgentLocalRegistryToolArgs {
   readonly steps?: unknown;
   readonly skills?: unknown;
   readonly skillIds?: unknown;
+  readonly requiresEnv?: unknown;
+  readonly requiresCommands?: unknown;
   readonly triggers?: unknown;
   readonly tags?: unknown;
   readonly reason?: unknown;
   readonly enabled?: unknown;
+  readonly activate?: unknown;
   readonly provenance?: unknown;
+  readonly confirm?: unknown;
+  readonly explicitUserRequest?: unknown;
 }
 
 const DOMAINS: readonly AgentLocalRegistryDomain[] = ['memory', 'note', 'persona', 'skill', 'skill_bundle', 'routine'];
-const ACTIONS: readonly AgentLocalRegistryAction[] = [
-  'list',
-  'search',
-  'get',
-  'create',
-  'update',
-  'enable',
-  'disable',
-  'review',
-  'stale',
-  'use',
-  'clear_active',
-  'start',
-];
+const ACTIONS: readonly AgentLocalRegistryAction[] = ['list', 'search', 'get', 'create', 'update', 'enable', 'disable', 'review', 'stale', 'use', 'clear_active', 'start', 'delete'];
 const MEMORY_CLASSES: readonly MemoryClass[] = ['decision', 'constraint', 'incident', 'pattern', 'fact', 'risk', 'runbook', 'architecture', 'ownership'];
 const MEMORY_SCOPES: readonly MemoryScope[] = ['session', 'project', 'team'];
 const AGENT_TOOL_PROVENANCE = 'agent-local-registry-tool';
@@ -84,6 +60,10 @@ function isAction(value: unknown): value is AgentLocalRegistryAction {
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function readAffirmative(value: unknown): boolean {
+  const normalized = readString(value).toLowerCase(); return value === true || (typeof value === 'string' && (normalized === '' || normalized === 'yes' || normalized === 'y' || normalized === 'true' || normalized === 'on'));
 }
 
 function readStringList(value: unknown): readonly string[] {
@@ -128,6 +108,12 @@ function requireId(args: AgentLocalRegistryToolArgs): string {
   const id = readString(args.id);
   if (!id) throw new Error('id is required.');
   return id;
+}
+
+function requireConfirmedDelete(args: AgentLocalRegistryToolArgs, label: string): void {
+  const explicitUserRequest = readString(args.explicitUserRequest);
+  if (!explicitUserRequest) throw new Error(`${label} deletion requires explicitUserRequest with the user's exact request or a short faithful summary.`);
+  if (args.confirm !== true) throw new Error(`${label} deletion requires confirm:true after an explicit user request.`);
 }
 
 function requireName(args: AgentLocalRegistryToolArgs): string {
@@ -202,6 +188,7 @@ async function handleMemory(registry: MemoryRegistry, action: AgentLocalRegistry
       const summary = requireSummary(args);
       const detail = readString(args.detail || args.body);
       const tags = readStringList(args.tags);
+      const confidence = readOptionalConfidence(args.confidence);
       assertNoSecretLikeMemoryText([summary, detail, ...tags]);
       const record = await registry.add({
         scope: readMemoryScope(args),
@@ -209,6 +196,7 @@ async function handleMemory(registry: MemoryRegistry, action: AgentLocalRegistry
         summary,
         detail,
         tags: [...tags],
+        ...(confidence === undefined ? {} : { review: { state: 'fresh' as const, confidence } }),
         provenance: [{ kind: 'event', ref: readString(args.provenance) || AGENT_TOOL_PROVENANCE }],
       });
       return [
@@ -256,6 +244,15 @@ async function handleMemory(registry: MemoryRegistry, action: AgentLocalRegistry
       return [
         'Marked Agent-local memory stale',
         `  id ${record.id}`,
+      ].join('\n');
+    }
+    if (action === 'delete') {
+      const id = requireId(args);
+      requireConfirmedDelete(args, 'Agent-local memory');
+      if (!registry.delete(id)) return `Unknown Agent-local memory ${id}`;
+      return [
+        'Deleted Agent-local memory',
+        `  id ${id}`,
       ].join('\n');
     }
     throw new Error(`Action ${action} is not valid for memory.`);
@@ -332,6 +329,15 @@ function handleNote(shellPaths: ShellPathService, action: AgentLocalRegistryActi
       `  id ${note.id}`,
     ].join('\n');
   }
+  if (action === 'delete') {
+    requireConfirmedDelete(args, 'Agent-local note');
+    const note = registry.deleteNote(requireId(args));
+    return [
+      'Deleted Agent-local note',
+      `  id ${note.id}`,
+      `  title ${note.title}`,
+    ].join('\n');
+  }
   throw new Error(`Action ${action} is not valid for notes.`);
 }
 
@@ -406,6 +412,7 @@ function handlePersona(shellPaths: ShellPathService, action: AgentLocalRegistryA
       source: 'agent',
       provenance: readString(args.provenance) || AGENT_TOOL_PROVENANCE,
     });
+    if (args.activate !== undefined && readAffirmative(args.activate)) registry.setActive(persona.id);
     return [
       'Created Agent-local persona',
       `  id ${persona.id}`,
@@ -413,6 +420,7 @@ function handlePersona(shellPaths: ShellPathService, action: AgentLocalRegistryA
     ].join('\n');
   }
   if (action === 'update') {
+    const wasActive = registry.snapshot().activePersonaId === requireId(args);
     const persona = registry.update(requireId(args), {
       name: readString(args.name) || undefined,
       description: readString(args.description) || undefined,
@@ -421,6 +429,7 @@ function handlePersona(shellPaths: ShellPathService, action: AgentLocalRegistryA
       triggers: args.triggers === undefined ? undefined : readStringList(args.triggers),
       provenance: readString(args.provenance) || AGENT_TOOL_PROVENANCE,
     });
+    if (args.activate !== undefined) { if (readAffirmative(args.activate)) registry.setActive(persona.id); else if (wasActive) registry.clearActive(); }
     return [
       'Updated Agent-local persona',
       `  id ${persona.id}`,
@@ -453,6 +462,15 @@ function handlePersona(shellPaths: ShellPathService, action: AgentLocalRegistryA
       `  id ${persona.id}`,
     ].join('\n');
   }
+  if (action === 'delete') {
+    requireConfirmedDelete(args, 'Agent-local persona');
+    const persona = registry.deletePersona(requireId(args));
+    return [
+      'Deleted Agent-local persona',
+      `  id ${persona.id}`,
+      `  name ${persona.name}`,
+    ].join('\n');
+  }
   throw new Error(`Action ${action} is not valid for personas.`);
 }
 
@@ -480,6 +498,7 @@ function handleSkill(shellPaths: ShellPathService, action: AgentLocalRegistryAct
       procedure: requireTextField(args.procedure, 'procedure'),
       triggers: readStringList(args.triggers),
       tags: readStringList(args.tags),
+      requirements: buildAgentLocalRequirements(args.requiresEnv, args.requiresCommands),
       enabled: args.enabled === true,
       source: 'agent',
       provenance: readString(args.provenance) || AGENT_TOOL_PROVENANCE,
@@ -497,6 +516,7 @@ function handleSkill(shellPaths: ShellPathService, action: AgentLocalRegistryAct
       procedure: readString(args.procedure) || undefined,
       triggers: args.triggers === undefined ? undefined : readStringList(args.triggers),
       tags: args.tags === undefined ? undefined : readStringList(args.tags),
+      requirements: buildAgentLocalRequirements(args.requiresEnv, args.requiresCommands),
       provenance: readString(args.provenance) || AGENT_TOOL_PROVENANCE,
     });
     return [
@@ -525,6 +545,15 @@ function handleSkill(shellPaths: ShellPathService, action: AgentLocalRegistryAct
     return [
       'Marked Agent-local skill stale',
       `  id ${skill.id}`,
+    ].join('\n');
+  }
+  if (action === 'delete') {
+    requireConfirmedDelete(args, 'Agent-local skill');
+    const skill = registry.deleteSkill(requireId(args));
+    return [
+      'Deleted Agent-local skill',
+      `  id ${skill.id}`,
+      `  name ${skill.name}`,
     ].join('\n');
   }
   throw new Error(`Action ${action} is not valid for skills.`);
@@ -595,6 +624,15 @@ function handleSkillBundle(shellPaths: ShellPathService, action: AgentLocalRegis
       `  id ${bundle.id}`,
     ].join('\n');
   }
+  if (action === 'delete') {
+    requireConfirmedDelete(args, 'Agent-local skill bundle');
+    const bundle = registry.deleteBundle(requireId(args));
+    return [
+      'Deleted Agent-local skill bundle',
+      `  id ${bundle.id}`,
+      `  name ${bundle.name}`,
+    ].join('\n');
+  }
   throw new Error(`Action ${action} is not valid for skill bundles.`);
 }
 
@@ -621,6 +659,7 @@ function handleRoutine(shellPaths: ShellPathService, action: AgentLocalRegistryA
       steps: requireTextField(args.steps, 'steps'),
       triggers: readStringList(args.triggers),
       tags: readStringList(args.tags),
+      requirements: buildAgentLocalRequirements(args.requiresEnv, args.requiresCommands),
       enabled: args.enabled === true,
       source: 'agent',
       provenance: readString(args.provenance) || AGENT_TOOL_PROVENANCE,
@@ -638,6 +677,7 @@ function handleRoutine(shellPaths: ShellPathService, action: AgentLocalRegistryA
       steps: readString(args.steps) || undefined,
       triggers: args.triggers === undefined ? undefined : readStringList(args.triggers),
       tags: args.tags === undefined ? undefined : readStringList(args.tags),
+      requirements: buildAgentLocalRequirements(args.requiresEnv, args.requiresCommands),
       provenance: readString(args.provenance) || AGENT_TOOL_PROVENANCE,
     });
     return [
@@ -679,6 +719,15 @@ function handleRoutine(shellPaths: ShellPathService, action: AgentLocalRegistryA
       `  id ${routine.id}`,
     ].join('\n');
   }
+  if (action === 'delete') {
+    requireConfirmedDelete(args, 'Agent-local routine');
+    const routine = registry.deleteRoutine(requireId(args));
+    return [
+      'Deleted Agent-local routine',
+      `  id ${routine.id}`,
+      `  name ${routine.name}`,
+    ].join('\n');
+  }
   throw new Error(`Action ${action} is not valid for routines.`);
 }
 
@@ -689,7 +738,7 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
       description: [
         'Inspect and maintain GoodVibes Agent-local notes, memory, personas, skills, and routines from the main conversation.',
         'Use this for safe self-improvement: capture scratchpad notes, remember durable non-secret facts, create or refine reusable behavior, bundle related skills, enable skills/routines, choose personas, review/stale records, and start routines in the same serial conversation.',
-        'This tool cannot delete records, create schedules, mutate connected hosts, send messages, run background jobs, or delegate build work.',
+        'Destructive record deletion requires confirm:true plus explicitUserRequest. This tool cannot create schedules, mutate connected hosts, send messages, run background jobs, or delegate build work.',
       ].join(' '),
       parameters: {
         type: 'object',
@@ -712,11 +761,16 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
           steps: { type: 'string', description: 'Routine steps.' },
           skills: { type: 'array', items: { type: 'string' }, description: 'Skill ids for skill_bundle create/update.' },
           skillIds: { type: 'array', items: { type: 'string' }, description: 'Skill ids for skill_bundle create/update.' },
+          requiresEnv: { type: 'array', items: { type: 'string' }, description: 'Environment variable names required by a skill or routine. Values are never stored.' },
+          requiresCommands: { type: 'array', items: { type: 'string' }, description: 'Command names required by a skill or routine.' },
           triggers: { type: 'array', items: { type: 'string' } },
           tags: { type: 'array', items: { type: 'string' } },
           reason: { type: 'string' },
           enabled: { type: 'boolean' },
+          activate: { type: 'boolean', description: 'Activate a created/updated persona, or clear it when updating the active persona with false.' },
           provenance: { type: 'string' },
+          confirm: { type: 'boolean', description: 'Required true for delete after an explicit user request.' },
+          explicitUserRequest: { type: 'string', description: 'Exact user request or faithful short summary authorizing delete.' },
         },
         required: ['domain', 'action'],
         additionalProperties: false,

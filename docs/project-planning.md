@@ -39,7 +39,7 @@ The planning loop can be paused with natural language such as "stop planning" or
 
 ## Planning View
 
-The planning view is transcript-first today. It shows:
+The planning view is transcript-first. It shows:
 
 - workspace project id and planning namespace;
 - readiness and approval state;
@@ -69,6 +69,8 @@ Use natural language such as "pause planning" or "stop planning" when planning s
 The work-plan tracker is for concrete, durable task state after work becomes actionable. It is separate from the planning interview loop.
 
 Use `/workplan` when the work already has tasks and needs status tracking. Use `/delegate` when explicit build/fix/review work should go to GoodVibes TUI.
+
+The model can keep the same visible work plan current with `agent_work_plan`. It can also discover `/plan`, `/workplan`, and delegation workspace actions through `agent_harness`; destructive work-plan changes still require explicit user request and confirmation.
 
 ## Agent Knowledge Boundary
 

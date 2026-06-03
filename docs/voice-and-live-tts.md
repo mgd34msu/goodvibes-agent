@@ -20,6 +20,8 @@ GoodVibes Agent supports spoken turns as an Agent TUI feature. Text output remai
 
 `/config tts` opens the fullscreen configuration workspace for streaming provider, voice, and spoken-turn model routing.
 
+The model can inspect the same settings through `agent_harness` settings modes and can change Agent-owned TTS settings with explicit confirmation. Connected-host listener or lifecycle settings remain outside Agent ownership.
+
 ## Playback Requirements
 
 Live playback streams audio to a local player. Install one of:

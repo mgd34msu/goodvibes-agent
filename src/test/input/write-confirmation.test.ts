@@ -127,6 +127,36 @@ describe('write/export command confirmation', () => {
     expect(registry.get('profiles')).toBeUndefined();
   });
 
+  test('/settings list parses valued flags without swallowing later flags', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-settings-list-flags-'));
+    try {
+      const registry = new CommandRegistry();
+      registerOperatorRuntimeCommands(registry);
+      const out: string[] = [];
+      const configManager = new ConfigManager({
+        surfaceRoot: 'agent',
+        workingDir: root,
+        homeDir: root,
+        configDir: join(root, '.goodvibes', 'agent'),
+      });
+      const ctx = {
+        ...baseContext(root, out),
+        platform: { configManager },
+      } as unknown as CommandContext;
+
+      await registry.get('settings')!.handler(['list', '--category=provider', '--limit=1'], ctx);
+      expect(out.join('\n')).toContain('Settings (1)');
+      expect(out.join('\n')).toContain('provider.');
+
+      out.length = 0;
+      await registry.get('settings')!.handler(['list', '--category', '--limit', '1'], ctx);
+      expect(out.join('\n')).toContain('Settings (1)');
+      expect(out.join('\n')).not.toContain('No settings matched.');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('mode preset and domain overrides require --yes before writing interaction state', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-mode-confirm-'));
     try {

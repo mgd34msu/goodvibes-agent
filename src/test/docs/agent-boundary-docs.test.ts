@@ -24,6 +24,15 @@ function collectSlashCommandRoots(text: string): readonly string[] {
   return [...roots].sort();
 }
 
+function collectCatalogCommandRoots(text: string): readonly string[] {
+  const roots = new Set<string>();
+  const tableRowPattern = /^\|\s*`\/([a-z][a-z0-9_-]*)`\s*\|/gm;
+  for (let match = tableRowPattern.exec(text); match !== null; match = tableRowPattern.exec(text)) {
+    roots.add(match[1] ?? '');
+  }
+  return [...roots].sort();
+}
+
 function walkProductionFiles(dir: string): readonly string[] {
   const entries = readdirSync(dir, { withFileTypes: true });
   const files: string[] = [];
@@ -155,6 +164,15 @@ describe('Agent boundary docs', () => {
       .filter((root) => registry.get(root) === undefined);
 
     expect(missingRoots).toEqual([]);
+  });
+
+  test('tools command guide slash-command catalog matches canonical command roots', () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const canonicalRoots = registry.list().map((command) => command.name).sort();
+    const documentedRoots = collectCatalogCommandRoots(readRepoFile('docs/tools-and-commands.md'));
+
+    expect(documentedRoots).toEqual(canonicalRoots);
   });
 
   test('package-facing onboarding stays TUI-first instead of CLI-first', () => {

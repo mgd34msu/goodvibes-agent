@@ -7,6 +7,7 @@ import { createAgentLocalRegistryTool, registerAgentLocalRegistryTool } from '..
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
+import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
@@ -57,6 +58,7 @@ describe('agent_local_registry tool', () => {
       scope: 'project',
       summary: 'User prefers concise morning operator briefings.',
       detail: 'Keep routine briefings under five bullets unless the user asks for detail.',
+      confidence: 88,
       tags: ['preference', 'briefing'],
       provenance: 'test-turn',
     });
@@ -68,6 +70,7 @@ describe('agent_local_registry tool', () => {
     expect(records[0]?.summary).toBe('User prefers concise morning operator briefings.');
     expect(records[0]?.scope).toBe('project');
     expect(records[0]?.cls).toBe('fact');
+    expect(records[0]?.confidence).toBe(88);
 
     const reviewed = await tool.execute({
       domain: 'memory',
@@ -103,6 +106,39 @@ describe('agent_local_registry tool', () => {
     expect(shown.output).toContain('provenance:');
   });
 
+  test('deletes Agent-local records only after explicit confirmation', async () => {
+    const { paths, tool } = await toolFixture();
+    const created = await tool.execute({
+      domain: 'note',
+      action: 'create',
+      title: 'Delete candidate',
+      body: 'Temporary note that should be removable from model-visible parity.',
+    });
+    expect(created.success).toBe(true);
+    expect(AgentNoteRegistry.fromShellPaths(paths).list()).toHaveLength(1);
+
+    const preview = await tool.execute({
+      domain: 'note',
+      action: 'delete',
+      id: 'delete-candidate',
+      explicitUserRequest: 'Delete the temporary note.',
+    });
+    expect(preview.success).toBe(false);
+    expect(preview.error).toContain('confirm:true');
+    expect(AgentNoteRegistry.fromShellPaths(paths).list()).toHaveLength(1);
+
+    const deleted = await tool.execute({
+      domain: 'note',
+      action: 'delete',
+      id: 'delete-candidate',
+      confirm: true,
+      explicitUserRequest: 'Delete the temporary note.',
+    });
+    expect(deleted.success).toBe(true);
+    expect(deleted.output).toContain('Deleted Agent-local note');
+    expect(AgentNoteRegistry.fromShellPaths(paths).list()).toHaveLength(0);
+  });
+
   test('rejects secret-looking Agent memory from the model-visible tool', async () => {
     const { memoryRegistry, tool } = await toolFixture();
 
@@ -129,6 +165,8 @@ describe('agent_local_registry tool', () => {
       procedure: 'Read the request, classify urgency, summarize the next action.',
       tags: ['mail', 'triage'],
       triggers: ['inbox', 'email'],
+      requiresEnv: ['MAILBOX_TOKEN'],
+      requiresCommands: ['mailctl'],
       enabled: true,
     });
 
@@ -138,6 +176,36 @@ describe('agent_local_registry tool', () => {
     expect(snapshot.skills).toHaveLength(1);
     expect(snapshot.enabledSkills[0]?.source).toBe('agent');
     expect(snapshot.enabledSkills[0]?.provenance).toBe('agent-local-registry-tool');
+    expect(snapshot.enabledSkills[0]?.requirements.map((requirement) => `${requirement.kind}:${requirement.name}`)).toEqual([
+      'env:MAILBOX_TOKEN',
+      'command:mailctl',
+    ]);
+  });
+
+  test('can activate and clear personas through model-visible registry fields', async () => {
+    const { paths, tool } = await toolFixture();
+
+    const created = await tool.execute({
+      domain: 'persona',
+      action: 'create',
+      name: 'Incident lead',
+      description: 'Drive incident response.',
+      body: 'Keep status concise and identify owners.',
+      activate: true,
+    });
+    expect(created.success).toBe(true);
+    let snapshot = AgentPersonaRegistry.fromShellPaths(paths).snapshot();
+    expect(snapshot.activePersonaId).toBe('incident-lead');
+
+    const updated = await tool.execute({
+      domain: 'persona',
+      action: 'update',
+      id: 'incident-lead',
+      activate: false,
+    });
+    expect(updated.success).toBe(true);
+    snapshot = AgentPersonaRegistry.fromShellPaths(paths).snapshot();
+    expect(snapshot.activePersonaId).toBeNull();
   });
 
   test('rejects blank self-created behavior records from the model-visible tool', async () => {
@@ -261,6 +329,8 @@ describe('agent_local_registry tool', () => {
       name: 'Morning brief',
       description: 'Review operator state before the day starts.',
       steps: 'Check local memory, work plan, approvals, and Agent Knowledge status.',
+      requiresEnv: ['GOODVIBES_OPERATOR_TOKEN'],
+      requiresCommands: ['goodvibes-agent'],
       enabled: true,
     });
 
@@ -270,9 +340,13 @@ describe('agent_local_registry tool', () => {
     expect(started.output).toContain('same main conversation');
     expect(started.output).toContain('no hidden background job');
     expect(AgentRoutineRegistry.fromShellPaths(paths).get('morning-brief')?.startCount).toBe(1);
+    expect(AgentRoutineRegistry.fromShellPaths(paths).get('morning-brief')?.requirements.map((requirement) => `${requirement.kind}:${requirement.name}`)).toEqual([
+      'env:GOODVIBES_OPERATOR_TOKEN',
+      'command:goodvibes-agent',
+    ]);
   });
 
-  test('rejects destructive or external actions instead of inventing behavior', async () => {
+  test('gates destructive actions and rejects external actions instead of inventing behavior', async () => {
     const { tool } = await toolFixture();
 
     const deleted = await tool.execute({ domain: 'skill', action: 'delete', id: 'anything' });
@@ -281,11 +355,11 @@ describe('agent_local_registry tool', () => {
     const scheduled = await tool.execute({ domain: 'routine', action: 'schedule', id: 'anything' });
 
     expect(deleted.success).toBe(false);
-    expect(deleted.error).toContain('Unknown action');
+    expect(deleted.error).toContain('explicitUserRequest');
     expect(deletedBundle.success).toBe(false);
-    expect(deletedBundle.error).toContain('Unknown action');
+    expect(deletedBundle.error).toContain('explicitUserRequest');
     expect(deletedMemory.success).toBe(false);
-    expect(deletedMemory.error).toContain('Unknown action');
+    expect(deletedMemory.error).toContain('explicitUserRequest');
     expect(scheduled.success).toBe(false);
     expect(scheduled.error).toContain('Unknown action');
   });
