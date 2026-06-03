@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.15 - 2026-06-03
+
+- Add forgiving agent_harness slash-command detail lookup by command, commandName, target, or query with parsed invocation metadata.
+- Keep slash-command catalogs lightweight while making one-command inspection work from typed user-style invocations, aliases, case-insensitive roots, and unique description matches.
+- Refresh package-facing docs and focused harness coverage for the updated model-visible slash-command inspection path.
+
 ## 1.0.14 - 2026-06-03
 
 - Add agent_harness mode tool to inspect one first-class model tool schema by toolName, target, or query.
