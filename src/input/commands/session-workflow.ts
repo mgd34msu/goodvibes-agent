@@ -79,10 +79,9 @@ function buildTranscriptReviewLines(
   ];
 }
 
-function reopenPanelsFromReturnContext(ctx: CommandContext, summary: SessionReturnContextSummary | undefined): string[] {
-  if (!summary?.openPanels || summary.openPanels.length === 0) return [];
+function printIgnoredPanelsFromReturnContext(ctx: CommandContext, summary: SessionReturnContextSummary | undefined): void {
+  if (!summary?.openPanels || summary.openPanels.length === 0) return;
   ctx.print(`  Saved panel state ignored: ${summary.openPanels.slice(0, 4).join(', ')}. Open the Agent workspace for current operator controls.`);
-  return [];
 }
 
 function printSessionExport(
@@ -244,7 +243,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       if (meta.provider) ctx.session.runtime.provider = meta.provider;
       ctx.renderRequest();
       ctx.print(`Resumed session: ${found.name}\n  Name: ${meta.title || '(untitled)'}\n  Messages: ${messages.length}\n  Model: ${meta.model || ctx.session.runtime.model}`);
-      reopenPanelsFromReturnContext(ctx, meta.returnContext);
+      printIgnoredPanelsFromReturnContext(ctx, meta.returnContext);
       const returnContextMode = getReturnContextMode(ctx.platform.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {
         for (const line of formatReturnContextForDisplay(meta.returnContext)) {

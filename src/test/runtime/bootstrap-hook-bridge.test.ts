@@ -12,6 +12,15 @@ describe('bootstrap hook bridge session resume', () => {
     expect(source).not.toContain('panelManager');
   });
 
+  test('session resume command names saved panel state as ignored, not reopened', () => {
+    const source = readFileSync(join(import.meta.dir, '../../input/commands/session-workflow.ts'), 'utf-8');
+
+    expect(source).toContain('printIgnoredPanelsFromReturnContext');
+    expect(source).toContain('Saved panel state ignored');
+    expect(source).not.toContain('reopenPanelsFromReturnContext');
+    expect(source).not.toContain('Reopened panels');
+  });
+
   test('ignores saved panel state instead of reopening copied panels in Agent', async () => {
     const logs: string[] = [];
     const returnContext = buildLocalReturnContextSummary([
