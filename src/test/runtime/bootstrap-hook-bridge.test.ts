@@ -1,12 +1,19 @@
 import { describe, expect, mock, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createResumeSessionHandler } from '../../runtime/bootstrap-hook-bridge.ts';
 import { buildLocalReturnContextSummary } from '@/runtime/index.ts';
 
 describe('bootstrap hook bridge session resume', () => {
+  test('stays independent from panel manager restore paths', () => {
+    const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap-hook-bridge.ts'), 'utf-8');
+
+    expect(source).not.toContain('PanelManager');
+    expect(source).not.toContain('panelManager');
+  });
+
   test('ignores saved panel state instead of reopening copied panels in Agent', async () => {
     const logs: string[] = [];
-    const panelOpen = mock(() => {});
-    const panelShow = mock(() => {});
     const returnContext = buildLocalReturnContextSummary([
       { role: 'user', content: 'Review my pending work.' },
       { role: 'assistant', content: 'You have approvals waiting.' },
@@ -49,10 +56,6 @@ describe('bootstrap hook bridge session resume', () => {
           },
         })),
       } as never,
-      panelManager: {
-        open: panelOpen,
-        show: panelShow,
-      } as never,
       configManager: {
         get: (key: string) => key === 'behavior.returnContextMode' ? 'summary' : undefined,
         getCategory: () => ({}),
@@ -63,8 +66,6 @@ describe('bootstrap hook bridge session resume', () => {
     resume('saved-session');
     await Promise.resolve();
 
-    expect(panelOpen).not.toHaveBeenCalled();
-    expect(panelShow).not.toHaveBeenCalled();
     expect(logs.some((line) => line.includes('Resume: Open panels:'))).toBe(false);
     expect(logs).toContain('Resume: Saved panel state ignored: approval, tasks. Open the Agent workspace for current operator controls.');
   });

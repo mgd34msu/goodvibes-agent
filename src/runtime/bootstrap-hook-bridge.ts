@@ -10,7 +10,6 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
 import type { SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control-plane';
 import type { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
-import type { PanelManager } from '../panels/panel-manager.ts';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 
@@ -24,7 +23,6 @@ export interface ResumeSessionOptions {
   readonly writeLastSessionPointer: (sessionId: string) => void;
   readonly hookDispatcher: HookDispatcher;
   readonly sessionManager: SessionManager;
-  readonly panelManager: PanelManager;
   readonly configManager: Pick<ConfigManager, 'get' | 'getCategory'>;
   readonly providerRegistry: Pick<ProviderRegistry, 'get' | 'getCurrentModel' | 'getForModel' | 'require'>;
 }

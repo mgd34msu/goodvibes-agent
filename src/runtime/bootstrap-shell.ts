@@ -133,7 +133,6 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     writeLastSessionPointer,
     hookDispatcher: services.hookDispatcher,
     sessionManager: services.sessionManager,
-    panelManager: services.panelManager,
     configManager,
     providerRegistry: services.providerRegistry,
   });
