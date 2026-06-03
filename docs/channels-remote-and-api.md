@@ -31,7 +31,7 @@ Remote-node and peer capability is owned by the connected GoodVibes host. In Age
 - checking routes and peer readiness;
 - delegating explicit build/fix/review work to GoodVibes TUI when remote execution is actually needed.
 
-Agent should not start remote workers, manage peer lifecycle, or fan out hidden local agents from the main conversation.
+Agent should not start remote runners, manage peer lifecycle, or fan out hidden local agents from the main conversation.
 
 ## Public API Use
 

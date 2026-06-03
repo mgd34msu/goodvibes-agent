@@ -53,7 +53,7 @@ function makeSetupReviewContext(root: string): CommandContext {
 }
 
 describe('local setup review', () => {
-  test('does not treat absent host hooks or remote workers as Agent setup gaps', async () => {
+  test('does not treat absent host hooks or remote runners as Agent setup gaps', async () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-setup-review-'));
     try {
       const snapshot = await buildSetupReviewSnapshot(makeSetupReviewContext(root));
