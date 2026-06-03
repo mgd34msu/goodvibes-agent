@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.6 - 2026-06-03
+
+- Added agent_harness mode connected_host_status for live read-only connected-host readiness: status-route reachability, SDK compatibility, token posture, endpoint bindings, Agent Knowledge route readiness, findings, and lifecycle boundaries.
+- Documented the new model-visible connected-host readiness surface and added focused harness coverage proving the raw operator token is not exposed.
+
 ## 1.0.5 - 2026-06-03
 
 - Model-visible harness discovery now includes modal, overlay, picker, and workspace UI surfaces with preferred model routes and shell-opener availability.
