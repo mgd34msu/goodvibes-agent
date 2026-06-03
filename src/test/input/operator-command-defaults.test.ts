@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerSubscriptionRuntimeCommands } from '../../input/commands/subscription-runtime.ts';
 import { registerSecurityRuntimeCommands } from '../../input/commands/security-runtime.ts';
-import { policyCommand } from '../../input/commands/policy.ts';
 
 function makeSubscriptionContext(out: string[], opened: string[]): CommandContext {
   return {
@@ -84,22 +83,21 @@ describe('Agent operator command defaults', () => {
 
     expect(opened).toEqual([]);
     expect(out.join('\n')).toContain('Security Review');
-    expect(out.join('\n')).toContain('Use /security review');
+    expect(out.join('\n')).toContain('run /security review');
   });
 
-  test('/policy default usage does not open copied policy panels', async () => {
+  test('/policy stays absent while /security carries operator policy review', async () => {
+    const registry = new CommandRegistry();
+    registerSecurityRuntimeCommands(registry);
     const out: string[] = [];
     const opened: string[] = [];
-    const context = {
-      print: (text: string) => { out.push(text); },
-      openPolicyPanel: () => { opened.push('policy'); },
-    } as unknown as CommandContext;
 
-    await policyCommand.handler([], context);
+    expect(registry.get('policy')).toBeUndefined();
+
+    await registry.execute('security', [], makeSecurityContext(out, opened));
 
     expect(opened).toEqual([]);
-    expect(out.join('\n')).toContain('Usage: /policy <subcommand>');
-    expect(out.join('\n')).toContain('/policy status');
-    expect(out.join('\n')).not.toContain('open the policy/governance panel');
+    expect(out.join('\n')).toContain('Security Review');
+    expect(out.join('\n')).toContain('policy preflight');
   });
 });
