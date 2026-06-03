@@ -139,10 +139,23 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
       ctx.print('briefing output');
     },
   });
+  commandRegistry.register({
+    name: 'commands',
+    description: 'Browse all commands in a scrollable list',
+    handler: (_args, ctx) => {
+      ctx.openSelection?.(
+        'Help - Commands',
+        [{ id: '/brief', label: '/brief', detail: 'Test briefing command' }],
+        { allowSearch: true },
+        () => {},
+      );
+    },
+  });
 
   const context = {
     print: (text: string) => printed.push(text),
     renderRequest: () => {},
+    executeCommand: async (name: string, args: string[]) => commandRegistry.execute(name, args, context as CommandContext),
     showPanel: (panelId: string, pane?: 'top' | 'bottom') => {
       routedPanels.push({ panelId, pane });
     },
@@ -172,6 +185,14 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
       openedSurfaces.push({ id: 'provider-picker', detail: target });
       return true;
     },
+    openReasoningEffortPicker: () => {
+      openedSelections.push({
+        title: 'Reasoning Effort',
+        itemIds: ['low', 'medium', 'high'],
+        preSelectId: 'medium',
+      });
+      return { opened: true, model: 'Reasoning Model', levels: ['low', 'medium', 'high'] };
+    },
     openSessionPicker: () => {
       openedSurfaces.push({ id: 'session-picker' });
     },
@@ -183,6 +204,10 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     },
     openProcessModal: () => {
       openedSurfaces.push({ id: 'process-monitor' });
+    },
+    openLiveTail: (target?: string) => {
+      openedSurfaces.push({ id: 'live-tail', detail: target ?? 'selected' });
+      return { opened: true, processId: 'bg-test', label: 'sleep 5' };
     },
     openConversationSearch: (query?: string) => {
       openedSurfaces.push({ id: 'conversation-search', detail: query });
@@ -464,6 +489,7 @@ describe('agent_harness tool', () => {
       expect(catalog.success).toBe(true);
       expect(catalog.output).toContain('"id": "model-picker"');
       expect(catalog.output).toContain('"id": "provider-picker"');
+      expect(catalog.output).toContain('"id": "reasoning-effort-picker"');
       expect(catalog.output).toContain('"id": "tts-provider-picker"');
       expect(catalog.output).toContain('"id": "tts-voice-picker"');
       expect(catalog.output).toContain('"id": "file-picker"');
@@ -477,6 +503,10 @@ describe('agent_harness tool', () => {
       const commandSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'slash-command' });
       expect(commandSurfaces.success).toBe(true);
       expect(commandSurfaces.output).toContain('"id": "slash-command-mode"');
+
+      const commandBrowserSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'command browser' });
+      expect(commandBrowserSurfaces.success).toBe(true);
+      expect(commandBrowserSurfaces.output).toContain('"id": "command-browser"');
 
       const blockSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'block action' });
       expect(blockSurfaces.success).toBe(true);
@@ -493,6 +523,10 @@ describe('agent_harness tool', () => {
       expect(activitySurfaces.success).toBe(true);
       expect(activitySurfaces.output).toContain('"id": "process-monitor"');
       expect(activitySurfaces.output).toContain('visible supervision of runtime activity');
+
+      const outputSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'live-output' });
+      expect(outputSurfaces.success).toBe(true);
+      expect(outputSurfaces.output).toContain('"id": "live-tail"');
 
       const settings = await fixture.tool.execute({ mode: 'ui_surface', surfaceId: 'settings' });
       expect(settings.success).toBe(true);
@@ -576,6 +610,17 @@ describe('agent_harness tool', () => {
       expect(openedProcessMonitor.output).toContain('"status": "opened"');
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'process-monitor' });
 
+      const openedLiveTail = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'live-tail',
+        target: 'sleep',
+        confirm: true,
+        explicitUserRequest: 'Open live output for the running sleep process.',
+      });
+      expect(openedLiveTail.success).toBe(true);
+      expect(openedLiveTail.output).toContain('"processId": "bg-test"');
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'live-tail', detail: 'sleep' });
+
       const openedConversationSearch = await fixture.tool.execute({
         mode: 'open_ui_surface',
         surfaceId: 'conversation-search',
@@ -609,6 +654,20 @@ describe('agent_harness tool', () => {
       expect(openedSlashCommandMode.output).toContain('"query": "help"');
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'slash-command-mode', detail: 'help' });
 
+      const openedCommandBrowser = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'command-browser',
+        confirm: true,
+        explicitUserRequest: 'Open the command browser.',
+      });
+      expect(openedCommandBrowser.success).toBe(true);
+      expect(openedCommandBrowser.output).toContain('"command": "/commands"');
+      expect(fixture.openedSelections.at(-1)).toEqual({
+        title: 'Help - Commands',
+        itemIds: ['/brief'],
+        preSelectId: undefined,
+      });
+
       const openedFilePicker = await fixture.tool.execute({
         mode: 'open_ui_surface',
         surfaceId: 'file-picker',
@@ -620,6 +679,20 @@ describe('agent_harness tool', () => {
       expect(openedFilePicker.success).toBe(true);
       expect(openedFilePicker.output).toContain('"mode": "inject"');
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'file-picker', detail: 'inject:src' });
+
+      const openedReasoningEffort = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'reasoning-effort-picker',
+        confirm: true,
+        explicitUserRequest: 'Open the reasoning effort picker.',
+      });
+      expect(openedReasoningEffort.success).toBe(true);
+      expect(openedReasoningEffort.output).toContain('"model": "Reasoning Model"');
+      expect(fixture.openedSelections.at(-1)).toEqual({
+        title: 'Reasoning Effort',
+        itemIds: ['low', 'medium', 'high'],
+        preSelectId: 'medium',
+      });
 
       const openedBlockActions = await fixture.tool.execute({
         mode: 'open_ui_surface',
@@ -943,6 +1016,47 @@ describe('agent_harness tool', () => {
       const skill = AgentSkillRegistry.fromShellPaths(fixture.paths).get('daily-triage');
       expect(skill?.procedure).toContain('Read the queue');
       expect(skill?.enabled).toBe(true);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs direct local create workspace editors through model tools', async () => {
+    const fixture = makeFixture();
+    try {
+      const memoryRegistry = await createMemoryRegistry(fixture.paths, fixture.configManager);
+      fixture.toolRegistry.register(createAgentLocalRegistryTool(fixture.paths, memoryRegistry));
+
+      const missingFields = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'notes-create',
+        fields: { title: 'Source triage' },
+        confirm: true,
+        explicitUserRequest: 'Create a source-triage note.',
+      });
+      expect(missingFields.success).toBe(true);
+      expect(missingFields.output).toContain('"status": "missing_required_fields"');
+      expect(missingFields.output).toContain('"body"');
+
+      const created = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'notes-create',
+        fields: {
+          title: 'Source triage',
+          body: 'Capture reviewed sources before deciding what belongs in Agent Knowledge.',
+          tags: 'research,triage',
+        },
+        confirm: true,
+        explicitUserRequest: 'Create a source-triage note.',
+      });
+      expect(created.success).toBe(true);
+      expect(created.output).toContain('"status": "executed_model_tool"');
+      expect(created.output).toContain('Created Agent-local note');
+
+      const note = AgentNoteRegistry.fromShellPaths(fixture.paths).get('source-triage');
+      expect(note?.title).toBe('Source triage');
+      expect(note?.body).toContain('reviewed sources');
+      expect(note?.tags).toEqual(['research', 'triage']);
     } finally {
       fixture.cleanup();
     }

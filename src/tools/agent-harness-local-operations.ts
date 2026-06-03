@@ -172,7 +172,7 @@ function editorForOperation(context: CommandContext, operation: AgentWorkspaceLo
 function localRegistryArgsFromEditor(editor: AgentWorkspaceLocalEditor, fields: Readonly<Record<string, string>>, id?: string): Record<string, unknown> {
   const read = fieldReader(editor, fields);
   if (editor.kind === 'memory') return { domain: 'memory', action: editor.mode === 'update' ? 'update' : 'create', id, cls: read('cls'), scope: read('scope'), summary: read('summary'), detail: read('detail'), tags: splitList(read('tags')), confidence: read('confidence'), provenance: editor.recordId ? 'agent-harness-local-operation' : 'agent-harness-note-promotion' };
-  if (editor.kind === 'note') return { domain: 'note', action: 'update', id, title: read('title'), body: read('body'), sourceUrl: read('sourceUrl'), tags: splitList(read('tags')), provenance: 'agent-harness-local-operation' };
+  if (editor.kind === 'note') return { domain: 'note', action: editor.mode === 'update' ? 'update' : 'create', id, title: read('title'), body: read('body'), sourceUrl: read('sourceUrl'), tags: splitList(read('tags')), provenance: editor.recordId ? 'agent-harness-local-operation' : 'agent-harness-note-promotion' };
   if (editor.kind === 'persona') return { domain: 'persona', action: editor.mode === 'update' ? 'update' : 'create', id, name: read('name'), description: read('description'), body: read('body'), tags: splitList(read('tags')), triggers: splitList(read('triggers')), activate: read('activate'), provenance: editor.recordId ? 'agent-harness-local-operation' : 'agent-harness-note-promotion' };
   if (editor.kind === 'skill') return { domain: 'skill', action: editor.mode === 'update' ? 'update' : 'create', id, name: read('name'), description: read('description'), procedure: read('procedure'), tags: splitList(read('tags')), triggers: splitList(read('triggers')), requiresEnv: splitList(read('requiresEnv')), requiresCommands: splitList(read('requiresCommands')), enabled: isAffirmative(read('enabled')), provenance: editor.recordId ? 'agent-harness-local-operation' : 'agent-harness-note-promotion' };
   return { domain: 'routine', action: editor.mode === 'update' ? 'update' : 'create', id, name: read('name'), description: read('description'), steps: read('steps'), tags: splitList(read('tags')), triggers: splitList(read('triggers')), requiresEnv: splitList(read('requiresEnv')), requiresCommands: splitList(read('requiresCommands')), enabled: isAffirmative(read('enabled')), provenance: editor.recordId ? 'agent-harness-local-operation' : 'agent-harness-note-promotion' };
@@ -204,6 +204,41 @@ export function describeLocalWorkspaceModelExecution(action: AgentWorkspaceActio
   if (target) return { tool: 'agent_local_registry', domain: target.domain, action: target.action, requiresRecordId: target.requiresRecordId };
   if (action.localOperation === 'note-promote-knowledge-url') return { tool: 'agent_knowledge_ingest', sourceKind: 'url', requiresRecordId: true, selectedRecordDomain: 'note' };
   return { tool: 'agent_local_registry', selectedRecordDomain: 'note', action: 'create', requiresRecordId: true };
+}
+
+export async function runLocalWorkspaceEditorAction(
+  deps: AgentHarnessLocalOperationDeps,
+  editor: AgentWorkspaceLocalEditor,
+  args: AgentHarnessLocalOperationArgs,
+): Promise<HarnessResult> {
+  const fields = readFieldMap(args.fields);
+  const missing = missingRequiredFields(editor, fields);
+  if (missing.length > 0) {
+    return output({
+      status: 'missing_required_fields',
+      missing,
+      editor: describeEditor(editor),
+    });
+  }
+  const confirmationError = requireConfirmed(args, 'Workspace local registry editor action');
+  if (confirmationError) return error(confirmationError);
+  if (
+    editor.kind !== 'memory'
+    && editor.kind !== 'note'
+    && editor.kind !== 'persona'
+    && editor.kind !== 'skill'
+    && editor.kind !== 'routine'
+  ) {
+    return output({
+      status: 'model_tool_required',
+      editor: describeEditor(editor),
+    });
+  }
+  return executeTool(
+    deps.toolRegistry,
+    'agent_local_registry',
+    localRegistryArgsFromEditor(editor, fields, editor.recordId),
+  );
 }
 
 export async function runLocalWorkspaceAction(

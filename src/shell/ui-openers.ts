@@ -4,6 +4,7 @@ import type { ConversationManager } from '../core/conversation';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { InputHandler } from '../input/handler.ts';
 import type { PanelManager } from '../panels/panel-manager.ts';
+import { EFFORT_DESCRIPTIONS } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
@@ -229,6 +230,45 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     });
   };
 
+  commandContext.openReasoningEffortPicker = () => {
+    const currentModel = providerRegistry.getCurrentModel();
+    const validLevels = currentModel.reasoningEffort ?? [];
+    if (validLevels.length === 0) {
+      return { opened: false, model: currentModel.displayName, levels: [], reason: 'unsupported' };
+    }
+
+    const current = String(runtime.reasoningEffort || configManager.get('provider.reasoningEffort') || 'medium');
+    const descriptions: Record<string, string> = {
+      ...EFFORT_DESCRIPTIONS,
+      medium: 'Balanced speed and quality (default)',
+    };
+    input.openSelection(
+      'Reasoning Effort',
+      validLevels.map((level) => ({
+        id: level,
+        label: level,
+        detail: level === current ? `current - ${descriptions[level] ?? level}` : (descriptions[level] ?? level),
+      })),
+      { preSelectId: current, allowSearch: false },
+      (result) => {
+        if (!result) return;
+        const level = result.item.id as 'instant' | 'low' | 'medium' | 'high';
+        runtime.reasoningEffort = level;
+        configManager.set('provider.reasoningEffort', level);
+        commandContext.print([
+          'Reasoning effort set',
+          `  level ${level}`,
+        ].join('\n'));
+        render();
+      },
+    );
+    return {
+      opened: true,
+      model: currentModel.displayName,
+      levels: validLevels,
+    };
+  };
+
   commandContext.openSelection = (title, items, opts, callback) => {
     input.openSelection(title, items, opts, callback);
   };
@@ -253,6 +293,32 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     input.modalOpened('process');
     input.processModal.open();
     render();
+  };
+
+  commandContext.openLiveTail = (target?: string) => {
+    input.processModal.refresh();
+    const entries = input.processModal.entries;
+    if (entries.length === 0) {
+      return { opened: false, reason: 'no_processes' };
+    }
+
+    const normalizedTarget = target?.trim().toLowerCase() ?? '';
+    const entry = normalizedTarget.length > 0
+      ? entries.find((candidate) => (
+        candidate.id.toLowerCase() === normalizedTarget
+        || candidate.label.toLowerCase().includes(normalizedTarget)
+      ))
+      : input.processModal.getSelected() ?? entries[0];
+
+    if (!entry) {
+      return { opened: false, reason: 'not_found' };
+    }
+
+    input.modalOpened('liveTail');
+    input.processModal.close();
+    input.liveTailModal.open(entry);
+    render();
+    return { opened: true, processId: entry.id, label: entry.label };
   };
 
   commandContext.openConversationSearch = (query?: string) => {

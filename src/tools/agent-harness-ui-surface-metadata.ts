@@ -313,6 +313,34 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     },
   },
   {
+    id: 'reasoning-effort-picker',
+    label: 'Reasoning Effort Picker',
+    kind: 'picker',
+    summary: 'Interactive reasoning-effort selector for the current main chat model when that model exposes effort levels.',
+    command: '/effort',
+    preferredModelRoute: 'Use settings/get_setting/set_setting for provider.reasoningEffort when a concrete level is known, or run_workspace_action setup-effort with confirmation.',
+    available: (context) => typeof context.openReasoningEffortPicker === 'function',
+    open: (context) => {
+      const surface = findSurfaceById('reasoning-effort-picker')!;
+      if (!context.openReasoningEffortPicker) return routeUnavailable(surface);
+      const result = context.openReasoningEffortPicker();
+      return result.opened
+        ? opened(surface, {
+          model: result.model,
+          levels: result.levels ?? [],
+        })
+        : {
+          status: 'not_opened',
+          surface: surface.id,
+          kind: surface.kind,
+          model: result.model,
+          levels: result.levels ?? [],
+          reason: result.reason ?? 'unsupported',
+          note: 'The current model does not expose configurable reasoning effort levels.',
+        };
+    },
+  },
+  {
     id: 'tts-provider-picker',
     label: 'TTS Provider Picker',
     kind: 'picker',
@@ -422,6 +450,38 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     },
   },
   {
+    id: 'live-tail',
+    label: 'Live Process Output',
+    kind: 'modal',
+    summary: 'Visible live-output tail for a running process, opened by the same shell route as Enter from the runtime activity monitor.',
+    command: 'F2, Enter',
+    preferredModelRoute: 'Use this only for visible supervision of a running process output stream; use first-class model tools or confirmed commands for actual operations.',
+    parameters: ['target', 'query', 'prefix', 'key'],
+    available: (context) => typeof context.openLiveTail === 'function',
+    open: (context, args) => {
+      const surface = findSurfaceById('live-tail')!;
+      if (!context.openLiveTail) return routeUnavailable(surface);
+      const target = surfaceInputText(args);
+      const result = context.openLiveTail(target);
+      return result.opened
+        ? opened(surface, {
+          target: target ?? 'selected',
+          processId: result.processId,
+          label: result.label,
+        })
+        : {
+          status: 'not_opened',
+          surface: surface.id,
+          kind: surface.kind,
+          target: target ?? 'selected',
+          reason: result.reason ?? 'not_found',
+          note: result.reason === 'no_processes'
+            ? 'There are no running shell processes to tail.'
+            : 'No running shell process matched the requested target.',
+        };
+    },
+  },
+  {
     id: 'conversation-search',
     label: 'Conversation Search',
     kind: 'overlay',
@@ -477,6 +537,28 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
           kind: surface.kind,
           query: query ?? '',
           note: 'The current prompt contains a non-command draft, so the shell opener refused to replace it.',
+        };
+    },
+  },
+  {
+    id: 'command-browser',
+    label: 'Command Browser',
+    kind: 'picker',
+    summary: 'Registry-driven searchable slash-command browser opened by /commands and /help.',
+    command: '/commands',
+    preferredModelRoute: 'Use commands/command for model-readable slash-command discovery and run_command for confirmed command execution.',
+    available: (context) => typeof context.executeCommand === 'function',
+    open: async (context) => {
+      const surface = findSurfaceById('command-browser')!;
+      if (!context.executeCommand) return routeUnavailable(surface);
+      const handled = await context.executeCommand('commands', []);
+      return handled
+        ? opened(surface, { command: '/commands' })
+        : {
+          status: 'not_opened',
+          surface: surface.id,
+          kind: surface.kind,
+          note: 'The slash-command registry did not handle /commands in the current runtime.',
         };
     },
   },

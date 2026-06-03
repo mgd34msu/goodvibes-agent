@@ -90,6 +90,12 @@ export interface CommandShellUiOpeners {
   openModelPickerWithTarget?: (target: import('./model-picker.ts').ModelPickerTarget) => boolean;
   openProviderModelPickerWithTarget?: (target: import('./model-picker.ts').ModelPickerTarget) => boolean;
   openProviderPicker?: () => void;
+  openReasoningEffortPicker?: () => {
+    opened: boolean;
+    model?: string;
+    levels?: readonly string[];
+    reason?: 'unsupported';
+  };
   openContextInspector?: () => void;
   openBookmarkModal?: () => void;
   openProcessModal?: () => void;
@@ -98,6 +104,12 @@ export interface CommandShellUiOpeners {
   openSlashCommandMode?: (query?: string) => boolean;
   openFilePicker?: (options?: { injectMode?: boolean; query?: string }) => boolean;
   openBlockActions?: () => boolean;
+  openLiveTail?: (target?: string) => {
+    opened: boolean;
+    processId?: string;
+    label?: string;
+    reason?: 'no_processes' | 'not_found';
+  };
   jumpToBookmark?: (key: string) => void;
   scrollToLine?: (line: number) => void;
   openHelpOverlay?: () => void;

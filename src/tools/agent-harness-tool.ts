@@ -21,7 +21,7 @@ import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessC
 import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
-import { describeLocalWorkspaceModelExecution, runLocalWorkspaceAction } from './agent-harness-local-operations.ts';
+import { describeLocalWorkspaceModelExecution, runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-harness-local-operations.ts';
 import { listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
@@ -238,11 +238,11 @@ function describeWorkspaceAction(
 }
 
 function localEditorModelExecution(editorKind: AgentWorkspaceEditorKind): string {
-  if (editorKind === 'memory') return 'Use agent_local_registry with domain:"memory" for create/update/review/stale/delete.';
-  if (editorKind === 'note') return 'Use agent_local_registry with domain:"note" for create/update/review/stale/delete.';
-  if (editorKind === 'persona') return 'Use agent_local_registry with domain:"persona" for create/update/use/clear_active/review/stale/delete.';
-  if (editorKind === 'skill') return 'Use agent_local_registry with domain:"skill" for create/update/enable/disable/review/stale/delete.';
-  if (editorKind === 'routine') return 'Use agent_local_registry with domain:"routine" for create/update/enable/disable/start/review/stale/delete.';
+  if (editorKind === 'memory') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"memory"; agent_local_registry also supports list/search/get/review/stale/delete.';
+  if (editorKind === 'note') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"note"; agent_local_registry also supports list/search/get/review/stale/delete.';
+  if (editorKind === 'persona') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"persona"; agent_local_registry also supports list/search/get/use/clear_active/review/stale/delete.';
+  if (editorKind === 'skill') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"skill"; agent_local_registry also supports list/search/get/enable/disable/review/stale/delete.';
+  if (editorKind === 'routine') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"routine"; agent_local_registry also supports list/search/get/enable/disable/start/review/stale/delete.';
   if (editorKind === 'learned-behavior') return 'run_workspace_action can create the learned behavior from fields.';
   if (editorKind === 'profile') return 'run_workspace_action dispatches the matching /agent-profile create command.';
   return 'Use the command field, editor schema, or a first-class Agent model tool when available.';
@@ -409,6 +409,15 @@ async function runWorkspaceEditorAction(
   }
 
   if (!isAgentWorkspaceCommandEditorKind(editor.kind)) {
+    if (
+      editor.kind === 'memory'
+      || editor.kind === 'note'
+      || editor.kind === 'persona'
+      || editor.kind === 'skill'
+      || editor.kind === 'routine'
+    ) {
+      return runLocalWorkspaceEditorAction(deps, editor, args);
+    }
     return output({
       status: 'model_tool_required',
       action: action.id,
