@@ -1,5 +1,5 @@
 /**
- * Policy diagnostics panel data provider.
+ * Policy diagnostics data provider.
  *
  * Wraps a `PolicyRegistry` and optionally a `DivergencePanel` to expose
  * combined policy state (current bundle, candidate, simulation status,
@@ -24,7 +24,7 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 /**
  * A point-in-time snapshot of policy state for diagnostics rendering.
  */
-export interface PolicyPanelSnapshot {
+export interface PolicyDiagnosticsSnapshot {
   /** The currently enforced bundle, or null if no policy is active. */
   current: PolicyBundleVersion | null;
   /** The pending candidate bundle, or null if none loaded. */
@@ -48,12 +48,12 @@ export interface PolicyPanelSnapshot {
 }
 
 /**
- * PolicyPanel — diagnostics data provider for the policy registry.
+ * PolicyDiagnosticsPanel — diagnostics data provider for the policy registry.
  *
  * Usage:
  * ```ts
  * const registry = new PolicyRegistry();
- * const panel = new PolicyPanel(registry, divergencePanel);
+ * const panel = new PolicyDiagnosticsPanel(registry, divergencePanel);
  *
  * panel.subscribe(() => {
  *   const snap = panel.getSnapshot();
@@ -67,7 +67,7 @@ export interface PolicyPanelSnapshot {
  * panel.dispose();
  * ```
  */
-export class PolicyPanel {
+export class PolicyDiagnosticsPanel {
   private readonly _registry: PolicyRegistry;
   private readonly _divergencePanel: DivergencePanel | null;
   private readonly _config: PanelConfig;
@@ -118,7 +118,7 @@ export class PolicyPanel {
   /**
    * getSnapshot — Returns the current combined policy + divergence snapshot.
    */
-  public getSnapshot(): PolicyPanelSnapshot {
+  public getSnapshot(): PolicyDiagnosticsSnapshot {
     const current = this._registry.getCurrent();
     const candidate = this._registry.getCandidate();
     const rawHistory = this._registry.getHistory();
@@ -170,7 +170,7 @@ export class PolicyPanel {
       try {
         cb();
       } catch (err) {
-        logger.warn(`[PolicyPanel] subscriber error: ${err}`);
+        logger.warn(`[PolicyDiagnosticsPanel] subscriber error: ${err}`);
       }
     }
   }

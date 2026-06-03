@@ -94,6 +94,8 @@ describe('operator visibility gate', () => {
     const bootstrapSource = readFileSync(join(process.cwd(), 'src/runtime/bootstrap-command-parts.ts'), 'utf8');
     const commandContextSource = readFileSync(join(process.cwd(), 'src/input/command-registry.ts'), 'utf8');
     const panelsIndexSource = readFileSync(join(process.cwd(), 'src/panels/index.ts'), 'utf8');
+    const diagnosticsPolicySource = readFileSync(join(process.cwd(), 'src/runtime/diagnostics/panels/policy.ts'), 'utf8');
+    const diagnosticsIndexSource = readFileSync(join(process.cwd(), 'src/runtime/diagnostics/panels/index.ts'), 'utf8');
 
     expect(operationsSource).not.toContain("id: 'policy'");
     expect(operationsSource).not.toContain("name: 'Policy'");
@@ -104,5 +106,8 @@ describe('operator visibility gate', () => {
     expect(commandContextSource).not.toContain('openPolicyPanel');
     expect(panelsIndexSource).not.toContain('PolicyPanel');
     expect(existsSync(join(process.cwd(), 'src/panels/policy-panel.ts'))).toBe(false);
+    expect(diagnosticsPolicySource).not.toContain('PolicyPanel');
+    expect(diagnosticsIndexSource).not.toContain('PolicyPanel');
+    expect(diagnosticsIndexSource).toContain('PolicyDiagnosticsPanel');
   });
 });
