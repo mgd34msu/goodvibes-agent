@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.1 - 2026-06-03
+
+- Preserved Agent Knowledge setup paths with spaces, quoted generated Agent command guidance, and hardened MCP trust and role command validation.
+- Blocked MCP allow-all escalation from Agent slash commands while keeping Settings as the explicit allow-all surface.
+- Preserved MCP server passthrough arguments after -- and local persona, skill, and routine text that starts with flag-like values.
+- Kept the 1.0 release package and install gates green across typecheck, architecture, performance, package build, publish check, packed install smoke, and verification ledger.
+
 ## 1.0.0 - 2026-06-03
 
 - Promoted GoodVibes Agent to the release-candidate operator product surface: the fullscreen Agent workspace is the primary TUI, with setup, provider/model routing, status, compatibility, and doctor flows shaped around personal operator use instead of copied host lifecycle controls.
