@@ -9,20 +9,21 @@ import type { SessionInfo, SessionManager } from '@pellux/goodvibes-sdk/platform
 import type { ConversationManager } from '../core/conversation';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { readConversationMessageSnapshots } from '../core/conversation-message-snapshot.ts';
+import { quoteSlashCommandArg } from './slash-command-parser.ts';
 
 function sessionLoadedMessage(name: string, messageCount: number): string {
   return `Loaded session ${name} (${messageCount} messages)`;
 }
 
 function sessionDeletionCommandRequiredMessage(name: string): string {
-  return `Deletion requires an explicit command: /session delete ${name} --yes`;
+  return `Deletion requires an explicit command: /session delete ${quoteSlashCommandArg(name)} --yes`;
 }
 
 export function renderSessionPickerStatePackageText(): string {
   return [
     'Loaded session <session> (<count> messages)',
     'Error',
-    sessionDeletionCommandRequiredMessage('<session>'),
+    'Deletion requires an explicit command: /session delete <session> --yes',
   ].join('\n');
 }
 

@@ -312,4 +312,35 @@ describe('/mcp runtime config commands', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test('/mcp repair quotes quarantined server names in next-step commands', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    try {
+      const registry = new CommandRegistry();
+      registerMcpRuntimeCommands(registry);
+      const out: string[] = [];
+      const ctx = makeContext(root, out);
+      const mcpApi = ctx.clients!.mcpApi!;
+      ctx.clients!.mcpApi = {
+        ...mcpApi,
+        listServerSecurity: () => [{
+          name: 'imported docs server',
+          connected: true,
+          role: 'docs',
+          trustMode: 'constrained',
+          allowedPaths: [],
+          allowedHosts: [],
+          schemaFreshness: 'quarantined',
+          quarantineReason: 'operator_review',
+          quarantineDetail: 'Imported config needs review.',
+        }],
+      } as typeof mcpApi;
+
+      await registry.get('mcp')!.handler(['repair'], ctx);
+
+      expect(out.join('\n')).toContain('/mcp quarantine "imported docs server" approve operator --yes');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

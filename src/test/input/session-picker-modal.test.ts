@@ -108,6 +108,19 @@ describe('SessionPickerModal', () => {
     expect(existsSync(sessions[0].filePath)).toBe(true);
   });
 
+  test('deleteSelected quotes session names that need escaping in command guidance', () => {
+    modal = new SessionPickerModal(sm);
+    modal.sessions = [
+      { name: 'imported client review', title: 'Client Review', model: '', provider: '', timestamp: 1, messageCount: 2, filePath: '/a' },
+    ];
+    modal.selectedIndex = 0;
+
+    const result = modal.deleteSelected();
+
+    expect(result).toBe(false);
+    expect(modal.statusMessage).toContain('/session delete "imported client review" --yes');
+  });
+
   test('moving selection clears stale delete guidance state', () => {
     modal = new SessionPickerModal(sm);
     modal.sessions = [

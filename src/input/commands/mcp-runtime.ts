@@ -3,6 +3,7 @@ import type { McpConfigScope, McpReloadResult, McpServerConfig } from '@pellux/g
 import { requireMcpApi, requireShellPaths } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
+import { quoteSlashCommandArg } from '../slash-command-parser.ts';
 
 const MCP_ROLES = ['general', 'docs', 'filesystem', 'git', 'database', 'browser', 'automation', 'ops', 'remote'] as const;
 const MCP_TRUST_MODES = ['constrained', 'ask-on-risk', 'allow-all', 'blocked'] as const;
@@ -259,7 +260,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         }
         const nextSteps = [
           selected.schemaFreshness === 'quarantined'
-            ? `/mcp quarantine ${selected.name} approve operator --yes`
+            ? `/mcp quarantine ${quoteSlashCommandArg(selected.name)} approve operator --yes`
             : null,
           !selected.connected ? '/auth review' : null,
           '/mcp review',
