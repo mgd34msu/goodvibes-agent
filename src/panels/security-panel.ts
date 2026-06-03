@@ -74,9 +74,9 @@ export class SecurityPanel extends ScrollableListPanel<TokenAuditResult> {
   protected override getEmptyStateMessage() { return ' No API tokens are registered for security review yet.'; }
   protected override getEmptyStateActions() {
     return [
-      { command: '/storage review', summary: 'inspect secure secret storage and environment overrides' },
-      { command: '/policy preflight', summary: 'run a live preflight posture review' },
-      { command: '/mcp trust', summary: 'inspect active MCP trust and quarantine posture' },
+      { command: '/secrets list', summary: 'inspect stored secret references without printing values' },
+      { command: '/security review', summary: 'review token, policy, MCP, plugin, and incident posture' },
+      { command: '/mcp auth-review', summary: 'inspect active MCP trust and quarantine posture' },
     ];
   }
 
@@ -118,7 +118,7 @@ export class SecurityPanel extends ScrollableListPanel<TokenAuditResult> {
     const untrustedPlugins = snapshot.untrustedPlugins;
     const attackPathReview = snapshot.attackPathReview;
     const intro = 'Token review, policy posture, MCP attack-path review, plugin trust, and incident pressure.';
-    const footerLine = buildGuidanceLine(width, '/policy preflight', 'run a proactive policy review before risky work starts', C);
+    const footerLine = buildGuidanceLine(width, '/security review', 'review proactive policy posture before risky work starts', C);
 
     const governanceLines: Line[] = [
       buildPanelLine(width, [

@@ -35,6 +35,8 @@ describe('PolicyPanel', () => {
     const panel = new PolicyPanel(policyState);
     const text = linesText(panel.render(100, 12));
     expect(text).toContain('No policy bundles loaded');
+    expect(text).toContain('/security review');
+    expect(text).not.toContain('/policy');
   });
 
   test('renders current candidate and governance gate state', () => {

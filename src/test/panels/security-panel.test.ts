@@ -99,9 +99,13 @@ describe('SecurityPanel', () => {
     const panel = createSecurityPanel(createSecuritySnapshot({ auditor: makeAuditor() }));
     const text = linesText(panel.render(120, 16));
     expect(text).toContain('Security Control Room');
-    expect(text).toContain('Token audit');
+    expect(text).toContain('Governance');
     expect(text).toContain('No API tokens are registered');
-    expect(text).toContain('/policy preflight');
+    expect(text).toContain('/security review');
+    expect(text).toContain('/secrets list');
+    expect(text).toContain('/mcp auth-review');
+    expect(text).not.toContain('/policy');
+    expect(text).not.toContain('/storage');
   });
 
   test('renders token audit posture and details', () => {

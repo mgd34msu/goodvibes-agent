@@ -15,14 +15,14 @@ const C = {
 } as const;
 
 const APPROVAL_ROWS = [
-  ['shell', 'why prompted: side effects, destructive ops, secret exposure, escalation', 'review via /security and /policy preflight'],
+  ['shell', 'why prompted: side effects, destructive ops, secret exposure, escalation', 'review via /approval review shell'],
   ['file', 'why prompted: config mutation, notebook edits, secret-bearing paths', 'review via /approval review file'],
   ['network', 'why prompted: external hosts, fetch scope, egress policy', 'review via /approval review network'],
-  ['delegate', 'why prompted: explicit TUI build handoff, write scope, result ownership', 'review via /delegate <task>'],
-  ['mcp', 'why prompted: trust escalation, host scope, path scope, coherence mismatch', 'review via /mcp trust and /security'],
-  ['remote', 'why prompted: runner trust, remote write scope, artifact requirements', 'review delegated TUI execution context'],
-  ['hook', 'why prompted: deny/mutate authority, blocking behavior, runner provenance', 'review via /hooks and /security'],
-  ['plugin', 'why prompted: install/update lifecycle, provenance, capability grants', 'review via /marketplace and /security'],
+  ['delegate', 'why prompted: explicit TUI build handoff, write scope, result ownership', 'review via /approval review delegate'],
+  ['mcp', 'why prompted: trust escalation, host scope, path scope, coherence mismatch', 'review via /approval review mcp'],
+  ['remote', 'why prompted: runner trust, remote write scope, artifact requirements', 'review via /approval review remote'],
+  ['hook', 'why prompted: deny/mutate authority, blocking behavior, runner provenance', 'review via /approval review hook'],
+  ['plugin', 'why prompted: install/update lifecycle, provenance, capability grants', 'review via /approval review plugin'],
 ] as const;
 
 type ApprovalRow = (typeof APPROVAL_ROWS)[number];
@@ -123,8 +123,8 @@ export class ApprovalPanel extends ScrollableListPanel<ApprovalRow> {
       buildPanelLine(width, [['  Approval posture', C.label]]),
       buildKeyValueLine(width, [
         { label: 'why prompted', value: 'risk summary', valueColor: C.value },
-        { label: 'what-if', value: '/policy simulate + preflight', valueColor: C.info },
-        { label: 'operator', value: '/security + /cockpit', valueColor: C.good },
+        { label: 'what-if', value: '/security review', valueColor: C.info },
+        { label: 'operator', value: '/approval + /security', valueColor: C.good },
       ], C),
       buildPanelLine(width, [
         ['  \u2713 ', C.good],

@@ -81,7 +81,7 @@ describe('Agent workspace command parity', () => {
       search: { categoryIds: ['knowledge'], editorPrefixes: ['knowledge-search'] },
       secrets: { commandRoots: ['secrets'], editorPrefixes: ['secret-'] },
       sessions: { commandRoots: ['sessions'], editorPrefixes: ['session-'] },
-      skills: { commandRoots: ['agent-skills'], categoryIds: ['skills'], editorPrefixes: ['skill'] },
+      skills: { commandRoots: ['skills'], categoryIds: ['skills'], editorPrefixes: ['skill'] },
       status: { commandRoots: ['health', 'doctor', 'compat'] },
       subscription: { commandRoots: ['subscription'], editorPrefixes: ['subscription-'] },
       tasks: { commandRoots: ['tasks'], editorPrefixes: ['task-'] },

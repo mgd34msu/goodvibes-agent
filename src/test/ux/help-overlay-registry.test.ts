@@ -72,7 +72,7 @@ describe('renderHelpOverlay Quick Start sourced from live registry (β3)', () =>
   test('omits all featured commands when registry is empty', () => {
     const featuredNames = [
       'agent', 'setup', 'knowledge', 'memory', 'personas',
-      'agent-skills', 'routines', 'workplan', 'approval', 'schedule',
+      'skills', 'routines', 'workplan', 'approval', 'schedule',
       'delegate', 'mcp', 'provider', 'subscription',
       'secrets', 'health',
     ];

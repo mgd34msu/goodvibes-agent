@@ -59,7 +59,6 @@ const hiddenCopiedBreadthCommands = [
 const visibleAgentBreadthCommands = [
   'agent',
   'agent-profile',
-  'agent-skills',
   'approval',
   'auth',
   'brief',
@@ -75,6 +74,7 @@ const visibleAgentBreadthCommands = [
   'schedule',
   'secrets',
   'security',
+  'skills',
   'setup',
   'subscription',
   'tasks',
@@ -101,6 +101,7 @@ describe('product breadth commands', () => {
       expect(registry.get(commandName)?.name).toBe(commandName);
     }
 
+    expect(registry.get('agent-skills')?.name).toBe('skills');
     expect(registry.get('policy')).toBeUndefined();
     expect(registry.get('recall')).toBeUndefined();
   });

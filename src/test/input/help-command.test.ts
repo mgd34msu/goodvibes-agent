@@ -29,7 +29,7 @@ describe('/help command', () => {
     expect(ids).toContain('/knowledge');
     expect(ids).toContain('/memory');
     expect(ids).toContain('/personas');
-    expect(ids).toContain('/agent-skills');
+    expect(ids).toContain('/skills');
     expect(ids).toContain('/routines');
     expect(ids).toContain('/delegate');
     expect(ids).toContain('/pair');

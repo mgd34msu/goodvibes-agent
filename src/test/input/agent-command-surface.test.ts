@@ -73,7 +73,6 @@ const expectedAgentCommands = [
   'accounts',
   'agent',
   'agent-profile',
-  'agent-skills',
   'auth',
   'brief',
   'bundle',
@@ -92,6 +91,7 @@ const expectedAgentCommands = [
   'security',
   'sessions',
   'setup',
+  'skills',
   'trust',
   'workplan',
 ] as const;
@@ -155,8 +155,9 @@ describe('Agent command interface', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
 
-    expect(registry.get('skills')?.name).toBe('agent-skills');
-    expect(registry.get('skill')?.name).toBe('agent-skills');
+    expect(registry.get('skills')?.name).toBe('skills');
+    expect(registry.get('skill')?.name).toBe('skills');
+    expect(registry.get('agent-skills')?.name).toBe('skills');
   });
 
   test('routes /memory to Agent-local durable memory instead of session-pinned compaction memory', () => {

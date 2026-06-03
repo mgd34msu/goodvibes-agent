@@ -124,7 +124,7 @@ export class PolicyPanel extends BasePanel {
     const preflightReview = snapshot.lastPreflightReview;
 
     if (!current && !candidate) {
-      lines.push(buildPanelLine(width, [[' No policy bundles loaded. Use /policy load to begin.', C.empty]]));
+      lines.push(buildPanelLine(width, [[' No policy bundles loaded. Use /security review for operator posture and evidence.', C.empty]]));
     }
 
     if (current) {
@@ -302,7 +302,7 @@ export class PolicyPanel extends BasePanel {
       }
     }
 
-    lines.push(buildPanelLine(width, [['  /policy opens this panel. Press r to record a divergence trend snapshot.', C.dim]]));
+    lines.push(buildPanelLine(width, [['  Policy governance appears here. Use /security review for operator-facing posture; press r to record a divergence trend snapshot.', C.dim]]));
     return lines;
   }
 }

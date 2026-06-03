@@ -163,7 +163,8 @@ describe('/agent-skills command', () => {
       },
     } as unknown as CommandContext;
 
-    expect(registry.get('skills')?.name).toBe('agent-skills');
+    expect(registry.get('skills')?.name).toBe('skills');
+    expect(registry.get('agent-skills')?.name).toBe('skills');
     await registry.execute('skills', ['local', 'create', '--name', 'Prep', '--description', 'Prepare context.', '--procedure', 'Read current state first.'], ctx);
     await registry.execute('skills', ['local', 'list'], ctx);
 
