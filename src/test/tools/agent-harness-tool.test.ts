@@ -24,6 +24,7 @@ import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { SDK_VERSION } from '../../version.ts';
 
 type ShellPaths = ReturnType<typeof createShellPathService>;
+type HarnessOpenSelection = NonNullable<CommandContext['openSelection']>;
 
 interface HarnessFixture {
   readonly root: string;
@@ -38,6 +39,7 @@ interface HarnessFixture {
   readonly printed: string[];
   readonly routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }>;
   readonly openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }>;
+  readonly openedSelections: Array<{ readonly title: string; readonly itemIds: readonly string[]; readonly preSelectId?: string }>;
   readonly cleanup: () => void;
 }
 
@@ -121,6 +123,14 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
   const printed: string[] = [];
   const routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }> = [];
   const openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }> = [];
+  const openedSelections: Array<{ readonly title: string; readonly itemIds: readonly string[]; readonly preSelectId?: string }> = [];
+  const openSelection: HarnessOpenSelection = (title, items, opts) => {
+    openedSelections.push({
+      title,
+      itemIds: items.map((item) => item.id),
+      preSelectId: opts?.preSelectId,
+    });
+  };
 
   commandRegistry.register({
     name: 'brief',
@@ -183,8 +193,24 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     openOnboardingWizard: (modeOrOptions) => {
       openedSurfaces.push({ id: 'onboarding', detail: typeof modeOrOptions === 'string' ? modeOrOptions : modeOrOptions?.mode });
     },
+    openSelection,
     workspace: { shellPaths: paths, panelManager, keybindingsManager },
-    platform: { configManager, ...(secretsManager ? { secretsManager } : {}) },
+    platform: {
+      configManager,
+      voiceProviderRegistry: {
+        list: () => [
+          { id: 'stream-voice', label: 'Streaming Voice', capabilities: ['tts-stream'] },
+          { id: 'non-stream-voice', label: 'Non Streaming Voice', capabilities: [] },
+        ],
+      },
+      voiceService: {
+        listVoices: async (providerId?: string) => [
+          { id: `${providerId ?? 'default'}-voice-a`, label: 'Voice A' },
+          { id: `${providerId ?? 'default'}-voice-b`, label: 'Voice B' },
+        ],
+      },
+      ...(secretsManager ? { secretsManager } : {}),
+    },
     session: {},
     provider: {},
     ops: {},
@@ -211,6 +237,7 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     printed,
     routedPanels,
     openedSurfaces,
+    openedSelections,
     cleanup,
   };
 }
@@ -413,6 +440,8 @@ describe('agent_harness tool', () => {
       expect(catalog.success).toBe(true);
       expect(catalog.output).toContain('"id": "model-picker"');
       expect(catalog.output).toContain('"id": "provider-picker"');
+      expect(catalog.output).toContain('"id": "tts-provider-picker"');
+      expect(catalog.output).toContain('"id": "tts-voice-picker"');
       expect(catalog.output).toContain('preferredModelRoute');
 
       const operatorSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'operator' });
@@ -493,6 +522,37 @@ describe('agent_harness tool', () => {
       });
       expect(openedSubscription.success).toBe(true);
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'setup' });
+
+      fixture.configManager.setDynamic('tts.provider', 'stream-voice');
+      fixture.configManager.setDynamic('tts.voice', '');
+      const openedTtsProvider = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'tts-provider-picker',
+        confirm: true,
+        explicitUserRequest: 'Open the TTS provider picker.',
+      });
+      expect(openedTtsProvider.success).toBe(true);
+      expect(openedTtsProvider.output).toContain('"status": "opened"');
+      expect(fixture.openedSelections.at(-1)).toEqual({
+        title: 'Choose TTS Provider',
+        itemIds: ['stream-voice'],
+        preSelectId: 'stream-voice',
+      });
+
+      const openedTtsVoice = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'tts-voice-picker',
+        target: 'stream-voice',
+        confirm: true,
+        explicitUserRequest: 'Open the TTS voice picker for stream-voice.',
+      });
+      expect(openedTtsVoice.success).toBe(true);
+      expect(openedTtsVoice.output).toContain('"providerId": "stream-voice"');
+      expect(fixture.openedSelections.at(-1)).toEqual({
+        title: 'Choose TTS Voice (stream-voice)',
+        itemIds: ['__default__', 'stream-voice-voice-a', 'stream-voice-voice-b'],
+        preSelectId: '__default__',
+      });
     } finally {
       fixture.cleanup();
     }

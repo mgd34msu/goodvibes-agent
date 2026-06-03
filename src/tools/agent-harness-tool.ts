@@ -592,7 +592,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         if (args.mode === 'open_ui_surface') {
           const confirmationError = requireConfirmedAction(args, 'UI surface routing');
           if (confirmationError) return error(confirmationError);
-          return output(openHarnessUiSurface(deps.commandContext, args));
+          return output(await openHarnessUiSurface(deps.commandContext, args));
         }
         if (args.mode === 'shortcuts') return output(listHarnessShortcuts(deps.commandContext, args));
         if (args.mode === 'keybindings') return output(listHarnessKeybindings(deps.commandContext, args));

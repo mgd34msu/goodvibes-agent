@@ -1,10 +1,138 @@
-import type { CommandRegistry } from '../command-registry.ts';
+import type { CommandContext, CommandRegistry, SlashCommand } from '../command-registry.ts';
 import type { SelectionItem } from '../selection-modal.ts';
 import { EFFORT_DESCRIPTIONS } from '@pellux/goodvibes-sdk/platform/providers';
 import { REASONING_BUDGET_MAP } from '@pellux/goodvibes-sdk/platform/providers';
 import { compactConversation, requireKeybindingsManager, requireProviderApi } from './runtime-services.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+
+function commandCategory(commandName: string): string {
+  if ([
+    'agent',
+    'agent-profile',
+    'brief',
+    'health',
+    'welcome',
+    'setup',
+    'tasks',
+    'approval',
+    'automation',
+    'delegate',
+    'schedule',
+    'workplan',
+    'plan',
+  ].includes(commandName)) return 'Agent Operator';
+  if ([
+    'knowledge',
+    'memory',
+    'notes',
+    'personas',
+    'skills',
+    'routines',
+  ].includes(commandName)) return 'Knowledge & Local Context';
+  if ([
+    'channels',
+    'notify',
+    'qrcode',
+    'pair',
+  ].includes(commandName)) return 'Channels';
+  if ([
+    'model',
+    'provider',
+    'providers',
+    'effort',
+    'pin',
+    'unpin',
+    'refresh-models',
+    'mode',
+    'tts',
+    'voice',
+    'media',
+    'image',
+  ].includes(commandName)) return 'Model, Voice & Media';
+  if ([
+    'settings',
+    'config',
+    'keybindings',
+    'shortcuts',
+    'mcp',
+    'secrets',
+    'auth',
+    'accounts',
+    'subscription',
+    'compat',
+    'security',
+    'trust',
+    'bundle',
+  ].includes(commandName)) return 'Setup & Security';
+  if ([
+    'save',
+    'load',
+    'sessions',
+    'session',
+    'conversation',
+    'export',
+    'title',
+    'clear',
+    'reset',
+    'compact',
+    'undo',
+    'redo',
+    'retry',
+    'expand',
+    'collapse',
+    'context',
+    'bookmarks',
+    'paste',
+    'next-error',
+    'prev-error',
+  ].includes(commandName)) return 'Conversation';
+  return 'Tools & System';
+}
+
+function commandDetail(command: SlashCommand): string {
+  const parts = [command.description];
+  if (command.usage) parts.push(`usage: /${command.name} ${command.usage}`);
+  if (command.aliases?.length) parts.push(`aliases: ${command.aliases.map((alias) => `/${alias}`).join(', ')}`);
+  return parts.join(' | ');
+}
+
+function listRegisteredCommandItems(registry: CommandRegistry): SelectionItem[] {
+  return registry.list()
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((command) => ({
+      id: `/${command.name}`,
+      label: `/${command.name}`,
+      detail: commandDetail(command),
+      category: commandCategory(command.name),
+      primaryAction: 'select',
+      actions: '[Enter] run command',
+    }));
+}
+
+function registeredCommandListText(registry: CommandRegistry): string {
+  const commands = listRegisteredCommandItems(registry);
+  return [
+    'Open the Agent workspace first, then press / inside it to search every product action.',
+    '',
+    'Registered slash commands:',
+    ...commands.map((item) => `  ${item.label} - ${item.detail}`),
+  ].join('\n');
+}
+
+function openRegisteredCommandSelection(registry: CommandRegistry, ctx: CommandContext): void {
+  ctx.openSelection?.('Help  -  Commands', listRegisteredCommandItems(registry), { allowSearch: true }, (result) => {
+    if (!result) return;
+    const command = result.item.id;
+    if (command.startsWith('/')) {
+      const parts = command.slice(1).trim().split(/\s+/);
+      const name = parts[0];
+      const cmdArgs = parts.slice(1);
+      void (ctx.executeCommand?.(name, cmdArgs) ?? registry.execute(name, cmdArgs, ctx));
+    }
+  });
+}
 
 export function registerShellCoreCommands(registry: CommandRegistry): void {
   registry.register({
@@ -53,6 +181,10 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     aliases: ['cmds'],
     description: 'Browse all commands in a scrollable list',
     handler(_args, ctx) {
+      if (ctx.openSelection) {
+        openRegisteredCommandSelection(registry, ctx);
+        return;
+      }
       if (ctx.openHelpOverlay) {
         ctx.openHelpOverlay();
         return;
@@ -120,74 +252,10 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     argsHint: '[command]',
     handler(_args, ctx) {
       if (ctx.openSelection) {
-        const items: SelectionItem[] = [
-          { id: '/agent', label: '/agent', detail: 'Open the Agent operator workspace; press / inside it to search every action', category: 'Agent Operator' },
-          { id: '/agent setup', label: '/agent setup', detail: 'Open the Agent setup workspace; workspace search can find every setup action', category: 'Agent Operator' },
-          { id: '/agent channels', label: '/agent channels', detail: 'Open channel readiness and delivery safety', category: 'Agent Operator' },
-          { id: '/agent knowledge', label: '/agent knowledge', detail: 'Open isolated Agent Knowledge workflows', category: 'Agent Operator' },
-          { id: '/agent voice-media', label: '/agent voice-media', detail: 'Open voice, TTS, image, browser, and media setup', category: 'Agent Operator' },
-          { id: '/home', label: '/home', detail: 'Alias for the Agent operator workspace', category: 'Agent Operator' },
-          { id: '/brief', label: '/brief', detail: 'Show a concise Agent operator briefing and next actions', category: 'Agent Operator' },
-          { id: '/knowledge', label: '/knowledge', detail: 'Inspect isolated Agent Knowledge status, ask/search, and ingest flows', category: 'Agent Operator' },
-          { id: '/memory', label: '/memory', detail: 'Review Agent-local memory records', category: 'Agent Operator' },
-          { id: '/notes', label: '/notes', detail: 'Open Agent-local scratchpad notes for source triage and temporary context', category: 'Agent Operator' },
-          { id: '/personas', label: '/personas', detail: 'Create, review, and activate Agent-local personas', category: 'Agent Operator' },
-          { id: '/skills', label: '/skills', detail: 'Create, review, and enable reusable Agent skills', category: 'Agent Operator' },
-          { id: '/routines', label: '/routines', detail: 'Create, review, start, and promote Agent routines explicitly', category: 'Agent Operator' },
-          { id: '/automation', label: '/automation', detail: 'Run confirmed connected-host automation actions', category: 'Agent Operator' },
-          { id: '/delegate', label: '/delegate [task]', detail: 'Explicit build/fix/review handoff to GoodVibes TUI', category: 'Agent Operator' },
-          { id: '/channels', label: '/channels', detail: 'Inspect messaging-channel readiness without sending messages', category: 'Agent Operator' },
-          { id: '/pair', label: '/pair', detail: 'Pair companion clients through connected GoodVibes host', category: 'Agent Operator' },
-          { id: '/model', label: '/model [id]', detail: 'Select LLM model', category: 'Model & Provider' },
-          { id: '/provider', label: '/provider [name]', detail: 'Switch provider', category: 'Model & Provider' },
-          { id: '/effort', label: '/effort [level]', detail: 'Reasoning effort (instant/low/medium/high)', category: 'Model & Provider' },
-          { id: '/config', label: '/config [category|key]', detail: 'Open fullscreen configuration workspace', category: 'Config & Display' },
-          { id: '/expand', label: '/expand [type]', detail: 'Expand blocks (all|thinking|tool|code)', category: 'Config & Display' },
-          { id: '/collapse', label: '/collapse [type]', detail: 'Collapse blocks', category: 'Config & Display' },
-          { id: '/bookmarks', label: '/bookmarks', detail: 'List bookmarked blocks', category: 'Config & Display' },
-          { id: '/clear', label: '/clear', detail: 'Clear display (keep context)', category: 'Conversation' },
-          { id: '/reset', label: '/reset', detail: 'Clear display + context', category: 'Conversation' },
-          { id: '/compact', label: '/compact', detail: 'Summarize to free context', category: 'Conversation' },
-          { id: '/export', label: '/export [file] --yes', detail: 'Export as markdown', category: 'Conversation' },
-          { id: '/title', label: '/title [text]', detail: 'Show or set title', category: 'Conversation' },
-          { id: '/save', label: '/save [name]', detail: 'Save session', category: 'Conversation' },
-          { id: '/load', label: '/load <name>', detail: 'Load session', category: 'Conversation' },
-          { id: '/sessions', label: '/sessions', detail: 'List saved sessions', category: 'Conversation' },
-          { id: '/session', label: '/session', detail: 'Current session info', category: 'Conversation' },
-          { id: '/session list', label: '/session list', detail: 'List all sessions', category: 'Conversation' },
-          { id: '/session rename', label: '/session rename <name>', detail: 'Rename current session', category: 'Conversation' },
-          { id: '/session resume', label: '/session resume <id>', detail: 'Load and resume a session', category: 'Conversation' },
-          { id: '/session fork', label: '/session fork [name]', detail: 'Fork current session to new ID', category: 'Conversation' },
-          { id: '/session save', label: '/session save [name]', detail: 'Force-save current session', category: 'Conversation' },
-          { id: '/session info', label: '/session info [id]', detail: 'Show session details', category: 'Conversation' },
-          { id: '/session export', label: '/session export <id> [format]', detail: 'Export session as markdown/text', category: 'Conversation' },
-          { id: '/session search', label: '/session search <query>', detail: 'Search across all sessions', category: 'Conversation' },
-          { id: '/session delete', label: '/session delete <id> --yes', detail: 'Delete a session', category: 'Conversation' },
-          { id: '/undo', label: '/undo', detail: 'Remove last turn', category: 'Conversation' },
-          { id: '/redo', label: '/redo', detail: 'Restore undone turn', category: 'Conversation' },
-          { id: '/retry', label: '/retry [text]', detail: 'Re-send last message', category: 'Conversation' },
-          { id: '/paste', label: '/paste', detail: 'Insert clipboard text or image into the prompt', category: 'Tools & System' },
-          { id: '/shortcuts', label: '/shortcuts', detail: 'View keyboard shortcuts reference', category: 'Tools & System' },
-          { id: '/commands', label: '/commands', detail: 'Browse all commands in a scrollable list', category: 'Tools & System' },
-          { id: '/compat', label: '/compat', detail: 'Inspect connected-host and Agent Knowledge compatibility', category: 'Tools & System' },
-          { id: '/secrets', label: '/secrets set|link|get|test|list|delete', detail: 'Manage encrypted and provider-backed secrets', category: 'Tools & System' },
-          { id: '/bundle', label: '/bundle export|inspect|import', detail: 'Manage redacted Agent support bundles', category: 'Tools & System' },
-          { id: '/help', label: '/help', detail: 'This help', category: 'Tools & System' },
-          { id: '/quit', label: '/quit', detail: 'Exit', category: 'Tools & System' },
-        ];
-        ctx.openSelection('Help  —  Commands', items, { allowSearch: true }, (result) => {
-          if (!result) return;
-          const command = result.item.id;
-          if (command.startsWith('/')) {
-            const parts = command.slice(1).trim().split(/\s+/);
-            const name = parts[0];
-            const cmdArgs = parts.slice(1);
-            void (ctx.executeCommand?.(name, cmdArgs) ?? registry.execute(name, cmdArgs, ctx));
-          }
-        });
+        openRegisteredCommandSelection(registry, ctx);
         return;
       }
-      ctx.print('Open the Agent workspace first, then press / inside it to search every product action. Slash commands remain available: /agent, /brief, /knowledge, /memory, /notes, /personas, /skills, /routines, /channels, /approval, /automation, /schedule, /delegate, /model, /provider, /config, /compat, /bundle, /paste, /sessions, /bookmarks, /save, /load, /undo, /redo, /retry, /clear, /reset, /compact, /export, /title, /effort, /expand, /collapse, /quit');
+      ctx.print(registeredCommandListText(registry));
     },
   });
 

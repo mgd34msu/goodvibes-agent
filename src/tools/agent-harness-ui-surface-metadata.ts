@@ -1,4 +1,5 @@
 import type { CommandContext } from '../input/command-registry.ts';
+import { openTtsProviderPicker, openTtsVoicePicker } from '../input/tts-settings-actions.ts';
 
 type UiSurfaceKind = 'overlay' | 'modal' | 'workspace' | 'picker';
 
@@ -23,7 +24,7 @@ interface UiSurfaceDefinition {
   readonly preferredModelRoute: string;
   readonly parameters?: readonly string[];
   readonly available: (context: CommandContext) => boolean;
-  readonly open: (context: CommandContext, args: AgentHarnessUiSurfaceArgs) => Record<string, unknown>;
+  readonly open: (context: CommandContext, args: AgentHarnessUiSurfaceArgs) => Record<string, unknown> | Promise<Record<string, unknown>>;
 }
 
 function readString(value: unknown): string {
@@ -69,6 +70,10 @@ function workspaceCategory(args: AgentHarnessUiSurfaceArgs): string | undefined 
 }
 
 function settingsTarget(args: AgentHarnessUiSurfaceArgs): string | undefined {
+  return readString(args.target || args.key || args.prefix) || undefined;
+}
+
+function providerTarget(args: AgentHarnessUiSurfaceArgs): string | undefined {
   return readString(args.target || args.key || args.prefix) || undefined;
 }
 
@@ -295,6 +300,40 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     },
   },
   {
+    id: 'tts-provider-picker',
+    label: 'TTS Provider Picker',
+    kind: 'picker',
+    summary: 'Interactive streaming TTS provider picker opened from the Agent settings flow.',
+    command: '/config tts.provider',
+    preferredModelRoute: 'Use settings/get_setting/set_setting for tts.provider when a concrete provider id is known; use open_ui_surface only to visibly navigate.',
+    available: (context) => typeof context.openSelection === 'function' && Boolean(context.platform.voiceProviderRegistry),
+    open: (context) => {
+      const surface = findSurfaceById('tts-provider-picker')!;
+      if (!context.openSelection || !context.platform.voiceProviderRegistry) return routeUnavailable(surface);
+      const handled = openTtsProviderPicker(context);
+      return handled ? opened(surface, { target: 'tts.provider' }) : routeUnavailable(surface);
+    },
+  },
+  {
+    id: 'tts-voice-picker',
+    label: 'TTS Voice Picker',
+    kind: 'picker',
+    summary: 'Interactive TTS voice picker opened from the Agent settings flow for the selected or supplied provider.',
+    command: '/config tts.voice',
+    preferredModelRoute: 'Use settings/get_setting/set_setting/reset_setting for tts.voice when a concrete voice id is known; use open_ui_surface only to visibly navigate.',
+    parameters: ['target'],
+    available: (context) => typeof context.openSelection === 'function' && Boolean(context.platform.voiceService),
+    open: async (context, args) => {
+      const surface = findSurfaceById('tts-voice-picker')!;
+      if (!context.openSelection || !context.platform.voiceService) return routeUnavailable(surface);
+      const providerId = providerTarget(args);
+      const handled = await openTtsVoicePicker(context, providerId);
+      return handled
+        ? opened(surface, { target: 'tts.voice', providerId: providerId ?? 'configured-default' })
+        : routeUnavailable(surface);
+    },
+  },
+  {
     id: 'session-picker',
     label: 'Session Picker',
     kind: 'picker',
@@ -457,7 +496,7 @@ export function describeHarnessUiSurface(context: CommandContext, args: AgentHar
   return surface ? describeSurface(context, surface) : null;
 }
 
-export function openHarnessUiSurface(context: CommandContext, args: AgentHarnessUiSurfaceArgs): Record<string, unknown> {
+export async function openHarnessUiSurface(context: CommandContext, args: AgentHarnessUiSurfaceArgs): Promise<Record<string, unknown>> {
   const surfaceId = readString(args.surfaceId || args.query);
   const surface = UI_SURFACES.find((entry) => entry.id === surfaceId || entry.label.toLowerCase() === surfaceId.toLowerCase());
   if (!surface) {
@@ -467,8 +506,9 @@ export function openHarnessUiSurface(context: CommandContext, args: AgentHarness
       availableSurfaces: UI_SURFACES.map((entry) => entry.id),
     };
   }
+  const routed = await surface.open(context, args);
   return {
-    ...surface.open(context, args),
+    ...routed,
     descriptor: describeSurface(context, surface),
   };
 }
