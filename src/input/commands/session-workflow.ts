@@ -244,15 +244,12 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       if (meta.provider) ctx.session.runtime.provider = meta.provider;
       ctx.renderRequest();
       ctx.print(`Resumed session: ${found.name}\n  Name: ${meta.title || '(untitled)'}\n  Messages: ${messages.length}\n  Model: ${meta.model || ctx.session.runtime.model}`);
-      const reopenedPanels = reopenPanelsFromReturnContext(ctx, meta.returnContext);
+      reopenPanelsFromReturnContext(ctx, meta.returnContext);
       const returnContextMode = getReturnContextMode(ctx.platform.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {
         for (const line of formatReturnContextForDisplay(meta.returnContext)) {
           if (line.startsWith('Open panels:')) continue;
           ctx.print(`  ${line}`);
-        }
-        if (reopenedPanels.length > 0) {
-          ctx.print(`  Reopened panels: ${reopenedPanels.join(', ')}`);
         }
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
           ctx.print('  Remote re-entry: handle remote build-host recovery outside Agent; delegate explicit build/fix/review recovery from Agent.');

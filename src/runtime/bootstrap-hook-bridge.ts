@@ -53,25 +53,15 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
       options.writeLastSessionPointer(sessionId);
       void options.sharedSessionBroker.reopenSession(sessionId).catch((err) => { logger.debug('session broker reopen session failed', { err }); });
       options.conversation.log(`Resumed session: ${sessionId}`, { fg: '135' });
-      const reopenedPanels: string[] = [];
-      if (meta.returnContext?.openPanels?.length) {
-        for (const panelId of meta.returnContext.openPanels.slice(0, 4)) {
-          try {
-            options.panelManager.open(panelId);
-            reopenedPanels.push(panelId);
-          } catch {
-            // Ignore unavailable panels during restore.
-          }
-        }
-        if (reopenedPanels.length > 0) options.panelManager.show();
-      }
+      const ignoredPanels = meta.returnContext?.openPanels?.slice(0, 4) ?? [];
       const returnContextMode = getReturnContextMode(options.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {
         for (const line of formatReturnContextForDisplay(meta.returnContext)) {
+          if (line.startsWith('Open panels:')) continue;
           options.conversation.log(`Resume: ${line}`, { fg: '244' });
         }
-        if (reopenedPanels.length > 0) {
-          options.conversation.log(`Resume: Reopened panels: ${reopenedPanels.join(', ')}`, { fg: '244' });
+        if (ignoredPanels.length > 0) {
+          options.conversation.log(`Resume: Saved panel state ignored: ${ignoredPanels.join(', ')}. Open the Agent workspace for current operator controls.`, { fg: '244' });
         }
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
           options.conversation.log('Resume: Remote build-host recovery belongs outside Agent; delegate explicit build/fix/review recovery from Agent.', { fg: '244' });
