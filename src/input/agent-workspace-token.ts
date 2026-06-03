@@ -41,7 +41,9 @@ export function handleAgentWorkspaceToken(
       handleEscape();
       return true;
     }
-    if (token.logicalName === 'enter' || token.logicalName === 'space') workspace.activateSelected(requestRender);
+    if (token.ctrl === true && token.logicalName === ']') workspace.cycleCategory('next');
+    else if (token.ctrl === true && token.logicalName === '[') workspace.cycleCategory('prev');
+    else if (token.logicalName === 'enter' || token.logicalName === 'space') workspace.activateSelected(requestRender);
     else if (token.logicalName === 'left') workspace.focusCategories();
     else if (token.logicalName === 'right') workspace.focusActions();
     else if (token.logicalName === 'up') workspace.moveUp();

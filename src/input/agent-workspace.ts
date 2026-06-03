@@ -122,6 +122,17 @@ export class AgentWorkspace {
     return selectAgentWorkspaceCategory(this, categoryIdOrLabel);
   }
 
+  cycleCategory(direction: 'next' | 'prev'): void {
+    const total = this.categories.length;
+    if (total === 0) return;
+    const delta = direction === 'next' ? 1 : -1;
+    this.selectedCategoryIndex = (this.selectedCategoryIndex + delta + total) % total;
+    this.selectedActionIndex = 0;
+    this.focusPane = 'actions';
+    this.clampSelection();
+    this.status = `Agent workspace category: ${this.selectedCategory.label}.`;
+  }
+
   selectedLocalLibraryItem(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null {
     return selectedAgentWorkspaceLocalLibraryItem(this.runtimeSnapshot, this.selectedLibraryItemIndexes, kind);
   }

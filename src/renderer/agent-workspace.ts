@@ -772,7 +772,7 @@ function footerText(workspace: AgentWorkspace): string {
     return 'Agent workspace · action search · type filter · Up/Down results · Enter open · Esc clear';
   }
   const focus = workspace.focusPane === 'categories' ? 'categories' : 'actions';
-  return `Agent workspace · focus ${focus} · / search actions · Up/Down navigate · Left/Right pane · Enter open/action · R refresh · Esc close`;
+  return `Agent workspace · ${focus} · / search · Up/Down · Left/Right · Ctrl+[/] area · Enter open/action · R refresh · Esc close`;
 }
 
 export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, height: number): Line[] {
