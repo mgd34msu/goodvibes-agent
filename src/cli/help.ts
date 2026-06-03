@@ -178,7 +178,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'personas stale <id> <reason>',
       'personas delete <id> --yes',
     ],
-    summary: 'Manage Agent-local personas for the serial main conversation. Personas do not spawn worker agents.',
+    summary: 'Manage Agent-local personas for the serial main conversation. Personas do not create separate Agent jobs.',
     examples: [
       'personas list',
       'personas discover',

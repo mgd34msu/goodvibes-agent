@@ -88,6 +88,10 @@ describe('Agent boundary docs', () => {
       'local worker',
       'local workers',
       'local background workers',
+      'worker agents',
+      'separate workers',
+      'hidden worker flow',
+      'hidden local agents',
     ] as const;
     const offenders: string[] = [];
 

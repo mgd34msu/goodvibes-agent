@@ -1,6 +1,6 @@
 # Project Planning
 
-GoodVibes Agent owns the active planning loop for operator work. Planning is part of the Agent main conversation, not a hidden worker flow and not a default knowledge query.
+GoodVibes Agent owns the active planning loop for operator work. Planning is part of the Agent main conversation, not a hidden execution flow and not a default knowledge query.
 
 ## Boundary
 

@@ -525,7 +525,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'personas') {
     base.push(
       { text: `Personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
-      { text: 'Personas are local behavior profiles for the serial main-conversation assistant, not separate workers.', fg: PALETTE.good },
+      { text: 'Personas are local behavior profiles for the serial main-conversation assistant, not separate Agent jobs.', fg: PALETTE.good },
       { text: 'Use them for tone, role, domain constraints, tool posture, and repeatable operating preferences.', fg: PALETTE.muted },
       { text: '' },
       ...localLibraryLines('Persona Library', snapshot.localPersonas, 'No local personas yet. Create one here with Create persona.', workspace.selectedLocalLibraryItem('persona')?.id ?? null),

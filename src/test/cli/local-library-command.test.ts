@@ -355,6 +355,8 @@ describe('local Agent library CLI commands', () => {
 
     const personaHelp = renderGoodVibesCommandHelp('personas');
     expect(personaHelp).toContain('GoodVibes Agent personas');
+    expect(personaHelp).toContain('Personas do not create separate Agent jobs');
+    expect(personaHelp).not.toContain('worker agents');
     expect(personaHelp).toContain('personas discover');
     expect(personaHelp).toContain('personas import-discovered');
     expect(personaHelp).toContain('personas create');

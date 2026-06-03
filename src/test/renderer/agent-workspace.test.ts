@@ -692,6 +692,12 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
+    const personasOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const normalizedPersonasOutput = personasOutput.replace(/\s+/g, ' ');
+    expect(normalizedPersonasOutput).toContain('not separate');
+    expect(normalizedPersonasOutput).toContain('Agent jobs');
+    expect(normalizedPersonasOutput).not.toContain('not separate workers');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-search');
     workspace.activateSelected();
     const personaSearchOutput = text(renderAgentWorkspace(workspace, 132, 38));
