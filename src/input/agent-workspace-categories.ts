@@ -278,7 +278,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'SETUP',
     label: 'Voice & Media',
     summary: 'Voice, TTS, image input, browser tools, and media providers.',
-    detail: 'Voice, media, browser tools, and image-capable flows are first-class Agent tools. Service management stays outside Agent and side effects stay explicit.',
+    detail: 'Voice, media, browser tools, and image-capable flows are first-class Agent tools. Connected-host administration stays outside Agent and side effects stay explicit.',
     actions: [
       { id: 'tts-config', label: 'Configure live TTS', detail: 'Open the settings workspace at the TTS group.', command: '/config tts', kind: 'command', safety: 'safe' },
       { id: 'tts-provider', label: 'Choose TTS provider', detail: 'Open provider/model routing for spoken responses through the settings flow.', command: '/config tts.provider', kind: 'command', safety: 'safe' },

@@ -66,7 +66,7 @@ function formatReturnContextLines(returnContext: SessionInfo['returnContext']): 
     lines.push(`tasks: active=${returnContext.activeTasks ?? 0} blocked=${returnContext.blockedTasks ?? 0} approvals=${returnContext.pendingApprovals ?? 0}`);
   }
   if (returnContext.remoteRunners?.length) {
-    lines.push(`remote workers: ${returnContext.remoteRunners.join(', ')}`);
+    lines.push(`remote runners: ${returnContext.remoteRunners.join(', ')}`);
   }
   if (returnContext.openPanels?.length) {
     lines.push(`open panels: ${returnContext.openPanels.join(', ')}`);

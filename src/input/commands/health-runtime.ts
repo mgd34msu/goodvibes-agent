@@ -152,7 +152,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           `  degraded: ${snapshot.degradedConnections}`,
           ...(issues.length > 0 ? issues.map((issue) => `  issue: ${issue}`) : ['  no active remote recovery issues detected']),
           '  next: /delegate <build/fix/review task> for explicit TUI build work',
-          '  next: repair remote worker state outside Agent',
+          '  next: repair remote runner state outside Agent',
         ].join('\n'));
         return;
       }

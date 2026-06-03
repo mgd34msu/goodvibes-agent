@@ -427,6 +427,8 @@ describe('AgentWorkspace', () => {
 
     expect(workspace.active).toBe(true);
     expect(workspace.selectedCategory.id).toBe('voice-media');
+    expect(workspace.selectedCategory.detail).toContain('Connected-host administration stays outside Agent');
+    expect(workspace.selectedCategory.detail).not.toContain('Service management');
     expect(workspace.focusPane).toBe('actions');
     expect(workspace.lastActionResult).toBeNull();
 

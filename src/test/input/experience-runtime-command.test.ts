@@ -67,4 +67,34 @@ describe('experience runtime commands', () => {
     expect(out.join('\n')).toContain('Open Agent Workspace -> Home -> Review health');
     expect(out.join('\n')).toContain('or run /health review');
   });
+
+  test('health remote repair guidance uses remote runner wording', async () => {
+    const registry = new CommandRegistry();
+    registerHealthRuntimeCommands(registry);
+    const command = registry.get('health');
+    expect(command).toBeDefined();
+    const out: string[] = [];
+    const context = {
+      print: (text: string) => { out.push(text); },
+      platform: {
+        readModels: {
+          remote: {
+            getSnapshot: () => ({
+              supervisor: {
+                sessions: [],
+                activeConnections: 0,
+                degradedConnections: 0,
+              },
+            }),
+          },
+        },
+      },
+    } as unknown as CommandContext;
+
+    await command!.handler(['remote'], context);
+
+    const text = out.join('\n');
+    expect(text).toContain('repair remote runner state outside Agent');
+    expect(text).not.toContain('repair remote worker state');
+  });
 });
