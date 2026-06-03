@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.9 - 2026-06-03
+
+- Expose TTS provider and voice pickers through the model-visible harness, make /help and /commands use the live slash-command registry, and refresh package-facing docs and focused coverage for the current 1.0.x surface map.
+
 ## 1.0.8 - 2026-06-03
 
 - Added model-visible UI surface entries for the panel-picker compatibility route and the security, knowledge, and subscription operator surfaces.
