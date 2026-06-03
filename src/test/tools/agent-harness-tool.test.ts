@@ -393,6 +393,56 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes first-class model tool schemas individually', async () => {
+    const fixture = makeFixture();
+    try {
+      const tool: Tool = {
+        definition: {
+          name: 'agent_custom_action',
+          description: 'Run a confirmed custom Agent action',
+          sideEffects: ['state'],
+          concurrency: 'serial',
+          supportsProgress: true,
+          parameters: {
+            type: 'object',
+            properties: {
+              targetId: { type: 'string', description: 'Target record id.' },
+              confirm: { type: 'boolean' },
+            },
+            required: ['targetId'],
+            additionalProperties: false,
+          },
+        },
+        execute: async () => ({ success: true, output: 'custom action executed' }),
+      };
+      fixture.toolRegistry.register(tool);
+
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly tools?: string } };
+      expect(summaryJson.modelAccess?.tools).toContain('mode:"tool"');
+
+      const catalog = await fixture.tool.execute({ mode: 'tools', query: 'custom' });
+      expect(catalog.success).toBe(true);
+      expect(catalog.output).toContain('"name": "agent_custom_action"');
+      expect(catalog.output).toContain('"supportsProgress": true');
+      expect(catalog.output).not.toContain('"targetId"');
+
+      const detail = await fixture.tool.execute({ mode: 'tool', toolName: 'agent_custom_action' });
+      expect(detail.success).toBe(true);
+      expect(detail.output).toContain('"name": "agent_custom_action"');
+      expect(detail.output).toContain('"concurrency": "serial"');
+      expect(detail.output).toContain('"targetId"');
+      expect(detail.output).toContain('Use the returned JSON schema directly');
+
+      const missing = await fixture.tool.execute({ mode: 'tool', toolName: 'not_a_tool' });
+      expect(missing.success).toBe(false);
+      expect(missing.error).toContain('Unknown model tool');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes top-level CLI mirror metadata without enabling hidden CLI execution', async () => {
     const fixture = makeFixture();
     try {

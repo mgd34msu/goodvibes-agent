@@ -22,7 +22,7 @@ import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
 import { describeLocalWorkspaceModelExecution, runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-harness-local-operations.ts';
-import { listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
+import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
 import {
@@ -60,6 +60,7 @@ interface AgentHarnessToolArgs {
   readonly value?: unknown;
   readonly target?: unknown;
   readonly capabilityId?: unknown;
+  readonly toolName?: unknown;
   readonly category?: unknown;
   readonly prefix?: unknown;
   readonly includeHidden?: unknown;
@@ -515,7 +516,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
       name: 'agent_harness',
       description: [
         'Discover and operate the GoodVibes Agent harness from the main conversation.',
-        'Use this tool to inspect Agent workspace actions, built-in panels, top-level CLI mirrors, UI surfaces, keybindings, slash commands with policy metadata, model tools, connected-host capabilities or one connected-host capability detail, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
+        'Use this tool to inspect Agent workspace actions, built-in panels, top-level CLI mirrors, UI surfaces, keybindings, slash commands with policy metadata, model tools or one model tool schema, connected-host capabilities or one connected-host capability detail, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
         'Discovery modes are read-only. Setting/keybinding writes, resets, UI routing, slash command invocation, and workspace action invocation require confirm:true plus explicitUserRequest.',
         'This tool preserves Agent product boundaries: connected-host lifecycle and listener posture stay externally owned, connected-host mode reports allowed and blocked route families, and secret-backed settings store raw values through the secret manager while config receives only a secret reference.',
       ].join(' '),
@@ -553,7 +554,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               slashCommands: 'Use mode:"commands" and mode:"command" to inspect; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
               workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" for editor schemas; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings", mode:"get_setting", mode:"set_setting", and mode:"reset_setting".',
-              tools: 'Use mode:"tools" with includeParameters:true to inspect first-class model tool schemas.',
+              tools: 'Use mode:"tools" to list first-class model tools, or mode:"tool" with toolName, target, or query to inspect one schema.',
               connectedHost: 'Use mode:"connected_host" for the connected-host capability map and blocked boundaries. Use mode:"connected_host_capability" with capabilityId, target, or query for one allowed or blocked capability.',
               connectedHostStatus: 'Use mode:"connected_host_status" for live read-only host reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
             },
@@ -691,6 +692,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         if (args.mode === 'tools') {
           const tools = listHarnessModelTools(deps.toolRegistry, args);
           return output({ tools, returned: tools.length, total: deps.toolRegistry.getToolDefinitions().length });
+        }
+        if (args.mode === 'tool') {
+          const query = readString(args.toolName || args.target || args.query);
+          const tool = describeHarnessModelTool(deps.toolRegistry, args);
+          return tool
+            ? output(tool)
+            : error(`Unknown model tool ${query || '<missing>'}. Use mode:"tools" to inspect available model tools.`);
         }
         if (args.mode === 'connected_host') return output(connectedHostSummary(deps.commandContext, deps.toolRegistry));
         if (args.mode === 'connected_host_capability') {

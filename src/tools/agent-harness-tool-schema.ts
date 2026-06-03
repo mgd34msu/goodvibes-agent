@@ -4,7 +4,7 @@ export const AGENT_HARNESS_MODES = [
   'shortcuts', 'keybindings', 'keybinding', 'set_keybinding', 'reset_keybinding',
   'commands', 'command', 'run_command', 'settings', 'get_setting', 'set_setting',
   'reset_setting', 'workspace', 'workspace_categories', 'workspace_actions',
-  'workspace_action', 'run_workspace_action', 'tools', 'connected_host', 'connected_host_status',
+  'workspace_action', 'run_workspace_action', 'tools', 'tool', 'connected_host', 'connected_host_status',
   'connected_host_capability',
 ] as const;
 
@@ -90,11 +90,15 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   target: {
     type: 'string',
-    description: 'Optional UI target, such as a model-picker target or settings target key.',
+    description: 'Optional lookup target, such as a model-picker target, settings key, model tool name, or connected-host capability id.',
   },
   capabilityId: {
     type: 'string',
     description: 'Connected-host allowed or blocked capability id for mode connected_host_capability, such as agent-knowledge-read or connected-host-lifecycle.',
+  },
+  toolName: {
+    type: 'string',
+    description: 'First-class model tool name for mode tool, such as agent_harness or agent_local_registry.',
   },
   category: {
     type: 'string',
