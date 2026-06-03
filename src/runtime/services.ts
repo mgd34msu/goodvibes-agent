@@ -294,7 +294,7 @@ export interface RuntimeServices {
   readonly automationManager: AutomationManager;
   readonly gatewayMethods: GatewayMethodCatalog;
   readonly artifactStore: ArtifactStore;
-  /** Compatibility alias that intentionally points at the isolated Agent Knowledge service, not default Knowledge/Wiki. */
+  /** Compatibility alias that intentionally points at the isolated Agent Knowledge service, not default knowledge. */
   readonly knowledgeService: KnowledgeService;
   readonly agentKnowledgeService: KnowledgeService;
   readonly projectPlanningService: ProjectPlanningService;

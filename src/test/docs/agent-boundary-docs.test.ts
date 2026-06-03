@@ -82,6 +82,9 @@ describe('Agent boundary docs', () => {
       'wrfc route',
       'WRFC messages',
       'configured service providers',
+      'Knowledge/Wiki',
+      'default Knowledge',
+      'Default Knowledge',
     ] as const;
     const offenders: string[] = [];
 
