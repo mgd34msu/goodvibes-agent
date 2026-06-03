@@ -1,5 +1,6 @@
 import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import { isAffirmative, splitList } from './agent-workspace-editors.ts';
+import { quoteSlashCommandArg } from './slash-command-parser.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
@@ -65,18 +66,10 @@ export function buildAgentKnowledgeUrlEditorSubmission(
   }
 
   const folder = readField('folder');
-  if (/\s/.test(folder)) {
-    return {
-      kind: 'editor',
-      editor: { ...editor, message: 'Folder paths with spaces are not supported from this compact workspace form.' },
-      status: 'Folder path contains spaces.',
-    };
-  }
-
   const tags = splitList(readField('tags'));
-  const parts = ['/knowledge', 'ingest-url', url];
-  if (tags.length > 0) parts.push('--tags', tags.join(','));
-  if (folder.length > 0) parts.push('--folder', folder);
+  const parts = ['/knowledge', 'ingest-url', quoteSlashCommandArg(url)];
+  if (tags.length > 0) parts.push('--tags', quoteSlashCommandArg(tags.join(',')));
+  if (folder.length > 0) parts.push('--folder', quoteSlashCommandArg(folder));
   parts.push('--yes');
   const command = parts.join(' ');
 

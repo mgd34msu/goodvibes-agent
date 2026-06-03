@@ -3017,15 +3017,18 @@ describe('AgentWorkspace', () => {
 
     expect(workspace.localEditor?.kind).toBe('knowledge-url');
     expect(dispatched).toEqual([]);
-    feedText(workspace, 'https://example.com/agent-guide');
+    feedText(workspace, 'https://example.com/agent-guide?topic=operator&mode=full');
     feedKey(workspace, 'enter');
     feedText(workspace, 'docs,agent');
     feedKey(workspace, 'enter');
+    feedText(workspace, 'Research Sources/Agent Guides');
     feedKey(workspace, 'enter');
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
 
-    expect(dispatched).toEqual(['/knowledge ingest-url https://example.com/agent-guide --tags docs,agent --yes']);
+    expect(dispatched).toEqual([
+      '/knowledge ingest-url "https://example.com/agent-guide?topic=operator&mode=full" --tags docs,agent --folder "Research Sources/Agent Guides" --yes',
+    ]);
     expect(workspace.localEditor).toBeNull();
     expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });
