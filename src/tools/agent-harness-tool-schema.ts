@@ -23,7 +23,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   query: {
     type: 'string',
-    description: 'Search text for command, panel, UI surface, keybinding, workspace action, setting, or tool catalogs; also slash-command, setting, panel, UI surface, or keybinding lookup for single-item modes.',
+    description: 'Search text for command, CLI mirror, panel, UI surface, keybinding, workspace action, setting, or tool catalogs; also slash-command, CLI mirror, setting, panel, UI surface, or keybinding lookup for single-item modes.',
   },
   command: {
     type: 'string',
@@ -31,7 +31,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   cliCommand: {
     type: 'string',
-    description: 'Top-level CLI command string for mode cli_command, for example "goodvibes-agent status --json" or "profiles list". This mode is read-only metadata/parse inspection.',
+    description: 'Top-level CLI command string for mode cli_command, for example "goodvibes-agent status --json" or "profiles list". target or query can also look up one CLI mirror when the exact command token is not known. This mode is read-only metadata/parse inspection.',
   },
   commandName: {
     type: 'string',
@@ -90,7 +90,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   target: {
     type: 'string',
-    description: 'Optional lookup target, such as a model-picker target, panel id/search text, UI surface id/search text, workspace action id/search text, slash command root or invocation, setting key/search text, keybinding action/search text, model tool name, or connected-host capability id.',
+    description: 'Optional lookup target, such as a model-picker target, top-level CLI mirror/search text, panel id/search text, UI surface id/search text, workspace action id/search text, slash command root or invocation, setting key/search text, keybinding action/search text, model tool name, or connected-host capability id.',
   },
   capabilityId: {
     type: 'string',

@@ -13,7 +13,14 @@ export interface AgentHarnessCliArgs {
   readonly command?: unknown;
   readonly cliCommand?: unknown;
   readonly commandName?: unknown;
+  readonly target?: unknown;
   readonly limit?: unknown;
+}
+
+interface CliCommandLookup {
+  readonly source: 'cliCommand' | 'command' | 'commandName' | 'target' | 'query' | 'default';
+  readonly input: string;
+  readonly resolvedBy: 'invocation' | 'default' | 'search';
 }
 
 function readString(value: unknown): string {
@@ -24,6 +31,12 @@ function readLimit(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
+}
+
+function redactCliLookupInput(input: string): string {
+  return input
+    .replace(/(--config=)([^=\s]+)=\S+/g, '$1$2=<redacted>')
+    .replace(/(--config\s+)([^=\s]+)=\S+/g, '$1$2=<redacted>');
 }
 
 function cliCommandTokens(command: GoodVibesCliCommand): readonly string[] {
@@ -41,13 +54,14 @@ function fallbackCliSummary(command: GoodVibesCliCommand): string {
   return 'Inspect the CLI help for this Agent package command.';
 }
 
-function describeCliCommand(command: GoodVibesCliCommand): Record<string, unknown> {
+function describeCliCommand(command: GoodVibesCliCommand, lookup?: CliCommandLookup): Record<string, unknown> {
   const help = describeGoodVibesCommandHelp(command);
   const tokens = cliCommandTokens(command);
   return {
     name: command,
     tokens,
     invocation: command === 'tui' ? 'goodvibes-agent' : `goodvibes-agent ${tokens[0] ?? command}`,
+    ...(lookup ? { lookup } : {}),
     helpTopic: help?.command ?? command,
     summary: help?.summary ?? fallbackCliSummary(command),
     usage: help?.usage ?? (command === 'tui' ? ['goodvibes-agent [OPTIONS]'] : [`goodvibes-agent ${command} [ARGS]`]),
@@ -72,6 +86,15 @@ function cliCommandMatches(command: Record<string, unknown>, query: string): boo
   ].map((value) => JSON.stringify(value)).join('\n').toLowerCase().includes(query.toLowerCase());
 }
 
+function cliCommandCandidate(command: Record<string, unknown>): Record<string, unknown> {
+  return {
+    name: command.name,
+    tokens: command.tokens,
+    invocation: command.invocation,
+    summary: command.summary,
+  };
+}
+
 export function totalHarnessCliCommands(): number {
   return listGoodVibesCliCommands().filter((command) => command !== 'unknown').length;
 }
@@ -85,25 +108,67 @@ export function listHarnessCliCommands(args: AgentHarnessCliArgs): readonly Reco
   const limit = readLimit(args.limit, 200);
   return listGoodVibesCliCommands()
     .filter((command) => command !== 'unknown')
-    .map(describeCliCommand)
+    .map((command) => describeCliCommand(command))
     .filter((command) => cliCommandMatches(command, query))
     .sort((a, b) => String(a.name).localeCompare(String(b.name)))
     .slice(0, limit);
 }
 
-function cliTokensFromArgs(args: AgentHarnessCliArgs): readonly string[] {
-  const raw = readString(args.cliCommand) || readString(args.command) || readString(args.commandName) || readString(args.query);
-  if (!raw) return [];
+function cliInputFromArgs(args: AgentHarnessCliArgs): { readonly source: CliCommandLookup['source']; readonly input: string } | null {
+  const cliCommand = readString(args.cliCommand);
+  if (cliCommand) return { source: 'cliCommand', input: cliCommand };
+  const command = readString(args.command);
+  if (command) return { source: 'command', input: command };
+  const commandName = readString(args.commandName);
+  if (commandName) return { source: 'commandName', input: commandName };
+  const target = readString(args.target);
+  if (target) return { source: 'target', input: target };
+  const query = readString(args.query);
+  if (query) return { source: 'query', input: query };
+  return null;
+}
+
+function cliTokensFromRaw(raw: string): readonly string[] {
   const tokens = raw.split(/\s+/).filter((token) => token.length > 0);
   if (tokens[0] === 'goodvibes-agent' || tokens[0]?.endsWith('/goodvibes-agent')) return tokens.slice(1);
   return tokens;
 }
 
+function isConcreteCliSource(source: CliCommandLookup['source']): boolean {
+  return source === 'cliCommand' || source === 'command' || source === 'commandName';
+}
+
 export function describeHarnessCliCommand(args: AgentHarnessCliArgs): Record<string, unknown> {
-  const tokens = cliTokensFromArgs(args);
-  if (tokens.length === 0) return describeCliCommand('tui');
+  const input = cliInputFromArgs(args);
+  if (!input) return describeCliCommand('tui', { source: 'default', input: '', resolvedBy: 'default' });
+  const lookupInput = redactCliLookupInput(input.input);
+  const tokens = cliTokensFromRaw(input.input);
   const parsed = parseGoodVibesCli(tokens);
-  if (parsed.command === 'unknown') {
+  const directInvocation = parsed.command !== 'unknown' && (
+    isConcreteCliSource(input.source)
+    || String(parsed.rawCommand ?? '').toLowerCase() === String(tokens[0] ?? '').toLowerCase()
+  );
+  if (!directInvocation) {
+    const matches = listGoodVibesCliCommands()
+      .filter((command) => command !== 'unknown')
+      .map((command) => describeCliCommand(command))
+      .filter((command) => cliCommandMatches(command, input.input))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    if (matches.length === 1) {
+      return {
+        ...matches[0]!,
+        lookup: { source: input.source, input: lookupInput, resolvedBy: 'search' },
+      };
+    }
+    if (matches.length > 1) {
+      return {
+        supported: false,
+        status: 'ambiguous',
+        input: lookupInput,
+        candidates: matches.map(cliCommandCandidate).slice(0, 8),
+        note: 'Multiple top-level CLI mirrors matched this lookup. Provide cliCommand or commandName with one concrete command token.',
+      };
+    }
     return {
       supported: false,
       token: parsed.rawCommand ?? tokens[0],
@@ -113,7 +178,7 @@ export function describeHarnessCliCommand(args: AgentHarnessCliArgs): Record<str
     };
   }
   return {
-    ...describeCliCommand(parsed.command),
+    ...describeCliCommand(parsed.command, { source: input.source, input: lookupInput, resolvedBy: 'invocation' }),
     parsed: {
       command: parsed.command,
       rawCommand: parsed.rawCommand,

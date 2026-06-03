@@ -594,7 +594,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             workspaceActions: allWorkspaceActions().length,
             tools: deps.toolRegistry.getToolDefinitions().length,
             modelAccess: {
-              cliCommands: 'Use mode:"cli_commands" and mode:"cli_command" to inspect package CLI mirrors and their preferred in-process model routes. CLI modes are discovery-only.',
+              cliCommands: 'Use mode:"cli_commands" to list and mode:"cli_command" with cliCommand, command, commandName, target, or query to inspect package CLI mirrors and their preferred in-process model routes. CLI modes are discovery-only.',
               panels: 'Use mode:"panels" to list and mode:"panel" with panelId, target, or query to inspect built-in panel catalog/open state; use mode:"open_panel" with confirm:true plus explicitUserRequest to route a visible panel/workspace change.',
               uiSurfaces: 'Use mode:"ui_surfaces" to list and mode:"ui_surface" with surfaceId, target, or query to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
               shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"keybinding" with actionId, target, key, or query; use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',

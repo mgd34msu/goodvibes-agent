@@ -505,9 +505,28 @@ describe('agent_harness tool', () => {
       });
       expect(parsed.success).toBe(true);
       expect(parsed.output).toContain('"name": "status"');
+      expect(parsed.output).toContain('"resolvedBy": "invocation"');
       expect(parsed.output).toContain('"outputFormat": "json"');
       expect(parsed.output).toContain('surfaces.slack.botToken=<redacted>');
       expect(parsed.output).not.toContain('xoxb-secret-value');
+
+      const lookedUp = await fixture.tool.execute({
+        mode: 'cli_command',
+        query: 'Call isolated Agent Knowledge routes',
+      });
+      expect(lookedUp.success).toBe(true);
+      expect(lookedUp.output).toContain('"name": "knowledge"');
+      expect(lookedUp.output).toContain('"resolvedBy": "search"');
+      expect(lookedUp.output).toContain('agent_knowledge or agent_knowledge_ingest');
+
+      const ambiguous = await fixture.tool.execute({
+        mode: 'cli_command',
+        query: 'Agent',
+      });
+      expect(ambiguous.success).toBe(true);
+      expect(ambiguous.output).toContain('"status": "ambiguous"');
+      expect(ambiguous.output).toContain('"candidates"');
+      expect(ambiguous.output).toContain('goodvibes-agent');
 
       const blocked = await fixture.tool.execute({ mode: 'cli_command', cliCommand: 'daemon start' });
       expect(blocked.success).toBe(true);
