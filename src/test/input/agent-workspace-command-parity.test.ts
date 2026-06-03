@@ -2,6 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
+import { AgentWorkspace } from '../../input/agent-workspace.ts';
+import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
+import { registerBuiltinCommands } from '../../input/commands.ts';
 
 const ROOT = join(import.meta.dir, '../../..');
 
@@ -28,6 +31,19 @@ function parseCliCommands(): readonly string[] {
 
 function commandRoot(command: string): string {
   return command.trim().replace(/^\//, '').split(/\s+/)[0] ?? '';
+}
+
+function makeCommandContext(): CommandContext {
+  return {
+    executeCommand: async () => true,
+    print: () => {},
+  } as unknown as CommandContext;
+}
+
+function makeRegisteredCommands(): CommandRegistry {
+  const registry = new CommandRegistry();
+  registerBuiltinCommands(registry);
+  return registry;
 }
 
 function collectWorkspaceCoverage(): WorkspaceCoverage {
@@ -58,6 +74,54 @@ function hasCoverage(coverage: WorkspaceCoverage, requirement: CoverageRequireme
 }
 
 describe('Agent workspace command parity', () => {
+  test('workspace actions point to registered commands, real categories, and concrete editors', () => {
+    const registry = makeRegisteredCommands();
+    const categoryIds = new Set(AGENT_WORKSPACE_CATEGORIES.map((category) => category.id));
+    const seenActionIds = new Set<string>();
+    const failures: string[] = [];
+
+    for (const category of AGENT_WORKSPACE_CATEGORIES) {
+      for (let actionIndex = 0; actionIndex < category.actions.length; actionIndex += 1) {
+        const action = category.actions[actionIndex]!;
+        const actionRef = `${category.id}/${action.id}`;
+
+        if (seenActionIds.has(action.id)) failures.push(`${actionRef}: duplicate action id`);
+        seenActionIds.add(action.id);
+
+        if (action.command) {
+          const root = commandRoot(action.command);
+          if (registry.get(root) === undefined) failures.push(`${actionRef}: unregistered command root ${root}`);
+          if (/<[^>\s]+(?:\s+[^>]*)?>/.test(action.command)) failures.push(`${actionRef}: template command ${action.command}`);
+        }
+        if (action.targetCategoryId && !categoryIds.has(action.targetCategoryId)) {
+          failures.push(`${actionRef}: unknown target category ${action.targetCategoryId}`);
+        }
+        if (action.kind === 'editor') {
+          if (!action.editorKind) {
+            failures.push(`${actionRef}: editor action has no editorKind`);
+            continue;
+          }
+          const workspace = new AgentWorkspace();
+          workspace.open(makeCommandContext(), () => {}, category.id);
+          workspace.selectedActionIndex = actionIndex;
+          workspace.activateSelected();
+          if (!workspace.localEditor) {
+            failures.push(`${actionRef}: did not open an editor`);
+          } else {
+            if (workspace.localEditor.kind !== action.editorKind) {
+              failures.push(`${actionRef}: opened ${workspace.localEditor.kind} instead of ${action.editorKind}`);
+            }
+            if (workspace.localEditor.fields.length === 0) {
+              failures.push(`${actionRef}: opened editor without fields`);
+            }
+          }
+        }
+      }
+    }
+
+    expect(failures).toEqual([]);
+  });
+
   test('product CLI commands have TUI workspace coverage unless they are pure shell utilities', () => {
     const coverage = collectWorkspaceCoverage();
     const shellOnlyCommands = new Set(['completion', 'help', 'tui', 'unknown', 'version']);
