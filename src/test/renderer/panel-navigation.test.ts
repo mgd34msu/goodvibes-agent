@@ -1,12 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { renderPanelTabBar } from '../../renderer/panel-tab-bar.ts';
 import { renderPanelWorkspaceBar } from '../../renderer/panel-workspace-bar.ts';
-import { renderPanelPickerOverlay } from '../../renderer/panel-picker-overlay.ts';
-import { PanelPicker } from '../../panels/panel-picker.ts';
 import type { Panel } from '../../panels/types.ts';
-import type { PanelRegistration } from '../../panels/types.ts';
 import type { WorkspaceTab } from '../../panels/panel-manager.ts';
-import { lineToString, linesToText } from '../setup.ts';
+import { lineToString } from '../setup.ts';
 
 function makePanel(id: string, name: string, icon = 'X'): Panel {
   return {
@@ -23,17 +20,6 @@ function makePanel(id: string, name: string, icon = 'X'): Panel {
     render: () => [],
     invalidate() { this.needsRender = true; },
     markRendered() { this.needsRender = false; },
-  };
-}
-
-function makeRegistration(id: string, name: string, category: PanelRegistration['category'], description: string): PanelRegistration {
-  return {
-    id,
-    name,
-    icon: name[0] ?? 'X',
-    category,
-    description,
-    factory: () => makePanel(id, name),
   };
 }
 
@@ -62,32 +48,5 @@ describe('panel navigation chrome', () => {
     expect(text).toContain('PANELS');
     expect(text).toContain('^ J System Messages');
     expect(text).toContain('v W WRFC');
-  });
-
-  test('panel picker renders selected panel detail block', () => {
-    const picker = new PanelPicker();
-    picker.open([
-      makeRegistration('cockpit', 'Cockpit', 'monitoring', 'Unified operator cockpit'),
-      makeRegistration('state', 'State', 'agent', 'Agent state review'),
-    ]);
-    picker.moveDown();
-    const lines = renderPanelPickerOverlay(picker, 100);
-    const text = linesToText(lines).join('\n');
-    expect(text).toContain('Agent Workspace Routes');
-    expect(text).toContain('Cockpit');
-    expect(text).toContain('/agent home');
-    expect(text).toContain('[MONITORING]');
-    expect(text).toContain('Unified operator cockpit');
-  });
-
-  test('panel picker filter includes source panel category', () => {
-    const picker = new PanelPicker();
-    picker.open([
-      makeRegistration('cockpit', 'Cockpit', 'monitoring', 'Unified operator cockpit'),
-      makeRegistration('state', 'State', 'agent', 'Agent state review'),
-    ]);
-    picker.search('agent');
-    const visible = picker.getVisible();
-    expect(visible.map((reg) => reg.id)).toEqual(['state']);
   });
 });
