@@ -133,7 +133,7 @@ describe('onboarding apply and verify helpers', () => {
     });
     expect(applied.applied).toContainEqual({
       kind: 'select-agent-profile',
-      summary: 'Selected Agent profile research-desk for future launches.',
+      summary: 'Selected Agent profile research-desk for later plain goodvibes-agent runs.',
     });
     expect(verification.ok).toBe(true);
     expect(profile?.starterTemplateId).toBe('research');

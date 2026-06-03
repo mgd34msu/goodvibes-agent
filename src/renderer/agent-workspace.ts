@@ -1,7 +1,6 @@
 import type {
   AgentWorkspace,
   AgentWorkspaceAction,
-  AgentWorkspaceActionResult,
   AgentWorkspaceCategory,
   AgentWorkspaceLocalEditor,
   AgentWorkspaceRuntimeSnapshot,
@@ -17,20 +16,7 @@ import {
   WORKSPACE_PALETTE as PALETTE,
   type WorkspaceRow,
 } from './fullscreen-workspace.ts';
-
-function safetyColor(action: AgentWorkspaceAction): string {
-  if (action.safety === 'safe') return PALETTE.good;
-  if (action.safety === 'read-only') return PALETTE.info;
-  if (action.safety === 'delegates') return PALETTE.warn;
-  return PALETTE.bad;
-}
-
-function actionResultColor(result: AgentWorkspaceActionResult): string {
-  if (result.kind === 'blocked' || result.kind === 'error') return PALETTE.bad;
-  if (result.kind === 'dispatched') return PALETTE.info;
-  if (result.kind === 'refreshed') return PALETTE.good;
-  return PALETTE.muted;
-}
+import { actionResultColor, safetyColor, setupStatusColor, type AgentWorkspaceContextLine as ContextLine } from './agent-workspace-style.ts';
 
 function buildLeftRows(workspace: AgentWorkspace, height: number): WorkspaceRow[] {
   const rows: WorkspaceRow[] = [];
@@ -73,15 +59,6 @@ function actionCommand(action: AgentWorkspaceAction): string {
   if (action.kind === 'local-selection') return action.selectionDelta && action.selectionDelta < 0 ? 'select previous' : 'select next';
   if (action.kind === 'local-operation') return action.localOperation ?? '(local action)';
   return action.command ?? '(guidance)';
-}
-
-type ContextLine = { readonly text: string; readonly fg?: string; readonly bold?: boolean; readonly dim?: boolean };
-
-function setupStatusColor(status: AgentWorkspaceRuntimeSnapshot['setupChecklist'][number]['status']): string {
-  if (status === 'ready') return PALETTE.good;
-  if (status === 'recommended') return PALETTE.warn;
-  if (status === 'blocked') return PALETTE.bad;
-  return PALETTE.muted;
 }
 
 function setupChecklistLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
