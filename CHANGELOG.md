@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.5 - 2026-06-03
+
+- Model-visible harness discovery now includes modal, overlay, picker, and workspace UI surfaces with preferred model routes and shell-opener availability.
+- open_ui_surface now routes visible Agent shell navigation through the same user-facing openers for settings, MCP, model/provider pickers, session/profile pickers, bookmarks, context, help, shortcuts, onboarding, and Agent workspace.
+- The agent_harness tool schema now lives in a focused helper so new harness surface modes stay within architecture size limits.
+
 ## 1.0.4 - 2026-06-03
 
 - Model-visible harness control now exposes fixed shortcuts and configurable keybindings through shortcuts, keybindings, keybinding, set_keybinding, and reset_keybinding modes.
