@@ -84,6 +84,16 @@ function printIgnoredPanelsFromReturnContext(ctx: CommandContext, summary: Sessi
   ctx.print(`  Saved panel state ignored: ${summary.openPanels.slice(0, 4).join(', ')}. Open the Agent workspace for current operator controls.`);
 }
 
+function formatAgentReturnContextForDisplay(summary: SessionReturnContextSummary): string[] {
+  const ignoredPanels = summary.openPanels?.slice(0, 4) ?? [];
+  return [
+    ...formatReturnContextForDisplay(summary).filter((line) => !line.startsWith('Open panels:')),
+    ...(ignoredPanels.length > 0
+      ? [`Saved panel state ignored: ${ignoredPanels.join(', ')}. Open the Agent workspace for current operator controls.`]
+      : []),
+  ];
+}
+
 function printSessionExport(
   ctx: { print: (text: string) => void },
   sessionId: string,
@@ -337,7 +347,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       `  Date:     ${date}`,
       `  Messages: ${found.messageCount}`,
       `  File:     ${found.filePath}`,
-      ...(found.returnContext ? formatReturnContextForDisplay(found.returnContext).map((line) => `  ${line}`) : []),
+      ...(found.returnContext ? formatAgentReturnContextForDisplay(found.returnContext).map((line) => `  ${line}`) : []),
     ].join('\n'));
     return true;
   }
