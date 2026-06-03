@@ -142,6 +142,8 @@ describe('TasksPanel', () => {
     expect(initial).toContain('failed 1');
     expect(initial).toContain('completed 1');
     expect(initial).toContain('/delegate <task>');
+    expect(initial).toContain('review connected-host task posture without changing execution');
+    expect(initial).not.toContain('local workers');
     expect(initial).toContain('Queued task');
     expect(initial).toContain('Status: queued');
 

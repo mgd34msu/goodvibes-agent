@@ -289,7 +289,7 @@ export function buildLocalStateStep(discovery?: AgentBehaviorDiscoverySnapshot):
         label: 'Routines',
         hint: discovery?.routines.count && discovery.routines.count > 0
           ? `${discovery.routines.count} routine file(s) are available. Open the Routines workspace to review, import, start, promote reviewed routines, or create a profile from discovered behavior. ${discoverySample(discovery)}`
-          : 'Open the Routines workspace for reusable local procedures. Starting a routine prints steps in the main conversation and does not launch local workers.',
+          : 'Open the Routines workspace for reusable local procedures. Starting a routine prints steps in the main conversation; schedule promotion remains explicit.',
         defaultValue: discovery?.routines.count && discovery.routines.count > 0 ? `${discovery.routines.count} discovered` : 'Open Routines',
       },
       {

@@ -58,28 +58,28 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   version: 'version',
 };
 
-const BLOCKED_PRODUCT_COMMANDS = new Set([
-  'app',
-  'bridge',
-  'control-plane',
-  'controlplane',
-  'cp',
-  'daemon',
-  'http-listener',
-  'launch',
-  'listener',
-  'remote',
-  'serve',
-  'server',
-  'service',
-  'services',
-  'start',
-  'surface',
-  'surfaces',
-  'tui',
-  'web',
-  'webhook',
-]);
+const BLOCKED_PRODUCT_COMMAND_HINTS: Readonly<Partial<Record<string, (binary: string) => string>>> = {
+  app: (binary) => `Unsupported command: app. Launch the Agent TUI with "${binary}" and no command.`,
+  bridge: () => 'Unsupported command: bridge. GoodVibes Agent connects to an externally managed GoodVibes host and does not expose bridge processes.',
+  'control-plane': () => 'Unsupported command: control-plane. GoodVibes Agent can inspect connected-host posture, but it does not manage host endpoints.',
+  controlplane: () => 'Unsupported command: controlplane. GoodVibes Agent can inspect connected-host posture, but it does not manage host endpoints.',
+  cp: () => 'Unsupported command: cp. GoodVibes Agent can inspect connected-host posture, but it does not manage host endpoints.',
+  daemon: () => 'Unsupported command: daemon. GoodVibes Agent connects to an externally managed GoodVibes host and does not start or manage host processes.',
+  'http-listener': () => 'Unsupported command: http-listener. GoodVibes Agent does not start listeners or expose inbound host endpoints.',
+  launch: (binary) => `Unsupported command: launch. Launch the Agent TUI with "${binary}" and no command.`,
+  listener: () => 'Unsupported command: listener. GoodVibes Agent does not start listeners or expose inbound host endpoints.',
+  remote: () => 'Unsupported command: remote. GoodVibes Agent uses explicit connected-host routes and does not manage remote host transport.',
+  serve: () => 'Unsupported command: serve. GoodVibes Agent connects to an externally managed GoodVibes host and does not start server processes.',
+  server: () => 'Unsupported command: server. GoodVibes Agent connects to an externally managed GoodVibes host and does not start server processes.',
+  service: () => 'Unsupported command: service. GoodVibes Agent keeps host lifecycle ownership outside this product.',
+  services: () => 'Unsupported command: services. GoodVibes Agent keeps host lifecycle ownership outside this product.',
+  start: (binary) => `Unsupported command: start. Launch the Agent TUI with "${binary}" and no command; Agent does not start connected-host processes.`,
+  surface: () => 'Unsupported command: surface. GoodVibes Agent does not manage connected-host surfaces.',
+  surfaces: () => 'Unsupported command: surfaces. GoodVibes Agent does not manage connected-host surfaces.',
+  tui: (binary) => `Unsupported command: tui. Launch the Agent TUI with "${binary}" and no command.`,
+  web: () => 'Unsupported command: web. GoodVibes Agent does not start web servers or expose browser routes.',
+  webhook: () => 'Unsupported command: webhook. GoodVibes Agent can send explicit channel messages, but it does not create webhook listeners.',
+};
 
 function createDefaultFlags(): GoodVibesCliFlags {
   return {
@@ -221,7 +221,7 @@ export function parseGoodVibesCli(
     if (!token.startsWith('-') || token === '-') {
       if (!sawCommand) {
         const commandToken = token.toLowerCase();
-        if (BLOCKED_PRODUCT_COMMANDS.has(commandToken)) {
+        if (BLOCKED_PRODUCT_COMMAND_HINTS[commandToken]) {
           command = 'unknown';
           rawCommand = token;
           sawCommand = true;
@@ -394,7 +394,8 @@ export function parseGoodVibesCli(
   }
 
   if (rawCommand !== undefined && command === 'unknown') {
-    errors.push(`Unknown command: ${rawCommand}`);
+    const blockedHint = BLOCKED_PRODUCT_COMMAND_HINTS[rawCommand.toLowerCase()];
+    errors.push(blockedHint ? blockedHint(binary) : `Unknown command: ${rawCommand}`);
   }
 
   return {

@@ -185,7 +185,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
             width,
             ' Connected-host task state is unavailable.',
             'Use /tasks list for the supported Agent task summary. This deferred panel does not start or mutate task execution.',
-            [{ command: '/tasks', summary: 'inspect connected-host tasks without launching local workers' }],
+            [{ command: '/tasks', summary: 'review connected-host tasks without changing execution' }],
             C,
           ),
         }],
@@ -235,7 +235,7 @@ export class TasksPanel extends ScrollableListPanel<RuntimeTask> {
       ]));
     }
     postureLines.push(
-      buildGuidanceLine(width, '/tasks', 'inspect connected-host task posture without launching local workers', C),
+      buildGuidanceLine(width, '/tasks', 'review connected-host task posture without changing execution', C),
       buildGuidanceLine(width, '/delegate <task>', 'delegate explicit build/fix/review work to GoodVibes TUI when code execution is required', C),
     );
 

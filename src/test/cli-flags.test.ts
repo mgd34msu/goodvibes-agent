@@ -207,7 +207,7 @@ describe('parseCliFlags', () => {
       const parsed = parseGoodVibesCli([token]);
       expect(parsed.command).toBe('unknown');
       expect(parsed.rawCommand).toBe(token);
-      expect(parsed.errors).toEqual([`Unknown command: ${token}`]);
+      expect(parsed.errors[0]?.startsWith(`Unsupported command: ${token}.`)).toBe(true);
       expect(parsed.positionals).toEqual([]);
       expect(parsed.commandArgs).toEqual([]);
     }
@@ -220,7 +220,7 @@ describe('parseCliFlags', () => {
       const parsed = parseGoodVibesCli([token]);
       expect(parsed.command).toBe('unknown');
       expect(parsed.rawCommand).toBe(token);
-      expect(parsed.errors).toEqual([`Unknown command: ${token}`]);
+      expect(parsed.errors[0]?.startsWith(`Unsupported command: ${token}.`)).toBe(true);
       expect(parsed.commandArgs).toEqual([]);
       expect(parsed.positionals).toEqual([]);
     }
@@ -240,7 +240,7 @@ describe('parseCliFlags', () => {
 
     expect(flags.command).toBe('unknown');
     expect(flags.rawCommand).toBe('serve');
-    expect(flags.errors).toEqual(['Unknown command: serve']);
+    expect(flags.errors).toEqual(['Unsupported command: serve. GoodVibes Agent connects to an externally managed GoodVibes host and does not start server processes.']);
     expect(flags.positionals).toEqual([]);
     expect(flags.flags.workingDir).toBe('/workspace');
     expect(flags.flags.noAltScreen).toBe(true);
@@ -343,7 +343,7 @@ describe('parseCliFlags', () => {
     expect(errors).toEqual([]);
     expect(cli.command).toBe('unknown');
     expect(cli.rawCommand).toBe('web');
-    expect(cli.errors).toEqual(['Unknown command: web']);
+    expect(cli.errors).toEqual(['Unsupported command: web. GoodVibes Agent does not start web servers or expose browser routes.']);
     expect(cli.positionals).toEqual([]);
     expect(configManager.get('web.hostMode')).toBe('local');
     expect(configManager.get('web.host')).toBe('127.0.0.1');
