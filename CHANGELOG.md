@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.13 - 2026-06-03
+
+- Add connected_host_capability to inspect one allowed or blocked connected-host capability by id, target, or query with related route families and boundary text.
+- Keep connected-host operation model-visible without exposing host lifecycle, listener, non-Agent knowledge, hidden background work, or arbitrary host mutations.
+- Refresh package-facing docs and focused harness coverage for the updated connected-host capability map.
+
 ## 1.0.12 - 2026-06-03
 
 - Expose command browser, reasoning-effort picker, and live process output as model-visible confirmation-gated harness UI surfaces.
