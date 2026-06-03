@@ -246,7 +246,7 @@ describe('PanelListPanel', () => {
       panel.handleInput('B');
       text = linesText(panel.render(80, 20));
       expect(mgr.isBottomPaneVisible()).toBe(false);
-      expect(text).toContain('Legacy panel placement keys');
+      expect(text).toContain('Panel placement keys');
     });
 
     test('printable characters append to query and appear in filter bar', () => {
@@ -325,7 +325,7 @@ describe('PanelListPanel', () => {
       panel.handleInput('B');
       expect(mgr.isBottomPaneVisible()).toBe(false);
       expect(mgr.getBottomPane().panels.map((p: Panel) => p.id)).not.toContain('alpha');
-      expect(linesText(panel.render(80, 20))).toContain('Legacy panel placement keys');
+      expect(linesText(panel.render(80, 20))).toContain('Panel placement keys');
     });
 
     test('t does not open the selected panel in the top pane', () => {

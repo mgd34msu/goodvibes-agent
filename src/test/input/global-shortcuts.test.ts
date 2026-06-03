@@ -42,7 +42,8 @@ function buildState(overrides: Partial<GlobalShortcutRouteState> = {}): GlobalSh
     handleRedo: mock(() => {}),
     handlePaste: mock(() => {}),
     handleEscape: mock(() => {}),
-    cyclePanelTab: mock(() => {}),
+    cycleAgentWorkspaceCategory: mock(() => {}),
+    dismissAgentWorkspace: mock(() => false),
     ...overrides,
   };
 }
@@ -76,6 +77,7 @@ describe('handleGlobalShortcutToken', () => {
         matches: () => false,
         lookup: () => 'panel-close',
       } as unknown as GlobalShortcutRouteState['keybindingsManager'],
+      dismissAgentWorkspace: mock(() => false),
     });
 
     const handled = handleGlobalShortcutToken(

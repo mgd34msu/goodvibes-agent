@@ -19,14 +19,15 @@ function buildState(overrides: Partial<PanelFocusRouteState> = {}): PanelFocusRo
     autocompleteActive: false,
     requestRender: mock(() => {}),
     handlePathCompletion: mock(() => false),
-    cyclePanelTab: mock(() => {}),
+    cycleAgentWorkspaceCategory: mock(() => {}),
+    dismissAgentWorkspace: mock(() => false),
     onPanelInputConsumed: undefined,
     ...overrides,
   };
 }
 
 describe('handlePanelFocusToken', () => {
-  test('Tab focuses the panel workspace from prompt context', () => {
+  test('Tab stays in prompt context when path completion does not consume it', () => {
     const state = buildState();
     const result = handlePanelFocusToken(state, {
       type: 'key',
@@ -37,9 +38,9 @@ describe('handlePanelFocusToken', () => {
       meta: false,
     });
 
-    expect(result.handled).toBe(true);
-    expect(result.panelFocused).toBe(true);
-    expect(state.requestRender).toHaveBeenCalled();
+    expect(result.handled).toBe(false);
+    expect(result.panelFocused).toBe(false);
+    expect(state.requestRender).not.toHaveBeenCalled();
     expect(state.handlePathCompletion).toHaveBeenCalledTimes(1);
   });
 
@@ -92,6 +93,7 @@ describe('handlePanelFocusToken', () => {
       keybindingsManager: {
         matches: (action: string) => action === 'panel-close',
       } as unknown as PanelFocusRouteState['keybindingsManager'],
+      dismissAgentWorkspace: mock(() => false),
     });
     const result = handlePanelFocusToken(state, {
       type: 'key',
