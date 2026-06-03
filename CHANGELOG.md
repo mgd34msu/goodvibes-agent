@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.18 - 2026-06-03
+
+- Add agent_harness panel lookup by panelId, target, or query, with ambiguity candidates for visible panel routing.
+- Add agent_harness UI surface lookup by surfaceId, target, or query, with ambiguity candidates for visible UI routing.
+- Add agent_harness keybinding lookup by actionId, target, key, or query, including formatted binding labels and ambiguity candidates for confirmed keybinding edits.
+
 ## 1.0.17 - 2026-06-03
 
 - Add agent_harness setting lookup by key, target, or query for get_setting, set_setting, and reset_setting.
