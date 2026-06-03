@@ -1037,6 +1037,56 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('inspects one slash command from typed command, target, query, and alias lookups', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.commandRegistry.register({
+        name: 'memory',
+        aliases: ['mem'],
+        description: 'Manage Agent-local memory records',
+        usage: '<action>',
+        handler: () => {},
+      });
+
+      const typed = await fixture.tool.execute({ mode: 'command', command: '/mem list --reviewed' });
+      expect(typed.success).toBe(true);
+      if (!typed.success) throw new Error(typed.error);
+      const typedPayload = JSON.parse(typed.output) as {
+        readonly name: string;
+        readonly lookup: {
+          readonly source: string;
+          readonly parsedName: string;
+          readonly parsedArgs: readonly string[];
+          readonly resolvedBy: string;
+        };
+        readonly policy: { readonly preferredModelTool?: string };
+      };
+      expect(typedPayload.name).toBe('memory');
+      expect(typedPayload.lookup.source).toBe('command');
+      expect(typedPayload.lookup.parsedName).toBe('mem');
+      expect(typedPayload.lookup.parsedArgs).toEqual(['list', '--reviewed']);
+      expect(typedPayload.lookup.resolvedBy).toBe('alias');
+      expect(typedPayload.policy.preferredModelTool).toBe('agent_local_registry');
+
+      const target = await fixture.tool.execute({ mode: 'command', target: '/BRIEF' });
+      expect(target.success).toBe(true);
+      expect(target.output).toContain('"resolvedBy": "case-insensitive-name"');
+      expect(target.output).toContain('"name": "brief"');
+
+      const described = await fixture.tool.execute({ mode: 'command', query: 'Test briefing command' });
+      expect(described.success).toBe(true);
+      expect(described.output).toContain('"resolvedBy": "description"');
+      expect(described.output).toContain('"name": "brief"');
+
+      const missing = await fixture.tool.execute({ mode: 'command', query: 'not-a-command' });
+      expect(missing.success).toBe(false);
+      expect(missing.error).toContain('Unknown slash command');
+      expect(missing.error).toContain('mode:"commands"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('runs command-backed workspace actions through the same command registry', async () => {
     const fixture = makeFixture();
     try {

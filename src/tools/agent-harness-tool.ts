@@ -1,6 +1,6 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
-import type { CommandContext, CommandRegistry, SlashCommand } from '../input/command-registry.ts';
+import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
 import { createAgentWorkspaceEditor } from '../input/agent-workspace-activation.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../input/agent-workspace-categories.ts';
@@ -18,6 +18,7 @@ import type {
 } from '../input/agent-workspace-types.ts';
 import { parseSlashCommand } from '../input/slash-command-parser.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
+import { describeHarnessCommand, listHarnessCommands } from './agent-harness-command-catalog.ts';
 import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
@@ -28,7 +29,6 @@ import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, 
 import {
   connectedHostSummary,
   describeConnectedHostCapability,
-  describeCommandPolicy,
   settingsPolicySummary,
 } from './agent-harness-metadata.ts';
 import {
@@ -114,30 +114,6 @@ function output(value: unknown): { readonly success: true; readonly output: stri
 }
 
 function error(message: string): { readonly success: false; readonly error: string } { return { success: false, error: message }; }
-
-function commandMatches(command: SlashCommand, query: string): boolean {
-  if (!query) return true;
-  const haystack = [
-    command.name,
-    ...(command.aliases ?? []),
-    command.description,
-    command.usage ?? '',
-    command.argsHint ?? '',
-  ].join('\n').toLowerCase();
-  return haystack.includes(query.toLowerCase());
-}
-
-function describeCommand(command: SlashCommand): Record<string, unknown> {
-  return {
-    name: command.name,
-    slash: `/${command.name}`,
-    aliases: command.aliases ?? [],
-    description: command.description,
-    usage: command.usage ?? '',
-    argsHint: command.argsHint ?? command.usage ?? '',
-    policy: describeCommandPolicy(command.name),
-  };
-}
 
 function allWorkspaceActions(): ReadonlyArray<{
   readonly category: AgentWorkspaceCategory;
@@ -274,16 +250,6 @@ function findWorkspaceAction(args: AgentHarnessToolArgs): { readonly category: A
     if (categoryId && entry.category.id !== categoryId) return false;
     return entry.action.id === actionId || entry.action.label.toLowerCase() === actionId.toLowerCase();
   }) ?? null;
-}
-
-function listCommands(commandRegistry: CommandRegistry, args: AgentHarnessToolArgs): readonly Record<string, unknown>[] {
-  const query = readString(args.query);
-  const limit = readLimit(args.limit, 200);
-  return commandRegistry.list()
-    .filter((command) => commandMatches(command, query))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, limit)
-    .map(describeCommand);
 }
 
 function requireConfirmedAction(args: AgentHarnessToolArgs, action: string): string | null {
@@ -551,7 +517,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               panels: 'Use mode:"panels" and mode:"panel" to inspect built-in panel catalog/open state; use mode:"open_panel" with confirm:true plus explicitUserRequest to route a visible panel/workspace change.',
               uiSurfaces: 'Use mode:"ui_surfaces" and mode:"ui_surface" to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
               shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
-              slashCommands: 'Use mode:"commands" and mode:"command" to inspect; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
+              slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
               workspace: 'Use mode:"workspace_actions" to list and mode:"workspace_action" for editor schemas; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings", mode:"get_setting", mode:"set_setting", and mode:"reset_setting".',
               tools: 'Use mode:"tools" to list first-class model tools, or mode:"tool" with toolName, target, or query to inspect one schema.',
@@ -623,13 +589,15 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return output(resetHarnessKeybinding(deps.commandContext, args));
         }
         if (args.mode === 'commands') {
-          const commands = listCommands(deps.commandRegistry, args);
+          const commands = listHarnessCommands(deps.commandRegistry, args);
           return output({ commands, returned: commands.length, total: deps.commandRegistry.list().length });
         }
         if (args.mode === 'command') {
-          const name = readString(args.commandName).replace(/^\//, '');
-          const command = name ? deps.commandRegistry.get(name) : null;
-          return command ? output(describeCommand(command)) : error(`Unknown slash command /${name || '<missing>'}.`);
+          const detail = describeHarnessCommand(deps.commandRegistry, args);
+          const query = readString(args.command || args.commandName || args.target || args.query);
+          return detail
+            ? output(detail)
+            : error(`Unknown slash command ${query || '<missing>'}. Use mode:"commands" to inspect available commands.`);
         }
         if (args.mode === 'run_command') return runCommand(deps, args);
         if (args.mode === 'settings') {

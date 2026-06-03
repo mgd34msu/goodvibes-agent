@@ -23,11 +23,11 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   query: {
     type: 'string',
-    description: 'Search text for command, setting, tool, or UI surface catalogs.',
+    description: 'Search text for command, setting, tool, or UI surface catalogs, or a slash-command lookup for mode command.',
   },
   command: {
     type: 'string',
-    description: 'Full slash command string for mode run_command, for example "/settings get provider.model". In cli_command mode this may also hold a top-level CLI string such as "goodvibes-agent status --json".',
+    description: 'Full slash command string for mode command or run_command, for example "/settings get provider.model". In cli_command mode this may also hold a top-level CLI string such as "goodvibes-agent status --json".',
   },
   cliCommand: {
     type: 'string',
@@ -90,7 +90,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   target: {
     type: 'string',
-    description: 'Optional lookup target, such as a model-picker target, settings key, model tool name, or connected-host capability id.',
+    description: 'Optional lookup target, such as a model-picker target, slash command root or invocation, settings key, model tool name, or connected-host capability id.',
   },
   capabilityId: {
     type: 'string',
