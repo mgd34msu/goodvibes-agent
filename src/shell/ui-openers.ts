@@ -310,7 +310,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     panelManager.hide();
     input.panelFocused = false;
     conversation.setSplashSuppressed(false);
-    conversation.log('Panel picker is deferred in GoodVibes Agent. Opening the Agent operator workspace instead.', { fg: '214' });
+    conversation.log('Panel picker is handled through Agent Workspace. Use /agent for current operator controls.', { fg: '214' });
     input.openAgentWorkspace(commandContext, 'home');
     conversation.rebuildHistory();
     render();

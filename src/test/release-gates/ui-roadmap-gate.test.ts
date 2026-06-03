@@ -100,10 +100,14 @@ describe('UI roadmap gate', () => {
     expect(openedWorkspaceCategory).toBe('home');
   });
 
-  test('bootstrap panel fallback uses Agent Workspace guidance instead of deferred copy', () => {
-    const source = readFileSync(join(process.cwd(), 'src/runtime/bootstrap-command-parts.ts'), 'utf8');
+  test('panel fallback routes use Agent Workspace guidance instead of deferred copy', () => {
+    const source = [
+      'src/runtime/bootstrap-command-parts.ts',
+      'src/shell/ui-openers.ts',
+    ].map((path) => readFileSync(join(process.cwd(), path), 'utf8')).join('\n');
 
     expect(source).toContain('is handled through Agent Workspace');
+    expect(source).toContain('Panel picker is handled through Agent Workspace');
     expect(source).toContain('Use /agent for current operator controls');
     expect(source).not.toContain('is deferred in GoodVibes Agent');
   });

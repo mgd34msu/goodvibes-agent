@@ -58,6 +58,10 @@ describe('wireShellUiOpeners', () => {
     expect(input.panelFocused).toBe(false);
     expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'home');
     expect(conversation.setSplashSuppressed).toHaveBeenCalledWith(false);
+    expect(conversation.log).toHaveBeenCalledWith(
+      'Panel picker is handled through Agent Workspace. Use /agent for current operator controls.',
+      { fg: '214' },
+    );
   });
 
   test('openPanelPicker does not focus already-visible copied panel workspace', () => {
