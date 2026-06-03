@@ -1454,25 +1454,25 @@ describe('renderAgentWorkspace', () => {
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tasks-filter');
     const taskFilterOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(taskFilterOutput).toContain('Filter runtime tasks');
+    expect(taskFilterOutput).toContain('Filter host tasks');
     expect(taskFilterOutput).toContain('edit task-list-filter');
 
     workspace.activateSelected();
     const taskFilterEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(taskFilterEditorOutput).toContain('Filter Runtime Tasks');
+    expect(taskFilterEditorOutput).toContain('Filter Host Tasks');
     expect(taskFilterEditorOutput).toContain('Status or kind');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-show');
     const taskOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(taskOutput).toContain('Inspect runtime task');
+    expect(taskOutput).toContain('Inspect host task');
     expect(taskOutput).toContain('edit task-show');
     expect(taskOutput).toContain('Show task output');
     expect(taskOutput).toContain('edit task-output');
 
     workspace.activateSelected();
     const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(editorOutput).toContain('Inspect Runtime Task');
+    expect(editorOutput).toContain('Inspect Host Task');
     expect(editorOutput).toContain('Task id *');
   });
 

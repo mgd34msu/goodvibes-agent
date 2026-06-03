@@ -56,7 +56,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
     handler(args, ctx) {
       const subcommand = args[0]?.toLowerCase() ?? 'list';
       if (subcommand === 'open' || subcommand === 'panel') {
-        ctx.print('Open Agent Workspace -> Work -> Runtime tasks for the workspace view, or run /tasks list for compact command output.');
+        ctx.print('Open Agent Workspace -> Work -> Host tasks for the workspace view, or run /tasks list for compact command output.');
         return;
       }
 
@@ -76,7 +76,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
           return;
         }
         ctx.print([
-          `Runtime Tasks (${filtered.length})`,
+          `Connected-host Tasks (${filtered.length})`,
           ...filtered.slice(0, 20).map((task) => `  ${task.id}  ${task.status.padEnd(9)} ${task.kind.padEnd(11)} ${task.owner}  ${task.title}`),
         ].join('\n'));
         return;

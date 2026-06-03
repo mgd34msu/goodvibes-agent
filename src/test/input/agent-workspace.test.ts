@@ -620,7 +620,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.safety).toBe('read-only');
   });
 
-  test('opens runtime task inspection from workspace forms without mutating tasks', () => {
+  test('opens host task inspection from workspace forms without mutating tasks', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));

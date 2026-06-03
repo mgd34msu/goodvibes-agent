@@ -14,7 +14,7 @@ export function createAgentWorkspaceTaskCommandEditor(kind: AgentWorkspaceTaskCo
     return {
       kind,
       mode: 'create',
-      title: 'Filter Runtime Tasks',
+      title: 'Filter Host Tasks',
       selectedFieldIndex: 0,
       message: 'List connected-host tasks filtered by status or kind. This is read-only and never creates, retries, or cancels tasks.',
       fields: [
@@ -30,18 +30,18 @@ export function createAgentWorkspaceTaskCommandEditor(kind: AgentWorkspaceTaskCo
       selectedFieldIndex: 0,
       message: 'Print one connected-host task output from the Agent workspace. This is read-only and does not retry, cancel, or mutate the task.',
       fields: [
-        { id: 'taskId', label: 'Task id', value: '', required: true, multiline: false, hint: 'Connected-host task id from Runtime tasks.' },
+        { id: 'taskId', label: 'Task id', value: '', required: true, multiline: false, hint: 'Connected-host task id from Host tasks.' },
       ],
     };
   }
   return {
     kind,
     mode: 'create',
-    title: 'Inspect Runtime Task',
+    title: 'Inspect Host Task',
     selectedFieldIndex: 0,
     message: 'Inspect one connected-host task from the Agent workspace. This is read-only and does not retry, cancel, or mutate the task.',
     fields: [
-      { id: 'taskId', label: 'Task id', value: '', required: true, multiline: false, hint: 'Connected-host task id from Runtime tasks.' },
+      { id: 'taskId', label: 'Task id', value: '', required: true, multiline: false, hint: 'Connected-host task id from Host tasks.' },
     ],
   };
 }

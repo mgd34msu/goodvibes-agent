@@ -124,12 +124,12 @@ describe('tasks command', () => {
     });
 
     await tasksCommand!.handler(['list'], ctx);
-    expect(out.join('\n')).toContain('Runtime Tasks');
+    expect(out.join('\n')).toContain('Connected-host Tasks');
     expect(out.join('\n')).toContain('Publish release evidence');
 
     out.length = 0;
     await tasksCommand!.handler([], ctx);
-    expect(out.join('\n')).toContain('Runtime Tasks');
+    expect(out.join('\n')).toContain('Connected-host Tasks');
     expect(out.join('\n')).toContain('Publish release evidence');
 
     out.length = 0;
@@ -152,7 +152,7 @@ describe('tasks command', () => {
 
     await tasksCommand!.handler(['open'], ctx);
 
-    expect(out.join('\n')).toContain('Agent Workspace -> Work -> Runtime tasks');
+    expect(out.join('\n')).toContain('Agent Workspace -> Work -> Host tasks');
   });
 
   test('blocks copied runtime task interventions in Agent', async () => {
