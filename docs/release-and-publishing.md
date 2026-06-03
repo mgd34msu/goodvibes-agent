@@ -38,6 +38,8 @@ git diff --check
 
 `bun run release` requires product release notes instead of raw git-log output. Pass `--notes-file ./release-notes.md` or set `GOODVIBES_AGENT_RELEASE_NOTES` before a real release. Release notes should describe what changed for Agent users: TUI behavior, setup, Agent Knowledge, local behavior libraries, connected-host compatibility, package/install behavior, and safety policy. Do not use commit hashes as the shipped changelog content.
 
+Before it mutates version metadata or creates a tag, `bun run release` enforces the non-test release gates: typecheck, build, publish check, packed install smoke, pack dry-run, and `git diff --check`. The full test suite remains a branch-CI responsibility and must already be green for the release SHA.
+
 The GitHub release workflow publishes to npm only when the repository variable `PUBLISH_NPM` is `true` and the repository secret `NPM_TOKEN` is configured. Without those repository settings, the workflow still validates and creates the GitHub release, but npm publish must be run from a local environment with an exported token.
 
 Branch CI is the only workflow that runs the full test suite and release gates. It runs `bun run test` once for the release SHA, along with typecheck, architecture, performance, build, publish, and packed install checks. The release workflow must not run tests or duplicate those gates; it verifies that branch CI passed for the exact checked-out SHA and then performs only package packing, GitHub Release creation, and optional npm publish.

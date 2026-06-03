@@ -15,12 +15,11 @@ import { execSync } from 'child_process';
  *   bun run scripts/release.ts --dry-run    # preview without writing
  *
  * What it does:
- *   1. Pre-release validation (typecheck + build)
- *   2. Bump patch version in package.json
- *   3. Update package.json on disk
- *   4. Update src/version.ts fallback via prebuild script
- *   5. Prepend new section to CHANGELOG.md
- *   6. Stage changes, commit, create annotated git tag
+ *   1. Pre-release validation (typecheck, build, package/publish smoke, diff hygiene)
+ *   2. Bump package.json version
+ *   3. Update src/version.ts fallback via prebuild script
+ *   4. Prepend new section to CHANGELOG.md
+ *   5. Stage changes, commit, create annotated git tag
  */
 
 const args = process.argv.slice(2);
@@ -142,19 +141,26 @@ if (DRY_RUN) console.log('(dry-run mode — no files will be written)\n');
 // --- Pre-release validation ---
 
 if (!SKIP_VALIDATION) {
-  console.log('\n[1/6] Running typecheck...');
-  run('bun run typecheck');
-
-  console.log('\n[2/6] Running build...');
-  run('bun run build');
+  console.log('\n[1/5] Running release validation gates...');
+  const validationCommands = [
+    'bun run typecheck',
+    'bun run build',
+    'bun run publish:check',
+    'bun run package:install-check',
+    'bun pm pack --dry-run',
+    'git diff --check',
+  ] as const;
+  for (const command of validationCommands) {
+    console.log(`\n  ${command}`);
+    run(command);
+  }
 } else {
-  console.log('\n[1/6] Skipping validation (--skip-validation)');
-  console.log('[2/6] Skipping build (--skip-validation)');
+  console.log('\n[1/5] Skipping release validation gates (--skip-validation)');
 }
 
 // --- Bump package.json ---
 
-console.log(`\n[3/6] Updating package.json: ${current} → ${next}`);
+console.log(`\n[2/5] Updating package.json: ${current} → ${next}`);
 if (!DRY_RUN) {
   pkg.version = next;
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
@@ -162,12 +168,12 @@ if (!DRY_RUN) {
 
 // --- Update src/version.ts via prebuild script ---
 
-console.log('\n[4/6] Syncing src/version.ts via prebuild...');
+console.log('\n[3/5] Syncing src/version.ts via prebuild...');
 run('bun run scripts/prebuild.ts');
 
 // --- Update CHANGELOG.md ---
 
-console.log('\n[5/6] Updating CHANGELOG.md...');
+console.log('\n[4/5] Updating CHANGELOG.md...');
 
 const changelogPath = join(root, 'CHANGELOG.md');
 const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -198,7 +204,7 @@ if (!DRY_RUN) {
 
 // --- Git commit + tag ---
 
-console.log(`\n[6/6] Creating git commit and tag v${next}...`);
+console.log(`\n[5/5] Creating git commit and tag v${next}...`);
 
 const tag = `v${next}`;
 const commitMsg = `chore: release ${tag}`;

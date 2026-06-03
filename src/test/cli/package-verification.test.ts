@@ -98,6 +98,10 @@ describe('package CLI install verification', () => {
     expect(source).toContain('GOODVIBES_AGENT_RELEASE_NOTES');
     expect(source).toContain('--notes-file');
     expect(source).toContain('release notes must describe product changes');
+    expect(source).toContain('bun run publish:check');
+    expect(source).toContain('bun run package:install-check');
+    expect(source).toContain('bun pm pack --dry-run');
+    expect(source).toContain('git diff --check');
     expect(source).not.toContain('git log --oneline');
   });
 
