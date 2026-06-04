@@ -14,30 +14,21 @@ function readRequiredExactSemver(value: unknown, label: string): string {
 export function syncVersionSurfaces(root = ROOT): string {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
     readonly version?: unknown;
-    readonly dependencies?: Record<string, unknown>;
-    readonly devDependencies?: Record<string, unknown>;
   };
   const version = readRequiredExactSemver(pkg.version, 'package.json version');
-  const packageSdkVersion = pkg.dependencies?.['@pellux/goodvibes-sdk'] ?? pkg.devDependencies?.['@pellux/goodvibes-sdk'];
-  const sdkVersion = readRequiredExactSemver(packageSdkVersion, 'package.json @pellux/goodvibes-sdk dependency');
 
   const versionTsPath = join(root, 'src', 'version.ts');
   if (existsSync(versionTsPath)) {
     let versionTs = readFileSync(versionTsPath, 'utf8');
     const versionFallbackPattern = /let _version = '[^']*'/;
-    const sdkVersionFallbackPattern = /let _sdkVersion = '[^']*'/;
     if (!versionFallbackPattern.test(versionTs)) {
       throw new Error('src/version.ts is missing the _version fallback literal.');
     }
-    if (!sdkVersionFallbackPattern.test(versionTs)) {
-      throw new Error('src/version.ts is missing the _sdkVersion fallback literal.');
-    }
     versionTs = versionTs.replace(versionFallbackPattern, `let _version = '${version}'`);
-    versionTs = versionTs.replace(sdkVersionFallbackPattern, `let _sdkVersion = '${sdkVersion}'`);
     writeFileSync(versionTsPath, versionTs);
-    console.log(`prebuild: src/version.ts fallback → ${version} / sdk ${sdkVersion}`);
+    console.log(`prebuild: src/version.ts fallback -> ${version}`);
   } else {
-    console.log('prebuild: src/version.ts — not found, skipping');
+    console.log('prebuild: src/version.ts - not found, skipping');
   }
 
   const readmePath = join(root, 'README.md');
@@ -47,12 +38,12 @@ export function syncVersionSurfaces(root = ROOT): string {
     if (versionRe.test(readme)) {
       readme = readme.replace(versionRe, `version-${version}-blue.svg`);
       writeFileSync(readmePath, readme);
-      console.log(`prebuild: README.md → ${version}`);
+      console.log(`prebuild: README.md -> ${version}`);
     } else {
-      console.log('prebuild: README.md — no version badge found, skipping');
+      console.log('prebuild: README.md - no version badge found, skipping');
     }
   } catch {
-    console.log('prebuild: README.md — not found, skipping');
+    console.log('prebuild: README.md - not found, skipping');
   }
 
   return version;

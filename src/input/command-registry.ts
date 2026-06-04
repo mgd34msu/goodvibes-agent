@@ -153,7 +153,7 @@ export interface CommandProviderServices {
 }
 
 /**
- * Compose locally-owned command helpers with the narrower shell bridge-owned
+ * Compose locally-owned command helpers with the narrower runtime-owned
  * runtime surfaces exported from runtime/shell-command-services.ts.
  */
 export interface CommandWorkspaceUiServices {

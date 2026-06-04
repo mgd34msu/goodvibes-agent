@@ -88,7 +88,7 @@ const AGENT_WORKSPACE_CHANNEL_SPECS: readonly AgentWorkspaceChannelSpec[] = [
     requiredKeys: ['surfaces.signal.bridgeUrl', 'surfaces.signal.account'],
     defaultTargetKeys: ['surfaces.signal.defaultRecipient'],
     risk: 'bridge',
-    riskLabel: 'private bridge delivery',
+    riskLabel: 'private routed delivery',
   },
   {
     id: 'whatsapp',
@@ -119,7 +119,7 @@ const AGENT_WORKSPACE_CHANNEL_SPECS: readonly AgentWorkspaceChannelSpec[] = [
     requiredKeys: ['surfaces.imessage.bridgeUrl', 'surfaces.imessage.account'],
     defaultTargetKeys: ['surfaces.imessage.defaultChatId'],
     risk: 'bridge',
-    riskLabel: 'Apple bridge delivery',
+    riskLabel: 'Apple routed delivery',
   },
   {
     id: 'bluebubbles',
@@ -128,7 +128,7 @@ const AGENT_WORKSPACE_CHANNEL_SPECS: readonly AgentWorkspaceChannelSpec[] = [
     requiredKeys: ['surfaces.bluebubbles.serverUrl', 'surfaces.bluebubbles.password'],
     defaultTargetKeys: ['surfaces.bluebubbles.defaultChatGuid'],
     risk: 'bridge',
-    riskLabel: 'iMessage bridge delivery',
+    riskLabel: 'iMessage routed delivery',
   },
   {
     id: 'msteams',

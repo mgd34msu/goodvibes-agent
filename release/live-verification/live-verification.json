@@ -37,7 +37,7 @@
       "title": "Agent CLI compatibility JSON command",
       "status": "pass",
       "summary": "Agent CLI compatibility returned parseable JSON.",
-      "detail": "{\n  \"ok\": true,\n  \"packageVersion\": \"1.0.35\",\n  \"sdkPin\": \"0.33.36\",\n  \"connectedHost\": {\n    \"baseUrl\": \"http://127.0.0.1:3421\",\n    \"status\": 200,\n    \"version\": \"0.33.36\",\n    \"reachable\": true,\n    \"compatible\": true\n  },\n  \"auth\": {\n    \"tokenPresent\": true,\n    \"tokenPath\": \"env:GOODVIBES_CONNECTED_HOST_TOKEN\"\n  },\n  \"agentKnowledge\": {\n    \"route\": \"/api/goodvibes-agent/knowledge/status\",\n    \"ready\": true,\n    \"kind\": \"ok\"\n  }\n}"
+      "detail": "{\n  \"ok\": true,\n  \"packageVersion\": \"1.0.35\",\n  \"connectedHost\": {\n    \"baseUrl\": \"http://127.0.0.1:3421\",\n    \"status\": 200,\n    \"reachable\": true,\n    \"compatible\": true\n  },\n  \"auth\": {\n    \"tokenPresent\": true,\n    \"tokenPath\": \"env:GOODVIBES_CONNECTED_HOST_TOKEN\"\n  },\n  \"agentKnowledge\": {\n    \"route\": \"/api/goodvibes-agent/knowledge/status\",\n    \"ready\": true,\n    \"kind\": \"ok\"\n  }\n}"
     },
     {
       "id": "cli-agent-knowledge-status",
@@ -64,8 +64,8 @@
       "id": "connected-host-status",
       "title": "Authenticated connected-host /status",
       "status": "pass",
-      "summary": "/status returned 200, version 0.33.36.",
-      "detail": "{\"status\":\"running\",\"version\":\"0.33.36\"}"
+      "summary": "/status returned 200 with parseable JSON.",
+      "detail": "{\"status\":\"running\"}"
     },
     {
       "id": "connected-host-health",

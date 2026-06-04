@@ -13,7 +13,7 @@ The Agent owns:
 - explicit execution approval;
 - delegation metadata when work needs GoodVibes TUI.
 
-The SDK/runtime owns durable storage and route contracts:
+The connected-host runtime owns durable storage and route contracts:
 
 - planning namespaces such as `project:<projectId>`;
 - readiness evaluation and next-question hints;
@@ -25,12 +25,12 @@ Other surfaces can store or inspect planning artifacts, but conversation control
 
 ## Agent Behavior
 
-The Agent derives a stable `projectId` from the workspace path and passes it to the SDK planning service. Planning artifacts are stored under the matching planning namespace so unrelated workspaces do not share state.
+The Agent derives a stable `projectId` from the workspace path and passes it to the connected-host planning service. Planning artifacts are stored under the matching planning namespace so unrelated workspaces do not share state.
 
 Normal conversation can start planning when the user asks for an execution strategy, dependency graph, verification gates, or delegation handoff. The Agent then:
 
 - prints a concise planning summary in the main transcript;
-- persists the current planning state through public SDK/runtime seams;
+- persists the current planning state through public connected-host runtime routes;
 - records active open questions and user answers;
 - calls readiness evaluation for gaps and the suggested next question;
 - asks one focused question instead of executing prematurely.

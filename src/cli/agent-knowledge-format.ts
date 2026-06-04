@@ -6,8 +6,6 @@ export interface AgentKnowledgeFailureLike {
   readonly error: string;
   readonly baseUrl: string;
   readonly route: string;
-  readonly connectedHostVersion?: string;
-  readonly expectedSdkVersion?: string;
 }
 
 export function isRecord(value: unknown): value is JsonRecord {
@@ -45,10 +43,10 @@ function yesNo(value: boolean): string {
 export function formatAgentKnowledgeFailureKind(kind: string): string {
   if (kind === 'auth_required') return 'authorization required';
   if (kind === 'connected_host_unavailable') return 'connected host unavailable';
+  if (kind === 'connected_host_incompatible') return 'connected host incompatible';
   if (kind === 'connected_host_route_unavailable') return 'connected host route unavailable';
   if (kind === 'connected_host_error') return 'connected host error';
   if (kind === 'scope_contamination') return 'scope contamination';
-  if (kind === 'version_mismatch') return 'version mismatch';
   return kind.replace(/[_-]+/g, ' ');
 }
 
@@ -384,14 +382,11 @@ export function formatFailure(failure: AgentKnowledgeFailureLike, json: boolean)
     `  ${failure.error}`,
     `  connected host ${failure.baseUrl}`,
     `  route ${failure.route}`,
-    failure.kind === 'version_mismatch' && failure.connectedHostVersion && failure.expectedSdkVersion
-      ? `  versions connected host ${failure.connectedHostVersion}; expected ${failure.expectedSdkVersion}`
-      : null,
-    failure.kind === 'version_mismatch'
-      ? '  next update the connected GoodVibes host so /status matches the Agent SDK pin.'
+    failure.kind === 'connected_host_incompatible'
+      ? '  next update the connected GoodVibes host so its public Agent routes are compatible.'
       : null,
     failure.kind === 'connected_host_route_unavailable'
-      ? '  next update the connected GoodVibes host to the SDK version required by this Agent package.'
+      ? '  next update the connected GoodVibes host so Agent Knowledge routes are available.'
       : null,
     failure.kind === 'scope_contamination'
       ? '  next update the connected GoodVibes host so Agent Knowledge routes return only Agent-owned scope data.'

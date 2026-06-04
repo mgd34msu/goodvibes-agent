@@ -67,7 +67,7 @@ export function registerPlanningRuntimeCommands(registry: CommandRegistry): void
         }
         const result = ctx.ops.planRuntime
           ? ctx.ops.planRuntime(parsed.rest[0] ?? args[0], parsed.rest.slice(1))
-          : { ok: false, output: 'Plan runtime bridge is not available in this runtime.' };
+          : { ok: false, output: 'Plan runtime route is not available in this runtime.' };
         ctx.print(result.output);
         return;
       }

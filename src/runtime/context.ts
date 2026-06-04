@@ -35,8 +35,8 @@ export interface BootstrapOptions {
   configManager: import('@pellux/goodvibes-sdk/platform/config').ConfigManager;
   /**
    * Callback invoked when the app should exit.
-   * If provided, commandContext.exit is wired during bootstrap.
-   * Otherwise main.ts binds the shell-owned exit bridge immediately after bootstrap returns.
+   * If provided, the exit route is wired during bootstrap.
+   * Otherwise main.ts binds the app-owned exit route immediately after bootstrap returns.
    */
   exit?: () => void;
 }

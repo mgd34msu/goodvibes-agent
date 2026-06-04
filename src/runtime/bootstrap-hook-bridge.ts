@@ -85,7 +85,7 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
         sessionId: options.runtime.sessionId,
         timestamp: Date.now(),
         payload: { sessionId },
-      }).catch((err: unknown) => logger.debug('Hook bridge fire error', {
+      }).catch((err: unknown) => logger.debug('Hook route fire error', {
         path: 'Lifecycle:session:load',
         error: summarizeError(err),
       }));

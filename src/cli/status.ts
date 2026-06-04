@@ -114,13 +114,13 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       });
     } else if (!options.externalRuntime.compatible) {
       findings.push({
-        id: 'external-runtime-version-mismatch',
+        id: 'external-runtime-incompatible',
         area: 'runtime',
         severity: 'warning',
-        summary: 'Connected GoodVibes host SDK version does not match Agent.',
-        cause: `Connected host reports SDK ${options.externalRuntime.version}; Agent expects ${options.externalRuntime.expectedVersion}.`,
-        impact: 'Agent-only routes, especially isolated Agent Knowledge, may be missing or incompatible.',
-        action: 'Update the owning GoodVibes host so /status matches this Agent package SDK pin.',
+        summary: 'Connected GoodVibes host compatibility does not satisfy Agent readiness.',
+        cause: 'Connected host is reachable, but at least one public Agent route is unavailable or incompatible.',
+        impact: 'Agent-only routes, especially isolated Agent Knowledge, may be unavailable.',
+        action: 'Update the owning GoodVibes host so its public Agent routes are compatible.',
       });
     }
 
@@ -144,7 +144,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
         summary: 'Isolated Agent Knowledge route is not ready.',
         cause: `${options.externalRuntime.agentKnowledge.route} returned ${options.externalRuntime.agentKnowledge.kind}${options.externalRuntime.agentKnowledge.statusCode === null ? '' : ` (${options.externalRuntime.agentKnowledge.statusCode})`}.`,
         impact: 'Agent Knowledge ask/search will not use default or non-Agent knowledge fallback; it will fail closed until the Agent route is available.',
-        action: 'Update the connected GoodVibes host to the Agent-compatible SDK and verify goodvibes-agent compat.',
+        action: 'Update the connected GoodVibes host so public Agent routes are compatible, then verify goodvibes-agent compat.',
       });
     }
   }
@@ -283,7 +283,6 @@ export function renderCliStatus(options: CliStatusOptions): string {
     ...(externalRuntime ? [
       `  baseUrl: ${externalRuntime.baseUrl}`,
       `  reachable: ${yesNo(externalRuntime.reachable)}${externalRuntime.statusCode === null ? '' : ` (HTTP ${externalRuntime.statusCode})`}`,
-      `  sdk: ${externalRuntime.version} expected ${externalRuntime.expectedVersion}`,
       `  compatible: ${yesNo(externalRuntime.compatible)}`,
       `  access token: ${externalRuntime.operatorToken.present ? 'present' : 'missing'} (${externalRuntime.operatorToken.path})`,
       `  Agent Knowledge: ${externalRuntime.agentKnowledge.ready ? 'ready' : `not ready (${formatAgentKnowledgeFailureKind(externalRuntime.agentKnowledge.kind)})`}`,

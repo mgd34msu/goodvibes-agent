@@ -149,7 +149,7 @@ export function createAgentWorkspaceOperationsCommandEditor(kind: AgentWorkspace
       mode: 'update',
       title: 'Override Planning Strategy',
       selectedFieldIndex: 0,
-      message: 'Override the planner strategy through the runtime bridge. This changes planner state and requires typed confirmation.',
+      message: 'Override the planner strategy through the runtime route. This changes planner state and requires typed confirmation.',
       fields: [
         { id: 'strategy', label: 'Strategy', value: 'serial', required: true, multiline: false, hint: 'Planner strategy, such as serial.' },
         { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /plan override with --yes.' },

@@ -50,6 +50,7 @@ const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '- Work serially in the main conversation by default: answer, inspect, summarize, remember useful non-secret facts, configure Agent-local state, and use safe read-only connected-host/operator routes.',
   '- Connected-host lifecycle is external. Do not start, stop, restart, install, expose, or mutate host listeners/network posture from Agent.',
   '- Read tools: `agent_operator_briefing` for connected work/approvals/automation/schedules, `agent_knowledge` for isolated Agent Knowledge, `agent_harness` for harness catalogs/settings/status.',
+  '- Harness access: use `agent_harness` modes `commands`/`run_command`, `workspace_actions`/`run_workspace_action`, and `settings`/`set_setting`/`reset_setting` to use the same surfaces the user can use.',
   '- State tools: `agent_work_plan` for visible local work items; `agent_local_registry` for Agent-local notes, memory, personas, skills, bundles, and routines. Keep records non-secret, sourced, and reviewable.',
   '- Confirmed tools: use `agent_operator_action`, `agent_knowledge_ingest`, `agent_media_generate`, `agent_notify`, `agent_channel_send`, and `agent_reminder_schedule` only for explicit user requests with confirm:true and explicitUserRequest.',
   '- Agent Knowledge must use only `/api/goodvibes-agent/knowledge/*` and fail closed. Do not use default knowledge or non-Agent knowledge spaces.',
@@ -89,9 +90,9 @@ export type BootstrapContext = RuntimeContext & {
   agentStatusIntervalRef: { value: ReturnType<typeof setInterval> | null };
   /** Mutable refs for viewport/scroll/render functions; main.ts patches these after constructing UI state. */
   orchestratorRefs: { getViewportHeight: () => number; scrollToEnd: (vHeight: number) => void; requestRender: () => void };
-  /** Patch the bootstrap-owned render bridge after main.ts constructs the real render loop. */
+  /** Patch the bootstrap-owned render route after main.ts constructs the real render loop. */
   setRenderRequest: (fn: () => void) => void;
-  /** Shell-owned permission prompt bridge that main.ts patches after UI setup. */
+  /** Shell-owned permission prompt route that main.ts patches after UI setup. */
   permissionPromptRef: { requestPermission: PermissionRequestHandler };
   /** Load the most recently saved conversation from disk. */
   loadLastConversation: () => { messages: Array<Record<string, unknown>> } | null;
@@ -130,7 +131,7 @@ export type BootstrapContext = RuntimeContext & {
  *   1. Config, caches, keybindings
  *   2. Runtime event bus, conversation, compositor, selection
  *   3. Tool registry + agent wiring
- *   4. Runtime bus subscriptions (delegation, subagent, hook bridge)
+ *   4. Runtime bus subscriptions (delegation, subagent, hook route)
  *   5. Providers, webhooks, PermissionManager, HookDispatcher
  *   6. Orchestrator and Agent-local task read models
  *   7. MCP auto-connect + workspace/panel manager
@@ -547,7 +548,7 @@ export async function bootstrapRuntime(
     },
   };
 
-  // Wire exit from options if provided; otherwise main.ts binds the shell bridge.
+  // Wire exit from options if provided; otherwise main.ts binds the operator route.
   if (options?.exit) {
     ctx.commandContext.exit = options.exit;
   }

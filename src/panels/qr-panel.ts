@@ -31,7 +31,7 @@ export interface QrPanelConnectionInfo {
   readonly username: string;
   /** Bootstrap password for companion authentication */
   readonly password?: string;
-  /** SDK/surface version (defaults to '0.0.0' if omitted) */
+  /** Pairing payload version (defaults to '0.0.0' if omitted) */
   readonly version?: string;
   /** Surface identifier (defaults to GoodVibes Agent if omitted) */
   readonly surface?: string;
@@ -54,7 +54,7 @@ export type CopyToClipboardFn = (text: string) => void;
  * Shows connection URL, truncated token, and username above the QR code.
  * Supports `r` to regenerate the token and `c` to copy the token.
  *
- * QR matrix generation uses the SDK's `generateQrMatrix` via `encodeConnectionPayload`.
+ * QR matrix generation uses `generateQrMatrix` via `encodeConnectionPayload`.
  */
 export class QrPanel extends BasePanel {
   private connectionInfo: QrPanelConnectionInfo;

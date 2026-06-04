@@ -3,7 +3,6 @@ import { dirname, join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { buildVerificationLedger } from './verification-ledger.ts';
 import { findAgentKnowledgeScopeContamination } from '../cli/agent-knowledge-runtime.ts';
-import { SDK_VERSION } from '../version.ts';
 
 const AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS = [
   ['home', ' assistant'].join(''),
@@ -390,25 +389,6 @@ function countStatuses(checks: readonly LiveVerificationCheck[]): Record<LiveVer
   );
 }
 
-export function buildAgentKnowledgeLiveSkipCheck(
-  id: string,
-  title: string,
-  connectedHostVersion: string,
-  expectedSdkVersion = SDK_VERSION,
-): LiveVerificationCheck {
-  return {
-    id,
-    title,
-    status: 'skip',
-    summary: `Skipped because connected host SDK ${connectedHostVersion} does not match Agent SDK pin ${expectedSdkVersion}.`,
-    detail: [
-      'Agent Knowledge is intentionally isolated under /api/goodvibes-agent/knowledge/*.',
-      'An older connected host cannot validate those routes, and Agent must not fall back to default knowledge or non-Agent knowledge segments.',
-      'Update the connected GoodVibes host, then rerun live verification.',
-    ].join('\n'),
-  };
-}
-
 export function findAgentKnowledgeResponseContamination(body: string): string | null {
   const lower = body.toLowerCase();
   for (const marker of AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS) {
@@ -463,7 +443,6 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
   const token = options.token ?? readConnectedHostToken(homeDir);
   const commandEnv = buildCommandEnv(homeDir, connectedHostBaseUrl, token);
   const checks: LiveVerificationCheck[] = [];
-  let connectedHostSdkVersion: string | null = null;
 
   const ledger = buildVerificationLedger(projectRoot);
   checks.push({
@@ -533,12 +512,8 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     (status, body) => {
       if (status !== 200) return { status: 'fail', summary: `/status returned ${status}.` };
       try {
-        const parsed = JSON.parse(body) as { version?: unknown; sdkVersion?: unknown };
-        const version = typeof parsed.sdkVersion === 'string'
-          ? parsed.sdkVersion
-          : typeof parsed.version === 'string' ? parsed.version : 'unknown';
-        connectedHostSdkVersion = version;
-        return { status: 'pass', summary: `/status returned 200, version ${version}.` };
+        JSON.parse(body) as unknown;
+        return { status: 'pass', summary: '/status returned 200 with parseable JSON.' };
       } catch {
         return { status: 'warn', summary: '/status returned 200 but was not parseable JSON.' };
       }
@@ -585,89 +560,78 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     },
   ));
 
-  const connectedHostVersionMismatch = connectedHostSdkVersion !== null && connectedHostSdkVersion !== 'unknown' && connectedHostSdkVersion !== SDK_VERSION;
-  if (connectedHostVersionMismatch) {
-    const mismatchedConnectedHostVersion = connectedHostSdkVersion ?? 'unknown';
-    checks.push(
-      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-status', 'Agent Knowledge isolated /status', mismatchedConnectedHostVersion),
-      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-ask-isolated', 'Agent Knowledge isolated ask', mismatchedConnectedHostVersion),
-      buildAgentKnowledgeLiveSkipCheck('agent-knowledge-search-isolated', 'Agent Knowledge isolated search', mismatchedConnectedHostVersion),
-      ...AGENT_KNOWLEDGE_READ_ROUTE_CHECKS.map((check) => buildAgentKnowledgeLiveSkipCheck(check.id, check.title, mismatchedConnectedHostVersion)),
-    );
-  } else {
+  checks.push(await fetchJsonCheck(
+    'agent-knowledge-status',
+    'Agent Knowledge isolated /status',
+    `${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/status`,
+    token,
+    {
+      validate: (status, body) => {
+        if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/status returned ${status}.` };
+        return validateAgentKnowledgeJsonBody(
+          'Agent Knowledge status',
+          body,
+          'Agent Knowledge status route returned parseable isolated JSON.',
+        );
+      },
+    },
+  ));
+
+  checks.push(await fetchJsonCheck(
+    'agent-knowledge-ask-isolated',
+    'Agent Knowledge isolated ask',
+    `${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/ask`,
+    token,
+    {
+      method: 'POST',
+      body: {
+        query: 'What is GoodVibes Agent?',
+        limit: 5,
+        mode: 'concise',
+        includeSources: true,
+        includeConfidence: true,
+        includeLinkedObjects: true,
+      },
+      validate: (status, body) => {
+        if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/ask returned ${status}.` };
+        return validateAgentKnowledgeJsonBody(
+          'Agent Knowledge ask',
+          body,
+          'Agent Knowledge ask stayed on the isolated Agent route.',
+        );
+      },
+    },
+  ));
+
+  checks.push(await fetchJsonCheck(
+    'agent-knowledge-search-isolated',
+    'Agent Knowledge isolated search',
+    `${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/search`,
+    token,
+    {
+      method: 'POST',
+      body: { query: 'What is GoodVibes Agent?', limit: 5 },
+      validate: (status, body) => {
+        if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/search returned ${status}.` };
+        return validateAgentKnowledgeJsonBody(
+          'Agent Knowledge search',
+          body,
+          'Agent Knowledge search stayed on the isolated Agent route.',
+        );
+      },
+    },
+  ));
+
+  for (const check of AGENT_KNOWLEDGE_READ_ROUTE_CHECKS) {
     checks.push(await fetchJsonCheck(
-      'agent-knowledge-status',
-      'Agent Knowledge isolated /status',
-      `${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/status`,
+      check.id,
+      check.title,
+      `${connectedHostBaseUrl}${check.route}`,
       token,
       {
-        validate: (status, body) => {
-          if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/status returned ${status}.` };
-          return validateAgentKnowledgeJsonBody(
-            'Agent Knowledge status',
-            body,
-            'Agent Knowledge status route returned parseable isolated JSON.',
-          );
-        },
+        validate: validateAgentKnowledgeJsonRoute(check.route, check.title),
       },
     ));
-
-    checks.push(await fetchJsonCheck(
-      'agent-knowledge-ask-isolated',
-      'Agent Knowledge isolated ask',
-      `${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/ask`,
-      token,
-      {
-        method: 'POST',
-        body: {
-          query: 'What is GoodVibes Agent?',
-          limit: 5,
-          mode: 'concise',
-          includeSources: true,
-          includeConfidence: true,
-          includeLinkedObjects: true,
-        },
-        validate: (status, body) => {
-          if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/ask returned ${status}.` };
-          return validateAgentKnowledgeJsonBody(
-            'Agent Knowledge ask',
-            body,
-            'Agent Knowledge ask stayed on the isolated Agent route.',
-          );
-        },
-      },
-    ));
-
-    checks.push(await fetchJsonCheck(
-      'agent-knowledge-search-isolated',
-      'Agent Knowledge isolated search',
-      `${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/search`,
-      token,
-      {
-        method: 'POST',
-        body: { query: 'What is GoodVibes Agent?', limit: 5 },
-        validate: (status, body) => {
-          if (status !== 200) return { status: 'fail', summary: `/api/goodvibes-agent/knowledge/search returned ${status}.` };
-          return validateAgentKnowledgeJsonBody(
-            'Agent Knowledge search',
-            body,
-            'Agent Knowledge search stayed on the isolated Agent route.',
-          );
-        },
-      },
-    ));
-
-    for (const check of AGENT_KNOWLEDGE_READ_ROUTE_CHECKS) {
-      checks.push(await fetchJsonCheck(
-        check.id,
-        check.title,
-        `${connectedHostBaseUrl}${check.route}`,
-        token,
-        {
-          validate: validateAgentKnowledgeJsonRoute(check.route, check.title),
-        },
-      ));
-    }
   }
 
   const counts = countStatuses(checks);

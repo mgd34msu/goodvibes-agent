@@ -71,20 +71,25 @@ Read-only inspection is available from the TUI Knowledge workspace first, with C
 - `/knowledge connector <connector-id>`
 - `/knowledge connector-doctor <connector-id>`
 - `/knowledge map`
+- `/knowledge packet <task...> [--scope <path> ...]`
+- `/knowledge explain <task...> [--scope <path> ...]`
 
 The main assistant conversation can use the read-only `agent_knowledge` tool for the same isolated status, ask, search, source/node/issue list, item lookup, map, connector list, connector detail, and connector doctor workflows.
 
 ## Ingest
 
-Use Agent Workspace -> Knowledge for URL, URL-list, file, bookmark, browser-history, connector ingest, and reindex forms. The main assistant conversation can also call the confirmed `agent_knowledge_ingest` tool for the same isolated source families. `/knowledge ingest-url <url> --yes` and `goodvibes-agent knowledge ingest-url <url> --yes` ingest URL sources into Agent Knowledge only.
+Use Agent Workspace -> Knowledge for URL, URL-list, file, bookmark, browser-history, connector ingest, issue review, consolidation, and reindex forms. The main assistant conversation can also call the confirmed `agent_knowledge_ingest` tool for URL, file, URL-list, bookmark, browser-history, and connector source families. `/knowledge ingest-url <url> --yes` and `goodvibes-agent knowledge ingest-url <url> --yes` ingest URL sources into Agent Knowledge only.
 
-The TUI workspace exposes the common confirmed ingest and reindex flows. The CLI also exposes Agent-specific batch routes for scripts:
+The TUI workspace exposes the common confirmed ingest, issue-review, consolidation, and reindex flows. The CLI also exposes Agent-specific batch routes for scripts:
 
 - `goodvibes-agent knowledge import-urls <path> --yes`
 - `goodvibes-agent knowledge import-bookmarks <path> --yes`
+- `goodvibes-agent knowledge import-browser-history --yes`
+- `/knowledge review-issue <issueId> <accept|reject|resolve|reopen|edit|forget> --yes`
+- `/knowledge consolidate [light|deep] --yes`
 - `goodvibes-agent knowledge reindex --yes`
 
-All of these commands target `/api/goodvibes-agent/knowledge/*`; none of them call default knowledge.
+Connected-host ingest and read CLI routes target `/api/goodvibes-agent/knowledge/*`. Workspace and slash-command issue review, packet/explain, consolidation, and reindex flows stay inside the isolated Agent Knowledge service. None of them call default knowledge.
 
 Do not map local memory, notes, routines, skills, personas, or default knowledge documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
 
@@ -94,7 +99,7 @@ Artifacts are first-class runtime objects for files, images, audio, video, gener
 
 Agent Workspace -> Voice & Media -> Generate media creates image/video artifacts through configured media providers after typed confirmation. The main conversation can perform the same confirmed action with the `agent_media_generate` tool when the user explicitly asks for generated media. Generated media output is summarized as artifact ids, MIME types, filenames, and source URLs when present; inline base64 is not printed into the transcript.
 
-The model can use first-class tools for the common Knowledge and media workflows: `agent_knowledge`, `agent_knowledge_ingest`, and `agent_media_generate`. `agent_harness` adds workspace-action lookup/execution, `media_posture`/`media_provider` readiness, `sessions`/`session` bookmark and artifact posture, and confirmed slash-command mirrors when a visible workspace route maps to a concrete command.
+The model can use first-class tools for the common Knowledge and media workflows: `agent_knowledge`, `agent_knowledge_ingest`, and `agent_media_generate`. `agent_harness` adds workspace-action lookup/execution, compact `modelRoute` hints in `workspace_actions`, `media_posture`/`media_provider` readiness, `sessions`/`session` bookmark and artifact posture, and confirmed slash-command mirrors when a visible workspace route maps to a concrete command.
 
 Multimodal outputs should stay in the conversation, artifacts, local notes or memory, or explicit delegation results unless the user explicitly ingests a reviewed source through an Agent Knowledge route. They must not be inserted into default knowledge.
 

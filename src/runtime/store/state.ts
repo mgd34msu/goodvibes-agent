@@ -34,7 +34,7 @@ import type { DiscoveryDomainState } from '@/runtime/index.ts';
 import type { IntelligenceDomainState } from '@/runtime/index.ts';
 import type { UiPerfDomainState } from './domains/ui-perf.ts';
 // UiPerfDomainState is structurally identical to SDK's SurfacePerfDomainState.
-// Export as SurfacePerfDomainState alias for SDK compatibility.
+// Export as SurfacePerfDomainState alias for shared runtime callers.
 export type { UiPerfDomainState };
 
 import { createInitialSessionState } from '@/runtime/index.ts';

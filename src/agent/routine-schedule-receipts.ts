@@ -6,7 +6,6 @@ import { formatEveryInterval } from '@pellux/goodvibes-sdk/platform/automation';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import { SDK_VERSION } from '../version.ts';
 import { isRoutineScheduleDeliverySurfaceKind } from './routine-schedule-args.ts';
 import {
   ROUTINE_SCHEDULE_LIST_METHOD,
@@ -83,7 +82,7 @@ function redactedDeliveryTargets(delivery: ScheduleDeliveryInput | undefined): r
 }
 
 function normalizeFailureKind(value: unknown): RoutineScheduleReceipt['failureKind'] {
-  if (value === 'confirmation_required' || value === 'auth_required' || value === 'version_mismatch') return value;
+  if (value === 'confirmation_required' || value === 'auth_required' || value === 'connected_host_incompatible') return value;
   if (value === 'connected_host_unavailable' || value === 'connected_host_route_unavailable' || value === 'connected_host_error') return value;
   if (value === 'daemon_unavailable') return 'connected_host_unavailable';
   if (value === 'daemon_route_unavailable') return 'connected_host_route_unavailable';
@@ -450,17 +449,13 @@ async function classifyScheduleListError(
   }
   if (lower.includes('404') || lower.includes('not found')) {
     const connectedHost = await fetchConnectedHostStatus(connection);
-    const record = isRecord(connectedHost.body) ? connectedHost.body : {};
-    const connectedHostVersion = readString(record, 'version') ?? 'unknown';
-    if (connectedHost.ok && connectedHostVersion !== SDK_VERSION) {
+    if (connectedHost.ok) {
       return {
         ok: false,
-        kind: 'version_mismatch',
-        error: `Connected GoodVibes host SDK version ${connectedHostVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.list is unavailable.`,
+        kind: 'connected_host_incompatible',
+        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; schedules.list is unavailable.',
         route: ROUTINE_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
-        connectedHostVersion,
-        expectedSdkVersion: SDK_VERSION,
       };
     }
     return { ok: false, kind: 'connected_host_route_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };

@@ -20,7 +20,7 @@ GoodVibes Agent supports spoken turns as an Agent TUI feature. Text output remai
 
 `/config tts` opens the fullscreen configuration workspace for streaming provider, voice, and spoken-turn model routing.
 
-The model can inspect the same settings through `agent_harness mode:"settings"` or `mode:"get_setting"`, open the visible TTS provider or voice picker through `mode:"open_ui_surface"`, and change Agent-owned TTS settings with explicit confirmation. `mode:"media_posture"` is compact by default; use `includeParameters:true` or `mode:"media_provider"` for full provider readiness, generation route hints, picker routes, and media policy detail. Connected-host listener or lifecycle settings remain outside Agent ownership.
+The model can inspect the same settings through `agent_harness mode:"settings"` or `mode:"get_setting"`, open the visible TTS provider or voice picker through `mode:"open_ui_surface"`, and change Agent-owned TTS settings with explicit confirmation. `mode:"media_posture"` is compact by default; use `includeParameters:true` or `mode:"media_provider"` for full provider readiness, generation route hints, picker routes, and media policy detail. Workspace action discovery includes compact `modelRoute` hints for TTS prompts, image input, and confirmed media generation; generated image/video requests use `agent_media_generate` when the user asks for that effect. Connected-host listener or lifecycle settings remain outside Agent ownership.
 
 ## Playback Requirements
 

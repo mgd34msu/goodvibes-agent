@@ -484,23 +484,19 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
   const connection = resolveConnectedHostConnection(runtime);
   const metadata = readPackageMetadata();
   const connectedHost = await fetchConnectedHostStatus(connection);
-  const connectedHostRecord = isRecord(connectedHost.body) ? connectedHost.body : {};
-  const connectedHostVersion = readString(connectedHostRecord, 'version') ?? 'unknown';
-  const versionCompatible = connectedHost.ok && connectedHostVersion === metadata.sdkVersion;
   const knowledgeRoute = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.status, async (routeConnection) => (
     await createAgentSdk(routeConnection).knowledge.status()
   ));
   const knowledgeRouteReady = knowledgeRoute.ok;
+  const hostCompatible = connectedHost.ok && knowledgeRouteReady;
   const value = {
-    ok: versionCompatible && knowledgeRouteReady,
+    ok: hostCompatible && knowledgeRouteReady,
     packageVersion: metadata.version,
-    sdkPin: metadata.sdkVersion,
     connectedHost: {
       baseUrl: connection.baseUrl,
       status: connectedHost.status,
-      version: connectedHostVersion,
       reachable: connectedHost.ok,
-      compatible: versionCompatible,
+      compatible: hostCompatible,
     },
     auth: {
       tokenPresent: Boolean(connection.token),
@@ -515,12 +511,11 @@ export async function handleCompatCommand(runtime: CliCommandRuntime): Promise<C
   const text = [
     'GoodVibes Agent compatibility',
     `  package ${metadata.version}`,
-    `  SDK pin ${metadata.sdkVersion}`,
-    `  connected host ${connectedHostVersion} at ${connection.baseUrl} (${connectedHost.ok ? 'reachable' : 'unreachable'})`,
-    `  version compatible ${yesNo(versionCompatible)}`,
+    `  connected host ${connection.baseUrl} (${connectedHost.ok ? 'reachable' : 'unreachable'})`,
+    `  host compatible ${yesNo(hostCompatible)}`,
     `  operator token ${connection.token ? 'present' : 'missing'} (${connection.tokenPath})`,
     `  Agent Knowledge route ${knowledgeRouteReady ? 'ready' : `not ready (${knowledgeRoute.ok ? 'unknown' : formatAgentKnowledgeFailureKind(knowledgeRoute.kind)})`}`,
-    ...(versionCompatible ? [] : ['  next update the connected GoodVibes host so /status matches the Agent SDK pin.']),
+    ...(hostCompatible ? [] : ['  next update the connected GoodVibes host so its public Agent routes are compatible.']),
   ].join('\n');
   return {
     output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text,

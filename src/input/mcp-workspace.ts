@@ -266,7 +266,7 @@ export class McpWorkspace {
       { type: 'action', id: 'add', label: 'Add or update server', detail: `Open a confirmed Agent workspace form to save an MCP server in ${this.form.scope} scope.` },
       { type: 'action', id: 'reload', label: 'Reload runtime', detail: 'Confirm an MCP runtime reload from this workspace after external config edits.' },
       { type: 'action', id: 'refresh-tools', label: 'Refresh tools', detail: 'Fetch the currently available MCP tool list from connected servers.' },
-      { type: 'action', id: 'config', label: 'Config locations', detail: 'Show SDK-scanned config files and writable project/global paths.' },
+      { type: 'action', id: 'config', label: 'Config locations', detail: 'Show detected config files and writable project/global paths.' },
     ];
   }
 

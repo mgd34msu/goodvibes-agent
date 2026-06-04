@@ -25,9 +25,9 @@ function scheduleValue(preview: ReminderSchedulePreview): string {
 function formatReminderScheduleFailureKind(kind: string): string {
   if (kind === 'auth_required') return 'authorization required';
   if (kind === 'connected_host_unavailable') return 'connected host unavailable';
+  if (kind === 'connected_host_incompatible') return 'connected host incompatible';
   if (kind === 'connected_host_route_unavailable') return 'connected host route unavailable';
   if (kind === 'connected_host_error') return 'connected host error';
-  if (kind === 'version_mismatch') return 'version mismatch';
   return kind.replace(/[_-]+/g, ' ');
 }
 
@@ -68,16 +68,13 @@ export function formatReminderScheduleFailure(failure: ReminderScheduleFailure):
     `  ${failure.error}`,
     failure.baseUrl ? `  connected host ${failure.baseUrl}` : null,
     `  route ${REMINDER_SCHEDULE_METHOD} ${failure.route}`,
-    failure.kind === 'version_mismatch' && failure.connectedHostVersion && failure.expectedSdkVersion
-      ? `  versions connected host ${failure.connectedHostVersion}; expected ${failure.expectedSdkVersion}`
-      : null,
     failure.kind === 'auth_required'
       ? '  next pair/authenticate with the connected GoodVibes host, then retry with --yes.'
       : null,
     failure.kind === 'connected_host_unavailable'
       ? '  next make the connected GoodVibes host available outside Agent, then retry.'
       : null,
-    failure.kind === 'version_mismatch' || failure.kind === 'connected_host_route_unavailable'
+    failure.kind === 'connected_host_incompatible' || failure.kind === 'connected_host_route_unavailable'
       ? '  next update the connected GoodVibes host so public schedules.create is available.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');

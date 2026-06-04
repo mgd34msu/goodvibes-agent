@@ -133,7 +133,7 @@ export interface BootstrapCommandSectionOptions {
 }
 
 function unwiredShellAction(name: string): never {
-  throw new Error(`commandContext.${name} was called before the shell bridge was attached in main.ts`);
+  throw new Error(`Agent runtime action "${name}" was called before the operator route was attached.`);
 }
 
 export function createBootstrapCommandActions(

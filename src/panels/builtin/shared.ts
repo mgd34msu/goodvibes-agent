@@ -95,7 +95,7 @@ export interface BuiltinPanelDeps {
   planManager?: ExecutionPlanManager;
   /** Adaptive planner for ops strategy panels. */
   adaptivePlanner?: AdaptivePlanner;
-  /** Passive SDK-backed project planning artifact service. */
+  /** Passive project planning artifact service. */
   projectPlanningService?: ProjectPlanningService;
   /** Stable workspace project id for project:<projectId> planning namespaces. */
   projectPlanningProjectId?: string;

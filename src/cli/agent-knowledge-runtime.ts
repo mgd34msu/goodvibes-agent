@@ -1,6 +1,6 @@
 import { createBrowserAgentSdk } from '@pellux/goodvibes-sdk/browser/agent';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
-import { SDK_VERSION, VERSION } from '../version.ts';
+import { VERSION } from '../version.ts';
 import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import type { ConnectedHostCallMethod } from './agent-knowledge-methods.ts';
 
@@ -24,15 +24,13 @@ export interface AgentKnowledgeFailure {
   readonly kind:
     | 'connected_host_unavailable'
     | 'auth_required'
-    | 'version_mismatch'
+    | 'connected_host_incompatible'
     | 'connected_host_route_unavailable'
     | 'connected_host_error'
     | 'scope_contamination';
   readonly error: string;
   readonly baseUrl: string;
   readonly route: string;
-  readonly connectedHostVersion?: string;
-  readonly expectedSdkVersion?: string;
 }
 
 export interface AgentKnowledgeSuccess<TData> {
@@ -53,8 +51,8 @@ export function readString(record: JsonRecord | null, key: string): string | nul
   return typeof value === 'string' ? value : null;
 }
 
-export function readPackageMetadata(): { readonly version: string; readonly sdkVersion: string } {
-  return { version: VERSION, sdkVersion: SDK_VERSION };
+export function readPackageMetadata(): { readonly version: string } {
+  return { version: VERSION };
 }
 
 export function resolveConnectedHostConnection(runtime: AgentKnowledgeConnectionRuntime): AgentKnowledgeConnection {
@@ -90,19 +88,14 @@ export async function classifyKnowledgeError(error: unknown, connection: AgentKn
     return { ok: false, kind: 'auth_required', error: message, baseUrl: connection.baseUrl, route };
   }
   if (lower.includes('404') || lower.includes('not found')) {
-    const metadata = readPackageMetadata();
     const connectedHost = await fetchConnectedHostStatus(connection);
-    const connectedHostRecord = isRecord(connectedHost.body) ? connectedHost.body : {};
-    const connectedHostVersion = readString(connectedHostRecord, 'version') ?? 'unknown';
-    if (connectedHost.ok && connectedHostVersion !== metadata.sdkVersion) {
+    if (connectedHost.ok) {
       return {
         ok: false,
-        kind: 'version_mismatch',
-        error: `Connected GoodVibes host SDK version ${connectedHostVersion} does not match Agent SDK pin ${metadata.sdkVersion}; Agent Knowledge route is unavailable.`,
+        kind: 'connected_host_incompatible',
+        error: `Connected GoodVibes host compatibility does not satisfy Agent Knowledge requirements; Agent Knowledge route is unavailable.`,
         baseUrl: connection.baseUrl,
         route,
-        connectedHostVersion,
-        expectedSdkVersion: metadata.sdkVersion,
       };
     }
     return { ok: false, kind: 'connected_host_route_unavailable', error: message, baseUrl: connection.baseUrl, route };

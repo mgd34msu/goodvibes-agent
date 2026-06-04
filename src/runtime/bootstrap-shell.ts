@@ -92,7 +92,7 @@ export function submitPlanningAnswerWithShellFallback(
     }
 
     options.addSystemMessage([
-      '[Planning] Could not submit the selected answer because the prompt bridge is not ready.',
+      '[Planning] Could not submit the selected answer because the prompt route is not ready.',
       `Paste this answer into the prompt to continue planning: ${answer}`,
     ].join('\n'));
     options.requestRender();

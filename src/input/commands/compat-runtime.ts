@@ -8,7 +8,7 @@ export function registerCompatRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'compat',
     aliases: ['compatibility'],
-    description: 'Inspect Agent SDK pin, connected host version, and Agent Knowledge route readiness',
+    description: 'Inspect connected-host compatibility and Agent Knowledge route readiness',
     usage: '[--json]',
     argsHint: '[--json]',
     async handler(args, ctx) {

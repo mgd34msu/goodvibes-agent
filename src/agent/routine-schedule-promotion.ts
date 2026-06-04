@@ -4,7 +4,6 @@ import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
 import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
-import { SDK_VERSION } from '../version.ts';
 import { formatAgentRecordReviewState } from './record-labels.ts';
 import type { AgentRoutineRecord } from './routine-registry.ts';
 
@@ -108,14 +107,12 @@ export interface RoutineSchedulePromotionFailure {
     | 'confirmation_required'
     | 'auth_required'
     | 'connected_host_unavailable'
-    | 'version_mismatch'
+    | 'connected_host_incompatible'
     | 'connected_host_route_unavailable'
     | 'connected_host_error';
   readonly error: string;
   readonly route: typeof ROUTINE_SCHEDULE_ROUTE;
   readonly baseUrl?: string;
-  readonly connectedHostVersion?: string;
-  readonly expectedSdkVersion?: string;
 }
 
 export type RoutineSchedulePromotionResult =
@@ -194,14 +191,12 @@ export interface RoutineScheduleCorrelationFailure {
   readonly kind:
     | 'auth_required'
     | 'connected_host_unavailable'
-    | 'version_mismatch'
+    | 'connected_host_incompatible'
     | 'connected_host_route_unavailable'
     | 'connected_host_error';
   readonly error: string;
   readonly route: typeof ROUTINE_SCHEDULE_ROUTE;
   readonly baseUrl?: string;
-  readonly connectedHostVersion?: string;
-  readonly expectedSdkVersion?: string;
 }
 
 export type RoutineScheduleCorrelationResult =
@@ -389,17 +384,13 @@ async function classifyScheduleError(
   }
   if (lower.includes('404') || lower.includes('not found')) {
     const connectedHost = await fetchConnectedHostStatus(connection);
-    const record = isRecord(connectedHost.body) ? connectedHost.body : {};
-    const connectedHostVersion = readString(record, 'version') ?? 'unknown';
-    if (connectedHost.ok && connectedHostVersion !== SDK_VERSION) {
+    if (connectedHost.ok) {
       return {
         ok: false,
-        kind: 'version_mismatch',
-        error: `Connected GoodVibes host SDK version ${connectedHostVersion} does not match Agent SDK pin ${SDK_VERSION}; schedules.create is unavailable.`,
+        kind: 'connected_host_incompatible',
+        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; schedules.create is unavailable.',
         route: ROUTINE_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
-        connectedHostVersion,
-        expectedSdkVersion: SDK_VERSION,
       };
     }
     return { ok: false, kind: 'connected_host_route_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };

@@ -1,8 +1,8 @@
 /**
  * Runtime module barrel for GoodVibes Agent.
  *
- * SDK 0.33 intentionally removed private deep imports and the runtime root
- * god-barrel. This file keeps the Agent app on public SDK seams
+ * The shared runtime removed private deep imports and the runtime root
+ * god-barrel. This file keeps the Agent app on public runtime exports
  * while preserving the local import surface used by the shell.
  */
 
@@ -50,7 +50,7 @@ export function createFeatureFlagManager(): FeatureFlagManager {
   return manager;
 }
 
-// Public SDK runtime seams.
+// Public runtime exports.
 export * from '@pellux/goodvibes-sdk/platform/runtime/state';
 export * from '@pellux/goodvibes-sdk/platform/runtime/store';
 export * from '@pellux/goodvibes-sdk/platform/runtime/ui';

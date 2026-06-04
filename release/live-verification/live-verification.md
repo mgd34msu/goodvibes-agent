@@ -22,7 +22,7 @@ Connected host: `http://127.0.0.1:3421`
 | Agent Knowledge CLI status command | pass | Agent Knowledge status returned parseable JSON. |
 | Agent CLI providers command | pass | Provider inventory rendered successfully. |
 | CLI doctor command | pass | Doctor completed without findings. |
-| Authenticated connected-host /status | pass | /status returned 200, version 0.33.36. |
+| Authenticated connected-host /status | pass | /status returned 200 with parseable JSON. |
 | Authenticated connected-host /api/health | pass | Health overall=healthy. |
 | OpenAI-compatible /v1/models route | pass | /v1/models returned 11 model(s). |
 | Agent Knowledge isolated /status | pass | Agent Knowledge status route returned parseable isolated JSON. |
@@ -60,11 +60,9 @@ Status JSON command completed; provider/model identifiers omitted from release a
 {
   "ok": true,
   "packageVersion": "1.0.35",
-  "sdkPin": "0.33.36",
   "connectedHost": {
     "baseUrl": "http://127.0.0.1:3421",
     "status": 200,
-    "version": "0.33.36",
     "reachable": true,
     "compatible": true
   },
@@ -121,7 +119,7 @@ Doctor command completed without findings; provider/model identifiers and creden
 ### Authenticated connected-host /status
 
 ```text
-{"status":"running","version":"0.33.36"}
+{"status":"running"}
 ```
 
 ### Authenticated connected-host /api/health

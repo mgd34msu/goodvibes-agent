@@ -192,7 +192,7 @@ export class ProjectPlanningPanel extends BasePanel {
           lines: buildEmptyState(
             width,
             'No project planning state has been saved for this workspace.',
-            'Describe the intended operator outcome in normal chat to let the Agent start the planning interview. The SDK stores and evaluates artifacts; it does not start execution.',
+            'Describe the intended operator outcome in normal chat to let the Agent start the planning interview. The planning artifact service stores and evaluates artifacts; it does not start execution.',
             [],
             C,
           ),
@@ -234,7 +234,7 @@ export class ProjectPlanningPanel extends BasePanel {
 
       return buildPanelWorkspace(width, height, {
         title: this.loading ? 'Project Planning - loading' : 'Project Planning',
-        intro: 'SDK-backed planning artifacts for the current Agent workspace. Conversation control stays in the main Agent turn.',
+        intro: 'Planning artifacts for the current Agent workspace. Conversation control stays in the main Agent turn.',
         sections: [{ ...scroll.section, lines: sectionLines }],
         footerLines: this.footerLines(width, footerSummary),
         palette: C,
@@ -557,8 +557,8 @@ export class ProjectPlanningPanel extends BasePanel {
       actions.push({
         id: 'scope-agent-first',
         label: 'Agent-first scope',
-        detail: 'Fix Agent behavior here; report SDK blockers instead of patching around SDK-owned bugs.',
-        answer: 'Scope is Agent-owned behavior first. If a blocker is SDK-owned, report the exact SDK contract/runtime issue instead of patching around it locally. Include runtime contracts only where Agent consumes public runtime routes.',
+        detail: 'Fix Agent behavior here; report public-runtime blockers instead of patching around external runtime bugs.',
+        answer: 'Scope is Agent-owned behavior first. If a blocker belongs to the public runtime, report the exact contract/runtime issue instead of patching around it locally. Include runtime contracts only where Agent consumes public runtime routes.',
       });
     }
     actions.push({

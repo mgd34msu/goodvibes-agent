@@ -182,7 +182,7 @@ const rules: readonly Rule[] = [
     name: 'no-default-browser-knowledge-client',
     files: nonTestFiles,
     pattern: /@pellux\/goodvibes-sdk\/browser\/knowledge|createBrowserKnowledgeSdk/,
-    message: 'Agent client code must use the isolated browser/agent Knowledge seam, not the default browser/knowledge seam',
+    message: 'Agent client code must use the isolated browser/agent Knowledge client route, not the default browser/knowledge route',
   },
   {
     name: 'no-raw-generic-object-contract-schemas',
@@ -277,7 +277,7 @@ const requiredSnippets: Array<{ file: string; snippets: readonly string[]; messa
   {
     file: 'src/cli/agent-knowledge-runtime.ts',
     snippets: ['@pellux/goodvibes-sdk/browser/agent'],
-    message: 'CLI Knowledge commands must use the isolated browser/agent SDK seam',
+    message: 'CLI Knowledge commands must use the isolated browser/agent client route',
   },
   {
     file: 'src/cli/agent-knowledge-runtime.ts',

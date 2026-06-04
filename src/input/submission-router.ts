@@ -43,7 +43,7 @@ export function routeSubmissionIntent(input: SubmissionRouterInput): SubmissionI
       return { kind: 'plan', label: 'plan', commandName, hasAttachments };
     }
     if (DELEGATION_COMMANDS.has(commandName)) {
-      return { kind: 'delegation', label: 'TUI delegation', commandName, hasAttachments };
+      return { kind: 'delegation', label: 'delegation', commandName, hasAttachments };
     }
     if (PANEL_COMMANDS.has(commandName)) {
       return { kind: 'slash-command', label: 'Agent workspace', commandName, hasAttachments };

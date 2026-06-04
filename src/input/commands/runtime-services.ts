@@ -31,7 +31,7 @@ import type {
 
 function requireContextValue<T>(value: T | null | undefined, name: string): T {
   if (value == null) {
-    throw new Error(`commandContext.${name} is unavailable in this Agent runtime`);
+    throw new Error(`Required Agent runtime service "${name}" is unavailable in this runtime`);
   }
   return value;
 }
