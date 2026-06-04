@@ -94,7 +94,10 @@ describe('tasks command', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const tasksCommand = registry.get('tasks');
-    expect(tasksCommand).toBeDefined();
+    expect(tasksCommand).toEqual(expect.objectContaining({
+      name: 'tasks',
+      handler: expect.any(Function),
+    }));
 
     const store = createRuntimeStore();
     const bus = new RuntimeEventBus();
@@ -146,7 +149,10 @@ describe('tasks command', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const tasksCommand = registry.get('tasks');
-    expect(tasksCommand).toBeDefined();
+    expect(tasksCommand).toEqual(expect.objectContaining({
+      name: 'tasks',
+      handler: expect.any(Function),
+    }));
     const out: string[] = [];
     const ctx = makeTaskCommandContext(out, undefined);
 
@@ -159,7 +165,10 @@ describe('tasks command', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const tasksCommand = registry.get('tasks');
-    expect(tasksCommand).toBeDefined();
+    expect(tasksCommand).toEqual(expect.objectContaining({
+      name: 'tasks',
+      handler: expect.any(Function),
+    }));
 
     const store = createRuntimeStore();
     const bus = new RuntimeEventBus();
@@ -207,7 +216,10 @@ describe('tasks command', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const tasksCommand = registry.get('tasks');
-    expect(tasksCommand).toBeDefined();
+    expect(tasksCommand).toEqual(expect.objectContaining({
+      name: 'tasks',
+      handler: expect.any(Function),
+    }));
 
     const store = createRuntimeStore();
     const bus = new RuntimeEventBus();

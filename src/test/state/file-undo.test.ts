@@ -57,12 +57,13 @@ describe('FileUndoManager', () => {
     manager.snapshot(op);
 
     const entry = manager.peekUndo();
-    expect(entry).toBeDefined();
-    expect(entry!.beforeContent).toBe('old content');
-    expect(entry!.afterContent).toBe('new content');
-    expect(entry!.path).toBe(testFilePath);
-    expect(entry!.tool).toBe('write');
-    expect(entry!.timestamp).toBeTruthy();
+    expect(entry).toEqual(expect.objectContaining({
+      beforeContent: 'old content',
+      afterContent: 'new content',
+      path: testFilePath,
+      tool: 'write',
+      timestamp: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+    }));
   });
 
   it('new snapshot clears the redo stack', () => {
@@ -98,7 +99,7 @@ describe('FileUndoManager', () => {
 
     const result = manager.undo();
 
-    expect(result).toBeDefined();
+    expect(result).toEqual({ path: testFilePath, tool: 'write' });
     expect(readFileSync(testFilePath, 'utf-8')).toBe('');
   });
 

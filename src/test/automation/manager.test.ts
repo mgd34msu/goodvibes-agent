@@ -102,12 +102,12 @@ describe('AutomationManager', () => {
     });
 
     expect(manager.listJobs()).toHaveLength(2);
-    expect(cronJob.nextRunAt).toBeDefined();
+    expect(cronJob.nextRunAt).toBeGreaterThan(Date.now());
     expect(everyJob.enabled).toBe(false);
 
     const enabled = await manager.setEnabled(everyJob.id, true);
     expect(enabled?.enabled).toBe(true);
-    expect(enabled?.nextRunAt).toBeDefined();
+    expect(enabled?.nextRunAt).toBeGreaterThan(Date.now());
 
     const run = await manager.runNow(cronJob.id);
     expect(run.status).toBe('running');
@@ -117,7 +117,7 @@ describe('AutomationManager', () => {
     const jobs = manager.listJobs();
     const updatedCronJob = jobs.find((job) => job.id === cronJob.id);
     expect(updatedCronJob?.runCount).toBe(1);
-    expect(updatedCronJob?.lastRunAt).toBeDefined();
+    expect(updatedCronJob?.lastRunAt).toBeGreaterThanOrEqual(run.startedAt);
 
     const runs = manager.listRuns(cronJob.id);
     expect(runs).toHaveLength(1);
@@ -199,7 +199,7 @@ describe('AutomationManager', () => {
 
     const run = await manager.runNow(job.id);
     const agent = agentManager.getStatus(run.agentId!);
-    expect(agent).not.toBeNull();
+    expect(agent).toEqual(expect.objectContaining({ id: run.agentId }));
     agent!.status = 'completed';
     agent!.completedAt = Date.now();
     agent!.fullOutput = 'Done.';

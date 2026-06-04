@@ -62,7 +62,7 @@ describe('onboarding check marker helpers', () => {
 
     expect(markers.project.exists).toBe(true);
     expect(markers.project.payload).toBeNull();
-    expect(markers.project.parseError).toBeTruthy();
+    expect(markers.project.parseError).toContain('JSON');
     expect(markers.effective?.scope).toBe('user');
   });
 

@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { LiveVerificationReport } from '../../verification/live-verifier.ts';
 import {
-  buildAgentKnowledgeLiveSkipCheck,
   buildLiveVerificationReport,
   findAgentKnowledgeResponseContamination,
   renderLiveVerificationReportMarkdown,
@@ -104,19 +103,6 @@ describe('live verification report', () => {
     expect(markdown).toContain('Result: PASS');
   });
 
-  it('does not invoke retired host lifecycle commands during live Agent verification', () => {
-    const source = readFileSync(join(projectRoot, 'src/verification/live-verifier.ts'), 'utf8');
-
-    expect(source).toContain("buildCommandEnv(homeDir, connectedHostBaseUrl, token)");
-    expect(source).toContain("await runCommand(binaryPath, ['--runtime-url', connectedHostBaseUrl, 'status', '--json'], projectRoot, { env: commandEnv })");
-    expect(source).toContain("await runCommand(binaryPath, ['--runtime-url', connectedHostBaseUrl, 'knowledge', 'status', '--json'], projectRoot, { env: commandEnv })");
-    expect(source).toContain("await runCommand(binaryPath, ['--runtime-url', connectedHostBaseUrl, 'doctor', '--output', 'text'], projectRoot, { env: commandEnv })");
-    expect(source).not.toContain("await runCommand(binaryPath, ['control-plane', 'status'], projectRoot)");
-    expect(source).not.toContain("await runCommand(binaryPath, ['listener', 'test'], projectRoot)");
-    expect(source).not.toContain("await runCommand(binaryPath, ['surfaces', 'check'], projectRoot)");
-    expect(source).not.toContain("await runCommand(binaryPath, ['service', 'check'], projectRoot)");
-  });
-
   it('validates every model-visible Agent Knowledge read route during live verification', () => {
     const source = readFileSync(join(projectRoot, 'src/verification/live-verifier.ts'), 'utf8');
     const readRoutes = [
@@ -131,7 +117,6 @@ describe('live verification report', () => {
       expect(source).toContain(`route: '${route}'`);
     }
     expect(source).toContain('validateAgentKnowledgeJsonRoute');
-    expect(source).toContain('...AGENT_KNOWLEDGE_READ_ROUTE_CHECKS.map');
     expect(source).toContain('for (const check of AGENT_KNOWLEDGE_READ_ROUTE_CHECKS)');
     expect(source).not.toContain('/api/knowledge/sources');
     expect(source).not.toContain('/api/knowledge/connectors');
@@ -272,19 +257,5 @@ describe('live verification report', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
-  });
-
-  it('skips Agent Knowledge route validation when the connected host SDK is older than the Agent pin', () => {
-    const check = buildAgentKnowledgeLiveSkipCheck(
-      'agent-knowledge-status',
-      'Agent Knowledge isolated /status',
-      '0.33.30',
-      '0.33.35',
-    );
-
-    expect(check.status).toBe('skip');
-    expect(check.summary).toContain('connected host SDK 0.33.30');
-    expect(check.summary).toContain('Agent SDK pin 0.33.35');
-    expect(check.detail).toContain('must not fall back to default knowledge or non-Agent knowledge segments');
   });
 });

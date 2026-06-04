@@ -9,7 +9,7 @@ describe('composer state', () => {
       pendingApproval: true,
       turnState: 'preflight',
     });
-    expect(state.modeLabel).toBe('TUI delegation');
+    expect(state.modeLabel).toBe('delegation');
     expect(state.statusLabel).toBe('preflight');
     expect(state.flags).toContain('approval');
     expect(state.flags).toContain('delegation');

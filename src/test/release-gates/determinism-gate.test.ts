@@ -227,8 +227,7 @@ describe('determinism gate: no dangling in-flight eviction', () => {
 
     store.sweep();
     // In-flight record must survive
-    expect(store.getRecord(key)).toBeDefined();
-    expect(store.getRecord(key)!.status).toBe('in-flight');
+    expect(store.getRecord(key)).toMatchObject({ status: 'in-flight' });
   });
 
   test('completed records are evicted after TTL (no memory leak)', () => {

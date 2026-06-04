@@ -39,6 +39,19 @@ async function runWriteWithState(
   return result as Record<string, unknown>;
 }
 
+function expectPresent<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${description}`);
+  }
+  return value;
+}
+
+function expectOutputFiles(output: Record<string, unknown>, description: string): Array<Record<string, unknown>> {
+  const files = expectPresent(output.files as Array<Record<string, unknown>> | undefined, description);
+  expect(files.length).toBeGreaterThan(0);
+  return files;
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -150,8 +163,7 @@ describe('write tool', () => {
       expect(existsSync(join(tmpDir, 'new.ts'))).toBe(true);
       const output = JSON.parse(result.output as string);
       expect(output.files_written).toBe(1);
-      expect(output.errors).toBeDefined();
-      expect(output.errors.length).toBe(1);
+      expect(output.errors).toHaveLength(1);
     });
   });
 
@@ -227,11 +239,10 @@ describe('write tool', () => {
       expect(readFileSync(join(tmpDir, 'important.ts'), 'utf-8')).toBe('new code');
       // Backup file exists and contains original content
       const output = JSON.parse(result.output as string);
-      const fileResult = output.files?.[0];
-      expect(fileResult).toBeDefined();
-      expect(fileResult.backup_path).toBeDefined();
-      expect(existsSync(fileResult.backup_path)).toBe(true);
-      expect(readFileSync(fileResult.backup_path, 'utf-8')).toBe('original code');
+      const [fileResult] = expectOutputFiles(output, 'backup write file result');
+      const backupPath = expectPresent(fileResult.backup_path as string | undefined, 'backup path for important.ts');
+      expect(existsSync(backupPath)).toBe(true);
+      expect(readFileSync(backupPath, 'utf-8')).toBe('original code');
     });
 
     test('backup path is reported in minimal verbosity', async () => {
@@ -242,10 +253,10 @@ describe('write tool', () => {
       });
       expect(result.success).toBe(true);
       const output = JSON.parse(result.output as string);
-      expect(output.files).toBeDefined();
-      expect(output.files[0].backup_path).toBeDefined();
-      expect(existsSync(output.files[0].backup_path)).toBe(true);
-      const backupContent = readFileSync(output.files[0].backup_path, 'utf-8');
+      const [fileResult] = expectOutputFiles(output, 'minimal backup write file result');
+      const backupPath = expectPresent(fileResult.backup_path as string | undefined, 'minimal verbosity backup path');
+      expect(existsSync(backupPath)).toBe(true);
+      const backupContent = readFileSync(backupPath, 'utf-8');
       expect(backupContent).toBe('original');
     });
 
@@ -355,8 +366,8 @@ describe('write tool', () => {
         verbosity: 'minimal',
       });
       const output = JSON.parse(result.output as string);
-      expect(output.files).toBeDefined();
-      expect(output.files[0].would_write).toBe(true);
+      const [fileResult] = expectOutputFiles(output, 'dry-run write file result');
+      expect(fileResult.would_write).toBe(true);
     });
 
     test('dry run with backup mode reports would-be backup path', async () => {
@@ -368,9 +379,10 @@ describe('write tool', () => {
       });
       expect(result.success).toBe(true);
       const output = JSON.parse(result.output as string);
-      expect(output.files[0].backup_path).toBeDefined();
+      const [fileResult] = expectOutputFiles(output, 'dry-run backup file result');
+      const backupPath = expectPresent(fileResult.backup_path as string | undefined, 'dry-run backup path');
       // Backup file should NOT actually exist (dry run)
-      expect(existsSync(output.files[0].backup_path)).toBe(false);
+      expect(existsSync(backupPath)).toBe(false);
     });
   });
 
@@ -582,11 +594,14 @@ describe('write tool', () => {
       expect(result.success).toBe(true);
       const written = readFileSync(join(tmpDir, 'meta.ipynb'), 'utf-8');
       const parsed = JSON.parse(written) as Record<string, unknown>;
-      const meta = parsed['metadata'] as Record<string, unknown>;
-      expect(meta).toBeDefined();
-      const kernelspec = meta['kernelspec'] as Record<string, unknown>;
-      expect(kernelspec['name']).toBe('python3');
-      expect(parsed['nbformat']).toBe(4);
+      expect(parsed).toMatchObject({
+        metadata: {
+          kernelspec: {
+            name: 'python3',
+          },
+        },
+        nbformat: 4,
+      });
     });
 
     test('case-insensitive extension check (.IPYNB works)', async () => {
@@ -634,8 +649,7 @@ describe('write tool', () => {
       const absPath = join(tmpDir, 'cached.ts');
       const { status, entry } = fileCache.lookup(absPath);
       expect(status).toBe('unchanged');
-      expect(entry).toBeDefined();
-      expect(entry!.byteSize).toBeGreaterThan(0);
+      expect(expectPresent(entry, 'file cache entry for cached.ts').byteSize).toBeGreaterThan(0);
     });
 
     test('updates projectIndex after successful write', async () => {
@@ -651,8 +665,7 @@ describe('write tool', () => {
 
       expect(result.success).toBe(true);
       const entry = freshIndex.getFile('indexed.ts');
-      expect(entry).not.toBeNull();
-      expect(entry!.tokens).toBeGreaterThan(0);
+      expect(expectPresent(entry, 'project index entry for indexed.ts').tokens).toBeGreaterThan(0);
     });
 
     test('does NOT update state during dry run', async () => {
@@ -694,10 +707,10 @@ describe('write tool', () => {
         verbosity: 'minimal',
       });
       const output = JSON.parse(result.output as string);
-      expect(output.files).toBeDefined();
-      expect(output.files).toHaveLength(1);
-      expect(output.files[0].path).toBe('v2.ts');
-      expect(output.files[0].bytes_written).toBeGreaterThan(0);
+      const files = expectOutputFiles(output, 'minimal verbosity file list');
+      expect(files).toHaveLength(1);
+      expect(files[0].path).toBe('v2.ts');
+      expect(files[0].bytes_written as number).toBeGreaterThan(0);
     });
 
     test('standard verbosity includes mode_applied', async () => {
@@ -706,8 +719,8 @@ describe('write tool', () => {
         verbosity: 'standard',
       });
       const output = JSON.parse(result.output as string);
-      expect(output.files).toBeDefined();
-      expect(output.files[0].mode_applied).toBe('overwrite');
+      const [fileResult] = expectOutputFiles(output, 'standard verbosity file list');
+      expect(fileResult.mode_applied).toBe('overwrite');
     });
 
     test('verbose verbosity includes all fields', async () => {
@@ -716,8 +729,8 @@ describe('write tool', () => {
         verbosity: 'verbose',
       });
       const output = JSON.parse(result.output as string);
-      expect(output.files).toBeDefined();
-      expect(output.files[0].resolved_path).toBeDefined();
+      const [fileResult] = expectOutputFiles(output, 'verbose verbosity file list');
+      expect(fileResult.resolved_path).toBe(join(tmpDir, 'v4.ts'));
     });
   });
 });

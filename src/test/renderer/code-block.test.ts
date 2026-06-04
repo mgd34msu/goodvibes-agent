@@ -10,7 +10,7 @@ const lineText = lineToString;
 describe('renderCodeBlock', () => {
   test('returns Line array', () => {
     const result = renderCodeBlock(['const x = 1;'], 'ts', WIDTH);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
     expect(result.length).toBeGreaterThan(0);
   });
 
@@ -88,7 +88,7 @@ describe('renderCodeBlock', () => {
 
   test('handles unknown language without crash', () => {
     const result = renderCodeBlock(['some content'], 'cobol', WIDTH);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
   });
 
   test('code lines have dark background color', () => {

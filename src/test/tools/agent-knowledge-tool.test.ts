@@ -116,8 +116,8 @@ describe('agent_knowledge tool', () => {
       expect(requests.map((request) => request.url)).toEqual([
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/status',
       ]);
-      expect(requests.some((request) => request.url.includes('/api/knowledge'))).toBe(false);
-      expect(requests.some((request) => request.url.includes('homeGraph'))).toBe(false);
+      expect(requests.map((request) => request.url.includes('/api/knowledge'))).toEqual([false]);
+      expect(requests.map((request) => request.url.includes('homeGraph'))).toEqual([false]);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -217,7 +217,7 @@ describe('agent_knowledge tool', () => {
       expect(requests.map((request) => request.url)).toEqual([
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/sources?limit=2',
       ]);
-      expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
+      expect(requests.map((request) => request.url.includes('/api/knowledge/'))).toEqual([false]);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -308,9 +308,36 @@ describe('agent_knowledge tool', () => {
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors/url',
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors/url/doctor',
       ]);
-      expect(requests.every((request) => request.method === 'GET')).toBe(true);
-      expect(requests.some((request) => request.url.includes('/api/knowledge'))).toBe(false);
-      expect(requests.some((request) => request.url.includes('homeGraph'))).toBe(false);
+      expect(requests.map((request) => request.method)).toEqual([
+        'GET',
+        'GET',
+        'GET',
+        'GET',
+        'GET',
+        'GET',
+        'GET',
+        'GET',
+      ]);
+      expect(requests.map((request) => request.url.includes('/api/knowledge'))).toEqual([
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+      ]);
+      expect(requests.map((request) => request.url.includes('homeGraph'))).toEqual([
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+      ]);
     } finally {
       globalThis.fetch = originalFetch;
     }

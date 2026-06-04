@@ -68,7 +68,7 @@ describe('conversation runtime command', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const command = registry.get('conversation');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({ name: 'conversation' }));
 
     const out: string[] = [];
     const ctx = makeContext(out) as never;

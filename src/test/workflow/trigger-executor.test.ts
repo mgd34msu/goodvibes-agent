@@ -104,7 +104,7 @@ describe('fireTriggers', () => {
       makeManager([t1, t2, t3]),
     );
     expect(results).toHaveLength(2);
-    expect(results.every((r) => r.executed)).toBe(true);
+    expect(results.map((r) => r.executed)).toEqual([true, true]);
   });
 
   test('result includes triggerId, event, action fields', async () => {
@@ -119,13 +119,12 @@ describe('fireTriggers', () => {
     const trigger = makeTrigger({ action: '' });
     const results = await fireTriggers(makeEvent('Post:tool:read'), makeManager([trigger]));
     expect(results[0].executed).toBe(false);
-    expect(results[0].error).toBeTruthy();
+    expect(results[0].error).toBe('Empty action command');
   });
 
   test('spawned action includes pid', async () => {
     const trigger = makeTrigger({ event: 'Post:tool:read', action: 'echo pid-test' });
     const results = await fireTriggers(makeEvent('Post:tool:read'), makeManager([trigger]));
-    expect(results[0].pid).toBeDefined();
-    expect(typeof results[0].pid).toBe('number');
+    expect(results[0].pid).toBeGreaterThan(0);
   });
 });

@@ -125,7 +125,10 @@ describe('budgetPhase — BUDGET_EXCEEDED_MS', () => {
     expect(result.success).toBe(false);
     expect(result.abort).toBe(true);
     expect(result.budgetExceedReason).toBe('BUDGET_EXCEEDED_MS');
-    expect(result.budgetMeta).toBeDefined();
+    expect(result.budgetMeta).toEqual(expect.objectContaining({
+      limitMs: 100,
+      elapsedMs: expect.any(Number),
+    }));
     expect(result.budgetMeta!['limitMs']).toBe(100);
     expect(result.budgetMeta!['elapsedMs']).toBeGreaterThanOrEqual(150);
     expect(result.error).toContain('BUDGET_EXCEEDED_MS');

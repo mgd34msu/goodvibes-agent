@@ -102,9 +102,10 @@ describe('runtime/session-persistence', () => {
     );
 
     const info = checkRecoveryFile({ workingDirectory: cwdDir, homeDirectory: homeDir, surfaceRoot: 'tui' });
-    expect(info).not.toBeNull();
-    expect(info?.sessionId).toBe('user-recovery');
-    expect(info?.title).toBe('Recovered Session');
+    expect(info).toEqual(expect.objectContaining({
+      sessionId: 'user-recovery',
+      title: 'Recovered Session',
+    }));
     expect(info?.returnContext).toBeUndefined();
 
     const loaded = loadRecoveryConversation({ homeDirectory: homeDir, surfaceRoot: 'tui' });

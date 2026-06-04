@@ -80,8 +80,7 @@ describe('getCatalogModelDefinitions', () => {
 
   it('returns a non-empty array of model definitions', () => {
     const defs = getCatalogModelDefinitions();
-    expect(Array.isArray(defs)).toBe(true);
-    expect(defs.length).toBeGreaterThan(0);
+    expect(defs.map((def) => def.id)).toEqual(FIXTURE_MODELS.map((model) => model.id));
   });
 
   it('each definition has required ModelDefinition fields', () => {
@@ -157,17 +156,21 @@ describe('getCatalogModelDefinitions', () => {
   it('free-tier models get tier: free in definitions', () => {
     const defs = getCatalogModelDefinitions();
     // gpt-oss-120b is injected with tier: free
-    const freeModel = defs.find((d) => d.id === 'gpt-oss-120b');
-    expect(freeModel).toBeDefined();
-    expect(freeModel?.tier).toBe('free');
+    expect(defs.find((d) => d.id === 'gpt-oss-120b')).toEqual(expect.objectContaining({
+      id: 'gpt-oss-120b',
+      provider: 'openai',
+      tier: 'free',
+    }));
   });
 
   it('premium-priced models get tier: premium', () => {
     const defs = getCatalogModelDefinitions();
     // claude-opus-4-6 has input: $15 which is >= $3 threshold
-    const premiumModel = defs.find((d) => d.id === 'claude-opus-4-6');
-    expect(premiumModel).toBeDefined();
-    expect(premiumModel?.tier).toBe('premium');
+    expect(defs.find((d) => d.id === 'claude-opus-4-6')).toEqual(expect.objectContaining({
+      id: 'claude-opus-4-6',
+      provider: 'anthropic',
+      tier: 'premium',
+    }));
   });
 
   it('returns fresh array on each call (no mutation risk)', () => {
@@ -195,8 +198,7 @@ describe('getModelRegistry — catalog-sourced models', () => {
 
   it('returns a non-empty array', () => {
     const models = providerRegistry.listModels();
-    expect(Array.isArray(models)).toBe(true);
-    expect(models.length).toBeGreaterThan(0);
+    expect(models.map((model) => model.id)).toEqual(expect.arrayContaining(FIXTURE_MODELS.map((model) => model.id)));
   });
 
   it('returns catalog models when no custom providers are loaded', () => {
@@ -213,7 +215,10 @@ describe('getModelRegistry — catalog-sourced models', () => {
       if (inRegistry) {
         // Verify the registry entry has the expected provider (catalog model not hijacked)
         const registryEntry = registry.find((m) => m.id === def.id);
-        expect(registryEntry?.provider).toBeTruthy();
+        expect(registryEntry).toEqual(expect.objectContaining({
+          id: def.id,
+          provider: def.provider,
+        }));
       }
     }
     // The registry must include at least some catalog models
@@ -302,13 +307,12 @@ describe('getModelRegistry — empty catalog fallback', () => {
 
   it('registry returns an array even when catalog is empty', () => {
     const result = providerRegistry.listModels();
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([]);
   });
 
   it('getCatalogModelDefinitions returns empty array when catalog is empty', () => {
     const defs = getCatalogModelDefinitions();
-    expect(Array.isArray(defs)).toBe(true);
-    expect(defs.length).toBe(0);
+    expect(defs).toEqual([]);
   });
 });
 
@@ -331,7 +335,7 @@ describe('Structural verification', () => {
     // Verify the function exists and is callable
     const defs = getCatalogModelDefinitions();
     expect(typeof getCatalogModelDefinitions).toBe('function');
-    expect(Array.isArray(defs)).toBe(true);
+    expect(defs.map((def) => def.id)).toEqual(FIXTURE_MODELS.map((model) => model.id));
   });
 
   it('getModelRegistry merge order: catalog models are lower priority than custom', () => {
@@ -379,16 +383,16 @@ describe('ProviderRegistry.get() — alias resolution', () => {
 
   it('registry.get("inception") resolves via alias to the inceptionlabs provider', () => {
     const provider = providerRegistry.get('inception');
-    expect(provider).toBeDefined();
-    if (!provider) throw new Error('Expected inception provider alias');
-    expect(provider.name).toBe('inceptionlabs');
+    expect(provider).toEqual(expect.objectContaining({
+      name: 'inceptionlabs',
+    }));
   });
 
   it('registry.get("inceptionlabs") returns the inceptionlabs provider directly', () => {
     const provider = providerRegistry.get('inceptionlabs');
-    expect(provider).toBeDefined();
-    if (!provider) throw new Error('Expected inceptionlabs provider');
-    expect(provider.name).toBe('inceptionlabs');
+    expect(provider).toEqual(expect.objectContaining({
+      name: 'inceptionlabs',
+    }));
   });
 
   it('registry.get("nonexistent") returns undefined', () => {

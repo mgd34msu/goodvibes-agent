@@ -27,7 +27,7 @@ describe('UserAuthManager local admin management', () => {
 
     expect(added.username).toBe('ops');
     expect(snapshot.userCount).toBe(2);
-    expect(snapshot.users.some((user) => user.username === 'ops')).toBe(true);
+    expect(snapshot.users.map((user) => user.username)).toContain('ops');
     expect(stored).toContain('"username": "ops"');
   });
 

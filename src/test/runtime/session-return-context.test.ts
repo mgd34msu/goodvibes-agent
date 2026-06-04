@@ -29,10 +29,10 @@ describe('runtime/session-return-context', () => {
     expect(summary.activeTasks).toBe(3);
     expect(summary.remoteRunners).toEqual(['runner-a', 'runner-b']);
     expect(summary.worktreePaths).toEqual(['/tmp/wt-a']);
-    expect(summary.lines.some((line) => line.includes('Tasks: active 3, blocked 1'))).toBe(true);
-    expect(summary.lines.some((line) => line.includes('Remote runners: runner-a, runner-b'))).toBe(true);
-    expect(summary.lines.some((line) => line.includes('Worktree paths: /tmp/wt-a'))).toBe(true);
-    expect(summary.lines.some((line) => line.includes('Open panels: remote, approval'))).toBe(true);
+    expect(summary.lines.join('\n')).toContain('Tasks: active 3, blocked 1');
+    expect(summary.lines.join('\n')).toContain('Remote runners: runner-a, runner-b');
+    expect(summary.lines.join('\n')).toContain('Worktree paths: /tmp/wt-a');
+    expect(summary.lines.join('\n')).toContain('Open panels: remote, approval');
     expect(summary.lines[0]).toContain('Activity');
   });
 

@@ -287,7 +287,7 @@ describe('Compositor — dual-pane (top + bottom)', () => {
     expect(cellAt(compositor, PANEL_START_X, 9)?.char).toBe('X');
     expect(cellAt(compositor, PANEL_START_X, 10)?.char).toBe('X');
     // Row i=9 (screen 11) is beyond bottomContent — should not crash
-    expect(cellAt(compositor, PANEL_START_X, 11)).toBeDefined();
+    expect(cellAt(compositor, PANEL_START_X, 11)).toEqual(expect.objectContaining({ char: ' ' }));
   });
 });
 
@@ -303,8 +303,8 @@ describe('Compositor — R3 buffer reuse (double-buffer, no clone)', () => {
     const buf2 = compositor.lastBufferForTest;
     // After double-buffer swap, lastBufferForTest returns the second-frame buffer.
     // Both must be non-null and be TerminalBuffer instances.
-    expect(buf1).not.toBeNull();
-    expect(buf2).not.toBeNull();
+    expect(buf1).toEqual(expect.objectContaining({ width: WIDTH, height: HEIGHT }));
+    expect(buf2).toEqual(expect.objectContaining({ width: WIDTH, height: HEIGHT }));
     // On the first composite frontBuffer=backBuffer (first allocation), second they differ.
     // We only verify correctness: cell content on frame 2 is still correct.
     expect(buf2?.getCell(0, 0)?.char).toBe('H');
@@ -318,7 +318,7 @@ describe('Compositor — R3 buffer reuse (double-buffer, no clone)', () => {
     // After reset, the next composite should write the full screen again (full diff)
     compositor.composite(makeBaseRequest());
     expect(stream.writes.length).toBeGreaterThan(writeCountBefore);
-    expect(compositor.lastBufferForTest).not.toBeNull();
+    expect(compositor.lastBufferForTest).toEqual(expect.objectContaining({ width: WIDTH, height: HEIGHT }));
   });
 
   test('resize (dim change) does not crash and produces correct output', () => {
@@ -355,7 +355,7 @@ describe('Compositor — degenerate panelWidth >= width', () => {
     }).not.toThrow();
     // leftWidth = max(1, 40 - 39 - 1) = max(1, 0) = 1
     // Viewport cell at col 0 should exist
-    expect(cellAt(compositor, 0, 2)).toBeDefined();
+    expect(cellAt(compositor, 0, 2)).toEqual(expect.objectContaining({ char: '.' }));
   });
 
   test('selection overlay constrained to clamped leftWidth', () => {

@@ -27,7 +27,7 @@ function makeModal(overrides: Partial<ProfilePickerModal> = {}): ProfilePickerMo
 describe('renderProfilePickerModal', () => {
   test('returns a non-empty Line[] array', () => {
     const lines = renderProfilePickerModal(makeModal(), W);
-    expect(Array.isArray(lines)).toBe(true);
+    expect(lines).toEqual(expect.any(Array));
     expect(lines.length).toBeGreaterThan(0);
   });
 

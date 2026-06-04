@@ -103,9 +103,10 @@ describe('ServiceRegistry - getAll / get', () => {
       });
       const registry = createRegistry(dir, filePath);
       const cfg = registry.get('myservice');
-      expect(cfg).not.toBeNull();
-      expect(cfg!.authType).toBe('api-key');
-      expect(cfg!.apiKeyHeader).toBe('X-Custom-Key');
+      expect(cfg).toEqual(expect.objectContaining({
+        authType: 'api-key',
+        apiKeyHeader: 'X-Custom-Key',
+      }));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -150,8 +151,7 @@ describe('ServiceRegistry - resolveAuth bearer', () => {
     process.env['OPENAI_API_KEY'] = 'sk-test-token-123';
     try {
       const headers = await registry.resolveAuth('openai');
-      expect(headers).not.toBeNull();
-      expect(headers!['Authorization']).toBe('Bearer sk-test-token-123');
+      expect(headers).toEqual({ Authorization: 'Bearer sk-test-token-123' });
     } finally {
       if (origEnv === undefined) {
         delete process.env['OPENAI_API_KEY'];
@@ -206,8 +206,7 @@ describe('ServiceRegistry - resolveAuth bearer', () => {
       subscriptionManager,
     });
     const headers = await registry.resolveAuth('openai');
-    expect(headers).not.toBeNull();
-    expect(headers!['Authorization']).toBe('Bearer subscription-token');
+    expect(headers).toEqual({ Authorization: 'Bearer subscription-token' });
   });
 });
 
@@ -231,9 +230,8 @@ describe('ServiceRegistry - resolveAuth basic', () => {
       process.env['MYAPI_PASS'] = 'testpass';
       try {
         const headers = await registry.resolveAuth('myapi');
-        expect(headers).not.toBeNull();
         const expected = 'Basic ' + Buffer.from('testuser:testpass').toString('base64');
-        expect(headers!['Authorization']).toBe(expected);
+        expect(headers).toEqual({ Authorization: expected });
       } finally {
         if (origUser === undefined) delete process.env['MYAPI_USER'];
         else process.env['MYAPI_USER'] = origUser;
@@ -262,9 +260,8 @@ describe('ServiceRegistry - resolveAuth basic', () => {
       process.env['MYAPI_USER_ONLY'] = 'admin';
       try {
         const headers = await registry.resolveAuth('myapi');
-        expect(headers).not.toBeNull();
         const expected = 'Basic ' + Buffer.from('admin:').toString('base64');
-        expect(headers!['Authorization']).toBe(expected);
+        expect(headers).toEqual({ Authorization: expected });
       } finally {
         if (origUser === undefined) delete process.env['MYAPI_USER_ONLY'];
         else process.env['MYAPI_USER_ONLY'] = origUser;
@@ -288,8 +285,7 @@ describe('ServiceRegistry - resolveAuth api-key', () => {
       process.env['MY_SERVICE_KEY'] = 'abc-secret-key';
       try {
         const headers = await registry.resolveAuth('myservice');
-        expect(headers).not.toBeNull();
-        expect(headers!['X-API-Key']).toBe('abc-secret-key');
+        expect(headers).toEqual({ 'X-API-Key': 'abc-secret-key' });
       } finally {
         if (origKey === undefined) delete process.env['MY_SERVICE_KEY'];
         else process.env['MY_SERVICE_KEY'] = origKey;
@@ -311,9 +307,7 @@ describe('ServiceRegistry - resolveAuth api-key', () => {
       process.env['MY_SERVICE_KEY2'] = 'xyz-secret';
       try {
         const headers = await registry.resolveAuth('myservice');
-        expect(headers).not.toBeNull();
-        expect(headers!['X-Auth-Token']).toBe('xyz-secret');
-        expect(headers!['X-API-Key']).toBeUndefined();
+        expect(headers).toEqual({ 'X-Auth-Token': 'xyz-secret' });
       } finally {
         if (origKey === undefined) delete process.env['MY_SERVICE_KEY2'];
         else process.env['MY_SERVICE_KEY2'] = origKey;

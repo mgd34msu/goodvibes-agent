@@ -85,7 +85,7 @@ describe('files mode', () => {
     });
     const r = queryResult<{ files: string[]; count: number }>(results, 'ts');
     expect(r.count).toBeGreaterThan(0);
-    expect(r.files.every((f: string) => f.endsWith('.ts'))).toBe(true);
+    expect(r.files.filter((f: string) => !f.endsWith('.ts'))).toEqual([]);
   });
 
   test('basic glob — matches .tsx files', async () => {
@@ -94,7 +94,7 @@ describe('files mode', () => {
     });
     const r = queryResult<{ files: string[]; count: number }>(results, 'tsx');
     expect(r.files.length).toBeGreaterThanOrEqual(1);
-    expect(r.files.some((f: string) => f.includes('Button.tsx'))).toBe(true);
+    expect(r.files.map((f: string) => f.split('/').at(-1))).toContain('Button.tsx');
   });
 
   test('exclude patterns remove matched files', async () => {
@@ -108,7 +108,7 @@ describe('files mode', () => {
       }],
     });
     const r = queryResult<{ files: string[] }>(results, 'no_types');
-    expect(r.files.every((f: string) => !f.endsWith('types.ts'))).toBe(true);
+    expect(r.files.filter((f: string) => f.endsWith('types.ts'))).toEqual([]);
   });
 
   test('multiple patterns union results', async () => {
@@ -121,8 +121,8 @@ describe('files mode', () => {
       }],
     });
     const r = queryResult<{ files: string[] }>(results, 'multi');
-    expect(r.files.some((f: string) => f.endsWith('.ts'))).toBe(true);
-    expect(r.files.some((f: string) => f.endsWith('.tsx'))).toBe(true);
+    expect(r.files.filter((f: string) => f.endsWith('.ts')).length).toBeGreaterThan(0);
+    expect(r.files.filter((f: string) => f.endsWith('.tsx')).length).toBeGreaterThan(0);
   });
 
   test('count_only format returns count without files array', async () => {
@@ -149,8 +149,8 @@ describe('files mode', () => {
       queries: [{ id: 'all', mode: 'files', patterns: ['**/*'], path: dir }],
     });
     const r = queryResult<{ files: string[] }>(results, 'all');
-    expect(r.files.every((f: string) => !f.includes('node_modules'))).toBe(true);
-    expect(r.files.every((f: string) => !f.includes('/.git/'))).toBe(true);
+    expect(r.files.filter((f: string) => f.includes('node_modules'))).toEqual([]);
+    expect(r.files.filter((f: string) => f.includes('/.git/'))).toEqual([]);
   });
 });
 
@@ -203,9 +203,9 @@ describe('content mode', () => {
     const nwwFiles = queryResult<{ files: string[] }>(withoutWord, 'nww').files;
 
     // Without whole_word, 'mainly' file should match
-    expect(nwwFiles.some((f: string) => f.includes('mainly.ts'))).toBe(true);
+    expect(nwwFiles.map((f: string) => f.split('/').at(-1))).toContain('mainly.ts');
     // With whole_word, 'mainly' should not match (only 'main(' in index.ts)
-    expect(wwFiles.every((f: string) => !f.includes('mainly.ts'))).toBe(true);
+    expect(wwFiles.filter((f: string) => f.includes('mainly.ts'))).toEqual([]);
   });
 
   test('multiline mode', async () => {
@@ -224,9 +224,9 @@ describe('content mode', () => {
     });
     const r = queryResult<{ files: string[] }>(results, 'neg');
     // README.md and package.json don't have 'export function'
-    expect(r.files.some((f: string) => f.endsWith('README.md') || f.endsWith('package.json'))).toBe(true);
+    expect(r.files.map((f: string) => f.split('/').at(-1))).toEqual(expect.arrayContaining(['README.md', 'package.json']));
     // Files with 'export function' should not be in result
-    expect(r.files.every((f: string) => !f.includes('index.ts'))).toBe(true);
+    expect(r.files.filter((f: string) => f.includes('index.ts'))).toEqual([]);
   });
 
   test('count_only format', async () => {
@@ -245,8 +245,8 @@ describe('content mode', () => {
       output: { format: 'files_only' },
     });
     const r = queryResult<{ files: string[]; count: number }>(results, 'fo');
-    expect(Array.isArray(r.files)).toBe(true);
-    expect(r.files.every((f: string) => typeof f === 'string')).toBe(true);
+    expect(r.files.length).toBeGreaterThan(0);
+    expect(r.files.filter((f: string) => typeof f !== 'string')).toEqual([]);
   });
 
   test('locations format includes file and line', async () => {
@@ -255,7 +255,7 @@ describe('content mode', () => {
       output: { format: 'locations' },
     });
     const r = queryResult<{ locations: Array<{ file: string; line: number }> }>(results, 'loc');
-    expect(Array.isArray(r.locations)).toBe(true);
+    expect(r.locations.length).toBeGreaterThan(0);
     expect(r.locations[0]).toHaveProperty('file');
     expect(r.locations[0]).toHaveProperty('line');
     expect(typeof r.locations[0].line).toBe('number');
@@ -278,8 +278,8 @@ describe('content mode', () => {
     });
     const r = queryResult<{ matches: Array<{ context_before: string[]; context_after: string[] }> }>(results, 'ctx');
     expect(r.matches.length).toBeGreaterThan(0);
-    expect(Array.isArray(r.matches[0].context_before)).toBe(true);
-    expect(Array.isArray(r.matches[0].context_after)).toBe(true);
+    expect(r.matches[0].context_before).toEqual(expect.any(Array));
+    expect(r.matches[0].context_after).toEqual(expect.any(Array));
   });
 
   test('glob filter restricts searched files', async () => {
@@ -295,7 +295,7 @@ describe('content mode', () => {
     const filtFiles = queryResult<{ files: string[] }>(filteredResults, 'filt').files;
     // Glob filter should produce fewer or equal results
     expect(filtFiles.length).toBeLessThanOrEqual(allFiles.length);
-    expect(filtFiles.every((f: string) => f.endsWith('.md'))).toBe(true);
+    expect(filtFiles.filter((f: string) => !f.endsWith('.md'))).toEqual([]);
   });
 
   test('binary files are skipped in content search', async () => {
@@ -304,7 +304,7 @@ describe('content mode', () => {
       output: { format: 'files_only' },
     });
     const r = queryResult<{ files: string[] }>(results, 'bin');
-    expect(r.files.every((f: string) => !f.endsWith('.png'))).toBe(true);
+    expect(r.files.filter((f: string) => f.endsWith('.png'))).toEqual([]);
   });
 
   test('max_results limits total matches', async () => {
@@ -357,7 +357,7 @@ describe('symbols mode', () => {
     });
     const r = queryResult<{ symbols: Array<{ name: string; kind: string; exported: boolean }> }>(results, 'fn');
     expect(r.symbols.length).toBeGreaterThan(0);
-    expect(r.symbols.every((s) => s.kind === 'function')).toBe(true);
+    expect(r.symbols.filter((s) => s.kind !== 'function')).toEqual([]);
   });
 
   test('finds exported classes', async () => {
@@ -365,7 +365,7 @@ describe('symbols mode', () => {
       queries: [{ id: 'cls', mode: 'symbols', kinds: ['class'], path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ name: string; kind: string }> }>(results, 'cls');
-    expect(r.symbols.some((s) => s.name === 'Button')).toBe(true);
+    expect(r.symbols.map((s) => s.name)).toContain('Button');
   });
 
   test('finds exported interfaces', async () => {
@@ -373,7 +373,7 @@ describe('symbols mode', () => {
       queries: [{ id: 'iface', mode: 'symbols', kinds: ['interface'], path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ name: string }> }>(results, 'iface');
-    expect(r.symbols.some((s) => s.name === 'ButtonProps')).toBe(true);
+    expect(r.symbols.map((s) => s.name)).toContain('ButtonProps');
   });
 
   test('finds exported types', async () => {
@@ -381,7 +381,7 @@ describe('symbols mode', () => {
       queries: [{ id: 'type', mode: 'symbols', kinds: ['type'], path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ name: string }> }>(results, 'type');
-    expect(r.symbols.some((s) => s.name === 'UserId')).toBe(true);
+    expect(r.symbols.map((s) => s.name)).toContain('UserId');
   });
 
   test('finds enums', async () => {
@@ -389,7 +389,7 @@ describe('symbols mode', () => {
       queries: [{ id: 'enm', mode: 'symbols', kinds: ['enum'], path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ name: string }> }>(results, 'enm');
-    expect(r.symbols.some((s) => s.name === 'Status')).toBe(true);
+    expect(r.symbols.map((s) => s.name)).toContain('Status');
   });
 
   test('finds constants', async () => {
@@ -397,7 +397,7 @@ describe('symbols mode', () => {
       queries: [{ id: 'cnst', mode: 'symbols', kinds: ['constant'], path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ name: string }> }>(results, 'cnst');
-    expect(r.symbols.some((s) => s.name === 'VERSION')).toBe(true);
+    expect(r.symbols.map((s) => s.name)).toContain('VERSION');
   });
 
   test('filter by kinds returns only matching kinds', async () => {
@@ -405,7 +405,7 @@ describe('symbols mode', () => {
       queries: [{ id: 'mixed', mode: 'symbols', kinds: ['function', 'class'], path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ kind: string }> }>(results, 'mixed');
-    expect(r.symbols.every((s) => s.kind === 'function' || s.kind === 'class')).toBe(true);
+    expect(r.symbols.filter((s) => s.kind !== 'function' && s.kind !== 'class')).toEqual([]);
   });
 
   test('exported_only excludes non-exported symbols', async () => {
@@ -418,8 +418,8 @@ describe('symbols mode', () => {
       queries: [{ id: 'exp', mode: 'symbols', exported_only: true, path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ name: string; exported: boolean }> }>(results, 'exp');
-    expect(r.symbols.every((s) => s.exported === true)).toBe(true);
-    expect(r.symbols.every((s) => s.name !== 'internalHelper')).toBe(true);
+    expect(r.symbols.filter((s) => s.exported !== true)).toEqual([]);
+    expect(r.symbols.map((s) => s.name)).not.toContain('internalHelper');
   });
 
   test('query pattern filters by symbol name', async () => {
@@ -427,7 +427,7 @@ describe('symbols mode', () => {
       queries: [{ id: 'q', mode: 'symbols', query: 'format', path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ name: string }> }>(results, 'q');
-    expect(r.symbols.every((s) => /format/i.test(s.name))).toBe(true);
+    expect(r.symbols.filter((s) => !/format/i.test(s.name))).toEqual([]);
   });
 
   test('symbols include file and line number', async () => {
@@ -457,8 +457,8 @@ describe('symbols mode', () => {
       output: { format: 'files_only' },
     });
     const r = queryResult<{ files: string[]; count: number }>(results, 'fo');
-    expect(Array.isArray(r.files)).toBe(true);
-    expect(r.files.every((f: string) => typeof f === 'string')).toBe(true);
+    expect(r.files.length).toBeGreaterThan(0);
+    expect(r.files.filter((f: string) => typeof f !== 'string')).toEqual([]);
   });
 
   test('tree-sitter fallback: regex extraction still works when tree-sitter has no grammar', async () => {
@@ -471,7 +471,7 @@ describe('symbols mode', () => {
     const r = queryResult<{ symbols: Array<{ name: string; kind: string }> }>(results, 'fn');
     // Even without tree-sitter, regex fallback should find exported functions
     expect(r.symbols.length).toBeGreaterThan(0);
-    expect(r.symbols.every((s) => s.kind === 'function')).toBe(true);
+    expect(r.symbols.filter((s) => s.kind !== 'function')).toEqual([]);
   });
 
   test('tree-sitter fallback: exported_only still filters correctly', async () => {
@@ -484,8 +484,8 @@ describe('symbols mode', () => {
       queries: [{ id: 'exp', mode: 'symbols', exported_only: true, path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ name: string; exported: boolean }> }>(results, 'exp');
-    expect(r.symbols.every((s) => s.exported === true)).toBe(true);
-    expect(r.symbols.every((s) => s.name !== 'internalFn')).toBe(true);
+    expect(r.symbols.filter((s) => s.exported !== true)).toEqual([]);
+    expect(r.symbols.map((s) => s.name)).not.toContain('internalFn');
   });
 });
 
@@ -555,9 +555,9 @@ describe('expand_to', () => {
     const r = queryResult<{ matches: Array<{ file: string; line: number; text: string; startLine?: number; endLine?: number }> }>(results, 'exp');
     expect(r.matches.length).toBeGreaterThan(0);
     // All matches must still have the core fields
-    expect(r.matches.every((m) => typeof m.file === 'string')).toBe(true);
-    expect(r.matches.every((m) => typeof m.line === 'number')).toBe(true);
-    expect(r.matches.every((m) => typeof m.text === 'string')).toBe(true);
+    expect(r.matches.filter((m) => typeof m.file !== 'string')).toEqual([]);
+    expect(r.matches.filter((m) => typeof m.line !== 'number')).toEqual([]);
+    expect(r.matches.filter((m) => typeof m.text !== 'string')).toEqual([]);
   });
 
   test('expand_to: line and block values accepted without error', async () => {
@@ -568,7 +568,7 @@ describe('expand_to', () => {
     });
     const r = queryResult<{ matches: unknown[]; count: number }>(results, 'exp');
     expect(r.count).toBeGreaterThan(0);
-    expect(Array.isArray(r.matches)).toBe(true);
+    expect(r.matches.length).toBeGreaterThan(0);
   });
 
   test('expand_to: count_only format unaffected by expand_to', async () => {
@@ -587,7 +587,6 @@ describe('expand_to', () => {
       output: { format: 'files_only', expand_to: 'class' },
     });
     const r = queryResult<{ files: string[] }>(results, 'exp');
-    expect(Array.isArray(r.files)).toBe(true);
     expect(r.files.length).toBeGreaterThan(0);
   });
 
@@ -624,8 +623,8 @@ describe('references mode', () => {
     expect(r.source).toBe('grep_fallback');
     // Should find the declaration in src/utils/helper.ts
     expect(r.count).toBeGreaterThan(0);
-    expect(r.locations.some((l) => l.file.endsWith('helper.ts'))).toBe(true);
-    expect(r.locations.every((l) => typeof l.file === 'string' && typeof l.line === 'number')).toBe(true);
+    expect(r.locations.map((l) => l.file.split('/').at(-1))).toContain('helper.ts');
+    expect(r.locations.filter((l) => typeof l.file !== 'string' || typeof l.line !== 'number')).toEqual([]);
   });
 
   test('fallback grep — symbol with no matches returns empty locations', async () => {
@@ -678,7 +677,7 @@ describe('references mode', () => {
       output: { format: 'files_only' },
     });
     const r = queryResult<{ files: string[]; count: number }>(results, 'refs');
-    expect(Array.isArray(r.files)).toBe(true);
+    expect(r.files.length).toBeGreaterThan(0);
     // Unique files: no duplicates
     expect(new Set(r.files).size).toBe(r.files.length);
   });
@@ -749,7 +748,7 @@ describe('edge cases', () => {
       queries: [{ id: 'syms', mode: 'symbols', path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ file: string }> }>(results, 'syms');
-    expect(r.symbols.every((s) => !s.file.endsWith('.png'))).toBe(true);
+    expect(r.symbols.filter((s) => s.file.endsWith('.png'))).toEqual([]);
   });
 
   test('max_results limits symbols output', async () => {
@@ -790,8 +789,8 @@ describe('edge cases', () => {
       queries: [{ id: 'syms', mode: 'symbols', path: dir }],
     });
     const r = queryResult<{ symbols: Array<{ file: string }> }>(results, 'syms');
-    expect(r.symbols.every((s) => !s.file.includes('node_modules'))).toBe(true);
-    expect(r.symbols.every((s) => !s.file.includes('/dist/'))).toBe(true);
+    expect(r.symbols.filter((s) => s.file.includes('node_modules'))).toEqual([]);
+    expect(r.symbols.filter((s) => s.file.includes('/dist/'))).toEqual([]);
   });
 
   test('tool definition has correct name and schema shape', () => {
@@ -859,7 +858,7 @@ describe('structural mode', () => {
     });
     const r = queryResult<{ matches: Array<{ file: string; text: string }>; count: number }>(results, 'fns');
     expect(r.count).toBeGreaterThan(0);
-    expect(r.matches.every((m) => m.text.startsWith('export function'))).toBe(true);
+    expect(r.matches.filter((m) => !m.text.startsWith('export function'))).toEqual([]);
   });
 
   test('count_only format returns count and file_count', async () => {
@@ -879,8 +878,8 @@ describe('structural mode', () => {
       output: { format: 'files_only' },
     });
     const r = queryResult<{ files: string[]; count: number }>(results, 'fo');
-    expect(Array.isArray(r.files)).toBe(true);
-    expect(r.files.every((f: string) => typeof f === 'string')).toBe(true);
+    expect(r.files.length).toBeGreaterThan(0);
+    expect(r.files.filter((f: string) => typeof f !== 'string')).toEqual([]);
     expect(r.count).toBeGreaterThan(0);
   });
 
@@ -890,7 +889,7 @@ describe('structural mode', () => {
       output: { format: 'locations' },
     });
     const r = queryResult<{ locations: Array<{ file: string; line: number }>; count: number }>(results, 'loc');
-    expect(Array.isArray(r.locations)).toBe(true);
+    expect(r.locations.length).toBeGreaterThan(0);
     expect(r.locations[0]).toHaveProperty('file');
     expect(r.locations[0]).toHaveProperty('line');
     expect(typeof r.locations[0].line).toBe('number');

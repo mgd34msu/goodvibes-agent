@@ -113,18 +113,34 @@ describe('SettingsModal', () => {
 
   test('open() populates all categories', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
+    const specialCategories = new Set(['flags', 'mcp', 'subscriptions']);
     for (const cat of SETTINGS_CATEGORIES) {
       if (cat === 'flags') {
-        expect(Array.isArray(modal.flagEntries)).toBe(true);
+        expect(modal.flagEntries.length).toBeGreaterThan(0);
         continue;
       }
-      const items = modal.groups.get(cat);
-      expect(items).toBeDefined();
-      expect(Array.isArray(items)).toBe(true);
+      if (cat === 'mcp') {
+        expect(modal.mcpEntries).toEqual([expect.objectContaining({
+          name: 'docs-server',
+          connected: true,
+          trustMode: 'ask-on-risk',
+        })]);
+        continue;
+      }
+      if (cat === 'subscriptions') {
+        expect(modal.subscriptionEntries.map((entry) => entry.provider)).toContain('openai');
+        continue;
+      }
+      const expectedKeys = CONFIG_SCHEMA
+        .filter((entry) => !isAgentHiddenSettingKey(entry.key))
+        .filter((entry) => entry.key.split('.')[0] === cat)
+        .map((entry) => entry.key);
+      expect(specialCategories.has(cat)).toBe(false);
+      expect([...(modal.groups.get(cat)?.map((entry) => entry.setting.key) ?? [])].sort()).toEqual([...expectedKeys].sort());
     }
   });
 
-  test('open() routes every SDK config schema key into the workspace', () => {
+  test('open() routes every shared config schema key into the workspace', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     const visibleKeys = new Set<string>();
     for (const entries of modal.groups.values()) {
@@ -201,9 +217,15 @@ describe('SettingsModal', () => {
   test('getSelected returns the selected SettingEntry', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     const entry = modal.getSelected();
-    expect(entry).not.toBeNull();
-    expect(entry!.setting).toBeDefined();
-    expect(entry!.setting.key).toBeTruthy();
+    expect(entry).toEqual(expect.objectContaining({
+      currentValue: expect.anything(),
+      setting: expect.objectContaining({
+        key: expect.any(String),
+        description: expect.any(String),
+        type: expect.any(String),
+      }),
+    }));
+    expect(entry?.setting.key.length).toBeGreaterThan(0);
   });
 
   test('activateSelected toggles boolean setting', () => {
@@ -229,9 +251,15 @@ describe('SettingsModal', () => {
     expect(strIdx).toBeGreaterThanOrEqual(0);
     for (let i = 0; i < strIdx; i++) modal.moveDown();
 
+    const selected = modal.getSelected();
+    expect(selected).toEqual(expect.objectContaining({
+      currentValue: expect.any(String),
+      setting: expect.objectContaining({ type: 'string' }),
+    }));
     modal.activateSelected();
     expect(modal.editingMode).toBe(true);
-    expect(modal.editBuffer).toBeTruthy(); // pre-populated with current value
+    expect(modal.editBuffer).toBe(String(selected?.currentValue));
+    expect(modal.editBuffer.length).toBeGreaterThan(0);
   });
 
   test('activateSelected delegates TTS LLM settings to the targeted provider-model picker flow', () => {
@@ -361,7 +389,7 @@ describe('SettingsModal', () => {
     expect(keys).toContain('surfaces.ntfy.topic');
     expect(keys).toContain('surfaces.ntfy.token');
     const copiedSurfacePrefix = ['surfaces.', 'home', 'assistant.'].join('');
-    expect(keys.some((key) => key.startsWith(copiedSurfacePrefix))).toBe(false);
+    expect(keys.filter((key) => key.startsWith(copiedSurfacePrefix))).toEqual([]);
 
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'surfaces.ntfy.baseUrl');
     modal.activateSelected();
@@ -440,7 +468,13 @@ describe('SettingsModal', () => {
 
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     while (modal.currentCategory !== 'subscriptions') modal.nextCategory();
-    expect(modal.subscriptionEntries.some((entry) => entry.provider === 'openai' && entry.state === 'active')).toBe(true);
+    expect(modal.subscriptionEntries.find((entry) => entry.provider === 'openai')).toEqual(expect.objectContaining({
+      provider: 'openai',
+      state: 'active',
+      tokenType: 'Bearer',
+      activeRoute: 'subscription',
+      authFreshness: 'healthy',
+    }));
 
     const openaiIndex = modal.subscriptionEntries.findIndex((entry) => entry.provider === 'openai');
     expect(openaiIndex).toBeGreaterThanOrEqual(0);
@@ -450,7 +484,11 @@ describe('SettingsModal', () => {
 
     modal.activateSelected();
     expect(modal.subscriptionLogoutConfirmationTarget).toBe('openai');
-    expect(subscriptionManager.get('openai')).not.toBeNull();
+    expect(subscriptionManager.get('openai')).toEqual(expect.objectContaining({
+      provider: 'openai',
+      accessToken: 'token',
+      tokenType: 'Bearer',
+    }));
 
     modal.activateSelected();
     expect(subscriptionManager.get('openai')).toBeNull();

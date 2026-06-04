@@ -74,7 +74,12 @@ describe('FileStateCache', () => {
 
       const result = cache.lookup(filePath);
       expect(result.status).toBe('unchanged');
-      expect(result.entry).toBeDefined();
+      expect(result.entry).toEqual(expect.objectContaining({
+        byteSize: content.length,
+        contentHash: expect.any(String),
+        lineCount: 1,
+        version: 1,
+      }));
     });
 
     test('entry has correct metadata after unchanged hit', () => {
@@ -165,8 +170,10 @@ describe('FileStateCache', () => {
       cache.update(filePath, 'v2');
 
       const conflict = cache.checkConflict(filePath, 1);
-      expect(conflict).not.toBeNull();
-      expect(conflict!.yourVersion).toBe(1);
+      expect(conflict).toEqual(expect.objectContaining({
+        yourVersion: 1,
+        currentVersion: expect.any(Number),
+      }));
       expect(conflict!.currentVersion).toBeGreaterThan(1);
     });
   });

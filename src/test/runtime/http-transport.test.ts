@@ -123,7 +123,7 @@ describe('HttpTransport', () => {
       },
     });
     expect(session.id).toBe('http-transport-session');
-    expect((await transport.operator.sessions.list()).some((entry) => entry.id === session.id)).toBe(true);
+    expect((await transport.operator.sessions.list()).map((entry) => entry.id)).toContain(session.id);
     const currentAuth = await transport.operator.controlPlane.currentAuth();
     expect(currentAuth.authenticated).toBe(true);
     expect(currentAuth.authMode).toBe('shared-token');
@@ -143,15 +143,26 @@ describe('HttpTransport', () => {
     });
     await transport.peer.pairing.approve(pair.request.id, 'tester', 'paired for http transport test');
     const verified = await transport.peer.pairing.verify(pair.request.id, pair.challenge, '10.0.0.71');
-    expect(verified?.peer.id).toBeTruthy();
-    expect(verified?.token.value ?? '').toContain('gvrt_');
+    expect(verified).toEqual(expect.objectContaining({
+      peer: expect.objectContaining({
+        id: expect.stringMatching(/^node-/),
+        requestedId: 'http-transport-peer',
+        status: 'connected',
+      }),
+      token: expect.objectContaining({ value: expect.stringMatching(/^gvrt_/) }),
+    }));
+    const verifiedPeerId = verified?.peer.id ?? '';
 
     const invoked = await transport.peer.work.invoke({
-      peerId: verified!.peer.id,
+      peerId: verifiedPeerId,
       command: 'sync-status',
       payload: { source: 'http-transport-test' },
     });
-    expect(invoked.work.id).toBeTruthy();
+    expect(invoked.work).toEqual(expect.objectContaining({
+      id: expect.stringMatching(/\S/),
+      peerId: verifiedPeerId,
+      command: 'sync-status',
+    }));
 
     const seen: Array<{ type: string; agentId: string }> = [];
     const streamedTelemetry: string[] = [];
@@ -168,24 +179,31 @@ describe('HttpTransport', () => {
       },
     }, { limit: 10 });
     const task = await transport.operator.tasks.submit({ task: 'cancel me over http transport' });
-    expect(task.agentId ?? '').toBeTruthy();
+    expect(task).toEqual(expect.objectContaining({
+      agentId: expect.stringMatching(/\S/),
+    }));
+    const taskAgentId = task.agentId ?? '';
     const taskRecord = await waitFor(async () => {
       const tasks = await transport.operator.tasks.list();
       return tasks.find((entry) => entry.title === 'cancel me over http transport') ?? null;
     });
-    expect(taskRecord).toBeTruthy();
+    expect(taskRecord).toEqual(expect.objectContaining({
+      id: expect.stringMatching(/\S/),
+      title: 'cancel me over http transport',
+    }));
     try {
       await waitFor(() => seen[0]);
       await waitFor(() => telemetryReady ? streamedTelemetry[0] : null);
-      await transport.operator.tasks.cancel(taskRecord!.id);
+      await transport.operator.tasks.cancel(taskRecord.id);
     } finally {
       unsubscribe();
       stopTelemetry();
     }
 
-    expect(seen[0]).toBeDefined();
-    expect(seen[0]!.type).toBe('AGENT_SPAWNING');
-    expect(seen[0]!.agentId).toBe(task.agentId ?? '');
+    expect(seen[0]).toEqual({
+      type: 'AGENT_SPAWNING',
+      agentId: taskAgentId,
+    });
     expect(streamedTelemetry.length).toBeGreaterThan(0);
     const telemetrySnapshot = await transport.operator.telemetry.snapshot(10);
     expect(telemetrySnapshot.capabilities.signals.events).toBe(true);
@@ -195,10 +213,10 @@ describe('HttpTransport', () => {
     const telemetryMetrics = await transport.operator.telemetry.metrics();
     expect(telemetryMetrics.aggregates.totalEvents).toBeGreaterThan(0);
     const telemetryLogs = await transport.operator.telemetry.otlpLogs({ limit: 5, view: 'safe' });
-    expect(Array.isArray((telemetryLogs as { resourceLogs?: unknown[] }).resourceLogs)).toBe(true);
+    expect((telemetryLogs as { resourceLogs?: unknown[] }).resourceLogs).toEqual(expect.any(Array));
     const snapshot = await transport.snapshot();
     expect(snapshot.kind).toBe('http');
-    expect(snapshot.operator.sessions.some((entry: { readonly id: string }) => entry.id === session.id)).toBe(true);
-    expect(snapshot.peer.peers.some((entry: { readonly id: string }) => entry.id === verified!.peer.id)).toBe(true);
+    expect(snapshot.operator.sessions.map((entry: { readonly id: string }) => entry.id)).toContain(session.id);
+    expect(snapshot.peer.peers.map((entry: { readonly id: string }) => entry.id)).toContain(verifiedPeerId);
   });
 });

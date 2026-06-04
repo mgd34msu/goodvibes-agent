@@ -135,7 +135,12 @@ describe('RealtimeTransport', () => {
     });
     await transport.peer.pairing.approve(pair.request.id, 'tester', 'paired for realtime transport test');
     const verified = await transport.peer.pairing.verify(pair.request.id, pair.challenge, '10.0.0.72');
-    expect(verified?.peer.id).toBeTruthy();
+    expect(verified?.peer).toEqual(expect.objectContaining({
+      label: 'realtime transport peer',
+      requestedId: 'realtime-transport-peer',
+      status: 'connected',
+    }));
+    expect(verified?.peer.id).toMatch(/^device-/);
 
     const seen: Array<{ type: string; agentId: string }> = [];
     const unsubscribe = transport.operator.events.agents.on('AGENT_SPAWNING', (event: Extract<AgentEvent, { type: 'AGENT_SPAWNING' }>) => {
@@ -143,12 +148,18 @@ describe('RealtimeTransport', () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 100));
     const task = await transport.operator.tasks.submit({ task: 'cancel me over realtime transport' });
-    expect(task.agentId ?? '').toBeTruthy();
+    expect(task.agentId).toEqual(expect.any(String));
+    expect(task.agentId?.length).toBeGreaterThan(0);
     const taskRecord = await waitFor(async () => {
       const tasks = await transport.operator.tasks.list();
       return tasks.find((entry) => entry.title === 'cancel me over realtime transport') ?? null;
     });
-    expect(taskRecord).toBeTruthy();
+    expect(taskRecord).toEqual(expect.objectContaining({
+      title: 'cancel me over realtime transport',
+      id: task.agentId,
+      owner: task.agentId,
+      status: 'running',
+    }));
     try {
       await waitFor(() => seen[0]);
       await transport.operator.tasks.cancel(taskRecord!.id);
@@ -156,12 +167,17 @@ describe('RealtimeTransport', () => {
       unsubscribe();
     }
 
-    expect(seen[0]).toBeDefined();
-    expect(seen[0]!.type).toBe('AGENT_SPAWNING');
-    expect(seen[0]!.agentId).toBe(task.agentId ?? '');
+    expect(seen[0]).toEqual({
+      type: 'AGENT_SPAWNING',
+      agentId: task.agentId,
+    });
     const snapshot = await transport.snapshot();
     expect(snapshot.kind).toBe('realtime');
-    expect(snapshot.peer.peers.some((entry: { readonly id: string }) => entry.id === verified!.peer.id)).toBe(true);
-    expect(snapshot.operator.sessions.some((entry: { readonly id: string }) => entry.id === session.id)).toBe(true);
+    expect(snapshot.peer.peers).toContainEqual(
+      expect.objectContaining({ id: verified!.peer.id }),
+    );
+    expect(snapshot.operator.sessions).toContainEqual(
+      expect.objectContaining({ id: session.id }),
+    );
   });
 });

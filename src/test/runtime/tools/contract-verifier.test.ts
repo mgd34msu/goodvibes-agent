@@ -59,6 +59,29 @@ function makeTool(overrides: {
 }
 
 const verifier = new ToolContractVerifier();
+type VerificationResult = ReturnType<ToolContractVerifier['verify']>;
+type ContractViolation = VerificationResult['violations'][number];
+
+function expectViolation(
+  result: VerificationResult,
+  criteria: Partial<Pick<ContractViolation, 'dimension' | 'severity'>> & { messageIncludes?: string },
+): void {
+  const violation = result.violations.find((entry) => (
+    (criteria.dimension === undefined || entry.dimension === criteria.dimension)
+    && (criteria.severity === undefined || entry.severity === criteria.severity)
+    && (criteria.messageIncludes === undefined || entry.message.includes(criteria.messageIncludes))
+  ));
+  if (!violation) {
+    throw new Error(`Expected violation ${JSON.stringify(criteria)}, got ${JSON.stringify(result.violations)}`);
+  }
+  expect(violation).toMatchObject({
+    ...(criteria.dimension === undefined ? {} : { dimension: criteria.dimension }),
+    ...(criteria.severity === undefined ? {} : { severity: criteria.severity }),
+  });
+  if (criteria.messageIncludes !== undefined) {
+    expect(violation.message).toContain(criteria.messageIncludes);
+  }
+}
 
 // ── Dimension 1: Schema ───────────────────────────────────────────────────────
 
@@ -80,64 +103,43 @@ describe('checkSchema', () => {
 
   it('errors when parameters has no type field', () => {
     const result = verifier.verify(makeTool({ parameters: { properties: {} } }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'schema' && v.message.includes("missing required 'type'"),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'schema', messageIncludes: "missing required 'type'" });
     expect(result.passed).toBe(false);
   });
 
   it('errors when parameters type is invalid', () => {
     const result = verifier.verify(makeTool({ parameters: { type: 'badtype' } }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'schema' && v.message.includes("invalid 'type' value"),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'schema', messageIncludes: "invalid 'type' value" });
     expect(result.passed).toBe(false);
   });
 
   it('warns when object schema has no properties', () => {
     const result = verifier.verify(makeTool({ parameters: { type: 'object' } }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'schema' && v.severity === 'warn' && v.message.includes('properties'),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'schema', severity: 'warn', messageIncludes: 'properties' });
     // warn only — still passes
     expect(result.passed).toBe(true);
   });
 
   it('errors on empty tool name', () => {
     const result = verifier.verify(makeTool({ name: '' }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'schema' && v.message.includes('empty or missing name'),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'schema', messageIncludes: 'empty or missing name' });
     expect(result.passed).toBe(false);
   });
 
   it('warns on name with unsafe characters', () => {
     const result = verifier.verify(makeTool({ name: 'tool name with spaces' }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'schema' && v.severity === 'warn' && v.message.includes('characters'),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'schema', severity: 'warn', messageIncludes: 'characters' });
   });
 
   it('errors on missing description', () => {
     const result = verifier.verify(makeTool({ _missingDesc: true }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'schema' && v.message.includes('missing or non-string description'),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'schema', messageIncludes: 'missing or non-string description' });
     expect(result.passed).toBe(false);
   });
 
   it('warns on very short description', () => {
     const result = verifier.verify(makeTool({ description: 'short' }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'schema' && v.severity === 'warn',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'schema', severity: 'warn' });
   });
 });
 
@@ -156,10 +158,7 @@ describe('checkTimeoutCancellation', () => {
     const result = verifier.verify(
       makeTool({ category: 'read', phaseTimeouts: { validate: -1 } }),
     );
-    const v = result.violations.find(
-      (v) => v.dimension === 'timeout-cancellation' && v.severity === 'error',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'timeout-cancellation', severity: 'error' });
     expect(result.passed).toBe(false);
   });
 
@@ -167,20 +166,14 @@ describe('checkTimeoutCancellation', () => {
     const result = verifier.verify(
       makeTool({ category: 'read', phaseTimeouts: { validate: 1.5 } }),
     );
-    const v = result.violations.find(
-      (v) => v.dimension === 'timeout-cancellation' && v.severity === 'error',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'timeout-cancellation', severity: 'error' });
   });
 
   it('warns when phase timeout exceeds 10 minutes', () => {
     const result = verifier.verify(
       makeTool({ category: 'read', phaseTimeouts: { execute: 700_000 } }),
     );
-    const v = result.violations.find(
-      (v) => v.dimension === 'timeout-cancellation' && v.severity === 'warn',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'timeout-cancellation', severity: 'warn' });
     expect(result.passed).toBe(true);
   });
 
@@ -188,10 +181,7 @@ describe('checkTimeoutCancellation', () => {
     const result = verifier.verify(
       makeTool({ category: 'write', cancellable: false, idempotent: true }),
     );
-    const v = result.violations.find(
-      (v) => v.dimension === 'timeout-cancellation' && v.severity === 'warn',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'timeout-cancellation', severity: 'warn' });
     expect(result.passed).toBe(true);
   });
 });
@@ -214,29 +204,20 @@ describe('checkPermissionClass', () => {
 
   it('warns (non-strict) when category is absent', () => {
     const result = verifier.verify(makeTool({}));
-    const v = result.violations.find(
-      (v) => v.dimension === 'permission-class' && v.severity === 'warn',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'permission-class', severity: 'warn' });
     expect(result.passed).toBe(true);
   });
 
   it('errors (strict) when category is absent', () => {
     const strict = new ToolContractVerifier({ strictPermissionClass: true });
     const result = strict.verify(makeTool({}));
-    const v = result.violations.find(
-      (v) => v.dimension === 'permission-class' && v.severity === 'error',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'permission-class', severity: 'error' });
     expect(result.passed).toBe(false);
   });
 
   it('errors on unknown category', () => {
     const result = verifier.verify(makeTool({ category: 'unknown_cat' }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'permission-class' && v.severity === 'error',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'permission-class', severity: 'error' });
     expect(result.passed).toBe(false);
   });
 });
@@ -288,29 +269,20 @@ describe('checkIdempotency', () => {
 
   it('errors (strict) when idempotency is absent on side-effecting tool', () => {
     const result = verifier.verify(makeTool({ category: 'write' }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'idempotency' && v.severity === 'error',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'idempotency', severity: 'error' });
     expect(result.passed).toBe(false);
   });
 
   it('warns (non-strict) when idempotency is absent on side-effecting tool', () => {
     const lenient = new ToolContractVerifier({ strictIdempotency: false });
     const result = lenient.verify(makeTool({ category: 'network' }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'idempotency' && v.severity === 'warn',
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'idempotency', severity: 'warn' });
     expect(result.passed).toBe(true);
   });
 
   it('errors when idempotent is non-boolean', () => {
     const result = verifier.verify(makeTool({ category: 'write', idempotent: 'yes' }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'idempotency' && v.severity === 'error' && v.message.includes('boolean'),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'idempotency', severity: 'error', messageIncludes: 'boolean' });
     expect(result.passed).toBe(false);
   });
 });
@@ -411,16 +383,15 @@ describe('ToolContractsPanel', () => {
     panel.load(verifier.verifyAll(tools));
 
     expect(notified).toBe(true);
-    expect(panel.get('tool_a')).toBeDefined();
-    expect(panel.get('tool_b')).toBeDefined();
+    expect(panel.get('tool_a')?.toolName).toBe('tool_a');
+    expect(panel.get('tool_b')?.toolName).toBe('tool_b');
   });
 
   it('upsert() adds or updates a single entry', () => {
     const result = verifier.verify(makeTool({ name: 'my_tool', category: 'read' }));
     panel.upsert(result);
     const entry = panel.get('my_tool');
-    expect(entry).toBeDefined();
-    expect(entry!.toolName).toBe('my_tool');
+    expect(entry?.toolName).toBe('my_tool');
   });
 
   it('getAll() returns entries sorted by name', () => {
@@ -509,28 +480,19 @@ describe('ToolContractsPanel', () => {
 describe('edge cases', () => {
   it('handles tool name that is whitespace-only', () => {
     const result = verifier.verify(makeTool({ name: '   ' }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'schema' && v.message.includes('empty or missing name'),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'schema', messageIncludes: 'empty or missing name' });
     expect(result.passed).toBe(false);
   });
 
   it('handles non-boolean idempotent=0 (falsy but not false)', () => {
     const result = verifier.verify(makeTool({ category: 'network', idempotent: 0 }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'idempotency' && v.severity === 'error' && v.message.includes('boolean'),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'idempotency', severity: 'error', messageIncludes: 'boolean' });
     expect(result.passed).toBe(false);
   });
 
   it('handles non-boolean idempotent=1 (truthy but not true)', () => {
     const result = verifier.verify(makeTool({ category: 'write', idempotent: 1 }));
-    const v = result.violations.find(
-      (v) => v.dimension === 'idempotency' && v.severity === 'error' && v.message.includes('boolean'),
-    );
-    expect(v).toBeDefined();
+    expectViolation(result, { dimension: 'idempotency', severity: 'error', messageIncludes: 'boolean' });
     expect(result.passed).toBe(false);
   });
 

@@ -82,6 +82,8 @@ describe('McpPermissionManager coherence evaluation', () => {
     expect(review.summary).toContain('incoherent decision');
     const opsFinding = review.findings.find((finding) => finding.serverName === 'ops');
     expect(opsFinding?.severity).toBe('critical');
-    expect(review.findings.some((finding) => finding.kind === 'recent-decision' && finding.incoherent)).toBe(true);
+    expect(review.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'recent-decision', incoherent: true }),
+    ]));
   });
 });

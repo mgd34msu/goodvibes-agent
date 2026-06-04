@@ -19,7 +19,7 @@ const SAMPLE_DIFF = [
 describe('renderDiffView', () => {
   test('returns Line array', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
     expect(result.length).toBeGreaterThan(0);
   });
 
@@ -66,59 +66,65 @@ describe('renderDiffView', () => {
 
   test('hunk header line contains @@ marker text', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    const hunkLine = result.find((line) => lineText(line).startsWith('@@'));
-    expect(hunkLine).toBeDefined();
+    expect(result.map(lineText).filter((text) => text.startsWith('@@'))).toEqual([
+      expect.stringContaining('@@ -1,4 +1,4 @@'),
+    ]);
   });
 
   test('added lines have green foreground color', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
     // Actual added code lines have gutter '+' AND green background '#0a1a0a'
     // (file headers with +++ have bg '#0a0a0a' and fg '244')
-    const addedLine = result.find((line) =>
+    const addedLines = result.filter((line) =>
       line[0]?.char === '+' && line[0]?.bg === '#0a1a0a'
     );
-    expect(addedLine).toBeDefined();
+    expect(addedLines.map(lineText)).toEqual([
+      expect.stringContaining('const b = 42;'),
+    ]);
     // Green: #22c55e
-    expect(addedLine![0].fg).toContain('22c55e');
+    expect(addedLines[0]?.[0].fg).toContain('22c55e');
   });
 
   test('removed lines have red foreground color', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
     // Actual removed code lines have gutter '-' AND red background '#1a0a0a'
     // (file headers with --- have bg '#0a0a0a' and fg '244')
-    const removedLine = result.find((line) =>
+    const removedLines = result.filter((line) =>
       line[0]?.char === '-' && line[0]?.bg === '#1a0a0a'
     );
-    expect(removedLine).toBeDefined();
+    expect(removedLines.map(lineText)).toEqual([
+      expect.stringContaining('const b = 2;'),
+    ]);
     // Red: #ef4444
-    expect(removedLine![0].fg).toContain('ef4444');
+    expect(removedLines[0]?.[0].fg).toContain('ef4444');
   });
 
   test('handles empty diff string', () => {
     const result = renderDiffView('', WIDTH);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
+    expect(result.map(lineText)).toEqual(['']);
   });
 
   test('renders content from added lines', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
     // Actual added code lines have green bg '#0a1a0a' (not the +++ header with bg '#0a0a0a')
-    const addedLine = result.find((line) =>
+    const addedLines = result.filter((line) =>
       line[0]?.char === '+' && line[0]?.bg === '#0a1a0a'
     );
-    expect(addedLine).toBeDefined();
-    const text = lineText(addedLine!);
-    expect(text).toContain('42');
+    expect(addedLines.map(lineText)).toEqual([
+      expect.stringContaining('const b = 42;'),
+    ]);
   });
 
   test('renders content from removed lines', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
     // Actual removed code lines have red bg '#1a0a0a' (not the --- header with bg '#0a0a0a')
-    const removedLine = result.find((line) =>
+    const removedLines = result.filter((line) =>
       line[0]?.char === '-' && line[0]?.bg === '#1a0a0a'
     );
-    expect(removedLine).toBeDefined();
-    const text = lineText(removedLine!);
     // The removed line contains 'const b = 2;'
-    expect(text).toContain('b');
+    expect(removedLines.map(lineText)).toEqual([
+      expect.stringContaining('const b = 2;'),
+    ]);
   });
 });

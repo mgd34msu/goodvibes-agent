@@ -6,8 +6,10 @@ describe('policy simulation scenarios', () => {
   test('builds a concrete default scenario set', () => {
     const scenarios = buildDefaultPolicySimulationScenarios();
     expect(scenarios.length).toBeGreaterThan(4);
-    expect(scenarios.some((scenario) => scenario.id === 'write-project-file')).toBe(true);
-    expect(scenarios.some((scenario) => scenario.id === 'spawn-agent')).toBe(true);
+    expect(scenarios.map((scenario) => scenario.id)).toEqual(expect.arrayContaining([
+      'write-project-file',
+      'spawn-agent',
+    ]));
   });
 
   test('runs scenario simulations and returns a bounded summary', () => {
@@ -22,6 +24,6 @@ describe('policy simulation scenarios', () => {
     expect(summary.totalScenarios).toBeGreaterThan(4);
     expect(summary.results).toHaveLength(summary.totalScenarios);
     expect(summary.divergentScenarios).toBeGreaterThan(0);
-    expect(summary.results.some((result) => result.diverged)).toBe(true);
+    expect(summary.results.filter((result) => result.diverged)).toHaveLength(summary.divergentScenarios);
   });
 });

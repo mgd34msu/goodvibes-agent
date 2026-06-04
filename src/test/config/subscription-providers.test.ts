@@ -23,10 +23,13 @@ describe('subscription providers', () => {
 
   test('builtin openai provider matches Codex OAuth contract', () => {
     const provider = getBuiltinSubscriptionProvider('openai');
-    expect(provider).not.toBeNull();
-    expect(provider?.oauth.authUrl).toBe('https://auth.openai.com/oauth/authorize');
-    expect(provider?.oauth.tokenUrl).toBe('https://auth.openai.com/oauth/token');
-    expect(provider?.oauth.redirectUri).toBe('http://localhost:1455/auth/callback');
+    expect(provider).toEqual(expect.objectContaining({
+      oauth: expect.objectContaining({
+        authUrl: 'https://auth.openai.com/oauth/authorize',
+        tokenUrl: 'https://auth.openai.com/oauth/token',
+        redirectUri: 'http://localhost:1455/auth/callback',
+      }),
+    }));
     expect(provider?.oauth.tokenRequestEncoding).toBe('form');
     expect(provider?.oauth.authParams?.originator).toBe('pi');
     expect(provider?.oauth.localCallback?.host).toBe('localhost');
@@ -34,7 +37,9 @@ describe('subscription providers', () => {
 
   test('subscription manager supports form token exchanges for openai codex', async () => {
     const provider = getBuiltinSubscriptionProvider('openai');
-    expect(provider).not.toBeNull();
+    expect(provider).toEqual(expect.objectContaining({
+      oauth: expect.any(Object),
+    }));
 
     const manager = new SubscriptionManager(join(root, '.goodvibes', 'tui', 'subscriptions.json'));
     const started = await manager.beginOAuthLogin('openai', provider!.oauth);

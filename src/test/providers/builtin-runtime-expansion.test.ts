@@ -28,6 +28,13 @@ const CLEAN_ENV_KEYS = [
   'COPILOT_GITHUB_TOKEN',
 ];
 
+function expectPresent<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${description}`);
+  }
+  return value;
+}
+
 describe('provider runtime expansion', () => {
   const originalHome = process.env.HOME;
   const originalEnv = new Map<string, string | undefined>();
@@ -114,44 +121,39 @@ describe('provider runtime expansion', () => {
 
   test('surfaces runtime auth and policy metadata for new custom and gateway providers', async () => {
     const bedrockProvider = providerRegistry.getRegistered('amazon-bedrock');
-    expect(bedrockProvider.describeRuntime).toBeDefined();
+    expect(typeof bedrockProvider.describeRuntime).toBe('function');
     const bedrockRuntime = await providerRegistry.describeRuntime('amazon-bedrock');
-    expect(bedrockRuntime).not.toBeNull();
-    if (!bedrockRuntime) throw new Error('amazon-bedrock runtime metadata missing');
-    expect(bedrockRuntime.auth?.routes?.some((route) => route.route === 'anonymous')).toBe(true);
-    expect(bedrockRuntime.policy?.streamProtocol).toBe('anthropic-sdk-stream');
+    const bedrock = expectPresent(bedrockRuntime, 'amazon-bedrock runtime metadata');
+    expect(bedrock.auth?.routes?.map((route) => route.route)).toContain('anonymous');
+    expect(bedrock.policy?.streamProtocol).toBe('anthropic-sdk-stream');
 
     const vertexProvider = providerRegistry.getRegistered('anthropic-vertex');
-    expect(vertexProvider.describeRuntime).toBeDefined();
+    expect(typeof vertexProvider.describeRuntime).toBe('function');
     const vertexRuntime = await providerRegistry.describeRuntime('anthropic-vertex');
-    expect(vertexRuntime).not.toBeNull();
-    if (!vertexRuntime) throw new Error('anthropic-vertex runtime metadata missing');
-    expect(vertexRuntime.auth?.routes?.some((route) => route.route === 'anonymous')).toBe(true);
-    expect(vertexRuntime.policy?.streamProtocol).toBe('anthropic-sdk-stream');
+    const vertex = expectPresent(vertexRuntime, 'anthropic-vertex runtime metadata');
+    expect(vertex.auth?.routes?.map((route) => route.route)).toContain('anonymous');
+    expect(vertex.policy?.streamProtocol).toBe('anthropic-sdk-stream');
 
     const copilotProvider = providerRegistry.getRegistered('github-copilot');
-    expect(copilotProvider.describeRuntime).toBeDefined();
+    expect(typeof copilotProvider.describeRuntime).toBe('function');
     const copilotRuntime = await providerRegistry.describeRuntime('github-copilot');
-    expect(copilotRuntime).not.toBeNull();
-    if (!copilotRuntime) throw new Error('github-copilot runtime metadata missing');
-    expect(copilotRuntime.auth?.envVars).toContain('GH_TOKEN');
-    expect(copilotRuntime.models?.aliases).toContain('copilot');
+    const copilot = expectPresent(copilotRuntime, 'github-copilot runtime metadata');
+    expect(copilot.auth?.envVars).toContain('GH_TOKEN');
+    expect(copilot.models?.aliases).toContain('copilot');
 
     const litellmProvider = providerRegistry.getRegistered('litellm');
-    expect(litellmProvider.describeRuntime).toBeDefined();
+    expect(typeof litellmProvider.describeRuntime).toBe('function');
     const litellmRuntime = await providerRegistry.describeRuntime('litellm');
-    expect(litellmRuntime).not.toBeNull();
-    if (!litellmRuntime) throw new Error('litellm runtime metadata missing');
-    expect(litellmRuntime.auth?.mode).toBe('anonymous');
-    expect(litellmRuntime.auth?.configured).toBe(true);
-    expect(litellmRuntime.auth?.routes?.some((route) => route.route === 'anonymous')).toBe(true);
+    const litellm = expectPresent(litellmRuntime, 'litellm runtime metadata');
+    expect(litellm.auth?.mode).toBe('anonymous');
+    expect(litellm.auth?.configured).toBe(true);
+    expect(litellm.auth?.routes?.map((route) => route.route)).toContain('anonymous');
 
     const xaiProvider = providerRegistry.getRegistered('xai');
-    expect(xaiProvider.describeRuntime).toBeDefined();
+    expect(typeof xaiProvider.describeRuntime).toBe('function');
     const xaiRuntime = await providerRegistry.describeRuntime('xai');
-    expect(xaiRuntime).not.toBeNull();
-    if (!xaiRuntime) throw new Error('xai runtime metadata missing');
-    expect(xaiRuntime.models?.defaultModel).toBe('grok-4');
-    expect(xaiRuntime.models?.aliases).toContain('x-ai');
+    const xai = expectPresent(xaiRuntime, 'xai runtime metadata');
+    expect(xai.models?.defaultModel).toBe('grok-4');
+    expect(xai.models?.aliases).toContain('x-ai');
   });
 });

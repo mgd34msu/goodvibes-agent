@@ -170,7 +170,7 @@ describe('TasksPanel', () => {
       description: 'Task Control Room',
       factory: () => new TasksPanel(createTasksReadModel(createRuntimeStore())),
     });
-    expect(manager.getRegisteredTypes().some((entry) => entry.id === 'tasks')).toBe(true);
+    expect(manager.getRegisteredTypes().map((entry) => entry.id)).toContain('tasks');
   });
 
   test('provider accounts panel renders posture-first summaries', async () => {

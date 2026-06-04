@@ -286,8 +286,8 @@ describe('SessionTaskGraph', () => {
       const graph2 = new SessionTaskGraph();
       graph2.hydrate(snap);
 
-      expect(graph2.getRef('s1', 'A')).toBeDefined();
-      expect(graph2.getRef('s1', 'B')).toBeDefined();
+      expect(graph2.getRef('s1', 'A')).toEqual(expect.objectContaining({ sessionId: 's1', taskId: 'A' }));
+      expect(graph2.getRef('s1', 'B')).toEqual(expect.objectContaining({ sessionId: 's1', taskId: 'B' }));
       expect(graph2.getDependencies('s1', 'A')[0]!.taskId).toBe('B');
     });
 
@@ -382,8 +382,11 @@ describe('CrossSessionTaskRegistry persistence', () => {
 
     const registry2 = new CrossSessionTaskRegistry(graphPath(tmpDir));
     const loaded = registry2.getRef('s1', 't1');
-    expect(loaded).toBeDefined();
-    expect(loaded?.title).toBe('Persisted Task');
+    expect(loaded).toEqual(expect.objectContaining({
+      sessionId: 's1',
+      taskId: 't1',
+      title: 'Persisted Task',
+    }));
   });
 
   test('linkTask with deps round-trips through persistence', () => {

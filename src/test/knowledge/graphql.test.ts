@@ -91,13 +91,17 @@ describe('KnowledgeGraphqlService', () => {
     expect(result.errors).toBeUndefined();
     const data = result.data as {
       status: { sourceCount: number };
-      connectors: Array<{ id: string }>;
-      projectionTargets: Array<{ kind: string }>;
+      connectors: Array<{ id: string; sourceType: string }>;
+      projectionTargets: Array<{ targetId: string; kind: string }>;
       projection: { target: { kind: string }; pageCount: number; pages: Array<{ content: string }> };
     };
     expect(data.status.sourceCount).toBeGreaterThan(0);
-    expect(data.connectors.some((connector) => connector.id === 'bookmark')).toBe(true);
-    expect(data.projectionTargets.some((target) => target.kind === 'OVERVIEW')).toBe(true);
+    expect(data.connectors).toContainEqual(
+      expect.objectContaining({ id: 'bookmark', sourceType: 'bookmark' }),
+    );
+    expect(data.projectionTargets).toContainEqual(
+      expect.objectContaining({ kind: 'OVERVIEW' }),
+    );
     expect(data.projection.target.kind).toBe('SOURCE');
     expect(data.projection.pageCount).toBe(1);
     expect(data.projection.pages[0]?.content).toContain('GraphQL Source');
@@ -143,7 +147,7 @@ describe('KnowledgeGraphqlService', () => {
         bundle: { target: { kind: string } };
       };
     };
-    expect(data.materializeProjection.artifact.id).toBeTruthy();
+    expect(data.materializeProjection.artifact.id.length).toBeGreaterThan(0);
     expect(data.materializeProjection.artifact.mimeType).toBe('text/markdown');
     expect(data.materializeProjection.bundle.target.kind).toBe('SOURCE');
     expect(artifactStore.get(data.materializeProjection.artifact.id)?.id).toBe(data.materializeProjection.artifact.id);
@@ -190,7 +194,9 @@ describe('KnowledgeGraphqlService', () => {
     expect(data.sourceExtraction.format).toBe('csv');
     expect(data.sourceExtraction.sections).toContain('project');
     expect(data.connectorDoctor.ready).toBe(true);
-    expect(data.jobs.some((job) => job.id === 'knowledge-lint')).toBe(true);
+    expect(data.jobs).toContainEqual(
+      expect.objectContaining({ id: 'knowledge-lint' }),
+    );
 
     const runJob = await graphqlService.execute({
       query: `
@@ -247,8 +253,14 @@ describe('KnowledgeGraphqlService', () => {
       schedules: Array<{ jobId: string; enabled: boolean }>;
     };
     expect(data.usage.length).toBeGreaterThan(0);
-    expect(data.consolidationCandidates.some((candidate) => candidate.candidateType === 'memory-promotion')).toBe(true);
-    expect(data.consolidationReports.some((report) => report.kind === 'light-consolidation')).toBe(true);
-    expect(data.schedules.some((schedule) => schedule.jobId === 'knowledge-light-consolidation')).toBe(true);
+    expect(data.consolidationCandidates).toContainEqual(
+      expect.objectContaining({ candidateType: 'memory-promotion' }),
+    );
+    expect(data.consolidationReports).toContainEqual(
+      expect.objectContaining({ kind: 'light-consolidation' }),
+    );
+    expect(data.schedules).toContainEqual(
+      expect.objectContaining({ jobId: 'knowledge-light-consolidation' }),
+    );
   });
 });

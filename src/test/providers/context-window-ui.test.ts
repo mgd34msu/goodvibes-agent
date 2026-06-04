@@ -242,7 +242,7 @@ describe('getContextIngestionDiagnostics', () => {
   test('returns correct shape', () => {
     // Diagnostics are provider-level; we check the shape contract here.
     const diag = harness.contextIngestionService.getDiagnostics();
-    expect(Array.isArray(diag)).toBe(true);
+    expect(diag).toEqual(expect.any(Array));
     // Each entry should have the expected keys (checked on a non-empty array in integration tests)
     for (const entry of diag) {
       expect(typeof entry.providerName).toBe('string');

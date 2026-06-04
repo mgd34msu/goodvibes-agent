@@ -84,7 +84,7 @@ describe('typescript runner', () => {
       };
       const result = await run(hook, makeEvent(), repoRoot);
       expect(result.ok).toBe(false);
-      expect(result.error).toBeDefined();
+      expect(result.error).toEqual(expect.any(String));
     });
   });
 });

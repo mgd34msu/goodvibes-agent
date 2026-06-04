@@ -116,16 +116,14 @@ describe('ScrollableListPanel — showSelectionGutter (I5)', () => {
     // Find the first content line after the workspace title
     const contentLines = lines.filter((l) => l[0]?.char !== ' ' || l[1]?.char !== ' ');
     // The gutter-off panel should NOT have ▸ anywhere in col0
-    const hasGlyphInCol0 = lines.some((l) => l[0]?.char === '\u25b8');
-    expect(hasGlyphInCol0).toBe(false);
+    expect(lines.map((l) => l[0]?.char)).not.toContain('\u25b8');
   });
 
   test('showSelectionGutter=true puts \u25b8 in col0 of selected row', () => {
     const panel = new TestScrollablePanel(['alpha', 'beta', 'gamma'], true);
     panel.setSelectedIndex(0);
     const lines = panel.render(WIDTH, HEIGHT);
-    const hasGlyph = lines.some((l) => l[0]?.char === '\u25b8');
-    expect(hasGlyph).toBe(true);
+    expect(lines.map((l) => l[0]?.char)).toContain('\u25b8');
   });
 
   test('gutter: unselected rows have space in col0', () => {
@@ -138,9 +136,7 @@ describe('ScrollableListPanel — showSelectionGutter (I5)', () => {
       // Look for line where col2 onwards spells 'alpha'
       return l[2]?.char === 'a' && l[3]?.char === 'l';
     });
-    expect(alphaLine).toBeDefined();
-    expect(alphaLine![0]?.char).toBe(' ');
-    expect(alphaLine![1]?.char).toBe(' ');
+    expect(alphaLine?.slice(0, 2).map((cell) => cell.char)).toEqual([' ', ' ']);
   });
 
   test('gutter: selected row has \u25b8 in col0', () => {
@@ -149,9 +145,7 @@ describe('ScrollableListPanel — showSelectionGutter (I5)', () => {
     const lines = panel.render(WIDTH, HEIGHT);
     // Find line where col2 onwards spells 'beta'
     const betaLine = lines.find((l) => l[2]?.char === 'b' && l[3]?.char === 'e');
-    expect(betaLine).toBeDefined();
-    expect(betaLine![0]?.char).toBe('\u25b8');
-    expect(betaLine![1]?.char).toBe(' ');
+    expect(betaLine?.slice(0, 2).map((cell) => cell.char)).toEqual(['\u25b8', ' ']);
   });
 
   test('gutter: line width is preserved (still = WIDTH)', () => {
@@ -169,7 +163,7 @@ describe('ScrollableListPanel — showSelectionGutter (I5)', () => {
     const lines = panel.render(WIDTH, HEIGHT);
     // Find the content line that starts with 'h'
     const helloLine = lines.find((l) => l[0]?.char === 'h');
-    expect(helloLine).toBeDefined();
+    expect(helloLine?.slice(0, 5).map((cell) => cell.char).join('')).toBe('hello');
   });
 });
 

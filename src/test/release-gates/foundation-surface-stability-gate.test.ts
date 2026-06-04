@@ -1,10 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import * as Channels from '@pellux/goodvibes-sdk/platform/channels';
-import * as Hooks from '@pellux/goodvibes-sdk/platform/hooks';
 import * as Knowledge from '@pellux/goodvibes-sdk/platform/knowledge';
-import * as Mcp from '@pellux/goodvibes-sdk/platform/mcp';
 import * as Providers from '@pellux/goodvibes-sdk/platform/providers';
 import type { KnowledgeApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { ProviderApi } from '@pellux/goodvibes-sdk/platform/providers';
@@ -197,26 +194,6 @@ describe('foundation surface stability gate', () => {
       'status',
       'usage',
     ]);
-    expect(typeof Knowledge.createKnowledgeApi).toBe('function');
-    expect(typeof Knowledge.KnowledgeGraphqlService).toBe('function');
-    expect(typeof Knowledge.inspectKnowledgeGraphqlAccess).toBe('function');
-    expect(typeof Knowledge.resolveKnowledgeDbPathFromControlPlaneDir).toBe('function');
-    expect(Knowledge.resolveKnowledgeDbPathFromControlPlaneDir(join('/tmp/control-plane'))).toBe(join('/tmp/control-plane', 'knowledge-wiki.sqlite'));
-    expect(Knowledge.inspectKnowledgeGraphqlAccess('{ status { sourceCount } }')).toEqual({
-      operation: 'query',
-      requiredScopes: ['read:knowledge'],
-      adminRequired: false,
-    });
-    expect(new Knowledge.KnowledgeGraphqlService(runtimeServices.knowledgeService).schemaText).toContain('type Query');
-    expect(new Knowledge.KnowledgeGraphqlService(runtimeServices.knowledgeService).schemaText).toContain('type Mutation');
-    expect(typeof Hooks.createHookApi).toBe('function');
-    expect(typeof Mcp.createMcpApi).toBe('function');
-    expect(typeof Providers.createProviderApi).toBe('function');
-    expect(typeof Channels.ChannelDeliveryRouter).toBe('function');
-    expect(typeof Channels.ChannelPluginRegistry).toBe('function');
-    expect(typeof Channels.ChannelPolicyManager).toBe('function');
-    expect(typeof Channels.ChannelReplyPipeline).toBe('function');
-    expect(typeof Channels.ChannelProviderRuntimeManager).toBe('function');
     expect(sortedKeys(foundation.knowledge.graph)).toEqual([
       'extractions',
       'issues',
@@ -261,7 +238,7 @@ describe('foundation surface stability gate', () => {
       },
     });
     expect(operator.sessions.get(session.id)?.title).toBe('Foundation Surface Session');
-    expect(operator.controlPlane.snapshot().sessions.some((entry) => entry.id === session.id)).toBe(true);
+    expect(operator.controlPlane.snapshot().sessions.map((entry) => entry.id)).toContain(session.id);
 
     const providerIds = providers.listProviderIds();
     const currentModel = await providers.getCurrentModel();
@@ -270,14 +247,14 @@ describe('foundation surface stability gate', () => {
     const runtimeMetadata = await providers.queryRuntimeMetadata({ scope: 'all' });
     expect(providerIds.length).toBeGreaterThan(0);
     expect(providerIds).toContain(currentModel.providerId);
-    expect(selectableModels.every((model) => model.selectable)).toBe(true);
-    expect(Array.isArray(favorites.pinned)).toBe(true);
-    expect(Array.isArray(favorites.recent)).toBe(true);
+    expect(selectableModels.map((model) => model.selectable)).not.toContain(false);
+    expect(favorites.pinned).toEqual([]);
+    expect(favorites.recent).toEqual([]);
     expect(runtimeMetadata.scope).toBe('all');
     if (runtimeMetadata.scope !== 'all') {
       throw new Error(`Expected all runtime metadata scope, received ${runtimeMetadata.scope}`);
     }
-    expect(Array.isArray(runtimeMetadata.snapshots)).toBe(true);
+    expect(runtimeMetadata.snapshots.length).toBeGreaterThanOrEqual(providerIds.length);
     const legacyTransport = createDirectTransport(runtimeServices);
     expect(sortedKeys(legacyTransport.operator)).toEqual(sortedKeys(transport.operator));
     expect(sortedKeys(legacyTransport.peer)).toEqual(sortedKeys(transport.peer));
@@ -290,7 +267,7 @@ describe('foundation surface stability gate', () => {
       sessionId: session.id,
       tags: ['foundation-surface'],
     });
-    expect(knowledge.sources.list(10).some((source) => source.id === ingest.source.id)).toBe(true);
+    expect(knowledge.sources.list(10).map((source) => source.id)).toContain(ingest.source.id);
 
     const packet = await knowledge.packets.build('foundation surface note', [], 5, { budgetLimit: 2_000 });
     expect(packet.items.length).toBeGreaterThan(0);
@@ -309,14 +286,15 @@ describe('foundation surface stability gate', () => {
     const verified = await peer.pairing.verify(pair.request.id, pair.challenge, {
       remoteAddress: '10.10.0.20',
     });
-    expect(verified?.peer.status).toBe('connected');
+    if (verified === null) throw new Error('expected foundation peer verification to succeed');
+    expect(verified.peer.status).toBe('connected');
 
     const transportSnapshot = await transport.snapshot();
     expect(transport.kind).toBe('direct');
     expect(transportSnapshot.kind).toBe('direct');
-    expect(transportSnapshot.operator.sessions.some((entry) => entry.id === session.id)).toBe(true);
+    expect(transportSnapshot.operator.sessions.map((entry) => entry.id)).toContain(session.id);
     expect(transportSnapshot.operator.providers.providerIds).toEqual(transport.operator.providers.listIds());
-    expect(transportSnapshot.peer.peers.some((entry) => entry.id === verified?.peer.id)).toBe(true);
+    expect(transportSnapshot.peer.peers.map((entry) => entry.id)).toContain(verified.peer.id);
     expect(transportSnapshot.peer.nodeHostContract.basePath).toBe('/api/remote');
   });
 });

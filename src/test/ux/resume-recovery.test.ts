@@ -129,10 +129,10 @@ describe('ux:resume-recovery — resume session while ignoring copied panel stat
 
       const suspended = buildSuspendedState({ ...state, panels: activePanel as unknown as Record<string, unknown> });
       const suspendedPanels = selectPanels(suspended);
-      const copiedPanelsClosed = [...suspendedPanels.panels.values()]
+      const openCopiedPanels = [...suspendedPanels.panels.values()]
         .filter((panel) => panel.id !== 'main_conversation')
-        .every((panel) => !panel.open);
-      expect(copiedPanelsClosed).toBe(true);
+        .filter((panel) => panel.open);
+      expect(openCopiedPanels).toEqual([]);
       expect(suspendedPanels.panels.get('main_conversation')?.open).toBe(true);
 
       const resumed = applyResume(suspended, { panels: activePanel });

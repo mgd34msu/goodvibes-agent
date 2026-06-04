@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { execSync } from 'child_process';
@@ -24,6 +24,25 @@ async function analyze(args: Record<string, unknown>) {
 
 async function analyzeMayFail(args: Record<string, unknown>) {
   return analyzeTool.execute(args);
+}
+
+function expectAnalyzeError(
+  result: Awaited<ReturnType<typeof analyzeMayFail>>,
+  messageIncludes?: string,
+): void {
+  if (result.success) {
+    const parsed = JSON.parse(result.output!) as { error?: unknown };
+    expect(typeof parsed.error).toBe('string');
+    if (messageIncludes !== undefined) {
+      expect(parsed.error).toContain(messageIncludes);
+    }
+    return;
+  }
+
+  expect(typeof result.error).toBe('string');
+  if (messageIncludes !== undefined) {
+    expect(result.error).toContain(messageIncludes);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -119,12 +138,12 @@ describe('dependencies mode', () => {
     expect(result).toHaveProperty('graph');
     const graph = result.graph as Record<string, string[]>;
     // index.ts imports utils
-    const indexKey = Object.keys(graph).find((k) => k.includes('index'));
-    expect(indexKey).toBeDefined();
-    if (indexKey) {
-      const deps = graph[indexKey];
-      expect(deps.some((d) => d.includes('utils'))).toBe(true);
+    const indexKey = Object.keys(graph).find((k) => basename(k) === 'index.ts');
+    if (indexKey === undefined) {
+      throw new Error(`Expected index.ts in graph keys: ${Object.keys(graph).join(', ')}`);
     }
+    const deps = graph[indexKey];
+    expect(deps.map((d) => basename(d))).toContain('utils.ts');
   });
 
   test('analyze: graph includes all scanned files', async () => {
@@ -137,7 +156,7 @@ describe('dependencies mode', () => {
     expect(result).toHaveProperty('graph');
     const graph = result.graph as Record<string, string[]>;
     const keys = Object.keys(graph);
-    expect(keys.some((k) => k.includes('utils'))).toBe(true);
+    expect(keys.map((k) => basename(k))).toContain('utils.ts');
   });
 
   // ---------------------------------------------------------------------------
@@ -272,7 +291,7 @@ describe('security mode', () => {
 
     expect(result).toHaveProperty('env');
     const env = result.env as { files_found: string[] };
-    expect(Array.isArray(env.files_found)).toBe(true);
+    expect(env.files_found).toEqual(expect.any(Array));
   });
 
   test('all scope returns secrets and permissions and env', async () => {
@@ -365,13 +384,7 @@ describe('preview mode', () => {
       replace: 'replacement',
       projectRoot: dir,
     });
-    // Either success: false, or success: true with error field
-    if (result.success) {
-      const parsed = JSON.parse(result.output!);
-      expect(parsed).toHaveProperty('error');
-    } else {
-      expect(result.error).toBeDefined();
-    }
+    expectAnalyzeError(result);
   });
 
   test('returns find and replace in result', async () => {
@@ -412,7 +425,7 @@ describe('impact mode', () => {
     const affected = result.affected_files as Array<{ file: string }>;
     const files = affected.map((a) => a.file);
     // app.ts references greet
-    expect(files.some((f) => f.includes('app'))).toBe(true);
+    expect(files.map((f) => basename(f))).toContain('app.ts');
   });
 
   test('returns exported_names list', async () => {
@@ -431,12 +444,7 @@ describe('impact mode', () => {
       mode: 'impact',
       projectRoot: dir,
     });
-    if (result.success) {
-      const parsed = JSON.parse(result.output!);
-      expect(parsed).toHaveProperty('error');
-    } else {
-      expect(result.error).toBeDefined();
-    }
+    expectAnalyzeError(result);
   });
 });
 
@@ -588,7 +596,8 @@ describe('diff mode', () => {
     expect(result.before).toBe('HEAD~1');
     expect(result.after).toBe('HEAD');
     expect(typeof result.stat).toBe('string');
-    expect(Array.isArray(result.files)).toBe(true);
+    const files = result.files as Array<{ file: string }>;
+    expect(files.map((f) => basename(f.file))).toContain('hello.txt');
     expect(typeof result.diff).toBe('string');
   });
 
@@ -605,9 +614,11 @@ describe('diff mode', () => {
 
     const files = result.files as Array<{ file: string; insertions: number; deletions: number }>;
     expect(files.length).toBeGreaterThan(0);
-    const changed = files.find((f) => f.file.includes('count.txt'));
-    expect(changed).toBeDefined();
-    expect(changed!.insertions).toBeGreaterThan(0);
+    const changed = files.find((f) => basename(f.file) === 'count.txt');
+    if (changed === undefined) {
+      throw new Error(`Expected count.txt in changed files: ${files.map((f) => f.file).join(', ')}`);
+    }
+    expect(changed.insertions).toBeGreaterThan(0);
   });
 
   test('diff field contains unified diff content', async () => {
@@ -635,13 +646,7 @@ describe('diff mode', () => {
       after: 'HEAD',
     });
 
-    if (result.success) {
-      const parsed = JSON.parse(result.output!);
-      expect(parsed).toHaveProperty('error');
-      expect(parsed.error).toContain('Invalid git ref');
-    } else {
-      expect(result.error).toBeDefined();
-    }
+    expectAnalyzeError(result, 'Invalid git ref');
   });
 
   test('defaults to HEAD~1..HEAD when before/after not provided', async () => {
@@ -665,12 +670,7 @@ describe('diff mode', () => {
       after: 'HEAD',
     });
 
-    if (result.success) {
-      const parsed = JSON.parse(result.output!);
-      expect(parsed).toHaveProperty('error');
-    } else {
-      expect(result.error).toBeDefined();
-    }
+    expectAnalyzeError(result);
   });
 });
 
@@ -725,9 +725,10 @@ describe('breaking mode', () => {
     });
 
     const breaking = result.breaking_changes as Array<{ name: string; reason: string }>;
-    const removed = breaking.find((b) => b.name === 'helper');
-    expect(removed).toBeDefined();
-    expect(removed!.reason).toBe('export removed');
+    expect(breaking).toContainEqual(expect.objectContaining({
+      name: 'helper',
+      reason: 'export removed',
+    }));
     expect(result.total_breaking as number).toBeGreaterThan(0);
   });
 
@@ -743,9 +744,10 @@ describe('breaking mode', () => {
     });
 
     const breaking = result.breaking_changes as Array<{ name: string; reason: string }>;
-    const changed = breaking.find((b) => b.name === 'compute');
-    expect(changed).toBeDefined();
-    expect(changed!.reason).toBe('signature changed');
+    expect(breaking).toContainEqual(expect.objectContaining({
+      name: 'compute',
+      reason: 'signature changed',
+    }));
   });
 
   test('classifies new export as addition (non-breaking)', async () => {
@@ -765,7 +767,7 @@ describe('breaking mode', () => {
     });
 
     const additions = result.additions as Array<{ name: string }>;
-    expect(additions.some((a) => a.name === 'newFn')).toBe(true);
+    expect(additions.map((a) => a.name)).toContain('newFn');
     expect(result.total_breaking).toBe(0);
   });
 
@@ -777,12 +779,7 @@ describe('breaking mode', () => {
       after: 'HEAD',
     });
 
-    if (result.success) {
-      const parsed = JSON.parse(result.output!);
-      expect(parsed).toHaveProperty('error');
-    } else {
-      expect(result.error).toBeDefined();
-    }
+    expectAnalyzeError(result);
   });
 
   test('defaults to HEAD~1..HEAD when before/after omitted', async () => {
@@ -831,7 +828,7 @@ describe('semantic_diff mode', () => {
     expect(result).toHaveProperty('risk');
     expect(result).toHaveProperty('changed_files');
     expect(typeof result.summary).toBe('string');
-    expect(Array.isArray(result.impact)).toBe(true);
+    expect(result.impact).toEqual(expect.any(Array));
   });
 
   test('risk is one of low|medium|high', async () => {
@@ -861,7 +858,7 @@ describe('semantic_diff mode', () => {
 
     const files = result.changed_files as string[];
     expect(files.length).toBeGreaterThan(0);
-    expect(files.some((f) => f.includes('mod.ts'))).toBe(true);
+    expect(files.map((f) => basename(f))).toContain('mod.ts');
   });
 
   test('invalid ref returns error', async () => {
@@ -872,12 +869,7 @@ describe('semantic_diff mode', () => {
       after: 'HEAD',
     });
 
-    if (result.success) {
-      const parsed = JSON.parse(result.output!);
-      expect(parsed).toHaveProperty('error');
-    } else {
-      expect(result.error).toBeDefined();
-    }
+    expectAnalyzeError(result);
   });
 
   test('before/after refs included in result', async () => {
@@ -907,7 +899,7 @@ describe('error cases', () => {
       projectRoot: dir,
     });
     expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
+    expectAnalyzeError(result);
   });
 
   test('missing mode returns error', async () => {
@@ -1091,7 +1083,7 @@ describe('permissions mode', () => {
     });
 
     const findings = result.findings as Array<{ pattern: string }>;
-    expect(findings.some((f) => f.pattern === 'new_Function')).toBe(true);
+    expect(findings.map((f) => f.pattern)).toContain('new_Function');
   });
 
   test('detects dangerouslySetInnerHTML', async () => {
@@ -1107,7 +1099,7 @@ describe('permissions mode', () => {
     });
 
     const findings = result.findings as Array<{ pattern: string }>;
-    expect(findings.some((f) => f.pattern === 'dangerouslySetInnerHTML')).toBe(true);
+    expect(findings.map((f) => f.pattern)).toContain('dangerouslySetInnerHTML');
   });
 
   test('returns structured result with totals', async () => {
@@ -1135,8 +1127,7 @@ describe('permissions mode', () => {
     });
 
     const findings = result.findings as Array<unknown>;
-    expect(Array.isArray(findings)).toBe(true);
-    expect(findings.length).toBe(0);
+    expect(findings).toEqual([]);
   });
 });
 
@@ -1202,7 +1193,7 @@ describe('env_audit mode', () => {
     expect(result.reference).toBe('.env.example');
     const missing = result.missing as Array<{ key: string }>;
     // DEBUG is in .env.example but not in .env
-    expect(missing.some((m) => m.key === 'DEBUG')).toBe(true);
+    expect(missing.map((m) => m.key)).toContain('DEBUG');
   });
 
   test('returns key_count per file', async () => {
@@ -1214,9 +1205,10 @@ describe('env_audit mode', () => {
     });
 
     const files = result.files as Array<{ name: string; key_count: number }>;
-    const envFile = files.find((f) => f.name === '.env');
-    expect(envFile).toBeDefined();
-    expect(envFile!.key_count).toBe(3);
+    expect(files).toContainEqual(expect.objectContaining({
+      name: '.env',
+      key_count: 3,
+    }));
   });
 });
 

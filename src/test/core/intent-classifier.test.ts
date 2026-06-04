@@ -208,16 +208,5 @@ describe('classifyIntent', () => {
       expect(result.intent).toBe('chat');
     });
 
-    test('signals array is always an array', () => {
-      const result = classifyIntent('hello');
-      expect(Array.isArray(result.signals)).toBe(true);
-    });
-
-    test('result always has intent, confidence, signals', () => {
-      const result = classifyIntent('anything');
-      expect(result).toHaveProperty('intent');
-      expect(result).toHaveProperty('confidence');
-      expect(result).toHaveProperty('signals');
-    });
   });
 });

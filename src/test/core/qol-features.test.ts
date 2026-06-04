@@ -177,8 +177,10 @@ describe('Conversation export format', () => {
     cm.addUserMessage('Hello');
     cm.addAssistantMessage('Hi there');
     const data = cm.toJSON() as { messages: Array<{ role: string; content: string }> };
-    expect(data.messages).toBeDefined();
-    expect(data.messages.length).toBe(2);
+    expect(data.messages).toEqual([
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi there' },
+    ]);
   });
 
   test('toJSON preserves user message role', async () => {

@@ -66,7 +66,10 @@ describe('Cursor mapping through word-wrap', () => {
       const info = input.getWrappedPromptInfo(w);
       // Cursor should be within a valid segment
       const seg = info.segments[info.cursorWrappedLine];
-      expect(seg).toBeDefined();
+      expect(seg).toEqual(expect.objectContaining({
+        length: expect.any(Number),
+        rawStart: expect.any(Number),
+      }));
       expect(info.cursorCol).toBeGreaterThanOrEqual(0);
       expect(info.cursorCol).toBeLessThanOrEqual(seg.length);
     }

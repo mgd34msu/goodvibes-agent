@@ -144,10 +144,11 @@ describe('ConversationManager — getBlockContentAtLine / getDiffAtLine', () => 
     cm.getDisplayBlocks();
 
     const result = cm.getDiffAtLine(0);
-    expect(result).not.toBeNull();
-    expect(result!.filePath).toBe('src/foo.ts');
-    expect(result!.original).toContain('old line');
-    expect(result!.updated).toContain('new line');
+    expect(result).toEqual(expect.objectContaining({
+      filePath: 'src/foo.ts',
+      original: expect.stringContaining('old line'),
+      updated: expect.stringContaining('new line'),
+    }));
   });
 });
 
@@ -212,6 +213,8 @@ describe('ConversationManager — diff detection (no false positives)', () => {
     cm.addToolResults([{ callId: 'c1', success: true, output: realDiff }]);
     cm.getDisplayBlocks();
 
-    expect(cm.getDiffAtLine(0)).not.toBeNull();
+    expect(cm.getDiffAtLine(0)).toEqual(expect.objectContaining({
+      filePath: 'file.ts',
+    }));
   });
 });

@@ -145,7 +145,7 @@ describe('LMStudioProvider', () => {
       },
       responsesClient: {
         create: async (params) => {
-          expect(params['tools']).toBeDefined();
+          expect(params['tools']).toEqual(expect.any(Array));
           return jsonStream([
             { type: 'response.created', response: { id: 'resp_1', output: [] } },
             {
@@ -271,7 +271,7 @@ describe('LMStudioProvider', () => {
 
     const runtime = await provider.describeRuntime(makeRuntimeMetadataDeps());
     expect(runtime.policy?.streamProtocol).toBe('lmstudio-native-or-responses');
-    expect(runtime.auth?.routes?.some((route) => route.route === 'anonymous')).toBe(true);
+    expect(runtime.auth?.routes?.map((route) => route.route)).toContain('anonymous');
   });
 
   test('uses responses path when native chat cannot continue prior history safely', async () => {

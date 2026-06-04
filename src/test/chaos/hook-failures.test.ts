@@ -60,7 +60,7 @@ describe('chaos: hook/plugin failures', () => {
       registerPlugin(manager, 'hook-plugin-2');
       manager.recordError('hook-plugin-2', 'transient error', false);
       const record = manager.getRecord('hook-plugin-2');
-      expect(record!.errorAt).toBeDefined();
+      expect(record?.errorAt).toEqual(expect.any(Number));
     });
   });
 
@@ -73,9 +73,10 @@ describe('chaos: hook/plugin failures', () => {
       registerPlugin(manager, 'crashing-plugin');
       manager.recordError('crashing-plugin', 'uncaught exception in hook', true);
       const record = manager.getRecord('crashing-plugin');
-      expect(record).toBeDefined();
-      expect(record!.lastError).toBe('uncaught exception in hook');
-      expect(record!.errorAt).toBeDefined();
+      expect(record).toEqual(expect.objectContaining({
+        lastError: 'uncaught exception in hook',
+        errorAt: expect.any(Number),
+      }));
     });
 
     test('unknown plugin name is a no-op for recordError', () => {
@@ -90,7 +91,7 @@ describe('chaos: hook/plugin failures', () => {
       registerPlugin(manager, 'partial-plugin');
       expect(() => manager.degradePlugin('partial-plugin', 'network capability unavailable', ['network.outbound'])).not.toThrow();
       const record = manager.getRecord('partial-plugin');
-      expect(record).toBeDefined();
+      expect(record).toEqual(expect.objectContaining({ name: 'partial-plugin' }));
     });
 
     test('degraded plugin with no affected capabilities degrades gracefully', () => {

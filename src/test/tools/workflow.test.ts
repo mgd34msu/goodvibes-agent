@@ -77,7 +77,7 @@ describe('WRFC definition', () => {
 describe('mode: start', () => {
   test('creates workflow with first state as initial state', async () => {
     const result = await run({ mode: 'start', definition: 'wrfc', task: 'implement feature' });
-    expect(result.id).toBeTruthy();
+    expect(result.id).toMatch(/^wf-[a-f0-9]{8}$/);
     expect(result.definition).toBe('wrfc');
     expect(result.currentState).toBe('gather');
     expect(result.task).toBe('implement feature');
@@ -267,7 +267,7 @@ describe('mode: triggers', () => {
       triggerAction: 'add',
       triggerDefinition: { event: 'Post:tool:*', action: 'notify' },
     });
-    expect(result.id).toBeTruthy();
+    expect(result.id).toMatch(/^trg-[a-f0-9]{8}$/);
     expect(result.event).toBe('Post:tool:*');
     expect(result.action).toBe('notify');
     expect(result.enabled).toBe(true);

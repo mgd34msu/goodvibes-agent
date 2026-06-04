@@ -19,6 +19,7 @@ describe('submission router', () => {
   test('classifies explicit delegation commands', () => {
     expect(routeSubmissionIntent({ text: '/delegate review bug bash' })).toMatchObject({
       kind: 'delegation',
+      label: 'delegation',
       commandName: 'delegate',
     });
     expect(routeSubmissionIntent({ text: '/wrfc build this' })).toMatchObject({

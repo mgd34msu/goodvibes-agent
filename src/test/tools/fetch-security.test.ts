@@ -523,7 +523,9 @@ describe('fetchOne pipeline — unknown host upgraded from none to safe-text (in
       // The test asserts the structural pipeline contract:
       //   - the result has a sanitization_tier field
       //   - the content field is present
-      expect(urlResult).toBeDefined();
+      expect(urlResult).toEqual(expect.objectContaining({
+        sanitization_tier: expect.any(String),
+      }));
       // Verify the pipeline ran to completion (non-error result)
       expect(urlResult?.error).toBeUndefined();
       expect(typeof (urlResult?.sanitization_tier ?? 'skipped')).toBe('string');

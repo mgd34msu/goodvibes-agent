@@ -49,8 +49,8 @@ describe('Agent lifecycle integration', () => {
 
     const agents = manager.list();
     expect(agents).toHaveLength(2);
-    expect(agents.every((record) => typeof record.id === 'string')).toBe(true);
-    expect(agents.every((record) => typeof record.task === 'string')).toBe(true);
+    expect(agents.map((record) => typeof record.id)).toEqual(['string', 'string']);
+    expect(agents.map((record) => typeof record.task)).toEqual(['string', 'string']);
   });
 
   test('cancel transitions a pending agent to cancelled', () => {

@@ -164,7 +164,10 @@ describe('ModelPickerModal', () => {
       picker.categoryFilter = 'free';
       const result = picker.getFilteredModels();
       expect(result).toHaveLength(2);
-      expect(result.every(m => m.tier === 'free')).toBe(true);
+      expect(result.map(m => ({ id: m.id, tier: m.tier }))).toEqual([
+        { id: 'free-1', tier: 'free' },
+        { id: 'free-2', tier: 'free' },
+      ]);
     });
 
     test('filters by paid tier (premium/standard models)', () => {
@@ -172,7 +175,10 @@ describe('ModelPickerModal', () => {
       const result = picker.getFilteredModels();
       expect(result).toHaveLength(2);
       // 'premium' and 'standard' tiers both map to 'paid'
-      expect(result.every(m => m.tier === 'premium' || m.tier === 'standard')).toBe(true);
+      expect(result.map(m => ({ id: m.id, tier: m.tier }))).toEqual([
+        { id: 'premium-1', tier: 'premium' },
+        { id: 'reasoning-1', tier: 'premium' },
+      ]);
     });
 
     test('filters by query — matches id', () => {
@@ -288,9 +294,11 @@ describe('ModelPickerModal', () => {
       picker.effortLevels = ['low', 'medium', 'high'];
       const items = picker.getItems();
       expect(items).toHaveLength(3);
-      expect(items[0].id).toBe('low');
-      expect(items[0].detail).toBeTruthy();
-      expect(items[1].detail).toContain('Balanced');
+      expect(items.map(item => ({ id: item.id, label: item.label, detail: item.detail }))).toEqual([
+        { id: 'low', label: 'low', detail: 'Quick with light reasoning' },
+        { id: 'medium', label: 'medium', detail: 'Balanced speed and quality' },
+        { id: 'high', label: 'high', detail: 'Thorough, deep reasoning' },
+      ]);
     });
 
     test('effort mode — unknown level gets empty detail', () => {
@@ -570,14 +578,20 @@ describe('ModelPickerModal', () => {
       picker.categoryFilter = 'paid';
       // SUB_MODEL has tier 'standard' which maps to 'paid'
       const result = picker.getFilteredModels();
-      expect(result.some(m => m.id === 'sub-1')).toBe(true);
-      expect(result.some(m => m.id === 'premium-1')).toBe(true);
+      expect(result.map(m => ({ id: m.id, tier: m.tier }))).toEqual([
+        { id: 'premium-1', tier: 'premium' },
+        { id: 'reasoning-1', tier: 'premium' },
+        { id: 'sub-1', tier: 'standard' },
+      ]);
     });
 
     test('free filter excludes paid models', () => {
       picker.categoryFilter = 'free';
       const result = picker.getFilteredModels();
-      expect(result.every(m => m.tier === 'free')).toBe(true);
+      expect(result.map(m => ({ id: m.id, tier: m.tier }))).toEqual([
+        { id: 'free-1', tier: 'free' },
+        { id: 'free-2', tier: 'free' },
+      ]);
     });
   });
 
@@ -644,7 +658,10 @@ describe('ModelPickerModal', () => {
     test('availableOnly with configured providers filters correctly', () => {
       picker.configuredProviders = new Set(['provA']);
       const result = picker.getFilteredModels();
-      expect(result.every(m => m.provider === 'provA')).toBe(true);
+      expect(result.map(m => ({ id: m.id, provider: m.provider }))).toEqual([
+        { id: 'free-1', provider: 'provA' },
+        { id: 'premium-1', provider: 'provA' },
+      ]);
     });
 
     test('toggleAvailableOnly disables the filter', () => {
@@ -791,29 +808,30 @@ describe('ModelPickerModal', () => {
       picker.pinnedIds = new Set(['reasoning-1']);
       const items = picker.getItems();
       // First non-header item (after Favorites header) should be reasoning-1
-      const firstHeader = items.find(i => i.isGroupHeader && i.label === 'Favorites');
-      expect(firstHeader).toBeDefined();
-      const firstModelItem = items[items.indexOf(firstHeader!) + 1];
-      expect(firstModelItem?.id).toBe('reasoning-1');
-      expect(firstModelItem?.isPinned).toBe(true);
+      const favoritesHeaderIndex = items.findIndex(i => i.isGroupHeader && i.label === 'Favorites');
+      expect(favoritesHeaderIndex).toBe(0);
+      expect(items[favoritesHeaderIndex + 1]).toEqual(expect.objectContaining({
+        id: 'reasoning-1',
+        isPinned: true,
+      }));
     });
 
     test('Favorites header appears when pinnedIds is non-empty and models match', () => {
       picker.pinnedIds = new Set(['free-1']);
       const items = picker.getItems();
-      expect(items.some(i => i.isGroupHeader && i.label === 'Favorites')).toBe(true);
+      expect(items.filter(i => i.isGroupHeader).map(i => i.label)).toContain('Favorites');
     });
 
     test('no Favorites header when pinnedIds is empty', () => {
       picker.pinnedIds = new Set();
       const items = picker.getItems();
-      expect(items.some(i => i.isGroupHeader && i.label === 'Favorites')).toBe(false);
+      expect(items.filter(i => i.isGroupHeader).map(i => i.label)).not.toContain('Favorites');
     });
 
     test('pinned model not in filtered list does not show Favorites header', () => {
       picker.pinnedIds = new Set(['not-in-list']);
       const items = picker.getItems();
-      expect(items.some(i => i.isGroupHeader && i.label === 'Favorites')).toBe(false);
+      expect(items.filter(i => i.isGroupHeader).map(i => i.label)).not.toContain('Favorites');
     });
   });
 

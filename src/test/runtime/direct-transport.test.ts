@@ -99,11 +99,11 @@ describe('DirectTransport', () => {
     expect(snapshot.operator.currentSession).toEqual(transport.operator.sessions.current());
     expect(snapshot.operator.providers.providerIds).toEqual(transport.operator.providers.listIds());
     expect(snapshot.peer.pairing.total).toBe(1);
-    expect(snapshot.peer.peers.some((peer) => peer.id === verified?.peer.id)).toBe(true);
+    expect(snapshot.peer.peers.map((peer) => peer.id)).toContain(verified?.peer.id);
     expect(snapshot.peer.nodeHostContract.basePath).toBe('/api/remote');
   });
 
-  test('can be created from the narrowed foundation seam', async () => {
+  test('can be created from the narrowed foundation boundary', async () => {
     const runtimeServices = getTestRuntimeServices();
     const services = createDirectTransportServices(runtimeServices);
 
@@ -125,7 +125,7 @@ describe('DirectTransport', () => {
     expect(transport.operator.sessions.get(session.id)?.title).toBe('Direct Transport From Services');
   });
 
-  test('exposes a generic direct client adapter for SDK extraction surfaces', () => {
+  test('exposes a generic direct client adapter for shared runtime client surfaces', () => {
     const runtimeServices = getTestRuntimeServices();
     const services = createDirectTransportServices(runtimeServices);
     const operator = createOperatorClient(services.operator);

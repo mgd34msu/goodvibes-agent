@@ -44,8 +44,7 @@ describe('chaos: plugin crash during reload', () => {
       const manager = makeManager();
       expect(() => registerPlugin(manager, 'crash-on-load')).not.toThrow();
       const record = manager.getRecord('crash-on-load');
-      expect(record).toBeDefined();
-      expect(record!.state).toBe('discovered');
+      expect(record).toEqual(expect.objectContaining({ state: 'discovered' }));
     });
 
     test('fatal error records error details on the plugin', () => {
@@ -55,7 +54,7 @@ describe('chaos: plugin crash during reload', () => {
 
       const record = manager.getRecord('crash-on-load-2');
       expect(record!.lastError).toContain('Cannot find module');
-      expect(record!.errorAt).toBeDefined();
+      expect(record!.errorAt).toEqual(expect.any(Number));
     });
 
     test('registering duplicate plugin name is a no-op (idempotent)', () => {
@@ -112,9 +111,8 @@ describe('chaos: plugin crash during reload', () => {
 
       // stable-plugin should still be in discovered state (unaffected)
       const record = manager.getRecord('stable-plugin');
-      expect(record).toBeDefined();
-      expect(record!.state).toBe('discovered');
-      expect(record!.lastError).toBeUndefined();
+      expect(record).toEqual(expect.objectContaining({ state: 'discovered' }));
+      expect(record?.lastError).toBeUndefined();
     });
 
     test('multiple sequential crash records update lastError each time', () => {

@@ -76,8 +76,7 @@ describe('generateAgentToken', () => {
     const manager = getTestSpawnTokenManager('sess-002');
     const orchestrator = manager.createOrchestratorToken();
     const agentToken = manager.generateAgentToken(orchestrator, 'agent-abc');
-    expect(agentToken).not.toBeNull();
-    expect(agentToken!.type).toBe('agent');
+    expect(agentToken).toEqual(expect.objectContaining({ type: 'agent' }));
   });
 
   test('agent token is issued to the given agentId', () => {

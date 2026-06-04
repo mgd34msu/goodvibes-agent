@@ -57,9 +57,11 @@ describe('MultimodalService', () => {
       sessionId: 'session-mm-doc',
       tags: ['docs', 'memory'],
     });
-    expect(writeback.analysisArtifact.id).toBeTruthy();
-    expect(writeback.knowledgeSourceId).toBeTruthy();
-    expect(knowledgeService.listSources(20).some((source) => source.id === writeback.knowledgeSourceId)).toBe(true);
+    expect(writeback.analysisArtifact.id.length).toBeGreaterThan(0);
+    expect(writeback.knowledgeSourceId.length).toBeGreaterThan(0);
+    expect(knowledgeService.listSources(20)).toContainEqual(
+      expect.objectContaining({ id: writeback.knowledgeSourceId }),
+    );
   });
 
   test('analyzes audio artifacts through the STT provider contract', async () => {
@@ -154,8 +156,8 @@ describe('MultimodalService', () => {
 
     const video = await service.analyze({ artifactId: videoArtifact.id, imageProviderId: 'builtin:image', audioProviderId: 'deepgram' });
     expect(video.kind).toBe('video');
-    expect(video.segments.some((segment) => segment.kind === 'scene')).toBe(true);
-    expect(video.segments.some((segment) => segment.kind === 'transcript')).toBe(true);
+    expect(video.segments).toContainEqual(expect.objectContaining({ kind: 'scene' }));
+    expect(video.segments).toContainEqual(expect.objectContaining({ kind: 'transcript' }));
     expect(video.providerIds).toContain('builtin:image');
     expect(video.providerIds).toContain('deepgram');
   });

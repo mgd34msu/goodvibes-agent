@@ -75,8 +75,9 @@ describe('builtin media generation providers', () => {
     expect(ids.has('comfy')).toBe(true);
 
     const generator = registry.findProvider('generate');
-    expect(generator).not.toBeNull();
-    expect(generator?.capabilities.includes('generate')).toBe(true);
+    expect(generator).toEqual(expect.objectContaining({
+      capabilities: expect.arrayContaining(['generate']),
+    }));
   });
 
   test('surfaces configured generation providers from environment state', async () => {

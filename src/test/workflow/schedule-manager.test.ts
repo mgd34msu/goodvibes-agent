@@ -61,7 +61,6 @@ describe('ScheduleManager', () => {
     const before = Date.now();
     const entry = sm.add('task', '1m', 'echo hi');
     const after = Date.now();
-    expect(entry.nextRun).toBeDefined();
     expect(entry.nextRun!).toBeGreaterThanOrEqual(before + 60_000);
     expect(entry.nextRun!).toBeLessThanOrEqual(after + 60_000);
   });

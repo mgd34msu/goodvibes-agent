@@ -27,7 +27,7 @@ function makeModal(overrides: Partial<SessionPickerModal> = {}): SessionPickerMo
 describe('renderSessionPickerModal', () => {
   test('returns a non-empty Line[] array', () => {
     const lines = renderSessionPickerModal(makeModal(), W);
-    expect(Array.isArray(lines)).toBe(true);
+    expect(lines).toEqual(expect.any(Array));
     expect(lines.length).toBeGreaterThan(0);
   });
 
@@ -62,8 +62,7 @@ describe('renderSessionPickerModal', () => {
 
   test('selected item has arrow indicator', () => {
     const lines = renderSessionPickerModal(makeModal(), W);
-    const hasArrow = lines.some(line => line.some(cell => cell.char === '▸'));
-    expect(hasArrow).toBe(true);
+    expect(lines.flat().map((cell) => cell.char)).toContain('▸');
   });
 
   test('empty sessions shows helpful message', () => {

@@ -66,7 +66,7 @@ describe('Tool execution pipeline — ToolRegistry', () => {
     const { registry } = buildStack();
     const result = await registry.execute('call-2', 'nonexistent_tool', {});
     expect(result.success).toBe(false);
-    expect(result.error).toBeTruthy();
+    expect(result.error).toContain('nonexistent_tool');
   });
 
   test('tool that throws propagates the error', async () => {

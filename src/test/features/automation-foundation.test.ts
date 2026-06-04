@@ -134,8 +134,10 @@ describe('automation foundation feature flags', () => {
 
     for (const id of expected) {
       const flag = FEATURE_FLAGS.find((entry) => entry.id === id);
-      expect(flag).toBeDefined();
-      expect(flag?.defaultState).toBe('disabled');
+      expect(flag).toEqual(expect.objectContaining({
+        id,
+        defaultState: 'disabled',
+      }));
     }
   });
 });

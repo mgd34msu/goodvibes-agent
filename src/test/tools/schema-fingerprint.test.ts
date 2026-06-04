@@ -174,7 +174,10 @@ describe('appendSchemaFingerprint — flag enabled (mocked)', () => {
     featureFlags.enable('output-schema-fingerprint');
     const augmented = appendSchemaFingerprint(result, 'find', 'files', { featureFlags });
 
-    expect(augmented._meta).toBeDefined();
+    expect(augmented._meta).toEqual(expect.objectContaining({
+      schemaShapeId: 'find.files.v1',
+      outputSchemaFingerprint: expect.any(String),
+    }));
     const meta = augmented._meta as SchemaFingerprintMeta;
     expect(meta.schemaShapeId).toBe('find.files.v1');
     expect(typeof meta.outputSchemaFingerprint).toBe('string');
@@ -245,7 +248,7 @@ describe('mode-level fingerprint stability (same mode/input class)', () => {
       expect(fp1).toBe(fp2);
 
       // Shape ID is consistent
-      expect(getSchemaShapeId(tool, mode)).toBeTruthy();
+      expect(getSchemaShapeId(tool, mode)).toEqual(expect.stringContaining(`${tool}.`));
     });
   }
 });

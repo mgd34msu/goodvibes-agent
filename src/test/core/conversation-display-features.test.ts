@@ -36,10 +36,11 @@ describe('ConversationManager.getDiffAtLine', () => {
     cm.getDisplayBlocks();
 
     const result = cm.getDiffAtLine(0);
-    expect(result).not.toBeNull();
-    expect(result!.filePath).toBe('src/foo.ts');
-    expect(result!.original).toContain('const x = 1;');
-    expect(result!.updated).toContain('const x = 42;');
+    expect(result).toEqual(expect.objectContaining({
+      filePath: 'src/foo.ts',
+      original: expect.stringContaining('const x = 1;'),
+      updated: expect.stringContaining('const x = 42;'),
+    }));
   });
 });
 
@@ -141,7 +142,7 @@ describe('code block collapse', () => {
 
     const registry = cm.getBlockRegistry();
     const codeBlock = registry.find(b => b.type === 'code');
-    expect(codeBlock).toBeDefined();
+    expect(codeBlock).toEqual(expect.objectContaining({ type: 'code' }));
     // Auto-collapsed when over threshold
     expect(cm.isCollapsed(codeBlock!.blockIndex)).toBe(true);
   });
@@ -153,7 +154,7 @@ describe('code block collapse', () => {
 
     const registry = cm.getBlockRegistry();
     const codeBlock = registry.find(b => b.type === 'code');
-    expect(codeBlock).toBeDefined();
+    expect(codeBlock).toEqual(expect.objectContaining({ type: 'code' }));
     expect(cm.isCollapsed(codeBlock!.blockIndex)).toBe(false);
   });
 
@@ -176,7 +177,7 @@ describe('code block collapse', () => {
 
     const registry = cm2.getBlockRegistry();
     const thinkingBlock = registry.find(b => b.type === 'thinking');
-    expect(thinkingBlock).toBeDefined();
+    expect(thinkingBlock).toEqual(expect.objectContaining({ type: 'thinking' }));
   });
 
   test('toggleCollapseAtLine works for code blocks', () => {
@@ -187,7 +188,7 @@ describe('code block collapse', () => {
 
     const registry = cm.getBlockRegistry();
     const codeBlock = registry.find(b => b.type === 'code');
-    expect(codeBlock).toBeDefined();
+    expect(codeBlock).toEqual(expect.objectContaining({ type: 'code' }));
 
     // Toggle: collapse → expand
     cm.toggleCollapseAtLine(codeBlock!.startLine);

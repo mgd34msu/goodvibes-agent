@@ -30,7 +30,7 @@ describe('KnowledgeConnectorRegistry', () => {
     const urlList = await registry.resolve('url-list', 'https://example.com/one\nhttps://example.com/two');
     expect(urlList.sourceType).toBe('bookmark-list');
     expect(urlList.seeds).toHaveLength(2);
-    expect(urlList.seeds.every((seed) => !seed.folderPath)).toBe(true);
+    expect(urlList.seeds.map((seed) => seed.folderPath ?? null)).toEqual([null, null]);
   });
 
   test('custom connectors can be registered without editing the core service', async () => {

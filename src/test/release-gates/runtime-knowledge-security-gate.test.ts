@@ -1,28 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { AgentRecord } from '@pellux/goodvibes-sdk/platform/tools';
 import { buildKnowledgeInjectionPrompt } from '@pellux/goodvibes-sdk/platform/state';
 import { buildMcpAttackPathReview } from '@/runtime/index.ts';
 
-function makeRecord(overrides: Partial<AgentRecord> = {}): AgentRecord {
-  return {
-    id: 'agent-gate-01',
-    task: 'Update orchestration store behavior for graph nodes',
-    template: 'engineer',
-    tools: ['read', 'edit'],
-    status: 'pending',
-    startedAt: Date.now(),
-    orchestrationDepth: 0,
-    toolCallCount: 0,
-    executionProtocol: 'gather-plan-apply',
-    reviewMode: 'wrfc',
-    communicationLane: 'direct',
-    writeScope: ['src/runtime/store'],
-    ...overrides,
-  };
-}
-
-describe('next cycle certification gate', () => {
+describe('runtime knowledge and security gate', () => {
   test('knowledge prompt includes reviewed project knowledge with an explainable source trail', () => {
     const knowledgeInjections: Parameters<typeof buildKnowledgeInjectionPrompt>[0] = [{
       id: 'mem-gate-1',
@@ -40,9 +21,6 @@ describe('next cycle certification gate', () => {
       },
       ingestMode: 'keyword-ranked',
     }];
-    const record = makeRecord({
-      knowledgeInjections: knowledgeInjections as unknown as AgentRecord['knowledgeInjections'],
-    });
     const knowledgePrompt = buildKnowledgeInjectionPrompt(knowledgeInjections);
 
     expect(knowledgePrompt).toContain('Injected Project Knowledge');

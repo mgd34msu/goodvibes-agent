@@ -44,7 +44,7 @@ describe('runtime/network outbound TLS', () => {
     const init = applyOutboundTlsToFetchInit('https://api.example.test', {}, config);
 
     const tls = (init as RequestInit & { tls?: { ca?: unknown } }).tls;
-    expect(Array.isArray(tls?.ca)).toBe(true);
+    expect(tls?.ca).toEqual(expect.any(Array));
     expect((tls?.ca as unknown[]).length).toBeGreaterThan(1);
   });
 
@@ -84,7 +84,7 @@ describe('runtime/network outbound TLS', () => {
     await wrappedFetch('https://api.example.test');
 
     expect(calls).toHaveLength(1);
-    expect(Array.isArray(calls[0]?.tls?.ca)).toBe(true);
+    expect(calls[0]?.tls?.ca).toEqual(expect.any(Array));
     expect((calls[0]?.tls?.ca as unknown[]).length).toBe(1);
   });
 

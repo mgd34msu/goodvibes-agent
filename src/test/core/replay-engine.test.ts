@@ -100,8 +100,10 @@ describe('DeterministicReplayEngine', () => {
     test('snapshot domains are reflected in the initial frame', () => {
       loadEngine(engine, [makeEntry(1, 'turn:start')], SNAPSHOT_WITH_DOMAINS);
       const frame = engine.getSnapshot().currentFrame;
-      expect(frame?.domains['turn']).toBeDefined();
-      expect(frame?.domains['session']).toBeDefined();
+      expect(frame?.domains).toEqual({
+        turn: { count: 0 },
+        session: { id: 'sess-1' },
+      });
     });
   });
 
@@ -240,8 +242,18 @@ describe('DeterministicReplayEngine', () => {
 
     test('stores mismatches on snapshot after diff', () => {
       loadEngine(engine, [makeEntry(1, 'turn:start')]);
+      engine.step();
+      (engine as unknown as { _entries: LedgerEntry[] })._entries = [
+        makeEntry(1, 'turn:start', { extra: true }),
+      ];
       engine.diff();
-      expect(Array.isArray(engine.getSnapshot().mismatches)).toBe(true);
+      expect(engine.getSnapshot().mismatches).toMatchObject([
+        {
+          kind: 'payload_mismatch',
+          failureMode: 'payload_schema_mismatch',
+          ownerDomain: 'unknown',
+        },
+      ]);
     });
 
     test('classifies turn stop-reason divergence as state_divergence', () => {
@@ -254,7 +266,13 @@ describe('DeterministicReplayEngine', () => {
         makeEntry(2, 'TURN_COMPLETED', { turnId: 'turn-1', response: 'done', stopReason: 'empty_response' }),
       ];
       const mismatches = engine.diff();
-      expect(mismatches.some((m) => m.kind === 'state_divergence' && m.description.includes('stop reason diverged'))).toBe(true);
+      expect(mismatches).toContainEqual(expect.objectContaining({
+        kind: 'state_divergence',
+        description: expect.stringContaining('stop reason diverged'),
+        failureMode: 'stop_reason_diverged',
+        ownerDomain: 'turn',
+        relatedTurnId: 'turn-1',
+      }));
       const stopReasonMismatch = mismatches.find((m) => m.failureMode === 'stop_reason_diverged');
       expect(stopReasonMismatch?.ownerDomain).toBe('turn');
       expect(stopReasonMismatch?.relatedTurnId).toBe('turn-1');
@@ -271,9 +289,10 @@ describe('DeterministicReplayEngine', () => {
       ];
       const mismatches = engine.diff();
       const orderingMismatch = mismatches.find((m) => m.failureMode === 'ordering_violation');
-      expect(orderingMismatch).toBeDefined();
-      expect(orderingMismatch?.ownerDomain).toBe('turn');
-      expect(orderingMismatch?.relatedTurnId).toBe('turn-2');
+      expect(orderingMismatch).toEqual(expect.objectContaining({
+        ownerDomain: 'turn',
+        relatedTurnId: 'turn-2',
+      }));
     });
   });
 

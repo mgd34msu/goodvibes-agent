@@ -22,7 +22,6 @@ import {
 } from '@pellux/goodvibes-sdk/platform/core';
 import type { ToolCall, ToolResult } from '@pellux/goodvibes-sdk/platform/types';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
-import type { ReconciliationEvent } from '@pellux/goodvibes-sdk/platform/core';
 import { createEventEnvelope } from '@/runtime/index.ts';
 import { RuntimeEventBus, type ToolEvent } from '@/runtime/index.ts';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
@@ -86,7 +85,6 @@ describe('tool-reconciliation helpers', () => {
     test('instruction field provides retry guidance', () => {
       const call = { id: 'i1', name: 'read', arguments: {} };
       const result = buildSyntheticResult(call, 'loop-exit-with-tool-use');
-      expect(result.instruction).toBeDefined();
       expect(result.instruction).toContain('retry');
     });
   });
@@ -318,10 +316,12 @@ describe('Orchestrator tool result reconciliation', () => {
     expect(toolResults).toHaveLength(2);
     expect(toolResults.map((r) => r.callId).sort()).toEqual(['dc-1', 'dc-2'].sort());
     for (const r of toolResults) {
-      // Post SDK OBS-05 (0.21.31): TOOL_FAILED.result is a ToolResultSummary; the
-      // underlying SyntheticToolResult reconciliation is covered by unit tests on
-      // buildSyntheticResult. Here we just confirm a result summary is attached.
-      expect(r.result).toBeDefined();
+      expect(r.result).toMatchObject({
+        kind: 'error',
+      });
+      expect(r.result.preview).toContain('[RECONCILED]');
+      expect(r.result.preview).toContain(r.callId);
+      expect(r.result.byteSize).toBeGreaterThan(0);
     }
   });
 
@@ -434,32 +434,15 @@ describe('Orchestrator tool result reconciliation', () => {
     expect((orch as unknown as { _pendingToolCalls: ToolCall[] })._pendingToolCalls).toHaveLength(0);
   });
 
-  // ---------------------------------------------------------------------------
-  // ReconciliationEvent type shape
-  // ---------------------------------------------------------------------------
-
-  test('ReconciliationEvent has required fields with correct types', () => {
-    const event: ReconciliationEvent = {
-      count: 2,
-      callIds: ['c1', 'c2'],
-      toolNames: ['read', 'write'],
-      reason: 'loop-exit-with-tool-use',
-      timestamp: Date.now(),
-    };
-    expect(typeof event.count).toBe('number');
-    expect(Array.isArray(event.callIds)).toBe(true);
-    expect(Array.isArray(event.toolNames)).toBe(true);
-    expect(typeof event.reason).toBe('string');
-    expect(typeof event.timestamp).toBe('number');
-  });
-
   test('SyntheticToolResult extends ToolResult with synthetic=true and reason', () => {
     const call: ToolCall = { id: 'st-1', name: 'exec', arguments: {} };
     const synth: SyntheticToolResult = buildSyntheticResult(call, 'unknown');
-    // Structural check
-    expect(synth).toHaveProperty('callId');
-    expect(synth).toHaveProperty('success');
-    expect(synth).toHaveProperty('synthetic', true);
-    expect(synth).toHaveProperty('reason', 'unknown');
+    expect(synth).toMatchObject({
+      callId: 'st-1',
+      success: false,
+      synthetic: true,
+      reason: 'unknown',
+    });
+    expect(synth.error).toContain('exec');
   });
 });

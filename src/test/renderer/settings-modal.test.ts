@@ -97,7 +97,7 @@ describe('renderSettingsModal', () => {
 
   test('returns a non-empty Line[] array', () => {
     const lines = renderSettingsModal(modal, W);
-    expect(Array.isArray(lines)).toBe(true);
+    expect(lines).toEqual(expect.any(Array));
     expect(lines.length).toBeGreaterThan(0);
   });
 
@@ -137,10 +137,12 @@ describe('renderSettingsModal', () => {
     expect(texts).toContain('  ▸ Display (8)');
     expect(texts).not.toContain('EXTERNAL RUNTIME CONNECTION');
     expect(texts).not.toContain('DELEGATION COMPATIBILITY');
-    const interfaceLine = lines.find(line => lineToString(line).includes('AGENT EXPERIENCE'));
-    expect(interfaceLine).toBeDefined();
-    const interfaceIndex = lineToString(interfaceLine!).indexOf('AGENT EXPERIENCE');
-    expect(interfaceLine![interfaceIndex]?.bold).toBe(true);
+    const interfaceLines = lines.filter(line => lineToString(line).includes('AGENT EXPERIENCE'));
+    expect(interfaceLines.map(lineToString)).toEqual([
+      expect.stringContaining('AGENT EXPERIENCE'),
+    ]);
+    const interfaceIndex = lineToString(interfaceLines[0]!).indexOf('AGENT EXPERIENCE');
+    expect(interfaceLines[0]?.[interfaceIndex]).toEqual(expect.objectContaining({ bold: true }));
   });
 
   test('does not expose connected-host lifecycle or copied WRFC settings as Agent settings', () => {
@@ -173,8 +175,7 @@ describe('renderSettingsModal', () => {
 
   test('selected item has arrow indicator', () => {
     const lines = renderSettingsModal(modal, W);
-    const hasArrow = lines.some(line => line.some(cell => cell.char === '▸'));
-    expect(hasArrow).toBe(true);
+    expect(lines.flat().filter(cell => cell.char === '▸').length).toBeGreaterThan(0);
   });
 
   test('description of selected setting is shown', () => {
@@ -192,7 +193,9 @@ describe('renderSettingsModal', () => {
 
   test('selected conflicting setting surfaces conflict provenance', () => {
     const selected = modal.getSelected();
-    expect(selected).not.toBeNull();
+    expect(selected).toEqual(expect.objectContaining({
+      setting: expect.objectContaining({ key: expect.any(String) }),
+    }));
     selected!.conflict = true;
     modal.groups.set(modal.currentCategory, [selected!]);
     const lines = renderSettingsModal(modal, W, 40);
@@ -202,7 +205,9 @@ describe('renderSettingsModal', () => {
 
   test('selected synced setting surfaces synced provenance', () => {
     const selected = modal.getSelected();
-    expect(selected).not.toBeNull();
+    expect(selected).toEqual(expect.objectContaining({
+      setting: expect.objectContaining({ key: expect.any(String) }),
+    }));
     selected!.effectiveSource = 'synced';
     modal.groups.set(modal.currentCategory, [selected!]);
     const lines = renderSettingsModal(modal, W, 40);

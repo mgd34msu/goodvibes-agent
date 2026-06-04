@@ -31,6 +31,12 @@ function findBudget(metric: string) {
   return DEFAULT_BUDGETS.find(b => b.metric === metric);
 }
 
+function requiredBudget(metric: string) {
+  const budget = findBudget(metric);
+  if (!budget) throw new Error(`missing release performance budget: ${metric}`);
+  return budget;
+}
+
 function makeCompactionInput(messageCount: number, tokenCount: number) {
   const messages: ProviderMessage[] = [];
   for (let i = 0; i < messageCount; i++) {
@@ -85,10 +91,6 @@ function makeCompactionOutput(messageCount: number, tokenCount: number, includeH
 // ---------------------------------------------------------------------------
 
 describe('performance gate: budget definitions', () => {
-  test('DEFAULT_BUDGETS is non-empty', () => {
-    expect(DEFAULT_BUDGETS.length).toBeGreaterThan(0);
-  });
-
   test('all budget entries have required fields', () => {
     for (const budget of DEFAULT_BUDGETS) {
       expect(typeof budget.name).toBe('string');
@@ -102,52 +104,44 @@ describe('performance gate: budget definitions', () => {
   });
 
   test('frame render latency budget exists (p95 ≤ 16ms)', () => {
-    const budget = findBudget('frame.render.p95');
-    expect(budget).toBeDefined();
-    expect(budget!.threshold).toBeLessThanOrEqual(16);
-    expect(budget!.unit).toBe('ms');
+    const budget = requiredBudget('frame.render.p95');
+    expect(budget.threshold).toBeLessThanOrEqual(16);
+    expect(budget.unit).toBe('ms');
   });
 
   test('tool executor overhead budget exists (p95 ≤ 5ms)', () => {
-    const budget = findBudget('tool.executor.overhead.p95');
-    expect(budget).toBeDefined();
-    expect(budget!.threshold).toBeLessThanOrEqual(5);
+    const budget = requiredBudget('tool.executor.overhead.p95');
+    expect(budget.threshold).toBeLessThanOrEqual(5);
   });
 
   test('compaction latency budget exists (p95 ≤ 500ms)', () => {
-    const budget = findBudget('compaction.latency.p95');
-    expect(budget).toBeDefined();
-    expect(budget!.threshold).toBeLessThanOrEqual(500);
+    const budget = requiredBudget('compaction.latency.p95');
+    expect(budget.threshold).toBeLessThanOrEqual(500);
   });
 
   test('SLO: turn start latency budget exists (p95 ≤ 2000ms)', () => {
-    const budget = findBudget('slo.turn_start.p95');
-    expect(budget).toBeDefined();
-    expect(budget!.threshold).toBeLessThanOrEqual(2000);
+    const budget = requiredBudget('slo.turn_start.p95');
+    expect(budget.threshold).toBeLessThanOrEqual(2000);
   });
 
   test('SLO: cancel latency budget exists (p95 ≤ 500ms)', () => {
-    const budget = findBudget('slo.cancel.p95');
-    expect(budget).toBeDefined();
-    expect(budget!.threshold).toBeLessThanOrEqual(500);
+    const budget = requiredBudget('slo.cancel.p95');
+    expect(budget.threshold).toBeLessThanOrEqual(500);
   });
 
   test('SLO: reconnect recovery budget exists (p95 ≤ 10000ms)', () => {
-    const budget = findBudget('slo.reconnect_recovery.p95');
-    expect(budget).toBeDefined();
-    expect(budget!.threshold).toBeLessThanOrEqual(10000);
+    const budget = requiredBudget('slo.reconnect_recovery.p95');
+    expect(budget.threshold).toBeLessThanOrEqual(10000);
   });
 
   test('SLO: permission decision budget exists (p95 ≤ 100ms)', () => {
-    const budget = findBudget('slo.permission_decision.p95');
-    expect(budget).toBeDefined();
-    expect(budget!.threshold).toBeLessThanOrEqual(100);
+    const budget = requiredBudget('slo.permission_decision.p95');
+    expect(budget.threshold).toBeLessThanOrEqual(100);
   });
 
   test('memory growth budget exists', () => {
-    const budget = findBudget('memory.growth.bytes_per_hour');
-    expect(budget).toBeDefined();
-    expect(budget!.unit).toBe('bytes');
+    const budget = requiredBudget('memory.growth.bytes_per_hour');
+    expect(budget.unit).toBe('bytes');
   });
 
   test('Agent perf gate treats integration delivery success rate as a lower-bound budget', () => {
@@ -183,7 +177,6 @@ describe('performance gate: compaction quality scoring', () => {
     const output = makeCompactionOutput(5, 800);
     const score = computeQualityScore(input, output);
 
-    expect(score).toBeDefined();
     expect(typeof score.score).toBe('number');
     expect(typeof score.grade).toBe('string');
     expect(typeof score.isLowQuality).toBe('boolean');
@@ -217,8 +210,7 @@ describe('performance gate: compaction quality scoring', () => {
 
   test('escalateStrategy from microcompact escalates', () => {
     const escalated = escalateStrategy('microcompact');
-    // Any escalation from microcompact should return a higher strategy
-    expect(typeof escalated).toBe('string');
+    expect(escalated).toBe('autocompact');
   });
 
   test('score has compression and retention sub-scores', () => {
@@ -236,7 +228,6 @@ describe('performance gate: compaction quality scoring', () => {
     const input = makeCompactionInput(10, 2000);
     const output = makeCompactionOutput(3, 600);
     const score = computeQualityScore(input, output);
-    expect(score.signals).toBeDefined();
     expect(typeof score.signals.hasHandoff).toBe('boolean');
     expect(typeof score.signals.hasNonTrivialContent).toBe('boolean');
     expect(typeof score.signals.messageCountSane).toBe('boolean');
@@ -249,26 +240,39 @@ describe('performance gate: compaction quality scoring', () => {
 // ---------------------------------------------------------------------------
 
 describe('performance gate: SLO collector', () => {
-  test('SloCollector instantiates with an event bus', () => {
-    const bus = new RuntimeEventBus();
-    const collector = new SloCollector(bus);
-    expect(collector).toBeDefined();
-    collector.dispose();
-  });
-
-  test('getMetrics returns an array of PerfMetric objects', () => {
+  test('getMetrics returns the release SLO metric set before samples are recorded', () => {
     const bus = new RuntimeEventBus();
     const collector = new SloCollector(bus);
     const metrics = collector.getMetrics();
-    expect(Array.isArray(metrics)).toBe(true);
+    expect(metrics.map((metric) => metric.name).sort()).toEqual([
+      'slo.cancel.p95',
+      'slo.permission_decision.p95',
+      'slo.reconnect_recovery.p95',
+      'slo.turn_start.p95',
+    ]);
+    expect(metrics.map((metric) => ({
+      name: metric.name,
+      value: metric.value,
+      unit: metric.unit,
+    })).sort((left, right) => left.name.localeCompare(right.name))).toEqual([
+      { name: 'slo.cancel.p95', value: 0, unit: 'ms' },
+      { name: 'slo.permission_decision.p95', value: 0, unit: 'ms' },
+      { name: 'slo.reconnect_recovery.p95', value: 0, unit: 'ms' },
+      { name: 'slo.turn_start.p95', value: 0, unit: 'ms' },
+    ]);
     collector.dispose();
   });
 
-  test('getSampleCounts returns a record of metric name to sample count', () => {
+  test('getSampleCounts returns zero-count release SLO buckets before samples are recorded', () => {
     const bus = new RuntimeEventBus();
     const collector = new SloCollector(bus);
     const counts = collector.getSampleCounts();
-    expect(typeof counts).toBe('object');
+    expect(counts).toEqual({
+      'slo.turn_start.p95': 0,
+      'slo.cancel.p95': 0,
+      'slo.reconnect_recovery.p95': 0,
+      'slo.permission_decision.p95': 0,
+    });
     collector.dispose();
   });
 
@@ -286,12 +290,19 @@ describe('performance gate: SLO collector', () => {
 describe('performance gate: budget enforcement flag', () => {
   test('runtime-tools-budget-enforcement feature flag is declared', () => {
     const flag = FEATURE_FLAGS.find(f => f.id === 'runtime-tools-budget-enforcement');
-    expect(flag).toBeDefined();
-    expect(flag!.runtimeToggleable).toBe(true);
+    expect(flag).toMatchObject({
+      defaultState: 'disabled',
+      runtimeToggleable: true,
+      tier: 8,
+    });
   });
 
   test('compaction feature flags are declared', () => {
     const compactionFlag = FEATURE_FLAGS.find(f => f.id === 'session-compaction');
-    expect(compactionFlag).toBeDefined();
+    expect(compactionFlag).toMatchObject({
+      defaultState: 'disabled',
+      runtimeToggleable: true,
+      tier: 6,
+    });
   });
 });

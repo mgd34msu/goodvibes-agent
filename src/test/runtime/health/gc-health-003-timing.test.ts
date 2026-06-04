@@ -47,6 +47,20 @@ function makeSystem(recoveryAttempts = 0, maxRecoveryAttempts = 3) {
   return { aggregator, engine, timer };
 }
 
+type TimedCascadeEvaluation = ReturnType<CascadeTimer['evaluate']>;
+type TimedCascadeRecord = TimedCascadeEvaluation['cascades'][number];
+
+function expectCascade(
+  cascades: TimedCascadeRecord[],
+  ruleId: string,
+): TimedCascadeRecord {
+  const cascade = cascades.find((entry) => entry.ruleId === ruleId);
+  if (cascade === undefined) {
+    throw new Error(`Expected cascade ${ruleId}; got ${cascades.map((entry) => entry.ruleId).join(', ')}`);
+  }
+  return cascade;
+}
+
 // ---------------------------------------------------------------------------
 // 1. Timing emission
 // ---------------------------------------------------------------------------
@@ -115,45 +129,40 @@ describe('CascadeTimer — severity attachment', () => {
     // turn-failed-cancels-tools → CANCEL_INFLIGHT
     const { timer } = makeSystem();
     const result = timer.evaluate('turn', 'failed');
-    const cascade = result.cascades.find((c) => c.ruleId === 'turn-failed-cancels-tools');
-    expect(cascade).toBeDefined();
-    expect(cascade!.severity).toBe('high');
+    const cascade = expectCascade(result.cascades, 'turn-failed-cancels-tools');
+    expect(cascade.severity).toBe('high');
   });
 
   test('EMIT_EVENT SESSION_UNRECOVERABLE is severity critical', () => {
     // session-recovery-failed-unrecoverable → EMIT_EVENT SESSION_UNRECOVERABLE → target ALL
     const { timer } = makeSystem();
     const result = timer.evaluate('session', 'failed');
-    const cascade = result.cascades.find((c) => c.ruleId === 'session-recovery-failed-unrecoverable');
-    expect(cascade).toBeDefined();
-    expect(cascade!.severity).toBe('critical');
+    const cascade = expectCascade(result.cascades, 'session-recovery-failed-unrecoverable');
+    expect(cascade.severity).toBe('critical');
   });
 
   test('DEREGISTER_TOOLS effect is severity medium', () => {
     // plugin-error-deregisters-tools → DEREGISTER_TOOLS (no recoveryFirst)
     const { timer } = makeSystem();
     const result = timer.evaluate('plugins', 'failed');
-    const cascade = result.cascades.find((c) => c.ruleId === 'plugin-error-deregisters-tools');
-    expect(cascade).toBeDefined();
-    expect(cascade!.severity).toBe('medium');
+    const cascade = expectCascade(result.cascades, 'plugin-error-deregisters-tools');
+    expect(cascade.severity).toBe('medium');
   });
 
   test('MARK_CHILDREN effect is severity high', () => {
     // agent-failed-marks-child-tasks → MARK_CHILDREN
     const { timer } = makeSystem();
     const result = timer.evaluate('agents', 'failed');
-    const cascade = result.cascades.find((c) => c.ruleId === 'agent-failed-marks-child-tasks');
-    expect(cascade).toBeDefined();
-    expect(cascade!.severity).toBe('high');
+    const cascade = expectCascade(result.cascades, 'agent-failed-marks-child-tasks');
+    expect(cascade.severity).toBe('high');
   });
 
   test('BLOCK_NEW effect is severity high', () => {
     // compaction-failed-blocks-new-turns with recovery exhausted → BLOCK_NEW
     const { timer } = makeSystem(3, 3);
     const result = timer.evaluate('compaction', 'failed');
-    const cascade = result.cascades.find((c) => c.ruleId === 'compaction-failed-blocks-new-turns');
-    expect(cascade).toBeDefined();
-    expect(cascade!.severity).toBe('high');
+    const cascade = expectCascade(result.cascades, 'compaction-failed-blocks-new-turns');
+    expect(cascade.severity).toBe('high');
   });
 });
 
@@ -166,40 +175,36 @@ describe('CascadeTimer — remediationPlaybookIds attachment', () => {
     const { timer } = makeSystem();
     const result = timer.evaluate('turn', 'failed');
     for (const cascade of result.cascades) {
-      expect(Array.isArray(cascade.remediationPlaybookIds)).toBe(true);
+      expect(cascade.remediationPlaybookIds).toEqual(expect.any(Array));
     }
   });
 
   test('turn-failed-cancels-tools maps to stuck-turn playbook', () => {
     const { timer } = makeSystem();
     const result = timer.evaluate('turn', 'failed');
-    const cascade = result.cascades.find((c) => c.ruleId === 'turn-failed-cancels-tools');
-    expect(cascade).toBeDefined();
-    expect(cascade!.remediationPlaybookIds).toContain('stuck-turn');
+    const cascade = expectCascade(result.cascades, 'turn-failed-cancels-tools');
+    expect(cascade.remediationPlaybookIds).toContain('stuck-turn');
   });
 
   test('plugin-error-deregisters-tools maps to plugin-degradation playbook', () => {
     const { timer } = makeSystem();
     const result = timer.evaluate('plugins', 'failed');
-    const cascade = result.cascades.find((c) => c.ruleId === 'plugin-error-deregisters-tools');
-    expect(cascade).toBeDefined();
-    expect(cascade!.remediationPlaybookIds).toContain('plugin-degradation');
+    const cascade = expectCascade(result.cascades, 'plugin-error-deregisters-tools');
+    expect(cascade.remediationPlaybookIds).toContain('plugin-degradation');
   });
 
   test('session-recovery-failed-unrecoverable maps to session-unrecoverable playbook', () => {
     const { timer } = makeSystem();
     const result = timer.evaluate('session', 'failed');
-    const cascade = result.cascades.find((c) => c.ruleId === 'session-recovery-failed-unrecoverable');
-    expect(cascade).toBeDefined();
-    expect(cascade!.remediationPlaybookIds).toContain('session-unrecoverable');
+    const cascade = expectCascade(result.cascades, 'session-recovery-failed-unrecoverable');
+    expect(cascade.remediationPlaybookIds).toContain('session-unrecoverable');
   });
 
   test('compaction-failed-blocks-new-turns maps to compaction-failure playbook', () => {
     const { timer } = makeSystem(3, 3);
     const result = timer.evaluate('compaction', 'failed');
-    const cascade = result.cascades.find((c) => c.ruleId === 'compaction-failed-blocks-new-turns');
-    expect(cascade).toBeDefined();
-    expect(cascade!.remediationPlaybookIds).toContain('compaction-failure');
+    const cascade = expectCascade(result.cascades, 'compaction-failed-blocks-new-turns');
+    expect(cascade.remediationPlaybookIds).toContain('compaction-failure');
   });
 
   test('pendingRecovery results also carry remediationPlaybookIds', () => {
@@ -207,7 +212,7 @@ describe('CascadeTimer — remediationPlaybookIds attachment', () => {
     const result = timer.evaluate('mcp', 'failed');
     expect(result.pendingRecovery.length).toBeGreaterThan(0);
     for (const pending of result.pendingRecovery) {
-      expect(Array.isArray(pending.remediationPlaybookIds)).toBe(true);
+      expect(pending.remediationPlaybookIds).toEqual(expect.any(Array));
     }
   });
 });
@@ -319,8 +324,7 @@ describe('createCascadeAppliedEvent — timing field preservation', () => {
   test('latencyMs is a non-negative number on the produced event', () => {
     const { timer } = makeSystem();
     const { cascades } = timer.evaluate('turn', 'failed');
-    expect(cascades.length).toBeGreaterThan(0);
-    const event = createCascadeAppliedEvent(cascades[0]);
+    const event = createCascadeAppliedEvent(expectCascade(cascades, 'turn-failed-cancels-tools'));
     expect(typeof event.latencyMs).toBe('number');
     expect(event.latencyMs).toBeGreaterThanOrEqual(0);
   });
@@ -328,21 +332,16 @@ describe('createCascadeAppliedEvent — timing field preservation', () => {
   test('severity is one of the valid CascadeSeverity values on the produced event', () => {
     const { timer } = makeSystem();
     const { cascades } = timer.evaluate('turn', 'failed');
-    expect(cascades.length).toBeGreaterThan(0);
-    const event = createCascadeAppliedEvent(cascades[0]);
+    const event = createCascadeAppliedEvent(expectCascade(cascades, 'turn-failed-cancels-tools'));
     const severity = event.severity;
-    expect(severity).toBeDefined();
-    if (severity !== undefined) {
-      expect(['critical', 'high', 'medium', 'low']).toContain(severity);
-    }
+    expect(['critical', 'high', 'medium', 'low']).toContain(severity);
   });
 
   test('remediationPlaybookIds is an array on the produced event', () => {
     const { timer } = makeSystem();
     const { cascades } = timer.evaluate('turn', 'failed');
-    expect(cascades.length).toBeGreaterThan(0);
-    const event = createCascadeAppliedEvent(cascades[0]);
-    expect(Array.isArray(event.remediationPlaybookIds)).toBe(true);
+    const event = createCascadeAppliedEvent(expectCascade(cascades, 'turn-failed-cancels-tools'));
+    expect(event.remediationPlaybookIds).toEqual(expect.any(Array));
   });
 
   test('undefined timing fields on plain CascadeResult produce undefined on event', () => {

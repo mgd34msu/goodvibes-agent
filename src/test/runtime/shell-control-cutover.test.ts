@@ -277,7 +277,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (!line.includes('bus.on(') && !line.includes('.on(')) continue;
-        if (legacyTokens.some((token) => line.includes(token))) {
+        if (legacyTokens.find((token) => line.includes(token)) !== undefined) {
           violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
         }
       }
@@ -316,7 +316,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (!line.includes('bus.on(') && !line.includes('.on(')) continue;
-        if (legacyTokens.some((token) => line.includes(token))) {
+        if (legacyTokens.find((token) => line.includes(token)) !== undefined) {
           violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
         }
       }
@@ -356,7 +356,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (!line.includes('.emit(')) continue;
-        if (legacyTokens.some((token) => line.includes(token))) {
+        if (legacyTokens.find((token) => line.includes(token)) !== undefined) {
           violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
         }
       }
@@ -399,7 +399,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line.includes('this.bus.emit(')) continue;
-      if (forbiddenTokens.some((token) => line.includes(token))) {
+      if (forbiddenTokens.find((token) => line.includes(token)) !== undefined) {
         violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
       }
     }
@@ -440,7 +440,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
         const isLegacyEmit = relPath === 'src/core/orchestrator.ts' && line.includes('this.bus.emit(');
         const isLegacyListener = relPath === 'src/runtime/bootstrap.ts' && line.includes('bus.on(');
         if (!(isLegacyEmit || isLegacyListener)) continue;
-        if (legacyTokens.some((token) => line.includes(token))) {
+        if (legacyTokens.find((token) => line.includes(token)) !== undefined) {
           violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
         }
       }
@@ -494,7 +494,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (!line.includes('.emit(')) continue;
-        if (legacyTokens.some((token) => line.includes(token))) {
+        if (legacyTokens.find((token) => line.includes(token)) !== undefined) {
           violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
         }
       }
@@ -532,7 +532,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (legacyTokens.some((token) => line.includes(token))) {
+      if (legacyTokens.find((token) => line.includes(token)) !== undefined) {
         violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
       }
     }

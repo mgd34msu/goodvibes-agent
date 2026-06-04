@@ -96,7 +96,7 @@ describe('wireShellUiOpeners', () => {
     );
   });
 
-  test('openOnboardingWizard delegates through the shared opener seam', () => {
+  test('openOnboardingWizard delegates through the shared opener route', () => {
     input.openOnboardingWizard = mock(() => {});
     (commandContext.openOnboardingWizard as (mode?: 'new' | 'edit') => void)('new');
     expect(input.openOnboardingWizard).toHaveBeenCalledWith('new');

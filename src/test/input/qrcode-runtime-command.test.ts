@@ -33,7 +33,10 @@ describe('qrcode runtime command', () => {
     const registry = new CommandRegistry();
     registerQrcodeRuntimeCommands(registry);
     const command = registry.get('qrcode');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'qrcode',
+      handler: expect.any(Function),
+    }));
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-'));
     const tokenDir = join(root, '.goodvibes', 'daemon');
     mkdirSync(tokenDir, { recursive: true });
@@ -55,7 +58,11 @@ describe('qrcode runtime command', () => {
     const registry = new CommandRegistry();
     registerQrcodeRuntimeCommands(registry);
     const command = registry.get('pair');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'qrcode',
+      aliases: expect.arrayContaining(['pair']),
+      handler: expect.any(Function),
+    }));
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-manual-'));
     const tokenDir = join(root, '.goodvibes', 'daemon');
     mkdirSync(tokenDir, { recursive: true });
@@ -78,7 +85,11 @@ describe('qrcode runtime command', () => {
     const registry = new CommandRegistry();
     registerQrcodeRuntimeCommands(registry);
     const command = registry.get('pair');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'qrcode',
+      aliases: expect.arrayContaining(['pair']),
+      handler: expect.any(Function),
+    }));
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-env-'));
     const previous = process.env.GOODVIBES_CONNECTED_HOST_TOKEN;
     process.env.GOODVIBES_CONNECTED_HOST_TOKEN = 'env-connected-host-token';
@@ -103,7 +114,10 @@ describe('qrcode runtime command', () => {
     const registry = new CommandRegistry();
     registerQrcodeRuntimeCommands(registry);
     const command = registry.get('qrcode');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'qrcode',
+      handler: expect.any(Function),
+    }));
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-missing-'));
     const out: string[] = [];
 

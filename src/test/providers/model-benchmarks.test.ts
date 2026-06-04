@@ -22,8 +22,7 @@ describe('compositeScore', () => {
       aime: 0.8,
     };
     const result = compositeScore(scores);
-    expect(result).not.toBeNull();
-    expect(result!).toBeCloseTo(0.6, 5);
+    expect(result).toBeCloseTo(0.6, 5);
   });
 
   it('returns null when no scores are available', () => {
@@ -38,22 +37,19 @@ describe('compositeScore', () => {
   it('handles partial scores — swe only', () => {
     const scores: ModelBenchmarks = { swe: 0.75 };
     const result = compositeScore(scores);
-    expect(result).not.toBeNull();
-    expect(result!).toBeCloseTo(0.75, 5);
+    expect(result).toBeCloseTo(0.75, 5);
   });
 
   it('handles partial scores — swe and gpqa, no aime', () => {
     const scores: ModelBenchmarks = { swe: 0.6, gpqa: 0.7 };
     const result = compositeScore(scores);
-    expect(result).not.toBeNull();
-    expect(result!).toBeCloseTo(0.65, 5);
+    expect(result).toBeCloseTo(0.65, 5);
   });
 
   it('handles partial scores — gpqa only', () => {
     const scores: ModelBenchmarks = { gpqa: 0.9 };
     const result = compositeScore(scores);
-    expect(result).not.toBeNull();
-    expect(result!).toBeCloseTo(0.9, 5);
+    expect(result).toBeCloseTo(0.9, 5);
   });
 
   it('handles all perfect scores', () => {
@@ -64,22 +60,19 @@ describe('compositeScore', () => {
   it('handles all zero scores', () => {
     const scores: ModelBenchmarks = { swe: 0, gpqa: 0, aime: 0 };
     const result = compositeScore(scores);
-    expect(result).not.toBeNull();
     expect(result).toBeCloseTo(0, 5);
   });
 
   it('handles aime-only score', () => {
     const scores: ModelBenchmarks = { aime: 0.5 };
     const result = compositeScore(scores);
-    expect(result).not.toBeNull();
-    expect(result!).toBeCloseTo(0.5, 5);
+    expect(result).toBeCloseTo(0.5, 5);
   });
 
   it('treats undefined fields the same as missing', () => {
     const scores: ModelBenchmarks = { swe: 0.8, gpqa: undefined, aime: undefined };
     const result = compositeScore(scores);
-    expect(result).not.toBeNull();
-    expect(result!).toBeCloseTo(0.8, 5);
+    expect(result).toBeCloseTo(0.8, 5);
   });
 });
 

@@ -167,10 +167,10 @@ rl.on('line', (line) => {
     try {
       await client.connect();
       const schema = await client.getToolSchema('say-hello');
-      expect(schema).not.toBeNull();
-      expect(schema!.name).toBe('say-hello');
-      expect(schema!.inputSchema).toBeDefined();
-      expect((schema!.inputSchema as { type: string }).type).toBe('object');
+      expect(schema).toEqual(expect.objectContaining({
+        name: 'say-hello',
+        inputSchema: expect.objectContaining({ type: 'object' }),
+      }));
     } finally {
       await client.disconnect();
     }
@@ -192,7 +192,9 @@ rl.on('line', (line) => {
     try {
       await client.connect();
       const result = await client.callTool('say-hello', { name: 'World' });
-      expect(result).toBeDefined();
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'ok' }],
+      });
     } finally {
       await client.disconnect();
     }

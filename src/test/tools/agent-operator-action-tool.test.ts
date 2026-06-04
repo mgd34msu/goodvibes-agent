@@ -262,10 +262,12 @@ describe('agent_operator_action tool', () => {
       expect(requests.map((request) => request.url)).toEqual(
         ACTION_CASES.map((entry) => `http://127.0.0.1:3421${entry.path}`),
       );
-      expect(requests.every((request) => request.method === 'POST')).toBe(true);
-      expect(requests.some((request) => request.url.includes('/api/knowledge'))).toBe(false);
-      expect(requests.some((request) => request.url.includes('homeGraph'))).toBe(false);
-      expect(requests.some((request) => request.url.includes('/api/automation/jobs/job-1/delete'))).toBe(false);
+      expect(requests.map((request) => request.method)).toEqual(ACTION_CASES.map(() => 'POST'));
+      expect(requests.map((request) => request.url.includes('/api/knowledge'))).toEqual(ACTION_CASES.map(() => false));
+      expect(requests.map((request) => request.url.includes('homeGraph'))).toEqual(ACTION_CASES.map(() => false));
+      expect(requests.map((request) => request.url.includes('/api/automation/jobs/job-1/delete'))).toEqual(
+        ACTION_CASES.map(() => false),
+      );
     } finally {
       globalThis.fetch = originalFetch;
     }

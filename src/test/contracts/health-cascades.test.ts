@@ -74,8 +74,7 @@ describe('health-cascades contract', () => {
 
       const result = agg.canExecute('toolExecution');
       expect(result.allowed).toBe(false);
-      expect(typeof result.reason).toBe('string');
-      expect(result.reason!.length).toBeGreaterThan(0);
+      expect(result.reason).toBe('Tool dispatch crashed');
     });
 
     test('subscriber is notified on health change', () => {
@@ -191,32 +190,31 @@ describe('health-cascades contract', () => {
   });
 
   describe('CascadeEngine.evaluate result structure', () => {
-    test('evaluate returns cascades and pendingRecovery arrays', () => {
+    test('turn failure cascades immediately and leaves no pending recovery', () => {
       const agg = makeAggregator();
       const engine = makeEngine(agg);
 
       const result = engine.evaluate('turn', 'failed');
 
-      expect(Array.isArray(result.cascades)).toBe(true);
-      expect(Array.isArray(result.pendingRecovery)).toBe(true);
+      expect(result.cascades.map((cascade) => cascade.ruleId)).toEqual(['turn-failed-cancels-tools']);
+      expect(result.pendingRecovery).toEqual([]);
     });
 
-    test('each CascadeResult has required fields', () => {
+    test('agent failure cascade carries task-marking effect metadata', () => {
       const agg = makeAggregator();
       const engine = makeEngine(agg);
 
       const result = engine.evaluate('agents', 'failed');
-      expect(result.cascades.length).toBeGreaterThan(0);
-
-      for (const cascade of result.cascades) {
-        expect(typeof cascade.ruleId).toBe('string');
-        expect(typeof cascade.source).toBe('string');
-        expect(typeof cascade.target).toBe('string');
-        expect(typeof cascade.timestamp).toBe('number');
-        expect(typeof cascade.recoveryExhausted).toBe('boolean');
-        expect(cascade.effect).toBeDefined();
-        expect(typeof cascade.effect.type).toBe('string');
-      }
+      expect(result.cascades).toEqual([
+        expect.objectContaining({
+          ruleId: 'agent-failed-marks-child-tasks',
+          source: 'agents',
+          target: 'tasks',
+          recoveryExhausted: false,
+          effect: { type: 'MARK_CHILDREN', status: 'failed', notifyParent: true },
+        }),
+      ]);
+      expect(result.cascades[0].timestamp).toBeGreaterThan(0);
     });
 
     test('recovery-first rules produce pendingRecovery when recovery not exhausted', () => {
@@ -228,8 +226,10 @@ describe('health-cascades contract', () => {
       const result = engine.evaluate('toolExecution', 'failed');
       const pending = result.pendingRecovery.find((r) => r.ruleId === 'tool-failed-errors-turn');
 
-      expect(pending).toBeDefined();
-      expect(pending!.recoveryExhausted).toBe(false);
+      expect(pending).toEqual(expect.objectContaining({
+        ruleId: 'tool-failed-errors-turn',
+        recoveryExhausted: false,
+      }));
     });
 
     test('recovery-first rules cascade when recovery is exhausted', () => {
@@ -241,8 +241,10 @@ describe('health-cascades contract', () => {
       const result = engine.evaluate('toolExecution', 'failed');
       const cascade = result.cascades.find((r) => r.ruleId === 'tool-failed-errors-turn');
 
-      expect(cascade).toBeDefined();
-      expect(cascade!.recoveryExhausted).toBe(true);
+      expect(cascade).toEqual(expect.objectContaining({
+        ruleId: 'tool-failed-errors-turn',
+        recoveryExhausted: true,
+      }));
     });
 
     test('sourceContext is propagated into CascadeResult', () => {
@@ -251,7 +253,7 @@ describe('health-cascades contract', () => {
       const ctx = { pluginId: 'my-plugin' };
 
       const result = engine.evaluate('plugins', 'failed', ctx);
-      expect(result.cascades.length).toBeGreaterThan(0);
+      expect(result.cascades.map((cascade) => cascade.ruleId)).toEqual(['plugin-error-deregisters-tools']);
       expect(result.cascades[0].sourceContext).toEqual(ctx);
     });
   });
@@ -262,7 +264,7 @@ describe('health-cascades contract', () => {
       const engine = makeEngine(agg);
 
       const rules = engine.getRulesForDomain('turn', 'failed');
-      expect(rules.length).toBeGreaterThan(0);
+      expect(rules.map((rule) => rule.id)).toEqual(['turn-failed-cancels-tools']);
       for (const rule of rules) {
         expect(rule.source).toBe('turn');
         expect(rule.sourceState).toBe('failed');

@@ -119,43 +119,10 @@ describe('safety gate: permission phase', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. PhasedToolExecutor: pipeline exists and enforces ordering
-// ---------------------------------------------------------------------------
-
-describe('safety gate: phased executor structure', () => {
-  test('PhasedToolExecutor exports execute method', () => {
-    const executor = new PhasedToolExecutor({
-      enableHooks: false,
-      enablePermissions: true,
-      enableEvents: false,
-    });
-    expect(typeof executor.execute).toBe('function');
-    expect(typeof executor.cancel).toBe('function');
-    expect(typeof executor.getRecord).toBe('function');
-    expect(typeof executor.getActiveRecords).toBe('function');
-  });
-
-  test('executor with enablePermissions=false still exports all methods', () => {
-    const executor = new PhasedToolExecutor({
-      enableHooks: false,
-      enablePermissions: false,
-      enableEvents: false,
-    });
-    expect(executor).toBeDefined();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 3. AST guard: exec command sanitization gate
+// 2. AST guard: exec command sanitization gate
 // ---------------------------------------------------------------------------
 
 describe('safety gate: exec AST guard', () => {
-  test('guardExecCommand returns ASTGuardResult with allowed boolean', async () => {
-    const result = await guardExecCommand('echo hello');
-    expect(typeof result.allowed).toBe('boolean');
-    expect(typeof result.astModeActive).toBe('boolean');
-  });
-
   test('formatDenialResponse returns a non-empty record on denied result', () => {
     const deniedResult = {
       allowed: false,
@@ -178,7 +145,7 @@ describe('safety gate: exec AST guard', () => {
   test('dangerous command is blocked by AST guard', async () => {
     const result = await guardExecCommand('rm -rf /');
     expect(result.allowed).toBe(false);
-    expect(result.denialMessage).toBeDefined();
+    expect(result.denialMessage).toContain('destructive');
   });
 
   test('pipe injection is blocked', async () => {
@@ -188,7 +155,7 @@ describe('safety gate: exec AST guard', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. Fetch sanitizer: sanitization gate
+// 3. Fetch sanitizer: sanitization gate
 // ---------------------------------------------------------------------------
 
 describe('safety gate: fetch sanitizer', () => {
@@ -196,7 +163,7 @@ describe('safety gate: fetch sanitizer', () => {
     expect(resolveSanitizeMode('none')).toBe('none');
     expect(resolveSanitizeMode('safe-text')).toBe('safe-text');
     expect(resolveSanitizeMode('strict')).toBe('strict');
-    expect(resolveSanitizeMode(undefined)).toBeDefined();
+    expect(resolveSanitizeMode(undefined)).toBe('safe-text');
   });
 
   test('applySanitizer none mode: content unchanged, modified=false', () => {
@@ -217,39 +184,25 @@ describe('safety gate: fetch sanitizer', () => {
 
   test('applySanitizer safe-text mode: returns SanitizeResult', () => {
     const result = applySanitizer('plain text content', 'safe-text');
-    expect(result.content).toBeDefined();
-    expect(result.mode).toBe('safe-text');
-  });
-
-  test('sanitizer result always has content, mode, and modified fields', () => {
-    for (const mode of ['none', 'safe-text', 'strict'] as const) {
-      const result = applySanitizer('test content', mode);
-      expect(result).toHaveProperty('content');
-      expect(result).toHaveProperty('mode');
-      expect(result).toHaveProperty('modified');
-    }
+    expect(result).toEqual({
+      content: 'plain text content',
+      mode: 'safe-text',
+      modified: false,
+    });
   });
 });
 
 // ---------------------------------------------------------------------------
-// 5. Audit trail: pipeline phases are recorded
+// 4. Audit trail: pipeline phases are recorded
 // ---------------------------------------------------------------------------
 
 describe('safety gate: audit trail via ToolExecutionRecord', () => {
-  test('ToolExecutionRecord tracks phases array for audit', () => {
-    const record = makeRecord('audit-call');
-    expect(Array.isArray(record.phases)).toBe(true);
-    expect(record.startedAt).toBeGreaterThan(0);
-    expect(record.cancelled).toBe(false);
-  });
-
-  test('executor cancel sets cancelled flag on record', () => {
+  test('executor cancel on an unknown call id is a no-op', () => {
     const executor = new PhasedToolExecutor({
       enableHooks: false,
       enablePermissions: false,
       enableEvents: false,
     });
-    // Cancelling unknown call-id is a no-op, not a throw
     expect(() => executor.cancel('nonexistent-call', 'test')).not.toThrow();
   });
 });

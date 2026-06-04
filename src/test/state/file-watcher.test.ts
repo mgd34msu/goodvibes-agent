@@ -154,7 +154,10 @@ describe('FileWatcher', () => {
     writeFileSync(file, 'export const x = 1;');
 
     projectIndex.upsertFile(file, 5);
-    expect(projectIndex.getFile(file)).not.toBeNull();
+    expect(projectIndex.getFile(file)).toEqual(expect.objectContaining({
+      path: 'src/main.ts',
+      tokens: 5,
+    }));
 
     const watcher = new FileWatcher(fileCache, projectIndex, { projectRoot: tmpDir });
     watcher.start();
@@ -165,7 +168,10 @@ describe('FileWatcher', () => {
 
     // Token estimate should now reflect the new file size
     const entry = projectIndex.getFile(file);
-    expect(entry).not.toBeNull();
+    expect(entry).toEqual(expect.objectContaining({
+      path: 'src/main.ts',
+      tokens: expect.any(Number),
+    }));
     watcher.stop();
   });
 

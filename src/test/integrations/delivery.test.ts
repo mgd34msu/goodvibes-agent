@@ -383,7 +383,7 @@ describe('snapshotQueueStatus', () => {
     expect(snapshot.metrics.delivered).toBe(1);
     expect(snapshot.sloEnforced).toBe(false);
     expect(typeof snapshot.capturedAt).toBe('number');
-    expect(Array.isArray(snapshot.dlqEntries)).toBe(true);
+    expect(snapshot.dlqEntries).toEqual(expect.any(Array));
     queue.dispose();
   });
 

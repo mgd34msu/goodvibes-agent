@@ -13,12 +13,19 @@ function expectWidths(lines: ReturnType<typeof ModalFactory.createModal>, width:
   }
 }
 
+function expectPresent<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${description}`);
+  }
+  return value;
+}
+
 // ── createModal ────────────────────────────────────────────────────────────────────
 
 describe('ModalFactory.createModal', () => {
   test('returns Line array', () => {
     const lines = ModalFactory.createModal({ title: 'Test', sections: [] }, W);
-    expect(Array.isArray(lines)).toBe(true);
+    expect(lines).toEqual(expect.any(Array));
     expect(lines.length).toBeGreaterThanOrEqual(2); // title + footer at minimum
   });
 
@@ -73,8 +80,7 @@ describe('ModalFactory.createModal', () => {
       sections: [{ type: 'text', content: 'Hello World' }],
     }, W);
     const body = linesToText(lines).find((line) => line.includes('Hello World'));
-    expect(body).toBeDefined();
-    expect(body).toContain('│');
+    expect(expectPresent(body, 'modal body row containing Hello World')).toContain('│');
   });
 
   test('hints appear in the footer line', () => {
@@ -171,8 +177,8 @@ describe('ModalFactory.createModal', () => {
       sections: [{ type: 'separator' }],
     }, W);
     const texts = linesToText(lines);
-    const hasSep = texts.some((t) => t.includes('\u251c') && t.includes('\u2524'));
-    expect(hasSep).toBe(true);
+    expect(texts.join('\n')).toContain('\u251c');
+    expect(texts.join('\n')).toContain('\u2524');
   });
 
   test('list section renders items', () => {
@@ -207,7 +213,7 @@ describe('ModalFactory.createModal', () => {
     }, W);
     const texts = linesToText(lines);
     const selectedLine = texts.find((t) => t.includes('▸') && t.includes('Two'));
-    expect(selectedLine).toBeTruthy();
+    expect(expectPresent(selectedLine, 'selected list item row')).toContain('Two');
   });
 
   test('list section: selected item cells have bold=true', () => {
@@ -220,11 +226,10 @@ describe('ModalFactory.createModal', () => {
     }, W);
     // The line with the selected item should have bold cells
     const selectedLineIndex = lines.findIndex((line) =>
-      line.some((cell) => cell.char === '▸'),
+      line.find((cell) => cell.char === '▸') !== undefined,
     );
     expect(selectedLineIndex).toBeGreaterThan(-1);
-    const hasBold = lines[selectedLineIndex].some((c) => c.bold);
-    expect(hasBold).toBe(true);
+    expect(lines[selectedLineIndex].map((c) => c.bold)).toContain(true);
   });
 
   test('input sections use the shared block cursor glyph', () => {
@@ -245,8 +250,11 @@ describe('ModalFactory.createModal', () => {
       }],
     }, W);
     const texts = linesToText(lines);
-    const hasArrow = texts.some((t) => t.includes('>') && t.includes('NotSelected'));
-    expect(hasArrow).toBe(false);
+    const notSelectedLine = expectPresent(
+      texts.find((t) => t.includes('NotSelected')),
+      'unselected list item row',
+    );
+    expect(notSelectedLine).not.toContain('>');
   });
 
   test('input section renders cursor and content', () => {
@@ -328,7 +336,7 @@ describe('ModalFactory.createModal', () => {
 describe('ModalFactory.renderTitle', () => {
   test('returns a single Line', () => {
     const line = ModalFactory.renderTitle(72, 4, 'Hello', W);
-    expect(Array.isArray(line)).toBe(true);
+    expect(line).toEqual(expect.any(Array));
     expect(line.length).toBe(W);
   });
 
@@ -346,7 +354,7 @@ describe('ModalFactory.renderTitle', () => {
   test('custom style changes fg color', () => {
     const line = ModalFactory.renderTitle(60, 4, 'T', W, { titleFg: '#ff0000' });
     const colored = line.find((c) => c.char !== ' ' && c.fg === '#ff0000');
-    expect(colored).toBeTruthy();
+    expect(expectPresent(colored, 'custom-colored title cell').fg).toBe('#ff0000');
   });
 });
 
@@ -355,7 +363,7 @@ describe('ModalFactory.renderTitle', () => {
 describe('ModalFactory.renderHints', () => {
   test('returns a single Line', () => {
     const line = ModalFactory.renderHints(72, 4, '', W);
-    expect(Array.isArray(line)).toBe(true);
+    expect(line).toEqual(expect.any(Array));
     expect(line.length).toBe(W);
   });
 
@@ -383,7 +391,7 @@ describe('ModalFactory.renderHints', () => {
 describe('ModalFactory.renderListItem', () => {
   test('returns a single Line of correct width', () => {
     const line = ModalFactory.renderListItem(72, 4, 'item', false, W);
-    expect(Array.isArray(line)).toBe(true);
+    expect(line).toEqual(expect.any(Array));
     expect(line.length).toBe(W);
   });
 
@@ -403,8 +411,7 @@ describe('ModalFactory.renderListItem', () => {
 
   test('selected item has bold cells', () => {
     const line = ModalFactory.renderListItem(72, 4, 'bold-item', true, W);
-    const hasBold = line.some((c) => c.bold);
-    expect(hasBold).toBe(true);
+    expect(line.map((c) => c.bold)).toContain(true);
   });
 
   test('unselected item has no bold cells (or only space cells)', () => {

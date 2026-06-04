@@ -104,9 +104,10 @@ describe('ToolRuntimeContext contract', () => {
         agent: { agentId: 'ag-1', isolationMode: 'full' },
       });
 
-      expect(ctx.agent).toBeDefined();
-      expect(ctx.agent!.agentId).toBe('ag-1');
-      expect(ctx.agent!.isolationMode).toBe('full');
+      expect(ctx.agent).toEqual({
+        agentId: 'ag-1',
+        isolationMode: 'full',
+      });
     });
 
     test('budget is absent by default', () => {
@@ -185,12 +186,11 @@ describe('ToolRuntimeContext contract', () => {
   });
 
   describe('RuntimeStoreAccess contract', () => {
-    test('getState returns a snapshot object', () => {
+    test('getState returns the runtime snapshot from the store adapter', () => {
       const store = makeStoreAccess();
       const state = store.getState();
 
-      expect(typeof state).toBe('object');
-      expect(state).not.toBeNull();
+      expect(state).toEqual({});
     });
 
     test('subscribe returns an unsubscribe function', () => {

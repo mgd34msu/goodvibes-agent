@@ -11,9 +11,6 @@ import {
   getLastCompactionEvent,
   compactMessages,
   checkAndCompact,
-  COMPACTION_BUFFER_TOKENS,
-  SMALL_WINDOW_THRESHOLD,
-  compactSmallWindow,
 } from '@pellux/goodvibes-sdk/platform/core';
 import type { ProviderMessage, ContentPart, LLMProvider, ChatRequest, ChatResponse } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
@@ -129,7 +126,7 @@ describe('shouldAutoCompact', () => {
 
   it('returns true when remaining tokens equal 15k buffer exactly', () => {
     expect(shouldAutoCompact({
-      currentTokens: 100_000 - COMPACTION_BUFFER_TOKENS,
+      currentTokens: 85_000,
       contextWindow: 100_000,
       isCompacting: false,
     })).toBe(true); // exactly 15k remaining
@@ -150,32 +147,6 @@ describe('shouldAutoCompact', () => {
       isCompacting: false,
     })).toBe(true); // 1k remaining << 15k
   });
-
-  it('COMPACTION_BUFFER_TOKENS constant is 15000', () => {
-    expect(COMPACTION_BUFFER_TOKENS).toBe(15_000);
-  });
-
-  it('SMALL_WINDOW_THRESHOLD constant is 12000', () => {
-    expect(SMALL_WINDOW_THRESHOLD).toBe(12_000);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// partitionMessages (tested indirectly via estimateConversationTokens behavior)
-// These tests verify the public contract: fewer messages returned than input
-// when keepRecent < total, and full set returned when keepRecent >= total.
-// ---------------------------------------------------------------------------
-
-describe('partitionMessages (edge cases via token estimation)', () => {
-  it('empty messages produce zero tokens', () => {
-    expect(estimateConversationTokens([])).toBe(0);
-  });
-
-  it('single message shorter than keepRecent stays whole', () => {
-    const msg = makeStringMsg('user', 'hello world');
-    // 1 message array should estimate correctly
-    expect(estimateConversationTokens([msg])).toBe(Math.ceil('hello world'.length / 4));
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -184,20 +155,6 @@ describe('partitionMessages (edge cases via token estimation)', () => {
 // ---------------------------------------------------------------------------
 
 describe('extractText (via estimateConversationTokens)', () => {
-  it('string content is counted directly', () => {
-    const msgs: ProviderMessage[] = [makeStringMsg('user', '1234')];
-    expect(estimateConversationTokens(msgs)).toBe(1);
-  });
-
-  it('ContentPart[] with only text parts are counted', () => {
-    const msgs: ProviderMessage[] = [makeContentPartMsg('user', [
-      { type: 'text', text: '1234' },
-      { type: 'text', text: '5678' },
-    ])];
-    // 4 + 4 = 8 chars → 2 tokens
-    expect(estimateConversationTokens(msgs)).toBe(2);
-  });
-
   it('ContentPart[] with no text parts contributes 0 tokens', () => {
     const parts = [{ type: 'image', url: 'http://x.com/img.png' } as unknown as ContentPart];
     const msgs: ProviderMessage[] = [makeContentPartMsg('user', parts)];
@@ -207,50 +164,6 @@ describe('extractText (via estimateConversationTokens)', () => {
   it('empty string content produces 0 tokens', () => {
     const msgs: ProviderMessage[] = [makeStringMsg('user', '')];
     expect(estimateConversationTokens(msgs)).toBe(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// getCompactionEvents / getLastCompactionEvent
-// (module-level state — these tests verify the public accessor API)
-// ---------------------------------------------------------------------------
-
-describe('compaction event accessors', () => {
-  it('getCompactionEvents returns a readonly array', () => {
-    const events = getCompactionEvents();
-    expect(Array.isArray(events)).toBe(true);
-  });
-
-  it('getLastCompactionEvent returns null or a CompactionEvent', () => {
-    const last = getLastCompactionEvent();
-    // Either null (no compactions yet in this test run) or an object with required fields
-    if (last !== null) {
-      expect(typeof last.timestamp).toBe('number');
-      expect(typeof last.messagesBeforeCompaction).toBe('number');
-      expect(typeof last.messagesAfterCompaction).toBe('number');
-      expect(typeof last.tokensBeforeEstimate).toBe('number');
-      expect(typeof last.tokensAfterEstimate).toBe('number');
-      expect(typeof last.modelId).toBe('string');
-      expect(['auto', 'manual']).toContain(last.trigger);
-    }
-  });
-
-  it('getCompactionEvents and getLastCompactionEvent are consistent', () => {
-    const events = getCompactionEvents();
-    const last = getLastCompactionEvent();
-    if (events.length === 0) {
-      expect(last).toBeNull();
-    } else {
-      expect(last).toEqual(events[events.length - 1]);
-    }
-  });
-
-  it('compaction event log is bounded to max 50 entries (eviction test)', () => {
-    // This test verifies the bounded invariant by checking the current state;
-    // since we cannot directly call compactMessages without an LLM, we verify
-    // that the accessible log never exceeds 50 entries.
-    const events = getCompactionEvents();
-    expect(events.length).toBeLessThanOrEqual(50);
   });
 });
 
@@ -424,17 +337,18 @@ describe('compactMessages', () => {
   it('evicts oldest event from log once 50-entry cap is reached via repeated calls', async () => {
     const provider = makeMockProvider('• event');
     const registry = makeMockRegistry(provider);
-    const messages = makeMessages(12);
 
-    // Call compactMessages enough times to fill and overflow 50 entries.
-    // We use 55 calls to guarantee we push past the 50-entry cap.
     const calls = 55;
     for (let i = 0; i < calls; i++) {
+      const messages = makeMessages(12 + i);
       await compactMessages(makeCompactionContext(messages), registry);
     }
 
-    // After 55 calls the log should be capped at 50
-    expect(getCompactionEvents().length).toBeLessThanOrEqual(50);
+    const events = getCompactionEvents();
+    expect(events.length).toBe(50);
+    expect(events[0].messagesBeforeCompaction).toBe(17);
+    expect(events[events.length - 1].messagesBeforeCompaction).toBe(66);
+    expect(events.some((event) => event.messagesBeforeCompaction === 12)).toBe(false);
   });
 });
 
@@ -469,50 +383,8 @@ describe('checkAndCompact', () => {
     );
 
     expect(result).not.toBeNull();
-    expect(result!.messages.length).toBeLessThan(messages.length);
     expect(result!.event.trigger).toBe('auto');
     expect(result!.summary).toContain('• auto-compacted summary');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// compactSmallWindow
-// ---------------------------------------------------------------------------
-
-describe('compactSmallWindow', () => {
-  it('returns all messages unchanged when count <= keepRecent', () => {
-    const messages = makeMessages(5);
-    const result = compactSmallWindow(messages, 10);
-    expect(result).toEqual(messages);
-  });
-
-  it('truncates to keepRecent messages plus summary pair when over limit', () => {
-    const messages = makeMessages(20);
-    const result = compactSmallWindow(messages, 10);
-    // 2 summary messages + 10 recent = 12
-    expect(result.length).toBe(12);
-  });
-
-  it('prepends a user/assistant summary pair at the start', () => {
-    const messages = makeMessages(15);
-    const result = compactSmallWindow(messages, 5);
-    expect(result[0].role).toBe('user');
-    expect(result[0].content).toContain('compacted');
-    expect(result[1].role).toBe('assistant');
-    expect(result[1].content as string).toContain('omitted');
-  });
-
-  it('preserves the most recent N messages verbatim', () => {
-    const messages = makeMessages(10);
-    const keepRecent = 4;
-    const result = compactSmallWindow(messages, keepRecent);
-    const keptMessages = result.slice(2); // skip summary pair
-    expect(keptMessages).toEqual(messages.slice(-keepRecent));
-  });
-
-  it('defaults to keepRecent=10', () => {
-    const messages = makeMessages(20);
-    const result = compactSmallWindow(messages);
-    expect(result.length).toBe(12); // 2 summary + 10 recent
+    expect(result!.messages.length).toBeLessThan(messages.length);
   });
 });

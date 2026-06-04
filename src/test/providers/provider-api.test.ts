@@ -217,7 +217,8 @@ function createHarness() {
     favoritesStore: {
       load: async () => cloneFavorites(favoritesState),
       pinModel: async (registryKey: string) => {
-        if (!favoritesState.pinned.some((entry) => entry.registryKey === registryKey)) {
+        const alreadyPinned = favoritesState.pinned.find((entry) => entry.registryKey === registryKey) !== undefined;
+        if (!alreadyPinned) {
           favoritesState = {
             ...favoritesState,
             pinned: [...favoritesState.pinned, { registryKey, pinnedAt: '2026-02-01T00:00:00.000Z' }],

@@ -96,13 +96,18 @@ describe('provider runtime snapshots', () => {
     });
 
     const snapshot = await getProviderRuntimeSnapshot(providerRegistry, 'openai');
-    expect(snapshot).not.toBeNull();
-    expect(snapshot?.runtime.auth?.routes?.some((route) => route.route === 'secret-ref' && route.configured)).toBe(true);
-    expect(snapshot?.runtime.auth?.routes?.some((route) => route.route === 'subscription-oauth' && route.configured)).toBe(true);
+    expect(snapshot).toEqual(expect.objectContaining({ providerId: 'openai' }));
+    expect(snapshot?.runtime.auth?.routes).toContainEqual(expect.objectContaining({
+      route: 'secret-ref',
+      configured: true,
+    }));
+    expect(snapshot?.runtime.auth?.routes).toContainEqual(expect.objectContaining({
+      route: 'subscription-oauth',
+      configured: true,
+    }));
 
     const usage = await getProviderUsageSnapshot(providerRegistry, 'openai');
-    expect(usage).not.toBeNull();
-    expect(usage?.providerId).toBe('openai');
+    expect(usage).toEqual(expect.objectContaining({ providerId: 'openai' }));
     expect(usage?.usage.streaming).toBe(true);
   });
 });

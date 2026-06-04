@@ -114,9 +114,10 @@ describe('PolicyRegistry', () => {
 
       expect(result.ok).toBe(true);
       const candidate = registry.getCandidate();
-      expect(candidate).not.toBeNull();
-      expect(candidate!.bundle.bundleId).toBe('bundle-1');
-      expect(candidate!.state).toBe('loaded');
+      expect(candidate).toEqual(expect.objectContaining({
+        bundle: expect.objectContaining({ bundleId: 'bundle-1' }),
+        state: 'loaded',
+      }));
     });
 
     it('replaces an existing candidate on second load', () => {
@@ -171,9 +172,11 @@ describe('PolicyRegistry', () => {
 
       expect(ok).toBe(true);
       const candidate = registry.getCandidate()!;
-      expect(candidate.state).toBe('promoting');
-      expect(candidate.simulationReport).toBeDefined();
-      expect(candidate.gateResult).toBeDefined();
+      expect(candidate).toEqual(expect.objectContaining({
+        state: 'promoting',
+        simulationReport: report,
+        gateResult: gate,
+      }));
     });
 
     it('returns false when candidate is in loaded state', () => {

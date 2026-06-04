@@ -108,7 +108,7 @@ describe('security: PluginTrustStore', () => {
     if (result.ok) {
       expect(result.record.tier).toBe('trusted');
       expect(result.record.grantedBy).toBe('signed-manifest');
-      expect(result.record.signatureFingerprint).toBeTruthy();
+      expect(result.record.signatureFingerprint).toBe('AAAAAAAAAAAAAAAA');
       expect(store.getTier('signed-plugin')).toBe('trusted');
     }
   });
@@ -129,13 +129,13 @@ describe('security: PluginTrustStore', () => {
       signature: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
     });
     expect(result.valid).toBe(true);
-    expect(result.fingerprint).toBeTruthy();
+    expect(result.fingerprint).toBe('AAAAAAAAAAAAAAAA');
   });
 
   test('verify returns invalid for missing signature', () => {
     const result = store.verify({ name: 'x', version: '1.0.0' });
     expect(result.valid).toBe(false);
-    expect(result.reason).toBeTruthy();
+    expect(result.reason).toBe('No signature field present in manifest');
   });
 
   test('exportRecords and importRecords round-trip', () => {
@@ -228,7 +228,7 @@ describe('security: filterCapabilitiesByTrust', () => {
   test('denial reasons populated for blocked capabilities', () => {
     const { reasons, blocked } = filterCapabilitiesByTrust(['shell.exec', 'filesystem.read'], 'untrusted');
     expect(blocked).toContain('shell.exec');
-    expect(reasons['shell.exec']).toBeTruthy();
+    expect(reasons['shell.exec']).toBe("Capability 'shell.exec' requires trust tier 'limited' or higher (current: untrusted)");
     expect(reasons['filesystem.read']).toBeUndefined();
   });
 });
@@ -334,11 +334,13 @@ describe('security: PluginQuarantineEngine', () => {
     const manifest = makeCapManifest(['network.outbound', 'filesystem.read']);
     const record = engine.quarantine('plugin', manifest, 'suspicious network activity');
 
-    expect(record).not.toBeNull();
-    expect(record!.reason).toBe('suspicious network activity');
-    expect(record!.revokedCapabilities).toContain('network.outbound');
-    expect(record!.revokedCapabilities).not.toContain('filesystem.read');
-    expect(record!.lifted).toBe(false);
+    expect(record).toEqual(expect.objectContaining({
+      pluginName: 'plugin',
+      reason: 'suspicious network activity',
+      revokedCapabilities: ['network.outbound'],
+      lifted: false,
+    }));
+    expect(record?.revokedCapabilities).not.toContain('filesystem.read');
   });
 
   test('quarantine on already-quarantined plugin returns null', () => {
@@ -351,8 +353,12 @@ describe('security: PluginQuarantineEngine', () => {
   test('quarantine plugin with no high-risk capabilities creates record with empty revokedCapabilities', () => {
     const manifest = makeCapManifest(['register.tool', 'filesystem.read']);
     const record = engine.quarantine('safe-plugin', manifest, 'precaution');
-    expect(record).not.toBeNull();
-    expect(record!.revokedCapabilities).toHaveLength(0);
+    expect(record).toEqual(expect.objectContaining({
+      pluginName: 'safe-plugin',
+      reason: 'precaution',
+      revokedCapabilities: [],
+      lifted: false,
+    }));
     expect(manifest.granted).toContain('register.tool');
   });
 
@@ -387,8 +393,7 @@ describe('security: PluginQuarantineEngine', () => {
     engine.lift('plugin-a');
 
     const active = engine.getActiveQuarantines();
-    expect(active.some((r) => r.pluginName === 'plugin-a')).toBe(false);
-    expect(active.some((r) => r.pluginName === 'plugin-b')).toBe(true);
+    expect(active.map((record) => record.pluginName)).toEqual(['plugin-b']);
   });
 
   test('applyToNewManifest re-applies quarantine constraints on reload', () => {
@@ -465,13 +470,16 @@ describe('security: PluginManager layer — trust/quarantine integration', () =>
 
     const record = quarantineEngine.quarantine(pluginName, stubManifest, 'security audit');
 
-    expect(record).not.toBeNull();
+    expect(record).toEqual(expect.objectContaining({
+      pluginName,
+      reason: 'security audit',
+      revokedCapabilities: ['shell.exec', 'network.outbound'],
+      lifted: false,
+    }));
     expect(quarantineEngine.isQuarantined(pluginName)).toBe(true);
     expect(stubManifest.granted).not.toContain('shell.exec');
     expect(stubManifest.granted).not.toContain('network.outbound');
     expect(stubManifest.granted).toContain('register.tool');
-    expect(record!.revokedCapabilities).toContain('shell.exec');
-    expect(record!.revokedCapabilities).toContain('network.outbound');
   });
 
   test('liftQuarantine and re-resolve path restores capabilities for trusted plugins', () => {

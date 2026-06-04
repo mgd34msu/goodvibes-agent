@@ -9,10 +9,11 @@ import { CommandRegistry, type CommandContext } from '../../input/command-regist
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { PanelManager } from '../../panels/panel-manager.ts';
 import type { Panel, PanelCategory } from '../../panels/types.ts';
-import { ConfigManager } from '../../config/index.ts';
+import { CONFIG_SCHEMA, ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { SecretsManager } from '../../config/secrets.ts';
 import { buildGoodVibesSecretKey, buildGoodVibesSecretRef } from '../../config/secret-config.ts';
+import { isAgentHiddenSettingKey } from '../../config/agent-settings-policy.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { registerOperatorRuntimeCommands } from '../../input/commands/operator-runtime.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
@@ -23,8 +24,8 @@ import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-t
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
-import { SDK_VERSION } from '../../version.ts';
 import { listGoodVibesCliCommands } from '../../cli/parser.ts';
+import { compactRegisteredToolDefinitions } from '../../tools/tool-definition-compaction.ts';
 
 type ShellPaths = ReturnType<typeof createShellPathService>;
 type HarnessOpenSelection = NonNullable<CommandContext['openSelection']>;
@@ -114,6 +115,7 @@ function makeFixture(options: {
   readonly secrets?: boolean;
   readonly dismissAgentWorkspace?: boolean;
   readonly keybindings?: boolean;
+  readonly builtinCommands?: boolean;
 } = {}): HarnessFixture {
   const { root, paths, cleanup } = makeShellPaths();
   const commandRegistry = new CommandRegistry();
@@ -131,6 +133,25 @@ function makeFixture(options: {
   const routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }> = [];
   const openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }> = [];
   const openedSelections: Array<{ readonly title: string; readonly itemIds: readonly string[]; readonly preSelectId?: string }> = [];
+  const savedSessions = [{
+    name: 'session-alpha',
+    title: 'Alpha planning session',
+    model: 'gpt-4.1',
+    provider: 'openai',
+    timestamp: 1_700_000_000_000,
+    messageCount: 5,
+    filePath: join(root, '.goodvibes', 'sessions', 'session-alpha.json'),
+  }];
+  const sessionManager = {
+    list: () => savedSessions,
+    search: (query: string) => savedSessions
+      .filter((session) => [session.name, session.title, session.model, session.provider].join('\n').toLowerCase().includes(query.toLowerCase()))
+      .map((session) => ({ session, matchCount: 1, snippets: [`${session.title} match`] })),
+  };
+  const bookmarkManager = {
+    list: () => [{ id: 'bookmark-alpha' }],
+    listSavedFiles: () => [{ path: join(root, 'bookmarks.md') }],
+  };
   const openSelection: HarnessOpenSelection = (title, items, opts) => {
     openedSelections.push({
       title,
@@ -139,25 +160,29 @@ function makeFixture(options: {
     });
   };
 
-  commandRegistry.register({
-    name: 'brief',
-    description: 'Test briefing command',
-    handler: (_args, ctx) => {
-      ctx.print('briefing output');
-    },
-  });
-  commandRegistry.register({
-    name: 'commands',
-    description: 'Browse all commands in a scrollable list',
-    handler: (_args, ctx) => {
-      ctx.openSelection?.(
-        'Help - Commands',
-        [{ id: '/brief', label: '/brief', detail: 'Test briefing command' }],
-        { allowSearch: true },
-        () => {},
-      );
-    },
-  });
+  if (options.builtinCommands === true) {
+    registerBuiltinCommands(commandRegistry);
+  } else {
+    commandRegistry.register({
+      name: 'brief',
+      description: 'Test briefing command',
+      handler: (_args, ctx) => {
+        ctx.print('briefing output');
+      },
+    });
+    commandRegistry.register({
+      name: 'commands',
+      description: 'Browse all commands in a scrollable list',
+      handler: (_args, ctx) => {
+        ctx.openSelection?.(
+          'Help - Commands',
+          [{ id: '/brief', label: '/brief', detail: 'Test briefing command' }],
+          { allowSearch: true },
+          () => {},
+        );
+      },
+    });
+  }
 
   const context = {
     print: (text: string) => printed.push(text),
@@ -256,10 +281,20 @@ function makeFixture(options: {
     },
     openSelection,
     workspace: options.keybindings === false
-      ? { shellPaths: paths, panelManager }
-      : { shellPaths: paths, panelManager, keybindingsManager },
+      ? { shellPaths: paths, panelManager, bookmarkManager }
+      : { shellPaths: paths, panelManager, keybindingsManager, bookmarkManager },
     platform: {
       configManager,
+      serviceRegistry: {
+        getAll: () => ({}),
+        inspect: async () => null,
+      },
+      subscriptionManager: {
+        list: () => [],
+        listPending: () => [],
+        get: () => null,
+        getPending: () => null,
+      },
       voiceProviderRegistry: {
         list: () => [
           { id: 'stream-voice', label: 'Streaming Voice', capabilities: ['tts-stream'] },
@@ -272,10 +307,76 @@ function makeFixture(options: {
           { id: `${providerId ?? 'default'}-voice-b`, label: 'Voice B' },
         ],
       },
+      readModels: {
+        security: {
+          getSnapshot: () => ({
+            audit: {
+              totalTokens: 1,
+              results: [{
+                label: 'agent-token',
+                blocked: true,
+                scope: { outcome: 'violation', policyId: 'agent-policy' },
+                rotation: { outcome: 'ok' },
+              }],
+              blocked: ['agent-token'],
+              scopeViolations: ['agent-token'],
+              rotationWarnings: [],
+              rotationOverdue: [],
+            },
+            policy: {
+              preflightStatus: 'ok',
+              preflightIssueCount: 0,
+              lintFindingCount: 0,
+            },
+            mcpServers: [],
+            plugins: [],
+            incidents: [],
+            deniedPermissions: 0,
+          }),
+        },
+      },
       ...(secretsManager ? { secretsManager } : {}),
     },
-    session: {},
-    provider: {},
+    clients: {
+      mcpApi: {
+        listServerSecurity: () => [{
+          name: 'filesystem',
+          connected: true,
+          trustMode: 'constrained',
+          role: 'tools',
+          schemaFreshness: 'fresh',
+          quarantineReason: null,
+          quarantineDetail: null,
+          allowedPaths: [root],
+          allowedHosts: ['localhost'],
+        }],
+        listAllTools: async () => [{
+          serverName: 'filesystem',
+          toolName: 'read_file',
+          description: 'Read a file from an allowed path.',
+        }],
+      },
+    },
+    session: {
+      runtime: {
+        sessionId: 'session-alpha',
+        provider: 'openai',
+        model: 'gpt-4.1',
+        reasoningEffort: 'medium',
+      },
+      conversationManager: {
+        title: 'Alpha planning session',
+        getMessageCount: () => 5,
+        getTranscriptEventIndex: () => ({ events: [], groups: [] }),
+      },
+      sessionManager,
+    },
+    provider: {
+      providerRegistry: {
+        listModels: () => [{ provider: 'openai', modelId: 'gpt-4.1', providerEnvVars: ['OPENAI_API_KEY'] }],
+        getContextWindowForModel: () => 128_000,
+      },
+    },
     ops: {},
     extensions: { toolRegistry },
   } as unknown as CommandContext;
@@ -339,6 +440,52 @@ function readAuthorizationHeader(headers: HeadersInit | undefined): string | nul
   return typeof value === 'string' ? value : null;
 }
 
+function expectModelFacingText(output: string): void {
+  const forbidden = [
+    ['commandContext', '.'].join(''),
+    ['legacy', 'panel'].join(' '),
+    ['legacy', 'panels'].join(' '),
+    ['shell', 'bridge'].join(' '),
+    ['focus', 'Prompt'].join(''),
+  ];
+  for (const token of forbidden) {
+    expect(output).not.toContain(token);
+  }
+}
+
+function expectCompactSummaryFields(value: unknown, limit = 72): void {
+  if (!value || typeof value !== 'object') return;
+  if (Array.isArray(value)) {
+    for (const entry of value) expectCompactSummaryFields(entry, limit);
+    return;
+  }
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === 'summary' && typeof entry === 'string') {
+      expect(entry.length).toBeLessThanOrEqual(limit);
+    }
+    expectCompactSummaryFields(entry, limit);
+  }
+}
+
+function expectCompactModelRoute(value: unknown): void {
+  expect(typeof value).toBe('string');
+  const route = String(value);
+  expect(route.length).toBeGreaterThan(0);
+  expect(route.length).toBeLessThanOrEqual(72);
+}
+
+function expectRowsHaveCompactModelRoutes(rows: readonly Record<string, unknown>[]): void {
+  expect(rows.length).toBeGreaterThan(0);
+  for (const row of rows) expectCompactModelRoute(row.modelRoute);
+}
+
+async function executeHarnessJson<T>(fixture: HarnessFixture, args: Record<string, unknown>): Promise<T> {
+  const result = await fixture.tool.execute(args);
+  expect(result.success).toBe(true);
+  if (!result.success) throw new Error(result.error);
+  return JSON.parse(result.output ?? '{}') as T;
+}
+
 describe('agent_harness tool', () => {
   test('exposes a searchable compact harness mode catalog to the model', async () => {
     const fixture = makeFixture();
@@ -353,6 +500,17 @@ describe('agent_harness tool', () => {
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
       expect(summaryJson.modeGuide?.inspect).toContain('mode');
+
+      const allModes = await fixture.tool.execute({ mode: 'modes', limit: 500 });
+      expect(allModes.success).toBe(true);
+      if (!allModes.success) throw new Error(allModes.error);
+      const allModesJson = JSON.parse(allModes.output ?? '{}') as {
+        readonly modes: readonly { readonly summary?: string; readonly next?: string; readonly parameters?: readonly string[] }[];
+      };
+      expect(allModesJson.modes.length).toBe(summaryJson.harnessModes);
+      expect(allModesJson.modes.filter((entry) => (entry.summary?.length ?? 0) > 72)).toEqual([]);
+      expect(allModesJson.modes.filter((entry) => (entry.next?.length ?? 0) > 72)).toEqual([]);
+      expect(allModesJson.modes.filter((entry) => entry.parameters !== undefined)).toEqual([]);
 
       const settingsModes = await fixture.tool.execute({ mode: 'modes', query: 'settings' });
       expect(settingsModes.success).toBe(true);
@@ -370,7 +528,7 @@ describe('agent_harness tool', () => {
         'set_setting',
         'reset_setting',
       ]));
-      expect(settingsJson.modes.some((entry) => entry.parameters !== undefined)).toBe(false);
+      expect(settingsJson.modes.filter((entry) => entry.parameters !== undefined)).toEqual([]);
 
       const detailedModes = await fixture.tool.execute({
         mode: 'modes',
@@ -381,6 +539,8 @@ describe('agent_harness tool', () => {
       expect(detailedModes.success).toBe(true);
       if (!detailedModes.success) throw new Error(detailedModes.error);
       expect(detailedModes.output).toContain('"parameters"');
+      expectModelFacingText(allModes.output);
+      expectModelFacingText(detailedModes.output);
 
       const taskPhrase = await fixture.tool.execute({ mode: 'modes', query: 'set setting' });
       expect(taskPhrase.success).toBe(true);
@@ -388,6 +548,7 @@ describe('agent_harness tool', () => {
       const taskPhraseJson = JSON.parse(taskPhrase.output ?? '{}') as {
         readonly modes: readonly { readonly id: string }[];
       };
+      expect(taskPhraseJson.modes[0]?.id).toBe('set_setting');
       expect(taskPhraseJson.modes.map((entry) => entry.id)).toContain('set_setting');
 
       const setSetting = await fixture.tool.execute({ mode: 'mode', target: 'set_setting' });
@@ -418,6 +579,107 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes compact model routes across product posture catalogs', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.configManager.setDynamic('notifications.webhookUrls', ['https://example.test/hooks/alpha?token=secret']);
+
+      const channels = await executeHarnessJson<{
+        readonly channels: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'channels', limit: 3 });
+      expectRowsHaveCompactModelRoutes(channels.channels);
+
+      const notifications = await executeHarnessJson<{
+        readonly targets: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'notifications' });
+      expectRowsHaveCompactModelRoutes(notifications.targets);
+      expect(notifications.targets[0]?.value).toBe('<redacted>');
+
+      const providerAccounts = await executeHarnessJson<{
+        readonly providers: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'provider_accounts', query: 'openai', limit: 5 });
+      expectRowsHaveCompactModelRoutes(providerAccounts.providers);
+
+      const mcpServers = await executeHarnessJson<{
+        readonly servers: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'mcp_servers' });
+      expectRowsHaveCompactModelRoutes(mcpServers.servers);
+
+      const modelRouting = await executeHarnessJson<{
+        readonly routes: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'model_routing', limit: 5 });
+      expectRowsHaveCompactModelRoutes(modelRouting.routes);
+      expect(modelRouting.routes.filter((route) => route.commands !== undefined || route.uiSurfaces !== undefined)).toEqual([]);
+
+      const pairing = await executeHarnessJson<{
+        readonly routes: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'pairing_posture' });
+      expectRowsHaveCompactModelRoutes(pairing.routes);
+      expect(pairing.routes.filter((route) => route.harnessRoute !== undefined)).toEqual([]);
+
+      const delegation = await executeHarnessJson<{
+        readonly routes: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'delegation_posture' });
+      expectRowsHaveCompactModelRoutes(delegation.routes);
+      expect(delegation.routes.filter((route) => route.commandTemplate !== undefined)).toEqual([]);
+
+      const security = await executeHarnessJson<{
+        readonly findings: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'security_posture' });
+      expectRowsHaveCompactModelRoutes(security.findings);
+
+      const bundles = await executeHarnessJson<{
+        readonly bundles: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'support_bundles' });
+      expectRowsHaveCompactModelRoutes(bundles.bundles);
+      expect(bundles.bundles.filter((bundle) => bundle.exportCommand !== undefined || bundle.workspaceActionIds !== undefined)).toEqual([]);
+
+      const media = await executeHarnessJson<{
+        readonly providers: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'media_posture' });
+      expectRowsHaveCompactModelRoutes(media.providers);
+
+      const sessions = await executeHarnessJson<{
+        readonly sessions: readonly Record<string, unknown>[];
+        readonly bookmarks: Record<string, unknown>;
+      }>(fixture, { mode: 'sessions' });
+      expectRowsHaveCompactModelRoutes(sessions.sessions);
+      expectCompactModelRoute(sessions.bookmarks.modelRoute);
+      expect(sessions.bookmarks.modelRoutes).toBeUndefined();
+
+      const operatorMethods = await executeHarnessJson<{
+        readonly methods: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'operator_methods', query: 'schedules.create' });
+      expectRowsHaveCompactModelRoutes(operatorMethods.methods);
+      expect(operatorMethods.methods[0]?.preferredModelTool).toBeUndefined();
+
+      const service = await executeHarnessJson<{
+        readonly modelRoute?: string;
+        readonly endpoints: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'service_posture' });
+      expectCompactModelRoute(service.modelRoute);
+      expectRowsHaveCompactModelRoutes(service.endpoints);
+
+      const expandedMcp = await executeHarnessJson<{
+        readonly servers: readonly { readonly modelAccess?: Record<string, unknown> }[];
+      }>(fixture, { mode: 'mcp_servers', includeParameters: true });
+      expect(expandedMcp.servers[0]?.modelAccess).toMatchObject({
+        reviewCommand: '/mcp review',
+        serversCommand: '/mcp servers',
+        configCommand: '/mcp config',
+      });
+
+      const expandedOperatorMethod = await executeHarnessJson<{
+        readonly modelRoute?: string;
+        readonly preferredModelTool?: string;
+      }>(fixture, { mode: 'operator_method', methodId: 'schedules.create' });
+      expectCompactModelRoute(expandedOperatorMethod.modelRoute);
+      expect(expandedOperatorMethod.preferredModelTool).toContain('agent_reminder_schedule');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes Agent workspace categories, actions, and editor schemas to the model', async () => {
     const fixture = makeFixture();
     try {
@@ -427,8 +689,9 @@ describe('agent_harness tool', () => {
         readonly categories: readonly { readonly id: string; readonly actions: number }[];
         readonly actions: number;
       };
-      expect(workspacePayload.categories.some((entry) => entry.id === 'home' && entry.actions > 0)).toBe(true);
+      expect(workspacePayload.categories.find((entry) => entry.id === 'home')?.actions).toBeGreaterThan(0);
       expect(workspacePayload.actions).toBeGreaterThan(0);
+      expectCompactSummaryFields(workspacePayload);
 
       const categories = await fixture.tool.execute({ mode: 'workspace_categories' });
       expect(categories.success).toBe(true);
@@ -436,8 +699,9 @@ describe('agent_harness tool', () => {
         readonly categories: readonly { readonly id: string; readonly actions: number }[];
         readonly actions: number;
       };
-      expect(categoryPayload.categories.some((entry) => entry.id === 'memory' && entry.actions > 0)).toBe(true);
+      expect(categoryPayload.categories.find((entry) => entry.id === 'memory')?.actions).toBeGreaterThan(0);
       expect(categoryPayload.actions).toBe(workspacePayload.actions);
+      expectCompactSummaryFields(categoryPayload);
 
       const compactSummary = await fixture.tool.execute({ mode: 'summary' });
       expect(compactSummary.success).toBe(true);
@@ -454,6 +718,29 @@ describe('agent_harness tool', () => {
       expect(listed.success).toBe(true);
       expect(listed.output).toContain('memory-create');
       expect(listed.output).toContain('Create memory');
+      const listedPayload = JSON.parse(listed.output) as {
+        readonly actions: readonly { readonly id: string; readonly modelRoute?: string }[];
+      };
+      expectCompactSummaryFields(listedPayload);
+      expect(listedPayload.actions.find((entry) => entry.id === 'memory-create')?.modelRoute).toBe('agent_local_registry');
+
+      const allActions = await fixture.tool.execute({ mode: 'workspace_actions' });
+      expect(allActions.success).toBe(true);
+      const allActionPayload = JSON.parse(allActions.output) as {
+        readonly actions: readonly { readonly id: string; readonly modelRoute?: string }[];
+        readonly returned: number;
+        readonly total: number;
+      };
+      expect(allActionPayload.returned).toBe(workspacePayload.actions);
+      expect(allActionPayload.total).toBe(workspacePayload.actions);
+      expect(allActionPayload.actions.length).toBe(workspacePayload.actions);
+      expect(allActionPayload.actions.filter((entry) => (
+        typeof entry.modelRoute !== 'string'
+        || entry.modelRoute.length === 0
+        || entry.modelRoute.length > 72
+      ))).toEqual([]);
+      expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });
       expect(listedWithEditors.success).toBe(true);
@@ -561,6 +848,86 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes every built-in slash command through the model-facing command catalog', async () => {
+    const fixture = makeFixture({ builtinCommands: true });
+    try {
+      const catalog = await fixture.tool.execute({ mode: 'commands', includeParameters: true, limit: 500 });
+      expect(catalog.success).toBe(true);
+      if (!catalog.success) throw new Error(catalog.error);
+      const payload = JSON.parse(catalog.output) as {
+        readonly commands: readonly {
+          readonly name: string;
+          readonly slash: string;
+          readonly policy?: {
+            readonly effect?: string;
+            readonly preferredModelTool?: string;
+          };
+        }[];
+        readonly returned: number;
+        readonly total: number;
+      };
+      const registeredNames = fixture.commandRegistry.list().map((command) => command.name).sort();
+      const catalogNames = payload.commands.map((command) => command.name).sort();
+
+      expect(payload.total).toBe(registeredNames.length);
+      expect(payload.returned).toBe(registeredNames.length);
+      expect(catalogNames).toEqual(registeredNames);
+      expect(catalogNames).toEqual(expect.arrayContaining([
+        'agent',
+        'agent-profile',
+        'channels',
+        'commands',
+        'knowledge',
+        'memory',
+        'model',
+        'qrcode',
+        'schedule',
+        'settings',
+        'tasks',
+        'voice',
+        'workplan',
+      ]));
+      for (const hidden of [
+        'bridge',
+        'daemon',
+        'panel',
+        'profiles',
+        'remote',
+        'services',
+      ] as const) {
+        expect(catalogNames).not.toContain(hidden);
+      }
+      expect(payload.commands.map((command) => command.slash)).toEqual(payload.commands.map((command) => `/${command.name}`));
+      expect(payload.commands.filter((command) => !command.policy?.effect || !command.policy.preferredModelTool)).toEqual([]);
+      expectModelFacingText(catalog.output);
+
+      const compactCatalog = await fixture.tool.execute({ mode: 'commands', limit: 500 });
+      expect(compactCatalog.success).toBe(true);
+      if (!compactCatalog.success) throw new Error(compactCatalog.error);
+      const compactPayload = JSON.parse(compactCatalog.output) as {
+        readonly commands: readonly { readonly effect?: string; readonly modelRoute?: string }[];
+      };
+      expectCompactSummaryFields(compactPayload);
+      expect(compactPayload.commands.filter((command) => !command.effect || !command.modelRoute)).toEqual([]);
+      expect(compactPayload.commands.filter((command) => (command.modelRoute?.length ?? 0) > 72)).toEqual([]);
+
+      const profileAlias = await fixture.tool.execute({ mode: 'command', command: '/agent-profiles list' });
+      expect(profileAlias.success).toBe(true);
+      if (!profileAlias.success) throw new Error(profileAlias.error);
+      const profilePayload = JSON.parse(profileAlias.output) as {
+        readonly name: string;
+        readonly lookup: { readonly resolvedBy: string; readonly parsedArgs: readonly string[] };
+        readonly policy?: { readonly preferredModelTool?: string };
+      };
+      expect(profilePayload.name).toBe('agent-profile');
+      expect(profilePayload.lookup.resolvedBy).toBe('alias');
+      expect(profilePayload.lookup.parsedArgs).toEqual(['list']);
+      expect(profilePayload.policy?.preferredModelTool).toContain('workspace_actions');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes first-class model tool schemas individually', async () => {
     const fixture = makeFixture();
     try {
@@ -596,6 +963,37 @@ describe('agent_harness tool', () => {
         },
         execute: async () => ({ success: true, output: 'custom report inspected' }),
       });
+      fixture.toolRegistry.register({
+        definition: {
+          name: 'agent_a_notice_template',
+          description: 'Inspect notice template before send',
+          parameters: {
+            type: 'object',
+            properties: {},
+            additionalProperties: false,
+          },
+        },
+        execute: async () => ({ success: true, output: 'notice template inspected' }),
+      });
+      fixture.toolRegistry.register({
+        definition: {
+          name: 'agent_z_send_notice',
+          description: 'Send one confirmed notice to a configured target',
+          sideEffects: ['network'],
+          parameters: {
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Notice body.' },
+              targetId: { type: 'string', description: 'Configured delivery target id.' },
+              confirm: { type: 'boolean' },
+            },
+            required: ['message', 'targetId', 'confirm'],
+            additionalProperties: false,
+          },
+        },
+        execute: async () => ({ success: true, output: 'notice sent' }),
+      });
+      compactRegisteredToolDefinitions(fixture.toolRegistry);
 
       const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
@@ -608,11 +1006,26 @@ describe('agent_harness tool', () => {
       expect(catalog.output).toContain('"name": "agent_custom_action"');
       expect(catalog.output).toContain('"supportsProgress": true');
       expect(catalog.output).not.toContain('"targetId"');
+      const catalogJson = JSON.parse(catalog.output ?? '{}') as {
+        readonly tools: readonly { readonly summary?: string }[];
+      };
+      expect(catalogJson.tools.filter((entry) => (entry.summary?.length ?? 0) > 72)).toEqual([]);
 
       const catalogWithSchemas = await fixture.tool.execute({ mode: 'tools', query: 'confirmed custom Agent action', includeParameters: true });
       expect(catalogWithSchemas.success).toBe(true);
       expect(catalogWithSchemas.output).toContain('"parameters"');
       expect(catalogWithSchemas.output).toContain('"targetId"');
+
+      const taskPhraseCatalog = await fixture.tool.execute({ mode: 'tools', query: 'send notice' });
+      expect(taskPhraseCatalog.success).toBe(true);
+      const taskPhraseJson = JSON.parse(taskPhraseCatalog.output ?? '{}') as {
+        readonly tools: readonly { readonly name: string }[];
+      };
+      expect(taskPhraseJson.tools[0]?.name).toBe('agent_z_send_notice');
+
+      const parameterCatalog = await fixture.tool.execute({ mode: 'tools', query: 'target id' });
+      expect(parameterCatalog.success).toBe(true);
+      expect(parameterCatalog.output).toContain('"name": "agent_custom_action"');
 
       const detail = await fixture.tool.execute({ mode: 'tool', toolName: 'agent_custom_action' });
       expect(detail.success).toBe(true);
@@ -685,7 +1098,7 @@ describe('agent_harness tool', () => {
         'live-verification-json',
         'live-verification-markdown',
       ]);
-      expect(evidenceJson.artifactsList.every((artifact) => artifact.content === undefined)).toBe(true);
+      expect(evidenceJson.artifactsList.map((artifact) => artifact.content)).toEqual([undefined, undefined]);
 
       const notesArtifact = await fixture.tool.execute({
         mode: 'release_evidence_artifact',
@@ -739,8 +1152,8 @@ describe('agent_harness tool', () => {
       expect(inventoryJson.totals.filtered).toBeGreaterThan(0);
       expect(inventoryJson.totals.requiredQualityDimensions).toContain('modelAccess');
       expect(inventoryJson.totals.completeQualityDimensions).toBe(inventoryJson.totals.expectedQualityDimensions);
-      expect(inventoryJson.items.some((item) => item.id === 'release-readiness-inventory-gate')).toBe(true);
-      expect(inventoryJson.items.every((item) => item.quality === undefined)).toBe(true);
+      expect(inventoryJson.items.map((item) => item.id)).toContain('release-readiness-inventory-gate');
+      expect(inventoryJson.items.map((item) => item.quality)).toEqual(Array(inventoryJson.items.length).fill(undefined));
 
       const inventoryWithQuality = await fixture.tool.execute({
         mode: 'release_readiness',
@@ -816,8 +1229,8 @@ describe('agent_harness tool', () => {
       const catalogJson = JSON.parse(catalog.output) as {
         readonly methods: readonly { readonly id: string; readonly route: string; readonly preferredModelTool: string; readonly parameters?: readonly unknown[] }[];
       };
-      expect(catalogJson.methods.some((method) => method.id === 'agentKnowledge.map')).toBe(true);
-      expect(catalogJson.methods.some((method) => method.route === '/api/goodvibes-agent/knowledge/connectors/{id}/doctor')).toBe(true);
+      expect(catalogJson.methods.map((method) => method.id)).toContain('agentKnowledge.map');
+      expect(catalogJson.methods.map((method) => method.route)).toContain('/api/goodvibes-agent/knowledge/connectors/{id}/doctor');
       expect(catalogJson.methods.find((method) => method.id === 'agentKnowledge.ingest.url')?.parameters?.length).toBeGreaterThan(0);
 
       const schedule = await fixture.tool.execute({ mode: 'operator_method', methodId: 'schedules.create' });
@@ -887,6 +1300,15 @@ describe('agent_harness tool', () => {
       expect(catalog.output).toContain('"blockedTokens"');
       expect(catalog.output).toContain('"daemon"');
       expect(catalog.output).toContain('CLI modes are read-only discovery');
+      const compactCliJson = JSON.parse(catalog.output) as {
+        readonly commands: readonly { readonly name: string; readonly effect?: string; readonly modelRoute?: string }[];
+      };
+      expect(compactCliJson.commands.filter((command) => (
+        command.name === 'knowledge'
+        && command.effect === 'mixed'
+        && command.modelRoute === 'agent_knowledge or agent_knowledge_ingest'
+      ))).toHaveLength(1);
+      expect(compactCliJson.commands.filter((command) => (command.modelRoute?.length ?? 0) > 72)).toEqual([]);
 
       const detailedCatalog = await fixture.tool.execute({ mode: 'cli_commands', query: 'knowledge', includeParameters: true });
       expect(detailedCatalog.success).toBe(true);
@@ -947,11 +1369,24 @@ describe('agent_harness tool', () => {
       expect(panels.output).toContain('"id": "provider-health"');
       expect(panels.output).toContain('"open": true');
       expect(panels.output).toContain('"command": "/agent setup"');
+      expectCompactSummaryFields(JSON.parse(panels.output));
+      expectModelFacingText(panels.output);
+      const panelsPayload = JSON.parse(panels.output) as {
+        readonly panels: readonly { readonly id?: string; readonly modelRoute?: string }[];
+      };
+      expect(panelsPayload.panels.filter((panel) => (
+        typeof panel.modelRoute !== 'string'
+        || panel.modelRoute.length === 0
+        || panel.modelRoute.length > 72
+      ))).toEqual([]);
+      expect(panelsPayload.panels.find((panel) => panel.id === 'provider-health')?.modelRoute).toBe('agent_harness mode:"open_panel" or mode:"workspace_actions"');
 
       const panel = await fixture.tool.execute({ mode: 'panel', panelId: 'knowledge' });
       expect(panel.success).toBe(true);
       expect(panel.output).toContain('"categoryId": "knowledge"');
       expect(panel.output).toContain('"command": "/agent knowledge"');
+      expectModelFacingText(panel.output);
+      expect(JSON.parse(panel.output).modelRoute).toBe('agent_harness mode:"open_panel" or mode:"workspace_actions"');
 
       const panelByQuery = await fixture.tool.execute({ mode: 'panel', query: 'isolated Agent Knowledge' });
       expect(panelByQuery.success).toBe(true);
@@ -992,6 +1427,7 @@ describe('agent_harness tool', () => {
       });
       expect(routed.success).toBe(true);
       expect(routed.output).toContain('"status": "routed"');
+      expectModelFacingText(routed.output);
       expect(fixture.routedPanels).toEqual([{ panelId: 'knowledge', pane: 'bottom' }]);
     } finally {
       fixture.cleanup();
@@ -1015,7 +1451,19 @@ describe('agent_harness tool', () => {
       expect(catalog.output).toContain('"id": "tts-provider-picker"');
       expect(catalog.output).toContain('"id": "tts-voice-picker"');
       expect(catalog.output).toContain('"id": "file-picker"');
-      expect(catalog.output).toContain('preferredModelRoute');
+      expect(catalog.output).toContain('modelRoute');
+      expect(catalog.output).not.toContain('preferredModelRoute');
+      expectCompactSummaryFields(JSON.parse(catalog.output));
+      expectModelFacingText(catalog.output);
+      const catalogJson = JSON.parse(catalog.output) as {
+        readonly surfaces: readonly { readonly id?: string; readonly modelRoute?: string }[];
+      };
+      expect(catalogJson.surfaces.filter((surface) => (
+        typeof surface.modelRoute !== 'string'
+        || surface.modelRoute.length === 0
+        || surface.modelRoute.length > 72
+      ))).toEqual([]);
+      expect(catalogJson.surfaces.find((surface) => surface.id === 'model-picker')?.modelRoute).toBe('agent_harness mode:"settings" or mode:"run_command"');
 
       const searchSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'search' });
       expect(searchSurfaces.success).toBe(true);
@@ -1044,7 +1492,8 @@ describe('agent_harness tool', () => {
       const activitySurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'activity' });
       expect(activitySurfaces.success).toBe(true);
       expect(activitySurfaces.output).toContain('"id": "process-monitor"');
-      expect(activitySurfaces.output).toContain('visible supervision of runtime activity');
+      expect(activitySurfaces.output).toContain('Visible running-process and live-output monitor.');
+      expect(activitySurfaces.output).toContain('first-class tools or agent_harness mode:\\"open_ui_surface\\"');
 
       const outputSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'live-output' });
       expect(outputSurfaces.success).toBe(true);
@@ -1054,11 +1503,14 @@ describe('agent_harness tool', () => {
       expect(settings.success).toBe(true);
       const settingsJson = JSON.parse(settings.output ?? '{}') as {
         readonly id?: string;
+        readonly modelRoute?: string;
         readonly preferredModelRoute?: string;
       };
       expect(settingsJson.id).toBe('settings');
+      expect(settingsJson.modelRoute).toBe('agent_harness mode:"settings" or mode:"open_ui_surface"');
       expect(settingsJson.preferredModelRoute).toContain('mode:"settings", mode:"get_setting", mode:"set_setting", mode:"reset_setting"');
       expect(settingsJson.preferredModelRoute).not.toContain('settings/get_setting/set_setting/reset_setting');
+      expectModelFacingText(settings.output);
 
       const settingsByQuery = await fixture.tool.execute({
         mode: 'ui_surface',
@@ -1092,6 +1544,7 @@ describe('agent_harness tool', () => {
       });
       expect(openedSettings.success).toBe(true);
       expect(openedSettings.output).toContain('"status": "opened"');
+      expectModelFacingText(openedSettings.output);
       expect(fixture.openedSurfaces).toEqual([{ id: 'settings', detail: 'provider.model' }]);
 
       const ambiguousSurface = await fixture.tool.execute({
@@ -1335,6 +1788,12 @@ describe('agent_harness tool', () => {
       expect(keybinding.output).toContain('"preferredMode": "run_keybinding"');
       expect(keybinding.output).toContain('"surfaceId": "conversation-search"');
 
+      const keybindingCatalog = await fixture.tool.execute({ mode: 'keybindings', limit: 500 });
+      expect(keybindingCatalog.success).toBe(true);
+      expectModelFacingText(shortcuts.output);
+      expectModelFacingText(keybindingCatalog.output);
+      expectModelFacingText(keybinding.output);
+
       const keybindingByQuery = await fixture.tool.execute({ mode: 'keybinding', query: 'Ctrl+F' });
       expect(keybindingByQuery.success).toBe(true);
       const keybindingByQueryJson = JSON.parse(keybindingByQuery.output);
@@ -1501,6 +1960,12 @@ describe('agent_harness tool', () => {
       expect(compactResult.success).toBe(true);
       expect(compactResult.output).toContain('"counts"');
       expect(compactResult.output).not.toContain('/api/goodvibes-agent/knowledge/*');
+      const compactJson = JSON.parse(compactResult.output ?? '{}') as { readonly modelRoute?: string };
+      expectCompactModelRoute(compactJson.modelRoute);
+
+      const daemonAlias = await fixture.tool.execute({ mode: 'daemon' });
+      expect(daemonAlias.success).toBe(true);
+      expect(JSON.parse(daemonAlias.output)).toEqual(JSON.parse(compactResult.output));
 
       const result = await fixture.tool.execute({ mode: 'connected_host', includeParameters: true });
       expect(result.success).toBe(true);
@@ -1509,6 +1974,14 @@ describe('agent_harness tool', () => {
       expect(result.output).toContain('"capabilities"');
       expect(result.output).toContain('"agent_operator_action"');
       expect(result.output).toContain('"available": true');
+      const expandedJson = JSON.parse(result.output ?? '{}') as {
+        readonly capabilities?: readonly Record<string, unknown>[];
+        readonly blockedCapabilities?: readonly Record<string, unknown>[];
+        readonly routeFamilies?: readonly Record<string, unknown>[];
+      };
+      expectRowsHaveCompactModelRoutes(expandedJson.capabilities ?? []);
+      expectRowsHaveCompactModelRoutes(expandedJson.blockedCapabilities ?? []);
+      expectRowsHaveCompactModelRoutes(expandedJson.routeFamilies ?? []);
       expect(result.output).toContain('"blockedCapabilities"');
       expect(result.output).toContain('connected-host-lifecycle');
       expect(result.output).toContain('arbitrary-connected-host-mutations');
@@ -1524,6 +1997,8 @@ describe('agent_harness tool', () => {
       expect(allowed.output).toContain('"map"');
       expect(allowed.output).toContain('"connector_doctor"');
       expect(allowed.output).toContain('/api/goodvibes-agent/knowledge/*');
+      const allowedJson = JSON.parse(allowed.output ?? '{}') as { readonly modelRoute?: string };
+      expect(allowedJson.modelRoute).toBe('agent_knowledge');
 
       const blocked = await fixture.tool.execute({
         mode: 'connected_host_capability',
@@ -1533,6 +2008,8 @@ describe('agent_harness tool', () => {
       expect(blocked.output).toContain('"status": "blocked"');
       expect(blocked.output).toContain('start');
       expect(blocked.output).toContain('not exposed to the model as an Agent operation');
+      const blockedJson = JSON.parse(blocked.output ?? '{}') as { readonly modelRoute?: string };
+      expectCompactModelRoute(blockedJson.modelRoute);
 
       const blockedByTarget = await fixture.tool.execute({
         mode: 'connected_host_capability',
@@ -1550,6 +2027,7 @@ describe('agent_harness tool', () => {
       expect(ambiguous.error).toContain('Ambiguous connected-host capability agent');
       expect(ambiguous.error).toContain('agent-knowledge-read');
       expect(ambiguous.error).toContain('agent-knowledge-ingest');
+      expect(ambiguous.error).toContain('modelRoute');
 
       const missing = await fixture.tool.execute({
         mode: 'connected_host_capability',
@@ -1590,7 +2068,7 @@ describe('agent_harness tool', () => {
         const url = String(input);
         requests.push({ url, authorization: readAuthorizationHeader(init?.headers) });
         if (url.endsWith('/status')) {
-          return new Response(JSON.stringify({ version: SDK_VERSION }), { status: 200 });
+          return new Response(JSON.stringify({ status: 'running' }), { status: 200 });
         }
         if (url.endsWith('/api/goodvibes-agent/knowledge/status')) {
           return new Response(JSON.stringify({ ready: true }), { status: 200 });
@@ -1602,6 +2080,7 @@ describe('agent_harness tool', () => {
       expect(result.success).toBe(true);
       if (!result.success) throw new Error(result.error);
       const payload = JSON.parse(result.output) as {
+        readonly modelRoute?: string;
         readonly liveStatus: {
           readonly reachable: boolean;
           readonly compatible: boolean;
@@ -1612,17 +2091,27 @@ describe('agent_harness tool', () => {
           readonly fingerprint: string | null;
         };
       };
+      expectCompactModelRoute(payload.modelRoute);
       expect(payload.liveStatus.reachable).toBe(true);
-      expect(payload.liveStatus.compatible).toBe(true);
-      expect(payload.liveStatus.agentKnowledge.ready).toBe(true);
       expect(payload.operatorToken.usable).toBe(true);
       expect(payload.operatorToken.fingerprint?.startsWith('sha256:')).toBe(true);
       expect(result.output).not.toContain(token);
+
+      const alias = await fixture.tool.execute({ mode: 'daemon_status' });
+      expect(alias.success).toBe(true);
+      if (!alias.success) throw new Error(alias.error);
+      const aliasPayload = JSON.parse(alias.output) as typeof payload;
+      expectCompactModelRoute(aliasPayload.modelRoute);
+      expect(aliasPayload.liveStatus.reachable).toBe(true);
+      expect(aliasPayload.operatorToken.usable).toBe(true);
+      expect(alias.output).not.toContain(token);
       expect(requests.map((request) => request.url)).toEqual([
         'http://127.0.0.1:3421/status',
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/status',
+        'http://127.0.0.1:3421/status',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/status',
       ]);
-      expect(requests.every((request) => request.authorization === `Bearer ${token}`)).toBe(true);
+      expect(requests.map((request) => request.authorization)).toEqual(Array(4).fill(`Bearer ${token}`));
     } finally {
       globalThis.fetch = originalFetch;
       fixture.cleanup();
@@ -1664,7 +2153,7 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('classifies workspace editor model execution routes by bridge type', async () => {
+  test('classifies workspace editor model execution routes by route type', async () => {
     const fixture = makeFixture();
     try {
       const local = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'memory-create' });
@@ -1938,6 +2427,11 @@ describe('agent_harness tool', () => {
       effect: 'ui-navigation',
       preferredModelTool: expect.stringContaining('agent_local_registry'),
     });
+    expect(describeCommandPolicy('bookmarks')).toMatchObject({
+      effect: 'ui-navigation',
+      preferredModelTool: expect.stringContaining('open_ui_surface'),
+    });
+    expect(describeCommandPolicy('bookmarks').preferredModelTool).toContain('run_command');
     expect(describeCommandPolicy('keybindings')).toMatchObject({
       effect: 'read-only',
       preferredModelTool: expect.stringContaining('run_keybinding'),
@@ -2048,7 +2542,7 @@ describe('agent_harness tool', () => {
       expect(queryRun.success).toBe(true);
       expect(queryRun.output).toContain('"status": "executed_model_tool"');
       expect(queryRun.output).toContain('Created Agent-local memory');
-      expect(memoryRegistry.getAll().some((entry) => entry.summary === 'Lookup execution preserves Agent-local memory only.')).toBe(true);
+      expect(memoryRegistry.getAll().map((entry) => entry.summary)).toContain('Lookup execution preserves Agent-local memory only.');
 
       const ambiguous = await fixture.tool.execute({
         mode: 'run_workspace_action',
@@ -2064,7 +2558,7 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('bridges selection-based local workspace actions through model tools', async () => {
+  test('routes selection-based local workspace actions through model tools', async () => {
     const fixture = makeFixture();
     try {
       const memoryRegistry = await createMemoryRegistry(fixture.paths, fixture.configManager);
@@ -2192,6 +2686,32 @@ describe('agent_harness tool', () => {
       expect(summaryJson.modelAccess?.settings).toContain('prefix');
       expect(summaryJson.modelAccess?.settings).toContain('includeHidden:true');
 
+      const defaultSettings = await fixture.tool.execute({ mode: 'settings' });
+      expect(defaultSettings.success).toBe(true);
+      const defaultPayload = JSON.parse(defaultSettings.output) as {
+        readonly settings: readonly { readonly key: string }[];
+        readonly returned: number;
+        readonly total: number;
+      };
+      const visibleSettingKeys = CONFIG_SCHEMA
+        .filter((setting) => !isAgentHiddenSettingKey(setting.key))
+        .map((setting) => setting.key)
+        .sort();
+      expect(defaultPayload.returned).toBe(visibleSettingKeys.length);
+      expect(defaultPayload.total).toBe(visibleSettingKeys.length);
+      expect(defaultPayload.settings.map((setting) => setting.key).sort()).toEqual(visibleSettingKeys);
+
+      const allSettings = await fixture.tool.execute({ mode: 'settings', includeHidden: true });
+      expect(allSettings.success).toBe(true);
+      const allPayload = JSON.parse(allSettings.output) as {
+        readonly settings: readonly { readonly key: string; readonly visibleInWorkspace: boolean }[];
+        readonly returned: number;
+        readonly total: number;
+      };
+      expect(allPayload.returned).toBe(CONFIG_SCHEMA.length);
+      expect(allPayload.total).toBe(CONFIG_SCHEMA.length);
+      expect(allPayload.settings.filter((setting) => !setting.visibleInWorkspace).length).toBeGreaterThan(0);
+
       const filteredSettings = await fixture.tool.execute({
         mode: 'settings',
         category: 'provider',
@@ -2201,12 +2721,17 @@ describe('agent_harness tool', () => {
       });
       expect(filteredSettings.success).toBe(true);
       const filteredPayload = JSON.parse(filteredSettings.output) as {
-        readonly settings: readonly { readonly key: string }[];
+        readonly settings: readonly { readonly key: string; readonly modelRoute?: string; readonly writable?: boolean }[];
         readonly returned: number;
       };
+      expectCompactSummaryFields(filteredPayload);
       expect(filteredPayload.returned).toBeGreaterThan(0);
-      expect(filteredPayload.settings.some((setting) => setting.key === 'provider.reasoningEffort')).toBe(true);
-      expect(filteredPayload.settings.every((setting) => setting.key.startsWith('provider.'))).toBe(true);
+      expect(filteredPayload.settings.map((setting) => setting.key)).toContain('provider.reasoningEffort');
+      expect(filteredPayload.settings.filter((setting) => !setting.key.startsWith('provider.'))).toEqual([]);
+      expect(filteredPayload.settings.filter((setting) => (
+        setting.writable !== true
+        || setting.modelRoute !== 'agent_harness mode:"set_setting" or mode:"reset_setting"'
+      ))).toEqual([]);
 
       const byTarget = await fixture.tool.execute({
         mode: 'get_setting',
@@ -2215,6 +2740,7 @@ describe('agent_harness tool', () => {
       expect(byTarget.success).toBe(true);
       const targetSetting = JSON.parse(byTarget.output);
       expect(targetSetting.key).toBe('provider.model');
+      expect(targetSetting.modelRoute).toBe('agent_harness mode:"set_setting" or mode:"reset_setting"');
       expect(targetSetting.lookup).toEqual({
         source: 'target',
         input: 'PROVIDER.MODEL',
@@ -2229,6 +2755,7 @@ describe('agent_harness tool', () => {
       expect(byQuery.success).toBe(true);
       const querySetting = JSON.parse(byQuery.output);
       expect(querySetting.key).toBe('provider.reasoningEffort');
+      expect(querySetting.modelRoute).toBe('agent_harness mode:"set_setting" or mode:"reset_setting"');
       expect(querySetting.lookup).toEqual({
         source: 'query',
         input: 'reasoning',
@@ -2268,6 +2795,7 @@ describe('agent_harness tool', () => {
       expect(ambiguous.success).toBe(false);
       expect(ambiguous.error).toContain('Ambiguous setting provider');
       expect(ambiguous.error).toContain('provider.model');
+      expect(ambiguous.error).toContain('modelRoute');
     } finally {
       fixture.cleanup();
     }

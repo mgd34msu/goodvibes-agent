@@ -221,9 +221,10 @@ describe('findPathToken', () => {
     ih.prompt = 'open @src/in';
     ih.cursorPos = 12;
     const result = findPathToken(ih);
-    expect(result).not.toBeNull();
-    expect(result!.prefix).toBe('src/in');
-    expect(result!.start).toBe(5);
+    expect(result).toEqual(expect.objectContaining({
+      prefix: 'src/in',
+      start: 5,
+    }));
   });
 
   test('detects !@path token (inject mode)', () => {
@@ -231,9 +232,10 @@ describe('findPathToken', () => {
     ih.prompt = '!@src/utils';
     ih.cursorPos = 11;
     const result = findPathToken(ih);
-    expect(result).not.toBeNull();
-    expect(result!.prefix).toBe('src/utils');
-    expect(result!.start).toBe(0);
+    expect(result).toEqual(expect.objectContaining({
+      prefix: 'src/utils',
+      start: 0,
+    }));
   });
 
   test('detects bare path with slash', () => {
@@ -241,8 +243,9 @@ describe('findPathToken', () => {
     ih.prompt = 'see src/core/foo';
     ih.cursorPos = 16;
     const result = findPathToken(ih);
-    expect(result).not.toBeNull();
-    expect(result!.prefix).toBe('src/core/foo');
+    expect(result).toEqual(expect.objectContaining({
+      prefix: 'src/core/foo',
+    }));
   });
 
   test('returns null for a plain word without path marker', () => {

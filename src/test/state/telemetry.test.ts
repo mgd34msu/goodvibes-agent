@@ -155,7 +155,7 @@ describe('TelemetryDB', () => {
     db.recordToolCall('read', { path: 'foo' }, { success: true }, 10, 50);
     const out = db.export('json');
     const parsed = JSON.parse(out) as unknown[];
-    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toEqual(expect.any(Array));
     expect(parsed.length).toBe(1);
   });
 

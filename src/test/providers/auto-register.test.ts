@@ -252,10 +252,7 @@ describe('autoRegisterProviders', () => {
       spy.mockRestore();
     }
 
-    const logLine = logMessages.find((m: string) => m.includes('[auto-register]'));
-    expect(logLine).toBeDefined();
-    expect(logLine).toContain('Auto-registered 1 provider');
-    expect(logLine).toContain('Test Provider');
+    expect(logMessages).toContain('[auto-register] Auto-registered 1 provider: Test Provider');
   });
 
   it('uses singular "provider" when only one is registered', () => {
@@ -271,9 +268,7 @@ describe('autoRegisterProviders', () => {
       spy.mockRestore();
     }
 
-    const logLine = logMessages.find((m: string) => m.includes('[auto-register]'));
-    expect(logLine).toContain('1 provider:');
-    expect(logLine).not.toContain('1 providers:');
+    expect(logMessages).toContain('[auto-register] Auto-registered 1 provider: Test Provider');
   });
 
   it('uses plural "providers" when multiple are registered', () => {
@@ -294,9 +289,7 @@ describe('autoRegisterProviders', () => {
       spy.mockRestore();
     }
 
-    const logLine = logMessages.find((m: string) => m.includes('[auto-register]'));
-    expect(logLine).toContain('2 providers:');
-    expect(logLine).toContain('P One, P Two');
+    expect(logMessages).toContain('[auto-register] Auto-registered 2 providers: P One, P Two');
   });
 
   it('writes no log when nothing is registered', () => {
@@ -319,7 +312,7 @@ describe('autoRegisterProviders', () => {
     // Call with no arguments — should not throw
     const result = autoRegisterProviders(providerRegistry);
     // Since no env vars are set (cleared in beforeEach), nothing registers
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([]);
   });
 
   it('logs to logger and excludes failing provider when register() throws', () => {
@@ -363,9 +356,7 @@ describe('autoRegisterProviders', () => {
     expect(isProviderRegistered(providerRegistry, 'p-ok')).toBe(true);
 
     // Error logged via logger.warn
-    const errorLine = warnMessages.find(m => m.includes('[auto-register] Failed to register P Fail'));
-    expect(errorLine).toBeDefined();
-    expect(errorLine).toContain('simulated registration failure');
+    expect(warnMessages).toContain('[auto-register] Failed to register P Fail: simulated registration failure');
   });
 });
 
@@ -380,32 +371,52 @@ describe('AUTO_REGISTER_CATALOG', () => {
 
   it('has a zenmux openai entry with correct URL', () => {
     const entry = AUTO_REGISTER_CATALOG.find(e => e.id === 'zenmux');
-    expect(entry).toBeDefined();
-    expect(entry!.baseUrl).toBe('https://zenmux.ai/api/v1');
-    expect(entry!.apiFormat).toBe('openai');
+    expect(entry).toEqual(expect.objectContaining({
+      id: 'zenmux',
+      name: 'ZenMux',
+      envVars: ['ZENMUX_API_KEY'],
+      baseUrl: 'https://zenmux.ai/api/v1',
+      apiFormat: 'openai',
+      defaultModel: 'gpt-5.4',
+    }));
   });
 
   it('has a zenmux-anthropic entry with correct URL', () => {
     const entry = AUTO_REGISTER_CATALOG.find(e => e.id === 'zenmux-anthropic');
-    expect(entry).toBeDefined();
-    expect(entry!.baseUrl).toBe('https://zenmux.ai/api/anthropic/v1');
-    expect(entry!.apiFormat).toBe('anthropic');
+    expect(entry).toEqual(expect.objectContaining({
+      id: 'zenmux-anthropic',
+      name: 'ZenMux (Anthropic)',
+      envVars: ['ZENMUX_API_KEY'],
+      baseUrl: 'https://zenmux.ai/api/anthropic/v1',
+      apiFormat: 'anthropic',
+      defaultModel: 'claude-opus-4-6',
+    }));
   });
 
   it('both ZenMux entries share the same ZENMUX_API_KEY env var', () => {
     const openai = AUTO_REGISTER_CATALOG.find(e => e.id === 'zenmux');
     const anthropic = AUTO_REGISTER_CATALOG.find(e => e.id === 'zenmux-anthropic');
-    expect(openai!.envVars).toContain('ZENMUX_API_KEY');
-    expect(anthropic!.envVars).toContain('ZENMUX_API_KEY');
+    expect([openai, anthropic]).toEqual([
+      expect.objectContaining({ envVars: ['ZENMUX_API_KEY'] }),
+      expect.objectContaining({ envVars: ['ZENMUX_API_KEY'] }),
+    ]);
   });
 
   it('all entries have required fields', () => {
     for (const entry of AUTO_REGISTER_CATALOG) {
-      expect(entry.id).toBeTruthy();
-      expect(entry.name).toBeTruthy();
-      expect(Array.isArray(entry.envVars)).toBe(true);
-      expect(entry.baseUrl).toBeTruthy();
-      expect(entry.defaultModel).toBeTruthy();
+      expect(entry).toEqual(expect.objectContaining({
+        id: expect.any(String),
+        name: expect.any(String),
+        envVars: expect.any(Array),
+        baseUrl: expect.stringMatching(/^https:\/\//),
+        defaultModel: expect.any(String),
+        seedModels: expect.any(Array),
+      }));
+      expect(entry.id.length).toBeGreaterThan(0);
+      expect(entry.name.length).toBeGreaterThan(0);
+      expect(entry.envVars.length).toBeGreaterThan(0);
+      expect(entry.defaultModel.length).toBeGreaterThan(0);
+      expect(entry.seedModels).toContain(entry.defaultModel);
     }
   });
 

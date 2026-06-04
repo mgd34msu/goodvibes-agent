@@ -29,7 +29,10 @@ describe('knowledge and artifact intent gate', () => {
       type: 'string',
       enum: ['project-memory'],
     });
-    expect(promptProperties.injections).toBeTruthy();
+    expect(promptProperties.injections).toEqual({
+      type: 'array',
+      items: KNOWLEDGE_INJECTION_SCHEMA,
+    });
   });
 
   test('artifact descriptor schemas expose acquisition and fetch modes explicitly', () => {

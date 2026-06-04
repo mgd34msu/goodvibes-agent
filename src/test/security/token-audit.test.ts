@@ -58,8 +58,7 @@ describe('registerPolicy', () => {
     const auditor = new ApiTokenAuditor({ managed: false });
     auditor.registerPolicy(basePolicy);
     const policy = auditor.getPolicy('openai');
-    expect(policy).toBeDefined();
-    expect(policy!.id).toBe('openai');
+    expect(policy).toEqual(expect.objectContaining({ id: 'openai' }));
   });
 
   test('getPolicy returns undefined for unknown policy', () => {
@@ -84,8 +83,7 @@ describe('registerToken', () => {
     const token = makeToken();
     auditor.registerToken(token);
     const meta = auditor.getTokenMetadata('tok-001');
-    expect(meta).toBeDefined();
-    expect(meta!.label).toBe('OPENAI_API_KEY');
+    expect(meta).toEqual(expect.objectContaining({ label: 'OPENAI_API_KEY' }));
   });
 
   test('throws when registering token with unregistered policyId', () => {
@@ -117,9 +115,10 @@ describe('auditScope — minimum scope principle', () => {
     const auditor = makeAuditor();
     auditor.registerToken(makeToken({ grantedScopes: ['completions:write', 'models:read'] }));
     const result = auditor.auditScope('tok-001');
-    expect(result).not.toBeNull();
-    expect(result!.outcome).toBe('ok');
-    expect(result!.excessScopes).toHaveLength(0);
+    expect(result).toEqual(expect.objectContaining({
+      outcome: 'ok',
+      excessScopes: [],
+    }));
   });
 
   test('returns ok when token holds a strict subset of allowed scopes', () => {

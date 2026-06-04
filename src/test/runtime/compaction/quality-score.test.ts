@@ -347,7 +347,7 @@ describe('CompactionManager — strategy switch on low quality score', () => {
   const SESSION_ID = 'score-switch-test';
   const CONTEXT_WINDOW = 100000;
 
-  function makeManager(busOverride?: Partial<RuntimeEventBus>) {
+  function makeManager(busOverride?: Partial<RuntimeEventBus>, thresholdFraction = 0.5) {
     const bus = {
       emit: () => {},
       on: () => () => {},
@@ -359,7 +359,7 @@ describe('CompactionManager — strategy switch on low quality score', () => {
       bus,
       flags: makeMockFlags(true),
       contextWindow: CONTEXT_WINDOW,
-      thresholdFraction: 0.5,
+      thresholdFraction,
     });
   }
 
@@ -382,10 +382,13 @@ describe('CompactionManager — strategy switch on low quality score', () => {
       trigger: 'auto',
     });
     // Non-null result means compaction ran
-    expect(result).not.toBeNull();
-    if (result !== null) {
-      expect(result.qualityScore).not.toBeNull();
-    }
+    expect(result).toEqual(expect.objectContaining({
+      sessionId: SESSION_ID,
+      qualityScore: expect.objectContaining({
+        score: expect.any(Number),
+        grade: expect.any(String),
+      }),
+    }));
   });
 
   test('qualityScore has expected fields', async () => {
@@ -396,16 +399,14 @@ describe('CompactionManager — strategy switch on low quality score', () => {
       tokenCount: 60000,
       trigger: 'auto',
     });
-    expect(result).not.toBeNull();
-    if (result !== null && result.qualityScore !== null) {
-      const qs = result.qualityScore;
-      expect(typeof qs.score).toBe('number');
-      expect(typeof qs.compressionRatio).toBe('number');
-      expect(typeof qs.retentionScore).toBe('number');
-      expect(typeof qs.isLowQuality).toBe('boolean');
-      expect(typeof qs.grade).toBe('string');
-      expect(typeof qs.description).toBe('string');
-    }
+    expect(result?.qualityScore).toEqual(expect.objectContaining({
+      score: expect.any(Number),
+      compressionRatio: expect.any(Number),
+      retentionScore: expect.any(Number),
+      isLowQuality: expect.any(Boolean),
+      grade: expect.any(String),
+      description: expect.any(String),
+    }));
   });
 
   test('strategySwitchReason is null when quality is acceptable', async () => {
@@ -417,13 +418,10 @@ describe('CompactionManager — strategy switch on low quality score', () => {
       tokenCount: 60000,
       trigger: 'auto',
     });
-    expect(result).not.toBeNull();
-    if (result !== null) {
-      // If quality is good, no switch reason
-      if (result.qualityScore !== null && !result.qualityScore.isLowQuality) {
-        expect(result.strategySwitchReason).toBeNull();
-      }
-    }
+    expect(result).toEqual(expect.objectContaining({
+      qualityScore: expect.objectContaining({ isLowQuality: false }),
+      strategySwitchReason: null,
+    }));
   });
 
   test('COMPACTION_QUALITY_SCORE event is emitted', async () => {
@@ -443,9 +441,6 @@ describe('CompactionManager — strategy switch on low quality score', () => {
 
   test('COMPACTION_STRATEGY_SWITCH event is emitted when strategy is escalated', async () => {
     const emittedEvents: Array<{ type: string; payload: unknown }> = [];
-    // Craft a scenario where microcompact would be chosen but produce near-zero compression:
-    // Use very few messages so microcompact has nothing to drop (all within keep window),
-    // then force tokenCount above threshold.
     const manager = makeManager({
       emit: (_domain: string, envelope: unknown) => {
         const evt = envelope as { payload?: { type?: string } };
@@ -453,25 +448,31 @@ describe('CompactionManager — strategy switch on low quality score', () => {
           emittedEvents.push({ type: evt.payload.type, payload: evt.payload });
         }
       },
-    });
+    }, 0.3);
 
     // Use 5 messages so microcompact keeps all of them (within DEFAULT_KEEP_RECENT=20),
     // resulting in zero compression → low quality score → switch
     const fewMessages = makeLargeMessages(5);
     const result = await manager.compact({
       messages: fewMessages,
-      tokenCount: 60000, // above threshold (60k / 100k = 60% > 50%)
+      tokenCount: 40000, // above 30% threshold, below 50% pressure: selects microcompact
       trigger: 'auto',
     });
 
-    expect(result).not.toBeNull();
-    if (result !== null) {
-      const switchEvent = emittedEvents.find((e) => e.type === 'COMPACTION_STRATEGY_SWITCH');
-      // The switch event is present when the initial strategy had low quality
-      if (result.strategySwitchReason !== null) {
-        expect(switchEvent).toBeDefined();
-      }
-    }
+    expect(result).toEqual(expect.objectContaining({
+      strategySwitchReason: expect.stringContaining('escalating from microcompact to autocompact'),
+    }));
+    expect(emittedEvents.find((e) => e.type === 'COMPACTION_STRATEGY_SWITCH')).toEqual(expect.objectContaining({
+      type: 'COMPACTION_STRATEGY_SWITCH',
+      payload: expect.objectContaining({
+        type: 'COMPACTION_STRATEGY_SWITCH',
+        sessionId: SESSION_ID,
+        fromStrategy: 'microcompact',
+        toStrategy: 'autocompact',
+        reason: result?.strategySwitchReason,
+        score: expect.any(Number),
+      }),
+    }));
   });
 
   test('compact returns null when feature flag is disabled', async () => {
@@ -490,20 +491,19 @@ describe('CompactionManager — strategy switch on low quality score', () => {
   });
 
   test('escalation: result strategy is more aggressive when switch occurred', async () => {
-    const manager = makeManager();
+    const manager = makeManager(undefined, 0.3);
     // 5 messages within microcompact keep window → zero compression → switch
     const fewMessages = makeLargeMessages(5);
     const result = await manager.compact({
       messages: fewMessages,
-      tokenCount: 60000,
+      tokenCount: 40000,
       trigger: 'auto',
     });
-    expect(result).not.toBeNull();
-    if (result !== null && result.strategySwitchReason !== null) {
-      // The final strategy must be different from the initially-selected one
-      // (autocompact or collapse, not microcompact)
-      expect(result.strategy).not.toBe('microcompact');
-    }
+    expect(result).toEqual(expect.objectContaining({
+      strategySwitchReason: expect.stringContaining('escalating from microcompact to autocompact'),
+    }));
+    // The final strategy must be different from the initially-selected one.
+    expect(result?.strategy).not.toBe('microcompact');
   });
 
   test('result.warnings is an array', async () => {
@@ -513,10 +513,9 @@ describe('CompactionManager — strategy switch on low quality score', () => {
       tokenCount: 60000,
       trigger: 'auto',
     });
-    expect(result).not.toBeNull();
-    if (result !== null) {
-      expect(Array.isArray(result.warnings)).toBe(true);
-    }
+    expect(result).toEqual(expect.objectContaining({
+      warnings: expect.any(Array),
+    }));
   });
 });
 

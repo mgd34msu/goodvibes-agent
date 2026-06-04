@@ -255,10 +255,11 @@ describe('SessionManager', () => {
     test('returns meta for an existing session', () => {
       sm.save('meta-only', [], META);
       const meta = sm.getMeta('meta-only');
-      expect(meta).not.toBeNull();
-      expect(meta!.title).toBe(META.title);
-      expect(meta!.model).toBe(META.model);
-      expect(meta!.provider).toBe(META.provider);
+      expect(meta).toEqual(expect.objectContaining({
+        title: META.title,
+        model: META.model,
+        provider: META.provider,
+      }));
       expect(meta!.timestamp).toBe(META.timestamp);
     });
 
@@ -281,8 +282,7 @@ describe('SessionManager', () => {
       ];
       sm.save('meta-fast', messages, META);
       const meta = sm.getMeta('meta-fast');
-      expect(meta).not.toBeNull();
-      expect(meta!.title).toBe(META.title);
+      expect(meta).toEqual(expect.objectContaining({ title: META.title }));
     });
   });
 
@@ -332,7 +332,7 @@ describe('SessionManager', () => {
     test('removes the session file from disk', () => {
       sm.save('to-delete', [], META);
       // Verify it exists before deletion
-      expect(sm.getMeta('to-delete')).not.toBeNull();
+      expect(sm.getMeta('to-delete')).toEqual(expect.objectContaining({ title: META.title }));
       sm.delete('to-delete');
       // After deletion, getMeta should return null
       expect(sm.getMeta('to-delete')).toBeNull();

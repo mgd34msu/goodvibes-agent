@@ -176,7 +176,7 @@ describe('shell surface', () => {
 
     expect(topBorderCells.length).toBeGreaterThan(0);
     expect(bottomBorderCells.length).toBeGreaterThan(0);
-    expect(topBorderCells.every((cell) => cell.fg === '#1f2430')).toBe(true);
-    expect(bottomBorderCells.every((cell) => cell.fg === '#1f2430')).toBe(true);
+    expect(topBorderCells.map((cell) => cell.fg)).toEqual(Array(topBorderCells.length).fill('#1f2430'));
+    expect(bottomBorderCells.map((cell) => cell.fg)).toEqual(Array(bottomBorderCells.length).fill('#1f2430'));
   });
 });

@@ -61,7 +61,9 @@ describe('WatcherRegistry', () => {
       await new Promise((resolve) => setTimeout(resolve, 25));
 
       const persisted = loadWatcherSnapshotFromPath(storePath);
-      expect(persisted?.watchers.some((record) => record.id === 'watcher-filesystem' && record.kind === 'filesystem')).toBe(true);
+      expect(persisted?.watchers).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'watcher-filesystem', kind: 'filesystem' }),
+      ]));
 
       restarted = new WatcherRegistry({ storePath });
       restarted.attachRuntime({

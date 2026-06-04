@@ -263,11 +263,12 @@ describe('TransportPanel', () => {
       panel.recordSuccess('conn-1', 'wss://example.com', protocol);
 
       const latest = panel.getLatest('conn-1');
-      expect(latest).toBeDefined();
-      expect(latest!.success).toBe(true);
-      expect(latest!.negotiatedVersion).toBe('1.2.0');
-      expect(latest!.downgraded).toBe(false);
-      expect(latest!.downgradeReason).toBeUndefined();
+      expect(latest).toEqual(expect.objectContaining({
+        success: true,
+        negotiatedVersion: '1.2.0',
+        downgraded: false,
+      }));
+      expect(latest?.downgradeReason).toBeUndefined();
     });
 
     test('records a successful downgrade negotiation', () => {
@@ -354,8 +355,11 @@ describe('TransportPanel', () => {
 
       const failures = panel.getIncompatibilityFailures();
       expect(failures.length).toBe(2);
-      expect(failures.every((f) => !f.success)).toBe(true);
-      expect(failures.every((f) => f.incompatibilityCode !== undefined)).toBe(true);
+      expect(failures.map((f) => f.success)).toEqual([false, false]);
+      expect(failures.map((f) => f.incompatibilityCode)).toEqual([
+        'major_version_mismatch',
+        'peer_version_too_old',
+      ]);
     });
 
     test('incompatible peer cannot proceed — verify the entry blocks session', () => {
@@ -372,9 +376,10 @@ describe('TransportPanel', () => {
 
       const failures = panel.getIncompatibilityFailures();
       const entry = failures.find((f) => f.connectionId === 'conn-block');
-      expect(entry).toBeDefined();
-      expect(entry!.success).toBe(false);
-      expect(entry!.incompatibilityCode).toBe('major_version_mismatch');
+      expect(entry).toEqual(expect.objectContaining({
+        success: false,
+        incompatibilityCode: 'major_version_mismatch',
+      }));
       // The negotiation did not produce a negotiatedVersion (no session established)
       expect(entry!.negotiatedVersion).toBeUndefined();
     });

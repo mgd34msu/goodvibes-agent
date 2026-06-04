@@ -77,10 +77,11 @@ describe('built-in archetypes', () => {
   test('loadArchetype returns built-in for known name', () => {
     const loader = new ArchetypeLoader('/nonexistent/path');
     const archetype = loader.loadArchetype('engineer');
-    expect(archetype).not.toBeNull();
-    expect(archetype!.name).toBe('engineer');
-    expect(archetype!.tools).toContain('read');
-    expect(archetype!.tools).toContain('write');
+    expect(archetype).toEqual(expect.objectContaining({
+      name: 'engineer',
+      tools: expect.arrayContaining(['read', 'write']),
+      isCustom: false,
+    }));
   });
 });
 
@@ -103,14 +104,15 @@ describe('frontmatter parsing', () => {
 
     const loader = new ArchetypeLoader(dir);
     const archetype = loader.loadArchetype('custom');
-    expect(archetype).not.toBeNull();
-    expect(archetype!.name).toBe('custom');
-    expect(archetype!.description).toBe('A custom agent');
-    expect(archetype!.tools).toEqual(['read', 'write', 'analyze']);
-    expect(archetype!.isCustom).toBe(true);
-    expect(archetype!.origin).toBe('local-markdown');
-    expect(archetype!.sourcePath).toContain('custom.md');
-    expect(archetype!.validationIssues).toEqual([]);
+    expect(archetype).toEqual(expect.objectContaining({
+      name: 'custom',
+      description: 'A custom agent',
+      tools: ['read', 'write', 'analyze'],
+      isCustom: true,
+      origin: 'local-markdown',
+      sourcePath: expect.stringContaining('custom.md'),
+      validationIssues: [],
+    }));
   });
 
   test('loads system prompt from markdown body (lazy)', () => {
@@ -128,8 +130,10 @@ describe('frontmatter parsing', () => {
 
     const loader = new ArchetypeLoader(dir);
     const archetype = loader.loadArchetype('bodytest');
-    expect(archetype!.systemPrompt).toBeTruthy();
-    expect(archetype!.systemPrompt).toContain('specialized read-only agent');
+    expect(archetype).toEqual(expect.objectContaining({
+      name: 'bodytest',
+      systemPrompt: expect.stringContaining('specialized read-only agent'),
+    }));
   });
 
   test('loads inline system_prompt from frontmatter', () => {
@@ -177,8 +181,10 @@ describe('frontmatter parsing', () => {
 
     const loader = new ArchetypeLoader(dir);
     const archetype = loader.loadArchetype('autoname');
-    expect(archetype).not.toBeNull();
-    expect(archetype!.name).toBe('autoname');
+    expect(archetype).toEqual(expect.objectContaining({
+      name: 'autoname',
+      description: 'No name in frontmatter',
+    }));
   });
 
   test('handles multi-line tools list (YAML list format)', () => {
@@ -288,9 +294,11 @@ describe('mergeWithOverrides', () => {
   test('overrides model and provider', () => {
     const loader = new ArchetypeLoader('/nonexistent/path');
     const merged = loader.mergeWithOverrides('engineer', { model: 'claude-3', provider: 'anthropic' });
-    expect(merged).not.toBeNull();
-    expect(merged!.model).toBe('claude-3');
-    expect(merged!.provider).toBe('anthropic');
+    expect(merged).toEqual(expect.objectContaining({
+      name: 'engineer',
+      model: 'claude-3',
+      provider: 'anthropic',
+    }));
   });
 
   test('overrides tools array', () => {
@@ -302,9 +310,11 @@ describe('mergeWithOverrides', () => {
   test('non-overridden fields preserve archetype defaults', () => {
     const loader = new ArchetypeLoader('/nonexistent/path');
     const merged = loader.mergeWithOverrides('engineer', {});
-    expect(merged!.name).toBe('engineer');
-    expect(merged!.description).toBeTruthy();
-    expect(merged!.tools.length).toBeGreaterThan(0);
+    expect(merged).toEqual(expect.objectContaining({
+      name: 'engineer',
+      description: expect.stringMatching(/\S/),
+      tools: expect.arrayContaining(['read', 'write']),
+    }));
   });
 
   test('returns null for unknown archetype', () => {
@@ -340,7 +350,7 @@ describe('error resilience', () => {
     const archetypes = loader.listArchetypes();
     // Only built-ins
     expect(archetypes.map((a) => a.name)).toEqual(EXPECTED_BUILTIN_ARCHETYPES);
-    expect(archetypes.every((a) => !a.isCustom)).toBe(true);
+    expect(archetypes.map((a) => a.isCustom)).toEqual(EXPECTED_BUILTIN_ARCHETYPES.map(() => false));
   });
 
   test('handles malformed frontmatter gracefully (still loads built-ins)', () => {
@@ -349,6 +359,6 @@ describe('error resilience', () => {
     const loader = new ArchetypeLoader(dir);
     // Broken file should be skipped, built-ins still available
     const archetypes = loader.listArchetypes();
-    expect(archetypes.find((a) => a.name === 'general')).toBeTruthy();
+    expect(archetypes.map((a) => a.name)).toContain('general');
   });
 });

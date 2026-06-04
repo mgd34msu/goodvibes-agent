@@ -67,7 +67,7 @@ describe('store-selectors contract', () => {
 
     test('selectPanels returns panels domain', () => {
       const panels = selectPanels(state);
-      // panels selector returns Record<string, unknown> (SDK generic); runtime value is PanelDomainState
+      // panels selector returns Record<string, unknown>; runtime value is PanelDomainState.
       expect(panels === (state.panels as unknown)).toBe(true);
     });
 
@@ -155,31 +155,29 @@ describe('store-selectors contract', () => {
     test('selectRunningTasks returns empty array from initial state', () => {
       const tasks = selectRunningTasks(state);
 
-      expect(Array.isArray(tasks)).toBe(true);
-      expect(tasks).toHaveLength(0);
+      expect(tasks).toEqual([]);
     });
 
     test('selectRunningAgents returns empty array from initial state', () => {
       const agents = selectRunningAgents(state);
 
-      expect(Array.isArray(agents)).toBe(true);
-      expect(agents).toHaveLength(0);
+      expect(agents).toEqual([]);
     });
 
-    test('selectPermissionMode returns a string', () => {
+    test('selectPermissionMode returns the initial permission mode', () => {
       const mode = selectPermissionMode(state);
-      expect(typeof mode).toBe('string');
+      expect(mode).toBe(state.permissions.mode);
     });
 
-    test('selectActivePanels returns an array from initial state', () => {
+    test('selectActivePanels returns the default main conversation panel from initial state', () => {
       const panels = selectActivePanels(state);
-      expect(Array.isArray(panels)).toBe(true);
+      expect(panels.map((panel) => panel.id)).toEqual(['main_conversation']);
     });
 
-    test('selectFocusedPanel returns undefined or a PanelState from initial state', () => {
+    test('selectFocusedPanel returns the default focused main conversation panel', () => {
       const focused = selectFocusedPanel(state);
-      // Initial state may or may not have a focused panel
-      expect(focused === undefined || typeof focused === 'object').toBe(true);
+      expect(focused?.id).toBe('main_conversation');
+      expect(focused?.focused).toBe(true);
     });
 
     test('selectAnyOverlayVisible returns false from initial state', () => {

@@ -192,7 +192,7 @@ describe('operability gate: action factory helpers produce valid actions', () =>
     expect(action.payload.runId).toBe('run-001');
     expect(typeof action.label).toBe('string');
     expect(action.label.length).toBeGreaterThan(0);
-    expect(action.permission).toBeDefined();
+    expect(action.permission).toBe('operator');
   });
 
   test('buildRunPolicySimulationAction produces a run-policy-simulation action', () => {
@@ -264,10 +264,12 @@ describe('operability gate: high-severity diagnostic actions invariant', () => {
     ];
 
     for (const action of actions) {
-      expect(action.type).toBeDefined();
-      expect(action.label).toBeDefined();
-      expect(action.permission).toBeDefined();
-      expect(action.payload).toBeDefined();
+      expect(typeof action.type).toBe('string');
+      expect(action.type.length).toBeGreaterThan(0);
+      expect(typeof action.label).toBe('string');
+      expect(action.label.trim().length).toBeGreaterThan(0);
+      expect(['read', 'operator', 'admin']).toContain(action.permission);
+      expect(action.payload).toEqual(expect.any(Object));
     }
   });
 
@@ -309,12 +311,17 @@ describe('operability gate: FailureReport type contract', () => {
       jumpLinks: [],
     };
 
-    expect(report.id).toBeDefined();
-    expect(report.classification).toBe('tool_failure');
-    expect(Array.isArray(report.phaseTimings)).toBe(true);
-    expect(Array.isArray(report.phaseLedger)).toBe(true);
-    expect(Array.isArray(report.causalChain)).toBe(true);
-    expect(Array.isArray(report.jumpLinks)).toBe(true);
+    expect(report).toMatchObject({
+      id: 'abc123',
+      traceId: 'trace-full-123',
+      sessionId: 'sess-1',
+      classification: 'tool_failure',
+      summary: 'Tool execution failed: permission denied',
+      phaseTimings: [],
+      phaseLedger: [],
+      causalChain: [],
+      jumpLinks: [],
+    });
   });
 
   test('CausalChainEntry has isRootCause flag for auto-triage', () => {

@@ -123,7 +123,7 @@ describe('ProjectPlanningPanel', () => {
       openQuestions: [{
         id: 'scope',
         prompt: 'What is in or out of scope?',
-        recommendedAnswer: 'TUI-only unless SDK wiring is required.',
+        recommendedAnswer: 'TUI-only unless runtime wiring is required.',
         status: 'open',
       }],
     }));
@@ -163,7 +163,7 @@ describe('ProjectPlanningPanel', () => {
       openQuestions: [{
         id: 'scope',
         prompt: longPrompt,
-        recommendedAnswer: 'TUI-only unless SDK wiring is required.',
+        recommendedAnswer: 'TUI-only unless runtime wiring is required.',
         status: 'open',
       }],
     }));
@@ -218,7 +218,7 @@ describe('ProjectPlanningPanel', () => {
     expect(saved?.metadata?.['pausedFrom']).toBe('project-planning-panel');
   });
 
-  test('does not surface generic SDK placeholder recommendations as answer actions', async () => {
+  test('does not surface generic implementation placeholder recommendations as answer actions', async () => {
     const service = makeService(makeState({
       openQuestions: [{
         id: 'missing-scope',

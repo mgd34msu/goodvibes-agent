@@ -36,7 +36,7 @@ function renderAllShortcutText(): string {
 describe('renderHelpOverlay', () => {
   test('returns an array of Lines', () => {
     const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    expect(Array.isArray(lines)).toBe(true);
+    expect(lines).toEqual(expect.any(Array));
     expect(lines.length).toBeGreaterThan(0);
   });
 

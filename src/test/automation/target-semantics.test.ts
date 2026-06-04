@@ -147,7 +147,6 @@ describe('AutomationManager target semantics', () => {
     const updatedBinding = routeBindings.getBinding(binding.id);
 
     expect(run.routeId).toBe(binding.id);
-    expect(run.sessionId).toBeDefined();
     expect(run.executionIntent).toEqual({ mode: 'shared-session', targetKind: 'route' });
     expect(updatedBinding?.sessionId).toBe(run.sessionId);
     expect(updatedBinding?.jobId).toBe(job.id);
@@ -155,7 +154,9 @@ describe('AutomationManager target semantics', () => {
     expect(updatedBinding?.sessionPolicy).toBe('create-or-bind');
     expect(updatedBinding?.threadPolicy).toBe('preserve');
     expect(updatedBinding?.deliveryGuarantee).toBe('best-effort');
-    expect(sessionBroker.getSession(run.sessionId!)).not.toBeNull();
+    expect(sessionBroker.getSession(run.sessionId!)).toEqual(expect.objectContaining({
+      id: run.sessionId,
+    }));
   });
 
   test('route bindings persist explicit session, thread, and delivery semantics', async () => {

@@ -8,7 +8,6 @@ import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { routineScheduleReceiptStorePath } from '../../agent/routine-schedule-receipts.ts';
 import { handleRoutinesCommand } from '../../cli/routines-command.ts';
 import { parseGoodVibesCli } from '../../cli/parser.ts';
-import { SDK_VERSION } from '../../version.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
 const roots: string[] = [];
@@ -405,7 +404,7 @@ describe('routines CLI command', () => {
       expect(payload.prompt).toContain('Use isolated Agent Knowledge routes only');
       expect(payload.prompt).toContain('never use default knowledge or non-Agent knowledge spaces');
       const receiptId = result.output.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
-      expect(receiptId).toBeTruthy();
+      expect(receiptId).toEqual(expect.stringMatching(/^routine-schedule-[a-z0-9-]+$/));
 
       const receipts = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'receipts']) });
       expect(receipts.exitCode).toBe(0);
@@ -437,7 +436,9 @@ describe('routines CLI command', () => {
       expect(reconciled.output).toContain('connected host: http://127.0.0.1:3421');
       expect(reconciled.output).toContain('matched: 1');
       expect(reconciled.output).toContain('live=sched-cli-1');
-      expect(requests.some((request) => request.method === 'GET' && request.url === 'http://127.0.0.1:3421/api/automation/schedules')).toBe(true);
+      expect(requests.map((request) => `${request.method} ${request.url}`)).toContain(
+        'GET http://127.0.0.1:3421/api/automation/schedules',
+      );
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -449,12 +450,6 @@ describe('routines CLI command', () => {
     globalThis.fetch = (async (input, init) => {
       const url = inputUrl(input);
       requests.push({ url, method: init?.method ?? 'GET' });
-      if (url === 'http://127.0.0.1:3421/status') {
-        return new Response(JSON.stringify({ version: SDK_VERSION }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
       throw new Error('Route not found: /api/automation/schedules (404)');
     }) satisfies typeof fetch;
 
@@ -469,7 +464,6 @@ describe('routines CLI command', () => {
       ]));
       const payload = JSON.parse(result.output) as {
         readonly kind?: unknown;
-        readonly connectedHostVersion?: unknown;
         readonly daemonVersion?: unknown;
         readonly receipt?: {
           readonly connectedHostBaseUrl?: unknown;
@@ -484,7 +478,6 @@ describe('routines CLI command', () => {
         'http://127.0.0.1:3421/status',
       ]);
       expect(payload.kind).toBe('connected_host_route_unavailable');
-      expect(payload.connectedHostVersion).toBeUndefined();
       expect(Object.prototype.hasOwnProperty.call(payload as object, 'daemonVersion')).toBe(false);
       expect(payload.receipt?.connectedHostBaseUrl).toBe('http://127.0.0.1:3421');
       expect(payload.receipt?.failureKind).toBe('connected_host_route_unavailable');

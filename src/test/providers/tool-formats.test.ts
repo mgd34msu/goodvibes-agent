@@ -179,7 +179,7 @@ describe('toAnthropicMessages', () => {
     // Last message should be a user message with two tool_result blocks
     const last = result[result.length - 1];
     expect(last.role).toBe('user');
-    expect(Array.isArray(last.content)).toBe(true);
+    expect(last.content).toEqual(expect.any(Array));
     const blocks = last.content as Array<{ type: string }>;
     expect(blocks.filter((b) => b.type === 'tool_result')).toHaveLength(2);
   });
@@ -192,9 +192,9 @@ describe('toAnthropicMessages', () => {
     }];
     const [result] = toAnthropicMessages(msgs);
     expect(result.role).toBe('assistant');
-    expect(Array.isArray(result.content)).toBe(true);
+    expect(result.content).toEqual(expect.any(Array));
     const blocks = result.content as Array<{ type: string }>;
-    expect(blocks.some((b) => b.type === 'tool_use')).toBe(true);
+    expect(blocks.map((b) => b.type)).toContain('tool_use');
   });
 });
 
@@ -372,8 +372,9 @@ describe('toGeminiContents', () => {
 
   test('injects system instruction when systemPrompt provided', () => {
     const { systemInstruction } = toGeminiContents([], 'Be helpful.');
-    expect(systemInstruction).toBeDefined();
-    expect(systemInstruction!.parts[0].text).toBe('Be helpful.');
+    expect(systemInstruction).toEqual(expect.objectContaining({
+      parts: [expect.objectContaining({ text: 'Be helpful.' })],
+    }));
   });
 
   test('converts assistant message to model role', () => {
@@ -390,6 +391,8 @@ describe('toGeminiContents', () => {
     const { contents } = toGeminiContents(msgs);
     const last = contents[contents.length - 1];
     expect(last.role).toBe('user');
-    expect(last.parts.some((p) => p.functionResponse !== undefined)).toBe(true);
+    expect(last.parts).toContainEqual(
+      expect.objectContaining({ functionResponse: expect.any(Object) }),
+    );
   });
 });

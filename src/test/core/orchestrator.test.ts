@@ -496,10 +496,10 @@ describe('Orchestrator', () => {
       }
 
       const snapshot = cm.getMessageSnapshot();
-      expect(snapshot.some((message) => (
-        message.role === 'assistant'
-        && message.content.includes('WRFC passed and the engineer run is complete.')
-      ))).toBe(true);
+      expect(snapshot).toContainEqual(expect.objectContaining({
+        role: 'assistant',
+        content: expect.stringContaining('WRFC passed and the engineer run is complete.'),
+      }));
       expect(provider.callLog).toHaveLength(1);
       const lastMessage = provider.callLog[0]?.messages.at(-1);
       expect(lastMessage?.role).toBe('user');
@@ -531,7 +531,10 @@ describe('Orchestrator', () => {
 
       const defs = toolRegistry.getToolDefinitions();
       const delegateDef = defs.find((d) => d.name === 'delegate');
-      expect(delegateDef).toBeDefined();
+      expect(delegateDef).toEqual(expect.objectContaining({
+        name: 'delegate',
+        parameters: expect.any(Object),
+      }));
       const params = delegateDef!.parameters as { required: string[] };
       expect(params.required).toContain('description');
       expect(params.required).toContain('context');
@@ -625,11 +628,12 @@ describe('Orchestrator', () => {
       await internal.executeToolCalls('turn-1', [{ id: 'c1', name: 'mytool', arguments: {} }]);
 
       const preEvent = firedEvents.find(e => e.phase === 'Pre');
-      expect(preEvent).toBeDefined();
-      expect(preEvent!.path).toBe('Pre:tool:mytool');
-      expect(preEvent!.category).toBe('tool');
-      expect(preEvent!.specific).toBe('mytool');
-      expect(preEvent!.payload).toMatchObject({ callId: 'c1', tool: 'mytool' });
+      expect(preEvent).toEqual(expect.objectContaining({
+        path: 'Pre:tool:mytool',
+        category: 'tool',
+        specific: 'mytool',
+        payload: expect.objectContaining({ callId: 'c1', tool: 'mytool' }),
+      }));
       expect(typeof preEvent!.sessionId).toBe('string');
       expect(preEvent!.sessionId.length).toBeGreaterThan(0);
     });
@@ -649,9 +653,10 @@ describe('Orchestrator', () => {
 
       expect(results[0].success).toBe(true);
       const postEvent = firedEvents.find(e => e.phase === 'Post');
-      expect(postEvent).toBeDefined();
-      expect(postEvent!.path).toBe('Post:tool:goodtool');
-      expect(postEvent!.payload).toMatchObject({ callId: 'c2', tool: 'goodtool' });
+      expect(postEvent).toEqual(expect.objectContaining({
+        path: 'Post:tool:goodtool',
+        payload: expect.objectContaining({ callId: 'c2', tool: 'goodtool' }),
+      }));
     });
 
     test('Fail hook fires when tool throws', async () => {
@@ -671,9 +676,10 @@ describe('Orchestrator', () => {
       expect(results[0].error).toContain('something went wrong');
 
       const failEvent = firedEvents.find(e => e.phase === 'Fail');
-      expect(failEvent).toBeDefined();
-      expect(failEvent!.path).toBe('Fail:tool:badtool');
-      expect(failEvent!.payload).toMatchObject({ callId: 'c3', tool: 'badtool', error: 'something went wrong' });
+      expect(failEvent).toEqual(expect.objectContaining({
+        path: 'Fail:tool:badtool',
+        payload: expect.objectContaining({ callId: 'c3', tool: 'badtool', error: 'something went wrong' }),
+      }));
 
       // Post hook must NOT fire on failure
       const postEvent = firedEvents.find(e => e.phase === 'Post');

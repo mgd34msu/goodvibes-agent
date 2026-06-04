@@ -34,9 +34,10 @@ describe('lintPolicyConfig', () => {
     };
 
     const findings = lintPolicyConfig(config);
-    expect(findings.some((f) => f.message.includes('Duplicate policy rule id'))).toBe(true);
-    expect(findings.some((f) => f.message.includes('overly broad path pattern'))).toBe(true);
-    expect(findings.some((f) => f.message.includes('overly broad host pattern'))).toBe(true);
+    expect(findings.map((f) => f.message)).toEqual(expect.arrayContaining([
+      expect.stringContaining('Duplicate policy rule id'),
+      expect.stringContaining('overly broad path pattern'),
+      expect.stringContaining('overly broad host pattern'),
+    ]));
   });
 });
-

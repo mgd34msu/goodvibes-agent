@@ -75,7 +75,7 @@ describe('bootstrap hook bridge session resume', () => {
     resume('saved-session');
     await Promise.resolve();
 
-    expect(logs.some((line) => line.includes('Resume: Open panels:'))).toBe(false);
+    expect(logs.filter((line) => line.includes('Resume: Open panels:'))).toEqual([]);
     expect(logs).toContain('Resume: Saved panel state ignored: approval, tasks. Open the Agent workspace for current operator controls.');
   });
 });

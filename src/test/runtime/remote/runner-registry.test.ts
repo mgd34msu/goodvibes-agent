@@ -45,10 +45,13 @@ describe('RemoteRunnerRegistry', () => {
 
     const registry = new RemoteRunnerRegistry(getTestAgentManager());
     const contract = registry.upsertContractForAgent(agent.id, store);
-    expect(contract).not.toBeNull();
-    expect(contract?.trustClass).toBe('self-hosted-acp');
-    expect(contract?.capabilityCeiling.executionProtocol).toBe('gather-plan-apply');
-    expect(contract?.capabilityCeiling.allowedTools).toContain('edit');
+    expect(contract).toEqual(expect.objectContaining({
+      trustClass: 'self-hosted-acp',
+      capabilityCeiling: expect.objectContaining({
+        executionProtocol: 'gather-plan-apply',
+        allowedTools: expect.arrayContaining(['edit']),
+      }),
+    }));
   });
 
   test('captures, exports, and imports remote review artifacts', async () => {
@@ -78,7 +81,17 @@ describe('RemoteRunnerRegistry', () => {
     const exportPath = join(dir, 'artifact.json');
 
     const exported = await exportRemoteArtifactForAgent(registry, agent.id, store, exportPath);
-    expect(exported).not.toBeNull();
+    expect(exported).toEqual(expect.objectContaining({
+      artifact: expect.objectContaining({
+        runnerId: agent.id,
+        knowledgeInjections: [
+          expect.objectContaining({
+            id: 'mem-remote-1',
+            summary: 'Use remote artifacts for offline review',
+          }),
+        ],
+      }),
+    }));
     const exportedArtifact = exported!;
     expect(exportedArtifact.artifact.runnerId).toBe(agent.id);
     expect(exportedArtifact.artifact.knowledgeInjections.length).toBe(1);
@@ -122,8 +135,9 @@ describe('RemoteRunnerRegistry', () => {
     });
 
     const pool = registry.assignRunnerToPool('ops', agent.id);
-    expect(pool).not.toBeNull();
-    expect(pool?.runnerIds).toContain(agent.id);
+    expect(pool).toEqual(expect.objectContaining({
+      runnerIds: expect.arrayContaining([agent.id]),
+    }));
     expect(registry.getContract(agent.id)?.poolId).toBe('ops');
 
     registry.removeRunnerFromPool('ops', agent.id);

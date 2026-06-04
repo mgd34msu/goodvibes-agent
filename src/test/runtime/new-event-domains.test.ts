@@ -55,7 +55,7 @@ describe('new runtime event domains', () => {
       'watchers',
       'surfaces',
       'knowledge',
-      'workspace', // SDK 0.21.20: added workspace domain
+      'workspace',
     ]);
     expect(isRuntimeEventDomain('agents')).toBe(true);
     expect(isRuntimeEventDomain('not-a-domain')).toBe(false);

@@ -140,7 +140,7 @@ afterEach(() => {
 describe('renderModelPickerOverlay — model mode', () => {
   test('returns a non-empty Line[] array', () => {
     const lines = renderModelPickerOverlay(makePicker(), W);
-    expect(Array.isArray(lines)).toBe(true);
+    expect(lines).toEqual(expect.any(Array));
     expect(lines.length).toBeGreaterThan(0);
   });
 
@@ -207,8 +207,7 @@ describe('renderModelPickerOverlay — model mode', () => {
 
   test('selected item has arrow indicator', () => {
     const lines = renderModelPickerOverlay(makePicker(), W);
-    const hasArrow = lines.some(line => line.some(cell => cell.char === '▸'));
-    expect(hasArrow).toBe(true);
+    expect(lines.flat().filter(cell => cell.char === '▸').length).toBeGreaterThan(0);
   });
 
   test('provider group headers are present', () => {
@@ -345,8 +344,7 @@ describe('renderModelPickerOverlay — provider mode', () => {
 
   test('selected item has arrow indicator', () => {
     const lines = renderModelPickerOverlay(makeProviderPicker(), W);
-    const hasArrow = lines.some(line => line.some(cell => cell.char === '▸'));
-    expect(hasArrow).toBe(true);
+    expect(lines.flat().filter(cell => cell.char === '▸').length).toBeGreaterThan(0);
   });
 
   test('footer does not show Tab filter hint in provider mode', () => {
@@ -454,8 +452,7 @@ describe('renderModelPickerOverlay — effort mode', () => {
 
   test('selected item has arrow indicator', () => {
     const lines = renderModelPickerOverlay(makeEffortPicker(), W);
-    const hasArrow = lines.some(line => line.some(cell => cell.char === '▸'));
-    expect(hasArrow).toBe(true);
+    expect(lines.flat().filter(cell => cell.char === '▸').length).toBeGreaterThan(0);
   });
 
   test('works at narrow terminal width', () => {

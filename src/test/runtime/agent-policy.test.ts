@@ -203,7 +203,7 @@ describe('Agent operator policy hidden spawn gates', () => {
     const registry = new CommandRegistry();
     registerScheduleRuntimeCommands(registry);
     const schedule = registry.get('schedule');
-    expect(schedule).toBeDefined();
+    expect(schedule).toEqual(expect.objectContaining({ name: 'schedule' }));
 
     const out: string[] = [];
     const manager = {
@@ -287,7 +287,7 @@ describe('Agent operator policy hidden spawn gates', () => {
     const registry = new CommandRegistry();
     registerDelegationRuntimeCommands(registry);
     const delegate = registry.get('delegate');
-    expect(delegate).toBeDefined();
+    expect(delegate).toEqual(expect.objectContaining({ name: 'delegate' }));
 
     const ensured: unknown[] = [];
     const submitted: unknown[] = [];

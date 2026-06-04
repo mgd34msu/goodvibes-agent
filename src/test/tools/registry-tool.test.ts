@@ -327,10 +327,6 @@ test('tool has correct name', () => {
   expect(tool.definition.name).toBe('registry');
 });
 
-test('tool has non-empty description', () => {
-  expect(tool.definition.description.length).toBeGreaterThan(0);
-});
-
 test('tool has parameters object', () => {
   expect(typeof tool.definition.parameters).toBe('object');
 });

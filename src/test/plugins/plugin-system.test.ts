@@ -214,7 +214,7 @@ describe('discoverPlugins', () => {
     const { discoverPlugins } = await import('../../plugins/loader.ts');
     const tempRoot = makeTempDir();
     const result = discoverPlugins(makePluginPathOptions(tempRoot));
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([]);
   });
 
   test('skips directories without manifest.json', async () => {
@@ -225,7 +225,7 @@ describe('discoverPlugins', () => {
 
     try {
       const result = discoverPlugins(makePluginPathOptions(tempRoot));
-      expect(result.some((plugin) => plugin.pluginDir === pluginDir)).toBe(false);
+      expect(result.map((plugin) => plugin.pluginDir)).not.toContain(pluginDir);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -611,7 +611,7 @@ describe('createPluginAPI', () => {
     expect(result).toBeInstanceOf(Promise);
     // Allow the promise to settle without throwing in test
     await result.catch(() => {});
-    expect((ctx.providerRegistry as unknown as FakeProviderRegistry)._models.some((model) => model.id === 'model-1')).toBe(true);
+    expect((ctx.providerRegistry as unknown as FakeProviderRegistry)._models.map((model) => model.id)).toContain('model-1');
   });
 
   test('registerProviderInstance registers cleanup-aware provider models', async () => {
@@ -645,14 +645,14 @@ describe('createPluginAPI', () => {
     });
 
     expect(providerRegistry._providers).toHaveLength(1);
-    expect(providerRegistry._models.some((model) => model.id === 'custom-model')).toBe(true);
+    expect(providerRegistry._models.map((model) => model.id)).toContain('custom-model');
     expect(cleanup).toHaveLength(1);
     cleanup[0]?.();
     expect(providerRegistry._providers).toHaveLength(0);
-    expect(providerRegistry._models.some((model) => model.id === 'custom-model')).toBe(false);
+    expect(providerRegistry._models.map((model) => model.id)).not.toContain('custom-model');
   });
 
-  test('registers extension SDK contributions for gateway, memory, voice, and media domains', async () => {
+  test('registers extension contributions for gateway, memory, voice, and media domains', async () => {
     const { createPluginAPI } = await import('@pellux/goodvibes-sdk/platform/plugins');
     const gatewayMethods = new GatewayMethodCatalog({ includeBuiltins: false });
     const configRoot = makeTempDir();
@@ -709,11 +709,32 @@ describe('createPluginAPI', () => {
       },
     });
 
-    expect(gatewayMethods.get('plugin.my-plugin.echo')).not.toBeNull();
-    expect(memoryEmbeddingRegistry.get('plugin-embeddings')).not.toBeNull();
-    expect(voiceProviderRegistry.get('plugin-voice')).not.toBeNull();
-    expect(mediaProviderRegistry.get('plugin-media')).not.toBeNull();
-    expect(webSearchProviderRegistry.get('plugin-search')).not.toBeNull();
+    expect(gatewayMethods.get('plugin.my-plugin.echo')).toEqual(expect.objectContaining({
+      id: 'plugin.my-plugin.echo',
+      title: 'Echo',
+      category: 'test',
+      access: 'authenticated',
+    }));
+    expect(memoryEmbeddingRegistry.get('plugin-embeddings')).toEqual(expect.objectContaining({
+      id: 'plugin-embeddings',
+      label: 'Plugin Embeddings',
+      dimensions: 384,
+    }));
+    expect(voiceProviderRegistry.get('plugin-voice')).toEqual(expect.objectContaining({
+      id: 'plugin-voice',
+      label: 'Plugin Voice',
+      capabilities: ['tts'],
+    }));
+    expect(mediaProviderRegistry.get('plugin-media')).toEqual(expect.objectContaining({
+      id: 'plugin-media',
+      label: 'Plugin Media',
+      capabilities: ['understand'],
+    }));
+    expect(webSearchProviderRegistry.get('plugin-search')).toEqual(expect.objectContaining({
+      id: 'plugin-search',
+      label: 'Plugin Search',
+      capabilities: ['search'],
+    }));
     for (const fn of cleanup) fn();
     expect(gatewayMethods.get('plugin.my-plugin.echo')).toBeNull();
   });

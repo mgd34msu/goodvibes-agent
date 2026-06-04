@@ -61,12 +61,13 @@ describe('FileBackend', () => {
 
   it('write() creates a SpillEntry with correct shape', () => {
     const entry = backend.write('test.txt', 'hello world');
-    expect(entry).not.toBeNull();
-    expect(entry!.id).toBe('test.txt');
-    expect(entry!.filename).toBe('test.txt');
-    expect(entry!.backendType).toBe('file');
-    expect(entry!.sizeBytes).toBeGreaterThan(0);
-    expect(entry!.createdAt).toBeGreaterThan(0);
+    expect(entry).toEqual(expect.objectContaining({
+      id: 'test.txt',
+      filename: 'test.txt',
+      backendType: 'file',
+    }));
+    expect(entry?.sizeBytes).toBeGreaterThan(0);
+    expect(entry?.createdAt).toBeGreaterThan(0);
   });
 
   it('read() returns the written content', () => {
@@ -180,10 +181,11 @@ describe('LedgerBackend', () => {
 
   it('write() stores content in-memory', () => {
     const entry = backend.write('key1', 'in-memory content');
-    expect(entry).not.toBeNull();
-    expect(entry!.id).toBe('key1');
-    expect(entry!.backendType).toBe('ledger');
-    expect(entry!.content).toBe('in-memory content');
+    expect(entry).toEqual(expect.objectContaining({
+      id: 'key1',
+      backendType: 'ledger',
+      content: 'in-memory content',
+    }));
   });
 
   it('read() returns stored content', () => {
@@ -253,12 +255,13 @@ describe('DiagnosticsBackend', () => {
 
   it('write() records a log entry and returns a SpillEntry with empty content', () => {
     const entry = backend.write('diag-key', 'some large content');
-    expect(entry).not.toBeNull();
-    expect(entry!.id).toBe('diag-key');
-    expect(entry!.backendType).toBe('diagnostics');
+    expect(entry).toEqual(expect.objectContaining({
+      id: 'diag-key',
+      backendType: 'diagnostics',
+      content: '',
+    }));
     // diagnostics backend does NOT store content
-    expect(entry!.content).toBe('');
-    expect(entry!.sizeBytes).toBeGreaterThan(0);
+    expect(entry?.sizeBytes).toBeGreaterThan(0);
   });
 
   it('read() always returns null (content not stored)', () => {
@@ -271,8 +274,8 @@ describe('DiagnosticsBackend', () => {
     backend.write('b', 'y');
     const entries = backend.list();
     expect(entries.length).toBe(2);
-    expect(entries.every((e) => e.content === '')).toBe(true);
-    expect(entries.every((e) => e.backendType === 'diagnostics')).toBe(true);
+    expect(entries.map((e) => e.content)).toEqual(['', '']);
+    expect(entries.map((e) => e.backendType)).toEqual(['diagnostics', 'diagnostics']);
   });
 
   it('cleanup() prunes log entries older than maxAgeMs', () => {

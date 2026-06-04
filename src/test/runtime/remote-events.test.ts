@@ -17,7 +17,7 @@ describe('remote runtime transport events', () => {
     const unsubscribe = events.agents.on('AGENT_SPAWNING', () => {});
     unsubscribe();
 
-    expect(resolveConnect).not.toBeNull();
+    expect(resolveConnect).toEqual(expect.any(Function));
     resolveConnect!(() => {
       cleanupCalls += 1;
     });

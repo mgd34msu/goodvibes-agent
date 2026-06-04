@@ -91,8 +91,7 @@ describe('SessionPickerModal', () => {
     ];
     modal.selectedIndex = 1;
     const sel = modal.getSelected();
-    expect(sel).not.toBeNull();
-    expect(sel!.name).toBe('b');
+    expect(sel).toEqual(expect.objectContaining({ name: 'b' }));
   });
 
   test('deleteSelected requires explicit slash command and does not remove files', () => {

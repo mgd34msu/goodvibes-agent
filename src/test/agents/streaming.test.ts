@@ -7,7 +7,6 @@ import { getTestAgentManager, resetTestRuntimeServices } from '../helpers/runtim
 
 beforeEach(() => {
   resetTestRuntimeServices();
-  resetTestRuntimeServices();
 });
 
 // ---------------------------------------------------------------------------
@@ -180,11 +179,11 @@ describe('progress truncation logic', () => {
     const live = am.getStatus(rec.id)!;
     const { onDelta } = makeAccumulator(live);
 
-    // Feed exactly 101 chars
-    onDelta({ content: 'a'.repeat(101) });
+  // Feed exactly 101 chars
+  onDelta({ content: 'a'.repeat(101) });
 
-    expect(live.progress).toBeDefined();
-    expect(live.progress!.startsWith('...')).toBe(true);
+  expect(live.progress).toEqual(expect.any(String));
+  expect(live.progress!.startsWith('...')).toBe(true);
     // Last 97 chars of 101 a's = 97 a's, prefixed with '...'
     expect(live.progress!.length).toBe(100);
     expect(live.progress).toBe('...' + 'a'.repeat(97));

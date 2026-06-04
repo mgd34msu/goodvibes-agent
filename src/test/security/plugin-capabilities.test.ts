@@ -132,8 +132,9 @@ describe('security: plugin capabilities', () => {
       const manifest = makeManifest(['filesystem.write', 'network.outbound']);
       const policy = denyCapabilityPolicy('network.outbound');
       const resolved = resolveCapabilityManifest('my-plugin', manifest, policy);
-      expect(resolved.denialReasons).toBeDefined();
-      expect(resolved.denialReasons!['network.outbound']).toBeTruthy();
+      expect(resolved.denialReasons).toEqual(expect.objectContaining({
+        'network.outbound': expect.any(String),
+      }));
     });
   });
 

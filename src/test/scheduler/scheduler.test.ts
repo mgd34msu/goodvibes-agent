@@ -274,7 +274,7 @@ describe('Task lifecycle', () => {
     const task = scheduler2.add({ name: 'resched-test', cron: '* * * * *', prompt: 'test', enabled: true });
 
     const originalNextRun = task.nextRun;
-    expect(originalNextRun).toBeDefined();
+    expect(originalNextRun).toBeGreaterThan(Date.now() - 1000);
 
     // Clear nextRun to verify it gets recomputed
     task.nextRun = undefined;
@@ -283,7 +283,6 @@ describe('Task lifecycle', () => {
     await scheduler2.runNow(task.id);
 
     // nextRun should be recomputed by the reschedule in runNow
-    expect(task.nextRun).toBeDefined();
     expect(task.nextRun).toBeGreaterThan(Date.now() - 1000);
 
     scheduler2.stop();

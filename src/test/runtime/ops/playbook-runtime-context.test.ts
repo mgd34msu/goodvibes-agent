@@ -52,8 +52,8 @@ describe('ops playbook runtime context', () => {
     const timeoutCheck = playbook.checks.find((check) => check.id === 'turn.timeout-elapsed');
     const pendingToolsCheck = playbook.checks.find((check) => check.id === 'turn.pending-tool-calls');
 
-    expect(timeoutCheck).toBeDefined();
-    expect(pendingToolsCheck).toBeDefined();
+    expect(timeoutCheck).toEqual(expect.objectContaining({ id: 'turn.timeout-elapsed' }));
+    expect(pendingToolsCheck).toEqual(expect.objectContaining({ id: 'turn.pending-tool-calls' }));
 
     const timeoutResult = await timeoutCheck!.run();
     const pendingResult = await pendingToolsCheck!.run();
@@ -109,8 +109,8 @@ describe('ops playbook runtime context', () => {
       const attemptsCheck = playbook.checks.find((check) => check.id === 'session.recovery-attempts');
       const stateFileCheck = playbook.checks.find((check) => check.id === 'session.state-file');
 
-      expect(attemptsCheck).toBeDefined();
-      expect(stateFileCheck).toBeDefined();
+      expect(attemptsCheck).toEqual(expect.objectContaining({ id: 'session.recovery-attempts' }));
+      expect(stateFileCheck).toEqual(expect.objectContaining({ id: 'session.state-file' }));
 
       const attemptsResult = await attemptsCheck!.run();
       const stateFileResult = await stateFileCheck!.run();

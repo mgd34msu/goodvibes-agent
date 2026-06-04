@@ -66,16 +66,19 @@ describe('Knowledge projections', () => {
     });
 
     const targets = await service.listProjectionTargets(8);
-    expect(targets.some((target) => target.kind === 'overview')).toBe(true);
-    expect(targets.some((target) => target.kind === 'bundle')).toBe(true);
-    expect(targets.some((target) => target.kind === 'source' && target.itemId === ingested.source.id)).toBe(true);
-    expect(targets.some((target) => target.kind === 'dashboard')).toBe(true);
+    expect(targets).toContainEqual(expect.objectContaining({ kind: 'overview' }));
+    expect(targets).toContainEqual(expect.objectContaining({ kind: 'bundle' }));
+    expect(targets).toContainEqual(expect.objectContaining({
+      kind: 'source',
+      itemId: ingested.source.id,
+    }));
+    expect(targets).toContainEqual(expect.objectContaining({ kind: 'dashboard' }));
 
     const bundle = await service.renderProjection({ kind: 'bundle', limit: 4 });
     expect(bundle.pageCount).toBeGreaterThan(1);
     expect(bundle.pages[0]?.content).toContain('Structured knowledge is canonical in SQL');
-    expect(bundle.pages.some((page) => page.content.includes('Projection Source'))).toBe(true);
-    expect(bundle.pages.some((page) => page.title.includes('Source Health'))).toBe(true);
+    expect(bundle.pages.map((page) => page.content).join('\n')).toContain('Projection Source');
+    expect(bundle.pages.map((page) => page.title).join('\n')).toContain('Source Health');
   });
 
   test('materializes a single-item markdown projection as an artifact', async () => {

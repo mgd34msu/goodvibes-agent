@@ -74,7 +74,9 @@ describe('remote and hooks authoring gate', () => {
     const remoteRunnerRegistry = getTestRemoteRunnerRegistry();
     const exported = await exportRemoteArtifactForAgent(remoteRunnerRegistry, agent.id, store, path);
 
-    expect(exported).not.toBeNull();
+    if (exported === null) throw new Error('expected remote artifact export to succeed');
+    expect(exported.artifact.runnerContract.trustClass).toBe('self-hosted-acp');
+    expect(exported.artifact.task.summary).toContain('Portable remote evidence');
     expect(existsSync(path)).toBe(true);
 
     const imported = await importRemoteArtifact(remoteRunnerRegistry, path);

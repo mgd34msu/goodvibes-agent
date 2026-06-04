@@ -122,9 +122,9 @@ describe('operator client', () => {
     const snapshot = await client.providers.snapshot();
 
     expect(snapshot.providerIds).toEqual(providerIds);
-    expect(Array.isArray(snapshot.runtimeSnapshots)).toBe(true);
-    expect(Array.isArray(snapshot.accountSnapshot.providers)).toBe(true);
-    expect(Array.isArray(snapshot.authInspection.providers)).toBe(true);
+    expect(snapshot.runtimeSnapshots).toEqual(expect.any(Array));
+    expect(snapshot.accountSnapshot.providers).toEqual(expect.any(Array));
+    expect(snapshot.authInspection.providers).toEqual(expect.any(Array));
     expect(snapshot.accountSnapshot.configuredCount).toBeGreaterThanOrEqual(0);
     expect(snapshot.authInspection.secretKeyCount).toBeGreaterThanOrEqual(0);
   });

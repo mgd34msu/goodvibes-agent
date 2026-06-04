@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
-import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand, handleCompatCommand } from '../../cli/agent-knowledge-command.ts';
+import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand } from '../../cli/agent-knowledge-command.ts';
 import { parseGoodVibesCli } from '../../cli/parser.ts';
 
 const roots: string[] = [];
@@ -41,20 +41,6 @@ function createRuntimeForArgv(argv: readonly string[]) {
 
 function createRuntime(commandArgs: readonly string[]) {
   return createRuntimeForArgv(['knowledge', ...commandArgs]);
-}
-
-function readSdkPin(): string {
-  const parsed = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8')) as unknown;
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 'unknown';
-  const packageJson = parsed as { readonly dependencies?: unknown; readonly devDependencies?: unknown };
-  const dependencies = packageJson.dependencies && typeof packageJson.dependencies === 'object' && !Array.isArray(packageJson.dependencies)
-    ? packageJson.dependencies as Record<string, unknown>
-    : {};
-  const devDependencies = packageJson.devDependencies && typeof packageJson.devDependencies === 'object' && !Array.isArray(packageJson.devDependencies)
-    ? packageJson.devDependencies as Record<string, unknown>
-    : {};
-  const version = dependencies['@pellux/goodvibes-sdk'] ?? devDependencies['@pellux/goodvibes-sdk'];
-  return typeof version === 'string' ? version : 'unknown';
 }
 
 function inputUrl(input: Parameters<typeof fetch>[0]): string {
@@ -389,7 +375,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors/url',
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors/url/doctor',
       ]);
-      expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
+      expect(requests.map((request) => request.url).filter((url) => url.includes('/api/knowledge/'))).toEqual([]);
       expect(sourceParsed).toMatchObject({
         ok: true,
         kind: 'agentKnowledge.sources.list',
@@ -501,7 +487,7 @@ describe('Agent Knowledge CLI route isolation', () => {
       const reindexParsed = JSON.parse(reindex.output) as unknown;
       expect(reindex.exitCode).toBe(0);
       expect(requests[1]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/reindex');
-      expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
+      expect(requests.map((request) => request.url).filter((url) => url.includes('/api/knowledge/'))).toEqual([]);
       expect(reindexParsed).toMatchObject({
         ok: true,
         kind: 'agentKnowledge.reindex',
@@ -829,7 +815,7 @@ describe('Agent Knowledge CLI route isolation', () => {
       expect(requests.map((request) => request.url)).toEqual([
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ask',
       ]);
-      expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
+      expect(requests.map((request) => request.url).filter((url) => url.includes('/api/knowledge/'))).toEqual([]);
       expect(parsed).toMatchObject({
         ok: false,
         kind: 'scope_contamination',
@@ -841,7 +827,7 @@ describe('Agent Knowledge CLI route isolation', () => {
     }
   });
 
-  test('classifies missing Agent Knowledge route on older connected host as version_mismatch without default knowledge fallback', async () => {
+  test('classifies missing Agent Knowledge route without legacy daemon fields or default knowledge fallback', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input, init) => {
@@ -851,53 +837,6 @@ describe('Agent Knowledge CLI route isolation', () => {
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : null,
       });
-      if (url === 'http://127.0.0.1:3421/status') {
-        return new Response(JSON.stringify({ version: '0.33.30' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
-      throw new Error('Route not found: /api/goodvibes-agent/knowledge/status (404)');
-    }) satisfies typeof fetch;
-
-    try {
-      const result = await handleAgentKnowledgeCommand(createRuntime(['status']));
-      const parsed = JSON.parse(result.output) as unknown;
-
-      expect(result.exitCode).toBe(1);
-      expect(requests.map((request) => request.url)).toEqual([
-        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/status',
-        'http://127.0.0.1:3421/status',
-      ]);
-      expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
-      expect(parsed).toMatchObject({
-        ok: false,
-        kind: 'version_mismatch',
-        route: '/api/goodvibes-agent/knowledge/status',
-        connectedHostVersion: '0.33.30',
-        expectedSdkVersion: readSdkPin(),
-      });
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
-
-  test('classifies missing Agent Knowledge route on compatible host without legacy daemon fields', async () => {
-    const requests: CapturedRequest[] = [];
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
-      const url = inputUrl(input);
-      requests.push({
-        url,
-        method: init?.method ?? 'GET',
-        body: typeof init?.body === 'string' ? init.body : null,
-      });
-      if (url === 'http://127.0.0.1:3421/status') {
-        return new Response(JSON.stringify({ version: readSdkPin() }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
       throw new Error('Route not found: /api/goodvibes-agent/knowledge/status (404)');
     }) satisfies typeof fetch;
 
@@ -917,55 +856,6 @@ describe('Agent Knowledge CLI route isolation', () => {
       });
       expect(Object.prototype.hasOwnProperty.call(parsed as object, 'daemonVersion')).toBe(false);
       expect(result.output).not.toContain('daemon_');
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
-
-  test('compat JSON reports connected host state without the legacy daemon envelope', async () => {
-    const requests: CapturedRequest[] = [];
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
-      const url = inputUrl(input);
-      requests.push({
-        url,
-        method: init?.method ?? 'GET',
-        body: typeof init?.body === 'string' ? init.body : null,
-      });
-      if (url === 'http://127.0.0.1:3421/status') {
-        return new Response(JSON.stringify({ version: readSdkPin() }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
-      if (url === 'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/status') {
-        return new Response(JSON.stringify({ sourceCount: 0, nodeCount: 0, issueCount: 0 }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }
-      throw new Error(`unexpected route ${url}`);
-    }) satisfies typeof fetch;
-
-    try {
-      const result = await handleCompatCommand(createRuntimeForArgv(['compat', '--json']));
-      const parsed = JSON.parse(result.output) as unknown;
-
-      expect(result.exitCode).toBe(0);
-      expect(requests.map((request) => request.url)).toEqual([
-        'http://127.0.0.1:3421/status',
-        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/status',
-      ]);
-      expect(parsed).toMatchObject({
-        ok: true,
-        connectedHost: {
-          baseUrl: 'http://127.0.0.1:3421',
-          version: readSdkPin(),
-          reachable: true,
-          compatible: true,
-        },
-      });
-      expect(Object.prototype.hasOwnProperty.call(parsed as object, 'daemon')).toBe(false);
     } finally {
       globalThis.fetch = originalFetch;
     }

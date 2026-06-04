@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { submitPlanningAnswerWithShellFallback } from '../../runtime/bootstrap-shell.ts';
 
-describe('bootstrap shell planning answer bridge', () => {
-  test('submits immediately when the prompt bridge is attached', () => {
+describe('bootstrap shell planning answer route', () => {
+  test('submits immediately when the prompt route is attached', () => {
     const submitted: string[] = [];
     const messages: string[] = [];
 
@@ -38,7 +38,7 @@ describe('bootstrap shell planning answer bridge', () => {
     expect(messages).toEqual([]);
   });
 
-  test('does not throw when the prompt bridge never attaches', () => {
+  test('does not throw when the prompt route never attaches', () => {
     const submitted: string[] = [];
     const messages: string[] = [];
 
@@ -50,7 +50,7 @@ describe('bootstrap shell planning answer bridge', () => {
     });
 
     expect(submitted).toEqual([]);
-    expect(messages.join('\n')).toContain('prompt bridge is not ready');
+    expect(messages.join('\n')).toContain('prompt route is not ready');
     expect(messages.join('\n')).toContain('Need a smaller plan.');
     expect(messages).toContain('render');
   });

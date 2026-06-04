@@ -97,7 +97,9 @@ describe('runtime/settings/control-plane', () => {
     expect(config.get('display.stream')).toBe(true);
 
     const snapshot = getSettingsControlPlaneSnapshot(config);
-    expect(snapshot.stagedManagedBundle).toBeDefined();
+    expect(snapshot.stagedManagedBundle).toEqual(expect.objectContaining({
+      changes: expect.any(Array),
+    }));
     expect(snapshot.stagedManagedBundle?.changes.map((change) => change.key)).toEqual(['display.stream']);
 
     const restored = rollbackManagedApply(config, applied.rollbackToken);

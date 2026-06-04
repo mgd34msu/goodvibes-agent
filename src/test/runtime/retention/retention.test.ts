@@ -359,7 +359,7 @@ describe('RetentionPolicy — error handling', () => {
 
     expect(result.deletedIds).toContain('cpt_ok');
     expect(result.failedIds).toContain('cpt_fail');
-    expect(result.errors['cpt_fail']).toBeDefined();
+    expect(result.errors['cpt_fail']).toBe('mock I/O error');
   });
 
   it('does not throw when all deletions fail', async () => {
@@ -376,7 +376,14 @@ describe('RetentionPolicy — error handling', () => {
     policy.register(makeRecord('cpt_a', { createdAt: BASE_TIME, retentionClass: 'short' }));
     policy.register(makeRecord('cpt_b', { createdAt: BASE_TIME, retentionClass: 'short' }));
 
-    await expect(policy.prune()).resolves.toBeDefined();
+    const result = await policy.prune();
+
+    expect(result.deletedIds).toEqual([]);
+    expect(result.failedIds.sort()).toEqual(['cpt_a', 'cpt_b']);
+    expect(result.errors).toEqual({
+      cpt_a: 'mock I/O error',
+      cpt_b: 'mock I/O error',
+    });
   });
 
   it('does not remove failed records from tracking', async () => {

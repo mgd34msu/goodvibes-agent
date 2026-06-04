@@ -80,8 +80,7 @@ describe('ChainEngine', () => {
       });
 
       const result = await engine.evaluate(makeEvent({ path: 'Pre:tool:read', phase: 'Pre' }));
-      expect(result).not.toBeNull();
-      expect(result!.ok).toBe(true);
+      expect(result).toEqual(expect.objectContaining({ ok: true }));
     });
 
     test('chain resets after firing', async () => {

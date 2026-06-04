@@ -65,9 +65,10 @@ describe('resolveToolLLM', () => {
 
     try {
       const resolved = resolveToolLLM({ configManager, providerRegistry });
-      expect(resolved).not.toBeNull();
-      expect(resolved!.provider.name).toBe('test-explicit-provider');
-      expect(resolved!.modelId).toBe('test-model');
+      expect(resolved).toEqual(expect.objectContaining({
+        provider: expect.objectContaining({ name: 'test-explicit-provider' }),
+        modelId: 'test-model',
+      }));
     } finally {
       // Restore original config
       configManager.set('tools.llmProvider', origProvider);
@@ -106,8 +107,9 @@ describe('resolveToolLLM', () => {
 
     try {
       const resolved = resolveToolLLM({ configManager, providerRegistry: instance });
-      expect(resolved).not.toBeNull();
-      expect(resolved!.modelId).toBe('test-fallback-model');
+      expect(resolved).toEqual(expect.objectContaining({
+        modelId: 'test-fallback-model',
+      }));
     } finally {
       instance.getCurrentModel = origGetCurrent;
       instance.getForModel = origGetForModel;

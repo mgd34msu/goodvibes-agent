@@ -72,7 +72,7 @@ describe('AgentSession', () => {
       expect(entry.agentId).toBe(agentId);
       expect(entry.model).toBe(model);
       expect(entry.provider).toBe(provider);
-      expect(entry.timestamp).toBeDefined();
+      expect(entry.timestamp).toEqual(expect.any(Number));
     });
   });
 

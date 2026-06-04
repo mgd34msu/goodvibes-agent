@@ -205,7 +205,9 @@ describe('WebSearchService', () => {
       includeEvidence: true,
       evidenceTopN: 1,
     });
-    expect(result.results[0]?.evidence?.some((entry) => entry.content === 'Provider supplied evidence')).toBe(true);
+    expect(result.results[0]?.evidence).toEqual(expect.arrayContaining([
+      expect.objectContaining({ content: 'Provider supplied evidence' }),
+    ]));
     expect(result.results[0]?.evidence).toHaveLength(1);
   });
 });
@@ -380,6 +382,6 @@ describe('additional web search providers', () => {
     expect(response.results[0]?.metadata.published).toBe('2026-02-01');
 
     const registry = new WebSearchProviderRegistry(TEST_SEARCH_CONTEXT);
-    expect(registry.list().some((entry) => entry.id === 'perplexity')).toBe(true);
+    expect(registry.list().map((entry) => entry.id)).toContain('perplexity');
   });
 });

@@ -35,7 +35,7 @@ describe('command runner', () => {
     // Process killed via timeout triggers an exit (non-zero or error)
     // Bun resolves exited with signal kill — either ok:false or the proc exited non-zero
     // Either way the result should reflect failure or the process was cleaned up
-    expect(result).toBeDefined();
+    expect(result).toEqual(expect.objectContaining({ ok: false }));
   }, 10000);
 
   test('returns ok:false when command is missing', async () => {
@@ -77,8 +77,7 @@ describe('agent runner', () => {
       cancel: () => undefined,
     } as never);
     expect(result.ok).toBe(false);
-    expect(result.error).toBeTruthy();
-    expect(result.error).toContain('prompt');
+    expect(result.error).toEqual(expect.stringContaining('prompt'));
   });
 });
 
@@ -88,7 +87,6 @@ describe('prompt runner', () => {
     const hook: HookDefinition = { match: '*:*:*', type: 'prompt' };
     const result = await runPrompt(hook, makeEvent(), null);
     expect(result.ok).toBe(false);
-    expect(result.error).toBeTruthy();
-    expect(result.error).toContain('prompt');
+    expect(result.error).toEqual(expect.stringContaining('prompt'));
   });
 });

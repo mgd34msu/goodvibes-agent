@@ -135,33 +135,6 @@ describe('DiscordIntegration snowflake validation', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Body size limit (Content-Length check)
-// ---------------------------------------------------------------------------
-
-describe('DaemonServer body size limit', () => {
-  // The size check is done by reading req.headers.get('content-length').
-  // We verify the logic inline here rather than spinning up a full server.
-
-  test('rejects payload when content-length exceeds 1MB', () => {
-    const contentLength = parseInt('1000001', 10);
-    const tooLarge = contentLength > 1_000_000;
-    expect(tooLarge).toBe(true);
-  });
-
-  test('accepts payload when content-length is exactly 1MB', () => {
-    const contentLength = parseInt('1000000', 10);
-    const tooLarge = contentLength > 1_000_000;
-    expect(tooLarge).toBe(false);
-  });
-
-  test('accepts payload when content-length header is missing (defaults to 0)', () => {
-    const contentLength = parseInt('0', 10);
-    const tooLarge = contentLength > 1_000_000;
-    expect(tooLarge).toBe(false);
-  });
-});
-
 describe('provider-native client helpers', () => {
   test('Slack OAuth URL and directory calls use provider-native endpoints', async () => {
     const url = SlackIntegration.buildOAuthAuthorizeUrl({

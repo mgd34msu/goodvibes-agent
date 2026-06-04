@@ -150,7 +150,7 @@ describe('ImportGraph.findTransitiveDependents', () => {
     });
 
     const result = graph.findTransitiveDependents(join('/virtual', 'a.ts'));
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
   });
 });
 

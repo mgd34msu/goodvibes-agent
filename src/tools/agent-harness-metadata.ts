@@ -709,6 +709,7 @@ export function connectedHostSummary(
       capabilityDetail: 'agent_harness mode:"connected_host_capability" capabilityId:"..."',
       servicePosture: 'agent_harness mode:"service_posture"',
       daemonAliases: 'agent_harness mode:"daemon" or mode:"daemon_status"',
+      daemonStatusAlias: 'agent_harness mode:"daemon_status"',
       lifecycleBlocked: 'start, stop, restart, install, upgrade, expose-listener, and listener mutation are not exposed through Agent.',
     },
     counts: {

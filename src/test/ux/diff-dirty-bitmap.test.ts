@@ -31,7 +31,7 @@ function rowsInDiff(diff: string): Set<number> {
 describe('TerminalBuffer dirty bitmap (β2 unit)', () => {
   test('dirtyRows starts all false', () => {
     const buf = new TerminalBuffer(W, H);
-    expect(buf.dirtyRows.every(d => d === false)).toBe(true);
+    expect(buf.dirtyRows).toEqual(Array(H).fill(false));
   });
 
   test('setCell marks row dirty', () => {
@@ -58,7 +58,7 @@ describe('TerminalBuffer dirty bitmap (β2 unit)', () => {
     buf.setCell(0, 0, { char: 'A', fg: '', bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false });
     buf.blitLine(3, new Array(W).fill({ char: ' ', fg: '', bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false }));
     buf.reset(W, H);
-    expect(buf.dirtyRows.every(d => d === false)).toBe(true);
+    expect(buf.dirtyRows).toEqual(Array(H).fill(false));
   });
 
   test('reset() clears dirty flags on resize', () => {
@@ -66,7 +66,7 @@ describe('TerminalBuffer dirty bitmap (β2 unit)', () => {
     buf.setCell(0, 0, { char: 'A', fg: '', bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false });
     buf.reset(80, 24);
     expect(buf.dirtyRows.length).toBe(24);
-    expect(buf.dirtyRows.every(d => d === false)).toBe(true);
+    expect(buf.dirtyRows).toEqual(Array(24).fill(false));
   });
 });
 

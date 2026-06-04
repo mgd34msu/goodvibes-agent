@@ -278,7 +278,7 @@ describe('ForensicsRegistry — eviction', () => {
     reg.push(makeReport('r4')); // evicts r1
     expect(reg.count()).toBe(3);
     expect(reg.getById('r1')).toBeUndefined();
-    expect(reg.getById('r4')).toBeDefined();
+    expect(reg.getById('r4')).toEqual(expect.objectContaining({ id: 'r4' }));
   });
 
   test('default limit is DEFAULT_REGISTRY_LIMIT', async () => {
@@ -321,8 +321,8 @@ describe('ForensicsRegistry — subscribe', () => {
     const r = makeReport('r1');
     reg.push(r);
     const json = reg.exportAsJson('r1');
-    expect(json).toBeDefined();
-    const parsed = JSON.parse(json!);
+    expect(json).toEqual(expect.any(String));
+    const parsed = JSON.parse(json ?? '');
     expect(parsed.id).toBe('r1');
   });
 
@@ -361,15 +361,20 @@ describe('ForensicsRegistry — subscribe', () => {
     }));
 
     const bundle = reg.buildBundle('r-bundle');
-    expect(bundle).toBeDefined();
-    expect(bundle!.schemaVersion).toBe('v1');
-    expect(bundle!.evidence.rootCause).toBe('Turn error: socket reset');
-    expect(bundle!.evidence.terminalPhase).toBe('STREAM');
-    expect(bundle!.evidence.terminalOutcome).toBe('failed');
-    expect(bundle!.evidence.relatedIds.turnId).toBe('turn-123');
-    expect(bundle!.replay.status).toBe('unavailable');
-    expect(bundle!.replay.relatedMismatches).toEqual([]);
-    expect(bundle!.replay.mismatchBreakdown.byKind).toEqual({});
+    expect(bundle).toEqual(expect.objectContaining({
+      schemaVersion: 'v1',
+      evidence: expect.objectContaining({
+        rootCause: 'Turn error: socket reset',
+        terminalPhase: 'STREAM',
+        terminalOutcome: 'failed',
+        relatedIds: expect.objectContaining({ turnId: 'turn-123' }),
+      }),
+      replay: expect.objectContaining({
+        status: 'unavailable',
+        relatedMismatches: [],
+        mismatchBreakdown: expect.objectContaining({ byKind: {} }),
+      }),
+    }));
   });
 
   test('buildBundle attaches replay evidence and matching turn summary when available', async () => {
@@ -407,10 +412,13 @@ describe('ForensicsRegistry — subscribe', () => {
       },
     });
 
-    expect(bundle).toBeDefined();
-    expect(bundle!.replay.status).toBe('available');
-    expect(bundle!.replay.runId).toBe('run-42');
-    expect(bundle!.replay.mismatchCount).toBe(1);
+    expect(bundle).toEqual(expect.objectContaining({
+      replay: expect.objectContaining({
+        status: 'available',
+        runId: 'run-42',
+        mismatchCount: 1,
+      }),
+    }));
     expect(bundle!.replay.matchingTurnSummary?.turnId).toBe('turn-1');
     expect(bundle!.replay.matchingTurnSummary?.terminalEvent).toBe('TURN_ERROR');
     expect(bundle!.replay.relatedMismatches).toHaveLength(1);
@@ -423,8 +431,8 @@ describe('ForensicsRegistry — subscribe', () => {
     const reg = makeRegistry();
     reg.push(makeReport('r-bundle-json', { turnId: 'turn-7' }));
     const json = reg.exportBundleAsJson('r-bundle-json');
-    expect(json).toBeDefined();
-    const parsed = JSON.parse(json!);
+    expect(json).toEqual(expect.any(String));
+    const parsed = JSON.parse(json ?? '');
     expect(parsed.schemaVersion).toBe('v1');
     expect(parsed.report.id).toBe('r-bundle-json');
     expect(parsed.replay.status).toBe('unavailable');

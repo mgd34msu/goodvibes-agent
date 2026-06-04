@@ -108,16 +108,17 @@ describe('agent_operator_briefing tool', () => {
       expect(result.output).toContain('automation: jobs 3');
       expect(result.output).toContain('schedules: jobs 2');
       expect(result.output).toContain('scheduler: slots 1/4');
-      expect(requests.map((request) => request.url)).toEqual([
+      const requestUrls = requests.map((request) => request.url);
+      expect(requestUrls).toEqual([
         'http://127.0.0.1:3421/api/projects/planning/work-plan',
         'http://127.0.0.1:3421/api/approvals',
         'http://127.0.0.1:3421/api/automation',
         'http://127.0.0.1:3421/api/automation/schedules',
         'http://127.0.0.1:3421/api/runtime/scheduler',
       ]);
-      expect(requests.every((request) => request.method === 'GET')).toBe(true);
-      expect(requests.some((request) => request.url.includes('/api/knowledge'))).toBe(false);
-      expect(requests.some((request) => request.url.includes('homeGraph'))).toBe(false);
+      expect(requests.map((request) => request.method)).toEqual(['GET', 'GET', 'GET', 'GET', 'GET']);
+      expect(requestUrls.filter((url) => url.includes('/api/knowledge'))).toEqual([]);
+      expect(requestUrls.filter((url) => url.includes('homeGraph'))).toEqual([]);
     } finally {
       globalThis.fetch = originalFetch;
     }

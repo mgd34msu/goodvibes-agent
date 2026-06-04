@@ -36,6 +36,13 @@ function evalCmd(
   return evaluateCommandAST(cmd, ast, allowed);
 }
 
+function expectPresent<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${description}`);
+  }
+  return value;
+}
+
 // ── evaluateSegmentNode ───────────────────────────────────────────────────────
 
 describe('evaluateSegmentNode — basic classification', () => {
@@ -91,7 +98,9 @@ describe('evaluateCommandAST — compound verdict', () => {
     const verdict = evalCmd('ls /tmp && cat file.txt');
     expect(verdict.allowed).toBe(true);
     expect(verdict.segments.length).toBe(2);
-    expect(verdict.segments.every((s) => s.allowed)).toBe(true);
+    for (const segment of verdict.segments) {
+      expect(segment.allowed).toBe(true);
+    }
   });
 
   it('denies a compound command with one unsafe segment', () => {
@@ -107,7 +116,7 @@ describe('evaluateCommandAST — compound verdict', () => {
 
   it('produces a denial explanation when denied', () => {
     const verdict = evalCmd('ls && rm -rf /');
-    expect(verdict.denialExplanation).toBeDefined();
+    expect(typeof verdict.denialExplanation).toBe('string');
     expect(verdict.denialExplanation).toContain('denied');
     expect(verdict.denialExplanation).toContain('rm');
   });
@@ -168,24 +177,17 @@ describe('evaluateCommandAST — obfuscation detection', () => {
     // A base64-looking arg of appropriate length
     const verdict = evalCmd('bash cm0gLXJmIC90bXA=');
     // The base64 pattern is detected — segment should be denied
-    const seg = verdict.segments[0];
-    expect(seg).toBeDefined();
-    if (seg && seg.hasObfuscation) {
-      expect(seg.obfuscationPatterns.some((p) => p.includes('base64'))).toBe(true);
-      expect(seg.allowed).toBe(false);
-    }
-    // Even if base64 not detected (short token), compound verdict should still be checked
-    expect(verdict).toBeDefined();
+    const seg = expectPresent(verdict.segments[0], 'base64 segment verdict');
+    expect(seg.hasObfuscation).toBe(true);
+    expect(seg.obfuscationPatterns.join('\n')).toContain('base64');
+    expect(seg.allowed).toBe(false);
   });
 
   it('flags URL-encoded content in argument', () => {
     const verdict = evalCmd('curl http://example.com/path%2Fetc%2Fpasswd');
-    const seg = verdict.segments[0];
-    if (seg?.hasObfuscation) {
-      expect(seg.obfuscationPatterns.some((p) => p.includes('URL-encoded'))).toBe(true);
-    }
-    // Should not crash regardless
-    expect(verdict).toBeDefined();
+    const seg = expectPresent(verdict.segments[0], 'URL-encoded segment verdict');
+    expect(seg.hasObfuscation).toBe(true);
+    expect(seg.obfuscationPatterns.join('\n')).toContain('URL-encoded');
   });
 
   it('flags command substitution in args', () => {
@@ -193,18 +195,15 @@ describe('evaluateCommandAST — obfuscation detection', () => {
     const verdict = evalCmd('rm `echo /tmp/file`');
     // The backtick becomes a subshell token, which is parsed as SubshellNode
     // The rm portion is separate; verdict covers whatever nodes are extracted
-    expect(verdict).toBeDefined();
     // rm is destructive
     expect(verdict.allowed).toBe(false);
   });
 
   it('detects null-byte injection attempt', () => {
     const verdict = evalCmd('cat /etc/passwd\0');
-    const seg = verdict.segments[0];
-    if (seg?.hasObfuscation) {
-      expect(seg.obfuscationPatterns.some((p) => p.includes('null-byte'))).toBe(true);
-    }
-    expect(verdict).toBeDefined();
+    const seg = expectPresent(verdict.segments[0], 'null-byte segment verdict');
+    expect(seg.hasObfuscation).toBe(true);
+    expect(seg.obfuscationPatterns.join('\n')).toContain('null-byte');
   });
 
   it('detects variable expansion in dangerous context', () => {
@@ -289,7 +288,9 @@ describe('acceptance: mixed commands identify safe vs. unsafe segments', () => {
   it('allows all-safe complex command', () => {
     const verdict = evalCmd('find . -name "*.ts" | grep import | wc -l');
     expect(verdict.allowed).toBe(true);
-    expect(verdict.segments.every((s) => s.allowed)).toBe(true);
+    for (const segment of verdict.segments) {
+      expect(segment.allowed).toBe(true);
+    }
   });
 
   it('denial explanation covers all mixed segments', () => {

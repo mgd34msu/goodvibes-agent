@@ -181,8 +181,7 @@ describe('McpRegistry — with stub server', () => {
     registry = createRegistry();
     await registry.connectServer(stubServerConfig('beta'));
     const client = registry.getClient('beta');
-    expect(client).toBeDefined();
-    expect(client!.isConnected).toBe(true);
+    expect(client).toEqual(expect.objectContaining({ isConnected: true }));
   });
 
   test('listAllTools() returns tools with qualified names', async () => {
@@ -210,16 +209,18 @@ describe('McpRegistry — with stub server', () => {
     registry = createRegistry();
     await registry.connectServer(stubServerConfig('schema-srv'));
     const schema = await registry.getToolSchema('mcp:schema-srv:greet');
-    expect(schema).not.toBeNull();
-    expect(schema!.name).toBe('greet');
-    expect(schema!.inputSchema).toBeDefined();
+    expect(schema).toEqual({
+      name: 'greet',
+      description: 'Greet someone',
+      inputSchema: { type: 'object', properties: {} },
+    });
   });
 
   test('callTool() executes a tool by qualified name', async () => {
     registry = createRegistry();
     await registry.connectServer(stubServerConfig('call-srv'));
     const result = await registry.callTool('mcp:call-srv:greet', { name: 'Alice' });
-    expect(result).toBeDefined();
+    expect(result).toEqual({ content: [{ type: 'text', text: 'hello' }] });
   });
 
   test('callTool() denies when server trust mode is blocked', async () => {
@@ -240,7 +241,7 @@ describe('McpRegistry — with stub server', () => {
     const security = registry.listServerSecurity()[0];
     expect(security?.schemaFreshness).toBe('stale');
     expect(security?.quarantineApprovedBy).toBe('alice');
-    await expect(registry.callTool('mcp:quarantine-srv:greet', {})).resolves.toBeDefined();
+    await expect(registry.callTool('mcp:quarantine-srv:greet', {})).resolves.toEqual({ content: [{ type: 'text', text: 'hello' }] });
   });
 
   test('connectServer() is idempotent (skips duplicate name)', async () => {

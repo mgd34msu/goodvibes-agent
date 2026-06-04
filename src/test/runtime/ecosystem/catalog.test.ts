@@ -129,7 +129,9 @@ describe('ecosystem catalog', () => {
     });
     expect(inspected.ok).toBe(true);
     if (inspected.ok) {
-      expect(inspected.receipt.compatibility.appVersion).toBeDefined();
+      expect(inspected.receipt.compatibility.status).toBe('supported');
+      expect(inspected.receipt.compatibility.reasons).toEqual([]);
+      expect(inspected.receipt.runtimeFit).toEqual(inspected.receipt.compatibility);
       expect(inspected.receipt.provenanceSummary).toBe('./catalog/plugins/deploy-audit');
     }
 

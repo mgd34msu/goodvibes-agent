@@ -115,7 +115,7 @@ describe('diffCatalogs', () => {
 
     expect(diff.changed).toHaveLength(1);
     expect(diff.changed[0].model.id).toBe('kimi-k2.5');
-    expect(diff.changed[0].changes.some(c => c.includes('context'))).toBe(true);
+    expect(diff.changed[0].changes).toEqual(expect.arrayContaining([expect.stringContaining('context')]));
   });
 
   it('detects changed input pricing', () => {
@@ -129,7 +129,7 @@ describe('diffCatalogs', () => {
     const diff = diffCatalogs(oldCatalog, newCatalog);
 
     expect(diff.changed).toHaveLength(1);
-    expect(diff.changed[0].changes.some(c => c.includes('input price'))).toBe(true);
+    expect(diff.changed[0].changes).toEqual(expect.arrayContaining([expect.stringContaining('input price')]));
   });
 
   it('detects changed output pricing', () => {
@@ -143,7 +143,7 @@ describe('diffCatalogs', () => {
     const diff = diffCatalogs(oldCatalog, newCatalog);
 
     expect(diff.changed).toHaveLength(1);
-    expect(diff.changed[0].changes.some(c => c.includes('output price'))).toBe(true);
+    expect(diff.changed[0].changes).toEqual(expect.arrayContaining([expect.stringContaining('output price')]));
   });
 
   it('returns empty diff when catalogs are identical', () => {

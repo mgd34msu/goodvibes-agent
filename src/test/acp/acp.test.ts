@@ -2,12 +2,12 @@
  * ACP module tests — AcpConnection, AcpManager, protocol types, error handling.
  *
  * Strategy:
- *  - AcpConnection.run() uses Bun.spawn + ACP SDK internals that cannot be
+ *  - AcpConnection.run() uses Bun.spawn + ACP implementation internals that cannot be
  *    injected.  We test:
  *      • All pure-logic paths (getInfo, buildPromptText, cancel with no session)
  *      • The error path of run() by patching Bun.spawn to throw
  *      • The success / cancelled paths by building a stub child + minimal
- *        ACP-SDK mock via manual dependency patching on the prototype
+ *        ACP protocol mock via manual dependency patching on the prototype
  *  - AcpManager is fully testable: its only external dependency is AcpConnection
  *    which we stub at the class level.
  *  - Protocol types are validated with plain-object shape assertions.
@@ -149,7 +149,7 @@ describe('Protocol types', () => {
 
     test('tools is required array', () => {
       const task = makeTask({ tools: ['read'] });
-      expect(Array.isArray(task.tools)).toBe(true);
+      expect(task.tools).toEqual(['read']);
     });
 
     test('model is optional', () => {
@@ -539,7 +539,8 @@ describe('AcpManager', () => {
 
       proto.run = originalRun;
       expect(mgr.getActive()).toEqual([]);
-      expect(id).toBeTruthy();
+      expect(typeof id).toBe('string');
+      expect(id.length).toBeGreaterThan(0);
     });
   });
 
@@ -680,9 +681,12 @@ describe('AcpManager', () => {
       proto.run = originalRun;
 
       expect(results).toHaveLength(2);
-      expect(results.every((r) => r.success)).toBe(true);
-      expect(id1).toBeTruthy();
-      expect(id2).toBeTruthy();
+      expect(results.map((r) => r.success)).toEqual([true, true]);
+      expect(results.map((r) => r.output)).toEqual(['result-1', 'result-2']);
+      expect(typeof id1).toBe('string');
+      expect(id1.length).toBeGreaterThan(0);
+      expect(typeof id2).toBe('string');
+      expect(id2.length).toBeGreaterThan(0);
     });
 
     test('waitAll filters out rejected promises', async () => {
@@ -854,8 +858,11 @@ describe('Error handling', () => {
       throw new Error('catastrophic failure');
     };
     const conn = new AcpConnection('no-throw', makeTask(), ['x'], undefined, runtimeBus);
-    const result = await expect(conn.run()).resolves;
-    expect(result).toBeDefined();
+    const result = await conn.run();
+    expect(result).toEqual(expect.objectContaining({
+      id: 'no-throw',
+      success: false,
+    }));
   });
 
   test('cancel after failed run does not throw', async () => {

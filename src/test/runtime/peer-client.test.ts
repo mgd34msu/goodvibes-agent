@@ -75,7 +75,9 @@ describe('PeerClient', () => {
     expect(client.peers.get(verified!.peer.id)?.status).toBe('connected');
     expect(client.getSnapshot().pairing.total).toBe(1);
     expect(client.getSnapshot().peers).toHaveLength(1);
-    expect(client.getSnapshot().supervisor.sessions.some((session) => session.runnerId === verified!.peer.id)).toBe(true);
+    expect(client.getSnapshot().supervisor.sessions).toContainEqual(
+      expect.objectContaining({ runnerId: verified!.peer.id }),
+    );
   });
 
   test('surfaces runner contracts, artifacts, and peer work actions', async () => {
@@ -110,8 +112,12 @@ describe('PeerClient', () => {
 
     const artifact = client.runners.captureArtifactForRunner(agent.id);
     expect(artifact?.runnerId).toBe(agent.id);
-    expect(client.runners.listContracts().some((entry) => entry.runnerId === agent.id)).toBe(true);
-    expect(client.runners.listArtifacts().some((entry) => entry.runnerId === agent.id)).toBe(true);
+    expect(client.runners.listContracts()).toContainEqual(
+      expect.objectContaining({ runnerId: agent.id }),
+    );
+    expect(client.runners.listArtifacts()).toContainEqual(
+      expect.objectContaining({ runnerId: agent.id }),
+    );
     expect(client.runners.buildReviewSummary(artifact!.id)).toContain('Remote Artifact');
 
     const peer = await client.pairing.request({
@@ -123,7 +129,15 @@ describe('PeerClient', () => {
     const verified = await client.pairing.verify(peer.request.id, peer.challenge, {
       remoteAddress: '10.0.0.30',
     });
-    expect(verified).not.toBeNull();
+    expect(verified).toEqual(expect.objectContaining({
+      peer: expect.objectContaining({
+        requestedId: 'peer-client-device',
+        status: 'connected',
+      }),
+      token: expect.objectContaining({
+        value: expect.stringContaining('gvrt_'),
+      }),
+    }));
 
     const queued = await client.work.enqueue({
       peerId: verified!.peer.id,
@@ -135,14 +149,18 @@ describe('PeerClient', () => {
     expect(queued.status).toBe('queued');
 
     const auth = await client.peers.authenticateToken(verified!.token.value);
-    expect(auth).not.toBeNull();
+    expect(auth).toEqual(expect.objectContaining({
+      peer: expect.objectContaining({ id: verified!.peer.id }),
+    }));
     const claimed = await client.work.claim(auth!, { maxItems: 1, leaseMs: 15_000 });
     expect(claimed).toHaveLength(1);
     const completed = await client.work.complete(auth!, claimed[0]!.id, {
       result: { ok: true },
     });
     expect(completed?.status).toBe('completed');
-    expect(client.work.list(10, verified!.peer.id).some((item) => item.status === 'completed')).toBe(true);
+    expect(client.work.list(10, verified!.peer.id)).toContainEqual(
+      expect.objectContaining({ status: 'completed' }),
+    );
     expect(client.getSnapshot().work.length).toBeGreaterThan(0);
     expect(client.getSnapshot().nodeHostContract.basePath).toBe('/api/remote');
   });

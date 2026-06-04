@@ -31,7 +31,7 @@ describe('AgentRoutineRegistry', () => {
     expect(registry.snapshot().enabledRoutines).toHaveLength(1);
     const started = registry.markStarted('Evening Review');
     expect(started.startCount).toBe(1);
-    expect(started.lastStartedAt).toBeDefined();
+    expect(Number.isNaN(Date.parse(started.lastStartedAt ?? ''))).toBe(false);
     expect(registry.markReviewed('evening-review').reviewState).toBe('reviewed');
     expect(registry.markStale('evening-review', 'Needs reminder coverage.').staleReason).toContain('reminder');
     expect(registry.deleteRoutine('evening-review').id).toBe('evening-review');

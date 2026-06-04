@@ -14,11 +14,17 @@ describe('transcript event index', () => {
     conversation.addSystemMessage('[Remote] Attached to runner pool alpha');
 
     const index = conversation.getTranscriptEventIndex();
-    expect(index.events.some((event) => event.kind === 'user_input')).toBe(true);
-    expect(index.events.some((event) => event.kind === 'tool_call' && event.relatedCallId === 'call-1')).toBe(true);
-    expect(index.events.some((event) => event.kind === 'tool_result' && event.relatedCallId === 'call-1')).toBe(true);
-    expect(index.events.some((event) => event.kind === 'remote_status')).toBe(true);
-    expect(index.groups.some((group) => group.key === 'tool:call-1')).toBe(true);
+    expect(index.events).toContainEqual(expect.objectContaining({ kind: 'user_input' }));
+    expect(index.events).toContainEqual(expect.objectContaining({
+      kind: 'tool_call',
+      relatedCallId: 'call-1',
+    }));
+    expect(index.events).toContainEqual(expect.objectContaining({
+      kind: 'tool_result',
+      relatedCallId: 'call-1',
+    }));
+    expect(index.events).toContainEqual(expect.objectContaining({ kind: 'remote_status' }));
+    expect(index.groups).toContainEqual(expect.objectContaining({ key: 'tool:call-1' }));
     expect(index.events.find((event) => event.kind === 'tool_result' && event.relatedCallId === 'call-1')?.title).toBe('exec');
   });
 

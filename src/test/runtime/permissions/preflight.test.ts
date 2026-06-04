@@ -51,8 +51,10 @@ describe('buildPolicyPreflightReview', () => {
     });
 
     expect(review.status).toBe('block');
-    expect(review.issues.some((issue) => issue.source === 'runtime')).toBe(true);
-    expect(review.issues.some((issue) => issue.source === 'mcp' && issue.serverName === 'deploy')).toBe(true);
+    expect(review.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: 'runtime' }),
+      expect.objectContaining({ source: 'mcp', serverName: 'deploy' }),
+    ]));
   });
 
   test('warns for ask-on-risk MCP connections', () => {

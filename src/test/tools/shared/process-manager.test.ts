@@ -4,6 +4,13 @@ import type { BackgroundProcess } from '@pellux/goodvibes-sdk/platform/tools';
 
 let processManager: ProcessManager;
 
+function expectPresent<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${description}`);
+  }
+  return value;
+}
+
 beforeEach(() => {
   processManager = new ProcessManager();
 });
@@ -65,9 +72,9 @@ describe('ProcessManager — spawn', () => {
     await new Promise<void>((r) => setTimeout(r, 500));
 
     const entry = processManager.getStatus(id);
-    expect(entry).toBeDefined();
-    expect((entry as BackgroundProcess).done).toBe(true);
-    expect((entry as BackgroundProcess).exitCode).toBe(0);
+    const process = expectPresent(entry, `completed process ${id}`);
+    expect(process.done).toBe(true);
+    expect(process.exitCode).toBe(0);
   }, 3000);
 });
 
@@ -79,9 +86,9 @@ describe('ProcessManager — getStatus', () => {
   test('returns entry for known process', async () => {
     const result = await processManager.spawn('sleep 5', undefined, undefined);
     const entry = processManager.getStatus(result.process_id!);
-    expect(entry).toBeDefined();
-    expect(entry!.id).toBe(result.process_id as string);
-    expect(entry!.cmd).toBe('sleep 5');
+    const process = expectPresent(entry, `process ${result.process_id}`);
+    expect(process.id).toBe(result.process_id as string);
+    expect(process.cmd).toBe('sleep 5');
   });
 
   test('returns undefined for unknown ID', () => {
@@ -105,8 +112,7 @@ describe('ProcessManager — getOutput', () => {
     await new Promise<void>((r) => setTimeout(r, 500));
 
     const output = processManager.getOutput(id);
-    expect(output).toBeDefined();
-    expect(output!.stdout).toContain('output_check');
+    expect(expectPresent(output, `output for process ${id}`).stdout).toContain('output_check');
   }, 3000);
 });
 
@@ -155,9 +161,9 @@ describe('ProcessManager — list', () => {
 
     const list = processManager.list();
     const entry = list.find((e) => e.id === id);
-    expect(entry).toBeDefined();
-    expect(entry!.status).toContain('done');
-    expect(entry!.status).toContain('0');
+    const process = expectPresent(entry, `listed process ${id}`);
+    expect(process.status).toContain('done');
+    expect(process.status).toContain('0');
   }, 3000);
 });
 
@@ -174,10 +180,10 @@ describe('ProcessManager — handleCommand', () => {
 
   test('bg_status: returns error for unknown ID', () => {
     const result = processManager.handleCommand('bg_status bg_unknown_99999');
-    expect(result).not.toBeNull();
-    expect(result!.success).toBe(false);
-    expect(result!.exit_code).toBe(1);
-    expect(result!.stderr).toContain('Unknown process');
+    const command = expectPresent(result, 'bg_status result for unknown process');
+    expect(command.success).toBe(false);
+    expect(command.exit_code).toBe(1);
+    expect(command.stderr).toContain('Unknown process');
   });
 
   test('bg_status: returns running status for active process', async () => {
@@ -185,9 +191,9 @@ describe('ProcessManager — handleCommand', () => {
     const id = spawnResult.process_id!;
 
     const result = processManager.handleCommand(`bg_status ${id}`);
-    expect(result).not.toBeNull();
-    expect(result!.success).toBe(true);
-    const data = JSON.parse(result!.stdout) as Record<string, unknown>;
+    const command = expectPresent(result, `bg_status result for ${id}`);
+    expect(command.success).toBe(true);
+    const data = JSON.parse(command.stdout) as Record<string, unknown>;
     expect(data.status).toBe('running');
     expect(data.id).toBe(id);
   });
@@ -199,16 +205,15 @@ describe('ProcessManager — handleCommand', () => {
     await new Promise<void>((r) => setTimeout(r, 400));
 
     const result = processManager.handleCommand(`bg_status ${id}`);
-    expect(result).not.toBeNull();
-    expect(result!.success).toBe(true);
-    const data = JSON.parse(result!.stdout) as Record<string, unknown>;
+    const command = expectPresent(result, `bg_status result for completed process ${id}`);
+    expect(command.success).toBe(true);
+    const data = JSON.parse(command.stdout) as Record<string, unknown>;
     expect(data.status as string).toContain('done');
   }, 3000);
 
   test('bg_output: returns error for unknown ID', () => {
     const result = processManager.handleCommand('bg_output bg_unknown_99999');
-    expect(result).not.toBeNull();
-    expect(result!.success).toBe(false);
+    expect(expectPresent(result, 'bg_output result for unknown process').success).toBe(false);
   });
 
   test('bg_output: returns stdout/stderr after completion', async () => {
@@ -218,17 +223,17 @@ describe('ProcessManager — handleCommand', () => {
     await new Promise<void>((r) => setTimeout(r, 400));
 
     const result = processManager.handleCommand(`bg_output ${id}`);
-    expect(result).not.toBeNull();
-    expect(result!.success).toBe(true);
-    expect(result!.stdout).toContain('output_via_cmd');
-    expect(result!.stderr).toContain('err_via_cmd');
+    const command = expectPresent(result, `bg_output result for ${id}`);
+    expect(command.success).toBe(true);
+    expect(command.stdout).toContain('output_via_cmd');
+    expect(command.stderr).toContain('err_via_cmd');
   }, 3000);
 
   test('bg_stop: returns error for unknown ID', () => {
     const result = processManager.handleCommand('bg_stop bg_unknown_99999');
-    expect(result).not.toBeNull();
-    expect(result!.success).toBe(false);
-    expect(result!.exit_code).toBe(1);
+    const command = expectPresent(result, 'bg_stop result for unknown process');
+    expect(command.success).toBe(false);
+    expect(command.exit_code).toBe(1);
   });
 
   test('bg_stop: stops the process and removes it', async () => {
@@ -236,18 +241,18 @@ describe('ProcessManager — handleCommand', () => {
     const id = spawnResult.process_id!;
 
     const stopResult = processManager.handleCommand(`bg_stop ${id}`);
-    expect(stopResult).not.toBeNull();
-    expect(stopResult!.success).toBe(true);
-    expect(stopResult!.stdout).toContain(id);
+    const command = expectPresent(stopResult, `bg_stop result for ${id}`);
+    expect(command.success).toBe(true);
+    expect(command.stdout).toContain(id);
 
     expect(processManager.getStatus(id)).toBeUndefined();
   });
 
   test('bg_list: returns empty array when no processes', () => {
     const result = processManager.handleCommand('bg_list');
-    expect(result).not.toBeNull();
-    expect(result!.success).toBe(true);
-    expect(JSON.parse(result!.stdout)).toEqual([]);
+    const command = expectPresent(result, 'bg_list result for empty process list');
+    expect(command.success).toBe(true);
+    expect(JSON.parse(command.stdout)).toEqual([]);
   });
 
   test('bg_list: returns all tracked processes', async () => {
@@ -255,9 +260,9 @@ describe('ProcessManager — handleCommand', () => {
     await processManager.spawn('sleep 5', undefined, undefined);
 
     const result = processManager.handleCommand('bg_list');
-    expect(result).not.toBeNull();
-    expect(result!.success).toBe(true);
-    const list = JSON.parse(result!.stdout) as Array<Record<string, unknown>>;
+    const command = expectPresent(result, 'bg_list result for tracked processes');
+    expect(command.success).toBe(true);
+    const list = JSON.parse(command.stdout) as Array<Record<string, unknown>>;
     expect(list).toHaveLength(2);
     expect(list[0].status).toBe('running');
   });
@@ -276,8 +281,8 @@ describe('BackgroundProcess — interface shape', () => {
     expect(typeof entry.pid).toBe('number');
     expect(typeof entry.cmd).toBe('string');
     expect(typeof entry.startTime).toBe('number');
-    expect(Array.isArray(entry.stdout)).toBe(true);
-    expect(Array.isArray(entry.stderr)).toBe(true);
+    expect(entry.stdout).toEqual(expect.any(Array));
+    expect(entry.stderr).toEqual(expect.any(Array));
     expect(entry.exitCode).toBeNull();
     expect(typeof entry.done).toBe('boolean');
   });

@@ -9,7 +9,7 @@
  * If local typed wrapper modules still exist under src/runtime/emitters/,
  * they are the only approved place for raw RuntimeEventBus.emit() calls.
  *
- * After the SDK cutover, the TUI may no longer have any local emitters at all.
+ * After the shared runtime cutover, the TUI may no longer have any local emitters at all.
  * In that case the correct state is zero local raw emit() calls and no local
  * emitter wrapper directory.
  * Any other file calling bus.emit on a RuntimeEventBus instance is a violation
@@ -135,7 +135,7 @@ describe('GC-ARCH-002: typed emission enforcement', () => {
         'GC-ARCH-002 violation: raw RuntimeEventBus.emit() call(s) detected outside allowlist.',
         hasLocalEmitters
           ? 'Migrate these call sites to typed emitter wrapper functions in src/runtime/emitters/.'
-          : 'Migrate these call sites onto the SDK-owned typed emitter/runtime surface.',
+          : 'Migrate these call sites onto the runtime-owned typed emitter surface.',
         'If migration is incomplete, update the local enforcement boundary in',
         'src/test/runtime/emit-enforcement.test.ts as a temporary suppression.',
         '',

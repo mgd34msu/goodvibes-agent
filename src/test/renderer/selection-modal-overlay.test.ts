@@ -28,10 +28,11 @@ describe('renderSelectionModalOverlay', () => {
     expect(lines.at(-1)?.[boxMargin]?.char).toBe('└');
     expect(lines.at(-1)?.[rightX]?.char).toBe('┘');
 
-    const selectedRow = lines.find((line) =>
-      line.some((cell) => cell.bg === DEFAULT_OVERLAY_PALETTE.selectedBg && cell.char.trim().length > 0)
+    const selectedRows = lines.filter((line) =>
+      line.filter((cell) => cell.bg === DEFAULT_OVERLAY_PALETTE.selectedBg && cell.char.trim().length > 0).length > 0
     );
-    expect(selectedRow).toBeDefined();
+    expect(selectedRows.length).toBeGreaterThan(0);
+    const selectedRow = selectedRows[0];
     expect(selectedRow?.[boxMargin]?.char).toBe('│');
     expect(selectedRow?.[boxMargin]?.bg).toBe('');
     expect(selectedRow?.[rightX]?.char).toBe('│');

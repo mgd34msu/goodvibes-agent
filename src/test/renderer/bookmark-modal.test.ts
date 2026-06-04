@@ -28,7 +28,7 @@ describe('renderBookmarkModal', () => {
   test('returns an array of Lines', () => {
     modal.open();
     const lines = renderBookmarkModal(modal, W);
-    expect(Array.isArray(lines)).toBe(true);
+    expect(lines).toEqual(expect.any(Array));
     expect(lines.length).toBeGreaterThan(0);
   });
 
@@ -68,8 +68,7 @@ describe('renderBookmarkModal', () => {
     seedBookmarks(3);
     modal.open();
     const lines = renderBookmarkModal(modal, W);
-    const hasArrow = lines.some(line => line.some(cell => cell.char === '▸'));
-    expect(hasArrow).toBe(true);
+    expect(lines.flat().map((cell) => cell.char)).toContain('▸');
   });
 
   test('renders empty state when no bookmarks', () => {

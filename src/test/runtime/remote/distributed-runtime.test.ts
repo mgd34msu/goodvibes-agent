@@ -15,6 +15,11 @@ function createManager() {
   return { dir, manager };
 }
 
+function requireValue<T>(value: T | null | undefined, label: string): T {
+  if (value === null || value === undefined) throw new Error(`Expected ${label}`);
+  return value;
+}
+
 async function pairVerifiedPeer(manager: DistributedRuntimeManager) {
   const requested = await manager.requestPairing({
     peerKind: 'node',
@@ -25,12 +30,25 @@ async function pairVerifiedPeer(manager: DistributedRuntimeManager) {
     commands: ['build'],
   });
   const approved = await manager.approvePairRequest(requested.request.id, { actor: 'operator' });
-  expect(approved).not.toBeNull();
+  expect(approved).toEqual(expect.objectContaining({
+    request: expect.objectContaining({ status: 'approved' }),
+    peer: expect.objectContaining({
+      kind: 'node',
+      requestedId: 'node-builder-1',
+    }),
+  }));
   const verified = await manager.verifyPairRequest(requested.request.id, requested.challenge, {
     remoteAddress: '10.0.0.10',
   });
-  expect(verified).not.toBeNull();
-  return verified!;
+  expect(verified).toEqual(expect.objectContaining({
+    peer: expect.objectContaining({
+      kind: 'node',
+      requestedId: 'node-builder-1',
+      status: 'connected',
+    }),
+    token: expect.objectContaining({ value: expect.stringMatching(/^gvrt_/) }),
+  }));
+  return requireValue(verified, 'verified peer');
 }
 
 describe('DistributedRuntimeManager', () => {
@@ -141,12 +159,15 @@ describe('DistributedRuntimeManager', () => {
     expect(queued.status).toBe('queued');
 
     const auth = await manager.authenticatePeerToken(verified.token.value, '10.0.0.20');
-    expect(auth).not.toBeNull();
-    const claimed = await manager.claimWork(auth!, { maxItems: 1, leaseMs: 30_000 });
+    expect(auth).toEqual(expect.objectContaining({
+      peer: expect.objectContaining({ id: verified.peer.id }),
+      token: expect.objectContaining({ id: verified.token.id }),
+    }));
+    const claimed = await manager.claimWork(requireValue(auth, 'authenticated peer'), { maxItems: 1, leaseMs: 30_000 });
     expect(claimed).toHaveLength(1);
     expect(claimed[0]?.status).toBe('claimed');
 
-    const completed = await manager.completeWork(auth!, claimed[0]!.id, {
+    const completed = await manager.completeWork(requireValue(auth, 'authenticated peer'), claimed[0]!.id, {
       result: { ok: true, summary: 'release build complete' },
       telemetry: {
         usage: {
@@ -160,8 +181,10 @@ describe('DistributedRuntimeManager', () => {
       },
     });
     expect(completed?.status).toBe('completed');
-    expect(sessionMessages.some((entry) => entry.sessionId === 'sess-1' && entry.body.includes('Queued remote'))).toBe(true);
-    expect(sessionMessages.some((entry) => entry.sessionId === 'sess-1' && entry.body.includes('release build complete'))).toBe(true);
+    expect(sessionMessages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sessionId: 'sess-1', body: expect.stringContaining('Queued remote') }),
+      expect.objectContaining({ sessionId: 'sess-1', body: expect.stringContaining('release build complete') }),
+    ]));
     expect(approvalUpdates).toHaveLength(1);
     expect(approvalUpdates[0]?.approvalId).toBe('approval-1');
     expect(approvalUpdates[0]?.note).toContain('completed');
@@ -187,14 +210,17 @@ describe('DistributedRuntimeManager', () => {
 
     const verified = await pairVerifiedPeer(manager);
     const auth = await manager.authenticatePeerToken(verified.token.value, '10.0.0.30');
-    expect(auth).not.toBeNull();
+    expect(auth).toEqual(expect.objectContaining({
+      peer: expect.objectContaining({ id: verified.peer.id }),
+      token: expect.objectContaining({ id: verified.token.id }),
+    }));
 
     await manager.enqueueWork({
       peerId: verified.peer.id,
       command: 'status-check',
       actor: 'operator',
     });
-    const claimed = await manager.claimWork(auth!, { maxItems: 1, leaseMs: 60_000 });
+    const claimed = await manager.claimWork(requireValue(auth, 'authenticated peer'), { maxItems: 1, leaseMs: 60_000 });
     expect(claimed[0]?.status).toBe('claimed');
 
     const disconnected = await manager.disconnectPeer(verified.peer.id, {
@@ -206,9 +232,12 @@ describe('DistributedRuntimeManager', () => {
     expect(manager.listWork(10)[0]?.status).toBe('queued');
 
     const authAfter = await manager.authenticatePeerToken(verified.token.value, '10.0.0.31');
-    expect(authAfter).not.toBeNull();
-    await manager.heartbeatPeer(authAfter!, { remoteAddress: '10.0.0.31' });
-    const reclaimed = await manager.claimWork(authAfter!, { maxItems: 1 });
+    expect(authAfter).toEqual(expect.objectContaining({
+      peer: expect.objectContaining({ id: verified.peer.id }),
+      token: expect.objectContaining({ id: verified.token.id }),
+    }));
+    await manager.heartbeatPeer(requireValue(authAfter, 're-authenticated peer'), { remoteAddress: '10.0.0.31' });
+    const reclaimed = await manager.claimWork(requireValue(authAfter, 're-authenticated peer'), { maxItems: 1 });
     expect(reclaimed[0]?.status).toBe('claimed');
   });
 });

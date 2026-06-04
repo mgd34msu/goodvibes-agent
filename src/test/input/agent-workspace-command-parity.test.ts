@@ -76,12 +76,21 @@ function collectWorkspaceCoverage(): WorkspaceCoverage {
 }
 
 function hasCoverage(coverage: WorkspaceCoverage, requirement: CoverageRequirement): boolean {
-  return Boolean(
-    requirement.commandRoots?.some((root) => coverage.commandRoots.has(root))
-    || requirement.actionIds?.some((id) => coverage.actionIds.has(id))
-    || requirement.categoryIds?.some((id) => coverage.categoryIds.has(id))
-    || requirement.editorPrefixes?.some((prefix) => [...coverage.editorKinds].some((kind) => kind.startsWith(prefix))),
-  );
+  for (const root of requirement.commandRoots ?? []) {
+    if (coverage.commandRoots.has(root)) return true;
+  }
+  for (const id of requirement.actionIds ?? []) {
+    if (coverage.actionIds.has(id)) return true;
+  }
+  for (const id of requirement.categoryIds ?? []) {
+    if (coverage.categoryIds.has(id)) return true;
+  }
+  for (const prefix of requirement.editorPrefixes ?? []) {
+    for (const kind of coverage.editorKinds) {
+      if (kind.startsWith(prefix)) return true;
+    }
+  }
+  return false;
 }
 
 describe('Agent workspace command parity', () => {

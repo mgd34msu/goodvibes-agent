@@ -414,7 +414,7 @@ describe('inspect — api mode', () => {
     const r = await exec(tool, { mode: 'api', projectRoot: tmpDir, framework: 'auto' });
     expect(r.success).toBe(true);
     const d = requireData<ApiInspectResult>(r);
-    expect(d.routes.some((rt) => rt.method === 'GET')).toBe(true);
+    expect(d.routes.map((rt) => rt.method)).toContain('GET');
   });
 });
 
@@ -475,7 +475,6 @@ enum Role {
     const r = await exec(tool, { mode: 'database', projectRoot: tmpDir });
     const d = requireData<DatabaseInspectResult>(r);
     const user = d.models.find((m) => m.name === 'User');
-    expect(user).toBeDefined();
     if (!user) throw new Error('User model missing');
     const fieldNames = user.fields.map((f) => f.name);
     expect(fieldNames).toContain('id');
@@ -562,7 +561,6 @@ describe('inspect — components mode', () => {
     const names = d.components.map((c) => c.name);
     expect(names).toContain('Card');
     const card = d.components.find((c) => c.name === 'Card');
-    expect(card).toBeDefined();
     if (!card) throw new Error('Card component missing');
     expect(card.kind).toBe('arrow');
   });
@@ -702,9 +700,9 @@ describe('inspect — layout mode', () => {
     expect(r.success).toBe(true);
     const d = requireData<LayoutInspectResult>(r);
     expect(d.displays).toContain('flex');
-    expect(d.grid.some((g: string) => g.startsWith('grid-cols'))).toBe(true);
-    expect(d.sizing.some((s: string) => s.startsWith('w-') || s.startsWith('h-'))).toBe(true);
-    expect(d.overflow.some((o: string) => o.includes('overflow'))).toBe(true);
+    expect(d.grid).toEqual(expect.arrayContaining(['grid-cols-3']));
+    expect(d.sizing).toEqual(expect.arrayContaining(['w-full', 'h-screen']));
+    expect(d.overflow).toEqual(expect.arrayContaining(['overflow-hidden', 'overflow-auto']));
   });
 
   test('returns error when file is missing', async () => {
@@ -735,9 +733,9 @@ describe('inspect — scaffold mode', () => {
     expect(d.dryRun).toBe(true);
     expect(d.files.length).toBe(4);
     const paths = d.files.map((f) => f.path);
-    expect(paths.some((p: string) => p.includes('index.ts'))).toBe(true);
-    expect(paths.some((p: string) => p.includes('types.ts'))).toBe(true);
-    expect(paths.some((p: string) => p.includes('.test.ts'))).toBe(true);
+    expect(paths.filter((p: string) => p.endsWith('index.ts')).length).toBeGreaterThan(0);
+    expect(paths.filter((p: string) => p.endsWith('types.ts')).length).toBeGreaterThan(0);
+    expect(paths.filter((p: string) => p.endsWith('.test.ts')).length).toBeGreaterThan(0);
 
     // Files should NOT exist on disk
     for (const f of d.files) {
@@ -832,15 +830,13 @@ describe('inspect — api_spec mode', () => {
     expect(r.success).toBe(true);
     const spec = requireData<OpenApiSpecSummary>(r);
     expect(spec.openapi).toBe('3.0.0');
-    expect(spec.info).toBeDefined();
-    expect(spec.paths).toBeDefined();
+    expect(spec.info).toEqual(expect.any(Object));
+    expect(Object.keys(spec.paths)).toEqual(expect.arrayContaining(['/users', '/users/{id}']));
 
     // /users path should have get and post
     const usersPath = spec.paths['/users'];
-    expect(usersPath).toBeDefined();
     if (!usersPath) throw new Error('/users path missing');
-    expect(usersPath['get']).toBeDefined();
-    expect(usersPath['post']).toBeDefined();
+    expect(Object.keys(usersPath)).toEqual(expect.arrayContaining(['get', 'post']));
   });
 
   test('converts path params from :id to {id} in OpenAPI format', async () => {
@@ -854,15 +850,14 @@ describe('inspect — api_spec mode', () => {
     // Should have {id} path, not :id
     const pathKeys = Object.keys(spec.paths);
     const paramPath = pathKeys.find((k) => k.includes('{id}'));
-    expect(paramPath).toBeDefined();
+    expect(pathKeys).toContain('/posts/{id}');
 
     // Parameter should be defined in the operation
     if (!paramPath || !spec.paths[paramPath]?.['get']) {
       throw new Error('expected GET operation for parameterized path');
     }
     const op = spec.paths[paramPath]?.['get'];
-    expect(op.parameters).toBeDefined();
-    expect(op.parameters?.some((p) => p.name === 'id' && p.in === 'path' && p.required === true)).toBe(true);
+    expect(op.parameters).toContainEqual(expect.objectContaining({ name: 'id', in: 'path', required: true }));
   });
 
   test('includes operationId on each operation', async () => {
@@ -873,10 +868,8 @@ describe('inspect — api_spec mode', () => {
     expect(r.success).toBe(true);
     const spec = requireData<OpenApiSpecSummary>(r);
     const itemsPath = spec.paths['/items'];
-    expect(itemsPath).toBeDefined();
     if (!itemsPath) throw new Error('/items path missing');
     const op = itemsPath['post'];
-    expect(op).toBeDefined();
     if (!op) throw new Error('POST /items operation missing');
     const { operationId } = op;
     expect(typeof operationId).toBe('string');
@@ -901,8 +894,7 @@ describe('inspect — api_spec mode', () => {
     const r = await exec(tool, { mode: 'api_spec', projectRoot: tmpDir, framework: 'nextjs' });
     expect(r.success).toBe(true);
     const spec = requireData<OpenApiSpecSummary>(r);
-    expect(spec.paths).toBeDefined();
-    expect(Object.keys(spec.paths)).toHaveLength(0);
+    expect(spec.paths).toEqual({});
   });
 });
 
@@ -968,7 +960,7 @@ describe('inspect — api_validate mode', () => {
     expect(r.success).toBe(true);
     const d = requireData<ApiValidationResult>(r);
     expect(d.valid).toBe(false);
-    expect(d.missing_from_spec.some((s: string) => s.includes('/posts'))).toBe(true);
+    expect(d.missing_from_spec).toEqual(expect.arrayContaining([expect.stringContaining('/posts')]));
   });
 
   test('detects routes in spec missing from code', async () => {
@@ -998,7 +990,7 @@ describe('inspect — api_validate mode', () => {
     expect(r.success).toBe(true);
     const d = requireData<ApiValidationResult>(r);
     expect(d.valid).toBe(false);
-    expect(d.missing_from_code.some((s: string) => s.includes('/admin'))).toBe(true);
+    expect(d.missing_from_code).toEqual(expect.arrayContaining([expect.stringContaining('/admin')]));
   });
 
   test('returns error when specPath is not provided', async () => {
@@ -1043,7 +1035,7 @@ describe('inspect — api_sync mode', () => {
     expect(r.success).toBe(true);
     const d = requireData<ApiSyncInspectResult>(r);
     expect(d.fetch_calls.length).toBeGreaterThanOrEqual(1);
-    expect(d.fetch_calls.some((fc) => fc.url === '/users')).toBe(true);
+    expect(d.fetch_calls.map((fc) => fc.url)).toContain('/users');
     expect(d.drift_detected).toBe(false);
   });
 
@@ -1057,7 +1049,7 @@ describe('inspect — api_sync mode', () => {
     expect(r.success).toBe(true);
     const d = requireData<ApiSyncInspectResult>(r);
     expect(d.drift_detected).toBe(true);
-    expect(d.unmatched_fetches.some((fc) => fc.url === '/nonexistent-endpoint')).toBe(true);
+    expect(d.unmatched_fetches.map((fc) => fc.url)).toContain('/nonexistent-endpoint');
   });
 
   test('extracts fetch calls with file and line number', async () => {
@@ -1070,7 +1062,6 @@ describe('inspect — api_sync mode', () => {
     expect(r.success).toBe(true);
     const d = requireData<ApiSyncInspectResult>(r);
     const call = d.fetch_calls.find((fc) => fc.url === '/users');
-    expect(call).toBeDefined();
     if (!call) throw new Error('expected /users fetch call');
     expect(typeof call.file).toBe('string');
     expect(typeof call.line).toBe('number');
@@ -1094,10 +1085,12 @@ describe('inspect — api_sync mode', () => {
     const r = await exec(tool, { mode: 'api_sync', projectRoot: tmpDir, framework: 'nextjs' });
     expect(r.success).toBe(true);
     const d = requireData<ApiSyncInspectResult>(r);
-    expect(Array.isArray(d.fetch_calls)).toBe(true);
-    expect(Array.isArray(d.unmatched_fetches)).toBe(true);
-    expect(Array.isArray(d.unmatched_routes)).toBe(true);
-    expect(typeof d.drift_detected).toBe('boolean');
+    expect(d).toMatchObject({
+      fetch_calls: [],
+      unmatched_fetches: [],
+      unmatched_routes: [],
+      drift_detected: false,
+    });
   });
 });
 
@@ -1138,8 +1131,7 @@ describe('inspect — component_state mode', () => {
     const r = await exec(tool, { mode: 'component_state', projectRoot: tmpDir, file: 'Comp2.tsx' });
     expect(r.success).toBe(true);
     const d = requireData<ComponentStateInspectResult>(r);
-    expect(d.stateVars.some((v) => v.kind === 'useReducer')).toBe(true);
-    expect(d.stateVars.some((v) => v.kind === 'useContext')).toBe(true);
+    expect(d.stateVars.map((v) => v.kind)).toEqual(expect.arrayContaining(['useReducer', 'useContext']));
   });
 
   test('returns empty for file with no state hooks', async () => {
@@ -1176,11 +1168,13 @@ describe('inspect — render_triggers mode', () => {
     const r = await exec(tool, { mode: 'render_triggers', projectRoot: tmpDir, file: 'Triggers.tsx' });
     expect(r.success).toBe(true);
     const d = requireData<RenderTriggersInspectResult>(r);
-    expect(d.triggers.some((t) => t.kind === 'state_setter')).toBe(true);
-    expect(d.triggers.some((t) => t.kind === 'effect_dep')).toBe(true);
-    expect(d.triggers.some((t) => t.kind === 'memo_dep')).toBe(true);
-    expect(d.triggers.some((t) => t.kind === 'callback_dep')).toBe(true);
-    expect(d.triggers.some((t) => t.kind === 'memo_boundary')).toBe(true);
+    expect(d.triggers.map((t) => t.kind)).toEqual(expect.arrayContaining([
+      'state_setter',
+      'effect_dep',
+      'memo_dep',
+      'callback_dep',
+      'memo_boundary',
+    ]));
   });
 
   test('returns empty triggers for plain component', async () => {
@@ -1280,9 +1274,7 @@ describe('inspect — sizing mode', () => {
     const r = await exec(tool, { mode: 'sizing', projectRoot: tmpDir, file: 'Sizing.tsx' });
     expect(r.success).toBe(true);
     const d = requireData<SizingInspectResult>(r);
-    expect(d.items.some((i) => i.kind === 'percentage')).toBe(true);
-    expect(d.items.some((i) => i.kind === 'flex')).toBe(true);
-    expect(d.items.some((i) => i.kind === 'viewport')).toBe(true);
+    expect(d.items.map((i) => i.kind)).toEqual(expect.arrayContaining(['percentage', 'flex', 'viewport']));
   });
 
   test('returns empty items for plain component', async () => {
@@ -1313,7 +1305,7 @@ describe('inspect — stacking mode', () => {
     expect(r.success).toBe(true);
     const d = requireData<StackingInspectResult>(r);
     expect(d.zIndexItems.length).toBeGreaterThan(0);
-    expect(d.zIndexItems.some((z) => z.value.includes('z-50') || z.value === 'z-50')).toBe(true);
+    expect(d.zIndexItems.map((z) => z.value)).toContain('z-50');
   });
 
   test('returns empty for file with no z-index', async () => {
@@ -1375,7 +1367,7 @@ describe('inspect — events mode', () => {
     expect(r.success).toBe(true);
     const d = requireData<EventsInspectResult>(r);
     expect(d.count).toBeGreaterThan(0);
-    expect(d.handlers.some((h) => h.event.toLowerCase().includes('click'))).toBe(true);
+    expect(d.handlers.map((h) => h.event)).toContain('onClick');
   });
 
   test('returns empty for component with no event handlers', async () => {
@@ -1483,7 +1475,7 @@ describe('inspect — error_boundary mode', () => {
     expect(r.success).toBe(true);
     const d = requireData<ErrorBoundaryInspectResult>(r);
     expect(d.hasErrorBoundary).toBe(true);
-    expect(d.boundaryComponents.some((c: string) => c.includes('ErrorBoundary'))).toBe(true);
+    expect(d.boundaryComponents).toEqual(expect.arrayContaining([expect.stringContaining('ErrorBoundary')]));
   });
 
   test('returns hasErrorBoundary false for plain component', async () => {

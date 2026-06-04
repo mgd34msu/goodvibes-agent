@@ -484,6 +484,13 @@ function getRecordProperty(record: Record<string, unknown>, key: string): Record
   return value as Record<string, unknown>;
 }
 
+function expectPresent<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${description}`);
+  }
+  return value;
+}
+
 let harness = makeAgentHarness();
 
 async function runAgent(args: Record<string, unknown>) {
@@ -785,15 +792,17 @@ describe('spawn mode', () => {
 
   test('Agent runtime guard narrows the advertised agent tool schema to read-only modes', () => {
     const guarded = makeAgentHarness({ guarded: true });
-    const mode = guarded.agentTool.definition.parameters.properties;
+    const mode = expectPresent(
+      guarded.agentTool.definition.parameters.properties as Record<string, unknown> | undefined,
+      'guarded agent schema properties',
+    );
     expect(guarded.agentTool.definition.description).toContain('Read-only local Agent inspection');
     expect(guarded.agentTool.definition.sideEffects).toEqual([]);
-    expect(typeof mode).toBe('object');
-    expect(mode).not.toBeNull();
-    const modeProperty = (mode as Record<string, unknown>).mode;
-    expect(typeof modeProperty).toBe('object');
-    expect(modeProperty).not.toBeNull();
-    const enumValues = (modeProperty as Record<string, unknown>).enum;
+    const modeProperty = expectPresent(
+      getRecordProperty(mode, 'mode'),
+      'guarded agent mode property',
+    );
+    const enumValues = modeProperty.enum;
     expect(enumValues).toEqual([...AGENT_READ_ONLY_TOOL_MODES]);
     expect(enumValues).not.toContain('spawn');
     expect(enumValues).not.toContain('batch-spawn');
@@ -1006,9 +1015,12 @@ describe('spawn mode', () => {
 
     installAgentToolPolicyGuard(registry);
 
-    const fetchDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'fetch');
-    expect(fetchDefinition?.description).toContain('serial, read-only HTTP requests');
-    const properties = fetchDefinition?.parameters.properties as Record<string, unknown>;
+    const fetchDefinition = expectPresent(
+      registry.getToolDefinitions().find((tool) => tool.name === 'fetch'),
+      'fetch tool definition',
+    );
+    expect(fetchDefinition.description).toContain('serial, read-only HTTP requests');
+    const properties = fetchDefinition.parameters.properties as Record<string, unknown>;
     expect(properties.parallel).toBeUndefined();
     expect(properties.trusted_hosts).toBeUndefined();
     const sanitizeModeProperty = getRecordProperty(properties, 'sanitize_mode');
@@ -1017,14 +1029,13 @@ describe('spawn mode', () => {
     const urlsProperty = getRecordProperty(properties, 'urls');
     const itemSchema = urlsProperty ? getRecordProperty(urlsProperty, 'items') : undefined;
     const urlProperties = itemSchema ? getRecordProperty(itemSchema, 'properties') : undefined;
-    expect(urlProperties).toBeDefined();
-    if (!urlProperties) throw new Error('fetch URL properties missing');
-    const methodProperty = getRecordProperty(urlProperties, 'method');
+    const fetchUrlProperties = expectPresent(urlProperties, 'fetch URL properties');
+    const methodProperty = getRecordProperty(fetchUrlProperties, 'method');
     expect(methodProperty?.enum).toEqual([...AGENT_READ_ONLY_FETCH_METHODS]);
-    expect(urlProperties.body).toBeUndefined();
-    expect(urlProperties.headers).toBeUndefined();
-    expect(urlProperties.auth).toBeUndefined();
-    expect(urlProperties.service).toBeUndefined();
+    expect(fetchUrlProperties.body).toBeUndefined();
+    expect(fetchUrlProperties.headers).toBeUndefined();
+    expect(fetchUrlProperties.auth).toBeUndefined();
+    expect(fetchUrlProperties.service).toBeUndefined();
 
     for (const method of AGENT_READ_ONLY_FETCH_METHODS) {
       const result = await registry.execute(`call-fetch-${method}`, 'fetch', {
@@ -1683,7 +1694,7 @@ describe('spawn mode', () => {
 
     await flushMicrotasks();
     unsub();
-    expect(seen.some((entry) => entry.includes('cohort:alpha'))).toBe(true);
+    expect(seen.join('\n')).toContain('cohort:alpha');
   });
 
   test('cohort spawn emits orchestration node contracts on the runtime bus', async () => {
@@ -1714,8 +1725,7 @@ describe('spawn mode', () => {
     await flushMicrotasks();
     unsub();
     const node = payloads[0];
-    expect(node).toBeDefined();
-    expect(node?.contract).toEqual({
+    expect(expectPresent(node, 'first orchestration node payload').contract).toEqual({
       allowedTools: ['read', 'edit'],
       capabilityCeiling: ['read', 'edit'],
       successCriteria: ['edit target file'],
@@ -1955,7 +1965,7 @@ describe('templates mode', () => {
     for (const t of templates) {
       expect(typeof t.description).toBe('string');
       expect(t.description.length).toBeGreaterThan(0);
-      expect(Array.isArray(t.defaultTools)).toBe(true);
+      expect(t.defaultTools).toEqual(expect.any(Array));
       expect(t.defaultTools.length).toBeGreaterThan(0);
     }
   });
@@ -1974,7 +1984,7 @@ describe('get mode', () => {
     expect(result.id).toBe(agentId);
     expect(result.task).toBe('Detailed task');
     expect(result.template).toBe('engineer');
-    expect(Array.isArray(result.tools)).toBe(true);
+    expect(result.tools).toEqual(expect.any(Array));
     expect(typeof result.status).toBe('string');
     expect(typeof result.durationMs).toBe('number');
     expect(typeof result.toolCallCount).toBe('number');
@@ -1985,7 +1995,7 @@ describe('get mode', () => {
     const agentId = spawned.agentId as string;
 
     const result = await runAgent({ mode: 'get', agentId });
-    expect(Array.isArray(result.recentMessages)).toBe(true);
+    expect(result.recentMessages).toEqual(expect.any(Array));
   });
 
   test('get includes messages sent to agent', async () => {
@@ -1997,7 +2007,7 @@ describe('get mode', () => {
 
     const result = await runAgent({ mode: 'get', agentId });
     const messages = result.recentMessages as Array<{ from: string; content: string; timestamp: number }>;
-    expect(messages.some((m) => m.content === 'Hello agent!')).toBe(true);
+    expect(messages).toContainEqual(expect.objectContaining({ content: 'Hello agent!' }));
   });
 
   test('get supports targeted detail views', async () => {
@@ -2010,12 +2020,12 @@ describe('get mode', () => {
     expect(summary.recentMessages).toBeUndefined();
 
     const contract = await runAgent({ mode: 'get', agentId, detail: 'contract' });
-    expect(Array.isArray(contract.tools)).toBe(true);
+    expect(contract.tools).toEqual(expect.any(Array));
     expect(contract.recentMessages).toBeUndefined();
 
     const messages = await runAgent({ mode: 'get', agentId, detail: 'messages' });
     expect(messages.tools).toBeUndefined();
-    expect(Array.isArray(messages.recentMessages)).toBe(true);
+    expect(messages.recentMessages).toEqual(expect.any(Array));
   });
 
   test('get returns error for unknown agent', async () => {
@@ -2075,7 +2085,7 @@ describe('plan mode', () => {
     expect(result.agentId).toBe(agentId);
     expect(result.task).toBe('Plan task');
     expect(result.template).toBe('engineer');
-    expect(Array.isArray(result.tools)).toBe(true);
+    expect(result.tools).toEqual(expect.any(Array));
     expect(typeof result.templateDescription).toBe('string');
   });
 
@@ -2216,7 +2226,7 @@ describe('message mode', () => {
 
     const bus = harness.messageBus;
     const msgs = bus.getMessages(agentId);
-    expect(msgs.some((m) => m.content === 'Check the bus')).toBe(true);
+    expect(msgs).toContainEqual(expect.objectContaining({ content: 'Check the bus' }));
     expect(msgs.find((m) => m.content === 'Check the bus')?.from).toBe('orchestrator');
   });
 
@@ -2263,7 +2273,7 @@ describe('error cases', () => {
   test('invalid mode returns error', async () => {
     const result = await runAgentMayFail({ mode: 'not_a_valid_mode' });
     expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
+    expect(typeof result.error).toBe('string');
   });
 
   test('missing mode returns error', async () => {

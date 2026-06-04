@@ -488,7 +488,7 @@ describe('knowledgeCommand', () => {
     expect(output).toContain('/api/goodvibes-agent/knowledge/map');
   });
 
-  test('asks knowledge and renders SDK semantic answer fields', async () => {
+  test('asks knowledge and renders Agent semantic answer fields', async () => {
     await knowledgeCommand.handler(
       ['ask', 'what', 'does', 'the', 'manual', 'say?', '--mode', 'detailed'],
       makeKnowledgeAskCommandContext(printed, {
@@ -496,7 +496,7 @@ describe('knowledgeCommand', () => {
         spaceId: 'goodvibes-agent',
         query: 'what does the manual say?',
         answer: {
-          text: 'The SDK answer text.',
+          text: 'The Agent answer text.',
           mode: 'detailed',
           confidence: 91,
           synthesized: true,
@@ -562,7 +562,7 @@ describe('knowledgeCommand', () => {
     );
 
     const output = printed.join('\n');
-    expect(output).toContain('The SDK answer text.');
+    expect(output).toContain('The Agent answer text.');
     expect(output).toContain('Sources:');
     expect(output).toContain('Agent manual.pdf');
     expect(output).toContain('Facts:');

@@ -70,18 +70,22 @@ describe('permission-decisions contract', () => {
     test('safe exec command passes all safety checks', () => {
       const result = runSafetyChecks('exec', { command: 'ls -la /tmp' });
       expect(result.blocked).toBe(false);
-      expect(result.steps.length).toBeGreaterThan(0);
+      expect(result.steps.map((step) => [step.check, step.matched])).toEqual([
+        ['destructive-prefix', false],
+        ['dangerous-pattern', false],
+        ['path-escape', false],
+        ['destructive-sql', false],
+      ]);
     });
 
-    test('safety result always contains evaluation steps', () => {
+    test('safety result records layer and matched status for each check', () => {
       const result = runSafetyChecks('read', { path: '/project/src/index.ts' });
-      expect(Array.isArray(result.steps)).toBe(true);
-      expect(result.steps.length).toBeGreaterThan(0);
-      for (const step of result.steps) {
-        expect(step.layer).toBe('safety');
-        expect(typeof step.check).toBe('string');
-        expect(typeof step.matched).toBe('boolean');
-      }
+      expect(result.steps).toEqual([
+        expect.objectContaining({ layer: 'safety', check: 'destructive-prefix', matched: false }),
+        expect.objectContaining({ layer: 'safety', check: 'dangerous-pattern', matched: false }),
+        expect.objectContaining({ layer: 'safety', check: 'path-escape', matched: false }),
+        expect.objectContaining({ layer: 'safety', check: 'destructive-sql', matched: false }),
+      ]);
     });
   });
 
@@ -228,20 +232,29 @@ describe('permission-decisions contract', () => {
   });
 
   describe('decision structure invariants', () => {
-    test('every decision includes required fields', () => {
+    test('read decisions reach the default allow layer after safety, mode, and session checks', () => {
       const decision = evaluate('read', { path: '/project/src/index.ts' });
 
-      expect(typeof decision.allowed).toBe('boolean');
-      expect(typeof decision.reason).toBe('string');
-      expect(typeof decision.sourceLayer).toBe('string');
-      expect(typeof decision.toolName).toBe('string');
-      expect(typeof decision.timestamp).toBe('number');
-      expect(Array.isArray(decision.evaluationTrace)).toBe(true);
-    });
-
-    test('evaluation trace contains at least one step', () => {
-      const decision = evaluate('exec', { command: 'ls' });
-      expect(decision.evaluationTrace.length).toBeGreaterThan(0);
+      expect(decision).toMatchObject({
+        allowed: true,
+        reason: 'DEFAULT_ALLOW',
+        sourceLayer: 'default',
+        toolName: 'read',
+      });
+      expect(decision.timestamp).toBeGreaterThan(0);
+      expect(decision.evaluationTrace.map((step) => step.layer)).toEqual([
+        'safety',
+        'safety',
+        'safety',
+        'safety',
+        'mode',
+        'session',
+        'default',
+      ]);
+      expect(decision.evaluationTrace.at(-1)).toEqual(expect.objectContaining({
+        check: 'default-policy',
+        matched: true,
+      }));
     });
 
     test('all reason codes used by the evaluator are valid DecisionReason values', () => {

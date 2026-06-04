@@ -85,13 +85,13 @@ describe('recall command breadth', () => {
     expect(created?.scope).toBe('team');
 
     recallCommand.handler(['queue', '5'], context);
-    expect(printed.some((line) => line.includes('Review queue'))).toBe(true);
+    expect(printed.join('\n')).toContain('Review queue');
 
     printed.length = 0;
     recallCommand.handler(['review', created!.id, 'reviewed', '--confidence', '92', '--by', 'operator'], context);
     expect(registry.get(created!.id)?.reviewState).toBe('reviewed');
     expect(registry.get(created!.id)?.confidence).toBe(92);
-    expect(printed.some((line) => line.includes('Reviewed'))).toBe(true);
+    expect(printed.join('\n')).toContain('Reviewed');
   });
 
   test('supports sqlite-vec semantic search and vector status commands', async () => {
@@ -155,13 +155,13 @@ describe('recall command breadth', () => {
       const importContext = makeBaseContext(importRegistry, importPrinted);
       await recallCommand.handler(['import', exportPath], importContext);
       expect(importRegistry.getAll()).toHaveLength(0);
-      expect(importPrinted.some((line) => line.includes('Refusing to import durable memory bundle'))).toBe(true);
+      expect(importPrinted.join('\n')).toContain('Refusing to import durable memory bundle');
 
       importPrinted.length = 0;
       await recallCommand.handler(['import', exportPath, '--yes'], importContext);
       expect(importRegistry.getAll()).toHaveLength(1);
       expect(importRegistry.getAll()[0]?.scope).toBe('team');
-      expect(importPrinted.some((line) => line.includes('Imported bundle'))).toBe(true);
+      expect(importPrinted.join('\n')).toContain('Imported bundle');
     } finally {
       importStore.close();
       rmSync(importDir, { recursive: true, force: true });
@@ -183,7 +183,7 @@ describe('recall command breadth', () => {
 
     printed.length = 0;
     recallCommand.handler(['handoff-inspect', handoffPath], context);
-    expect(printed.some((line) => line.includes('Memory Handoff Review'))).toBe(true);
+    expect(printed.join('\n')).toContain('Memory Handoff Review');
 
     const importDir = mkdtempSync(join(tmpdir(), 'gv-recall-handoff-import-'));
     const importConfig = new ConfigManager({ surfaceRoot: 'tui',  configDir: join(importDir, '.goodvibes', 'tui'), workingDir: importDir });
@@ -198,12 +198,12 @@ describe('recall command breadth', () => {
       const importContext = makeBaseContext(importRegistry, importPrinted);
       await recallCommand.handler(['handoff-import', handoffPath], importContext);
       expect(importRegistry.getAll()).toHaveLength(0);
-      expect(importPrinted.some((line) => line.includes('Refusing to import durable memory bundle'))).toBe(true);
+      expect(importPrinted.join('\n')).toContain('Refusing to import durable memory bundle');
 
       importPrinted.length = 0;
       await recallCommand.handler(['handoff-import', handoffPath, '--yes'], importContext);
       expect(importRegistry.getAll()).toHaveLength(1);
-      expect(importPrinted.some((line) => line.includes('Imported bundle'))).toBe(true);
+      expect(importPrinted.join('\n')).toContain('Imported bundle');
     } finally {
       importStore.close();
       rmSync(importDir, { recursive: true, force: true });

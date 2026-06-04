@@ -23,6 +23,13 @@ function cleanupDbPair(dbPath: string): void {
   if (existsSync(vectorPath)) unlinkSync(vectorPath);
 }
 
+function expectPresent<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${description}`);
+  }
+  return value;
+}
+
 describe('MemoryStore', () => {
   let store: MemoryStore;
   let dbPath: string;
@@ -78,9 +85,9 @@ describe('MemoryStore', () => {
     it('retrieves an existing record by ID', async () => {
       const rec = await store.add({ cls: 'constraint', summary: 'No globals' });
       const found = store.get(rec.id);
-      expect(found).not.toBeNull();
-      expect(found!.id).toBe(rec.id);
-      expect(found!.summary).toBe('No globals');
+      const record = expectPresent(found, `memory record ${rec.id}`);
+      expect(record.id).toBe(rec.id);
+      expect(record.summary).toBe('No globals');
     });
 
     it('returns null for unknown ID', () => {
@@ -135,14 +142,18 @@ describe('MemoryStore', () => {
       const before = Date.now();
       const added = await store.add({ cls: 'pattern', summary: 'New pattern after cutoff' });
       const results = store.search({ since: before });
-      expect(results.some((record) => record.id === added.id)).toBe(true);
-      expect(results.every((record) => record.createdAt >= before)).toBe(true);
+      expect(results.map((record) => record.id)).toContain(added.id);
+      for (const record of results) {
+        expect(record.createdAt).toBeGreaterThanOrEqual(before);
+      }
     });
 
     it('filters by single tag', () => {
       const results = store.search({ tags: ['runtime'] });
       expect(results.length).toBe(2);
-      expect(results.every(r => r.tags.includes('runtime'))).toBe(true);
+      for (const record of results) {
+        expect(record.tags).toContain('runtime');
+      }
     });
 
     it('filters by multiple tags (AND semantics)', () => {
@@ -220,17 +231,16 @@ describe('MemoryStore', () => {
     it('updates summary, detail, and tags', async () => {
       const rec = await store.add({ cls: 'decision', summary: 'Old summary' });
       const updated = store.update(rec.id, { summary: 'New summary', tags: ['a', 'b'] });
-      expect(updated).not.toBeNull();
-      expect(updated!.summary).toBe('New summary');
-      expect(updated!.tags).toEqual(['a', 'b']);
-      expect(updated!.updatedAt).toBeGreaterThanOrEqual(rec.updatedAt);
+      const record = expectPresent(updated, `updated memory record ${rec.id}`);
+      expect(record.summary).toBe('New summary');
+      expect(record.tags).toEqual(['a', 'b']);
+      expect(record.updatedAt).toBeGreaterThanOrEqual(rec.updatedAt);
     });
 
     it('updates scope for team handoff workflows', async () => {
       const rec = await store.add({ scope: 'session', cls: 'decision', summary: 'Session-only knowledge' });
       const updated = store.update(rec.id, { scope: 'team' });
-      expect(updated).not.toBeNull();
-      expect(updated!.scope).toBe('team');
+      expect(expectPresent(updated, `updated memory record ${rec.id}`).scope).toBe('team');
       expect(store.get(rec.id)?.scope).toBe('team');
     });
 
@@ -262,11 +272,11 @@ describe('MemoryStore', () => {
         confidence: 88,
         reviewedBy: 'operator',
       });
-      expect(reviewed).not.toBeNull();
-      expect(reviewed!.reviewState).toBe('reviewed');
-      expect(reviewed!.confidence).toBe(88);
-      expect(reviewed!.reviewedBy).toBe('operator');
-      expect(reviewed!.reviewedAt).toBeGreaterThan(0);
+      const record = expectPresent(reviewed, `reviewed memory record ${rec.id}`);
+      expect(record.reviewState).toBe('reviewed');
+      expect(record.confidence).toBe(88);
+      expect(record.reviewedBy).toBe('operator');
+      expect(record.reviewedAt).toBeGreaterThan(0);
       expect(store.get(rec.id)?.reviewState).toBe('reviewed');
     });
 
@@ -276,9 +286,9 @@ describe('MemoryStore', () => {
         state: 'stale',
         staleReason: 'changed upstream source',
       });
-      expect(reviewed).not.toBeNull();
-      expect(reviewed!.reviewState).toBe('stale');
-      expect(reviewed!.staleReason).toContain('changed upstream source');
+      const record = expectPresent(reviewed, `stale memory record ${rec.id}`);
+      expect(record.reviewState).toBe('stale');
+      expect(record.staleReason).toContain('changed upstream source');
     });
   });
 
@@ -290,8 +300,10 @@ describe('MemoryStore', () => {
 
       const queue = store.reviewQueue(3);
       expect(queue[0].id).toBe(stale.id);
-      expect(queue.some((record) => record.id === reviewed.id)).toBe(true);
-      expect(queue.some((record) => record.id === fresh.id)).toBe(true);
+      expect(queue.map((record) => record.id)).toEqual(expect.arrayContaining([
+        reviewed.id,
+        fresh.id,
+      ]));
     });
   });
 
@@ -305,7 +317,9 @@ describe('MemoryStore', () => {
       expect(bundle.scope).toBe('team');
       expect(bundle.recordCount).toBe(2);
       expect(bundle.linkCount).toBe(1);
-      expect(bundle.records.every((record) => record.scope === 'team')).toBe(true);
+      for (const record of bundle.records) {
+        expect(record.scope).toBe('team');
+      }
     });
 
     it('imports bundles while preserving ids and links', async () => {
@@ -345,7 +359,7 @@ describe('MemoryStore', () => {
       const removed = store.delete(rec.id);
       expect(removed).toBe(true);
       expect(store.get(rec.id)).toBeNull();
-      expect(store.searchSemantic({ query: 'Crash on startup', limit: 3 }).some((entry) => entry.record.id === rec.id)).toBe(false);
+      expect(store.searchSemantic({ query: 'Crash on startup', limit: 3 }).map((entry) => entry.record.id)).not.toContain(rec.id);
     });
 
     it('returns false for unknown ID', () => {
@@ -369,8 +383,7 @@ describe('MemoryStore', () => {
       const a = await store.add({ cls: 'decision', summary: 'A' });
       const b = await store.add({ cls: 'pattern', summary: 'B' });
       const link = await store.link(a.id, b.id, 'supersedes');
-      expect(link).not.toBeNull();
-      expect(link!.relation).toBe('supersedes');
+      expect(expectPresent(link, `memory link from ${a.id} to ${b.id}`).relation).toBe('supersedes');
 
       const links = store.linksFor(a.id);
       expect(links.length).toBe(1);

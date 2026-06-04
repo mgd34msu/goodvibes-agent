@@ -99,8 +99,7 @@ describe('modal search focus routing', () => {
     };
 
     handleSelectionModalToken(state, { type: 'text', value: 'd' });
-    expect(result).not.toBeNull();
-    expect(result!.action).toBe('delete');
+    expect(result).toEqual(expect.objectContaining({ action: 'delete' }));
 
     result = null;
     modal.open('Pick', [

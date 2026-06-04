@@ -627,12 +627,12 @@ describe('StateTool', () => {
     test('mode list includes verbosityDefaults per mode', async () => {
       const res = await run<StateModeListOutput>(modeTool, { mode: 'mode', modeAction: 'list' });
       const def = res.parsed.modes.find((m: { name: string }) => m.name === 'default');
-      expect(def).toBeDefined();
-      if (!def) {
-        throw new Error('default mode missing from mode list');
-      }
-      expect(typeof def.verbosityDefaults).toBe('object');
-      expect(typeof def.verbosityDefaults.write).toBe('string');
+      expect(def).toEqual(expect.objectContaining({
+        name: 'default',
+        verbosityDefaults: expect.objectContaining({
+          write: expect.any(String),
+        }),
+      }));
     });
 
     test('mode list supports summary view', async () => {
@@ -642,8 +642,11 @@ describe('StateTool', () => {
         view: 'summary',
       });
       const def = res.parsed.modes.find((m) => m.name === 'default');
-      expect(def).toBeDefined();
-      expect(def?.description).toBeTruthy();
+      expect(def).toEqual(expect.objectContaining({
+        name: 'default',
+        description: expect.any(String),
+      }));
+      expect(def?.description.length).toBeGreaterThan(0);
     });
 
     test('mode set switches to vibecoding', async () => {
@@ -683,10 +686,6 @@ describe('StateTool', () => {
 
   test('tool has correct name', () => {
     expect(tool.definition.name).toBe('state');
-  });
-
-  test('tool has non-empty description', () => {
-    expect(tool.definition.description.length).toBeGreaterThan(0);
   });
 
   test('tool has parameters object', () => {

@@ -222,7 +222,7 @@ describe('expandPrompt', () => {
     const marker = ih.registerPaste(pngData);
     // marker = "[IMAGE: img1, clipboard, NKB]"
     const result = asImageTestAccess(ih).expandPrompt(`describe this ${marker}`);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
     const content = result as ContentPart[];
     const textParts = content.filter((p): p is Extract<ContentPart, { type: 'text' }> => p.type === 'text');
     const imageParts = content.filter((p): p is Extract<ContentPart, { type: 'image' }> => p.type === 'image');
@@ -240,7 +240,7 @@ describe('expandPrompt', () => {
     const m2 = ih.registerPaste(gifData);
     // Use m2 first, then m1 — reverse of insertion order
     const result = asImageTestAccess(ih).expandPrompt(`${m2} text ${m1}`);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
     const imageParts = (result as ContentPart[]).filter((p): p is Extract<ContentPart, { type: 'image' }> => p.type === 'image');
     expect(imageParts.length).toBe(2);
     // First image in text is m2 (GIF), second is m1 (PNG)
@@ -265,7 +265,7 @@ describe('addUserMessage with ContentPart[]', () => {
     const messages = cm.getMessagesForLLM();
     expect(messages).toHaveLength(1);
     expect(messages[0].role).toBe('user');
-    expect(Array.isArray(messages[0].content)).toBe(true);
+    expect(messages[0].content).toEqual(expect.any(Array));
     const content = messages[0].content as typeof parts;
     expect(content[0].type).toBe('text');
     expect(content[1].type).toBe('image');
@@ -368,6 +368,6 @@ describe('Orchestrator capability check for non-multimodal models', () => {
     providerRegistry.getCurrentModel = originalGetCurrentModel;
     mockBackingProvider.chat = originalChat;
 
-    expect(systemMessages.some(m => m.includes('does not support image input'))).toBe(true);
+    expect(systemMessages.join('\n')).toContain('does not support image input');
   });
 });

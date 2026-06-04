@@ -83,8 +83,10 @@ describe('loadPolicyBundle (non-managed mode)', () => {
     const bundle = signBundle('nm-5', EMPTY_PAYLOAD, TEST_KEY, 'acme-corp');
     const result = loadPolicyBundle(bundle, { signingKey: TEST_KEY });
     expect(result.ok).toBe(true);
-    expect(result.provenance.issuedAt).toBeDefined();
-    expect(result.provenance.issuer).toBe('acme-corp');
+    expect(result.provenance).toEqual(expect.objectContaining({
+      issuedAt: expect.any(String),
+      issuer: 'acme-corp',
+    }));
   });
 
   it('defaults provenanceSource to inline when not provided', () => {
@@ -113,7 +115,7 @@ describe('loadPolicyBundle (managed mode)', () => {
     const bundle = createUnsignedBundle('m-2', EMPTY_PAYLOAD);
     const result = loadPolicyBundle(bundle, { managed: true });
     expect(result.ok).toBe(false);
-    expect(result.error).toBeDefined();
+    expect(result.error).toEqual(expect.any(String));
     expect(result.provenance.signatureStatus).toBe('skipped');
   });
 
@@ -175,10 +177,11 @@ describe('loadPolicyBundle (throwOnRejection)', () => {
     } catch (e) {
       caught = e as PolicySignatureError;
     }
-    expect(caught).toBeDefined();
-    expect(caught!.bundleId).toBe('t-2');
-    expect(caught!.signatureStatus).toBe('unsigned');
-    expect(caught!.name).toBe('PolicySignatureError');
+    expect(caught).toEqual(expect.objectContaining({
+      bundleId: 't-2',
+      signatureStatus: 'unsigned',
+      name: 'PolicySignatureError',
+    }));
   });
 
   it('does not throw when ok=true even with throwOnRejection=true', () => {

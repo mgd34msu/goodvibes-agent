@@ -82,7 +82,7 @@ describe('ExecutionPlanManager behavior', () => {
     const next = manager.getNextItems(updated);
     // Task B is pending with no deps — should appear
     expect(next.length).toBeGreaterThanOrEqual(1);
-    expect(next.every(i => i.status === 'pending')).toBe(true);
+    expect(next.map(i => i.status).filter(status => status !== 'pending')).toEqual([]);
   });
 
   test('getNextItems excludes items with unresolved dependencies', () => {
@@ -125,7 +125,7 @@ describe('ExecutionPlanManager behavior', () => {
     const itemId = plan.items[0].id;
     manager.updateItem(plan.id, itemId, 'complete');
     const loaded = manager.load(plan.id);
-    expect(loaded).not.toBeNull();
+    expect(loaded).toEqual(expect.objectContaining({ id: plan.id }));
     const updatedItem = loaded!.items.find(i => i.id === itemId);
     expect(updatedItem?.status).toBe('complete');
   });
@@ -302,7 +302,7 @@ describe('autoSpawnPendingItems helper behavior', () => {
     expect(result.limitReached).toBe(true);
     // All items remain pending
     const loaded = manager.load(plan.id)!;
-    expect(loaded.items.every(i => i.status === 'pending')).toBe(true);
+    expect(loaded.items.map(i => i.status).filter(status => status !== 'pending')).toEqual([]);
   });
 
   test('spawns up to the remaining capacity when partially at limit', () => {
@@ -340,8 +340,7 @@ describe('autoSpawnPendingItems helper behavior', () => {
       runningCount: 0,
     });
     const loaded = manager.load(plan.id)!;
-    expect(loaded.items[0].agentId).toBeDefined();
-    expect(loaded.items[0].agentId).toContain('agent-test-');
+    expect(loaded.items[0].agentId).toEqual(expect.stringContaining('agent-test-'));
   });
 });
 

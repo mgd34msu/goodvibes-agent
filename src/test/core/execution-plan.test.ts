@@ -31,8 +31,8 @@ afterEach(async () => {
 describe('ExecutionPlanManager.create', () => {
   test('creates a plan with a unique id', () => {
     const plan = manager.create('My Task', []);
-    expect(plan.id).toBeTruthy();
     expect(typeof plan.id).toBe('string');
+    expect(plan.id.length).toBeGreaterThan(0);
   });
 
   test('assigns pending status to all items', () => {
@@ -48,8 +48,8 @@ describe('ExecutionPlanManager.create', () => {
       { phase: 'Phase 1', description: 'Item B' },
     ]);
     expect(plan.items[0].id).not.toBe(plan.items[1].id);
-    expect(plan.items[0].id).toBeTruthy();
-    expect(plan.items[1].id).toBeTruthy();
+    expect(plan.items[0].id.length).toBeGreaterThan(0);
+    expect(plan.items[1].id.length).toBeGreaterThan(0);
   });
 
   test('plan status starts as draft', () => {
@@ -62,15 +62,16 @@ describe('ExecutionPlanManager.create', () => {
       { phase: 'P1', description: 'First step' },
     ]);
     const loaded = manager.load(plan.id);
-    expect(loaded).not.toBeNull();
-    expect(loaded!.title).toBe('Task');
+    expect(loaded).toEqual(expect.objectContaining({
+      id: plan.id,
+      title: 'Task',
+    }));
   });
 
   test('created plan becomes active', () => {
     const plan = manager.create('Active Task', [], 'session-a');
     const active = manager.getActive('session-a');
-    expect(active).not.toBeNull();
-    expect(active!.id).toBe(plan.id);
+    expect(active).toEqual(expect.objectContaining({ id: plan.id }));
   });
 
   test('preserves phase and description on items', () => {
@@ -146,7 +147,7 @@ describe('ExecutionPlanManager.getActive', () => {
     // followed by manually triggering the null path via the public API surface.
     // We test the observable behavior: after creating then loading null active state.
     const plan = manager.create('Temporary', []);
-    expect(manager.getActive()).not.toBeNull();
+    expect(manager.getActive()).toEqual(expect.objectContaining({ id: plan.id }));
     // Directly write a null planId to active.json to simulate setActive(null)
     const { writeFileSync } = require('node:fs');
     const { join: pathJoin } = require('node:path');

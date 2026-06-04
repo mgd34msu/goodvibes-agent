@@ -45,6 +45,13 @@ function makeFreshIntelligence(): CodeIntelligence {
   });
 }
 
+function expectPresent<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${description}`);
+  }
+  return value;
+}
+
 // ---------------------------------------------------------------------------
 // detectLanguage
 // ---------------------------------------------------------------------------
@@ -121,8 +128,7 @@ describe('CodeIntelligence.getSymbols', () => {
   it('returns empty array when no grammar loaded', async () => {
     const ci = makeFreshIntelligence();
     const result = await ci.getSymbols('file.ts', 'const x = 1;');
-    expect(Array.isArray(result)).toBe(true);
-    expect(result).toHaveLength(0);
+    expect(result).toEqual([]);
   });
 
   it('returns empty array for unknown language', async () => {
@@ -134,7 +140,7 @@ describe('CodeIntelligence.getSymbols', () => {
   it('does not throw even for real-looking TypeScript content', async () => {
     const ci = makeFreshIntelligence();
     const result = await ci.getSymbols('src/index.ts', 'export function main() {}');
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([]);
   });
 });
 
@@ -146,8 +152,7 @@ describe('CodeIntelligence.getOutline', () => {
   it('returns empty array when no grammar loaded', async () => {
     const ci = makeFreshIntelligence();
     const result = await ci.getOutline('file.py', 'def foo(): pass');
-    expect(Array.isArray(result)).toBe(true);
-    expect(result).toHaveLength(0);
+    expect(result).toEqual([]);
   });
 
   it('returns empty array for unknown language', async () => {
@@ -208,8 +213,7 @@ describe('CodeIntelligence.getReferences', () => {
   it('returns empty array when no LSP server configured', async () => {
     const ci = makeFreshIntelligence();
     const result = await ci.getReferences('file.ts', 5, 10);
-    expect(Array.isArray(result)).toBe(true);
-    expect(result).toHaveLength(0);
+    expect(result).toEqual([]);
   });
 
   it('returns empty array for unknown language', async () => {
@@ -263,8 +267,7 @@ describe('CodeIntelligence.getDiagnostics', () => {
   it('returns empty array when no LSP server configured', async () => {
     const ci = makeFreshIntelligence();
     const result = await ci.getDiagnostics('file.ts');
-    expect(Array.isArray(result)).toBe(true);
-    expect(result).toHaveLength(0);
+    expect(result).toEqual([]);
   });
 
   it('returns empty array for unknown language', async () => {
@@ -282,8 +285,7 @@ describe('CodeIntelligence.getDocumentSymbols', () => {
   it('falls back to tree-sitter and returns empty array when neither available', async () => {
     const ci = makeFreshIntelligence();
     const result = await ci.getDocumentSymbols('file.ts', 'const x = 1;');
-    expect(Array.isArray(result)).toBe(true);
-    expect(result).toHaveLength(0);
+    expect(result).toEqual([]);
   });
 
   it('returns empty array for unknown language', async () => {
@@ -326,9 +328,9 @@ describe('getDefaultConfigs', () => {
   it('has typescript with lsp and treeSitter', () => {
     const configs = getDefaultConfigs();
     const ts = configs.get('typescript');
-    expect(ts).toBeDefined();
-    expect(ts?.lsp?.command).toBe('typescript-language-server');
-    expect(ts?.treeSitter).toBe('typescript');
+    const config = expectPresent(ts, 'default TypeScript language config');
+    expect(config.lsp?.command).toBe('typescript-language-server');
+    expect(config.treeSitter).toBe('typescript');
   });
 
   it('has python config', () => {
@@ -363,8 +365,7 @@ describe('getDefaultConfigs', () => {
 describe('getLanguageConfig', () => {
   it('returns config for known language', () => {
     const cfg = getLanguageConfig('typescript', getTestIntelligenceShellPaths());
-    expect(cfg).not.toBeNull();
-    expect(cfg?.lsp?.command).toBe('typescript-language-server');
+    expect(expectPresent(cfg, 'TypeScript language config').lsp?.command).toBe('typescript-language-server');
   });
 
   it('returns null for unknown language', () => {
@@ -527,7 +528,7 @@ describe('CodeIntelligence happy-path delegation (mocked services)', () => {
     // With no grammar loaded, extractSymbols returns [] since the fake lang has no queries.
     // The key thing: no exception thrown and the delegation path is exercised.
     const result = await ci.getSymbols('src/index.ts', 'export function main() {}');
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([]);
   });
 
   it('getOutline delegates to extractOutline when tree-sitter is available', async () => {
@@ -535,7 +536,7 @@ describe('CodeIntelligence happy-path delegation (mocked services)', () => {
     const lsp = makeMockLspService();
     const ci = new CodeIntelligence({ shellPaths: getTestIntelligenceShellPaths(), treeSitter: ts, lsp });
     const result = await ci.getOutline('src/index.ts', 'function foo() {}');
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([]);
   });
 
   it('getEnclosingScope delegates to findEnclosingScope when tree-sitter is available', async () => {
@@ -623,7 +624,7 @@ describe('CodeIntelligence happy-path delegation (mocked services)', () => {
     const ci = new CodeIntelligence({ shellPaths: getTestIntelligenceShellPaths(), treeSitter: ts, lsp });
     // Fake tree-sitter returns [] too (no real grammar), but execution reaches tree-sitter path
     const result = await ci.getDocumentSymbols('file.ts', 'const x = 1;');
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([]);
   });
 
   it('initialize wires language configs into LspService', async () => {

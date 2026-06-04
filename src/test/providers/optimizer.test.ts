@@ -121,7 +121,10 @@ describe('ProviderOptimizer — mode transitions', () => {
   test('setMode pinned without pin clears target', () => {
     const opt = makeOptimizer();
     opt.pin('anthropic', 'claude-opus-4-5');
-    expect(opt.pinnedTarget).not.toBeNull();
+    expect(opt.pinnedTarget).toEqual({
+      providerId: 'anthropic',
+      modelId: 'claude-opus-4-5',
+    });
     opt.setMode('manual'); // non-pinned mode clears pin
     expect(opt.pinnedTarget).toBeNull();
     expect(opt.mode).toBe('manual');
@@ -133,7 +136,10 @@ describe('ProviderOptimizer — mode transitions', () => {
     // pin() already sets mode to pinned — setting it again keeps pin
     opt.setMode('pinned');
     expect(opt.mode).toBe('pinned');
-    expect(opt.pinnedTarget).not.toBeNull();
+    expect(opt.pinnedTarget).toEqual({
+      providerId: 'anthropic',
+      modelId: 'claude-opus-4-5',
+    });
   });
 });
 
@@ -199,12 +205,11 @@ describe('ProviderOptimizer — selectRoute enabled', () => {
     // No models in registry → fallback explanation with decidedAt from clock
     const decision = opt.selectRoute({});
     // With empty registry we get a decision with providerId 'none'
-    expect(decision).not.toBeNull();
-    if (decision !== null) {
-      expect(decision.pinned).toBe(false);
-      expect(decision.decidedAt).toBe(1_000_000);
-      expect(decision.providerId).toBe('none');
-    }
+    expect(decision).toEqual(expect.objectContaining({
+      pinned: false,
+      decidedAt: 1_000_000,
+      providerId: 'none',
+    }));
   });
 
   test('pinned mode returns pinned target in decision', () => {
@@ -212,13 +217,12 @@ describe('ProviderOptimizer — selectRoute enabled', () => {
     const opt = makeOptimizer({ enabled: true, clock: clock.now });
     opt.pin('test-provider', 'test-model');
     const decision = opt.selectRoute({});
-    expect(decision).not.toBeNull();
-    if (decision !== null) {
-      expect(decision.pinned).toBe(true);
-      expect(decision.providerId).toBe('test-provider');
-      expect(decision.modelId).toBe('test-model');
-      expect(decision.decidedAt).toBe(2_000_000);
-    }
+    expect(decision).toEqual(expect.objectContaining({
+      pinned: true,
+      providerId: 'test-provider',
+      modelId: 'test-model',
+      decidedAt: 2_000_000,
+    }));
   });
 
   test('decidedAt uses injected clock, not wall time', () => {

@@ -105,8 +105,7 @@ describe('BookmarkModal', () => {
       seedBookmarks(2);
       modal.open();
       const sel = modal.getSelected();
-      expect(sel).not.toBeNull();
-      expect(sel!.key).toBe('key_0');
+      expect(sel).toEqual(expect.objectContaining({ key: 'key_0' }));
     });
 
     test('returns correct entry after navigation', () => {
@@ -123,8 +122,7 @@ describe('BookmarkModal', () => {
       seedBookmarks(3);
       modal.open();
       const removed = modal.removeSelected();
-      expect(removed).not.toBeNull();
-      expect(removed!.key).toBe('key_0');
+      expect(removed).toEqual(expect.objectContaining({ key: 'key_0' }));
       expect(modal.entries.length).toBe(2);
     });
 
@@ -148,7 +146,7 @@ describe('BookmarkModal', () => {
       modal.removeSelected();
       // Refresh: open again to see updated list from manager
       const remaining = modal.entries;
-      expect(remaining.every(e => e.key !== 'key_0')).toBe(true);
+      expect(remaining.map((entry) => entry.key)).not.toContain('key_0');
     });
   });
 

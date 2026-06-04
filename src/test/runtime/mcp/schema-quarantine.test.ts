@@ -272,8 +272,10 @@ describe('McpLifecycleManager: quarantine execution block', () => {
       const { mgr, events } = makeManager();
       mgr.quarantineSchema('my-server', 'incompatible', 'version mismatch');
       const ev = events.find((e) => e.type === 'MCP_SCHEMA_QUARANTINED');
-      expect(ev).toBeDefined();
-      expect(ev?.type === 'MCP_SCHEMA_QUARANTINED' && ev.serverId).toBe('my-server');
+      expect(ev).toEqual(expect.objectContaining({
+        type: 'MCP_SCHEMA_QUARANTINED',
+        serverId: 'my-server',
+      }));
     });
 
     test('MCP_SCHEMA_QUARANTINED carries reason and detail', () => {
@@ -292,10 +294,11 @@ describe('McpLifecycleManager: quarantine execution block', () => {
       mgr.quarantineSchema('my-server', 'operator_flagged');
       mgr.approveSchemaQuarantine('my-server', 'operator-henry');
       const ev = events.find((e) => e.type === 'MCP_SCHEMA_QUARANTINE_APPROVED');
-      expect(ev).toBeDefined();
-      if (!ev || ev.type !== 'MCP_SCHEMA_QUARANTINE_APPROVED') throw new Error('event missing');
-      expect(ev.operatorId).toBe('operator-henry');
-      expect(ev.serverId).toBe('my-server');
+      expect(ev).toEqual(expect.objectContaining({
+        type: 'MCP_SCHEMA_QUARANTINE_APPROVED',
+        operatorId: 'operator-henry',
+        serverId: 'my-server',
+      }));
     });
 
     test('approveSchemaQuarantine on non-quarantined server does not emit event', () => {

@@ -107,8 +107,7 @@ describe('task-transitions contract', () => {
   describe('parent/child relationships', () => {
     test('task starts with empty childTaskIds array', () => {
       const task = makeTask('queued');
-      expect(Array.isArray(task.childTaskIds)).toBe(true);
-      expect(task.childTaskIds).toHaveLength(0);
+      expect(task.childTaskIds).toEqual([]);
     });
 
     test('child task references parent via parentTaskId', () => {

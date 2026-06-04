@@ -81,7 +81,7 @@ describe('project planning coordinator', () => {
     expect(state).toBeNull();
   });
 
-  test('starts an Agent-owned planning loop and persists SDK-backed state', async () => {
+  test('starts an Agent-owned planning loop and persists planning state', async () => {
     let opened = 0;
     const fake = makeService();
     const coordinator = new ProjectPlanningCoordinator({
@@ -94,15 +94,17 @@ describe('project planning coordinator', () => {
 
     const result = await coordinator.prepareTurn('make an implementation plan for the provider model picker');
 
-    expect(result).not.toBeNull();
+    expect(result).toEqual(expect.objectContaining({
+      handledLocally: true,
+      systemMessage: expect.stringContaining('Agent-owned planning loop'),
+    }));
     expect(opened).toBe(1);
     expect(fake.state?.goal).toContain('implementation plan');
     expect(fake.state?.metadata?.['owner']).toBe('agent');
-    expect(result?.handledLocally).toBe(true);
     expect(result?.systemMessage).toContain('Agent-owned planning loop');
     expect(result?.systemMessage).toContain('Planning namespace:');
     expect(result?.systemMessage).not.toContain('Knowledge space:');
-    expect(result?.evaluation.nextQuestion?.prompt).toBeTruthy();
+    expect(result?.evaluation.nextQuestion?.prompt).toBe('What is in scope, and what should be left out for this pass?');
   });
 
   test('records the next user message as the active planning answer', async () => {
@@ -124,10 +126,12 @@ describe('project planning coordinator', () => {
 
     await coordinator.prepareTurn('Only update the TUI planning panel and docs.');
 
-    expect(fake.state?.answeredQuestions.some((question) => question.id === 'scope')).toBe(true);
+    expect(fake.state?.answeredQuestions).toContainEqual(
+      expect.objectContaining({ id: 'scope' }),
+    );
     expect(fake.state?.answeredQuestions[0]?.answer).toContain('Only update');
     expect(fake.state?.scope).toContain('Only update');
-    expect(fake.state?.openQuestions.some((question) => question.id === 'scope')).toBe(false);
+    expect(fake.state?.openQuestions.map((question) => question.id)).not.toContain('scope');
     expect(fake.state?.openQuestions.length).toBeGreaterThan(0);
   });
 
@@ -156,10 +160,12 @@ describe('project planning coordinator', () => {
     expect(notices).toBe(1);
     expect(fake.state?.metadata?.['active']).toBe(false);
     expect(fake.state?.metadata?.['pausedAt']).toBe(321);
-    expect(fake.state?.openQuestions.some((question) => question.id === 'scope')).toBe(true);
+    expect(fake.state?.openQuestions).toContainEqual(
+      expect.objectContaining({ id: 'scope' }),
+    );
   });
 
-  test('accepting the default scope creates concrete scope instead of persisting SDK placeholder text', async () => {
+  test('accepting the default scope creates concrete scope instead of persisting implementation placeholder text', async () => {
     const fake = makeService(makeState({
       goal: 'make a simple rate limiter',
       openQuestions: [{
@@ -182,7 +188,7 @@ describe('project planning coordinator', () => {
     expect(result?.handledLocally).toBe(true);
     expect(fake.state?.scope).toContain('make a simple rate limiter');
     expect(fake.state?.scope).not.toContain('Define the first-pass scope');
-    expect(fake.state?.openQuestions.some((question) => question.id === 'missing-scope')).toBe(false);
+    expect(fake.state?.openQuestions.map((question) => question.id)).not.toContain('missing-scope');
   });
 
   test('go-ahead answer fills structural planning artifacts and approves execution', async () => {

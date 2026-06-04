@@ -1,7 +1,7 @@
 /**
  * Public context-window discovery coverage.
  *
- * SDK 0.33 moved probe helpers behind the provider implementation boundary, so
+ * Probe helpers live behind the provider implementation boundary, so
  * the TUI release gate validates the exported discovery behavior instead of
  * importing underscored probe internals.
  */

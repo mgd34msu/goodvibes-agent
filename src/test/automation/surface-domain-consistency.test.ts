@@ -59,9 +59,18 @@ describe('surface domain consistency', () => {
 
     await flushMicrotasks();
     expect(resolved?.sessionId).toBe('session-service');
-    expect(seen.some((event) => event.type === 'ROUTE_BINDING_CREATED' && event.surfaceKind === 'service')).toBe(true);
-    expect(seen.some((event) => event.type === 'ROUTE_BINDING_CREATED' && event.surfaceKind === 'tui')).toBe(true);
-    expect(seen.some((event) => event.type === 'ROUTE_BINDING_RESOLVED' && event.surfaceKind === 'service')).toBe(true);
+    expect(seen).toContainEqual(expect.objectContaining({
+      type: 'ROUTE_BINDING_CREATED',
+      surfaceKind: 'service',
+    }));
+    expect(seen).toContainEqual(expect.objectContaining({
+      type: 'ROUTE_BINDING_CREATED',
+      surfaceKind: 'tui',
+    }));
+    expect(seen).toContainEqual(expect.objectContaining({
+      type: 'ROUTE_BINDING_RESOLVED',
+      surfaceKind: 'service',
+    }));
   });
 
   test('delivery events preserve first-class service surface kinds', async () => {
@@ -132,8 +141,17 @@ describe('surface domain consistency', () => {
 
     expect(attempts[0]?.status).toBe('dead_lettered');
     await flushMicrotasks();
-    expect(seen.some((event) => event.type === 'DELIVERY_QUEUED' && event.surfaceKind === 'service')).toBe(true);
-    expect(seen.some((event) => event.type === 'DELIVERY_STARTED' && event.surfaceKind === 'service')).toBe(true);
-    expect(seen.some((event) => event.type === 'DELIVERY_FAILED' && event.surfaceKind === 'service')).toBe(true);
+    expect(seen).toContainEqual(expect.objectContaining({
+      type: 'DELIVERY_QUEUED',
+      surfaceKind: 'service',
+    }));
+    expect(seen).toContainEqual(expect.objectContaining({
+      type: 'DELIVERY_STARTED',
+      surfaceKind: 'service',
+    }));
+    expect(seen).toContainEqual(expect.objectContaining({
+      type: 'DELIVERY_FAILED',
+      surfaceKind: 'service',
+    }));
   });
 });

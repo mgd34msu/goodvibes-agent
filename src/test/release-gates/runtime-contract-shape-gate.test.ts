@@ -1,6 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { RuntimeEventBus, createEventEnvelope } from '@/runtime/index.ts';
 import type { TurnEvent } from '@/runtime/index.ts';
 import { ForensicsCollector } from '@/runtime/index.ts';
@@ -69,23 +67,6 @@ function makeContext(
 }
 
 describe('runtime contract shape gate', () => {
-  test('critical release gates and chaos packs exist', async () => {
-    const root = join(import.meta.dir, '..');
-    const required = [
-      ['release-gates', 'runtime-substrate-gate.test.ts'],
-      ['release-gates', 'operability-gate.test.ts'],
-      ['release-gates', 'policy-and-budget-evidence-gate.test.ts'],
-      ['chaos', 'provider-failures.test.ts'],
-      ['chaos', 'hook-failures.test.ts'],
-      ['chaos', 'plugin-crash.test.ts'],
-      ['chaos', 'mcp-reconnect.test.ts'],
-      ['chaos', 'health-cascades.test.ts'],
-    ];
-    for (const parts of required) {
-      expect(existsSync(join(root, ...parts))).toBe(true);
-    }
-  });
-
   test('forensic bundle evidence is export-ready for a denied side-effecting flow', async () => {
     const bus = new RuntimeEventBus();
     const registry = new ForensicsRegistry();

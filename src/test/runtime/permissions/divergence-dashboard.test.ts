@@ -123,8 +123,8 @@ describe('DivergenceDashboard.checkEnforceGate() — allowed', () => {
     const dash = new DivergenceDashboard(sim, 'warn-on-divergence');
     const gate = dash.checkEnforceGate();
     expect(gate.status).toBe('allowed');
-    expect(gate.divergenceRate).toBeDefined();
-    expect(gate.divergenceRate!).toBeLessThanOrEqual(0.05);
+    expect(gate.divergenceRate).toEqual(expect.any(Number));
+    expect(gate.divergenceRate).toBeLessThanOrEqual(0.05);
     expect(gate.message).toContain('Gate passing');
   });
 
@@ -180,9 +180,10 @@ describe('DivergenceDashboard.checkEnforceGate() — blocked', () => {
     } catch (e) {
       caught = e as DivergenceGateError;
     }
-    expect(caught).toBeDefined();
-    expect(caught!.name).toBe('DivergenceGateError');
-    expect(caught!.gate.status).toBe('blocked');
+    expect(caught).toEqual(expect.objectContaining({
+      name: 'DivergenceGateError',
+      gate: expect.objectContaining({ status: 'blocked' }),
+    }));
     expect(caught!.gate.divergenceRate).toBeGreaterThan(0.05);
     expect(caught!.gate.threshold).toBe(0.05);
   });
@@ -308,9 +309,9 @@ describe('DivergenceDashboard.getSnapshot()', () => {
     const dash = new DivergenceDashboard(sim, 'warn-on-divergence');
     dash.recordTrendEntry();
     const snap = dash.getSnapshot();
-    expect(snap.report).toBeDefined();
+    expect(snap.report).toEqual(expect.any(Object));
     expect(snap.mode).toBe('warn-on-divergence');
-    expect(snap.gate).toBeDefined();
+    expect(snap.gate).toEqual(expect.any(Object));
     expect(snap.trend).toHaveLength(1);
     expect(typeof snap.capturedAt).toBe('number');
   });

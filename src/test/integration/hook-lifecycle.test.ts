@@ -52,8 +52,7 @@ describe('Hook lifecycle — dispatcher', () => {
     const event = makeEvent({ path: 'Pre:tool:read' });
     const result = await dispatcher.fire(event);
     // ok may be false (ts runner couldn't load file), but it runs without throwing
-    expect(result).toBeDefined();
-    expect(typeof result.ok).toBe('boolean');
+    expect(result).toEqual(expect.objectContaining({ ok: expect.any(Boolean) }));
   });
 
   test('fire() returns ok:true when no hook matches the event path', async () => {
@@ -91,7 +90,7 @@ describe('Hook lifecycle — dispatcher', () => {
     expect(event.specific).toBe('read');
     expect(event.sessionId).toBe('test-session-hook');
     expect(typeof event.timestamp).toBe('number');
-    expect(event.payload).toBeDefined();
+    expect(event.payload).toEqual(expect.any(Object));
   });
 });
 

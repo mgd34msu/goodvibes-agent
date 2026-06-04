@@ -191,10 +191,12 @@ describe('DivergencePanel — getSnapshot() bufferLimit', () => {
     dash.recordTrendEntry();
     const panel = makePanel(dash);
     const snap = panel.getSnapshot();
-    expect(snap.report).toBeDefined();
-    expect(snap.mode).toBeDefined();
-    expect(snap.gate).toBeDefined();
-    expect(typeof snap.capturedAt).toBe('number');
+    expect(snap).toEqual(expect.objectContaining({
+      report: expect.any(Object),
+      mode: expect.any(String),
+      gate: expect.any(Object),
+      capturedAt: expect.any(Number),
+    }));
   });
 
   it('getSnapshot() returns the most recent entries when slicing', () => {

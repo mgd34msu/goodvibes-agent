@@ -69,8 +69,8 @@ describe('SessionMemoryStore', () => {
       store.add('remember this');
       const output = store.format();
       expect(output).not.toBeNull();
-      expect(output).toContain('## Session Memories (pinned)');
-      expect(output).toContain('[mem-1] remember this');
+      expect(output!).toContain('## Session Memories (pinned)');
+      expect(output!).toContain('[mem-1] remember this');
     });
 
     it('includes all memories in output', () => {

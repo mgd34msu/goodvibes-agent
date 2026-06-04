@@ -82,8 +82,7 @@ describe('Hook timeout behavior', () => {
 
     const result = await engine.evaluate(makeEvent({ path: 'Post:tool:write', phase: 'Post', specific: 'write' }));
     // Chain completed — action was fired
-    expect(result).not.toBeNull();
-    expect(result!.ok).toBe(true);
+    expect(result).toEqual(expect.objectContaining({ ok: true }));
     // Chain resets after firing
     expect(engine.getStates().get('fast-chain')!.currentStep).toBe(0);
   });
@@ -107,7 +106,7 @@ describe('Hook timeout behavior', () => {
 
     const result = await engine.evaluate(makeEvent({ path: 'Post:tool:read', phase: 'Post' }));
     // Should still complete (no timeout reset) — chain fires action
-    expect(result).not.toBeNull();
+    expect(result).toEqual(expect.objectContaining({ ok: true }));
     expect(engine.getStates().get('zero-within-chain')!.currentStep).toBe(0);
   });
 
@@ -172,7 +171,7 @@ describe('Circular chain behavior', () => {
     const result = await engine.evaluate(makeEvent({ path: 'Pre:tool:read', phase: 'Pre' }));
     // Chain A fires; chain B step doesn't get advanced by this evaluate call
     // (evaluate processes each chain sequentially against the single event)
-    expect(result).not.toBeNull();
+    expect(result).toEqual(expect.objectContaining({ ok: true }));
     // Chain A reset
     expect(engine.getStates().get('chain-a')!.currentStep).toBe(0);
   });
@@ -258,7 +257,7 @@ describe('Error propagation in chains', () => {
 
     const result = await engine.evaluate(makeEvent({ path: 'Pre:tool:read', phase: 'Pre' }));
     // Chain fired (all steps complete), result comes back from dispatcher
-    expect(result).not.toBeNull();
+    expect(result).toEqual(expect.objectContaining({ ok: false }));
     // Chain resets even when action fails
     expect(engine.getStates().get('error-chain')!.currentStep).toBe(0);
   });
@@ -313,7 +312,7 @@ describe('Error propagation in chains', () => {
     // The result returned is whichever was last to set result (chain-ok)
     const result = await engine.evaluate(makeEvent({ path: 'Pre:tool:read', phase: 'Pre' }));
     // At least one chain fired
-    expect(result).not.toBeNull();
+    expect(result).toEqual(expect.objectContaining({ ok: true }));
     // Both chains reset regardless of failure
     expect(engine.getStates().get('chain-err')!.currentStep).toBe(0);
     expect(engine.getStates().get('chain-ok')!.currentStep).toBe(0);
@@ -389,13 +388,8 @@ describe('Concurrent hook execution limits', () => {
 
     const result = await dispatcher.fire(makeEvent());
     // Context parts are joined with newline
-    expect(result.additionalContext).toBeDefined();
-    const parts = result.additionalContext!.split('\n');
-    expect(parts).toHaveLength(3);
     // Sequential order preserved
-    expect(parts[0]).toBe('1');
-    expect(parts[1]).toBe('2');
-    expect(parts[2]).toBe('3');
+    expect(result.additionalContext?.split('\n')).toEqual(['1', '2', '3']);
   });
 
   test('async hooks are skipped in sequencing (fire-and-forget)', async () => {
@@ -456,11 +450,8 @@ describe('Concurrent hook execution limits', () => {
     });
 
     const result = await dispatcher.fire(makeEvent());
-    expect(result.additionalContext).toBeDefined();
-    const parts = result.additionalContext!.split('\n');
     // Sequential execution means "first" appears before "second"
-    expect(parts[0]).toBe('first');
-    expect(parts[1]).toBe('second');
+    expect(result.additionalContext?.split('\n')).toEqual(['first', 'second']);
   });
 
   test('many hooks all execute within reasonable time (no artificial concurrency cap)', async () => {

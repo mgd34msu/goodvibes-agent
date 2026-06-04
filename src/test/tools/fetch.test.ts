@@ -459,8 +459,7 @@ describe('fetch tool - error handling', () => {
     const out = JSON.parse(result.output!);
     expect(out.summary.failed).toBeGreaterThanOrEqual(1);
     const errored = out.results.find((r: { error?: string }) => r.error !== undefined);
-    expect(errored).toBeDefined();
-    expect(typeof errored.error).toBe('string');
+    expect(errored).toEqual(expect.objectContaining({ error: expect.any(String) }));
   });
 
   test('timeout is enforced per-URL', async () => {
@@ -521,8 +520,9 @@ describe('fetch tool - verbosity', () => {
     });
     expect(result.success).toBe(true);
     const out = JSON.parse(result.output!);
-    expect(out.results[0].metadata).toBeDefined();
-    expect(typeof out.results[0].metadata.headers).toBe('object');
+    expect(out.results[0].metadata).toEqual(expect.objectContaining({
+      headers: expect.any(Object),
+    }));
   });
 
   test('standard returns content and status', async () => {
@@ -699,10 +699,6 @@ describe('fetch tool - body_type and headers', () => {
 describe('fetch tool - definition', () => {
   test('has name fetch', () => {
     expect(fetchTool.definition.name).toBe('fetch');
-  });
-
-  test('has non-empty description', () => {
-    expect(fetchTool.definition.description.length).toBeGreaterThan(0);
   });
 
   test('has parameters object', () => {

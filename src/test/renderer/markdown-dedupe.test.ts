@@ -40,6 +40,6 @@ describe('markdown dedupe (α3)', () => {
   it('renderMarkdown symbol is still exported and callable', () => {
     expect(typeof markdownModule.renderMarkdown).toBe('function');
     const result = markdownModule.renderMarkdown('test', WIDTH);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
   });
 });

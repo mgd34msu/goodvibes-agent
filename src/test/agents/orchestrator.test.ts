@@ -230,7 +230,7 @@ describe('AgentOrchestrator', () => {
       await withMockProvider(provider, () => orchestrator.runAgent(record));
 
       expect(record.status).toBe('completed');
-      expect(record.completedAt).toBeDefined();
+      expect(record.completedAt).toEqual(expect.any(Number));
       expect(record.error).toBeUndefined();
     });
 
@@ -246,7 +246,7 @@ describe('AgentOrchestrator', () => {
 
       expect(record.status).toBe('failed');
       expect(record.error).toContain('API unavailable');
-      expect(record.completedAt).toBeDefined();
+      expect(record.completedAt).toEqual(expect.any(Number));
     });
 
     test('sets status to failed when model is not in registry', async () => {
@@ -291,7 +291,10 @@ describe('AgentOrchestrator', () => {
 
       await withMockProvider(provider, () => orchestrator.runAgent(record));
 
-      expect(captured).not.toBeNull();
+      expect(captured).toEqual(expect.objectContaining({
+        systemPrompt: expect.stringContaining('## Context'),
+        reasoningEffort: 'high',
+      }));
       const request = captured as unknown as ChatRequest;
       expect(request.systemPrompt).toContain('## Context');
       expect(request.systemPrompt).toContain('External content source: webhook');
@@ -771,9 +774,8 @@ describe('AgentOrchestrator', () => {
       await withMockProvider(provider, () => orchestrator.runAgent(record));
 
       // After completion, progress should reflect the final response
-      expect(record.progress).toBeDefined();
-      expect(typeof record.progress).toBe('string');
-      expect(record.progress!.length).toBeGreaterThan(0);
+      expect(record.progress).toEqual(expect.any(String));
+      expect(record.progress?.length).toBeGreaterThan(0);
     });
   });
 
@@ -794,7 +796,7 @@ describe('AgentOrchestrator', () => {
         models: ['mock-model'],
         chat: mock(async (_params: ChatRequest): Promise<ChatResponse> => {
           // Alternate: first call returns frozen tool call, second call ends cleanly
-          if ((_params.messages ?? []).some((m) => m.role === 'tool')) {
+          if ((_params.messages ?? []).find((m) => m.role === 'tool') !== undefined) {
             return {
               content: 'Done.',
               toolCalls: [],

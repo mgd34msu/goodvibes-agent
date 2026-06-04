@@ -115,8 +115,8 @@ describe('ConversationManager', () => {
       cm.getDisplayBlocks();
 
       const [firstBlock, secondBlock] = cm.getBlockRegistry().filter((block) => block.type === 'code');
-      expect(firstBlock).toBeDefined();
-      expect(secondBlock).toBeDefined();
+      expect(firstBlock).toEqual(expect.objectContaining({ type: 'code' }));
+      expect(secondBlock).toEqual(expect.objectContaining({ type: 'code' }));
 
       const targetLine = firstBlock!.startLine + firstBlock!.lineCount - 1;
       expect(Math.abs(secondBlock!.startLine - targetLine)).toBeLessThan(Math.abs(firstBlock!.startLine - targetLine));
@@ -140,18 +140,18 @@ describe('ConversationManager', () => {
       const splashConversation = new ConversationManager(() => width);
       const wide = splashConversation.getDisplayBlocks().map((line) => line.map((cell) => cell.char).join(''));
       expect(wide.join('\n')).toContain('[ ｇｏｏｄ ｖｉｂｅｓ ・ Ａ Ｉ ・ いい雰囲気 ]');
-      expect(wide.every((line) => getDisplayWidth(line) <= width)).toBe(true);
+      expect(wide.filter((line) => getDisplayWidth(line) > width)).toEqual([]);
 
       width = 34;
       splashConversation.setWidthProvider(() => width);
       const narrow = splashConversation.getDisplayBlocks().map((line) => line.map((cell) => cell.char).join(''));
       expect(narrow.join('\n')).toContain('██████╗');
-      expect(narrow.every((line) => getDisplayWidth(line) <= width)).toBe(true);
+      expect(narrow.filter((line) => getDisplayWidth(line) > width)).toEqual([]);
 
       splashConversation.setSplashSuppressed(true);
       const suppressed = splashConversation.getDisplayBlocks().map((line) => line.map((cell) => cell.char).join(''));
       expect(suppressed.join('\n')).not.toContain('██████╗');
-      expect(suppressed.every((line) => getDisplayWidth(line) <= width)).toBe(true);
+      expect(suppressed.filter((line) => getDisplayWidth(line) > width)).toEqual([]);
     });
   });
 

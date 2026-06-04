@@ -13,10 +13,11 @@ describe('hook point contracts', () => {
 
   test('resolves exact or wildcard contract for a hook path', () => {
     const contract = getHookPointContract('Pre:tool:edit');
-    expect(contract).not.toBeNull();
-    expect(contract?.authority).toBe('intercept');
-    expect(contract?.executionMode).toBe('blocking');
-    expect(contract?.canDeny).toBe(true);
+    expect(contract).toEqual(expect.objectContaining({
+      authority: 'intercept',
+      executionMode: 'blocking',
+      canDeny: true,
+    }));
   });
 
   test('parses hook path into phase, category, and specific', () => {
@@ -27,4 +28,3 @@ describe('hook point contracts', () => {
     });
   });
 });
-

@@ -11,7 +11,7 @@ describe('renderMcpWorkspace', () => {
     const text = linesToText(lines).join('\n');
 
     expect(lines).toHaveLength(32);
-    expect(lines.every(line => line.length === 120)).toBe(true);
+    expect(lines.map((line) => line.length)).toEqual(Array(32).fill(120));
     expect(lineToString(lines[0])).toContain('MCP Workspace / Servers');
     expect(text).toContain('SERVERS');
     expect(text).toContain('ACTIONS');

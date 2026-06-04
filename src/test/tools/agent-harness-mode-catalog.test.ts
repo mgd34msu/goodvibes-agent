@@ -30,8 +30,9 @@ describe('agent_harness mode catalog', () => {
     const compact = listHarnessModes({ query: 'run slash command' }) as {
       readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly route?: string }[];
     };
+    expect(compact.modes[0]?.id).toBe('run_command');
     expect(compact.modes.map((mode) => mode.id)).toContain('run_command');
-    expect(compact.modes.every((mode) => mode.parameters === undefined && mode.route === undefined)).toBe(true);
+    expect(compact.modes.filter((mode) => mode.parameters !== undefined || mode.route !== undefined)).toEqual([]);
 
     const detailed = listHarnessModes({ query: 'args explicitUserRequest', includeParameters: true, limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly route?: string }[];
@@ -42,6 +43,16 @@ describe('agent_harness mode catalog', () => {
       route: 'agent_harness mode:"run_command"',
     });
     expect(runCommand?.parameters).toEqual(expect.arrayContaining(['confirm', 'explicitUserRequest']));
+  });
+
+  test('finds connected-host daemon aliases by GoodVibes daemon wording', () => {
+    const daemon = listHarnessModes({ query: 'goodvibes-daemon', limit: 5 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = daemon.modes.map((mode) => mode.id);
+    expect(ids).toContain('daemon');
+    expect(ids).toContain('daemon_status');
+    expect(daemon.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
   test('returns exact, ambiguous, and missing inspection outcomes without guessing', () => {

@@ -112,7 +112,7 @@ describe('GitService', () => {
       writeFileSync(join(tmpDir, 'f.txt'), 'x');
       await svc.add('f.txt');
       const result = await svc.commit('first commit');
-      expect(result.hash).toBeTruthy();
+      expect(result.hash).toMatch(/^[0-9a-f]{40}$/);
       const entries = await svc.log();
       expect(entries.length).toBe(1);
       expect(entries[0].message).toBe('first commit');
@@ -309,7 +309,7 @@ describe('GitService', () => {
       await svc.worktreeAdd(wtPath, 'wt-branch');
       const list = await svc.worktreeList();
       const paths = list.map((w) => w.path);
-      expect(paths.some((p) => p.includes('wt-'))).toBe(true);
+      expect(paths).toContain(wtPath);
       // Cleanup
       await svc.worktreeRemove(wtPath);
     });
@@ -319,7 +319,7 @@ describe('GitService', () => {
       const list = await svc.worktreeList();
       expect(list.length).toBeGreaterThanOrEqual(1);
       const paths = list.map((w) => w.path);
-      expect(paths.some((p) => p.includes(tmpDir.split('/').pop()!))).toBe(true);
+      expect(paths).toContain(tmpDir);
     });
 
     test('worktreeRemove removes the worktree', async () => {
@@ -328,7 +328,7 @@ describe('GitService', () => {
       await svc.worktreeAdd(wtPath, 'wt2-branch');
       await svc.worktreeRemove(wtPath);
       const list = await svc.worktreeList();
-      expect(list.every((w) => !w.path.includes('wt2-'))).toBe(true);
+      expect(list.map((w) => w.path).filter((path) => path.includes('wt2-'))).toEqual([]);
     });
   });
 
@@ -411,7 +411,7 @@ describe('GitService', () => {
       );
       expect(postEvents.length).toBe(1);
       expect(postEvents[0].payload.message).toBe('post hook commit');
-      expect(postEvents[0].payload.hash).toBeTruthy();
+      expect(postEvents[0].payload.hash).toMatch(/^[0-9a-f]{40}$/);
       spySvc.dispose();
     });
 
@@ -426,7 +426,7 @@ describe('GitService', () => {
           (e) => e.phase === 'Fail' && e.specific === 'commit',
         );
         expect(failEvents.length).toBe(1);
-        expect(failEvents[0].payload.error).toBeTruthy();
+        expect(String(failEvents[0].payload.error).length).toBeGreaterThan(0);
         spySvc.dispose();
       } finally {
         rmSync(nonRepoDir, { recursive: true, force: true });

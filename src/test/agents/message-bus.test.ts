@@ -110,7 +110,7 @@ describe('broadcast', () => {
     bus.broadcast('agent-a', 'All hands');
     // All agents see broadcasts via getMessages
     const msgs = bus.getMessages('agent-b');
-    expect(msgs.some((m) => m.content === 'All hands')).toBe(true);
+    expect(msgs.map((m) => m.content)).toContain('All hands');
     expect(msgs.find((m) => m.content === 'All hands')?.to).toBe('*');
   });
 
@@ -129,8 +129,8 @@ describe('broadcast', () => {
   test('broadcast included in getMessages for any agent', () => {
     const bus = getTestAgentMessageBus();
     bus.broadcast('agent-a', 'Global');
-    expect(bus.getMessages('agent-x').some((m) => m.content === 'Global')).toBe(true);
-    expect(bus.getMessages('agent-y').some((m) => m.content === 'Global')).toBe(true);
+    expect(bus.getMessages('agent-x').map((m) => m.content)).toContain('Global');
+    expect(bus.getMessages('agent-y').map((m) => m.content)).toContain('Global');
   });
 
   test('blocks broadcast for registered roles outside broadcast policy', () => {
@@ -197,8 +197,10 @@ describe('getMessages', () => {
     bus.send('agent-a', 'agent-b', 'direct');
     bus.broadcast('agent-a', 'broadcast');
     const msgs = bus.getMessages('agent-b');
-    expect(msgs.some((m) => m.content === 'direct')).toBe(true);
-    expect(msgs.some((m) => m.content === 'broadcast')).toBe(true);
+    expect(msgs.map((m) => m.content)).toEqual([
+      'direct',
+      'broadcast',
+    ]);
   });
 
   test('messages sorted by timestamp ascending', () => {
@@ -228,7 +230,7 @@ describe('TTL and cleanup', () => {
     const bus = getTestAgentMessageBus();
     bus.send('agent-a', 'agent-b', 'alive', 60_000);
     bus.cleanup();
-    expect(bus.getMessages('agent-b').some((m) => m.content === 'alive')).toBe(true);
+    expect(bus.getMessages('agent-b').map((m) => m.content)).toEqual(['alive']);
   });
 
   test('cleanup removes only expired messages', () => {

@@ -40,8 +40,7 @@ describe('state transitions', () => {
     const key = store.generateKey(CTX);
     store.checkAndRecord(key);
     const record = store.getRecord(key);
-    expect(record).toBeDefined();
-    expect(record!.status).toBe('in-flight');
+    expect(record).toEqual(expect.objectContaining({ status: 'in-flight' }));
   });
 
   test('in-flight key → second checkAndRecord returns in-flight', () => {
@@ -169,7 +168,7 @@ describe('TTL sweep', () => {
     (record as { createdAt: number }).createdAt = Date.now() - 200;
 
     store.sweep();
-    expect(store.getRecord(key)).toBeDefined();
+    expect(store.getRecord(key)).toEqual(expect.objectContaining({ status: 'in-flight' }));
     expect(store.size).toBe(1);
   });
 
@@ -179,7 +178,7 @@ describe('TTL sweep', () => {
     store.checkAndRecord(key);
     store.markComplete(key);
     store.sweep();
-    expect(store.getRecord(key)).toBeDefined();
+    expect(store.getRecord(key)).toEqual(expect.objectContaining({ status: 'completed' }));
   });
 
   test('_maybeSweep triggers at 80% of maxRecords', () => {

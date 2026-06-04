@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -69,21 +68,6 @@ function createUserAuth(homeDir: string): UserAuthManager {
       passwordHash: UserAuthManager.hashPassword('admin'),
       roles: ['admin'],
     }],
-  });
-}
-
-async function reservePort(): Promise<number> {
-  return await new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      if (!address || typeof address === 'string') {
-        server.close(() => reject(new Error('Unable to reserve test port')));
-        return;
-      }
-      server.close((error) => error ? reject(error) : resolve(address.port));
-    });
   });
 }
 
@@ -179,16 +163,29 @@ async function createDirectHarness(): Promise<TransportHarness> {
 
 async function createRemoteHarness(kind: 'http' | 'realtime'): Promise<TransportHarness> {
   const fixture = createRuntimeFixture(`gv-transport-parity-${kind}`);
-  const port = await reservePort();
+  let boundPort: number | null = null;
+  const serveFactory = ((options: Parameters<typeof Bun.serve>[0]) => {
+    const server = Bun.serve({
+      ...options,
+      port: 0,
+      hostname: '127.0.0.1',
+    });
+    boundPort = server.port;
+    return server;
+  }) as typeof Bun.serve;
   const daemon = new DaemonServer({
-    port,
+    port: 0,
     host: '127.0.0.1',
     runtimeServices: fixture.runtimeServices,
     userAuth: createUserAuth(join(fixture.tempRoot, 'home')),
+    serveFactory,
   });
   daemon.enable({ daemon: true }, TEST_TOKEN);
   await daemon.start();
-  const baseUrl = `http://127.0.0.1:${port}`;
+  if (boundPort === null) {
+    throw new Error(`Unable to resolve ${kind} daemon test port`);
+  }
+  const baseUrl = `http://127.0.0.1:${boundPort}`;
   const transport = kind === 'http'
     ? createHttpTransport({ baseUrl, authToken: TEST_TOKEN })
     : createRealtimeTransport({
@@ -263,19 +260,26 @@ describe('transport parity gate', () => {
     ]);
     activeDisposers.push(...harnesses.map((harness) => harness.dispose));
 
+    let expectedProviderIds: readonly string[] | null = null;
     for (const harness of harnesses) {
       const session = await harness.ensureSession(`transport-parity-${harness.kind}`, `Transport Parity ${harness.kind}`);
       expect((await harness.listSessionIds())).toContain(session.id);
       expect((await harness.getSession(session.id))?.title).toBe(`Transport Parity ${harness.kind}`);
-      expect(Array.isArray(await harness.listProviderIds())).toBe(true);
+      const providerIds = await harness.listProviderIds();
+      if (expectedProviderIds === null) {
+        expectedProviderIds = providerIds;
+      } else {
+        expect(providerIds).toEqual(expectedProviderIds);
+      }
 
       const pair = await harness.requestPairing();
       await harness.approvePairing(pair.request.id);
       const verified = await harness.verifyPairing(pair.request.id, pair.challenge);
-      expect(verified?.peer.id).toBeTruthy();
+      if (verified === null) throw new Error(`pairing verification failed for ${harness.kind}`);
+      expect(verified.peer.id).toMatch(/^node-[a-f0-9]+$/);
       expect(await harness.nodeHostBasePath()).toBe('/api/remote');
       expect(await harness.snapshotKind()).toBe(harness.kind);
-      expect((await harness.listPeerIds()).includes(verified!.peer.id)).toBe(true);
+      expect(await harness.listPeerIds()).toContain(verified.peer.id);
     }
   });
 

@@ -29,9 +29,10 @@ describe('prepareConversationForTurn', () => {
     );
 
     const messages = conversation.getMessageSnapshot();
-    expect(messages.some((message) => (
+    const projectModeMessages = messages.filter((message) => (
       message.role === 'system' && message.content.includes('[Project mode]')
-    ))).toBe(false);
+    ));
+    expect(projectModeMessages).toEqual([]);
   });
 
   test('injects project mode when the prompt clearly signals multi-step project work', () => {
@@ -46,8 +47,9 @@ describe('prepareConversationForTurn', () => {
     );
 
     const messages = conversation.getMessageSnapshot();
-    expect(messages.some((message) => (
+    const projectModeMessages = messages.filter((message) => (
       message.role === 'system' && message.content.includes('[Project mode]')
-    ))).toBe(true);
+    ));
+    expect(projectModeMessages.length).toBeGreaterThan(0);
   });
 });

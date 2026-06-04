@@ -237,7 +237,7 @@ describe('ux:cancellation — abort during heavy tool/agent updates', () => {
 
       for (const [, agent] of selectAgents(cancelled).agents) {
         expect(agent.status).toBe('cancelled');
-        expect(agent.endedAt).toBeDefined();
+        expect(agent.endedAt).toEqual(TEST_TIMESTAMP);
       }
     });
 

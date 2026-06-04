@@ -55,6 +55,13 @@ function jsGrammarAvailable(): boolean {
   );
 }
 
+function expectPresent<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${description}`);
+  }
+  return value;
+}
+
 // ---------------------------------------------------------------------------
 // Language detection
 // ---------------------------------------------------------------------------
@@ -241,8 +248,8 @@ describe('TreeSitterService', () => {
       await svc.initialize();
       const code = 'export function greet(name: string): string { return name; }';
       const tree = await svc.parse('hello.ts', code, 'typescript');
-      expect(tree).not.toBeNull();
-      expect(tree!.rootNode.type).toBe('program');
+      const parsedTree = expectPresent(tree, 'parsed TypeScript tree for hello.ts');
+      expect(parsedTree.rootNode.type).toBe('program');
     },
   );
 
@@ -301,13 +308,13 @@ describe('extractSymbols (TypeScript grammar)', () => {
     async () => {
       await svc.initialize();
       const tree = await svc.parse('x.ts', TS_CODE, 'typescript');
-      expect(tree).not.toBeNull();
+      const parsedTree = expectPresent(tree, 'parsed TypeScript tree for x.ts');
       const lang = svc['languages'].get('typescript')!;
-      const symbols = extractSymbols(tree!, lang, 'typescript');
+      const symbols = extractSymbols(parsedTree, lang, 'typescript');
       const fn = symbols.find((s) => s.kind === 'function' && s.name === 'greet');
-      expect(fn).toBeDefined();
-      expect(fn!.exported).toBe(true);
-      expect(fn!.line).toBeGreaterThan(0);
+      const greet = expectPresent(fn, 'exported greet function symbol');
+      expect(greet.exported).toBe(true);
+      expect(greet.line).toBeGreaterThan(0);
     },
   );
 
@@ -316,13 +323,13 @@ describe('extractSymbols (TypeScript grammar)', () => {
     async () => {
       await svc.initialize();
       const tree = await svc.parse('x.ts', TS_CODE, 'typescript');
+      const parsedTree = expectPresent(tree, 'parsed TypeScript tree for class extraction');
       const lang = svc['languages'].get('typescript')!;
-      const symbols = extractSymbols(tree!, lang, 'typescript');
+      const symbols = extractSymbols(parsedTree, lang, 'typescript');
       const cls = symbols.find((s) => s.kind === 'class' && s.name === 'Greeter');
-      expect(cls).toBeDefined();
+      expectPresent(cls, 'Greeter class symbol');
       const method = symbols.find((s) => s.kind === 'method' && s.name === 'hello');
-      expect(method).toBeDefined();
-      expect(method!.container).toBe('Greeter');
+      expect(expectPresent(method, 'hello method symbol').container).toBe('Greeter');
     },
   );
 
@@ -331,12 +338,15 @@ describe('extractSymbols (TypeScript grammar)', () => {
     async () => {
       await svc.initialize();
       const tree = await svc.parse('x.ts', TS_CODE, 'typescript');
+      const parsedTree = expectPresent(tree, 'parsed TypeScript tree for mixed symbol extraction');
       const lang = svc['languages'].get('typescript')!;
-      const symbols = extractSymbols(tree!, lang, 'typescript');
-      expect(symbols.find((s) => s.kind === 'interface' && s.name === 'IGreeter')).toBeDefined();
-      expect(symbols.find((s) => s.kind === 'type' && s.name === 'Name')).toBeDefined();
-      expect(symbols.find((s) => s.kind === 'constant' && s.name === 'MAX')).toBeDefined();
-      expect(symbols.find((s) => s.kind === 'enum' && s.name === 'Color')).toBeDefined();
+      const symbols = extractSymbols(parsedTree, lang, 'typescript');
+      expect(symbols).toEqual(expect.arrayContaining([
+        expect.objectContaining({ kind: 'interface', name: 'IGreeter' }),
+        expect.objectContaining({ kind: 'type', name: 'Name' }),
+        expect.objectContaining({ kind: 'constant', name: 'MAX' }),
+        expect.objectContaining({ kind: 'enum', name: 'Color' }),
+      ]));
     },
   );
 
@@ -345,11 +355,11 @@ describe('extractSymbols (TypeScript grammar)', () => {
     async () => {
       await svc.initialize();
       const tree = await svc.parse('x.ts', TS_CODE, 'typescript');
+      const parsedTree = expectPresent(tree, 'parsed TypeScript tree for outline extraction');
       const lang = svc['languages'].get('typescript')!;
-      const outline = extractOutline(tree!, lang, 'typescript');
+      const outline = extractOutline(parsedTree, lang, 'typescript');
       const cls = outline.find((e) => e.name === 'Greeter');
-      expect(cls).toBeDefined();
-      expect(cls!.children.some((c) => c.name === 'hello')).toBe(true);
+      expect(expectPresent(cls, 'Greeter outline entry').children.map((c) => c.name)).toContain('hello');
     },
   );
 
@@ -358,11 +368,11 @@ describe('extractSymbols (TypeScript grammar)', () => {
     async () => {
       await svc.initialize();
       const tree = await svc.parse('x.ts', TS_CODE, 'typescript');
+      const parsedTree = expectPresent(tree, 'parsed TypeScript tree for scope lookup');
       const lang = svc['languages'].get('typescript')!;
       // Line 2 is the class declaration line — inside the class, outside any method
-      const scope = findEnclosingScope(tree!, lang, 'typescript', 2);
-      expect(scope).not.toBeNull();
-      expect(scope!.name).toBe('Greeter');
+      const scope = findEnclosingScope(parsedTree, lang, 'typescript', 2);
+      expect(expectPresent(scope, 'Greeter enclosing scope').name).toBe('Greeter');
     },
   );
 });
@@ -379,7 +389,7 @@ describe('extractSymbols: unsupported language', () => {
       await svc2.initialize();
       const tree = await svc2.parse('x.ts', 'const x = 1;', 'typescript');
       const lang = svc2['languages'].get('typescript')!;
-      const symbols = extractSymbols(tree!, lang, 'haskell');
+      const symbols = extractSymbols(expectPresent(tree, 'parsed TypeScript tree for unsupported-language extraction'), lang, 'haskell');
       expect(symbols).toEqual([]);
       svc2.dispose();
     },
@@ -417,7 +427,7 @@ describe('Grammar loading (installed packages)', () => {
     async () => {
       await svc.initialize();
       const lang = await svc.loadLanguage('typescript');
-      expect(lang).not.toBeNull();
+      expectPresent(lang, 'typescript grammar');
       expect(svc.loadedLanguages).toContain('typescript');
     },
   );
@@ -427,7 +437,7 @@ describe('Grammar loading (installed packages)', () => {
     async () => {
       await svc.initialize();
       const lang = await svc.loadLanguage('javascript');
-      expect(lang).not.toBeNull();
+      expectPresent(lang, 'javascript grammar');
       expect(svc.loadedLanguages).toContain('javascript');
     },
   );
@@ -444,8 +454,8 @@ describe('Grammar loading (installed packages)', () => {
         'export const DEFAULT_USER: User = getUser(1);',
       ].join('\n');
       const tree = await svc.parse('user.ts', code, 'typescript');
-      expect(tree).not.toBeNull();
-      expect(tree!.rootNode.type).toBe('program');
+      const parsedTree = expectPresent(tree, 'parsed TypeScript tree for user.ts');
+      expect(parsedTree.rootNode.type).toBe('program');
     },
   );
 
@@ -459,8 +469,8 @@ describe('Grammar loading (installed packages)', () => {
         'module.exports = { add };',
       ].join('\n');
       const tree = await svc.parse('math.js', code, 'javascript');
-      expect(tree).not.toBeNull();
-      expect(tree!.rootNode.type).toBe('program');
+      const parsedTree = expectPresent(tree, 'parsed JavaScript tree for math.js');
+      expect(parsedTree.rootNode.type).toBe('program');
     },
   );
 
@@ -476,13 +486,15 @@ describe('Grammar loading (installed packages)', () => {
         'export const PI = 3.14159;',
       ].join('\n');
       const tree = await svc.parse('calc.ts', code, 'typescript');
-      expect(tree).not.toBeNull();
+      const parsedTree = expectPresent(tree, 'parsed TypeScript tree for calc.ts');
       const lang = svc['languages'].get('typescript')!;
-      const symbols = extractSymbols(tree!, lang, 'typescript');
+      const symbols = extractSymbols(parsedTree, lang, 'typescript');
       expect(symbols.length).toBeGreaterThan(0);
-      expect(symbols.find((s) => s.name === 'multiply' && s.kind === 'function')).toBeDefined();
-      expect(symbols.find((s) => s.name === 'Calculator' && s.kind === 'class')).toBeDefined();
-      expect(symbols.find((s) => s.name === 'PI')).toBeDefined();
+      expect(symbols).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: 'multiply', kind: 'function' }),
+        expect.objectContaining({ name: 'Calculator', kind: 'class' }),
+        expect.objectContaining({ name: 'PI', kind: 'constant' }),
+      ]));
     },
   );
 
@@ -491,7 +503,7 @@ describe('Grammar loading (installed packages)', () => {
     async () => {
       await svc.initialize();
       const lang = await svc.loadLanguage('tsx');
-      expect(lang).not.toBeNull();
+      expectPresent(lang, 'tsx grammar');
       expect(svc.loadedLanguages).toContain('tsx');
     },
   );

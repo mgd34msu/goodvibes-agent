@@ -68,12 +68,15 @@ describe('provider account snapshot', () => {
       },
     });
     const openai = snapshot.providers.find((entry) => entry.providerId === 'openai');
-    expect(openai).toBeDefined();
-    expect(openai?.preferredRoute).toBe('subscription');
-    expect(openai?.activeRoute).toBe('api-key');
-    expect(openai?.fallbackRoute).toBe('api-key');
-    expect(openai?.fallbackRisk).toContain('preferred subscription path');
-    expect(openai?.issues.some((issue) => issue.includes('expired'))).toBe(true);
+    expect(openai).toEqual(expect.objectContaining({
+      preferredRoute: 'subscription',
+      activeRoute: 'api-key',
+      fallbackRoute: 'api-key',
+      fallbackRisk: expect.stringContaining('preferred subscription path'),
+      issues: expect.arrayContaining([
+        expect.stringContaining('expired'),
+      ]),
+    }));
   });
 
   test('surfaces unusable provider OAuth posture as a repair issue', async () => {
@@ -107,11 +110,16 @@ describe('provider account snapshot', () => {
       },
     });
     const provider = snapshot.providers.find((entry) => entry.providerId === 'test-provider');
-    expect(provider).toBeDefined();
-    expect(provider?.oauthReady).toBe(true);
-    expect(provider?.activeRoute).toBe('unconfigured');
-    expect(provider?.issues.some((issue) => issue.includes('missing a usable credential'))).toBe(true);
-    expect(provider?.recommendedActions.some((action) => action.includes('provider OAuth credentials'))).toBe(true);
-    expect(provider?.recommendedActions.some((action) => action.includes('/services'))).toBe(false);
+    expect(provider).toEqual(expect.objectContaining({
+      oauthReady: true,
+      activeRoute: 'unconfigured',
+      issues: expect.arrayContaining([
+        expect.stringContaining('missing a usable credential'),
+      ]),
+      recommendedActions: expect.arrayContaining([
+        expect.stringContaining('provider OAuth credentials'),
+      ]),
+    }));
+    expect(provider?.recommendedActions.join('\n')).not.toContain('/services');
   });
 });

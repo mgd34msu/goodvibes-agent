@@ -90,10 +90,6 @@ describe('ReadTool', () => {
       expect(tool.definition.name).toBe('read');
     });
 
-    test('has a description', () => {
-      expect(tool.definition.description.length).toBeGreaterThan(0);
-    });
-
     test('parameters schema requires files', () => {
       const params = tool.definition.parameters as Record<string, unknown>;
       const required = params['required'] as string[];
@@ -434,8 +430,7 @@ describe('ReadTool', () => {
         page: 1,
       });
       const parsed = (r as { parsed: { pagination: { page: number; total_pages: number } } }).parsed;
-      expect(parsed.pagination).toBeDefined();
-      expect(parsed.pagination.page).toBe(1);
+      expect(parsed.pagination).toEqual(expect.objectContaining({ page: 1 }));
       expect(parsed.pagination.total_pages).toBeGreaterThanOrEqual(1);
     });
 
@@ -519,8 +514,7 @@ describe('ReadTool', () => {
         output: { format: 'verbose' },
       });
       const parsed = (r as { parsed: { files: Array<{ metadata: { encoding: string } }> } }).parsed;
-      expect(parsed.files[0].metadata).toBeDefined();
-      expect(parsed.files[0].metadata.encoding).toBe('utf-8');
+      expect(parsed.files[0].metadata).toEqual(expect.objectContaining({ encoding: 'utf-8' }));
     });
 
     test('max_per_item limits lines returned per file', async () => {
@@ -577,7 +571,7 @@ describe('ReadTool', () => {
       // First file succeeds
       expect(parsed.files[0].content).toContain('const x = 1');
       // Second file has error
-      expect(parsed.files[1].error).toBeDefined();
+      expect(parsed.files[1].error).toEqual(expect.any(String));
       // Summary reflects one errored file
       expect(parsed.summary.files_errored).toBe(1);
     });
@@ -644,8 +638,8 @@ describe('ReadTool', () => {
       await newTool.execute({ files: [{ path: rel }] });
       const absPath = resolve(PROJECT_ROOT, rel);
       const entry = idx.getFile(absPath);
-      expect(entry).not.toBeNull();
-      expect(entry!.tokens).toBeGreaterThan(0);
+      expect(entry).toEqual(expect.objectContaining({ path: rel }));
+      expect(entry?.tokens).toBeGreaterThan(0);
     });
   });
 

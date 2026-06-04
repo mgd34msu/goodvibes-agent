@@ -13,9 +13,10 @@ describe('McpLifecycleManager trust profiles', () => {
     } as never);
 
     const profile = manager.listTrustProfiles().find((entry) => entry.serverName === 'test-server');
-    expect(profile).toBeDefined();
-    expect(profile?.role).toBe('docs');
-    expect(profile?.mode).toBe('constrained');
+    expect(profile).toEqual(expect.objectContaining({
+      role: 'docs',
+      mode: 'constrained',
+    }));
 
     manager.setTrustMode('test-server', 'allow-all');
     manager.setServerRole('test-server', 'ops');

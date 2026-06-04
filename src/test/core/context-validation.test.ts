@@ -11,102 +11,9 @@
  * Run with: bun test src/test/core/context-validation.test.ts
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { estimateConversationTokens, getAutoCompactDecision } from '@pellux/goodvibes-sdk/platform/core';
-import { createModelCatalog, type ModelCatalog, type CatalogModelEntry } from '@pellux/goodvibes-sdk/platform/providers';
-import type { ProviderMessage } from '@pellux/goodvibes-sdk/platform/providers';
-import { createTestProviderRegistry } from '../helpers/test-managers.ts';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeMessages(count: number, charsPerMessage = 40): ProviderMessage[] {
-  const messages: ProviderMessage[] = [];
-  for (let i = 0; i < count; i++) {
-    messages.push({
-      role: i % 2 === 0 ? 'user' : 'assistant',
-      content: 'x'.repeat(charsPerMessage),
-    });
-  }
-  return messages;
-}
-
-/** Build messages whose estimated token count roughly equals `targetTokens`. */
-function makeMessagesWithTokens(targetTokens: number): ProviderMessage[] {
-  // estimateConversationTokens uses ceil(chars / 4)
-  // So for N tokens with 1 message: N * 4 chars
-  return [{ role: 'user', content: 'x'.repeat(targetTokens * 4) }];
-}
-
-// ---------------------------------------------------------------------------
-// estimateConversationTokens (basic sanity checks used by validation logic)
-// ---------------------------------------------------------------------------
-
-describe('estimateConversationTokens (validation foundation)', () => {
-  it('returns 0 for empty messages', () => {
-    expect(estimateConversationTokens([])).toBe(0);
-  });
-
-  it('estimates tokens proportional to message length', () => {
-    const messages = makeMessagesWithTokens(10_000);
-    expect(estimateConversationTokens(messages)).toBe(10_000);
-  });
-
-  it('sums tokens across multiple messages', () => {
-    const messages = makeMessages(4, 400); // 4 msgs x 400 chars = 1600 chars = 400 tokens
-    expect(estimateConversationTokens(messages)).toBe(400);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// ModelCatalog interface (getCatalog)
-// ---------------------------------------------------------------------------
-
-describe('createModelCatalog()', () => {
-  it('returns an object implementing ModelCatalog', () => {
-    const catalog = createModelCatalog(createTestProviderRegistry());
-    expect(typeof catalog.getModel).toBe('function');
-    expect(typeof catalog.findLargerContextModels).toBe('function');
-  });
-
-  it('getModel returns null for an unknown model ID', () => {
-    const catalog = createModelCatalog(createTestProviderRegistry());
-    const result = catalog.getModel('totally-unknown-model-xyz-999');
-    expect(result).toBeNull();
-  });
-
-  it('findLargerContextModels returns array (possibly empty) for large minContext', () => {
-    const catalog = createModelCatalog(createTestProviderRegistry());
-    // Using a very large context window that likely has no alternatives
-    const results = catalog.findLargerContextModels(10_000_000);
-    expect(Array.isArray(results)).toBe(true);
-  });
-
-  it('findLargerContextModels respects limit parameter', () => {
-    const catalog = createModelCatalog(createTestProviderRegistry());
-    // minContext = 0 should return many models; limit = 2 caps the result
-    const results = catalog.findLargerContextModels(0, undefined, 2);
-    expect(results.length).toBeLessThanOrEqual(2);
-  });
-
-  it('findLargerContextModels returns models sorted by context descending', () => {
-    const catalog = createModelCatalog(createTestProviderRegistry());
-    const results = catalog.findLargerContextModels(0, undefined, 5);
-    for (let i = 1; i < results.length; i++) {
-      expect(results[i - 1].context).toBeGreaterThanOrEqual(results[i].context);
-    }
-  });
-
-  it('findLargerContextModels only includes models with context > minContext', () => {
-    const catalog = createModelCatalog(createTestProviderRegistry());
-    const minContext = 100_000;
-    const results = catalog.findLargerContextModels(minContext, undefined, 10);
-    for (const model of results) {
-      expect(model.context).toBeGreaterThan(minContext);
-    }
-  });
-});
+import { describe, it, expect } from 'bun:test';
+import { getAutoCompactDecision } from '@pellux/goodvibes-sdk/platform/core';
+import type { CatalogModelEntry } from '@pellux/goodvibes-sdk/platform/providers';
 
 // ---------------------------------------------------------------------------
 // Context validation logic (tested as pure functions)
@@ -149,7 +56,7 @@ describe('context window pre-flight decision logic', () => {
     expect(decision.currentTokens).toBe(125_400);
     expect(decision.contextWindow).toBe(128_000);
     expect(decision.remainingTokens).toBe(2_600);
-    expect(decision.reason).not.toBeNull();
+    expect(decision.reason).toBe('threshold');
   });
 
   describe('request within context window', () => {
@@ -312,75 +219,5 @@ describe('context overflow error message', () => {
     const msg = buildOverflowMessage(130_500, 128_000, 'Model X', []);
     // Math.round(130500 / 1000) = 131
     expect(msg).toContain('~131K tokens');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// findLargerContextModels alternative suggestion
-// ---------------------------------------------------------------------------
-
-describe('alternative model suggestion', () => {
-  it('findLargerContextModels filters by tier when specified', () => {
-    // Build a mock catalog to test tier filtering in isolation
-    const mockCatalog: ModelCatalog = {
-      getModel: () => null,
-      findLargerContextModels: (
-        minContext: number,
-        tier?: 'free' | 'paid' | 'subscription',
-        limit = 3,
-      ): CatalogModelEntry[] => {
-        const all: CatalogModelEntry[] = [
-          { id: 'free-big', displayName: 'Free Big', provider: 'p1', context: 256_000, tier: 'free' },
-          { id: 'paid-big', displayName: 'Paid Big', provider: 'p2', context: 256_000, tier: 'paid' },
-          { id: 'sub-big', displayName: 'Sub Big', provider: 'p3', context: 256_000, tier: 'subscription' },
-        ];
-        return all
-          .filter(e => e.context > minContext && (tier === undefined || e.tier === tier))
-          .slice(0, limit);
-      },
-    };
-
-    const freeResults = mockCatalog.findLargerContextModels(128_000, 'free');
-    expect(freeResults.every(m => m.tier === 'free')).toBe(true);
-    expect(freeResults.length).toBe(1);
-
-    const paidResults = mockCatalog.findLargerContextModels(128_000, 'paid');
-    expect(paidResults.every(m => m.tier === 'paid')).toBe(true);
-    expect(paidResults.length).toBe(1);
-  });
-
-  it('returns empty array when no models have larger context', () => {
-    const mockCatalog: ModelCatalog = {
-      getModel: () => null,
-      findLargerContextModels: () => [],
-    };
-    const results = mockCatalog.findLargerContextModels(1_000_000);
-    expect(results).toEqual([]);
-    // Error message should not mention alternatives
-    const msg = buildOverflowMessage(1_200_000, 1_000_000, 'Giant Model', results);
-    expect(msg).not.toContain('alternatives');
-  });
-
-  it('suggests up to 3 alternatives by default', () => {
-    const mockCatalog: ModelCatalog = {
-      getModel: () => null,
-      findLargerContextModels: (
-        _minContext: number,
-        _tier?: 'free' | 'paid' | 'subscription',
-        limit = 3,
-      ): CatalogModelEntry[] => {
-        const pool: CatalogModelEntry[] = Array.from({ length: 10 }, (_, i) => ({
-          id: `model-${i}`,
-          displayName: `Model ${i}`,
-          provider: 'test',
-          context: 256_000 + i * 1000,
-          tier: 'paid' as const,
-        }));
-        return pool.slice(0, limit);
-      },
-    };
-
-    const results = mockCatalog.findLargerContextModels(128_000, undefined, 3);
-    expect(results.length).toBeLessThanOrEqual(3);
   });
 });

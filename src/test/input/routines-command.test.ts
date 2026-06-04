@@ -335,7 +335,7 @@ describe('/routines command', () => {
       const promotionText = out.join('\n');
       const receiptId = promotionText.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
       expect(promotionText).toContain('Created GoodVibes schedule for Agent routine');
-      expect(receiptId).toBeTruthy();
+      expect(receiptId).toEqual(expect.stringMatching(/^routine-schedule-[a-z0-9-]+$/));
 
       await registry.execute('schedule', ['receipts'], ctx);
       await registry.execute('schedule', ['receipt', receiptId!], ctx);
@@ -352,7 +352,9 @@ describe('/routines command', () => {
       expect(receiptText).toContain('Agent routine schedule reconciliation');
       expect(receiptText).toContain('matched: 1');
       expect(receiptText).toContain('live=sched-1');
-      expect(requests.some((request) => request.method === 'GET' && request.url === 'http://127.0.0.1:3421/api/automation/schedules')).toBe(true);
+      expect(requests.map((request) => `${request.method} ${request.url}`)).toContain(
+        'GET http://127.0.0.1:3421/api/automation/schedules',
+      );
     } finally {
       globalThis.fetch = originalFetch;
     }

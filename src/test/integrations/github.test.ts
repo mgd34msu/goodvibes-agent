@@ -18,6 +18,11 @@ function makeHeaders(event: string, extra: Record<string, string> = {}): Headers
   return h;
 }
 
+function expectPrompt(prompt: string | null): string {
+  expect(prompt).not.toBeNull();
+  return prompt!;
+}
+
 // ---------------------------------------------------------------------------
 // verifySignature
 // ---------------------------------------------------------------------------
@@ -125,11 +130,13 @@ describe('GitHubIntegration.eventToPrompt', () => {
 
     test('returns a prompt for opened PR', () => {
       const event: GitHubWebhookEvent = { type: 'pull_request', action: 'opened', payload: basePayload };
-      const prompt = GitHubIntegration.eventToPrompt(event);
-      expect(prompt).not.toBeNull();
+      const prompt = expectPrompt(GitHubIntegration.eventToPrompt(event));
       expect(prompt).toContain('PR #42');
       expect(prompt).toContain('Fix the thing');
       expect(prompt).toContain('owner/repo');
+      expect(prompt).toContain('Base: main');
+      expect(prompt).toContain('Head: fix/thing');
+      expect(prompt).toContain('Diff URL: https://github.com/owner/repo/pull/42.diff');
     });
 
     test('returns a prompt for synchronize action', () => {
@@ -138,8 +145,9 @@ describe('GitHubIntegration.eventToPrompt', () => {
         action: 'synchronize',
         payload: { ...basePayload, action: 'synchronize' },
       };
-      const prompt = GitHubIntegration.eventToPrompt(event);
-      expect(prompt).not.toBeNull();
+      const prompt = expectPrompt(GitHubIntegration.eventToPrompt(event));
+      expect(prompt).toContain('Pull Request synchronize');
+      expect(prompt).toContain('PR #42');
     });
 
     test('returns a prompt for review_requested action', () => {
@@ -148,9 +156,9 @@ describe('GitHubIntegration.eventToPrompt', () => {
         action: 'review_requested',
         payload: { ...basePayload, action: 'review_requested' },
       };
-      const prompt = GitHubIntegration.eventToPrompt(event);
-      expect(prompt).not.toBeNull();
+      const prompt = expectPrompt(GitHubIntegration.eventToPrompt(event));
       expect(prompt).toContain('review requested');
+      expect(prompt).toContain('After analysis, post a review comment on PR #42 of owner/repo.');
     });
 
     test('returns null for unhandled PR action (closed)', () => {
@@ -182,11 +190,11 @@ describe('GitHubIntegration.eventToPrompt', () => {
 
     test('returns a prompt for opened issue', () => {
       const event: GitHubWebhookEvent = { type: 'issues', action: 'opened', payload: basePayload };
-      const prompt = GitHubIntegration.eventToPrompt(event);
-      expect(prompt).not.toBeNull();
+      const prompt = expectPrompt(GitHubIntegration.eventToPrompt(event));
       expect(prompt).toContain('Issue #7');
       expect(prompt).toContain('Something is broken');
       expect(prompt).toContain('bug');
+      expect(prompt).toContain('Post a comment on issue #7 of owner/repo with your analysis.');
     });
 
     test('returns null for unhandled issue action (labeled)', () => {
@@ -209,10 +217,11 @@ describe('GitHubIntegration.eventToPrompt', () => {
         repository: { full_name: 'owner/repo' },
       };
       const event: GitHubWebhookEvent = { type: 'check_run', action: 'completed', payload };
-      const prompt = GitHubIntegration.eventToPrompt(event);
-      expect(prompt).not.toBeNull();
+      const prompt = expectPrompt(GitHubIntegration.eventToPrompt(event));
       expect(prompt).toContain('CI / typecheck');
       expect(prompt).toContain('owner/repo');
+      expect(prompt).toContain('abcdef12');
+      expect(prompt).toContain('Type errors found');
     });
 
     test('returns null for successful check_run', () => {
@@ -242,10 +251,11 @@ describe('GitHubIntegration.eventToPrompt', () => {
         repository: { full_name: 'owner/repo' },
       };
       const event: GitHubWebhookEvent = { type: 'push', action: '', payload };
-      const prompt = GitHubIntegration.eventToPrompt(event);
-      expect(prompt).not.toBeNull();
+      const prompt = expectPrompt(GitHubIntegration.eventToPrompt(event));
       expect(prompt).toContain('refs/heads/main');
       expect(prompt).toContain('abc12345');
+      expect(prompt).toContain('def67890');
+      expect(prompt).toContain('fix: correct bug');
     });
 
     test('returns null for push to non-main branch', () => {
@@ -268,10 +278,10 @@ describe('GitHubIntegration.eventToPrompt', () => {
         repository: { full_name: 'owner/repo' },
       };
       const event: GitHubWebhookEvent = { type: 'issue_comment', action: 'created', payload };
-      const prompt = GitHubIntegration.eventToPrompt(event);
-      expect(prompt).not.toBeNull();
+      const prompt = expectPrompt(GitHubIntegration.eventToPrompt(event));
       expect(prompt).toContain('PR');
       expect(prompt).toContain('#12');
+      expect(prompt).toContain('Hey @goodvibes can you review this?');
     });
 
     test('returns null when comment does not mention bot', () => {

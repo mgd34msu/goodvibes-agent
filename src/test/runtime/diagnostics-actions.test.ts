@@ -369,12 +369,10 @@ describe('HighSeverityDiagnostic factory helpers', () => {
     });
     expect(diag.severity).toBe('error');
     expect(diag.actions.length).toBeGreaterThanOrEqual(1);
-    // Must include a retry action
-    const retryAction = diag.actions.find((a) => a.type === 'retry-task');
-    expect(retryAction).toBeDefined();
-    // Must include a navigation action
-    const jumpAction = diag.actions.find((a) => a.type === 'jump-to-task');
-    expect(jumpAction).toBeDefined();
+    expect(diag.actions).toEqual([
+      buildRetryTaskAction('task-1', 'Diagnostic retry'),
+      buildJumpToTaskAction('task-1'),
+    ]);
   });
 
   test('diagnosticFromAgentFailure produces non-empty actions', () => {
@@ -386,10 +384,10 @@ describe('HighSeverityDiagnostic factory helpers', () => {
     });
     expect(diag.severity).toBe('error');
     expect(diag.actions.length).toBeGreaterThanOrEqual(1);
-    const cancelAction = diag.actions.find((a) => a.type === 'cancel-agent');
-    expect(cancelAction).toBeDefined();
-    const jumpAction = diag.actions.find((a) => a.type === 'jump-to-agent');
-    expect(jumpAction).toBeDefined();
+    expect(diag.actions).toEqual([
+      buildCancelAgentAction('agent-1', 'Diagnostic cancel'),
+      buildJumpToAgentAction('agent-1'),
+    ]);
   });
 
   test('diagnosticFromToolContractViolation produces non-empty actions', () => {
@@ -400,8 +398,9 @@ describe('HighSeverityDiagnostic factory helpers', () => {
     });
     expect(diag.severity).toBe('error');
     expect(diag.actions.length).toBeGreaterThanOrEqual(1);
-    const simAction = diag.actions.find((a) => a.type === 'run-policy-simulation');
-    expect(simAction).toBeDefined();
+    expect(diag.actions).toEqual([
+      buildRunPolicySimulationAction('write', {}),
+    ]);
   });
 
   test('diagnosticFromToolContractViolation includes jump-to-tool-call when callId provided', () => {
@@ -411,8 +410,10 @@ describe('HighSeverityDiagnostic factory helpers', () => {
       callId: 'call-42',
       ...COMMON,
     });
-    const jumpAction = diag.actions.find((a) => a.type === 'jump-to-tool-call');
-    expect(jumpAction).toBeDefined();
+    expect(diag.actions).toEqual([
+      buildRunPolicySimulationAction('exec', {}),
+      buildJumpToToolCallAction('call-42'),
+    ]);
   });
 
   test('diagnosticFromForensicsRun produces non-empty actions with load-replay', () => {
@@ -423,8 +424,9 @@ describe('HighSeverityDiagnostic factory helpers', () => {
     });
     expect(diag.severity).toBe('error');
     expect(diag.actions.length).toBeGreaterThanOrEqual(1);
-    const replayAction = diag.actions.find((a) => a.type === 'load-replay');
-    expect(replayAction).toBeDefined();
+    expect(diag.actions).toEqual([
+      buildLoadReplayAction('run-007'),
+    ]);
   });
 
   test('all factory-produced diagnostics have non-empty actions (acceptance criterion)', () => {

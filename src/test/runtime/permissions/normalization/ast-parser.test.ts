@@ -40,8 +40,10 @@ describe('parseCommandAST — simple commands', () => {
     expect(node.command).toBe('ls');
     expect(node.flags).toContain('-la');
     // /tmp is classified as a 'path' token by the tokenizer, not 'argument'
-    const pathToken = node.tokens.find((t) => t.type === 'path' && t.value === '/tmp');
-    expect(pathToken).toBeDefined();
+    expect(node.tokens.find((t) => t.type === 'path' && t.value === '/tmp')).toEqual(expect.objectContaining({
+      type: 'path',
+      value: '/tmp',
+    }));
   });
 
   it('parses an empty string to an empty command node', () => {
@@ -64,9 +66,10 @@ describe('parseCommandAST — simple commands', () => {
     expect(ast.kind).toBe('command');
     const node = ast as CommandNode;
     // path-typed token should be in the token list
-    const pathToken = node.tokens.find((t) => t.value === '/usr/bin/grep');
-    expect(pathToken).toBeDefined();
-    expect(pathToken?.type).toBe('path');
+    expect(node.tokens.find((t) => t.value === '/usr/bin/grep')).toEqual(expect.objectContaining({
+      type: 'path',
+      value: '/usr/bin/grep',
+    }));
   });
 });
 
@@ -186,20 +189,18 @@ describe('parseCommandAST — subshell expressions', () => {
     expect(ast.kind).toBe('subshell');
     const sub = ast as SubshellNode;
     expect(sub.raw).toBe('`ls -la`');
-    expect(sub.inner).toBeDefined();
-    if (sub.inner) {
-      const innerNodes = collectCommandNodes(sub.inner);
-      expect(innerNodes.length).toBeGreaterThan(0);
-      expect(innerNodes[0]!.command).toBe('ls');
-    }
+    expect(sub.inner).toEqual(expect.objectContaining({ kind: 'command' }));
+    const innerNodes = collectCommandNodes(sub.inner);
+    expect(innerNodes.map((node) => node.command)).toEqual(['ls']);
   });
 
   it('handles nested subshell $(cmd) — tokenizer extracts as subshell token', () => {
     // The tokenizer may not handle $(...) perfectly in all positions;
     // we verify no crash and some structure is produced.
     const ast = parseCommandAST('echo $(date +%s)');
-    expect(ast).toBeDefined();
-    expect(ast.kind).toBeDefined();
+    expect(ast).toEqual(expect.objectContaining({
+      kind: expect.any(String),
+    }));
   });
 });
 
@@ -212,8 +213,10 @@ describe('parseCommandAST — redirects', () => {
     const node = ast as CommandNode;
     expect(node.command).toBe('echo');
     // redirect token is present in the token list
-    const hasRedirect = node.tokens.some((t) => t.type === 'redirect');
-    expect(hasRedirect).toBe(true);
+    expect(node.tokens.find((t) => t.type === 'redirect')).toEqual(expect.objectContaining({
+      type: 'redirect',
+      value: '>',
+    }));
   });
 
   it('parses command with append redirect', () => {
@@ -267,7 +270,6 @@ describe('parseAST — from token list', () => {
 
     const result = parseAST([poisonToken]);
     expect(result.kind).toBe('command');
-    expect((result as CommandNode).parseError).toBeDefined();
-    expect(typeof (result as CommandNode).parseError).toBe('string');
+    expect((result as CommandNode).parseError).toBe('synthetic token error for parseError coverage');
   });
 });

@@ -15,7 +15,7 @@ function textLines(lines: import('../../types/grid.ts').Line[]): string[] {
 describe('renderMarkdown', () => {
   test('returns Line array', () => {
     const result = renderMarkdown('hello', WIDTH);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
     expect(result.length).toBeGreaterThan(0);
   });
 
@@ -41,7 +41,7 @@ describe('renderMarkdown', () => {
   test('renders H2 heading with underline', () => {
     const result = renderMarkdown('## Section Header', WIDTH);
     const texts = textLines(result);
-    expect(texts.some((t) => t.includes('Section Header'))).toBe(true);
+    expect(texts.join('\n')).toContain('Section Header');
     // H2 produces 2 lines (text + rule)
     expect(texts.length).toBeGreaterThanOrEqual(2);
   });
@@ -92,25 +92,33 @@ describe('renderMarkdown', () => {
   test('handles unclosed code block gracefully', () => {
     const md = '```ts\nconst x = 1;';
     const result = renderMarkdown(md, WIDTH);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual(expect.any(Array));
     const text = textLines(result).join('\n');
     expect(text).toContain('x');
   });
 
   test('handles empty string input', () => {
     const result = renderMarkdown('', WIDTH);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(1);
+    const [blankLine] = result;
+    if (blankLine === undefined) {
+      throw new Error('Expected blank markdown line for empty input');
+    }
+    expect(blankLine).toHaveLength(WIDTH);
+    expect(lineText(blankLine)).toBe('');
   });
 
   test('H1 heading cells are bold', () => {
     const result = renderMarkdown('# Bold Title', WIDTH);
     // First non-space, non-empty line should have bold cells
     const firstContentLine = result.find((l) =>
-      l.some((c) => c.char !== ' ' && c.char !== '')
+      l.find((c) => c.char !== ' ' && c.char !== '') !== undefined
     );
-    expect(firstContentLine).toBeDefined();
-    const contentCells = firstContentLine!.filter((c) => c.char !== ' ' && c.char !== '');
-    expect(contentCells.some((c) => c.bold)).toBe(true);
+    if (firstContentLine === undefined) {
+      throw new Error('Expected H1 content line');
+    }
+    const contentCells = firstContentLine.filter((c) => c.char !== ' ' && c.char !== '');
+    expect(contentCells.map((c) => c.bold)).toContain(true);
   });
 });
 
@@ -168,31 +176,43 @@ describe('renderInlineMarkdown', () => {
   test('returns text token for plain text', () => {
     const tokens = renderInlineMarkdown('hello');
     expect(tokens.length).toBeGreaterThan(0);
-    expect(tokens.some((t) => t.type === 'text' && t.text.includes('hello'))).toBe(true);
+    expect(tokens).toContainEqual(expect.objectContaining({
+      type: 'text',
+      text: expect.stringContaining('hello'),
+    }));
   });
 
   test('identifies bold tokens (type=text with bold style)', () => {
     const tokens = renderInlineMarkdown('**bold**');
     // Bold is represented as { type: 'text', style: { bold: true } }
-    expect(tokens.some((t) => t.type === 'text' && (t as { style?: { bold?: boolean } }).style?.bold === true)).toBe(true);
+    expect(tokens).toContainEqual(expect.objectContaining({
+      type: 'text',
+      style: expect.objectContaining({ bold: true }),
+    }));
   });
 
   test('identifies italic tokens (type=text with italic style)', () => {
     const tokens = renderInlineMarkdown('_italic_');
     // Italic is represented as { type: 'text', style: { italic: true } }
-    expect(tokens.some((t) => t.type === 'text' && (t as { style?: { italic?: boolean } }).style?.italic === true)).toBe(true);
+    expect(tokens).toContainEqual(expect.objectContaining({
+      type: 'text',
+      style: expect.objectContaining({ italic: true }),
+    }));
   });
 
   test('identifies inline code tokens', () => {
     const tokens = renderInlineMarkdown('`code`');
-    expect(tokens.some((t) => t.type === 'code')).toBe(true);
+    expect(tokens.map((t) => t.type)).toContain('code');
   });
 
   test('handles mixed inline markdown', () => {
     const tokens = renderInlineMarkdown('text **bold** and `code`');
-    expect(tokens.some((t) => t.type === 'text')).toBe(true);
+    expect(tokens.map((t) => t.type)).toContain('text');
     // Bold produces a text token with bold style
-    expect(tokens.some((t) => t.type === 'text' && (t as { style?: { bold?: boolean } }).style?.bold === true)).toBe(true);
-    expect(tokens.some((t) => t.type === 'code')).toBe(true);
+    expect(tokens).toContainEqual(expect.objectContaining({
+      type: 'text',
+      style: expect.objectContaining({ bold: true }),
+    }));
+    expect(tokens.map((t) => t.type)).toContain('code');
   });
 });

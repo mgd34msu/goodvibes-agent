@@ -90,8 +90,8 @@ describe('builtin memory embedding HTTP providers', () => {
     const providers = createBuiltinMemoryEmbeddingProviders({ fetchImpl });
     const openai = providers.find((provider) => provider.id === 'openai');
     const openaiCompatible = providers.find((provider) => provider.id === 'openai-compatible');
-    expect(openai).toBeTruthy();
-    expect(openaiCompatible).toBeTruthy();
+    expect(openai).toEqual(expect.objectContaining({ id: 'openai' }));
+    expect(openaiCompatible).toEqual(expect.objectContaining({ id: 'openai-compatible' }));
     const openaiProvider = requireAsyncEmbeddingProvider(openai);
     const openaiCompatibleProvider = requireAsyncEmbeddingProvider(openaiCompatible);
 
@@ -161,9 +161,9 @@ describe('builtin memory embedding HTTP providers', () => {
     const gemini = providers.find((provider) => provider.id === 'gemini');
     const mistral = providers.find((provider) => provider.id === 'mistral');
     const ollama = providers.find((provider) => provider.id === 'ollama');
-    expect(gemini).toBeTruthy();
-    expect(mistral).toBeTruthy();
-    expect(ollama).toBeTruthy();
+    expect(gemini).toEqual(expect.objectContaining({ id: 'gemini' }));
+    expect(mistral).toEqual(expect.objectContaining({ id: 'mistral' }));
+    expect(ollama).toEqual(expect.objectContaining({ id: 'ollama' }));
     const geminiProvider = requireAsyncEmbeddingProvider(gemini);
     const mistralProvider = requireAsyncEmbeddingProvider(mistral);
     const ollamaProvider = requireAsyncEmbeddingProvider(ollama);
@@ -187,8 +187,10 @@ describe('builtin memory embedding HTTP providers', () => {
     expect(geminiResult.vector.length).toBe(4);
     expect(mistralResult.vector.length).toBe(4);
     expect(ollamaResult.vector.length).toBe(3);
-    expect(calls.some((call) => call.url.includes('gemini-embedding-001:embedContent'))).toBe(true);
-    expect(calls.some((call) => call.url.includes('/embeddings'))).toBe(true);
-    expect(calls.some((call) => call.url.endsWith('/api/embed'))).toBe(true);
+    expect(calls.map((call) => call.url)).toEqual([
+      expect.stringContaining('gemini-embedding-001:embedContent'),
+      'https://api.mistral.test/v1/embeddings',
+      'http://127.0.0.1:11434/api/embed',
+    ]);
   });
 });

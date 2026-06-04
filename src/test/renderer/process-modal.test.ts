@@ -137,7 +137,7 @@ describe('renderProcessModal', () => {
     const text = linesToText(lines).join('\n');
     expect(text).toContain('Task B');
     const selectedCell = lines.flat().find((cell) => cell.bg === UI_TONES.bg.selected);
-    expect(selectedCell).toBeDefined();
+    expect(selectedCell).toEqual(expect.objectContaining({ bg: UI_TONES.bg.selected }));
   });
 
   test('footer contains process-specific hint text', () => {

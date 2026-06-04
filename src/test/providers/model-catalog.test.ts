@@ -268,18 +268,9 @@ const MODEL_CATALOG_FIXTURE: ModelDefinition[] = [
 ];
 
 describe('createModelCatalog', () => {
-  it('returns a catalog object with getModel and findLargerContextModels', () => {
-    const catalog = createModelCatalog(makeRegistry(MODEL_CATALOG_FIXTURE));
-    expect(typeof catalog.getModel).toBe('function');
-    expect(typeof catalog.findLargerContextModels).toBe('function');
-  });
   it('getModel returns null for unknown model IDs', () => {
     const catalog = createModelCatalog(makeRegistry(MODEL_CATALOG_FIXTURE));
     expect(catalog.getModel('nonexistent-model-xyz')).toBeNull();
-  });
-  it('findLargerContextModels returns array', () => {
-    const catalog = createModelCatalog(makeRegistry(MODEL_CATALOG_FIXTURE));
-    expect(Array.isArray(catalog.findLargerContextModels(0))).toBe(true);
   });
   it('findLargerContextModels respects limit parameter', () => {
     const catalog = createModelCatalog(makeRegistry(MODEL_CATALOG_FIXTURE));

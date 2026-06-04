@@ -143,7 +143,7 @@ function makeRegistry(): MemoryRegistry {
     },
     importBundle: async (bundle: MemoryBundle) => {
       for (const record of bundle.records as Array<typeof records[number]>) {
-        if (!records.some((entry) => entry.id === record.id)) {
+        if (records.find((entry) => entry.id === record.id) === undefined) {
           records.push({ ...record });
         }
       }
@@ -265,7 +265,7 @@ describe('recallCommand', () => {
       forensicsRegistry,
     }));
 
-    expect(printed.some((line) => line.includes('Captured incident incident-1 into memory'))).toBe(true);
+    expect(printed.join('\n')).toContain('Captured incident incident-1 into memory');
   });
 
   test('captures the latest policy preflight review into memory', async () => {
@@ -291,7 +291,7 @@ describe('recallCommand', () => {
       mcpRegistry: { listServerSecurity: () => [] } as never,
     }));
 
-    expect(printed.some((line) => line.includes('Captured policy preflight into memory'))).toBe(true);
+    expect(printed.join('\n')).toContain('Captured policy preflight into memory');
   });
 
   test('captures MCP security posture into memory', async () => {
@@ -313,7 +313,7 @@ describe('recallCommand', () => {
       } as never,
     }));
 
-    expect(printed.some((line) => line.includes('Captured MCP server ops into memory'))).toBe(true);
+    expect(printed.join('\n')).toContain('Captured MCP server ops into memory');
   });
 
   test('promotes a record to team scope and exports a handoff bundle', async () => {
@@ -325,7 +325,7 @@ describe('recallCommand', () => {
       forensicsRegistry,
     }));
 
-    expect(printed.some((line) => line.includes('Refusing to promote durable memory record mem-1 to team scope without --yes'))).toBe(true);
+    expect(printed.join('\n')).toContain('Refusing to promote durable memory record mem-1 to team scope without --yes');
     expect(registry.get('mem-1')?.scope).toBe('project');
 
     printed.length = 0;
@@ -334,7 +334,7 @@ describe('recallCommand', () => {
       forensicsRegistry,
     }));
 
-    expect(printed.some((line) => line.includes('Promoted mem-1 to team scope'))).toBe(true);
+    expect(printed.join('\n')).toContain('Promoted mem-1 to team scope');
 
     const dir = mkdtempSync(join(tmpdir(), 'gv-memory-handoff-'));
     const bundlePath = join(dir, 'team-handoff.json');
@@ -348,7 +348,7 @@ describe('recallCommand', () => {
       forensicsRegistry,
       shellPaths,
     }));
-    expect(printed.some((line) => line.includes('Refusing to export memory handoff bundle'))).toBe(true);
+    expect(printed.join('\n')).toContain('Refusing to export memory handoff bundle');
     expect(existsSync(bundlePath)).toBe(false);
 
     printed.length = 0;
@@ -357,7 +357,7 @@ describe('recallCommand', () => {
       forensicsRegistry,
       shellPaths,
     }));
-    expect(printed.some((line) => line.includes('Exported team handoff bundle'))).toBe(true);
+    expect(printed.join('\n')).toContain('Exported team handoff bundle');
     expect(existsSync(bundlePath)).toBe(true);
     expect(readFileSync(bundlePath, 'utf-8')).toContain('"scope": "team"');
   });
@@ -384,7 +384,7 @@ describe('recallCommand', () => {
       forensicsRegistry,
     }));
 
-    expect(printed.some((line) => line.includes('Reviewed mem-1: stale'))).toBe(true);
+    expect(printed.join('\n')).toContain('Reviewed mem-1: stale');
     expect(registry.get('mem-1')?.reviewState).toBe('stale');
     expect(registry.get('mem-1')?.staleReason).toContain('operator revalidation needed');
   });

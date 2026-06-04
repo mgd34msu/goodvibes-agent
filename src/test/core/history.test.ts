@@ -110,7 +110,7 @@ describe('InfiniteBuffer', () => {
       const snapshot = buffer.getSnapshot(10, 4, WIDTH);
       expect(snapshot).toHaveLength(4);
       for (const line of snapshot) {
-        expect(line.every((c) => c.char === ' ')).toBe(true);
+        expect(line.map((c) => c.char)).toEqual(Array(line.length).fill(' '));
       }
     });
   });

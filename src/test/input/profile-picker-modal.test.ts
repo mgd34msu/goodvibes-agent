@@ -117,7 +117,8 @@ describe('ProfilePickerModal', () => {
   test('saveCurrentAs with empty name returns false', () => {
     const result = modal.saveCurrentAs('', cm);
     expect(result).toBe(false);
-    expect(modal.statusMessage).toBeTruthy();
+    expect(modal.statusMessage).toEqual(expect.any(String));
+    expect(modal.statusMessage.length).toBeGreaterThan(0);
   });
 
   test('deleteSelected points to Agent profile homes before removal', () => {
@@ -129,7 +130,7 @@ describe('ProfilePickerModal', () => {
     expect(modal.deleteConfirmationTarget).toBeNull();
     expect(modal.statusMessage).toContain('Config-profile deletion is disabled');
     expect(modal.statusMessage).toContain('Agent Workspace -> Profiles');
-    expect(pm.list().some((profile) => profile.name === 'test-profile')).toBe(true);
+    expect(pm.list().map((profile) => profile.name)).toContain('test-profile');
   });
 
   test('loadSelected on missing profile returns false with status message', () => {

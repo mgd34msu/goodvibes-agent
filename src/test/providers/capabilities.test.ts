@@ -192,7 +192,7 @@ describe('ProviderCapabilityRegistry.getRouteExplanation', () => {
     expect(result.providerId).toBe('anthropic');
     expect(result.modelId).toBe('claude-3-haiku-20240307');
     expect(result.summary).toContain('accepted');
-    expect(result.capability).toBeDefined();
+    expect(Object.keys(result)).toContain('capability');
     if (result.accepted) {
       // Discriminated union: no rejections field on accepted branch
       expect('rejections' in result).toBe(false);

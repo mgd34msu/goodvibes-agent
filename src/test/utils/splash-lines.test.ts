@@ -12,7 +12,7 @@ describe('splash lines', () => {
 
   test('wide splash remains within the available width', () => {
     const lines = getSplashLines(120);
-    expect(lines.every((line) => getDisplayWidth(line) <= 120)).toBe(true);
+    expect(lines.filter((line) => getDisplayWidth(line) > 120)).toEqual([]);
   });
 
   test('wide splash is padded to center horizontally when it fits', () => {

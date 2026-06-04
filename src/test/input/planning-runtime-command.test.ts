@@ -114,7 +114,7 @@ function makeContext(
 }
 
 describe('/plan project planning runtime command', () => {
-  test('seeding a plan persists the first SDK next question as open state', async () => {
+  test('seeding a plan persists the first planning service question as open state', async () => {
     const registry = new CommandRegistry();
     registerPlanningRuntimeCommands(registry);
     const out: string[] = [];
@@ -167,7 +167,7 @@ describe('/plan project planning runtime command', () => {
     expect(out.join('\n')).toContain('Use /plan status or /plan list');
   });
 
-  test('/plan override and clear require --yes before calling the planner runtime bridge', async () => {
+  test('/plan override and clear require --yes before calling the planner runtime route', async () => {
     const registry = new CommandRegistry();
     registerPlanningRuntimeCommands(registry);
     const out: string[] = [];

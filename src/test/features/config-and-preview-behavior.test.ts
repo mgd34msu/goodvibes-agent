@@ -77,7 +77,7 @@ describe('config diff logic', () => {
     }
     expect(diffLines.length).toBeGreaterThan(0);
     const line = diffLines.find(l => l.includes('display.collapseThreshold'));
-    expect(line).toBeDefined();
+    expect(line).toEqual(expect.stringContaining('display.collapseThreshold'));
     // Should contain the default (30) and new value (50)
     expect(line).toContain('30');
     expect(line).toContain('50');

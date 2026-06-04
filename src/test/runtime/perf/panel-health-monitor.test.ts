@@ -324,7 +324,7 @@ describe('PanelResourcesPanel: diagnostics snapshot', () => {
     const snap = provider.refresh(2000);
 
     expect(snap.panels).toHaveLength(2);
-    expect(snap.panels.some((p) => p.componentId === 'diag-panel-1')).toBe(true);
+    expect(snap.panels.map((panel) => panel.componentId)).toContain('diag-panel-1');
     expect(snap.capturedAt).toBe(2000);
     provider.dispose();
   });

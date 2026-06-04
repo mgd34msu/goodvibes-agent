@@ -443,17 +443,28 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
 
   describe('DEFAULT_CONFIG shape', () => {
     test('DEFAULT_CONFIG.orchestration and danger have all required keys', () => {
-      expect(DEFAULT_CONFIG.orchestration).toBeDefined();
+      expect(DEFAULT_CONFIG.orchestration).toEqual(expect.objectContaining({
+        recursionEnabled: expect.any(Boolean),
+        maxActiveAgents: expect.any(Number),
+        maxDepth: expect.any(Number),
+      }));
       expect(typeof DEFAULT_CONFIG.orchestration.recursionEnabled).toBe('boolean');
       expect(typeof DEFAULT_CONFIG.orchestration.maxActiveAgents).toBe('number');
       expect(typeof DEFAULT_CONFIG.orchestration.maxDepth).toBe('number');
-      expect(DEFAULT_CONFIG.danger).toBeDefined();
+      expect(DEFAULT_CONFIG.danger).toEqual(expect.objectContaining({
+        daemon: expect.any(Boolean),
+        httpListener: expect.any(Boolean),
+      }));
       expect(typeof DEFAULT_CONFIG.danger.daemon).toBe('boolean');
       expect(typeof DEFAULT_CONFIG.danger.httpListener).toBe('boolean');
     });
 
     test('DEFAULT_CONFIG.tools has all required keys', () => {
-      expect(DEFAULT_CONFIG.tools).toBeDefined();
+      expect(DEFAULT_CONFIG.tools).toEqual(expect.objectContaining({
+        llmProvider: expect.any(String),
+        llmModel: expect.any(String),
+        autoHeal: expect.any(Boolean),
+      }));
       expect(typeof DEFAULT_CONFIG.tools.llmProvider).toBe('string');
       expect(typeof DEFAULT_CONFIG.tools.llmModel).toBe('string');
       expect(typeof DEFAULT_CONFIG.tools.autoHeal).toBe('boolean');

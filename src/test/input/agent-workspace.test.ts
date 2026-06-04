@@ -270,8 +270,10 @@ describe('AgentWorkspace', () => {
     ]);
 
     const missingWorkspaceAccess = registry.list()
-      .filter((command) => !workspaceCommandRoots.has(command.name)
-        && !(command.aliases ?? []).some((alias) => workspaceCommandRoots.has(alias)))
+      .filter((command) => {
+        const matchingAliases = (command.aliases ?? []).filter((alias) => workspaceCommandRoots.has(alias));
+        return !workspaceCommandRoots.has(command.name) && matchingAliases.length === 0;
+      })
       .map((command) => command.name)
       .filter((name) => !shellOnlyCommands.has(name))
       .sort();
@@ -495,7 +497,7 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'knowledge');
 
     expect(workspace.actionSearchQuery).toBe('agent knowledge');
-    expect(workspace.actions.some((action) => action.id === 'knowledge-status')).toBe(true);
+    expect(workspace.actions.map((action) => action.id)).toContain('knowledge-status');
   });
 
   test('search no-match and escape stay inside the workspace', () => {
@@ -2823,7 +2825,9 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
     feedText(workspace, 'wrong-id');
     feedKey(workspace, 'enter');
-    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).get(persona.id)).not.toBeNull();
+    expect(AgentPersonaRegistry.fromShellPaths(shellPaths).get(persona.id)).toEqual(expect.objectContaining({
+      id: persona.id,
+    }));
     expect(workspace.localEditor?.message).toContain('Deletion not confirmed');
     while (workspace.localEditor?.fields[0]?.value) feedKey(workspace, 'backspace');
     feedText(workspace, persona.id);

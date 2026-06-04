@@ -68,7 +68,7 @@ describe('/config fullscreen workspace command', () => {
       registerConfigCommand(registry);
 
       const command = registry.get('config');
-      expect(command).toBeDefined();
+      expect(command).toEqual(expect.objectContaining({ name: 'config' }));
       expect(registry.get('cfg')).toBe(command);
       expect(registry.get('config-old')).toBeUndefined();
       expect(registry.get('cfg-old')).toBeUndefined();
@@ -83,7 +83,7 @@ describe('/config fullscreen workspace command', () => {
     }
   });
 
-  test('the fullscreen workspace includes every SDK config key previously reachable through raw config', () => {
+  test('the fullscreen workspace includes every shared config key previously reachable through raw config', () => {
     const dir = join(tmpdir(), `gv-config-coverage-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     mkdirSync(dir, { recursive: true });
     try {

@@ -105,7 +105,9 @@ describe('ChannelPolicyManager', () => {
     expect(channel.allowed).toBe(true);
 
     const audit = manager.listAudit(10);
-    expect(audit.some((entry) => entry.groupId === 'group-1' && entry.conversationKind === 'channel')).toBe(true);
+    expect(audit).toEqual(expect.arrayContaining([
+      expect.objectContaining({ groupId: 'group-1', conversationKind: 'channel' }),
+    ]));
   });
 
   test('allows authorized control commands to bypass mention gating when configured', async () => {

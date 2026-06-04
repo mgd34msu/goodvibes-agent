@@ -60,10 +60,10 @@ describe('ProjectIndex', () => {
   describe('upsertFile and getFile', () => {
     test('upsertFile adds a new entry', () => {
       index.upsertFile('src/main.ts', 100);
-      const entry = index.getFile('src/main.ts');
-      expect(entry).not.toBeNull();
-      expect(entry!.path).toBe('src/main.ts');
-      expect(entry!.tokens).toBe(100);
+      expect(index.getFile('src/main.ts')).toEqual(expect.objectContaining({
+        path: 'src/main.ts',
+        tokens: 100,
+      }));
     });
 
     test('upsertFile updates existing entry', () => {
@@ -79,7 +79,10 @@ describe('ProjectIndex', () => {
 
     test('normalizes ./ prefix', () => {
       index.upsertFile('./src/main.ts', 50);
-      expect(index.getFile('src/main.ts')).not.toBeNull();
+      expect(index.getFile('src/main.ts')).toEqual(expect.objectContaining({
+        path: 'src/main.ts',
+        tokens: 50,
+      }));
     });
   });
 
@@ -188,9 +191,14 @@ describe('ProjectIndex', () => {
       const index2 = getTestProjectIndex(tmpDir);
       await index2.load();
 
-      expect(index2.getFile('src/main.ts')).not.toBeNull();
-      expect(index2.getFile('src/main.ts')!.tokens).toBe(450);
-      expect(index2.getFile('src/config/schema.ts')!.tokens).toBe(280);
+      expect(index2.getFile('src/main.ts')).toEqual(expect.objectContaining({
+        path: 'src/main.ts',
+        tokens: 450,
+      }));
+      expect(index2.getFile('src/config/schema.ts')).toEqual(expect.objectContaining({
+        path: 'src/config/schema.ts',
+        tokens: 280,
+      }));
       await index2.forceFlush().catch(() => {});
       resetTestProjectIndexes();
     });
@@ -202,10 +210,13 @@ describe('ProjectIndex', () => {
       const { readFileSync } = require('fs');
       const raw = readFileSync(join(tmpDir, '.goodvibes', 'project-index.json'), 'utf-8');
       const disk = JSON.parse(raw);
-      expect(disk.version).toBe(4);
       // Tree should have nested dir structure
-      expect(disk.tree).toBeDefined();
-      expect(disk.tree['src/']).toBeDefined();
+      expect(disk).toEqual(expect.objectContaining({
+        version: 4,
+        tree: expect.objectContaining({
+          'src/': expect.any(Object),
+        }),
+      }));
     });
 
     test('load is a no-op when no index file exists', async () => {
@@ -240,7 +251,10 @@ describe('ProjectIndex', () => {
       index.upsertFile('b.ts', 2);
       const files = index.getFiles();
       expect(files).toHaveLength(2);
-      expect(files.every(f => typeof f.path === 'string' && typeof f.tokens === 'number')).toBe(true);
+      expect(files).toEqual(expect.arrayContaining([
+        expect.objectContaining({ path: 'a.ts', tokens: 1 }),
+        expect.objectContaining({ path: 'b.ts', tokens: 2 }),
+      ]));
     });
   });
 });
@@ -272,8 +286,12 @@ describe('ProjectIndex.dispose', () => {
     expect(existsSync(indexPath)).toBe(true);
     const { readFileSync } = require('fs');
     const disk = JSON.parse(readFileSync(indexPath, 'utf-8'));
-    expect(disk.version).toBe(4);
-    expect(disk.tree).toBeDefined();
+    expect(disk).toEqual(expect.objectContaining({
+      version: 4,
+      tree: expect.objectContaining({
+        'src/': expect.any(Object),
+      }),
+    }));
   });
 
   test('dispose with no pending writes is safe', async () => {
@@ -305,20 +323,27 @@ describe('ProjectIndex normalizePath (absolute paths)', () => {
     const absPath = join(tmpDir, 'src', 'main.ts');
     index.upsertFile(absPath, 100);
     // Should be stored as relative path
-    expect(index.getFile('src/main.ts')).not.toBeNull();
-    expect(index.getFile('src/main.ts')!.tokens).toBe(100);
+    expect(index.getFile('src/main.ts')).toEqual(expect.objectContaining({
+      path: 'src/main.ts',
+      tokens: 100,
+    }));
   });
 
   test('getFile with absolute path resolves correctly', () => {
     const absPath = join(tmpDir, 'src', 'utils.ts');
     index.upsertFile(absPath, 50);
-    expect(index.getFile(absPath)).not.toBeNull();
-    expect(index.getFile(absPath)!.tokens).toBe(50);
+    expect(index.getFile(absPath)).toEqual(expect.objectContaining({
+      path: 'src/utils.ts',
+      tokens: 50,
+    }));
   });
 
   test('relative path with ./ prefix is normalized', () => {
     index.upsertFile('./src/config.ts', 30);
-    expect(index.getFile('src/config.ts')).not.toBeNull();
+    expect(index.getFile('src/config.ts')).toEqual(expect.objectContaining({
+      path: 'src/config.ts',
+      tokens: 30,
+    }));
   });
 });
 

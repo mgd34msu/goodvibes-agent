@@ -80,7 +80,8 @@ describe('KnowledgeService', () => {
     expect(result.source.status).toBe('indexed');
     expect(result.source.title).toBe('TypeScript Docs');
     expect(result.source.summary).toContain('Official language documentation');
-    expect(result.artifactId).toBeTruthy();
+    expect(typeof result.artifactId).toBe('string');
+    expect(result.artifactId!.length).toBeGreaterThan(0);
 
     const artifact = artifactStore.get(result.artifactId!);
     expect(artifact?.sourceUri).toBe(`${baseUrl}/docs/typescript`);
@@ -90,9 +91,11 @@ describe('KnowledgeService', () => {
     });
 
     const nodes = service.listNodes(20);
-    expect(nodes.some((node) => node.kind === 'domain' && node.title === '127.0.0.1')).toBe(true);
-    expect(nodes.some((node) => node.kind === 'bookmark_folder' && node.title === 'TypeScript')).toBe(true);
-    expect(nodes.some((node) => node.kind === 'topic' && node.title === 'typescript')).toBe(true);
+    expect(nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'domain', title: '127.0.0.1' }),
+      expect.objectContaining({ kind: 'bookmark_folder', title: 'TypeScript' }),
+      expect.objectContaining({ kind: 'topic', title: 'typescript' }),
+    ]));
 
     const packet = await service.buildPacket('typescript docs', ['Programming']);
     expect(packet.items.length).toBeGreaterThan(0);
@@ -117,7 +120,9 @@ describe('KnowledgeService', () => {
     });
     expect(result.imported).toBe(2);
     expect(result.failed).toBe(0);
-    expect(service.listSources(10).some((source) => source.folderPath === 'Reading')).toBe(true);
+    expect(service.listSources(10)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ folderPath: 'Reading' }),
+    ]));
   });
 
   test('mirrors reviewed memory into the knowledge graph during reindex', async () => {
@@ -164,7 +169,9 @@ describe('KnowledgeService', () => {
       true,
     );
     expect(result.imported).toBe(1);
-    expect(service.listSources(10).some((source) => source.connectorId === 'bookmark-jsonl')).toBe(true);
+    expect(service.listSources(10)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ connectorId: 'bookmark-jsonl' }),
+    ]));
   });
 
   test('ingests local artifacts with structured extraction and emits knowledge events', async () => {
@@ -206,8 +213,11 @@ describe('KnowledgeService', () => {
 
     const run = await service.runJob('knowledge-lint', { mode: 'inline' });
     expect(run.status).toBe('completed');
-    expect(service.listJobs().some((job) => job.id === 'knowledge-lint')).toBe(true);
-    expect(service.listJobRuns(10).some((entry) => entry.id === run.id && entry.jobId === 'knowledge-lint')).toBe(true);
+    expect(service.listJobs().map((job) => job.id)).toContain('knowledge-lint');
+    expect(service.listJobRuns(10)).toContainEqual(expect.objectContaining({
+      id: run.id,
+      jobId: 'knowledge-lint',
+    }));
   });
 
   test('tracks usage, compiles canonical entity nodes, and runs consolidation jobs with managed schedules', async () => {
@@ -241,23 +251,33 @@ describe('KnowledgeService', () => {
     await service.recordUsage({ targetKind: 'source', targetId: result.source.id, usageKind: 'projection-read', score: 80 });
 
     const nodes = service.listNodes(200);
-    expect(nodes.some((node) => node.kind === 'project' && node.title === 'goodvibes-tui')).toBe(true);
-    expect(nodes.some((node) => node.kind === 'capability' && node.title === 'memory')).toBe(true);
-    expect(nodes.some((node) => node.kind === 'repo' && node.title === 'goodvibes-tui')).toBe(true);
-    expect(nodes.some((node) => node.kind === 'service' && node.title === 'typescript-docs')).toBe(true);
-    expect(nodes.some((node) => node.kind === 'environment' && node.title === 'local-dev')).toBe(true);
+    expect(nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'project', title: 'goodvibes-tui' }),
+      expect.objectContaining({ kind: 'capability', title: 'memory' }),
+      expect.objectContaining({ kind: 'repo', title: 'goodvibes-tui' }),
+      expect.objectContaining({ kind: 'service', title: 'typescript-docs' }),
+      expect.objectContaining({ kind: 'environment', title: 'local-dev' }),
+    ]));
 
     const light = await service.runJob('knowledge-light-consolidation', { mode: 'inline' });
     expect(light.status).toBe('completed');
-    expect(service.listConsolidationCandidates(20).some((candidate) => candidate.candidateType === 'memory-promotion')).toBe(true);
-    expect(service.listConsolidationReports(10).some((report) => report.kind === 'light-consolidation')).toBe(true);
+    expect(service.listConsolidationCandidates(20)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ candidateType: 'memory-promotion' }),
+    ]));
+    expect(service.listConsolidationReports(10)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'light-consolidation' }),
+    ]));
 
     const deep = await service.runJob('knowledge-deep-consolidation', { mode: 'inline' });
     expect(deep.status).toBe('completed');
-    expect(memoryRegistry.getAll().some((record) => record.summary.toLowerCase().includes('typescript'))).toBe(true);
+    expect(memoryRegistry.getAll()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ summary: expect.stringContaining('TypeScript') }),
+    ]));
 
     const schedules = service.listSchedules(10);
-    expect(schedules.some((schedule) => schedule.jobId === 'knowledge-light-consolidation')).toBe(true);
-    expect(schedules.some((schedule) => schedule.jobId === 'knowledge-deep-consolidation')).toBe(true);
+    expect(schedules.map((schedule) => schedule.jobId)).toEqual(expect.arrayContaining([
+      'knowledge-light-consolidation',
+      'knowledge-deep-consolidation',
+    ]));
   });
 });

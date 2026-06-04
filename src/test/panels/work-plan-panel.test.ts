@@ -20,7 +20,7 @@ function makeStore(): WorkPlanStore {
 describe('WorkPlanPanel', () => {
   test('renders persistent work plan items and metadata', () => {
     const store = makeStore();
-    store.addItem('Confirm WRFC chain topology', { owner: 'tui', source: 'sdk-handoff' });
+    store.addItem('Confirm WRFC chain topology', { owner: 'tui', source: 'agent-handoff' });
 
     const panel = new WorkPlanPanel(store);
     panel.onActivate();
@@ -29,7 +29,7 @@ describe('WorkPlanPanel', () => {
     expect(rendered).toContain('Persistent Work Plan');
     expect(rendered).toContain('Confirm WRFC chain topology');
     expect(rendered).toContain('@tui');
-    expect(rendered).toContain('sdk-handoff');
+    expect(rendered).toContain('agent-handoff');
   });
 
   test('keyboard status changes persist through the store', () => {

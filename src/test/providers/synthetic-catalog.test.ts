@@ -391,8 +391,9 @@ describe('zero-key error message', () => {
       thrown = err as Error;
     }
 
-    expect(thrown).not.toBeNull();
-    expect(thrown!.message).toContain('locked-model');
+    expect(thrown).toEqual(expect.objectContaining({
+      message: expect.stringContaining('locked-model'),
+    }));
     expect(thrown!.message).toContain('No API keys configured for any provider offering');
   });
 
@@ -549,9 +550,10 @@ describe('failover within tier', () => {
       thrown = err as ProviderError;
     }
 
-    expect(thrown).not.toBeNull();
-    expect(thrown!.statusCode).toBe(429);
-    expect(thrown!.message).toContain('failover-model');
+    expect(thrown).toEqual(expect.objectContaining({
+      statusCode: 429,
+      message: expect.stringContaining('failover-model'),
+    }));
   }, 5000);
 
   it('fails over on 500 server errors', async () => {

@@ -68,7 +68,7 @@ describe('KnowledgeApi', () => {
       tags: ['sdk-ready'],
       fetchMode: 'public-only',
     });
-    expect(ingest.source.id).toBeTruthy();
+    expect(ingest.source.id.length).toBeGreaterThan(0);
     expect(ingest.source.metadata).toMatchObject({
       knowledgeIntent: {
         ingestMode: 'artifact',
@@ -89,10 +89,12 @@ describe('KnowledgeApi', () => {
 
     const run = await api.jobs.run(job.id, { mode: 'inline' });
     expect(run.jobId).toBe(job.id);
-    expect(api.jobs.runs(10, job.id).some((entry) => entry.id === run.id)).toBe(true);
+    expect(api.jobs.runs(10, job.id)).toContainEqual(
+      expect.objectContaining({ id: run.id }),
+    );
 
     const candidates = api.consolidation.candidates(10);
-    expect(Array.isArray(candidates)).toBe(true);
-    expect(Array.isArray(api.consolidation.reports(10))).toBe(true);
+    expect(candidates).toEqual(expect.any(Array));
+    expect(api.consolidation.reports(10)).toEqual(expect.any(Array));
   });
 });

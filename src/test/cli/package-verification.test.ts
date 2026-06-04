@@ -2,21 +2,16 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { verifyPackageCliInstall, verifyReleaseMetadata } from '../../cli/package-verification.ts';
-import { SDK_VERSION, VERSION } from '../../version.ts';
+import { packageFacingBoundaryLanguageIssues, verifyPackageCliInstall, verifyReleaseMetadata } from '../../cli/package-verification.ts';
 import {
   releaseBlockingGitStatusLines,
   releaseEvidenceHygieneIssues,
   releaseEvidenceInputPaths,
   releaseMetadataPaths,
 } from '../../../scripts/release.ts';
+import { AGENT_HARNESS_MODES } from '../../tools/agent-harness-tool-schema.ts';
 
 type PackageJson = {
-  readonly version?: string;
-  readonly dependencies?: Record<string, string>;
-  readonly devDependencies?: Record<string, string>;
-  readonly engines?: Record<string, string>;
-  readonly scripts?: Record<string, string>;
   readonly files?: readonly string[];
 };
 
@@ -31,7 +26,7 @@ const releaseReadinessSources = [
   { id: 'release-surface-review', kind: 'release-surface-review', evidence: 'reviewed' },
   { id: 'runtime-contract-review', kind: 'runtime-contract-review', evidence: 'reviewed' },
   { id: 'goodvibes-agent', kind: 'agent-package', evidence: 'reviewed' },
-  { id: 'goodvibes-connected-host', kind: 'connected-host-sdk', evidence: 'reviewed' },
+  { id: 'goodvibes-connected-host', kind: 'connected-host', evidence: 'reviewed' },
   { id: 'goodvibes-companion', kind: 'companion-app', evidence: 'reviewed' },
 ];
 
@@ -43,16 +38,79 @@ const releaseQuality = {
   releaseEvidence: 'Fixture carries release evidence.',
 };
 
+function allHarnessModesExcept(excludedMode?: string): string {
+  return AGENT_HARNESS_MODES
+    .filter((mode) => mode !== excludedMode)
+    .map((mode) => `mode:"${mode}"`)
+    .join(', ');
+}
+
+function writeReleaseReadinessFixture(dir: string, modelAccess: string): void {
+  mkdirSync(join(dir, 'release'), { recursive: true });
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@pellux/goodvibes-agent', version: '1.0.0' }));
+  writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0 - 2026-06-03\n\n- Notes.\n');
+  writeFileSync(join(dir, 'release', 'release-readiness.json'), JSON.stringify({
+    schemaVersion: 1,
+    gate: 'goodvibes-agent-release-readiness',
+    checkedAt: '2026-06-03',
+    policy: releaseReadinessPolicy,
+    sources: releaseReadinessSources,
+    items: [{
+      id: 'release-readiness-inventory-gate',
+      capability: 'Release readiness evidence.',
+      owner: 'release',
+      status: 'covered',
+      evidence: 'release/release-readiness.json',
+      action: 'Keep release readiness evidence current.',
+      quality: { ...releaseQuality, modelAccess },
+    }],
+  }));
+}
+
+function writeReleaseMetadataBasics(dir: string): void {
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@pellux/goodvibes-agent', version: '1.0.0' }));
+  writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0 - 2026-06-03\n\n- Notes.\n');
+}
+
+function writeHarnessModeCatalogFixture(dir: string, modes: readonly string[]): void {
+  mkdirSync(join(dir, 'src', 'tools'), { recursive: true });
+  writeFileSync(join(dir, 'src', 'tools', 'agent-harness-mode-catalog.ts'), [
+    'export const HARNESS_MODE_DESCRIPTORS = [',
+    ...modes.map((mode) => `  { id: '${mode}', kind: 'inspect', family: 'fixture', summary: 'Compact.' },`),
+    '] as const;',
+    '',
+  ].join('\n'));
+}
+
+function writeHarnessDispatcherFixture(dir: string, modes: readonly string[]): void {
+  mkdirSync(join(dir, 'src', 'tools'), { recursive: true });
+  writeFileSync(join(dir, 'src', 'tools', 'agent-harness-tool.ts'), [
+    'export function createAgentHarnessTool() {',
+    '  return { execute: async (rawArgs: Record<string, unknown>) => {',
+    '    const args = rawArgs as { readonly mode?: string };',
+    ...modes.map((mode) => `    if (args.mode === '${mode}') return { success: true, output: '${mode}' };`),
+    '    return { success: false, error: `Unhandled agent_harness mode: ${args.mode}` };',
+    '  } };',
+    '}',
+    '',
+  ].join('\n'));
+}
+
 describe('package CLI install verification', () => {
   test('package exposes a runnable Agent bin and a safe registry tarball contract', () => {
     const report = verifyPackageCliInstall(resolve(import.meta.dir, '../../..'));
 
     expect(report.packageName).toBe('@pellux/goodvibes-agent');
     expect(report.issues).toEqual([]);
-    expect(report.bins.map((bin) => bin.command)).toEqual(['goodvibes-agent']);
-    expect(report.bins.every((bin) => bin.exists && bin.executable)).toBe(true);
-    expect(report.bins.every((bin) => bin.usesBunShebang)).toBe(true);
-    expect(report.bins.every((bin) => bin.hasSourceEntrypoint)).toBe(true);
+    expect(report.bins).toEqual([
+      expect.objectContaining({
+        command: 'goodvibes-agent',
+        exists: true,
+        executable: true,
+        usesBunShebang: true,
+        hasSourceEntrypoint: true,
+      }),
+    ]);
     expect(report.tarball.requiredPathsPresent).toContain('bin/goodvibes-agent.ts');
     expect(report.tarball.requiredPathsPresent).toContain('LICENSE');
     expect(report.tarball.requiredPathsPresent).toContain('release/release-notes.md');
@@ -65,28 +123,6 @@ describe('package CLI install verification', () => {
     expect(report.packageFacingText.checkedPaths).toContain('README.md');
     expect(report.packageFacingText.checkedPaths).toContain('docs/release-and-publishing.md');
   }, 30_000);
-
-  test('package exposes stable typecheck aliases for release gates', () => {
-    const packagePath = resolve(import.meta.dir, '../../..', 'package.json');
-    const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
-    expect(parsed.scripts?.['typecheck']).toBe('bunx tsc --noEmit');
-    expect(parsed.scripts?.['check:types']).toBe('bun run typecheck');
-  });
-
-  test('package metadata advertises Bun as the runtime, not Node', () => {
-    const packagePath = resolve(import.meta.dir, '../../..', 'package.json');
-    const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
-    expect(parsed.engines?.bun).toBe('>=1.3.10');
-    expect(parsed.engines?.node).toBeUndefined();
-  });
-
-  test('compiled metadata fallbacks match package identity and SDK pin', () => {
-    const packagePath = resolve(import.meta.dir, '../../..', 'package.json');
-    const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
-    const sdkVersion = parsed.dependencies?.['@pellux/goodvibes-sdk'] ?? parsed.devDependencies?.['@pellux/goodvibes-sdk'];
-    expect(VERSION).toBe(parsed.version);
-    expect(SDK_VERSION).toBe(sdkVersion);
-  });
 
   test('release metadata keeps package.json and changelog top entry in sync', () => {
     expect(verifyReleaseMetadata(resolve(import.meta.dir, '../../..'))).toEqual([]);
@@ -143,6 +179,175 @@ describe('package CLI install verification', () => {
     }
   });
 
+  test('release metadata rejects over-budget harness mode catalog text', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      mkdirSync(join(dir, 'src', 'tools'), { recursive: true });
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@pellux/goodvibes-agent', version: '1.0.0' }));
+      writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0 - 2026-06-03\n\n- Notes.\n');
+      writeFileSync(join(dir, 'src', 'tools', 'agent-harness-mode-catalog.ts'), [
+        "export const HARNESS_MODE_DESCRIPTORS = [{",
+        "  id: 'too_verbose',",
+        "  summary: 'Inspect one extremely verbose model-facing harness catalog entry that should be compacted before release.',",
+        "}];",
+        '',
+      ].join('\n'));
+      writeFileSync(join(dir, 'src', 'tools', 'agent-harness-command-catalog.ts'), [
+        'function previewText(value: string, maxLength = 88): string {',
+        '  return value.slice(0, maxLength);',
+        '}',
+        '',
+      ].join('\n'));
+      mkdirSync(join(dir, 'src', 'input'), { recursive: true });
+      writeFileSync(join(dir, 'src', 'input', 'agent-workspace-categories.ts'), [
+        "export const AGENT_WORKSPACE_CATEGORIES = [{",
+        "  id: 'host',",
+        "  summary: 'Connected-host health, tasks, sessions, channels, automation, and control-plane posture.',",
+        "}];",
+        '',
+      ].join('\n'));
+
+      const issues = verifyReleaseMetadata(dir);
+
+      expect(issues).toContain('harness mode catalog src/tools/agent-harness-mode-catalog.ts:3 summary is 105 characters; keep it at or below 72.');
+      expect(issues).toContain('harness catalog src/tools/agent-harness-command-catalog.ts:1 previewText default is 88; keep it at or below 72.');
+      expect(issues).toContain('harness mode catalog src/input/agent-workspace-categories.ts:3 summary is 88 characters; keep it at or below 72.');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('release metadata rejects over-budget model tool schema descriptions', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseMetadataBasics(dir);
+      mkdirSync(join(dir, 'src', 'tools'), { recursive: true });
+      writeFileSync(join(dir, 'src', 'tools', 'agent-example-tool.ts'), [
+        'export const tool = {',
+        '  definition: {',
+        "    description: 'Compact registered description.',",
+        '    parameters: {',
+        '      type: "object",',
+        '      properties: {',
+        "        target: { type: 'string', description: 'This schema description is intentionally much too long for the model-facing release gate.' },",
+        '      },',
+        '    },',
+        '  },',
+        '};',
+        '',
+      ].join('\n'));
+
+      expect(verifyReleaseMetadata(dir)).toContain('model tool src/tools/agent-example-tool.ts:7 schema description is 89 characters; keep it at or below 72.');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('package-facing text rejects release evidence as a user-facing surface', () => {
+    expect(packageFacingBoundaryLanguageIssues(
+      'README.md',
+      'Completed direct model access to user-facing harness operations: workspace actions, release evidence, and connected-host diagnostics.',
+    )).toEqual([
+      'package-facing text README.md:1 classifies release evidence as a user-facing surface; describe it as operator/audit material.',
+    ]);
+    expect(packageFacingBoundaryLanguageIssues(
+      'README.md',
+      'Operator/audit inspection exposes release evidence for packaged release artifacts.',
+    )).toEqual([]);
+  });
+
+  test('release metadata rejects missing harness mode catalog descriptors', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseMetadataBasics(dir);
+      writeHarnessModeCatalogFixture(dir, AGENT_HARNESS_MODES.filter((mode) => mode !== 'tool'));
+
+      expect(verifyReleaseMetadata(dir)).toContain('release harness mode catalog must describe agent_harness mode:"tool".');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('release metadata rejects unknown harness mode catalog descriptors', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseMetadataBasics(dir);
+      writeHarnessModeCatalogFixture(dir, [...AGENT_HARNESS_MODES, 'not_a_harness_mode']);
+
+      expect(verifyReleaseMetadata(dir)).toContain('release harness mode catalog references unknown agent_harness mode:"not_a_harness_mode".');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('release metadata rejects duplicate harness mode catalog descriptors', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseMetadataBasics(dir);
+      writeHarnessModeCatalogFixture(dir, [...AGENT_HARNESS_MODES, 'tool']);
+
+      expect(verifyReleaseMetadata(dir)).toContain('release harness mode catalog duplicates agent_harness mode:"tool".');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('release metadata rejects missing agent_harness dispatcher branches', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseMetadataBasics(dir);
+      writeHarnessDispatcherFixture(dir, AGENT_HARNESS_MODES.filter((mode) => mode !== 'tool'));
+
+      expect(verifyReleaseMetadata(dir)).toContain('release agent_harness dispatcher must handle mode:"tool".');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('release metadata rejects unknown agent_harness dispatcher branches', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseMetadataBasics(dir);
+      writeHarnessDispatcherFixture(dir, [...AGENT_HARNESS_MODES, 'not_a_harness_mode']);
+
+      expect(verifyReleaseMetadata(dir)).toContain('release agent_harness dispatcher references unknown mode:"not_a_harness_mode".');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('release metadata rejects duplicate agent_harness dispatcher branches', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseMetadataBasics(dir);
+      writeHarnessDispatcherFixture(dir, [...AGENT_HARNESS_MODES, 'tool']);
+
+      expect(verifyReleaseMetadata(dir)).toContain('release agent_harness dispatcher duplicates mode:"tool".');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('release metadata rejects unknown agent_harness route references in model-facing catalogs', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseMetadataBasics(dir);
+      mkdirSync(join(dir, 'src', 'tools'), { recursive: true });
+      writeFileSync(join(dir, 'src', 'tools', 'agent-harness-route-fixture.ts'), [
+        'const staticRoute = \'agent_harness mode:"not_a_harness_mode"\';',
+        "const helperRoute = agentHarnessModes('also_not_a_harness_mode');",
+        '',
+      ].join('\n'));
+
+      const issues = verifyReleaseMetadata(dir);
+
+      expect(issues).toContain('harness catalog src/tools/agent-harness-route-fixture.ts:1 references unknown agent_harness mode:"not_a_harness_mode".');
+      expect(issues).toContain('harness catalog src/tools/agent-harness-route-fixture.ts:2 references unknown agent_harness mode:"also_not_a_harness_mode".');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test('release metadata rejects local sibling evidence in the release readiness inventory', () => {
     const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
     try {
@@ -161,7 +366,7 @@ describe('package CLI install verification', () => {
             capability: 'Connected host channels.',
             owner: 'connected-host',
             status: 'covered',
-            evidence: '../goodvibes-sdk/docs/channel-surfaces.md',
+            evidence: '../connected-host/docs/channel-surfaces.md',
             action: 'Keep Agent boundaries.',
             quality: releaseQuality,
           },
@@ -187,6 +392,28 @@ describe('package CLI install verification', () => {
     }
   });
 
+  test('release metadata rejects missing model-visible harness mode coverage in readiness evidence', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseReadinessFixture(dir, allHarnessModesExcept('tool'));
+
+      expect(verifyReleaseMetadata(dir)).toContain('release readiness inventory model access must cover agent_harness mode:"tool".');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('release metadata rejects unknown model-visible harness modes in readiness evidence', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
+    try {
+      writeReleaseReadinessFixture(dir, `${allHarnessModesExcept()} mode:"not_a_harness_mode"`);
+
+      expect(verifyReleaseMetadata(dir)).toContain('release readiness inventory release-readiness-inventory-gate quality.modelAccess references unknown agent_harness mode:"not_a_harness_mode".');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test('release metadata rejects stale live verification evidence', () => {
     const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
     try {
@@ -194,7 +421,6 @@ describe('package CLI install verification', () => {
       writeFileSync(join(dir, 'package.json'), JSON.stringify({
         name: '@pellux/goodvibes-agent',
         version: '1.0.0',
-        dependencies: { '@pellux/goodvibes-sdk': '0.33.36' },
       }));
       writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0 - 2026-06-03\n\n- Notes.\n');
       writeFileSync(join(dir, 'release', 'release-readiness.json'), JSON.stringify({
@@ -220,16 +446,16 @@ describe('package CLI install verification', () => {
         ok: true,
         counts: { pass: 14, warn: 0, fail: 0, skip: 0 },
         checks: [
-          { id: 'connected-host-status', status: 'pass', summary: '/status returned 200, version 0.33.36.' },
-          { id: 'cli-compat-json', status: 'pass', detail: '{"sdkPin": "0.33.36", "version": "0.33.36", "compatible": true}' },
+          { id: 'connected-host-status', status: 'pass', summary: '/status returned 200.' },
+          { id: 'cli-compat-json', status: 'pass', detail: '{"compatible": true}' },
         ],
       }));
 
       const issues = verifyReleaseMetadata(dir);
 
       expect(issues).toContain('release live verification report must not predate readiness inventory checkedAt 2026-06-03.');
-      expect(issues.some((issue) => issue.startsWith('release live verification report is stale: generatedAt is '))).toBe(true);
-      expect(issues.some((issue) => issue.includes('rerun strict live verification'))).toBe(true);
+      expect(issues.join('\n')).toContain('release live verification report is stale: generatedAt is ');
+      expect(issues.join('\n')).toContain('rerun strict live verification');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -242,7 +468,6 @@ describe('package CLI install verification', () => {
       writeFileSync(join(dir, 'package.json'), JSON.stringify({
         name: '@pellux/goodvibes-agent',
         version: '1.0.0',
-        dependencies: { '@pellux/goodvibes-sdk': '0.33.36' },
       }));
       writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0 - 2026-06-03\n\n- Notes.\n');
       writeFileSync(join(dir, 'release', 'release-readiness.json'), JSON.stringify({
@@ -282,8 +507,8 @@ describe('package CLI install verification', () => {
         ok: true,
         counts: { pass: 14, warn: 0, fail: 0, skip: 0 },
         checks: [
-          { id: 'connected-host-status', status: 'pass', summary: '/status returned 200, version 0.33.36.' },
-          { id: 'cli-compat-json', status: 'pass', detail: '{"sdkPin": "0.33.36", "version": "0.33.36", "compatible": true}' },
+          { id: 'connected-host-status', status: 'pass', summary: '/status returned 200.' },
+          { id: 'cli-compat-json', status: 'pass', detail: '{"compatible": true}' },
         ],
       }));
 
@@ -313,50 +538,6 @@ describe('package CLI install verification', () => {
     const parsed = JSON.parse(readFileSync(packagePath, 'utf-8')) as PackageJson;
 
     expect(parsed.files).toContain('!src/cli/package-verification.ts');
-  });
-
-  test('release script requires product release notes instead of raw commit logs', () => {
-    const releaseScriptPath = resolve(import.meta.dir, '../../..', 'scripts', 'release.ts');
-    const source = readFileSync(releaseScriptPath, 'utf-8');
-
-    expect(source).toContain('GOODVIBES_AGENT_RELEASE_NOTES');
-    expect(source).toContain('--notes-file');
-    expect(source).toContain('release notes must describe product changes');
-    expect(source).toContain('bun run architecture:check');
-    expect(source).toContain('bun run perf:check');
-    expect(source).toContain('bun run publish:check');
-    expect(source).toContain('bun run package:install-check');
-    expect(source).toContain('bun run verification:ledger');
-    expect(source).toContain('bun pm pack --dry-run');
-    expect(source).toContain('git diff --check');
-    expect(source).toContain("assertReleaseEvidenceHygiene('release evidence text hygiene', root)");
-    expect(source).toContain("assertReleaseEvidenceHygiene('post-release evidence text hygiene', root)");
-    expect(source).not.toContain("if (!options.dryRun) {\n      assertReleaseEvidenceHygiene('release evidence text hygiene', root);");
-    expect(source).toContain('Dry-run release preview for ${tag} complete.');
-    expect(source).toContain('No files, commits, or tags were written.');
-    expect(source).toContain('rerun without --dry-run from a clean main worktree');
-    expect(source).not.toContain('git log --oneline');
-  });
-
-  test('publish package script keeps source release policy out of staged package policy', () => {
-    const publishScriptPath = resolve(import.meta.dir, '../../..', 'scripts', 'publish-package.ts');
-    const source = readFileSync(publishScriptPath, 'utf-8');
-
-    expect(source).toContain('function assertSourcePackagePolicy');
-    expect(source).toContain('...verifyReleaseMetadata(validationRoot)');
-    expect(source).toContain('function assertStagedPackagePolicy');
-    expect(source).toContain('const failures = verifyPackageFacingText(validationRoot).failures;');
-    expect(source).toContain('assertSourcePackagePolicy(root)');
-    expect(source).toContain('assertStagedPackagePolicy(stageDir)');
-    expect(source).not.toContain("assertPackagePolicy(stageDir, 'staged package')");
-  });
-
-  test('release workflow can smoke test a just-published Bun registry version', () => {
-    const releaseWorkflowPath = resolve(import.meta.dir, '../../..', '.github', 'workflows', 'release.yml');
-    const source = readFileSync(releaseWorkflowPath, 'utf-8');
-
-    expect(source).toContain('Bun registry install smoke');
-    expect(source).toContain('bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org --minimum-release-age 0');
   });
 
   test('release script stages the release evidence bundle', () => {

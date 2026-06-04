@@ -16,7 +16,10 @@ describe('experience runtime commands', () => {
     const registry = new CommandRegistry();
     registerExperienceRuntimeCommands(registry);
     const command = registry.get('approval');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'approval',
+      handler: expect.any(Function),
+    }));
     const out: string[] = [];
     const opened: string[] = [];
 
@@ -31,7 +34,10 @@ describe('experience runtime commands', () => {
     const registry = new CommandRegistry();
     registerExperienceRuntimeCommands(registry);
     const command = registry.get('approval');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'approval',
+      handler: expect.any(Function),
+    }));
     const out: string[] = [];
 
     await command!.handler(['matrix'], makeContext(out, []));
@@ -44,7 +50,10 @@ describe('experience runtime commands', () => {
     const registry = new CommandRegistry();
     registerProviderAccountsRuntimeCommands(registry);
     const command = registry.get('accounts');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'accounts',
+      handler: expect.any(Function),
+    }));
     const out: string[] = [];
     const opened: string[] = [];
 
@@ -59,7 +68,10 @@ describe('experience runtime commands', () => {
     const registry = new CommandRegistry();
     registerHealthRuntimeCommands(registry);
     const command = registry.get('health');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'health',
+      handler: expect.any(Function),
+    }));
     const out: string[] = [];
 
     await command!.handler(['open'], makeContext(out, []));
@@ -72,7 +84,10 @@ describe('experience runtime commands', () => {
     const registry = new CommandRegistry();
     registerHealthRuntimeCommands(registry);
     const command = registry.get('health');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'health',
+      handler: expect.any(Function),
+    }));
     const out: string[] = [];
     const context = {
       print: (text: string) => { out.push(text); },

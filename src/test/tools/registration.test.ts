@@ -15,6 +15,7 @@ import { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
 import { ModeManager } from '@pellux/goodvibes-sdk/platform/state';
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { createWorkflowServices } from '@pellux/goodvibes-sdk/platform/tools';
+import { compactRegisteredToolDefinitions } from '../../tools/tool-definition-compaction.ts';
 
 function registerTools(registry: ToolRegistry): void {
   const services = createTestManagers();
@@ -99,6 +100,16 @@ describe('registerAllTools', () => {
       expect(typeof tool.definition.description).toBe('string');
       expect(tool.definition.description.length).toBeGreaterThan(0);
       expect(typeof tool.definition.parameters).toBe('object');
+    }
+  });
+
+  test('compacted model-visible tool descriptions stay within the prompt budget', () => {
+    const registry = new ToolRegistry();
+    registerTools(registry);
+    compactRegisteredToolDefinitions(registry);
+    for (const tool of registry.list()) {
+      expect(tool.definition.description.length).toBeLessThanOrEqual(56);
+      expect(tool.definition.description).not.toContain('...');
     }
   });
 

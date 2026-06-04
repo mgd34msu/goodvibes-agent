@@ -111,7 +111,8 @@ describe('TelemetryApiService', () => {
     const otlpMetrics = service.buildOtlpMetricDocument() as {
       resourceMetrics: Array<{ scopeMetrics: Array<{ metrics: Array<{ name: string }> }> }>;
     };
-    expect(otlpMetrics.resourceMetrics[0]?.scopeMetrics[0]?.metrics.some((metric) => metric.name === 'goodvibes.telemetry.events.total')).toBe(true);
+    expect(otlpMetrics.resourceMetrics[0]?.scopeMetrics[0]?.metrics.map((metric) => metric.name))
+      .toContain('goodvibes.telemetry.events.total');
 
     const rawEvents = service.listEvents({ limit: 5, view: 'raw' });
     const rawSubmitted = rawEvents.find((record) => record.type === 'TURN_SUBMITTED');
@@ -119,7 +120,7 @@ describe('TelemetryApiService', () => {
 
     const firstPage = service.listEventPage({ limit: 1 });
     expect(firstPage.pageInfo.hasMore).toBe(true);
-    expect(firstPage.pageInfo.nextCursor).toBeTruthy();
+    expect(firstPage.pageInfo.nextCursor).toBe(service.listEventPage({ limit: 2 }).items[1]?.id);
     const secondPage = service.listEventPage({ limit: 1, cursor: firstPage.pageInfo.nextCursor });
     expect(secondPage.items).toHaveLength(1);
   });

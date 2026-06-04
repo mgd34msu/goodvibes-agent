@@ -21,39 +21,45 @@ describe('GatewayMethodCatalog', () => {
   test('lists built-in gateway methods', () => {
     const catalog = new GatewayMethodCatalog();
     const methods = catalog.list();
+    const methodIds = methods.map((method) => method.id);
 
-    expect(methods.some((method) => method.id === 'control.snapshot')).toBe(true);
-    expect(methods.some((method) => method.id === 'control.auth.current')).toBe(true);
-    expect(methods.some((method) => method.id === 'automation.heartbeat.run')).toBe(true);
-    expect(methods.some((method) => method.id === 'telemetry.snapshot')).toBe(true);
-    expect(methods.some((method) => method.id === 'telemetry.stream')).toBe(true);
-    expect(methods.some((method) => method.id === 'remote.node_host.contract')).toBe(true);
-    expect(methods.some((method) => method.id === 'control.events.catalog')).toBe(true);
-    expect(methods.some((method) => method.id === 'local_auth.status')).toBe(true);
-    expect(methods.some((method) => method.id === 'providers.list')).toBe(true);
-    expect(methods.some((method) => method.id === 'providers.usage.get')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.status')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.packet')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.connectors.list')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.connector.doctor')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.extractions.list')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.usage.list')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.candidates.list')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.schedules.list')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.job.run')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.projection.materialize')).toBe(true);
-    expect(methods.some((method) => method.id === 'knowledge.graphql.execute')).toBe(true);
-    expect(methods.some((method) => method.id === 'multimodal.analyze')).toBe(true);
-    expect(methods.some((method) => method.id === 'multimodal.writeback')).toBe(true);
+    expect(methodIds).toEqual(expect.arrayContaining([
+      'control.snapshot',
+      'control.auth.current',
+      'automation.heartbeat.run',
+      'telemetry.snapshot',
+      'telemetry.stream',
+      'remote.node_host.contract',
+      'control.events.catalog',
+      'local_auth.status',
+      'providers.list',
+      'providers.usage.get',
+      'knowledge.status',
+      'knowledge.packet',
+      'knowledge.connectors.list',
+      'knowledge.connector.doctor',
+      'knowledge.extractions.list',
+      'knowledge.usage.list',
+      'knowledge.candidates.list',
+      'knowledge.schedules.list',
+      'knowledge.job.run',
+      'knowledge.projection.materialize',
+      'knowledge.graphql.execute',
+      'multimodal.analyze',
+      'multimodal.writeback',
+    ]));
   });
 
   test('lists built-in gateway events and matches HTTP route templates', () => {
     const catalog = new GatewayMethodCatalog();
     const events = catalog.listEvents();
+    const eventIds = events.map((event) => event.id);
 
-    expect(events.some((event) => event.id === 'runtime.automation')).toBe(true);
-    expect(events.some((event) => event.id === 'runtime.knowledge')).toBe(true);
-    expect(events.some((event) => event.id === 'control.ready')).toBe(true);
+    expect(eventIds).toEqual(expect.arrayContaining([
+      'runtime.automation',
+      'runtime.knowledge',
+      'control.ready',
+    ]));
 
     expect(catalog.findByHttpBinding('GET', '/api/control-plane/methods/control.status')?.id).toBe('control.methods.get');
     expect(catalog.findByHttpBinding('GET', '/api/control-plane/auth')?.id).toBe('control.auth.current');
@@ -111,38 +117,40 @@ describe('GatewayMethodCatalog', () => {
     expect(contract.operator.events).toHaveLength(catalog.listEvents().length);
     expect(contract.operator.schemaCoverage.methods).toBe(catalog.list().length);
 
-    expect(schemaProperty(catalog.get('control.contract')?.outputSchema, 'contract', 'product', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('control.contract')?.outputSchema, 'contract', 'auth', 'current', 'path')).toBeDefined();
-    expect(schemaProperty(catalog.get('control.contract')?.outputSchema, 'contract', 'operator', 'methods', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('control.contract')?.outputSchema, 'contract', 'operator', 'events', 'id')).toBeDefined();
-
-    expect(schemaProperty(catalog.get('control.auth.current')?.outputSchema, 'principalId')).toBeDefined();
-    expect(schemaProperty(catalog.get('control.methods.list')?.outputSchema, 'methods', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('control.methods.get')?.outputSchema, 'method', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('control.events.catalog')?.outputSchema, 'events', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('control.messages.list')?.outputSchema, 'messages', 'attachments', 'artifactId')).toBeDefined();
-    expect(schemaProperty(catalog.get('control.clients.list')?.outputSchema, 'clients', 'surface')).toBeDefined();
-    expect(schemaProperty(catalog.get('telemetry.snapshot')?.outputSchema, 'capabilities', 'signals', 'events')).toBeDefined();
-    expect(schemaProperty(catalog.get('telemetry.events.list')?.outputSchema, 'items', 'traceId')).toBeDefined();
-    expect(schemaProperty(catalog.get('telemetry.traces.list')?.outputSchema, 'items', 'spanContext', 'traceId')).toBeDefined();
-    expect(schemaProperty(catalog.get('telemetry.metrics.get')?.outputSchema, 'aggregates', 'totalEvents')).toBeDefined();
-
-    expect(schemaProperty(catalog.get('panels.list')?.outputSchema, 'panels', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('surfaces.list')?.outputSchema, 'surfaces', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('routes.bindings.list')?.outputSchema, 'bindings', 'id')).toBeDefined();
-
-    expect(schemaProperty(catalog.get('channels.status')?.outputSchema, 'channels', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('channels.capabilities.list')?.outputSchema, 'capabilities', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('channels.tools.list')?.outputSchema, 'tools', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('channels.actions.list')?.outputSchema, 'actions', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('channels.repairs.list')?.outputSchema, 'actions', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('channels.policies.list')?.outputSchema, 'policies', 'surface')).toBeDefined();
-    expect(schemaProperty(catalog.get('channels.policies.audit')?.outputSchema, 'audit', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('channels.directory.query')?.outputSchema, 'entries', 'id')).toBeDefined();
-
-    expect(schemaProperty(catalog.get('voice.providers.list')?.outputSchema, 'providers', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('voice.voices.list')?.outputSchema, 'voices', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('web_search.providers.list')?.outputSchema, 'providers', 'id')).toBeDefined();
-    expect(schemaProperty(catalog.get('media.providers.list')?.outputSchema, 'providers', 'id')).toBeDefined();
+    const schemaPaths: readonly [string, ...string[]][] = [
+      ['control.contract', 'contract', 'product', 'id'],
+      ['control.contract', 'contract', 'auth', 'current', 'path'],
+      ['control.contract', 'contract', 'operator', 'methods', 'id'],
+      ['control.contract', 'contract', 'operator', 'events', 'id'],
+      ['control.auth.current', 'principalId'],
+      ['control.methods.list', 'methods', 'id'],
+      ['control.methods.get', 'method', 'id'],
+      ['control.events.catalog', 'events', 'id'],
+      ['control.messages.list', 'messages', 'attachments', 'artifactId'],
+      ['control.clients.list', 'clients', 'surface'],
+      ['telemetry.snapshot', 'capabilities', 'signals', 'events'],
+      ['telemetry.events.list', 'items', 'traceId'],
+      ['telemetry.traces.list', 'items', 'spanContext', 'traceId'],
+      ['telemetry.metrics.get', 'aggregates', 'totalEvents'],
+      ['panels.list', 'panels', 'id'],
+      ['surfaces.list', 'surfaces', 'id'],
+      ['routes.bindings.list', 'bindings', 'id'],
+      ['channels.status', 'channels', 'id'],
+      ['channels.capabilities.list', 'capabilities', 'id'],
+      ['channels.tools.list', 'tools', 'id'],
+      ['channels.actions.list', 'actions', 'id'],
+      ['channels.repairs.list', 'actions', 'id'],
+      ['channels.policies.list', 'policies', 'surface'],
+      ['channels.policies.audit', 'audit', 'id'],
+      ['channels.directory.query', 'entries', 'id'],
+      ['voice.providers.list', 'providers', 'id'],
+      ['voice.voices.list', 'voices', 'id'],
+      ['web_search.providers.list', 'providers', 'id'],
+      ['media.providers.list', 'providers', 'id'],
+    ];
+    const missingSchemaPaths = schemaPaths
+      .filter(([methodId, ...path]) => schemaProperty(catalog.get(methodId)?.outputSchema, ...path) === undefined)
+      .map(([methodId, ...path]) => `${methodId}:${path.join('.')}`);
+    expect(missingSchemaPaths).toEqual([]);
   });
 });

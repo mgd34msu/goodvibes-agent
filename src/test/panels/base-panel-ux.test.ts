@@ -70,8 +70,8 @@ describe('BasePanel error surface (I2)', () => {
   test('renderErrorLine returns a Line of correct width when error set', () => {
     panel.exposeSetError('catalog load failed');
     const line = panel.exposeRenderErrorLine(80);
-    expect(line).not.toBeNull();
-    expect(line!.length).toBe(80);
+    expect(line).toEqual(expect.any(Array));
+    expect(line?.length).toBe(80);
   });
 
   test('renderErrorLine text contains glyph and message', () => {
@@ -130,8 +130,8 @@ describe('BasePanel loading spinner (I3)', () => {
   test('renderLoadingLine returns a Line of correct width when loading', () => {
     panel.exposeStartLoading('Loading...');
     const line = panel.exposeRenderLoadingLine(80);
-    expect(line).not.toBeNull();
-    expect(line!.length).toBe(80);
+    expect(line).toEqual(expect.any(Array));
+    expect(line?.length).toBe(80);
   });
 
   test('renderLoadingLine text contains label', () => {

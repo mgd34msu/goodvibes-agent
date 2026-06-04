@@ -1,8 +1,8 @@
 /**
  * G5 — Permission Audit
  *
- * Verifies the permission gate behavior for all 12 tools + delegate, danger-gated
- * feature config checks, path traversal protection on file-mutating tools, and
+ * Verifies the permission gate behavior for all 12 tools + delegate, recursive
+ * orchestration checks, path traversal protection on file-mutating tools, and
  * PermissionPromptUI rendering per category.
  */
 
@@ -14,9 +14,6 @@ import { PermissionPromptUI, type PermissionPromptRequest } from '../../permissi
 import { analyzePermissionRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createPermissionConfigReader, PermissionManager } from '@pellux/goodvibes-sdk/platform/permissions';
-import { DaemonServer } from '@pellux/goodvibes-sdk/platform/daemon';
-import { HttpListener } from '@pellux/goodvibes-sdk/platform/daemon';
-import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
 import { SpawnTokenManager } from '@pellux/goodvibes-sdk/platform/security';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
 import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
@@ -45,14 +42,6 @@ function makeManager(
 
 const PROJECT_ROOT = process.cwd();
 
-function makeUserAuth(): UserAuthManager {
-  return new UserAuthManager({
-    bootstrapFilePath: join(tempRoot, 'auth-users.json'),
-    bootstrapCredentialPath: join(tempRoot, 'auth-bootstrap.txt'),
-    users: [{ username: 'admin', passwordHash: UserAuthManager.hashPassword('admin'), roles: ['admin'] }],
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Setup / teardown — force autoApprove=false and prompt mode for all tests
 // ---------------------------------------------------------------------------
@@ -62,24 +51,6 @@ let tempRoot: string;
 let workingDir: string;
 let homeDir: string;
 let configDir: string;
-
-function createTestDaemon(): DaemonServer {
-  return new DaemonServer({
-    port: 0,
-    userAuth: makeUserAuth(),
-    configManager,
-    workingDir,
-    homeDirectory: homeDir,
-  });
-}
-
-function createTestListener(): HttpListener {
-  return new HttpListener({
-    configManager,
-    port: 0,
-    userAuth: makeUserAuth(),
-  });
-}
 
 beforeEach(() => {
   tempRoot = mkdtempSync(join(tmpdir(), 'gv-permission-audit-'));
@@ -183,116 +154,73 @@ describe('Unknown tools default to delegate category', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. Protected execution surfaces: daemon, httpListener, bounded recursive orchestration
+// 3. Protected recursive orchestration policy
 // ---------------------------------------------------------------------------
 
-describe('Danger-gated features check config before enabling', () => {
-  describe('DaemonServer', () => {
-    test('refuses to enable when danger.daemon = false', () => {
-      const server = createTestDaemon();
-      const result = server.enable({ daemon: false });
-      expect(result).toBe(false);
-    });
+describe('Recursive orchestration policy — SpawnTokenManager.canSpawn', () => {
+  beforeEach(() => resetTestSpawnTokenManagers());
+  afterEach(() => resetTestSpawnTokenManagers());
 
-    test('enables when danger.daemon = true', () => {
-      const server = createTestDaemon();
-      const result = server.enable({ daemon: true });
-      expect(result).toBe(true);
-    });
-
-    test('refuses to start when not enabled (enable not called)', async () => {
-      const server = createTestDaemon();
-      // Should not throw, just no-op
-      await expect(server.start()).resolves.toBeUndefined();
-      expect(server.isRunning).toBe(false);
-    });
-
-    test('refuses to start after enable({ daemon: false })', async () => {
-      const server = createTestDaemon();
-      server.enable({ daemon: false });
-      await server.start();
-      expect(server.isRunning).toBe(false);
-    });
+  test('canSpawn returns allowed=false when recursionEnabled=false', () => {
+    const stm = new SpawnTokenManager('test-session');
+    const token = stm.createOrchestratorToken();
+    const result = stm.canSpawn(token, {
+      recursionEnabled: false,
+      maxDepth: 1,
+      maxActiveAgents: 8,
+    }, 0);
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('recursive orchestration');
   });
 
-  describe('HttpListener', () => {
-    test('refuses to enable when danger.httpListener = false', () => {
-      const listener = createTestListener();
-      const result = listener.enable({ httpListener: false });
-      expect(result).toBe(false);
-    });
-
-    test('enables when danger.httpListener = true', () => {
-      const listener = createTestListener();
-      const result = listener.enable({ httpListener: true });
-      expect(result).toBe(true);
-    });
-
-    test('refuses to start when not enabled', async () => {
-      const listener = createTestListener();
-      await expect(listener.start()).resolves.toBeUndefined();
-      expect(listener.isRunning).toBe(false);
-    });
+  test('canSpawn returns allowed=true when recursionEnabled=true and within limits', () => {
+    const stm = new SpawnTokenManager('test-session');
+    const token = stm.createOrchestratorToken();
+    const result = stm.canSpawn(token, {
+      recursionEnabled: true,
+      maxDepth: 1,
+      maxActiveAgents: 8,
+    }, 0);
+    expect(result.allowed).toBe(true);
   });
 
-  describe('recursive orchestration policy — SpawnTokenManager.canSpawn', () => {
-    beforeEach(() => resetTestSpawnTokenManagers());
-    afterEach(() => resetTestSpawnTokenManagers());
+  test('canSpawn blocks when maxActiveAgents exceeded', () => {
+    const stm = new SpawnTokenManager('test-session');
+    const token = stm.createOrchestratorToken();
+    const result = stm.canSpawn(token, {
+      recursionEnabled: true,
+      maxDepth: 1,
+      maxActiveAgents: 2,
+    }, 2); // already at limit
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('maxActiveAgents');
+  });
 
-    test('canSpawn returns allowed=false when recursionEnabled=false', () => {
-      const stm = new SpawnTokenManager('test-session');
-      const token = stm.createOrchestratorToken();
-      const result = stm.canSpawn(token, {
-        recursionEnabled: false,
-        maxDepth: 1,
-        maxActiveAgents: 8,
-      }, 0);
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('recursive orchestration');
-    });
-
-    test('canSpawn returns allowed=true when recursionEnabled=true and within limits', () => {
-      const stm = new SpawnTokenManager('test-session');
-      const token = stm.createOrchestratorToken();
-      const result = stm.canSpawn(token, {
-        recursionEnabled: true,
-        maxDepth: 1,
-        maxActiveAgents: 8,
-      }, 0);
-      expect(result.allowed).toBe(true);
-    });
-
-    test('canSpawn blocks when maxActiveAgents exceeded', () => {
-      const stm = new SpawnTokenManager('test-session');
-      const token = stm.createOrchestratorToken();
-      const result = stm.canSpawn(token, {
-        recursionEnabled: true,
-        maxDepth: 1,
-        maxActiveAgents: 2,
-      }, 2); // already at limit
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('maxActiveAgents');
-    });
-
-    test('canSpawn blocks when depth exceeds maxDepth', () => {
-      const stm = new SpawnTokenManager('test-session');
-      const orchestratorToken = stm.createOrchestratorToken();
-      const agentToken = stm.generateAgentToken(orchestratorToken, 'agent-1');
-      expect(agentToken).not.toBeNull();
-      // Agent token has depth=1; maxDepth=0 means even depth=1 is blocked
-      const result = stm.canSpawn(agentToken!, {
-        recursionEnabled: true,
-        maxDepth: 0,
-        maxActiveAgents: 8,
-      }, 0);
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('depth');
-    });
+  test('canSpawn blocks when depth exceeds maxDepth', () => {
+    const stm = new SpawnTokenManager('test-session');
+    const orchestratorToken = stm.createOrchestratorToken();
+    const agentToken = stm.generateAgentToken(orchestratorToken, 'agent-1');
+    expect(agentToken).toEqual(expect.objectContaining({
+      type: 'agent',
+      sessionId: 'test-session',
+      issuedTo: 'agent-1',
+      issuedBy: 'main',
+      depth: 1,
+      canGenerate: false,
+    }));
+    // Agent token has depth=1; maxDepth=0 means even depth=1 is blocked
+    const result = stm.canSpawn(agentToken!, {
+      recursionEnabled: true,
+      maxDepth: 0,
+      maxActiveAgents: 8,
+    }, 0);
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('depth');
   });
 });
 
 // ---------------------------------------------------------------------------
-// 4. Path traversal protection on read / write / edit / exec tools
+// 4. Path traversal protection
 // ---------------------------------------------------------------------------
 
 describe('Path traversal protection via resolveAndValidatePath', () => {
@@ -322,31 +250,6 @@ describe('Path traversal protection via resolveAndValidatePath', () => {
     );
   });
 
-  test('resolveAndValidatePath is used by write tool (import exists)', async () => {
-    // Verify the guard is imported and used — import the module to confirm no errors
-    const { createWriteTool } = await import('@pellux/goodvibes-sdk/platform/tools');
-    expect(typeof createWriteTool).toBe('function');
-  });
-
-  test('resolveAndValidatePath is used by edit tool (import exists)', async () => {
-    const { createEditTool } = await import('@pellux/goodvibes-sdk/platform/tools');
-    expect(typeof createEditTool).toBe('function');
-  });
-
-  test('resolveAndValidatePath is used by read tool (import exists)', async () => {
-    const { ReadTool } = await import('@pellux/goodvibes-sdk/platform/tools');
-    expect(typeof ReadTool).toBe('function');
-  });
-
-  test('resolveAndValidatePath is used by exec tool (import exists)', async () => {
-    const { createExecTool } = await import('@pellux/goodvibes-sdk/platform/tools');
-    const { ProcessManager } = await import('@pellux/goodvibes-sdk/platform/tools');
-    const { OverflowHandler } = await import('@pellux/goodvibes-sdk/platform/tools');
-    const execTool = createExecTool(new ProcessManager(), {
-      overflowHandler: new OverflowHandler({ baseDir: PROJECT_ROOT }),
-    });
-    expect(typeof execTool.execute).toBe('function');
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -404,10 +307,7 @@ describe('PermissionPromptUI — renders correctly per category', () => {
     };
     const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
     // Line is Cell[] — join chars to get the text content of each line
-    const hasExecuteLabel = lines.some((line) =>
-      line.map((c) => c.char).join('').includes('[EXECUTE]')
-    );
-    expect(hasExecuteLabel).toBe(true);
+    expect(lines.map((line) => line.map((c) => c.char).join('')).join('\n')).toContain('[EXECUTE]');
   });
 
   test('createPromptLines for delegate includes DELEGATE label', () => {
@@ -420,10 +320,7 @@ describe('PermissionPromptUI — renders correctly per category', () => {
       resolve: (_approved: boolean) => {},
     };
     const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
-    const hasDelegateLabel = lines.some((line) =>
-      line.map((c) => c.char).join('').includes('[DELEGATE]')
-    );
-    expect(hasDelegateLabel).toBe(true);
+    expect(lines.map((line) => line.map((c) => c.char).join('')).join('\n')).toContain('[DELEGATE]');
   });
 
   test('createPromptLines includes tool name in output', () => {
@@ -437,10 +334,7 @@ describe('PermissionPromptUI — renders correctly per category', () => {
       resolve: (_approved: boolean) => {},
     };
     const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
-    const hasToolName = lines.some((line) =>
-      line.map((c) => c.char).join('').includes(toolName)
-    );
-    expect(hasToolName).toBe(true);
+    expect(lines.map((line) => line.map((c) => c.char).join('')).join('\n')).toContain(toolName);
   });
 
   test('createPromptLines includes choices [Y] Allow once in output', () => {
@@ -453,10 +347,7 @@ describe('PermissionPromptUI — renders correctly per category', () => {
       resolve: (_approved: boolean) => {},
     };
     const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
-    const hasChoices = lines.some((line) =>
-      line.map((c) => c.char).join('').includes('[Y]')
-    );
-    expect(hasChoices).toBe(true);
+    expect(lines.map((line) => line.map((c) => c.char).join('')).join('\n')).toContain('[Y]');
   });
 
   test('createPromptLines specializes execute prompts for shell execution', () => {

@@ -46,7 +46,10 @@ describe('workplan command', () => {
     const registry = new CommandRegistry();
     registerWorkPlanRuntimeCommands(registry);
     const command = registry.get('workplan');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'workplan',
+      handler: expect.any(Function),
+    }));
     const store = new WorkPlanStore({
       homeDirectory: mkdtempSync(join(tmpdir(), 'gv-work-plan-command-')),
       projectId: 'project:command',
@@ -76,7 +79,10 @@ describe('workplan command', () => {
     const registry = new CommandRegistry();
     registerWorkPlanRuntimeCommands(registry);
     const command = registry.get('workplan');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'workplan',
+      handler: expect.any(Function),
+    }));
     const store = new WorkPlanStore({
       homeDirectory: mkdtempSync(join(tmpdir(), 'gv-work-plan-command-')),
       projectId: 'project:command',
@@ -97,7 +103,10 @@ describe('workplan command', () => {
     const registry = new CommandRegistry();
     registerWorkPlanRuntimeCommands(registry);
     const command = registry.get('workplan');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'workplan',
+      handler: expect.any(Function),
+    }));
     const store = new WorkPlanStore({
       homeDirectory: mkdtempSync(join(tmpdir(), 'gv-work-plan-command-')),
       projectId: 'project:command',
@@ -117,7 +126,10 @@ describe('workplan command', () => {
     const registry = new CommandRegistry();
     registerWorkPlanRuntimeCommands(registry);
     const command = registry.get('workplan');
-    expect(command).toBeDefined();
+    expect(command).toEqual(expect.objectContaining({
+      name: 'workplan',
+      handler: expect.any(Function),
+    }));
     const store = new WorkPlanStore({
       homeDirectory: mkdtempSync(join(tmpdir(), 'gv-work-plan-command-')),
       projectId: 'project:command',

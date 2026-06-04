@@ -87,34 +87,34 @@ describe('tool breadth additions', () => {
   });
 
   test('worklist tool persists checklist items and lifecycle changes', async () => {
-    const created = await worklistTool.execute({ storageRoot: root, mode: 'create', worklistId: 'roadmap-2', title: 'Roadmap v2 closure' });
+    const created = await worklistTool.execute({ storageRoot: root, mode: 'create', worklistId: 'operator-cutover', title: 'Operator cutover closure' });
     expect(created.success).toBe(true);
 
     const added = await worklistTool.execute({
       storageRoot: root,
       mode: 'add-item',
-      worklistId: 'roadmap-2',
+      worklistId: 'operator-cutover',
       itemId: 'item-1',
-      text: 'Finish bridge productization',
+      text: 'Finish routed delivery productization',
       owner: 'ops',
       priority: 'high',
     });
     expect(added.success).toBe(true);
-    expect(added.output).toContain('Finish bridge productization');
+    expect(added.output).toContain('Finish routed delivery productization');
 
-    const completed = await worklistTool.execute({ storageRoot: root, mode: 'complete-item', worklistId: 'roadmap-2', itemId: 'item-1' });
+    const completed = await worklistTool.execute({ storageRoot: root, mode: 'complete-item', worklistId: 'operator-cutover', itemId: 'item-1' });
     expect(completed.success).toBe(true);
     expect(completed.output).toContain('"status":"done"');
 
-    const reopened = await worklistTool.execute({ storageRoot: root, mode: 'reopen-item', worklistId: 'roadmap-2', itemId: 'item-1' });
+    const reopened = await worklistTool.execute({ storageRoot: root, mode: 'reopen-item', worklistId: 'operator-cutover', itemId: 'item-1' });
     expect(reopened.success).toBe(true);
     expect(reopened.output).toContain('"status":"open"');
 
     const listed = await worklistTool.execute({ storageRoot: root, mode: 'list' });
     expect(listed.success).toBe(true);
-    expect(listed.output).toContain('roadmap-2');
+    expect(listed.output).toContain('operator-cutover');
 
-    const summary = await worklistTool.execute({ storageRoot: root, mode: 'show', worklistId: 'roadmap-2', view: 'summary' });
+    const summary = await worklistTool.execute({ storageRoot: root, mode: 'show', worklistId: 'operator-cutover', view: 'summary' });
     expect(summary.success).toBe(true);
     expect(summary.output).toContain('"itemCount":1');
   });
@@ -135,17 +135,17 @@ describe('tool breadth additions', () => {
 
     const packet = await packetTool.execute({
       mode: 'create',
-      packetId: 'bridge-rollout',
-      title: 'Bridge rollout',
-      summary: 'Roll out the self-hosted bridge path.',
+      packetId: 'operator-route-rollout',
+      title: 'Operator route rollout',
+      summary: 'Roll out the self-hosted operator route.',
       goals: ['runner pools', 'artifact review'],
       constraints: ['no SaaS'],
       risks: ['mis-scoped trust'],
     });
     expect(packet.success).toBe(true);
-    expect(packet.output).toContain('bridge-rollout');
+    expect(packet.output).toContain('operator-route-rollout');
 
-    const publish = await packetTool.execute({ mode: 'publish', packetId: 'bridge-rollout' });
+    const publish = await packetTool.execute({ mode: 'publish', packetId: 'operator-route-rollout' });
     expect(publish.success).toBe(true);
     expect(publish.output).toContain('"status":"published"');
 

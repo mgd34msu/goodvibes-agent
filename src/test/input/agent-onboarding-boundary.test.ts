@@ -62,10 +62,11 @@ describe('Agent onboarding product boundary', () => {
       'open-agent-workspace:voice-media',
       'start-openai-subscription',
     ]));
-    expect(actions.some((action) => action.includes('daemon'))).toBe(false);
-    expect(actions.some((action) => action.includes('service'))).toBe(false);
-    expect(actions.some((action) => action.includes('listener'))).toBe(false);
-    expect(actions.some((action) => action.includes('control-plane'))).toBe(false);
+    const actionText = actions.join('\n');
+    expect(actionText).not.toContain('daemon');
+    expect(actionText).not.toContain('service');
+    expect(actionText).not.toContain('listener');
+    expect(actionText).not.toContain('control-plane');
   });
 
   test('keeps first-run onboarding focused on Agent setup instead of host lifecycle terms', () => {

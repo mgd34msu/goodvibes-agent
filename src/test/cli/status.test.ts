@@ -11,8 +11,6 @@ function makeExternalRuntime(overrides: Partial<CliExternalRuntimeSnapshot> = {}
     baseUrl: 'http://127.0.0.1:3421',
     statusCode: 200,
     reachable: true,
-    version: '0.33.35',
-    expectedVersion: '0.33.35',
     compatible: true,
     operatorToken: {
       present: true,
@@ -162,7 +160,6 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('Connected GoodVibes host:');
     expect(text).toContain('baseUrl: http://127.0.0.1:3421');
     expect(text).toContain('reachable: yes (HTTP 200)');
-    expect(text).toContain('sdk: 0.33.35 expected 0.33.35');
     expect(text).toContain('Agent Knowledge: ready');
     expect(text).toContain('Agent role:');
     expect(text).toContain('product: interactive operator TUI');

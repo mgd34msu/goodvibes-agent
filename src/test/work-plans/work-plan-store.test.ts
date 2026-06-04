@@ -52,13 +52,13 @@ describe('WorkPlanStore', () => {
 
   test('renders markdown summary with statuses and metadata', () => {
     const store = makeStore();
-    const item = store.addItem('Write handoff', { owner: 'sdk', source: 'coordination' });
+    const item = store.addItem('Write handoff', { owner: 'agent', source: 'coordination' });
     store.setItemStatus(item.id, 'blocked');
 
     const markdown = store.toMarkdown();
     expect(markdown).toContain('# Work Plan');
     expect(markdown).toContain('Write handoff (blocked)');
-    expect(markdown).toContain('Owner: sdk');
+    expect(markdown).toContain('Owner: agent');
     expect(markdown).toContain('Source: coordination');
   });
 });

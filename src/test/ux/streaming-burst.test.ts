@@ -261,8 +261,9 @@ describe('ux:streaming-burst — simultaneous streaming + tool + agent bursts', 
       };
 
       const rootAgent = selectAgents(withBurstAgents).agents.get('root-001');
-      expect(rootAgent).toBeDefined();
-      expect(rootAgent?.childAgentIds).toHaveLength(5);
+      expect(rootAgent).toEqual(expect.objectContaining({
+        childAgentIds: expect.arrayContaining(children.map((child) => child.id)),
+      }));
       for (const child of children) {
         const childAgent = selectAgents(withBurstAgents).agents.get(child.id);
         expect(childAgent?.parentAgentId).toBe('root-001');

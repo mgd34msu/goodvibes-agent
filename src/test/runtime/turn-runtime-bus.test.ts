@@ -110,7 +110,7 @@ describe('runtime turn substrate', () => {
     expect(seen).toContain('TURN_SUBMITTED');
     expect(seen).toContain('LLM_RESPONSE_RECEIVED');
     expect(seen).toContain('TURN_COMPLETED');
-    expect(store.getState().conversation.currentTurnId).toBeDefined();
+    expect(store.getState().conversation.currentTurnId).toEqual(expect.any(String));
     expect(store.getState().conversation.turnState).toBe('completed');
     expect(store.getState().conversation.totalTurns).toBe(1);
     expect(store.getState().conversation.lastTurnStopReason).toBe('completed');
