@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.28 - 2026-06-03
+
+- Expose modelExecution metadata for every Agent workspace editor action, including local-registry, command-backed, direct local-create, profile, and prompt-returning editor flows.
+- Return editor execution-route metadata in workspace action handoffs so the model can complete forms without guessing the bridge.
+- Refresh 1.0.x package docs and focused harness coverage for workspace editor execution parity.
+
 ## 1.0.27 - 2026-06-03
 
 - Classify every built-in slash command with concrete model-visible effect and boundary policy metadata instead of generic unknown policy fallback.
