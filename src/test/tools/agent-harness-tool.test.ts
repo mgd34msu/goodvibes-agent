@@ -337,9 +337,33 @@ function readAuthorizationHeader(headers: HeadersInit | undefined): string | nul
 }
 
 describe('agent_harness tool', () => {
-  test('exposes Agent workspace actions and editor schemas to the model', async () => {
+  test('exposes Agent workspace categories, actions, and editor schemas to the model', async () => {
     const fixture = makeFixture();
     try {
+      const workspace = await fixture.tool.execute({ mode: 'workspace' });
+      expect(workspace.success).toBe(true);
+      const workspacePayload = JSON.parse(workspace.output) as {
+        readonly categories: readonly { readonly id: string; readonly actions: number }[];
+        readonly actions: number;
+      };
+      expect(workspacePayload.categories.some((entry) => entry.id === 'home' && entry.actions > 0)).toBe(true);
+      expect(workspacePayload.actions).toBeGreaterThan(0);
+
+      const categories = await fixture.tool.execute({ mode: 'workspace_categories' });
+      expect(categories.success).toBe(true);
+      const categoryPayload = JSON.parse(categories.output) as {
+        readonly categories: readonly { readonly id: string; readonly actions: number }[];
+        readonly actions: number;
+      };
+      expect(categoryPayload.categories.some((entry) => entry.id === 'memory' && entry.actions > 0)).toBe(true);
+      expect(categoryPayload.actions).toBe(workspacePayload.actions);
+
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly workspace?: string } };
+      expect(summaryJson.modelAccess?.workspace).toContain('mode:"workspace"');
+      expect(summaryJson.modelAccess?.workspace).toContain('mode:"workspace_categories"');
+
       const listed = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create' });
       expect(listed.success).toBe(true);
       expect(listed.output).toContain('memory-create');
