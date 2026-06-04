@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.25 - 2026-06-03
+
+- Correct the model-visible fixed shortcut catalog so F2 is reported as the runtime activity monitor instead of the shortcut reference.
+- Expose /shortcuts separately as the keyboard shortcut reference route.
+- Add focused harness coverage for runtime activity and shortcut-reference discovery.
+
 ## 1.0.24 - 2026-06-03
 
 - Resolve confirmed agent_harness run_command requests by the same command, commandName, target, or query lookup used for slash-command inspection.
