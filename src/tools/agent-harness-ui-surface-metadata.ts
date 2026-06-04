@@ -160,6 +160,14 @@ function openPanelWorkspaceSurface(
   return routeUnavailable(surface);
 }
 
+function openSimpleContextSurface(context: CommandContext, surfaceId: string, openerKey: keyof CommandContext): Record<string, unknown> {
+  const surface = findSurfaceById(surfaceId)!;
+  const opener = context[openerKey] as unknown;
+  if (typeof opener !== 'function') return routeUnavailable(surface);
+  (opener as () => void)();
+  return opened(surface);
+}
+
 const UI_SURFACES: readonly UiSurfaceDefinition[] = [
   {
     id: 'agent-workspace',
@@ -203,11 +211,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/security',
     preferredModelRoute: `Use mode:"workspace_actions" for security review actions or ${agentHarnessModes('run_command')} for confirmed /security review output.`,
     parameters: ['pane'],
-    available: (context) => (
-      typeof context.openAgentWorkspace === 'function'
-      || typeof context.openSecurityPanel === 'function'
-      || typeof context.showPanel === 'function'
-    ),
+    available: (context) => typeof context.openAgentWorkspace === 'function' || typeof context.openSecurityPanel === 'function' || typeof context.showPanel === 'function',
     open: (context, args) => {
       const surface = findSurfaceById('security-panel')!;
       return openPanelWorkspaceSurface(context, args, surface, {
@@ -225,11 +229,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/knowledge',
     preferredModelRoute: `Use agent_knowledge, agent_knowledge_ingest, mode:"workspace_actions", or ${agentHarnessModes('run_command')} for confirmed /knowledge operation.`,
     parameters: ['pane'],
-    available: (context) => (
-      typeof context.openAgentWorkspace === 'function'
-      || typeof context.openKnowledgePanel === 'function'
-      || typeof context.showPanel === 'function'
-    ),
+    available: (context) => typeof context.openAgentWorkspace === 'function' || typeof context.openKnowledgePanel === 'function' || typeof context.showPanel === 'function',
     open: (context, args) => {
       const surface = findSurfaceById('knowledge-panel')!;
       return openPanelWorkspaceSurface(context, args, surface, {
@@ -247,11 +247,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/subscription',
     preferredModelRoute: `Use mode:"workspace_actions" or ${agentHarnessModes('run_command')} for confirmed /subscription mirrors.`,
     parameters: ['pane'],
-    available: (context) => (
-      typeof context.openAgentWorkspace === 'function'
-      || typeof context.openSubscriptionPanel === 'function'
-      || typeof context.showPanel === 'function'
-    ),
+    available: (context) => typeof context.openAgentWorkspace === 'function' || typeof context.openSubscriptionPanel === 'function' || typeof context.showPanel === 'function',
     open: (context, args) => {
       const surface = findSurfaceById('subscription-panel')!;
       return openPanelWorkspaceSurface(context, args, surface, {
@@ -286,12 +282,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/mcp',
     preferredModelRoute: `Use ${agentHarnessModes('workspace_actions', 'tools', 'settings')} for model operation.`,
     available: (context) => typeof context.openMcpWorkspace === 'function',
-    open: (context) => {
-      const surface = findSurfaceById('mcp-workspace')!;
-      if (!context.openMcpWorkspace) return routeUnavailable(surface);
-      context.openMcpWorkspace();
-      return opened(surface);
-    },
+    open: (context) => openSimpleContextSurface(context, 'mcp-workspace', 'openMcpWorkspace'),
   },
   {
     id: 'model-picker',
@@ -405,12 +396,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/sessions',
     preferredModelRoute: 'Use session slash-command mirrors with confirmation for concrete save/load/export actions.',
     available: (context) => typeof context.openSessionPicker === 'function',
-    open: (context) => {
-      const surface = findSurfaceById('session-picker')!;
-      if (!context.openSessionPicker) return routeUnavailable(surface);
-      context.openSessionPicker();
-      return opened(surface);
-    },
+    open: (context) => openSimpleContextSurface(context, 'session-picker', 'openSessionPicker'),
   },
   {
     id: 'profile-picker',
@@ -420,12 +406,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/agent-profile',
     preferredModelRoute: 'Use workspace profile actions or profile slash-command mirrors for concrete model operation.',
     available: (context) => typeof context.openProfilePicker === 'function',
-    open: (context) => {
-      const surface = findSurfaceById('profile-picker')!;
-      if (!context.openProfilePicker) return routeUnavailable(surface);
-      context.openProfilePicker();
-      return opened(surface);
-    },
+    open: (context) => openSimpleContextSurface(context, 'profile-picker', 'openProfilePicker'),
   },
   {
     id: 'bookmark-modal',
@@ -435,12 +416,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/bookmarks',
     preferredModelRoute: 'Use slash-command mirrors for concrete bookmark inspection; opening is visible navigation only.',
     available: (context) => typeof context.openBookmarkModal === 'function',
-    open: (context) => {
-      const surface = findSurfaceById('bookmark-modal')!;
-      if (!context.openBookmarkModal) return routeUnavailable(surface);
-      context.openBookmarkModal();
-      return opened(surface);
-    },
+    open: (context) => openSimpleContextSurface(context, 'bookmark-modal', 'openBookmarkModal'),
   },
   {
     id: 'context-inspector',
@@ -450,12 +426,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/context',
     preferredModelRoute: 'Use slash-command mirrors for text output; opening is visible navigation only.',
     available: (context) => typeof context.openContextInspector === 'function',
-    open: (context) => {
-      const surface = findSurfaceById('context-inspector')!;
-      if (!context.openContextInspector) return routeUnavailable(surface);
-      context.openContextInspector();
-      return opened(surface);
-    },
+    open: (context) => openSimpleContextSurface(context, 'context-inspector', 'openContextInspector'),
   },
   {
     id: 'process-monitor',
@@ -465,12 +436,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: 'F2',
     preferredModelRoute: 'Use this only for visible supervision of runtime activity; use first-class model tools or confirmed commands for actual operations.',
     available: (context) => typeof context.openProcessModal === 'function',
-    open: (context) => {
-      const surface = findSurfaceById('process-monitor')!;
-      if (!context.openProcessModal) return routeUnavailable(surface);
-      context.openProcessModal();
-      return opened(surface);
-    },
+    open: (context) => openSimpleContextSurface(context, 'process-monitor', 'openProcessModal'),
   },
   {
     id: 'live-tail',
@@ -634,12 +600,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/help',
     preferredModelRoute: `Use ${agentHarnessModes('commands', 'command', 'shortcuts')} for model-readable discovery.`,
     available: (context) => typeof context.openHelpOverlay === 'function',
-    open: (context) => {
-      const surface = findSurfaceById('help-overlay')!;
-      if (!context.openHelpOverlay) return routeUnavailable(surface);
-      context.openHelpOverlay();
-      return opened(surface);
-    },
+    open: (context) => openSimpleContextSurface(context, 'help-overlay', 'openHelpOverlay'),
   },
   {
     id: 'shortcuts-overlay',
@@ -649,12 +610,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/shortcuts',
     preferredModelRoute: `Use ${agentHarnessModes('shortcuts', 'keybindings')} for model-readable discovery, mode:"run_keybinding" for supported shell-safe actions, and confirmed keybinding edits for binding changes.`,
     available: (context) => typeof context.openShortcutsOverlay === 'function',
-    open: (context) => {
-      const surface = findSurfaceById('shortcuts-overlay')!;
-      if (!context.openShortcutsOverlay) return routeUnavailable(surface);
-      context.openShortcutsOverlay();
-      return opened(surface);
-    },
+    open: (context) => openSimpleContextSurface(context, 'shortcuts-overlay', 'openShortcutsOverlay'),
   },
   {
     id: 'onboarding',
