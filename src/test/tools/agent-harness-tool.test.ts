@@ -508,12 +508,18 @@ describe('agent_harness tool', () => {
       expect(summary.success).toBe(true);
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly tools?: string } };
       expect(summaryJson.modelAccess?.tools).toContain('mode:"tool"');
+      expect(summaryJson.modelAccess?.tools).toContain('includeParameters:true');
 
       const catalog = await fixture.tool.execute({ mode: 'tools', query: 'custom' });
       expect(catalog.success).toBe(true);
       expect(catalog.output).toContain('"name": "agent_custom_action"');
       expect(catalog.output).toContain('"supportsProgress": true');
       expect(catalog.output).not.toContain('"targetId"');
+
+      const catalogWithSchemas = await fixture.tool.execute({ mode: 'tools', query: 'confirmed custom Agent action', includeParameters: true });
+      expect(catalogWithSchemas.success).toBe(true);
+      expect(catalogWithSchemas.output).toContain('"parameters"');
+      expect(catalogWithSchemas.output).toContain('"targetId"');
 
       const detail = await fixture.tool.execute({ mode: 'tool', toolName: 'agent_custom_action' });
       expect(detail.success).toBe(true);
@@ -1787,6 +1793,29 @@ describe('agent_harness tool', () => {
   test('resolves settings by key, target, and query without guessing ambiguous matches', async () => {
     const fixture = makeFixture();
     try {
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly settings?: string } };
+      expect(summaryJson.modelAccess?.settings).toContain('category');
+      expect(summaryJson.modelAccess?.settings).toContain('prefix');
+      expect(summaryJson.modelAccess?.settings).toContain('includeHidden:true');
+
+      const filteredSettings = await fixture.tool.execute({
+        mode: 'settings',
+        category: 'provider',
+        prefix: 'provider.',
+        query: 'reasoning',
+        limit: 5,
+      });
+      expect(filteredSettings.success).toBe(true);
+      const filteredPayload = JSON.parse(filteredSettings.output) as {
+        readonly settings: readonly { readonly key: string }[];
+        readonly returned: number;
+      };
+      expect(filteredPayload.returned).toBeGreaterThan(0);
+      expect(filteredPayload.settings.some((setting) => setting.key === 'provider.reasoningEffort')).toBe(true);
+      expect(filteredPayload.settings.every((setting) => setting.key.startsWith('provider.'))).toBe(true);
+
       const byTarget = await fixture.tool.execute({
         mode: 'get_setting',
         target: 'PROVIDER.MODEL',
