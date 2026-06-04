@@ -491,8 +491,6 @@ export const canonicalize = security.canonicalize;
 export const classifyCommand = security.classifyCommand;
 export const classifySegment = security.classifySegment;
 export const collectCommandNodes = security.collectCommandNodes;
-export const evaluateCommandAST = security.evaluateCommandAST;
-export const evaluateSegmentNode = security.evaluateSegmentNode;
 export const higherPriority = security.higherPriority;
 export const parseAST = security.parseAST;
 export const parseCommandAST = security.parseCommandAST;
@@ -504,6 +502,91 @@ export const signBundle = security.signBundle;
 export const verifyBundle = security.verifyBundle;
 export const MAX_INPUT_LENGTH = security.MAX_INPUT_LENGTH;
 export const MAX_TOKEN_COUNT = security.MAX_TOKEN_COUNT;
+
+type RuntimeSegmentVerdict = ReturnType<typeof security.evaluateSegmentNode>;
+type RuntimeCompoundVerdict = ReturnType<typeof security.evaluateCommandAST>;
+type RuntimeShellNode = Parameters<typeof security.evaluateCommandAST>[1];
+
+const AGENT_OBFUSCATION_CHECKS: Array<{ description: string; test: (raw: string) => boolean }> = [
+  {
+    description: 'base64-encoded argument (possible command injection)',
+    test: (raw) =>
+      extractInspectableShellWords(raw).some((word) =>
+        /^[A-Za-z0-9+/]+={0,2}$/.test(word) && word.length >= 12 && word.length % 4 === 0,
+      ),
+  },
+  {
+    description: 'URL-encoded content in argument',
+    test: (raw) => /%[0-9a-fA-F]{2}/.test(raw),
+  },
+];
+
+function extractInspectableShellWords(raw: string): string[] {
+  return (raw.match(/"[^"]*"|'[^']*'|`[^`]*`|\S+/g) ?? []).map((word) =>
+    word.replace(/^["'`]+|["'`;|&]+$/g, ''),
+  );
+}
+
+function agentObfuscationPatterns(raw: string, existing: readonly string[]): string[] {
+  const patterns = new Set(existing);
+  for (const check of AGENT_OBFUSCATION_CHECKS) {
+    if (check.test(raw)) {
+      patterns.add(check.description);
+    }
+  }
+  return [...patterns];
+}
+
+function enforceAgentObfuscationVerdict(verdict: RuntimeSegmentVerdict): RuntimeSegmentVerdict {
+  const obfuscationPatterns = agentObfuscationPatterns(verdict.raw, verdict.obfuscationPatterns);
+  if (obfuscationPatterns.length === verdict.obfuscationPatterns.length) {
+    return verdict;
+  }
+
+  return {
+    ...verdict,
+    allowed: false,
+    reason: `obfuscation detected: ${obfuscationPatterns.join('; ')}`,
+    hasObfuscation: true,
+    obfuscationPatterns,
+  };
+}
+
+export function evaluateSegmentNode(
+  node: Security.CommandNode,
+  allowedClasses?: ReadonlySet<Security.CommandClassification>,
+): RuntimeSegmentVerdict {
+  const verdict = allowedClasses === undefined
+    ? security.evaluateSegmentNode(node)
+    : security.evaluateSegmentNode(node, allowedClasses);
+  return enforceAgentObfuscationVerdict(verdict);
+}
+
+export function evaluateCommandAST(
+  original: string,
+  ast: RuntimeShellNode,
+  allowedClasses?: ReadonlySet<Security.CommandClassification>,
+): RuntimeCompoundVerdict {
+  const compound = allowedClasses === undefined
+    ? security.evaluateCommandAST(original, ast)
+    : security.evaluateCommandAST(original, ast, allowedClasses);
+  const segments = compound.segments.map(enforceAgentObfuscationVerdict);
+  const allowed = segments.every((segment) => segment.allowed);
+  const hasObfuscation = segments.some((segment) => segment.hasObfuscation);
+
+  const next: RuntimeCompoundVerdict = {
+    ...compound,
+    allowed,
+    segments,
+    hasObfuscation,
+  };
+  if (allowed) {
+    delete next.denialExplanation;
+  } else {
+    next.denialExplanation = security.buildDenialExplanation(original, segments);
+  }
+  return next;
+}
 
 export type AuthInspectionSnapshot = Security.AuthInspectionSnapshot;
 export type ProviderAuthInspection = Security.ProviderAuthInspection;
