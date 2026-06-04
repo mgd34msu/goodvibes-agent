@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.30 - 2026-06-04
+
+- Surface workspace and workspace_categories modes in the agent_harness summary and package docs so the model can discover the Agent workspace category catalog before action lookup.
+- Keep workspace action/editor execution guidance unchanged while documenting the category catalog/action-count route.
+- Add focused harness coverage for workspace category discovery and summary guidance.
+
 ## 1.0.29 - 2026-06-03
 
 - Add preferred model-route metadata to every built-in slash command policy so command inspection always tells the model which Agent-owned route to use.
