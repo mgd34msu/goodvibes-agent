@@ -19,7 +19,7 @@ High-signal TUI routes:
 | --- | --- |
 | `/agent` | Open the fullscreen operator workspace. |
 | `/help` and `/commands` | Discover registered slash commands. |
-| `/health`, `/compat`, `/auth` | Inspect runtime, SDK, host, and auth posture. |
+| `/health`, `/compat`, `/auth` | Inspect runtime, connected-host, compatibility, and auth posture. |
 | `/model`, `/provider`, `/effort` | Inspect or change provider/model/reasoning routes. |
 | `/knowledge` | Use isolated Agent Knowledge. |
 | `/memory`, `/notes`, `/personas`, `/skills`, `/routines` | Manage Agent-local behavior libraries. |
@@ -34,7 +34,7 @@ High-signal TUI routes:
 
 | Tool | Use |
 | --- | --- |
-| `agent_harness` | Discover and operate user-facing harness surfaces. |
+| `agent_harness` | Discover and operate Agent harness routes, including visible surfaces and operator/audit inspection. |
 | `agent_knowledge` | Read isolated Agent Knowledge: status, ask/search, lists, item, map, connectors. |
 | `agent_knowledge_ingest` | Confirmed ingest into isolated Agent Knowledge. |
 | `agent_local_registry` | Inspect or update Agent-local memory, notes, personas, skills, bundles, and routines. |
@@ -48,26 +48,27 @@ High-signal TUI routes:
 
 ## `agent_harness`
 
-Use `agent_harness mode:"summary"` first. Use `mode:"modes"` to search every harness mode by task, family, effect type, id, alias, or parameter name. Use `mode:"mode"` to inspect one mode contract. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, and short route hints. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
+Use `agent_harness mode:"summary"` first. Use `mode:"modes"` to search every harness mode by task, family, effect type, id, alias, or parameter name. Use `mode:"mode"` to inspect one mode contract. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, effect class, and short `modelRoute` or `modelAccess` hints when a route decision is needed. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
 
 Discovery modes:
 
 | Mode | What It Lists |
 | --- | --- |
+| `summary` | Compact counts, status, and a short guide for where to drill in next. |
 | `modes` | Searchable catalog of every `agent_harness` mode and its task fit. |
 | `workspace`, `workspace_categories`, `workspace_actions` | Workspace categories and actions. |
-| `commands`, `cli_commands` | Slash commands and top-level package CLI mirrors. |
+| `commands`, `cli_commands` | Slash commands and top-level package CLI mirrors with compact policy and route hints. |
 | `panels`, `ui_surfaces` | Built-in panels and visible modal/overlay/picker/workspace surfaces. |
-| `shortcuts`, `keybindings` | Fixed shortcuts and configurable keybindings. |
+| `shortcuts`, `keybindings` | Fixed shortcuts and configurable keybindings with direct route/access metadata. |
 | `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
-| `tools` | First-class model tool definitions; schema details require `includeParameters:true` or `tool`. |
+| `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
 | `provider_accounts`, `model_routing` | Provider auth and provider/model route posture. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, setup, pairing, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
 | `operator_methods` | Public operator and Agent Knowledge method catalog. |
 | `service_posture`, `connected_host`, `daemon` | Endpoint, connected-host, and daemon alias posture. |
-| `release_evidence`, `release_readiness` | Packaged release evidence and release-quality inventory. |
+| `release_evidence`, `release_readiness` | Operator/audit release artifacts and release-quality inventory. |
 
 Single-item inspect modes:
 
@@ -89,7 +90,7 @@ Effect modes:
 
 | Mode | Effect |
 | --- | --- |
-| `run_workspace_action` | Executes one resolved workspace action through the same editor/command/local bridge as the TUI. |
+| `run_workspace_action` | Executes one resolved workspace action through the same editor, command, or local route as the TUI. |
 | `run_command` | Executes one resolved slash command through the shared command registry. |
 | `open_panel`, `open_ui_surface` | Routes visible shell navigation. |
 | `run_keybinding` | Runs supported shell-safe keybinding actions only. |
@@ -98,35 +99,39 @@ Effect modes:
 
 Every effect mode requires `confirm:true` and `explicitUserRequest`. Ambiguous lookups return candidates before any effect runs.
 
-Registered model tool definitions are compact by default. Tool descriptions are capped or replaced with short Agent-specific summaries, and nested JSON-schema descriptions are stripped from the default registered catalog. Use `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or a specific harness mode when detailed contracts are needed.
+Registered model tool definitions are compact by default. Tool descriptions use short curated summaries or a tight fallback cap, nested JSON-schema descriptions are stripped from the default registered catalog, and catalog rows include direct harness inspection routes. Use `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or a specific harness mode when detailed contracts are needed.
 
 ## Workspace Action Execution
 
-`workspace_action` inspection returns editor schemas and `modelExecution` detail. `workspace_actions` can include the same detail with `includeParameters:true`.
+`workspace_actions` returns compact action rows with short `modelRoute` hints. `workspace_action` inspection returns editor schemas and `modelExecution` detail. `workspace_actions` can include the same detail with `includeParameters:true`.
+
+`panels` returns compact built-in panel rows with workspace route metadata and a short `modelRoute` for visible navigation or matching workspace operation. `panel` inspection adds policy detail and current open/focus state.
+
+`ui_surfaces` returns compact modal, picker, overlay, and workspace rows with a short `modelRoute`. `ui_surface` inspection and `includeParameters:true` add the longer `preferredModelRoute` and confirmation policy.
 
 Execution routes:
 
 - Local memory, notes, personas, skills, routines, and bundles dispatch through `agent_local_registry`.
 - Confirmed Agent Knowledge URL/file/bookmark/browser-history/connector ingest dispatches through `agent_knowledge_ingest`.
 - Command-backed editors dispatch through `run_command`.
-- Learned-behavior and profile creation use the Agent-local or slash-command bridge.
+- Learned-behavior and profile creation use the Agent-local or slash-command route.
 - Web research/fetch forms return a main-conversation prompt instead of starting hidden nested work.
 - Selection-based actions accept `recordId` so the model can use the same selected-record flows as the TUI.
 
 ## Settings And Keybindings
 
-Settings discovery accepts `category`, `prefix`, `query`, `includeHidden:true`, and `limit`. It is compact by default; use `includeParameters:true` or `get_setting` for full descriptions/defaults. Single setting reads/writes resolve by `key`, `target`, or `query`; ambiguous matches are refused. Secret-backed setting writes store raw values through the secret manager and return redacted output. Connected-host lifecycle/listener settings are read-only in Agent.
+Settings discovery accepts `category`, `prefix`, `query`, `includeHidden:true`, and `limit`. It is compact by default and each row includes a short `modelRoute` that distinguishes read-only settings from set/reset-capable settings; use `includeParameters:true` or `get_setting` for full descriptions/defaults. Single setting reads/writes resolve by `key`, `target`, or `query`; ambiguous matches are refused. Secret-backed setting writes store raw values through the secret manager and return redacted output. Connected-host lifecycle/listener settings are read-only in Agent.
 
-Keybinding discovery returns fixed shortcuts plus the live resolved binding table. `run_keybinding` only executes actions with faithful current-shell routes. Prompt-editor-only shortcuts, terminal text selection, category cycling, and reserved shortcuts stay direct user interaction.
+Keybinding discovery returns fixed shortcuts plus the live resolved binding table. Fixed shortcuts and configurable bindings include direct `modelRoute` and `modelAccess` metadata so the model can distinguish supported harness routes from direct-user-only controls. `run_keybinding` only executes actions with faithful current-shell routes. Prompt-editor-only shortcuts, terminal text selection, category cycling, and reserved shortcuts stay direct user interaction.
 
 ## Connected Host And Daemon
 
 The connected host is external. Agent can inspect it through:
 
 - `service_posture` and `service_endpoint` for endpoint binding, network-facing posture, issues, optional probes, and redacted log tail.
-- `connected_host` and `daemon` for compact connected-host posture; use `includeParameters:true` for route families, allowed capabilities, blocked lifecycle/non-Agent surfaces, and first-class tool availability.
-- `connected_host_capability` for one allowed or blocked capability.
-- `connected_host_status` and `daemon_status` for live read-only readiness checks.
+- `connected_host` and `daemon` for compact connected-host posture and direct `modelRoute` hints; use `includeParameters:true` for route families, allowed capabilities, blocked lifecycle/non-Agent surfaces, and first-class tool availability.
+- `connected_host_capability` for one allowed or blocked capability with the matching route hint.
+- `connected_host_status` and `daemon_status` for live read-only readiness checks and the next diagnostic route.
 - `operator_methods` and `operator_method` for the public method catalog.
 
 None of those modes expose host start, stop, restart, install, expose-listener, account creation, arbitrary route mutation, default knowledge access, hidden background Agent jobs, or implicit delegated review.
@@ -145,9 +150,17 @@ goodvibes-agent knowledge connectors
 goodvibes-agent knowledge connector <connector-id>
 goodvibes-agent knowledge connector-doctor <connector-id>
 goodvibes-agent knowledge ingest-url <url> --yes
+goodvibes-agent knowledge ingest-file <path> --yes
+goodvibes-agent knowledge ingest-connector <connector-id> --yes
 goodvibes-agent knowledge import-urls <path> --yes
 goodvibes-agent knowledge import-bookmarks <path> --yes
+goodvibes-agent knowledge import-browser-history --yes
 goodvibes-agent knowledge reindex --yes
+/knowledge queue
+/knowledge review-issue <issue-id> resolve --yes
+/knowledge packet <task>
+/knowledge explain <task>
+/knowledge consolidate light --yes
 ```
 
 Agent rejects route-selection flags that would target another knowledge space, including `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces`. Contaminated connected-host responses return `scope_contamination`.
@@ -169,7 +182,7 @@ Read views are safe by default. Mutations require exact target ids and confirmat
 /schedule run <schedule-id> --yes
 ```
 
-Routine promotion is an explicit scheduling bridge. Local routines stay local until a user confirms promotion. Delivery targets are opt-in with explicit channel/route/webhook/link flags.
+Routine promotion is an explicit scheduling route. Local routines stay local until a user confirms promotion. Delivery targets are opt-in with explicit channel/route/webhook/link flags.
 
 ## Slash Command Catalog
 
@@ -189,7 +202,7 @@ Routine promotion is an explicit scheduling bridge. Local routines stay local un
 | `/collapse` | Collapse rendered blocks by type. |
 | `/commands` | Browse all commands in a scrollable list. |
 | `/compact` | Summarize the conversation to free context window. |
-| `/compat` | Inspect Agent SDK pin, connected-host version, and Agent Knowledge route readiness. |
+| `/compat` | Inspect connected-host compatibility and Agent Knowledge route readiness. |
 | `/config` | Open the fullscreen configuration workspace. |
 | `/context` | Inspect context-window usage and token breakdown. |
 | `/conversation` | Review conversation structure, transcript hotspots, and composer posture. |

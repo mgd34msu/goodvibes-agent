@@ -5,7 +5,7 @@ GoodVibes Agent is the installable `1.0.x` personal operator assistant TUI for G
 ## Requirements
 
 - Bun `1.3.10` or newer.
-- A connected GoodVibes host compatible with the exact `@pellux/goodvibes-sdk@0.33.36` pin in `package.json`.
+- A connected GoodVibes host with compatible public Agent routes.
 - Connected-host token/config state accepted by that host.
 
 Agent does not launch or manage the connected host.
@@ -54,11 +54,12 @@ Press `/` inside the Agent workspace to search actions by name, category, comman
 
 ## Model Access
 
-The main Agent model can use the same user-facing harness through Agent-owned tools. Use `agent_harness mode:"summary"` for a compact map, `mode:"modes"` to search every harness mode by task or id, and `mode:"mode"` to inspect one mode contract. Then drill into plural catalogs or single-item inspect modes.
+The main Agent model can use the Agent-controlled harness through Agent-owned tools. Use `agent_harness mode:"summary"` for a compact map, `mode:"modes"` to search every harness mode by task or id, and `mode:"mode"` to inspect one mode contract. Then drill into plural catalogs or single-item inspect modes.
 
 Default discovery is intentionally compact:
 
-- plural modes return ids, labels, counts, safe state, and route hints;
+- plural modes return ids, labels, counts, safe state, effect class, and route hints;
+- workspace action, slash-command, CLI, panel, UI surface, shortcut/keybinding, settings, tool, connected-host posture/status/capability, and operator/audit catalogs include short `modelRoute` or `modelAccess` hints for route choice;
 - singular modes return detailed policy and lookup metadata;
 - `includeParameters:true` adds schemas, editor fields, model routes, parameter hints, release artifact data, redacted log tail, and detail that would be too large for normal discovery.
 
@@ -72,16 +73,18 @@ Common model routes:
 | Settings | `agent_harness mode:"settings"`, `mode:"get_setting"`, `mode:"set_setting"`, `mode:"reset_setting"` |
 | Visible UI | `agent_harness mode:"panels"`, `mode:"ui_surfaces"`, `mode:"open_panel"`, `mode:"open_ui_surface"` |
 | Keybindings | `agent_harness mode:"shortcuts"`, `mode:"keybindings"`, `mode:"keybinding"`, `mode:"run_keybinding"`, `mode:"set_keybinding"` |
+| Tool contracts | `agent_harness mode:"tools"`, `mode:"tool"` |
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |
 | Local memory/notes/personas/skills/routines | `agent_local_registry` or confirmed workspace actions |
 | Work plan | `agent_work_plan` |
 | Channels, notifications, reminders, media | `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_media_generate` |
 | Operator state/actions | `agent_operator_briefing`, `agent_operator_action`, `agent_harness mode:"operator_methods"` |
-| Connected host/daemon posture | `agent_harness mode:"service_posture"`, `mode:"connected_host"`, `mode:"connected_host_status"`, `mode:"daemon"`, `mode:"daemon_status"` |
+| Connected host/daemon posture | `agent_harness mode:"service_posture"`, `mode:"connected_host"`, `mode:"connected_host_capability"`, `mode:"connected_host_status"`, `mode:"daemon"`, `mode:"daemon_status"` |
+| Operator/audit evidence | `agent_harness mode:"release_evidence"`, `mode:"release_evidence_artifact"`, `mode:"release_readiness"`, `mode:"release_readiness_item"` |
 
 All effects require explicit user request and confirmation. Ambiguous lookup is refused with candidates.
 
-Registered tool definitions are intentionally terse. The default model catalog keeps top-level descriptions short and removes nested parameter descriptions; use `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or the owning harness mode when detailed contracts are needed.
+Registered tool definitions are intentionally terse. The default model catalog keeps top-level descriptions short, removes nested parameter descriptions, and includes direct harness inspection routes; use `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or the owning harness mode when detailed contracts are needed.
 
 ## Isolated Agent Profiles
 
@@ -121,13 +124,15 @@ Starting a routine records local usage and prints its steps in the main conversa
 
 ## Knowledge And Artifacts
 
-Use Agent Workspace -> Knowledge for source-backed Agent Knowledge. The valid route family is:
+Use Agent Workspace -> Knowledge for source-backed Agent Knowledge. The valid connected-host route family is:
 
 ```text
 /api/goodvibes-agent/knowledge/*
 ```
 
 Agent commands fail closed if the route is unavailable or a successful-looking response exposes default-scope metadata.
+
+The Knowledge workspace also exposes route-backed and command-backed workflows for issue review, prompt packet previews, context-selection explain output, consolidation, and reindex. Read-only ask/search/list/get/map/connector/packet/explain paths do not require mutation confirmation. Ingest, review-issue, consolidation, and reindex paths require explicit confirmation.
 
 Use Agent Workspace -> Research for read-only web research and URL inspection. Research requests do not ingest sources. Use confirmed Agent Knowledge ingest actions when a reviewed source should become durable.
 
@@ -162,7 +167,7 @@ Host diagnostics:
 - `goodvibes-agent doctor`
 - `goodvibes-agent compat`
 
-Model-visible diagnostics are `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`, `daemon`, and `daemon_status`. These are read-only and do not expose host lifecycle control.
+Model-visible diagnostics are `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`, `daemon`, and `daemon_status`. Connected-host posture/status/capability results include compact route hints for the next safe Agent-owned tool or harness mode. These modes are read-only and do not expose host lifecycle control.
 
 ## Current Product Notes
 
