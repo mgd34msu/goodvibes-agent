@@ -17,13 +17,14 @@ import { createShellPathService } from '@/runtime/index.ts';
 import { registerOperatorRuntimeCommands } from '../../input/commands/operator-runtime.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
 import { KeybindingsManager } from '../../input/keybindings.ts';
-import { describeCommandPolicy } from '../../tools/agent-harness-metadata.ts';
+import { describeCliCommandPolicy, describeCommandPolicy } from '../../tools/agent-harness-metadata.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { SDK_VERSION } from '../../version.ts';
+import { listGoodVibesCliCommands } from '../../cli/parser.ts';
 
 type ShellPaths = ReturnType<typeof createShellPathService>;
 type HarnessOpenSelection = NonNullable<CommandContext['openSelection']>;
@@ -1486,6 +1487,12 @@ describe('agent_harness tool', () => {
       .sort((a, b) => a.localeCompare(b));
     expect(unknownPolicies).toEqual([]);
 
+    const missingPreferredRoutes = registry.list()
+      .filter((command) => !describeCommandPolicy(command.name).preferredModelTool)
+      .map((command) => command.name)
+      .sort((a, b) => a.localeCompare(b));
+    expect(missingPreferredRoutes).toEqual([]);
+
     expect(describeCommandPolicy('agent')).toMatchObject({
       effect: 'ui-navigation',
       preferredModelTool: expect.stringContaining('workspace_actions'),
@@ -1499,6 +1506,19 @@ describe('agent_harness tool', () => {
     });
     expect(describeCommandPolicy('export')).toMatchObject({
       effect: 'local-state',
+      preferredModelTool: expect.stringContaining('workspace_actions'),
+    });
+    expect(describeCommandPolicy('delegate')).toMatchObject({
+      effect: 'delegated-work',
+      preferredModelTool: expect.stringContaining('run_workspace_action'),
+    });
+    expect(describeCommandPolicy('next-error')).toMatchObject({
+      effect: 'ui-navigation',
+      preferredModelTool: 'agent_harness run_command',
+    });
+    expect(describeCommandPolicy('clear')).toMatchObject({
+      effect: 'session-lifecycle',
+      preferredModelTool: expect.stringContaining('run_command'),
     });
     expect(describeCommandPolicy('notes')).toMatchObject({
       effect: 'ui-navigation',
@@ -1507,6 +1527,35 @@ describe('agent_harness tool', () => {
     expect(describeCommandPolicy('keybindings')).toMatchObject({
       effect: 'read-only',
       preferredModelTool: expect.stringContaining('run_keybinding'),
+    });
+  });
+
+  test('assigns preferred model routes to every supported top-level CLI mirror', () => {
+    const missingPreferredRoutes = listGoodVibesCliCommands()
+      .filter((command) => command !== 'unknown')
+      .filter((command) => !describeCliCommandPolicy(command).preferredModelTool)
+      .sort((a, b) => a.localeCompare(b));
+    expect(missingPreferredRoutes).toEqual([]);
+
+    expect(describeCliCommandPolicy('run')).toMatchObject({
+      effect: 'mixed',
+      preferredModelTool: expect.stringContaining('current Agent conversation'),
+    });
+    expect(describeCliCommandPolicy('delegate')).toMatchObject({
+      effect: 'delegated-work',
+      preferredModelTool: expect.stringContaining('run_workspace_action'),
+    });
+    expect(describeCliCommandPolicy('pair')).toMatchObject({
+      effect: 'external-network',
+      preferredModelTool: expect.stringContaining('workspace_actions'),
+    });
+    expect(describeCliCommandPolicy('secrets')).toMatchObject({
+      effect: 'mixed',
+      preferredModelTool: expect.stringContaining('settings'),
+    });
+    expect(describeCliCommandPolicy('subscription')).toMatchObject({
+      effect: 'mixed',
+      preferredModelTool: expect.stringContaining('workspace_actions'),
     });
   });
 

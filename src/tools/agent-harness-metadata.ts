@@ -222,6 +222,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'delegated-work',
       confirmation,
+      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action',
       boundary: 'Delegation is explicit user-directed work only; no hidden background review or separate Agent job should be created implicitly.',
     };
   }
@@ -244,6 +245,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'session-lifecycle',
       confirmation,
+      preferredModelTool: 'agent_harness commands/command/run_command',
       boundary: 'Session and conversation commands operate on the visible harness session lifecycle.',
     };
   }
@@ -251,6 +253,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'local-state',
       confirmation,
+      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action or agent_harness run_command',
       boundary: 'Conversation export writes a local workspace file and requires an explicit output intent.',
     };
   }
@@ -258,7 +261,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'ui-navigation',
       confirmation,
-      preferredModelTool: root === 'bookmarks' ? 'agent_harness open_ui_surface' : undefined,
+      preferredModelTool: root === 'bookmarks' ? 'agent_harness open_ui_surface' : 'agent_harness run_command',
       boundary: 'Conversation display navigation mutates only the visible transcript view or scroll position.',
     };
   }
@@ -335,6 +338,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: 'mixed',
       confirmation,
+      preferredModelTool: 'current Agent conversation response; do not invoke hidden nested CLI run',
       boundary: 'The CLI run command starts a non-interactive Agent turn from a process entrypoint. Do not create hidden nested turns from agent_harness; answer the user directly in the current conversation.',
     };
   }
@@ -366,6 +370,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: 'delegated-work',
       confirmation,
+      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action',
       boundary: 'Delegation is explicit user-directed work only; no hidden background review or separate Agent job should be created implicitly.',
     };
   }
@@ -373,6 +378,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: root === 'pair' ? 'external-network' : 'mixed',
       confirmation,
+      preferredModelTool: root === 'pair' ? 'agent_harness workspace_actions/workspace_action/run_workspace_action' : 'agent_harness settings/get_setting/set_setting/reset_setting or workspace_actions',
       boundary: 'Provider subscription, secret, and pairing flows can expose credentials or external account state. Use only explicit user-directed flows and prefer secret refs over raw values.',
     };
   }
