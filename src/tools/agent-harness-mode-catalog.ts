@@ -32,21 +32,21 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'modes', kind: 'discover', family: 'start', summary: 'Search all agent_harness modes by task, family, effect, or id.', next: 'Use mode for one exact mode contract.', parameters: ['query', 'target', 'limit', 'includeParameters'] },
   { id: 'mode', kind: 'inspect', family: 'start', summary: 'Inspect one agent_harness mode contract and common next step.', next: 'Use target or query with a mode id or task phrase.', parameters: ['target', 'query'] },
   { id: 'cli_commands', kind: 'discover', family: 'cli', summary: 'List top-level package CLI mirrors for discovery only.', next: 'Use cli_command for one command.', parameters: ['query', 'limit', 'includeParameters'] },
-  { id: 'cli_command', kind: 'inspect', family: 'cli', summary: 'Inspect one top-level CLI command, parser result, policy, aliases, and safe model route.', parameters: ['cliCommand', 'command', 'commandName', 'target', 'query'] },
+  { id: 'cli_command', kind: 'inspect', family: 'cli', summary: 'Inspect one CLI command parser result, policy, aliases, and model route.', parameters: ['cliCommand', 'command', 'commandName', 'target', 'query'] },
   { id: 'panels', kind: 'discover', family: 'ui', summary: 'List built-in panel catalog state and workspace routes.', next: 'Use panel or open_panel.', parameters: ['query', 'category', 'limit', 'includeParameters'] },
-  { id: 'panel', kind: 'inspect', family: 'ui', summary: 'Inspect one built-in panel, open state, workspace route, and navigation policy.', parameters: ['panelId', 'target', 'query'] },
+  { id: 'panel', kind: 'inspect', family: 'ui', summary: 'Inspect one built-in panel, open state, workspace route, and policy.', parameters: ['panelId', 'target', 'query'] },
   { id: 'open_panel', kind: 'effect', family: 'ui', summary: 'Route the visible shell to one built-in panel.', requiresConfirmation: true, parameters: ['panelId', 'target', 'query', 'pane', 'confirm', 'explicitUserRequest'] },
   { id: 'ui_surfaces', kind: 'discover', family: 'ui', summary: 'List modal, picker, and visible UI surfaces the model can request.', next: 'Use ui_surface or open_ui_surface.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'ui_surface', kind: 'inspect', family: 'ui', summary: 'Inspect one visible modal or picker surface and route contract.', parameters: ['surfaceId', 'target', 'query'] },
-  { id: 'open_ui_surface', kind: 'effect', family: 'ui', summary: 'Open one visible modal or picker through the shell bridge.', requiresConfirmation: true, parameters: ['surfaceId', 'target', 'query', 'confirm', 'explicitUserRequest'] },
+  { id: 'open_ui_surface', kind: 'effect', family: 'ui', summary: 'Open one visible modal, picker, or operator workspace route.', requiresConfirmation: true, parameters: ['surfaceId', 'target', 'query', 'confirm', 'explicitUserRequest'] },
   { id: 'shortcuts', kind: 'discover', family: 'keyboard', summary: 'List fixed shortcuts and keybinding overview.', next: 'Use keybindings or keybinding for configurable actions.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'keybindings', kind: 'discover', family: 'keyboard', summary: 'List configurable keybinding actions and current/default combos.', next: 'Use keybinding, run_keybinding, set_keybinding, or reset_keybinding.', parameters: ['query', 'limit', 'includeParameters'] },
-  { id: 'keybinding', kind: 'inspect', family: 'keyboard', summary: 'Inspect one keybinding action, route, current combos, defaults, and policy.', parameters: ['actionId', 'key', 'target', 'query'] },
-  { id: 'run_keybinding', kind: 'effect', family: 'keyboard', summary: 'Run one supported keybinding action through the shell bridge.', requiresConfirmation: true, parameters: ['actionId', 'key', 'target', 'query', 'confirm', 'explicitUserRequest'] },
+  { id: 'keybinding', kind: 'inspect', family: 'keyboard', summary: 'Inspect one keybinding action, current combos, defaults, and policy.', parameters: ['actionId', 'key', 'target', 'query'] },
+  { id: 'run_keybinding', kind: 'effect', family: 'keyboard', summary: 'Run one supported keybinding action through the active UI route.', requiresConfirmation: true, parameters: ['actionId', 'key', 'target', 'query', 'confirm', 'explicitUserRequest'] },
   { id: 'set_keybinding', kind: 'effect', family: 'keyboard', summary: 'Set one configurable keybinding action.', requiresConfirmation: true, parameters: ['actionId', 'combo', 'combos', 'confirm', 'explicitUserRequest'] },
   { id: 'reset_keybinding', kind: 'effect', family: 'keyboard', summary: 'Reset one configurable keybinding action to defaults.', requiresConfirmation: true, parameters: ['actionId', 'confirm', 'explicitUserRequest'] },
   { id: 'commands', kind: 'discover', family: 'slash', summary: 'List registered slash commands and compact policies.', next: 'Use command or run_command.', parameters: ['query', 'limit', 'includeParameters'] },
-  { id: 'command', kind: 'inspect', family: 'slash', summary: 'Inspect one slash command, parsed args, policy, aliases, and preferred model route.', parameters: ['command', 'commandName', 'target', 'query'] },
+  { id: 'command', kind: 'inspect', family: 'slash', summary: 'Inspect slash command, parsed args, policy, aliases, and model route.', parameters: ['command', 'commandName', 'target', 'query'] },
   { id: 'run_command', kind: 'effect', family: 'slash', summary: 'Run one slash command through shared command dispatch.', requiresConfirmation: true, parameters: ['command', 'commandName', 'args', 'target', 'query', 'confirm', 'explicitUserRequest'] },
   { id: 'channels', kind: 'discover', family: 'delivery', summary: 'List channel readiness, accounts, delivery posture, and safe setup keys.', next: 'Use channel or agent_channel_send.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'channel', kind: 'inspect', family: 'delivery', summary: 'Inspect one channel readiness entry and delivery policy.', parameters: ['channelId', 'target', 'query'] },
@@ -58,9 +58,9 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'mcp_server', kind: 'inspect', family: 'tools', summary: 'Inspect one MCP server, tools, schemas, auth, and trust posture.', parameters: ['mcpServerId', 'target', 'query'] },
   { id: 'setup_posture', kind: 'discover', family: 'setup', summary: 'Inspect first-run/setup capability posture and derived readiness flags.', next: 'Use setup_item.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'setup_item', kind: 'inspect', family: 'setup', summary: 'Inspect one setup/onboarding posture item and visible remediation route.', parameters: ['setupItemId', 'target', 'query'] },
-  { id: 'model_routing', kind: 'discover', family: 'providers', summary: 'List current model/provider route, available models, pins, and safe route settings.', next: 'Use model_route.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'model_routing', kind: 'discover', family: 'providers', summary: 'List model/provider route, models, pins, and safe route settings.', next: 'Use model_route.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'model_route', kind: 'inspect', family: 'providers', summary: 'Inspect one model route or model candidate and visible selection paths.', parameters: ['modelRouteId', 'target', 'query'] },
-  { id: 'pairing_posture', kind: 'discover', family: 'companion', summary: 'List companion pairing routes, token posture, and connected-host readiness without raw token output.', next: 'Use pairing_route.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'pairing_posture', kind: 'discover', family: 'companion', summary: 'List pairing routes, token posture, and safe handoff readiness.', next: 'Use pairing_route.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'pairing_route', kind: 'inspect', family: 'companion', summary: 'Inspect one companion pairing route and safe visible handoff.', parameters: ['pairingRouteId', 'target', 'query'] },
   { id: 'delegation_posture', kind: 'discover', family: 'delegation', summary: 'List explicit build/fix/review delegation routes and boundaries.', next: 'Use delegation_route.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'delegation_route', kind: 'inspect', family: 'delegation', summary: 'Inspect one delegation route and exact visible submission contract.', parameters: ['delegationRouteId', 'target', 'query'] },
@@ -68,34 +68,34 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'security_finding', kind: 'inspect', family: 'security', summary: 'Inspect one security posture finding and safe remediation route.', parameters: ['findingId', 'target', 'query'] },
   { id: 'support_bundles', kind: 'discover', family: 'support', summary: 'List support bundle artifacts and redacted export/import posture.', next: 'Use support_bundle.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'support_bundle', kind: 'inspect', family: 'support', summary: 'Inspect one support bundle artifact and redaction posture.', parameters: ['bundlePath', 'target', 'query'] },
-  { id: 'media_posture', kind: 'discover', family: 'media', summary: 'List voice/media provider readiness, browser posture, and artifact routes.', next: 'Use media_provider or agent_media_generate.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'media_posture', kind: 'discover', family: 'media', summary: 'List media/voice readiness, browser posture, and artifact routes.', next: 'Use media_provider or agent_media_generate.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'media_provider', kind: 'inspect', family: 'media', summary: 'Inspect one voice or media provider readiness entry.', parameters: ['mediaProviderId', 'target', 'query'] },
   { id: 'sessions', kind: 'discover', family: 'sessions', summary: 'List saved sessions, bookmarks, exports, and pending approvals posture.', next: 'Use session.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'session', kind: 'inspect', family: 'sessions', summary: 'Inspect one saved session or bookmark entry.', parameters: ['sessionId', 'target', 'query'] },
   { id: 'settings', kind: 'discover', family: 'settings', summary: 'Search Agent settings compactly by category, prefix, or query.', next: 'Use get_setting, set_setting, or reset_setting.', parameters: ['category', 'prefix', 'query', 'includeHidden', 'limit', 'includeParameters'] },
-  { id: 'get_setting', kind: 'inspect', family: 'settings', summary: 'Inspect one Agent setting descriptor, current value, default, and policy.', parameters: ['key', 'target', 'query'] },
+  { id: 'get_setting', kind: 'inspect', family: 'settings', summary: 'Inspect one Agent setting descriptor, value, default, and policy.', parameters: ['key', 'target', 'query'] },
   { id: 'set_setting', kind: 'effect', family: 'settings', summary: 'Set one Agent-owned setting through config/secret managers.', requiresConfirmation: true, parameters: ['key', 'target', 'query', 'value', 'confirm', 'explicitUserRequest'] },
   { id: 'reset_setting', kind: 'effect', family: 'settings', summary: 'Reset one Agent-owned setting and delete secret refs when needed.', requiresConfirmation: true, parameters: ['key', 'target', 'query', 'confirm', 'explicitUserRequest'] },
   { id: 'workspace', kind: 'discover', family: 'workspace', summary: 'List Agent workspace categories and action counts.', next: 'Use workspace_actions or workspace_action.' },
   { id: 'workspace_categories', kind: 'discover', family: 'workspace', summary: 'Alias of workspace for category discovery.', next: 'Use workspace_actions or workspace_action.', aliases: ['workspace'] },
   { id: 'workspace_actions', kind: 'discover', family: 'workspace', summary: 'Search all user-facing Agent workspace actions and compact model routes.', next: 'Use workspace_action or run_workspace_action.', parameters: ['categoryId', 'query', 'limit', 'includeParameters'] },
-  { id: 'workspace_action', kind: 'inspect', family: 'workspace', summary: 'Inspect one workspace action, editor schema, route bridge, and safety policy.', parameters: ['actionId', 'command', 'target', 'query', 'recordId'] },
-  { id: 'run_workspace_action', kind: 'effect', family: 'workspace', summary: 'Run one supported workspace action or return its concrete model execution handoff.', requiresConfirmation: true, parameters: ['actionId', 'command', 'target', 'query', 'recordId', 'fields', 'confirm', 'explicitUserRequest'] },
+  { id: 'workspace_action', kind: 'inspect', family: 'workspace', summary: 'Inspect one workspace action, editor schema, route, and safety policy.', parameters: ['actionId', 'command', 'target', 'query', 'recordId'] },
+  { id: 'run_workspace_action', kind: 'effect', family: 'workspace', summary: 'Run a workspace action or return its model execution handoff.', requiresConfirmation: true, parameters: ['actionId', 'command', 'target', 'query', 'recordId', 'fields', 'confirm', 'explicitUserRequest'] },
   { id: 'tools', kind: 'discover', family: 'tools', summary: 'List first-class model tool definitions compactly.', next: 'Use tool for full schema.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'tool', kind: 'inspect', family: 'tools', summary: 'Inspect one first-class model tool definition and JSON schema.', parameters: ['toolName', 'target', 'query'] },
-  { id: 'release_evidence', kind: 'discover', family: 'release', summary: 'List packaged release evidence artifacts compactly.', next: 'Use release_evidence_artifact.', parameters: ['query', 'limit', 'includeParameters'] },
-  { id: 'release_evidence_artifact', kind: 'inspect', family: 'release', summary: 'Inspect one release evidence artifact and optional content.', parameters: ['artifactId', 'target', 'query'] },
-  { id: 'release_readiness', kind: 'discover', family: 'release', summary: 'Search the release-quality readiness inventory.', next: 'Use release_readiness_item.', parameters: ['query', 'limit', 'includeParameters'] },
-  { id: 'release_readiness_item', kind: 'inspect', family: 'release', summary: 'Inspect one release-quality readiness inventory item.', parameters: ['itemId', 'target', 'query'] },
-  { id: 'operator_methods', kind: 'discover', family: 'operator', summary: 'List allowlisted public operator/Agent Knowledge methods and owning tools.', next: 'Use operator_method.', parameters: ['query', 'limit', 'includeParameters'] },
-  { id: 'operator_method', kind: 'inspect', family: 'operator', summary: 'Inspect one allowlisted operator method and preferred first-class model tool.', parameters: ['methodId', 'target', 'query'] },
-  { id: 'service_posture', kind: 'discover', family: 'connected-host', summary: 'Inspect connected service endpoint posture, binding, issues, and optional probes.', next: 'Use service_endpoint.', parameters: ['includeParameters'] },
-  { id: 'service_endpoint', kind: 'inspect', family: 'connected-host', summary: 'Inspect one connected service endpoint binding and lifecycle boundary.', parameters: ['endpointId', 'target', 'query'] },
-  { id: 'connected_host', kind: 'discover', family: 'connected-host', summary: 'Map connected-host capabilities, boundaries, and model tool availability.', next: 'Use connected_host_capability or connected_host_status.', parameters: ['includeParameters'] },
+  { id: 'release_evidence', kind: 'discover', family: 'operator-audit', summary: 'List packaged operator/audit release artifacts compactly.', next: 'Use release_evidence_artifact.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'release_evidence_artifact', kind: 'inspect', family: 'operator-audit', summary: 'Inspect one operator/audit release artifact and optional content.', parameters: ['artifactId', 'target', 'query'] },
+  { id: 'release_readiness', kind: 'discover', family: 'operator-audit', summary: 'Search the operator/audit release-quality inventory.', next: 'Use release_readiness_item.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'release_readiness_item', kind: 'inspect', family: 'operator-audit', summary: 'Inspect one operator/audit readiness inventory item.', parameters: ['itemId', 'target', 'query'] },
+  { id: 'operator_methods', kind: 'discover', family: 'operator', summary: 'List public operator/Agent Knowledge methods and owning tools.', next: 'Use operator_method.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'operator_method', kind: 'inspect', family: 'operator', summary: 'Inspect one operator method and preferred first-class model tool.', parameters: ['methodId', 'target', 'query'] },
+  { id: 'service_posture', kind: 'discover', family: 'connected-host', summary: 'Inspect service endpoint posture, binding, issues, and probes.', next: 'Use service_endpoint.', parameters: ['includeParameters'] },
+  { id: 'service_endpoint', kind: 'inspect', family: 'connected-host', summary: 'Inspect one service endpoint binding and lifecycle boundary.', parameters: ['endpointId', 'target', 'query'] },
+  { id: 'connected_host', kind: 'discover', family: 'connected-host', summary: 'Map connected-host capabilities, boundaries, and tool availability.', next: 'Use connected_host_capability or connected_host_status.', parameters: ['includeParameters'] },
   { id: 'connected_host_status', kind: 'inspect', family: 'connected-host', summary: 'Run live read-only connected-host readiness checks.', parameters: ['includeParameters'] },
-  { id: 'connected_host_capability', kind: 'inspect', family: 'connected-host', summary: 'Inspect one connected-host capability and blocked lifecycle/non-Agent surfaces.', parameters: ['capabilityId', 'target', 'query'] },
-  { id: 'daemon', kind: 'alias', family: 'connected-host', summary: 'Alias for connected_host posture. Does not expose lifecycle control.', next: 'Use connected_host for canonical naming.', aliases: ['connected_host'], parameters: ['includeParameters'] },
-  { id: 'daemon_status', kind: 'alias', family: 'connected-host', summary: 'Alias for connected_host_status live readiness. Does not expose lifecycle control.', next: 'Use connected_host_status for canonical naming.', aliases: ['connected_host_status'], parameters: ['includeParameters'] },
+  { id: 'connected_host_capability', kind: 'inspect', family: 'connected-host', summary: 'Inspect one connected-host capability and blocked surfaces.', parameters: ['capabilityId', 'target', 'query'] },
+  { id: 'daemon', kind: 'alias', family: 'connected-host', summary: 'GoodVibes daemon -> connected_host; lifecycle external.', next: 'Use connected_host for canonical naming.', aliases: ['connected_host'], parameters: ['includeParameters'] },
+  { id: 'daemon_status', kind: 'alias', family: 'connected-host', summary: 'GoodVibes daemon status -> connected_host_status.', next: 'Use connected_host_status for canonical naming.', aliases: ['connected_host_status'], parameters: ['includeParameters'] },
 ] as const;
 
 function readString(value: unknown): string {
@@ -117,6 +117,7 @@ function describeHarnessModeDescriptor(
     kind: descriptor.kind,
     family: descriptor.family,
     summary: descriptor.summary,
+    modelRoute: `agent_harness mode:"${descriptor.id}"`,
     ...(descriptor.next ? { next: descriptor.next } : {}),
     ...(descriptor.requiresConfirmation ? { requiresConfirmation: true } : {}),
     ...(descriptor.aliases ? { aliases: descriptor.aliases } : {}),
@@ -141,13 +142,66 @@ function harnessModeSearchText(descriptor: HarnessModeDescriptor): string {
   ].filter(Boolean).join('\n').toLowerCase();
 }
 
+function searchTokens(input: string): readonly string[] {
+  return input.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 0);
+}
+
 function harnessModeMatchesSearch(descriptor: HarnessModeDescriptor, input: string): boolean {
   const text = harnessModeSearchText(descriptor);
   const normalized = input.toLowerCase().trim();
   if (normalized.length === 0) return true;
   if (text.includes(normalized)) return true;
-  const tokens = normalized.split(/[^a-z0-9]+/).filter((token) => token.length > 0);
+  const tokens = searchTokens(normalized);
   return tokens.length > 0 && tokens.every((token) => text.includes(token));
+}
+
+function tokenScore(tokens: readonly string[], value: string | undefined, weight: number): number {
+  if (!value) return 0;
+  const text = value.toLowerCase();
+  return tokens.reduce((score, token) => score + (text.includes(token) ? weight : 0), 0);
+}
+
+const ACTION_VERBS = new Set(['run', 'set', 'reset', 'open', 'create', 'send', 'schedule']);
+
+function harnessModeRelevance(descriptor: HarnessModeDescriptor, input: string): number {
+  const normalized = input.toLowerCase().trim();
+  if (!normalized) return 0;
+
+  const tokens = searchTokens(normalized);
+  const id = descriptor.id.toLowerCase();
+  const idPhrase = id.replace(/_/g, ' ');
+  const idLookup = normalized.replace(/\s+/g, '_');
+  let score = 0;
+
+  if (id === normalized || idPhrase === normalized) score += 10_000;
+  if (id.startsWith(idLookup) || idPhrase.startsWith(normalized)) score += 5_000;
+  if (id.includes(idLookup) || idPhrase.includes(normalized)) score += 2_500;
+
+  score += tokenScore(tokens, [id, idPhrase, ...(descriptor.aliases ?? [])].join('\n'), 1_000);
+  score += tokenScore(tokens, descriptor.family, 500);
+  score += tokenScore(tokens, descriptor.kind, 500);
+  score += tokenScore(tokens, (descriptor.parameters ?? []).join('\n'), 350);
+  score += tokenScore(tokens, descriptor.summary, 200);
+  score += tokenScore(tokens, descriptor.next, 100);
+
+  const actionVerb = tokens.find((token) => ACTION_VERBS.has(token));
+  if (actionVerb) {
+    const idTokens = searchTokens(id);
+    if (idTokens[0] === actionVerb) score += 2_000;
+    if (descriptor.kind === 'effect' && idTokens.includes(actionVerb)) score += 1_000;
+  }
+
+  return score;
+}
+
+function matchingHarnessModes(input: string): readonly HarnessModeDescriptor[] {
+  const matches = HARNESS_MODE_DESCRIPTORS
+    .map((descriptor, index) => ({ descriptor, index, score: harnessModeRelevance(descriptor, input) }))
+    .filter(({ descriptor }) => harnessModeMatchesSearch(descriptor, input));
+  if (!input) return matches.map(({ descriptor }) => descriptor);
+  return matches
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ descriptor }) => descriptor);
 }
 
 function modeLookupInput(args: HarnessModeCatalogArgs): { readonly source: 'target' | 'query'; readonly input: string } | null {
@@ -161,8 +215,7 @@ export function listHarnessModes(args: HarnessModeCatalogArgs): Record<string, u
   const lookup = modeLookupInput(args);
   const limit = readLimit(args.limit, 120);
   const normalized = lookup?.input.toLowerCase() ?? '';
-  const modes = HARNESS_MODE_DESCRIPTORS
-    .filter((descriptor) => harnessModeMatchesSearch(descriptor, normalized))
+  const modes = matchingHarnessModes(normalized)
     .map((descriptor) => describeHarnessModeDescriptor(descriptor, { includeParameters: args.includeParameters === true }))
     .slice(0, limit);
   return {
@@ -187,7 +240,7 @@ export function describeHarnessMode(args: HarnessModeCatalogArgs): HarnessModeRe
   if (exact) return { status: 'found', mode: describeHarnessModeDescriptor(exact, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'id' } }) };
   const insensitive = HARNESS_MODE_DESCRIPTORS.find((descriptor) => descriptor.id.toLowerCase() === normalized);
   if (insensitive) return { status: 'found', mode: describeHarnessModeDescriptor(insensitive, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } }) };
-  const searched = HARNESS_MODE_DESCRIPTORS.filter((descriptor) => harnessModeMatchesSearch(descriptor, normalized));
+  const searched = matchingHarnessModes(normalized);
   if (searched.length === 1) {
     return { status: 'found', mode: describeHarnessModeDescriptor(searched[0]!, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } }) };
   }

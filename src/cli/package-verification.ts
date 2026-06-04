@@ -2470,6 +2470,9 @@ function verifyHarnessModeCatalogDescriptionPolicy(root: string): readonly strin
     }
     const source = readFileSync(path, 'utf-8');
     if (relativePath === 'src/tools/agent-harness-mode-catalog.ts') {
+      if (!source.includes('modelRoute: `agent_harness mode:"${descriptor.id}"`')) {
+        issues.push('release harness mode catalog must expose a compact modelRoute for every mode descriptor.');
+      }
       const descriptorModeCounts = new Map<string, number>();
       for (const match of source.matchAll(/\bid:\s*(['"])([a-z_]+)\1/g)) {
         const mode = match[2] ?? '';
