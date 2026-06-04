@@ -9,6 +9,7 @@ type SourcePatch = {
 
 export function patchBunCompileCompatibility(root: string): void {
   const jsdomDefaultStyleSheet = join(root, 'node_modules', 'jsdom', 'lib', 'jsdom', 'browser', 'default-stylesheet.css');
+  const linkedSdkJsdomDefaultStyleSheet = join(root, 'node_modules', '@pellux', 'goodvibes-sdk', 'node_modules', 'jsdom', 'lib', 'jsdom', 'browser', 'default-stylesheet.css');
   const sqlWasmJs = join(root, 'node_modules', 'sql.js', 'dist', 'sql-wasm.js');
   const sqlWasmBinary = join(root, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
   const patches: SourcePatch[] = [
@@ -43,6 +44,28 @@ export function patchBunCompileCompatibility(root: string): void {
     const defaultStyleSheet = JSON.stringify(readFileSync(jsdomDefaultStyleSheet, 'utf8'));
     patches.push({
       file: join(root, 'node_modules', 'jsdom', 'lib', 'jsdom', 'living', 'css', 'helpers', 'computed-style.js'),
+      from: `const defaultStyleSheet = fs.readFileSync(\n  path.resolve(__dirname, "../../../browser/default-stylesheet.css"),\n  { encoding: "utf-8" }\n);\n`,
+      to: `const defaultStyleSheet = ${defaultStyleSheet};\n`,
+    });
+  }
+
+  patches.push(
+    {
+      file: join(root, 'node_modules', '@pellux', 'goodvibes-sdk', 'node_modules', 'jsdom', 'lib', 'jsdom', 'living', 'xhr', 'XMLHttpRequest-impl.js'),
+      from: `const syncWorkerFile = require.resolve("./xhr-sync-worker.js");\n`,
+      to: `const syncWorkerFile = null;\n`,
+    },
+    {
+      file: join(root, 'node_modules', '@pellux', 'goodvibes-sdk', 'node_modules', 'jsdom', 'lib', 'jsdom', 'living', 'xhr', 'XMLHttpRequest-impl.js'),
+      from: `  if (!syncWorker) {\n    syncWorker = new Worker(syncWorkerFile);\n`,
+      to: `  if (!syncWorker) {\n    if (!syncWorkerFile) {\n      throw new Error("Synchronous XMLHttpRequest is not supported in Bun-compiled GoodVibes binaries.");\n    }\n    syncWorker = new Worker(syncWorkerFile);\n`,
+    },
+  );
+
+  if (existsSync(linkedSdkJsdomDefaultStyleSheet)) {
+    const defaultStyleSheet = JSON.stringify(readFileSync(linkedSdkJsdomDefaultStyleSheet, 'utf8'));
+    patches.push({
+      file: join(root, 'node_modules', '@pellux', 'goodvibes-sdk', 'node_modules', 'jsdom', 'lib', 'jsdom', 'living', 'css', 'helpers', 'computed-style.js'),
       from: `const defaultStyleSheet = fs.readFileSync(\n  path.resolve(__dirname, "../../../browser/default-stylesheet.css"),\n  { encoding: "utf-8" }\n);\n`,
       to: `const defaultStyleSheet = ${defaultStyleSheet};\n`,
     });

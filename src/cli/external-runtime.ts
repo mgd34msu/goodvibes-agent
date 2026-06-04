@@ -1,8 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { SDK_VERSION } from '../version.ts';
+import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -47,18 +46,6 @@ function resolveBaseUrl(configManager: Pick<ConfigManager, 'get'>): string {
   return `http://${host}:${Number.isFinite(port) ? port : 3421}`;
 }
 
-function readOperatorToken(homeDirectory: string): { readonly token: string | null; readonly path: string } {
-  const path = join(homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
-  if (!existsSync(path)) return { token: null, path };
-  try {
-    const parsed = JSON.parse(readFileSync(path, 'utf-8')) as unknown;
-    const token = isRecord(parsed) && typeof parsed.token === 'string' ? parsed.token : null;
-    return { token, path };
-  } catch {
-    return { token: null, path };
-  }
-}
-
 async function fetchJson(
   url: string,
   token: string | null,
@@ -90,7 +77,7 @@ export async function inspectCliExternalRuntime(
   options: CliExternalRuntimeInspectionOptions,
 ): Promise<CliExternalRuntimeSnapshot> {
   const baseUrl = resolveBaseUrl(options.configManager);
-  const token = readOperatorToken(options.homeDirectory);
+  const token = readConnectedHostOperatorToken(options.homeDirectory);
   const timeoutMs = options.timeoutMs ?? 1500;
   const route = '/api/goodvibes-agent/knowledge/status' as const;
 

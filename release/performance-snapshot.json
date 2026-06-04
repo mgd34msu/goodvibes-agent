@@ -2,7 +2,7 @@
   "surfacePerf": {
     "revision": 24,
     "lastUpdatedAt": 1780491600000,
-    "source": "release-1.0-ci-fixture",
+    "source": "release-ci-fixture",
     "totalRenderCycles": 24,
     "avgRenderMs": 9.8,
     "maxRenderMs": 15.8,

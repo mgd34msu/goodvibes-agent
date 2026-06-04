@@ -1540,7 +1540,8 @@ describe('spawn mode', () => {
 
     for (const expectation of expectations) {
       const definition = registry.getToolDefinitions().find((tool) => tool.name === expectation.name);
-      expect(definition?.description).toContain('GoodVibes Agent');
+      expect(definition?.description).toContain('Read-only');
+      expect(definition?.description).toContain('Mutations are disabled in Agent.');
       const properties = definition?.parameters.properties as Record<string, unknown>;
       const modeProperty = getRecordProperty(properties, 'mode');
       expect(modeProperty?.enum).toEqual([...expectation.allowedModes]);

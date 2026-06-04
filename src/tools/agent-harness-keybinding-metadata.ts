@@ -53,6 +53,7 @@ interface KeybindingOperationRoute {
 }
 
 type KeybindingsOverrideFile = Record<string, unknown>;
+type KeybindingEntry = { readonly action: KeyAction; readonly description: string; readonly combos: KeyCombo[] };
 
 interface KeybindingLookup {
   readonly source: 'actionId' | 'target' | 'key' | 'query';
@@ -91,6 +92,19 @@ function requireKeybindingsManager(context: CommandContext): KeybindingsManager 
   const manager = context.workspace.keybindingsManager;
   if (!manager) throw new Error('workspace.keybindingsManager is unavailable in this Agent runtime');
   return manager;
+}
+
+function readKeybindingsManager(context: CommandContext): KeybindingsManager | null {
+  return context.workspace.keybindingsManager ?? null;
+}
+
+function defaultKeybindingEntries(): KeybindingEntry[] {
+  return (Object.entries(DEFAULT_KEYBINDINGS) as [KeyAction, KeyCombo[]][])
+    .map(([action, combos]) => ({
+      action,
+      description: ACTION_DESCRIPTIONS[action],
+      combos: combos.map((combo) => ({ ...combo })),
+    }));
 }
 
 function isKeyAction(action: string): action is KeyAction {
@@ -162,13 +176,23 @@ function combosEqual(left: readonly KeyCombo[], right: readonly KeyCombo[]): boo
   return left.every((combo, index) => comboFingerprint(combo) === comboFingerprint(right[index]));
 }
 
-function describeCombo(manager: KeybindingsManager, combo: KeyCombo): Record<string, unknown> {
+function formatCombo(manager: KeybindingsManager | null, combo: KeyCombo): string {
+  if (manager) return manager.formatCombo(combo);
+  const parts: string[] = [];
+  if (combo.ctrl) parts.push('Ctrl');
+  if (combo.alt) parts.push('Alt');
+  if (combo.shift) parts.push('Shift');
+  parts.push(combo.key.length === 1 ? combo.key.toUpperCase() : combo.key);
+  return parts.join('+');
+}
+
+function describeCombo(manager: KeybindingsManager | null, combo: KeyCombo): Record<string, unknown> {
   return {
     key: combo.key,
     ctrl: combo.ctrl === true,
     shift: combo.shift === true,
     alt: combo.alt === true,
-    label: manager.formatCombo(combo),
+    label: formatCombo(manager, combo),
   };
 }
 
@@ -184,33 +208,33 @@ function keybindingLookupFromArgs(args: HarnessKeybindingArgs): { readonly sourc
   return null;
 }
 
-function bindingSearchText(manager: KeybindingsManager, entry: { readonly action: KeyAction; readonly description: string; readonly combos: KeyCombo[] }): string {
+function bindingSearchText(manager: KeybindingsManager | null, entry: KeybindingEntry): string {
   return [
     entry.action,
     entry.description,
     ...entry.combos.map((combo) => comboFingerprint(combo)),
-    ...entry.combos.map((combo) => manager.formatCombo(combo)),
+    ...entry.combos.map((combo) => formatCombo(manager, combo)),
   ].join('\n').toLowerCase();
 }
 
-function bindingCandidate(manager: KeybindingsManager, entry: { readonly action: KeyAction; readonly description: string; readonly combos: KeyCombo[] }): Record<string, unknown> {
+function bindingCandidate(manager: KeybindingsManager | null, entry: KeybindingEntry): Record<string, unknown> {
   return {
     action: entry.action,
     description: entry.description,
-    labels: entry.combos.map((combo) => manager.formatCombo(combo)),
+    labels: entry.combos.map((combo) => formatCombo(manager, combo)),
   };
 }
 
-function bindingMatches(manager: KeybindingsManager, entry: { readonly action: KeyAction; readonly description: string; readonly combos: KeyCombo[] }, query: string): boolean {
+function bindingMatches(manager: KeybindingsManager | null, entry: KeybindingEntry, query: string): boolean {
   if (!query) return true;
   return bindingSearchText(manager, entry).includes(query.toLowerCase());
 }
 
 function resolveHarnessKeybinding(context: CommandContext, args: HarnessKeybindingArgs): KeybindingResolution | null {
-  const manager = requireKeybindingsManager(context);
+  const manager = readKeybindingsManager(context);
   const lookup = keybindingLookupFromArgs(args);
   if (!lookup) return null;
-  const entries = manager.getAll();
+  const entries = manager?.getAll() ?? defaultKeybindingEntries();
   if (isKeyAction(lookup.input)) return { status: 'found', action: lookup.input, lookup: { ...lookup, resolvedBy: 'action' } };
   const inputLower = lookup.input.toLowerCase();
   const ciActions = entries.filter((entry) => entry.action.toLowerCase() === inputLower);
@@ -222,7 +246,7 @@ function resolveHarnessKeybinding(context: CommandContext, args: HarnessKeybindi
   return null;
 }
 
-function describeBinding(manager: KeybindingsManager, action: KeyAction, combos: KeyCombo[], lookup?: KeybindingLookup): Record<string, unknown> {
+function describeBinding(manager: KeybindingsManager | null, action: KeyAction, combos: KeyCombo[], lookup?: KeybindingLookup): Record<string, unknown> {
   const defaults = DEFAULT_KEYBINDINGS[action];
   const customized = !combosEqual(combos, defaults);
   return {
@@ -230,10 +254,10 @@ function describeBinding(manager: KeybindingsManager, action: KeyAction, combos:
     description: ACTION_DESCRIPTIONS[action],
     ...(lookup ? { lookup } : {}),
     bindings: combos.map((combo) => describeCombo(manager, combo)),
-    labels: combos.map((combo) => manager.formatCombo(combo)),
+    labels: combos.map((combo) => formatCombo(manager, combo)),
     defaultBindings: defaults.map((combo) => describeCombo(manager, combo)),
     customized,
-    source: customized ? 'custom' : 'default',
+    source: manager ? (customized ? 'custom' : 'default') : 'default-fallback',
     modelOperation: keybindingOperationRoute(action),
   };
 }
@@ -377,7 +401,7 @@ function writeOverrideFile(configPath: string, overrides: KeybindingsOverrideFil
 }
 
 export function totalHarnessKeybindings(context: CommandContext): number {
-  return context.workspace.keybindingsManager?.getAll().length ?? 0;
+  return context.workspace.keybindingsManager?.getAll().length ?? Object.keys(DEFAULT_KEYBINDINGS).length;
 }
 
 export function totalHarnessShortcuts(context: CommandContext): number {
@@ -391,41 +415,52 @@ export function listHarnessShortcuts(context: CommandContext, args: HarnessKeybi
     .filter((shortcut) => !query || `${shortcut.key}\n${shortcut.description}`.toLowerCase().includes(query))
     .slice(0, readLimit(args.limit, 200))
     .map((shortcut) => ({ ...shortcut, source: 'fixed', userEditable: false }));
+  const degraded = keybindings.status === 'degraded';
   return {
+    status: degraded ? 'degraded' : 'available',
     configPath: keybindings.configPath,
     fixedShortcuts: fixed,
     configurableKeybindings: keybindings.keybindings,
     returned: fixed.length + Number(keybindings.returned ?? 0),
     total: totalHarnessShortcuts(context),
-    policy: 'Fixed shortcuts are runtime/editor controls. Configurable keybindings can be inspected, supported shell-safe actions can be run with run_keybinding, and bindings can be changed with set_keybinding/reset_keybinding.',
+    policy: degraded
+      ? 'Fixed shortcuts and default keybindings are available for discovery. Live keybinding execution and mutation require the runtime keybinding manager.'
+      : 'Fixed shortcuts are runtime/editor controls. Configurable keybindings can be inspected, supported shell-safe actions can be run with run_keybinding, and bindings can be changed with set_keybinding/reset_keybinding.',
   };
 }
 
 export function listHarnessKeybindings(context: CommandContext, args: HarnessKeybindingArgs): Record<string, unknown> {
-  const manager = requireKeybindingsManager(context);
+  const manager = readKeybindingsManager(context);
   const query = readString(args.query);
-  const entries = manager.getAll()
+  const allEntries = manager?.getAll() ?? defaultKeybindingEntries();
+  const entries = allEntries
     .filter((entry) => bindingMatches(manager, entry, query))
     .slice(0, readLimit(args.limit, 200))
     .map((entry) => describeBinding(manager, entry.action, entry.combos));
   return {
-    configPath: manager.getConfigPath(),
+    status: manager ? 'available' : 'degraded',
+    configPath: manager?.getConfigPath() ?? null,
     keybindings: entries,
     returned: entries.length,
-    total: manager.getAll().length,
-    policy: 'Reads the live resolved keybindings, including modelOperation route metadata. run_keybinding executes only supported shell-safe actions. set_keybinding/reset_keybinding write the same keybindings.json file the user can edit and reload the runtime manager.',
+    total: allEntries.length,
+    policy: manager
+      ? 'Reads the live resolved keybindings, including modelOperation route metadata. run_keybinding executes only supported shell-safe actions. set_keybinding/reset_keybinding write the same keybindings.json file the user can edit and reload the runtime manager.'
+      : 'Live keybinding manager is unavailable; default keybindings are shown for discovery only. run_keybinding, set_keybinding, and reset_keybinding require a live manager.',
   };
 }
 
 export function describeHarnessKeybinding(context: CommandContext, args: HarnessKeybindingArgs): Record<string, unknown> | null {
-  const manager = requireKeybindingsManager(context);
+  const manager = readKeybindingsManager(context);
   const resolved = resolveHarnessKeybinding(context, args);
   if (resolved?.status === 'ambiguous') return { status: 'ambiguous', input: resolved.input, candidates: resolved.candidates };
   if (!resolved) return null;
-  const entry = manager.getAll().find((candidate) => candidate.action === resolved.action);
+  const entries = manager?.getAll() ?? defaultKeybindingEntries();
+  const entry = entries.find((candidate) => candidate.action === resolved.action);
   return entry ? {
-    configPath: manager.getConfigPath(),
+    status: manager ? 'available' : 'degraded',
+    configPath: manager?.getConfigPath() ?? null,
     ...describeBinding(manager, entry.action, entry.combos, resolved.lookup),
+    ...(manager ? {} : { note: 'Default keybinding descriptor only; live run/set/reset operations require the runtime keybinding manager.' }),
   } : null;
 }
 

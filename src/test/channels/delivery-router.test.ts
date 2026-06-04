@@ -62,6 +62,7 @@ describe('ChannelDeliveryRouter', () => {
       'channel-delivery:google-chat',
       'channel-delivery:signal',
       'channel-delivery:whatsapp',
+      'channel-delivery:telephony',
       'channel-delivery:imessage',
       'channel-delivery:msteams',
       'channel-delivery:bluebubbles',

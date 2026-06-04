@@ -166,10 +166,9 @@ export function createAgentWorkPlanTool(store: WorkPlanStore): Tool {
     definition: {
       name: 'agent_work_plan',
       description: [
-        'Inspect and maintain the visible GoodVibes Agent local work plan from the main conversation.',
-        'Use this to track concrete tasks the assistant is doing or has agreed to do, so the work is visible in the Agent TUI workspace.',
-        'This uses only Agent-local persisted work-plan state; it does not call connected-host mutation routes, start background jobs, create separate Agent jobs, use delegated review, write default knowledge, or use non-Agent knowledge segments.',
-        'Create, update, and set_status are safe local state actions. remove and clear_completed require confirm:true plus explicitUserRequest.',
+        'Inspect or update the visible Agent-local work plan.',
+        'Use for task/status tracking.',
+        'Destructive actions require confirm:true plus explicitUserRequest.',
       ].join(' '),
       parameters: {
         type: 'object',

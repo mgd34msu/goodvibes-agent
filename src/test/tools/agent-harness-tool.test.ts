@@ -113,6 +113,7 @@ function registerHarnessFixturePanels(panelManager: PanelManager): void {
 function makeFixture(options: {
   readonly secrets?: boolean;
   readonly dismissAgentWorkspace?: boolean;
+  readonly keybindings?: boolean;
 } = {}): HarnessFixture {
   const { root, paths, cleanup } = makeShellPaths();
   const commandRegistry = new CommandRegistry();
@@ -254,7 +255,9 @@ function makeFixture(options: {
       openedSurfaces.push({ id: 'onboarding', detail: typeof modeOrOptions === 'string' ? modeOrOptions : modeOrOptions?.mode });
     },
     openSelection,
-    workspace: { shellPaths: paths, panelManager, keybindingsManager },
+    workspace: options.keybindings === false
+      ? { shellPaths: paths, panelManager }
+      : { shellPaths: paths, panelManager, keybindingsManager },
     platform: {
       configManager,
       voiceProviderRegistry: {
@@ -452,7 +455,7 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('exposes command policy metadata for slash-command parity', async () => {
+  test('exposes command policy metadata for slash-command mirror coverage', async () => {
     const fixture = makeFixture();
     try {
       registerOperatorRuntimeCommands(fixture.commandRegistry);
@@ -544,6 +547,234 @@ describe('agent_harness tool', () => {
       const missing = await fixture.tool.execute({ mode: 'tool', toolName: 'not_a_tool' });
       expect(missing.success).toBe(false);
       expect(missing.error).toContain('Unknown model tool');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes release evidence artifacts and readiness inventory lookup to the model', async () => {
+    const fixture = makeFixture();
+    try {
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      if (!summary.success) throw new Error(summary.error);
+      const summaryJson = JSON.parse(summary.output) as {
+        readonly releaseEvidence?: { readonly status?: string; readonly artifacts?: number; readonly available?: number };
+        readonly releaseReadiness?: { readonly status?: string; readonly path?: string; readonly items?: number };
+        readonly modelAccess?: { readonly releaseEvidence?: string; readonly releaseReadiness?: string };
+      };
+      expect(summaryJson.releaseEvidence?.status).toBe('available');
+      expect(summaryJson.releaseEvidence?.artifacts).toBe(5);
+      expect(summaryJson.releaseEvidence?.available).toBe(5);
+      expect(summaryJson.releaseReadiness?.status).toBe('available');
+      expect(summaryJson.releaseReadiness?.path).toBe('release/release-readiness.json');
+      expect(summaryJson.releaseReadiness?.items).toBeGreaterThan(0);
+      expect(summaryJson.modelAccess?.releaseEvidence).toContain('mode:"release_evidence"');
+      expect(summaryJson.modelAccess?.releaseEvidence).toContain('mode:"release_evidence_artifact"');
+      expect(summaryJson.modelAccess?.releaseReadiness).toContain('mode:"release_readiness"');
+      expect(summaryJson.modelAccess?.releaseReadiness).toContain('mode:"release_readiness_item"');
+
+      const evidence = await fixture.tool.execute({
+        mode: 'release_evidence',
+        query: 'live verification',
+      });
+      expect(evidence.success).toBe(true);
+      if (!evidence.success) throw new Error(evidence.error);
+      const evidenceJson = JSON.parse(evidence.output) as {
+        readonly mode: string;
+        readonly artifacts: number;
+        readonly available: number;
+        readonly filtered: number;
+        readonly artifactsList: readonly { readonly id?: string; readonly path?: string; readonly summary?: Record<string, unknown>; readonly content?: string }[];
+      };
+      expect(evidenceJson.mode).toBe('release_evidence');
+      expect(evidenceJson.artifacts).toBe(5);
+      expect(evidenceJson.available).toBe(5);
+      expect(evidenceJson.filtered).toBe(2);
+      expect(evidenceJson.artifactsList.map((artifact) => artifact.id)).toEqual([
+        'live-verification-json',
+        'live-verification-markdown',
+      ]);
+      expect(evidenceJson.artifactsList.every((artifact) => artifact.content === undefined)).toBe(true);
+
+      const notesArtifact = await fixture.tool.execute({
+        mode: 'release_evidence_artifact',
+        artifactId: 'release-notes',
+      });
+      expect(notesArtifact.success).toBe(true);
+      if (!notesArtifact.success) throw new Error(notesArtifact.error);
+      const notesArtifactJson = JSON.parse(notesArtifact.output) as {
+        readonly status: string;
+        readonly lookup: { readonly source: string; readonly resolvedBy: string };
+        readonly artifact: { readonly id: string; readonly path: string; readonly content?: string; readonly summary?: { readonly bullets?: number } };
+      };
+      expect(notesArtifactJson.status).toBe('found');
+      expect(notesArtifactJson.lookup.source).toBe('artifactId');
+      expect(notesArtifactJson.lookup.resolvedBy).toBe('id');
+      expect(notesArtifactJson.artifact.id).toBe('release-notes');
+      expect(notesArtifactJson.artifact.path).toBe('release/release-notes.md');
+      expect(notesArtifactJson.artifact.content).toContain('model-visible release evidence surface');
+      expect(notesArtifactJson.artifact.summary?.bullets).toBeGreaterThan(0);
+
+      const ambiguousArtifact = await fixture.tool.execute({ mode: 'release_evidence_artifact', query: 'live verification' });
+      expect(ambiguousArtifact.success).toBe(false);
+      expect(ambiguousArtifact.error).toContain('Ambiguous release evidence artifact live verification');
+
+      const missingArtifact = await fixture.tool.execute({ mode: 'release_evidence_artifact', artifactId: 'not-release-evidence' });
+      expect(missingArtifact.success).toBe(false);
+      expect(missingArtifact.error).toContain('Unknown release evidence artifact not-release-evidence');
+
+      const inventory = await fixture.tool.execute({
+        mode: 'release_readiness',
+        query: 'release readiness inventory',
+        limit: 5,
+      });
+      expect(inventory.success).toBe(true);
+      if (!inventory.success) throw new Error(inventory.error);
+      const inventoryJson = JSON.parse(inventory.output) as {
+        readonly mode: string;
+        readonly path: string;
+        readonly totals: {
+          readonly items: number;
+          readonly filtered: number;
+          readonly requiredQualityDimensions: readonly string[];
+          readonly completeQualityDimensions: number;
+          readonly expectedQualityDimensions: number;
+        };
+        readonly items: readonly { readonly id?: string; readonly quality?: unknown }[];
+      };
+      expect(inventoryJson.mode).toBe('release_readiness');
+      expect(inventoryJson.path).toBe('release/release-readiness.json');
+      expect(inventoryJson.totals.items).toBeGreaterThan(0);
+      expect(inventoryJson.totals.filtered).toBeGreaterThan(0);
+      expect(inventoryJson.totals.requiredQualityDimensions).toContain('modelAccess');
+      expect(inventoryJson.totals.completeQualityDimensions).toBe(inventoryJson.totals.expectedQualityDimensions);
+      expect(inventoryJson.items.some((item) => item.id === 'release-readiness-inventory-gate')).toBe(true);
+      expect(inventoryJson.items.every((item) => item.quality === undefined)).toBe(true);
+
+      const inventoryWithQuality = await fixture.tool.execute({
+        mode: 'release_readiness',
+        query: 'release readiness inventory',
+        includeParameters: true,
+        limit: 1,
+      });
+      expect(inventoryWithQuality.success).toBe(true);
+      expect(inventoryWithQuality.output).toContain('"quality"');
+
+      const item = await fixture.tool.execute({
+        mode: 'release_readiness_item',
+        itemId: 'release-readiness-inventory-gate',
+      });
+      expect(item.success).toBe(true);
+      if (!item.success) throw new Error(item.error);
+      const itemJson = JSON.parse(item.output) as {
+        readonly status: string;
+        readonly lookup: { readonly source: string; readonly resolvedBy: string };
+        readonly item: { readonly id: string; readonly quality: { readonly modelAccess?: string } };
+      };
+      expect(itemJson.status).toBe('found');
+      expect(itemJson.lookup.source).toBe('itemId');
+      expect(itemJson.lookup.resolvedBy).toBe('id');
+      expect(itemJson.item.id).toBe('release-readiness-inventory-gate');
+      expect(itemJson.item.quality.modelAccess).toContain('release_evidence');
+      expect(itemJson.item.quality.modelAccess).toContain('release_readiness');
+
+      const ambiguous = await fixture.tool.execute({ mode: 'release_readiness_item', query: 'Agent' });
+      expect(ambiguous.success).toBe(false);
+      expect(ambiguous.error).toContain('Ambiguous release readiness item Agent');
+
+      const missing = await fixture.tool.execute({ mode: 'release_readiness_item', itemId: 'not-a-readiness-item' });
+      expect(missing.success).toBe(false);
+      expect(missing.error).toContain('Unknown release readiness item not-a-readiness-item');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes operator method catalog and service posture as read-only model surfaces', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.configManager.setDynamic('controlPlane.enabled', false);
+      fixture.configManager.setDynamic('danger.httpListener', false);
+      fixture.configManager.setDynamic('web.enabled', false);
+
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      if (!summary.success) throw new Error(summary.error);
+      const summaryJson = JSON.parse(summary.output) as {
+        readonly operatorMethods?: { readonly modes?: readonly string[]; readonly methods?: number; readonly readOnlyMethods?: number };
+        readonly servicePosture?: { readonly modes?: readonly string[]; readonly endpointIds?: readonly string[]; readonly readOnly?: boolean };
+        readonly modelAccess?: { readonly operatorMethods?: string; readonly servicePosture?: string };
+      };
+      expect(summaryJson.operatorMethods?.modes).toEqual(['operator_methods', 'operator_method']);
+      expect(summaryJson.operatorMethods?.methods).toBeGreaterThan(10);
+      expect(summaryJson.operatorMethods?.readOnlyMethods).toBeGreaterThan(5);
+      expect(summaryJson.servicePosture?.modes).toEqual(['service_posture', 'service_endpoint']);
+      expect(summaryJson.servicePosture?.endpointIds).toEqual(['controlPlane', 'httpListener', 'web']);
+      expect(summaryJson.servicePosture?.readOnly).toBe(true);
+      expect(summaryJson.modelAccess?.operatorMethods).toContain('mode:"operator_methods"');
+      expect(summaryJson.modelAccess?.servicePosture).toContain('mode:"service_posture"');
+
+      const catalog = await fixture.tool.execute({
+        mode: 'operator_methods',
+        query: 'agentKnowledge',
+        includeParameters: true,
+        limit: 50,
+      });
+      expect(catalog.success).toBe(true);
+      if (!catalog.success) throw new Error(catalog.error);
+      const catalogJson = JSON.parse(catalog.output) as {
+        readonly methods: readonly { readonly id: string; readonly route: string; readonly preferredModelTool: string; readonly parameters?: readonly unknown[] }[];
+      };
+      expect(catalogJson.methods.some((method) => method.id === 'agentKnowledge.map')).toBe(true);
+      expect(catalogJson.methods.some((method) => method.route === '/api/goodvibes-agent/knowledge/connectors/{id}/doctor')).toBe(true);
+      expect(catalogJson.methods.find((method) => method.id === 'agentKnowledge.ingest.url')?.parameters?.length).toBeGreaterThan(0);
+
+      const schedule = await fixture.tool.execute({ mode: 'operator_method', methodId: 'schedules.create' });
+      expect(schedule.success).toBe(true);
+      if (!schedule.success) throw new Error(schedule.error);
+      const scheduleJson = JSON.parse(schedule.output) as {
+        readonly id: string;
+        readonly preferredModelTool: string;
+        readonly parameters: readonly { readonly name: string; readonly required: boolean }[];
+      };
+      expect(scheduleJson.id).toBe('schedules.create');
+      expect(scheduleJson.preferredModelTool).toContain('agent_reminder_schedule');
+      expect(scheduleJson.parameters.map((parameter) => parameter.name)).toEqual(expect.arrayContaining([
+        'scheduleKind',
+        'scheduleValue',
+        'message',
+        'confirm',
+        'explicitUserRequest',
+      ]));
+
+      const posture = await fixture.tool.execute({ mode: 'service_posture' });
+      expect(posture.success).toBe(true);
+      if (!posture.success) throw new Error(posture.error);
+      const postureJson = JSON.parse(posture.output) as {
+        readonly readOnly: boolean;
+        readonly endpoints: readonly { readonly id: string; readonly policy: { readonly lifecycle: string } }[];
+      };
+      expect(postureJson.readOnly).toBe(true);
+      expect(postureJson.endpoints.map((endpoint) => endpoint.id)).toEqual(['controlPlane', 'httpListener', 'web']);
+      expect(postureJson.endpoints[0]?.policy.lifecycle).toContain('does not start, stop, restart, install, expose, or mutate');
+
+      const endpoint = await fixture.tool.execute({ mode: 'service_endpoint', query: 'browser companion route' });
+      expect(endpoint.success).toBe(true);
+      if (!endpoint.success) throw new Error(endpoint.error);
+      const endpointJson = JSON.parse(endpoint.output) as {
+        readonly id: string;
+        readonly lookup: { readonly source: string; readonly resolvedBy: string };
+        readonly policy: { readonly effect: string; readonly lifecycle: string };
+      };
+      expect(endpointJson.id).toBe('web');
+      expect(endpointJson.lookup).toEqual({
+        source: 'query',
+        input: 'browser companion route',
+        resolvedBy: 'label',
+      });
+      expect(endpointJson.policy.effect).toBe('read-only');
+      expect(endpointJson.policy.lifecycle).toContain('does not start, stop, restart, install, expose, or mutate');
     } finally {
       fixture.cleanup();
     }
@@ -1111,6 +1342,45 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('keeps keybinding discovery available when the live manager is absent', async () => {
+    const fixture = makeFixture({ keybindings: false });
+    try {
+      const listed = await fixture.tool.execute({ mode: 'keybindings', query: 'conversation search' });
+      expect(listed.success).toBe(true);
+      const listedJson = JSON.parse(listed.output ?? '{}') as {
+        readonly status?: string;
+        readonly configPath?: string | null;
+        readonly keybindings?: readonly { readonly action?: string; readonly source?: string }[];
+      };
+      expect(listedJson.status).toBe('degraded');
+      expect(listedJson.configPath).toBeNull();
+      expect(listedJson.keybindings?.[0]?.action).toBe('search');
+      expect(listedJson.keybindings?.[0]?.source).toBe('default-fallback');
+
+      const shortcut = await fixture.tool.execute({ mode: 'shortcuts', query: 'shortcut reference' });
+      expect(shortcut.success).toBe(true);
+      expect(shortcut.output).toContain('"key": "/shortcuts"');
+      expect(shortcut.output).toContain('"status": "degraded"');
+
+      const single = await fixture.tool.execute({ mode: 'keybinding', query: 'Ctrl+F' });
+      expect(single.success).toBe(true);
+      expect(single.output).toContain('"status": "degraded"');
+      expect(single.output).toContain('"action": "search"');
+      expect(single.output).toContain('Default keybinding descriptor only');
+
+      const run = await fixture.tool.execute({
+        mode: 'run_keybinding',
+        actionId: 'search',
+        confirm: true,
+        explicitUserRequest: 'Open conversation search.',
+      });
+      expect(run.success).toBe(false);
+      expect(run.error).toContain('workspace.keybindingsManager is unavailable');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('reports connected-host capabilities, boundaries, and model tool availability', async () => {
     const fixture = makeFixture();
     try {
@@ -1145,6 +1415,9 @@ describe('agent_harness tool', () => {
       expect(allowed.success).toBe(true);
       expect(allowed.output).toContain('"status": "allowed"');
       expect(allowed.output).toContain('"agent_knowledge"');
+      expect(allowed.output).toContain('"sources"');
+      expect(allowed.output).toContain('"map"');
+      expect(allowed.output).toContain('"connector_doctor"');
       expect(allowed.output).toContain('/api/goodvibes-agent/knowledge/*');
 
       const blocked = await fixture.tool.execute({
@@ -1190,13 +1463,12 @@ describe('agent_harness tool', () => {
       const properties = (fixture.tool.definition.parameters as {
         readonly properties: Record<string, { readonly description?: string }>;
       }).properties;
-      expect(properties.query?.description).toContain('workspace action');
-      expect(properties.query?.description).toContain('model tool');
-      expect(properties.query?.description).toContain('connected-host capability');
-      expect(properties.target?.description).toContain('model tool name/search text');
-      expect(properties.target?.description).toContain('connected-host capability id/search text');
-      expect(properties.confirm?.description).toContain('executable or mutating run_workspace_action');
-      expect(properties.explicitUserRequest?.description).toContain('workspace-action invocation');
+      expect(properties.query?.description).toContain('Catalog search text');
+      expect(properties.target?.description).toContain('Generic lookup target');
+      expect(properties.methodId?.description).toContain('Public operator or Agent Knowledge method id');
+      expect(properties.endpointId?.description).toContain('Connected service endpoint id');
+      expect(properties.confirm?.description).toContain('confirmed harness effects');
+      expect(properties.explicitUserRequest?.description).toContain('confirmed harness effect');
     } finally {
       fixture.cleanup();
     }
@@ -1629,7 +1901,7 @@ describe('agent_harness tool', () => {
         categoryId: 'notes',
         target: 'Create note',
         fields: {
-          title: 'Lookup parity note',
+          title: 'Lookup mirror note',
           body: 'Target lookup should execute the same workspace editor as an exact action id.',
           tags: 'harness,lookup',
         },
@@ -1639,7 +1911,7 @@ describe('agent_harness tool', () => {
       expect(targetRun.success).toBe(true);
       expect(targetRun.output).toContain('"status": "executed_model_tool"');
       expect(targetRun.output).toContain('Created Agent-local note');
-      const note = AgentNoteRegistry.fromShellPaths(fixture.paths).get('lookup-parity-note');
+      const note = AgentNoteRegistry.fromShellPaths(fixture.paths).get('lookup-mirror-note');
       expect(note?.body).toContain('Target lookup should execute');
 
       const queryRun = await fixture.tool.execute({

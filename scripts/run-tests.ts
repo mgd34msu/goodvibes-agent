@@ -32,7 +32,7 @@ if (testFiles.length === 0) {
 }
 
 console.log(`Test files: ${testFiles.length}`);
-const result = Bun.spawnSync(['bun', 'test', ...testFiles], {
+const result = Bun.spawnSync(['bun', 'test', '--max-concurrency=1', ...testFiles], {
   cwd: ROOT,
   env: {
     ...process.env,

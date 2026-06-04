@@ -79,17 +79,16 @@ export function createAgentNotifyTool(
     definition: {
       name: 'agent_notify',
       description: [
-        'Send one plain-text notification to configured GoodVibes Agent webhook notification targets from the main conversation.',
-        'Use only when the user explicitly asks Agent to notify, message, alert, or send a configured notification.',
-        'This uses Agent-local notification webhook targets; it does not create channel routes, authorize accounts, manage connected-host hosting, create separate Agent jobs, run delegated review, or write to default knowledge or non-Agent knowledge segments.',
-        'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
+        'Send one confirmed plain-text notification.',
+        'Use only for explicit notify/message/alert requests.',
+        'Uses existing targets only.',
       ].join(' '),
       parameters: {
         type: 'object',
         properties: {
           message: {
             type: 'string',
-            description: 'Plain-text notification body to send to configured Agent notification webhook targets.',
+            description: 'Plain-text notification body.',
           },
           confirm: {
             type: 'boolean',
@@ -97,7 +96,7 @@ export function createAgentNotifyTool(
           },
           explicitUserRequest: {
             type: 'string',
-            description: 'Short quote or summary of the user request that authorized this external notification.',
+            description: 'User request authorizing this notification.',
           },
         },
         required: ['message', 'confirm', 'explicitUserRequest'],

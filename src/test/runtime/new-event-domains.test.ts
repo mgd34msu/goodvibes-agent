@@ -120,6 +120,7 @@ describe('new runtime event domains', () => {
       'google-chat',
       'signal',
       'whatsapp',
+      'telephony',
       'imessage',
       'msteams',
       'bluebubbles',
@@ -134,6 +135,7 @@ describe('new runtime event domains', () => {
     expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('google-chat');
     expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('signal');
     expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('whatsapp');
+    expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('telephony');
     expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('imessage');
     expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('msteams');
     expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('bluebubbles');

@@ -186,6 +186,9 @@ export async function prepareShellCliRuntime(
       configManager,
       homeDirectory: bootstrapHomeDirectory,
     });
+    const effectiveOperatorTokenPath = externalRuntime.operatorToken.present
+      ? externalRuntime.operatorToken.path
+      : operatorTokenPath;
     const statusOptions = {
       configManager,
       workingDirectory: bootstrapWorkingDir,
@@ -196,8 +199,8 @@ export async function prepareShellCliRuntime(
         userStorePresent: existsSync(userStorePath),
         bootstrapCredentialPath,
         bootstrapCredentialPresent: existsSync(bootstrapCredentialPath),
-        operatorTokenPath,
-        operatorTokenPresent: existsSync(operatorTokenPath),
+        operatorTokenPath: effectiveOperatorTokenPath,
+        operatorTokenPresent: externalRuntime.operatorToken.present,
       },
       service,
       externalRuntime,

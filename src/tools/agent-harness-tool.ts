@@ -2,42 +2,37 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
-import { createAgentWorkspaceEditor } from '../input/agent-workspace-activation.ts';
-import { AGENT_WORKSPACE_CATEGORIES } from '../input/agent-workspace-categories.ts';
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from '../input/agent-workspace-learned-behavior.ts';
-import { searchAgentWorkspaceActions } from '../input/agent-workspace-search.ts';
-import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
-import type {
-  AgentWorkspaceAction,
-  AgentWorkspaceCategory,
-  AgentWorkspaceEditorKind,
-  AgentWorkspaceLocalEditor,
-  AgentWorkspaceLocalLibraryItem,
-  AgentWorkspaceRuntimeSnapshot,
-} from '../input/agent-workspace-types.ts';
+import type { AgentWorkspaceAction, AgentWorkspaceLocalEditor } from '../input/agent-workspace-types.ts';
+import { channelReadinessCatalogStatus, describeHarnessChannel, listHarnessChannels } from './agent-harness-channel-metadata.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
 import { describeHarnessCommand, listHarnessCommands, resolveHarnessCommandDetail, type CommandDetailLookup } from './agent-harness-command-catalog.ts';
+import { delegationPostureCatalogStatus, delegationPostureSummary, describeHarnessDelegationRoute } from './agent-harness-delegation-posture.ts';
 import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, runHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
+import { describeHarnessMediaProvider, mediaPostureCatalogStatus, mediaPostureSummary } from './agent-harness-media-posture.ts';
+import { describeHarnessNotificationTarget, listHarnessNotificationTargets, notificationTargetCatalogStatus } from './agent-harness-notification-metadata.ts';
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
-import { describeLocalWorkspaceModelExecution, runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-harness-local-operations.ts';
+import { runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-harness-local-operations.ts';
+import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } from './agent-harness-mcp-metadata.ts';
+import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary } from './agent-harness-model-routing.ts';
 import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
+import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
+import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostureSummary } from './agent-harness-pairing-posture.ts';
+import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerAccountSummary } from './agent-harness-provider-account-metadata.ts';
+import { describeHarnessReleaseEvidenceArtifact, releaseEvidenceBundleStatus, releaseEvidenceSummary } from './agent-harness-release-evidence.ts';
+import { describeHarnessReleaseReadinessItem, releaseReadinessInventoryStatus, releaseReadinessSummary } from './agent-harness-release-readiness.ts';
+import { describeHarnessSecurityFinding, describeHarnessSupportBundle, securityPostureCatalogStatus, securityPostureSummary, supportBundleCatalogStatus, supportBundleSummary } from './agent-harness-security-posture.ts';
+import { describeHarnessSession, sessionCatalogStatus, sessionSummary } from './agent-harness-session-metadata.ts';
+import { describeHarnessServiceEndpoint, servicePostureCatalogStatus, servicePostureSummary } from './agent-harness-service-posture.ts';
+import { describeHarnessSetupItem, setupPostureCatalogStatus, setupPostureSummary } from './agent-harness-setup-posture.ts';
 import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
+import { AGENT_WORKSPACE_CATEGORIES, allWorkspaceActions, buildWorkspaceEditorContext, createWorkspaceEditor, describeWorkspaceAction, describeWorkspaceCategory, describeWorkspaceEditor, listWorkspaceActions, resolveWorkspaceActionDetail } from './agent-harness-workspace-actions.ts';
 import { describeWorkspaceEditorModelExecution } from './agent-harness-workspace-editor-execution.ts';
-import {
-  connectedHostSummary,
-  describeConnectedHostCapability,
-  settingsPolicySummary,
-} from './agent-harness-metadata.ts';
-import {
-  formatHarnessError,
-  listHarnessSettings,
-  resetHarnessSetting,
-  resolveHarnessSetting,
-  setHarnessSetting,
-} from '../agent/harness-control.ts';
+import { connectedHostSummary, describeConnectedHostCapability, settingsPolicySummary } from './agent-harness-metadata.ts';
+import { formatHarnessError, listHarnessSettings, resetHarnessSetting, resolveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
 
 type AgentHarnessMode = typeof AGENT_HARNESS_MODES[number];
 
@@ -48,6 +43,18 @@ interface AgentHarnessToolArgs {
   readonly cliCommand?: unknown;
   readonly commandName?: unknown;
   readonly args?: unknown;
+  readonly channelId?: unknown;
+  readonly notificationTargetId?: unknown;
+  readonly providerId?: unknown;
+  readonly mcpServerId?: unknown;
+  readonly setupItemId?: unknown;
+  readonly modelRouteId?: unknown;
+  readonly pairingRouteId?: unknown;
+  readonly delegationRouteId?: unknown;
+  readonly findingId?: unknown;
+  readonly bundlePath?: unknown;
+  readonly mediaProviderId?: unknown;
+  readonly sessionId?: unknown;
   readonly categoryId?: unknown;
   readonly panelId?: unknown;
   readonly actionId?: unknown;
@@ -59,6 +66,10 @@ interface AgentHarnessToolArgs {
   readonly key?: unknown;
   readonly value?: unknown;
   readonly target?: unknown;
+  readonly artifactId?: unknown;
+  readonly itemId?: unknown;
+  readonly methodId?: unknown;
+  readonly endpointId?: unknown;
   readonly capabilityId?: unknown;
   readonly toolName?: unknown;
   readonly category?: unknown;
@@ -76,30 +87,6 @@ interface AgentHarnessToolDeps {
   readonly commandContext: CommandContext;
   readonly toolRegistry: ToolRegistry;
 }
-
-interface WorkspaceEditorContext {
-  readonly runtimeStarterTemplates: AgentWorkspaceRuntimeSnapshot['runtimeStarterTemplates'];
-  readonly selectedRoutine: AgentWorkspaceLocalLibraryItem | null;
-}
-
-interface WorkspaceActionLookup {
-  readonly source: 'actionId' | 'command' | 'target' | 'query';
-  readonly input: string;
-  readonly resolvedBy: 'id' | 'case-insensitive-id' | 'label' | 'case-insensitive-label' | 'command' | 'search';
-}
-
-type WorkspaceActionResolution =
-  | {
-    readonly status: 'found';
-    readonly category: AgentWorkspaceCategory;
-    readonly action: AgentWorkspaceAction;
-    readonly lookup: WorkspaceActionLookup;
-  }
-  | {
-    readonly status: 'ambiguous';
-    readonly input: string;
-    readonly candidates: readonly { readonly actionId: string; readonly categoryId: string; readonly label: string; readonly command?: string }[];
-  };
 
 function isMode(value: unknown): value is AgentHarnessMode {
   return typeof value === 'string' && AGENT_HARNESS_MODES.includes(value as AgentHarnessMode);
@@ -139,173 +126,6 @@ function output(value: unknown): { readonly success: true; readonly output: stri
 }
 
 function error(message: string): { readonly success: false; readonly error: string } { return { success: false, error: message }; }
-
-function allWorkspaceActions(): ReadonlyArray<{
-  readonly category: AgentWorkspaceCategory;
-  readonly action: AgentWorkspaceAction;
-}> {
-  return AGENT_WORKSPACE_CATEGORIES.flatMap((category) => category.actions.map((action) => ({ category, action })));
-}
-
-function describeWorkspaceCategory(category: AgentWorkspaceCategory): Record<string, unknown> {
-  return {
-    id: category.id,
-    group: category.group,
-    label: category.label,
-    summary: category.summary,
-    detail: category.detail,
-    actions: category.actions.length,
-  };
-}
-
-function describeWorkspaceEditor(editor: AgentWorkspaceLocalEditor): Record<string, unknown> {
-  return {
-    kind: editor.kind,
-    mode: editor.mode,
-    title: editor.title,
-    message: editor.message,
-    fields: editor.fields.map((field) => ({
-      id: field.id,
-      label: field.label,
-      required: field.required,
-      multiline: field.multiline,
-      hint: field.hint,
-      redact: field.redact === true,
-      default: field.redact ? '<redacted>' : field.value,
-    })),
-  };
-}
-
-function selectedRoutineFromArgs(
-  snapshot: AgentWorkspaceRuntimeSnapshot,
-  args: AgentHarnessToolArgs,
-): AgentWorkspaceLocalLibraryItem | null {
-  const fields = readFieldMap(args.fields);
-  const routineId = readString(args.recordId) || readString(fields.routineId) || readString(fields.id);
-  if (!routineId) return null;
-  return snapshot.localRoutines.find((routine) => routine.id === routineId || routine.name.toLowerCase() === routineId.toLowerCase()) ?? null;
-}
-
-function buildWorkspaceEditorContext(context: CommandContext, args: AgentHarnessToolArgs): WorkspaceEditorContext {
-  try {
-    const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
-    return {
-      runtimeStarterTemplates: snapshot.runtimeStarterTemplates,
-      selectedRoutine: selectedRoutineFromArgs(snapshot, args),
-    };
-  } catch {
-    return {
-      runtimeStarterTemplates: [],
-      selectedRoutine: null,
-    };
-  }
-}
-
-function createWorkspaceEditor(
-  editorKind: AgentWorkspaceEditorKind,
-  editorContext: WorkspaceEditorContext | null,
-): AgentWorkspaceLocalEditor | null {
-  return createAgentWorkspaceEditor(editorKind, {
-    runtimeStarterTemplates: editorContext?.runtimeStarterTemplates ?? [],
-    selectedRoutine: editorKind === 'routine-schedule' ? editorContext?.selectedRoutine ?? null : null,
-  });
-}
-
-function describeWorkspaceAction(
-  category: AgentWorkspaceCategory,
-  action: AgentWorkspaceAction,
-  options: { readonly includeEditor?: boolean; readonly editorContext?: WorkspaceEditorContext | null; readonly lookup?: WorkspaceActionLookup } = {},
-): Record<string, unknown> {
-  const editor = options.includeEditor && action.editorKind ? createWorkspaceEditor(action.editorKind, options.editorContext ?? null) : null;
-  return {
-    id: action.id,
-    categoryId: category.id,
-    category: category.label,
-    group: category.group,
-    label: action.label,
-    detail: action.detail,
-    kind: action.kind,
-    safety: action.safety,
-    ...(action.command ? { command: action.command } : {}),
-    ...(action.targetCategoryId ? { targetCategoryId: action.targetCategoryId } : {}),
-    ...(action.editorKind ? { editorKind: action.editorKind } : {}),
-    ...(action.localKind ? { localKind: action.localKind } : {}),
-    ...(action.localOperation ? { localOperation: action.localOperation } : {}),
-    ...(options.lookup ? { lookup: options.lookup } : {}),
-    ...(editor ? { editor: describeWorkspaceEditor(editor) } : {}),
-    ...(action.kind === 'local-selection' || action.kind === 'local-operation' ? {
-      modelExecution: describeLocalWorkspaceModelExecution(action),
-    } : {}),
-    ...(action.kind === 'editor' && action.editorKind ? {
-      modelExecution: describeWorkspaceEditorModelExecution(action.editorKind),
-    } : {}),
-  };
-}
-
-function listWorkspaceActions(deps: AgentHarnessToolDeps, args: AgentHarnessToolArgs): readonly Record<string, unknown>[] {
-  const query = readString(args.query);
-  const categoryId = readString(args.categoryId || args.category);
-  const limit = readLimit(args.limit, 200);
-  const includeEditor = args.includeParameters === true;
-  const editorContext = includeEditor ? buildWorkspaceEditorContext(deps.commandContext, args) : null;
-  const source = query
-    ? searchAgentWorkspaceActions(AGENT_WORKSPACE_CATEGORIES, query).map((result) => ({ category: result.category, action: result.action }))
-    : allWorkspaceActions();
-  return source
-    .filter((entry) => !categoryId || entry.category.id === categoryId)
-    .slice(0, limit)
-    .map((entry) => describeWorkspaceAction(entry.category, entry.action, { includeEditor, editorContext }));
-}
-
-function workspaceActionLookupFromArgs(args: AgentHarnessToolArgs): { readonly source: WorkspaceActionLookup['source']; readonly input: string } | null {
-  const actionId = readString(args.actionId);
-  if (actionId) return { source: 'actionId', input: actionId };
-  const command = readString(args.command);
-  if (command) return { source: 'command', input: command };
-  const target = readString(args.target);
-  if (target) return { source: 'target', input: target };
-  const query = readString(args.query);
-  return query ? { source: 'query', input: query } : null;
-}
-
-function describeWorkspaceActionCandidates(
-  entries: readonly { readonly category: AgentWorkspaceCategory; readonly action: AgentWorkspaceAction }[],
-): readonly { readonly actionId: string; readonly categoryId: string; readonly label: string; readonly command?: string }[] {
-  return entries.slice(0, 8).map((entry) => ({
-    actionId: entry.action.id,
-    categoryId: entry.category.id,
-    label: entry.action.label,
-    ...(entry.action.command ? { command: entry.action.command } : {}),
-  }));
-}
-
-function resolveWorkspaceActionDetail(args: AgentHarnessToolArgs): WorkspaceActionResolution | null {
-  const lookup = workspaceActionLookupFromArgs(args);
-  const categoryId = readString(args.categoryId || args.category);
-  if (!lookup) return null;
-  const entries = allWorkspaceActions().filter((entry) => !categoryId || entry.category.id === categoryId);
-  const normalized = lookup.input.toLowerCase();
-  const commandInput = lookup.source === 'command' ? lookup.input.trim() : '';
-
-  const exactId = entries.find((entry) => entry.action.id === lookup.input);
-  if (exactId) return { status: 'found', ...exactId, lookup: { ...lookup, resolvedBy: 'id' } };
-  const exactLabel = entries.find((entry) => entry.action.label === lookup.input);
-  if (exactLabel) return { status: 'found', ...exactLabel, lookup: { ...lookup, resolvedBy: 'label' } };
-  const exactCommand = commandInput ? entries.find((entry) => entry.action.command === commandInput) : null;
-  if (exactCommand) return { status: 'found', ...exactCommand, lookup: { ...lookup, resolvedBy: 'command' } };
-
-  const insensitiveId = entries.find((entry) => entry.action.id.toLowerCase() === normalized);
-  if (insensitiveId) return { status: 'found', ...insensitiveId, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } };
-  const insensitiveLabel = entries.find((entry) => entry.action.label.toLowerCase() === normalized);
-  if (insensitiveLabel) return { status: 'found', ...insensitiveLabel, lookup: { ...lookup, resolvedBy: 'case-insensitive-label' } };
-
-  const searched = searchAgentWorkspaceActions(AGENT_WORKSPACE_CATEGORIES, lookup.input)
-    .map((result) => ({ category: result.category, action: result.action }))
-    .filter((entry) => !categoryId || entry.category.id === categoryId);
-  if (searched.length === 1) return { status: 'found', ...searched[0]!, lookup: { ...lookup, resolvedBy: 'search' } };
-  if (searched.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: describeWorkspaceActionCandidates(searched) };
-  return null;
-}
 
 function requireConfirmedAction(args: AgentHarnessToolArgs, action: string): string | null {
   const explicitUserRequest = readString(args.explicitUserRequest);
@@ -529,10 +349,9 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
     definition: {
       name: 'agent_harness',
       description: [
-        'Discover and operate the GoodVibes Agent harness from the main conversation.',
-        'Use this tool to inspect Agent workspace categories/actions, built-in panels, top-level CLI mirrors, UI surfaces, keybindings, slash commands with policy metadata, model tools or one model tool schema, connected-host capabilities or one connected-host capability detail, and Agent settings, or to invoke a workspace action/command through the same in-process command registry the user uses in the TUI.',
-        'Discovery modes are read-only. Setting/keybinding writes, resets, keybinding actions, UI routing, slash command invocation, and workspace action invocation require confirm:true plus explicitUserRequest.',
-        'This tool preserves Agent product boundaries: connected-host lifecycle and listener posture stay externally owned, connected-host mode reports allowed and blocked route families, and secret-backed settings store raw values through the secret manager while config receives only a secret reference.',
+        'Inspect or operate the GoodVibes Agent harness.',
+        'Use summary for mode help.',
+        'Effects require confirm:true plus explicitUserRequest; no host lifecycle or raw secrets.',
       ].join(' '),
       parameters: {
         type: 'object',
@@ -556,21 +375,65 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             shortcuts: totalHarnessShortcuts(deps.commandContext),
             keybindings: totalHarnessKeybindings(deps.commandContext),
             commands: deps.commandRegistry.list().length,
+            channelReadiness: channelReadinessCatalogStatus(deps.commandContext),
+            notificationTargets: notificationTargetCatalogStatus(deps.commandContext),
+            providerAccounts: await providerAccountCatalogStatus(deps.commandContext).catch((err) => ({
+              modes: ['provider_accounts', 'provider_account'],
+              status: 'unavailable',
+              error: formatHarnessError(err),
+            })),
+            mcpServers: mcpServerCatalogStatus(deps.commandContext),
+            setupPosture: await setupPostureCatalogStatus(deps.commandContext).catch((err) => ({
+              modes: ['setup_posture', 'setup_item'],
+              status: 'unavailable',
+              error: formatHarnessError(err),
+            })),
+            modelRouting: await modelRoutingCatalogStatus(deps.commandContext).catch((err) => ({
+              modes: ['model_routing', 'model_route'],
+              status: 'unavailable',
+              error: formatHarnessError(err),
+            })),
+            pairingPosture: pairingPostureCatalogStatus(deps.commandContext),
+            delegationPosture: delegationPostureCatalogStatus(deps.commandContext),
+            securityPosture: securityPostureCatalogStatus(deps.commandContext),
+            supportBundles: supportBundleCatalogStatus(),
+            mediaPosture: mediaPostureCatalogStatus(deps.commandContext),
+            sessions: sessionCatalogStatus(deps.commandContext),
             settings: deps.commandContext.platform.configManager.getSchema().length,
             workspaceCategories: AGENT_WORKSPACE_CATEGORIES.length,
             workspaceActions: allWorkspaceActions().length,
             tools: deps.toolRegistry.getToolDefinitions().length,
+            releaseEvidence: releaseEvidenceBundleStatus(),
+            releaseReadiness: releaseReadinessInventoryStatus(),
+            operatorMethods: operatorMethodCatalogStatus(),
+            servicePosture: servicePostureCatalogStatus(),
             modelAccess: {
-              cliCommands: 'Use mode:"cli_commands" to list and mode:"cli_command" with cliCommand, command, commandName, target, or query to inspect package CLI mirrors and their preferred in-process model routes. CLI modes are discovery-only.',
-              panels: 'Use mode:"panels" to list and mode:"panel" with panelId, target, or query to inspect built-in panel catalog/open state; use mode:"open_panel" with confirm:true plus explicitUserRequest to route a visible panel/workspace change.',
-              uiSurfaces: 'Use mode:"ui_surfaces" to list and mode:"ui_surface" with surfaceId, target, or query to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
-              shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"keybinding" with actionId, target, key, or query; use mode:"run_keybinding" for confirmation-gated shell-safe shortcut equivalents; use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
-              slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with the same lookup fields plus confirm:true and explicitUserRequest to execute one uniquely resolved command.',
-              workspace: 'Use mode:"workspace" or mode:"workspace_categories" to list Agent workspace categories, mode:"workspace_actions" to list actions, mode:"workspace_action" with actionId, command, target, or query for one action, editor schema, and modelExecution route metadata, and mode:"run_workspace_action" with the same lookup fields plus confirmation for executable actions; set includeParameters:true on workspace_actions to inline editor schemas.',
-              settings: 'Use mode:"settings" with optional category, prefix, query, includeHidden:true, and limit to list/filter settings, and mode:"get_setting" with key, target, or query for one setting. Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest.',
-              tools: 'Use mode:"tools" with optional query, limit, and includeParameters:true to list first-class model tools or inline schemas, or mode:"tool" with toolName, target, or query to inspect one schema.',
-              connectedHost: 'Use mode:"connected_host" for the connected-host capability map and blocked boundaries. Use mode:"connected_host_capability" with capabilityId, target, or query for one allowed or blocked capability.',
-              connectedHostStatus: 'Use mode:"connected_host_status" for live read-only host reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
+              cliCommands: 'List mode:"cli_commands"; inspect mode:"cli_command" with cliCommand|commandName|query. Discovery only.',
+              panels: 'List mode:"panels"; inspect mode:"panel"; navigate mode:"open_panel" with confirm:true and explicitUserRequest.',
+              uiSurfaces: 'List mode:"ui_surfaces"; inspect mode:"ui_surface"; navigate mode:"open_ui_surface" with confirmation.',
+              shortcuts: 'List mode:"shortcuts"; inspect mode:"keybinding"; run mode:"run_keybinding"; edit with set_keybinding/reset_keybinding and confirmation.',
+              slashCommands: 'List mode:"commands"; inspect mode:"command"; execute mode:"run_command" with confirmation.',
+              channels: 'List mode:"channels"; inspect mode:"channel"; deliver with agent_channel_send and confirmation.',
+              notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
+              providerAccounts: 'List mode:"provider_accounts"; inspect mode:"provider_account"; auth changes stay confirmed workspace/command flows.',
+              mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
+              setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; setup mutations stay confirmed visible flows.',
+              modelRouting: 'List mode:"model_routing"; inspect mode:"model_route"; selection and provider edits stay confirmed visible flows.',
+              pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
+              delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
+              securityPosture: 'List mode:"security_posture"; inspect mode:"security_finding"; mutate only through confirmed security routes.',
+              supportBundles: 'List mode:"support_bundles"; inspect mode:"support_bundle"; export/import stays confirmation-gated.',
+              mediaPosture: 'List mode:"media_posture"; inspect mode:"media_provider"; generate with agent_media_generate and confirmation.',
+              sessions: 'List mode:"sessions"; inspect mode:"session"; save/resume/export/delete stays visible confirmed flow.',
+              workspace: 'List mode:"workspace" or mode:"workspace_categories"; actions via workspace_actions/workspace_action/run_workspace_action; includeParameters:true inlines editor schemas.',
+              settings: 'List mode:"settings" with category|prefix|query|includeHidden:true; get_setting/set_setting/reset_setting use key|target|query and confirmation for writes.',
+              tools: 'List mode:"tools" with query|limit|includeParameters:true; inspect mode:"tool" with toolName|target|query.',
+              releaseEvidence: 'List mode:"release_evidence"; inspect mode:"release_evidence_artifact"; includeParameters:true inlines artifact detail.',
+              releaseReadiness: 'List mode:"release_readiness"; inspect mode:"release_readiness_item"; includeParameters:true inlines item detail.',
+              operatorMethods: 'List mode:"operator_methods"; inspect mode:"operator_method"; execute only through the returned first-class tool.',
+              servicePosture: 'List mode:"service_posture"; inspect mode:"service_endpoint"; includeParameters:true adds probes and redacted log tail.',
+              connectedHost: 'Map mode:"connected_host"; inspect mode:"connected_host_capability"; no lifecycle control.',
+              connectedHostStatus: 'Live read-only mode:"connected_host_status" for host reachability, SDK compatibility, token posture, and Knowledge readiness.',
             },
             settingsPolicy: settingsPolicySummary(),
             connectedHost: connectedHostSummary(deps.commandContext, deps.toolRegistry),
@@ -650,6 +513,89 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             : error(`Unknown slash command ${query || '<missing>'}. Use mode:"commands" to inspect available commands.`);
         }
         if (args.mode === 'run_command') return runCommand(deps, args);
+        if (args.mode === 'channels') return output(listHarnessChannels(deps.commandContext, args));
+        if (args.mode === 'channel') {
+          const resolved = describeHarnessChannel(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.channel);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous channel ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'notifications') return output(listHarnessNotificationTargets(deps.commandContext, args));
+        if (args.mode === 'notification_target') {
+          const resolved = describeHarnessNotificationTarget(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.target);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous notification target ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'provider_accounts') return output(await providerAccountSummary(deps.commandContext, args));
+        if (args.mode === 'provider_account') {
+          const resolved = await describeHarnessProviderAccount(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.account);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous provider account ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'mcp_servers') return output(await mcpServerSummary(deps.commandContext, args));
+        if (args.mode === 'mcp_server') {
+          const resolved = await describeHarnessMcpServer(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.server);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous MCP server ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'setup_posture') return output(await setupPostureSummary(deps.commandContext, args));
+        if (args.mode === 'setup_item') {
+          const resolved = await describeHarnessSetupItem(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.item);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous setup item ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'model_routing') return output(await modelRoutingSummary(deps.commandContext, args));
+        if (args.mode === 'model_route') {
+          const resolved = await describeHarnessModelRoute(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.route);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous model route ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'pairing_posture') return output(pairingPostureSummary(deps.commandContext, args));
+        if (args.mode === 'pairing_route') {
+          const resolved = describeHarnessPairingRoute(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.route);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous pairing route ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'delegation_posture') return output(delegationPostureSummary(deps.commandContext, args));
+        if (args.mode === 'delegation_route') {
+          const resolved = describeHarnessDelegationRoute(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.route);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous delegation route ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'security_posture') return output(await securityPostureSummary(deps.commandContext, args));
+        if (args.mode === 'security_finding') {
+          const resolved = describeHarnessSecurityFinding(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.finding);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous security finding ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'support_bundles') return output(supportBundleSummary(args));
+        if (args.mode === 'support_bundle') {
+          const resolved = describeHarnessSupportBundle(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.bundle);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'media_posture') return output(await mediaPostureSummary(deps.commandContext, args));
+        if (args.mode === 'media_provider') {
+          const resolved = await describeHarnessMediaProvider(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.provider);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous media provider ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'sessions') return output(sessionSummary(deps.commandContext, args));
+        if (args.mode === 'session') {
+          const resolved = describeHarnessSession(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.session);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous session ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
         if (args.mode === 'settings') {
           const settings = listHarnessSettings(deps.commandContext.platform.configManager, {
             category: readString(args.category) || undefined,
@@ -711,7 +657,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           });
         }
         if (args.mode === 'workspace_actions') {
-          const actions = listWorkspaceActions(deps, args);
+          const actions = listWorkspaceActions(deps.commandContext, args);
           return output({ actions, returned: actions.length, total: allWorkspaceActions().length });
         }
         if (args.mode === 'workspace_action') {
@@ -737,6 +683,37 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved?.status === 'ambiguous') return error(`Ambiguous model tool ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(`Unknown model tool ${query || '<missing>'}. Use mode:"tools" to inspect available model tools.`);
         }
+        if (args.mode === 'release_evidence') return output(releaseEvidenceSummary(args));
+        if (args.mode === 'release_evidence_artifact') {
+          const resolved = describeHarnessReleaseEvidenceArtifact(args);
+          if (resolved.status === 'found') return output(resolved);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous release evidence artifact ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          if (resolved.status === 'missing_lookup') return error(resolved.usage ?? 'release_evidence_artifact requires artifactId, target, or query.');
+          return error(`Unknown release evidence artifact ${readString(args.artifactId || args.target || args.query) || '<missing>'}. Use mode:"release_evidence" to inspect available artifacts.`);
+        }
+        if (args.mode === 'release_readiness') return output(releaseReadinessSummary(args));
+        if (args.mode === 'release_readiness_item') {
+          const resolved = describeHarnessReleaseReadinessItem(args);
+          if (resolved.status === 'found') return output(resolved);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous release readiness item ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          if (resolved.status === 'unavailable') return output(resolved);
+          if (resolved.status === 'missing_lookup') return error(resolved.usage ?? 'release_readiness_item requires itemId, target, or query.');
+          return error(`Unknown release readiness item ${readString(args.itemId || args.target || args.query) || '<missing>'}. Use mode:"release_readiness" to inspect available items.`);
+        }
+        if (args.mode === 'operator_methods') return output(operatorMethodSummary(args));
+        if (args.mode === 'operator_method') {
+          const resolved = describeHarnessOperatorMethod(args);
+          if (resolved.status === 'found') return output(resolved.method);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous operator method ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'service_posture') return output(await servicePostureSummary(deps.commandContext, args));
+        if (args.mode === 'service_endpoint') {
+          const resolved = await describeHarnessServiceEndpoint(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.endpoint);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous service endpoint ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
         if (args.mode === 'connected_host') return output(connectedHostSummary(deps.commandContext, deps.toolRegistry));
         if (args.mode === 'connected_host_capability') {
           const query = readString(args.capabilityId || args.target || args.query);
@@ -759,9 +736,5 @@ export function registerAgentHarnessTool(
   commandRegistry: CommandRegistry,
   commandContext: CommandContext,
 ): void {
-  registry.register(createAgentHarnessTool({
-    commandRegistry,
-    commandContext,
-    toolRegistry: registry,
-  }));
+  registry.register(createAgentHarnessTool({ commandRegistry, commandContext, toolRegistry: registry }));
 }

@@ -135,7 +135,7 @@ export async function connectedHostStatusSummary(
     ],
     findings: connectedHostFindings(runtime, tokenUsable),
     modelAccess: {
-      diagnostics: 'Use mode:"connected_host_status" for live read-only host readiness. Use mode:"connected_host" for capability and boundary inventory.',
+      diagnostics: 'Use mode:"connected_host_status" for live read-only host readiness, mode:"service_posture" for endpoint posture, mode:"service_endpoint" for one endpoint, and mode:"connected_host" for capability and boundary inventory.',
       cliMirrors: ['goodvibes-agent status --json', 'goodvibes-agent doctor', 'goodvibes-agent compat'],
       tuiMirrors: ['Agent Workspace -> Home -> Host compatibility', 'Agent Workspace -> Home -> Doctor diagnostics', 'Agent Workspace -> Home -> Review health'],
     },

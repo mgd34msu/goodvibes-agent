@@ -216,7 +216,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'knowledge-panel',
     label: 'Knowledge Panel',
     kind: 'workspace',
-    summary: 'Agent Knowledge operator surface for isolated status, source libraries, graph review, ask/search, and ingest forms.',
+    summary: 'Agent Knowledge operator surface for isolated status, source/node/issue libraries, item lookup, map review, connectors, ask/search, and ingest forms.',
     command: '/knowledge',
     preferredModelRoute: 'Use agent_knowledge, agent_knowledge_ingest, workspace_actions, or run_command /knowledge for concrete model operation.',
     parameters: ['pane'],

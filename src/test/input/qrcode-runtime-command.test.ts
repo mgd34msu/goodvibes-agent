@@ -74,6 +74,31 @@ describe('qrcode runtime command', () => {
     expect(confirmed).toContain('manual-connected-host-token');
   });
 
+  test('uses an environment connected-host token without exposing it by default', async () => {
+    const registry = new CommandRegistry();
+    registerQrcodeRuntimeCommands(registry);
+    const command = registry.get('pair');
+    expect(command).toBeDefined();
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-env-'));
+    const previous = process.env.GOODVIBES_CONNECTED_HOST_TOKEN;
+    process.env.GOODVIBES_CONNECTED_HOST_TOKEN = 'env-connected-host-token';
+    const out: string[] = [];
+
+    try {
+      await command!.handler([], makeContext(out, root));
+    } finally {
+      if (previous === undefined) delete process.env.GOODVIBES_CONNECTED_HOST_TOKEN;
+      else process.env.GOODVIBES_CONNECTED_HOST_TOKEN = previous;
+    }
+
+    const text = out.join('\n');
+    expect(text).toContain('goodvibes-agent');
+    expect(text).toContain('Token:          present sha256:');
+    expect(text).toContain('rerun /pair --show-token --yes');
+    expect(text).not.toContain('env-connected-host-token');
+    expect(text).not.toContain('Connected-host operator token is required.');
+  });
+
   test('does not create connected-host auth tokens when pairing token is missing', async () => {
     const registry = new CommandRegistry();
     registerQrcodeRuntimeCommands(registry);

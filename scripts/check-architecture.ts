@@ -280,9 +280,104 @@ const requiredSnippets: Array<{ file: string; snippets: readonly string[]; messa
     message: 'CLI Knowledge commands must use the isolated browser/agent SDK seam',
   },
   {
+    file: 'src/cli/agent-knowledge-runtime.ts',
+    snippets: ['validateAgentKnowledgeData'],
+    message: 'CLI Knowledge commands must validate Agent Knowledge response scope',
+  },
+  {
+    file: 'src/cli/agent-knowledge-runtime.ts',
+    snippets: ['scope_contamination'],
+    message: 'CLI Knowledge commands must reject non-Agent scope contamination',
+  },
+  {
     file: 'src/cli/agent-knowledge-methods.ts',
-    snippets: ['/api/goodvibes-agent/knowledge/status'],
-    message: 'CLI Knowledge commands must target Agent-specific daemon routes',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/status'"],
+    message: 'CLI Knowledge commands must target the Agent-specific status route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/ask'"],
+    message: 'CLI Knowledge commands must target the Agent-specific ask route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/search'"],
+    message: 'CLI Knowledge commands must target the Agent-specific search route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/sources'"],
+    message: 'CLI Knowledge commands must target the Agent-specific sources route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/nodes'"],
+    message: 'CLI Knowledge commands must target the Agent-specific nodes route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/issues'"],
+    message: 'CLI Knowledge commands must target the Agent-specific issues route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/items/{id}'"],
+    message: 'CLI Knowledge commands must target the Agent-specific item route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/map'"],
+    message: 'CLI Knowledge commands must target the Agent-specific map route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/connectors'"],
+    message: 'CLI Knowledge commands must target the Agent-specific connector routes',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/connectors/{id}'"],
+    message: 'CLI Knowledge commands must target the Agent-specific connector detail route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/connectors/{id}/doctor'"],
+    message: 'CLI Knowledge commands must target the Agent-specific connector doctor route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/ingest/url'"],
+    message: 'CLI Knowledge commands must target the Agent-specific URL ingest route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/ingest/artifact'"],
+    message: 'CLI Knowledge commands must target the Agent-specific artifact ingest route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/ingest/urls'"],
+    message: 'CLI Knowledge commands must target the Agent-specific URL-list ingest route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/ingest/bookmarks'"],
+    message: 'CLI Knowledge commands must target the Agent-specific bookmarks ingest route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/ingest/browser-history'"],
+    message: 'CLI Knowledge commands must target the Agent-specific browser-history ingest route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/ingest/connector'"],
+    message: 'CLI Knowledge commands must target the Agent-specific connector ingest route',
+  },
+  {
+    file: 'src/cli/agent-knowledge-methods.ts',
+    snippets: ["route: '/api/goodvibes-agent/knowledge/reindex'"],
+    message: 'CLI Knowledge commands must target the Agent-specific reindex route',
   },
 ];
 

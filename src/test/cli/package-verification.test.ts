@@ -20,6 +20,29 @@ type PackageJson = {
   readonly files?: readonly string[];
 };
 
+const releaseReadinessPolicy = {
+  blockerStatuses: ['unknown', 'gap'],
+  sourceNaming: 'Use neutral evidence aliases only.',
+  qualityGate: 'Require release-quality capability coverage.',
+  requiredQualityDimensions: ['capabilityCoverage', 'userAccess', 'modelAccess', 'safetyBoundary', 'releaseEvidence'],
+};
+
+const releaseReadinessSources = [
+  { id: 'release-surface-review', kind: 'release-surface-review', evidence: 'reviewed' },
+  { id: 'runtime-contract-review', kind: 'runtime-contract-review', evidence: 'reviewed' },
+  { id: 'goodvibes-agent', kind: 'agent-package', evidence: 'reviewed' },
+  { id: 'goodvibes-connected-host', kind: 'connected-host-sdk', evidence: 'reviewed' },
+  { id: 'goodvibes-companion', kind: 'companion-app', evidence: 'reviewed' },
+];
+
+const releaseQuality = {
+  capabilityCoverage: 'Covered by the release fixture.',
+  userAccess: 'User can inspect this release fixture surface.',
+  modelAccess: 'agent_harness exposes the matching fixture route to the model.',
+  safetyBoundary: 'Fixture keeps product boundaries explicit.',
+  releaseEvidence: 'Fixture carries release evidence.',
+};
+
 describe('package CLI install verification', () => {
   test('package exposes a runnable Agent bin and a safe registry tarball contract', () => {
     const report = verifyPackageCliInstall(resolve(import.meta.dir, '../../..'));
@@ -32,6 +55,11 @@ describe('package CLI install verification', () => {
     expect(report.bins.every((bin) => bin.hasSourceEntrypoint)).toBe(true);
     expect(report.tarball.requiredPathsPresent).toContain('bin/goodvibes-agent.ts');
     expect(report.tarball.requiredPathsPresent).toContain('LICENSE');
+    expect(report.tarball.requiredPathsPresent).toContain('release/release-notes.md');
+    expect(report.tarball.requiredPathsPresent).toContain('release/performance-snapshot.json');
+    expect(report.tarball.requiredPathsPresent).toContain('release/release-readiness.json');
+    expect(report.tarball.requiredPathsPresent).toContain('release/live-verification/live-verification.json');
+    expect(report.tarball.requiredPathsPresent).toContain('release/live-verification/live-verification.md');
     expect(report.tarball.forbiddenPaths).toEqual([]);
     expect(report.packageFacingText.failures).toEqual([]);
     expect(report.packageFacingText.checkedPaths).toContain('README.md');
@@ -76,7 +104,7 @@ describe('package CLI install verification', () => {
     }
   });
 
-  test('release metadata rejects over-budget 1.0 performance snapshot metrics', () => {
+  test('release metadata rejects over-budget performance snapshot metrics', () => {
     const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
     try {
       const recentCycles = Array.from({ length: 10 }, (_, index) => ({
@@ -89,7 +117,7 @@ describe('package CLI install verification', () => {
       mkdirSync(join(dir, 'release'), { recursive: true });
       writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@pellux/goodvibes-agent', version: '1.0.0' }));
       writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0 - 2026-06-03\n\n- Notes.\n');
-      writeFileSync(join(dir, 'release', '1.0-performance-snapshot.json'), JSON.stringify({
+      writeFileSync(join(dir, 'release', 'performance-snapshot.json'), JSON.stringify({
         surfacePerf: {
           targetBudgetMs: 16,
           budgetStatus: 'ok',
@@ -109,31 +137,24 @@ describe('package CLI install verification', () => {
         },
       }));
 
-      expect(verifyReleaseMetadata(dir)).toContain('1.0 performance snapshot metric slo.turn_start.p95 2500 exceeds release budget 2000.');
+      expect(verifyReleaseMetadata(dir)).toContain('release performance snapshot metric slo.turn_start.p95 2500 exceeds release budget 2000.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  test('release metadata rejects local sibling evidence in the 1.0 readiness inventory', () => {
+  test('release metadata rejects local sibling evidence in the release readiness inventory', () => {
     const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
     try {
       mkdirSync(join(dir, 'release'), { recursive: true });
       writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@pellux/goodvibes-agent', version: '1.0.0' }));
       writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0 - 2026-06-03\n\n- Notes.\n');
-      writeFileSync(join(dir, 'release', '1.0-readiness.json'), JSON.stringify({
+      writeFileSync(join(dir, 'release', 'release-readiness.json'), JSON.stringify({
         schemaVersion: 1,
-        gate: 'goodvibes-agent-1.0-readiness',
-        policy: {
-          blockerStatuses: ['unknown', 'gap'],
-          sourceNaming: 'Use neutral source aliases only. Do not store upstream product names in this repository.',
-        },
-        sources: [
-          { id: 'source-a', kind: 'internal-benchmark-product', evidence: 'reviewed' },
-          { id: 'source-b', kind: 'internal-benchmark-runtime', evidence: 'reviewed' },
-          { id: 'goodvibes-agent', kind: 'agent-package', evidence: 'reviewed' },
-          { id: 'goodvibes-connected-host', kind: 'connected-host-sdk', evidence: 'reviewed' },
-        ],
+        gate: 'goodvibes-agent-release-readiness',
+        checkedAt: '2026-06-03',
+        policy: releaseReadinessPolicy,
+        sources: releaseReadinessSources,
         items: [
           {
             id: 'connected-host-channel-core',
@@ -142,79 +163,72 @@ describe('package CLI install verification', () => {
             status: 'covered',
             evidence: '../goodvibes-sdk/docs/channel-surfaces.md',
             action: 'Keep Agent boundaries.',
+            quality: releaseQuality,
           },
           {
             id: 'mobile-device-command-depth',
             capability: 'Companion command depth.',
             owner: 'companion',
             status: 'covered',
-            evidence: 'source-b reviewed companion command depth',
+            evidence: 'runtime-contract-review reviewed companion command depth',
             action: 'Keep companion boundaries.',
+            quality: releaseQuality,
           },
         ],
       }));
 
       const issues = verifyReleaseMetadata(dir);
 
-      expect(issues).toContain('1.0 readiness inventory evidence must not depend on local sibling checkout path: ../.');
-      expect(issues).toContain('1.0 readiness inventory is missing required source alias: goodvibes-companion.');
-      expect(issues).toContain('1.0 readiness inventory connected-host-channel-core must cite the goodvibes-connected-host source alias.');
-      expect(issues).toContain('1.0 readiness inventory mobile-device-command-depth must cite the goodvibes-companion source alias.');
+      expect(issues).toContain('release readiness inventory evidence must not depend on local sibling checkout path: ../.');
+      expect(issues).toContain('release readiness inventory connected-host-channel-core must cite the goodvibes-connected-host source alias.');
+      expect(issues).toContain('release readiness inventory mobile-device-command-depth must cite the goodvibes-companion source alias.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  test('release metadata rejects stale 1.0 live verification evidence', () => {
+  test('release metadata rejects stale live verification evidence', () => {
     const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
     try {
-      mkdirSync(join(dir, 'release', '1.0-live-verification'), { recursive: true });
+      mkdirSync(join(dir, 'release', 'live-verification'), { recursive: true });
       writeFileSync(join(dir, 'package.json'), JSON.stringify({
         name: '@pellux/goodvibes-agent',
         version: '1.0.0',
-        dependencies: { '@pellux/goodvibes-sdk': '0.33.35' },
+        dependencies: { '@pellux/goodvibes-sdk': '0.33.36' },
       }));
       writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0 - 2026-06-03\n\n- Notes.\n');
-      writeFileSync(join(dir, 'release', '1.0-readiness.json'), JSON.stringify({
+      writeFileSync(join(dir, 'release', 'release-readiness.json'), JSON.stringify({
         schemaVersion: 1,
-        gate: 'goodvibes-agent-1.0-readiness',
+        gate: 'goodvibes-agent-release-readiness',
         checkedAt: '2026-06-03',
-        policy: {
-          blockerStatuses: ['unknown', 'gap'],
-          sourceNaming: 'Use neutral source aliases only. Do not store upstream product names in this repository.',
-        },
-        sources: [
-          { id: 'source-a', kind: 'internal-benchmark-product', evidence: 'reviewed' },
-          { id: 'source-b', kind: 'internal-benchmark-runtime', evidence: 'reviewed' },
-          { id: 'goodvibes-agent', kind: 'agent-package', evidence: 'reviewed' },
-          { id: 'goodvibes-connected-host', kind: 'connected-host-sdk', evidence: 'reviewed' },
-          { id: 'goodvibes-companion', kind: 'companion-app', evidence: 'reviewed' },
-        ],
+        policy: releaseReadinessPolicy,
+        sources: releaseReadinessSources,
         items: [{
           id: 'live-outcome-certification',
           capability: 'Fresh live evidence.',
           owner: 'release',
           status: 'covered',
-          evidence: 'release/1.0-live-verification/live-verification.json',
+          evidence: 'release/live-verification/live-verification.json',
           action: 'Rerun strict live verification.',
+          quality: releaseQuality,
         }],
       }));
-      writeFileSync(join(dir, 'release', '1.0-live-verification', 'live-verification.md'), '# GoodVibes Agent Live Verification\n\nResult: PASS\n');
-      writeFileSync(join(dir, 'release', '1.0-live-verification', 'live-verification.json'), JSON.stringify({
+      writeFileSync(join(dir, 'release', 'live-verification', 'live-verification.md'), '# GoodVibes Agent Live Verification\n\nResult: PASS\n');
+      writeFileSync(join(dir, 'release', 'live-verification', 'live-verification.json'), JSON.stringify({
         generatedAt: '2026-01-01T00:00:00.000Z',
         strict: true,
         ok: true,
         counts: { pass: 14, warn: 0, fail: 0, skip: 0 },
         checks: [
-          { id: 'connected-host-status', status: 'pass', summary: '/status returned 200, version 0.33.35.' },
-          { id: 'cli-compat-json', status: 'pass', detail: '{"sdkPin": "0.33.35", "version": "0.33.35", "compatible": true}' },
+          { id: 'connected-host-status', status: 'pass', summary: '/status returned 200, version 0.33.36.' },
+          { id: 'cli-compat-json', status: 'pass', detail: '{"sdkPin": "0.33.36", "version": "0.33.36", "compatible": true}' },
         ],
       }));
 
       const issues = verifyReleaseMetadata(dir);
 
-      expect(issues).toContain('1.0 live verification report must not predate readiness inventory checkedAt 2026-06-03.');
-      expect(issues.some((issue) => issue.startsWith('1.0 live verification report is stale: generatedAt is '))).toBe(true);
+      expect(issues).toContain('release live verification report must not predate readiness inventory checkedAt 2026-06-03.');
+      expect(issues.some((issue) => issue.startsWith('release live verification report is stale: generatedAt is '))).toBe(true);
       expect(issues.some((issue) => issue.includes('rerun strict live verification'))).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -224,38 +238,30 @@ describe('package CLI install verification', () => {
   test('release metadata rejects mismatched live verification Markdown evidence', () => {
     const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-release-metadata-'));
     try {
-      mkdirSync(join(dir, 'release', '1.0-live-verification'), { recursive: true });
+      mkdirSync(join(dir, 'release', 'live-verification'), { recursive: true });
       writeFileSync(join(dir, 'package.json'), JSON.stringify({
         name: '@pellux/goodvibes-agent',
         version: '1.0.0',
-        dependencies: { '@pellux/goodvibes-sdk': '0.33.35' },
+        dependencies: { '@pellux/goodvibes-sdk': '0.33.36' },
       }));
       writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0 - 2026-06-03\n\n- Notes.\n');
-      writeFileSync(join(dir, 'release', '1.0-readiness.json'), JSON.stringify({
+      writeFileSync(join(dir, 'release', 'release-readiness.json'), JSON.stringify({
         schemaVersion: 1,
-        gate: 'goodvibes-agent-1.0-readiness',
+        gate: 'goodvibes-agent-release-readiness',
         checkedAt: '2026-06-03',
-        policy: {
-          blockerStatuses: ['unknown', 'gap'],
-          sourceNaming: 'Use neutral source aliases only. Do not store upstream product names in this repository.',
-        },
-        sources: [
-          { id: 'source-a', kind: 'internal-benchmark-product', evidence: 'reviewed' },
-          { id: 'source-b', kind: 'internal-benchmark-runtime', evidence: 'reviewed' },
-          { id: 'goodvibes-agent', kind: 'agent-package', evidence: 'reviewed' },
-          { id: 'goodvibes-connected-host', kind: 'connected-host-sdk', evidence: 'reviewed' },
-          { id: 'goodvibes-companion', kind: 'companion-app', evidence: 'reviewed' },
-        ],
+        policy: releaseReadinessPolicy,
+        sources: releaseReadinessSources,
         items: [{
           id: 'live-outcome-certification',
           capability: 'Fresh live evidence.',
           owner: 'release',
           status: 'covered',
-          evidence: 'release/1.0-live-verification/live-verification.json',
+          evidence: 'release/live-verification/live-verification.json',
           action: 'Rerun strict live verification.',
+          quality: releaseQuality,
         }],
       }));
-      writeFileSync(join(dir, 'release', '1.0-live-verification', 'live-verification.md'), [
+      writeFileSync(join(dir, 'release', 'live-verification', 'live-verification.md'), [
         '# GoodVibes Agent Live Verification',
         '',
         'Generated: 2026-06-03T00:00:00.000Z',
@@ -270,21 +276,21 @@ describe('package CLI install verification', () => {
         'Result: PASS',
         '',
       ].join('\n'));
-      writeFileSync(join(dir, 'release', '1.0-live-verification', 'live-verification.json'), JSON.stringify({
+      writeFileSync(join(dir, 'release', 'live-verification', 'live-verification.json'), JSON.stringify({
         generatedAt: new Date().toISOString(),
         strict: true,
         ok: true,
         counts: { pass: 14, warn: 0, fail: 0, skip: 0 },
         checks: [
-          { id: 'connected-host-status', status: 'pass', summary: '/status returned 200, version 0.33.35.' },
-          { id: 'cli-compat-json', status: 'pass', detail: '{"sdkPin": "0.33.35", "version": "0.33.35", "compatible": true}' },
+          { id: 'connected-host-status', status: 'pass', summary: '/status returned 200, version 0.33.36.' },
+          { id: 'cli-compat-json', status: 'pass', detail: '{"sdkPin": "0.33.36", "version": "0.33.36", "compatible": true}' },
         ],
       }));
 
       const issues = verifyReleaseMetadata(dir);
 
-      expect(issues).toContain('1.0 live verification Markdown report generated timestamp must match JSON generatedAt.');
-      expect(issues).toContain('1.0 live verification Markdown report pass count must match JSON counts.pass.');
+      expect(issues).toContain('release live verification Markdown report generated timestamp must match JSON generatedAt.');
+      expect(issues).toContain('release live verification Markdown report pass count must match JSON counts.pass.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -353,39 +359,39 @@ describe('package CLI install verification', () => {
     expect(source).toContain('bun add -g "@pellux/goodvibes-agent@${VERSION}" --registry https://registry.npmjs.org --minimum-release-age 0');
   });
 
-  test('release script stages the 1.0 release evidence bundle', () => {
+  test('release script stages the release evidence bundle', () => {
     const paths = releaseMetadataPaths(resolve(import.meta.dir, '../../..'));
 
-    expect(paths).toContain('release/1.0-release-notes.md');
-    expect(paths).toContain('release/1.0-performance-snapshot.json');
-    expect(paths).toContain('release/1.0-readiness.json');
-    expect(paths).toContain('release/1.0-live-verification/live-verification.json');
-    expect(paths).toContain('release/1.0-live-verification/live-verification.md');
+    expect(paths).toContain('release/release-notes.md');
+    expect(paths).toContain('release/performance-snapshot.json');
+    expect(paths).toContain('release/release-readiness.json');
+    expect(paths).toContain('release/live-verification/live-verification.json');
+    expect(paths).toContain('release/live-verification/live-verification.md');
     expect(paths).toContain('README.md');
     expect(paths).toContain('docs/release-and-publishing.md');
   });
 
   test('release preflight allows only declared release evidence changes before a real release', () => {
     const allowedEvidenceStatus = [
-      '?? release/1.0-release-notes.md',
-      ' M release/1.0-performance-snapshot.json',
-      'A  release/1.0-live-verification/live-verification.json',
+      '?? release/release-notes.md',
+      ' M release/performance-snapshot.json',
+      'A  release/live-verification/live-verification.json',
     ].join('\n');
     const mixedStatus = [
       allowedEvidenceStatus,
       ' M src/main.ts',
       ' M README.md',
       '?? scratch.txt',
-      ' D release/1.0-readiness.json',
+      ' D release/release-readiness.json',
     ].join('\n');
 
-    expect(releaseEvidenceInputPaths()).toContain('release/1.0-readiness.json');
+    expect(releaseEvidenceInputPaths()).toContain('release/release-readiness.json');
     expect(releaseBlockingGitStatusLines(allowedEvidenceStatus)).toEqual([]);
     expect(releaseBlockingGitStatusLines(mixedStatus)).toEqual([
       ' M src/main.ts',
       ' M README.md',
       '?? scratch.txt',
-      ' D release/1.0-readiness.json',
+      ' D release/release-readiness.json',
     ]);
   });
 

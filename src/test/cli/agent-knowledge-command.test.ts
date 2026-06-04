@@ -398,7 +398,7 @@ describe('Agent Knowledge CLI route isolation', () => {
       expect(itemParsed).toMatchObject({
         ok: true,
         kind: 'agentKnowledge.item.get',
-        route: '/api/goodvibes-agent/knowledge/items/{id}',
+        route: '/api/goodvibes-agent/knowledge/items/src-agent',
       });
       expect(connectorParsed).toMatchObject({
         ok: true,
@@ -408,12 +408,12 @@ describe('Agent Knowledge CLI route isolation', () => {
       expect(connectorGetParsed).toMatchObject({
         ok: true,
         kind: 'agentKnowledge.connector.get',
-        route: '/api/goodvibes-agent/knowledge/connectors/{id}',
+        route: '/api/goodvibes-agent/knowledge/connectors/url',
       });
       expect(doctorParsed).toMatchObject({
         ok: true,
         kind: 'agentKnowledge.connector.doctor',
-        route: '/api/goodvibes-agent/knowledge/connectors/{id}/doctor',
+        route: '/api/goodvibes-agent/knowledge/connectors/url/doctor',
       });
     } finally {
       globalThis.fetch = originalFetch;
@@ -780,6 +780,62 @@ describe('Agent Knowledge CLI route isolation', () => {
         kind: 'agentKnowledge.search',
         route: '/api/goodvibes-agent/knowledge/search',
       });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('fails closed when an Agent Knowledge route returns default scope metadata', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return new Response(JSON.stringify({
+        ok: true,
+        spaceId: 'default',
+        query: 'What is GoodVibes Agent?',
+        answer: {
+          text: 'No knowledge matched.',
+          mode: 'standard',
+          confidence: 0,
+          synthesized: false,
+          sources: [],
+          facts: [],
+          linkedObjects: [],
+          gaps: [],
+        },
+        results: [],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleAgentKnowledgeCommand(createRuntime([
+        'ask',
+        'What',
+        'is',
+        'GoodVibes',
+        'Agent?',
+      ]));
+      const parsed = JSON.parse(result.output) as unknown;
+
+      expect(result.exitCode).toBe(1);
+      expect(requests.map((request) => request.url)).toEqual([
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ask',
+      ]);
+      expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
+      expect(parsed).toMatchObject({
+        ok: false,
+        kind: 'scope_contamination',
+        route: '/api/goodvibes-agent/knowledge/ask',
+      });
+      expect(result.output).toContain('spaceId=default');
     } finally {
       globalThis.fetch = originalFetch;
     }

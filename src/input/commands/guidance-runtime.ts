@@ -21,7 +21,7 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
           'Welcome To GoodVibes Agent',
           '  /setup              - open Agent setup with current settings preloaded',
           '  /agent              - open the Agent operator workspace',
-          '  /knowledge          - inspect isolated Agent Knowledge status, ask, and search',
+          '  /knowledge          - inspect isolated Agent Knowledge status, ask/search, libraries, map, connectors, and ingest paths',
           '  /memory             - manage Agent-local memory',
           '  /personas           - manage Agent-local personas',
           '  /skills       - manage reusable Agent-local skills',

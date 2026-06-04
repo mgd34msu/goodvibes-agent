@@ -1,0 +1,232 @@
+import type { CommandContext } from '../input/command-registry.ts';
+import { createAgentWorkspaceEditor } from '../input/agent-workspace-activation.ts';
+import { AGENT_WORKSPACE_CATEGORIES } from '../input/agent-workspace-categories.ts';
+import { searchAgentWorkspaceActions } from '../input/agent-workspace-search.ts';
+import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
+import type { AgentWorkspaceAction, AgentWorkspaceCategory, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor, AgentWorkspaceLocalLibraryItem, AgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-types.ts';
+import { describeLocalWorkspaceModelExecution } from './agent-harness-local-operations.ts';
+import { describeWorkspaceEditorModelExecution } from './agent-harness-workspace-editor-execution.ts';
+
+export { AGENT_WORKSPACE_CATEGORIES };
+
+export interface AgentHarnessWorkspaceActionArgs {
+  readonly query?: unknown;
+  readonly command?: unknown;
+  readonly actionId?: unknown;
+  readonly recordId?: unknown;
+  readonly fields?: unknown;
+  readonly target?: unknown;
+  readonly category?: unknown;
+  readonly categoryId?: unknown;
+  readonly includeParameters?: unknown;
+  readonly limit?: unknown;
+}
+
+export interface WorkspaceEditorContext {
+  readonly runtimeStarterTemplates: AgentWorkspaceRuntimeSnapshot['runtimeStarterTemplates'];
+  readonly selectedRoutine: AgentWorkspaceLocalLibraryItem | null;
+}
+
+export interface WorkspaceActionLookup {
+  readonly source: 'actionId' | 'command' | 'target' | 'query';
+  readonly input: string;
+  readonly resolvedBy: 'id' | 'case-insensitive-id' | 'label' | 'case-insensitive-label' | 'command' | 'search';
+}
+
+export type WorkspaceActionResolution =
+  | {
+    readonly status: 'found';
+    readonly category: AgentWorkspaceCategory;
+    readonly action: AgentWorkspaceAction;
+    readonly lookup: WorkspaceActionLookup;
+  }
+  | {
+    readonly status: 'ambiguous';
+    readonly input: string;
+    readonly candidates: readonly { readonly actionId: string; readonly categoryId: string; readonly label: string; readonly command?: string }[];
+  };
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readLimit(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(500, Math.trunc(parsed)));
+}
+
+function readFieldMap(value: unknown): Readonly<Record<string, string>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, typeof entry === 'string' ? entry : String(entry)]));
+}
+
+export function allWorkspaceActions(): ReadonlyArray<{
+  readonly category: AgentWorkspaceCategory;
+  readonly action: AgentWorkspaceAction;
+}> {
+  return AGENT_WORKSPACE_CATEGORIES.flatMap((category) => category.actions.map((action) => ({ category, action })));
+}
+
+export function describeWorkspaceCategory(category: AgentWorkspaceCategory): Record<string, unknown> {
+  return {
+    id: category.id,
+    group: category.group,
+    label: category.label,
+    summary: category.summary,
+    detail: category.detail,
+    actions: category.actions.length,
+  };
+}
+
+export function describeWorkspaceEditor(editor: AgentWorkspaceLocalEditor): Record<string, unknown> {
+  return {
+    kind: editor.kind,
+    mode: editor.mode,
+    title: editor.title,
+    message: editor.message,
+    fields: editor.fields.map((field) => ({
+      id: field.id,
+      label: field.label,
+      required: field.required,
+      multiline: field.multiline,
+      hint: field.hint,
+      redact: field.redact === true,
+      default: field.redact ? '<redacted>' : field.value,
+    })),
+  };
+}
+
+function selectedRoutineFromArgs(
+  snapshot: AgentWorkspaceRuntimeSnapshot,
+  args: AgentHarnessWorkspaceActionArgs,
+): AgentWorkspaceLocalLibraryItem | null {
+  const fields = readFieldMap(args.fields);
+  const routineId = readString(args.recordId) || readString(fields.routineId) || readString(fields.id);
+  if (!routineId) return null;
+  return snapshot.localRoutines.find((routine) => routine.id === routineId || routine.name.toLowerCase() === routineId.toLowerCase()) ?? null;
+}
+
+export function buildWorkspaceEditorContext(context: CommandContext, args: AgentHarnessWorkspaceActionArgs): WorkspaceEditorContext {
+  try {
+    const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
+    return {
+      runtimeStarterTemplates: snapshot.runtimeStarterTemplates,
+      selectedRoutine: selectedRoutineFromArgs(snapshot, args),
+    };
+  } catch {
+    return {
+      runtimeStarterTemplates: [],
+      selectedRoutine: null,
+    };
+  }
+}
+
+export function createWorkspaceEditor(
+  editorKind: AgentWorkspaceEditorKind,
+  editorContext: WorkspaceEditorContext | null,
+): AgentWorkspaceLocalEditor | null {
+  return createAgentWorkspaceEditor(editorKind, {
+    runtimeStarterTemplates: editorContext?.runtimeStarterTemplates ?? [],
+    selectedRoutine: editorKind === 'routine-schedule' ? editorContext?.selectedRoutine ?? null : null,
+  });
+}
+
+export function describeWorkspaceAction(
+  category: AgentWorkspaceCategory,
+  action: AgentWorkspaceAction,
+  options: { readonly includeEditor?: boolean; readonly editorContext?: WorkspaceEditorContext | null; readonly lookup?: WorkspaceActionLookup } = {},
+): Record<string, unknown> {
+  const editor = options.includeEditor && action.editorKind ? createWorkspaceEditor(action.editorKind, options.editorContext ?? null) : null;
+  return {
+    id: action.id,
+    categoryId: category.id,
+    category: category.label,
+    group: category.group,
+    label: action.label,
+    detail: action.detail,
+    kind: action.kind,
+    safety: action.safety,
+    ...(action.command ? { command: action.command } : {}),
+    ...(action.targetCategoryId ? { targetCategoryId: action.targetCategoryId } : {}),
+    ...(action.editorKind ? { editorKind: action.editorKind } : {}),
+    ...(action.localKind ? { localKind: action.localKind } : {}),
+    ...(action.localOperation ? { localOperation: action.localOperation } : {}),
+    ...(options.lookup ? { lookup: options.lookup } : {}),
+    ...(editor ? { editor: describeWorkspaceEditor(editor) } : {}),
+    ...(action.kind === 'local-selection' || action.kind === 'local-operation' ? {
+      modelExecution: describeLocalWorkspaceModelExecution(action),
+    } : {}),
+    ...(action.kind === 'editor' && action.editorKind ? {
+      modelExecution: describeWorkspaceEditorModelExecution(action.editorKind),
+    } : {}),
+  };
+}
+
+export function listWorkspaceActions(
+  context: CommandContext,
+  args: AgentHarnessWorkspaceActionArgs,
+): readonly Record<string, unknown>[] {
+  const query = readString(args.query);
+  const categoryId = readString(args.categoryId || args.category);
+  const limit = readLimit(args.limit, 200);
+  const includeEditor = args.includeParameters === true;
+  const editorContext = includeEditor ? buildWorkspaceEditorContext(context, args) : null;
+  const source = query
+    ? searchAgentWorkspaceActions(AGENT_WORKSPACE_CATEGORIES, query).map((result) => ({ category: result.category, action: result.action }))
+    : allWorkspaceActions();
+  return source
+    .filter((entry) => !categoryId || entry.category.id === categoryId)
+    .slice(0, limit)
+    .map((entry) => describeWorkspaceAction(entry.category, entry.action, { includeEditor, editorContext }));
+}
+
+function workspaceActionLookupFromArgs(args: AgentHarnessWorkspaceActionArgs): { readonly source: WorkspaceActionLookup['source']; readonly input: string } | null {
+  const actionId = readString(args.actionId);
+  if (actionId) return { source: 'actionId', input: actionId };
+  const command = readString(args.command);
+  if (command) return { source: 'command', input: command };
+  const target = readString(args.target);
+  if (target) return { source: 'target', input: target };
+  const query = readString(args.query);
+  return query ? { source: 'query', input: query } : null;
+}
+
+function describeWorkspaceActionCandidates(
+  entries: readonly { readonly category: AgentWorkspaceCategory; readonly action: AgentWorkspaceAction }[],
+): readonly { readonly actionId: string; readonly categoryId: string; readonly label: string; readonly command?: string }[] {
+  return entries.slice(0, 8).map((entry) => ({
+    actionId: entry.action.id,
+    categoryId: entry.category.id,
+    label: entry.action.label,
+    ...(entry.action.command ? { command: entry.action.command } : {}),
+  }));
+}
+
+export function resolveWorkspaceActionDetail(args: AgentHarnessWorkspaceActionArgs): WorkspaceActionResolution | null {
+  const lookup = workspaceActionLookupFromArgs(args);
+  const categoryId = readString(args.categoryId || args.category);
+  if (!lookup) return null;
+  const entries = allWorkspaceActions().filter((entry) => !categoryId || entry.category.id === categoryId);
+  const normalized = lookup.input.toLowerCase();
+  const commandInput = lookup.source === 'command' ? lookup.input.trim() : '';
+
+  const exactId = entries.find((entry) => entry.action.id === lookup.input);
+  if (exactId) return { status: 'found', ...exactId, lookup: { ...lookup, resolvedBy: 'id' } };
+  const exactLabel = entries.find((entry) => entry.action.label === lookup.input);
+  if (exactLabel) return { status: 'found', ...exactLabel, lookup: { ...lookup, resolvedBy: 'label' } };
+  const exactCommand = commandInput ? entries.find((entry) => entry.action.command === commandInput) : null;
+  if (exactCommand) return { status: 'found', ...exactCommand, lookup: { ...lookup, resolvedBy: 'command' } };
+
+  const insensitiveId = entries.find((entry) => entry.action.id.toLowerCase() === normalized);
+  if (insensitiveId) return { status: 'found', ...insensitiveId, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } };
+  const insensitiveLabel = entries.find((entry) => entry.action.label.toLowerCase() === normalized);
+  if (insensitiveLabel) return { status: 'found', ...insensitiveLabel, lookup: { ...lookup, resolvedBy: 'case-insensitive-label' } };
+
+  const searched = searchAgentWorkspaceActions(AGENT_WORKSPACE_CATEGORIES, lookup.input)
+    .map((result) => ({ category: result.category, action: result.action }))
+    .filter((entry) => !categoryId || entry.category.id === categoryId);
+  if (searched.length === 1) return { status: 'found', ...searched[0]!, lookup: { ...lookup, resolvedBy: 'search' } };
+  if (searched.length > 1) return { status: 'ambiguous', input: lookup.input, candidates: describeWorkspaceActionCandidates(searched) };
+  return null;
+}

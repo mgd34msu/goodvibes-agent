@@ -20,6 +20,22 @@ export function connectedHostOperatorTokenPath(homeDirectory: string): string {
 }
 
 export function readConnectedHostOperatorToken(homeDirectory: string): ConnectedHostOperatorToken {
+  const connectedHostEnvToken = process.env.GOODVIBES_CONNECTED_HOST_TOKEN?.trim();
+  if (connectedHostEnvToken) {
+    return {
+      path: 'env:GOODVIBES_CONNECTED_HOST_TOKEN',
+      present: true,
+      token: connectedHostEnvToken,
+    };
+  }
+  const legacyEnvToken = process.env.GOODVIBES_DAEMON_TOKEN?.trim();
+  if (legacyEnvToken) {
+    return {
+      path: 'env:GOODVIBES_DAEMON_TOKEN',
+      present: true,
+      token: legacyEnvToken,
+    };
+  }
   const path = connectedHostOperatorTokenPath(homeDirectory);
   if (!existsSync(path)) return { path, present: false, token: null };
   try {

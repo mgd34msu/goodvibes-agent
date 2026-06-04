@@ -19,7 +19,7 @@ The SDK/runtime owns durable storage and route contracts:
 - readiness evaluation and next-question hints;
 - decision records;
 - task, dependency, verification, and assignment metadata;
-- passive operator methods.
+- read-only public operator methods.
 
 Other surfaces can store or inspect planning artifacts, but conversation control stays in Agent. Agent planning state is not default knowledge, another product segment, or arbitrary knowledge data.
 
@@ -70,7 +70,7 @@ The work-plan tracker is for concrete, durable task state after work becomes act
 
 Use `/workplan` when the work already has tasks and needs status tracking. Use `/delegate` when explicit build/fix/review work should go to GoodVibes TUI.
 
-The model can keep the same visible work plan current with `agent_work_plan`. It can also discover `/plan`, `/workplan`, and delegation workspace actions through `agent_harness`; destructive work-plan changes still require explicit user request and confirmation.
+The model can keep the same visible work plan current with `agent_work_plan`. It can also inspect planning/work-plan visibility through `agent_harness` workspace and panel metadata, and inspect explicit build-delegation posture with `delegation_posture`/`delegation_route`; destructive work-plan changes and delegated submissions still require explicit user request and confirmation.
 
 ## Agent Knowledge Boundary
 

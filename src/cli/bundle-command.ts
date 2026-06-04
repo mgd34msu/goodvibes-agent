@@ -1,10 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { listProviderRuntimeSnapshots } from '@pellux/goodvibes-sdk/platform/providers';
 import { createRuntimeServices } from '../runtime/services.ts';
 import { createRuntimeStore } from '../runtime/store/index.ts';
+import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import { getOnboardingCheckMarkerPath } from '../runtime/onboarding/index.ts';
 import { CONFIG_SCHEMA } from '../config/index.ts';
 import { SecretsManager } from '../config/secrets.ts';
@@ -76,14 +77,14 @@ function readAuthPosture(runtime: CliCommandRuntime) {
   });
   const userStorePath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-users.json');
   const bootstrapCredentialPath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-bootstrap.txt');
-  const operatorTokenPath = join(runtime.homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
+  const operatorToken = readConnectedHostOperatorToken(runtime.homeDirectory);
   return {
     userStorePath,
     userStorePresent: existsSync(userStorePath),
     bootstrapCredentialPath,
     bootstrapCredentialPresent: existsSync(bootstrapCredentialPath),
-    operatorTokenPath,
-    operatorTokenPresent: existsSync(operatorTokenPath),
+    operatorTokenPath: operatorToken.path,
+    operatorTokenPresent: operatorToken.present && Boolean(operatorToken.token),
   };
 }
 

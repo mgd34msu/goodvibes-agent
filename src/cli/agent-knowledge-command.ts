@@ -160,7 +160,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     const [id] = commandValues(rest);
     if (!id) return { output: 'Usage: goodvibes-agent knowledge get <source|node|issue id>', exitCode: 2 };
     const route = `/api/goodvibes-agent/knowledge/items/${encodeURIComponent(id)}`;
-    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.itemGet, async (connection) => (
+    const result = await runKnowledgeCall(runtime, { ...AGENT_KNOWLEDGE_METHODS.itemGet, route }, async (connection) => (
       await getAgentKnowledgeJson(connection, route)
     ));
     if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
@@ -189,7 +189,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
       const id = values[1];
       if (!id) return { output: 'Usage: goodvibes-agent knowledge connectors doctor <connectorId>', exitCode: 2 };
       const route = `/api/goodvibes-agent/knowledge/connectors/${encodeURIComponent(id)}/doctor`;
-      const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.connectorDoctor, async (connection) => (
+      const result = await runKnowledgeCall(runtime, { ...AGENT_KNOWLEDGE_METHODS.connectorDoctor, route }, async (connection) => (
         await getAgentKnowledgeJson(connection, route)
       ));
       if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
@@ -201,7 +201,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     const id = values[0];
     if (id) {
       const route = `/api/goodvibes-agent/knowledge/connectors/${encodeURIComponent(id)}`;
-      const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.connectorGet, async (connection) => (
+      const result = await runKnowledgeCall(runtime, { ...AGENT_KNOWLEDGE_METHODS.connectorGet, route }, async (connection) => (
         await getAgentKnowledgeJson(connection, route)
       ));
       if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
@@ -224,7 +224,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     const [id] = commandValues(rest);
     if (!id) return { output: 'Usage: goodvibes-agent knowledge connector <connectorId>', exitCode: 2 };
     const route = `/api/goodvibes-agent/knowledge/connectors/${encodeURIComponent(id)}`;
-    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.connectorGet, async (connection) => (
+    const result = await runKnowledgeCall(runtime, { ...AGENT_KNOWLEDGE_METHODS.connectorGet, route }, async (connection) => (
       await getAgentKnowledgeJson(connection, route)
     ));
     if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };
@@ -238,7 +238,7 @@ export async function handleAgentKnowledgeCommand(runtime: CliCommandRuntime): P
     const [id] = commandValues(rest);
     if (!id) return { output: 'Usage: goodvibes-agent knowledge connector-doctor <connectorId>', exitCode: 2 };
     const route = `/api/goodvibes-agent/knowledge/connectors/${encodeURIComponent(id)}/doctor`;
-    const result = await runKnowledgeCall(runtime, AGENT_KNOWLEDGE_METHODS.connectorDoctor, async (connection) => (
+    const result = await runKnowledgeCall(runtime, { ...AGENT_KNOWLEDGE_METHODS.connectorDoctor, route }, async (connection) => (
       await getAgentKnowledgeJson(connection, route)
     ));
     if (!result.ok) return { output: formatFailure(result, json), exitCode: 1 };

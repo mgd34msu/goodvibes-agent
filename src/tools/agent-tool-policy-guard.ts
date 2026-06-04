@@ -206,10 +206,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_REMOTE_TOOL_MODES,
         modeSet: READ_ONLY_REMOTE_TOOL_MODE_SET,
-        description: [
-          'Read-only remote build-host inspection for GoodVibes Agent.',
-          'Pool creation, host assignment, unassignment, and artifact import are disabled in the main conversation.',
-        ].join(' '),
+        description: 'Read-only remote build-host inspection. Mutations are disabled in Agent.',
         denial: REMOTE_MUTATION_DENIAL,
       });
     } else if (tool.definition.name === 'channel') {
@@ -218,10 +215,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_MCP_TOOL_MODES,
         modeSet: READ_ONLY_MCP_TOOL_MODE_SET,
-        description: [
-          'Read-only MCP inspection for GoodVibes Agent.',
-          'Quarantine approval, trust mutation, and role mutation are disabled in the main conversation.',
-        ].join(' '),
+        description: 'Read-only MCP inspection. Mutations are disabled in Agent.',
         denial: MCP_SECURITY_MUTATION_DENIAL,
       });
     } else if (tool.definition.name === 'fetch') {
@@ -246,17 +240,14 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_CONTROL_TOOL_MODES,
         modeSet: READ_ONLY_CONTROL_TOOL_MODE_SET,
-        description: [
-          'Read-only product-control inspection for GoodVibes Agent.',
-          'Command, panel, and subscription catalogs can be inspected, but product-control mutation and connected-host lifecycle are external.',
-        ].join(' '),
+        description: 'Read-only product-control inspection. Mutations are external.',
         denial: CONTROL_MUTATION_DENIAL,
       });
     } else if (tool.definition.name === 'task') {
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_TASK_TOOL_MODES,
         modeSet: READ_ONLY_TASK_TOOL_MODE_SET,
-        description: 'Read-only task/workflow inspection for GoodVibes Agent. Task creation, status changes, dependencies, cancellation, and handoff mutation are disabled in the main conversation.',
+        description: 'Read-only task/workflow inspection. Mutations are disabled in Agent.',
         denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
         removedProperties: ['title', 'label', 'status', 'dependsOnSessionId', 'dependsOnTaskId', 'reason', 'toSessionId'],
       });
@@ -264,7 +255,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_TEAM_TOOL_MODES,
         modeSet: READ_ONLY_TEAM_TOOL_MODE_SET,
-        description: 'Read-only team inspection for GoodVibes Agent. Team creation, membership changes, lane changes, and deletion are disabled in the main conversation.',
+        description: 'Read-only team inspection. Mutations are disabled in Agent.',
         denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
         removedProperties: ['name', 'summary', 'memberId', 'role', 'lanes'],
       });
@@ -272,7 +263,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_WORKLIST_TOOL_MODES,
         modeSet: READ_ONLY_WORKLIST_TOOL_MODE_SET,
-        description: 'Read-only worklist inspection for GoodVibes Agent. Worklist creation and item lifecycle changes are disabled in the main conversation.',
+        description: 'Read-only worklist inspection. Mutations are disabled in Agent.',
         denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
         removedProperties: ['title', 'itemId', 'text', 'owner', 'priority'],
       });
@@ -280,7 +271,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_PACKET_TOOL_MODES,
         modeSet: READ_ONLY_PACKET_TOOL_MODE_SET,
-        description: 'Read-only operator packet inspection for GoodVibes Agent. Packet creation, revision, and publishing are disabled in the main conversation.',
+        description: 'Read-only operator packet inspection. Mutations are disabled in Agent.',
         denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
         removedProperties: ['title', 'summary', 'goals', 'constraints', 'risks', 'audience'],
       });
@@ -288,7 +279,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
       wrapModeRestrictedToolForAgentPolicy(tool, {
         allowedModes: READ_ONLY_QUERY_TOOL_MODES,
         modeSet: READ_ONLY_QUERY_TOOL_MODE_SET,
-        description: 'Read-only operator query inspection for GoodVibes Agent. Asking, answering, and closing runtime-owned workflow queries are disabled in the main conversation.',
+        description: 'Read-only operator query inspection. Mutations are disabled in Agent.',
         denial: DURABLE_WORKFLOW_MUTATION_DENIAL,
         removedProperties: ['prompt', 'askedBy', 'target', 'answer', 'resolution'],
       });

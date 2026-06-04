@@ -176,10 +176,9 @@ export function createAgentOperatorBriefingTool(
     definition: {
       name: 'agent_operator_briefing',
       description: [
-        'Read connected GoodVibes operator state for a concise main-conversation briefing.',
-        'Use when the user asks what needs attention, what is pending, what is scheduled, or what the operator status is.',
-        'This is read-only and calls only public work-plan, approvals, automation, schedules, and scheduler routes.',
-        'It never uses default knowledge, non-Agent knowledge segments, channel send routes, mutation routes, connected-host lifecycle, separate Agent jobs, or delegated review.',
+        'Read connected Agent operator state for a concise briefing.',
+        'Use for pending attention, approvals, automation, schedules, or status.',
+        'Read-only.',
       ].join(' '),
       parameters: {
         type: 'object',

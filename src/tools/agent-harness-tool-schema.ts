@@ -2,10 +2,22 @@ export const AGENT_HARNESS_MODES = [
   'summary', 'cli_commands', 'cli_command', 'panels', 'panel', 'open_panel',
   'ui_surfaces', 'ui_surface', 'open_ui_surface',
   'shortcuts', 'keybindings', 'keybinding', 'run_keybinding', 'set_keybinding', 'reset_keybinding',
-  'commands', 'command', 'run_command', 'settings', 'get_setting', 'set_setting',
+  'commands', 'command', 'run_command', 'channels', 'channel', 'notifications', 'notification_target',
+  'provider_accounts', 'provider_account', 'mcp_servers', 'mcp_server',
+  'setup_posture', 'setup_item',
+  'model_routing', 'model_route',
+  'pairing_posture', 'pairing_route',
+  'delegation_posture', 'delegation_route',
+  'security_posture', 'security_finding', 'support_bundles', 'support_bundle',
+  'media_posture', 'media_provider',
+  'sessions', 'session',
+  'settings', 'get_setting', 'set_setting',
   'reset_setting', 'workspace', 'workspace_categories', 'workspace_actions',
-  'workspace_action', 'run_workspace_action', 'tools', 'tool', 'connected_host', 'connected_host_status',
-  'connected_host_capability',
+  'workspace_action', 'run_workspace_action', 'tools', 'tool', 'release_evidence', 'release_evidence_artifact',
+  'release_readiness', 'release_readiness_item',
+  'operator_methods', 'operator_method',
+  'service_posture', 'service_endpoint',
+  'connected_host', 'connected_host_status', 'connected_host_capability',
 ] as const;
 
 const KEY_COMBO_PARAMETER_SCHEMA = {
@@ -19,53 +31,101 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   mode: {
     type: 'string',
     enum: AGENT_HARNESS_MODES,
-    description: 'Harness operation to perform.',
+    description: 'Harness operation. Start with summary or a plural catalog mode.',
   },
   query: {
     type: 'string',
-    description: 'Search text for slash-command, CLI mirror, panel, UI surface, keybinding, workspace action, model tool, setting, or connected-host capability catalogs; also lookup text for the matching single-item modes.',
+    description: 'Catalog search text or single-item lookup text.',
   },
   command: {
     type: 'string',
-    description: 'Full slash command string for mode command, workspace_action/run_workspace_action lookup, or run_command, for example "/settings get provider.model". In cli_command mode this may also hold a top-level CLI string such as "goodvibes-agent status --json".',
+    description: 'Slash command string, or CLI command string in cli_command mode.',
   },
   cliCommand: {
     type: 'string',
-    description: 'Top-level CLI command string for mode cli_command, for example "goodvibes-agent status --json" or "profiles list". target or query can also look up one CLI mirror when the exact command token is not known. This mode is read-only metadata/parse inspection.',
+    description: 'Top-level CLI command string for cli_command inspection.',
   },
   commandName: {
     type: 'string',
-    description: 'Slash command root without the leading slash for mode command or run_command, or a top-level CLI command token for cli_command. run_command can also resolve one slash command by target or query when the lookup is unique.',
+    description: 'Slash command root or top-level CLI command token.',
   },
   args: {
     type: 'array',
     items: { type: 'string' },
-    description: 'Slash command argument tokens for mode run_command when commandName is used.',
+    description: 'Arguments for run_command when commandName is used.',
+  },
+  channelId: {
+    type: 'string',
+    description: 'Channel id for channel mode.',
+  },
+  notificationTargetId: {
+    type: 'string',
+    description: 'Notification target id for notification_target mode.',
+  },
+  providerId: {
+    type: 'string',
+    description: 'Provider id for provider_account mode.',
+  },
+  mcpServerId: {
+    type: 'string',
+    description: 'MCP server id for mcp_server mode.',
+  },
+  setupItemId: {
+    type: 'string',
+    description: 'Setup item id for setup_item mode.',
+  },
+  modelRouteId: {
+    type: 'string',
+    description: 'Model route id or model key for model_route mode.',
+  },
+  pairingRouteId: {
+    type: 'string',
+    description: 'Pairing route id for pairing_route mode.',
+  },
+  delegationRouteId: {
+    type: 'string',
+    description: 'Delegation route id for delegation_route mode.',
+  },
+  findingId: {
+    type: 'string',
+    description: 'Security finding id for security_finding mode.',
+  },
+  bundlePath: {
+    type: 'string',
+    description: 'Workspace-relative bundle JSON path for support_bundle mode.',
+  },
+  mediaProviderId: {
+    type: 'string',
+    description: 'Voice or media provider id for media_provider mode.',
+  },
+  sessionId: {
+    type: 'string',
+    description: 'Saved session id for session mode.',
   },
   categoryId: {
     type: 'string',
-    description: 'Agent workspace category id for workspace action filtering or ui surface routing.',
+    description: 'Workspace category id.',
   },
   surfaceId: {
     type: 'string',
-    description: 'UI surface id for ui_surface or open_ui_surface modes. target or query can also look up one UI surface when the exact id is not known.',
+    description: 'UI surface id for ui_surface or open_ui_surface modes.',
   },
   panelId: {
     type: 'string',
-    description: 'Built-in panel id for panel or open_panel modes. target or query can also look up one panel when the exact id is not known.',
+    description: 'Built-in panel id for panel or open_panel modes.',
   },
   actionId: {
     type: 'string',
-    description: 'Agent workspace action id for workspace_action or run_workspace_action, or keybinding action id for keybinding/run_keybinding/set_keybinding/reset_keybinding. command, target, or query can also look up one workspace action; target or query can also look up one keybinding action.',
+    description: 'Workspace action id or keybinding action id.',
   },
   fields: {
     type: 'object',
     additionalProperties: { type: 'string' },
-    description: 'Field values for run_workspace_action when the workspace action opens an editor form.',
+    description: 'Editor field values for run_workspace_action.',
   },
   combo: {
     ...KEY_COMBO_PARAMETER_SCHEMA,
-    description: 'Single key combo for set_keybinding, for example { "key": "g", "ctrl": true }.',
+    description: 'Single key combo for set_keybinding.',
   },
   combos: {
     type: 'array',
@@ -74,11 +134,11 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   recordId: {
     type: 'string',
-    description: 'Selected Agent-local record id for selection-based local workspace operations.',
+    description: 'Selected Agent-local record id.',
   },
   key: {
     type: 'string',
-    description: 'Agent setting key for get_setting, set_setting, or reset_setting. target or query can also look up one setting when the exact key is not known.',
+    description: 'Agent setting key.',
   },
   value: {
     anyOf: [
@@ -86,23 +146,39 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
       { type: 'number' },
       { type: 'boolean' },
     ],
-    description: 'Setting value for set_setting. Strings, booleans, numbers, and enum strings are accepted. In run_keybinding, value can provide visible search text for search/history-search shortcut routes.',
+    description: 'Setting value, or visible search text for shortcut routes.',
   },
   target: {
     type: 'string',
-    description: 'Optional lookup target, such as a model-picker target, top-level CLI mirror/search text, panel id/search text, UI surface id/search text, workspace action id/search text, slash command root or invocation, setting key/search text, keybinding action/search text, model tool name/search text, or connected-host capability id/search text.',
+    description: 'Generic lookup target for single-item modes.',
+  },
+  methodId: {
+    type: 'string',
+    description: 'Public operator or Agent Knowledge method id.',
+  },
+  endpointId: {
+    type: 'string',
+    description: 'Connected service endpoint id.',
+  },
+  artifactId: {
+    type: 'string',
+    description: 'Release evidence artifact id.',
+  },
+  itemId: {
+    type: 'string',
+    description: 'Release readiness item id for mode release_readiness_item.',
   },
   capabilityId: {
     type: 'string',
-    description: 'Connected-host allowed or blocked capability id for mode connected_host_capability, such as agent-knowledge-read or connected-host-lifecycle.',
+    description: 'Connected-host capability id.',
   },
   toolName: {
     type: 'string',
-    description: 'First-class model tool name for mode tool, such as agent_harness or agent_local_registry.',
+    description: 'First-class model tool name.',
   },
   category: {
     type: 'string',
-    description: 'Setting category filter such as provider, behavior, tools, ui, tts, permissions, automation, or surfaces.',
+    description: 'Setting category filter.',
   },
   prefix: {
     type: 'string',
@@ -110,11 +186,11 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   includeHidden: {
     type: 'boolean',
-    description: 'Include settings hidden from the Agent workspace because they are host-owned or non-Agent lifecycle settings.',
+    description: 'Include hidden settings in settings mode.',
   },
   includeParameters: {
     type: 'boolean',
-    description: 'Include model tool JSON schemas in tools mode, or workspace editor field schemas in workspace_actions mode.',
+    description: 'Include optional detail for discovery modes.',
   },
   limit: {
     type: 'number',
@@ -123,14 +199,14 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   pane: {
     type: 'string',
     enum: ['top', 'bottom'],
-    description: 'Preferred panel pane for open_panel when the current shell supports panel routing.',
+    description: 'Preferred pane for open_panel.',
   },
   confirm: {
     type: 'boolean',
-    description: 'Required true for set_setting, reset_setting, run_keybinding, run_command, open_panel, open_ui_surface, and executable or mutating run_workspace_action calls after an explicit user request.',
+    description: 'Required true for confirmed harness effects.',
   },
   explicitUserRequest: {
     type: 'string',
-    description: 'Exact user request or faithful short summary authorizing a setting mutation, keybinding change/action, harness UI routing, slash-command invocation, or workspace-action invocation.',
+    description: 'User request authorizing a confirmed harness effect.',
   },
 } as const;

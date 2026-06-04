@@ -2,8 +2,38 @@
 
 Product-facing release notes for GoodVibes Agent.
 
-## 1.0.31 - 2026-06-03
+## 1.0.32 - 2026-06-04
 
+- Pin the Agent release line to `@pellux/goodvibes-sdk@0.33.36` so the packaged connected-host runtime includes Agent Knowledge alias scope normalization and telephony channel surface support.
+- Refresh release readiness evidence to match the current strict live verification run: 19 pass, 0 warn, 0 fail, 0 skip.
+- Treat environment-provisioned connected-host operator tokens as first-class status, doctor, auth, pairing, Agent Knowledge, and model-visible connected-host credentials.
+- Expose channel readiness through `agent_harness` with summary/search and single-channel lookup so the model can inspect setup state, delivery posture, risk labels, and safe config-key names before using the explicit confirmed send tool.
+- Expose notification target posture through `agent_harness` with redacted summary/search and single-target lookup so the model can inspect configured target readiness without receiving full webhook values.
+- Expose provider account posture through `agent_harness` with summary/search and single-provider lookup so the model can inspect auth routes, subscription freshness, usage windows, route issues, and confirmation-gated account actions without receiving tokens.
+- Expose MCP server posture through `agent_harness` with summary/search and single-server lookup so the model can inspect connection, trust, role, quarantine, and tool inventory posture before using explicit confirmed workspace or slash-command mutation flows.
+- Expose setup/onboarding posture through `agent_harness` with summary/search and single setup-item lookup so the model can inspect onboarding snapshot state, derived capability flags, setup marker state, local behavior discovery, channel/media/setup signals, and setup collection issues without applying setup.
+- Expose provider/model routing through `agent_harness` with summary/search and single route/model lookup so the model can inspect current chat route, selectable models, provider ids, pinned models, reasoning support, context windows, and safe route setting keys without changing routes.
+- Expose companion pairing posture through `agent_harness` with summary/search and single pairing-route lookup so the model can inspect endpoint binding, pairing surface id, token presence/fingerprint, and route catalog without receiving raw tokens or QR payloads.
+- Expose explicit build-delegation posture through `agent_harness` with summary/search and single-route lookup so the model can inspect delegation routes, runtime availability, review policy, main-conversation ownership, and blocked local coding ownership without submitting delegated work.
+- Expose security/support posture through `agent_harness` with redacted summary/search, single-finding lookup, bundle route discovery, and existing-bundle inspection by counts and redaction metadata without returning raw config, token, or secret values.
+- Expose voice/media posture through `agent_harness` with summary/search and single-provider lookup so the model can inspect provider readiness, selected TTS setup, browser-tool posture, artifact availability, and safe secret-key names before using confirmed media generation or settings routes.
+- Expose sessions/bookmarks through `agent_harness` with current-session posture, saved-session metadata/search, bookmark counts, saved bookmark file counts, and single-session lookup while save/resume/export/delete/bookmark changes stay visible user flows.
+- Compact model-facing tool registration and schema descriptions, with package verification thresholds to prevent tool-description bloat from returning.
+- Compact `agent_harness` summary route hints so the model gets concise mode names and confirmation rules instead of paragraph-length surface guidance.
+- Keep shortcut and keybinding discovery available when the live keybinding manager is absent by returning default-fallback descriptors while keybinding execution and mutation still fail closed.
+
+## 1.0.31 - 2026-06-04
+
+- Expose the packaged release evidence bundle through agent_harness so the model can inspect release notes, performance snapshot, readiness inventory, and live-verification artifacts.
+- Expose service posture and single-endpoint diagnostics through agent_harness so the model can inspect status/doctor/support-bundle endpoint posture without connected-host lifecycle control.
+- Expose the public operator method catalog through agent_harness with preferred first-class tool routes and single-method lookup, without arbitrary route invocation.
+- Expand agent_knowledge beyond status/ask/search to cover read-only source, node, issue, item, map, connector, and connector doctor inspection.
+- Expand live verification definitions to check isolated Agent Knowledge source, node, issue, map, and connector routes in addition to status, ask, and search.
+- Strengthen architecture/package policy so the full Agent Knowledge route catalog remains Agent-specific.
+- Reject Agent Knowledge responses that expose default scope metadata or known non-Agent payload markers across CLI, model tools, and live verification.
+- Count the packaged release evidence bundle and release-evidence harness modes in the verification ledger.
+- Count the model-visible service posture modes and endpoint ids in the verification ledger.
+- Count the model-visible operator method catalog modes and sources in the verification ledger.
 - Expose settings catalog filters in the agent_harness summary so the model can discover category, prefix, query, includeHidden, and limit before mutating settings.
 - Expose model-tool catalog schema inlining in the agent_harness summary and package docs.
 - Add focused harness coverage for settings filter guidance and model-tool includeParameters schema inlining.
@@ -187,7 +217,7 @@ Product-facing release notes for GoodVibes Agent.
 
 ## 1.0.0 - 2026-06-03
 
-- Promoted GoodVibes Agent to the release-candidate operator product surface: the fullscreen Agent workspace is the primary TUI, with setup, provider/model routing, status, compatibility, and doctor flows shaped around personal operator use instead of copied host lifecycle controls.
+- Promoted GoodVibes Agent to the stable 1.0.x operator product surface: the fullscreen Agent workspace is the primary TUI, with setup, provider/model routing, status, compatibility, and doctor flows shaped around personal operator use instead of copied host lifecycle controls.
 - Completed the Agent-local behavior system for day-one operation: local memory and notes, personas, skills, skill bundles, routines, starter profiles, discovery/import flows, review/stale/delete controls, and secret-looking content rejection all stay under Agent ownership.
 - Completed isolated Agent Knowledge coverage across CLI, slash commands, workspace panels, connector/source/node/issue views, URL/file/browser/connector ingest, semantic ask/search, and connected-host `/api/goodvibes-agent/knowledge/*` routes without fallback to default or non-Agent knowledge surfaces.
 - Completed connected-host operator integration without taking host lifecycle ownership: compatibility/status checks, authenticated health and model routes, channel readiness, provider-account posture, approvals, automation snapshots, schedules, work plans, media/voice readiness, pairing, and explicit public-route diagnostics are all visible from Agent.

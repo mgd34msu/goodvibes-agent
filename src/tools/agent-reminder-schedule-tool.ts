@@ -121,10 +121,9 @@ export function createAgentReminderScheduleTool(
     definition: {
       name: 'agent_reminder_schedule',
       description: [
-        'Create one connected GoodVibes Agent reminder schedule from the main conversation.',
-        'Use only when the user explicitly asks to be reminded or asks Agent to schedule a reminder.',
-        'This calls the public schedules.create route on the connected GoodVibes host; it does not manage connected-host hosting, create a local scheduler, create separate Agent jobs, use delegated review, or write to default knowledge or non-Agent knowledge segments.',
-        'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
+        'Schedule one confirmed GoodVibes Agent reminder.',
+        'Use only for an explicit reminder request.',
+        'No host lifecycle, background job, or Knowledge write.',
       ].join(' '),
       parameters: {
         type: 'object',
@@ -136,7 +135,7 @@ export function createAgentReminderScheduleTool(
           scheduleKind: {
             type: 'string',
             enum: [...SCHEDULE_KINDS],
-            description: 'Schedule selector: at for one timestamp, every for an interval, cron for a cron expression.',
+            description: 'Schedule kind: at, every, or cron.',
           },
           scheduleValue: {
             type: 'string',
@@ -160,7 +159,7 @@ export function createAgentReminderScheduleTool(
           },
           deliveryChannel: {
             type: 'string',
-            description: 'Optional delivery channel target: surfaceKind:routeId:label, for example slack:ops:Ops.',
+            description: 'Optional delivery channel target.',
           },
           deliveryRoute: {
             type: 'string',
@@ -184,7 +183,7 @@ export function createAgentReminderScheduleTool(
           },
           explicitUserRequest: {
             type: 'string',
-            description: 'Short quote or summary of the user request that authorized this reminder creation.',
+            description: 'User request authorizing this reminder.',
           },
         },
         required: ['message', 'scheduleKind', 'scheduleValue', 'confirm', 'explicitUserRequest'],

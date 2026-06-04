@@ -47,6 +47,7 @@ export function formatAgentKnowledgeFailureKind(kind: string): string {
   if (kind === 'connected_host_unavailable') return 'connected host unavailable';
   if (kind === 'connected_host_route_unavailable') return 'connected host route unavailable';
   if (kind === 'connected_host_error') return 'connected host error';
+  if (kind === 'scope_contamination') return 'scope contamination';
   if (kind === 'version_mismatch') return 'version mismatch';
   return kind.replace(/[_-]+/g, ' ');
 }
@@ -163,6 +164,7 @@ export function formatEntityList(data: unknown, kind: 'sources' | 'nodes' | 'iss
     ...values.slice(0, limit).map((value, index) => (
       kind === 'issues' ? format(value) : `  ${index + 1}. ${format(value)}`
     )),
+    `  route /api/goodvibes-agent/knowledge/${kind}`,
   ].join('\n');
 }
 
@@ -179,6 +181,7 @@ export function formatItem(data: unknown, id: string): string {
       `Agent Knowledge item ${id}`,
       `  ${sourceLine(source)}`,
       relatedKnowledgeCountsLine(relatedEdges, linkedSources, linkedNodes),
+      '  route /api/goodvibes-agent/knowledge/items/{id}',
     ].join('\n');
   }
   if (node) {
@@ -186,6 +189,7 @@ export function formatItem(data: unknown, id: string): string {
       `Agent Knowledge item ${id}`,
       `  ${nodeLine(node)}`,
       relatedKnowledgeCountsLine(relatedEdges, linkedSources, linkedNodes),
+      '  route /api/goodvibes-agent/knowledge/items/{id}',
     ].join('\n');
   }
   if (issue) {
@@ -193,6 +197,7 @@ export function formatItem(data: unknown, id: string): string {
       `Agent Knowledge item ${id}`,
       issueLine(issue),
       relatedKnowledgeCountsLine(relatedEdges, linkedSources, linkedNodes),
+      '  route /api/goodvibes-agent/knowledge/items/{id}',
     ].join('\n');
   }
   return [
@@ -231,6 +236,7 @@ export function formatConnectors(data: unknown): string {
   return [
     `Agent Knowledge connectors (${connectors.length})`,
     ...connectors.map(connectorLine),
+    '  route /api/goodvibes-agent/knowledge/connectors',
   ].join('\n');
 }
 
@@ -299,6 +305,7 @@ export function formatAsk(data: unknown, query: string): string {
   }
   if (facts.length > 0) lines.push('', `Facts ${facts.length}`);
   if (gaps.length > 0) lines.push('', `Gaps ${gaps.length}`);
+  lines.push('', 'route /api/goodvibes-agent/knowledge/ask');
   return lines.join('\n');
 }
 
@@ -316,6 +323,7 @@ export function formatSearch(data: unknown, query: string): string {
   return [
     `Agent Knowledge search ${query}`,
     ...results.slice(0, 10).map((result, index) => `  ${index + 1}. ${resultLine(result)}`),
+    '  route /api/goodvibes-agent/knowledge/search',
   ].join('\n');
 }
 
@@ -384,6 +392,9 @@ export function formatFailure(failure: AgentKnowledgeFailureLike, json: boolean)
       : null,
     failure.kind === 'connected_host_route_unavailable'
       ? '  next update the connected GoodVibes host to the SDK version required by this Agent package.'
+      : null,
+    failure.kind === 'scope_contamination'
+      ? '  next update the connected GoodVibes host so Agent Knowledge routes return only Agent-owned scope data.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }

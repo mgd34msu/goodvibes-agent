@@ -19,9 +19,24 @@ Start the owning GoodVibes host before launching Agent. Agent expects that host 
 
 ```text
 http://127.0.0.1:3421
-/api/goodvibes-agent/knowledge/status
-/api/goodvibes-agent/knowledge/ask
-/api/goodvibes-agent/knowledge/search
+GET  /api/goodvibes-agent/knowledge/status
+POST /api/goodvibes-agent/knowledge/ask
+POST /api/goodvibes-agent/knowledge/search
+GET  /api/goodvibes-agent/knowledge/sources
+GET  /api/goodvibes-agent/knowledge/nodes
+GET  /api/goodvibes-agent/knowledge/issues
+GET  /api/goodvibes-agent/knowledge/items/{id}
+GET  /api/goodvibes-agent/knowledge/map
+GET  /api/goodvibes-agent/knowledge/connectors
+GET  /api/goodvibes-agent/knowledge/connectors/{id}
+GET  /api/goodvibes-agent/knowledge/connectors/{id}/doctor
+POST /api/goodvibes-agent/knowledge/ingest/url
+POST /api/goodvibes-agent/knowledge/ingest/artifact
+POST /api/goodvibes-agent/knowledge/ingest/urls
+POST /api/goodvibes-agent/knowledge/ingest/bookmarks
+POST /api/goodvibes-agent/knowledge/ingest/browser-history
+POST /api/goodvibes-agent/knowledge/ingest/connector
+POST /api/goodvibes-agent/knowledge/reindex
 ```
 
 If the GoodVibes API is on a different host or port, use a one-off override when launching the TUI:
@@ -54,10 +69,16 @@ Agent owns the operator assistant TUI, local profiles, local memory/notes/routin
 
 Agent does not own connected-host lifecycle. It does not provide commands to install, expose, start, stop, restart, or mutate the connected GoodVibes host.
 
-The model can inspect this boundary with `agent_harness` mode `connected_host`. That report includes the configured base URL, token presence, token path, allowed route families, first-class Agent tool capabilities, tool availability, and blocked capabilities. Allowed capabilities are limited to read-only operator briefing, explicit allowlisted approval/automation/schedule actions, isolated Agent Knowledge read/ingest, confirmed channel or notification delivery, confirmed reminder schedules, and configured media generation. Blocked capabilities include connected-host lifecycle, listener mutation, default or non-Agent knowledge fallback, hidden background Agent jobs, implicit delegated review, route/account creation, and arbitrary connected-host mutations. To inspect one surface without parsing the full report, use `connected_host_capability` with `capabilityId`, `target`, or `query`; it returns either the allowed capability with related route families or the blocked capability with the boundary reason.
+The model can inspect this boundary with `agent_harness` mode `connected_host`. That report includes the configured base URL, token presence, token path, allowed route families, first-class Agent tool capabilities, tool availability, and blocked capabilities. Allowed capabilities include read-only operator briefing, explicit allowlisted approval/automation/schedule actions, isolated Agent Knowledge status/ask/search/source/node/issue/item/map/connector reads, isolated Agent Knowledge ingest, confirmed channel or notification delivery, confirmed reminder schedules, and configured media generation. Blocked capabilities include connected-host lifecycle, listener mutation, default or non-Agent knowledge fallback, hidden background Agent jobs, implicit delegated review, route/account creation, and arbitrary connected-host mutations. To inspect one surface without parsing the full report, use `connected_host_capability` with `capabilityId`, `target`, or `query`; it returns either the allowed capability with related route families or the blocked capability with the boundary reason.
+
+The model can inspect the public operator method catalog with `agent_harness` mode `operator_methods`. That report lists the allowlisted read and mutation methods, their public routes, owning first-class model tools, confirmation policy, and boundary. To inspect one method without parsing the full report, use `operator_method` with `methodId`, `target`, or `query`. This is a read-only catalog and does not expose arbitrary route invocation.
+
+The model can inspect service posture with `agent_harness` mode `service_posture`. That report exposes the same read-only endpoint binding, network-facing posture, issue, and redacted-log diagnostics used by status, doctor, and support bundles. To inspect one endpoint without parsing the full report, use `service_endpoint` with `endpointId`, `target`, or `query`; valid endpoint ids are `controlPlane`, `httpListener`, and `web`. These modes are diagnostic only and do not expose host start, stop, restart, install, listener, or account-management operations.
 
 The model can inspect live connected-host readiness with `agent_harness` mode `connected_host_status`. That report uses the same read-only status probe as the CLI: it checks the connected-host status route, verifies the SDK version pin, checks the isolated Agent Knowledge status route when token and version posture allow it, reports endpoint bindings and token posture without printing token values, and returns actionable findings. It is diagnostic only and does not expose host start, stop, restart, install, listener, or account-management operations.
 
-Agent Knowledge is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` only and must not fall back to default knowledge or other product-specific knowledge routes.
+The model can inspect companion pairing posture with `agent_harness` mode `pairing_posture`, and inspect one pairing/mobile route with `pairing_route`. Those modes report the control-plane endpoint binding, pairing surface id, token presence/fingerprint, and route catalog without returning raw tokens or QR payloads. Pairing display, manual token display, companion connection, channel delivery, task, approval, provider/model, and attachment actions remain visible user flows.
+
+Agent Knowledge is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` only and must not fall back to default knowledge or other product-specific knowledge routes. Agent also rejects successful-looking responses that expose default scope metadata or known non-Agent payload markers.
 
 Normal assistant chat uses companion chat. Build/fix/review work is delegated explicitly to GoodVibes TUI through public runtime/session contracts, and delegated review is requested only when explicitly asked for build/fix/review work.

@@ -9,6 +9,7 @@ import { formatProviderModel, getModelIdFromProviderModel } from '../config/prov
 import { bootstrapRuntime } from '../runtime/bootstrap.ts';
 import { createRuntimeServices } from '../runtime/services.ts';
 import { createRuntimeStore } from '../runtime/store/index.ts';
+import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import type { RuntimeServices } from '../runtime/services.ts';
 import { SecretsManager } from '../config/secrets.ts';
 import { RuntimeEventBus, type TurnEvent } from '@/runtime/index.ts';
@@ -190,14 +191,14 @@ export function readAuthPaths(runtime: CliCommandRuntime) {
   });
   const userStorePath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-users.json');
   const bootstrapCredentialPath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-bootstrap.txt');
-  const operatorTokenPath = join(runtime.homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
+  const operatorToken = readConnectedHostOperatorToken(runtime.homeDirectory);
   return {
     userStorePath,
     userStorePresent: existsSync(userStorePath),
     bootstrapCredentialPath,
     bootstrapCredentialPresent: existsSync(bootstrapCredentialPath),
-    operatorTokenPath,
-    operatorTokenPresent: existsSync(operatorTokenPath),
+    operatorTokenPath: operatorToken.path,
+    operatorTokenPresent: operatorToken.present && Boolean(operatorToken.token),
   };
 }
 

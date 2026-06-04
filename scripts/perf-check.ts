@@ -20,7 +20,7 @@ import type { PerfReport, PerfSnapshot } from '@/runtime/index.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const RECORDED_PERF_SNAPSHOT_RELATIVE_PATH = 'release/1.0-performance-snapshot.json';
+const RECORDED_PERF_SNAPSHOT_RELATIVE_PATH = 'release/performance-snapshot.json';
 const REQUIRED_EXTRA_METRIC_NAMES = [
   'event.queue.depth',
   'tool.executor.overhead.p95',

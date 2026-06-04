@@ -108,7 +108,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'read-only',
       confirmation,
-      preferredModelTool: root === 'compat' ? 'agent_harness connected_host_status' : 'agent_harness connected_host_status/settings/tools/open_ui_surface',
+      preferredModelTool: root === 'compat' ? 'agent_harness service_posture/service_endpoint/connected_host_status' : 'agent_harness service_posture/service_endpoint/connected_host_status/settings/tools/open_ui_surface',
       boundary: 'Diagnostics and review commands inspect Agent, provider, MCP, security, and connected-host readiness without taking lifecycle ownership.',
     };
   }
@@ -346,7 +346,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: 'read-only',
       confirmation,
-      preferredModelTool: root === 'tasks' ? 'agent_operator_briefing' : 'agent_harness connected_host/settings/tools',
+      preferredModelTool: root === 'tasks' ? 'agent_operator_briefing' : 'agent_harness service_posture/service_endpoint/connected_host_status/connected_host/settings/tools',
       boundary: 'Diagnostics and posture commands are readable from Agent-owned settings, provider, model, and connected-host capability surfaces without taking connected-host lifecycle ownership.',
     };
   }
@@ -431,8 +431,20 @@ export function connectedHostCapabilityMap(toolRegistry: ToolRegistry): readonly
       modelTools: ['agent_knowledge'],
       workspaceCategories: ['knowledge', 'research'],
       slashCommandFamilies: ['knowledge'],
-      allowedActions: ['status', 'ask', 'search'],
-      purpose: 'Read only isolated Agent Knowledge through the Agent route family.',
+      allowedActions: [
+        'status',
+        'ask',
+        'search',
+        'sources',
+        'nodes',
+        'issues',
+        'item',
+        'map',
+        'connectors',
+        'connector',
+        'connector_doctor',
+      ],
+      purpose: 'Read isolated Agent Knowledge status, answers, search results, source/node/issue lists, items, map summaries, and connector diagnostics through the Agent route family.',
     }),
     withAvailability({
       id: 'agent-knowledge-ingest',
@@ -567,6 +579,8 @@ function connectedHostCapabilityDetail(entry: { readonly status: 'allowed' | 'bl
       status: 'allowed',
       capability: entry.capability,
       relatedRouteFamilies: relatedConnectedHostRouteFamilies(entry.capability),
+      operatorMethodMode: 'Use agent_harness mode:"operator_methods" for the public operator and Agent Knowledge method catalog. Use mode:"operator_method" for one method.',
+      servicePostureMode: 'Use agent_harness mode:"service_posture" for endpoint binding, network-facing posture, issue, and redacted-log diagnostics. Use mode:"service_endpoint" for one endpoint.',
       statusMode: 'Use agent_harness mode:"connected_host_status" for live read-only reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
       boundary: 'Use only the listed first-class model tools, slash-command families, and workspace categories. Mutations still require explicit confirmation through those tools or command bridges.',
     };
@@ -577,6 +591,7 @@ function connectedHostCapabilityDetail(entry: { readonly status: 'allowed' | 'bl
     allowed: false,
     available: false,
     boundary: 'This connected-host surface is intentionally not exposed to the model as an Agent operation.',
+    servicePostureMode: 'Use agent_harness mode:"service_posture" or mode:"service_endpoint" only for read-only endpoint diagnostics.',
     statusMode: 'Use agent_harness mode:"connected_host_status" only for read-only readiness diagnostics.',
   };
 }
@@ -613,6 +628,8 @@ export function connectedHostSummary(context: CommandContext, toolRegistry: Tool
     tokenPath: connection.tokenPath,
     ownership: 'external-connected-host',
     lifecycle: 'GoodVibes Agent can use public connected-host operator routes, but does not start, stop, restart, install, expose, or mutate the host listener.',
+    servicePostureMode: 'Use agent_harness mode:"service_posture" for endpoint binding, network-facing posture, issue, and redacted-log diagnostics. Use mode:"service_endpoint" for one endpoint.',
+    operatorMethodMode: 'Use agent_harness mode:"operator_methods" for the public operator and Agent Knowledge method catalog. Use mode:"operator_method" for one method.',
     statusMode: 'Use agent_harness mode:"connected_host_status" for live read-only reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
     routeFamilies: connectedHostRouteFamilies(),
     capabilities: connectedHostCapabilityMap(toolRegistry),

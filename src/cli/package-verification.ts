@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, normalize } from 'node:path';
+import { join, normalize, relative } from 'node:path';
 import { hasGoodVibesCommandHelp, listGoodVibesHelpTopics, renderGoodVibesCommandHelp, renderGoodVibesHelp } from './help.ts';
 import { listBlockedGoodVibesCliCommandTokens, listGoodVibesCliCommands, listGoodVibesCliCommandTokens, parseGoodVibesCli } from './parser.ts';
 import { renderAutocompletePackageText } from '../renderer/autocomplete-overlay.ts';
@@ -59,6 +59,11 @@ const BASE_REQUIRED_TARBALL_PATHS = [
   'dist/package/main.js',
   'bin/goodvibes-agent.ts',
   'tsconfig.json',
+  'release/release-notes.md',
+  'release/performance-snapshot.json',
+  'release/release-readiness.json',
+  'release/live-verification/live-verification.json',
+  'release/live-verification/live-verification.md',
 ] as const;
 const REQUIRED_PACKAGE_FILE_ENTRIES = [
   'bin',
@@ -69,6 +74,11 @@ const REQUIRED_PACKAGE_FILE_ENTRIES = [
   'README.md',
   'CHANGELOG.md',
   'docs/*.md',
+  'release/release-notes.md',
+  'release/performance-snapshot.json',
+  'release/release-readiness.json',
+  'release/live-verification/live-verification.json',
+  'release/live-verification/live-verification.md',
 ] as const;
 const REQUIRED_PACKAGE_FILE_EXCLUSIONS = [
   '!src/test',
@@ -214,25 +224,34 @@ const CLI_TOKENS_WITHOUT_DETAILED_HELP = new Set(['help', 'version']);
 const CLI_COMMANDS_HANDLED_OUTSIDE_MANAGEMENT = new Set(['tui', 'status', 'doctor', 'onboarding', 'help', 'version', 'completion']);
 const CLI_COMMANDS_WITHOUT_TOP_LEVEL_HELP_ENTRY = new Set(['tui', 'tasks']);
 const CLI_COMMANDS_ALLOWED_TYPE_ONLY = new Set(['unknown']);
-const ONE_ZERO_READINESS_RELATIVE_PATH = 'release/1.0-readiness.json';
-const ONE_ZERO_RELEASE_NOTES_RELATIVE_PATH = 'release/1.0-release-notes.md';
-const ONE_ZERO_PERFORMANCE_SNAPSHOT_RELATIVE_PATH = 'release/1.0-performance-snapshot.json';
-const ONE_ZERO_LIVE_VERIFICATION_JSON_RELATIVE_PATH = 'release/1.0-live-verification/live-verification.json';
-const ONE_ZERO_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH = 'release/1.0-live-verification/live-verification.md';
-const ONE_ZERO_READINESS_REQUIRED_IDS = [
+const MODEL_TOOL_DESCRIPTION_MAX_LENGTH = 180;
+const MODEL_TOOL_SCHEMA_DESCRIPTION_MAX_LENGTH = 100;
+const RELEASE_READINESS_RELATIVE_PATH = 'release/release-readiness.json';
+const RELEASE_NOTES_RELATIVE_PATH = 'release/release-notes.md';
+const RELEASE_PERFORMANCE_SNAPSHOT_RELATIVE_PATH = 'release/performance-snapshot.json';
+const RELEASE_LIVE_VERIFICATION_JSON_RELATIVE_PATH = 'release/live-verification/live-verification.json';
+const RELEASE_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH = 'release/live-verification/live-verification.md';
+const RELEASE_READINESS_REQUIRED_IDS = [
   'operator-tui-front-door',
   'first-run-onboarding',
   'provider-model-routing',
+  'provider-account-posture',
   'isolated-agent-knowledge',
+  'artifact-ingest-boundary',
   'local-memory-notes-personas',
   'skills-routines-behavior-library',
   'routine-schedule-bridge',
+  'reminders-and-notifications',
   'channel-readiness-send',
+  'companion-pairing',
   'approvals-and-automation-actions',
   'planning-workplan',
   'explicit-build-delegation',
   'mcp-tool-trust',
   'voice-tts-media',
+  'conversation-session-artifacts',
+  'support-auth-trust-bundles',
+  'doctor-compat-status',
   'release-package-install',
   'live-release-evidence',
   'release-readiness-inventory-gate',
@@ -249,7 +268,14 @@ const ONE_ZERO_READINESS_REQUIRED_IDS = [
   'mobile-device-command-depth',
   'live-outcome-certification',
 ] as const;
-const ONE_ZERO_LIVE_VERIFICATION_REQUIRED_CHECK_IDS = [
+const RELEASE_READINESS_REQUIRED_QUALITY_DIMENSIONS = [
+  'capabilityCoverage',
+  'userAccess',
+  'modelAccess',
+  'safetyBoundary',
+  'releaseEvidence',
+] as const;
+const RELEASE_LIVE_VERIFICATION_REQUIRED_CHECK_IDS = [
   'verification-ledger',
   'compiled-cli-present',
   'cli-version',
@@ -265,7 +291,7 @@ const ONE_ZERO_LIVE_VERIFICATION_REQUIRED_CHECK_IDS = [
   'agent-knowledge-ask-isolated',
   'agent-knowledge-search-isolated',
 ] as const;
-const ONE_ZERO_PERFORMANCE_REQUIRED_EXTRA_METRIC_NAMES = [
+const RELEASE_PERFORMANCE_REQUIRED_EXTRA_METRIC_NAMES = [
   'event.queue.depth',
   'tool.executor.overhead.p95',
   'compaction.latency.p95',
@@ -276,7 +302,7 @@ const ONE_ZERO_PERFORMANCE_REQUIRED_EXTRA_METRIC_NAMES = [
   'slo.integration.delivery_success_rate',
   'slo.integration.dlq_depth',
 ] as const;
-const ONE_ZERO_PERFORMANCE_BUDGETS: Record<typeof ONE_ZERO_PERFORMANCE_REQUIRED_EXTRA_METRIC_NAMES[number], number> = {
+const RELEASE_PERFORMANCE_BUDGETS: Record<typeof RELEASE_PERFORMANCE_REQUIRED_EXTRA_METRIC_NAMES[number], number> = {
   'event.queue.depth': 1000,
   'tool.executor.overhead.p95': 5,
   'compaction.latency.p95': 500,
@@ -287,17 +313,17 @@ const ONE_ZERO_PERFORMANCE_BUDGETS: Record<typeof ONE_ZERO_PERFORMANCE_REQUIRED_
   'slo.integration.delivery_success_rate': 95,
   'slo.integration.dlq_depth': 10,
 };
-const ONE_ZERO_PERFORMANCE_HIGHER_IS_BETTER_METRICS = new Set<typeof ONE_ZERO_PERFORMANCE_REQUIRED_EXTRA_METRIC_NAMES[number]>([
+const RELEASE_PERFORMANCE_HIGHER_IS_BETTER_METRICS = new Set<typeof RELEASE_PERFORMANCE_REQUIRED_EXTRA_METRIC_NAMES[number]>([
   'slo.integration.delivery_success_rate',
 ]);
-const ONE_ZERO_READINESS_ALLOWED_OWNERS = new Set(['agent', 'connected-host', 'companion', 'release']);
-const ONE_ZERO_READINESS_ALLOWED_STATUSES = new Set(['covered', 'gap', 'unknown']);
-const ONE_ZERO_READINESS_BLOCKER_STATUSES = new Set(['gap', 'unknown']);
-const ONE_ZERO_LIVE_VERIFICATION_MAX_AGE_DAYS = 7;
+const RELEASE_READINESS_ALLOWED_OWNERS = new Set(['agent', 'connected-host', 'companion', 'release']);
+const RELEASE_READINESS_ALLOWED_STATUSES = new Set(['covered', 'gap', 'unknown']);
+const RELEASE_READINESS_BLOCKER_STATUSES = new Set(['gap', 'unknown']);
+const RELEASE_LIVE_VERIFICATION_MAX_AGE_DAYS = 7;
 const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
-const ONE_ZERO_READINESS_REQUIRED_SOURCE_IDS = [
-  'source-a',
-  'source-b',
+const RELEASE_READINESS_REQUIRED_SOURCE_IDS = [
+  'release-surface-review',
+  'runtime-contract-review',
   'goodvibes-agent',
   'goodvibes-connected-host',
   'goodvibes-companion',
@@ -892,7 +918,7 @@ function readGithubSetupBunVersion(root: string): string | null {
   return match?.[1] ?? '';
 }
 
-function isOneZeroOrLater(version: string): boolean {
+function isStableReleaseLine(version: string): boolean {
   if (!isExactSemver(version)) return false;
   const [major] = version.split('.').map((part) => Number(part));
   return Number.isInteger(major) && major >= 1;
@@ -925,21 +951,21 @@ function parseDateOnlyUtc(value: string): Date | null {
   return date;
 }
 
-function verifyOneZeroLiveVerificationFreshness(
+function verifyReleaseLiveVerificationFreshness(
   generatedAt: Date,
   readinessCheckedAt: Date | null,
   now = new Date(),
 ): readonly string[] {
   const issues: string[] = [];
   if (readinessCheckedAt !== null && generatedAt.getTime() < readinessCheckedAt.getTime()) {
-    issues.push(`1.0 live verification report must not predate readiness inventory checkedAt ${readinessCheckedAt.toISOString().slice(0, 10)}.`);
+    issues.push(`release live verification report must not predate readiness inventory checkedAt ${readinessCheckedAt.toISOString().slice(0, 10)}.`);
   }
   const ageDays = Math.floor((now.getTime() - generatedAt.getTime()) / DAY_MILLISECONDS);
-  if (ageDays > ONE_ZERO_LIVE_VERIFICATION_MAX_AGE_DAYS) {
-    issues.push(`1.0 live verification report is stale: generatedAt is ${ageDays} day(s) old; rerun strict live verification.`);
+  if (ageDays > RELEASE_LIVE_VERIFICATION_MAX_AGE_DAYS) {
+    issues.push(`release live verification report is stale: generatedAt is ${ageDays} day(s) old; rerun strict live verification.`);
   }
   if (generatedAt.getTime() - now.getTime() > DAY_MILLISECONDS) {
-    issues.push('1.0 live verification report generatedAt is more than one day in the future.');
+    issues.push('release live verification report generatedAt is more than one day in the future.');
   }
   return issues;
 }
@@ -956,16 +982,16 @@ function verifyNoLiveVerificationLocalPathLeaks(root: string, jsonSource: string
   const issues: string[] = [];
   for (const { marker, label } of markers) {
     if (marker.length > 1 && combined.includes(marker)) {
-      issues.push(`1.0 live verification artifacts must redact local ${label}: ${marker}.`);
+      issues.push(`release live verification artifacts must redact local ${label}: ${marker}.`);
     }
   }
   if (/\b(?:10|192\.168|172\.(?:1[6-9]|2[0-9]|3[0-1]))(?:\.[0-9]{1,3}){2}\b/.test(combined)) {
-    issues.push('1.0 live verification artifacts must redact private network addresses.');
+    issues.push('release live verification artifacts must redact private network addresses.');
   }
   return issues;
 }
 
-function verifyOneZeroLiveVerificationMarkdownConsistency(
+function verifyReleaseLiveVerificationMarkdownConsistency(
   markdown: string,
   generatedAt: string,
   counts: Record<string, number>,
@@ -973,21 +999,21 @@ function verifyOneZeroLiveVerificationMarkdownConsistency(
   if (markdown.trim().length === 0) return [];
   const issues: string[] = [];
   if (!markdown.includes('# GoodVibes Agent Live Verification')) {
-    issues.push('1.0 live verification Markdown report must keep the GoodVibes Agent title.');
+    issues.push('release live verification Markdown report must keep the GoodVibes Agent title.');
   }
   if (generatedAt.length > 0 && !markdown.includes(`Generated: ${generatedAt}`)) {
-    issues.push('1.0 live verification Markdown report generated timestamp must match JSON generatedAt.');
+    issues.push('release live verification Markdown report generated timestamp must match JSON generatedAt.');
   }
   for (const status of ['pass', 'warn', 'fail', 'skip'] as const) {
     const count = counts[status] ?? 0;
     if (!markdown.includes(`| ${status} | ${count} |`)) {
-      issues.push(`1.0 live verification Markdown report ${status} count must match JSON counts.${status}.`);
+      issues.push(`release live verification Markdown report ${status} count must match JSON counts.${status}.`);
     }
   }
   return issues;
 }
 
-function verifyNoOneZeroReadinessLocalEvidenceLeaks(root: string, source: string): readonly string[] {
+function verifyNoReleaseReadinessLocalEvidenceLeaks(root: string, source: string): readonly string[] {
   const markers = [
     { marker: normalize(root), label: 'project root' },
     { marker: homedir(), label: 'home directory' },
@@ -999,19 +1025,19 @@ function verifyNoOneZeroReadinessLocalEvidenceLeaks(root: string, source: string
   const issues: string[] = [];
   for (const { marker, label } of markers) {
     if (marker.length > 1 && source.includes(marker)) {
-      issues.push(`1.0 readiness inventory evidence must not depend on local ${label}: ${marker}.`);
+      issues.push(`release readiness inventory evidence must not depend on local ${label}: ${marker}.`);
     }
   }
   if (/\b(?:10|192\.168|172\.(?:1[6-9]|2[0-9]|3[0-1]))(?:\.[0-9]{1,3}){2}\b/.test(source)) {
-    issues.push('1.0 readiness inventory evidence must not include private network addresses.');
+    issues.push('release readiness inventory evidence must not include private network addresses.');
   }
   return issues;
 }
 
-function verifyOneZeroPerformanceSnapshotPolicy(root: string): readonly string[] {
-  const snapshotPath = join(root, ONE_ZERO_PERFORMANCE_SNAPSHOT_RELATIVE_PATH);
+function verifyReleasePerformanceSnapshotPolicy(root: string): readonly string[] {
+  const snapshotPath = join(root, RELEASE_PERFORMANCE_SNAPSHOT_RELATIVE_PATH);
   if (!existsSync(snapshotPath)) {
-    return [`1.0 performance snapshot is missing: ${ONE_ZERO_PERFORMANCE_SNAPSHOT_RELATIVE_PATH}.`];
+    return [`release performance snapshot is missing: ${RELEASE_PERFORMANCE_SNAPSHOT_RELATIVE_PATH}.`];
   }
 
   const issues: string[] = [];
@@ -1020,95 +1046,95 @@ function verifyOneZeroPerformanceSnapshotPolicy(root: string): readonly string[]
     parsed = JSON.parse(readFileSync(snapshotPath, 'utf-8')) as unknown;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return [`1.0 performance snapshot is invalid JSON: ${message}`];
+    return [`release performance snapshot is invalid JSON: ${message}`];
   }
   if (!isRecord(parsed)) {
-    return ['1.0 performance snapshot must contain a JSON object.'];
+    return ['release performance snapshot must contain a JSON object.'];
   }
 
   const surfacePerf = isRecord(parsed.surfacePerf) ? parsed.surfacePerf : {};
   if (!isRecord(parsed.surfacePerf)) {
-    issues.push('1.0 performance snapshot is missing surfacePerf object.');
+    issues.push('release performance snapshot is missing surfacePerf object.');
   }
   const targetBudgetMs = readFiniteNumberValue(surfacePerf.targetBudgetMs);
   if (targetBudgetMs === null || targetBudgetMs <= 0) {
-    issues.push('1.0 performance snapshot surfacePerf.targetBudgetMs must be a positive number.');
+    issues.push('release performance snapshot surfacePerf.targetBudgetMs must be a positive number.');
   }
   if (readStringValue(surfacePerf.budgetStatus) !== 'ok') {
-    issues.push('1.0 performance snapshot surfacePerf.budgetStatus must be ok.');
+    issues.push('release performance snapshot surfacePerf.budgetStatus must be ok.');
   }
   const overBudgetCount = readFiniteNumberValue(surfacePerf.overBudgetCount);
   if (overBudgetCount !== 0) {
-    issues.push('1.0 performance snapshot surfacePerf.overBudgetCount must be 0.');
+    issues.push('release performance snapshot surfacePerf.overBudgetCount must be 0.');
   }
 
   const recentCycles = Array.isArray(surfacePerf.recentCycles) ? surfacePerf.recentCycles : [];
   if (!Array.isArray(surfacePerf.recentCycles)) {
-    issues.push('1.0 performance snapshot surfacePerf.recentCycles must be an array.');
+    issues.push('release performance snapshot surfacePerf.recentCycles must be an array.');
   }
   if (recentCycles.length < 10) {
-    issues.push('1.0 performance snapshot must include at least 10 render samples.');
+    issues.push('release performance snapshot must include at least 10 render samples.');
   }
   const durations: number[] = [];
   for (const [index, cycle] of recentCycles.entries()) {
     if (!isRecord(cycle)) {
-      issues.push(`1.0 performance snapshot render cycle ${index + 1} must be an object.`);
+      issues.push(`release performance snapshot render cycle ${index + 1} must be an object.`);
       continue;
     }
     const durationMs = readFiniteNumberValue(cycle.durationMs);
     if (durationMs === null || durationMs <= 0) {
-      issues.push(`1.0 performance snapshot render cycle ${index + 1} must include a positive durationMs.`);
+      issues.push(`release performance snapshot render cycle ${index + 1} must include a positive durationMs.`);
       continue;
     }
     durations.push(durationMs);
     if (cycle.overBudget !== false) {
-      issues.push(`1.0 performance snapshot render cycle ${index + 1} must not be over budget.`);
+      issues.push(`release performance snapshot render cycle ${index + 1} must not be over budget.`);
     }
   }
   if (targetBudgetMs !== null && durations.length > 0) {
     const p95 = calculateP95(durations);
     if (p95 > targetBudgetMs) {
-      issues.push(`1.0 performance snapshot render p95 ${p95}ms exceeds target budget ${targetBudgetMs}ms.`);
+      issues.push(`release performance snapshot render p95 ${p95}ms exceeds target budget ${targetBudgetMs}ms.`);
     }
   }
 
   const extraMetrics = readNumberRecord(parsed.extraMetrics);
   if (!isRecord(parsed.extraMetrics)) {
-    issues.push('1.0 performance snapshot is missing extraMetrics object.');
+    issues.push('release performance snapshot is missing extraMetrics object.');
   }
-  for (const metricName of ONE_ZERO_PERFORMANCE_REQUIRED_EXTRA_METRIC_NAMES) {
+  for (const metricName of RELEASE_PERFORMANCE_REQUIRED_EXTRA_METRIC_NAMES) {
     if (!(metricName in extraMetrics)) {
-      issues.push(`1.0 performance snapshot is missing required extra metric: ${metricName}.`);
+      issues.push(`release performance snapshot is missing required extra metric: ${metricName}.`);
       continue;
     }
     const value = extraMetrics[metricName];
-    const budget = ONE_ZERO_PERFORMANCE_BUDGETS[metricName];
-    if (ONE_ZERO_PERFORMANCE_HIGHER_IS_BETTER_METRICS.has(metricName)) {
+    const budget = RELEASE_PERFORMANCE_BUDGETS[metricName];
+    if (RELEASE_PERFORMANCE_HIGHER_IS_BETTER_METRICS.has(metricName)) {
       if (value < budget) {
-        issues.push(`1.0 performance snapshot metric ${metricName} ${value} is below release budget ${budget}.`);
+        issues.push(`release performance snapshot metric ${metricName} ${value} is below release budget ${budget}.`);
       }
     } else if (value > budget) {
-      issues.push(`1.0 performance snapshot metric ${metricName} ${value} exceeds release budget ${budget}.`);
+      issues.push(`release performance snapshot metric ${metricName} ${value} exceeds release budget ${budget}.`);
     }
   }
   return issues;
 }
 
-function verifyOneZeroLiveVerificationReport(root: string, readinessCheckedAt: Date | null): readonly string[] {
+function verifyReleaseLiveVerificationReport(root: string, readinessCheckedAt: Date | null): readonly string[] {
   const issues: string[] = [];
-  const jsonPath = join(root, ONE_ZERO_LIVE_VERIFICATION_JSON_RELATIVE_PATH);
-  const markdownPath = join(root, ONE_ZERO_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH);
+  const jsonPath = join(root, RELEASE_LIVE_VERIFICATION_JSON_RELATIVE_PATH);
+  const markdownPath = join(root, RELEASE_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH);
   let markdown = '';
 
   if (!existsSync(jsonPath)) {
-    return [`1.0 live verification report is missing: ${ONE_ZERO_LIVE_VERIFICATION_JSON_RELATIVE_PATH}.`];
+    return [`release live verification report is missing: ${RELEASE_LIVE_VERIFICATION_JSON_RELATIVE_PATH}.`];
   }
   if (!existsSync(markdownPath)) {
-    issues.push(`1.0 live verification Markdown report is missing: ${ONE_ZERO_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH}.`);
+    issues.push(`release live verification Markdown report is missing: ${RELEASE_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH}.`);
   } else {
     markdown = readFileSync(markdownPath, 'utf-8');
     if (!markdown.includes('Result: PASS')) {
-      issues.push('1.0 live verification Markdown report must record Result: PASS.');
+      issues.push('release live verification Markdown report must record Result: PASS.');
     }
   }
 
@@ -1119,64 +1145,64 @@ function verifyOneZeroLiveVerificationReport(root: string, readinessCheckedAt: D
     parsed = JSON.parse(jsonSource) as unknown;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return [...issues, `1.0 live verification report is invalid JSON: ${message}`];
+    return [...issues, `release live verification report is invalid JSON: ${message}`];
   }
   issues.push(...verifyNoLiveVerificationLocalPathLeaks(root, jsonSource, markdown));
   if (!isRecord(parsed)) {
-    return [...issues, '1.0 live verification report must contain a JSON object.'];
+    return [...issues, 'release live verification report must contain a JSON object.'];
   }
 
   if (parsed.ok !== true) {
-    issues.push('1.0 live verification report must have ok=true.');
+    issues.push('release live verification report must have ok=true.');
   }
   if (parsed.strict !== true) {
-    issues.push('1.0 live verification report must be generated with --strict.');
+    issues.push('release live verification report must be generated with --strict.');
   }
   const generatedAt = readStringValue(parsed.generatedAt);
   const generatedAtDate = new Date(generatedAt);
   if (!generatedAt || Number.isNaN(generatedAtDate.getTime())) {
-    issues.push('1.0 live verification report must include a valid generatedAt timestamp.');
+    issues.push('release live verification report must include a valid generatedAt timestamp.');
   } else {
-    issues.push(...verifyOneZeroLiveVerificationFreshness(generatedAtDate, readinessCheckedAt));
+    issues.push(...verifyReleaseLiveVerificationFreshness(generatedAtDate, readinessCheckedAt));
   }
 
   const counts = readNumberRecord(parsed.counts);
-  issues.push(...verifyOneZeroLiveVerificationMarkdownConsistency(markdown, generatedAt, counts));
+  issues.push(...verifyReleaseLiveVerificationMarkdownConsistency(markdown, generatedAt, counts));
   for (const status of ['warn', 'fail', 'skip'] as const) {
     if ((counts[status] ?? 0) !== 0) {
-      issues.push(`1.0 live verification report must have zero ${status} checks.`);
+      issues.push(`release live verification report must have zero ${status} checks.`);
     }
   }
-  if ((counts.pass ?? 0) < ONE_ZERO_LIVE_VERIFICATION_REQUIRED_CHECK_IDS.length) {
-    issues.push(`1.0 live verification report must pass at least ${ONE_ZERO_LIVE_VERIFICATION_REQUIRED_CHECK_IDS.length} required checks.`);
+  if ((counts.pass ?? 0) < RELEASE_LIVE_VERIFICATION_REQUIRED_CHECK_IDS.length) {
+    issues.push(`release live verification report must pass at least ${RELEASE_LIVE_VERIFICATION_REQUIRED_CHECK_IDS.length} required checks.`);
   }
 
   const checks = Array.isArray(parsed.checks) ? parsed.checks : [];
   if (!Array.isArray(parsed.checks)) {
-    issues.push('1.0 live verification report is missing checks array.');
+    issues.push('release live verification report is missing checks array.');
   }
   const checksById = new Map<string, Record<string, unknown>>();
   for (const [index, check] of checks.entries()) {
     if (!isRecord(check)) {
-      issues.push(`1.0 live verification check ${index + 1} must be an object.`);
+      issues.push(`release live verification check ${index + 1} must be an object.`);
       continue;
     }
     const id = readStringValue(check.id);
     if (!id) {
-      issues.push(`1.0 live verification check ${index + 1} is missing an id.`);
+      issues.push(`release live verification check ${index + 1} is missing an id.`);
       continue;
     }
     checksById.set(id, check);
     if (readStringValue(check.status) !== 'pass') {
-      issues.push(`1.0 live verification check ${id} must pass.`);
+      issues.push(`release live verification check ${id} must pass.`);
     }
   }
-  for (const requiredId of ONE_ZERO_LIVE_VERIFICATION_REQUIRED_CHECK_IDS) {
+  for (const requiredId of RELEASE_LIVE_VERIFICATION_REQUIRED_CHECK_IDS) {
     const check = checksById.get(requiredId);
     if (!check) {
-      issues.push(`1.0 live verification report is missing required check: ${requiredId}.`);
+      issues.push(`release live verification report is missing required check: ${requiredId}.`);
     } else if (readStringValue(check.status) !== 'pass') {
-      issues.push(`1.0 live verification required check ${requiredId} did not pass.`);
+      issues.push(`release live verification required check ${requiredId} did not pass.`);
     }
   }
 
@@ -1188,21 +1214,21 @@ function verifyOneZeroLiveVerificationReport(root: string, readinessCheckedAt: D
     readStringValue(statusCheck?.detail),
   ].join('\n');
   if (sdkVersion && !statusEvidence.includes(`version ${sdkVersion}`) && !statusEvidence.includes(`"version":"${sdkVersion}"`)) {
-    issues.push(`1.0 live verification connected-host status must match Agent SDK pin ${sdkVersion}.`);
+    issues.push(`release live verification connected-host status must match Agent SDK pin ${sdkVersion}.`);
   }
   const compatCheck = checksById.get('cli-compat-json');
   const compatEvidence = readStringValue(compatCheck?.detail);
   if (sdkVersion && (!compatEvidence.includes(`"sdkPin": "${sdkVersion}"`) || !compatEvidence.includes(`"version": "${sdkVersion}"`) || !compatEvidence.includes('"compatible": true'))) {
-    issues.push(`1.0 live verification compatibility check must prove Agent SDK pin ${sdkVersion} matches the connected host.`);
+    issues.push(`release live verification compatibility check must prove Agent SDK pin ${sdkVersion} matches the connected host.`);
   }
 
   return issues;
 }
 
-function verifyOneZeroReadinessPolicy(root: string, packageVersion: string): readonly string[] {
-  const readinessPath = join(root, ONE_ZERO_READINESS_RELATIVE_PATH);
+function verifyReleaseReadinessPolicy(root: string, packageVersion: string): readonly string[] {
+  const readinessPath = join(root, RELEASE_READINESS_RELATIVE_PATH);
   if (!existsSync(readinessPath)) {
-    return [`1.0 readiness inventory is missing: ${ONE_ZERO_READINESS_RELATIVE_PATH}.`];
+    return [`release readiness inventory is missing: ${RELEASE_READINESS_RELATIVE_PATH}.`];
   }
 
   const issues: string[] = [];
@@ -1213,69 +1239,79 @@ function verifyOneZeroReadinessPolicy(root: string, packageVersion: string): rea
     parsed = JSON.parse(source) as unknown;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return [`1.0 readiness inventory is invalid JSON: ${message}`];
+    return [`release readiness inventory is invalid JSON: ${message}`];
   }
-  issues.push(...verifyNoOneZeroReadinessLocalEvidenceLeaks(root, source));
+  issues.push(...verifyNoReleaseReadinessLocalEvidenceLeaks(root, source));
 
   if (!isRecord(parsed)) {
-    return ['1.0 readiness inventory must contain a JSON object.'];
+    return ['release readiness inventory must contain a JSON object.'];
   }
   if (parsed.schemaVersion !== 1) {
-    issues.push('1.0 readiness inventory schemaVersion must be 1.');
+    issues.push('release readiness inventory schemaVersion must be 1.');
   }
-  if (readStringValue(parsed.gate) !== 'goodvibes-agent-1.0-readiness') {
-    issues.push('1.0 readiness inventory gate must be goodvibes-agent-1.0-readiness.');
+  if (readStringValue(parsed.gate) !== 'goodvibes-agent-release-readiness') {
+    issues.push('release readiness inventory gate must be goodvibes-agent-release-readiness.');
   }
   const checkedAt = readStringValue(parsed.checkedAt).trim();
   const checkedAtDate = parseDateOnlyUtc(checkedAt);
   if (checkedAtDate === null) {
-    issues.push('1.0 readiness inventory checkedAt must be a real YYYY-MM-DD date.');
+    issues.push('release readiness inventory checkedAt must be a real YYYY-MM-DD date.');
   }
 
   const policy = isRecord(parsed.policy) ? parsed.policy : {};
   if (!isRecord(parsed.policy)) {
-    issues.push('1.0 readiness inventory is missing a policy object.');
+    issues.push('release readiness inventory is missing a policy object.');
   }
   const blockerStatuses = readStringArray(policy.blockerStatuses);
-  for (const status of ONE_ZERO_READINESS_BLOCKER_STATUSES) {
+  for (const status of RELEASE_READINESS_BLOCKER_STATUSES) {
     if (!blockerStatuses.includes(status)) {
-      issues.push(`1.0 readiness inventory policy.blockerStatuses must include ${status}.`);
+      issues.push(`release readiness inventory policy.blockerStatuses must include ${status}.`);
     }
   }
   const sourceNaming = readStringValue(policy.sourceNaming);
-  if (!sourceNaming.includes('neutral source aliases') || !sourceNaming.includes('Do not store upstream product names')) {
-    issues.push('1.0 readiness inventory policy must require neutral source aliases and forbid upstream product names.');
+  if (!sourceNaming.includes('neutral evidence aliases')) {
+    issues.push('release readiness inventory policy must require neutral evidence aliases.');
+  }
+  const qualityGate = readStringValue(policy.qualityGate);
+  if (!qualityGate.includes('release-quality') || !qualityGate.includes('capability coverage')) {
+    issues.push('release readiness inventory policy.qualityGate must require release-quality coverage.');
+  }
+  const requiredQualityDimensions = readStringArray(policy.requiredQualityDimensions);
+  for (const dimension of RELEASE_READINESS_REQUIRED_QUALITY_DIMENSIONS) {
+    if (!requiredQualityDimensions.includes(dimension)) {
+      issues.push(`release readiness inventory policy.requiredQualityDimensions must include ${dimension}.`);
+    }
   }
 
   const sources = Array.isArray(parsed.sources) ? parsed.sources : [];
   if (!Array.isArray(parsed.sources)) {
-    issues.push('1.0 readiness inventory is missing a sources array.');
+    issues.push('release readiness inventory is missing a sources array.');
   }
   const sourceIds = new Set<string>();
   for (const [index, source] of sources.entries()) {
     if (!isRecord(source)) {
-      issues.push(`1.0 readiness inventory source ${index + 1} must be an object.`);
+      issues.push(`release readiness inventory source ${index + 1} must be an object.`);
       continue;
     }
     const id = readStringValue(source.id).trim();
     if (id.length === 0) {
-      issues.push(`1.0 readiness inventory source ${index + 1} is missing an id.`);
+      issues.push(`release readiness inventory source ${index + 1} is missing an id.`);
       continue;
     }
     sourceIds.add(id);
   }
-  for (const requiredSource of ONE_ZERO_READINESS_REQUIRED_SOURCE_IDS) {
+  for (const requiredSource of RELEASE_READINESS_REQUIRED_SOURCE_IDS) {
     if (!sourceIds.has(requiredSource)) {
-      issues.push(`1.0 readiness inventory is missing required source alias: ${requiredSource}.`);
+      issues.push(`release readiness inventory is missing required source alias: ${requiredSource}.`);
     }
   }
 
   const items = Array.isArray(parsed.items) ? parsed.items : [];
   if (!Array.isArray(parsed.items)) {
-    issues.push('1.0 readiness inventory is missing an items array.');
+    issues.push('release readiness inventory is missing an items array.');
   }
-  if (items.length < ONE_ZERO_READINESS_REQUIRED_IDS.length) {
-    issues.push(`1.0 readiness inventory must cover at least ${ONE_ZERO_READINESS_REQUIRED_IDS.length} required capability items.`);
+  if (items.length < RELEASE_READINESS_REQUIRED_IDS.length) {
+    issues.push(`release readiness inventory must cover at least ${RELEASE_READINESS_REQUIRED_IDS.length} required capability items.`);
   }
 
   const itemIds = new Set<string>();
@@ -1284,7 +1320,7 @@ function verifyOneZeroReadinessPolicy(root: string, packageVersion: string): rea
   let releaseCoveredCount = 0;
   for (const [index, item] of items.entries()) {
     if (!isRecord(item)) {
-      issues.push(`1.0 readiness inventory item ${index + 1} must be an object.`);
+      issues.push(`release readiness inventory item ${index + 1} must be an object.`);
       continue;
     }
     const id = readStringValue(item.id).trim();
@@ -1293,75 +1329,88 @@ function verifyOneZeroReadinessPolicy(root: string, packageVersion: string): rea
     const status = readStringValue(item.status).trim();
     const evidence = readStringValue(item.evidence).trim();
     const action = readStringValue(item.action).trim();
+    const quality = isRecord(item.quality) ? item.quality : {};
     const label = id.length > 0 ? id : `item ${index + 1}`;
     if (id.length === 0) {
-      issues.push(`1.0 readiness inventory item ${index + 1} is missing an id.`);
+      issues.push(`release readiness inventory item ${index + 1} is missing an id.`);
     } else if (itemIds.has(id)) {
-      issues.push(`1.0 readiness inventory has duplicate item id: ${id}.`);
+      issues.push(`release readiness inventory has duplicate item id: ${id}.`);
     } else {
       itemIds.add(id);
     }
     if (capability.length === 0) {
-      issues.push(`1.0 readiness inventory ${label} is missing capability text.`);
+      issues.push(`release readiness inventory ${label} is missing capability text.`);
     }
-    if (!ONE_ZERO_READINESS_ALLOWED_OWNERS.has(owner)) {
-      issues.push(`1.0 readiness inventory ${label} has invalid owner: ${owner}.`);
+    if (!RELEASE_READINESS_ALLOWED_OWNERS.has(owner)) {
+      issues.push(`release readiness inventory ${label} has invalid owner: ${owner}.`);
     }
-    if (!ONE_ZERO_READINESS_ALLOWED_STATUSES.has(status)) {
-      issues.push(`1.0 readiness inventory ${label} has invalid status: ${status}.`);
+    if (!RELEASE_READINESS_ALLOWED_STATUSES.has(status)) {
+      issues.push(`release readiness inventory ${label} has invalid status: ${status}.`);
     }
     if (evidence.length === 0) {
-      issues.push(`1.0 readiness inventory ${label} is missing evidence.`);
+      issues.push(`release readiness inventory ${label} is missing evidence.`);
     }
     if (owner === 'connected-host' && status === 'covered' && !evidence.includes('goodvibes-connected-host')) {
-      issues.push(`1.0 readiness inventory ${label} must cite the goodvibes-connected-host source alias.`);
+      issues.push(`release readiness inventory ${label} must cite the goodvibes-connected-host source alias.`);
     }
     if (owner === 'companion' && status === 'covered' && !evidence.includes('goodvibes-companion')) {
-      issues.push(`1.0 readiness inventory ${label} must cite the goodvibes-companion source alias.`);
+      issues.push(`release readiness inventory ${label} must cite the goodvibes-companion source alias.`);
     }
     if (action.length === 0) {
-      issues.push(`1.0 readiness inventory ${label} is missing action.`);
+      issues.push(`release readiness inventory ${label} is missing action.`);
     }
-    if (ONE_ZERO_READINESS_BLOCKER_STATUSES.has(status)) {
+    if (!isRecord(item.quality)) {
+      issues.push(`release readiness inventory ${label} is missing quality evidence dimensions.`);
+    }
+    for (const dimension of RELEASE_READINESS_REQUIRED_QUALITY_DIMENSIONS) {
+      const value = readStringValue(quality[dimension]).trim();
+      if (value.length === 0) {
+        issues.push(`release readiness inventory ${label} is missing quality.${dimension}.`);
+      }
+      if (/\b(?:unknown|todo|gap|unverified|unproven)\b/i.test(value)) {
+        issues.push(`release readiness inventory ${label} quality.${dimension} must not be marked unknown, todo, gap, unverified, or unproven.`);
+      }
+    }
+    if (RELEASE_READINESS_BLOCKER_STATUSES.has(status)) {
       blockerItemIds.push(label);
     }
     if (owner === 'connected-host' && status === 'covered') connectedHostCoveredCount += 1;
     if (owner === 'release' && status === 'covered') releaseCoveredCount += 1;
   }
 
-  for (const requiredId of ONE_ZERO_READINESS_REQUIRED_IDS) {
+  for (const requiredId of RELEASE_READINESS_REQUIRED_IDS) {
     if (!itemIds.has(requiredId)) {
-      issues.push(`1.0 readiness inventory is missing required capability item: ${requiredId}.`);
+      issues.push(`release readiness inventory is missing required capability item: ${requiredId}.`);
     }
   }
   if (connectedHostCoveredCount === 0) {
-    issues.push('1.0 readiness inventory must include connected-host covered capability evidence.');
+    issues.push('release readiness inventory must include connected-host covered capability evidence.');
   }
   if (releaseCoveredCount === 0) {
-    issues.push('1.0 readiness inventory must include release covered capability evidence.');
+    issues.push('release readiness inventory must include release covered capability evidence.');
   }
 
   const releaseScriptPath = join(root, 'scripts', 'release.ts');
   if (existsSync(releaseScriptPath)) {
     const releaseScript = readFileSync(releaseScriptPath, 'utf-8');
-    if (!releaseScript.includes(ONE_ZERO_READINESS_RELATIVE_PATH)) {
-      issues.push(`release script must stage 1.0 readiness inventory: ${ONE_ZERO_READINESS_RELATIVE_PATH}.`);
+    if (!releaseScript.includes(RELEASE_READINESS_RELATIVE_PATH)) {
+      issues.push(`release script must stage release readiness inventory: ${RELEASE_READINESS_RELATIVE_PATH}.`);
     }
-    if (!releaseScript.includes(ONE_ZERO_PERFORMANCE_SNAPSHOT_RELATIVE_PATH)) {
-      issues.push(`release script must stage 1.0 performance snapshot: ${ONE_ZERO_PERFORMANCE_SNAPSHOT_RELATIVE_PATH}.`);
+    if (!releaseScript.includes(RELEASE_PERFORMANCE_SNAPSHOT_RELATIVE_PATH)) {
+      issues.push(`release script must stage release performance snapshot: ${RELEASE_PERFORMANCE_SNAPSHOT_RELATIVE_PATH}.`);
     }
-    if (!releaseScript.includes(ONE_ZERO_LIVE_VERIFICATION_JSON_RELATIVE_PATH)) {
-      issues.push(`release script must stage 1.0 live verification JSON report: ${ONE_ZERO_LIVE_VERIFICATION_JSON_RELATIVE_PATH}.`);
+    if (!releaseScript.includes(RELEASE_LIVE_VERIFICATION_JSON_RELATIVE_PATH)) {
+      issues.push(`release script must stage release live verification JSON report: ${RELEASE_LIVE_VERIFICATION_JSON_RELATIVE_PATH}.`);
     }
-    if (!releaseScript.includes(ONE_ZERO_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH)) {
-      issues.push(`release script must stage 1.0 live verification Markdown report: ${ONE_ZERO_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH}.`);
+    if (!releaseScript.includes(RELEASE_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH)) {
+      issues.push(`release script must stage release live verification Markdown report: ${RELEASE_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH}.`);
     }
   }
-  if (isOneZeroOrLater(packageVersion) && blockerItemIds.length > 0) {
-    issues.push(`1.0 readiness inventory still has blocker entries for package ${packageVersion}: ${blockerItemIds.sort().join(', ')}.`);
+  if (isStableReleaseLine(packageVersion) && blockerItemIds.length > 0) {
+    issues.push(`release readiness inventory still has blocker entries for package ${packageVersion}: ${blockerItemIds.sort().join(', ')}.`);
   }
   if (blockerItemIds.length === 0) {
-    issues.push(...verifyOneZeroLiveVerificationReport(root, checkedAtDate));
+    issues.push(...verifyReleaseLiveVerificationReport(root, checkedAtDate));
   }
   return issues;
 }
@@ -1505,8 +1554,8 @@ function verifyReleaseScriptPolicy(root: string): readonly string[] {
     { marker: 'assertReleasePackagePolicy', label: 'post-mutation package policy validation' },
     { marker: 'verifyReleaseMetadata(root)', label: 'post-mutation metadata validation' },
     { marker: 'verifyPackageFacingText(root).failures', label: 'post-mutation package-facing text validation' },
-    { marker: 'release/1.0-release-notes.md', label: '1.0 release notes staging artifact' },
-    { marker: 'release/1.0-performance-snapshot.json', label: '1.0 performance snapshot staging artifact' },
+    { marker: 'release/release-notes.md', label: 'release notes staging artifact' },
+    { marker: 'release/performance-snapshot.json', label: 'release performance snapshot staging artifact' },
     { marker: '...packageDocPaths(root)', label: 'release docs staging surface' },
     { marker: 'releaseMetadataPaths(root).map(shellQuote)', label: 'metadata/docs staging command' },
     { marker: 'git tag -a ${tag}', label: 'annotated release tag' },
@@ -1797,7 +1846,7 @@ function verifyRunTestsScriptPolicy(root: string): readonly string[] {
     { marker: 'rmSync(TEST_TMP_ROOT, { recursive: true, force: true })', label: 'suite temp cleanup' },
     { marker: 'mkdirSync(TEST_TMP_ROOT, { recursive: true })', label: 'suite temp setup' },
     { marker: 'No test files found under src/', label: 'empty suite failure' },
-    { marker: "Bun.spawnSync(['bun', 'test', ...testFiles]", label: 'single Bun test invocation over discovered suite' },
+    { marker: "Bun.spawnSync(['bun', 'test', '--max-concurrency=1', ...testFiles]", label: 'single serialized Bun test invocation over discovered suite' },
     { marker: 'TMPDIR: TEST_TMP_ROOT', label: 'TMPDIR isolation' },
     { marker: 'TMP: TEST_TMP_ROOT', label: 'TMP isolation' },
     { marker: 'TEMP: TEST_TMP_ROOT', label: 'TEMP isolation' },
@@ -1883,9 +1932,46 @@ function verifyArchitectureCheckScriptPolicy(root: string): readonly string[] {
     { marker: 'runtime knowledgeService compatibility alias must point at isolated Agent Knowledge', label: 'runtime Agent Knowledge alias requirement' },
     { marker: 'slash-command Knowledge API must be backed by isolated Agent Knowledge', label: 'slash command Agent Knowledge requirement' },
     { marker: 'CLI Knowledge commands must use the isolated browser/agent SDK seam', label: 'CLI Agent Knowledge SDK requirement' },
+    { marker: 'CLI Knowledge commands must validate Agent Knowledge response scope', label: 'CLI Agent Knowledge response scope validation requirement' },
+    { marker: 'CLI Knowledge commands must reject non-Agent scope contamination', label: 'CLI Agent Knowledge scope contamination rejection requirement' },
+    { marker: 'scope_contamination', label: 'CLI Agent Knowledge scope contamination failure kind' },
     { marker: '@pellux/goodvibes-sdk/browser/agent', label: 'Agent browser SDK seam snippet' },
-    { marker: 'CLI Knowledge commands must target Agent-specific daemon routes', label: 'CLI Agent Knowledge route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific status route', label: 'CLI Agent Knowledge status route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific ask route', label: 'CLI Agent Knowledge ask route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific search route', label: 'CLI Agent Knowledge search route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific sources route', label: 'CLI Agent Knowledge sources route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific nodes route', label: 'CLI Agent Knowledge nodes route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific issues route', label: 'CLI Agent Knowledge issues route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific item route', label: 'CLI Agent Knowledge item route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific map route', label: 'CLI Agent Knowledge map route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific connector routes', label: 'CLI Agent Knowledge connector route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific connector detail route', label: 'CLI Agent Knowledge connector detail route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific connector doctor route', label: 'CLI Agent Knowledge connector doctor route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific URL ingest route', label: 'CLI Agent Knowledge URL ingest route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific artifact ingest route', label: 'CLI Agent Knowledge artifact ingest route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific URL-list ingest route', label: 'CLI Agent Knowledge URL-list ingest route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific bookmarks ingest route', label: 'CLI Agent Knowledge bookmarks ingest route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific browser-history ingest route', label: 'CLI Agent Knowledge browser-history ingest route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific connector ingest route', label: 'CLI Agent Knowledge connector ingest route requirement' },
+    { marker: 'CLI Knowledge commands must target the Agent-specific reindex route', label: 'CLI Agent Knowledge reindex route requirement' },
     { marker: '/api/goodvibes-agent/knowledge/status', label: 'Agent Knowledge status route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/ask', label: 'Agent Knowledge ask route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/search', label: 'Agent Knowledge search route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/sources', label: 'Agent Knowledge sources route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/nodes', label: 'Agent Knowledge nodes route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/issues', label: 'Agent Knowledge issues route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/items/{id}', label: 'Agent Knowledge item route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/map', label: 'Agent Knowledge map route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/connectors', label: 'Agent Knowledge connector route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/connectors/{id}', label: 'Agent Knowledge connector detail route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/connectors/{id}/doctor', label: 'Agent Knowledge connector doctor route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/ingest/url', label: 'Agent Knowledge URL ingest route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/ingest/artifact', label: 'Agent Knowledge artifact ingest route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/ingest/urls', label: 'Agent Knowledge URL-list ingest route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/ingest/bookmarks', label: 'Agent Knowledge bookmarks ingest route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/ingest/browser-history', label: 'Agent Knowledge browser-history ingest route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/ingest/connector', label: 'Agent Knowledge connector ingest route snippet' },
+    { marker: '/api/goodvibes-agent/knowledge/reindex', label: 'Agent Knowledge reindex route snippet' },
     { marker: 'GatewayMethodCatalog', label: 'operator contract catalog import' },
     { marker: "'control.contract'", label: 'control contract catalog requirement' },
     { marker: "'remote.node_host.contract'", label: 'remote node host contract catalog requirement' },
@@ -1916,7 +2002,7 @@ function verifyPerfCheckScriptPolicy(root: string): readonly string[] {
     { marker: 'PerfSnapshot', label: 'typed performance snapshot' },
     { marker: 'buildCiSnapshot', label: 'CI performance snapshot builder' },
     { marker: 'RECORDED_PERF_SNAPSHOT_RELATIVE_PATH', label: 'recorded performance fixture path constant' },
-    { marker: 'release/1.0-performance-snapshot.json', label: '1.0 performance fixture path' },
+    { marker: 'release/performance-snapshot.json', label: 'release performance fixture path' },
     { marker: 'readCiPerfSnapshot', label: 'recorded performance fixture reader' },
     { marker: 'parseRenderCycles', label: 'render sample parser' },
     { marker: 'parseExtraMetrics', label: 'extra metric parser' },
@@ -1952,6 +2038,7 @@ function verifyPerfCheckScriptPolicy(root: string): readonly string[] {
 function verifyVerificationLedgerPolicy(root: string): readonly string[] {
   const ledgerScriptPath = join(root, 'scripts', 'verification-ledger.ts');
   const ledgerSourcePath = join(root, 'src', 'verification', 'verification-ledger.ts');
+  const ledgerSurfacesPath = join(root, 'src', 'verification', 'verification-ledger-surfaces.ts');
   const issues: string[] = [];
   if (!existsSync(ledgerScriptPath)) {
     issues.push('verification ledger script is missing: scripts/verification-ledger.ts.');
@@ -1977,8 +2064,15 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
   }
   if (!existsSync(ledgerSourcePath)) {
     issues.push('verification ledger source is missing: src/verification/verification-ledger.ts.');
-  } else {
-    const source = readFileSync(ledgerSourcePath, 'utf-8');
+  }
+  if (!existsSync(ledgerSurfacesPath)) {
+    issues.push('verification ledger surface inventory source is missing: src/verification/verification-ledger-surfaces.ts.');
+  }
+  if (existsSync(ledgerSourcePath) && existsSync(ledgerSurfacesPath)) {
+    const source = [
+      readFileSync(ledgerSourcePath, 'utf-8'),
+      readFileSync(ledgerSurfacesPath, 'utf-8'),
+    ].join('\n');
     const requiredSourceMarkers: readonly { readonly marker: string; readonly label: string }[] = [
       { marker: 'CONFIG_SCHEMA', label: 'settings schema inventory source' },
       { marker: 'FEATURE_FLAG_MAP', label: 'feature flag inventory source' },
@@ -1991,6 +2085,54 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
       { marker: 'EXTERNAL_CLI_COMMANDS', label: 'external CLI command accounting' },
       { marker: 'ONBOARDING_CAPABILITIES', label: 'onboarding capability inventory' },
       { marker: 'EXTERNAL_SURFACES', label: 'external surface inventory' },
+      { marker: 'RELEASE_EVIDENCE_PATHS', label: 'release evidence artifact inventory' },
+      { marker: 'HARNESS_RELEASE_EVIDENCE_MODES', label: 'release evidence harness mode inventory' },
+      { marker: 'HARNESS_SERVICE_POSTURE_MODES', label: 'service posture harness mode inventory' },
+      { marker: 'HARNESS_CHANNEL_READINESS_MODES', label: 'channel readiness harness mode inventory' },
+      { marker: 'HARNESS_NOTIFICATION_TARGET_MODES', label: 'notification target harness mode inventory' },
+      { marker: 'HARNESS_PROVIDER_ACCOUNT_MODES', label: 'provider account harness mode inventory' },
+      { marker: 'HARNESS_MCP_SERVER_MODES', label: 'MCP server harness mode inventory' },
+      { marker: 'HARNESS_SETUP_POSTURE_MODES', label: 'setup/onboarding harness mode inventory' },
+      { marker: 'HARNESS_MODEL_ROUTING_MODES', label: 'model routing harness mode inventory' },
+      { marker: 'HARNESS_PAIRING_POSTURE_MODES', label: 'pairing harness mode inventory' },
+      { marker: 'HARNESS_DELEGATION_POSTURE_MODES', label: 'delegation harness mode inventory' },
+      { marker: 'HARNESS_SECURITY_SUPPORT_MODES', label: 'security/support harness mode inventory' },
+      { marker: 'HARNESS_MEDIA_POSTURE_MODES', label: 'voice/media posture harness mode inventory' },
+      { marker: 'HARNESS_SESSION_MODES', label: 'session/bookmark harness mode inventory' },
+      { marker: 'HARNESS_OPERATOR_METHOD_MODES', label: 'operator method harness mode inventory' },
+      { marker: 'QUALITY_DIMENSIONS', label: 'release quality readiness dimensions inventory' },
+      { marker: "'release/live-verification/live-verification.md'", label: 'live verification Markdown evidence artifact' },
+      { marker: "'release_evidence_artifact'", label: 'single release evidence artifact mode' },
+      { marker: "'service_endpoint'", label: 'single service endpoint mode' },
+      { marker: "'channel'", label: 'single channel readiness mode' },
+      { marker: "'notification_target'", label: 'single notification target mode' },
+      { marker: "'provider_account'", label: 'single provider account mode' },
+      { marker: "'mcp_server'", label: 'single MCP server mode' },
+      { marker: "'setup_item'", label: 'single setup item mode' },
+      { marker: "'model_route'", label: 'single model route mode' },
+      { marker: "'pairing_route'", label: 'single pairing route mode' },
+      { marker: "'delegation_route'", label: 'single delegation route mode' },
+      { marker: "'security_finding'", label: 'single security finding mode' },
+      { marker: "'support_bundle'", label: 'single support bundle mode' },
+      { marker: "'media_provider'", label: 'single voice/media provider mode' },
+      { marker: "'session'", label: 'single saved session mode' },
+      { marker: "'operator_method'", label: 'single operator method mode' },
+      { marker: "join('release', 'release-readiness.json')", label: 'release readiness inventory ledger source' },
+      { marker: 'countReleaseEvidenceSurface(root)', label: 'model-visible release evidence ledger source' },
+      { marker: 'countServicePostureSurface(root)', label: 'model-visible service posture ledger source' },
+      { marker: 'countChannelReadinessSurface(root)', label: 'model-visible channel readiness ledger source' },
+      { marker: 'countNotificationTargetSurface(root)', label: 'model-visible notification target ledger source' },
+      { marker: 'countProviderAccountSurface(root)', label: 'model-visible provider account ledger source' },
+      { marker: 'countMcpServerSurface(root)', label: 'model-visible MCP server ledger source' },
+      { marker: 'countSetupPostureSurface(root)', label: 'model-visible setup/onboarding ledger source' },
+      { marker: 'countModelRoutingSurface(root)', label: 'model-visible model routing ledger source' },
+      { marker: 'countPairingPostureSurface(root)', label: 'model-visible pairing ledger source' },
+      { marker: 'countDelegationPostureSurface(root)', label: 'model-visible delegation ledger source' },
+      { marker: 'countSecuritySupportSurface(root)', label: 'model-visible security/support ledger source' },
+      { marker: 'countMediaPostureSurface(root)', label: 'model-visible voice/media posture ledger source' },
+      { marker: 'countSessionSurface(root)', label: 'model-visible session/bookmark ledger source' },
+      { marker: 'countOperatorMethodSurface(root)', label: 'model-visible operator method catalog ledger source' },
+      { marker: 'countQualityReadinessDimensions(root)', label: 'release quality readiness ledger source' },
       { marker: 'Settings schema and persistence', label: 'settings ledger area' },
       { marker: 'Feature flags', label: 'feature flag ledger area' },
       { marker: 'Slash commands', label: 'slash command ledger area' },
@@ -1998,6 +2140,21 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
       { marker: 'Top-level CLI commands', label: 'CLI ledger area' },
       { marker: 'External surfaces', label: 'external surface ledger area' },
       { marker: 'Onboarding capability bundles', label: 'onboarding ledger area' },
+      { marker: 'Model-visible release evidence bundle', label: 'model-visible release evidence ledger area' },
+      { marker: 'Model-visible service posture', label: 'model-visible service posture ledger area' },
+      { marker: 'Model-visible channel readiness', label: 'model-visible channel readiness ledger area' },
+      { marker: 'Model-visible notification targets', label: 'model-visible notification target ledger area' },
+      { marker: 'Model-visible provider accounts', label: 'model-visible provider account ledger area' },
+      { marker: 'Model-visible MCP servers', label: 'model-visible MCP server ledger area' },
+      { marker: 'Model-visible setup and onboarding posture', label: 'model-visible setup/onboarding ledger area' },
+      { marker: 'Model-visible model routing posture', label: 'model-visible model routing ledger area' },
+      { marker: 'Model-visible pairing posture', label: 'model-visible pairing ledger area' },
+      { marker: 'Model-visible delegation posture', label: 'model-visible delegation ledger area' },
+      { marker: 'Model-visible security and support bundles', label: 'model-visible security/support ledger area' },
+      { marker: 'Model-visible voice and media posture', label: 'model-visible voice/media posture ledger area' },
+      { marker: 'Model-visible sessions and bookmarks', label: 'model-visible session/bookmark ledger area' },
+      { marker: 'Model-visible operator method catalog', label: 'model-visible operator method catalog ledger area' },
+      { marker: 'Release quality readiness dimensions', label: 'release quality readiness ledger area' },
       { marker: 'localSignalVerified', label: 'local signal count' },
       { marker: 'localBehaviorVerified', label: 'local behavior count' },
       { marker: 'externalOutcomeRequired', label: 'external outcome count' },
@@ -2056,6 +2213,11 @@ function verifyLiveVerificationPolicy(root: string): readonly string[] {
     const source = readFileSync(liveSourcePath, 'utf-8');
     const requiredSourceMarkers: readonly { readonly marker: string; readonly label: string }[] = [
       { marker: 'AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS', label: 'Agent Knowledge contamination markers' },
+      { marker: 'AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_PATTERNS', label: 'Agent Knowledge structured contamination patterns' },
+      { marker: 'findAgentKnowledgeResponseContamination', label: 'Agent Knowledge response contamination helper' },
+      { marker: 'findAgentKnowledgeScopeContamination', label: 'Agent Knowledge shared scope contamination helper' },
+      { marker: 'spaceId', label: 'Agent Knowledge default scope id rejection marker' },
+      { marker: 'knowledgeSpaceId', label: 'Agent Knowledge default knowledge scope id rejection marker' },
       { marker: 'readConnectedHostToken', label: 'connected-host token reader' },
       { marker: 'GOODVIBES_CONNECTED_HOST_TOKEN', label: 'connected-host token environment source' },
       { marker: 'GOODVIBES_DAEMON_TOKEN', label: 'daemon token compatibility source' },
@@ -2072,9 +2234,9 @@ function verifyLiveVerificationPolicy(root: string): readonly string[] {
       { marker: 'GOODVIBES_AGENT_RUNTIME_URL', label: 'Agent runtime URL environment source' },
       { marker: 'GOODVIBES_DAEMON_URL', label: 'daemon URL compatibility source' },
       { marker: "join(homeDir, 'tui', 'settings.json')", label: 'connected-host port settings source' },
-      { marker: 'runCommand(command: string', label: 'compiled CLI command runner' },
+      { marker: 'function runCommand(', label: 'compiled CLI command runner' },
       { marker: "NO_COLOR: '1'", label: 'stable no-color command output' },
-      { marker: 'timeoutMs = 15_000', label: 'compiled CLI command timeout' },
+      { marker: 'options.timeoutMs ?? 15_000', label: 'compiled CLI command timeout' },
       { marker: "child.kill('SIGTERM')", label: 'timed-out command termination' },
       { marker: "child.kill('SIGKILL')", label: 'timed-out command kill fallback' },
       { marker: 'commandCheck', label: 'compiled CLI command check helper' },
@@ -2110,6 +2272,11 @@ function verifyLiveVerificationPolicy(root: string): readonly string[] {
       { marker: '`${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/status`', label: 'Agent Knowledge status route' },
       { marker: '`${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/ask`', label: 'Agent Knowledge ask route' },
       { marker: '`${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/search`', label: 'Agent Knowledge search route' },
+      { marker: "route: '/api/goodvibes-agent/knowledge/sources'", label: 'Agent Knowledge sources route' },
+      { marker: "route: '/api/goodvibes-agent/knowledge/nodes'", label: 'Agent Knowledge nodes route' },
+      { marker: "route: '/api/goodvibes-agent/knowledge/issues'", label: 'Agent Knowledge issues route' },
+      { marker: "route: '/api/goodvibes-agent/knowledge/map'", label: 'Agent Knowledge map route' },
+      { marker: "route: '/api/goodvibes-agent/knowledge/connectors'", label: 'Agent Knowledge connectors route' },
       { marker: 'includeSources: true', label: 'Agent Knowledge ask sources option' },
       { marker: 'includeConfidence: true', label: 'Agent Knowledge ask confidence option' },
       { marker: 'includeLinkedObjects: true', label: 'Agent Knowledge ask linked objects option' },
@@ -2192,6 +2359,51 @@ export function verifySourcePackageBoundary(root: string): readonly string[] {
     }
   }
 
+  return issues;
+}
+
+function relativeSourcePath(root: string, path: string): string {
+  return relative(root, path).replace(/\\/g, '/');
+}
+
+function lineNumberForIndex(source: string, index: number): number {
+  return source.slice(0, index).split('\n').length;
+}
+
+function modelToolDescriptionSourcePaths(root: string): readonly string[] {
+  return listFilesUnder(join(root, 'src', 'tools'))
+    .filter((path) => (
+      path.endsWith('-tool.ts')
+      || path.endsWith('agent-harness-tool-schema.ts')
+      || path.endsWith('agent-tool-policy-guard.ts')
+    ))
+    .sort();
+}
+
+function extractJoinedDescriptionText(block: string): string {
+  return [...block.matchAll(/(['"`])((?:\\.|(?!\1).)*)\1/g)]
+    .map((match) => (match[2] ?? '').replace(/\\(['"`\\])/g, '$1'))
+    .join(' ');
+}
+
+function verifyModelToolDescriptionPolicy(root: string): readonly string[] {
+  const issues: string[] = [];
+  for (const path of modelToolDescriptionSourcePaths(root)) {
+    const source = readFileSync(path, 'utf-8');
+    const relativePath = relativeSourcePath(root, path);
+    for (const match of source.matchAll(/description:\s*\[([\s\S]*?)\]\.join\(' '\)/g)) {
+      const text = extractJoinedDescriptionText(match[1] ?? '');
+      if (text.length > MODEL_TOOL_DESCRIPTION_MAX_LENGTH) {
+        issues.push(`model tool ${relativePath}:${lineNumberForIndex(source, match.index ?? 0)} registration description is ${text.length} characters; keep it at or below ${MODEL_TOOL_DESCRIPTION_MAX_LENGTH}.`);
+      }
+    }
+    for (const match of source.matchAll(/description:\s*(['"])((?:\\.|(?!\1).)*)\1/g)) {
+      const text = (match[2] ?? '').replace(/\\(['"`\\])/g, '$1');
+      if (text.length > MODEL_TOOL_SCHEMA_DESCRIPTION_MAX_LENGTH) {
+        issues.push(`model tool ${relativePath}:${lineNumberForIndex(source, match.index ?? 0)} schema description is ${text.length} characters; keep it at or below ${MODEL_TOOL_SCHEMA_DESCRIPTION_MAX_LENGTH}.`);
+      }
+    }
+  }
   return issues;
 }
 
@@ -2396,10 +2608,10 @@ function buildPackageFacingSlashCommandCatalog(root: string): PackageFacingSlash
   };
 }
 
-function verifyOneZeroReleaseNotesPolicy(root: string): readonly string[] {
-  const notesPath = join(root, ONE_ZERO_RELEASE_NOTES_RELATIVE_PATH);
+function verifyReleaseReleaseNotesPolicy(root: string): readonly string[] {
+  const notesPath = join(root, RELEASE_NOTES_RELATIVE_PATH);
   if (!existsSync(notesPath)) {
-    return [`1.0 release notes are missing: ${ONE_ZERO_RELEASE_NOTES_RELATIVE_PATH}.`];
+    return [`release notes are missing: ${RELEASE_NOTES_RELATIVE_PATH}.`];
   }
 
   const issues: string[] = [];
@@ -2410,11 +2622,11 @@ function verifyOneZeroReleaseNotesPolicy(root: string): readonly string[] {
     .filter((line) => line.length > 0);
   const bulletLines = lines.filter((line) => line.startsWith('- '));
   if (bulletLines.length < 5) {
-    issues.push('1.0 release notes must include at least five product-facing bullet points.');
+    issues.push('release notes must include at least five product-facing bullet points.');
   }
   for (const line of bulletLines) {
     if (/^- [0-9a-f]{7,40}\s/i.test(line)) {
-      issues.push('1.0 release notes must describe product changes, not raw commit hashes.');
+      issues.push('release notes must describe product changes, not raw commit hashes.');
       break;
     }
   }
@@ -2428,7 +2640,7 @@ function verifyOneZeroReleaseNotesPolicy(root: string): readonly string[] {
   ] as const;
   for (const theme of requiredThemes) {
     if (!content.includes(theme)) {
-      issues.push(`1.0 release notes must mention ${theme}.`);
+      issues.push(`release notes must mention ${theme}.`);
     }
   }
   return issues;
@@ -2514,9 +2726,9 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   } else if (!isExactSemver(packageVersion)) {
     issues.push(`package.json version must be an exact semver like 1.2.3: ${packageVersion}.`);
   }
-  issues.push(...verifyOneZeroReleaseNotesPolicy(root));
-  issues.push(...verifyOneZeroPerformanceSnapshotPolicy(root));
-  issues.push(...verifyOneZeroReadinessPolicy(root, packageVersion));
+  issues.push(...verifyReleaseReleaseNotesPolicy(root));
+  issues.push(...verifyReleasePerformanceSnapshotPolicy(root));
+  issues.push(...verifyReleaseReadinessPolicy(root, packageVersion));
   const sdkVersion = readPackageSdkVersion(pkg);
   if (sdkVersion.length === 0) {
     issues.push('package.json is missing a string @pellux/goodvibes-sdk dependency pin.');
@@ -2526,7 +2738,7 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
 
   const changelogRelease = readTopChangelogRelease(root);
   if (changelogRelease === null) {
-    issues.push('CHANGELOG.md is missing a top release heading like "## 1.0.0 - YYYY-MM-DD".');
+    issues.push('CHANGELOG.md is missing a top release heading like "## x.y.z - YYYY-MM-DD".');
   } else {
     if (packageVersion.length > 0 && changelogRelease.version !== packageVersion) {
       issues.push(`CHANGELOG.md top release ${changelogRelease.version} does not match package.json version ${packageVersion}.`);
@@ -2838,6 +3050,9 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
     issues.push(failure);
   }
   for (const issue of verifyReleaseMetadata(root)) {
+    issues.push(issue);
+  }
+  for (const issue of verifyModelToolDescriptionPolicy(root)) {
     issues.push(issue);
   }
 

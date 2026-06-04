@@ -20,7 +20,31 @@ describe('verification ledger', () => {
       'Slash commands',
       'Built-in panels',
       'Top-level CLI commands',
+      'Model-visible release evidence bundle',
+      'Model-visible service posture',
+      'Model-visible operator method catalog',
     ]));
+    const releaseEvidence = ledger.areas.find((area) => area.area === 'Model-visible release evidence bundle');
+    expect(releaseEvidence).toMatchObject({
+      total: 7,
+      localSignalVerified: 7,
+      localBehaviorVerified: 7,
+      externalOutcomeRequired: 0,
+    });
+    const servicePosture = ledger.areas.find((area) => area.area === 'Model-visible service posture');
+    expect(servicePosture).toMatchObject({
+      total: 5,
+      localSignalVerified: 5,
+      localBehaviorVerified: 5,
+      externalOutcomeRequired: 0,
+    });
+    const operatorMethods = ledger.areas.find((area) => area.area === 'Model-visible operator method catalog');
+    expect(operatorMethods).toMatchObject({
+      total: 5,
+      localSignalVerified: 5,
+      localBehaviorVerified: 5,
+      externalOutcomeRequired: 0,
+    });
   });
 
   test('renders a markdown ledger for reports', () => {
@@ -31,6 +55,9 @@ describe('verification ledger', () => {
     expect(markdown).toContain('External outcome required');
     expect(markdown).toContain('in-process command harness');
     expect(markdown).toContain('test read models');
+    expect(markdown).toContain('release_evidence_artifact');
+    expect(markdown).toContain('service_endpoint');
+    expect(markdown).toContain('operator_method');
     expect(markdown).not.toContain('fake context');
     expect(markdown).not.toContain('fake read models');
   });
@@ -48,7 +75,6 @@ describe('verification ledger', () => {
       "'service'",
       "'surfaces'",
       "'tunnel'",
-      "'web'",
     ] as const;
 
     for (const token of hiddenCommandTokens) {

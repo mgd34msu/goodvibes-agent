@@ -86,6 +86,13 @@ function searchResponse(): Response {
   });
 }
 
+function jsonResponse(data: unknown): Response {
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
 describe('agent_knowledge tool', () => {
   test('status uses only the isolated Agent Knowledge status route', async () => {
     const paths = shellPaths();
@@ -177,6 +184,133 @@ describe('agent_knowledge tool', () => {
       expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/search');
       expect(requests[0]?.url).not.toContain('/api/knowledge');
       expect(requests[0]?.url).not.toContain('homeGraph');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('fails closed when the isolated Agent Knowledge route returns default scope metadata', async () => {
+    const paths = shellPaths();
+    const tool = createAgentKnowledgeTool(paths, configManager(paths));
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return jsonResponse({
+        ok: true,
+        knowledgeSpaceId: 'default',
+        sources: [{ id: 'src-default', title: 'Default source' }],
+      });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await tool.execute({ action: 'sources', limit: 2 });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('scope_contamination');
+      expect(result.error).toContain('knowledgeSpaceId=default');
+      expect(result.error).toContain('/api/goodvibes-agent/knowledge/sources');
+      expect(requests.map((request) => request.url)).toEqual([
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/sources?limit=2',
+      ]);
+      expect(requests.some((request) => request.url.includes('/api/knowledge/'))).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('expanded read actions use only isolated Agent Knowledge routes', async () => {
+    const paths = shellPaths();
+    const tool = createAgentKnowledgeTool(paths, configManager(paths));
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      const url = inputUrl(input);
+      requests.push({
+        url,
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      const path = new URL(url).pathname;
+      if (path.endsWith('/sources')) {
+        return jsonResponse({
+          sources: [{ id: 'src-alpha', title: 'Agent source', sourceType: 'url', canonicalUri: 'https://example.test/source' }],
+        });
+      }
+      if (path.endsWith('/nodes')) {
+        return jsonResponse({
+          nodes: [{ id: 'node-alpha', title: 'Agent node', kind: 'fact', confidence: 0.9 }],
+        });
+      }
+      if (path.endsWith('/issues')) {
+        return jsonResponse({
+          issues: [{ id: 'issue-alpha', severity: 'low', code: 'review', status: 'open', message: 'Needs review.' }],
+        });
+      }
+      if (path.endsWith('/items/src-alpha')) {
+        return jsonResponse({
+          source: { id: 'src-alpha', title: 'Agent source', sourceType: 'url' },
+          relatedEdges: [{}],
+          linkedSources: [],
+          linkedNodes: [{}],
+        });
+      }
+      if (path.endsWith('/map')) {
+        return jsonResponse({
+          sources: [{ id: 'src-alpha' }],
+          nodes: [{ id: 'node-alpha' }],
+          edges: [{ from: 'src-alpha', to: 'node-alpha' }],
+          issues: [],
+        });
+      }
+      if (path.endsWith('/connectors/url/doctor')) {
+        return jsonResponse({ connectorId: 'url', ready: true, summary: 'Connector ready.', checks: [], hints: [] });
+      }
+      if (path.endsWith('/connectors/url')) {
+        return jsonResponse({
+          connector: { id: 'url', displayName: 'URL connector', sourceType: 'url', capabilities: ['ingest'], examples: [] },
+        });
+      }
+      if (path.endsWith('/connectors')) {
+        return jsonResponse({
+          connectors: [{ id: 'url', displayName: 'URL connector', sourceType: 'url', description: 'Import web pages.' }],
+        });
+      }
+      return new Response('not found', { status: 404 });
+    }) satisfies typeof fetch;
+
+    try {
+      const sources = await tool.execute({ action: 'sources', limit: 2 });
+      const nodes = await tool.execute({ action: 'nodes', limit: 3 });
+      const issues = await tool.execute({ action: 'issues', limit: 4 });
+      const item = await tool.execute({ action: 'item', id: 'src-alpha' });
+      const map = await tool.execute({ action: 'map', query: 'agent', limit: 4 });
+      const connectors = await tool.execute({ action: 'connectors' });
+      const connector = await tool.execute({ action: 'connector', connectorId: 'url' });
+      const doctor = await tool.execute({ action: 'connector_doctor', id: 'url' });
+
+      for (const result of [sources, nodes, issues, item, map, connectors, connector, doctor]) {
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error(result.error);
+        expect(result.output).toContain('/api/goodvibes-agent/knowledge/');
+      }
+      expect(requests.map((request) => request.url)).toEqual([
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/sources?limit=2',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/nodes?limit=3',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/issues?limit=4',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/items/src-alpha',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/map?limit=4&query=agent',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors/url',
+        'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/connectors/url/doctor',
+      ]);
+      expect(requests.every((request) => request.method === 'GET')).toBe(true);
+      expect(requests.some((request) => request.url.includes('/api/knowledge'))).toBe(false);
+      expect(requests.some((request) => request.url.includes('homeGraph'))).toBe(false);
     } finally {
       globalThis.fetch = originalFetch;
     }

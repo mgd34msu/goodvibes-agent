@@ -26,10 +26,16 @@ GET  /api/goodvibes-agent/knowledge/sources
 GET  /api/goodvibes-agent/knowledge/nodes
 GET  /api/goodvibes-agent/knowledge/issues
 GET  /api/goodvibes-agent/knowledge/items/{id}
+GET  /api/goodvibes-agent/knowledge/map
 GET  /api/goodvibes-agent/knowledge/connectors
+GET  /api/goodvibes-agent/knowledge/connectors/{id}
+GET  /api/goodvibes-agent/knowledge/connectors/{id}/doctor
 POST /api/goodvibes-agent/knowledge/ingest/url
 POST /api/goodvibes-agent/knowledge/ingest/urls
+POST /api/goodvibes-agent/knowledge/ingest/artifact
 POST /api/goodvibes-agent/knowledge/ingest/bookmarks
+POST /api/goodvibes-agent/knowledge/ingest/browser-history
+POST /api/goodvibes-agent/knowledge/ingest/connector
 POST /api/goodvibes-agent/knowledge/reindex
 ```
 
@@ -37,7 +43,9 @@ If those routes are unavailable, Agent commands fail closed with a structured er
 
 The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces` because those would violate the Agent product boundary.
 
-Agent Knowledge writes are explicit-user-action paths. Slash commands that ingest, import, review issues, reindex, or run consolidation require `--yes`; ask/search/status/list paths remain read-only.
+Successful route responses are validated before rendering. If a connected host response exposes default-scope metadata or carries known non-Agent payload markers, Agent returns a `scope_contamination` error instead of treating that payload as isolated Agent Knowledge.
+
+Agent Knowledge writes are explicit-user-action paths. Slash commands that ingest, import, review issues, reindex, or run consolidation require `--yes`; ask/search/status/list/get/map/connector paths remain read-only.
 
 ## Ask And Search
 
@@ -48,9 +56,9 @@ Use Agent Workspace -> Knowledge -> Ask Agent Knowledge for source-backed Agent 
 - sources, titles, and URLs when returned;
 - facts, gaps, and refinement task ids only when the Agent Knowledge route returns them.
 
-`--json` preserves the raw structured Agent route response for tooling.
+`--json` preserves the raw structured Agent route response for tooling after the scope-contamination guard accepts the payload.
 
-The command layer does not turn search results into an answer locally and does not apply client-side filters to hide contamination. Isolation must come from the Agent Knowledge route itself.
+The command layer does not turn search results into an answer locally and does not apply client-side filters to hide contamination. It rejects contaminated payloads; the connected host must still return Agent-owned data for the route to succeed.
 
 Use Agent Workspace -> Knowledge -> Search Agent Knowledge for interactive search. `/knowledge search <query>` and `goodvibes-agent search <query>` query the isolated Agent Knowledge search route and render bounded results with title, id, type, score, source, URL, and snippets when available. Empty Agent stores return an explicit empty state.
 
@@ -60,7 +68,11 @@ Read-only inspection is available from the TUI Knowledge workspace first, with C
 - `/knowledge list --kind sources|nodes|issues`
 - `/knowledge get <id>`
 - `/knowledge connectors`
+- `/knowledge connector <connector-id>`
+- `/knowledge connector-doctor <connector-id>`
 - `/knowledge map`
+
+The main assistant conversation can use the read-only `agent_knowledge` tool for the same isolated status, ask, search, source/node/issue list, item lookup, map, connector list, connector detail, and connector doctor workflows.
 
 ## Ingest
 
@@ -82,7 +94,7 @@ Artifacts are first-class runtime objects for files, images, audio, video, gener
 
 Agent Workspace -> Voice & Media -> Generate media creates image/video artifacts through configured media providers after typed confirmation. The main conversation can perform the same confirmed action with the `agent_media_generate` tool when the user explicitly asks for generated media. Generated media output is summarized as artifact ids, MIME types, filenames, and source URLs when present; inline base64 is not printed into the transcript.
 
-The model can discover the user-facing Knowledge, artifact, research, and media actions with `agent_harness` workspace action modes. When a workspace action maps to a concrete slash command, `agent_harness` can run that command with confirmation. For common product workflows, use the first-class tools first: `agent_knowledge`, `agent_knowledge_ingest`, and `agent_media_generate`.
+The model can use first-class tools for the common Knowledge and media workflows: `agent_knowledge`, `agent_knowledge_ingest`, and `agent_media_generate`. `agent_harness` adds workspace-action lookup/execution, `media_posture`/`media_provider` readiness, `sessions`/`session` bookmark and artifact posture, and confirmed slash-command mirrors when a visible workspace route maps to a concrete command.
 
 Multimodal outputs should stay in the conversation, artifacts, local notes or memory, or explicit delegation results unless the user explicitly ingests a reviewed source through an Agent Knowledge route. They must not be inserted into default knowledge.
 

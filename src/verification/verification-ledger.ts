@@ -4,6 +4,23 @@ import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import { FEATURE_FLAG_MAP } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { CommandRegistry } from '../input/command-registry.ts';
 import { registerBuiltinCommands } from '../input/commands.ts';
+import {
+  countChannelReadinessSurface,
+  countDelegationPostureSurface,
+  countMcpServerSurface,
+  countMediaPostureSurface,
+  countModelRoutingSurface,
+  countNotificationTargetSurface,
+  countOperatorMethodSurface,
+  countPairingPostureSurface,
+  countProviderAccountSurface,
+  countQualityReadinessDimensions,
+  countReleaseEvidenceSurface,
+  countSecuritySupportSurface,
+  countServicePostureSurface,
+  countSessionSurface,
+  countSetupPostureSurface,
+} from './verification-ledger-surfaces.ts';
 
 export interface VerificationLedgerArea {
   readonly area: string;
@@ -75,6 +92,7 @@ const EXTERNAL_SURFACES = [
   'ntfy',
   'signal',
   'slack',
+  'telephony',
   'telegram',
   'webhook',
   'whatsapp',
@@ -120,6 +138,21 @@ export function buildVerificationLedger(root: string): VerificationLedger {
   const settings = CONFIG_SCHEMA.length;
   const externalSlashCommands = slashCommandNames.filter((command) => EXTERNAL_SLASH_COMMANDS.has(command)).length;
   const externalCliCommands = cliCommandNames.filter((command) => EXTERNAL_CLI_COMMANDS.has(command)).length;
+  const releaseEvidence = countReleaseEvidenceSurface(root);
+  const servicePosture = countServicePostureSurface(root);
+  const channelReadiness = countChannelReadinessSurface(root);
+  const notificationTargets = countNotificationTargetSurface(root);
+  const providerAccounts = countProviderAccountSurface(root);
+  const mcpServers = countMcpServerSurface(root);
+  const setupPosture = countSetupPostureSurface(root);
+  const modelRouting = countModelRoutingSurface(root);
+  const pairingPosture = countPairingPostureSurface(root);
+  const delegationPosture = countDelegationPostureSurface(root);
+  const securitySupport = countSecuritySupportSurface(root);
+  const mediaPosture = countMediaPostureSurface(root);
+  const sessionSurface = countSessionSurface(root);
+  const operatorMethods = countOperatorMethodSurface(root);
+  const qualityReadiness = countQualityReadinessDimensions(root);
 
   const areas: VerificationLedgerArea[] = [
     {
@@ -177,6 +210,126 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localBehaviorVerified: ONBOARDING_CAPABILITIES.length,
       externalOutcomeRequired: 0,
       notes: 'Wizard state derivation/apply is local; connected-host-backed outcomes stay external to Agent ownership.',
+    },
+    {
+      area: 'Model-visible release evidence bundle',
+      total: releaseEvidence.artifacts + releaseEvidence.modes,
+      localSignalVerified: releaseEvidence.availableArtifacts + releaseEvidence.availableModes,
+      localBehaviorVerified: releaseEvidence.availableArtifacts + releaseEvidence.availableModes,
+      externalOutcomeRequired: 0,
+      notes: `${releaseEvidence.artifacts} packaged release evidence artifacts and ${releaseEvidence.modes} agent_harness modes, release_evidence and release_evidence_artifact, must stay locally inspectable.`,
+    },
+    {
+      area: 'Model-visible service posture',
+      total: servicePosture.modes + servicePosture.endpointIds,
+      localSignalVerified: servicePosture.availableModes + servicePosture.availableEndpointIds,
+      localBehaviorVerified: servicePosture.availableModes + servicePosture.availableEndpointIds,
+      externalOutcomeRequired: 0,
+      notes: `${servicePosture.modes} agent_harness modes, service_posture and service_endpoint, and ${servicePosture.endpointIds} endpoint ids must stay locally inspectable without lifecycle control.`,
+    },
+    {
+      area: 'Model-visible channel readiness',
+      total: channelReadiness.modes + channelReadiness.channelIds,
+      localSignalVerified: channelReadiness.availableModes + channelReadiness.availableChannelIds,
+      localBehaviorVerified: channelReadiness.availableModes + channelReadiness.availableChannelIds,
+      externalOutcomeRequired: 0,
+      notes: `${channelReadiness.modes} agent_harness modes, channels and channel, and ${channelReadiness.channelIds} channel ids must stay locally inspectable without sending messages or exposing secret values.`,
+    },
+    {
+      area: 'Model-visible notification targets',
+      total: notificationTargets.modes + notificationTargets.sources,
+      localSignalVerified: notificationTargets.availableModes + notificationTargets.availableSources,
+      localBehaviorVerified: notificationTargets.availableModes + notificationTargets.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${notificationTargets.modes} agent_harness modes, notifications and notification_target, and ${notificationTargets.sources} notification source markers must stay locally inspectable with webhook values redacted.`,
+    },
+    {
+      area: 'Model-visible provider accounts',
+      total: providerAccounts.modes + providerAccounts.sources,
+      localSignalVerified: providerAccounts.availableModes + providerAccounts.availableSources,
+      localBehaviorVerified: providerAccounts.availableModes + providerAccounts.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${providerAccounts.modes} agent_harness modes, provider_accounts and provider_account, and ${providerAccounts.sources} provider-account source markers must stay locally inspectable without exposing tokens or authorization codes.`,
+    },
+    {
+      area: 'Model-visible MCP servers',
+      total: mcpServers.modes + mcpServers.sources,
+      localSignalVerified: mcpServers.availableModes + mcpServers.availableSources,
+      localBehaviorVerified: mcpServers.availableModes + mcpServers.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${mcpServers.modes} agent_harness modes, mcp_servers and mcp_server, and ${mcpServers.sources} MCP source markers must stay locally inspectable without exposing env or secret values.`,
+    },
+    {
+      area: 'Model-visible setup and onboarding posture',
+      total: setupPosture.modes + setupPosture.sources,
+      localSignalVerified: setupPosture.availableModes + setupPosture.availableSources,
+      localBehaviorVerified: setupPosture.availableModes + setupPosture.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${setupPosture.modes} agent_harness modes, setup_posture and setup_item, and ${setupPosture.sources} setup/onboarding source markers must stay locally inspectable without applying setup or exposing secret values.`,
+    },
+    {
+      area: 'Model-visible model routing posture',
+      total: modelRouting.modes + modelRouting.sources,
+      localSignalVerified: modelRouting.availableModes + modelRouting.availableSources,
+      localBehaviorVerified: modelRouting.availableModes + modelRouting.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${modelRouting.modes} agent_harness modes, model_routing and model_route, and ${modelRouting.sources} provider/model source markers must stay locally inspectable while route changes stay visible user flows.`,
+    },
+    {
+      area: 'Model-visible pairing posture',
+      total: pairingPosture.modes + pairingPosture.sources,
+      localSignalVerified: pairingPosture.availableModes + pairingPosture.availableSources,
+      localBehaviorVerified: pairingPosture.availableModes + pairingPosture.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${pairingPosture.modes} agent_harness modes, pairing_posture and pairing_route, and ${pairingPosture.sources} pairing source markers must stay locally inspectable without returning raw tokens or QR payloads.`,
+    },
+    {
+      area: 'Model-visible delegation posture',
+      total: delegationPosture.modes + delegationPosture.sources,
+      localSignalVerified: delegationPosture.availableModes + delegationPosture.availableSources,
+      localBehaviorVerified: delegationPosture.availableModes + delegationPosture.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${delegationPosture.modes} agent_harness modes, delegation_posture and delegation_route, and ${delegationPosture.sources} delegation source markers must stay locally inspectable while delegated work submission remains an explicit visible flow.`,
+    },
+    {
+      area: 'Model-visible security and support bundles',
+      total: securitySupport.modes + securitySupport.sources,
+      localSignalVerified: securitySupport.availableModes + securitySupport.availableSources,
+      localBehaviorVerified: securitySupport.availableModes + securitySupport.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${securitySupport.modes} agent_harness modes, security_posture, security_finding, support_bundles, and support_bundle, and ${securitySupport.sources} security/support source markers must stay locally inspectable without exposing token, secret, or raw config values.`,
+    },
+    {
+      area: 'Model-visible voice and media posture',
+      total: mediaPosture.modes + mediaPosture.sources,
+      localSignalVerified: mediaPosture.availableModes + mediaPosture.availableSources,
+      localBehaviorVerified: mediaPosture.availableModes + mediaPosture.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${mediaPosture.modes} agent_harness modes, media_posture and media_provider, and ${mediaPosture.sources} voice/media source markers must stay locally inspectable without exposing secret values or media payloads.`,
+    },
+    {
+      area: 'Model-visible sessions and bookmarks',
+      total: sessionSurface.modes + sessionSurface.sources,
+      localSignalVerified: sessionSurface.availableModes + sessionSurface.availableSources,
+      localBehaviorVerified: sessionSurface.availableModes + sessionSurface.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${sessionSurface.modes} agent_harness modes, sessions and session, and ${sessionSurface.sources} session/bookmark source markers must stay locally inspectable while save/resume/export/delete/bookmark writes stay visible user flows.`,
+    },
+    {
+      area: 'Model-visible operator method catalog',
+      total: operatorMethods.modes + operatorMethods.sources,
+      localSignalVerified: operatorMethods.availableModes + operatorMethods.availableSources,
+      localBehaviorVerified: operatorMethods.availableModes + operatorMethods.availableSources,
+      externalOutcomeRequired: 0,
+      notes: `${operatorMethods.modes} agent_harness modes, operator_methods and operator_method, and ${operatorMethods.sources} method sources must stay locally inspectable without arbitrary route invocation.`,
+    },
+    {
+      area: 'Release quality readiness dimensions',
+      total: qualityReadiness.dimensions,
+      localSignalVerified: qualityReadiness.completeDimensions,
+      localBehaviorVerified: qualityReadiness.completeDimensions,
+      externalOutcomeRequired: qualityReadiness.blockerItems,
+      notes: `${qualityReadiness.items} release-readiness items must carry capabilityCoverage, userAccess, modelAccess, safetyBoundary, and releaseEvidence with zero blocker statuses.`,
     },
   ];
 

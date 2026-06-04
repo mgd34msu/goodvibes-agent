@@ -262,11 +262,9 @@ export function createAgentKnowledgeIngestTool(
     definition: {
       name: 'agent_knowledge_ingest',
       description: [
-        'Ingest explicit sources into isolated GoodVibes Agent Knowledge from the main conversation.',
-        'Use only when the user explicitly asks Agent to add, remember, import, or ingest a URL, local file, URL-list file, bookmarks file, browser history, or connector input into its Agent Knowledge.',
-        'This writes only to /api/goodvibes-agent/knowledge/* ingest routes on the connected GoodVibes host.',
-        'It must never call default knowledge, non-Agent knowledge spaces, separate Agent jobs, local schedulers, or delegated review.',
-        'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
+        'Ingest one confirmed source into isolated Agent Knowledge.',
+        'Use only for explicit ingest/import requests.',
+        'Supports URL, file, bookmark, history, and connector sources.',
       ].join(' '),
       parameters: {
         type: 'object',
@@ -282,7 +280,7 @@ export function createAgentKnowledgeIngestTool(
           },
           path: {
             type: 'string',
-            description: 'Local file/import path for file, urls_file, bookmarks_file, or connector source kinds.',
+            description: 'Local file or import path.',
           },
           title: {
             type: 'string',
@@ -299,7 +297,7 @@ export function createAgentKnowledgeIngestTool(
           },
           connectorId: {
             type: 'string',
-            description: 'Connector id for connector ingest, or optional connector id override for file ingest.',
+            description: 'Connector id.',
           },
           input: {
             description: 'Connector input as JSON-compatible data or a JSON/text string.',
@@ -340,7 +338,7 @@ export function createAgentKnowledgeIngestTool(
           },
           explicitUserRequest: {
             type: 'string',
-            description: 'Short quote or summary of the user request that authorized this Agent Knowledge ingest.',
+            description: 'User request authorizing this ingest.',
           },
         },
         required: ['confirm', 'explicitUserRequest'],

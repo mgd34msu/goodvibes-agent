@@ -1,8 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { createBrowserAgentSdk } from '@pellux/goodvibes-sdk/browser/agent';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { SDK_VERSION, VERSION } from '../version.ts';
+import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import type { ConnectedHostCallMethod } from './agent-knowledge-methods.ts';
 
 export type JsonRecord = Record<string, unknown>;
@@ -22,7 +21,13 @@ export interface AgentKnowledgeConnectionRuntime {
 
 export interface AgentKnowledgeFailure {
   readonly ok: false;
-  readonly kind: 'connected_host_unavailable' | 'auth_required' | 'version_mismatch' | 'connected_host_route_unavailable' | 'connected_host_error';
+  readonly kind:
+    | 'connected_host_unavailable'
+    | 'auth_required'
+    | 'version_mismatch'
+    | 'connected_host_route_unavailable'
+    | 'connected_host_error'
+    | 'scope_contamination';
   readonly error: string;
   readonly baseUrl: string;
   readonly route: string;
@@ -56,15 +61,8 @@ export function resolveConnectedHostConnection(runtime: AgentKnowledgeConnection
   const host = String(runtime.configManager.get('controlPlane.host') ?? '127.0.0.1');
   const port = Number(runtime.configManager.get('controlPlane.port') ?? 3421);
   const baseUrl = `http://${host}:${Number.isFinite(port) ? port : 3421}`;
-  const tokenPath = join(runtime.homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
-  if (!existsSync(tokenPath)) return { baseUrl, token: null, tokenPath };
-  try {
-    const parsed = JSON.parse(readFileSync(tokenPath, 'utf-8')) as unknown;
-    const token = isRecord(parsed) && typeof parsed.token === 'string' ? parsed.token : null;
-    return { baseUrl, token, tokenPath };
-  } catch {
-    return { baseUrl, token: null, tokenPath };
-  }
+  const token = readConnectedHostOperatorToken(runtime.homeDirectory);
+  return { baseUrl, token: token.token, tokenPath: token.path };
 }
 
 export async function fetchConnectedHostStatus(connection: AgentKnowledgeConnection): Promise<{ readonly ok: boolean; readonly status: number; readonly body: unknown }> {
@@ -120,6 +118,87 @@ export function createAgentSdk(connection: AgentKnowledgeConnection) {
     baseUrl: connection.baseUrl,
     authToken: connection.token,
   });
+}
+
+const AGENT_KNOWLEDGE_SCOPE_KEYS = new Set(['spaceid', 'knowledgespaceid']);
+const AGENT_KNOWLEDGE_SCOPE_TEXT_PATTERNS: readonly { readonly label: string; readonly pattern: RegExp }[] = [
+  {
+    label: 'default knowledge scope id',
+    pattern: /["']?(?:knowledge[-_\s]*space[-_\s]*id|knowledgespaceid|space[-_\s]*id|spaceid)["']?\s*[:=]\s*["']?default["']?/i,
+  },
+  { label: 'host assistant payload marker', pattern: /home\s*assistant/i },
+  { label: 'host graph payload marker', pattern: /home\s*graph|homegraph/i },
+];
+
+function normalizedJsonKey(key: string): string {
+  return key.replace(/[-_\s]/g, '').toLowerCase();
+}
+
+function findAgentKnowledgeTextContamination(value: string): string | null {
+  for (const { label, pattern } of AGENT_KNOWLEDGE_SCOPE_TEXT_PATTERNS) {
+    if (pattern.test(value)) return label;
+  }
+  return null;
+}
+
+export function findAgentKnowledgeScopeContamination(value: unknown): string | null {
+  const seen = new WeakSet<object>();
+  const visit = (node: unknown): string | null => {
+    if (typeof node === 'string') return findAgentKnowledgeTextContamination(node);
+    if (!node || typeof node !== 'object') return null;
+    if (seen.has(node)) return null;
+    seen.add(node);
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const nested = visit(item);
+        if (nested) return nested;
+      }
+      return null;
+    }
+    for (const [key, nestedValue] of Object.entries(node as JsonRecord)) {
+      const keyFinding = findAgentKnowledgeTextContamination(key);
+      if (keyFinding && keyFinding !== 'default knowledge scope id') return keyFinding;
+      const normalizedKey = normalizedJsonKey(key);
+      if (
+        AGENT_KNOWLEDGE_SCOPE_KEYS.has(normalizedKey)
+        && typeof nestedValue === 'string'
+        && nestedValue.trim().toLowerCase() === 'default'
+      ) {
+        return `${key}=default`;
+      }
+      const nested = visit(nestedValue);
+      if (nested) return nested;
+    }
+    return null;
+  };
+  return visit(value);
+}
+
+export function agentKnowledgeScopeContaminationFailure(
+  connection: AgentKnowledgeConnection,
+  route: string,
+  finding: string,
+): AgentKnowledgeFailure {
+  return {
+    ok: false,
+    kind: 'scope_contamination',
+    error: [
+      `Agent Knowledge route returned non-Agent knowledge contamination (${finding}).`,
+      'GoodVibes Agent must use only isolated /api/goodvibes-agent/knowledge/* scope data.',
+    ].join(' '),
+    baseUrl: connection.baseUrl,
+    route,
+  };
+}
+
+export function validateAgentKnowledgeData<TData>(
+  data: TData,
+  connection: AgentKnowledgeConnection,
+  method: ConnectedHostCallMethod,
+): AgentKnowledgeResult<TData> {
+  const contamination = findAgentKnowledgeScopeContamination(data);
+  if (contamination) return agentKnowledgeScopeContaminationFailure(connection, method.route, contamination);
+  return { ok: true, kind: method.kind, route: method.route, data };
 }
 
 export async function postAgentKnowledgeJson<TData>(
@@ -239,7 +318,7 @@ export async function runKnowledgeCall<TData>(
   }
   try {
     const data = await call(connection);
-    return { ok: true, kind: method.kind, route: method.route, data };
+    return validateAgentKnowledgeData(data, connection, method);
   } catch (error) {
     return classifyKnowledgeError(error, connection, method.route);
   }

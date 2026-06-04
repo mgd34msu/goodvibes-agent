@@ -11,7 +11,7 @@ import { packageDocPaths, verifyPackageFacingText, verifyReleaseMetadata } from 
  * Usage:
  *   bun run scripts/release.ts              # patch bump (0.9.10 -> 0.9.11)
  *   bun run scripts/release.ts --minor      # minor bump (0.9.10 -> 0.10.0)
- *   bun run scripts/release.ts --major      # major bump (0.9.10 -> 1.0.0)
+ *   bun run scripts/release.ts --major      # major bump (1.2.3 -> 2.0.0)
  *   bun run scripts/release.ts --notes-file ./release-notes.md
  *   bun run scripts/release.ts --dry-run    # preview without writing
  *
@@ -76,11 +76,11 @@ export function releaseMetadataPaths(root = process.cwd()): readonly string[] {
 
 export function releaseEvidenceInputPaths(): readonly string[] {
   return [
-    'release/1.0-release-notes.md',
-    'release/1.0-performance-snapshot.json',
-    'release/1.0-readiness.json',
-    'release/1.0-live-verification/live-verification.json',
-    'release/1.0-live-verification/live-verification.md',
+    'release/release-notes.md',
+    'release/performance-snapshot.json',
+    'release/release-readiness.json',
+    'release/live-verification/live-verification.json',
+    'release/live-verification/live-verification.md',
   ];
 }
 

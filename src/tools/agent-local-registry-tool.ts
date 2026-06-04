@@ -736,9 +736,8 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
     definition: {
       name: 'agent_local_registry',
       description: [
-        'Inspect and maintain GoodVibes Agent-local notes, memory, personas, skills, and routines from the main conversation.',
-        'Use this for safe self-improvement: capture scratchpad notes, remember durable non-secret facts, create or refine reusable behavior, bundle related skills, enable skills/routines, choose personas, review/stale records, and start routines in the same serial conversation.',
-        'Destructive record deletion requires confirm:true plus explicitUserRequest. This tool cannot create schedules, mutate connected hosts, send messages, run background jobs, or delegate build work.',
+        'Inspect or update Agent-local records: memory, notes, personas, skills, bundles, and routines.',
+        'Deletion requires confirm:true plus explicitUserRequest.',
       ].join(' '),
       parameters: {
         type: 'object',
@@ -761,13 +760,13 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
           steps: { type: 'string', description: 'Routine steps.' },
           skills: { type: 'array', items: { type: 'string' }, description: 'Skill ids for skill_bundle create/update.' },
           skillIds: { type: 'array', items: { type: 'string' }, description: 'Skill ids for skill_bundle create/update.' },
-          requiresEnv: { type: 'array', items: { type: 'string' }, description: 'Environment variable names required by a skill or routine. Values are never stored.' },
+          requiresEnv: { type: 'array', items: { type: 'string' }, description: 'Required environment variable names.' },
           requiresCommands: { type: 'array', items: { type: 'string' }, description: 'Command names required by a skill or routine.' },
           triggers: { type: 'array', items: { type: 'string' } },
           tags: { type: 'array', items: { type: 'string' } },
           reason: { type: 'string' },
           enabled: { type: 'boolean' },
-          activate: { type: 'boolean', description: 'Activate a created/updated persona, or clear it when updating the active persona with false.' },
+          activate: { type: 'boolean', description: 'Activate or clear the persona.' },
           provenance: { type: 'string' },
           confirm: { type: 'boolean', description: 'Required true for delete after an explicit user request.' },
           explicitUserRequest: { type: 'string', description: 'Exact user request or faithful short summary authorizing delete.' },

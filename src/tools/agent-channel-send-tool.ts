@@ -42,11 +42,9 @@ export function createAgentChannelSendTool(
     definition: {
       name: 'agent_channel_send',
       description: [
-        'Send one explicitly confirmed message through a configured GoodVibes Agent delivery target from the main conversation.',
-        'Use only when the user explicitly asks Agent to send, message, alert, or notify a channel target.',
-        'Exactly one target must be supplied: channel, route, webhook, or link.',
-        'This tool does not create channel routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create separate Agent jobs, run delegated review, or invoke arbitrary routes.',
-        'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
+        'Send one confirmed message through a configured Agent target.',
+        'Use only for explicit send/message/alert requests.',
+        'Provide exactly one target.',
       ].join(' '),
       parameters: {
         type: 'object',
@@ -61,7 +59,7 @@ export function createAgentChannelSendTool(
           },
           channel: {
             type: 'string',
-            description: 'Optional channel target surface[:route[:label]], such as slack:ops:Ops or telephony:+15551234567. Use exactly one target field.',
+            description: 'Optional channel target. Use exactly one target field.',
           },
           route: {
             type: 'string',
@@ -77,7 +75,7 @@ export function createAgentChannelSendTool(
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true only when the user explicitly asked for this exact channel delivery.',
+            description: 'Required true for confirmed delivery.',
           },
           explicitUserRequest: {
             type: 'string',

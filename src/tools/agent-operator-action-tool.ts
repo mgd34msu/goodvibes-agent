@@ -36,11 +36,9 @@ export function createAgentOperatorActionTool(
     definition: {
       name: 'agent_operator_action',
       description: [
-        'Perform one explicit, confirmed connected-host operator action from the main conversation.',
-        'Allowed actions are approvals.approve, approvals.deny, approvals.cancel, automation.jobs.run, automation.jobs.pause, automation.jobs.resume, automation.runs.cancel, automation.runs.retry, and schedules.run.',
-        'Use only when the user explicitly asks for that exact approval, automation job, automation run, or schedule action.',
-        'This tool never creates, edits, deletes, or discovers automation definitions; never manages connected-host hosting; never uses default knowledge, non-Agent knowledge segments, separate Agent jobs, delegated review, or arbitrary route invocation.',
-        'Set confirm:true only for an explicit user request. Otherwise return the preview/confirmation error.',
+        'Run one confirmed allowlisted operator action.',
+        'Use only for explicit approval, automation, or schedule requests.',
+        'No automation definition edits or host lifecycle.',
       ].join(' '),
       parameters: {
         type: 'object',
@@ -52,7 +50,7 @@ export function createAgentOperatorActionTool(
           },
           targetId: {
             type: 'string',
-            description: 'Generic target id. Prefer the specific approvalId, jobId, runId, or scheduleId field when known.',
+            description: 'Generic target id.',
           },
           approvalId: {
             type: 'string',
@@ -60,7 +58,7 @@ export function createAgentOperatorActionTool(
           },
           jobId: {
             type: 'string',
-            description: 'Automation job id for automation.jobs.run, automation.jobs.pause, or automation.jobs.resume.',
+            description: 'Automation job id.',
           },
           runId: {
             type: 'string',
@@ -80,7 +78,7 @@ export function createAgentOperatorActionTool(
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true only when the user explicitly asked for this exact operator action.',
+            description: 'Required true for confirmed operator action.',
           },
           explicitUserRequest: {
             type: 'string',

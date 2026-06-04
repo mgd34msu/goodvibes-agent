@@ -6,6 +6,7 @@ import type { LiveVerificationReport } from '../../verification/live-verifier.ts
 import {
   buildAgentKnowledgeLiveSkipCheck,
   buildLiveVerificationReport,
+  findAgentKnowledgeResponseContamination,
   renderLiveVerificationReportMarkdown,
   sanitizeLiveVerificationReport,
 } from '../../verification/live-verifier.ts';
@@ -31,6 +32,23 @@ function writeFakeAgentBinary(root: string, options: FakeAgentBinaryOptions): st
   const script = [
     '#!/usr/bin/env bash',
     'set -eu',
+    'normalized=()',
+    'while (($# > 0)); do',
+    '  case "$1" in',
+    '    --runtime-url|--runtime)',
+    '      shift',
+    '      if (($# > 0)); then shift; fi',
+    '      ;;',
+    '    --runtime-url=*|--runtime=*)',
+    '      shift',
+    '      ;;',
+    '    *)',
+    '      normalized+=("$1")',
+    '      shift',
+    '      ;;',
+    '  esac',
+    'done',
+    'set -- "${normalized[@]}"',
     'case "$*" in',
     '  "--version") printf "%s\\n" "0.0.0"; exit 0 ;;',
     `  "status --json") printf "%s\\n" ${shellQuote(options.statusOutput ?? '{"ok":true}')}; exit 0 ;;`,
@@ -89,13 +107,41 @@ describe('live verification report', () => {
   it('does not invoke retired host lifecycle commands during live Agent verification', () => {
     const source = readFileSync(join(projectRoot, 'src/verification/live-verifier.ts'), 'utf8');
 
-    expect(source).toContain("await runCommand(binaryPath, ['status', '--json'], projectRoot)");
-    expect(source).toContain("await runCommand(binaryPath, ['knowledge', 'status', '--json'], projectRoot)");
-    expect(source).toContain("await runCommand(binaryPath, ['doctor', '--output', 'text'], projectRoot)");
+    expect(source).toContain("buildCommandEnv(homeDir, connectedHostBaseUrl, token)");
+    expect(source).toContain("await runCommand(binaryPath, ['--runtime-url', connectedHostBaseUrl, 'status', '--json'], projectRoot, { env: commandEnv })");
+    expect(source).toContain("await runCommand(binaryPath, ['--runtime-url', connectedHostBaseUrl, 'knowledge', 'status', '--json'], projectRoot, { env: commandEnv })");
+    expect(source).toContain("await runCommand(binaryPath, ['--runtime-url', connectedHostBaseUrl, 'doctor', '--output', 'text'], projectRoot, { env: commandEnv })");
     expect(source).not.toContain("await runCommand(binaryPath, ['control-plane', 'status'], projectRoot)");
     expect(source).not.toContain("await runCommand(binaryPath, ['listener', 'test'], projectRoot)");
     expect(source).not.toContain("await runCommand(binaryPath, ['surfaces', 'check'], projectRoot)");
     expect(source).not.toContain("await runCommand(binaryPath, ['service', 'check'], projectRoot)");
+  });
+
+  it('validates every model-visible Agent Knowledge read route during live verification', () => {
+    const source = readFileSync(join(projectRoot, 'src/verification/live-verifier.ts'), 'utf8');
+    const readRoutes = [
+      '/api/goodvibes-agent/knowledge/sources',
+      '/api/goodvibes-agent/knowledge/nodes',
+      '/api/goodvibes-agent/knowledge/issues',
+      '/api/goodvibes-agent/knowledge/map',
+      '/api/goodvibes-agent/knowledge/connectors',
+    ];
+
+    for (const route of readRoutes) {
+      expect(source).toContain(`route: '${route}'`);
+    }
+    expect(source).toContain('validateAgentKnowledgeJsonRoute');
+    expect(source).toContain('...AGENT_KNOWLEDGE_READ_ROUTE_CHECKS.map');
+    expect(source).toContain('for (const check of AGENT_KNOWLEDGE_READ_ROUTE_CHECKS)');
+    expect(source).not.toContain('/api/knowledge/sources');
+    expect(source).not.toContain('/api/knowledge/connectors');
+  });
+
+  it('detects default-scope and non-Agent Agent Knowledge live responses', () => {
+    expect(findAgentKnowledgeResponseContamination('{"ok":true,"spaceId":"default"}')).toBe('default knowledge scope id');
+    expect(findAgentKnowledgeResponseContamination('{"metadata":{"knowledgeSpaceId":"default"}}')).toBe('default knowledge scope id');
+    expect(findAgentKnowledgeResponseContamination('{"node":{"kind":"homeGraphDevice"}}')).toBe('homegraph');
+    expect(findAgentKnowledgeResponseContamination('{"ok":true,"spaceId":"goodvibes-agent:default"}')).toBeNull();
   });
 
   it('sanitizes local paths, tokens, and private addresses before rendering release artifacts', () => {

@@ -209,9 +209,9 @@ function renderKnowledgeAskResult(result: KnowledgeAskResult): string {
 export const knowledgeCommand: SlashCommand = {
   name: 'knowledge',
   aliases: ['know', 'kb'],
-  description: 'Agent Knowledge: isolated Agent-owned sources, graph, review queue, and compact prompt packets.',
+  description: 'Agent Knowledge: isolated Agent-owned status, ask/search, source/node/issue lists, item lookup, map, connectors, ingest, and review queue.',
   usage: '<subcommand> [args]',
-  argsHint: 'status|ask|ingest-url --yes|ingest-file --yes|import-bookmarks --yes|list|search|get|queue|review-issue --yes',
+  argsHint: 'status|ask|search|list|get|map|connectors|connector|connector-doctor|ingest-url --yes|ingest-file --yes|import-urls --yes|import-bookmarks --yes|import-browser-history --yes|ingest-connector --yes|review-issue --yes|reindex --yes',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
     if (args.length === 0 && context.openAgentWorkspace) {
       context.openAgentWorkspace('knowledge');
