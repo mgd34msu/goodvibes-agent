@@ -2737,6 +2737,38 @@ function verifyHarnessVisibleSurfaceModelAccessPolicy(root: string): readonly st
   return issues;
 }
 
+function verifyHarnessKeyboardModelAccessPolicy(root: string): readonly string[] {
+  const issues: string[] = [];
+  const keybindingPath = join(root, 'src', 'tools', 'agent-harness-keybinding-metadata.ts');
+  if (!existsSync(keybindingPath)) {
+    return ['harness keybinding metadata source is missing: src/tools/agent-harness-keybinding-metadata.ts.'];
+  }
+
+  const source = readFileSync(keybindingPath, 'utf-8');
+  const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+    { marker: 'function keybindingModelRoute', label: 'keybinding model route builder' },
+    { marker: 'function keybindingModelAccess', label: 'keybinding model access summary' },
+    { marker: 'function fixedShortcutModelRoute', label: 'fixed shortcut model route builder' },
+    { marker: 'function describeFixedShortcut', label: 'fixed shortcut descriptor' },
+    { marker: 'modelRoute: keybindingModelRoute(action)', label: 'detailed keybinding model route' },
+    { marker: 'modelRoute: keybindingModelRoute(entry.action)', label: 'keybinding candidate model route' },
+    { marker: 'modelRoute: fixedShortcutModelRoute(shortcut)', label: 'fixed shortcut model route' },
+    { marker: 'inspectRoute: `agent_harness mode:"keybinding" actionId:"${action}"`', label: 'single keybinding inspect route' },
+    { marker: 'agent_harness mode:"run_keybinding"', label: 'run keybinding route' },
+    { marker: 'agent_harness mode:"set_keybinding"', label: 'set keybinding route' },
+    { marker: 'agent_harness mode:"reset_keybinding"', label: 'reset keybinding route' },
+    { marker: "return 'direct-user-interaction'", label: 'direct-user-interaction refusal route' },
+    { marker: "status: 'unsupported_keybinding_action'", label: 'unsupported keybinding refusal' },
+  ];
+  for (const { marker, label } of requiredMarkers) {
+    if (!source.includes(marker)) {
+      issues.push(`harness keybinding metadata must keep ${label}.`);
+    }
+  }
+
+  return issues;
+}
+
 function verifyHarnessOperatorAuditModelAccessPolicy(root: string): readonly string[] {
   const issues: string[] = [];
   const releaseEvidencePath = join(root, 'src', 'tools', 'agent-harness-release-evidence.ts');
@@ -3187,6 +3219,7 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   issues.push(...verifyCommandModelAccessPolicy());
   issues.push(...verifyHarnessSettingsModelAccessPolicy(root));
   issues.push(...verifyHarnessVisibleSurfaceModelAccessPolicy(root));
+  issues.push(...verifyHarnessKeyboardModelAccessPolicy(root));
   issues.push(...verifyHarnessOperatorAuditModelAccessPolicy(root));
   issues.push(...verifyHarnessConnectedHostModelAccessPolicy(root));
   if (readStringValue(pkg.description).trim().length === 0) {

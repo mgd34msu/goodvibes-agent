@@ -222,6 +222,8 @@ function bindingCandidate(manager: KeybindingsManager | null, entry: KeybindingE
     action: entry.action,
     description: entry.description,
     labels: entry.combos.map((combo) => formatCombo(manager, combo)),
+    modelRoute: keybindingModelRoute(entry.action),
+    inspectRoute: `agent_harness mode:"keybinding" actionId:"${entry.action}"`,
   };
 }
 
@@ -246,9 +248,30 @@ function resolveHarnessKeybinding(context: CommandContext, args: HarnessKeybindi
   return null;
 }
 
+function keybindingModelRoute(action: KeyAction): string {
+  const route = keybindingOperationRoute(action);
+  if (route.preferredMode === 'run_keybinding') return `agent_harness mode:"run_keybinding" actionId:"${action}"`;
+  if (route.preferredMode === 'open_ui_surface' && route.surfaceId) return `agent_harness mode:"open_ui_surface" surfaceId:"${route.surfaceId}"`;
+  if (route.preferredMode === 'open_ui_surface') return 'agent_harness mode:"open_ui_surface"';
+  if (route.preferredMode === 'run_command' && route.command) return `agent_harness mode:"run_command" command:"${route.command}"`;
+  if (route.preferredMode === 'run_command') return 'agent_harness mode:"run_command"';
+  return 'direct-user-interaction';
+}
+
+function keybindingModelAccess(action: KeyAction, operation: KeybindingOperationRoute): Record<string, unknown> {
+  return {
+    inspect: `agent_harness mode:"keybinding" actionId:"${action}"`,
+    run: operation.supported ? `agent_harness mode:"run_keybinding" actionId:"${action}" confirm:true explicitUserRequest:"..."` : 'not exposed',
+    set: `agent_harness mode:"set_keybinding" actionId:"${action}" combo:{...} confirm:true explicitUserRequest:"..."`,
+    reset: `agent_harness mode:"reset_keybinding" actionId:"${action}" confirm:true explicitUserRequest:"..."`,
+    preferred: keybindingModelRoute(action),
+  };
+}
+
 function describeBinding(manager: KeybindingsManager | null, action: KeyAction, combos: KeyCombo[], lookup?: KeybindingLookup): Record<string, unknown> {
   const defaults = DEFAULT_KEYBINDINGS[action];
   const customized = !combosEqual(combos, defaults);
+  const modelOperation = keybindingOperationRoute(action);
   return {
     action,
     description: ACTION_DESCRIPTIONS[action],
@@ -258,7 +281,10 @@ function describeBinding(manager: KeybindingsManager | null, action: KeyAction, 
     defaultBindings: defaults.map((combo) => describeCombo(manager, combo)),
     customized,
     source: manager ? (customized ? 'custom' : 'default') : 'default-fallback',
-    modelOperation: keybindingOperationRoute(action),
+    modelRoute: keybindingModelRoute(action),
+    inspectRoute: `agent_harness mode:"keybinding" actionId:"${action}"`,
+    modelAccess: keybindingModelAccess(action, modelOperation),
+    modelOperation,
   };
 }
 
@@ -270,7 +296,7 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         effect: 'shell-action',
         preferredMode: 'run_keybinding',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Routes the cancel-generation side of this shortcut through commandContext.cancelGeneration. Prompt clearing and double-press exit remain direct user interaction.',
+        note: 'Runs the available cancel-generation route. Prompt clearing and double-press exit remain direct user interaction.',
       };
     case 'screen-clear':
       return {
@@ -278,7 +304,7 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         effect: 'shell-action',
         preferredMode: 'run_keybinding',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Routes through commandContext.clearScreen.',
+        note: 'Runs the available clear-screen route.',
       };
     case 'panel-picker':
       return {
@@ -295,7 +321,7 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         effect: 'visible-ui-navigation',
         preferredMode: 'run_keybinding',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Dismisses the active Agent workspace first. If no Agent workspace is active, closes the active legacy panel if present, then focuses the prompt when the shell bridge exposes focusPrompt.',
+        note: 'Dismisses Agent workspace first. If it is not active, closes the active panel and focuses the prompt when focus is available.',
       };
     case 'panel-close-all':
       return {
@@ -303,7 +329,7 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         effect: 'visible-ui-navigation',
         preferredMode: 'run_keybinding',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Dismisses the active Agent workspace first. If no Agent workspace is active, closes all legacy panels if present, hides the panel manager, then focuses the prompt when the shell bridge exposes focusPrompt.',
+        note: 'Dismisses Agent workspace first. If it is not active, closes open panels and focuses the prompt when focus is available.',
       };
     case 'history-search':
       return {
@@ -330,7 +356,7 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         preferredMode: 'run_keybinding',
         command: '/paste',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Routes through commandContext.pasteFromClipboard and reports whether text, image, or nothing was pasted.',
+        note: 'Runs the paste route and reports whether text, image, or nothing was pasted.',
       };
     case 'block-copy':
     case 'bookmark':
@@ -408,13 +434,38 @@ export function totalHarnessShortcuts(context: CommandContext): number {
   return totalHarnessKeybindings(context) + FIXED_SHORTCUTS.length;
 }
 
+function fixedShortcutModelRoute(shortcut: Record<string, string>): string {
+  if (shortcut.key.includes('/shortcuts')) return 'agent_harness mode:"shortcuts"';
+  if (shortcut.key.includes('/keybindings')) return 'agent_harness mode:"keybindings"';
+  if (shortcut.key.includes('?') || shortcut.key.includes('F1')) return 'agent_harness mode:"open_ui_surface" surfaceId:"help-overlay"';
+  if (shortcut.key.includes('F2')) return 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"';
+  if (shortcut.key.includes('Esc')) return 'direct-user-interaction';
+  if (shortcut.key.includes('Tab')) return 'agent_harness mode:"commands"';
+  if (shortcut.key.includes('Enter')) return 'main conversation';
+  return 'direct-user-interaction';
+}
+
+function describeFixedShortcut(shortcut: Record<string, string>): Record<string, unknown> {
+  return {
+    ...shortcut,
+    source: 'fixed',
+    userEditable: false,
+    modelRoute: fixedShortcutModelRoute(shortcut),
+    modelAccess: {
+      inspectShortcuts: 'agent_harness mode:"shortcuts"',
+      inspectKeybindings: 'agent_harness mode:"keybindings"',
+      preferred: fixedShortcutModelRoute(shortcut),
+    },
+  };
+}
+
 export function listHarnessShortcuts(context: CommandContext, args: HarnessKeybindingArgs): Record<string, unknown> {
   const keybindings = listHarnessKeybindings(context, args);
   const query = readString(args.query).toLowerCase();
   const fixed = FIXED_SHORTCUTS
     .filter((shortcut) => !query || `${shortcut.key}\n${shortcut.description}`.toLowerCase().includes(query))
     .slice(0, readLimit(args.limit, 200))
-    .map((shortcut) => ({ ...shortcut, source: 'fixed', userEditable: false }));
+    .map(describeFixedShortcut);
   const degraded = keybindings.status === 'degraded';
   return {
     status: degraded ? 'degraded' : 'available',
@@ -496,11 +547,11 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
 
   switch (resolved.action) {
     case 'clear-cancel':
-      if (!context.cancelGeneration) return runUnavailable(resolved.action, route, 'commandContext.cancelGeneration is unavailable.');
+      if (!context.cancelGeneration) return runUnavailable(resolved.action, route, 'Cancel-generation route is unavailable.');
       context.cancelGeneration();
       return { status: 'executed', action: resolved.action, effect: 'cancel-generation', keybinding: descriptor };
     case 'screen-clear':
-      if (!context.clearScreen) return runUnavailable(resolved.action, route, 'commandContext.clearScreen is unavailable.');
+      if (!context.clearScreen) return runUnavailable(resolved.action, route, 'Clear-screen route is unavailable.');
       context.clearScreen();
       return { status: 'executed', action: resolved.action, effect: 'screen-clear', keybinding: descriptor };
     case 'panel-picker':
@@ -512,7 +563,7 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
         context.openAgentWorkspace('home');
         return { status: 'executed', action: resolved.action, effect: 'agent-workspace-opened', route: 'openAgentWorkspace', categoryId: 'home', keybinding: descriptor };
       }
-      return runUnavailable(resolved.action, route, 'No panel picker or Agent workspace opener is available.');
+      return runUnavailable(resolved.action, route, 'No panel picker or Agent workspace route is available.');
     case 'panel-close': {
       const dismissedAgentWorkspace = context.dismissAgentWorkspace?.() ?? false;
       if (dismissedAgentWorkspace) {
@@ -526,7 +577,7 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
       }
       const active = context.workspace.panelManager?.getActivePanel() ?? null;
       if (active) context.workspace.panelManager?.close(active.id);
-      if (!active && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace, active legacy panel, or prompt focus route is available.');
+      if (!active && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace, active panel, or prompt focus route is available.');
       if (context.focusPrompt) context.focusPrompt();
       context.renderRequest();
       return {
@@ -552,7 +603,7 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
       const openPanels = managerPanel?.getAllOpen() ?? [];
       for (const panel of openPanels) managerPanel?.close(panel.id);
       managerPanel?.hide();
-      if (openPanels.length === 0 && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace, open legacy panels, or prompt focus route is available.');
+      if (openPanels.length === 0 && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace, open panels, or prompt focus route is available.');
       if (context.focusPrompt) context.focusPrompt();
       context.renderRequest();
       return {
@@ -564,26 +615,26 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
       };
     }
     case 'history-search': {
-      if (!context.openPromptHistorySearch) return runUnavailable(resolved.action, route, 'commandContext.openPromptHistorySearch is unavailable.');
+      if (!context.openPromptHistorySearch) return runUnavailable(resolved.action, route, 'Prompt history search route is unavailable.');
       const query = readString(args.value);
       context.openPromptHistorySearch(query || undefined);
       return { status: 'executed', action: resolved.action, effect: 'prompt-history-search-opened', query, keybinding: descriptor };
     }
     case 'search': {
-      if (!context.openConversationSearch) return runUnavailable(resolved.action, route, 'commandContext.openConversationSearch is unavailable.');
+      if (!context.openConversationSearch) return runUnavailable(resolved.action, route, 'Conversation search route is unavailable.');
       const query = readString(args.value);
       context.openConversationSearch(query || undefined);
       return { status: 'executed', action: resolved.action, effect: 'conversation-search-opened', query, keybinding: descriptor };
     }
     case 'paste': {
-      if (!context.pasteFromClipboard) return runUnavailable(resolved.action, route, 'commandContext.pasteFromClipboard is unavailable.');
+      if (!context.pasteFromClipboard) return runUnavailable(resolved.action, route, 'Paste route is unavailable.');
       const pasted = context.pasteFromClipboard();
       return { status: 'executed', action: resolved.action, effect: 'paste-from-clipboard', pasted, keybinding: descriptor };
     }
     case 'block-copy':
     case 'bookmark':
     case 'block-save': {
-      if (!context.openBlockActions) return runUnavailable(resolved.action, route, 'commandContext.openBlockActions is unavailable.');
+      if (!context.openBlockActions) return runUnavailable(resolved.action, route, 'Block action surface route is unavailable.');
       const opened = context.openBlockActions();
       return opened
         ? {
