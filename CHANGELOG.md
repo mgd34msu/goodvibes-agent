@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.33 - 2026-06-04
+
+- Fixed the release lockfile so frozen CI installs resolve @pellux/goodvibes-sdk@0.33.36 and its published peer packages.
+- Carries forward the 1.0.32 model-facing harness coverage, compact tool catalog, keybinding discovery fallback, and connected-host release evidence.
+
 ## 1.0.32 - 2026-06-04
 
 - Pin the Agent release line to `@pellux/goodvibes-sdk@0.33.36` so the packaged connected-host runtime includes Agent Knowledge alias scope normalization and telephony channel surface support.
