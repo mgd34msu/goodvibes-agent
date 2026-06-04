@@ -34,6 +34,11 @@ function readLimit(value: unknown, fallback: number): number {
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
 }
 
+function previewText(value: string, maxLength = 56): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
 function redactCliLookupInput(input: string): string {
   return input
     .replace(/(--config=)([^=\s]+)=\S+/g, '$1$2=<redacted>')
@@ -58,6 +63,8 @@ function fallbackCliSummary(command: GoodVibesCliCommand): string {
 function describeCliCommand(command: GoodVibesCliCommand, lookup?: CliCommandLookup): Record<string, unknown> {
   const help = describeGoodVibesCommandHelp(command);
   const tokens = cliCommandTokens(command);
+  const policy = describeCliCommandPolicy(command);
+  const modelRoute = previewText(policy.preferredModelTool ?? 'agent_harness mode:"cli_command"');
   return {
     name: command,
     tokens,
@@ -69,7 +76,13 @@ function describeCliCommand(command: GoodVibesCliCommand, lookup?: CliCommandLoo
     aliases: help?.aliases ?? tokens.filter((token) => token !== command),
     subcommands: help?.subcommands ?? [],
     examples: help?.examples ?? [],
-    policy: describeCliCommandPolicy(command),
+    modelRoute,
+    modelAccess: {
+      inspect: `agent_harness mode:"cli_command" cliCommand:"${command}"`,
+      executeEquivalent: policy.preferredModelTool ?? 'Use the current conversation or an explicit user-requested shell command.',
+      preferred: modelRoute,
+    },
+    policy,
   };
 }
 
@@ -88,11 +101,16 @@ function cliCommandMatches(command: Record<string, unknown>, query: string): boo
 }
 
 function cliCommandCandidate(command: Record<string, unknown>): Record<string, unknown> {
+  const policy = typeof command.policy === 'object' && command.policy !== null
+    ? command.policy as { readonly effect?: unknown; readonly preferredModelTool?: unknown }
+    : {};
   return {
     name: command.name,
     tokens: command.tokens,
     invocation: command.invocation,
     summary: command.summary,
+    effect: typeof policy.effect === 'string' ? policy.effect : 'unknown',
+    ...(typeof policy.preferredModelTool === 'string' ? { modelRoute: previewText(policy.preferredModelTool) } : {}),
   };
 }
 

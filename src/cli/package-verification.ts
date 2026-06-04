@@ -2769,6 +2769,69 @@ function verifyHarnessKeyboardModelAccessPolicy(root: string): readonly string[]
   return issues;
 }
 
+function verifyHarnessCommandAndToolCatalogModelAccessPolicy(root: string): readonly string[] {
+  const issues: string[] = [];
+  const commandCatalogPath = join(root, 'src', 'tools', 'agent-harness-command-catalog.ts');
+  const cliCatalogPath = join(root, 'src', 'tools', 'agent-harness-cli-metadata.ts');
+  const modelToolCatalogPath = join(root, 'src', 'tools', 'agent-harness-model-tool-catalog.ts');
+
+  if (!existsSync(commandCatalogPath)) {
+    issues.push('harness slash-command catalog source is missing: src/tools/agent-harness-command-catalog.ts.');
+  } else {
+    const source = readFileSync(commandCatalogPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'const modelRoute = previewText(policy.preferredModelTool', label: 'slash-command detailed model route' },
+      { marker: 'modelRoute,', label: 'slash-command model route output' },
+      { marker: 'modelAccess:', label: 'slash-command model access output' },
+      { marker: 'agent_harness mode:"command"', label: 'slash-command inspect route' },
+      { marker: 'agent_harness mode:"run_command"', label: 'slash-command execution route' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness slash-command catalog must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(cliCatalogPath)) {
+    issues.push('harness CLI catalog source is missing: src/tools/agent-harness-cli-metadata.ts.');
+  } else {
+    const source = readFileSync(cliCatalogPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'const modelRoute = previewText(policy.preferredModelTool', label: 'CLI detailed model route' },
+      { marker: 'modelRoute,', label: 'CLI model route output' },
+      { marker: 'modelAccess:', label: 'CLI model access output' },
+      { marker: 'agent_harness mode:"cli_command"', label: 'CLI inspect route' },
+      { marker: 'executeEquivalent', label: 'CLI equivalent model operation route' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness CLI catalog must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(modelToolCatalogPath)) {
+    issues.push('harness model-tool catalog source is missing: src/tools/agent-harness-model-tool-catalog.ts.');
+  } else {
+    const source = readFileSync(modelToolCatalogPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'modelRoute: tool.name', label: 'model-tool direct route output' },
+      { marker: 'modelAccess:', label: 'model-tool access output' },
+      { marker: 'invoke: tool.name', label: 'model-tool invocation hint' },
+      { marker: 'agent_harness mode:"tool"', label: 'model-tool inspect route' },
+      { marker: 'inspectRoute: `agent_harness mode:"tool" toolName:"${tool.name}"`', label: 'model-tool candidate inspect route' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness model-tool catalog must keep ${label}.`);
+      }
+    }
+  }
+
+  return issues;
+}
+
 function verifyHarnessOperatorAuditModelAccessPolicy(root: string): readonly string[] {
   const issues: string[] = [];
   const releaseEvidencePath = join(root, 'src', 'tools', 'agent-harness-release-evidence.ts');
@@ -3220,6 +3283,7 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   issues.push(...verifyHarnessSettingsModelAccessPolicy(root));
   issues.push(...verifyHarnessVisibleSurfaceModelAccessPolicy(root));
   issues.push(...verifyHarnessKeyboardModelAccessPolicy(root));
+  issues.push(...verifyHarnessCommandAndToolCatalogModelAccessPolicy(root));
   issues.push(...verifyHarnessOperatorAuditModelAccessPolicy(root));
   issues.push(...verifyHarnessConnectedHostModelAccessPolicy(root));
   if (readStringValue(pkg.description).trim().length === 0) {

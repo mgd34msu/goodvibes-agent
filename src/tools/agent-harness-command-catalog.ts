@@ -39,9 +39,9 @@ function readStringArray(value: unknown): readonly string[] {
   return value.map((entry) => typeof entry === 'string' ? entry : String(entry));
 }
 
-function previewText(value: string, maxLength = 120): string {
+function previewText(value: string, maxLength = 56): string {
   const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 function commandMatches(command: SlashCommand, query: string): boolean {
@@ -57,6 +57,8 @@ function commandMatches(command: SlashCommand, query: string): boolean {
 }
 
 function describeCommand(command: SlashCommand, lookup?: CommandDetailLookup): Record<string, unknown> {
+  const policy = describeCommandPolicy(command.name);
+  const modelRoute = previewText(policy.preferredModelTool ?? 'agent_harness mode:"command", mode:"run_command"');
   return {
     name: command.name,
     slash: `/${command.name}`,
@@ -64,6 +66,12 @@ function describeCommand(command: SlashCommand, lookup?: CommandDetailLookup): R
     description: command.description,
     usage: command.usage ?? '',
     argsHint: command.argsHint ?? command.usage ?? '',
+    modelRoute,
+    modelAccess: {
+      inspect: `agent_harness mode:"command" commandName:"${command.name}"`,
+      run: `agent_harness mode:"run_command" commandName:"${command.name}" confirm:true explicitUserRequest:"..."`,
+      preferred: modelRoute,
+    },
     ...(lookup ? {
       lookup: {
         source: lookup.source,
@@ -73,16 +81,19 @@ function describeCommand(command: SlashCommand, lookup?: CommandDetailLookup): R
         resolvedBy: lookup.resolvedBy,
       },
     } : {}),
-    policy: describeCommandPolicy(command.name),
+    policy,
   };
 }
 
 function describeCommandCandidate(command: SlashCommand): Record<string, unknown> {
+  const policy = describeCommandPolicy(command.name);
   return {
     name: command.name,
     slash: `/${command.name}`,
     aliases: command.aliases ?? [],
     summary: previewText(command.description),
+    effect: policy.effect,
+    modelRoute: previewText(policy.preferredModelTool ?? 'agent_harness mode:"command", mode:"run_command"'),
     ...(command.argsHint ? { argsHint: command.argsHint } : {}),
   };
 }
@@ -170,7 +181,7 @@ export function resolveHarnessCommandDetail(commandRegistry: CommandRegistry, ar
 
 export function listHarnessCommands(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): readonly Record<string, unknown>[] {
   const query = readString(args.query);
-  const limit = readLimit(args.limit, 200);
+  const limit = readLimit(args.limit, 500);
   const includeParameters = args.includeParameters === true;
   return commandRegistry.list()
     .filter((command) => commandMatches(command, query))

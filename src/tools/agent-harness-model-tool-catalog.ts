@@ -25,17 +25,89 @@ function readLimit(value: unknown, fallback: number): number {
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
 }
 
-function previewText(value: string, maxLength = 120): string {
+function previewText(value: string, maxLength = 56): string {
   const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function searchTokens(input: string): readonly string[] {
+  return input.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 0);
+}
+
+function schemaSearchText(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(schemaSearchText).filter(Boolean).join('\n');
+  if (!value || typeof value !== 'object') return '';
+  return Object.entries(value)
+    .map(([key, entry]) => `${key}\n${schemaSearchText(entry)}`)
+    .filter(Boolean)
+    .join('\n');
 }
 
 function modelToolSearchText(tool: HarnessModelToolDefinition): string {
   return [
     tool.name,
+    tool.name.replace(/_/g, ' '),
     tool.description,
     ...(tool.sideEffects ?? []),
+    schemaSearchText(tool.parameters),
   ].join('\n').toLowerCase();
+}
+
+function modelToolMatchesSearch(tool: HarnessModelToolDefinition, input: string): boolean {
+  const text = modelToolSearchText(tool);
+  const normalized = input.toLowerCase().trim();
+  if (!normalized) return true;
+  if (text.includes(normalized)) return true;
+  const tokens = searchTokens(normalized);
+  return tokens.length > 0 && tokens.every((token) => text.includes(token));
+}
+
+function tokenScore(tokens: readonly string[], value: string | undefined, weight: number): number {
+  if (!value) return 0;
+  const text = value.toLowerCase();
+  return tokens.reduce((score, token) => score + (text.includes(token) ? weight : 0), 0);
+}
+
+const ACTION_VERBS = new Set(['run', 'set', 'reset', 'open', 'create', 'send', 'schedule', 'generate', 'read', 'search', 'ingest']);
+
+function modelToolRelevance(tool: HarnessModelToolDefinition, input: string): number {
+  const normalized = input.toLowerCase().trim();
+  if (!normalized) return 0;
+
+  const tokens = searchTokens(normalized);
+  const name = tool.name.toLowerCase();
+  const namePhrase = name.replace(/_/g, ' ');
+  const nameLookup = normalized.replace(/\s+/g, '_');
+  const parameterText = schemaSearchText(tool.parameters);
+  let score = 0;
+
+  if (name === normalized || namePhrase === normalized) score += 10_000;
+  if (name.startsWith(nameLookup) || namePhrase.startsWith(normalized)) score += 5_000;
+  if (name.includes(nameLookup) || namePhrase.includes(normalized)) score += 2_500;
+
+  score += tokenScore(tokens, `${name}\n${namePhrase}`, 1_000);
+  score += tokenScore(tokens, tool.description, 300);
+  score += tokenScore(tokens, (tool.sideEffects ?? []).join('\n'), 250);
+  score += tokenScore(tokens, parameterText, 150);
+
+  const actionVerb = tokens.find((token) => ACTION_VERBS.has(token));
+  if (actionVerb && searchTokens(name).includes(actionVerb)) score += 1_500;
+
+  return score;
+}
+
+function matchingModelTools(tools: readonly HarnessModelToolDefinition[], input: string): readonly HarnessModelToolDefinition[] {
+  const query = input.toLowerCase().trim();
+  const matches = tools
+    .map((tool, index) => ({ tool, index, score: modelToolRelevance(tool, query) }))
+    .filter(({ tool }) => modelToolMatchesSearch(tool, query));
+  return matches
+    .sort((left, right) => {
+      if (!query) return left.tool.name.localeCompare(right.tool.name);
+      return right.score - left.score || left.tool.name.localeCompare(right.tool.name) || left.index - right.index;
+    })
+    .map(({ tool }) => tool);
 }
 
 function modelToolLookupFromArgs(args: AgentHarnessModelToolCatalogArgs): { readonly source: ModelToolLookupSource; readonly input: string } | null {
@@ -51,6 +123,11 @@ function describeModelTool(tool: HarnessModelToolDefinition, options: { readonly
   return {
     name: tool.name,
     ...(options.includeParameters ? { description: tool.description } : { summary: previewText(tool.description) }),
+    modelRoute: tool.name,
+    modelAccess: {
+      inspect: `agent_harness mode:"tool" toolName:"${tool.name}"`,
+      invoke: tool.name,
+    },
     sideEffects: tool.sideEffects ?? [],
     concurrency: tool.concurrency ?? 'parallel',
     supportsProgress: tool.supportsProgress ?? false,
@@ -64,6 +141,8 @@ function describeModelToolCandidates(tools: readonly HarnessModelToolDefinition[
   return tools.slice(0, 8).map((tool) => ({
     toolName: tool.name,
     summary: previewText(tool.description),
+    modelRoute: tool.name,
+    inspectRoute: `agent_harness mode:"tool" toolName:"${tool.name}"`,
     sideEffects: tool.sideEffects ?? [],
   }));
 }
@@ -71,10 +150,8 @@ function describeModelToolCandidates(tools: readonly HarnessModelToolDefinition[
 export function listHarnessModelTools(toolRegistry: ToolRegistry, args: AgentHarnessModelToolCatalogArgs): readonly Record<string, unknown>[] {
   const query = readString(args.query).toLowerCase();
   const includeParameters = args.includeParameters === true;
-  const limit = readLimit(args.limit, 200);
-  return toolRegistry.getToolDefinitions()
-    .filter((tool) => !query || modelToolSearchText(tool).includes(query))
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const limit = readLimit(args.limit, 500);
+  return matchingModelTools(toolRegistry.getToolDefinitions(), query)
     .slice(0, limit)
     .map((tool) => describeModelTool(tool, { includeParameters }));
 }
@@ -90,7 +167,8 @@ export function describeHarnessModelTool(toolRegistry: ToolRegistry, args: Agent
     : (() => {
         const insensitive = tools.find((tool) => tool.name.toLowerCase() === normalized);
         if (insensitive) return { tool: insensitive, resolvedBy: 'case-insensitive-name' };
-        const searched = tools.filter((tool) => modelToolSearchText(tool).includes(normalized));
+        if (lookup.source === 'toolName') return null;
+        const searched = matchingModelTools(tools, normalized);
         if (searched.length === 1) return { tool: searched[0]!, resolvedBy: 'search' };
         if (searched.length > 1) return { candidates: searched };
         return null;
