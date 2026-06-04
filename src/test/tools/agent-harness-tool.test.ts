@@ -943,6 +943,16 @@ describe('agent_harness tool', () => {
       expect(shortcuts.output).toContain('? / F1');
       expect(shortcuts.output).toContain('"configurableKeybindings"');
 
+      const processShortcut = await fixture.tool.execute({ mode: 'shortcuts', query: 'runtime activity' });
+      expect(processShortcut.success).toBe(true);
+      expect(processShortcut.output).toContain('"key": "F2"');
+      expect(processShortcut.output).toContain('Open runtime activity monitor');
+
+      const shortcutsReference = await fixture.tool.execute({ mode: 'shortcuts', query: 'shortcut reference' });
+      expect(shortcutsReference.success).toBe(true);
+      expect(shortcutsReference.output).toContain('"key": "/shortcuts"');
+      expect(shortcutsReference.output).toContain('Open keyboard shortcut reference');
+
       const keybinding = await fixture.tool.execute({ mode: 'keybinding', actionId: 'search' });
       expect(keybinding.success).toBe(true);
       expect(keybinding.output).toContain('"action": "search"');

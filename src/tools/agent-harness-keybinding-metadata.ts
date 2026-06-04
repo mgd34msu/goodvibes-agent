@@ -16,7 +16,8 @@ const FIXED_SHORTCUTS: readonly Record<string, string>[] = [
   { key: 'Tab', description: 'Autocomplete slash command or file mention' },
   { key: 'Esc', description: 'Close overlays, pickers, and transient input modes' },
   { key: '? / F1', description: 'Toggle help overlay' },
-  { key: 'F2 / /shortcuts', description: 'Open keyboard shortcut reference' },
+  { key: 'F2', description: 'Open runtime activity monitor' },
+  { key: '/shortcuts', description: 'Open keyboard shortcut reference' },
   { key: '/keybindings', description: 'List configurable keybindings and config path' },
 ];
 
