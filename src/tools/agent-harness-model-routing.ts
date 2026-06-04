@@ -320,19 +320,19 @@ function describeRoute(route: RouteCandidate, options: { readonly includeParamet
     commands: route.commands,
     uiSurfaces: route.uiSurfaces,
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    policy: {
-      effect: 'read-only',
-      values: 'Model routing posture returns model ids, provider ids, route state, capabilities, and safe setting keys only; provider credentials are never returned.',
-      mutation: 'Model/provider selection, catalog refresh, favorites, custom provider edits, and route setting changes stay explicit user-facing picker, settings, workspace, or slash-command flows.',
-    },
     ...(options.includeParameters ? {
+      policy: {
+        effect: 'read-only',
+        values: 'Model routing posture returns model ids, provider ids, route state, capabilities, and safe setting keys only; provider credentials are never returned.',
+        mutation: 'Model/provider selection, catalog refresh, favorites, custom provider edits, and route setting changes stay explicit user-facing picker, settings, workspace, or slash-command flows.',
+      },
       modelAccess: {
         inspectRouting: 'agent_harness mode:"model_routing"',
         inspectRoute: 'agent_harness mode:"model_route"',
         settingRead: 'agent_harness mode:"get_setting"',
         settingMutation: 'agent_harness mode:"set_setting" confirm:true explicitUserRequest:"..."',
-        openModelPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"model-picker" confirm:true',
-        openProviderPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"provider-picker" confirm:true',
+        openModelPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"model-picker" confirm:true explicitUserRequest:"..."',
+        openProviderPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"provider-picker" confirm:true explicitUserRequest:"..."',
       },
     } : {}),
   };
@@ -350,19 +350,19 @@ function describeModel(model: ModelCandidate, options: { readonly includeParamet
     pinned: model.pinned,
     contextWindow: model.contextWindow,
     reasoningEffort: model.reasoningEffort,
-    capabilities: model.capabilities,
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    policy: {
-      effect: 'read-only',
-      mutation: 'Selecting this model stays a visible picker, settings, workspace, or slash-command flow with explicit user request.',
-    },
     ...(options.includeParameters ? {
+      capabilities: model.capabilities,
+      policy: {
+        effect: 'read-only',
+        mutation: 'Selecting this model stays a visible picker, settings, workspace, or slash-command flow with explicit user request.',
+      },
       modelAccess: {
         selectModelCommand: `/model ${model.registryKey}`,
         selectProviderCommand: `/provider ${model.providerId}`,
         pinCommand: `/pin ${model.registryKey}`,
         unpinCommand: `/unpin ${model.registryKey}`,
-        setMainModel: `agent_harness mode:"set_setting" key:"provider.model" value:"${model.registryKey}" confirm:true`,
+        setMainModel: `agent_harness mode:"set_setting" key:"provider.model" value:"${model.registryKey}" confirm:true explicitUserRequest:"..."`,
       },
     } : {}),
   };
@@ -433,7 +433,7 @@ export async function modelRoutingSummary(context: CommandContext, args: AgentHa
         reasoningEffort: modelReasoning(currentModel),
         capabilities: modelCapabilities(currentModel),
         pinned: false,
-      }) : null,
+      }, { includeParameters }) : null,
     },
     providers: providerIds,
     routes: filteredRoutes.slice(0, limit).map((route) => describeRoute(route, { includeParameters })),

@@ -25,6 +25,11 @@ function readLimit(value: unknown, fallback: number): number {
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
 }
 
+function previewText(value: string, maxLength = 120): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+}
+
 function modelToolSearchText(tool: HarnessModelToolDefinition): string {
   return [
     tool.name,
@@ -45,7 +50,7 @@ function modelToolLookupFromArgs(args: AgentHarnessModelToolCatalogArgs): { read
 function describeModelTool(tool: HarnessModelToolDefinition, options: { readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> } = {}): Record<string, unknown> {
   return {
     name: tool.name,
-    description: tool.description,
+    ...(options.includeParameters ? { description: tool.description } : { summary: previewText(tool.description) }),
     sideEffects: tool.sideEffects ?? [],
     concurrency: tool.concurrency ?? 'parallel',
     supportsProgress: tool.supportsProgress ?? false,
@@ -58,7 +63,7 @@ function describeModelTool(tool: HarnessModelToolDefinition, options: { readonly
 function describeModelToolCandidates(tools: readonly HarnessModelToolDefinition[]): readonly Record<string, unknown>[] {
   return tools.slice(0, 8).map((tool) => ({
     toolName: tool.name,
-    description: tool.description,
+    summary: previewText(tool.description),
     sideEffects: tool.sideEffects ?? [],
   }));
 }

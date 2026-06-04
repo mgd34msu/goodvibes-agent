@@ -166,11 +166,13 @@ function describeFinding(finding: SecurityFinding, includeParameters: boolean, l
     route: finding.route,
     ...(lookup ? { lookup } : {}),
     ...(includeParameters && finding.detail ? { detail: finding.detail } : {}),
-    policy: {
-      effect: 'read-only',
-      values: 'Security posture returns counts, labels, policy ids, route names, and redacted bundle summaries only; token values, secret values, and raw config values are never returned.',
-      mutation: 'Token rotation, policy changes, MCP trust changes, bundle export/import, auth repair, and voice enable/disable stay explicit confirmation-gated workspace or slash-command flows.',
-    },
+    ...(includeParameters ? {
+      policy: {
+        effect: 'read-only',
+        values: 'Security posture returns counts, labels, policy ids, route names, and redacted bundle summaries only; token values, secret values, and raw config values are never returned.',
+        mutation: 'Token rotation, policy changes, MCP trust changes, bundle export/import, auth repair, and voice enable/disable stay explicit confirmation-gated workspace or slash-command flows.',
+      },
+    } : {}),
   };
 }
 
@@ -463,7 +465,7 @@ export async function securityPostureSummary(context: CommandContext, args: Agen
     returned: filtered.length,
     total: findings.length,
     policy: 'Read-only security posture. Token rotation, policy changes, MCP trust changes, bundle export/import, auth repair, and voice enable/disable remain confirmation-gated workspace or slash-command flows.',
-    modelAccess: {
+    ...(args.includeParameters === true ? { modelAccess: {
       reviewCommand: '/security review',
       tokensCommand: '/security tokens',
       attackPathsCommand: '/security attack-paths',
@@ -471,7 +473,7 @@ export async function securityPostureSummary(context: CommandContext, args: Agen
       authReviewCommand: '/auth review',
       bundleCatalogMode: 'support_bundles',
       singleFindingMode: 'security_finding',
-    },
+    } } : {}),
   };
 }
 

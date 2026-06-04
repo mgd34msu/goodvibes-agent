@@ -77,7 +77,7 @@ function pairingRoutes(): readonly PairingRoute[] {
       detail: 'Visible companion pairing route that prints QR setup details in the Agent TUI without printing the raw token.',
       effect: 'external-network',
       command: '/pair',
-      harnessRoute: 'agent_harness mode:"run_command" command:"/pair" confirm:true',
+      harnessRoute: 'agent_harness mode:"run_command" command:"/pair" confirm:true explicitUserRequest:"..."',
       requiresConfirmation: true,
     },
     {
@@ -86,7 +86,7 @@ function pairingRoutes(): readonly PairingRoute[] {
       detail: 'Explicitly confirmed fallback route that prints the raw companion token only when the user asks for manual setup.',
       effect: 'confirmation-gated-secret-display',
       command: '/pair --show-token --yes',
-      harnessRoute: 'agent_harness mode:"run_command" command:"/pair --show-token --yes" confirm:true',
+      harnessRoute: 'agent_harness mode:"run_command" command:"/pair --show-token --yes" confirm:true explicitUserRequest:"..."',
       requiresConfirmation: true,
     },
     {
@@ -166,12 +166,12 @@ function describeRoute(route: PairingRoute, options: { readonly includeParameter
     ...(route.capabilityIds ? { capabilityIds: route.capabilityIds } : {}),
     requiresConfirmation: route.requiresConfirmation === true,
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    policy: {
-      effect: route.effect,
-      values: 'Pairing posture returns endpoint binding and token fingerprint only; raw companion tokens and QR payloads are never returned by this read-only mode.',
-      mutation: 'Pairing display, manual token display, companion connection, channel sends, provider/model changes, approval actions, and attachment flows stay explicit visible user flows.',
-    },
     ...(options.includeParameters ? {
+      policy: {
+        effect: route.effect,
+        values: 'Pairing posture returns endpoint binding and token fingerprint only; raw companion tokens and QR payloads are never returned by this read-only mode.',
+        mutation: 'Pairing display, manual token display, companion connection, channel sends, provider/model changes, approval actions, and attachment flows stay explicit visible user flows.',
+      },
       modelAccess: {
         inspectPairing: 'agent_harness mode:"pairing_posture"',
         inspectRoute: 'agent_harness mode:"pairing_route"',

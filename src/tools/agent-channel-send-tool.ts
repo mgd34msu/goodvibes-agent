@@ -41,11 +41,7 @@ export function createAgentChannelSendTool(
   return {
     definition: {
       name: 'agent_channel_send',
-      description: [
-        'Send one confirmed message through a configured Agent target.',
-        'Use only for explicit send/message/alert requests.',
-        'Provide exactly one target.',
-      ].join(' '),
+      description: 'Send one confirmed message through one configured Agent target.',
       parameters: {
         type: 'object',
         properties: {

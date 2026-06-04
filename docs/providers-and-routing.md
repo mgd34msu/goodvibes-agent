@@ -11,8 +11,8 @@ Provider and model state should be visible in:
 - `/model` and `/provider`;
 - the Agent operator workspace setup checklist;
 - the TTS configuration workspace when spoken turns are used.
-- `agent_harness` modes `model_routing` and `model_route` when the model needs read-only provider/model route posture, selectable model metadata, pinned model status, reasoning support, context-window posture, and safe setting keys.
-- `agent_harness` modes `provider_accounts` and `provider_account` when the model needs read-only provider auth route posture, subscription freshness, usage windows, route issues, and repair guidance without tokens or authorization codes.
+- `agent_harness` modes `model_routing` and `model_route` when the model needs read-only provider/model route posture, selectable model metadata, pinned model status, reasoning support, context-window posture, and safe setting keys. `model_routing` is compact by default; use `includeParameters:true` or `model_route` for full capabilities and route-change hints.
+- `agent_harness` modes `provider_accounts` and `provider_account` when the model needs read-only provider auth route posture, subscription freshness, usage windows, route issues, and repair guidance without tokens or authorization codes. `provider_accounts` is compact by default; use `includeParameters:true` or `provider_account` for route records, usage windows, issues, notes, and auth-flow hints.
 
 When a selected model is provider-qualified, Agent keeps the runtime provider row and raw model id separate. For example, `openai-subscriber` plus `openai:gpt-5.5` should route as provider `openai-subscriber` and model `gpt-5.5` where the public route expects provider/model fields.
 
@@ -41,7 +41,7 @@ Search, voice, media, and multimodal providers are valid Agent features when the
 
 Outputs that should become durable knowledge must go through Agent Knowledge routes. No provider output should be inserted into default knowledge or another product segment by Agent.
 
-Setting changes are available to the model through `agent_harness` only when the user explicitly asks. `model_routing` is read-only; model/provider selection, catalog refresh, pin/unpin, custom provider edits, and route setting changes stay visible picker, settings, workspace, or slash-command flows. Secret-backed provider or channel values are stored through the secret manager and displayed as redacted references.
+Setting discovery is compact by default and full with `includeParameters:true` or `get_setting`. Setting changes are available to the model through `agent_harness` only when the user explicitly asks. `model_routing` is read-only; model/provider selection, catalog refresh, pin/unpin, custom provider edits, and route setting changes stay visible picker, settings, workspace, or slash-command flows. Secret-backed provider or channel values are stored through the secret manager and displayed as redacted references.
 
 ## Related Docs
 

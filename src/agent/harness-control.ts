@@ -77,6 +77,18 @@ export interface HarnessSettingDescriptor {
   readonly lookup?: HarnessSettingLookup;
 }
 
+export interface HarnessSettingSummary {
+  readonly key: string;
+  readonly category: string;
+  readonly type: ConfigSetting['type'];
+  readonly value: unknown;
+  readonly configured: boolean;
+  readonly writable: boolean;
+  readonly visibleInWorkspace: boolean;
+  readonly summary: string;
+  readonly enumValues?: readonly string[];
+}
+
 export interface HarnessSettingMutationResult {
   readonly key: string;
   readonly action: 'set' | 'reset';
@@ -89,6 +101,11 @@ const SENSITIVE_KEY_PATTERN = /(?:secret|token|password|api[-_.]?key|signing)/i;
 
 function valuesEqual(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function previewText(value: string, maxLength = 120): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
 }
 
 function clampLimit(value: unknown, fallback = DEFAULT_SETTING_LIMIT): number {
@@ -164,10 +181,30 @@ export function describeHarnessSetting(
   };
 }
 
+export function describeHarnessSettingSummary(
+  configManager: Pick<ConfigManager, 'get'>,
+  setting: ConfigSetting,
+): HarnessSettingSummary {
+  const value = configManager.get(setting.key as ConfigKey);
+  const hostOwned = isExternalHostOwnedSettingKey(setting.key);
+  return {
+    key: setting.key,
+    category: setting.key.split('.')[0] ?? '',
+    type: setting.type,
+    value: redactHarnessSettingValue(setting.key, value),
+    configured: !valuesEqual(value, setting.default),
+    writable: !hostOwned,
+    visibleInWorkspace: !isAgentHiddenSettingKey(setting.key),
+    summary: previewText(setting.description),
+    ...(setting.enumValues ? { enumValues: setting.enumValues } : {}),
+  };
+}
+
 export function listHarnessSettings(
   configManager: Pick<ConfigManager, 'get' | 'getSchema'>,
   filters: HarnessSettingFilters = {},
-): readonly HarnessSettingDescriptor[] {
+  options: { readonly includeParameters?: boolean } = {},
+): readonly (HarnessSettingDescriptor | HarnessSettingSummary)[] {
   const key = filters.key?.trim();
   const category = filters.category?.trim();
   const prefix = filters.prefix?.trim();
@@ -185,7 +222,9 @@ export function listHarnessSettings(
       }
       return true;
     })
-    .map((setting) => describeHarnessSetting(configManager, setting))
+    .map((setting) => options.includeParameters
+      ? describeHarnessSetting(configManager, setting)
+      : describeHarnessSettingSummary(configManager, setting))
     .slice(0, limit);
 }
 
@@ -358,7 +397,7 @@ export async function resetHarnessSetting(
   };
 }
 
-export function formatHarnessSettingList(settings: readonly HarnessSettingDescriptor[]): string {
+export function formatHarnessSettingList(settings: readonly (HarnessSettingDescriptor | HarnessSettingSummary)[]): string {
   if (settings.length === 0) return 'No settings matched.';
   return [
     `Settings (${settings.length})`,

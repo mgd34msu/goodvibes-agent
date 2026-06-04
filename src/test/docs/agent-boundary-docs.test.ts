@@ -192,7 +192,7 @@ describe('Agent boundary docs', () => {
     expect(gettingStartedInstallSection).not.toContain('goodvibes-agent skills');
     expect(gettingStartedInstallSection).not.toContain('goodvibes-agent memory');
     expect(tools).not.toContain(`goodvibes-agent ${'automation'}`);
-    expect(readme).toContain('Use the workspace as the primary product surface');
-    expect(gettingStarted).toContain('configured in the TUI first');
+    expect(readme).toContain('The fullscreen Agent workspace is the primary product surface.');
+    expect(gettingStarted).toContain('Use the interactive workspace first');
   });
 });

@@ -132,25 +132,25 @@ function describeTarget(
     ...(target.hasQuery !== undefined ? { hasQuery: target.hasQuery } : {}),
     value: '<redacted>',
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    policy: {
-      effect: 'read-only',
-      values: 'Full webhook URLs are not returned because they can contain bearer tokens or secret path/query values.',
-      delivery: 'Use agent_notify only for one explicit, confirmed notification requested by the user.',
-      management: 'Use confirmed /notify mirrors only when the user explicitly asks to add, remove, clear, test, or send notification targets.',
-    },
-    modelAccess: {
-      sendTool: 'agent_notify',
-      listCommand: '/notify list',
-      addCommand: '/notify add <url> --yes',
-      removeCommand: '/notify remove <url> --yes',
-      clearCommand: '/notify clear --yes',
-      testCommand: '/notify test --yes',
-      settingsCategory: 'notifications.webhookUrls',
-      ...(options.includeParameters ? {
+    ...(options.includeParameters ? {
+      policy: {
+        effect: 'read-only',
+        values: 'Full webhook URLs are not returned because they can contain bearer tokens or secret path/query values.',
+        delivery: 'Use agent_notify only for one explicit, confirmed notification requested by the user.',
+        management: 'Use confirmed /notify mirrors only when the user explicitly asks to add, remove, clear, test, or send notification targets.',
+      },
+      modelAccess: {
+        sendTool: 'agent_notify',
+        listCommand: '/notify list',
+        addCommand: '/notify add <url> --yes',
+        removeCommand: '/notify remove <url> --yes',
+        clearCommand: '/notify clear --yes',
+        testCommand: '/notify test --yes',
+        settingsCategory: 'notifications.webhookUrls',
         targetValueRequiredForRemove: true,
         targetValuePolicy: 'Ask the user for the exact webhook URL before removing one target; do not infer it from redacted metadata.',
-      } : {}),
-    },
+      },
+    } : {}),
   };
 }
 

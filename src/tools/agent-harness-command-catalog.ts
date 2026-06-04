@@ -8,6 +8,7 @@ export interface AgentHarnessCommandCatalogArgs {
   readonly commandName?: unknown;
   readonly args?: unknown;
   readonly target?: unknown;
+  readonly includeParameters?: unknown;
   readonly limit?: unknown;
 }
 
@@ -36,6 +37,11 @@ function readLimit(value: unknown, fallback: number): number {
 function readStringArray(value: unknown): readonly string[] {
   if (!Array.isArray(value)) return [];
   return value.map((entry) => typeof entry === 'string' ? entry : String(entry));
+}
+
+function previewText(value: string, maxLength = 120): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
 }
 
 function commandMatches(command: SlashCommand, query: string): boolean {
@@ -76,8 +82,8 @@ function describeCommandCandidate(command: SlashCommand): Record<string, unknown
     name: command.name,
     slash: `/${command.name}`,
     aliases: command.aliases ?? [],
-    description: command.description,
-    usage: command.usage ?? '',
+    summary: previewText(command.description),
+    ...(command.argsHint ? { argsHint: command.argsHint } : {}),
   };
 }
 
@@ -165,11 +171,12 @@ export function resolveHarnessCommandDetail(commandRegistry: CommandRegistry, ar
 export function listHarnessCommands(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): readonly Record<string, unknown>[] {
   const query = readString(args.query);
   const limit = readLimit(args.limit, 200);
+  const includeParameters = args.includeParameters === true;
   return commandRegistry.list()
     .filter((command) => commandMatches(command, query))
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(0, limit)
-    .map((command) => describeCommand(command));
+    .map((command) => includeParameters ? describeCommand(command) : describeCommandCandidate(command));
 }
 
 export function describeHarnessCommand(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): Record<string, unknown> | null {

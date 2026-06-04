@@ -735,10 +735,7 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
   return {
     definition: {
       name: 'agent_local_registry',
-      description: [
-        'Inspect or update Agent-local records: memory, notes, personas, skills, bundles, and routines.',
-        'Deletion requires confirm:true plus explicitUserRequest.',
-      ].join(' '),
+      description: 'Inspect or update Agent-local records.',
       parameters: {
         type: 'object',
         properties: {

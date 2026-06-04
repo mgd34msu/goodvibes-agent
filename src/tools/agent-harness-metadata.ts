@@ -618,22 +618,40 @@ export function describeConnectedHostCapability(
   return null;
 }
 
-export function connectedHostSummary(context: CommandContext, toolRegistry: ToolRegistry): Record<string, unknown> {
+export function connectedHostSummary(
+  context: CommandContext,
+  toolRegistry: ToolRegistry,
+  options: { readonly includeParameters?: boolean } = {},
+): Record<string, unknown> {
   const shellPaths = context.workspace.shellPaths;
   const homeDirectory = shellPaths?.homeDirectory ?? context.platform.configManager.getHomeDirectory() ?? '';
   const connection = resolveAgentConnectedHostConnection(context.platform.configManager, homeDirectory);
+  const routeFamilies = connectedHostRouteFamilies();
+  const capabilities = connectedHostCapabilityMap(toolRegistry);
+  const blockedCapabilities = blockedConnectedHostCapabilities();
   return {
     baseUrl: connection.baseUrl,
     operatorToken: connection.token ? 'configured' : 'missing',
     tokenPath: connection.tokenPath,
     ownership: 'external-connected-host',
     lifecycle: 'GoodVibes Agent can use public connected-host operator routes, but does not start, stop, restart, install, expose, or mutate the host listener.',
-    servicePostureMode: 'Use agent_harness mode:"service_posture" for endpoint binding, network-facing posture, issue, and redacted-log diagnostics. Use mode:"service_endpoint" for one endpoint.',
-    operatorMethodMode: 'Use agent_harness mode:"operator_methods" for the public operator and Agent Knowledge method catalog. Use mode:"operator_method" for one method.',
-    statusMode: 'Use agent_harness mode:"connected_host_status" for live read-only reachability, SDK compatibility, token posture, and Agent Knowledge route readiness.',
-    routeFamilies: connectedHostRouteFamilies(),
-    capabilities: connectedHostCapabilityMap(toolRegistry),
-    blockedCapabilities: blockedConnectedHostCapabilities(),
+    modes: {
+      servicePosture: 'service_posture/service_endpoint',
+      operatorMethods: 'operator_methods/operator_method',
+      liveStatus: 'connected_host_status',
+      capabilityDetail: 'connected_host_capability',
+    },
+    counts: {
+      routeFamilies: routeFamilies.length,
+      allowedCapabilities: capabilities.length,
+      availableCapabilities: capabilities.filter((capability) => capability.available === true).length,
+      blockedCapabilities: blockedCapabilities.length,
+    },
+    ...(options.includeParameters === true ? {
+      routeFamilies,
+      capabilities,
+      blockedCapabilities,
+    } : {}),
   };
 }
 

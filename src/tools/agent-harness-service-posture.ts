@@ -65,7 +65,10 @@ function summarizeLog(posture: CliServicePosture, includeTail: boolean): Record<
   };
 }
 
-function describeEndpoint(endpoint: CliServiceEndpointPosture, lookup?: Record<string, unknown>): Record<string, unknown> {
+function describeEndpoint(
+  endpoint: CliServiceEndpointPosture,
+  options: { readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> } = {},
+): Record<string, unknown> {
   return {
     id: endpoint.id,
     label: endpoint.label,
@@ -74,13 +77,15 @@ function describeEndpoint(endpoint: CliServiceEndpointPosture, lookup?: Record<s
     bindPosture: endpoint.bindPosture,
     networkFacing: endpoint.networkFacing,
     ...(endpoint.reachable !== undefined ? { reachable: endpoint.reachable } : {}),
-    ...(lookup ? { lookup } : {}),
-    policy: {
-      effect: 'read-only',
-      modelOperation: 'Inspect endpoint binding, network-facing posture, and optional reachability only.',
-      lifecycle: 'GoodVibes Agent does not start, stop, restart, install, expose, or mutate connected-host listeners.',
-      settings: 'Use agent_harness settings/get_setting for read-only inspection of endpoint settings; connected-host lifecycle/listener settings stay locked in Agent.',
-    },
+    ...(options.lookup ? { lookup: options.lookup } : {}),
+    ...(options.includeParameters ? {
+      policy: {
+        effect: 'read-only',
+        modelOperation: 'Inspect endpoint binding, network-facing posture, and optional reachability only.',
+        lifecycle: 'GoodVibes Agent does not start, stop, restart, install, expose, or mutate connected-host listeners.',
+        settings: 'Use agent_harness settings/get_setting for read-only inspection of endpoint settings; connected-host lifecycle/listener settings stay locked in Agent.',
+      },
+    } : {}),
   };
 }
 
@@ -118,6 +123,7 @@ function endpointSearchText(endpoint: CliServiceEndpointPosture): string {
 function resolveEndpoint(
   posture: CliServicePosture,
   args: AgentHarnessServicePostureArgs,
+  options: { readonly includeParameters?: boolean } = {},
 ): ServiceEndpointResolution {
   const lookup = endpointLookupFromArgs(args);
   if (!lookup) {
@@ -130,19 +136,19 @@ function resolveEndpoint(
   const normalized = lookup.input.toLowerCase();
   const exact = endpoints.find((endpoint) => endpoint.id === lookup.input);
   if (exact) {
-    return { status: 'found', endpoint: describeEndpoint(exact, { ...lookup, resolvedBy: 'id' }) };
+    return { status: 'found', endpoint: describeEndpoint(exact, { includeParameters: options.includeParameters, lookup: { ...lookup, resolvedBy: 'id' } }) };
   }
   const insensitive = endpoints.find((endpoint) => endpoint.id.toLowerCase() === normalized);
   if (insensitive) {
-    return { status: 'found', endpoint: describeEndpoint(insensitive, { ...lookup, resolvedBy: 'case-insensitive-id' }) };
+    return { status: 'found', endpoint: describeEndpoint(insensitive, { includeParameters: options.includeParameters, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } }) };
   }
   const label = endpoints.find((endpoint) => endpoint.label.toLowerCase() === normalized);
   if (label) {
-    return { status: 'found', endpoint: describeEndpoint(label, { ...lookup, resolvedBy: 'label' }) };
+    return { status: 'found', endpoint: describeEndpoint(label, { includeParameters: options.includeParameters, lookup: { ...lookup, resolvedBy: 'label' } }) };
   }
   const searched = endpoints.filter((endpoint) => endpointSearchText(endpoint).includes(normalized));
   if (searched.length === 1) {
-    return { status: 'found', endpoint: describeEndpoint(searched[0]!, { ...lookup, resolvedBy: 'search' }) };
+    return { status: 'found', endpoint: describeEndpoint(searched[0]!, { includeParameters: options.includeParameters, lookup: { ...lookup, resolvedBy: 'search' } }) };
   }
   if (searched.length > 1) {
     return {
@@ -178,14 +184,14 @@ export async function servicePostureSummary(
     lifecycle: 'GoodVibes Agent reports connected-host/service posture but does not start, stop, restart, install, expose, or mutate host listeners.',
     config: posture.config,
     managed: posture.managed,
-    endpoints: posture.endpoints.map((endpoint) => describeEndpoint(endpoint)),
+    endpoints: posture.endpoints.map((endpoint) => describeEndpoint(endpoint, { includeParameters: includeDetails })),
     log: summarizeLog(posture, includeDetails),
     issues: posture.issues,
-    modelAccess: {
+    ...(includeDetails ? { modelAccess: {
       endpointLookup: 'Use mode:"service_endpoint" with endpointId, target, or query to inspect one endpoint.',
       settings: 'Use mode:"settings" with includeHidden:true for endpoint setting descriptors. Host-owned listener settings remain read-only.',
       liveHostStatus: 'Use mode:"connected_host_status" for SDK compatibility, token posture, and Agent Knowledge route readiness.',
-    },
+    } } : {}),
   };
 }
 
@@ -197,5 +203,5 @@ export async function describeHarnessServiceEndpoint(
     ...servicePostureOptions(args),
     probe: true,
   });
-  return resolveEndpoint(posture, args);
+  return resolveEndpoint(posture, args, { includeParameters: true });
 }

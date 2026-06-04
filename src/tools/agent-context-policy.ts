@@ -7,11 +7,7 @@ const CONTEXT_TOOL_DENIAL = [
 ].join(' ');
 
 export function wrapBlockedContextToolForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Blocked in GoodVibes Agent main conversation: non-Agent runtime context.',
-    'Use explicit Agent CLI/slash status, compat, setup, and Agent Knowledge commands for product-scoped context.',
-    'Default knowledge, non-Agent knowledge segments, and non-Agent runtime assumptions are not Agent fallbacks.',
-  ].join(' ');
+  tool.definition.description = 'Blocked in GoodVibes Agent: non-Agent runtime context.';
   tool.definition.sideEffects = [];
   tool.definition.parameters = {
     type: 'object',

@@ -83,31 +83,31 @@ function describeChannel(
     defaultTargetKeys: channel.defaultTargetKeys,
     configuredDefaultTargetKeys: channel.configuredDefaultTargetKeys,
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    policy: {
-      effect: 'read-only',
-      values: 'Config key names and target key names are shown; secret values and stored target values are never returned.',
-      delivery: 'Use agent_channel_send only for one explicit, confirmed delivery target requested by the user.',
-      setup: 'Use connected-host setup/account/policy routes only as read-only diagnostics unless another confirmed first-class tool owns the mutation.',
-    },
-    modelAccess: {
-      sendTool: 'agent_channel_send',
-      notificationTool: 'agent_notify',
-      reminderTool: 'agent_reminder_schedule',
-      slashCommandDetail: `/channels show ${channel.id}`,
-      readOnlyConnectedRoutes: [
-        '/channels accounts',
-        '/channels policies',
-        '/channels status',
-        `/channels doctor ${channel.id}`,
-        `/channels setup ${channel.id}`,
-      ],
-      settingsFilter: `agent_harness mode:"settings" prefix:"surfaces.${channel.id}" includeHidden:true`,
-      connectedHostBoundary: 'agent_harness mode:"connected_host_capability" query:"delivery"',
-      ...(options.includeParameters ? {
+    ...(options.includeParameters ? {
+      policy: {
+        effect: 'read-only',
+        values: 'Config key names and target key names are shown; secret values and stored target values are never returned.',
+        delivery: 'Use agent_channel_send only for one explicit, confirmed delivery target requested by the user.',
+        setup: 'Use connected-host setup/account/policy routes only as read-only diagnostics unless another confirmed first-class tool owns the mutation.',
+      },
+      modelAccess: {
+        sendTool: 'agent_channel_send',
+        notificationTool: 'agent_notify',
+        reminderTool: 'agent_reminder_schedule',
+        slashCommandDetail: `/channels show ${channel.id}`,
+        readOnlyConnectedRoutes: [
+          '/channels accounts',
+          '/channels policies',
+          '/channels status',
+          `/channels doctor ${channel.id}`,
+          `/channels setup ${channel.id}`,
+        ],
+        settingsFilter: `agent_harness mode:"settings" prefix:"surfaces.${channel.id}" includeHidden:true`,
+        connectedHostBoundary: 'agent_harness mode:"connected_host_capability" query:"delivery"',
         deliveryTargetShape: 'surface[:route[:label]]',
         exampleTarget: `${channel.id}:route:Label`,
-      } : {}),
-    },
+      },
+    } : {}),
   };
 }
 

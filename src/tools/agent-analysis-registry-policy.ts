@@ -82,11 +82,7 @@ export function validateRegistryToolInvocationForAgentPolicy(args: RegistryToolA
 }
 
 function narrowAnalyzeToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Run local, static project analysis for GoodVibes Agent.',
-    'npm registry upgrade checks and hidden secondary LLM diff analysis are disabled in the main conversation.',
-    'Delegate package-upgrade and review workflows to GoodVibes TUI when they become build/fix/review work.',
-  ].join(' ');
+  tool.definition.description = 'Run local, static project analysis for GoodVibes Agent.';
   tool.definition.sideEffects = ['read_fs'];
 
   const properties = tool.definition.parameters.properties;
@@ -101,10 +97,7 @@ function narrowAnalyzeToolDefinitionForAgentPolicy(tool: Tool): void {
 }
 
 function narrowRegistryToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Discover and preview GoodVibes Agent skills, agents, and tools.',
-    'Full content materialization and arbitrary .goodvibes file reads are disabled in the main conversation.',
-  ].join(' ');
+  tool.definition.description = 'Discover and preview GoodVibes Agent registry entries.';
   tool.definition.sideEffects = ['read_fs'];
 
   const properties = tool.definition.parameters.properties;

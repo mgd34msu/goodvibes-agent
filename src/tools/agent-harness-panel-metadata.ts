@@ -7,6 +7,7 @@ export interface AgentHarnessPanelArgs {
   readonly panelId?: unknown;
   readonly target?: unknown;
   readonly category?: unknown;
+  readonly includeParameters?: unknown;
   readonly limit?: unknown;
   readonly pane?: unknown;
 }
@@ -39,6 +40,11 @@ function readLimit(value: unknown, fallback: number): number {
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
 }
 
+function previewText(value: string, maxLength = 120): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+}
+
 function panelManager(context: CommandContext) {
   return context.workspace.panelManager ?? null;
 }
@@ -50,6 +56,7 @@ function panelMatches(panel: Record<string, unknown>, query: string): boolean {
     panel.name,
     panel.category,
     panel.description,
+    panel.summary,
     panel.workspaceRoute,
   ].map((value) => typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')).join('\n').toLowerCase().includes(query.toLowerCase());
 }
@@ -69,7 +76,7 @@ function panelCandidate(registration: PanelRegistration): Record<string, unknown
     id: registration.id,
     name: registration.name,
     category: registration.category,
-    description: registration.description,
+    summary: previewText(registration.description),
     workspaceRoute: {
       categoryId: agentWorkspaceCategoryForPanel(registration.id),
       command: agentWorkspaceCommandForPanel(registration.id),
@@ -103,7 +110,11 @@ function resolveHarnessPanel(context: CommandContext, args: AgentHarnessPanelArg
   return null;
 }
 
-function describePanelRegistration(context: CommandContext, registration: PanelRegistration, lookup?: PanelLookup): Record<string, unknown> {
+function describePanelRegistration(
+  context: CommandContext,
+  registration: PanelRegistration,
+  options: { readonly includeParameters?: boolean; readonly lookup?: PanelLookup } = {},
+): Record<string, unknown> {
   const manager = panelManager(context);
   const openPanel = manager?.getPanel(registration.id) ?? null;
   const pane = manager?.getPaneOf(registration.id) ?? null;
@@ -113,8 +124,8 @@ function describePanelRegistration(context: CommandContext, registration: PanelR
     name: registration.name,
     icon: registration.icon,
     category: registration.category,
-    description: registration.description,
-    ...(lookup ? { lookup } : {}),
+    ...(options.includeParameters ? { description: registration.description } : { summary: previewText(registration.description) }),
+    ...(options.lookup ? { lookup: options.lookup } : {}),
     preload: registration.preload === true,
     open: openPanel !== null,
     pane,
@@ -124,11 +135,13 @@ function describePanelRegistration(context: CommandContext, registration: PanelR
       categoryId: agentWorkspaceCategoryForPanel(registration.id),
       command: agentWorkspaceCommandForPanel(registration.id),
     },
-    policy: {
-      effect: 'ui-navigation',
-      confirmation: 'agent_harness mode:"open_panel" requires confirm:true and explicitUserRequest.',
-      boundary: 'Panels are Agent/TUI operator views. The model can inspect panel catalog/open state; panel routing uses the existing Agent workspace bridge and does not mutate connected-host lifecycle.',
-    },
+    ...(options.includeParameters ? {
+      policy: {
+        effect: 'ui-navigation',
+        confirmation: 'agent_harness mode:"open_panel" requires confirm:true and explicitUserRequest.',
+        boundary: 'Panels are Agent/TUI operator views. The model can inspect panel catalog/open state; panel routing uses the existing Agent workspace bridge and does not mutate connected-host lifecycle.',
+      },
+    } : {}),
   };
 }
 
@@ -142,8 +155,9 @@ export function listHarnessPanels(context: CommandContext, args: AgentHarnessPan
   const query = readString(args.query);
   const category = readString(args.category);
   const limit = readLimit(args.limit, 200);
+  const includeParameters = args.includeParameters === true;
   return manager.getRegisteredTypes()
-    .map((registration) => describePanelRegistration(context, registration))
+    .map((registration) => describePanelRegistration(context, registration, { includeParameters }))
     .filter((panel) => !category || panel.category === category)
     .filter((panel) => panelMatches(panel, query))
     .sort((a, b) => String(a.id).localeCompare(String(b.id)))
@@ -152,7 +166,7 @@ export function listHarnessPanels(context: CommandContext, args: AgentHarnessPan
 
 export function describeHarnessPanel(context: CommandContext, args: AgentHarnessPanelArgs): Record<string, unknown> | null {
   const resolved = resolveHarnessPanel(context, args);
-  if (resolved?.status === 'found') return describePanelRegistration(context, resolved.registration, resolved.lookup);
+  if (resolved?.status === 'found') return describePanelRegistration(context, resolved.registration, { includeParameters: true, lookup: resolved.lookup });
   if (resolved?.status === 'ambiguous') {
     return { status: 'ambiguous', input: resolved.input, candidates: resolved.candidates };
   }
@@ -171,7 +185,7 @@ export function openHarnessPanel(context: CommandContext, args: AgentHarnessPane
       availablePanels: listHarnessPanels(context, { limit: 50 }).map((entry) => entry.id),
     };
   }
-  const panel = describePanelRegistration(context, resolved.registration, resolved.lookup);
+  const panel = describePanelRegistration(context, resolved.registration, { includeParameters: true, lookup: resolved.lookup });
   const requestedPane = readString(args.pane);
   const pane = requestedPane === 'bottom' || requestedPane === 'top' ? requestedPane : undefined;
   if (!context.showPanel) {

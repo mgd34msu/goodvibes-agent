@@ -11,6 +11,7 @@ export interface AgentHarnessUiSurfaceArgs {
   readonly target?: unknown;
   readonly key?: unknown;
   readonly prefix?: unknown;
+  readonly includeParameters?: unknown;
   readonly limit?: unknown;
   readonly pane?: unknown;
 }
@@ -727,22 +728,28 @@ function resolveHarnessUiSurface(args: AgentHarnessUiSurfaceArgs): UiSurfaceReso
   return null;
 }
 
-function describeSurface(context: CommandContext, surface: UiSurfaceDefinition, lookup?: UiSurfaceLookup): Record<string, unknown> {
+function describeSurface(
+  context: CommandContext,
+  surface: UiSurfaceDefinition,
+  options: { readonly includeParameters?: boolean; readonly lookup?: UiSurfaceLookup } = {},
+): Record<string, unknown> {
   return {
     id: surface.id,
     label: surface.label,
     kind: surface.kind,
     summary: surface.summary,
     command: surface.command,
-    ...(lookup ? { lookup } : {}),
+    ...(options.lookup ? { lookup: options.lookup } : {}),
     preferredModelRoute: surface.preferredModelRoute,
-    parameters: surface.parameters ?? [],
     available: surface.available(context),
-    policy: {
-      effect: 'visible-ui-navigation',
-      confirmation: 'agent_harness mode:"open_ui_surface" requires confirm:true and explicitUserRequest.',
-      boundary: 'UI surface routing opens the same visible Agent shell surface the user can open. Use first-class model tools, settings modes, workspace actions, or confirmed slash-command mirrors for actual operations.',
-    },
+    ...(options.includeParameters ? {
+      parameters: surface.parameters ?? [],
+      policy: {
+        effect: 'visible-ui-navigation',
+        confirmation: 'agent_harness mode:"open_ui_surface" requires confirm:true and explicitUserRequest.',
+        boundary: 'UI surface routing opens the same visible Agent shell surface the user can open. Use first-class model tools, settings modes, workspace actions, or confirmed slash-command mirrors for actual operations.',
+      },
+    } : {}),
   };
 }
 
@@ -753,15 +760,16 @@ export function totalHarnessUiSurfaces(): number {
 export function listHarnessUiSurfaces(context: CommandContext, args: AgentHarnessUiSurfaceArgs): readonly Record<string, unknown>[] {
   const query = readString(args.query);
   const limit = readLimit(args.limit, 200);
+  const includeParameters = args.includeParameters === true;
   return UI_SURFACES
-    .map((surface) => describeSurface(context, surface))
+    .map((surface) => describeSurface(context, surface, { includeParameters }))
     .filter((surface) => surfaceMatches(surface, query))
     .slice(0, limit);
 }
 
 export function describeHarnessUiSurface(context: CommandContext, args: AgentHarnessUiSurfaceArgs): Record<string, unknown> | null {
   const resolved = resolveHarnessUiSurface(args);
-  if (resolved?.status === 'found') return describeSurface(context, resolved.surface, resolved.lookup);
+  if (resolved?.status === 'found') return describeSurface(context, resolved.surface, { includeParameters: true, lookup: resolved.lookup });
   if (resolved?.status === 'ambiguous') {
     return { status: 'ambiguous', input: resolved.input, candidates: resolved.candidates };
   }
@@ -783,6 +791,6 @@ export async function openHarnessUiSurface(context: CommandContext, args: AgentH
   const routed = await resolved.surface.open(context, args);
   return {
     ...routed,
-    descriptor: describeSurface(context, resolved.surface, resolved.lookup),
+    descriptor: describeSurface(context, resolved.surface, { includeParameters: true, lookup: resolved.lookup }),
   };
 }

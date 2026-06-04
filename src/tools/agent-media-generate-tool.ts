@@ -52,11 +52,7 @@ export function createAgentMediaGenerateTool(
   return {
     definition: {
       name: 'agent_media_generate',
-      description: [
-        'Generate one confirmed image or video artifact.',
-        'Use only for explicit media generation requests.',
-        'Returns artifact ids, not inline base64.',
-      ].join(' '),
+      description: 'Generate one confirmed image or video artifact.',
       parameters: {
         type: 'object',
         properties: {

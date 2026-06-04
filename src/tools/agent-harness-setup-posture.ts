@@ -178,16 +178,16 @@ function describeItem(
     detail: item.detail,
     signals: signalsForItem(item, snapshot),
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    policy: {
-      effect: 'read-only',
-      values: 'Setup posture returns onboarding readiness, counts, safe setting keys, and route metadata only; secret values and raw provider tokens are never returned.',
-      mutation: 'Setup apply, provider auth, local behavior import/create, channel delivery, and starter profile changes stay visible workspace, settings, slash-command, or first-class tool flows.',
-    },
     ...(options.includeParameters ? {
+      policy: {
+        effect: 'read-only',
+        values: 'Setup posture returns onboarding readiness, counts, safe setting keys, and route metadata only; secret values and raw provider tokens are never returned.',
+        mutation: 'Setup apply, provider auth, local behavior import/create, channel delivery, and starter profile changes stay visible workspace, settings, slash-command, or first-class tool flows.',
+      },
       modelAccess: {
         inspectSetup: 'agent_harness mode:"setup_posture"',
         inspectSetupItem: 'agent_harness mode:"setup_item"',
-        openOnboarding: 'agent_harness mode:"open_ui_surface" surfaceId:"onboarding" confirm:true',
+        openOnboarding: 'agent_harness mode:"open_ui_surface" surfaceId:"onboarding" confirm:true explicitUserRequest:"..."',
         setupWorkspace: 'agent_harness mode:"workspace_action" target:"setup"',
         settings: 'agent_harness modes settings/get_setting/set_setting/reset_setting',
         providerRouting: 'agent_harness mode:"model_routing"',

@@ -18,6 +18,7 @@ export const AGENT_HARNESS_MODES = [
   'operator_methods', 'operator_method',
   'service_posture', 'service_endpoint',
   'connected_host', 'connected_host_status', 'connected_host_capability',
+  'daemon', 'daemon_status',
 ] as const;
 
 const KEY_COMBO_PARAMETER_SCHEMA = {

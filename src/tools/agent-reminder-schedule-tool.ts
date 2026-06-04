@@ -120,11 +120,7 @@ export function createAgentReminderScheduleTool(
   return {
     definition: {
       name: 'agent_reminder_schedule',
-      description: [
-        'Schedule one confirmed GoodVibes Agent reminder.',
-        'Use only for an explicit reminder request.',
-        'No host lifecycle, background job, or Knowledge write.',
-      ].join(' '),
+      description: 'Schedule one confirmed GoodVibes Agent reminder.',
       parameters: {
         type: 'object',
         properties: {

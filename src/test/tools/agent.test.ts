@@ -835,7 +835,7 @@ describe('spawn mode', () => {
 
     for (const name of AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES) {
       const definition = registry.getToolDefinitions().find((tool) => tool.name === name);
-      expect(definition?.description).toContain('Blocked in GoodVibes Agent main conversation');
+      expect(definition?.description).toBe(`Blocked in GoodVibes Agent: ${name}.`);
       expect(definition?.sideEffects).toEqual([]);
 
       const result = await registry.execute(`call-${name}`, name, {});
@@ -1065,7 +1065,7 @@ describe('spawn mode', () => {
     installAgentToolPolicyGuard(registry);
 
     const readDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'read');
-    expect(readDefinition?.description).toContain('bounded, non-secret');
+    expect(readDefinition?.description).toContain('ordinary non-secret project files');
     expect(readDefinition?.sideEffects).toEqual(['read_fs']);
     expect(readDefinition?.concurrency).toBe('serial');
 
@@ -1186,7 +1186,7 @@ describe('spawn mode', () => {
     installAgentToolPolicyGuard(registry);
 
     const settingsDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'goodvibes_settings');
-    expect(settingsDefinition?.description).toContain('Blocked in GoodVibes Agent main conversation');
+    expect(settingsDefinition?.description).toBe('Blocked in GoodVibes Agent: configuration mutation.');
     expect(settingsDefinition?.sideEffects).toEqual([]);
     const properties = settingsDefinition?.parameters.properties as Record<string, unknown>;
     expect(properties.mode).toBeUndefined();
@@ -1214,8 +1214,7 @@ describe('spawn mode', () => {
     installAgentToolPolicyGuard(registry);
 
     const contextDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'goodvibes_context');
-    expect(contextDefinition?.description).toContain('Blocked in GoodVibes Agent main conversation');
-    expect(contextDefinition?.description).toContain('Agent Knowledge');
+    expect(contextDefinition?.description).toBe('Blocked in GoodVibes Agent: non-Agent runtime context.');
     expect(contextDefinition?.sideEffects).toEqual([]);
     const properties = contextDefinition?.parameters.properties as Record<string, unknown>;
     expect(properties.mode).toBeUndefined();
@@ -1240,7 +1239,7 @@ describe('spawn mode', () => {
     installAgentToolPolicyGuard(registry);
 
     const inspectDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'inspect');
-    expect(inspectDefinition?.description).toContain('Scaffold mode is dry-run-only');
+    expect(inspectDefinition?.description).toContain('Inspect and analyze project structure');
     const properties = inspectDefinition?.parameters.properties as Record<string, unknown>;
     expect(properties.dryRun).toBeUndefined();
 
@@ -1322,7 +1321,7 @@ describe('spawn mode', () => {
     installAgentToolPolicyGuard(registry);
 
     const registryDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'registry');
-    expect(registryDefinition?.description).toContain('Discover and preview GoodVibes Agent skills');
+    expect(registryDefinition?.description).toContain('Discover and preview GoodVibes Agent registry entries');
     expect(registryDefinition?.sideEffects).toEqual(['read_fs']);
     const properties = registryDefinition?.parameters.properties as Record<string, unknown>;
     const modeProperty = getRecordProperty(properties, 'mode');

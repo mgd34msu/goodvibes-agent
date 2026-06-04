@@ -45,7 +45,7 @@ Connected host: `http://127.0.0.1:37210`
 ### Agent CLI version command
 
 ```text
-goodvibes-agent 1.0.32
+goodvibes-agent 1.0.33
 ```
 
 ### Agent CLI status JSON command
@@ -59,7 +59,7 @@ Status JSON command completed; provider/model identifiers omitted from release a
 ```text
 {
   "ok": true,
-  "packageVersion": "1.0.32",
+  "packageVersion": "1.0.33",
   "sdkPin": "0.33.36",
   "connectedHost": {
     "baseUrl": "http://127.0.0.1:37210",

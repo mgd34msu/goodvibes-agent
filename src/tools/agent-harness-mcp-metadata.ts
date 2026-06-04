@@ -116,34 +116,36 @@ function describeServer(
       })),
       toolCount: tools.length,
     } : { toolCount: tools.length }),
-    policy: {
-      effect: 'read-only',
-      values: 'Server posture returns trust, role, connection, quarantine, and tool metadata; env values and secret config values are never returned.',
-      mutation: 'MCP add/remove/reload/trust/role/quarantine operations stay explicit confirmation-gated workspace or slash-command flows.',
-      allowAll: 'allow-all trust decisions remain routed through Settings -> MCP, not direct command escalation.',
-    },
-    modelAccess: {
-      reviewCommand: '/mcp review',
-      serversCommand: '/mcp servers',
-      toolsCommand: `/mcp tools ${server.name}`,
-      repairCommand: `/mcp repair ${server.name}`,
-      authReviewCommand: '/mcp auth-review',
-      configCommand: '/mcp config',
-      workspaceActionIds: [
-        'mcp-review',
-        'mcp-tools-server',
-        'mcp-repair',
-        'mcp-config',
-        'mcp-add-server',
-        'mcp-settings',
-      ],
-      confirmationGatedCommands: [
-        `/mcp trust ${server.name} <constrained|ask-on-risk|blocked> --yes`,
-        `/mcp role ${server.name} <role> --yes`,
-        `/mcp quarantine ${server.name} approve <operatorId> --yes`,
-        `/mcp remove ${server.name} --yes`,
-      ],
-    },
+    ...(options.includeParameters ? {
+      policy: {
+        effect: 'read-only',
+        values: 'Server posture returns trust, role, connection, quarantine, and tool metadata; env values and secret config values are never returned.',
+        mutation: 'MCP add/remove/reload/trust/role/quarantine operations stay explicit confirmation-gated workspace or slash-command flows.',
+        allowAll: 'allow-all trust decisions remain routed through Settings -> MCP, not direct command escalation.',
+      },
+      modelAccess: {
+        reviewCommand: '/mcp review',
+        serversCommand: '/mcp servers',
+        toolsCommand: `/mcp tools ${server.name}`,
+        repairCommand: `/mcp repair ${server.name}`,
+        authReviewCommand: '/mcp auth-review',
+        configCommand: '/mcp config',
+        workspaceActionIds: [
+          'mcp-review',
+          'mcp-tools-server',
+          'mcp-repair',
+          'mcp-config',
+          'mcp-add-server',
+          'mcp-settings',
+        ],
+        confirmationGatedCommands: [
+          `/mcp trust ${server.name} <constrained|ask-on-risk|blocked> --yes`,
+          `/mcp role ${server.name} <role> --yes`,
+          `/mcp quarantine ${server.name} approve <operatorId> --yes`,
+          `/mcp remove ${server.name} --yes`,
+        ],
+      },
+    } : {}),
   };
 }
 

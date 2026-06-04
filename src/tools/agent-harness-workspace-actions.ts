@@ -97,6 +97,11 @@ export function describeWorkspaceEditor(editor: AgentWorkspaceLocalEditor): Reco
   };
 }
 
+function previewText(value: string, maxLength = 120): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+}
+
 function selectedRoutineFromArgs(
   snapshot: AgentWorkspaceRuntimeSnapshot,
   args: AgentHarnessWorkspaceActionArgs,
@@ -163,6 +168,27 @@ export function describeWorkspaceAction(
   };
 }
 
+function describeWorkspaceActionSummary(
+  category: AgentWorkspaceCategory,
+  action: AgentWorkspaceAction,
+): Record<string, unknown> {
+  return {
+    id: action.id,
+    categoryId: category.id,
+    category: category.label,
+    group: category.group,
+    label: action.label,
+    summary: previewText(action.detail),
+    kind: action.kind,
+    safety: action.safety,
+    ...(action.command ? { command: action.command } : {}),
+    ...(action.targetCategoryId ? { targetCategoryId: action.targetCategoryId } : {}),
+    ...(action.editorKind ? { editorKind: action.editorKind } : {}),
+    ...(action.localKind ? { localKind: action.localKind } : {}),
+    ...(action.localOperation ? { localOperation: action.localOperation } : {}),
+  };
+}
+
 export function listWorkspaceActions(
   context: CommandContext,
   args: AgentHarnessWorkspaceActionArgs,
@@ -178,7 +204,9 @@ export function listWorkspaceActions(
   return source
     .filter((entry) => !categoryId || entry.category.id === categoryId)
     .slice(0, limit)
-    .map((entry) => describeWorkspaceAction(entry.category, entry.action, { includeEditor, editorContext }));
+    .map((entry) => includeEditor
+      ? describeWorkspaceAction(entry.category, entry.action, { includeEditor, editorContext })
+      : describeWorkspaceActionSummary(entry.category, entry.action));
 }
 
 function workspaceActionLookupFromArgs(args: AgentHarnessWorkspaceActionArgs): { readonly source: WorkspaceActionLookup['source']; readonly input: string } | null {

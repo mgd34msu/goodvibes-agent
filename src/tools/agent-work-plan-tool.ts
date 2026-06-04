@@ -165,11 +165,7 @@ export function createAgentWorkPlanTool(store: WorkPlanStore): Tool {
   return {
     definition: {
       name: 'agent_work_plan',
-      description: [
-        'Inspect or update the visible Agent-local work plan.',
-        'Use for task/status tracking.',
-        'Destructive actions require confirm:true plus explicitUserRequest.',
-      ].join(' '),
+      description: 'Inspect or update the visible Agent-local work plan.',
       parameters: {
         type: 'object',
         properties: {

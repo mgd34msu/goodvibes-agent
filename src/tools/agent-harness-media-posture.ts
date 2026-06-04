@@ -118,12 +118,12 @@ function describeProvider(
         generateMedia: 'agent_media_generate with confirm:true and explicitUserRequest',
         ttsSettings: 'agent_harness settings/get_setting/set_setting for tts.provider, tts.voice, tts.llmProvider, and tts.llmModel',
       },
+      policy: {
+        effect: 'read-only',
+        values: 'Provider posture returns capability, setup, selected, health, and safe environment key names only; secret values and media payloads are never returned.',
+        mutation: 'Media generation, voice enable/disable, TTS setting changes, and bundle export stay explicit confirmation-gated tool, setting, workspace, or slash-command flows.',
+      },
     } : {}),
-    policy: {
-      effect: 'read-only',
-      values: 'Provider posture returns capability, setup, selected, health, and safe environment key names only; secret values and media payloads are never returned.',
-      mutation: 'Media generation, voice enable/disable, TTS setting changes, and bundle export stay explicit confirmation-gated tool, setting, workspace, or slash-command flows.',
-    },
   };
 }
 
@@ -215,14 +215,14 @@ export async function mediaPostureSummary(context: CommandContext, args: AgentHa
     returned: filtered.length,
     total: providers.length,
     policy: 'Read-only voice/media posture. Media generation, voice enable/disable, TTS setting changes, and bundle export stay confirmation-gated through first-class tools, settings modes, workspace actions, or slash-command mirrors.',
-    modelAccess: {
+    ...(args.includeParameters === true ? { modelAccess: {
       mediaGenerateTool: 'agent_media_generate',
       providerCatalogMode: 'media_posture',
       singleProviderMode: 'media_provider',
-      ttsProviderPicker: 'open_ui_surface surfaceId:"tts-provider-picker"',
-      ttsVoicePicker: 'open_ui_surface surfaceId:"tts-voice-picker"',
+      ttsProviderPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"tts-provider-picker" confirm:true explicitUserRequest:"..."',
+      ttsVoicePicker: 'agent_harness mode:"open_ui_surface" surfaceId:"tts-voice-picker" confirm:true explicitUserRequest:"..."',
       commands: ['/media providers', '/voice review', '/tts <prompt>', '/image <path>'],
-    },
+    } } : {}),
   };
 }
 

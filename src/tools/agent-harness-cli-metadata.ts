@@ -14,6 +14,7 @@ export interface AgentHarnessCliArgs {
   readonly cliCommand?: unknown;
   readonly commandName?: unknown;
   readonly target?: unknown;
+  readonly includeParameters?: unknown;
   readonly limit?: unknown;
 }
 
@@ -106,12 +107,14 @@ export function blockedHarnessCliCommandTokens(): readonly string[] {
 export function listHarnessCliCommands(args: AgentHarnessCliArgs): readonly Record<string, unknown>[] {
   const query = readString(args.query);
   const limit = readLimit(args.limit, 200);
+  const includeParameters = args.includeParameters === true;
   return listGoodVibesCliCommands()
     .filter((command) => command !== 'unknown')
     .map((command) => describeCliCommand(command))
     .filter((command) => cliCommandMatches(command, query))
     .sort((a, b) => String(a.name).localeCompare(String(b.name)))
-    .slice(0, limit);
+    .slice(0, limit)
+    .map((command) => includeParameters ? command : cliCommandCandidate(command));
 }
 
 function cliInputFromArgs(args: AgentHarnessCliArgs): { readonly source: CliCommandLookup['source']; readonly input: string } | null {

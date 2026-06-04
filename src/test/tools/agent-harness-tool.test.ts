@@ -361,7 +361,12 @@ describe('agent_harness tool', () => {
       expect(categoryPayload.categories.some((entry) => entry.id === 'memory' && entry.actions > 0)).toBe(true);
       expect(categoryPayload.actions).toBe(workspacePayload.actions);
 
-      const summary = await fixture.tool.execute({ mode: 'summary' });
+      const compactSummary = await fixture.tool.execute({ mode: 'summary' });
+      expect(compactSummary.success).toBe(true);
+      const compactSummaryJson = JSON.parse(compactSummary.output ?? '{}') as { readonly modelAccess?: unknown };
+      expect(compactSummaryJson.modelAccess).toBeUndefined();
+
+      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly workspace?: string } };
       expect(summaryJson.modelAccess?.workspace).toContain('mode:"workspace"');
@@ -507,7 +512,7 @@ describe('agent_harness tool', () => {
         execute: async () => ({ success: true, output: 'custom report inspected' }),
       });
 
-      const summary = await fixture.tool.execute({ mode: 'summary' });
+      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly tools?: string } };
       expect(summaryJson.modelAccess?.tools).toContain('mode:"tool"');
@@ -555,7 +560,7 @@ describe('agent_harness tool', () => {
   test('exposes release evidence artifacts and readiness inventory lookup to the model', async () => {
     const fixture = makeFixture();
     try {
-      const summary = await fixture.tool.execute({ mode: 'summary' });
+      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       if (!summary.success) throw new Error(summary.error);
       const summaryJson = JSON.parse(summary.output) as {
@@ -613,7 +618,7 @@ describe('agent_harness tool', () => {
       expect(notesArtifactJson.lookup.resolvedBy).toBe('id');
       expect(notesArtifactJson.artifact.id).toBe('release-notes');
       expect(notesArtifactJson.artifact.path).toBe('release/release-notes.md');
-      expect(notesArtifactJson.artifact.content).toContain('model-visible release evidence surface');
+      expect(notesArtifactJson.artifact.content).toContain('compact model-visible harness pass');
       expect(notesArtifactJson.artifact.summary?.bullets).toBeGreaterThan(0);
 
       const ambiguousArtifact = await fixture.tool.execute({ mode: 'release_evidence_artifact', query: 'live verification' });
@@ -626,7 +631,7 @@ describe('agent_harness tool', () => {
 
       const inventory = await fixture.tool.execute({
         mode: 'release_readiness',
-        query: 'release readiness inventory',
+        query: 'release-quality inventory',
         limit: 5,
       });
       expect(inventory.success).toBe(true);
@@ -654,7 +659,7 @@ describe('agent_harness tool', () => {
 
       const inventoryWithQuality = await fixture.tool.execute({
         mode: 'release_readiness',
-        query: 'release readiness inventory',
+        query: 'release-quality inventory',
         includeParameters: true,
         limit: 1,
       });
@@ -698,7 +703,7 @@ describe('agent_harness tool', () => {
       fixture.configManager.setDynamic('danger.httpListener', false);
       fixture.configManager.setDynamic('web.enabled', false);
 
-      const summary = await fixture.tool.execute({ mode: 'summary' });
+      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       if (!summary.success) throw new Error(summary.error);
       const summaryJson = JSON.parse(summary.output) as {
@@ -748,7 +753,7 @@ describe('agent_harness tool', () => {
         'explicitUserRequest',
       ]));
 
-      const posture = await fixture.tool.execute({ mode: 'service_posture' });
+      const posture = await fixture.tool.execute({ mode: 'service_posture', includeParameters: true });
       expect(posture.success).toBe(true);
       if (!posture.success) throw new Error(posture.error);
       const postureJson = JSON.parse(posture.output) as {
@@ -783,7 +788,7 @@ describe('agent_harness tool', () => {
   test('exposes top-level CLI mirror metadata without enabling hidden CLI execution', async () => {
     const fixture = makeFixture();
     try {
-      const summary = await fixture.tool.execute({ mode: 'summary' });
+      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       expect(summary.output).toContain('"cliCommands"');
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly cliCommands?: string } };
@@ -792,10 +797,13 @@ describe('agent_harness tool', () => {
       const catalog = await fixture.tool.execute({ mode: 'cli_commands', query: 'knowledge' });
       expect(catalog.success).toBe(true);
       expect(catalog.output).toContain('"name": "knowledge"');
-      expect(catalog.output).toContain('agent_knowledge or agent_knowledge_ingest');
       expect(catalog.output).toContain('"blockedTokens"');
       expect(catalog.output).toContain('"daemon"');
       expect(catalog.output).toContain('CLI modes are read-only discovery');
+
+      const detailedCatalog = await fixture.tool.execute({ mode: 'cli_commands', query: 'knowledge', includeParameters: true });
+      expect(detailedCatalog.success).toBe(true);
+      expect(detailedCatalog.output).toContain('agent_knowledge or agent_knowledge_ingest');
 
       const parsed = await fixture.tool.execute({
         mode: 'cli_command',
@@ -841,7 +849,7 @@ describe('agent_harness tool', () => {
     try {
       fixture.panelManager.open('provider-health');
 
-      const summary = await fixture.tool.execute({ mode: 'summary' });
+      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       expect(summary.output).toContain('"panels": 3');
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly panels?: string } };
@@ -906,7 +914,7 @@ describe('agent_harness tool', () => {
   test('exposes modal and picker UI surfaces with confirmation-gated visible routing', async () => {
     const fixture = makeFixture();
     try {
-      const summary = await fixture.tool.execute({ mode: 'summary' });
+      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       expect(summary.output).toContain('"uiSurfaces"');
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly uiSurfaces?: string } };
@@ -1203,7 +1211,7 @@ describe('agent_harness tool', () => {
   test('exposes shortcuts and confirmation-gated keybinding edits', async () => {
     const fixture = makeFixture();
     try {
-      const summary = await fixture.tool.execute({ mode: 'summary' });
+      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       expect(summary.output).toContain('"shortcuts"');
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly shortcuts?: string } };
@@ -1397,7 +1405,12 @@ describe('agent_harness tool', () => {
         registerStubTool(fixture.toolRegistry, name);
       }
 
-      const result = await fixture.tool.execute({ mode: 'connected_host' });
+      const compactResult = await fixture.tool.execute({ mode: 'connected_host' });
+      expect(compactResult.success).toBe(true);
+      expect(compactResult.output).toContain('"counts"');
+      expect(compactResult.output).not.toContain('/api/goodvibes-agent/knowledge/*');
+
+      const result = await fixture.tool.execute({ mode: 'connected_host', includeParameters: true });
       expect(result.success).toBe(true);
       expect(result.output).toContain('"routeFamilies"');
       expect(result.output).toContain('/api/goodvibes-agent/knowledge/*');
@@ -2065,7 +2078,7 @@ describe('agent_harness tool', () => {
   test('resolves settings by key, target, and query without guessing ambiguous matches', async () => {
     const fixture = makeFixture();
     try {
-      const summary = await fixture.tool.execute({ mode: 'summary' });
+      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly settings?: string } };
       expect(summaryJson.modelAccess?.settings).toContain('category');

@@ -129,11 +129,13 @@ function describeSession(
       },
     } : {}),
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    policy: {
-      effect: 'read-only',
-      values: 'Session posture returns saved-session metadata, search counts, optional snippets, return-context counts, bookmark counts, and saved bookmark file counts.',
-      mutation: 'Session save, rename, fork, resume, export, delete, bookmark toggles, and bookmark file writes remain visible workspace or slash-command flows with confirmation where mutating.',
-    },
+    ...(options.includeParameters ? {
+      policy: {
+        effect: 'read-only',
+        values: 'Session posture returns saved-session metadata, search counts, optional snippets, return-context counts, bookmark counts, and saved bookmark file counts.',
+        mutation: 'Session save, rename, fork, resume, export, delete, bookmark toggles, and bookmark file writes remain visible workspace or slash-command flows with confirmation where mutating.',
+      },
+    } : {}),
   };
 }
 
@@ -176,9 +178,9 @@ function bookmarkSummary(context: CommandContext): Record<string, unknown> {
     bookmarks: manager.list().length,
     savedFiles: manager.listSavedFiles().length,
     modelRoutes: {
-      visibleBookmarkPicker: 'agent_harness open_ui_surface surfaceId:"bookmarks"',
+      visibleBookmarkPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"bookmarks" confirm:true explicitUserRequest:"..."',
       command: '/bookmarks',
-      importIntoKnowledge: 'agent_knowledge_ingest sourceKind:"bookmarks_file" with confirm:true',
+      importIntoKnowledge: 'agent_knowledge_ingest sourceKind:"bookmarks_file" confirm:true explicitUserRequest:"..."',
     },
   };
 }

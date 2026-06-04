@@ -175,11 +175,7 @@ export function createAgentOperatorBriefingTool(
   return {
     definition: {
       name: 'agent_operator_briefing',
-      description: [
-        'Read connected Agent operator state for a concise briefing.',
-        'Use for pending attention, approvals, automation, schedules, or status.',
-        'Read-only.',
-      ].join(' '),
+      description: 'Read connected Agent operator state for a concise briefing.',
       parameters: {
         type: 'object',
         properties: {},

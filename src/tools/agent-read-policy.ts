@@ -126,10 +126,7 @@ export function isBlockedReadPath(path: string): boolean {
 }
 
 function narrowReadToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Read ordinary project files for GoodVibes Agent with bounded, non-secret, main-conversation policy.',
-    'Hidden paths, secret-looking files, broad batches, unoptimized image extraction, and oversized image reads are disabled.',
-  ].join(' ');
+  tool.definition.description = 'Read ordinary non-secret project files for GoodVibes Agent.';
   tool.definition.sideEffects = ['read_fs'];
   tool.definition.concurrency = 'serial';
 

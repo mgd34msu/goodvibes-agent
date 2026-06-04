@@ -123,11 +123,7 @@ export function createAgentKnowledgeTool(
   return {
     definition: {
       name: 'agent_knowledge',
-      description: [
-        'Read isolated Agent Knowledge.',
-        'Use for status, ask/search, source/node/issue lists, item lookup, map summary, and connector inspection.',
-        'Read-only.',
-      ].join(' '),
+      description: 'Read isolated Agent Knowledge.',
       parameters: {
         type: 'object',
         properties: {

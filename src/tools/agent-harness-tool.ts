@@ -127,6 +127,67 @@ function output(value: unknown): { readonly success: true; readonly output: stri
 
 function error(message: string): { readonly success: false; readonly error: string } { return { success: false, error: message }; }
 
+function compactHarnessModeGuide(): Record<string, unknown> {
+  return {
+    discover: [
+      'cli_commands', 'panels', 'ui_surfaces', 'shortcuts', 'keybindings',
+      'commands', 'channels', 'notifications', 'provider_accounts', 'mcp_servers',
+      'setup_posture', 'model_routing', 'pairing_posture', 'delegation_posture',
+      'security_posture', 'support_bundles', 'media_posture', 'sessions',
+      'settings', 'workspace', 'workspace_categories', 'workspace_actions',
+      'tools', 'release_evidence', 'release_readiness', 'operator_methods',
+      'service_posture', 'connected_host', 'daemon',
+    ],
+    inspect: [
+      'cli_command', 'panel', 'ui_surface', 'keybinding', 'command', 'channel',
+      'notification_target', 'provider_account', 'mcp_server', 'setup_item',
+      'model_route', 'pairing_route', 'delegation_route', 'security_finding',
+      'support_bundle', 'media_provider', 'session', 'get_setting',
+      'workspace_action', 'tool', 'release_evidence_artifact',
+      'release_readiness_item', 'operator_method', 'service_endpoint',
+      'connected_host_capability', 'connected_host_status', 'daemon_status',
+    ],
+    effects: [
+      'open_panel', 'open_ui_surface', 'run_keybinding', 'set_keybinding',
+      'reset_keybinding', 'run_command', 'set_setting', 'reset_setting',
+      'run_workspace_action',
+    ],
+    pattern: 'Use query|target for search, exact ids for inspect modes, and confirm:true plus explicitUserRequest for effects.',
+  };
+}
+
+function detailedHarnessModelAccessGuide(): Record<string, string> {
+  return {
+    cliCommands: 'List mode:"cli_commands"; inspect mode:"cli_command" with cliCommand|commandName|query. Discovery only.',
+    panels: 'List mode:"panels"; inspect mode:"panel"; navigate mode:"open_panel" with confirm:true and explicitUserRequest.',
+    uiSurfaces: 'List mode:"ui_surfaces"; inspect mode:"ui_surface"; navigate mode:"open_ui_surface" with confirmation.',
+    shortcuts: 'List mode:"shortcuts"; inspect mode:"keybinding"; run mode:"run_keybinding"; edit with set_keybinding/reset_keybinding and confirmation.',
+    slashCommands: 'List mode:"commands"; inspect mode:"command"; execute mode:"run_command" with confirmation.',
+    channels: 'List mode:"channels"; inspect mode:"channel"; deliver with agent_channel_send and confirmation.',
+    notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
+    providerAccounts: 'List mode:"provider_accounts"; inspect mode:"provider_account"; auth changes stay confirmed workspace/command flows.',
+    mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
+    setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; setup mutations stay confirmed visible flows.',
+    modelRouting: 'List mode:"model_routing"; inspect mode:"model_route"; selection and provider edits stay confirmed visible flows.',
+    pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
+    delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
+    securityPosture: 'List mode:"security_posture"; inspect mode:"security_finding"; mutate only through confirmed security routes.',
+    supportBundles: 'List mode:"support_bundles"; inspect mode:"support_bundle"; export/import stays confirmation-gated.',
+    mediaPosture: 'List mode:"media_posture"; inspect mode:"media_provider"; generate with agent_media_generate and confirmation.',
+    sessions: 'List mode:"sessions"; inspect mode:"session"; save/resume/export/delete stays visible confirmed flow.',
+    workspace: 'List mode:"workspace" or mode:"workspace_categories"; actions via workspace_actions/workspace_action/run_workspace_action; includeParameters:true inlines editor schemas.',
+    settings: 'List mode:"settings" with category|prefix|query|includeHidden:true; get_setting/set_setting/reset_setting use key|target|query and confirmation for writes.',
+    tools: 'List mode:"tools" with query|limit|includeParameters:true; inspect mode:"tool" with toolName|target|query.',
+    releaseEvidence: 'List mode:"release_evidence"; inspect mode:"release_evidence_artifact"; includeParameters:true inlines artifact detail.',
+    releaseReadiness: 'List mode:"release_readiness"; inspect mode:"release_readiness_item"; includeParameters:true inlines item detail.',
+    operatorMethods: 'List mode:"operator_methods"; inspect mode:"operator_method"; execute only through the returned first-class tool.',
+    servicePosture: 'List mode:"service_posture"; inspect mode:"service_endpoint"; includeParameters:true adds probes and redacted log tail.',
+    connectedHost: 'Map mode:"connected_host"; inspect mode:"connected_host_capability"; no lifecycle control.',
+    connectedHostStatus: 'Live read-only mode:"connected_host_status" for host reachability, SDK compatibility, token posture, and Knowledge readiness.',
+    daemon: 'Daemon aliases route to mode:"connected_host" and mode:"connected_host_status"; lifecycle control is not exposed.',
+  };
+}
+
 function requireConfirmedAction(args: AgentHarnessToolArgs, action: string): string | null {
   const explicitUserRequest = readString(args.explicitUserRequest);
   if (!explicitUserRequest) return `${action} requires explicitUserRequest with the user's exact request or a short faithful summary.`;
@@ -348,11 +409,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
   return {
     definition: {
       name: 'agent_harness',
-      description: [
-        'Inspect or operate the GoodVibes Agent harness.',
-        'Use summary for mode help.',
-        'Effects require confirm:true plus explicitUserRequest; no host lifecycle or raw secrets.',
-      ].join(' '),
+      description: 'Inspect or operate GoodVibes Agent harness surfaces.',
       parameters: {
         type: 'object',
         properties: AGENT_HARNESS_PARAMETER_PROPERTIES,
@@ -407,36 +464,12 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             releaseReadiness: releaseReadinessInventoryStatus(),
             operatorMethods: operatorMethodCatalogStatus(),
             servicePosture: servicePostureCatalogStatus(),
-            modelAccess: {
-              cliCommands: 'List mode:"cli_commands"; inspect mode:"cli_command" with cliCommand|commandName|query. Discovery only.',
-              panels: 'List mode:"panels"; inspect mode:"panel"; navigate mode:"open_panel" with confirm:true and explicitUserRequest.',
-              uiSurfaces: 'List mode:"ui_surfaces"; inspect mode:"ui_surface"; navigate mode:"open_ui_surface" with confirmation.',
-              shortcuts: 'List mode:"shortcuts"; inspect mode:"keybinding"; run mode:"run_keybinding"; edit with set_keybinding/reset_keybinding and confirmation.',
-              slashCommands: 'List mode:"commands"; inspect mode:"command"; execute mode:"run_command" with confirmation.',
-              channels: 'List mode:"channels"; inspect mode:"channel"; deliver with agent_channel_send and confirmation.',
-              notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
-              providerAccounts: 'List mode:"provider_accounts"; inspect mode:"provider_account"; auth changes stay confirmed workspace/command flows.',
-              mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
-              setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; setup mutations stay confirmed visible flows.',
-              modelRouting: 'List mode:"model_routing"; inspect mode:"model_route"; selection and provider edits stay confirmed visible flows.',
-              pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
-              delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
-              securityPosture: 'List mode:"security_posture"; inspect mode:"security_finding"; mutate only through confirmed security routes.',
-              supportBundles: 'List mode:"support_bundles"; inspect mode:"support_bundle"; export/import stays confirmation-gated.',
-              mediaPosture: 'List mode:"media_posture"; inspect mode:"media_provider"; generate with agent_media_generate and confirmation.',
-              sessions: 'List mode:"sessions"; inspect mode:"session"; save/resume/export/delete stays visible confirmed flow.',
-              workspace: 'List mode:"workspace" or mode:"workspace_categories"; actions via workspace_actions/workspace_action/run_workspace_action; includeParameters:true inlines editor schemas.',
-              settings: 'List mode:"settings" with category|prefix|query|includeHidden:true; get_setting/set_setting/reset_setting use key|target|query and confirmation for writes.',
-              tools: 'List mode:"tools" with query|limit|includeParameters:true; inspect mode:"tool" with toolName|target|query.',
-              releaseEvidence: 'List mode:"release_evidence"; inspect mode:"release_evidence_artifact"; includeParameters:true inlines artifact detail.',
-              releaseReadiness: 'List mode:"release_readiness"; inspect mode:"release_readiness_item"; includeParameters:true inlines item detail.',
-              operatorMethods: 'List mode:"operator_methods"; inspect mode:"operator_method"; execute only through the returned first-class tool.',
-              servicePosture: 'List mode:"service_posture"; inspect mode:"service_endpoint"; includeParameters:true adds probes and redacted log tail.',
-              connectedHost: 'Map mode:"connected_host"; inspect mode:"connected_host_capability"; no lifecycle control.',
-              connectedHostStatus: 'Live read-only mode:"connected_host_status" for host reachability, SDK compatibility, token posture, and Knowledge readiness.',
-            },
+            modeGuide: compactHarnessModeGuide(),
+            ...(args.includeParameters === true ? { modelAccess: detailedHarnessModelAccessGuide() } : {}),
             settingsPolicy: settingsPolicySummary(),
-            connectedHost: connectedHostSummary(deps.commandContext, deps.toolRegistry),
+            connectedHost: connectedHostSummary(deps.commandContext, deps.toolRegistry, {
+              includeParameters: args.includeParameters === true,
+            }),
           });
         }
         if (args.mode === 'cli_commands') {
@@ -603,6 +636,8 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             query: readString(args.query) || undefined,
             includeHidden: args.includeHidden === true,
             limit: readLimit(args.limit, 100),
+          }, {
+            includeParameters: args.includeParameters === true,
           });
           return output({ settings, returned: settings.length, policy: settingsPolicySummary() });
         }
@@ -714,7 +749,11 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'ambiguous') return error(`Ambiguous service endpoint ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
-        if (args.mode === 'connected_host') return output(connectedHostSummary(deps.commandContext, deps.toolRegistry));
+        if (args.mode === 'connected_host' || args.mode === 'daemon') {
+          return output(connectedHostSummary(deps.commandContext, deps.toolRegistry, {
+            includeParameters: args.includeParameters === true,
+          }));
+        }
         if (args.mode === 'connected_host_capability') {
           const query = readString(args.capabilityId || args.target || args.query);
           const resolved = describeConnectedHostCapability(deps.toolRegistry, query);
@@ -722,7 +761,11 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved?.status === 'ambiguous') return error(`Ambiguous connected-host capability ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(`Unknown connected-host capability ${query || '<missing>'}. Use mode:"connected_host" to inspect allowed and blocked capability ids.`);
         }
-        if (args.mode === 'connected_host_status') return output(await connectedHostStatusSummary(deps.commandContext, deps.toolRegistry));
+        if (args.mode === 'connected_host_status' || args.mode === 'daemon_status') {
+          return output(await connectedHostStatusSummary(deps.commandContext, deps.toolRegistry, {
+            includeParameters: args.includeParameters === true,
+          }));
+        }
         return error(`Unhandled agent_harness mode: ${args.mode}`);
       } catch (err) {
         return error(formatHarnessError(err));

@@ -261,11 +261,7 @@ export function createAgentKnowledgeIngestTool(
   return {
     definition: {
       name: 'agent_knowledge_ingest',
-      description: [
-        'Ingest one confirmed source into isolated Agent Knowledge.',
-        'Use only for explicit ingest/import requests.',
-        'Supports URL, file, bookmark, history, and connector sources.',
-      ].join(' '),
+      description: 'Ingest one confirmed source into isolated Agent Knowledge.',
       parameters: {
         type: 'object',
         properties: {

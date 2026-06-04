@@ -10,7 +10,7 @@
     ],
     "stableLinePolicy": "Stable release lines must have zero blocker statuses before release.",
     "sourceNaming": "Use neutral evidence aliases only.",
-    "qualityGate": "Release readiness means every listed capability has release-quality capability coverage, user access, model access, safety-boundary evidence, and release evidence.",
+    "qualityGate": "Release quality means every listed capability has release-quality capability coverage, user access, model access, safety-boundary evidence, and release evidence.",
     "requiredQualityDimensions": [
       "capabilityCoverage",
       "userAccess",
@@ -360,11 +360,11 @@
       "evidence": "release/performance-snapshot.json; src/cli/package-verification.ts; scripts/release.ts; scripts/perf-check.ts; scripts/publish-check.ts; scripts/package-install-check.ts; .github/workflows/ci.yml",
       "action": "Keep release validation centralized and package-facing docs aligned with Agent product boundaries.",
       "quality": {
-        "capabilityCoverage": "Covers package identity, Bun-only install, runtime build, package docs, compact model tool description policy, compiled binary smoke, pack/install smoke, publish checks, performance checks, and tarball policy.",
+        "capabilityCoverage": "Covers package identity, Bun-only install, runtime build, package docs, compact model tool and harness metadata policy, compiled binary smoke, pack/install smoke, publish checks, performance checks, and tarball policy.",
         "userAccess": "The user receives one installable package with goodvibes-agent as the executable and package-facing docs included in the tarball.",
         "modelAccess": "agent_harness exposes package-facing CLI mirror metadata and docs describe model routes so the assistant can operate installed surfaces instead of hidden nested processes.",
         "safetyBoundary": "The package excludes tests, private verification internals, connected-host binaries, lifecycle ownership, and forbidden boundary paths.",
-        "releaseEvidence": "Shared package verification, compact model tool description thresholds, release scripts, performance snapshot, and release workflow policy keep the package gate required for every release."
+        "releaseEvidence": "Shared package verification, compact model tool/harness metadata checks, release scripts, performance snapshot, and release workflow policy keep the package gate required for every release."
       }
     },
     {
@@ -384,7 +384,7 @@
     },
     {
       "id": "release-readiness-inventory-gate",
-      "capability": "The release readiness inventory is staged with release metadata and blocks stable releases when unknown or gap entries remain.",
+      "capability": "The release-quality inventory is staged with release metadata and blocks stable releases when unknown or gap entries remain.",
       "owner": "release",
       "status": "covered",
       "evidence": "release/release-readiness.json; src/tools/agent-harness-release-evidence.ts; src/tools/agent-harness-release-readiness.ts; src/tools/agent-harness-tool.ts; src/cli/package-verification.ts; scripts/release.ts",

@@ -82,10 +82,7 @@ export function normalizeFindToolInvocationForAgentPolicy(args: FindToolArgs): F
 }
 
 function narrowFindToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Search the project for GoodVibes Agent using serial, gitignore-respecting read-only queries.',
-    'Hidden-file scans, symlink traversal, gitignore bypass, broad previews, full symbol dumps, and parallel search are disabled in the main conversation.',
-  ].join(' ');
+  tool.definition.description = 'Search project files with serial, gitignore-respecting read-only queries.';
   tool.definition.sideEffects = ['read_fs'];
   tool.definition.concurrency = 'serial';
 

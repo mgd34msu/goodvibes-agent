@@ -309,11 +309,7 @@ export function normalizeAgentToolInvocationForAgentPolicy(args: AgentToolArgs):
 }
 
 export function wrapBlockedMainConversationToolForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    `Blocked in GoodVibes Agent main conversation: ${tool.definition.name}.`,
-    'Use explicit GoodVibes TUI build delegation for build/fix/review/code execution work.',
-    'Use Agent-owned local registries and isolated Agent Knowledge routes for Agent memory and knowledge work.',
-  ].join(' ');
+  tool.definition.description = `Blocked in GoodVibes Agent: ${tool.definition.name}.`;
   tool.definition.sideEffects = [];
   tool.execute = async () => ({ success: false, error: LOCAL_CODING_TOOL_DENIAL });
 }
@@ -349,11 +345,7 @@ export function wrapStateToolForAgentPolicy(tool: Tool): void {
 }
 
 export function wrapBlockedSettingsToolForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Blocked in GoodVibes Agent main conversation: configuration mutation.',
-    'Use explicit Agent CLI/slash settings commands for intentional config changes.',
-    'Connected-host lifecycle and service exposure remain externally managed outside GoodVibes Agent.',
-  ].join(' ');
+  tool.definition.description = 'Blocked in GoodVibes Agent: configuration mutation.';
   tool.definition.sideEffects = [];
   tool.definition.parameters = {
     type: 'object',
@@ -603,11 +595,7 @@ function isPresent(value: unknown): boolean {
 }
 
 function narrowAgentToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Read-only local Agent inspection for GoodVibes Agent.',
-    'This product does not create separate Agent jobs or run local delegated review chains.',
-    'For build/fix/review work, delegate to GoodVibes TUI through the explicit build-delegation path instead.',
-  ].join(' ');
+  tool.definition.description = 'Read-only local Agent inspection for GoodVibes Agent.';
   tool.definition.sideEffects = [];
 
   const properties = tool.definition.parameters.properties;
@@ -619,11 +607,7 @@ function narrowAgentToolDefinitionForAgentPolicy(tool: Tool): void {
 }
 
 function narrowExecToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Execute foreground shell commands serially for GoodVibes Agent main-conversation work.',
-    'Background processes, parallel batches, background process controls, and exec file_ops are disabled by Agent policy.',
-    'Delegate long-running build/fix/review execution to GoodVibes TUI instead.',
-  ].join(' ');
+  tool.definition.description = 'Execute foreground shell commands serially for GoodVibes Agent.';
 
   const properties = tool.definition.parameters.properties;
   if (!isRecord(properties)) return;
@@ -648,11 +632,7 @@ function narrowExecToolDefinitionForAgentPolicy(tool: Tool): void {
 }
 
 function narrowFetchToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Fetch public URLs for GoodVibes Agent with serial, read-only HTTP requests.',
-    'Only GET, HEAD, and OPTIONS are available in the main conversation.',
-    'Credentialed requests, request bodies, trust overrides, raw unsanitized responses, and parallel batches are disabled by Agent policy.',
-  ].join(' ');
+  tool.definition.description = 'Fetch public URLs with serial, read-only HTTP requests.';
 
   const properties = tool.definition.parameters.properties;
   if (!isRecord(properties)) return;
@@ -689,11 +669,7 @@ function narrowFetchToolDefinitionForAgentPolicy(tool: Tool): void {
 }
 
 function narrowStateToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Inspect runtime-owned state for GoodVibes Agent.',
-    'State mutation, runtime-owned memory writes, hook changes, output-mode changes, and analytics writes are disabled in the main conversation.',
-    'Use Agent-owned commands for intentional memory, skill, persona, and routine changes.',
-  ].join(' ');
+  tool.definition.description = 'Inspect runtime-owned state for GoodVibes Agent.';
 
   const properties = tool.definition.parameters.properties;
   if (!isRecord(properties)) return;
@@ -723,10 +699,7 @@ function narrowStateToolDefinitionForAgentPolicy(tool: Tool): void {
 }
 
 function narrowInspectToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Inspect and analyze project structure for GoodVibes Agent.',
-    'Scaffold mode is dry-run-only in the main conversation; code creation must be delegated to GoodVibes TUI.',
-  ].join(' ');
+  tool.definition.description = 'Inspect and analyze project structure for GoodVibes Agent.';
 
   const properties = tool.definition.parameters.properties;
   if (!isRecord(properties)) return;

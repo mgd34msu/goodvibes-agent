@@ -35,11 +35,7 @@ export function createAgentOperatorActionTool(
   return {
     definition: {
       name: 'agent_operator_action',
-      description: [
-        'Run one confirmed allowlisted operator action.',
-        'Use only for explicit approval, automation, or schedule requests.',
-        'No automation definition edits or host lifecycle.',
-      ].join(' '),
+      description: 'Run one confirmed allowlisted operator action.',
       parameters: {
         type: 'object',
         properties: {

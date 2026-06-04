@@ -73,10 +73,7 @@ export function normalizeWebSearchToolInvocationForAgentPolicy(args: WebSearchTo
 }
 
 function narrowWebSearchToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = [
-    'Run bounded, read-only web research for GoodVibes Agent.',
-    'Full-page/raw/summary extraction, safe-search off, and high-fanout searches are disabled in the main conversation.',
-  ].join(' ');
+  tool.definition.description = 'Run bounded, read-only web research for GoodVibes Agent.';
   tool.definition.sideEffects = ['network'];
 
   const properties = tool.definition.parameters.properties;

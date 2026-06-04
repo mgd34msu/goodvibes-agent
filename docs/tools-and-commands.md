@@ -1,92 +1,173 @@
 # Tools and Commands
 
-GoodVibes Agent is an operator assistant TUI. Its command set is centered on main-conversation assistant work, isolated Agent Knowledge, local memory/notes/routines/skills/personas, approvals, automation visibility, and explicit delegation to GoodVibes TUI for build work.
+GoodVibes Agent is a TUI-first operator assistant. The workspace is the primary user surface; slash commands are power-user routes inside the TUI; CLI subcommands are scriptable mirrors.
 
-## Product Boundaries
+## Boundaries
 
 - Normal chat stays in the main Agent conversation.
 - Agent Knowledge uses only `/api/goodvibes-agent/knowledge/*`.
-- Agent never falls back to default knowledge or arbitrary non-Agent knowledge spaces.
-- Local memory, notes, routines, skills, and personas remain Agent-local unless an explicit Agent workflow promotes reviewed material into another Agent-owned surface.
-- Runtime hosting is external. Agent connects to it and reports health; it does not start, stop, restart, or install it.
-- Delegated review is not a default reasoning path. It is requested only when the user explicitly asks for build, implementation, fix, or review work.
-- Code-building work is delegated to GoodVibes TUI through public shared-session/task contracts.
+- Agent does not query default knowledge or other product knowledge spaces.
+- Connected-host lifecycle is external. Agent reports and uses public routes, but does not start, stop, restart, install, expose, or mutate the host listener.
+- Code-building work is explicit delegation to GoodVibes TUI. Delegated review is never the default reasoning path.
+- External delivery, notifications, reminders, media generation, setting writes, keybinding writes, UI routing, slash-command execution, workspace-action execution, local destructive changes, and connected-host operator actions require explicit user request and confirmation.
 
-## TUI-First Operator Surface
+## User-Facing Surfaces
 
-The Agent workspace is the product surface. Slash commands are power-user routes inside the TUI, and package CLI subcommands are scriptable mirrors. New user-facing features should appear in the workspace first.
+High-signal TUI routes:
 
-High-signal Agent TUI paths:
+| Surface | Purpose |
+| --- | --- |
+| `/agent` | Open the fullscreen operator workspace. |
+| `/help` and `/commands` | Discover registered slash commands. |
+| `/health`, `/compat`, `/auth` | Inspect runtime, SDK, host, and auth posture. |
+| `/model`, `/provider`, `/effort` | Inspect or change provider/model/reasoning routes. |
+| `/knowledge` | Use isolated Agent Knowledge. |
+| `/memory`, `/notes`, `/personas`, `/skills`, `/routines` | Manage Agent-local behavior libraries. |
+| `/plan`, `/workplan` | Planning and durable visible work tracking. |
+| `/approval`, `/automation`, `/schedule` | Read posture and run exact confirmed operator actions. |
+| `/channels`, `/notify`, `/qrcode` | Pair companions, inspect channel readiness, and send confirmed messages. |
+| `/media`, `/voice`, `/tts` | Inspect media/voice readiness, generate media, and run spoken turns. |
+| `/mcp`, `/secrets`, `/settings`, `/config` | Inspect or update Agent-local configuration. |
+| `/delegate` | Hand explicit build/fix/review work to GoodVibes TUI. |
 
-- `/help` for registry-driven command discovery.
-- `/health` and `/auth` for runtime/auth/SDK diagnostics inside the TUI.
-- `/model` and `/provider` for provider/model selection and visibility.
-- `/agent` for the fullscreen operator workspace: setup, provider/model, Agent Knowledge, memory, notes, personas, skills, routines, channels, MCP/tools, secrets, voice/media, work state, automation, and build delegation.
-- Agent Workspace -> Research for read-only web research, URL inspection, source triage, and explicit source-to-Agent-Knowledge handoff.
-- Agent Workspace -> Notes for local source-triage notes, temporary decisions, and operator handoff. Notes do not write memory or Agent Knowledge by themselves; reviewed notes can prefill memory, skills, routines, personas, or an isolated Agent Knowledge URL ingest.
-- `/knowledge` for isolated Agent Knowledge ask, search, status, source/node/issue inspection, connector inspection, and confirmed ingest/reindex actions.
-- `/memory`, `/routines`, `/skills`, and `/personas` for Agent-local context and reusable operator behavior.
-- `/plan` for Agent-owned workspace planning state in the main conversation.
-- `/workplan` for durable task status over public work-plan routes.
-- `/approval` for pending approval visibility and explicit approval actions.
-- `/schedule` for schedule visibility plus narrow explicit-user-action flows.
-- `/channels` for channel readiness and one-message confirmed channel delivery.
-- `/media` for media provider readiness and confirmed image/video artifact generation.
-- `/delegate` for explicit build/fix/review handoff to GoodVibes TUI.
-- `/mcp`, `/config`, `/settings`, and setup workspaces for Agent-local configuration.
+## Model Tools
 
-The installed `goodvibes-agent` command launches the TUI by default. Subcommands such as `status`, `compat`, `knowledge ...`, `ask <question>`, and `search <query>` are secondary scriptable equivalents for diagnostics and automation over the same Agent workspace features.
+| Tool | Use |
+| --- | --- |
+| `agent_harness` | Discover and operate user-facing harness surfaces. |
+| `agent_knowledge` | Read isolated Agent Knowledge: status, ask/search, lists, item, map, connectors. |
+| `agent_knowledge_ingest` | Confirmed ingest into isolated Agent Knowledge. |
+| `agent_local_registry` | Inspect or update Agent-local memory, notes, personas, skills, bundles, and routines. |
+| `agent_work_plan` | Keep the visible Agent-local work plan current. |
+| `agent_operator_briefing` | Read connected work, approvals, automation, schedules, and capacity posture. |
+| `agent_operator_action` | Run exact confirmed approval/automation/schedule actions. |
+| `agent_channel_send` | Send one confirmed channel message. |
+| `agent_notify` | Send one confirmed notification through configured webhook targets. |
+| `agent_reminder_schedule` | Create one confirmed connected reminder/schedule. |
+| `agent_media_generate` | Generate one confirmed image/video artifact. |
 
-Host-management and coding-first commands that would imply connected-host lifecycle ownership, separate Agent job creation, execution-isolation ownership, worktree control, or implicit delegated review must remain blocked, read-only, or delegation-only unless they are intentionally adapted to Agent policy.
+## `agent_harness`
 
-## Model-Visible Harness Surface
+Use `agent_harness mode:"summary"` first. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, and short route hints. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
 
-The main Agent model has an Agent-owned harness bridge rather than generic SDK settings/context control. Use these model tools as the supported model-access layer:
+Discovery modes:
 
-- `agent_harness`: inspect workspace categories/actions and inspect or run one workspace action by action id, command, or lookup text, inspect built-in panels and one panel by id or lookup text, inspect modal/overlay/picker UI surfaces and named operator surfaces by id or lookup text, inspect top-level CLI mirrors and one mirror by command string, command token, or lookup text, inspect fixed shortcuts and configurable keybindings, inspect/change/run one keybinding by action id or lookup text where a shell-safe model route exists, inspect slash commands and one slash command by typed command or lookup text with policy metadata, run concrete slash-command mirrors with confirmation, inspect channel readiness or one channel by id or lookup text, inspect redacted notification targets or one target by id or lookup text, inspect provider account posture or one provider by id or lookup text, inspect MCP server posture or one server by id or lookup text, inspect setup/onboarding posture or one setup item by id or lookup text, inspect provider/model routing or one route/model by id or lookup text, inspect companion pairing posture or one pairing route by id or lookup text, inspect explicit build-delegation posture or one delegation route by id or lookup text, inspect security posture or one finding by id or lookup text, inspect support/auth/trust/subscription/voice bundle routes or one redacted bundle file by path, inspect voice/media readiness or one provider by id or lookup text, inspect session/bookmark posture or one saved session by id or lookup text, inspect compact model tools or one model tool schema, inspect release evidence artifacts, inspect the release-readiness inventory or one readiness item, inspect public operator methods or one operator method, inspect service posture or one service endpoint, inspect or change Agent settings by exact key or lookup text, inspect connected-host capability boundaries or one connected-host capability, and inspect live connected-host readiness.
-- `agent_local_registry`: inspect and maintain Agent-local memory, notes, personas, skills, skill bundles, and routines. Deleting local records requires `confirm:true` and `explicitUserRequest`.
-- `agent_knowledge` and `agent_knowledge_ingest`: inspect status, ask/search, list sources/nodes/issues, inspect items, inspect the map and connectors, and ingest into the isolated Agent Knowledge segment.
-- `agent_operator_briefing` and `agent_operator_action`: inspect connected work/approval/automation posture, or run exact confirmed approval/automation actions.
-- `agent_work_plan`: keep the visible Agent-local work plan current from the conversation.
-- `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, and `agent_media_generate`: perform confirmed external delivery, notification, reminder, or media actions when the user explicitly asks.
+| Mode | What It Lists |
+| --- | --- |
+| `workspace`, `workspace_categories`, `workspace_actions` | Workspace categories and actions. |
+| `commands`, `cli_commands` | Slash commands and top-level package CLI mirrors. |
+| `panels`, `ui_surfaces` | Built-in panels and visible modal/overlay/picker/workspace surfaces. |
+| `shortcuts`, `keybindings` | Fixed shortcuts and configurable keybindings. |
+| `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
+| `tools` | First-class model tool definitions; schema details require `includeParameters:true` or `tool`. |
+| `channels`, `notifications` | Channel readiness and redacted notification targets. |
+| `provider_accounts`, `model_routing` | Provider auth and provider/model route posture. |
+| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, setup, pairing, and build-delegation posture. |
+| `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
+| `operator_methods` | Public operator and Agent Knowledge method catalog. |
+| `service_posture`, `connected_host`, `daemon` | Endpoint, connected-host, and daemon alias posture. |
+| `release_evidence`, `release_readiness` | Packaged release evidence and release-quality inventory. |
 
-`agent_harness` discovery modes are read-only. `summary` reports the model access map; `workspace` and `workspace_categories` list the Agent workspace category catalog with action counts; `panels` lists the built-in panel catalog, and `panel` resolves one panel by `panelId`, `target`, or `query` with current open/focused state plus its matching Agent workspace route; `ui_surfaces` lists modal, overlay, picker, and workspace entrypoints, and `ui_surface` resolves one by `surfaceId`, `target`, or `query` with shell-opener availability and preferred model routes; `cli_commands` lists top-level package CLI mirror metadata, and `cli_command` resolves one mirror by `cliCommand`, `command`, `commandName`, `target`, or `query`, returning parser output for concrete invocations, blocked command tokens, lookup metadata, and preferred in-process model or current-conversation routes; `shortcuts` returns fixed runtime/editor shortcuts plus configurable keybindings; `keybindings` lists the live resolved keybinding table, and `keybinding`, `run_keybinding`, `set_keybinding`, and `reset_keybinding` resolve one action by `actionId`, `target`, `key`, or `query` with default bindings, custom state, config path, lookup metadata, and model-operation route metadata; `commands` lists slash-command descriptions; `command` returns one slash-command detail by `command`, `commandName`, `target`, or `query`, including parsed arguments plus concrete built-in effect/confirmation/preferred-tool/boundary policy metadata for every registered command root, and refuses ambiguous command lookup with candidate commands; `run_command` executes one confirmed slash command using the same `command`, `commandName`, `target`, or `query` resolver and refuses ambiguous command lookup before any handler runs; `channels` returns read-only channel readiness with setup state, delivery posture, risk labels, safe config-key names, preferred model routes, and optional target-shape hints through `includeParameters:true`; `channel` returns one channel by `channelId`, `target`, or `query` and refuses ambiguous channel lookup with candidates; `notifications` returns read-only redacted notification target refs with target counts, URL validity, protocol/host posture, fingerprints, and optional management-route hints through `includeParameters:true`; `notification_target` returns one redacted notification target by `notificationTargetId`, `target`, or `query` and refuses ambiguous lookup with candidates; `provider_accounts` returns read-only provider auth route posture with freshness, subscription windows, model counts, issues, recommended actions, and optional login/logout route hints through `includeParameters:true`; `provider_account` returns one provider account by `providerId`, `target`, or `query` and refuses ambiguous lookup with candidates; `mcp_servers` returns read-only server posture with connection, trust mode, role, schema freshness, quarantine posture, safe path/host counts, and optional per-server tool inventory through `includeParameters:true`; `mcp_server` returns one server by `mcpServerId`, `target`, or `query` and refuses ambiguous lookup with candidates; MCP add/remove/reload/trust/role/quarantine mutations stay confirmed workspace or slash-command flows; `security_posture` returns redacted token, policy, MCP, plugin, incident, auth, and bundle-route posture with optional finding detail through `includeParameters:true`; `security_finding` returns one current finding by `findingId`, `target`, or `query` and refuses ambiguous lookup with candidates; `support_bundles` returns support/auth/trust/subscription/voice bundle routes and optional route parameter hints through `includeParameters:true`; `support_bundle` inspects one existing bundle JSON by `bundlePath`, `target`, or `query` and returns only structure, counts, timestamps, and redaction metadata; bundle export/import remains confirmed workspace or slash-command flow; `media_posture` returns read-only voice/media provider readiness, TTS setup, browser-tool posture, artifact availability, safe secret-key names, and optional model routes through `includeParameters:true`; `media_provider` returns one voice or media provider by `mediaProviderId`, `target`, or `query` and refuses ambiguous lookup with candidates; media generation, voice enable/disable, and TTS setting changes remain confirmed first-class tool, settings, workspace, or slash-command flows; `workspace_actions` lists Agent workspace actions and can inline editor field schemas with `includeParameters:true`; `workspace_action` and `run_workspace_action` resolve one action by `actionId`, `command`, `target`, or `query`, using the same user-facing action-search fields; inspection returns lookup metadata plus editor schema and `modelExecution` route metadata for every editor action, and execution refuses ambiguous requests with candidate actions before any effect; `tools` lists model tool definitions and can inline JSON schemas with `includeParameters:true`; `tool` returns one model tool schema by `toolName`, `target`, or `query` and refuses ambiguous schema lookup with candidate tools; `release_evidence` returns the packaged release evidence bundle with summary/search over release notes, performance snapshot, readiness inventory, and live-verification artifacts, with optional artifact source/data through `includeParameters:true`; `release_evidence_artifact` returns one release evidence artifact by `artifactId`, `target`, or `query` and refuses ambiguous artifact lookup with candidates; `release_readiness` returns the packaged release-readiness inventory with summary totals, search filtering, source aliases, required quality dimensions, and optional quality detail through `includeParameters:true`; `release_readiness_item` returns one readiness item by `itemId`, `target`, or `query` and refuses ambiguous item lookup with candidates; `operator_methods` returns the read-only public operator and Agent Knowledge method catalog with preferred first-class model tools and optional parameter hints through `includeParameters:true`; `operator_method` returns one method by `methodId`, `target`, or `query` and refuses ambiguous method lookup with candidates; `service_posture` returns connected service endpoint binding, network-facing posture, issue, and redacted-log diagnostics, with optional reachability probes and redacted log tail through `includeParameters:true`; `service_endpoint` returns one endpoint by `endpointId`, `target`, or `query` and refuses ambiguous endpoint lookup with candidates; `settings` returns setting descriptors plus setting policy and accepts `category`, `prefix`, `query`, `includeHidden:true`, and `limit` filters; `get_setting`, `set_setting`, and `reset_setting` resolve one setting by `key`, `target`, or `query`, return lookup metadata on success, and refuse ambiguous matches with candidate settings; `connected_host` returns the connected-host route families, allowed capabilities, blocked capabilities, and first-class tool availability; `connected_host_capability` returns one allowed or blocked connected-host capability by `capabilityId`, `target`, or `query` with related route families and boundary text and refuses ambiguous capability lookup with candidates; and `connected_host_status` performs a live read-only check of the connected-host status and Agent Knowledge status routes and reports endpoint bindings, token posture, SDK compatibility, route readiness, and findings without printing token values.
+Single-item inspect modes:
 
-`setup_posture` returns the same onboarding snapshot and derived capability flags used by the wizard: setup marker posture, provider route, provider-account counts, subscription counts, local behavior discovery, channel/media/setup signals, auth/session counts, and collection issues, with optional route hints through `includeParameters:true`; `setup_item` returns one setup item by `setupItemId`, `target`, or `query` and refuses ambiguous lookup with candidates. Setup apply, provider auth, starter profile creation, local behavior import/create, channel delivery, and setting writes stay visible workspace, settings, slash-command, or first-class tool flows.
+| Mode | Lookup Fields |
+| --- | --- |
+| `workspace_action` | `actionId`, `command`, `target`, `query` |
+| `command`, `cli_command` | `command`, `commandName`, `cliCommand`, `target`, `query` |
+| `panel`, `ui_surface`, `keybinding`, `tool` | Exact id/name or `target`/`query` |
+| `channel`, `notification_target`, `provider_account`, `mcp_server` | Exact id or `target`/`query` |
+| `setup_item`, `model_route`, `pairing_route`, `delegation_route` | Exact id/model key or `target`/`query` |
+| `security_finding`, `support_bundle`, `media_provider`, `session` | Exact id/path or `target`/`query` |
+| `get_setting`, `service_endpoint`, `operator_method` | Exact key/id or `target`/`query` |
+| `connected_host_capability` | `capabilityId`, `target`, `query` |
+| `connected_host_status`, `daemon_status` | Live read-only status, no lookup required |
+| `release_evidence_artifact`, `release_readiness_item` | `artifactId`/`itemId`, `target`, `query` |
 
-`model_routing` returns read-only provider/model routing posture: current chat provider/model/reasoning effort, selectable models, provider ids, pinned models, context windows, reasoning support, safe route setting keys, and optional mutation-route hints through `includeParameters:true`; `model_route` returns one route or model by `modelRouteId`, `target`, or `query` and refuses ambiguous lookup with candidates. Model/provider selection, model catalog refresh, pin/unpin, custom provider edits, and route setting changes stay visible picker, settings, workspace, or slash-command flows.
+Effect modes:
 
-`pairing_posture` returns companion pairing readiness, control-plane endpoint binding, pairing surface id, token presence and fingerprint, and pairing route catalog without returning raw tokens or QR payloads, with optional connected-host/channel route hints through `includeParameters:true`; `pairing_route` returns one route by `pairingRouteId`, `target`, or `query` and refuses ambiguous lookup with candidates. QR display, manual token display, companion connection, channel delivery, task, approval, provider/model, and attachment actions stay visible user flows.
+| Mode | Effect |
+| --- | --- |
+| `run_workspace_action` | Executes one resolved workspace action through the same editor/command/local bridge as the TUI. |
+| `run_command` | Executes one resolved slash command through the shared command registry. |
+| `open_panel`, `open_ui_surface` | Routes visible shell navigation. |
+| `run_keybinding` | Runs supported shell-safe keybinding actions only. |
+| `set_keybinding`, `reset_keybinding` | Writes the same Agent `keybindings.json` file exposed to the user. |
+| `set_setting`, `reset_setting` | Writes Agent settings through the config/secret managers. |
 
-`delegation_posture` returns explicit build-delegation route posture, runtime availability, delegated-review policy, main-conversation ownership, and blocked local coding ownership with optional route hints through `includeParameters:true`; `delegation_route` returns one route by `delegationRouteId`, `target`, or `query` and refuses ambiguous lookup with candidates. Delegated work submission remains a visible confirmed workspace or slash-command flow and must preserve the full original user ask.
+Every effect mode requires `confirm:true` and `explicitUserRequest`. Ambiguous lookups return candidates before any effect runs.
 
-`sessions` returns current session posture, saved session metadata/search matches, bookmark counts, saved bookmark file counts, and optional saved-session file paths/search snippets through `includeParameters:true`; `session` returns one saved session by `sessionId`, `target`, or `query` and refuses ambiguous lookup with candidates. Save, resume, rename, fork, export, delete, and bookmark writes stay visible workspace or slash-command flows.
+## Workspace Action Execution
 
-`open_ui_surface` is a confirmation-gated visible navigation mode for the same shell surfaces the user can open: Agent workspace, settings, MCP workspace, model/provider/reasoning-effort pickers, TTS provider/voice pickers, session/profile pickers, the panel-picker compatibility route, security/knowledge/subscription operator surfaces, conversation search, prompt-history search, slash-command mode, command browser, file picker, block actions, bookmarks, context inspector, runtime activity monitor, live process output, help, shortcuts, and onboarding. It does not perform hidden operations; use first-class model tools, settings modes, workspace actions, or confirmed slash-command mirrors for actual state changes. Ambiguous UI surface lookup text is refused with candidate surfaces instead of routed.
+`workspace_action` inspection returns editor schemas and `modelExecution` detail. `workspace_actions` can include the same detail with `includeParameters:true`.
 
-`cli_command` is a read-only inspection mode. Concrete CLI strings are parsed with redacted config overrides; descriptive lookup text searches the same `cli_commands` catalog and returns one match or candidate mirrors when broad. Supported top-level CLI mirrors report `preferredModelTool`, including current-conversation handling for non-interactive run mirrors that must not create hidden nested turns.
+Execution routes:
 
-`run_keybinding`, `set_keybinding`, and `reset_keybinding` are confirmation-gated control modes. `run_keybinding` executes only keybinding actions with a faithful current-shell route, such as cancel generation, clear screen, open/focus/dismiss visible panel workspace routes, open conversation or prompt-history search, paste through the existing clipboard handler, or open the visible block-action surface. Prompt-editor-only controls, terminal text selection, category cycling, and reserved shortcuts stay visible in descriptors but return unsupported/direct-interaction metadata instead of pretending a hidden model operation exists. `set_keybinding` and `reset_keybinding` write the same Agent `keybindings.json` file exposed by `/keybindings`, reload the runtime keybinding manager, and leave fixed runtime/editor shortcuts read-only. Ambiguous keybinding lookup text is refused with candidate actions instead of guessed.
+- Local memory, notes, personas, skills, routines, and bundles dispatch through `agent_local_registry`.
+- Confirmed Agent Knowledge URL/file/bookmark/browser-history/connector ingest dispatches through `agent_knowledge_ingest`.
+- Command-backed editors dispatch through `run_command`.
+- Learned-behavior and profile creation use the Agent-local or slash-command bridge.
+- Web research/fetch forms return a main-conversation prompt instead of starting hidden nested work.
+- Selection-based actions accept `recordId` so the model can use the same selected-record flows as the TUI.
 
-`open_panel` is a confirmation-gated UI routing mode. It hands a visible panel/workspace route to the current Agent shell bridge and does not mutate connected-host lifecycle, listener posture, or external accounts. Ambiguous panel lookup text is refused with candidate panels instead of routed.
+## Settings And Keybindings
 
-CLI mirror modes are catalog and parser inspection only. When the user asks the model to operate from inside the main conversation, use the returned first-class model tool, workspace action, setting mode, or confirmed slash-command mirror instead of launching a hidden nested `goodvibes-agent` process.
+Settings discovery accepts `category`, `prefix`, `query`, `includeHidden:true`, and `limit`. It is compact by default; use `includeParameters:true` or `get_setting` for full descriptions/defaults. Single setting reads/writes resolve by `key`, `target`, or `query`; ambiguous matches are refused. Secret-backed setting writes store raw values through the secret manager and return redacted output. Connected-host lifecycle/listener settings are read-only in Agent.
 
-Setting writes, setting resets, supported keybinding actions, keybinding writes/resets, UI surface routing, slash-command invocation, workspace-action invocation, local record deletion, channel sends, notifications, reminders, media generation, and connected-host operator mutations require explicit user request and confirmation. Secret-backed settings are stored through the secret manager, and connected-host lifecycle/listener settings remain read-only in Agent.
+Keybinding discovery returns fixed shortcuts plus the live resolved binding table. `run_keybinding` only executes actions with faithful current-shell routes. Prompt-editor-only shortcuts, terminal text selection, category cycling, and reserved shortcuts stay direct user interaction.
 
-Selection-based local workspace actions use the same bridge. `agent_harness` reports the required model tool for each local action; for actions that depend on the TUI selection, call `run_workspace_action` with the selected local `recordId` plus an `actionId`, `command`, `target`, or `query` that resolves to one action. Direct local create editors for memory, notes, personas, skills, and routines can execute from submitted `fields` through `run_workspace_action`; the harness validates required fields, requires `confirm:true` and `explicitUserRequest`, and dispatches through `agent_local_registry`. Command-backed editor forms report their shared slash-command dispatch route, direct learned-behavior/profile forms report their local or command bridge, and web research/fetch forms report that execution returns a main-conversation prompt instead of starting hidden nested work. Note promotion actions can prefill and create memory, personas, skills, routines, or isolated Agent Knowledge URL ingests through the matching first-class model tool. Profile creation schemas include the current runtime starter-template inventory, and routine schedule schemas prefill the selected routine when `recordId` or a `routineId` field matches a local routine.
+## Connected Host And Daemon
 
-Use first-class Agent tools before falling back to slash-command mirrors. Slash-command execution is for scriptable mirror coverage, not for bypassing Agent product boundaries.
+The connected host is external. Agent can inspect it through:
 
-The main composer supports inline context references. Type `@path/to/file`, `@path/to/folder`, or `@https://example.test/page` in a normal prompt to add bounded context for that turn. `!@path/to/file` remains the raw file-injection form. These references do not ingest anything into Agent Knowledge unless the user explicitly runs a Knowledge ingest action.
+- `service_posture` and `service_endpoint` for endpoint binding, network-facing posture, issues, optional probes, and redacted log tail.
+- `connected_host` and `daemon` for compact connected-host posture; use `includeParameters:true` for route families, allowed capabilities, blocked lifecycle/non-Agent surfaces, and first-class tool availability.
+- `connected_host_capability` for one allowed or blocked capability.
+- `connected_host_status` and `daemon_status` for live read-only readiness checks.
+- `operator_methods` and `operator_method` for the public method catalog.
 
-The Research workspace submits web research and URL inspection forms to the normal main conversation. These requests are read-only by default, may use connected web tools when the user asks, and do not ingest sources. Use confirmed Agent Knowledge ingest actions only after a source should become durable Agent-owned knowledge.
+None of those modes expose host start, stop, restart, install, expose-listener, account creation, arbitrary route mutation, default knowledge access, hidden background Agent jobs, or implicit delegated review.
 
-Local memory capture/add commands are explicit Agent-local actions. Deletes, imports/exports, record linking, review-state changes, and promotion across memory scopes require `--yes`.
+## Agent Knowledge
+
+Use the Knowledge workspace first. Scriptable mirrors:
+
+```sh
+goodvibes-agent ask "<query>"
+goodvibes-agent search "<query>"
+goodvibes-agent knowledge list --kind sources
+goodvibes-agent knowledge get <id>
+goodvibes-agent knowledge map
+goodvibes-agent knowledge connectors
+goodvibes-agent knowledge connector <connector-id>
+goodvibes-agent knowledge connector-doctor <connector-id>
+goodvibes-agent knowledge ingest-url <url> --yes
+goodvibes-agent knowledge import-urls <path> --yes
+goodvibes-agent knowledge import-bookmarks <path> --yes
+goodvibes-agent knowledge reindex --yes
+```
+
+Agent rejects route-selection flags that would target another knowledge space, including `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces`. Contaminated connected-host responses return `scope_contamination`.
+
+## Approvals, Automation, And Schedules
+
+Read views are safe by default. Mutations require exact target ids and confirmation:
+
+```text
+/approval approve <approval-id> [--note <text>] [--remember|--no-remember] --yes
+/approval deny <approval-id> [--note <text>] [--remember|--no-remember] --yes
+/approval cancel <approval-id> [--note <text>] [--remember|--no-remember] --yes
+/automation job run <job-id> --yes
+/automation job pause <job-id> --yes
+/automation job resume <job-id> --yes
+/automation run cancel <run-id> --yes
+/automation run retry <run-id> --yes
+/automation schedule run <schedule-id> --yes
+/schedule run <schedule-id> --yes
+```
+
+Routine promotion is an explicit scheduling bridge. Local routines stay local until a user confirms promotion. Delivery targets are opt-in with explicit channel/route/webhook/link flags.
 
 ## Slash Command Catalog
-
-Every registered slash-command root in the Agent TUI is listed here. Aliases resolve through the same command registry but are intentionally secondary to the canonical roots.
 
 | Command | Purpose |
 | --- | --- |
@@ -116,7 +197,7 @@ Every registered slash-command root in the Agent TUI is listed here. Aliases res
 | `/help` | Show available commands and keyboard shortcuts. |
 | `/image` | Attach an image file to the next message. |
 | `/keybindings` | List keyboard bindings and the config file path. |
-| `/knowledge` | Use isolated Agent Knowledge status, ask/search, source/node/issue lists, item lookup, map, connectors, ingest, reindex, and review queue. |
+| `/knowledge` | Use isolated Agent Knowledge. |
 | `/load` | Load a saved Agent session. |
 | `/mcp` | Manage MCP servers, trust posture, and tool inventory. |
 | `/media` | Inspect media providers or generate media through configured providers. |
@@ -141,7 +222,7 @@ Every registered slash-command root in the Agent TUI is listed here. Aliases res
 | `/routines` | Manage Agent-local routines and explicit routine schedule promotion. |
 | `/save` | Save the current session. |
 | `/schedule` | Inspect schedules, create confirmed reminders, and promote routines to connected schedules. |
-| `/secrets` | Manage hierarchy-aware secrets, external secret refs, and secure/plaintext storage policy. |
+| `/secrets` | Manage secrets, external secret refs, and storage policy. |
 | `/security` | Inspect security posture, attack paths, and review state. |
 | `/session` | Inspect session continuity and cross-session graph state. |
 | `/sessions` | List saved sessions. |
@@ -156,85 +237,14 @@ Every registered slash-command root in the Agent TUI is listed here. Aliases res
 | `/tts` | Submit a normal prompt and play the assistant response through live TTS. |
 | `/undo` | Undo the last conversation turn. |
 | `/unpin` | Unpin a model from the favorites list. |
-| `/voice` | Review voice posture and package portable voice interaction metadata. |
+| `/voice` | Review voice posture and portable voice metadata. |
 | `/welcome` | Open or print the Agent setup guide. |
 | `/workplan` | Track a persistent workspace-scoped work plan. |
 
-## Agent Knowledge
-
-`/knowledge ask <query>` asks the isolated Agent Knowledge environment for a source-backed answer through `/api/goodvibes-agent/knowledge/ask`.
-
-`/knowledge search <query>` searches the same isolated Agent environment through `/api/goodvibes-agent/knowledge/search`.
-
-`/knowledge ingest-url <url> --yes` ingests into Agent Knowledge through `/api/goodvibes-agent/knowledge/ingest/url`. Knowledge ingestion, imports, issue review, reindex, and consolidation are Agent-owned mutations and require `--yes`.
-
-The Knowledge workspace exposes status, source/node/issue libraries, item lookup, map review, connector list/detail/doctor, ask, search, and confirmed ingest forms. Scriptable equivalents such as `goodvibes-agent knowledge list --kind sources|nodes|issues`, `goodvibes-agent knowledge get <id>`, `goodvibes-agent knowledge map`, `goodvibes-agent knowledge connectors`, `goodvibes-agent knowledge connector <connectorId>`, and `goodvibes-agent knowledge connector-doctor <connectorId>` are read-only CLI inspection paths over the same isolated Agent route family.
-
-Workspace ingest forms are the primary user workflow. Scriptable equivalents such as `goodvibes-agent knowledge import-urls <path> --yes`, `goodvibes-agent knowledge import-bookmarks <path> --yes`, and `goodvibes-agent knowledge reindex --yes` are confirmed Agent Knowledge maintenance paths. They call only `/api/goodvibes-agent/knowledge/*`.
-
-The Agent command layer rejects flags that would route knowledge work into another space, including `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces`. If Agent Knowledge is unavailable, the command fails closed instead of querying a default store.
-
-Successful Agent Knowledge responses are also checked for scope contamination. If a connected host returns default-scope metadata or known non-Agent payload markers, the CLI and `agent_knowledge` model tool return a `scope_contamination` error instead of formatting the payload as Agent Knowledge.
-
-## Media Artifacts
-
-Agent Workspace -> Voice & Media is the primary media path. Use `Generate media` for a confirmed form that calls configured media providers and stores outputs as GoodVibes artifacts.
-
-`/media providers` lists media provider readiness. `/media generate [--provider <id>] [--model <id>] [--mime <mime>] <prompt> --yes` is the power-user mirror for confirmed image/video generation. Media generation output returns artifact ids and metadata; it does not print inline base64 and does not write to default knowledge or non-Agent knowledge segments.
-
-## Planning
-
-`/plan` inspects or seeds Agent workspace planning state. The planning loop belongs to the main Agent conversation: the Agent asks focused questions, records decisions and gaps, and keeps execution separate until the user gives an explicit action.
-
-The SDK planning service may expose a namespace such as `project:<projectId>` because that is the stable contract shape. In Agent UI and docs this is treated as a planning namespace, not as permission to query default knowledge or another product knowledge segment.
-
-Use `/workplan` when the work already has concrete tasks and needs durable status tracking rather than another planning interview.
-
-## Delegation
-
-`/delegate` is for explicit build, fix, review, or implementation work. It sends a single delegated request to GoodVibes TUI/shared-session routes with the original user ask and execution intent. Agent does not create coding-role Agent jobs and does not run delegated review by default.
-
-Use `/delegate --review` only when the user explicitly asks for review or when the delegated build/fix/review request explicitly calls for review.
-
-## Approvals And Automation
-
-Approvals and automation are safe by default:
-
-- list/status views are read-only;
-- mutating routes require exact commands and explicit confirmation such as `--yes`;
-- no chat turn silently runs approval, schedule, or automation mutations;
-- unavailable routes return structured errors rather than fallback behavior.
-
-Workspace forms are the primary path for approval and automation actions:
-
-- Agent Workspace -> Work & Approvals -> Approve request / Deny request / Cancel request
-- Agent Workspace -> Automation -> Run job now / Pause job / Resume job
-- Agent Workspace -> Automation -> Cancel run / Retry run / Run schedule now
-
-Power-user slash mirrors are exact and confirmation-gated:
-
-- `/approval approve <approval-id> [--note <text>] [--remember|--no-remember] --yes`
-- `/approval deny <approval-id> [--note <text>] [--remember|--no-remember] --yes`
-- `/approval cancel <approval-id> [--note <text>] [--remember|--no-remember] --yes`
-- `/automation job run <job-id> --yes`
-- `/automation job pause <job-id> --yes`
-- `/automation job resume <job-id> --yes`
-- `/automation run cancel <run-id> --yes`
-- `/automation run retry <run-id> --yes`
-- `/automation schedule run <schedule-id> --yes`
-- `/schedule run <schedule-id> --yes`
-
-Routine promotion is an explicit scheduling bridge: local routines stay local during normal use, and promotion creates a schedule only after a user runs the exact command with `--yes`. The generated scheduled prompt keeps Agent Knowledge isolated and forbids default knowledge or non-Agent knowledge fallback. Delivery is opt-in with explicit flags such as `--delivery-channel`, `--delivery-route`, `--delivery-webhook`, or `--delivery-link`; no delivery target is inferred from chat.
-
-## Channels
-
-Agent Workspace -> Channels is the primary channel path. It shows readiness, setup, account, policy, and status views without rendering secret values. `Send channel message` opens a confirmed form for one delivery target.
-
-`/channels send --channel <surface[:route[:label]]> --message <text> --yes` sends one explicit message through configured delivery strategies. `--route`, `--webhook`, and `--link` are alternate one-target forms. Channel sends do not create routes, authorize accounts, manage connected-host hosting, use default knowledge, use non-Agent knowledge segments, create separate Agent jobs, or run delegated review.
-
 ## Related Docs
 
-- [Getting started](getting-started.md)
-- [Connected host](connected-host.md)
-- [Knowledge, artifacts, and multimodal](knowledge-artifacts-and-multimodal.md)
-- [Release and publishing](release-and-publishing.md)
+- [Getting Started](getting-started.md)
+- [Connected Host](connected-host.md)
+- [Knowledge, Artifacts, and Multimodal](knowledge-artifacts-and-multimodal.md)
+- [Channels, Remote Access, and API](channels-remote-and-api.md)
+- [Release And Publishing](release-and-publishing.md)

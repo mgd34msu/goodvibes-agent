@@ -136,12 +136,12 @@ function describeRoute(
       operatorClientAttached: Boolean(context.clients?.operator),
     },
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    policy: {
-      effect: route.effect,
-      values: 'Delegation posture returns policy, route, confirmation, and runtime availability metadata only; it does not submit delegated work.',
-      mutation: 'Delegated work submission stays a visible confirmed workspace or slash-command flow and must preserve the full original user ask.',
-    },
     ...(options.includeParameters ? {
+      policy: {
+        effect: route.effect,
+        values: 'Delegation posture returns policy, route, confirmation, and runtime availability metadata only; it does not submit delegated work.',
+        mutation: 'Delegated work submission stays a visible confirmed workspace or slash-command flow and must preserve the full original user ask.',
+      },
       modelAccess: {
         inspectDelegation: 'agent_harness mode:"delegation_posture"',
         inspectRoute: 'agent_harness mode:"delegation_route"',

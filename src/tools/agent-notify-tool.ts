@@ -78,11 +78,7 @@ export function createAgentNotifyTool(
   return {
     definition: {
       name: 'agent_notify',
-      description: [
-        'Send one confirmed plain-text notification.',
-        'Use only for explicit notify/message/alert requests.',
-        'Uses existing targets only.',
-      ].join(' '),
+      description: 'Send one confirmed plain-text notification.',
       parameters: {
         type: 'object',
         properties: {
