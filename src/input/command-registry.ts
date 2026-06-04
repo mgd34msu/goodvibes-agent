@@ -130,6 +130,7 @@ export interface CommandShellUiOpeners {
   focusPrompt?: () => void;
   openMcpWorkspace?: () => void;
   openAgentWorkspace?: (categoryId?: string) => void;
+  dismissAgentWorkspace?: () => boolean;
   openSecurityPanel?: () => void;
   openKnowledgePanel?: () => void;
   openSubscriptionPanel?: () => void;

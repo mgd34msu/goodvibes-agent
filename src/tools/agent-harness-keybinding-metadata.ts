@@ -271,7 +271,7 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         effect: 'visible-ui-navigation',
         preferredMode: 'run_keybinding',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Closes the active legacy panel if present, then focuses the prompt when the shell bridge exposes focusPrompt.',
+        note: 'Dismisses the active Agent workspace first. If no Agent workspace is active, closes the active legacy panel if present, then focuses the prompt when the shell bridge exposes focusPrompt.',
       };
     case 'panel-close-all':
       return {
@@ -279,7 +279,7 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         effect: 'visible-ui-navigation',
         preferredMode: 'run_keybinding',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Closes all legacy panels if present, hides the panel manager, then focuses the prompt when the shell bridge exposes focusPrompt.',
+        note: 'Dismisses the active Agent workspace first. If no Agent workspace is active, closes all legacy panels if present, hides the panel manager, then focuses the prompt when the shell bridge exposes focusPrompt.',
       };
     case 'history-search':
       return {
@@ -479,9 +479,19 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
       }
       return runUnavailable(resolved.action, route, 'No panel picker or Agent workspace opener is available.');
     case 'panel-close': {
+      const dismissedAgentWorkspace = context.dismissAgentWorkspace?.() ?? false;
+      if (dismissedAgentWorkspace) {
+        return {
+          status: 'executed',
+          action: resolved.action,
+          effect: 'agent-workspace-dismissed',
+          route: 'dismissAgentWorkspace',
+          keybinding: descriptor,
+        };
+      }
       const active = context.workspace.panelManager?.getActivePanel() ?? null;
       if (active) context.workspace.panelManager?.close(active.id);
-      if (!active && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active legacy panel or prompt focus route is available.');
+      if (!active && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace, active legacy panel, or prompt focus route is available.');
       if (context.focusPrompt) context.focusPrompt();
       context.renderRequest();
       return {
@@ -493,11 +503,21 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
       };
     }
     case 'panel-close-all': {
+      const dismissedAgentWorkspace = context.dismissAgentWorkspace?.() ?? false;
+      if (dismissedAgentWorkspace) {
+        return {
+          status: 'executed',
+          action: resolved.action,
+          effect: 'agent-workspace-dismissed',
+          route: 'dismissAgentWorkspace',
+          keybinding: descriptor,
+        };
+      }
       const managerPanel = context.workspace.panelManager;
       const openPanels = managerPanel?.getAllOpen() ?? [];
       for (const panel of openPanels) managerPanel?.close(panel.id);
       managerPanel?.hide();
-      if (openPanels.length === 0 && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No open legacy panels or prompt focus route is available.');
+      if (openPanels.length === 0 && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace, open legacy panels, or prompt focus route is available.');
       if (context.focusPrompt) context.focusPrompt();
       context.renderRequest();
       return {

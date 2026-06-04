@@ -107,7 +107,10 @@ function registerHarnessFixturePanels(panelManager: PanelManager): void {
   });
 }
 
-function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixture {
+function makeFixture(options: {
+  readonly secrets?: boolean;
+  readonly dismissAgentWorkspace?: boolean;
+} = {}): HarnessFixture {
   const { root, paths, cleanup } = makeShellPaths();
   const commandRegistry = new CommandRegistry();
   const configManager = makeConfig(paths);
@@ -164,6 +167,11 @@ function makeFixture(options: { readonly secrets?: boolean } = {}): HarnessFixtu
     },
     openAgentWorkspace: (categoryId?: string) => {
       openedSurfaces.push({ id: 'agent-workspace', detail: categoryId });
+    },
+    dismissAgentWorkspace: () => {
+      const result = options.dismissAgentWorkspace === true;
+      openedSurfaces.push({ id: 'agent-workspace-dismissed', result });
+      return result;
     },
     openSettingsModal: (target?: string) => {
       openedSurfaces.push({ id: 'settings', detail: target });
@@ -997,6 +1005,23 @@ describe('agent_harness tool', () => {
       expect(runSearch.output).toContain('"status": "executed"');
       expect(runSearch.output).toContain('"effect": "conversation-search-opened"');
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'conversation-search', detail: 'release notes' });
+
+      const dismissFixture = makeFixture({ dismissAgentWorkspace: true });
+      try {
+        const runDismiss = await dismissFixture.tool.execute({
+          mode: 'run_keybinding',
+          actionId: 'panel-close',
+          confirm: true,
+          explicitUserRequest: 'Dismiss the active Agent workspace.',
+        });
+        expect(runDismiss.success).toBe(true);
+        expect(runDismiss.output).toContain('"status": "executed"');
+        expect(runDismiss.output).toContain('"effect": "agent-workspace-dismissed"');
+        expect(runDismiss.output).toContain('"route": "dismissAgentWorkspace"');
+        expect(dismissFixture.openedSurfaces).toEqual([{ id: 'agent-workspace-dismissed', result: true }]);
+      } finally {
+        dismissFixture.cleanup();
+      }
 
       const surfaceCount = fixture.openedSurfaces.length;
       const unsupportedRun = await fixture.tool.execute({

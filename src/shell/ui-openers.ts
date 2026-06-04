@@ -435,6 +435,8 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     render();
   };
 
+  commandContext.dismissAgentWorkspace = () => input.dismissAgentWorkspace();
+
   commandContext.openSessionPicker = () => {
     input.modalOpened('sessionPicker');
     input.sessionPickerModal.open();
