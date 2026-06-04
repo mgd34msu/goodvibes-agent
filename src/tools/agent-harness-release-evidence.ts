@@ -19,7 +19,7 @@ const RELEASE_EVIDENCE_ARTIFACTS = [
     id: 'release-readiness',
     path: 'release/release-readiness.json',
     kind: 'json',
-    description: 'Release capability inventory with owner, evidence, and quality dimensions.',
+    description: 'Release inventory with owner, evidence, and quality dimensions.',
   },
   {
     id: 'live-verification-json',
