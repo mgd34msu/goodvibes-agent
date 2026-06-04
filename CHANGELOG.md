@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.26 - 2026-06-03
+
+- Route confirmed agent_harness panel-close and panel-close-all keybinding runs through the same Agent workspace dismiss bridge as the user shortcut before falling back to legacy panels.
+- Refresh model-operation metadata for panel close keybindings so supported keybinding behavior matches visible shell behavior.
+- Add focused harness coverage for model-triggered Agent workspace dismissal.
+
 ## 1.0.25 - 2026-06-03
 
 - Correct the model-visible fixed shortcut catalog so F2 is reported as the runtime activity monitor instead of the shortcut reference.
