@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-06-04T05:40:48.465Z",
+  "generatedAt": "2026-06-04T11:02:12.690Z",
   "homeDir": "[goodvibes-home]",
   "binaryPath": "[agent-binary]",
-  "connectedHostBaseUrl": "http://127.0.0.1:37210",
+  "connectedHostBaseUrl": "http://127.0.0.1:3421",
   "strict": true,
   "checks": [
     {
       "id": "verification-ledger",
       "title": "Verification inventory ledger",
       "status": "pass",
-      "summary": "100% local verification signal across 613 inventory items.",
-      "detail": "84.5% local behavior verified; 95 item(s) require external outcomes."
+      "summary": "100% local verification signal across 761 inventory items.",
+      "detail": "87.4% local behavior verified; 96 item(s) require external outcomes."
     },
     {
       "id": "compiled-cli-present",
@@ -23,7 +23,7 @@
       "title": "Agent CLI version command",
       "status": "pass",
       "summary": "Agent CLI version returned successfully.",
-      "detail": "goodvibes-agent 1.0.33"
+      "detail": "goodvibes-agent 1.0.35"
     },
     {
       "id": "cli-status-json",
@@ -37,14 +37,14 @@
       "title": "Agent CLI compatibility JSON command",
       "status": "pass",
       "summary": "Agent CLI compatibility returned parseable JSON.",
-      "detail": "{\n  \"ok\": true,\n  \"packageVersion\": \"1.0.33\",\n  \"sdkPin\": \"0.33.36\",\n  \"connectedHost\": {\n    \"baseUrl\": \"http://127.0.0.1:37210\",\n    \"status\": 200,\n    \"version\": \"0.33.36\",\n    \"reachable\": true,\n    \"compatible\": true\n  },\n  \"auth\": {\n    \"tokenPresent\": true,\n    \"tokenPath\": \"env:GOODVIBES_CONNECTED_HOST_TOKEN\"\n  },\n  \"agentKnowledge\": {\n    \"route\": \"/api/goodvibes-agent/knowledge/status\",\n    \"ready\": true,\n    \"kind\": \"ok\"\n  }\n}"
+      "detail": "{\n  \"ok\": true,\n  \"packageVersion\": \"1.0.35\",\n  \"sdkPin\": \"0.33.36\",\n  \"connectedHost\": {\n    \"baseUrl\": \"http://127.0.0.1:3421\",\n    \"status\": 200,\n    \"version\": \"0.33.36\",\n    \"reachable\": true,\n    \"compatible\": true\n  },\n  \"auth\": {\n    \"tokenPresent\": true,\n    \"tokenPath\": \"env:GOODVIBES_CONNECTED_HOST_TOKEN\"\n  },\n  \"agentKnowledge\": {\n    \"route\": \"/api/goodvibes-agent/knowledge/status\",\n    \"ready\": true,\n    \"kind\": \"ok\"\n  }\n}"
     },
     {
       "id": "cli-agent-knowledge-status",
       "title": "Agent Knowledge CLI status command",
       "status": "pass",
       "summary": "Agent Knowledge status returned parseable JSON.",
-      "detail": "{\n  \"ok\": true,\n  \"kind\": \"agentKnowledge.status\",\n  \"route\": \"/api/goodvibes-agent/knowledge/status\",\n  \"data\": {\n    \"ready\": true,\n    \"storagePath\": \"[home]/.goodvibes/goodvibes/knowledge-agent.sqlite\",\n    \"sourceCount\": 0,\n    \"nodeCount\": 0,\n    \"edgeCount\": 0,\n    \"issueCount\": 0,\n    \"extractionCount\": 0,\n    \"jobRunCount\": 0,\n    \"refinementTaskCount\": 0,\n    \"usageCount\": 0,\n    \"candidateCount\": 0,\n    \"reportCount\": 0,\n    \"scheduleCount\": 3,\n    \"note\": \"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth.\"\n  }\n}"
+      "detail": "{\n  \"ok\": true,\n  \"kind\": \"agentKnowledge.status\",\n  \"route\": \"/api/goodvibes-agent/knowledge/status\",\n  \"data\": {\n    \"ready\": true,\n    \"storagePath\": \"[goodvibes-home]/tui/knowledge-agent.sqlite\",\n    \"sourceCount\": 0,\n    \"nodeCount\": 12,\n    \"edgeCount\": 0,\n    \"issueCount\": 0,\n    \"extractionCount\": 0,\n    \"jobRunCount\": 35,\n    \"refinementTaskCount\": 0,\n    \"usageCount\": 0,\n    \"candidateCount\": 0,\n    \"reportCount\": 2,\n    \"scheduleCount\": 3,\n    \"note\": \"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth.\"\n  }\n}"
     },
     {
       "id": "cli-providers",
@@ -72,21 +72,21 @@
       "title": "Authenticated connected-host /api/health",
       "status": "pass",
       "summary": "Health overall=healthy.",
-      "detail": "{\"overall\":\"healthy\",\"degradedDomains\":[],\"providerProblems\":[],\"mcpProblems\":{\"degraded\":[],\"quarantined\":[]},\"integrationProblems\":[],\"network\":{\"controlPlane\":{\"surface\":\"controlPlane\",\"host\":\"127.0.0.1\",\"port\":3421,\"mode\":\"off\",\"scheme\":\"http\",\"trustProxy\":false,\"usingDefaultPaths\":false,\"ready\":true,\"errors\":[]},\"httpListener\":{\"surface\":\"httpListener\",\"host\":\"127.0.0.1\",\"port\":3422,\"mode\":\"off\",\"scheme\":\"http\",\"trustProxy\":false,\"usingDefaultPaths\":false,\"ready\":true,\"errors\":[]},\"outbound\":{\"mode\":\"bundled\",\"allowInsecureLocalhost\":false,\"customCaEntryCount\":0,\"effectiveCaStrategy\":\"bun-default\",\"errors\":[]}}}"
+      "detail": "{\"overall\":\"healthy\",\"degradedDomains\":[],\"providerProblems\":[],\"mcpProblems\":{\"degraded\":[],\"quarantined\":[]},\"integrationProblems\":[],\"network\":{\"controlPlane\":{\"surface\":\"controlPlane\",\"host\":\"0.0.0.0\",\"port\":3421,\"mode\":\"off\",\"scheme\":\"http\",\"trustProxy\":false,\"usingDefaultPaths\":false,\"ready\":true,\"errors\":[]},\"httpListener\":{\"surface\":\"httpListener\",\"host\":\"0.0.0.0\",\"port\":3422,\"mode\":\"off\",\"scheme\":\"http\",\"trustProxy\":false,\"usingDefaultPaths\":false,\"ready\":true,\"errors\":[]},\"outbound\":{\"mode\":\"bundled\",\"allowInsecureLocalhost\":false,\"customCaEntryCount\":0,\"effectiveCaStrategy\":\"bun-default\",\"errors\":[]}}}"
     },
     {
       "id": "openai-compatible-models",
       "title": "OpenAI-compatible /v1/models route",
       "status": "pass",
-      "summary": "/v1/models returned 2 model(s).",
-      "detail": "/v1/models returned 2 model(s); model identifiers omitted from release artifact."
+      "summary": "/v1/models returned 11 model(s).",
+      "detail": "/v1/models returned 11 model(s); model identifiers omitted from release artifact."
     },
     {
       "id": "agent-knowledge-status",
       "title": "Agent Knowledge isolated /status",
       "status": "pass",
       "summary": "Agent Knowledge status route returned parseable isolated JSON.",
-      "detail": "{\"ready\":true,\"storagePath\":\"[home]/.goodvibes/goodvibes/knowledge-agent.sqlite\",\"sourceCount\":0,\"nodeCount\":0,\"edgeCount\":0,\"issueCount\":0,\"extractionCount\":0,\"jobRunCount\":0,\"refinementTaskCount\":0,\"usageCount\":0,\"candidateCount\":0,\"reportCount\":0,\"scheduleCount\":3,\"note\":\"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth.\"}"
+      "detail": "{\"ready\":true,\"storagePath\":\"[goodvibes-home]/tui/knowledge-agent.sqlite\",\"sourceCount\":0,\"nodeCount\":12,\"edgeCount\":0,\"issueCount\":0,\"extractionCount\":0,\"jobRunCount\":35,\"refinementTaskCount\":0,\"usageCount\":0,\"candidateCount\":0,\"reportCount\":2,\"scheduleCount\":3,\"note\":\"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth.\"}"
     },
     {
       "id": "agent-knowledge-ask-isolated",
@@ -114,7 +114,7 @@
       "title": "Agent Knowledge isolated nodes list",
       "status": "pass",
       "summary": "Agent Knowledge isolated nodes list stayed on the isolated Agent route.",
-      "detail": "{\"nodes\":[]}"
+      "detail": "{\"nodes\":[{\"id\":\"node-38d4924f\",\"kind\":\"topic\",\"slug\":\"linked-to-26-graph-relation-s\",\"title\":\"linked to 26 graph relation(s)\",\"summary\":\"Topic tag linked to 26 graph relation(s).\",\"aliases\":[\"linked to 26 graph relation(s)\"],\"status\":\"active\",\"confidence\":70,\"metadata\":{\"tag\":\"linked to 26 graph relation(s)\",\"knowledgeSpaceId\":\"goodvibes-agent:default\",\"namespace\":\"goodvibes-agent:default\"},\"createdAt\":1780489632675,\"updatedAt\":1780489632928},{\"id\":\"node-4014fce2\",\"kind\":\"topic\",\"slug\":\"observed-via-2-usage-pattern-s\",\"title\":\"observed via 2 usage pattern(s)\",\"summary\":\"Topic tag observed via 2 usage pattern(s).\",\"aliases\":[\"observed via 2 usage pattern(s)\"],\"status\":\"active\",\"confidence\":70,\"metadata\":{\"tag\":\"observed via 2 usage pattern(s)\",\"knowledgeSpaceId\":\"goodvibes-agent:default\",\"namespace\":\"goodvibes-agent:default\"},\"createdAt\":1780489632666,\"updatedAt\":17804896... [truncated]"
     },
     {
       "id": "agent-knowledge-issues-isolated",
@@ -128,7 +128,7 @@
       "title": "Agent Knowledge isolated map",
       "status": "pass",
       "summary": "Agent Knowledge isolated map stayed on the isolated Agent route.",
-      "detail": "{\"ok\":true,\"title\":\"Knowledge Map\",\"generatedAt\":1780551648464,\"width\":1280,\"height\":920,\"nodeCount\":0,\"edgeCount\":0,\"totalNodeCount\":0,\"totalEdgeCount\":0,\"facets\":{\"recordKinds\":[],\"nodeKinds\":[],\"sourceTypes\":[],\"sourceStatuses\":[],\"nodeStatuses\":[],\"issueCodes\":[],\"issueStatuses\":[],\"issueSeverities\":[],\"edgeRelations\":[],\"tags\":[]},\"nodes\":[],\"edges\":[],\"svg\":\"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"1280\\\" height=\\\"920\\\" viewBox=\\\"0 0 1280 920\\\" role=\\\"img\\\" aria-label=\\\"Knowledge Map\\\">\\n<defs>\\n  <radialGradient id=\\\"knowledgeMapBg\\\" cx=\\\"50%\\\" cy=\\\"46%\\\" r=\\\"70%\\\">\\n    <stop offset=\\\"0%\\\" stop-color=\\\"#f7f4ec\\\" />\\n    <stop offset=\\\"60%\\\" stop-color=\\\"#e9eef0\\\" />\\n    <stop offset=\\\"100%\\\" stop-color=\\\"#dde6df\\\" />\\n  </radialGradient>\\n  <filter id=\\\"softShadow\\\" x=\\\"-20%\\\" y=\\\"-20%\\\" width=\\\"140%\\\" height=\\\"140%\\\">\\n    <feDropShadow dx=\\\"0\\\" dy=\\\"6\\... [truncated]"
+      "detail": "{\"ok\":true,\"title\":\"Knowledge Map\",\"generatedAt\":1780570932688,\"width\":1280,\"height\":920,\"nodeCount\":12,\"edgeCount\":0,\"totalNodeCount\":12,\"totalEdgeCount\":0,\"facets\":{\"recordKinds\":[{\"value\":\"node\",\"count\":12}],\"nodeKinds\":[{\"value\":\"topic\",\"count\":12}],\"sourceTypes\":[],\"sourceStatuses\":[],\"nodeStatuses\":[{\"value\":\"active\",\"count\":12}],\"issueCodes\":[],\"issueStatuses\":[],\"issueSeverities\":[],\"edgeRelations\":[],\"tags\":[]},\"nodes\":[{\"id\":\"node-d2a534ae\",\"recordKind\":\"node\",\"kind\":\"topic\",\"title\":\"linked to 19 graph relation(s)\",\"summary\":\"Topic tag linked to 19 graph relation(s).\",\"x\":720,\"y\":277,\"radius\":23,\"metadata\":{\"tag\":\"linked to 19 graph relation(s)\",\"knowledgeSpaceId\":\"goodvibes-agent:default\",\"namespace\":\"goodvibes-agent:default\"}},{\"id\":\"node-0cc2f686\",\"recordKind\":\"node\",\"kind\":\"topic\",\"title\":\"linked to 20 graph relation(s)\",\"summary\":\"Topic tag linked to 20 gra... [truncated]"
     },
     {
       "id": "agent-knowledge-connectors-isolated",

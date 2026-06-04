@@ -56,104 +56,38 @@ function registerTools(registry: ToolRegistry): void {
 }
 
 describe('registerAllTools', () => {
-  test('registers exactly 25 tools', () => {
+  test('registers the expected platform tool roster', () => {
     const registry = new ToolRegistry();
     registerTools(registry);
-    expect(registry.list()).toHaveLength(25);
-  });
-
-  test('registers a tool named "read"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('read')).toBe(true);
-  });
-
-  test('registers a tool named "write"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('write')).toBe(true);
-  });
-
-  test('registers a tool named "edit"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('edit')).toBe(true);
-  });
-
-  test('registers a tool named "find"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('find')).toBe(true);
-  });
-
-  test('registers a tool named "exec"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('exec')).toBe(true);
-  });
-
-  test('registers a tool named "analyze"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('analyze')).toBe(true);
-  });
-
-  test('registers a tool named "inspect"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('inspect')).toBe(true);
-  });
-
-  test('registers a tool named "agent"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('agent')).toBe(true);
-  });
-
-  test('registers a tool named "state"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('state')).toBe(true);
-  });
-
-  test('registers a tool named "workflow"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('workflow')).toBe(true);
-  });
-
-  test('registers a tool named "fetch"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('fetch')).toBe(true);
-  });
-
-  test('registers a tool named "web_search"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('web_search')).toBe(true);
-  });
-
-  test('registers a tool named "registry"', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('registry')).toBe(true);
-  });
-
-  test('registers breadth tools for channel, control, task, team, worklist, mcp, query, packet, remote, and repl', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    for (const name of ['channel', 'control', 'task', 'team', 'worklist', 'mcp', 'query', 'packet', 'remote', 'repl']) {
-      expect(registry.has(name)).toBe(true);
-    }
+    const names = registry.list().map((tool) => tool.definition.name).sort();
+    expect(names).toEqual([
+      'agent',
+      'analyze',
+      'channel',
+      'control',
+      'edit',
+      'exec',
+      'fetch',
+      'find',
+      'goodvibes_context',
+      'goodvibes_settings',
+      'inspect',
+      'mcp',
+      'packet',
+      'query',
+      'read',
+      'registry',
+      'remote',
+      'repl',
+      'state',
+      'task',
+      'team',
+      'web_search',
+      'workflow',
+      'worklist',
+      'write',
+    ]);
     expect(registry.has('powershell')).toBe(false);
-  });
-
-  test('registers SDK-owned GoodVibes context and settings tools', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    expect(registry.has('goodvibes_context')).toBe(true);
-    expect(registry.has('goodvibes_settings')).toBe(true);
   });
 
   test('each tool has a definition with name and description', () => {

@@ -7,6 +7,7 @@ import { registerBuiltinCommands } from '../input/commands.ts';
 import {
   countChannelReadinessSurface,
   countDelegationPostureSurface,
+  countHarnessModeCatalogSurface,
   countMcpServerSurface,
   countMediaPostureSurface,
   countModelRoutingSurface,
@@ -152,6 +153,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
   const mediaPosture = countMediaPostureSurface(root);
   const sessionSurface = countSessionSurface(root);
   const operatorMethods = countOperatorMethodSurface(root);
+  const harnessModeCatalog = countHarnessModeCatalogSurface(root);
   const qualityReadiness = countQualityReadinessDimensions(root);
 
   const areas: VerificationLedgerArea[] = [
@@ -322,6 +324,14 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localBehaviorVerified: operatorMethods.availableModes + operatorMethods.availableSources,
       externalOutcomeRequired: 0,
       notes: `${operatorMethods.modes} agent_harness modes, operator_methods and operator_method, and ${operatorMethods.sources} method sources must stay locally inspectable without arbitrary route invocation.`,
+    },
+    {
+      area: 'Model-visible harness mode catalog',
+      total: harnessModeCatalog.modes + harnessModeCatalog.descriptors + harnessModeCatalog.behaviorMarkers,
+      localSignalVerified: harnessModeCatalog.availableModes + harnessModeCatalog.availableDescriptors + harnessModeCatalog.availableBehaviorMarkers,
+      localBehaviorVerified: harnessModeCatalog.availableModes + harnessModeCatalog.availableDescriptors + harnessModeCatalog.availableBehaviorMarkers,
+      externalOutcomeRequired: 0,
+      notes: `${harnessModeCatalog.descriptors} agent_harness mode descriptors plus modes and mode discovery routes must stay locally inspectable so the model can discover every harness capability.`,
     },
     {
       area: 'Release quality readiness dimensions',

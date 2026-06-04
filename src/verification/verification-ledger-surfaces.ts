@@ -31,6 +31,23 @@ const HARNESS_SECURITY_SUPPORT_MODES = ['security_posture', 'security_finding', 
 const HARNESS_MEDIA_POSTURE_MODES = ['media_posture', 'media_provider'] as const;
 const HARNESS_SESSION_MODES = ['sessions', 'session'] as const;
 const HARNESS_OPERATOR_METHOD_MODES = ['operator_methods', 'operator_method'] as const;
+const HARNESS_MODE_CATALOG_MODES = ['modes', 'mode'] as const;
+const HARNESS_MODE_CATALOG_SOURCE_MARKERS = [
+  'export const HARNESS_MODE_DESCRIPTORS',
+  'export function listHarnessModes',
+  'export function describeHarnessMode',
+  'function harnessModeMatchesSearch',
+] as const;
+const HARNESS_MODE_CATALOG_DISPATCH_MARKERS = [
+  'harnessModes: HARNESS_MODE_DESCRIPTORS.length',
+  "if (args.mode === 'modes')",
+  "if (args.mode === 'mode')",
+  'modeCatalog:',
+] as const;
+const HARNESS_MODE_CATALOG_MARKERS = [
+  ...HARNESS_MODE_CATALOG_SOURCE_MARKERS,
+  ...HARNESS_MODE_CATALOG_DISPATCH_MARKERS,
+] as const;
 
 export interface CountedSourceSurface {
   readonly modes: number;
@@ -67,13 +84,40 @@ export interface CountedQualityReadinessDimensions {
   readonly blockerItems: number;
 }
 
-function countHarnessModes(root: string, modes: readonly string[]): number {
+export interface CountedHarnessModeCatalogSurface {
+  readonly modes: number;
+  readonly availableModes: number;
+  readonly descriptors: number;
+  readonly availableDescriptors: number;
+  readonly behaviorMarkers: number;
+  readonly availableBehaviorMarkers: number;
+}
+
+function listHarnessModeSchemaIds(root: string): readonly string[] {
   try {
     const schemaSource = readFileSync(join(root, 'src', 'tools', 'agent-harness-tool-schema.ts'), 'utf8');
-    return modes.filter((mode) => schemaSource.includes(`'${mode}'`)).length;
+    const match = /export const AGENT_HARNESS_MODES = \[([\s\S]*?)\] as const;/.exec(schemaSource);
+    if (!match) return [];
+    return [...match[1]!.matchAll(/'([a-z_]+)'/g)].map((entry) => entry[1]!).sort();
   } catch {
-    return 0;
+    return [];
   }
+}
+
+function listHarnessModeDescriptorIds(root: string): readonly string[] {
+  try {
+    const source = readFileSync(join(root, 'src', 'tools', 'agent-harness-mode-catalog.ts'), 'utf8');
+    const match = /const HARNESS_MODE_DESCRIPTORS:[\s\S]*?\] as const;/.exec(source);
+    if (!match) return [];
+    return [...match[0].matchAll(/\bid:\s*'([a-z_]+)'/g)].map((entry) => entry[1]!).sort();
+  } catch {
+    return [];
+  }
+}
+
+function countHarnessModes(root: string, modes: readonly string[]): number {
+  const schemaIds = new Set(listHarnessModeSchemaIds(root));
+  return modes.filter((mode) => schemaIds.has(mode)).length;
 }
 
 function countSourceMarkers(root: string, relativePath: string, markers: readonly string[]): number {
@@ -238,4 +282,20 @@ export function countSessionSurface(root: string): CountedSourceSurface {
 
 export function countOperatorMethodSurface(root: string): CountedSourceSurface {
   return countHarnessSourceSurface(root, HARNESS_OPERATOR_METHOD_MODES, 'src/tools/agent-harness-operator-methods.ts', ['AGENT_KNOWLEDGE_METHODS', 'OPERATOR_ACTIONS', 'schedules.create']);
+}
+
+export function countHarnessModeCatalogSurface(root: string): CountedHarnessModeCatalogSurface {
+  const schemaIds = listHarnessModeSchemaIds(root);
+  const descriptorIds = new Set(listHarnessModeDescriptorIds(root));
+  const availableDescriptors = schemaIds.filter((id) => descriptorIds.has(id)).length;
+  return {
+    modes: HARNESS_MODE_CATALOG_MODES.length,
+    availableModes: countHarnessModes(root, HARNESS_MODE_CATALOG_MODES),
+    descriptors: schemaIds.length,
+    availableDescriptors,
+    behaviorMarkers: HARNESS_MODE_CATALOG_MARKERS.length,
+    availableBehaviorMarkers:
+      countSourceMarkers(root, 'src/tools/agent-harness-mode-catalog.ts', HARNESS_MODE_CATALOG_SOURCE_MARKERS) +
+      countSourceMarkers(root, 'src/tools/agent-harness-tool.ts', HARNESS_MODE_CATALOG_DISPATCH_MARKERS),
+  };
 }

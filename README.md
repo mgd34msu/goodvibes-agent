@@ -67,12 +67,12 @@ Press `/` inside the workspace to search actions by name, category, command, or 
 
 The main Agent model can inspect and operate the same user-facing harness through Agent-owned tools. The important entrypoint is `agent_harness`.
 
-`agent_harness mode:"summary"` is compact by default. It returns counts, status, and a short mode guide. Plural catalog modes are also compact by default: they return ids, labels, counts, safe state, and route hints. Use `includeParameters:true` or a singular inspect mode when the model needs schemas, detailed route hints, full policy blocks, redacted log tail, release artifact data, or editor field definitions.
+`agent_harness mode:"summary"` is compact by default. It returns counts, status, and a short mode guide. `mode:"modes"` searches every harness mode by task, family, effect type, id, alias, or parameter name; `mode:"mode"` inspects one mode contract. Plural catalog modes are also compact by default: they return ids, labels, counts, safe state, and route hints. Use `includeParameters:true` or a singular inspect mode when the model needs schemas, detailed route hints, full policy blocks, redacted log tail, release artifact data, or editor field definitions.
 
 High-value `agent_harness` mode groups:
 
-- Discovery: `workspace_categories`, `workspace_actions`, `commands`, `cli_commands`, `panels`, `ui_surfaces`, `shortcuts`, `keybindings`, `tools`, `settings`.
-- Single-item inspection: `workspace_action`, `command`, `cli_command`, `panel`, `ui_surface`, `keybinding`, `tool`, `get_setting`.
+- Discovery: `modes`, `workspace_categories`, `workspace_actions`, `commands`, `cli_commands`, `panels`, `ui_surfaces`, `shortcuts`, `keybindings`, `tools`, `settings`.
+- Single-item inspection: `mode`, `workspace_action`, `command`, `cli_command`, `panel`, `ui_surface`, `keybinding`, `tool`, `get_setting`.
 - User-visible effects: `run_workspace_action`, `run_command`, `open_panel`, `open_ui_surface`, `run_keybinding`, `set_keybinding`, `reset_keybinding`, `set_setting`, `reset_setting`.
 - Product posture: `channels`, `notifications`, `provider_accounts`, `mcp_servers`, `setup_posture`, `model_routing`, `pairing_posture`, `delegation_posture`, `security_posture`, `support_bundles`, `media_posture`, `sessions`.
 - Connected host: `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`; `daemon` and `daemon_status` are aliases for connected-host posture/status.
@@ -88,6 +88,8 @@ First-class model tools cover common workflows directly:
 - `agent_work_plan` for visible local work-plan tracking.
 - `agent_operator_briefing` and `agent_operator_action` for connected work/approval/automation/schedule posture and exact confirmed actions.
 - `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, and `agent_media_generate` for confirmed delivery, notification, reminder, and media generation.
+
+Registered model tool definitions are compact by default. Top-level descriptions are short, and nested parameter descriptions are omitted from the default model catalog. The model can inspect detailed contracts through `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or the owning harness mode.
 
 ## Local Behavior
 

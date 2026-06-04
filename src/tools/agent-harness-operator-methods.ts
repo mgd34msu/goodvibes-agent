@@ -119,7 +119,7 @@ function agentKnowledgeMethods(): readonly OperatorMethodDescriptor[] {
       route: method.route,
       effect: readOnly ? 'read-only-network' : 'confirmed-agent-knowledge-write',
       owner: 'connected-host',
-      preferredModelTool: readOnly ? 'agent_knowledge' : key === 'reindex' ? 'agent_harness run_command' : 'agent_knowledge_ingest',
+      preferredModelTool: readOnly ? 'agent_knowledge' : key === 'reindex' ? 'agent_harness mode:"run_command"' : 'agent_knowledge_ingest',
       confirmation: readOnly ? 'Read-only; use the owning first-class tool.' : 'Requires explicit user request and confirmation through the owning tool or command bridge.',
       boundary: 'Isolated Agent Knowledge route family only; default knowledge and non-Agent knowledge segments are forbidden.',
       ...(readOnly ? {} : {
@@ -161,7 +161,7 @@ function allOperatorMethods(): readonly OperatorMethodDescriptor[] {
       route: '/api/automation/schedules',
       effect: 'confirmed-connected-host-state',
       owner: 'connected-host',
-      preferredModelTool: 'agent_reminder_schedule or agent_harness run_workspace_action',
+      preferredModelTool: 'agent_reminder_schedule or agent_harness mode:"run_workspace_action"',
       confirmation: 'Requires explicit user request and confirmation.',
       boundary: 'Connected schedule creation only; no hidden local scheduler or separate Agent job.',
       parameters: [

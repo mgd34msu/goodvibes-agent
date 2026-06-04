@@ -224,7 +224,7 @@ const CLI_TOKENS_WITHOUT_DETAILED_HELP = new Set(['help', 'version']);
 const CLI_COMMANDS_HANDLED_OUTSIDE_MANAGEMENT = new Set(['tui', 'status', 'doctor', 'onboarding', 'help', 'version', 'completion']);
 const CLI_COMMANDS_WITHOUT_TOP_LEVEL_HELP_ENTRY = new Set(['tui', 'tasks']);
 const CLI_COMMANDS_ALLOWED_TYPE_ONLY = new Set(['unknown']);
-const MODEL_TOOL_DESCRIPTION_MAX_LENGTH = 180;
+const MODEL_TOOL_DESCRIPTION_MAX_LENGTH = 120;
 const MODEL_TOOL_SCHEMA_DESCRIPTION_MAX_LENGTH = 100;
 const RELEASE_READINESS_RELATIVE_PATH = 'release/release-readiness.json';
 const RELEASE_NOTES_RELATIVE_PATH = 'release/release-notes.md';
@@ -2100,6 +2100,8 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
       { marker: 'HARNESS_MEDIA_POSTURE_MODES', label: 'voice/media posture harness mode inventory' },
       { marker: 'HARNESS_SESSION_MODES', label: 'session/bookmark harness mode inventory' },
       { marker: 'HARNESS_OPERATOR_METHOD_MODES', label: 'operator method harness mode inventory' },
+      { marker: 'HARNESS_MODE_CATALOG_MODES', label: 'harness mode catalog inventory' },
+      { marker: 'HARNESS_MODE_CATALOG_MARKERS', label: 'harness mode catalog behavior markers' },
       { marker: 'QUALITY_DIMENSIONS', label: 'release quality readiness dimensions inventory' },
       { marker: "'release/live-verification/live-verification.md'", label: 'live verification Markdown evidence artifact' },
       { marker: "'release_evidence_artifact'", label: 'single release evidence artifact mode' },
@@ -2117,6 +2119,8 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
       { marker: "'media_provider'", label: 'single voice/media provider mode' },
       { marker: "'session'", label: 'single saved session mode' },
       { marker: "'operator_method'", label: 'single operator method mode' },
+      { marker: "'modes'", label: 'harness mode catalog discovery mode' },
+      { marker: "'mode'", label: 'single harness mode inspection mode' },
       { marker: "join('release', 'release-readiness.json')", label: 'release readiness inventory ledger source' },
       { marker: 'countReleaseEvidenceSurface(root)', label: 'model-visible release evidence ledger source' },
       { marker: 'countServicePostureSurface(root)', label: 'model-visible service posture ledger source' },
@@ -2132,6 +2136,7 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
       { marker: 'countMediaPostureSurface(root)', label: 'model-visible voice/media posture ledger source' },
       { marker: 'countSessionSurface(root)', label: 'model-visible session/bookmark ledger source' },
       { marker: 'countOperatorMethodSurface(root)', label: 'model-visible operator method catalog ledger source' },
+      { marker: 'countHarnessModeCatalogSurface(root)', label: 'model-visible harness mode catalog ledger source' },
       { marker: 'countQualityReadinessDimensions(root)', label: 'release quality readiness ledger source' },
       { marker: 'Settings schema and persistence', label: 'settings ledger area' },
       { marker: 'Feature flags', label: 'feature flag ledger area' },
@@ -2154,6 +2159,7 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
       { marker: 'Model-visible voice and media posture', label: 'model-visible voice/media posture ledger area' },
       { marker: 'Model-visible sessions and bookmarks', label: 'model-visible session/bookmark ledger area' },
       { marker: 'Model-visible operator method catalog', label: 'model-visible operator method catalog ledger area' },
+      { marker: 'Model-visible harness mode catalog', label: 'model-visible harness mode catalog ledger area' },
       { marker: 'Release quality readiness dimensions', label: 'release quality readiness ledger area' },
       { marker: 'localSignalVerified', label: 'local signal count' },
       { marker: 'localBehaviorVerified', label: 'local behavior count' },
@@ -2402,6 +2408,45 @@ function verifyModelToolDescriptionPolicy(root: string): readonly string[] {
       if (text.length > MODEL_TOOL_SCHEMA_DESCRIPTION_MAX_LENGTH) {
         issues.push(`model tool ${relativePath}:${lineNumberForIndex(source, match.index ?? 0)} schema description is ${text.length} characters; keep it at or below ${MODEL_TOOL_SCHEMA_DESCRIPTION_MAX_LENGTH}.`);
       }
+    }
+  }
+  return issues;
+}
+
+function verifyModelToolRuntimeCompactionPolicy(root: string): readonly string[] {
+  const issues: string[] = [];
+  const compactionPath = join(root, 'src', 'tools', 'tool-definition-compaction.ts');
+  if (!existsSync(compactionPath)) {
+    return ['model tool runtime compaction source is missing: src/tools/tool-definition-compaction.ts.'];
+  }
+  const compactionSource = readFileSync(compactionPath, 'utf-8');
+  const requiredCompactionMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+    { marker: 'DEFAULT_TOOL_DESCRIPTION_LIMIT = 120', label: '120-character registered tool description cap' },
+    { marker: 'TOOL_DESCRIPTION_OVERRIDES', label: 'Agent-specific tool description overrides' },
+    { marker: 'agent_harness', label: 'agent_harness compact override' },
+    { marker: 'function stripSchemaDescriptions', label: 'nested schema description stripper' },
+    { marker: "if (key === 'description') continue", label: 'schema description removal guard' },
+    { marker: 'definition.parameters = stripSchemaDescriptions(definition.parameters)', label: 'registered parameter schema compaction' },
+    { marker: 'compactRegisteredToolDefinitions', label: 'registered tool compaction entrypoint' },
+  ];
+  for (const { marker, label } of requiredCompactionMarkers) {
+    if (!compactionSource.includes(marker)) {
+      issues.push(`model tool runtime compaction must keep policy marker: ${label}.`);
+    }
+  }
+
+  for (const relativePath of ['src/runtime/bootstrap-core.ts', 'src/runtime/bootstrap.ts']) {
+    const absolutePath = join(root, relativePath);
+    if (!existsSync(absolutePath)) {
+      issues.push(`model tool runtime compaction bootstrap file is missing: ${relativePath}.`);
+      continue;
+    }
+    const source = readFileSync(absolutePath, 'utf-8');
+    if (!source.includes('compactRegisteredToolDefinitions')) {
+      issues.push(`${relativePath} must import and run compactRegisteredToolDefinitions after registering Agent tools.`);
+    }
+    if (!source.includes('compactRegisteredToolDefinitions(toolRegistry);')) {
+      issues.push(`${relativePath} must compact registered tool definitions for the runtime toolRegistry.`);
     }
   }
   return issues;
@@ -2691,6 +2736,7 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   issues.push(...verifyPerfCheckScriptPolicy(root));
   issues.push(...verifyVerificationLedgerPolicy(root));
   issues.push(...verifyLiveVerificationPolicy(root));
+  issues.push(...verifyModelToolRuntimeCompactionPolicy(root));
   if (readStringValue(pkg.description).trim().length === 0) {
     issues.push('package.json is missing a public package description.');
   }
@@ -2770,6 +2816,7 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   }
 
   issues.push(...verifySourcePackageBoundary(root));
+  issues.push(...verifyModelToolDescriptionPolicy(root));
 
   return issues;
 }
@@ -3053,6 +3100,9 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
     issues.push(issue);
   }
   for (const issue of verifyModelToolDescriptionPolicy(root)) {
+    issues.push(issue);
+  }
+  for (const issue of verifyModelToolRuntimeCompactionPolicy(root)) {
     issues.push(issue);
   }
 

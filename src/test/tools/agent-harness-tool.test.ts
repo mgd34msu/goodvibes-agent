@@ -340,6 +340,84 @@ function readAuthorizationHeader(headers: HeadersInit | undefined): string | nul
 }
 
 describe('agent_harness tool', () => {
+  test('exposes a searchable compact harness mode catalog to the model', async () => {
+    const fixture = makeFixture();
+    try {
+      const summary = await fixture.tool.execute({ mode: 'summary' });
+      expect(summary.success).toBe(true);
+      if (!summary.success) throw new Error(summary.error);
+      const summaryJson = JSON.parse(summary.output ?? '{}') as {
+        readonly harnessModes?: number;
+        readonly modeGuide?: { readonly discover?: readonly string[]; readonly inspect?: readonly string[] };
+      };
+      expect(summaryJson.harnessModes).toBeGreaterThan(60);
+      expect(summaryJson.modeGuide?.discover).toContain('modes');
+      expect(summaryJson.modeGuide?.inspect).toContain('mode');
+
+      const settingsModes = await fixture.tool.execute({ mode: 'modes', query: 'settings' });
+      expect(settingsModes.success).toBe(true);
+      if (!settingsModes.success) throw new Error(settingsModes.error);
+      const settingsJson = JSON.parse(settingsModes.output ?? '{}') as {
+        readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[] }[];
+        readonly returned: number;
+        readonly total: number;
+      };
+      expect(settingsJson.total).toBe(summaryJson.harnessModes);
+      expect(settingsJson.returned).toBeGreaterThan(0);
+      expect(settingsJson.modes.map((entry) => entry.id)).toEqual(expect.arrayContaining([
+        'settings',
+        'get_setting',
+        'set_setting',
+        'reset_setting',
+      ]));
+      expect(settingsJson.modes.some((entry) => entry.parameters !== undefined)).toBe(false);
+
+      const detailedModes = await fixture.tool.execute({
+        mode: 'modes',
+        query: 'settings',
+        includeParameters: true,
+        limit: 1,
+      });
+      expect(detailedModes.success).toBe(true);
+      if (!detailedModes.success) throw new Error(detailedModes.error);
+      expect(detailedModes.output).toContain('"parameters"');
+
+      const taskPhrase = await fixture.tool.execute({ mode: 'modes', query: 'set setting' });
+      expect(taskPhrase.success).toBe(true);
+      if (!taskPhrase.success) throw new Error(taskPhrase.error);
+      const taskPhraseJson = JSON.parse(taskPhrase.output ?? '{}') as {
+        readonly modes: readonly { readonly id: string }[];
+      };
+      expect(taskPhraseJson.modes.map((entry) => entry.id)).toContain('set_setting');
+
+      const setSetting = await fixture.tool.execute({ mode: 'mode', target: 'set_setting' });
+      expect(setSetting.success).toBe(true);
+      if (!setSetting.success) throw new Error(setSetting.error);
+      const setSettingJson = JSON.parse(setSetting.output ?? '{}') as {
+        readonly id: string;
+        readonly kind: string;
+        readonly family: string;
+        readonly requiresConfirmation?: boolean;
+        readonly parameters?: readonly string[];
+        readonly lookup?: { readonly resolvedBy?: string };
+      };
+      expect(setSettingJson).toMatchObject({
+        id: 'set_setting',
+        kind: 'effect',
+        family: 'settings',
+        requiresConfirmation: true,
+      });
+      expect(setSettingJson.parameters).toEqual(expect.arrayContaining(['key', 'value', 'confirm', 'explicitUserRequest']));
+      expect(setSettingJson.lookup?.resolvedBy).toBe('id');
+
+      const missing = await fixture.tool.execute({ mode: 'mode' });
+      expect(missing.success).toBe(false);
+      expect(missing.error).toContain('mode inspection requires target or query');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes Agent workspace categories, actions, and editor schemas to the model', async () => {
     const fixture = makeFixture();
     try {
@@ -467,10 +545,17 @@ describe('agent_harness tool', () => {
 
       const settings = await fixture.tool.execute({ mode: 'command', commandName: 'settings' });
       expect(settings.success).toBe(true);
-      expect(settings.output).toContain('"policy"');
-      expect(settings.output).toContain('"effect": "mixed"');
-      expect(settings.output).toContain('agent_harness settings/get_setting/set_setting/reset_setting');
-      expect(settings.output).toContain('Connected-host lifecycle/listener settings remain read-only');
+      const settingsJson = JSON.parse(settings.output ?? '{}') as {
+        readonly policy?: {
+          readonly effect?: string;
+          readonly preferredModelTool?: string;
+          readonly boundary?: string;
+        };
+      };
+      expect(settingsJson.policy?.effect).toBe('mixed');
+      expect(settingsJson.policy?.preferredModelTool).toBe('agent_harness mode:"settings", mode:"get_setting", mode:"set_setting", mode:"reset_setting"');
+      expect(settingsJson.policy?.preferredModelTool).not.toContain('settings/get_setting/set_setting/reset_setting');
+      expect(settingsJson.policy?.boundary).toContain('Connected-host lifecycle/listener settings remain read-only');
     } finally {
       fixture.cleanup();
     }
@@ -745,6 +830,8 @@ describe('agent_harness tool', () => {
       };
       expect(scheduleJson.id).toBe('schedules.create');
       expect(scheduleJson.preferredModelTool).toContain('agent_reminder_schedule');
+      expect(scheduleJson.preferredModelTool).toContain('agent_harness mode:"run_workspace_action"');
+      expect(scheduleJson.preferredModelTool).not.toContain(['agent_harness', 'run_workspace_action'].join(' '));
       expect(scheduleJson.parameters.map((parameter) => parameter.name)).toEqual(expect.arrayContaining([
         'scheduleKind',
         'scheduleValue',
@@ -965,8 +1052,13 @@ describe('agent_harness tool', () => {
 
       const settings = await fixture.tool.execute({ mode: 'ui_surface', surfaceId: 'settings' });
       expect(settings.success).toBe(true);
-      expect(settings.output).toContain('"id": "settings"');
-      expect(settings.output).toContain('settings/get_setting/set_setting/reset_setting');
+      const settingsJson = JSON.parse(settings.output ?? '{}') as {
+        readonly id?: string;
+        readonly preferredModelRoute?: string;
+      };
+      expect(settingsJson.id).toBe('settings');
+      expect(settingsJson.preferredModelRoute).toContain('mode:"settings", mode:"get_setting", mode:"set_setting", mode:"reset_setting"');
+      expect(settingsJson.preferredModelRoute).not.toContain('settings/get_setting/set_setting/reset_setting');
 
       const settingsByQuery = await fixture.tool.execute({
         mode: 'ui_surface',
@@ -1808,6 +1900,13 @@ describe('agent_harness tool', () => {
       .sort((a, b) => a.localeCompare(b));
     expect(missingPreferredRoutes).toEqual([]);
 
+    const staleHarnessRoutes = registry.list()
+      .map((command) => [command.name, describeCommandPolicy(command.name).preferredModelTool ?? ''] as const)
+      .filter(([, route]) => /agent_harness (?!mode:")/.test(route))
+      .map(([command, route]) => `${command}: ${route}`)
+      .sort((a, b) => a.localeCompare(b));
+    expect(staleHarnessRoutes).toEqual([]);
+
     expect(describeCommandPolicy('agent')).toMatchObject({
       effect: 'ui-navigation',
       preferredModelTool: expect.stringContaining('workspace_actions'),
@@ -1829,7 +1928,7 @@ describe('agent_harness tool', () => {
     });
     expect(describeCommandPolicy('next-error')).toMatchObject({
       effect: 'ui-navigation',
-      preferredModelTool: 'agent_harness run_command',
+      preferredModelTool: 'agent_harness mode:"run_command"',
     });
     expect(describeCommandPolicy('clear')).toMatchObject({
       effect: 'session-lifecycle',
@@ -1851,6 +1950,14 @@ describe('agent_harness tool', () => {
       .filter((command) => !describeCliCommandPolicy(command).preferredModelTool)
       .sort((a, b) => a.localeCompare(b));
     expect(missingPreferredRoutes).toEqual([]);
+
+    const staleHarnessRoutes = listGoodVibesCliCommands()
+      .filter((command) => command !== 'unknown')
+      .map((command) => [command, describeCliCommandPolicy(command).preferredModelTool ?? ''] as const)
+      .filter(([, route]) => /agent_harness (?!mode:")/.test(route))
+      .map(([command, route]) => `${command}: ${route}`)
+      .sort((a, b) => a.localeCompare(b));
+    expect(staleHarnessRoutes).toEqual([]);
 
     expect(describeCliCommandPolicy('run')).toMatchObject({
       effect: 'mixed',

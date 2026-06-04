@@ -48,12 +48,13 @@ High-signal TUI routes:
 
 ## `agent_harness`
 
-Use `agent_harness mode:"summary"` first. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, and short route hints. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
+Use `agent_harness mode:"summary"` first. Use `mode:"modes"` to search every harness mode by task, family, effect type, id, alias, or parameter name. Use `mode:"mode"` to inspect one mode contract. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, and short route hints. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
 
 Discovery modes:
 
 | Mode | What It Lists |
 | --- | --- |
+| `modes` | Searchable catalog of every `agent_harness` mode and its task fit. |
 | `workspace`, `workspace_categories`, `workspace_actions` | Workspace categories and actions. |
 | `commands`, `cli_commands` | Slash commands and top-level package CLI mirrors. |
 | `panels`, `ui_surfaces` | Built-in panels and visible modal/overlay/picker/workspace surfaces. |
@@ -72,6 +73,7 @@ Single-item inspect modes:
 
 | Mode | Lookup Fields |
 | --- | --- |
+| `mode` | `target` or `query` |
 | `workspace_action` | `actionId`, `command`, `target`, `query` |
 | `command`, `cli_command` | `command`, `commandName`, `cliCommand`, `target`, `query` |
 | `panel`, `ui_surface`, `keybinding`, `tool` | Exact id/name or `target`/`query` |
@@ -95,6 +97,8 @@ Effect modes:
 | `set_setting`, `reset_setting` | Writes Agent settings through the config/secret managers. |
 
 Every effect mode requires `confirm:true` and `explicitUserRequest`. Ambiguous lookups return candidates before any effect runs.
+
+Registered model tool definitions are compact by default. Tool descriptions are capped or replaced with short Agent-specific summaries, and nested JSON-schema descriptions are stripped from the default registered catalog. Use `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or a specific harness mode when detailed contracts are needed.
 
 ## Workspace Action Execution
 

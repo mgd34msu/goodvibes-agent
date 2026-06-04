@@ -83,7 +83,7 @@ function describeEndpoint(
         effect: 'read-only',
         modelOperation: 'Inspect endpoint binding, network-facing posture, and optional reachability only.',
         lifecycle: 'GoodVibes Agent does not start, stop, restart, install, expose, or mutate connected-host listeners.',
-        settings: 'Use agent_harness settings/get_setting for read-only inspection of endpoint settings; connected-host lifecycle/listener settings stay locked in Agent.',
+        settings: 'Use agent_harness mode:"settings" or mode:"get_setting" for read-only inspection of endpoint settings; connected-host lifecycle/listener settings stay locked in Agent.',
       },
     } : {}),
   };

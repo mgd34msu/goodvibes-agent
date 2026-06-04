@@ -23,6 +23,7 @@ describe('verification ledger', () => {
       'Model-visible release evidence bundle',
       'Model-visible service posture',
       'Model-visible operator method catalog',
+      'Model-visible harness mode catalog',
     ]));
     const releaseEvidence = ledger.areas.find((area) => area.area === 'Model-visible release evidence bundle');
     expect(releaseEvidence).toMatchObject({
@@ -45,6 +46,11 @@ describe('verification ledger', () => {
       localBehaviorVerified: 5,
       externalOutcomeRequired: 0,
     });
+    const harnessModeCatalog = ledger.areas.find((area) => area.area === 'Model-visible harness mode catalog');
+    expect(harnessModeCatalog?.total).toBeGreaterThan(70);
+    expect(harnessModeCatalog?.localSignalVerified).toBe(harnessModeCatalog?.total);
+    expect(harnessModeCatalog?.localBehaviorVerified).toBe(harnessModeCatalog?.total);
+    expect(harnessModeCatalog?.externalOutcomeRequired).toBe(0);
   });
 
   test('renders a markdown ledger for reports', () => {
@@ -58,6 +64,7 @@ describe('verification ledger', () => {
     expect(markdown).toContain('release_evidence_artifact');
     expect(markdown).toContain('service_endpoint');
     expect(markdown).toContain('operator_method');
+    expect(markdown).toContain('mode descriptors');
     expect(markdown).not.toContain('fake context');
     expect(markdown).not.toContain('fake read models');
   });

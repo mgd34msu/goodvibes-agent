@@ -13,6 +13,10 @@ export type ConnectedHostCapabilityResolution =
   | { readonly status: 'found'; readonly detail: Record<string, unknown> }
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] };
 
+function agentHarnessModes(...modes: readonly string[]): string {
+  return `agent_harness ${modes.map((mode) => `mode:"${mode}"`).join(', ')}`;
+}
+
 export function describeCommandPolicy(commandName: string): CommandExecutionPolicy {
   const root = commandName.replace(/^\//, '').trim().toLowerCase();
   const confirmation = 'agent_harness mode:"run_command" requires confirm:true and explicitUserRequest for every slash command invocation.';
@@ -20,7 +24,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'ui-navigation',
       confirmation,
-      preferredModelTool: 'agent_harness workspace/workspace_categories/workspace_actions/workspace_action/run_workspace_action',
+      preferredModelTool: agentHarnessModes('workspace', 'workspace_categories', 'workspace_actions', 'workspace_action', 'run_workspace_action'),
       boundary: 'Agent workspace navigation is visible shell routing. Use workspace action modes for concrete model-readable operation.',
     };
   }
@@ -28,7 +32,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'ui-navigation',
       confirmation,
-      preferredModelTool: 'agent_harness workspace_actions/workspace_action/open_ui_surface',
+      preferredModelTool: agentHarnessModes('workspace_actions', 'workspace_action', 'open_ui_surface'),
       boundary: 'Setup opens the visible Agent onboarding or setup workspace. Model-side changes should use setting modes or workspace actions.',
     };
   }
@@ -36,7 +40,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'ui-navigation',
       confirmation,
-      preferredModelTool: root === 'shortcuts' ? 'agent_harness shortcuts/keybindings/keybinding' : 'agent_harness commands/command',
+      preferredModelTool: root === 'shortcuts' ? agentHarnessModes('shortcuts', 'keybindings', 'keybinding') : agentHarnessModes('commands', 'command'),
       boundary: 'Discovery commands open visible help surfaces. The model should inspect the matching harness catalog directly before invoking commands.',
     };
   }
@@ -44,7 +48,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'read-only',
       confirmation,
-      preferredModelTool: 'agent_harness shortcuts/keybindings/keybinding/run_keybinding/set_keybinding/reset_keybinding',
+      preferredModelTool: agentHarnessModes('shortcuts', 'keybindings', 'keybinding', 'run_keybinding', 'set_keybinding', 'reset_keybinding'),
       boundary: 'Keybinding inspection is read-only. Keybinding execution or edits require explicit confirmation through agent_harness keybinding modes.',
     };
   }
@@ -52,7 +56,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'mixed',
       confirmation,
-      preferredModelTool: 'agent_harness settings/get_setting/set_setting/reset_setting',
+      preferredModelTool: agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting'),
       boundary: 'Model-writable settings can be changed through agent_harness. Connected-host lifecycle/listener settings remain read-only.',
     };
   }
@@ -60,7 +64,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'mixed',
       confirmation,
-      preferredModelTool: 'agent_harness settings/get_setting/set_setting/open_ui_surface',
+      preferredModelTool: agentHarnessModes('settings', 'get_setting', 'set_setting', 'open_ui_surface'),
       boundary: 'Model and reasoning-effort changes affect the current Agent chat route. Prefer settings modes for concrete values and UI surface routing for visible pickers.',
     };
   }
@@ -68,7 +72,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'mixed',
       confirmation,
-      preferredModelTool: 'agent_harness settings/get_setting/set_setting/open_ui_surface',
+      preferredModelTool: agentHarnessModes('settings', 'get_setting', 'set_setting', 'open_ui_surface'),
       boundary: 'Provider selection and custom provider files belong to Agent provider configuration. Adding, removing, or switching providers requires explicit user intent.',
     };
   }
@@ -76,7 +80,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'external-network',
       confirmation,
-      preferredModelTool: 'agent_harness settings/tools',
+      preferredModelTool: agentHarnessModes('settings', 'tools'),
       boundary: 'Model catalog refresh may call provider discovery routes and update local provider metadata. Do not run it without explicit user request.',
     };
   }
@@ -84,7 +88,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'local-state',
       confirmation,
-      preferredModelTool: 'agent_harness run_command',
+      preferredModelTool: agentHarnessModes('run_command'),
       boundary: 'Pinned model changes mutate local Agent provider preferences only and require an explicit model id.',
     };
   }
@@ -92,7 +96,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'local-state',
       confirmation,
-      preferredModelTool: 'agent_harness settings/get_setting/set_setting',
+      preferredModelTool: agentHarnessModes('settings', 'get_setting', 'set_setting'),
       boundary: 'Interaction-mode changes affect the current Agent operator notification posture and should be explicit.',
     };
   }
@@ -108,7 +112,9 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'read-only',
       confirmation,
-      preferredModelTool: root === 'compat' ? 'agent_harness service_posture/service_endpoint/connected_host_status' : 'agent_harness service_posture/service_endpoint/connected_host_status/settings/tools/open_ui_surface',
+      preferredModelTool: root === 'compat'
+        ? agentHarnessModes('service_posture', 'service_endpoint', 'connected_host_status')
+        : agentHarnessModes('service_posture', 'service_endpoint', 'connected_host_status', 'settings', 'tools', 'open_ui_surface'),
       boundary: 'Diagnostics and review commands inspect Agent, provider, MCP, security, and connected-host readiness without taking lifecycle ownership.',
     };
   }
@@ -116,7 +122,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'mixed',
       confirmation,
-      preferredModelTool: 'agent_harness run_command',
+      preferredModelTool: agentHarnessModes('run_command'),
       boundary: 'Review subcommands are read-only; bundle export/import or auth/trust bundle export writes local files and requires explicit confirmation.',
     };
   }
@@ -124,7 +130,9 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'mixed',
       confirmation,
-      preferredModelTool: root === 'secrets' || root === 'secret' ? 'agent_harness settings/get_setting/set_setting/reset_setting' : 'agent_harness workspace_actions/settings/open_ui_surface',
+      preferredModelTool: root === 'secrets' || root === 'secret'
+        ? agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting')
+        : agentHarnessModes('workspace_actions', 'settings', 'open_ui_surface'),
       boundary: 'Harness-owned configuration, secret, voice, subscription, and MCP commands can expose credentials or external account state. Mutations require explicit user intent and should prefer secret refs over raw values.',
     };
   }
@@ -150,7 +158,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'ui-navigation',
       confirmation,
-      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action or agent_local_registry',
+      preferredModelTool: `${agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action')} or agent_local_registry`,
       boundary: 'Notes workspace routing is visible navigation; note record mutations should use Agent-local registry or workspace action modes.',
     };
   }
@@ -198,7 +206,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'external-network',
       confirmation,
-      preferredModelTool: 'agent_harness open_ui_surface',
+      preferredModelTool: agentHarnessModes('open_ui_surface'),
       boundary: 'Image attachment reads a local image and submits a model turn with image content. Use only for explicit user-supplied files.',
     };
   }
@@ -206,7 +214,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'external-network',
       confirmation,
-      preferredModelTool: 'agent_harness settings/open_ui_surface',
+      preferredModelTool: agentHarnessModes('settings', 'open_ui_surface'),
       boundary: 'Live TTS submits a normal prompt and may call model and speech providers; stopping playback is local runtime control.',
     };
   }
@@ -222,7 +230,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'delegated-work',
       confirmation,
-      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action',
+      preferredModelTool: agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action'),
       boundary: 'Delegation is explicit user-directed work only; no hidden background review or separate Agent job should be created implicitly.',
     };
   }
@@ -245,7 +253,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'session-lifecycle',
       confirmation,
-      preferredModelTool: 'agent_harness commands/command/run_command',
+      preferredModelTool: agentHarnessModes('commands', 'command', 'run_command'),
       boundary: 'Session and conversation commands operate on the visible harness session lifecycle.',
     };
   }
@@ -253,7 +261,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'local-state',
       confirmation,
-      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action or agent_harness run_command',
+      preferredModelTool: `${agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action')} or ${agentHarnessModes('run_command')}`,
       boundary: 'Conversation export writes a local workspace file and requires an explicit output intent.',
     };
   }
@@ -261,7 +269,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'ui-navigation',
       confirmation,
-      preferredModelTool: root === 'bookmarks' ? 'agent_harness open_ui_surface' : 'agent_harness run_command',
+      preferredModelTool: root === 'bookmarks' ? agentHarnessModes('open_ui_surface') : agentHarnessModes('run_command'),
       boundary: 'Conversation display navigation mutates only the visible transcript view or scroll position.',
     };
   }
@@ -269,7 +277,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'local-state',
       confirmation,
-      preferredModelTool: 'agent_harness run_keybinding',
+      preferredModelTool: agentHarnessModes('run_keybinding'),
       boundary: 'Paste reads the local clipboard and mutates the visible prompt or image attachment state.',
     };
   }
@@ -277,7 +285,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'mixed',
       confirmation,
-      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action',
+      preferredModelTool: agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action'),
       boundary: 'Agent profile commands manage isolated Agent runtime profiles and starter templates. Mutations require explicit confirmation.',
     };
   }
@@ -285,7 +293,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'read-only',
       confirmation,
-      preferredModelTool: 'agent_harness run_command',
+      preferredModelTool: agentHarnessModes('run_command'),
       boundary: 'Pairing details are displayed for explicit operator use; the Agent does not manage connected-host listener lifecycle.',
     };
   }
@@ -330,7 +338,9 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: root === 'tui' || root === 'onboarding' ? 'ui-navigation' : 'read-only',
       confirmation,
-      preferredModelTool: root === 'onboarding' || root === 'tui' ? 'agent_harness workspace/workspace_actions/workspace_action/run_workspace_action' : 'agent_harness cli_commands/cli_command',
+      preferredModelTool: root === 'onboarding' || root === 'tui'
+        ? agentHarnessModes('workspace', 'workspace_actions', 'workspace_action', 'run_workspace_action')
+        : agentHarnessModes('cli_commands', 'cli_command'),
       boundary: 'Top-level CLI launch, setup, help, version, and completion commands are package entrypoint surfaces; use in-process workspace and slash-command bridges from the model when operating inside the TUI.',
     };
   }
@@ -346,7 +356,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: 'read-only',
       confirmation,
-      preferredModelTool: root === 'tasks' ? 'agent_operator_briefing' : 'agent_harness service_posture/service_endpoint/connected_host_status/connected_host/settings/tools',
+      preferredModelTool: root === 'tasks' ? 'agent_operator_briefing' : agentHarnessModes('service_posture', 'service_endpoint', 'connected_host_status', 'connected_host', 'settings', 'tools'),
       boundary: 'Diagnostics and posture commands are readable from Agent-owned settings, provider, model, and connected-host capability surfaces without taking connected-host lifecycle ownership.',
     };
   }
@@ -354,7 +364,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: 'local-state',
       confirmation,
-      preferredModelTool: root === 'profiles' ? 'agent_harness workspace_actions/workspace_action/run_workspace_action' : 'agent_local_registry',
+      preferredModelTool: root === 'profiles' ? agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action') : 'agent_local_registry',
       boundary: 'Local library/profile/session/bundle CLI commands operate on Agent-local data. Mutations require explicit user intent and should use first-class Agent-local tools where available.',
     };
   }
@@ -370,7 +380,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: 'delegated-work',
       confirmation,
-      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action',
+      preferredModelTool: agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action'),
       boundary: 'Delegation is explicit user-directed work only; no hidden background review or separate Agent job should be created implicitly.',
     };
   }
@@ -378,7 +388,9 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: root === 'pair' ? 'external-network' : 'mixed',
       confirmation,
-      preferredModelTool: root === 'pair' ? 'agent_harness workspace_actions/workspace_action/run_workspace_action' : 'agent_harness settings/get_setting/set_setting/reset_setting or workspace_actions',
+      preferredModelTool: root === 'pair'
+        ? agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action')
+        : `${agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting')} or ${agentHarnessModes('workspace_actions')}`,
       boundary: 'Provider subscription, secret, and pairing flows can expose credentials or external account state. Use only explicit user-directed flows and prefer secret refs over raw values.',
     };
   }
@@ -636,10 +648,10 @@ export function connectedHostSummary(
     ownership: 'external-connected-host',
     lifecycle: 'GoodVibes Agent can use public connected-host operator routes, but does not start, stop, restart, install, expose, or mutate the host listener.',
     modes: {
-      servicePosture: 'service_posture/service_endpoint',
-      operatorMethods: 'operator_methods/operator_method',
-      liveStatus: 'connected_host_status',
-      capabilityDetail: 'connected_host_capability',
+      servicePosture: agentHarnessModes('service_posture', 'service_endpoint'),
+      operatorMethods: agentHarnessModes('operator_methods', 'operator_method'),
+      liveStatus: agentHarnessModes('connected_host_status'),
+      capabilityDetail: agentHarnessModes('connected_host_capability'),
     },
     counts: {
       routeFamilies: routeFamilies.length,

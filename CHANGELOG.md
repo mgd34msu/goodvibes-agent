@@ -2,6 +2,15 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.35 - 2026-06-04
+
+- Added searchable `agent_harness` mode discovery: `mode:"modes"` searches every harness mode by task, family, effect type, id, alias, and parameter name, while `mode:"mode"` inspects one mode contract.
+- Added full harness mode descriptors for every model-visible harness operation, with compact summaries, families, effect/read-only classification, confirmation flags, aliases, parameter names, and next-step guidance.
+- Compacted registered model tool definitions at runtime: Agent tools now use concise descriptions, generic tool descriptions are capped, and nested JSON-schema descriptions are stripped from the default model-visible catalog while detailed contracts stay inspectable through harness modes.
+- Counted the model-visible harness mode catalog in the verification ledger and package metadata gate so release evidence tracks the new discovery surface.
+- Cleaned the useful test surface for the changed product shape by consolidating repetitive registration tests and adding focused coverage for mode discovery, task-phrase lookup, tool definition compaction, and release ledger accounting.
+- Refreshed package-facing docs, release notes, and readiness evidence for the current model-access contract.
+
 ## 1.0.34 - 2026-06-04
 
 - Promoted GoodVibes Agent to the stable 1.0.x operator product surface: the fullscreen Agent workspace is the primary TUI, with setup, provider/model routing, status, compatibility, and doctor flows shaped around personal operator use instead of copied host lifecycle controls.
@@ -103,7 +112,7 @@ Product-facing release notes for GoodVibes Agent.
 
 ## 1.0.24 - 2026-06-03
 
-- Resolve confirmed agent_harness run_command requests by the same command, commandName, target, or query lookup used for slash-command inspection.
+- Resolve confirmed `agent_harness` `mode:"run_command"` requests by the same command, commandName, target, or query lookup used for slash-command inspection.
 - Refuse ambiguous slash-command run lookups with candidate commands before any handler runs.
 - Refresh package-facing docs, model-facing schema text, and focused harness coverage for slash-command execution parity.
 
@@ -121,13 +130,13 @@ Product-facing release notes for GoodVibes Agent.
 
 ## 1.0.21 - 2026-06-03
 
-- Resolve agent_harness run_workspace_action by actionId, command, target, or query using the same lookup contract as workspace_action inspection.
+- Resolve `agent_harness` `mode:"run_workspace_action"` by actionId, command, target, or query using the same lookup contract as `mode:"workspace_action"` inspection.
 - Refuse ambiguous workspace action run requests with candidate actions instead of requiring exact action ids or guessing.
 - Refresh package-facing docs and focused harness coverage for workspace action run parity.
 
 ## 1.0.20 - 2026-06-03
 
-- Add agent_harness run_keybinding for confirmation-gated shell-safe shortcut equivalents such as search, prompt-history search, paste, clear screen, cancel generation, panel focus/close routes, and visible block-action routing.
+- Add `agent_harness` `mode:"run_keybinding"` for confirmation-gated shell-safe shortcut equivalents such as search, prompt-history search, paste, clear screen, cancel generation, panel focus/close routes, and visible block-action routing.
 - Add modelOperation route metadata to every configurable keybinding so the model can distinguish supported shell routes from prompt-editor-only or direct-interaction shortcuts.
 - Refresh package-facing docs and focused harness coverage for keybinding operation parity.
 
@@ -151,7 +160,7 @@ Product-facing release notes for GoodVibes Agent.
 
 ## 1.0.16 - 2026-06-03
 
-- Add agent_harness workspace_action lookup by actionId, command, target, or query with resolved lookup metadata.
+- Add `agent_harness` `mode:"workspace_action"` lookup by actionId, command, target, or query with resolved lookup metadata.
 - Reuse the user-facing workspace action search fields for single-action inspection while reporting ambiguity with candidate actions instead of guessing.
 - Refresh package-facing docs and focused harness coverage for the updated model-visible workspace action inspection path.
 

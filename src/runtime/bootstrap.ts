@@ -43,6 +43,7 @@ import { buildEnabledSkillsPrompt } from '../agent/skill-registry.ts';
 import { buildEnabledRoutinesPrompt } from '../agent/routine-registry.ts';
 import { buildReviewedMemoryPrompt } from '../agent/memory-prompt.ts';
 import { registerAgentHarnessTool } from '../tools/agent-harness-tool.ts';
+import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
 
 const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '## GoodVibes Agent Operator Policy',
@@ -280,6 +281,7 @@ export async function bootstrapRuntime(
   const commandContext = shell.commandContext;
   const inputHistory = shell.inputHistory;
   registerAgentHarnessTool(toolRegistry, commandRegistry, commandContext);
+  compactRegisteredToolDefinitions(toolRegistry);
   const pluginCommandRegistry = {
     register(command: {
       readonly name: string;

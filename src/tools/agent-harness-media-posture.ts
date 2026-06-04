@@ -116,7 +116,7 @@ function describeProvider(
         inspectPosture: 'agent_harness mode:"media_posture"',
         inspectProvider: 'agent_harness mode:"media_provider"',
         generateMedia: 'agent_media_generate with confirm:true and explicitUserRequest',
-        ttsSettings: 'agent_harness settings/get_setting/set_setting for tts.provider, tts.voice, tts.llmProvider, and tts.llmModel',
+        ttsSettings: 'agent_harness mode:"settings", mode:"get_setting", mode:"set_setting" for tts.provider, tts.voice, tts.llmProvider, and tts.llmModel',
       },
       policy: {
         effect: 'read-only',

@@ -189,7 +189,7 @@ function describeItem(
         inspectSetupItem: 'agent_harness mode:"setup_item"',
         openOnboarding: 'agent_harness mode:"open_ui_surface" surfaceId:"onboarding" confirm:true explicitUserRequest:"..."',
         setupWorkspace: 'agent_harness mode:"workspace_action" target:"setup"',
-        settings: 'agent_harness modes settings/get_setting/set_setting/reset_setting',
+        settings: 'agent_harness mode:"settings"; inspect or mutate with get_setting, set_setting, or reset_setting',
         providerRouting: 'agent_harness mode:"model_routing"',
         providerAccounts: 'agent_harness mode:"provider_accounts"',
         channels: 'agent_harness mode:"channels"',

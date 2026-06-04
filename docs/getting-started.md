@@ -54,7 +54,7 @@ Press `/` inside the Agent workspace to search actions by name, category, comman
 
 ## Model Access
 
-The main Agent model can use the same user-facing harness through Agent-owned tools. Use `agent_harness mode:"summary"` for a compact map, then drill into plural catalogs or single-item inspect modes.
+The main Agent model can use the same user-facing harness through Agent-owned tools. Use `agent_harness mode:"summary"` for a compact map, `mode:"modes"` to search every harness mode by task or id, and `mode:"mode"` to inspect one mode contract. Then drill into plural catalogs or single-item inspect modes.
 
 Default discovery is intentionally compact:
 
@@ -66,19 +66,22 @@ Common model routes:
 
 | Need | Tool Or Mode |
 | --- | --- |
-| Workspace actions | `agent_harness workspace_actions`, `workspace_action`, `run_workspace_action` |
-| Slash commands | `agent_harness commands`, `command`, `run_command` |
-| Settings | `agent_harness settings`, `get_setting`, `set_setting`, `reset_setting` |
-| Visible UI | `agent_harness panels`, `ui_surfaces`, `open_panel`, `open_ui_surface` |
-| Keybindings | `agent_harness shortcuts`, `keybindings`, `keybinding`, `run_keybinding`, `set_keybinding` |
+| Harness mode discovery | `agent_harness mode:"modes"`, `mode:"mode"` |
+| Workspace actions | `agent_harness mode:"workspace_actions"`, `mode:"workspace_action"`, `mode:"run_workspace_action"` |
+| Slash commands | `agent_harness mode:"commands"`, `mode:"command"`, `mode:"run_command"` |
+| Settings | `agent_harness mode:"settings"`, `mode:"get_setting"`, `mode:"set_setting"`, `mode:"reset_setting"` |
+| Visible UI | `agent_harness mode:"panels"`, `mode:"ui_surfaces"`, `mode:"open_panel"`, `mode:"open_ui_surface"` |
+| Keybindings | `agent_harness mode:"shortcuts"`, `mode:"keybindings"`, `mode:"keybinding"`, `mode:"run_keybinding"`, `mode:"set_keybinding"` |
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |
 | Local memory/notes/personas/skills/routines | `agent_local_registry` or confirmed workspace actions |
 | Work plan | `agent_work_plan` |
 | Channels, notifications, reminders, media | `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_media_generate` |
-| Operator state/actions | `agent_operator_briefing`, `agent_operator_action`, `operator_methods` |
-| Connected host/daemon posture | `service_posture`, `connected_host`, `connected_host_status`, `daemon`, `daemon_status` |
+| Operator state/actions | `agent_operator_briefing`, `agent_operator_action`, `agent_harness mode:"operator_methods"` |
+| Connected host/daemon posture | `agent_harness mode:"service_posture"`, `mode:"connected_host"`, `mode:"connected_host_status"`, `mode:"daemon"`, `mode:"daemon_status"` |
 
 All effects require explicit user request and confirmation. Ambiguous lookup is refused with candidates.
+
+Registered tool definitions are intentionally terse. The default model catalog keeps top-level descriptions short and removes nested parameter descriptions; use `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or the owning harness mode when detailed contracts are needed.
 
 ## Isolated Agent Profiles
 

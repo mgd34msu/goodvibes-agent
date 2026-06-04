@@ -39,6 +39,7 @@ import { registerAgentOperatorActionTool } from '../tools/agent-operator-action-
 import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
 import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
 import { registerAgentWorkPlanTool } from '../tools/agent-work-plan-tool.ts';
+import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { registerAgentRuntimeEvents } from './agent-runtime-events.ts';
 
@@ -249,6 +250,7 @@ export async function initializeBootstrapCore(
   installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),
   });
+  compactRegisteredToolDefinitions(toolRegistry);
   services.agentOrchestrator.setDependencies({
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     fileCache,

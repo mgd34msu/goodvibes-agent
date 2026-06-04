@@ -28,13 +28,12 @@ import { describeHarnessSession, sessionCatalogStatus, sessionSummary } from './
 import { describeHarnessServiceEndpoint, servicePostureCatalogStatus, servicePostureSummary } from './agent-harness-service-posture.ts';
 import { describeHarnessSetupItem, setupPostureCatalogStatus, setupPostureSummary } from './agent-harness-setup-posture.ts';
 import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
+import { describeHarnessMode, HARNESS_MODE_DESCRIPTORS, listHarnessModes, type AgentHarnessMode } from './agent-harness-mode-catalog.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
 import { AGENT_WORKSPACE_CATEGORIES, allWorkspaceActions, buildWorkspaceEditorContext, createWorkspaceEditor, describeWorkspaceAction, describeWorkspaceCategory, describeWorkspaceEditor, listWorkspaceActions, resolveWorkspaceActionDetail } from './agent-harness-workspace-actions.ts';
 import { describeWorkspaceEditorModelExecution } from './agent-harness-workspace-editor-execution.ts';
 import { connectedHostSummary, describeConnectedHostCapability, settingsPolicySummary } from './agent-harness-metadata.ts';
 import { formatHarnessError, listHarnessSettings, resetHarnessSetting, resolveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
-
-type AgentHarnessMode = typeof AGENT_HARNESS_MODES[number];
 
 interface AgentHarnessToolArgs {
   readonly mode?: unknown;
@@ -130,6 +129,7 @@ function error(message: string): { readonly success: false; readonly error: stri
 function compactHarnessModeGuide(): Record<string, unknown> {
   return {
     discover: [
+      'modes',
       'cli_commands', 'panels', 'ui_surfaces', 'shortcuts', 'keybindings',
       'commands', 'channels', 'notifications', 'provider_accounts', 'mcp_servers',
       'setup_posture', 'model_routing', 'pairing_posture', 'delegation_posture',
@@ -139,6 +139,7 @@ function compactHarnessModeGuide(): Record<string, unknown> {
       'service_posture', 'connected_host', 'daemon',
     ],
     inspect: [
+      'mode',
       'cli_command', 'panel', 'ui_surface', 'keybinding', 'command', 'channel',
       'notification_target', 'provider_account', 'mcp_server', 'setup_item',
       'model_route', 'pairing_route', 'delegation_route', 'security_finding',
@@ -175,9 +176,10 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     supportBundles: 'List mode:"support_bundles"; inspect mode:"support_bundle"; export/import stays confirmation-gated.',
     mediaPosture: 'List mode:"media_posture"; inspect mode:"media_provider"; generate with agent_media_generate and confirmation.',
     sessions: 'List mode:"sessions"; inspect mode:"session"; save/resume/export/delete stays visible confirmed flow.',
-    workspace: 'List mode:"workspace" or mode:"workspace_categories"; actions via workspace_actions/workspace_action/run_workspace_action; includeParameters:true inlines editor schemas.',
-    settings: 'List mode:"settings" with category|prefix|query|includeHidden:true; get_setting/set_setting/reset_setting use key|target|query and confirmation for writes.',
+    workspace: 'List mode:"workspace" or mode:"workspace_categories"; actions via mode:"workspace_actions", mode:"workspace_action", and mode:"run_workspace_action"; includeParameters:true inlines editor schemas.',
+    settings: 'List mode:"settings" with category|prefix|query|includeHidden:true; mode:"get_setting", mode:"set_setting", and mode:"reset_setting" use key|target|query; writes require confirmation.',
     tools: 'List mode:"tools" with query|limit|includeParameters:true; inspect mode:"tool" with toolName|target|query.',
+    modeCatalog: 'Search mode:"modes" with query|target; inspect one contract with mode:"mode" target:"...".',
     releaseEvidence: 'List mode:"release_evidence"; inspect mode:"release_evidence_artifact"; includeParameters:true inlines artifact detail.',
     releaseReadiness: 'List mode:"release_readiness"; inspect mode:"release_readiness_item"; includeParameters:true inlines item detail.',
     operatorMethods: 'List mode:"operator_methods"; inspect mode:"operator_method"; execute only through the returned first-class tool.',
@@ -425,6 +427,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
       try {
         if (args.mode === 'summary') {
           return output({
+            harnessModes: HARNESS_MODE_DESCRIPTORS.length,
             cliCommands: totalHarnessCliCommands(),
             blockedCliCommandTokens: blockedHarnessCliCommandTokens(),
             panels: totalHarnessPanels(deps.commandContext),
@@ -471,6 +474,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               includeParameters: args.includeParameters === true,
             }),
           });
+        }
+        if (args.mode === 'modes') return output(listHarnessModes(args));
+        if (args.mode === 'mode') {
+          const mode = describeHarnessMode(args);
+          if (mode.status === 'ambiguous') return error(`Ambiguous harness mode ${String(mode.input)}. Candidates: ${JSON.stringify(mode.candidates)}`);
+          if (mode.status === 'missing_lookup') return error(String(mode.usage));
+          return output(mode.mode);
         }
         if (args.mode === 'cli_commands') {
           const commands = listHarnessCliCommands(args);
