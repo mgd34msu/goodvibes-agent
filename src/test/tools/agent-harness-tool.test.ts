@@ -6,6 +6,7 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
+import { registerBuiltinCommands } from '../../input/commands.ts';
 import { PanelManager } from '../../panels/panel-manager.ts';
 import type { Panel, PanelCategory } from '../../panels/types.ts';
 import { ConfigManager } from '../../config/index.ts';
@@ -16,6 +17,7 @@ import { createShellPathService } from '@/runtime/index.ts';
 import { registerOperatorRuntimeCommands } from '../../input/commands/operator-runtime.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
 import { KeybindingsManager } from '../../input/keybindings.ts';
+import { describeCommandPolicy } from '../../tools/agent-harness-metadata.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
@@ -1427,6 +1429,40 @@ describe('agent_harness tool', () => {
     } finally {
       fixture.cleanup();
     }
+  });
+
+  test('assigns concrete model policy metadata to every built-in slash command', () => {
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+
+    const unknownPolicies = registry.list()
+      .filter((command) => describeCommandPolicy(command.name).effect === 'unknown')
+      .map((command) => command.name)
+      .sort((a, b) => a.localeCompare(b));
+    expect(unknownPolicies).toEqual([]);
+
+    expect(describeCommandPolicy('agent')).toMatchObject({
+      effect: 'ui-navigation',
+      preferredModelTool: expect.stringContaining('workspace_actions'),
+    });
+    expect(describeCommandPolicy('brief')).toMatchObject({
+      effect: 'read-only',
+      preferredModelTool: 'agent_operator_briefing',
+    });
+    expect(describeCommandPolicy('refresh-models')).toMatchObject({
+      effect: 'external-network',
+    });
+    expect(describeCommandPolicy('export')).toMatchObject({
+      effect: 'local-state',
+    });
+    expect(describeCommandPolicy('notes')).toMatchObject({
+      effect: 'ui-navigation',
+      preferredModelTool: expect.stringContaining('agent_local_registry'),
+    });
+    expect(describeCommandPolicy('keybindings')).toMatchObject({
+      effect: 'read-only',
+      preferredModelTool: expect.stringContaining('run_keybinding'),
+    });
   });
 
   test('runs command-backed workspace actions through id and command lookups', async () => {

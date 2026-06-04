@@ -16,11 +16,122 @@ export type ConnectedHostCapabilityResolution =
 export function describeCommandPolicy(commandName: string): CommandExecutionPolicy {
   const root = commandName.replace(/^\//, '').trim().toLowerCase();
   const confirmation = 'agent_harness mode:"run_command" requires confirm:true and explicitUserRequest for every slash command invocation.';
+  if (root === 'agent' || root === 'agent-workspace' || root === 'workspace') {
+    return {
+      effect: 'ui-navigation',
+      confirmation,
+      preferredModelTool: 'agent_harness workspace/workspace_categories/workspace_actions/workspace_action/run_workspace_action',
+      boundary: 'Agent workspace navigation is visible shell routing. Use workspace action modes for concrete model-readable operation.',
+    };
+  }
+  if (root === 'setup' || root === 'welcome') {
+    return {
+      effect: 'ui-navigation',
+      confirmation,
+      preferredModelTool: 'agent_harness workspace_actions/workspace_action/open_ui_surface',
+      boundary: 'Setup opens the visible Agent onboarding or setup workspace. Model-side changes should use setting modes or workspace actions.',
+    };
+  }
+  if (root === 'commands' || root === 'help' || root === 'shortcuts') {
+    return {
+      effect: 'ui-navigation',
+      confirmation,
+      preferredModelTool: root === 'shortcuts' ? 'agent_harness shortcuts/keybindings/keybinding' : 'agent_harness commands/command',
+      boundary: 'Discovery commands open visible help surfaces. The model should inspect the matching harness catalog directly before invoking commands.',
+    };
+  }
+  if (root === 'keybindings') {
+    return {
+      effect: 'read-only',
+      confirmation,
+      preferredModelTool: 'agent_harness shortcuts/keybindings/keybinding/run_keybinding/set_keybinding/reset_keybinding',
+      boundary: 'Keybinding inspection is read-only. Keybinding execution or edits require explicit confirmation through agent_harness keybinding modes.',
+    };
+  }
+  if (root === 'settings' || root === 'config') {
+    return {
+      effect: 'mixed',
+      confirmation,
+      preferredModelTool: 'agent_harness settings/get_setting/set_setting/reset_setting',
+      boundary: 'Model-writable settings can be changed through agent_harness. Connected-host lifecycle/listener settings remain read-only.',
+    };
+  }
+  if (root === 'model' || root === 'effort') {
+    return {
+      effect: 'mixed',
+      confirmation,
+      preferredModelTool: 'agent_harness settings/get_setting/set_setting/open_ui_surface',
+      boundary: 'Model and reasoning-effort changes affect the current Agent chat route. Prefer settings modes for concrete values and UI surface routing for visible pickers.',
+    };
+  }
+  if (root === 'provider' || root === 'providers') {
+    return {
+      effect: 'mixed',
+      confirmation,
+      preferredModelTool: 'agent_harness settings/get_setting/set_setting/open_ui_surface',
+      boundary: 'Provider selection and custom provider files belong to Agent provider configuration. Adding, removing, or switching providers requires explicit user intent.',
+    };
+  }
+  if (root === 'refresh-models') {
+    return {
+      effect: 'external-network',
+      confirmation,
+      preferredModelTool: 'agent_harness settings/tools',
+      boundary: 'Model catalog refresh may call provider discovery routes and update local provider metadata. Do not run it without explicit user request.',
+    };
+  }
+  if (root === 'pin' || root === 'unpin') {
+    return {
+      effect: 'local-state',
+      confirmation,
+      preferredModelTool: 'agent_harness run_command',
+      boundary: 'Pinned model changes mutate local Agent provider preferences only and require an explicit model id.',
+    };
+  }
+  if (root === 'mode') {
+    return {
+      effect: 'local-state',
+      confirmation,
+      preferredModelTool: 'agent_harness settings/get_setting/set_setting',
+      boundary: 'Interaction-mode changes affect the current Agent operator notification posture and should be explicit.',
+    };
+  }
+  if (root === 'brief') {
+    return {
+      effect: 'read-only',
+      confirmation,
+      preferredModelTool: 'agent_operator_briefing',
+      boundary: 'Briefing reads current Agent operator posture and next actions without mutating connected-host state.',
+    };
+  }
+  if (root === 'health' || root === 'compat' || root === 'context' || root === 'accounts' || root === 'security') {
+    return {
+      effect: 'read-only',
+      confirmation,
+      preferredModelTool: root === 'compat' ? 'agent_harness connected_host_status' : 'agent_harness connected_host_status/settings/tools/open_ui_surface',
+      boundary: 'Diagnostics and review commands inspect Agent, provider, MCP, security, and connected-host readiness without taking lifecycle ownership.',
+    };
+  }
+  if (root === 'trust' || root === 'auth' || root === 'bundle') {
+    return {
+      effect: 'mixed',
+      confirmation,
+      preferredModelTool: 'agent_harness run_command',
+      boundary: 'Review subcommands are read-only; bundle export/import or auth/trust bundle export writes local files and requires explicit confirmation.',
+    };
+  }
+  if (root === 'mcp' || root === 'voice' || root === 'subscription' || root === 'secrets' || root === 'secret') {
+    return {
+      effect: 'mixed',
+      confirmation,
+      preferredModelTool: root === 'secrets' || root === 'secret' ? 'agent_harness settings/get_setting/set_setting/reset_setting' : 'agent_harness workspace_actions/settings/open_ui_surface',
+      boundary: 'Harness-owned configuration, secret, voice, subscription, and MCP commands can expose credentials or external account state. Mutations require explicit user intent and should prefer secret refs over raw values.',
+    };
+  }
   if (
     root === 'memory'
     || root === 'memories'
     || root === 'note'
-    || root === 'notes'
     || root === 'persona'
     || root === 'personas'
     || root === 'skill'
@@ -35,20 +146,20 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Agent-local library records only unless the invoked command explicitly promotes to a connected schedule or Agent Knowledge source.',
     };
   }
+  if (root === 'notes') {
+    return {
+      effect: 'ui-navigation',
+      confirmation,
+      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action or agent_local_registry',
+      boundary: 'Notes workspace routing is visible navigation; note record mutations should use Agent-local registry or workspace action modes.',
+    };
+  }
   if (root === 'knowledge') {
     return {
       effect: 'mixed',
       confirmation,
       preferredModelTool: 'agent_knowledge or agent_knowledge_ingest',
       boundary: 'Agent Knowledge only. Do not use default knowledge or non-Agent knowledge spaces.',
-    };
-  }
-  if (root === 'settings') {
-    return {
-      effect: 'mixed',
-      confirmation,
-      preferredModelTool: 'agent_harness settings/get_setting/set_setting/reset_setting',
-      boundary: 'Model-writable settings can be changed through agent_harness. Connected-host lifecycle/listener settings remain read-only.',
     };
   }
   if (root === 'approval' || root === 'approvals' || root === 'automation') {
@@ -75,12 +186,28 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'External delivery requires an explicit target and direct user authorization.',
     };
   }
-  if (root === 'media' || root === 'image') {
+  if (root === 'media') {
     return {
       effect: 'external-network',
       confirmation,
       preferredModelTool: 'agent_media_generate',
       boundary: 'Media generation uses configured Agent media providers and writes normal artifacts only.',
+    };
+  }
+  if (root === 'image') {
+    return {
+      effect: 'external-network',
+      confirmation,
+      preferredModelTool: 'agent_harness open_ui_surface',
+      boundary: 'Image attachment reads a local image and submits a model turn with image content. Use only for explicit user-supplied files.',
+    };
+  }
+  if (root === 'tts') {
+    return {
+      effect: 'external-network',
+      confirmation,
+      preferredModelTool: 'agent_harness settings/open_ui_surface',
+      boundary: 'Live TTS submits a normal prompt and may call model and speech providers; stopping playback is local runtime control.',
     };
   }
   if (root === 'workplan' || root === 'plan' || root === 'task' || root === 'tasks') {
@@ -98,37 +225,65 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Delegation is explicit user-directed work only; no hidden background review or separate Agent job should be created implicitly.',
     };
   }
-  if (root === 'session' || root === 'conversation' || root === 'clear' || root === 'quit' || root === 'exit') {
+  if (
+    root === 'session'
+    || root === 'conversation'
+    || root === 'clear'
+    || root === 'reset'
+    || root === 'compact'
+    || root === 'quit'
+    || root === 'exit'
+    || root === 'save'
+    || root === 'load'
+    || root === 'sessions'
+    || root === 'title'
+    || root === 'undo'
+    || root === 'redo'
+    || root === 'retry'
+  ) {
     return {
       effect: 'session-lifecycle',
       confirmation,
       boundary: 'Session and conversation commands operate on the visible harness session lifecycle.',
     };
   }
-  if (root === 'agent-workspace' || root === 'workspace' || root === 'help' || root === 'shortcuts') {
+  if (root === 'export') {
+    return {
+      effect: 'local-state',
+      confirmation,
+      boundary: 'Conversation export writes a local workspace file and requires an explicit output intent.',
+    };
+  }
+  if (root === 'bookmarks' || root === 'expand' || root === 'collapse' || root === 'next-error' || root === 'prev-error') {
     return {
       effect: 'ui-navigation',
       confirmation,
-      preferredModelTool: 'agent_harness workspace/workspace_actions/workspace_action/run_workspace_action',
-      boundary: 'Navigation and discovery commands should be inspected through agent_harness when possible.',
+      preferredModelTool: root === 'bookmarks' ? 'agent_harness open_ui_surface' : undefined,
+      boundary: 'Conversation display navigation mutates only the visible transcript view or scroll position.',
     };
   }
-  if (
-    root === 'profile'
-    || root === 'agent-profile'
-    || root === 'provider'
-    || root === 'providers'
-    || root === 'auth'
-    || root === 'secret'
-    || root === 'secrets'
-    || root === 'mcp'
-    || root === 'voice'
-    || root === 'subscription'
-  ) {
+  if (root === 'paste') {
+    return {
+      effect: 'local-state',
+      confirmation,
+      preferredModelTool: 'agent_harness run_keybinding',
+      boundary: 'Paste reads the local clipboard and mutates the visible prompt or image attachment state.',
+    };
+  }
+  if (root === 'profile' || root === 'agent-profile') {
     return {
       effect: 'mixed',
       confirmation,
-      boundary: 'Harness-owned configuration, auth, provider, MCP, and profile commands are available through the command bridge with explicit confirmation.',
+      preferredModelTool: 'agent_harness workspace_actions/workspace_action/run_workspace_action',
+      boundary: 'Agent profile commands manage isolated Agent runtime profiles and starter templates. Mutations require explicit confirmation.',
+    };
+  }
+  if (root === 'qrcode') {
+    return {
+      effect: 'read-only',
+      confirmation,
+      preferredModelTool: 'agent_harness run_command',
+      boundary: 'Pairing details are displayed for explicit operator use; the Agent does not manage connected-host listener lifecycle.',
     };
   }
   return {
