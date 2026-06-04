@@ -16,9 +16,8 @@ import type {
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceRuntimeSnapshot,
 } from '../input/agent-workspace-types.ts';
-import { parseSlashCommand } from '../input/slash-command-parser.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
-import { describeHarnessCommand, listHarnessCommands } from './agent-harness-command-catalog.ts';
+import { describeHarnessCommand, listHarnessCommands, resolveHarnessCommandDetail, type CommandDetailLookup } from './agent-harness-command-catalog.ts';
 import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, runHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
@@ -124,11 +123,6 @@ function readLimit(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
-}
-
-function readStringArray(value: unknown): readonly string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((entry) => typeof entry === 'string' ? entry : String(entry));
 }
 
 function readFieldMap(value: unknown): Readonly<Record<string, string>> {
@@ -330,23 +324,8 @@ function requireConfirmedAction(args: AgentHarnessToolArgs, action: string): str
   return null;
 }
 
-function commandFromArgs(args: AgentHarnessToolArgs): { readonly name: string; readonly args: readonly string[] } | null {
-  const rawCommand = readString(args.command);
-  if (rawCommand) {
-    const parsed = parseSlashCommand(rawCommand);
-    if (!parsed.name) return null;
-    return {
-      name: parsed.name,
-      args: parsed.args,
-    };
-  }
-  const commandName = readString(args.commandName).replace(/^\//, '');
-  if (!commandName) return null;
-  const commandArgs = readStringArray(args.args);
-  return {
-    name: commandName,
-    args: commandArgs,
-  };
+function invocationArgsFromLookup(lookup: CommandDetailLookup): readonly string[] {
+  return lookup.resolvedBy === 'description' ? [] : lookup.parsedArgs;
 }
 
 function safeCommandDisplay(name: string): string {
@@ -356,9 +335,11 @@ function safeCommandDisplay(name: string): string {
 async function runCommand(deps: AgentHarnessToolDeps, args: AgentHarnessToolArgs): Promise<{ readonly success: boolean; readonly output?: string; readonly error?: string }> {
   const confirmationError = requireConfirmedAction(args, 'Slash command invocation');
   if (confirmationError) return error(confirmationError);
-  const parsed = commandFromArgs(args);
-  if (!parsed) return error('run_command requires command or commandName.');
-  if (!deps.commandRegistry.get(parsed.name)) return error(`Unknown slash command /${parsed.name}. Use mode:"commands" to inspect available commands.`);
+  const resolved = resolveHarnessCommandDetail(deps.commandRegistry, args);
+  if (resolved?.status === 'ambiguous') {
+    return error(`Ambiguous slash command ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+  }
+  if (!resolved) return error('run_command requires a valid command, commandName, target, or query. Use mode:"commands" to inspect available commands.');
 
   const printed: string[] = [];
   const toolContext: CommandContext = {
@@ -371,10 +352,12 @@ async function runCommand(deps: AgentHarnessToolDeps, args: AgentHarnessToolArgs
       return deps.commandRegistry.execute(name, commandArgs, toolContext);
     },
   };
-  const handled = await deps.commandRegistry.execute(parsed.name, [...parsed.args], toolContext);
-  if (!handled) return error(`Unknown slash command /${parsed.name}.`);
+  const commandArgs = invocationArgsFromLookup(resolved.lookup);
+  const handled = await deps.commandRegistry.execute(resolved.command.name, [...commandArgs], toolContext);
+  if (!handled) return error(`Unknown slash command /${resolved.command.name}.`);
   return output([
-    `Command ${safeCommandDisplay(parsed.name)} completed.`,
+    `Command ${safeCommandDisplay(resolved.command.name)} completed.`,
+    `Resolved by ${resolved.lookup.source} ${resolved.lookup.resolvedBy}.`,
     printed.length > 0 ? printed.join('\n') : '(no text output)',
   ].join('\n'));
 }
@@ -589,7 +572,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               panels: 'Use mode:"panels" to list and mode:"panel" with panelId, target, or query to inspect built-in panel catalog/open state; use mode:"open_panel" with confirm:true plus explicitUserRequest to route a visible panel/workspace change.',
               uiSurfaces: 'Use mode:"ui_surfaces" to list and mode:"ui_surface" with surfaceId, target, or query to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
               shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"keybinding" with actionId, target, key, or query; use mode:"run_keybinding" for confirmation-gated shell-safe shortcut equivalents; use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
-              slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with confirm:true plus explicitUserRequest to execute.',
+              slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with the same lookup fields plus confirm:true and explicitUserRequest to execute one uniquely resolved command.',
               workspace: 'Use mode:"workspace_actions" to list, mode:"workspace_action" with actionId, command, target, or query for one action and editor schema, and mode:"run_workspace_action" with the same lookup fields plus confirmation for executable actions; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings" to list and mode:"get_setting" with key, target, or query for one setting. Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest.',
               tools: 'Use mode:"tools" to list first-class model tools, or mode:"tool" with toolName, target, or query to inspect one schema.',

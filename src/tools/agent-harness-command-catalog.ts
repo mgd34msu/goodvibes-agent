@@ -11,7 +11,7 @@ export interface AgentHarnessCommandCatalogArgs {
   readonly limit?: unknown;
 }
 
-interface CommandDetailLookup {
+export interface CommandDetailLookup {
   readonly source: 'command' | 'commandName' | 'target' | 'query';
   readonly input: string;
   readonly parsedName: string;
@@ -19,7 +19,7 @@ interface CommandDetailLookup {
   readonly resolvedBy: 'name' | 'alias' | 'case-insensitive-name' | 'case-insensitive-alias' | 'description' | 'prefix';
 }
 
-type CommandDetailResolution =
+export type CommandDetailResolution =
   | { readonly status: 'found'; readonly command: SlashCommand; readonly lookup: CommandDetailLookup }
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] };
 
@@ -111,7 +111,7 @@ function commandDetailLookupFromArgs(args: AgentHarnessCommandCatalogArgs): Omit
   return null;
 }
 
-function resolveCommandDetail(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): CommandDetailResolution | null {
+export function resolveHarnessCommandDetail(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): CommandDetailResolution | null {
   const lookup = commandDetailLookupFromArgs(args);
   if (!lookup?.parsedName) return null;
   const direct = commandRegistry.get(lookup.parsedName);
@@ -173,7 +173,7 @@ export function listHarnessCommands(commandRegistry: CommandRegistry, args: Agen
 }
 
 export function describeHarnessCommand(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): Record<string, unknown> | null {
-  const detail = resolveCommandDetail(commandRegistry, args);
+  const detail = resolveHarnessCommandDetail(commandRegistry, args);
   if (detail?.status === 'found') return describeCommand(detail.command, detail.lookup);
   if (detail?.status === 'ambiguous') return { status: 'ambiguous', input: detail.input, candidates: detail.candidates };
   return null;

@@ -1264,6 +1264,74 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('runs slash commands through the shared command lookup resolver', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.commandRegistry.register({
+        name: 'echoargs',
+        description: 'Echo command arguments for resolver coverage',
+        handler: (args, ctx) => {
+          ctx.print(`args:${args.join('|')}`);
+        },
+      });
+      fixture.commandRegistry.register({
+        name: 'memory',
+        aliases: ['mem'],
+        description: 'Manage Agent-local memory records',
+        usage: '<action>',
+        handler: (_args, ctx) => {
+          ctx.print('memory output');
+        },
+      });
+      fixture.commandRegistry.register({
+        name: 'memory-review',
+        description: 'Review Agent-local memory records',
+        usage: '<id>',
+        handler: (_args, ctx) => {
+          ctx.print('memory review output');
+        },
+      });
+
+      const byCommandName = await fixture.tool.execute({
+        mode: 'run_command',
+        commandName: 'ECHOARGS',
+        args: ['one', 'two'],
+        confirm: true,
+        explicitUserRequest: 'Run echoargs with two arguments.',
+      });
+      expect(byCommandName.success).toBe(true);
+      expect(byCommandName.output).toContain('Command /echoargs completed.');
+      expect(byCommandName.output).toContain('Resolved by commandName case-insensitive-name.');
+      expect(byCommandName.output).toContain('args:one|two');
+
+      const byQuery = await fixture.tool.execute({
+        mode: 'run_command',
+        query: 'Test briefing command',
+        confirm: true,
+        explicitUserRequest: 'Show the briefing.',
+      });
+      expect(byQuery.success).toBe(true);
+      expect(byQuery.output).toContain('Command /brief completed.');
+      expect(byQuery.output).toContain('Resolved by query description.');
+      expect(byQuery.output).toContain('briefing output');
+
+      const ambiguous = await fixture.tool.execute({
+        mode: 'run_command',
+        query: 'Agent-local memory records',
+        confirm: true,
+        explicitUserRequest: 'Run the memory command.',
+      });
+      expect(ambiguous.success).toBe(false);
+      expect(ambiguous.error).toContain('Ambiguous slash command');
+      expect(ambiguous.error).toContain('"name":"memory"');
+      expect(ambiguous.error).toContain('"name":"memory-review"');
+      expect(fixture.printed).not.toContain('memory output');
+      expect(fixture.printed).not.toContain('memory review output');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('inspects one slash command from typed command, target, query, and alias lookups', async () => {
     const fixture = makeFixture();
     try {

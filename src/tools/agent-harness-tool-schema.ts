@@ -35,7 +35,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   commandName: {
     type: 'string',
-    description: 'Slash command root without the leading slash for mode command or run_command, or a top-level CLI command token for cli_command.',
+    description: 'Slash command root without the leading slash for mode command or run_command, or a top-level CLI command token for cli_command. run_command can also resolve one slash command by target or query when the lookup is unique.',
   },
   args: {
     type: 'array',
