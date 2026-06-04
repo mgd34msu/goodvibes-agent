@@ -2783,6 +2783,77 @@ function verifyHarnessOperatorAuditModelAccessPolicy(root: string): readonly str
   return issues;
 }
 
+function verifyHarnessConnectedHostModelAccessPolicy(root: string): readonly string[] {
+  const issues: string[] = [];
+  const metadataPath = join(root, 'src', 'tools', 'agent-harness-metadata.ts');
+  const statusPath = join(root, 'src', 'tools', 'agent-harness-connected-host-status.ts');
+  const modeCatalogPath = join(root, 'src', 'tools', 'agent-harness-mode-catalog.ts');
+
+  if (!existsSync(metadataPath)) {
+    issues.push('harness connected-host metadata source is missing: src/tools/agent-harness-metadata.ts.');
+  } else {
+    const source = readFileSync(metadataPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'function connectedHostCapabilityModelRoute', label: 'connected-host capability model route builder' },
+      { marker: 'function blockedConnectedHostModelRoute', label: 'blocked connected-host model route builder' },
+      { marker: 'harnessRoute: \'agent_harness mode:"connected_host_capability"\'', label: 'capability harness inspection route' },
+      { marker: 'connectedHostSummary', label: 'connected-host summary export' },
+      { marker: 'daemonAliases', label: 'daemon alias route summary' },
+      { marker: 'lifecycleBlocked', label: 'blocked lifecycle model-access boundary' },
+      { marker: 'operate: connectedHostCapabilityModelRoute(capability)', label: 'allowed capability operation route' },
+      { marker: "operate: 'not exposed'", label: 'blocked capability operation denial' },
+      { marker: 'agent_harness mode:"daemon"', label: 'daemon inventory alias' },
+      { marker: 'agent_harness mode:"daemon_status"', label: 'daemon status alias' },
+      { marker: 'blockedConnectedHostCapabilities', label: 'blocked connected-host capability inventory' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness connected-host metadata must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(statusPath)) {
+    issues.push('harness connected-host status source is missing: src/tools/agent-harness-connected-host-status.ts.');
+  } else {
+    const source = readFileSync(statusPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'modelRoute: \'agent_harness mode:"connected_host_status" or mode:"service_posture"\'', label: 'connected-host status model route' },
+      { marker: 'daemonAliases', label: 'connected-host status daemon aliases' },
+      { marker: 'lifecycleBlocked', label: 'connected-host status lifecycle boundary' },
+      { marker: 'connectedHostFindings', label: 'connected-host status findings' },
+      { marker: 'capabilitySummary', label: 'connected-host status capability summary' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness connected-host status must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(modeCatalogPath)) {
+    issues.push('harness mode catalog source is missing: src/tools/agent-harness-mode-catalog.ts.');
+  } else {
+    const source = readFileSync(modeCatalogPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: "{ id: 'connected_host'", label: 'connected_host mode descriptor' },
+      { marker: "{ id: 'connected_host_status'", label: 'connected_host_status mode descriptor' },
+      { marker: "{ id: 'connected_host_capability'", label: 'connected_host_capability mode descriptor' },
+      { marker: "{ id: 'daemon'", label: 'daemon alias descriptor' },
+      { marker: "{ id: 'daemon_status'", label: 'daemon_status alias descriptor' },
+      { marker: "aliases: ['connected_host']", label: 'daemon inventory alias target' },
+      { marker: "aliases: ['connected_host_status']", label: 'daemon status alias target' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness connected-host mode catalog must keep ${label}.`);
+      }
+    }
+  }
+
+  return issues;
+}
+
 function verifyModelToolRuntimeCompactionPolicy(root: string): readonly string[] {
   const issues: string[] = [];
   const compactionPath = join(root, 'src', 'tools', 'tool-definition-compaction.ts');
@@ -3114,6 +3185,7 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   issues.push(...verifyHarnessSettingsModelAccessPolicy(root));
   issues.push(...verifyHarnessVisibleSurfaceModelAccessPolicy(root));
   issues.push(...verifyHarnessOperatorAuditModelAccessPolicy(root));
+  issues.push(...verifyHarnessConnectedHostModelAccessPolicy(root));
   if (readStringValue(pkg.description).trim().length === 0) {
     issues.push('package.json is missing a public package description.');
   }

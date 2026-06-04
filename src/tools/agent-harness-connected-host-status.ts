@@ -39,11 +39,11 @@ function connectedHostFindings(
     });
   } else if (!runtime.compatible) {
     findings.push({
-      id: 'connected-host-version-mismatch',
+      id: 'connected-host-incompatible',
       severity: 'warning',
-      summary: 'Connected host SDK version does not match Agent.',
-      cause: `Connected host reports SDK ${runtime.version}; Agent expects ${runtime.expectedVersion}.`,
-      action: 'Update the owning GoodVibes host so its /status route reports the Agent SDK pin.',
+      summary: 'Connected host compatibility does not satisfy Agent readiness.',
+      cause: 'Connected host is reachable, but at least one public Agent route is unavailable or incompatible.',
+      action: 'Update the owning GoodVibes host so its public Agent routes are compatible.',
     });
   }
 
@@ -88,6 +88,7 @@ export async function connectedHostStatusSummary(
   return {
     ownership: 'external-connected-host',
     readOnly: true,
+    modelRoute: 'agent_harness mode:"connected_host_status" or mode:"service_posture"',
     timeoutMs: CONNECTED_HOST_STATUS_TIMEOUT_MS,
     lifecycle: 'GoodVibes Agent can inspect connected-host readiness and use public operator routes, but does not start, stop, restart, install, expose, or mutate the host listener.',
     paths: {
@@ -122,8 +123,6 @@ export async function connectedHostStatusSummary(
         route: '/status',
         reachable: runtime.reachable,
         statusCode: runtime.statusCode,
-        sdkVersion: runtime.version,
-        expectedSdkVersion: runtime.expectedVersion,
         compatible: runtime.compatible,
       },
       {
@@ -142,6 +141,8 @@ export async function connectedHostStatusSummary(
     },
     ...(options.includeParameters ? { modelAccess: {
       diagnostics: 'Use mode:"connected_host_status" for live read-only host readiness, mode:"service_posture" for endpoint posture, mode:"service_endpoint" for one endpoint, and mode:"connected_host" for capability and boundary inventory.',
+      daemonAliases: 'mode:"daemon_status" is an alias for mode:"connected_host_status"; mode:"daemon" is an alias for mode:"connected_host".',
+      lifecycleBlocked: 'Start, stop, restart, install, expose, and listener mutation are not exposed through Agent.',
       cliMirrors: ['goodvibes-agent status --json', 'goodvibes-agent doctor', 'goodvibes-agent compat'],
       tuiMirrors: ['Agent Workspace -> Home -> Host compatibility', 'Agent Workspace -> Home -> Doctor diagnostics', 'Agent Workspace -> Home -> Review health'],
     },
