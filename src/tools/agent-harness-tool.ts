@@ -25,6 +25,7 @@ import { describeLocalWorkspaceModelExecution, runLocalWorkspaceAction, runLocal
 import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
+import { describeWorkspaceEditorModelExecution } from './agent-harness-workspace-editor-execution.ts';
 import {
   connectedHostSummary,
   describeConnectedHostCapability,
@@ -235,21 +236,10 @@ function describeWorkspaceAction(
     ...(action.kind === 'local-selection' || action.kind === 'local-operation' ? {
       modelExecution: describeLocalWorkspaceModelExecution(action),
     } : {}),
-    ...(action.kind === 'editor' && action.editorKind && !isAgentWorkspaceCommandEditorKind(action.editorKind) ? {
-      modelExecution: localEditorModelExecution(action.editorKind),
+    ...(action.kind === 'editor' && action.editorKind ? {
+      modelExecution: describeWorkspaceEditorModelExecution(action.editorKind),
     } : {}),
   };
-}
-
-function localEditorModelExecution(editorKind: AgentWorkspaceEditorKind): string {
-  if (editorKind === 'memory') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"memory"; agent_local_registry also supports list/search/get/review/stale/delete.';
-  if (editorKind === 'note') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"note"; agent_local_registry also supports list/search/get/review/stale/delete.';
-  if (editorKind === 'persona') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"persona"; agent_local_registry also supports list/search/get/use/clear_active/review/stale/delete.';
-  if (editorKind === 'skill') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"skill"; agent_local_registry also supports list/search/get/enable/disable/review/stale/delete.';
-  if (editorKind === 'routine') return 'run_workspace_action can execute this editor from fields through agent_local_registry domain:"routine"; agent_local_registry also supports list/search/get/enable/disable/start/review/stale/delete.';
-  if (editorKind === 'learned-behavior') return 'run_workspace_action can create the learned behavior from fields.';
-  if (editorKind === 'profile') return 'run_workspace_action dispatches the matching /agent-profile create command.';
-  return 'Use the command field, editor schema, or a first-class Agent model tool when available.';
 }
 
 function listWorkspaceActions(deps: AgentHarnessToolDeps, args: AgentHarnessToolArgs): readonly Record<string, unknown>[] {
@@ -387,6 +377,7 @@ async function runWorkspaceEditorAction(
       missing,
       action: action.id,
       editor: describeWorkspaceEditor(editor),
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
     });
   }
 
@@ -445,7 +436,7 @@ async function runWorkspaceEditorAction(
       status: 'model_tool_required',
       action: action.id,
       editor: describeWorkspaceEditor(editor),
-      modelExecution: localEditorModelExecution(editor.kind),
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
     });
   }
 
@@ -460,6 +451,7 @@ async function runWorkspaceEditorAction(
       status: submission.status,
       action: action.id,
       editor: describeWorkspaceEditor(submission.editor),
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
       actionResult: submission.actionResult ?? null,
     });
   }
@@ -469,6 +461,7 @@ async function runWorkspaceEditorAction(
       action: action.id,
       prompt: submission.prompt,
       actionResult: submission.actionResult,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
       note: 'This workspace action submits a normal main-conversation prompt in the TUI. In model-tool context, use the returned prompt as the conversation task instead of creating a hidden nested turn.',
     });
   }
@@ -573,7 +566,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               uiSurfaces: 'Use mode:"ui_surfaces" to list and mode:"ui_surface" with surfaceId, target, or query to inspect modal/overlay/picker/workspace surfaces; use mode:"open_ui_surface" with confirm:true plus explicitUserRequest to route visible UI navigation.',
               shortcuts: 'Use mode:"shortcuts" to inspect fixed shortcuts plus configurable keybindings. Use mode:"keybinding" with actionId, target, key, or query; use mode:"run_keybinding" for confirmation-gated shell-safe shortcut equivalents; use mode:"set_keybinding" and mode:"reset_keybinding" with confirm:true plus explicitUserRequest to edit the same config file the user edits.',
               slashCommands: 'Use mode:"commands" to list slash commands and mode:"command" with command, commandName, target, or query to inspect one command; use mode:"run_command" with the same lookup fields plus confirm:true and explicitUserRequest to execute one uniquely resolved command.',
-              workspace: 'Use mode:"workspace_actions" to list, mode:"workspace_action" with actionId, command, target, or query for one action and editor schema, and mode:"run_workspace_action" with the same lookup fields plus confirmation for executable actions; set includeParameters:true on workspace_actions to inline editor schemas.',
+              workspace: 'Use mode:"workspace_actions" to list, mode:"workspace_action" with actionId, command, target, or query for one action, editor schema, and modelExecution route metadata, and mode:"run_workspace_action" with the same lookup fields plus confirmation for executable actions; set includeParameters:true on workspace_actions to inline editor schemas.',
               settings: 'Use mode:"settings" to list and mode:"get_setting" with key, target, or query for one setting. Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest.',
               tools: 'Use mode:"tools" to list first-class model tools, or mode:"tool" with toolName, target, or query to inspect one schema.',
               connectedHost: 'Use mode:"connected_host" for the connected-host capability map and blocked boundaries. Use mode:"connected_host_capability" with capabilityId, target, or query for one allowed or blocked capability.',

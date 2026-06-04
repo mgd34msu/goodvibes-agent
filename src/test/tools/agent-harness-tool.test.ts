@@ -353,6 +353,7 @@ describe('agent_harness tool', () => {
       expect(action.success).toBe(true);
       expect(action.output).toContain('"editorKind": "memory"');
       expect(action.output).toContain('agent_local_registry');
+      expect(action.output).toContain('"route": "agent_local_registry"');
       expect(action.output).toContain('"summary"');
     } finally {
       fixture.cleanup();
@@ -1248,7 +1249,51 @@ describe('agent_harness tool', () => {
         expect(result.success, action.id).toBe(true);
         expect(result.output, action.id).toContain('"editor"');
         expect(result.output, action.id).toContain('"fields"');
+        expect(result.output, action.id).toContain('"modelExecution"');
       }
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('classifies workspace editor model execution routes by bridge type', async () => {
+    const fixture = makeFixture();
+    try {
+      const local = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'memory-create' });
+      const commandBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'setup-effort' });
+      const promptBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-main' });
+      const directLocal = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'learned-behavior' });
+      const profile = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'runtime-profile-create' });
+
+      expect(local.success).toBe(true);
+      expect(commandBacked.success).toBe(true);
+      expect(promptBacked.success).toBe(true);
+      expect(directLocal.success).toBe(true);
+      expect(profile.success).toBe(true);
+
+      expect(JSON.parse(local.output).modelExecution).toMatchObject({
+        route: 'agent_local_registry',
+        tool: 'agent_local_registry',
+        domain: 'memory',
+      });
+      expect(JSON.parse(commandBacked.output).modelExecution).toMatchObject({
+        route: 'slash-command-dispatch',
+        dispatcher: 'run_command',
+        confirmation: 'required',
+      });
+      expect(JSON.parse(promptBacked.output).modelExecution).toMatchObject({
+        route: 'main-conversation-prompt',
+        result: 'prompt',
+        confirmation: 'not-required',
+      });
+      expect(JSON.parse(directLocal.output).modelExecution).toMatchObject({
+        route: 'direct-agent-local-create',
+        action: 'create_learned_behavior',
+      });
+      expect(JSON.parse(profile.output).modelExecution).toMatchObject({
+        route: 'slash-command-dispatch',
+        command: '/agent-profile create <name> [--template <template>] --yes',
+      });
     } finally {
       fixture.cleanup();
     }
