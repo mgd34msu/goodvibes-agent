@@ -2,6 +2,28 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.34 - 2026-06-04
+
+- Promoted GoodVibes Agent to the stable 1.0.x operator product surface: the fullscreen Agent workspace is the primary TUI, with setup, provider/model routing, status, compatibility, and doctor flows shaped around personal operator use instead of copied host lifecycle controls.
+- Completed the Agent-local behavior system for day-one operation: local memory and notes, personas, skills, skill bundles, routines, starter profiles, discovery/import flows, review/stale/delete controls, and secret-looking content rejection all stay under Agent ownership.
+- Completed isolated Agent Knowledge coverage across CLI, slash commands, workspace panels, connector/source/node/issue views, URL/file/browser/connector ingest, semantic ask/search, and connected-host `/api/goodvibes-agent/knowledge/*` routes without fallback to default or non-Agent knowledge surfaces.
+- Completed connected-host operator integration without taking host lifecycle ownership: compatibility/status checks, authenticated health and model routes, channel readiness, provider-account posture, approvals, automation snapshots, schedules, work plans, media/voice readiness, pairing, and explicit public-route diagnostics are all visible from Agent.
+- Completed explicit side-effect boundaries for personal operation: channel sends, notifications, routine schedule promotion, reminders, subscription/auth actions, memory bundle imports/exports, support bundles, MCP configuration, profile changes, and build delegation require explicit confirmation where they mutate state or call external routes.
+- Completed package and release hardening for the release gate: Bun-only install/run instructions, package-facing text verification, package runtime bundling, packed global install smoke, blocked lifecycle command smoke, source/package boundary checks, architecture checks, recorded performance snapshot checks, verification ledger, strict live verification artifacts, and release-quality readiness inventory dimensions are now part of the validated release path.
+- Completed the compact model-visible harness pass: `agent_harness` summary and plural catalogs now default to compact rows, with full schemas, policy blocks, route metadata, editor fields, release artifact detail, redacted log tail, and parameter detail behind `includeParameters:true` or singular inspect modes.
+- Completed direct model access to user-facing harness operations: workspace actions, slash commands, settings, panels, UI surfaces, keybindings, tool catalogs, channel/notification posture, provider/account posture, MCP posture, setup, model routing, pairing, delegation, security/support bundles, media, sessions, operator methods, release evidence, and connected-host diagnostics are all exposed through Agent tools or harness modes.
+- Completed connected-host daemon aliases for the model: `daemon` maps to connected-host posture and `daemon_status` maps to live connected-host status while lifecycle control stays outside Agent.
+- Completed settings parity for the model-facing harness: settings discovery is compact by default, `get_setting` and `includeParameters:true` expose full descriptors, and `set_setting`/`reset_setting` use the same config/secret managers with confirmation and external-host setting locks.
+- Completed the tool-description verbosity sweep: first-class Agent tools and wrapped built-in tool definitions now register concise descriptions, while detailed safety rules remain enforced in policy wrappers, confirmation errors, and detailed harness inspection.
+- Completed copyable model route hint cleanup: confirmed harness examples now include the required `confirm:true` and `explicitUserRequest` fields so route hints match the actual execution contract.
+- Completed resilient shortcut/keybinding discovery: `agent_harness` returns fixed shortcuts and default-fallback keybinding descriptors when the live keybinding manager is absent, while keybinding execution and mutation still fail closed until the runtime manager is available.
+- Completed the model-visible operator method catalog: `agent_harness` can now list and inspect allowlisted public operator and Agent Knowledge methods with their owning first-class model tools, confirmation policy, and boundaries, without exposing arbitrary route invocation.
+- Expanded first-class Agent Knowledge reads: `agent_knowledge` now covers status, ask, search, source/node/issue lists, item lookup, map summary, connector list/detail, and connector doctor while staying inside `/api/goodvibes-agent/knowledge/*`.
+- Added fail-closed Agent Knowledge response-scope validation: CLI, model tools, and live verification reject successful-looking payloads that expose default scope metadata or known non-Agent payload markers.
+- Expanded release-route enforcement for Agent Knowledge: architecture/package policy now guards the full route catalog, and live verification definitions include source, node, issue, map, and connector read routes in addition to status, ask, and search.
+- Pinned the release line to `@pellux/goodvibes-sdk@0.33.36` so the packaged connected-host runtime includes Agent Knowledge alias scope normalization and telephony channel surface support.
+- Renamed active release evidence artifacts to current-release paths under `release/`, including release notes, readiness inventory, performance snapshot, and live-verification reports, so current release metadata no longer depends on stale historical filenames.
+
 ## 1.0.33 - 2026-06-04
 
 - Fixed the release lockfile so frozen CI installs resolve @pellux/goodvibes-sdk@0.33.36 and its published peer packages.
