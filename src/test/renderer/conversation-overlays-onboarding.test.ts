@@ -9,6 +9,14 @@ import { InfiniteBuffer } from '../../core/history.ts';
 import { createDefaultUiRuntimeServices } from '../helpers/ui-services.ts';
 import { linesToText } from '../setup.ts';
 
+function lineWithText(width: number, text: string) {
+  const line = createEmptyLine(width);
+  for (let index = 0; index < Math.min(width, text.length); index += 1) {
+    line[index] = { char: text[index]!, fg: '', bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false };
+  }
+  return line;
+}
+
 function makeInput(): InputHandler {
   const history = new InfiniteBuffer();
   const input = new InputHandler(
@@ -52,6 +60,36 @@ function wireModelPicker(input: InputHandler): unknown[] {
 }
 
 describe('applyConversationOverlays onboarding shell', () => {
+  test('replaces the visible composer area while onboarding owns the viewport', () => {
+    const width = 100;
+    const height = 20;
+    const viewport = Array.from({ length: height }, (_, index) => (
+      index === height - 1
+        ? lineWithText(width, ' > fake prompt row that must not remain visible')
+        : createEmptyLine(width)
+    ));
+    const input = makeInput();
+    input.openOnboardingWizard({ mode: 'edit', preload: () => {} });
+    input.searchManager.open();
+    input.searchManager.query = 'visible search row';
+
+    const lines = applyConversationOverlays(viewport, {
+      input,
+      conversation: {} as ConversationManager,
+      commandRegistry: { getAll: () => [] } as never,
+      keybindingsManager: createDefaultUiRuntimeServices().shell.keybindingsManager,
+      conversationWidth: width,
+      viewportHeight: height,
+    });
+
+    expect(lines).toHaveLength(height);
+    const textLines = linesToText(lines);
+    expect(textLines.join('\n')).toContain('Onboarding Wizard');
+    expect(textLines.join('\n')).not.toContain('fake prompt row');
+    expect(textLines.join('\n')).not.toContain('visible search row');
+    expect(textLines.at(-1)).toContain('[Enter]');
+  });
+
   test('lets the fullscreen model workspace own the viewport while nested from onboarding', () => {
     const width = 100;
     const height = 20;

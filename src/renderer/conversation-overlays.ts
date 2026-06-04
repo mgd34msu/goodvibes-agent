@@ -43,6 +43,7 @@ export function applyConversationOverlays(
   if (input.onboardingWizard.active) {
     const lines = renderOnboardingWizard(input.onboardingWizard, conversationWidth, viewportHeight);
     next = replaceViewportWithOverlay(lines, conversationWidth, viewportHeight);
+    if (!input.modelPicker.active) return next;
   }
 
   if (input.filePicker.active) {

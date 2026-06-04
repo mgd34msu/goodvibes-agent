@@ -131,6 +131,7 @@ describe('renderOnboardingWizard', () => {
     expect(text).toContain('Steps');
     expect(text).toContain('Controls:');
     expect(text).toContain('Esc');
+    expect(linesToText(lines).at(-1)).toContain('[Enter]');
   });
 
   test('uses visible frame chrome and readable rail labels on wide terminals', () => {
