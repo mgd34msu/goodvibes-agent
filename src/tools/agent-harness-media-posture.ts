@@ -1,6 +1,7 @@
 import { buildAgentWorkspaceVoiceMediaReadiness } from '../input/agent-workspace-voice-media.ts';
 import type { AgentWorkspaceVoiceMediaProviderStatus } from '../input/agent-workspace-voice-media.ts';
 import type { CommandContext } from '../input/command-registry.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessMediaArgs {
   readonly mediaProviderId?: unknown;
@@ -77,7 +78,12 @@ function describeProviderCandidate(provider: AgentWorkspaceVoiceMediaProviderSta
     label: provider.label,
     setupState: provider.setupState,
     selected: provider.selected,
+    modelRoute: mediaProviderModelRoute(),
   };
+}
+
+function mediaProviderModelRoute(): string {
+  return 'agent_media_generate or agent_harness mode:"media_provider"';
 }
 
 function statusMap(statuses: readonly RuntimeProviderStatus[]): ReadonlyMap<string, RuntimeProviderStatus> {
@@ -103,27 +109,32 @@ function describeProvider(
     configuredSecretKeyNames: provider.configuredSecretKeys,
     missingSecretKeyNames: provider.missingSecretKeyOptions,
     nextStep: provider.nextStep,
+    modelRoute: mediaProviderModelRoute(),
     ...(runtimeStatus ? {
       runtimeStatus: {
         state: runtimeStatus.state,
         configured: runtimeStatus.configured,
-        ...(runtimeStatus.detail ? { detail: runtimeStatus.detail } : {}),
+        ...(options.includeParameters && runtimeStatus.detail ? { detail: runtimeStatus.detail } : {}),
       },
     } : {}),
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    ...(options.includeParameters ? {
-      modelRoutes: {
-        inspectPosture: 'agent_harness mode:"media_posture"',
-        inspectProvider: 'agent_harness mode:"media_provider"',
-        generateMedia: 'agent_media_generate with confirm:true and explicitUserRequest',
-        ttsSettings: 'agent_harness mode:"settings", mode:"get_setting", mode:"set_setting" for tts.provider, tts.voice, tts.llmProvider, and tts.llmModel',
-      },
-      policy: {
-        effect: 'read-only',
-        values: 'Provider posture returns capability, setup, selected, health, and safe environment key names only; secret values and media payloads are never returned.',
-        mutation: 'Media generation, voice enable/disable, TTS setting changes, and bundle export stay explicit confirmation-gated tool, setting, workspace, or slash-command flows.',
-      },
-    } : {}),
+    ...(options.includeParameters
+      ? {
+        modelRoutes: {
+          inspectPosture: 'agent_harness mode:"media_posture"',
+          inspectProvider: 'agent_harness mode:"media_provider"',
+          generateMedia: 'agent_media_generate with confirm:true and explicitUserRequest',
+          ttsSettings: 'agent_harness mode:"settings", mode:"get_setting", mode:"set_setting" for tts.provider, tts.voice, tts.llmProvider, and tts.llmModel',
+        },
+        policy: {
+          effect: 'read-only',
+          values: 'Provider posture returns capability, setup, selected, health, and safe environment key names only; secret values and media payloads are never returned.',
+          mutation: 'Media generation, voice enable/disable, TTS setting changes, and bundle export stay explicit confirmation-gated tool, setting, workspace, or slash-command flows.',
+        },
+      }
+      : {
+        summary: previewHarnessText(provider.nextStep || `${provider.domain} provider ${provider.setupState}`),
+      }),
   };
 }
 

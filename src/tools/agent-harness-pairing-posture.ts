@@ -4,6 +4,7 @@ import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 import { resolveRuntimeEndpointBinding } from '../cli/endpoints.ts';
 import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import { requirePlatform, requireShellPaths } from '../input/commands/runtime-services.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessPairingArgs {
   readonly pairingRouteId?: unknown;
@@ -101,7 +102,7 @@ function pairingRoutes(): readonly PairingRoute[] {
     {
       id: 'connected-host-status',
       label: 'Connected host live posture',
-      detail: 'Read-only reachability, token posture, SDK compatibility, and route readiness used before companion setup.',
+      detail: 'Read-only reachability, token posture, and route readiness used before companion setup.',
       effect: 'read-only',
       harnessRoute: 'agent_harness mode:"connected_host_status"',
       capabilityIds: ['connected-host-status'],
@@ -152,6 +153,7 @@ function describeCandidate(route: PairingRoute): Record<string, unknown> {
     label: route.label,
     effect: route.effect,
     requiresConfirmation: route.requiresConfirmation === true,
+    modelRoute: pairingRouteModelRoute(route),
   };
 }
 
@@ -159,12 +161,15 @@ function describeRoute(route: PairingRoute, options: { readonly includeParameter
   return {
     pairingRouteId: route.id,
     label: route.label,
-    detail: route.detail,
+    ...(options.includeParameters ? { detail: route.detail } : { summary: previewHarnessText(route.detail) }),
     effect: route.effect,
-    ...(route.command ? { command: route.command } : {}),
-    ...(route.harnessRoute ? { harnessRoute: route.harnessRoute } : {}),
-    ...(route.capabilityIds ? { capabilityIds: route.capabilityIds } : {}),
     requiresConfirmation: route.requiresConfirmation === true,
+    modelRoute: pairingRouteModelRoute(route),
+    ...(options.includeParameters ? {
+      ...(route.command ? { command: route.command } : {}),
+      ...(route.harnessRoute ? { harnessRoute: route.harnessRoute } : {}),
+      ...(route.capabilityIds ? { capabilityIds: route.capabilityIds } : {}),
+    } : {}),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters ? {
       policy: {
@@ -181,6 +186,13 @@ function describeRoute(route: PairingRoute, options: { readonly includeParameter
       },
     } : {}),
   };
+}
+
+function pairingRouteModelRoute(route: PairingRoute): string {
+  if (route.command === '/pair') return 'agent_harness mode:"run_command" command:"/pair"';
+  if (route.command === '/pair --show-token --yes') return 'agent_harness mode:"run_command" command:"/pair --show-token --yes"';
+  if (route.id === 'pairing-ui') return 'agent_harness mode:"workspace_action" target:"pair"';
+  return previewHarnessText(route.harnessRoute ?? 'agent_harness mode:"pairing_route"');
 }
 
 function pairingState(context: CommandContext): Record<string, unknown> {

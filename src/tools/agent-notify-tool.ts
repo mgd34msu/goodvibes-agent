@@ -88,7 +88,7 @@ export function createAgentNotifyTool(
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true only when the user explicitly asked to send this notification.',
+            description: 'Required true only when user requested notification.',
           },
           explicitUserRequest: {
             type: 'string',

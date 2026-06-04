@@ -1,5 +1,6 @@
 import { AGENT_KNOWLEDGE_METHODS } from '../cli/agent-knowledge-methods.ts';
 import { OPERATOR_ACTIONS } from '../agent/operator-actions.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessOperatorMethodArgs {
   readonly methodId?: unknown;
@@ -120,7 +121,7 @@ function agentKnowledgeMethods(): readonly OperatorMethodDescriptor[] {
       effect: readOnly ? 'read-only-network' : 'confirmed-agent-knowledge-write',
       owner: 'connected-host',
       preferredModelTool: readOnly ? 'agent_knowledge' : key === 'reindex' ? 'agent_harness mode:"run_command"' : 'agent_knowledge_ingest',
-      confirmation: readOnly ? 'Read-only; use the owning first-class tool.' : 'Requires explicit user request and confirmation through the owning tool or command bridge.',
+      confirmation: readOnly ? 'Read-only; use the owning first-class tool.' : 'Requires explicit user request and confirmation through the owning tool or command route.',
       boundary: 'Isolated Agent Knowledge route family only; default knowledge and non-Agent knowledge segments are forbidden.',
       ...(readOnly ? {} : {
         parameters: [
@@ -193,23 +194,27 @@ function describeMethod(
   return {
     id: method.id,
     label: method.label,
-    route: method.route,
     effect: method.effect,
     owner: method.owner,
-    preferredModelTool: method.preferredModelTool,
-    confirmation: method.confirmation,
-    boundary: method.boundary,
+    modelRoute: previewHarnessText(method.preferredModelTool),
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    ...(options.includeParameters ? { parameters: method.parameters ?? [] } : {}),
+    ...(options.includeParameters ? {
+      route: method.route,
+      preferredModelTool: method.preferredModelTool,
+      confirmation: method.confirmation,
+      boundary: method.boundary,
+      parameters: method.parameters ?? [],
+    } : {
+      summary: previewHarnessText(method.boundary),
+    }),
   };
 }
 
 function describeCandidate(method: OperatorMethodDescriptor): Record<string, unknown> {
   return {
     methodId: method.id,
-    route: method.route,
     effect: method.effect,
-    preferredModelTool: method.preferredModelTool,
+    modelRoute: previewHarnessText(method.preferredModelTool),
   };
 }
 

@@ -33,7 +33,7 @@ import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, 
 import { AGENT_WORKSPACE_CATEGORIES, allWorkspaceActions, buildWorkspaceEditorContext, createWorkspaceEditor, describeWorkspaceAction, describeWorkspaceCategory, describeWorkspaceEditor, listWorkspaceActions, resolveWorkspaceActionDetail } from './agent-harness-workspace-actions.ts';
 import { describeWorkspaceEditorModelExecution } from './agent-harness-workspace-editor-execution.ts';
 import { connectedHostSummary, describeConnectedHostCapability, settingsPolicySummary } from './agent-harness-metadata.ts';
-import { formatHarnessError, listHarnessSettings, resetHarnessSetting, resolveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
+import { countHarnessSettings, formatHarnessError, listHarnessSettings, resetHarnessSetting, resolveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
 
 interface AgentHarnessToolArgs {
   readonly mode?: unknown;
@@ -126,33 +126,21 @@ function output(value: unknown): { readonly success: true; readonly output: stri
 
 function error(message: string): { readonly success: false; readonly error: string } { return { success: false, error: message }; }
 
+function harnessModeIdsByKind(kind: AgentHarnessModeGuideKind): readonly AgentHarnessMode[] {
+  return HARNESS_MODE_DESCRIPTORS
+    .filter((descriptor) => descriptor.kind === kind)
+    .map((descriptor) => descriptor.id);
+}
+
+type AgentHarnessModeGuideKind = typeof HARNESS_MODE_DESCRIPTORS[number]['kind'];
+
 function compactHarnessModeGuide(): Record<string, unknown> {
   return {
-    discover: [
-      'modes',
-      'cli_commands', 'panels', 'ui_surfaces', 'shortcuts', 'keybindings',
-      'commands', 'channels', 'notifications', 'provider_accounts', 'mcp_servers',
-      'setup_posture', 'model_routing', 'pairing_posture', 'delegation_posture',
-      'security_posture', 'support_bundles', 'media_posture', 'sessions',
-      'settings', 'workspace', 'workspace_categories', 'workspace_actions',
-      'tools', 'release_evidence', 'release_readiness', 'operator_methods',
-      'service_posture', 'connected_host', 'daemon',
-    ],
-    inspect: [
-      'mode',
-      'cli_command', 'panel', 'ui_surface', 'keybinding', 'command', 'channel',
-      'notification_target', 'provider_account', 'mcp_server', 'setup_item',
-      'model_route', 'pairing_route', 'delegation_route', 'security_finding',
-      'support_bundle', 'media_provider', 'session', 'get_setting',
-      'workspace_action', 'tool', 'release_evidence_artifact',
-      'release_readiness_item', 'operator_method', 'service_endpoint',
-      'connected_host_capability', 'connected_host_status', 'daemon_status',
-    ],
-    effects: [
-      'open_panel', 'open_ui_surface', 'run_keybinding', 'set_keybinding',
-      'reset_keybinding', 'run_command', 'set_setting', 'reset_setting',
-      'run_workspace_action',
-    ],
+    start: ['summary', 'modes', 'mode'],
+    discover: harnessModeIdsByKind('discover'),
+    inspect: harnessModeIdsByKind('inspect'),
+    effects: harnessModeIdsByKind('effect'),
+    aliases: harnessModeIdsByKind('alias'),
     pattern: 'Use query|target for search, exact ids for inspect modes, and confirm:true plus explicitUserRequest for effects.',
   };
 }
@@ -180,12 +168,12 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     settings: 'List mode:"settings" with category|prefix|query|includeHidden:true; mode:"get_setting", mode:"set_setting", and mode:"reset_setting" use key|target|query; writes require confirmation.',
     tools: 'List mode:"tools" with query|limit|includeParameters:true; inspect mode:"tool" with toolName|target|query.',
     modeCatalog: 'Search mode:"modes" with query|target; inspect one contract with mode:"mode" target:"...".',
-    releaseEvidence: 'List mode:"release_evidence"; inspect mode:"release_evidence_artifact"; includeParameters:true inlines artifact detail.',
-    releaseReadiness: 'List mode:"release_readiness"; inspect mode:"release_readiness_item"; includeParameters:true inlines item detail.',
+    releaseEvidence: 'Operator/audit: list mode:"release_evidence"; inspect mode:"release_evidence_artifact"; includeParameters:true inlines artifact detail.',
+    releaseReadiness: 'Operator/audit: list mode:"release_readiness"; inspect mode:"release_readiness_item"; includeParameters:true inlines item detail.',
     operatorMethods: 'List mode:"operator_methods"; inspect mode:"operator_method"; execute only through the returned first-class tool.',
     servicePosture: 'List mode:"service_posture"; inspect mode:"service_endpoint"; includeParameters:true adds probes and redacted log tail.',
     connectedHost: 'Map mode:"connected_host"; inspect mode:"connected_host_capability"; no lifecycle control.',
-    connectedHostStatus: 'Live read-only mode:"connected_host_status" for host reachability, SDK compatibility, token posture, and Knowledge readiness.',
+    connectedHostStatus: 'Live read-only mode:"connected_host_status" for host reachability, token posture, and Knowledge readiness.',
     daemon: 'Daemon aliases route to mode:"connected_host" and mode:"connected_host_status"; lifecycle control is not exposed.',
   };
 }
@@ -394,7 +382,7 @@ async function runWorkspaceAction(
   }
   if (action.kind === 'editor' && action.editorKind) {
     const editor = createWorkspaceEditor(action.editorKind, buildWorkspaceEditorContext(deps.commandContext, args));
-    if (!editor) return error(`No workspace editor bridge exists for ${action.editorKind}.`);
+    if (!editor) return error(`No workspace editor route exists for ${action.editorKind}.`);
     return runWorkspaceEditorAction(deps, action, editor, args);
   }
   if (action.kind === 'local-selection' || action.kind === 'local-operation') {
@@ -501,7 +489,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             panels,
             returned: panels.length,
             total: totalHarnessPanels(deps.commandContext),
-            policy: 'Panel modes expose Agent/TUI operator view catalog and open state. open_panel is confirmation-gated and routes through the current Agent shell bridge.',
+            policy: 'Panel modes expose Agent/TUI operator view catalog and open state. open_panel is confirmation-gated and routes through the current Agent operator surface.',
           });
         }
         if (args.mode === 'panel') {
@@ -640,16 +628,20 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return error(resolved.usage);
         }
         if (args.mode === 'settings') {
-          const settings = listHarnessSettings(deps.commandContext.platform.configManager, {
+          const filters = {
             category: readString(args.category) || undefined,
             prefix: readString(args.prefix) || undefined,
             query: readString(args.query) || undefined,
             includeHidden: args.includeHidden === true,
-            limit: readLimit(args.limit, 100),
+            limit: readLimit(args.limit, 500),
+          };
+          const settings = listHarnessSettings(deps.commandContext.platform.configManager, {
+            ...filters,
           }, {
             includeParameters: args.includeParameters === true,
           });
-          return output({ settings, returned: settings.length, policy: settingsPolicySummary() });
+          const total = countHarnessSettings(deps.commandContext.platform.configManager, filters);
+          return output({ settings, returned: settings.length, total, policy: settingsPolicySummary() });
         }
         if (args.mode === 'get_setting') {
           const setting = resolveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));

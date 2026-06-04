@@ -74,11 +74,11 @@ export function createAgentMediaGenerateTool(
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true only when the user explicitly asked for this media generation.',
+            description: 'Required true only when user requested this media.',
           },
           explicitUserRequest: {
             type: 'string',
-            description: 'Short quote or summary of the user request that authorized this generation.',
+            description: 'User request authorizing this media generation.',
           },
         },
         required: ['prompt', 'confirm', 'explicitUserRequest'],

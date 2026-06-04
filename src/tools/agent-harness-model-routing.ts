@@ -1,5 +1,6 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import { requireProviderApi } from '../input/commands/runtime-services.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessModelRoutingArgs {
   readonly modelRouteId?: unknown;
@@ -314,11 +315,14 @@ function describeRoute(route: RouteCandidate, options: { readonly includeParamet
     kind: 'route',
     modelRouteId: route.id,
     label: route.label,
-    detail: route.detail,
+    ...(options.includeParameters ? { detail: route.detail } : { summary: previewHarnessText(route.detail) }),
     currentValue: route.currentValue,
     settingKeys: route.settingKeys,
-    commands: route.commands,
-    uiSurfaces: route.uiSurfaces,
+    modelRoute: modelRoutingModelRoute(),
+    ...(options.includeParameters ? {
+      commands: route.commands,
+      uiSurfaces: route.uiSurfaces,
+    } : {}),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters ? {
       policy: {
@@ -350,6 +354,7 @@ function describeModel(model: ModelCandidate, options: { readonly includeParamet
     pinned: model.pinned,
     contextWindow: model.contextWindow,
     reasoningEffort: model.reasoningEffort,
+    modelRoute: modelCandidateModelRoute(),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters ? {
       capabilities: model.capabilities,
@@ -374,6 +379,7 @@ function describeCandidate(entry: RouteCandidate | ModelCandidate): Record<strin
       kind: 'route',
       modelRouteId: entry.id,
       label: entry.label,
+      modelRoute: modelRoutingModelRoute(),
     };
   }
   return {
@@ -383,7 +389,16 @@ function describeCandidate(entry: RouteCandidate | ModelCandidate): Record<strin
     displayName: entry.displayName,
     current: entry.current,
     pinned: entry.pinned,
+    modelRoute: modelCandidateModelRoute(),
   };
+}
+
+function modelRoutingModelRoute(): string {
+  return 'agent_harness mode:"model_route" or mode:"run_command"';
+}
+
+function modelCandidateModelRoute(): string {
+  return 'agent_harness mode:"run_command" command:"/model"';
 }
 
 export async function modelRoutingCatalogStatus(context: CommandContext): Promise<Record<string, unknown>> {

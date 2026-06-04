@@ -77,6 +77,7 @@ function describeEndpoint(
     bindPosture: endpoint.bindPosture,
     networkFacing: endpoint.networkFacing,
     ...(endpoint.reachable !== undefined ? { reachable: endpoint.reachable } : {}),
+    modelRoute: serviceEndpointModelRoute(),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters ? {
       policy: {
@@ -95,7 +96,12 @@ function describeEndpointCandidate(endpoint: CliServiceEndpointPosture): Record<
     label: endpoint.label,
     enabled: endpoint.enabled,
     binding: endpoint.binding,
+    modelRoute: serviceEndpointModelRoute(),
   };
+}
+
+function serviceEndpointModelRoute(): string {
+  return 'agent_harness mode:"service_endpoint" or mode:"settings"';
 }
 
 function endpointLookupFromArgs(args: AgentHarnessServicePostureArgs): { readonly source: ServiceEndpointLookupSource; readonly input: string } | null {
@@ -182,6 +188,7 @@ export async function servicePostureSummary(
     ownership: 'external-connected-host',
     readOnly: true,
     lifecycle: 'GoodVibes Agent reports connected-host/service posture but does not start, stop, restart, install, expose, or mutate host listeners.',
+    modelRoute: serviceEndpointModelRoute(),
     config: posture.config,
     managed: posture.managed,
     endpoints: posture.endpoints.map((endpoint) => describeEndpoint(endpoint, { includeParameters: includeDetails })),
@@ -190,7 +197,7 @@ export async function servicePostureSummary(
     ...(includeDetails ? { modelAccess: {
       endpointLookup: 'Use mode:"service_endpoint" with endpointId, target, or query to inspect one endpoint.',
       settings: 'Use mode:"settings" with includeHidden:true for endpoint setting descriptors. Host-owned listener settings remain read-only.',
-      liveHostStatus: 'Use mode:"connected_host_status" for SDK compatibility, token posture, and Agent Knowledge route readiness.',
+      liveHostStatus: 'Use mode:"connected_host_status" for token posture and Agent Knowledge route readiness.',
     } } : {}),
   };
 }

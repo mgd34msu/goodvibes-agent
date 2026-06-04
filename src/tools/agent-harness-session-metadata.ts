@@ -1,4 +1,5 @@
 import type { CommandContext } from '../input/command-registry.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessSessionArgs {
   readonly sessionId?: unknown;
@@ -89,7 +90,16 @@ function describeSessionCandidate(session: SessionInfoLike, currentSessionId: st
     title: session.title || '(untitled)',
     messageCount: session.messageCount,
     active: session.name === currentSessionId,
+    modelRoute: sessionModelRoute(),
   };
+}
+
+function sessionModelRoute(): string {
+  return 'agent_harness mode:"session" or mode:"run_command"';
+}
+
+function bookmarkModelRoute(): string {
+  return 'agent_harness mode:"open_ui_surface" or agent_knowledge_ingest';
 }
 
 function describeSession(
@@ -110,6 +120,8 @@ function describeSession(
     model: session.model || null,
     provider: session.provider || null,
     active: session.name === options.currentSessionId,
+    modelRoute: sessionModelRoute(),
+    ...(options.includeParameters ? {} : { summary: previewHarnessText(session.title || session.name) }),
     ...(posture ? { returnContext: posture } : {}),
     ...(options.search ? {
       search: {
@@ -164,24 +176,28 @@ function currentSession(context: CommandContext): Record<string, unknown> {
   };
 }
 
-function bookmarkSummary(context: CommandContext): Record<string, unknown> {
+function bookmarkSummary(context: CommandContext, includeParameters = false): Record<string, unknown> {
   const manager = context.workspace.bookmarkManager;
   if (!manager) {
     return {
       status: 'unavailable',
       bookmarks: 0,
       savedFiles: 0,
+      modelRoute: bookmarkModelRoute(),
     };
   }
   return {
     status: 'available',
     bookmarks: manager.list().length,
     savedFiles: manager.listSavedFiles().length,
-    modelRoutes: {
-      visibleBookmarkPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"bookmarks" confirm:true explicitUserRequest:"..."',
-      command: '/bookmarks',
-      importIntoKnowledge: 'agent_knowledge_ingest sourceKind:"bookmarks_file" confirm:true explicitUserRequest:"..."',
-    },
+    modelRoute: bookmarkModelRoute(),
+    ...(includeParameters ? {
+      modelRoutes: {
+        visibleBookmarkPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"bookmarks" confirm:true explicitUserRequest:"..."',
+        command: '/bookmarks',
+        importIntoKnowledge: 'agent_knowledge_ingest sourceKind:"bookmarks_file" confirm:true explicitUserRequest:"..."',
+      },
+    } : {}),
   };
 }
 
@@ -206,7 +222,7 @@ export function sessionSummary(context: CommandContext, args: AgentHarnessSessio
       returned: 0,
       total: 0,
       current: currentSession(context),
-      bookmarks: bookmarkSummary(context),
+      bookmarks: bookmarkSummary(context, args.includeParameters === true),
       policy: 'Session runtime or session manager is unavailable in this Agent context.',
     };
   }
@@ -221,7 +237,7 @@ export function sessionSummary(context: CommandContext, args: AgentHarnessSessio
   return {
     status: 'available',
     current: currentSession(context),
-    bookmarks: bookmarkSummary(context),
+    bookmarks: bookmarkSummary(context, args.includeParameters === true),
     sessions: limited.map((session) => {
       const search = searchByName.get(session.name);
       return describeSession(session, {

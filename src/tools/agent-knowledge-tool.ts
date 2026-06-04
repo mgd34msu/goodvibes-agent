@@ -142,7 +142,7 @@ export function createAgentKnowledgeTool(
           },
           connectorId: {
             type: 'string',
-            description: 'Connector id for action connector or connector_doctor. id may also be used.',
+            description: 'Connector id for connector or connector_doctor.',
           },
           limit: {
             type: 'number',

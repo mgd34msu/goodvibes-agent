@@ -75,7 +75,7 @@ export function createAgentChannelSendTool(
           },
           explicitUserRequest: {
             type: 'string',
-            description: 'Short quote or summary of the user request that authorized this delivery.',
+            description: 'User request authorizing this delivery.',
           },
         },
         required: ['message', 'confirm', 'explicitUserRequest'],

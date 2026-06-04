@@ -74,7 +74,7 @@ function opened(surface: UiSurfaceDefinition, extra: Record<string, unknown> = {
     surface: surface.id,
     kind: surface.kind,
     ...extra,
-    note: 'UI routing was handed to the current Agent shell bridge.',
+    note: 'UI routing was handed to the current Agent operator surface.',
   };
 }
 
@@ -154,7 +154,7 @@ function openPanelWorkspaceSurface(
       categoryId: options.categoryId,
       panelId: options.panelId,
       pane: pane ?? 'default',
-      route: 'panel-bridge',
+      route: 'panel-route',
     });
   }
   return routeUnavailable(surface);
@@ -165,7 +165,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'agent-workspace',
     label: 'Agent Workspace',
     kind: 'workspace',
-    summary: 'Fullscreen operator workspace with setup, knowledge, local state, channels, automation, and delegation routes.',
+    summary: 'Operator workspace for setup, knowledge, channels, and automation.',
     command: '/agent',
     preferredModelRoute: `Use ${agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action')} for model operation; use mode:"open_ui_surface" only to visibly navigate.`,
     parameters: ['categoryId'],
@@ -182,7 +182,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'panel-picker',
     label: 'Panel Picker',
     kind: 'picker',
-    summary: 'Keyboard-accessible operator panel route that now opens the Agent Workspace home surface.',
+    summary: 'Operator panel route into Agent Workspace home.',
     command: 'Ctrl+P',
     preferredModelRoute: `Use ${agentHarnessModes('panels', 'panel', 'open_panel')} for panel catalog and routing, or mode:"workspace_actions" for concrete model operation.`,
     available: (context) => typeof context.openPanelPicker === 'function' || typeof context.openAgentWorkspace === 'function',
@@ -199,7 +199,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'security-panel',
     label: 'Security Panel',
     kind: 'workspace',
-    summary: 'Security review operator surface for token posture, MCP attack paths, policy posture, and plugin risk.',
+    summary: 'Operator security review for tokens, MCP, policy, and plugin risk.',
     command: '/security',
     preferredModelRoute: `Use mode:"workspace_actions" for security review actions or ${agentHarnessModes('run_command')} for confirmed /security review output.`,
     parameters: ['pane'],
@@ -221,7 +221,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'knowledge-panel',
     label: 'Knowledge Panel',
     kind: 'workspace',
-    summary: 'Agent Knowledge operator surface for isolated status, source/node/issue libraries, item lookup, map review, connectors, ask/search, and ingest forms.',
+    summary: 'Operator Knowledge surface for isolated status, search, and ingest.',
     command: '/knowledge',
     preferredModelRoute: `Use agent_knowledge, agent_knowledge_ingest, mode:"workspace_actions", or ${agentHarnessModes('run_command')} for confirmed /knowledge operation.`,
     parameters: ['pane'],
@@ -243,7 +243,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'subscription-panel',
     label: 'Subscription Panel',
     kind: 'workspace',
-    summary: 'Provider subscription operator surface for subscription review, provider inspection, login, logout, and bundle flows.',
+    summary: 'Operator subscription surface for provider review, auth, and bundles.',
     command: '/subscription',
     preferredModelRoute: `Use mode:"workspace_actions" or ${agentHarnessModes('run_command')} for confirmed /subscription mirrors.`,
     parameters: ['pane'],
@@ -265,7 +265,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'settings',
     label: 'Settings',
     kind: 'modal',
-    summary: 'Fullscreen settings workspace for Agent-owned configuration, subscriptions, secrets, MCP, tools, and surface settings.',
+    summary: 'Fullscreen settings workspace for Agent config, secrets, MCP, and tools.',
     command: '/settings',
     preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting')} for model operation; use mode:"open_ui_surface" only to visibly navigate.`,
     parameters: ['target', 'key', 'prefix'],
@@ -339,7 +339,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'reasoning-effort-picker',
     label: 'Reasoning Effort Picker',
     kind: 'picker',
-    summary: 'Interactive reasoning-effort selector for the current main chat model when that model exposes effort levels.',
+    summary: 'Reasoning-effort selector for models that expose effort levels.',
     command: '/effort',
     preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting')} for provider.reasoningEffort when a concrete level is known, or mode:"run_workspace_action" setup-effort with confirmation.`,
     available: (context) => typeof context.openReasoningEffortPicker === 'function',
@@ -367,7 +367,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'tts-provider-picker',
     label: 'TTS Provider Picker',
     kind: 'picker',
-    summary: 'Interactive streaming TTS provider picker opened from the Agent settings flow.',
+    summary: 'Streaming TTS provider picker from Agent settings.',
     command: '/config tts.provider',
     preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting')} for tts.provider when a concrete provider id is known; use mode:"open_ui_surface" only to visibly navigate.`,
     available: (context) => typeof context.openSelection === 'function' && Boolean(context.platform.voiceProviderRegistry),
@@ -382,7 +382,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'tts-voice-picker',
     label: 'TTS Voice Picker',
     kind: 'picker',
-    summary: 'Interactive TTS voice picker opened from the Agent settings flow for the selected or supplied provider.',
+    summary: 'TTS voice picker for the selected or supplied provider.',
     command: '/config tts.voice',
     preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting')} for tts.voice when a concrete voice id is known; use mode:"open_ui_surface" only to visibly navigate.`,
     parameters: ['target'],
@@ -461,7 +461,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'process-monitor',
     label: 'Runtime Activity Monitor',
     kind: 'modal',
-    summary: 'Visible running-process and live-output monitor opened by the same shell route as F2.',
+    summary: 'Visible running-process and live-output monitor.',
     command: 'F2',
     preferredModelRoute: 'Use this only for visible supervision of runtime activity; use first-class model tools or confirmed commands for actual operations.',
     available: (context) => typeof context.openProcessModal === 'function',
@@ -476,7 +476,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'live-tail',
     label: 'Live Process Output',
     kind: 'modal',
-    summary: 'Visible live-output tail for a running process, opened by the same shell route as Enter from the runtime activity monitor.',
+    summary: 'Visible live-output tail for a running process.',
     command: 'F2, Enter',
     preferredModelRoute: 'Use this only for visible supervision of a running process output stream; use first-class model tools or confirmed commands for actual operations.',
     parameters: ['target', 'query', 'prefix', 'key'],
@@ -508,7 +508,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'conversation-search',
     label: 'Conversation Search',
     kind: 'overlay',
-    summary: 'Visible transcript search overlay opened by the same shell route as Ctrl+F.',
+    summary: 'Visible transcript search overlay.',
     command: 'Ctrl+F',
     preferredModelRoute: 'Use conversation/session/content modes for model-readable inspection; use this surface for visible transcript search navigation.',
     parameters: ['query', 'prefix', 'key'],
@@ -525,7 +525,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'prompt-history-search',
     label: 'Prompt History Search',
     kind: 'overlay',
-    summary: 'Visible reverse prompt-history search opened by the same shell route as Ctrl+R.',
+    summary: 'Visible reverse prompt-history search.',
     command: 'Ctrl+R',
     preferredModelRoute: 'Use this only for visible prompt recall; accepting a result remains an explicit interactive shell action.',
     parameters: ['query', 'prefix', 'key'],
@@ -542,7 +542,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'slash-command-mode',
     label: 'Slash Command Mode',
     kind: 'overlay',
-    summary: 'Slash-command autocomplete route opened by the same shell path as typing / in an empty prompt.',
+    summary: 'Slash-command autocomplete route for empty prompts.',
     command: '/',
     preferredModelRoute: `Use ${agentHarnessModes('commands', 'command')} for model-readable command discovery and mode:"run_command" for confirmed command execution.`,
     parameters: ['query', 'prefix', 'key'],
@@ -567,7 +567,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'command-browser',
     label: 'Command Browser',
     kind: 'picker',
-    summary: 'Registry-driven searchable slash-command browser opened by /commands and /help.',
+    summary: 'Searchable slash-command browser opened by commands or help.',
     command: '/commands',
     preferredModelRoute: `Use ${agentHarnessModes('commands', 'command')} for model-readable slash-command discovery and mode:"run_command" for confirmed command execution.`,
     available: (context) => typeof context.executeCommand === 'function',
@@ -589,7 +589,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'file-picker',
     label: 'File Picker',
     kind: 'picker',
-    summary: 'Visible project file picker opened by the same prompt route as @ and !@ references.',
+    summary: 'Visible project file picker for file references and injection.',
     command: '@',
     preferredModelRoute: 'Use first-class file, workspace, or artifact tools for model operation; use this for visible file reference navigation.',
     parameters: ['target=reference|inject', 'query', 'prefix', 'key'],
@@ -608,7 +608,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     id: 'block-actions',
     label: 'Block Actions',
     kind: 'overlay',
-    summary: 'Visible nearest-block action menu opened by the same shell route as pressing Enter on an empty prompt near transcript content.',
+    summary: 'Visible nearest-block action menu for transcript content.',
     command: 'Enter on empty prompt',
     preferredModelRoute: 'Use conversation/session/content modes or confirmed slash-command mirrors for concrete block operations; use this surface for visible block-action navigation.',
     available: (context) => typeof context.openBlockActions === 'function',
@@ -687,6 +687,7 @@ function surfaceMatches(surface: Record<string, unknown>, query: string): boolea
     surface.kind,
     surface.summary,
     surface.command,
+    surface.modelRoute,
     surface.preferredModelRoute,
   ].map((value) => String(value ?? '')).join('\n').toLowerCase().includes(query.toLowerCase());
 }
@@ -708,8 +709,50 @@ function surfaceCandidate(surface: UiSurfaceDefinition): Record<string, unknown>
     kind: surface.kind,
     summary: surface.summary,
     command: surface.command,
-    preferredModelRoute: surface.preferredModelRoute,
+    modelRoute: uiSurfaceModelRoute(surface),
   };
+}
+
+function uiSurfaceModelRoute(surface: UiSurfaceDefinition): string {
+  switch (surface.id) {
+    case 'agent-workspace':
+    case 'panel-picker':
+    case 'security-panel':
+    case 'subscription-panel':
+    case 'mcp-workspace':
+    case 'onboarding':
+      return 'agent_harness mode:"workspace_actions" or mode:"open_ui_surface"';
+    case 'knowledge-panel':
+      return 'agent_knowledge, agent_knowledge_ingest, or workspace_actions';
+    case 'settings':
+    case 'tts-provider-picker':
+    case 'tts-voice-picker':
+    case 'reasoning-effort-picker':
+      return 'agent_harness mode:"settings" or mode:"open_ui_surface"';
+    case 'model-picker':
+    case 'provider-picker':
+      return 'agent_harness mode:"settings" or mode:"run_command"';
+    case 'session-picker':
+    case 'bookmark-modal':
+    case 'context-inspector':
+    case 'slash-command-mode':
+    case 'command-browser':
+    case 'block-actions':
+      return 'agent_harness mode:"commands" or mode:"run_command"';
+    case 'process-monitor':
+    case 'live-tail':
+    case 'file-picker':
+      return 'first-class tools or agent_harness mode:"open_ui_surface"';
+    case 'conversation-search':
+    case 'prompt-history-search':
+      return 'agent_harness mode:"open_ui_surface"';
+    case 'help-overlay':
+      return 'agent_harness mode:"commands" or mode:"shortcuts"';
+    case 'shortcuts-overlay':
+      return 'agent_harness mode:"shortcuts" or mode:"keybindings"';
+    default:
+      return 'agent_harness mode:"open_ui_surface"';
+  }
 }
 
 function resolveHarnessUiSurface(args: AgentHarnessUiSurfaceArgs): UiSurfaceResolution | null {
@@ -744,9 +787,10 @@ function describeSurface(
     summary: surface.summary,
     command: surface.command,
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    preferredModelRoute: surface.preferredModelRoute,
+    modelRoute: uiSurfaceModelRoute(surface),
     available: surface.available(context),
     ...(options.includeParameters ? {
+      preferredModelRoute: surface.preferredModelRoute,
       parameters: surface.parameters ?? [],
       policy: {
         effect: 'visible-ui-navigation',

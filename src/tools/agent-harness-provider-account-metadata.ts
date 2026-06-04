@@ -2,6 +2,7 @@ import type { CommandContext } from '../input/command-registry.ts';
 import type { ProviderAccountRecord, ProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
 import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
 import { requireProvider, requireServiceRegistry, requireSubscriptionManager } from '../input/commands/runtime-services.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessProviderAccountArgs {
   readonly providerId?: unknown;
@@ -74,7 +75,12 @@ function describeCandidate(account: ProviderAccountRecord): Record<string, unkno
     authFreshness: account.authFreshness,
     configured: account.configured,
     issues: account.issues.length,
+    modelRoute: providerAccountModelRoute(),
   };
+}
+
+function providerAccountModelRoute(): string {
+  return 'agent_harness mode:"provider_account" or mode:"run_command"';
 }
 
 function describeAccount(
@@ -99,42 +105,47 @@ function describeAccount(
     ...(account.tokenType ? { tokenType: account.tokenType } : {}),
     issueCount: account.issues.length,
     recommendedActionCount: account.recommendedActions.length,
+    modelRoute: providerAccountModelRoute(),
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    ...(options.includeParameters ? {
-      routeRecords: account.routeRecords.map((route) => ({
-        route: route.route,
-        usable: route.usable,
-        freshness: route.freshness,
-        detail: route.detail,
-        issues: route.issues,
-      })),
-      usageWindows: account.usageWindows,
-      issues: account.issues,
-      notes: account.notes,
-      recommendedActions: account.recommendedActions,
-      policy: {
-        effect: 'read-only',
-        values: 'Provider account posture reports route and freshness metadata only; raw tokens, authorization codes, and secret values are never returned.',
-        mutation: 'Provider login, logout, subscription bundle export, and account repair actions stay explicit confirmation-gated workspace or slash-command flows.',
-      },
-      modelAccess: {
-        reviewCommand: '/accounts review',
-        showCommand: `/accounts show ${account.providerId}`,
-        routesCommand: `/accounts routes ${account.providerId}`,
-        repairCommand: `/accounts repair ${account.providerId}`,
-        subscriptionInspectCommand: `/subscription inspect ${account.providerId}`,
-        workspaceActions: [
-          'provider-accounts',
-          'provider-account-repair',
-          'subscription-review',
-          'subscription-inspect',
-        ],
-        loginStartCommand: `/subscription login ${account.providerId} start --yes`,
-        loginFinishCommand: `/subscription login ${account.providerId} finish <code-or-url> --yes`,
-        logoutCommand: `/subscription logout ${account.providerId} --yes`,
-        confirmationRequired: true,
-      },
-    } : {}),
+    ...(options.includeParameters
+      ? {
+        routeRecords: account.routeRecords.map((route) => ({
+          route: route.route,
+          usable: route.usable,
+          freshness: route.freshness,
+          detail: route.detail,
+          issues: route.issues,
+        })),
+        usageWindows: account.usageWindows,
+        issues: account.issues,
+        notes: account.notes,
+        recommendedActions: account.recommendedActions,
+        policy: {
+          effect: 'read-only',
+          values: 'Provider account posture reports route and freshness metadata only; raw tokens, authorization codes, and secret values are never returned.',
+          mutation: 'Provider login, logout, subscription bundle export, and account repair actions stay explicit confirmation-gated workspace or slash-command flows.',
+        },
+        modelAccess: {
+          reviewCommand: '/accounts review',
+          showCommand: `/accounts show ${account.providerId}`,
+          routesCommand: `/accounts routes ${account.providerId}`,
+          repairCommand: `/accounts repair ${account.providerId}`,
+          subscriptionInspectCommand: `/subscription inspect ${account.providerId}`,
+          workspaceActions: [
+            'provider-accounts',
+            'provider-account-repair',
+            'subscription-review',
+            'subscription-inspect',
+          ],
+          loginStartCommand: `/subscription login ${account.providerId} start --yes`,
+          loginFinishCommand: `/subscription login ${account.providerId} finish <code-or-url> --yes`,
+          logoutCommand: `/subscription logout ${account.providerId} --yes`,
+          confirmationRequired: true,
+        },
+      }
+      : {
+        summary: previewHarnessText(`${account.providerId} ${account.authFreshness}; ${account.issues.length} issue(s)`),
+      }),
   };
 }
 

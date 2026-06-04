@@ -47,6 +47,7 @@ export interface HarnessSettingCandidate {
   readonly type: ConfigSetting['type'];
   readonly writable: boolean;
   readonly visibleInWorkspace: boolean;
+  readonly modelRoute: string;
   readonly description: string;
 }
 
@@ -71,6 +72,7 @@ export interface HarnessSettingDescriptor {
   readonly configured: boolean;
   readonly writable: boolean;
   readonly visibleInWorkspace: boolean;
+  readonly modelRoute: string;
   readonly lockReason?: string;
   readonly description: string;
   readonly enumValues?: readonly string[];
@@ -85,6 +87,7 @@ export interface HarnessSettingSummary {
   readonly configured: boolean;
   readonly writable: boolean;
   readonly visibleInWorkspace: boolean;
+  readonly modelRoute: string;
   readonly summary: string;
   readonly enumValues?: readonly string[];
 }
@@ -96,16 +99,16 @@ export interface HarnessSettingMutationResult {
   readonly current: unknown;
 }
 
-const DEFAULT_SETTING_LIMIT = 100;
+const DEFAULT_SETTING_LIMIT = 500;
 const SENSITIVE_KEY_PATTERN = /(?:secret|token|password|api[-_.]?key|signing)/i;
 
 function valuesEqual(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function previewText(value: string, maxLength = 120): string {
+function previewText(value: string, maxLength = 56): string {
   const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 function clampLimit(value: unknown, fallback = DEFAULT_SETTING_LIMIT): number {
@@ -134,6 +137,7 @@ function settingCandidate(setting: ConfigSetting): HarnessSettingCandidate {
     type: setting.type,
     writable: !hostOwned,
     visibleInWorkspace: !isAgentHiddenSettingKey(setting.key),
+    modelRoute: settingModelRoute(setting),
     description: setting.description,
   };
 }
@@ -158,6 +162,11 @@ export function redactHarnessSettingValue(key: string, value: unknown): unknown 
   return value;
 }
 
+function settingModelRoute(setting: ConfigSetting): string {
+  if (isExternalHostOwnedSettingKey(setting.key)) return 'agent_harness mode:"get_setting" only';
+  return 'agent_harness mode:"set_setting" or mode:"reset_setting"';
+}
+
 export function describeHarnessSetting(
   configManager: Pick<ConfigManager, 'get'>,
   setting: ConfigSetting,
@@ -174,6 +183,7 @@ export function describeHarnessSetting(
     configured: !valuesEqual(value, setting.default),
     writable: !hostOwned,
     visibleInWorkspace: !isAgentHiddenSettingKey(setting.key),
+    modelRoute: settingModelRoute(setting),
     ...(hostOwned ? { lockReason: AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON } : {}),
     description: setting.description,
     ...(setting.enumValues ? { enumValues: setting.enumValues } : {}),
@@ -195,21 +205,20 @@ export function describeHarnessSettingSummary(
     configured: !valuesEqual(value, setting.default),
     writable: !hostOwned,
     visibleInWorkspace: !isAgentHiddenSettingKey(setting.key),
+    modelRoute: settingModelRoute(setting),
     summary: previewText(setting.description),
     ...(setting.enumValues ? { enumValues: setting.enumValues } : {}),
   };
 }
 
-export function listHarnessSettings(
-  configManager: Pick<ConfigManager, 'get' | 'getSchema'>,
+function filterHarnessSettingSchema(
+  configManager: Pick<ConfigManager, 'getSchema'>,
   filters: HarnessSettingFilters = {},
-  options: { readonly includeParameters?: boolean } = {},
-): readonly (HarnessSettingDescriptor | HarnessSettingSummary)[] {
+): readonly ConfigSetting[] {
   const key = filters.key?.trim();
   const category = filters.category?.trim();
   const prefix = filters.prefix?.trim();
   const query = filters.query?.trim().toLowerCase();
-  const limit = clampLimit(filters.limit);
 
   return configManager.getSchema()
     .filter((setting) => {
@@ -221,11 +230,28 @@ export function listHarnessSettings(
         if (!settingMatchesSearch(setting, query)) return false;
       }
       return true;
-    })
+    });
+}
+
+export function listHarnessSettings(
+  configManager: Pick<ConfigManager, 'get' | 'getSchema'>,
+  filters: HarnessSettingFilters = {},
+  options: { readonly includeParameters?: boolean } = {},
+): readonly (HarnessSettingDescriptor | HarnessSettingSummary)[] {
+  const limit = clampLimit(filters.limit);
+
+  return filterHarnessSettingSchema(configManager, filters)
     .map((setting) => options.includeParameters
       ? describeHarnessSetting(configManager, setting)
       : describeHarnessSettingSummary(configManager, setting))
     .slice(0, limit);
+}
+
+export function countHarnessSettings(
+  configManager: Pick<ConfigManager, 'getSchema'>,
+  filters: HarnessSettingFilters = {},
+): number {
+  return filterHarnessSettingSchema(configManager, filters).length;
 }
 
 export function getHarnessSetting(

@@ -40,9 +40,9 @@ function readLimit(value: unknown, fallback: number): number {
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
 }
 
-function previewText(value: string, maxLength = 120): string {
+function previewText(value: string, maxLength = 56): string {
   const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 function panelManager(context: CommandContext) {
@@ -77,11 +77,16 @@ function panelCandidate(registration: PanelRegistration): Record<string, unknown
     name: registration.name,
     category: registration.category,
     summary: previewText(registration.description),
+    modelRoute: panelModelRoute(),
     workspaceRoute: {
       categoryId: agentWorkspaceCategoryForPanel(registration.id),
       command: agentWorkspaceCommandForPanel(registration.id),
     },
   };
+}
+
+function panelModelRoute(): string {
+  return 'agent_harness mode:"open_panel" or mode:"workspace_actions"';
 }
 
 function resolveHarnessPanel(context: CommandContext, args: AgentHarnessPanelArgs): PanelResolution | null {
@@ -131,6 +136,7 @@ function describePanelRegistration(
     pane,
     active: activePanel?.id === registration.id,
     focused: activePanel?.id === registration.id,
+    modelRoute: panelModelRoute(),
     workspaceRoute: {
       categoryId: agentWorkspaceCategoryForPanel(registration.id),
       command: agentWorkspaceCommandForPanel(registration.id),
@@ -139,7 +145,7 @@ function describePanelRegistration(
       policy: {
         effect: 'ui-navigation',
         confirmation: 'agent_harness mode:"open_panel" requires confirm:true and explicitUserRequest.',
-        boundary: 'Panels are Agent/TUI operator views. The model can inspect panel catalog/open state; panel routing uses the existing Agent workspace bridge and does not mutate connected-host lifecycle.',
+        boundary: 'Panels are Agent/TUI operator views. The model can inspect panel catalog/open state; panel routing uses the existing Agent workspace route and does not mutate connected-host lifecycle.',
       },
     } : {}),
   };
@@ -200,6 +206,6 @@ export function openHarnessPanel(context: CommandContext, args: AgentHarnessPane
     status: 'routed',
     panel,
     pane: pane ?? 'default',
-    note: 'Panel routing was handed to the current Agent shell bridge.',
+    note: 'Panel routing was handed to the current Agent operator surface.',
   };
 }

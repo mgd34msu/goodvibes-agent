@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { buildMcpAttackPathReview } from '@/runtime/index.ts';
 import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import type { CommandContext } from '../input/command-registry.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessSecurityArgs {
   readonly query?: unknown;
@@ -153,7 +154,16 @@ function describeFindingCandidate(finding: SecurityFinding): Record<string, unkn
     source: finding.source,
     severity: finding.severity,
     title: finding.title,
+    modelRoute: securityFindingModelRoute(),
   };
+}
+
+function securityFindingModelRoute(): string {
+  return 'agent_harness mode:"security_finding" or mode:"run_command"';
+}
+
+function supportBundleModelRoute(): string {
+  return 'agent_harness mode:"support_bundle" or mode:"run_workspace_action"';
 }
 
 function describeFinding(finding: SecurityFinding, includeParameters: boolean, lookup?: Record<string, unknown>): Record<string, unknown> {
@@ -164,6 +174,7 @@ function describeFinding(finding: SecurityFinding, includeParameters: boolean, l
     title: finding.title,
     summary: finding.summary,
     route: finding.route,
+    modelRoute: securityFindingModelRoute(),
     ...(lookup ? { lookup } : {}),
     ...(includeParameters && finding.detail ? { detail: finding.detail } : {}),
     ...(includeParameters ? {
@@ -537,15 +548,18 @@ export function supportBundleSummary(args: AgentHarnessSecurityArgs): Record<str
       bundleType: route.bundleType,
       defaultPath: route.defaultPath,
       inspectCommand: route.inspectCommand,
-      exportCommand: route.exportCommand,
-      ...(route.importCommand ? { importCommand: route.importCommand } : {}),
-      workspaceActionIds: route.workspaceActionIds,
+      modelRoute: supportBundleModelRoute(),
       ...(args.includeParameters === true ? {
+        exportCommand: route.exportCommand,
+        ...(route.importCommand ? { importCommand: route.importCommand } : {}),
+        workspaceActionIds: route.workspaceActionIds,
         parameters: {
           bundlePath: 'Workspace-relative path for support_bundle inspection.',
           confirm: 'Required for export/import routes through run_workspace_action or run_command.',
         },
-      } : {}),
+      } : {
+        summary: previewHarnessText(`${route.bundleType} bundle inspection route`),
+      }),
     }));
   return {
     bundles: routes,

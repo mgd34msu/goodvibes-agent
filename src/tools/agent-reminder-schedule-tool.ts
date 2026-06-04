@@ -175,7 +175,7 @@ export function createAgentReminderScheduleTool(
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true only when the user explicitly asked to create this reminder.',
+            description: 'Required true only when user requested reminder.',
           },
           explicitUserRequest: {
             type: 'string',

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { CommandContext } from '../input/command-registry.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessNotificationArgs {
   readonly notificationTargetId?: unknown;
@@ -114,7 +115,12 @@ function describeTargetCandidate(target: NotificationTargetDescriptor): Record<s
     fingerprint: target.fingerprint,
     validUrl: target.validUrl,
     ...(target.host ? { host: target.host } : {}),
+    modelRoute: notificationTargetModelRoute(),
   };
+}
+
+function notificationTargetModelRoute(): string {
+  return 'agent_notify or agent_harness mode:"notification_target"';
 }
 
 function describeTarget(
@@ -131,26 +137,31 @@ function describeTarget(
     ...(target.pathDepth !== undefined ? { pathDepth: target.pathDepth } : {}),
     ...(target.hasQuery !== undefined ? { hasQuery: target.hasQuery } : {}),
     value: '<redacted>',
+    modelRoute: notificationTargetModelRoute(),
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    ...(options.includeParameters ? {
-      policy: {
-        effect: 'read-only',
-        values: 'Full webhook URLs are not returned because they can contain bearer tokens or secret path/query values.',
-        delivery: 'Use agent_notify only for one explicit, confirmed notification requested by the user.',
-        management: 'Use confirmed /notify mirrors only when the user explicitly asks to add, remove, clear, test, or send notification targets.',
-      },
-      modelAccess: {
-        sendTool: 'agent_notify',
-        listCommand: '/notify list',
-        addCommand: '/notify add <url> --yes',
-        removeCommand: '/notify remove <url> --yes',
-        clearCommand: '/notify clear --yes',
-        testCommand: '/notify test --yes',
-        settingsCategory: 'notifications.webhookUrls',
-        targetValueRequiredForRemove: true,
-        targetValuePolicy: 'Ask the user for the exact webhook URL before removing one target; do not infer it from redacted metadata.',
-      },
-    } : {}),
+    ...(options.includeParameters
+      ? {
+        policy: {
+          effect: 'read-only',
+          values: 'Full webhook URLs are not returned because they can contain bearer tokens or secret path/query values.',
+          delivery: 'Use agent_notify only for one explicit, confirmed notification requested by the user.',
+          management: 'Use confirmed /notify mirrors only when the user explicitly asks to add, remove, clear, test, or send notification targets.',
+        },
+        modelAccess: {
+          sendTool: 'agent_notify',
+          listCommand: '/notify list',
+          addCommand: '/notify add <url> --yes',
+          removeCommand: '/notify remove <url> --yes',
+          clearCommand: '/notify clear --yes',
+          testCommand: '/notify test --yes',
+          settingsCategory: 'notifications.webhookUrls',
+          targetValueRequiredForRemove: true,
+          targetValuePolicy: 'Ask the user for the exact webhook URL before removing one target; do not infer it from redacted metadata.',
+        },
+      }
+      : {
+        summary: previewHarnessText(`${target.validUrl ? 'valid' : 'invalid'} notification webhook target ${target.index}`),
+      }),
   };
 }
 

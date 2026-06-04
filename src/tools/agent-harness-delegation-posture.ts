@@ -1,4 +1,5 @@
 import type { CommandContext } from '../input/command-registry.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessDelegationArgs {
   readonly delegationRouteId?: unknown;
@@ -113,7 +114,14 @@ function describeCandidate(route: DelegationRoute): Record<string, unknown> {
     label: route.label,
     effect: route.effect,
     confirmationRequired: route.confirmationRequired === true,
+    modelRoute: delegationRouteModelRoute(route),
   };
+}
+
+function delegationRouteModelRoute(route: DelegationRoute): string {
+  if (route.workspaceActionId) return 'agent_harness mode:"run_workspace_action"';
+  if (route.command || route.commandTemplate) return 'agent_harness mode:"run_command"';
+  return route.effect === 'main-conversation' ? 'main conversation' : 'agent_harness mode:"delegation_route"';
 }
 
 function describeRoute(
@@ -124,17 +132,20 @@ function describeRoute(
   return {
     delegationRouteId: route.id,
     label: route.label,
-    detail: route.detail,
+    ...(options.includeParameters ? { detail: route.detail } : { summary: previewHarnessText(route.detail) }),
     effect: route.effect,
-    ...(route.command ? { command: route.command } : {}),
-    ...(route.commandTemplate ? { commandTemplate: route.commandTemplate } : {}),
-    ...(route.workspaceActionId ? { workspaceActionId: route.workspaceActionId } : {}),
     confirmationRequired: route.confirmationRequired === true,
     reviewPolicy: route.reviewPolicy ?? 'not-applicable',
+    modelRoute: delegationRouteModelRoute(route),
     runtime: {
       sessionId: context.session.runtime.sessionId,
       operatorClientAttached: Boolean(context.clients?.operator),
     },
+    ...(options.includeParameters ? {
+      ...(route.command ? { command: route.command } : {}),
+      ...(route.commandTemplate ? { commandTemplate: route.commandTemplate } : {}),
+      ...(route.workspaceActionId ? { workspaceActionId: route.workspaceActionId } : {}),
+    } : {}),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters ? {
       policy: {

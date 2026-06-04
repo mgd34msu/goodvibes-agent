@@ -1,18 +1,43 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ToolDefinition } from '@pellux/goodvibes-sdk/platform/types';
 
-const DEFAULT_TOOL_DESCRIPTION_LIMIT = 120;
+const DEFAULT_TOOL_DESCRIPTION_LIMIT = 56;
 
 const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
-  agent_harness: 'Harness catalog/control. Start with mode:"modes"; inspect settings, commands, UI, status, tools, and confirmed effects.',
+  agent: 'Inspect explicit subagent tasks.',
+  analyze: 'Analyze code impact, symbols, and project risk.',
+  channel: 'Inspect or operate configured channel surfaces.',
+  control: 'Inspect commands, panels, and runtime posture.',
+  edit: 'Edit files with exact, fuzzy, or regex replacements.',
+  exec: 'Run shell commands with timeout and retry.',
+  fetch: 'Fetch HTTP URLs with auth and sanitization.',
+  find: 'Search files, content, symbols, and project structure.',
+  goodvibes_context: 'Inspect current GoodVibes runtime and host harness.',
+  goodvibes_settings: 'Inspect/update GoodVibes settings on explicit request.',
+  inspect: 'Inspect project structure, APIs, routes, and deps.',
+  mcp: 'Inspect MCP servers, tools, schemas, and trust state.',
+  packet: 'Manage implementation and execution packets.',
+  query: 'Track operator queries, answers, and closure.',
+  read: 'Read files, outlines, symbols, and ranges.',
+  registry: 'Discover local skills, agents, tools, and templates.',
+  remote: 'Manage remote runner pools and artifacts.',
+  repl: 'Evaluate bounded JS, TS, Python, SQL, or GraphQL.',
+  state: 'Read/update session state and diagnostics.',
+  task: 'Manage cross-session tasks and handoffs.',
+  team: 'Manage team definitions, roles, and lanes.',
+  web_search: 'Search the web through the configured provider.',
+  workflow: 'Inspect/control configured workflow automation.',
+  worklist: 'Manage durable worklists and checklist items.',
+  write: 'Write files with batch, mkdir, backup, and validation.',
+  agent_harness: 'Harness catalog: modes, settings, commands, UI, tools.',
   agent_knowledge: 'Read isolated Agent Knowledge.',
-  agent_knowledge_ingest: 'Ingest one confirmed source into isolated Agent Knowledge.',
-  agent_local_registry: 'Inspect or update Agent-local memory, notes, personas, skills, bundles, and routines.',
-  agent_work_plan: 'Inspect or update the visible Agent-local work plan.',
+  agent_knowledge_ingest: 'Ingest confirmed source into Agent Knowledge.',
+  agent_local_registry: 'Inspect/update Agent memory, notes, skills, routines.',
+  agent_work_plan: 'Inspect/update the visible Agent-local work plan.',
   agent_operator_briefing: 'Read connected Agent operator state.',
   agent_operator_action: 'Run one confirmed allowlisted operator action.',
   agent_reminder_schedule: 'Schedule one confirmed Agent reminder.',
-  agent_channel_send: 'Send one confirmed message through one configured Agent target.',
+  agent_channel_send: 'Send confirmed message to configured Agent target.',
   agent_notify: 'Send one confirmed plain-text notification.',
   agent_media_generate: 'Generate one confirmed image or video artifact.',
 };
@@ -37,8 +62,10 @@ function stripSchemaDescriptions(value: unknown): unknown {
 }
 
 function compactToolDefinition(definition: ToolDefinition): void {
-  definition.description = TOOL_DESCRIPTION_OVERRIDES[definition.name]
-    ?? compactText(definition.description, DEFAULT_TOOL_DESCRIPTION_LIMIT);
+  definition.description = compactText(
+    TOOL_DESCRIPTION_OVERRIDES[definition.name] ?? definition.description,
+    DEFAULT_TOOL_DESCRIPTION_LIMIT,
+  );
   definition.parameters = stripSchemaDescriptions(definition.parameters) as Record<string, unknown>;
 }
 

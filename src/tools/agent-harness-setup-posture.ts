@@ -3,6 +3,7 @@ import { collectOnboardingSnapshot, deriveStep1Capabilities, deriveStep1Capabili
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
 import { requireLocalUserAuthManager, requirePlatform, requireProvider, requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from '../input/commands/runtime-services.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessSetupArgs {
   readonly setupItemId?: unknown;
@@ -175,29 +176,38 @@ function describeItem(
     setupItemId: item.id,
     label: item.label,
     selected: item.selected,
-    detail: item.detail,
-    signals: signalsForItem(item, snapshot),
+    modelRoute: setupItemModelRoute(),
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    ...(options.includeParameters ? {
-      policy: {
-        effect: 'read-only',
-        values: 'Setup posture returns onboarding readiness, counts, safe setting keys, and route metadata only; secret values and raw provider tokens are never returned.',
-        mutation: 'Setup apply, provider auth, local behavior import/create, channel delivery, and starter profile changes stay visible workspace, settings, slash-command, or first-class tool flows.',
-      },
-      modelAccess: {
-        inspectSetup: 'agent_harness mode:"setup_posture"',
-        inspectSetupItem: 'agent_harness mode:"setup_item"',
-        openOnboarding: 'agent_harness mode:"open_ui_surface" surfaceId:"onboarding" confirm:true explicitUserRequest:"..."',
-        setupWorkspace: 'agent_harness mode:"workspace_action" target:"setup"',
-        settings: 'agent_harness mode:"settings"; inspect or mutate with get_setting, set_setting, or reset_setting',
-        providerRouting: 'agent_harness mode:"model_routing"',
-        providerAccounts: 'agent_harness mode:"provider_accounts"',
-        channels: 'agent_harness mode:"channels"',
-        media: 'agent_harness mode:"media_posture"',
-        security: 'agent_harness mode:"security_posture"',
-      },
-    } : {}),
+    ...(options.includeParameters
+      ? {
+        detail: item.detail,
+        signals: signalsForItem(item, snapshot),
+        policy: {
+          effect: 'read-only',
+          values: 'Setup posture returns onboarding readiness, counts, safe setting keys, and route metadata only; secret values and raw provider tokens are never returned.',
+          mutation: 'Setup apply, provider auth, local behavior import/create, channel delivery, and starter profile changes stay visible workspace, settings, slash-command, or first-class tool flows.',
+        },
+        modelAccess: {
+          inspectSetup: 'agent_harness mode:"setup_posture"',
+          inspectSetupItem: 'agent_harness mode:"setup_item"',
+          openOnboarding: 'agent_harness mode:"open_ui_surface" surfaceId:"onboarding" confirm:true explicitUserRequest:"..."',
+          setupWorkspace: 'agent_harness mode:"workspace_action" target:"setup"',
+          settings: 'agent_harness mode:"settings"; inspect or mutate with get_setting, set_setting, or reset_setting',
+          providerRouting: 'agent_harness mode:"model_routing"',
+          providerAccounts: 'agent_harness mode:"provider_accounts"',
+          channels: 'agent_harness mode:"channels"',
+          media: 'agent_harness mode:"media_posture"',
+          security: 'agent_harness mode:"security_posture"',
+        },
+      }
+      : {
+        summary: previewHarnessText(item.detail),
+      }),
   };
+}
+
+function setupItemModelRoute(): string {
+  return 'agent_harness mode:"setup_item" or mode:"open_ui_surface"';
 }
 
 function describeCandidate(item: OnboardingStep1CapabilityItem): Record<string, unknown> {
@@ -205,6 +215,7 @@ function describeCandidate(item: OnboardingStep1CapabilityItem): Record<string, 
     setupItemId: item.id,
     label: item.label,
     selected: item.selected,
+    modelRoute: setupItemModelRoute(),
   };
 }
 

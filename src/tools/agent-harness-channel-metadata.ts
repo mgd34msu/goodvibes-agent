@@ -1,6 +1,7 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import type { AgentWorkspaceChannelStatus } from '../input/agent-workspace-channels.ts';
 import { buildAgentWorkspaceChannels } from '../input/agent-workspace-channels.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessChannelArgs {
   readonly channelId?: unknown;
@@ -59,7 +60,12 @@ function describeChannelCandidate(channel: AgentWorkspaceChannelStatus): Record<
     setupState: channel.setupState,
     ready: channel.ready,
     delivery: channel.delivery,
+    modelRoute: channelModelRoute(),
   };
+}
+
+function channelModelRoute(): string {
+  return 'agent_channel_send or agent_harness mode:"channel"';
 }
 
 function describeChannel(
@@ -82,32 +88,37 @@ function describeChannel(
     missingConfigKeys: channel.missingRequiredKeys,
     defaultTargetKeys: channel.defaultTargetKeys,
     configuredDefaultTargetKeys: channel.configuredDefaultTargetKeys,
+    modelRoute: channelModelRoute(),
     ...(options.lookup ? { lookup: options.lookup } : {}),
-    ...(options.includeParameters ? {
-      policy: {
-        effect: 'read-only',
-        values: 'Config key names and target key names are shown; secret values and stored target values are never returned.',
-        delivery: 'Use agent_channel_send only for one explicit, confirmed delivery target requested by the user.',
-        setup: 'Use connected-host setup/account/policy routes only as read-only diagnostics unless another confirmed first-class tool owns the mutation.',
-      },
-      modelAccess: {
-        sendTool: 'agent_channel_send',
-        notificationTool: 'agent_notify',
-        reminderTool: 'agent_reminder_schedule',
-        slashCommandDetail: `/channels show ${channel.id}`,
-        readOnlyConnectedRoutes: [
-          '/channels accounts',
-          '/channels policies',
-          '/channels status',
-          `/channels doctor ${channel.id}`,
-          `/channels setup ${channel.id}`,
-        ],
-        settingsFilter: `agent_harness mode:"settings" prefix:"surfaces.${channel.id}" includeHidden:true`,
-        connectedHostBoundary: 'agent_harness mode:"connected_host_capability" query:"delivery"',
-        deliveryTargetShape: 'surface[:route[:label]]',
-        exampleTarget: `${channel.id}:route:Label`,
-      },
-    } : {}),
+    ...(options.includeParameters
+      ? {
+        policy: {
+          effect: 'read-only',
+          values: 'Config key names and target key names are shown; secret values and stored target values are never returned.',
+          delivery: 'Use agent_channel_send only for one explicit, confirmed delivery target requested by the user.',
+          setup: 'Use connected-host setup/account/policy routes only as read-only diagnostics unless another confirmed first-class tool owns the mutation.',
+        },
+        modelAccess: {
+          sendTool: 'agent_channel_send',
+          notificationTool: 'agent_notify',
+          reminderTool: 'agent_reminder_schedule',
+          slashCommandDetail: `/channels show ${channel.id}`,
+          readOnlyConnectedRoutes: [
+            '/channels accounts',
+            '/channels policies',
+            '/channels status',
+            `/channels doctor ${channel.id}`,
+            `/channels setup ${channel.id}`,
+          ],
+          settingsFilter: `agent_harness mode:"settings" prefix:"surfaces.${channel.id}" includeHidden:true`,
+          connectedHostBoundary: 'agent_harness mode:"connected_host_capability" query:"delivery"',
+          deliveryTargetShape: 'surface[:route[:label]]',
+          exampleTarget: `${channel.id}:route:Label`,
+        },
+      }
+      : {
+        summary: previewHarnessText(channel.nextStep || `${channel.label} channel ${channel.setupState}`),
+      }),
   };
 }
 

@@ -326,7 +326,7 @@ export function createAgentKnowledgeIngestTool(
           },
           allowPrivateHosts: {
             type: 'boolean',
-            description: 'Allow private-host source URLs where the Agent Knowledge route supports it.',
+            description: 'Allow supported private-host source URLs.',
           },
           confirm: {
             type: 'boolean',

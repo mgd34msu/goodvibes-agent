@@ -1,4 +1,5 @@
 import type { CommandContext } from '../input/command-registry.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessMcpArgs {
   readonly mcpServerId?: unknown;
@@ -76,7 +77,12 @@ function describeCandidate(server: McpServerRecord): Record<string, unknown> {
     trustMode: server.trustMode,
     role: server.role,
     schemaFreshness: server.schemaFreshness,
+    modelRoute: mcpServerModelRoute(),
   };
+}
+
+function mcpServerModelRoute(): string {
+  return 'agent_harness mode:"mcp_server" or mode:"run_command"';
 }
 
 function toolsByServer(tools: readonly McpToolRecord[]): ReadonlyMap<string, readonly McpToolRecord[]> {
@@ -108,6 +114,7 @@ function describeServer(
     allowedHostCount: server.allowedHosts.length,
     ...(server.quarantineReason ? { quarantineReason: server.quarantineReason } : {}),
     ...(server.quarantineDetail ? { quarantineDetail: server.quarantineDetail } : {}),
+    modelRoute: mcpServerModelRoute(),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters ? {
       tools: tools.map((tool) => ({
@@ -115,8 +122,6 @@ function describeServer(
         ...(tool.description ? { description: tool.description } : {}),
       })),
       toolCount: tools.length,
-    } : { toolCount: tools.length }),
-    ...(options.includeParameters ? {
       policy: {
         effect: 'read-only',
         values: 'Server posture returns trust, role, connection, quarantine, and tool metadata; env values and secret config values are never returned.',
@@ -145,7 +150,10 @@ function describeServer(
           `/mcp remove ${server.name} --yes`,
         ],
       },
-    } : {}),
+    } : {
+      toolCount: tools.length,
+      summary: previewHarnessText(`${server.connected ? 'connected' : 'disconnected'} ${server.trustMode} ${server.schemaFreshness}`),
+    }),
   };
 }
 
