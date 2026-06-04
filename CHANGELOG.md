@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.29 - 2026-06-03
+
+- Add preferred model-route metadata to every built-in slash command policy so command inspection always tells the model which Agent-owned route to use.
+- Add preferred route metadata to every supported top-level CLI mirror, including current-conversation handling for non-interactive run mirrors.
+- Refresh 1.0.x package docs and focused harness coverage for exhaustive command and CLI preferred-route metadata.
+
 ## 1.0.28 - 2026-06-03
 
 - Expose modelExecution metadata for every Agent workspace editor action, including local-registry, command-backed, direct local-create, profile, and prompt-returning editor flows.
