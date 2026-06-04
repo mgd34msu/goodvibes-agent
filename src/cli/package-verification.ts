@@ -22,6 +22,10 @@ import { renderSelectionModalPackageText } from '../renderer/selection-modal-ove
 import { renderSettingsModalPackageText } from '../renderer/settings-modal.ts';
 import { renderAgentWorkspacePackageText } from '../input/agent-workspace-categories.ts';
 import { renderOnboardingWizardPackageText } from '../input/onboarding/onboarding-wizard.ts';
+import { CommandRegistry } from '../input/command-registry.ts';
+import { registerBuiltinCommands } from '../input/commands.ts';
+import { AGENT_HARNESS_MODES } from '../tools/agent-harness-tool-schema.ts';
+import { describeCliCommandPolicy, describeCommandPolicy } from '../tools/agent-harness-metadata.ts';
 
 export interface PackageCliBinVerification {
   readonly command: 'goodvibes-agent';
@@ -216,23 +220,30 @@ const COMMAND_NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
 const EXACT_SEMVER_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const ALLOWED_PACKAGE_FACING_PACKAGE_NAMES = new Set([
   '@pellux/goodvibes-agent',
-  '@pellux/goodvibes-sdk',
 ]);
 const NON_BUN_INSTALL_COMMAND_PATTERN = /(?:^|[\s`])(?:npm\s+(?:install|i|exec)|npx|pnpm\s+(?:add|dlx|exec)|yarn\s+(?:add|global\s+add|dlx|exec))\b.*(?:@pellux\/goodvibes-agent|goodvibes-agent)/i;
+const RELEASE_EVIDENCE_USER_SURFACE_PATTERNS: readonly RegExp[] = [
+  /\buser[- ](?:facing|visible)\b[^\n]*(?:\brelease evidence\b|\brelease_evidence\b)/i,
+  /(?:\brelease evidence\b|\brelease_evidence\b)[^\n]*\buser[- ](?:facing|visible)\b/i,
+];
+const HARNESS_USER_SURFACE_UMBRELLA_PATTERNS: readonly RegExp[] = [
+  /\bagent_harness\b[^\n]*\buser[- ](?:facing|visible)\b[^\n]*\bharness (?:surface|route)s?\b/i,
+  /\buser[- ](?:facing|visible)\b[^\n]*\bharness (?:surface|route)s?\b[^\n]*\bagent_harness\b/i,
+];
 const CLI_COMMANDS_WITHOUT_DETAILED_HELP = new Set(['tui', 'help', 'version']);
 const CLI_TOKENS_WITHOUT_DETAILED_HELP = new Set(['help', 'version']);
 const CLI_COMMANDS_HANDLED_OUTSIDE_MANAGEMENT = new Set(['tui', 'status', 'doctor', 'onboarding', 'help', 'version', 'completion']);
 const CLI_COMMANDS_WITHOUT_TOP_LEVEL_HELP_ENTRY = new Set(['tui', 'tasks']);
 const CLI_COMMANDS_ALLOWED_TYPE_ONLY = new Set(['unknown']);
-const MODEL_TOOL_DESCRIPTION_MAX_LENGTH = 120;
-const MODEL_TOOL_SCHEMA_DESCRIPTION_MAX_LENGTH = 100;
+const MODEL_TOOL_DESCRIPTION_MAX_LENGTH = 72;
+const MODEL_TOOL_SCHEMA_DESCRIPTION_MAX_LENGTH = 72;
 const RELEASE_READINESS_RELATIVE_PATH = 'release/release-readiness.json';
 const RELEASE_NOTES_RELATIVE_PATH = 'release/release-notes.md';
 const RELEASE_PERFORMANCE_SNAPSHOT_RELATIVE_PATH = 'release/performance-snapshot.json';
 const RELEASE_LIVE_VERIFICATION_JSON_RELATIVE_PATH = 'release/live-verification/live-verification.json';
 const RELEASE_LIVE_VERIFICATION_MARKDOWN_RELATIVE_PATH = 'release/live-verification/live-verification.md';
 const RELEASE_READINESS_REQUIRED_IDS = [
-  'operator-tui-front-door',
+  'operator-workspace-primary-surface',
   'first-run-onboarding',
   'provider-model-routing',
   'provider-account-posture',
@@ -240,7 +251,7 @@ const RELEASE_READINESS_REQUIRED_IDS = [
   'artifact-ingest-boundary',
   'local-memory-notes-personas',
   'skills-routines-behavior-library',
-  'routine-schedule-bridge',
+  'routine-schedule-promotion',
   'reminders-and-notifications',
   'channel-readiness-send',
   'companion-pairing',
@@ -268,6 +279,11 @@ const RELEASE_READINESS_REQUIRED_IDS = [
   'mobile-device-command-depth',
   'live-outcome-certification',
 ] as const;
+const RELEASE_READINESS_OPERATOR_AUDIT_ITEM_IDS = new Set([
+  'live-release-evidence',
+  'release-readiness-inventory-gate',
+  'live-outcome-certification',
+]);
 const RELEASE_READINESS_REQUIRED_QUALITY_DIMENSIONS = [
   'capabilityCoverage',
   'userAccess',
@@ -319,6 +335,7 @@ const RELEASE_PERFORMANCE_HIGHER_IS_BETTER_METRICS = new Set<typeof RELEASE_PERF
 const RELEASE_READINESS_ALLOWED_OWNERS = new Set(['agent', 'connected-host', 'companion', 'release']);
 const RELEASE_READINESS_ALLOWED_STATUSES = new Set(['covered', 'gap', 'unknown']);
 const RELEASE_READINESS_BLOCKER_STATUSES = new Set(['gap', 'unknown']);
+const AGENT_HARNESS_MODE_SET = new Set<string>(AGENT_HARNESS_MODES);
 const RELEASE_LIVE_VERIFICATION_MAX_AGE_DAYS = 7;
 const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
 const RELEASE_READINESS_REQUIRED_SOURCE_IDS = [
@@ -331,7 +348,6 @@ const RELEASE_READINESS_REQUIRED_SOURCE_IDS = [
 
 interface PackageFacingVersionPins {
   readonly packageVersion: string;
-  readonly sdkVersion: string;
   readonly bunVersion: string;
 }
 
@@ -897,13 +913,6 @@ function readStringValue(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function readPackageSdkVersion(pkg: Record<string, unknown>): string {
-  const dependencies = isRecord(pkg.dependencies) ? pkg.dependencies : {};
-  const devDependencies = isRecord(pkg.devDependencies) ? pkg.devDependencies : {};
-  const sdkVersion = dependencies['@pellux/goodvibes-sdk'] ?? devDependencies['@pellux/goodvibes-sdk'];
-  return typeof sdkVersion === 'string' ? sdkVersion : '';
-}
-
 function readPackageManagerBunVersion(pkg: Record<string, unknown>): string {
   const packageManager = readStringValue(pkg.packageManager);
   const match = /^bun@([0-9]+\.[0-9]+\.[0-9]+)$/.exec(packageManager);
@@ -1206,22 +1215,6 @@ function verifyReleaseLiveVerificationReport(root: string, readinessCheckedAt: D
     }
   }
 
-  const pkg = readPackageJson(root);
-  const sdkVersion = readPackageSdkVersion(pkg);
-  const statusCheck = checksById.get('connected-host-status');
-  const statusEvidence = [
-    readStringValue(statusCheck?.summary),
-    readStringValue(statusCheck?.detail),
-  ].join('\n');
-  if (sdkVersion && !statusEvidence.includes(`version ${sdkVersion}`) && !statusEvidence.includes(`"version":"${sdkVersion}"`)) {
-    issues.push(`release live verification connected-host status must match Agent SDK pin ${sdkVersion}.`);
-  }
-  const compatCheck = checksById.get('cli-compat-json');
-  const compatEvidence = readStringValue(compatCheck?.detail);
-  if (sdkVersion && (!compatEvidence.includes(`"sdkPin": "${sdkVersion}"`) || !compatEvidence.includes(`"version": "${sdkVersion}"`) || !compatEvidence.includes('"compatible": true'))) {
-    issues.push(`release live verification compatibility check must prove Agent SDK pin ${sdkVersion} matches the connected host.`);
-  }
-
   return issues;
 }
 
@@ -1316,6 +1309,7 @@ function verifyReleaseReadinessPolicy(root: string, packageVersion: string): rea
 
   const itemIds = new Set<string>();
   const blockerItemIds: string[] = [];
+  const modelAccessHarnessModes = new Set<string>();
   let connectedHostCoveredCount = 0;
   let releaseCoveredCount = 0;
   for (const [index, item] of items.entries()) {
@@ -1371,6 +1365,23 @@ function verifyReleaseReadinessPolicy(root: string, packageVersion: string): rea
         issues.push(`release readiness inventory ${label} quality.${dimension} must not be marked unknown, todo, gap, unverified, or unproven.`);
       }
     }
+    const userAccess = readStringValue(quality.userAccess).trim();
+    if (
+      RELEASE_READINESS_OPERATOR_AUDIT_ITEM_IDS.has(id)
+      && !/\b(?:operator\/audit|audit|maintainer|release operator)s?\b/i.test(userAccess)
+    ) {
+      issues.push(`release readiness inventory ${label} quality.userAccess must describe release evidence as operator/audit or maintainer material.`);
+    }
+    const modelAccess = readStringValue(quality.modelAccess);
+    for (const match of modelAccess.matchAll(/mode:"([a-z_]+)"/g)) {
+      const mode = match[1];
+      if (!mode) continue;
+      if (!AGENT_HARNESS_MODE_SET.has(mode)) {
+        issues.push(`release readiness inventory ${label} quality.modelAccess references unknown agent_harness mode:"${mode}".`);
+        continue;
+      }
+      modelAccessHarnessModes.add(mode);
+    }
     if (RELEASE_READINESS_BLOCKER_STATUSES.has(status)) {
       blockerItemIds.push(label);
     }
@@ -1388,6 +1399,11 @@ function verifyReleaseReadinessPolicy(root: string, packageVersion: string): rea
   }
   if (releaseCoveredCount === 0) {
     issues.push('release readiness inventory must include release covered capability evidence.');
+  }
+  for (const mode of AGENT_HARNESS_MODES) {
+    if (!modelAccessHarnessModes.has(mode)) {
+      issues.push(`release readiness inventory model access must cover agent_harness mode:"${mode}".`);
+    }
   }
 
   const releaseScriptPath = join(root, 'scripts', 'release.ts');
@@ -1891,16 +1907,11 @@ function verifyProjectSurfacesScriptPolicy(root: string): readonly string[] {
     { marker: 'isExactSemver', label: 'exact semver verifier import' },
     { marker: 'readRequiredExactSemver', label: 'exact semver reader' },
     { marker: 'package.json version', label: 'package version source' },
-    { marker: '@pellux/goodvibes-sdk', label: 'SDK dependency source' },
     { marker: "readRequiredExactSemver(pkg.version, 'package.json version')", label: 'exact package version semver read' },
-    { marker: "readRequiredExactSemver(packageSdkVersion, 'package.json @pellux/goodvibes-sdk dependency')", label: 'exact SDK dependency semver read' },
     { marker: "join(root, 'src', 'version.ts')", label: 'version fallback source path' },
     { marker: "let _version = '[^']*'", label: 'Agent version fallback pattern' },
-    { marker: "let _sdkVersion = '[^']*'", label: 'SDK version fallback pattern' },
     { marker: 'src/version.ts is missing the _version fallback literal', label: 'missing Agent fallback failure' },
-    { marker: 'src/version.ts is missing the _sdkVersion fallback literal', label: 'missing SDK fallback failure' },
     { marker: "versionTs.replace(versionFallbackPattern, `let _version = '${version}'`)", label: 'Agent version fallback write' },
-    { marker: "versionTs.replace(sdkVersionFallbackPattern, `let _sdkVersion = '${sdkVersion}'`)", label: 'SDK version fallback write' },
     { marker: 'version-[0-9]+\\.[0-9]+\\.[0-9]+-blue\\.svg', label: 'README version badge pattern' },
     { marker: 'prebuild: done', label: 'project surface sync success summary' },
   ];
@@ -1926,16 +1937,16 @@ function verifyArchitectureCheckScriptPolicy(root: string): readonly string[] {
     { marker: 'no-main-git-worktree-header-posture', label: 'coding-TUI header posture boundary rule' },
     { marker: 'Agent main shell must not surface coding-TUI git/worktree header posture', label: 'coding-TUI header posture failure' },
     { marker: 'no-default-browser-knowledge-client', label: 'default knowledge client boundary rule' },
-    { marker: 'Agent client code must use the isolated browser/agent Knowledge seam', label: 'Agent Knowledge seam failure' },
+    { marker: 'Agent client code must use the isolated browser/agent Knowledge client route', label: 'Agent Knowledge client route failure' },
     { marker: 'future-foundation-surfaces-no-server-or-shell-imports', label: 'foundation surface shell/server import rule' },
     { marker: 'future-server-surfaces-no-shell-imports', label: 'server surface shell import rule' },
     { marker: 'runtime knowledgeService compatibility alias must point at isolated Agent Knowledge', label: 'runtime Agent Knowledge alias requirement' },
     { marker: 'slash-command Knowledge API must be backed by isolated Agent Knowledge', label: 'slash command Agent Knowledge requirement' },
-    { marker: 'CLI Knowledge commands must use the isolated browser/agent SDK seam', label: 'CLI Agent Knowledge SDK requirement' },
+    { marker: 'CLI Knowledge commands must use the isolated browser/agent client route', label: 'CLI Agent Knowledge client requirement' },
     { marker: 'CLI Knowledge commands must validate Agent Knowledge response scope', label: 'CLI Agent Knowledge response scope validation requirement' },
     { marker: 'CLI Knowledge commands must reject non-Agent scope contamination', label: 'CLI Agent Knowledge scope contamination rejection requirement' },
     { marker: 'scope_contamination', label: 'CLI Agent Knowledge scope contamination failure kind' },
-    { marker: '@pellux/goodvibes-sdk/browser/agent', label: 'Agent browser SDK seam snippet' },
+    { marker: '@pellux/goodvibes-sdk/browser/agent', label: 'Agent browser client entrypoint snippet' },
     { marker: 'CLI Knowledge commands must target the Agent-specific status route', label: 'CLI Agent Knowledge status route requirement' },
     { marker: 'CLI Knowledge commands must target the Agent-specific ask route', label: 'CLI Agent Knowledge ask route requirement' },
     { marker: 'CLI Knowledge commands must target the Agent-specific search route', label: 'CLI Agent Knowledge search route requirement' },
@@ -2272,9 +2283,7 @@ function verifyLiveVerificationPolicy(root: string): readonly string[] {
       { marker: "'openai-compatible-models'", label: 'OpenAI-compatible models check' },
       { marker: '`${connectedHostBaseUrl}/v1/models`', label: 'OpenAI-compatible models route' },
       { marker: 'model identifiers omitted from release artifact', label: 'model inventory release artifact omission' },
-      { marker: 'connectedHostVersionMismatch', label: 'connected-host SDK mismatch policy' },
-      { marker: 'buildAgentKnowledgeLiveSkipCheck', label: 'Agent Knowledge mismatch skip check' },
-      { marker: 'Agent must not fall back to default knowledge or non-Agent knowledge segments', label: 'no fallback Agent Knowledge policy' },
+      { marker: 'findAgentKnowledgeResponseContamination', label: 'no fallback Agent Knowledge contamination policy' },
       { marker: '`${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/status`', label: 'Agent Knowledge status route' },
       { marker: '`${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/ask`', label: 'Agent Knowledge ask route' },
       { marker: '`${connectedHostBaseUrl}/api/goodvibes-agent/knowledge/search`', label: 'Agent Knowledge search route' },
@@ -2308,28 +2317,23 @@ function readPackageFacingVersionPins(root: string): { readonly pins: PackageFac
   const failures: string[] = [];
   const pkg = readPackageJson(root);
   const packageVersion = typeof pkg.version === 'string' ? pkg.version : '';
-  const sdkVersion = readPackageSdkVersion(pkg);
   const bunVersion = readPackageManagerBunVersion(pkg);
   if (packageVersion.length === 0 || !isExactSemver(packageVersion)) {
     failures.push('package-facing text policy could not read an exact package.json version.');
-  }
-  if (sdkVersion.length === 0 || !isExactSemver(sdkVersion)) {
-    failures.push('package-facing text policy could not read an exact @pellux/goodvibes-sdk dependency pin.');
   }
   if (bunVersion.length === 0 || !isExactSemver(bunVersion)) {
     failures.push('package-facing text policy could not read an exact packageManager Bun version.');
   }
   if (failures.length > 0) return { pins: null, failures };
-  return { pins: { packageVersion, sdkVersion, bunVersion }, failures };
+  return { pins: { packageVersion, bunVersion }, failures };
 }
 
-function readVersionFallbacks(root: string): { readonly version: string | null; readonly sdkVersion: string | null } | null {
+function readVersionFallbacks(root: string): { readonly version: string | null } | null {
   const versionPath = join(root, 'src', 'version.ts');
   if (!existsSync(versionPath)) return null;
   const source = readFileSync(versionPath, 'utf-8');
   return {
     version: /let _version = '([^']*)'/.exec(source)?.[1] ?? null,
-    sdkVersion: /let _sdkVersion = '([^']*)'/.exec(source)?.[1] ?? null,
   };
 }
 
@@ -2386,6 +2390,15 @@ function modelToolDescriptionSourcePaths(root: string): readonly string[] {
     .sort();
 }
 
+function harnessCatalogRouteSourcePaths(root: string): readonly string[] {
+  return [
+    ...listFilesUnder(join(root, 'src', 'tools'))
+      .filter((path) => path.includes('/agent-harness-') && path.endsWith('.ts')),
+    join(root, 'src', 'agent', 'harness-control.ts'),
+    join(root, 'src', 'input', 'agent-workspace-categories.ts'),
+  ].filter((path) => existsSync(path)).sort();
+}
+
 function extractJoinedDescriptionText(block: string): string {
   return [...block.matchAll(/(['"`])((?:\\.|(?!\1).)*)\1/g)]
     .map((match) => (match[2] ?? '').replace(/\\(['"`\\])/g, '$1'))
@@ -2413,6 +2426,314 @@ function verifyModelToolDescriptionPolicy(root: string): readonly string[] {
   return issues;
 }
 
+function verifyHarnessModeRouteReferences(root: string): readonly string[] {
+  const issues: string[] = [];
+  for (const path of harnessCatalogRouteSourcePaths(root)) {
+    const source = readFileSync(path, 'utf-8');
+    const relativePath = relativeSourcePath(root, path);
+    for (const match of source.matchAll(/mode:\\?["']([a-z_]+)\\?["']/g)) {
+      const mode = match[1] ?? '';
+      if (!AGENT_HARNESS_MODE_SET.has(mode)) {
+        issues.push(`harness catalog ${relativePath}:${lineNumberForIndex(source, match.index ?? 0)} references unknown agent_harness mode:"${mode}".`);
+      }
+    }
+    for (const call of source.matchAll(/\bagentHarnessModes\(([^)]*)\)/g)) {
+      const callSource = call[1] ?? '';
+      for (const modeMatch of callSource.matchAll(/['"]([a-z_]+)['"]/g)) {
+        const mode = modeMatch[1] ?? '';
+        if (!AGENT_HARNESS_MODE_SET.has(mode)) {
+          issues.push(`harness catalog ${relativePath}:${lineNumberForIndex(source, call.index ?? 0)} references unknown agent_harness mode:"${mode}".`);
+        }
+      }
+    }
+  }
+  return issues;
+}
+
+function verifyHarnessModeCatalogDescriptionPolicy(root: string): readonly string[] {
+  const issues: string[] = [];
+  const relativePaths = [
+    'src/tools/agent-harness-mode-catalog.ts',
+    'src/tools/agent-harness-command-catalog.ts',
+    'src/tools/agent-harness-model-tool-catalog.ts',
+    'src/tools/agent-harness-panel-metadata.ts',
+    'src/tools/agent-harness-ui-surface-metadata.ts',
+    'src/tools/agent-harness-workspace-actions.ts',
+    'src/input/agent-workspace-categories.ts',
+    'src/agent/harness-control.ts',
+  ] as const;
+  for (const relativePath of relativePaths) {
+    const path = join(root, relativePath);
+    if (!existsSync(path)) {
+      issues.push(`harness catalog source is missing: ${relativePath}.`);
+      continue;
+    }
+    const source = readFileSync(path, 'utf-8');
+    if (relativePath === 'src/tools/agent-harness-mode-catalog.ts') {
+      const descriptorModeCounts = new Map<string, number>();
+      for (const match of source.matchAll(/\bid:\s*(['"])([a-z_]+)\1/g)) {
+        const mode = match[2] ?? '';
+        descriptorModeCounts.set(mode, (descriptorModeCounts.get(mode) ?? 0) + 1);
+      }
+      for (const mode of AGENT_HARNESS_MODES) {
+        if (!descriptorModeCounts.has(mode)) {
+          issues.push(`release harness mode catalog must describe agent_harness mode:"${mode}".`);
+        }
+      }
+      for (const [mode, count] of descriptorModeCounts) {
+        if (!AGENT_HARNESS_MODE_SET.has(mode)) {
+          issues.push(`release harness mode catalog references unknown agent_harness mode:"${mode}".`);
+        }
+        if (count > 1) {
+          issues.push(`release harness mode catalog duplicates agent_harness mode:"${mode}".`);
+        }
+      }
+    }
+    for (const match of source.matchAll(/\b(summary|next):\s*(['"])((?:\\.|(?!\2).)*)\2/g)) {
+      const property = match[1] ?? 'text';
+      const text = (match[3] ?? '').replace(/\\(['"`\\])/g, '$1');
+      if (text.length > MODEL_TOOL_DESCRIPTION_MAX_LENGTH) {
+        issues.push(`harness mode catalog ${relativePath}:${lineNumberForIndex(source, match.index ?? 0)} ${property} is ${text.length} characters; keep it at or below ${MODEL_TOOL_DESCRIPTION_MAX_LENGTH}.`);
+      }
+    }
+    for (const match of source.matchAll(/function previewText\([^)]*maxLength\s*=\s*(\d+)/g)) {
+      const limit = Number(match[1] ?? 0);
+      if (limit > MODEL_TOOL_DESCRIPTION_MAX_LENGTH) {
+        issues.push(`harness catalog ${relativePath}:${lineNumberForIndex(source, match.index ?? 0)} previewText default is ${limit}; keep it at or below ${MODEL_TOOL_DESCRIPTION_MAX_LENGTH}.`);
+      }
+    }
+  }
+  issues.push(...verifyHarnessModeRouteReferences(root));
+  return issues;
+}
+
+function verifyHarnessModeRuntimePolicy(root: string): readonly string[] {
+  const relativePath = 'src/tools/agent-harness-tool.ts';
+  const path = join(root, relativePath);
+  if (!existsSync(path)) {
+    return [`harness runtime source is missing: ${relativePath}.`];
+  }
+
+  const source = readFileSync(path, 'utf-8');
+  const requiredRuntimeMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+    { marker: 'function compactHarnessModeGuide()', label: 'compact summary guide' },
+    { marker: 'function harnessModeIdsByKind', label: 'descriptor-derived mode guide groups' },
+    { marker: "start: ['summary', 'modes', 'mode']", label: 'summary/mode start guide' },
+    { marker: "discover: harnessModeIdsByKind('discover')", label: 'discover guide from descriptors' },
+    { marker: "inspect: harnessModeIdsByKind('inspect')", label: 'inspect guide from descriptors' },
+    { marker: "effects: harnessModeIdsByKind('effect')", label: 'effect guide from descriptors' },
+    { marker: "aliases: harnessModeIdsByKind('alias')", label: 'alias guide from descriptors' },
+  ];
+  const issues: string[] = [];
+  for (const { marker, label } of requiredRuntimeMarkers) {
+    if (!source.includes(marker)) {
+      issues.push(`release agent_harness runtime must keep ${label}.`);
+    }
+  }
+  const handledModeCounts = new Map<string, number>();
+  for (const match of source.matchAll(/\bargs\.mode\s*===\s*(['"])([a-z_]+)\1/g)) {
+    const mode = match[2] ?? '';
+    handledModeCounts.set(mode, (handledModeCounts.get(mode) ?? 0) + 1);
+  }
+
+  for (const mode of AGENT_HARNESS_MODES) {
+    if (!handledModeCounts.has(mode)) {
+      issues.push(`release agent_harness dispatcher must handle mode:"${mode}".`);
+    }
+  }
+  for (const [mode, count] of handledModeCounts) {
+    if (!AGENT_HARNESS_MODE_SET.has(mode)) {
+      issues.push(`release agent_harness dispatcher references unknown mode:"${mode}".`);
+    }
+    if (count > 1) {
+      issues.push(`release agent_harness dispatcher duplicates mode:"${mode}".`);
+    }
+  }
+  return issues;
+}
+
+function verifyCommandModelAccessPolicy(): readonly string[] {
+  const issues: string[] = [];
+  const registry = new CommandRegistry();
+  registerBuiltinCommands(registry);
+
+  for (const command of registry.list()) {
+    const policy = describeCommandPolicy(command.name);
+    if (policy.effect === 'unknown') {
+      issues.push(`release slash command /${command.name} must have concrete model policy effect.`);
+    }
+    if (!policy.preferredModelTool) {
+      issues.push(`release slash command /${command.name} must expose a preferred model route.`);
+    }
+    if (/agent_harness (?!mode:")/.test(policy.preferredModelTool ?? '')) {
+      issues.push(`release slash command /${command.name} uses stale agent_harness route syntax.`);
+    }
+  }
+
+  for (const command of listGoodVibesCliCommands().filter((entry) => entry !== 'unknown')) {
+    const policy = describeCliCommandPolicy(command);
+    if (policy.effect === 'unknown') {
+      issues.push(`release CLI command ${command} must have concrete model policy effect.`);
+    }
+    if (!policy.preferredModelTool) {
+      issues.push(`release CLI command ${command} must expose a preferred model route or explicit current-conversation route.`);
+    }
+    if (/agent_harness (?!mode:")/.test(policy.preferredModelTool ?? '')) {
+      issues.push(`release CLI command ${command} uses stale agent_harness route syntax.`);
+    }
+  }
+
+  return issues;
+}
+
+function verifyHarnessSettingsModelAccessPolicy(root: string): readonly string[] {
+  const issues: string[] = [];
+  const harnessControlPath = join(root, 'src', 'agent', 'harness-control.ts');
+  const harnessToolPath = join(root, 'src', 'tools', 'agent-harness-tool.ts');
+  const harnessMetadataPath = join(root, 'src', 'tools', 'agent-harness-metadata.ts');
+
+  if (!existsSync(harnessControlPath)) {
+    issues.push('harness settings source is missing: src/agent/harness-control.ts.');
+  } else {
+    const source = readFileSync(harnessControlPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'function settingModelRoute', label: 'setting model route builder' },
+      { marker: 'isExternalHostOwnedSettingKey(setting.key)', label: 'connected-host-owned setting read-only check' },
+      { marker: 'agent_harness mode:"get_setting" only', label: 'read-only setting model route' },
+      { marker: 'agent_harness mode:"set_setting" or mode:"reset_setting"', label: 'writable setting model route' },
+      { marker: 'redactHarnessSettingValue', label: 'setting value redaction' },
+      { marker: 'persistSecretBackedConfigValue', label: 'secret-backed setting persistence' },
+      { marker: 'Cannot store raw secret value', label: 'secret manager availability guard' },
+      { marker: 'Cannot reset ${setting.key}: secrets manager is unavailable', label: 'secret reset availability guard' },
+      { marker: 'AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON', label: 'host-owned setting lock reason' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness settings source must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(harnessToolPath)) {
+    issues.push('harness tool source is missing: src/tools/agent-harness-tool.ts.');
+  } else {
+    const source = readFileSync(harnessToolPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: "if (args.mode === 'settings')", label: 'settings discovery mode' },
+      { marker: 'settingsPolicySummary()', label: 'settings policy summary in catalog output' },
+      { marker: "if (args.mode === 'get_setting')", label: 'single setting inspection mode' },
+      { marker: "if (args.mode === 'set_setting')", label: 'setting mutation mode' },
+      { marker: "requireConfirmedAction(args, 'Setting mutation')", label: 'setting mutation confirmation gate' },
+      { marker: 'set_setting requires value', label: 'setting mutation value requirement' },
+      { marker: "if (args.mode === 'reset_setting')", label: 'setting reset mode' },
+      { marker: "requireConfirmedAction(args, 'Setting reset')", label: 'setting reset confirmation gate' },
+      { marker: 'Ambiguous setting', label: 'ambiguous setting lookup refusal' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness settings runtime must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(harnessMetadataPath)) {
+    issues.push('harness metadata source is missing: src/tools/agent-harness-metadata.ts.');
+  } else {
+    const source = readFileSync(harnessMetadataPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'settingsPolicySummary', label: 'settings policy summary export' },
+      { marker: 'secretHandling', label: 'settings secret handling policy' },
+      { marker: 'readOnlyHostOwnedPrefixes', label: 'host-owned read-only prefix policy' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness settings metadata must keep ${label}.`);
+      }
+    }
+  }
+
+  return issues;
+}
+
+function markerCount(source: string, marker: string): number {
+  return source.split(marker).length - 1;
+}
+
+function verifyHarnessVisibleSurfaceModelAccessPolicy(root: string): readonly string[] {
+  const issues: string[] = [];
+  const workspaceActionsPath = join(root, 'src', 'tools', 'agent-harness-workspace-actions.ts');
+  const panelMetadataPath = join(root, 'src', 'tools', 'agent-harness-panel-metadata.ts');
+  const uiSurfaceMetadataPath = join(root, 'src', 'tools', 'agent-harness-ui-surface-metadata.ts');
+
+  if (!existsSync(workspaceActionsPath)) {
+    issues.push('harness workspace actions source is missing: src/tools/agent-harness-workspace-actions.ts.');
+  } else {
+    const source = readFileSync(workspaceActionsPath, 'utf-8');
+    const modelRouteMarker = 'modelRoute: previewText(workspaceActionRouteHint(action))';
+    if (markerCount(source, modelRouteMarker) < 2) {
+      issues.push('harness workspace actions must expose modelRoute on both compact and detailed action descriptions.');
+    }
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'function workspaceActionRouteHint', label: 'workspace action model route builder' },
+      { marker: 'describeWorkspaceEditorModelExecution', label: 'editor action model execution descriptor' },
+      { marker: 'describeLocalWorkspaceModelExecution', label: 'local action model execution descriptor' },
+      { marker: 'resolveWorkspaceActionDetail', label: 'single workspace action inspection resolver' },
+      { marker: "status: 'ambiguous'", label: 'ambiguous workspace action refusal' },
+      { marker: 'agent_harness mode:"open_ui_surface"', label: 'visible navigation route hint' },
+      { marker: 'agent_harness mode:"run_workspace_action"', label: 'workspace action execution route hint' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness workspace actions must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(panelMetadataPath)) {
+    issues.push('harness panel metadata source is missing: src/tools/agent-harness-panel-metadata.ts.');
+  } else {
+    const source = readFileSync(panelMetadataPath, 'utf-8');
+    if (markerCount(source, 'modelRoute: panelModelRoute()') < 2) {
+      issues.push('harness panel metadata must expose modelRoute on both panel candidates and detailed panel descriptions.');
+    }
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'function panelModelRoute()', label: 'panel model route builder' },
+      { marker: 'workspaceRoute:', label: 'panel workspace route hint' },
+      { marker: 'openHarnessPanel', label: 'confirmed panel opener' },
+      { marker: 'confirmation: \'agent_harness mode:"open_panel" requires confirm:true and explicitUserRequest.\'', label: 'panel opener confirmation policy' },
+      { marker: "status: 'ambiguous'", label: 'ambiguous panel refusal' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness panel metadata must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(uiSurfaceMetadataPath)) {
+    issues.push('harness UI surface metadata source is missing: src/tools/agent-harness-ui-surface-metadata.ts.');
+  } else {
+    const source = readFileSync(uiSurfaceMetadataPath, 'utf-8');
+    if (markerCount(source, 'modelRoute: uiSurfaceModelRoute(surface)') < 2) {
+      issues.push('harness UI surface metadata must expose modelRoute on both surface candidates and detailed surface descriptions.');
+    }
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'preferredModelRoute', label: 'surface-specific preferred model route' },
+      { marker: 'function uiSurfaceModelRoute', label: 'UI surface model route builder' },
+      { marker: 'openHarnessUiSurface', label: 'confirmed UI surface opener' },
+      { marker: 'confirmation: \'agent_harness mode:"open_ui_surface" requires confirm:true and explicitUserRequest.\'', label: 'UI surface opener confirmation policy' },
+      { marker: "status: 'ambiguous'", label: 'ambiguous UI surface refusal' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness UI surface metadata must keep ${label}.`);
+      }
+    }
+  }
+
+  return issues;
+}
+
 function verifyModelToolRuntimeCompactionPolicy(root: string): readonly string[] {
   const issues: string[] = [];
   const compactionPath = join(root, 'src', 'tools', 'tool-definition-compaction.ts');
@@ -2421,9 +2742,10 @@ function verifyModelToolRuntimeCompactionPolicy(root: string): readonly string[]
   }
   const compactionSource = readFileSync(compactionPath, 'utf-8');
   const requiredCompactionMarkers: readonly { readonly marker: string; readonly label: string }[] = [
-    { marker: 'DEFAULT_TOOL_DESCRIPTION_LIMIT = 120', label: '120-character registered tool description cap' },
+    { marker: 'DEFAULT_TOOL_DESCRIPTION_LIMIT = 56', label: '56-character registered tool fallback description cap' },
     { marker: 'TOOL_DESCRIPTION_OVERRIDES', label: 'Agent-specific tool description overrides' },
     { marker: 'agent_harness', label: 'agent_harness compact override' },
+    { marker: 'goodvibes_context', label: 'platform tool compact override' },
     { marker: 'function stripSchemaDescriptions', label: 'nested schema description stripper' },
     { marker: "if (key === 'description') continue", label: 'schema description removal guard' },
     { marker: 'definition.parameters = stripSchemaDescriptions(definition.parameters)', label: 'registered parameter schema compaction' },
@@ -2737,6 +3059,11 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   issues.push(...verifyVerificationLedgerPolicy(root));
   issues.push(...verifyLiveVerificationPolicy(root));
   issues.push(...verifyModelToolRuntimeCompactionPolicy(root));
+  issues.push(...verifyHarnessModeCatalogDescriptionPolicy(root));
+  issues.push(...verifyHarnessModeRuntimePolicy(root));
+  issues.push(...verifyCommandModelAccessPolicy());
+  issues.push(...verifyHarnessSettingsModelAccessPolicy(root));
+  issues.push(...verifyHarnessVisibleSurfaceModelAccessPolicy(root));
   if (readStringValue(pkg.description).trim().length === 0) {
     issues.push('package.json is missing a public package description.');
   }
@@ -2775,13 +3102,6 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   issues.push(...verifyReleaseReleaseNotesPolicy(root));
   issues.push(...verifyReleasePerformanceSnapshotPolicy(root));
   issues.push(...verifyReleaseReadinessPolicy(root, packageVersion));
-  const sdkVersion = readPackageSdkVersion(pkg);
-  if (sdkVersion.length === 0) {
-    issues.push('package.json is missing a string @pellux/goodvibes-sdk dependency pin.');
-  } else if (!isExactSemver(sdkVersion)) {
-    issues.push(`package.json @pellux/goodvibes-sdk dependency must be an exact semver pin like 1.2.3: ${sdkVersion}.`);
-  }
-
   const changelogRelease = readTopChangelogRelease(root);
   if (changelogRelease === null) {
     issues.push('CHANGELOG.md is missing a top release heading like "## x.y.z - YYYY-MM-DD".');
@@ -2805,13 +3125,6 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
       issues.push(`src/version.ts _version fallback ${versionFallbacks.version} does not match package.json version ${packageVersion}.`);
     } else if (!isExactSemver(versionFallbacks.version)) {
       issues.push(`src/version.ts _version fallback must be an exact semver like 1.2.3: ${versionFallbacks.version}.`);
-    }
-    if (versionFallbacks.sdkVersion === null) {
-      issues.push('src/version.ts is missing the _sdkVersion fallback literal.');
-    } else if (sdkVersion.length > 0 && versionFallbacks.sdkVersion !== sdkVersion) {
-      issues.push(`src/version.ts _sdkVersion fallback ${versionFallbacks.sdkVersion} does not match @pellux/goodvibes-sdk version ${sdkVersion}.`);
-    } else if (!isExactSemver(versionFallbacks.sdkVersion)) {
-      issues.push(`src/version.ts _sdkVersion fallback must be an exact semver like 1.2.3: ${versionFallbacks.sdkVersion}.`);
     }
   }
 
@@ -2872,8 +3185,12 @@ function verifyPackageFacingVersionMentions(path: string, content: string, pins:
     for (let match = versionMentionPattern.exec(line); match !== null; match = versionMentionPattern.exec(line)) {
       const product = match[1] ?? '';
       const rawVersion = match[2] ?? '';
+      if (product === 'sdk') {
+        failures.push(`package-facing text ${path}:${lineIndex + 1} references a versioned connected-host package; describe connected-host compatibility through public Agent routes instead.`);
+        continue;
+      }
       const version = rawVersion.replace(/[.!?:]+$/, '');
-      const expectedVersion = product === 'agent' ? pins.packageVersion : pins.sdkVersion;
+      const expectedVersion = pins.packageVersion;
       if (!isExactSemver(version)) {
         failures.push(`package-facing text ${path}:${lineIndex + 1} references @pellux/goodvibes-${product} with non-exact version: ${rawVersion}`);
         continue;
@@ -2886,12 +3203,33 @@ function verifyPackageFacingVersionMentions(path: string, content: string, pins:
   return failures;
 }
 
+export function packageFacingBoundaryLanguageIssues(path: string, content: string): readonly string[] {
+  const failures: string[] = [];
+  const lines = content.split(/\r?\n/);
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex] ?? '';
+    for (const pattern of RELEASE_EVIDENCE_USER_SURFACE_PATTERNS) {
+      if (pattern.test(line)) {
+        failures.push(`package-facing text ${path}:${lineIndex + 1} classifies release evidence as a user-facing surface; describe it as operator/audit material.`);
+        break;
+      }
+    }
+    for (const pattern of HARNESS_USER_SURFACE_UMBRELLA_PATTERNS) {
+      if (pattern.test(line)) {
+        failures.push(`package-facing text ${path}:${lineIndex + 1} classifies all agent_harness routes as user-facing; include visible-surface and operator/audit boundaries.`);
+        break;
+      }
+    }
+  }
+  return failures;
+}
+
 function verifyPackageFacingBaselineRequirements(path: string, content: string, pins: PackageFacingVersionPins | null): readonly string[] {
   if (pins === null) return [];
   const requirements: Record<string, readonly string[]> = {
-    'docs/README.md': [`@pellux/goodvibes-sdk@${pins.sdkVersion}`, `Bun \`${pins.bunVersion}\` or newer`],
-    'docs/getting-started.md': [`@pellux/goodvibes-sdk@${pins.sdkVersion}`, `Bun \`${pins.bunVersion}\` or newer`],
-    'docs/release-and-publishing.md': [`@pellux/goodvibes-sdk@${pins.sdkVersion}`, `Bun \`${pins.bunVersion}\` or newer`],
+    'docs/README.md': [`Bun \`${pins.bunVersion}\` or newer`],
+    'docs/getting-started.md': [`Bun \`${pins.bunVersion}\` or newer`],
+    'docs/release-and-publishing.md': [`Bun \`${pins.bunVersion}\` or newer`],
   };
   const failures: string[] = [];
   for (const required of requirements[path] ?? []) {
@@ -2989,6 +3327,7 @@ function verifyPackageFacingTextSource(
   failures.push(...verifyPackageFacingInstallAndPackageNames(path, content));
   failures.push(...verifyPackageFacingCliCommandMentions(path, content, cliCommands));
   failures.push(...verifyPackageFacingVersionMentions(path, content, pins));
+  failures.push(...packageFacingBoundaryLanguageIssues(path, content));
   failures.push(...verifyPackageFacingBaselineRequirements(path, content, pins));
   failures.push(...verifyPackageFacingMarkdownLinks(root, path, content));
   for (const forbidden of PACKAGE_FACING_FORBIDDEN_TEXT) {
@@ -3103,6 +3442,12 @@ export function verifyPackageCliInstall(root: string): PackageCliVerificationRep
     issues.push(issue);
   }
   for (const issue of verifyModelToolRuntimeCompactionPolicy(root)) {
+    issues.push(issue);
+  }
+  for (const issue of verifyHarnessModeCatalogDescriptionPolicy(root)) {
+    issues.push(issue);
+  }
+  for (const issue of verifyHarnessModeRuntimePolicy(root)) {
     issues.push(issue);
   }
 

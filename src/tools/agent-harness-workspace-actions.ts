@@ -4,6 +4,8 @@ import { AGENT_WORKSPACE_CATEGORIES } from '../input/agent-workspace-categories.
 import { searchAgentWorkspaceActions } from '../input/agent-workspace-search.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceCategory, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor, AgentWorkspaceLocalLibraryItem, AgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-types.ts';
+import { parseSlashCommand } from '../input/slash-command-parser.ts';
+import { describeCommandPolicy } from './agent-harness-metadata.ts';
 import { describeLocalWorkspaceModelExecution } from './agent-harness-local-operations.ts';
 import { describeWorkspaceEditorModelExecution } from './agent-harness-workspace-editor-execution.ts';
 
@@ -97,9 +99,66 @@ export function describeWorkspaceEditor(editor: AgentWorkspaceLocalEditor): Reco
   };
 }
 
-function previewText(value: string, maxLength = 120): string {
+function previewText(value: string, maxLength = 56): string {
   const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1).trimEnd()}...`;
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function commandRouteHint(command: string): string {
+  const parsed = parseSlashCommand(command);
+  const commandName = parsed.name || command.replace(/^\//, '').trim().split(/\s+/)[0] || command;
+  return describeCommandPolicy(commandName).preferredModelTool ?? 'agent_harness mode:"run_command"';
+}
+
+function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
+  if (
+    editorKind === 'memory'
+    || editorKind === 'note'
+    || editorKind === 'persona'
+    || editorKind === 'skill'
+    || editorKind === 'routine'
+  ) return 'agent_local_registry';
+  if (
+    editorKind === 'knowledge-url'
+    || editorKind === 'knowledge-urls'
+    || editorKind === 'knowledge-file'
+    || editorKind === 'knowledge-bookmarks'
+    || editorKind === 'knowledge-browser-history'
+    || editorKind === 'knowledge-connector-ingest'
+  ) return 'agent_knowledge_ingest';
+  if (
+    editorKind === 'knowledge-reindex'
+    || editorKind === 'knowledge-review-issue'
+    || editorKind === 'knowledge-consolidate'
+  ) return 'agent_harness mode:"run_workspace_action"';
+  if (editorKind.startsWith('knowledge-')) return 'agent_knowledge';
+  if (editorKind === 'web-research' || editorKind === 'web-fetch') return 'main conversation prompt';
+  if (editorKind === 'media-generate') return 'agent_media_generate';
+  if (editorKind === 'channel-send') return 'agent_channel_send';
+  if (editorKind === 'notify-send' || editorKind === 'notify-webhook-test') return 'agent_notify';
+  if (editorKind === 'reminder-schedule') return 'agent_reminder_schedule';
+  if (
+    editorKind.startsWith('approval-')
+    || editorKind.startsWith('automation-')
+    || editorKind === 'schedule-run'
+  ) return 'agent_operator_action';
+  if (editorKind.startsWith('workplan-') || editorKind.startsWith('plan-') || editorKind.startsWith('task-')) return 'agent_work_plan';
+  return 'agent_harness mode:"run_workspace_action"';
+}
+
+function localActionRouteHint(action: AgentWorkspaceAction): string {
+  const modelExecution = describeLocalWorkspaceModelExecution(action);
+  const tool = modelExecution && typeof modelExecution.tool === 'string' ? modelExecution.tool : '';
+  return tool || 'agent_local_registry';
+}
+
+function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
+  if (action.command) return commandRouteHint(action.command);
+  if (action.editorKind) return editorRouteHint(action.editorKind);
+  if (action.kind === 'local-selection' || action.kind === 'local-operation') return localActionRouteHint(action);
+  if (action.targetCategoryId || action.kind === 'workspace') return 'agent_harness mode:"open_ui_surface"';
+  if (action.kind === 'guidance') return action.safety === 'blocked' ? 'main conversation policy' : 'main conversation';
+  return 'agent_harness mode:"workspace_action"';
 }
 
 function selectedRoutineFromArgs(
@@ -152,6 +211,7 @@ export function describeWorkspaceAction(
     detail: action.detail,
     kind: action.kind,
     safety: action.safety,
+    modelRoute: previewText(workspaceActionRouteHint(action)),
     ...(action.command ? { command: action.command } : {}),
     ...(action.targetCategoryId ? { targetCategoryId: action.targetCategoryId } : {}),
     ...(action.editorKind ? { editorKind: action.editorKind } : {}),
@@ -181,6 +241,7 @@ function describeWorkspaceActionSummary(
     summary: previewText(action.detail),
     kind: action.kind,
     safety: action.safety,
+    modelRoute: previewText(workspaceActionRouteHint(action)),
     ...(action.command ? { command: action.command } : {}),
     ...(action.targetCategoryId ? { targetCategoryId: action.targetCategoryId } : {}),
     ...(action.editorKind ? { editorKind: action.editorKind } : {}),
@@ -195,7 +256,7 @@ export function listWorkspaceActions(
 ): readonly Record<string, unknown>[] {
   const query = readString(args.query);
   const categoryId = readString(args.categoryId || args.category);
-  const limit = readLimit(args.limit, 200);
+  const limit = readLimit(args.limit, 500);
   const includeEditor = args.includeParameters === true;
   const editorContext = includeEditor ? buildWorkspaceEditorContext(context, args) : null;
   const source = query
