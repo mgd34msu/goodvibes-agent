@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.24 - 2026-06-03
+
+- Resolve confirmed agent_harness run_command requests by the same command, commandName, target, or query lookup used for slash-command inspection.
+- Refuse ambiguous slash-command run lookups with candidate commands before any handler runs.
+- Refresh package-facing docs, model-facing schema text, and focused harness coverage for slash-command execution parity.
+
 ## 1.0.23 - 2026-06-03
 
 - Return ambiguous agent_harness slash-command detail lookups with candidate commands instead of collapsing broad descriptive matches to unknown.
