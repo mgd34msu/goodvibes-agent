@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.27 - 2026-06-03
+
+- Classify every built-in slash command with concrete model-visible effect and boundary policy metadata instead of generic unknown policy fallback.
+- Document that built-in slash-command inspection returns concrete effect and boundary policy metadata.
+- Add focused harness coverage so registered built-in slash commands cannot silently regress to unknown model policy.
+
 ## 1.0.26 - 2026-06-03
 
 - Route confirmed agent_harness panel-close and panel-close-all keybinding runs through the same Agent workspace dismiss bridge as the user shortcut before falling back to legacy panels.
