@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.31 - 2026-06-03
+
+- Expose settings catalog filters in the agent_harness summary so the model can discover category, prefix, query, includeHidden, and limit before mutating settings.
+- Expose model-tool catalog schema inlining in the agent_harness summary and package docs.
+- Add focused harness coverage for settings filter guidance and model-tool includeParameters schema inlining.
+
 ## 1.0.30 - 2026-06-04
 
 - Surface workspace and workspace_categories modes in the agent_harness summary and package docs so the model can discover the Agent workspace category catalog before action lookup.
