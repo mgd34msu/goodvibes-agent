@@ -220,6 +220,21 @@ describe('AgentWorkspace', () => {
     expect(missingCommands).toEqual([]);
   });
 
+  test('workspace category group labels are unique', () => {
+    const seen = new Map<string, string>();
+    const duplicateGroups: string[] = [];
+    for (const category of AGENT_WORKSPACE_CATEGORIES) {
+      const previousCategoryId = seen.get(category.group);
+      if (previousCategoryId) {
+        duplicateGroups.push(`${category.group}: ${previousCategoryId}, ${category.id}`);
+        continue;
+      }
+      seen.set(category.group, category.id);
+    }
+
+    expect(duplicateGroups).toEqual([]);
+  });
+
   test('first-class product commands have Agent workspace access', () => {
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);

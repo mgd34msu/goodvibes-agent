@@ -3,7 +3,7 @@ import type { AgentWorkspaceCategory } from './agent-workspace-types.ts';
 export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   {
     id: 'home',
-    group: 'OPERATE',
+    group: 'HOME',
     label: 'Home',
     summary: 'Main operator workspace for normal assistant work.',
     detail: 'Use this as the primary Agent workspace: chat in the main conversation, inspect state, choose model/provider, and open setup without switching modes.',
@@ -35,7 +35,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'setup',
-    group: 'SETUP',
+    group: 'CONFIGURE',
     label: 'Setup',
     summary: 'Configuration, auth, provider, and onboarding workspaces.',
     detail: 'Use this to configure the assistant: provider/model, setup checklist, Agent Knowledge, local behavior, channels, and voice/media. Changes here stay Agent-owned.',
@@ -94,7 +94,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'research',
-    group: 'OPERATE',
+    group: 'RESEARCH',
     label: 'Research',
     summary: 'Read-only web research and source triage in the main conversation.',
     detail: 'Use this workspace to ask Agent to search, inspect URLs, compare sources, and decide what belongs in isolated Agent Knowledge. Research requests run in the normal conversation; source ingestion is explicit.',
@@ -113,7 +113,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'artifacts',
-    group: 'OPERATE',
+    group: 'ARTIFACTS',
     label: 'Artifacts',
     summary: 'Files, attachments, exports, source ingest, and generated media.',
     detail: 'Use this workspace to handle concrete user-visible artifacts: attach images, export conversations, ingest source files into Agent Knowledge, inspect source libraries, and generate media with explicit confirmation.',
@@ -136,7 +136,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'conversation',
-    group: 'OPERATE',
+    group: 'CONVERSATION',
     label: 'Conversation',
     summary: 'Transcript, prompt, context, and session controls.',
     detail: 'Use this workspace for the main TUI conversation: context review, compaction, prompt helpers, transcript navigation, session continuity, title, export, undo, redo, and retry.',
@@ -181,7 +181,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'channels',
-    group: 'SETUP',
+    group: 'CHANNELS',
     label: 'Channels',
     summary: 'Companion pairing, channel posture, and delivery safety.',
     detail: 'Agent uses connected channel accounts. Pairing, account inspection, and readiness checks are visible here; inbound delivery and public channel exposure stay policy-gated.',
@@ -209,7 +209,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'tools',
-    group: 'SETUP',
+    group: 'TOOLS',
     label: 'Tools & MCP',
     summary: 'MCP server setup, trust review, and tool inventory.',
     detail: 'Configure and inspect task tools from the Agent TUI. Adding or changing tools requires typed confirmation; normal chat still chooses tools serially in the main conversation.',
@@ -240,7 +240,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'knowledge',
-    group: 'KNOW',
+    group: 'KNOWLEDGE',
     label: 'Knowledge',
     summary: 'Agent Knowledge and source-backed lookup.',
     detail: 'Agent knowledge calls use the isolated Agent Knowledge route family only. Default knowledge and non-Agent knowledge segments are not the Agent knowledge environment.',
@@ -276,7 +276,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'voice-media',
-    group: 'SETUP',
+    group: 'VOICE & MEDIA',
     label: 'Voice & Media',
     summary: 'Voice, TTS, image input, browser tools, and media providers.',
     detail: 'Voice, media, browser tools, and image-capable flows are first-class Agent tools. Connected-host administration stays outside Agent and side effects stay explicit.',
@@ -302,7 +302,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'profiles',
-    group: 'SETUP',
+    group: 'PROFILES',
     label: 'Profiles',
     summary: 'Isolated Agent homes, starter templates, and setup bundles.',
     detail: 'Agent profiles isolate Agent state. Named homes and starter templates let one install behave like separate assistants for household, research, travel, operations, or personal workflows.',
@@ -325,7 +325,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'memory',
-    group: 'LEARN',
+    group: 'MEMORY',
     label: 'Memory & Skills',
     summary: 'Local assistant memory, notes, routines, skills, and reusable behavior.',
     detail: 'Memory, notes, routines, skills, and personas stay Agent-local until stable shared registry contracts exist. Secrets must not be stored as memory or notes.',
@@ -362,7 +362,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'notes',
-    group: 'LEARN',
+    group: 'NOTES',
     label: 'Notes',
     summary: 'Agent-local scratchpad for source triage and temporary context.',
     detail: 'Notes are local working context. They are useful for research notes, decisions in progress, and handoff notes, but they are not memory and are not Agent Knowledge.',
@@ -385,7 +385,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'personas',
-    group: 'LEARN',
+    group: 'PERSONAS',
     label: 'Personas',
     summary: 'Local behavior profiles for the main assistant.',
     detail: 'Personas shape the serial Agent in the main conversation. They are local behavior profiles, not separate Agent identities.',
@@ -408,7 +408,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'skills',
-    group: 'LEARN',
+    group: 'SKILLS',
     label: 'Skills',
     summary: 'Reusable local procedures with setup readiness.',
     detail: 'Skills are local, reviewable procedures with optional env/command requirements. Enabled skills inform the main conversation; secret-looking content is rejected.',
@@ -443,7 +443,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'routines',
-    group: 'LEARN',
+    group: 'ROUTINES',
     label: 'Routines',
     summary: 'Repeatable workflows with setup readiness.',
     detail: 'Routines run in the main conversation by default and can declare env/command requirements. Promotion to a connected schedule requires a real schedule command and --yes.',
@@ -473,7 +473,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'work',
-    group: 'TRACK',
+    group: 'WORK',
     label: 'Work & Approvals',
     summary: 'Visible task state, work plan, and approval posture.',
     detail: 'Use this workspace to inspect active operator state and update visible work-plan items from confirmed TUI forms.',
@@ -527,7 +527,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'host',
-    group: 'WATCH',
+    group: 'HOST',
     label: 'Connected Host',
     summary: 'Connected-host health, tasks, sessions, channels, and automation.',
     detail: 'Use this workspace to inspect the GoodVibes host surfaces that Agent can see: system health, remote routes, host tasks, sessions, channels, schedules, knowledge, media, MCP, provider auth, support bundles, and telemetry/config posture.',
@@ -571,7 +571,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'automation',
-    group: 'WATCH',
+    group: 'AUTOMATION',
     label: 'Automation',
     summary: 'Reminders, schedule observability, and explicit routine promotion.',
     detail: 'Agent does not create hidden local automation jobs. Confirmed reminders, reviewed routine promotion, and explicit run/pause/resume controls go through the connected host with confirmation.',
@@ -598,7 +598,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   },
   {
     id: 'delegate',
-    group: 'BUILD',
+    group: 'DELEGATE',
     label: 'Build Delegation',
     summary: 'Explicit handoff to GoodVibes TUI for code work.',
     detail: 'Agent does not become the coding TUI. Build, implement, fix, patch, and review work must be handed to GoodVibes TUI with the full original ask and delegated review only when explicitly requested.',
