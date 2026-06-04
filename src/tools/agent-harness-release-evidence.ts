@@ -1,12 +1,13 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { previewHarnessText } from './agent-harness-text.ts';
 
 const RELEASE_EVIDENCE_ARTIFACTS = [
   {
     id: 'release-notes',
     path: 'release/release-notes.md',
     kind: 'markdown',
-    description: 'Product-facing release notes for the current release evidence bundle.',
+    description: 'Shipped release notes included with operator/audit release artifacts.',
   },
   {
     id: 'performance-snapshot',
@@ -118,6 +119,20 @@ function normalized(value: string): string {
 
 function artifactSearchText(artifact: ReleaseEvidenceArtifact): string {
   return `${artifact.id}\n${artifact.path}\n${artifact.kind}\n${artifact.description}`.toLowerCase();
+}
+
+function releaseEvidenceModelRoute(artifact?: ReleaseEvidenceArtifact): string {
+  if (artifact) return 'agent_harness mode:"release_evidence_artifact"';
+  return 'agent_harness mode:"release_evidence" or mode:"release_evidence_artifact"';
+}
+
+function releaseEvidencePolicy(): Record<string, unknown> {
+  return {
+    effect: 'operator-audit-read-only',
+    audience: 'release operators and maintainers',
+    values: 'Returns packaged release artifacts, summaries, and optional artifact content for release audit.',
+    boundary: 'Release artifacts are audit material. They are not visible product routes and do not mutate runtime state.',
+  };
 }
 
 function evidenceLookupFromArgs(args: ReleaseEvidenceArgs): ReleaseEvidenceLookup | null {
@@ -243,6 +258,7 @@ function summarizeLoadedArtifact(
     kind: loaded.artifact.kind,
     description: loaded.artifact.description,
     status: loaded.status,
+    modelRoute: releaseEvidenceModelRoute(loaded.artifact),
   };
   if (loaded.status !== 'available') {
     return { ...base, reason: loaded.reason };
@@ -255,6 +271,12 @@ function summarizeLoadedArtifact(
     ...base,
     sizeBytes: loaded.sizeBytes,
     summary,
+    policy: releaseEvidencePolicy(),
+    modelAccess: {
+      listArtifacts: 'agent_harness mode:"release_evidence"',
+      inspectArtifact: `agent_harness mode:"release_evidence_artifact" artifactId:"${loaded.artifact.id}"`,
+      includeContent: 'Pass includeParameters:true only when release audit requires artifact content.',
+    },
     ...(options.includeSource
       ? loaded.artifact.kind === 'json'
         ? { data: loaded.parsed }
@@ -268,7 +290,8 @@ function releaseEvidenceCandidates(artifacts: readonly ReleaseEvidenceArtifact[]
     id: artifact.id,
     path: artifact.path,
     kind: artifact.kind,
-    description: artifact.description,
+    summary: previewHarnessText(artifact.description),
+    modelRoute: releaseEvidenceModelRoute(artifact),
   }));
 }
 
@@ -298,6 +321,11 @@ export function releaseEvidenceSummary(args: ReleaseEvidenceArgs): Record<string
     filtered: filtered.length,
     returned: loaded.length,
     artifactsList: loaded.map((artifact) => summarizeLoadedArtifact(artifact, { includeSource: args.includeParameters === true })),
+    policy: releaseEvidencePolicy(),
+    modelAccess: {
+      listArtifacts: 'agent_harness mode:"release_evidence"',
+      inspectArtifact: 'agent_harness mode:"release_evidence_artifact" with artifactId, target, or query',
+    },
     artifactLookup: 'Use mode:"release_evidence_artifact" with artifactId, target, or query to inspect one release evidence artifact.',
   };
 }

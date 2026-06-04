@@ -2734,6 +2734,55 @@ function verifyHarnessVisibleSurfaceModelAccessPolicy(root: string): readonly st
   return issues;
 }
 
+function verifyHarnessOperatorAuditModelAccessPolicy(root: string): readonly string[] {
+  const issues: string[] = [];
+  const releaseEvidencePath = join(root, 'src', 'tools', 'agent-harness-release-evidence.ts');
+  const releaseReadinessPath = join(root, 'src', 'tools', 'agent-harness-release-readiness.ts');
+
+  if (!existsSync(releaseEvidencePath)) {
+    issues.push('harness release evidence source is missing: src/tools/agent-harness-release-evidence.ts.');
+  } else {
+    const source = readFileSync(releaseEvidencePath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'function releaseEvidenceModelRoute', label: 'release evidence model route builder' },
+      { marker: 'modelRoute: releaseEvidenceModelRoute', label: 'release evidence model route output' },
+      { marker: 'function releaseEvidencePolicy', label: 'release evidence operator/audit policy' },
+      { marker: "effect: 'operator-audit-read-only'", label: 'release evidence read-only audit effect' },
+      { marker: 'release operators and maintainers', label: 'release evidence operator audience' },
+      { marker: 'agent_harness mode:"release_evidence_artifact"', label: 'single release evidence artifact route' },
+      { marker: 'modelAccess', label: 'release evidence detailed model access' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness release evidence must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(releaseReadinessPath)) {
+    issues.push('harness release readiness source is missing: src/tools/agent-harness-release-readiness.ts.');
+  } else {
+    const source = readFileSync(releaseReadinessPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: 'function releaseReadinessModelRoute', label: 'release readiness model route builder' },
+      { marker: 'modelRoute: releaseReadinessModelRoute', label: 'release readiness model route output' },
+      { marker: 'function releaseReadinessPolicy', label: 'release readiness operator/audit policy' },
+      { marker: "effect: 'operator-audit-read-only'", label: 'release readiness read-only audit effect' },
+      { marker: 'release operators and maintainers', label: 'release readiness operator audience' },
+      { marker: 'agent_harness mode:"release_readiness_item"', label: 'single release readiness item route' },
+      { marker: 'operatorAuditPolicy', label: 'release readiness summary audit policy' },
+      { marker: 'modelAccess', label: 'release readiness detailed model access' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`harness release readiness must keep ${label}.`);
+      }
+    }
+  }
+
+  return issues;
+}
+
 function verifyModelToolRuntimeCompactionPolicy(root: string): readonly string[] {
   const issues: string[] = [];
   const compactionPath = join(root, 'src', 'tools', 'tool-definition-compaction.ts');
@@ -3064,6 +3113,7 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   issues.push(...verifyCommandModelAccessPolicy());
   issues.push(...verifyHarnessSettingsModelAccessPolicy(root));
   issues.push(...verifyHarnessVisibleSurfaceModelAccessPolicy(root));
+  issues.push(...verifyHarnessOperatorAuditModelAccessPolicy(root));
   if (readStringValue(pkg.description).trim().length === 0) {
     issues.push('package.json is missing a public package description.');
   }

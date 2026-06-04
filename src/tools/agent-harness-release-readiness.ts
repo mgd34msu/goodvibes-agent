@@ -103,6 +103,20 @@ function itemSearchText(item: Record<string, unknown>): string {
   return fields.join('\n').toLowerCase();
 }
 
+function releaseReadinessModelRoute(item?: Record<string, unknown>): string {
+  if (item) return 'agent_harness mode:"release_readiness_item"';
+  return 'agent_harness mode:"release_readiness" or mode:"release_readiness_item"';
+}
+
+function releaseReadinessPolicy(): Record<string, unknown> {
+  return {
+    effect: 'operator-audit-read-only',
+    audience: 'release operators and maintainers',
+    values: 'Returns release-quality inventory status, evidence, and quality dimensions for audit.',
+    boundary: 'Release readiness is audit material. It is not a visible product route and does not mutate runtime state.',
+  };
+}
+
 function countBy(items: readonly Record<string, unknown>[], key: string): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const item of items) {
@@ -134,7 +148,15 @@ function summarizeItem(item: Record<string, unknown>, options: { readonly includ
     status: item.status,
     evidence: item.evidence,
     action: item.action,
+    modelRoute: releaseReadinessModelRoute(item),
     ...(options.includeQuality ? { quality: item.quality } : {}),
+    ...(options.includeQuality ? {
+      policy: releaseReadinessPolicy(),
+      modelAccess: {
+        listItems: 'agent_harness mode:"release_readiness"',
+        inspectItem: `agent_harness mode:"release_readiness_item" itemId:"${readString(item.id)}"`,
+      },
+    } : {}),
   };
 }
 
@@ -153,6 +175,7 @@ function releaseReadinessCandidates(items: readonly Record<string, unknown>[]): 
     capability: item.capability,
     owner: item.owner,
     status: item.status,
+    modelRoute: releaseReadinessModelRoute(item),
   }));
 }
 
@@ -173,6 +196,8 @@ export function releaseReadinessInventoryStatus(): Record<string, unknown> {
     checkedAt: loaded.root.checkedAt,
     items: items.length,
     qualityDimensions: QUALITY_DIMENSIONS,
+    modelRoute: releaseReadinessModelRoute(),
+    policy: releaseReadinessPolicy(),
   };
 }
 
@@ -203,6 +228,11 @@ export function releaseReadinessSummary(args: ReleaseReadinessArgs): Record<stri
     schemaVersion: loaded.root.schemaVersion,
     checkedAt: loaded.root.checkedAt,
     policy: loaded.root.policy,
+    operatorAuditPolicy: releaseReadinessPolicy(),
+    modelAccess: {
+      listItems: 'agent_harness mode:"release_readiness"',
+      inspectItem: 'agent_harness mode:"release_readiness_item" with itemId, target, or query',
+    },
     totals: {
       items: items.length,
       filtered: filtered.length,
