@@ -346,7 +346,7 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Build Delegation');
     expect(output).toContain('GoodVibes TUI');
-    expect(output).toContain('delegated review only when explicitly');
+    expect(output).toContain('Delegated review policy: explicit-build-delegation-only');
     expect(output).not.toContain('coding transcript');
   });
 
@@ -405,6 +405,24 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('Setup Checklist');
     expect(output).not.toContain('RECOMMENDED');
     expect(output).not.toContain('-> Personas');
+  });
+
+  test('keeps every Agent workspace category on the compact top-pane split', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined);
+
+    for (const category of workspace.categories) {
+      const categoryWorkspace = new AgentWorkspace();
+      categoryWorkspace.open(commandContext(), () => undefined, category.id);
+      const output = text(renderAgentWorkspace(categoryWorkspace, 132, 37));
+      const lines = output.split('\n');
+      const contextSeparatorRow = lines.findIndex((line, index) => index > 2 && line.includes('────'));
+
+      expect(contextSeparatorRow).toBeGreaterThan(0);
+      expect(contextSeparatorRow).toBeLessThanOrEqual(16);
+      expect(output).toContain(category.label);
+      expect(output).toContain('Action');
+    }
   });
 
   test('renders model favorites maintenance in the setup workspace', () => {
@@ -680,13 +698,12 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 44));
 
-    expect(output).toContain('Local routines: 1; enabled: 1');
-    expect(output).toContain('Local skills: 1; enabled: 1; bundles: 1; active skills: 1');
-    expect(output).toContain('Local personas: 1; active: Research Analyst');
-    expect(output).toContain('Agent memory: 1; prompt-active: 0; review queue: 1');
+    expect(output).toContain('Memory: 1; prompt 0; queue 1; session 1.');
+    expect(output).toContain('Notes: 0; skills 1/1; routines 1/1; personas 1.');
+    expect(output).toContain('Active persona: Research Analyst.');
+    expect(output).toContain('Agent Memory: 1; selected Prefers concise operator briefings');
     expect(output).toContain('Create memory');
     expect(output).toContain('Search memory');
-    expect(output).toContain('Prefers concise operator briefings');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-promote');
     const maintenanceOutput = text(renderAgentWorkspace(workspace, 132, 34));
@@ -713,8 +730,8 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
     const personasOutput = text(renderAgentWorkspace(workspace, 132, 38));
     const normalizedPersonasOutput = personasOutput.replace(/\s+/g, ' ');
-    expect(normalizedPersonasOutput).toContain('not separate');
-    expect(normalizedPersonasOutput).toContain('Agent jobs');
+    expect(normalizedPersonasOutput).toContain('Personas shape the serial main-conversation assistant.');
+    expect(normalizedPersonasOutput).toContain('Persona Library: 1; selected Research Analyst');
     expect(normalizedPersonasOutput).not.toContain('not separate workers');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-search');
@@ -757,7 +774,6 @@ describe('renderAgentWorkspace', () => {
     workspace.moveEditorField(2);
     const procedureOutput = text(renderAgentWorkspace(workspace, 132, 38));
     expect(procedureOutput).toContain('Procedure *');
-    expect(procedureOutput).toContain('more field(s) above');
     expect(output).toContain('Enter next/save');
     expect(output).toContain('Esc cancel');
 
@@ -792,11 +808,10 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Bundle setup gaps');
     expect(output).toContain('/skills bundle attention');
     expect(output).toContain('edit skill-bundle');
-    expect(output).toContain('Skill Bundles');
+    expect(output).toContain('Skill Bundles: 1; selected Operator Pack');
+    expect(output).toContain('Skill Library: 1; selected Briefing');
     expect(output).toContain('needs 1/1');
-    expect(output).toContain('missing setup: env:GOODVIBES_AGENT_TEST_MISSING_TOKEN');
-    expect(output).toContain('operator-pack: Operator Pack');
-    expect(output).toContain('Skills: briefing');
+    expect(output).toContain('Missing setup: env:GOODVIBES_AGENT_TEST_MISSING_TOKEN');
   });
 
   test('renders skill bundle lifecycle forms in the skills workspace', () => {
@@ -838,12 +853,12 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Routines: 1; enabled: 1');
     expect(output).toContain('Schedule-ready routines: 0; setup gaps: 1; review needed: 1');
     expect(output).toContain('Next routine action: Needs setup for daily-brief before it can be trusted for schedule promotion.');
-    expect(output).toContain('Promotion receipts: 0; created: 0; failed: 0');
+    expect(output).toContain('Promotion receipts: 0; none created yet.');
     expect(output).toContain('Repeatable workflows with setup readiness');
     expect(output).toContain('Needs setup');
-    expect(output).toContain('daily-brief: Daily Brief');
+    expect(output).toContain('Routine Library: 1; selected Daily Brief');
     expect(output).toContain('needs 1/1');
-    expect(output).toContain('missing setup: env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN');
+    expect(output).toContain('Missing setup: env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipt');
     const receiptActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -865,7 +880,8 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 38));
 
     expect(output).toContain('/api/goodvibes-agent/knowledge');
-    expect(output).toContain('no default knowledge or non-Agent fallback');
+    expect(output).toContain('isolation agent-only');
+    expect(output).toContain('Ingest requires explicit confirmation');
     expect(output).toContain('Search Agent knowledge');
     expect(output).toContain('edit knowledge-search');
     expect(output).toContain('Ingest URL');
@@ -876,7 +892,6 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit knowledge-bookmarks');
     expect(output).toContain('Connector inventory');
     expect(output).toContain('/knowledge connectors');
-    expect(output).toContain('in-workspace form');
     expect(output).toContain('more action(s) below');
     expect(output).not.toContain('/knowledge search <query>');
     expect(output).not.toContain('/api/knowledge');
@@ -914,7 +929,6 @@ describe('renderAgentWorkspace', () => {
     expect(askOutput).toContain('Ask Agent Knowledge');
     expect(askOutput).toContain('Question *');
     expect(askOutput).toContain('fails closed instead of using');
-    expect(askOutput).toContain('another knowledge segment');
   });
 
   test('renders Agent Knowledge maintenance forms from the workspace', () => {
@@ -1017,7 +1031,6 @@ describe('renderAgentWorkspace', () => {
     const deliveryOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(deliveryOutput).toContain('Delivery channel');
     expect(deliveryOutput).toContain('more field(s) above');
-    expect(deliveryOutput).toContain('more field(s) below');
     workspace.moveEditorField(2);
     const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(confirmOutput).toContain('Confirm *');
@@ -1092,12 +1105,10 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 150, 44));
 
-    expect(output).toContain('Reminder path: Create reminder -> choose at/every/cron -> optional delivery target -> confirm yes.');
-    expect(output).toContain('Routine path: Routines -> resolve setup -> review selected -> Promote routine -> Reconcile schedules.');
-    expect(output).toContain('Schedule-ready routines: 1; local promotion receipts: 1');
+    expect(output).toContain('Automation: 1 schedule-ready routine(s); receipts 1.');
     expect(output).toContain('Next automation action: Reconcile schedules to compare local receipts with the connected host.');
-    expect(output).toContain('Promotion receipts: 1; created: 1; failed: 0');
-    expect(output).toContain('Latest receipt: daily-brief-20260602 created routine=daily-brief schedule="Daily Brief" cron 0 9 * * *');
+    expect(output).toContain('Promotion receipts: 1; latest created daily-brief.');
+    expect(output).toContain('Reminders and routine promotion require confirmation.');
   });
 
   test('renders voice media and browser tool setup posture', () => {
@@ -1112,17 +1123,10 @@ describe('renderAgentWorkspace', () => {
       const output = text(renderAgentWorkspace(workspace, 132, 54));
 
       expect(output).toContain('Voice & Media');
-      expect(output).toContain('Voice providers: 2; streaming TTS: 1; STT: 2; realtime: 1.');
-      expect(output).toContain('Voice interaction: enabled; ready providers 0/2.');
-      expect(output).toContain('TTS config: provider elevenlabs; voice voice-operator; response model openai-subscriber/gpt-5.5.');
-      expect(output).toContain('Selected TTS readiness: ElevenLabs -> needs-secret; voice configured; response route configured.');
-      expect(output).toContain('Media providers: 2; understanding: 1; generation: 1.');
-      expect(output).toContain('Ready media providers: 1/2.');
-      expect(output).toContain('Browser tools: public-url; public base URL https://agent.example.test.');
-      expect(output).toContain('ElevenLabs: selected; needs-secret; tts-stream, stt, realtime; needs');
-      expect(output).toContain('ELEVENLABS_API_KEY|XI_API_KEY.');
-      expect(output).toContain('Fal: needs-secret; generate; needs FAL_KEY|FAL_API_KEY.');
-      expect(output).toContain('No secret values are rendered.');
+      expect(output).toContain('Voice: 0/2 ready; TTS elevenlabs; voice voice-operator.');
+      expect(output).toContain('Media: 1/2 ready; generation 1.');
+      expect(output).toContain('Browser: public-url; public URL https://agent.example.test.');
+      expect(output).toContain('Secrets hidden; voice, browser, and media side effects require explicit action.');
       expect(output).toContain('/config tts');
       expect(output).toContain('edit tts-prompt');
       expect(output).toContain('edit image-input');
@@ -1155,8 +1159,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit mcp-server');
     expect(output).toContain('Repair guidance');
     expect(output).toContain('edit mcp-repair');
-    expect(output).toContain('typed confirmation');
-    expect(output).toContain('12 more action(s) below');
+    expect(output).toContain('require confirmation');
     expect(output).toContain('allow-all');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-tools-server');
@@ -1228,9 +1231,8 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 132, 38));
 
     expect(output).toContain('Profiles');
-    expect(output).toContain('Active Agent profile: (default home)');
-    expect(output).toContain('Default for next launch: household');
-    expect(output).toContain('Agent profiles under this home: 1');
+    expect(output).toContain('Profiles: active (default home); default household.');
+    expect(output).toContain('Local profiles: 1; starters 5; custom 0.');
     expect(output).not.toContain('Config profiles:');
     expect(output).not.toContain('/profiles');
     expect(output).toContain('Starter authoring guide');
@@ -1243,12 +1245,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit profile-default');
     expect(output).not.toContain('/profilesync');
     expect(output).not.toContain('/setup transfer');
-    expect(output).toContain('Starter templates: 5; local custom: 0');
     expect(output).toContain('Starter ids: household, research, travel, operations, personal-productivity');
-    expect(output).toContain('Agent Profiles');
-    expect(output).toContain('household [default] starter=none');
-    expect(output).toContain('Starter Templates');
-    expect(output).toContain('separate assistants for household');
+    expect(output).toContain('Profiles isolate local Agent config');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-clear-default');
     const clearOutput = text(renderAgentWorkspace(workspace, 132, 38));
@@ -1302,10 +1300,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Channels');
     expect(output).toContain('Setup path');
     expect(output).toContain('Companion: goodvibes-agent; token ready sha256:');
-    expect(output).toContain('manual token text hidden');
     expect(output).not.toContain('goodvibes-agent-test-token');
-    expect(output).toContain('Setup path: pair companion -> inspect readiness');
-    expect(output).toContain('Next channel action: Telegram');
+    expect(output).toContain('Channels: 2/14 ready; 2 enabled; 1 target(s).');
+    expect(output).toContain('Next: Telegram');
     expect(output).toContain('Pair companion');
     expect(output).toContain('/pair');
     expect(output).toContain('Channel readiness');
@@ -1324,17 +1321,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit channel-doctor');
     expect(output).toContain('/notify list');
     expect(output).toContain('edit notify-send');
-    expect(output).toContain('Safety: no secret values; sends and public exposure require explicit user action and Agent');
-    expect(output).toContain('policy.');
-    expect(output).toContain('Readiness: 2/14 ready; 2 enabled; 1 default target(s) configured.');
-    expect(output).toContain('Ready channels: Slack, Telegram.');
-    expect(output).toContain('Needs default target: Telegram -> surfaces.telegram.defaultChatId.');
-    expect(output).toContain('Needs config: none.');
-    expect(output).toContain('Slack: ready; ready; target configured; delivery default-ready; risk group.');
-    expect(output).toContain('Telegram: needs-target; ready; target missing; delivery explicit-target; risk dm.');
-    expect(output).toContain('Discord: disabled; 3 missing; target missing; delivery disabled; risk group.');
-    expect(output).toContain('Disabled channels: Discord, ntfy, Google Chat, Signal, WhatsApp, Telephony, +6 more.');
-    expect(output).toContain('WhatsApp');
+    expect(output).toContain('Safety: secrets hidden; sends require explicit action.');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('TELEGRAM_BOT_TOKEN');
 

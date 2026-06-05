@@ -5,9 +5,9 @@ import type {
   AgentWorkspaceLocalEditor,
   AgentWorkspaceRuntimeSnapshot,
 } from '../input/agent-workspace.ts';
-import { formatAgentRecordReviewState, formatAgentRecordSource } from '../agent/record-labels.ts';
+import { formatAgentRecordReviewState } from '../agent/record-labels.ts';
 import type { Line } from '../types/grid.ts';
-import { wrapText } from '../utils/terminal-width.ts';
+import { truncateDisplay, wrapText } from '../utils/terminal-width.ts';
 import { GLYPHS } from './ui-primitives.ts';
 import {
   getFullscreenWorkspaceMetrics,
@@ -81,6 +81,21 @@ function setupStatusLabel(status: AgentWorkspaceRuntimeSnapshot['setupChecklist'
         : 'Optional';
 }
 
+function compactText(text: string, maxWidth = 104): string {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (normalized.length === 0) return '';
+  const firstSentence = normalized.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim();
+  const source = firstSentence && firstSentence.length <= maxWidth ? firstSentence : normalized;
+  return truncateDisplay(source, maxWidth, '...');
+}
+
+function actionMetaLine(action: AgentWorkspaceAction): ContextLine {
+  return {
+    text: `${actionCommand(action)}; ${action.safety}`,
+    fg: action.kind === 'command' ? PALETTE.info : safetyColor(action),
+  };
+}
+
 function setupAttentionItems(snapshot: AgentWorkspaceRuntimeSnapshot, limit: number): AgentWorkspaceRuntimeSnapshot['setupChecklist'] {
   return [
     ...snapshot.setupChecklist.filter((item) => item.status === 'blocked'),
@@ -145,54 +160,41 @@ function companionAccessLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLi
       : 'missing';
   const error = access.tokenError ? `; token read error ${access.tokenError}` : '';
   return {
-    text: `Companion: ${access.surface}; token ${tokenState}; QR ${access.qrCommand}; manual token text hidden${error}.`,
+    text: `Companion: ${access.surface}; token ${tokenState}; QR ${access.qrCommand}${error}.`,
     fg: access.pairingReady ? PALETTE.good : PALETTE.warn,
   };
 }
 
-function localLibraryLines(
+function compactLocalLibraryLines(
   title: string,
   items: readonly AgentWorkspaceRuntimeSnapshot['localPersonas'][number][],
   emptyText: string,
   selectedId: string | null,
 ): ContextLine[] {
-  const lines: ContextLine[] = [
-    { text: title, fg: PALETTE.title, bold: true },
-  ];
+  const lines: ContextLine[] = [];
   if (items.length === 0) {
-    lines.push({ text: emptyText, fg: PALETTE.warn });
+    lines.push({ text: `${title}: 0. ${emptyText}`, fg: PALETTE.warn });
     return lines;
   }
-  for (const item of items.slice(0, 8)) {
-    const selected = item.id === selectedId;
-    const status = [
-      selected ? 'selected' : '',
-      item.active ? 'active' : '',
-      item.enabled === true ? 'enabled' : item.enabled === false ? 'disabled' : '',
-      item.scope && item.cls ? `${item.scope}/${item.cls}` : '',
-      item.confidence !== undefined ? `${item.confidence}%` : '',
-      item.requirementCount !== undefined && item.requirementCount > 0
-        ? (item.missingRequirementCount && item.missingRequirementCount > 0 ? `needs ${item.missingRequirementCount}/${item.requirementCount}` : `ready ${item.requirementCount}/${item.requirementCount}`)
-        : '',
-      formatAgentRecordReviewState(item.reviewState),
-      item.source ? `origin ${item.source}` : '',
-      item.startCount !== undefined ? `starts ${item.startCount}` : '',
-    ].filter(Boolean).join(' / ');
-    const tags = item.tags.length > 0 ? ` tags ${item.tags.join(',')}` : '';
-    const triggers = item.triggers.length > 0 ? ` triggers ${item.triggers.join(',')}` : '';
-    const marker = selected ? `${GLYPHS.navigation.selected} ` : '';
-    lines.push({
-      text: `${marker}${item.id}: ${item.name} (${status})`,
-      fg: item.reviewState === 'stale' ? PALETTE.warn : PALETTE.info,
-      bold: selected || item.active === true,
-    });
-    lines.push({ text: `  ${item.description}${tags}${triggers}`, fg: PALETTE.muted });
-    if (item.missingRequirements && item.missingRequirements.length > 0) {
-      lines.push({ text: `  missing setup: ${item.missingRequirements.join(', ')}`, fg: PALETTE.warn });
-    }
-  }
-  if (items.length > 8) {
-    lines.push({ text: `${items.length - 8} more item(s). Open the library command for the full list.`, fg: PALETTE.dim });
+  const selected = items.find((item) => item.id === selectedId) ?? items[0]!;
+  const status = [
+    selected.active ? 'active' : '',
+    selected.enabled === true ? 'enabled' : selected.enabled === false ? 'disabled' : '',
+    selected.scope && selected.cls ? `${selected.scope}/${selected.cls}` : '',
+    selected.confidence !== undefined ? `${selected.confidence}%` : '',
+    selected.requirementCount !== undefined && selected.requirementCount > 0
+      ? (selected.missingRequirementCount && selected.missingRequirementCount > 0 ? `needs ${selected.missingRequirementCount}/${selected.requirementCount}` : `ready ${selected.requirementCount}/${selected.requirementCount}`)
+      : '',
+    formatAgentRecordReviewState(selected.reviewState),
+    selected.startCount !== undefined ? `starts ${selected.startCount}` : '',
+  ].filter(Boolean).join(', ');
+  lines.push({
+    text: `${title}: ${items.length}; selected ${selected.name}${status ? ` (${status})` : ''}.`,
+    fg: selected.reviewState === 'stale' ? PALETTE.warn : PALETTE.info,
+    bold: selected.active === true,
+  });
+  if (selected.missingRequirements && selected.missingRequirements.length > 0) {
+    lines.push({ text: `Missing setup: ${selected.missingRequirements.join(', ')}`, fg: PALETTE.warn });
   }
   return lines;
 }
@@ -239,23 +241,18 @@ function routineNextActionLine(snapshot: AgentWorkspaceRuntimeSnapshot): Context
   return { text: 'Next routine action: Start selected in the main conversation, inspect receipts, or reconcile connected schedules.', fg: PALETTE.info, bold: true };
 }
 
-function routineScheduleReceiptLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+function compactRoutineReceiptLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
   const latest = snapshot.latestRoutineScheduleReceipt;
-  const lines: ContextLine[] = [
-    {
-      text: `Promotion receipts: ${snapshot.routineScheduleReceiptCount}; created: ${snapshot.successfulRoutineScheduleReceiptCount}; failed: ${snapshot.failedRoutineScheduleReceiptCount}`,
-      fg: snapshot.failedRoutineScheduleReceiptCount > 0 ? PALETTE.warn : PALETTE.info,
-    },
-  ];
-  if (latest) {
-    lines.push({
-      text: `Latest receipt: ${latest.id} ${latest.status} routine=${latest.routineId} schedule="${latest.scheduleName}" ${latest.scheduleKind} ${latest.scheduleValue}`,
-      fg: latest.status === 'failed' ? PALETTE.warn : PALETTE.good,
-    });
-  } else {
-    lines.push({ text: 'No schedule promotion receipts yet. Confirm a routine promotion from Automation when ready.', fg: PALETTE.muted });
+  if (!latest) {
+    return {
+      text: `Promotion receipts: ${snapshot.routineScheduleReceiptCount}; none created yet.`,
+      fg: PALETTE.muted,
+    };
   }
-  return lines;
+  return {
+    text: `Promotion receipts: ${snapshot.routineScheduleReceiptCount}; latest ${latest.status} ${latest.routineId}.`,
+    fg: latest.status === 'failed' ? PALETTE.warn : PALETTE.good,
+  };
 }
 
 function automationNextActionLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
@@ -277,57 +274,6 @@ function automationNextActionLine(snapshot: AgentWorkspaceRuntimeSnapshot): Cont
   return { text: 'Next automation action: Create a reminder, or create/import a routine before recurring workflow promotion.', fg: PALETTE.warn, bold: true };
 }
 
-function profileLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
-  const lines: ContextLine[] = [
-    { text: 'Agent Profiles', fg: PALETTE.title, bold: true },
-  ];
-  if (snapshot.runtimeProfiles.length === 0) {
-    lines.push({ text: 'No isolated Agent profiles yet. Use Create Agent profile in this workspace.', fg: PALETTE.warn });
-    return lines;
-  }
-  for (const profile of snapshot.runtimeProfiles.slice(0, 6)) {
-    const starter = profile.starterTemplateId ? ` starter=${profile.starterTemplateId}` : ' starter=none';
-    const created = profile.createdAt ? ` created ${profile.createdAt.slice(0, 10)}` : '';
-    const states = [
-      profile.id === snapshot.activeRuntimeProfile ? 'active' : '',
-      profile.id === snapshot.selectedRuntimeProfile ? 'default' : '',
-    ].filter(Boolean).join(', ');
-    const stateText = states ? ` [${states}]` : '';
-    lines.push({
-      text: `${profile.id}${stateText}${starter}${created}`,
-      fg: profile.id === snapshot.selectedRuntimeProfile ? PALETTE.good : PALETTE.info,
-      bold: profile.id === snapshot.activeRuntimeProfile || profile.id === snapshot.selectedRuntimeProfile,
-    });
-    lines.push({ text: `  home: ${profile.homeDirectory}`, fg: PALETTE.muted });
-  }
-  if (snapshot.runtimeProfiles.length > 6) {
-    lines.push({ text: `${snapshot.runtimeProfiles.length - 6} more profile(s).`, fg: PALETTE.dim });
-  }
-  return lines;
-}
-
-function starterTemplateLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
-  const lines: ContextLine[] = [
-    { text: 'Starter Templates', fg: PALETTE.title, bold: true },
-  ];
-  for (const template of snapshot.runtimeStarterTemplates.slice(0, 6)) {
-    const origin = template.source === 'local' ? 'Local' : formatAgentRecordSource(template.source);
-    lines.push({
-      text: `${template.id}: ${template.name} [${origin}]`,
-      fg: template.source === 'local' ? PALETTE.good : PALETTE.info,
-      bold: template.id === 'research',
-    });
-    lines.push({
-      text: `  ${template.description} Persona ${template.personaName}; skills ${template.skillNames.join(', ')}; routines ${template.routineNames.join(', ')}.`,
-      fg: PALETTE.muted,
-    });
-  }
-  if (snapshot.runtimeStarterTemplates.length > 6) {
-    lines.push({ text: `${snapshot.runtimeStarterTemplates.length - 6} more starter template(s).`, fg: PALETTE.dim });
-  }
-  return lines;
-}
-
 function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   if (!snapshot) return [{ text: 'Runtime context is not loaded yet.', fg: PALETTE.warn }];
   const base: ContextLine[] = [];
@@ -346,175 +292,89 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'artifacts') {
     const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;
     base.push(
-      { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
-      { text: `Agent Knowledge route: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
-      { text: `Media providers: ${mediaReady}/${snapshot.mediaProviderCount} ready; generation-capable ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
-      { text: 'Use this area for concrete files and generated output: attach images, export transcripts, ingest reviewed sources, inspect source records, and generate media.', fg: PALETTE.good },
-      { text: 'Agent Knowledge ingest writes only to the isolated Agent segment. Default knowledge and non-Agent routes are not fallback storage.', fg: PALETTE.warn },
-      { text: 'Generated media is stored as artifacts and referenced by id; the TUI should not print inline base64.', fg: PALETTE.muted },
-      { text: `Workspace path: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
+      { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
+      { text: `Media: ${mediaReady}/${snapshot.mediaProviderCount} ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
+      { text: 'Files: attach, export, inspect, ingest reviewed sources, or generate media.', fg: PALETTE.good },
+      { text: 'Knowledge ingest and media generation require explicit actions.', fg: PALETTE.warn },
     );
   } else if (category.id === 'channels') {
     const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
     const readyCount = snapshot.channels.filter((channel) => channel.ready).length;
     const configuredDefaults = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
-    const readyChannels = snapshot.channels.filter((channel) => channel.ready).map((channel) => channel.label);
     const needsTarget = snapshot.channels.filter((channel) => channel.setupState === 'needs-target');
     const needsConfig = snapshot.channels.filter((channel) => channel.setupState === 'needs-config');
     const nextAttentionChannel = needsConfig[0] ?? needsTarget[0] ?? snapshot.channels.find((channel) => !channel.enabled);
-    const disabledChannels = snapshot.channels.filter((channel) => !channel.enabled).map((channel) => channel.label);
-    const disabledPreview = disabledChannels.slice(0, 6).join(', ');
-    const disabledSuffix = disabledChannels.length > 6 ? `, +${disabledChannels.length - 6} more` : '';
-    const orderedChannels = [
-      ...snapshot.channels.filter((channel) => channel.enabled),
-      ...snapshot.channels.filter((channel) => !channel.enabled),
-    ].slice(0, 3);
     base.push(
-      { text: `GoodVibes API: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
+      { text: `API: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
       companionAccessLine(snapshot),
-      { text: `Readiness: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} default target(s) configured.`, fg: PALETTE.info },
-      { text: 'Setup path: pair companion -> inspect readiness -> review accounts/policies/status -> fix one channel -> add explicit notification target if needed.', fg: PALETTE.good },
-      { text: `Next channel action: ${nextAttentionChannel ? `${nextAttentionChannel.label} - ${nextAttentionChannel.nextStep}` : 'All enabled channels are ready; keep delivery explicit and review policies before sending.'}`, fg: nextAttentionChannel ? PALETTE.warn : PALETTE.good },
-      { text: `Ready channels: ${readyChannels.join(', ') || 'none'}.`, fg: readyChannels.length > 0 ? PALETTE.good : PALETTE.warn },
-      { text: `Needs default target: ${needsTarget.map((channel) => `${channel.label} -> ${channel.defaultTargetKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsTarget.length > 0 ? PALETTE.warn : PALETTE.muted },
-      { text: `Needs config: ${needsConfig.map((channel) => `${channel.label} -> ${channel.missingRequiredKeys.join('|')}`).join(', ') || 'none'}.`, fg: needsConfig.length > 0 ? PALETTE.warn : PALETTE.muted },
-      { text: `Disabled channels: ${disabledPreview || 'none'}${disabledSuffix}.`, fg: PALETTE.dim },
-      { text: 'Safety: no secret values; sends and public exposure require explicit user action and Agent policy.', fg: PALETTE.warn },
+      { text: `Channels: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} target(s).`, fg: PALETTE.info },
+      { text: `Next: ${nextAttentionChannel ? `${nextAttentionChannel.label} - ${compactText(nextAttentionChannel.nextStep)}` : 'All enabled channels ready.'}`, fg: nextAttentionChannel ? PALETTE.warn : PALETTE.good },
+      { text: 'Safety: secrets hidden; sends require explicit action.', fg: PALETTE.warn },
     );
-    for (const channel of orderedChannels) {
-      const ready = channel.ready ? 'ready' : `${channel.missingConfigCount} missing`;
-      base.push({
-        text: `${channel.label}: ${channel.setupState}; ${ready}; target ${channel.defaultTarget}; delivery ${channel.delivery}; risk ${channel.risk}.`,
-        fg: channel.ready ? PALETTE.good : channel.enabled ? PALETTE.warn : PALETTE.dim,
-      });
-    }
   } else if (category.id === 'knowledge') {
     base.push(
-      { text: `Route family: ${snapshot.knowledgeRoute}/{status,ask,search}`, fg: PALETTE.info },
-      { text: `Isolation: ${snapshot.knowledgeIsolation}; no default knowledge or non-Agent fallback`, fg: PALETTE.good },
-      { text: 'Ingest: URL, URL-list, and bookmark imports require explicit --yes and write only to Agent Knowledge.', fg: PALETTE.info },
-      { text: 'Review: queue, issues, candidates, reports, reindex, and consolidation stay inside the Agent segment.', fg: PALETTE.muted },
-      { text: 'Agent-owned content appears here only after explicit Agent knowledge ingestion.', fg: PALETTE.muted },
+      { text: `Route: ${snapshot.knowledgeRoute}; isolation ${snapshot.knowledgeIsolation}.`, fg: PALETTE.info },
+      { text: 'Ask/search, ingest, review, reindex, and reports stay Agent-owned.', fg: PALETTE.good },
+      { text: 'Ingest requires explicit confirmation.', fg: PALETTE.warn },
     );
   } else if (category.id === 'research') {
     base.push(
-      { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
-      { text: `Agent Knowledge route: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
-      { text: `Browser tools: ${snapshot.voiceMediaReadiness.browserToolState}; public base URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
-      { text: snapshot.voiceMediaReadiness.browserToolNextStep, fg: PALETTE.muted },
-      { text: 'Research requests are submitted to the main conversation. Agent may use connected read-only web tools when the user asks.', fg: PALETTE.good },
-      { text: 'URL references and web research do not ingest into Agent Knowledge. Ingestion is a separate confirmed Agent Knowledge action.', fg: PALETTE.warn },
-      { text: 'Use Agent Knowledge ask/search first for known source-backed context; use web research for current or external sources.', fg: PALETTE.info },
-      { text: 'External sends, browser-side effects, package installs, and connected-host mutations are outside this read-only research lane.', fg: PALETTE.warn },
+      { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
+      { text: `Browser: ${snapshot.voiceMediaReadiness.browserToolState}; public URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: 'Research is read-only. Knowledge ingest is a separate confirmed action.', fg: PALETTE.good },
+      { text: compactText(snapshot.voiceMediaReadiness.browserToolNextStep), fg: PALETTE.muted },
     );
   } else if (category.id === 'tools') {
     base.push(
       { text: `MCP servers: ${snapshot.mcpConnectedServerCount}/${snapshot.mcpServerCount} connected; quarantined ${snapshot.mcpQuarantinedServerCount}; allow-all ${snapshot.mcpAllowAllServerCount}.`, fg: snapshot.mcpQuarantinedServerCount > 0 || snapshot.mcpAllowAllServerCount > 0 ? PALETTE.warn : PALETTE.info },
-      { text: 'Open MCP workspace for live server status, tool inventory, config paths, and confirmed add/remove/reload actions.', fg: PALETTE.info },
-      { text: 'Add/update requires typed confirmation and dispatches through the TUI command router.', fg: PALETTE.good },
-      { text: 'Trust changes remain explicit; allow-all is kept behind the settings workspace.', fg: PALETTE.warn },
-      { text: 'Useful first actions: /mcp review, /mcp tools, /mcp config, and Add MCP server.', fg: PALETTE.muted },
-      { text: 'Normal assistant chat can use tools serially when policy allows; onboarding does not start hidden tool work.', fg: PALETTE.muted },
+      { text: 'Add/update/reload and trust changes require confirmation.', fg: PALETTE.good },
+      { text: 'Start: /mcp review, /mcp tools, /mcp config, Add MCP server.', fg: PALETTE.muted },
     );
   } else if (category.id === 'voice-media') {
     const readiness = snapshot.voiceMediaReadiness;
-    const voiceRows = readiness.voiceProviders.slice(0, 6);
-    const mediaRows = readiness.mediaProviders.slice(0, 6);
     base.push(
-      { text: `Voice providers: ${snapshot.voiceProviderCount}; streaming TTS: ${snapshot.voiceStreamingProviderCount}; STT: ${snapshot.voiceSttProviderCount}; realtime: ${snapshot.voiceRealtimeProviderCount}.`, fg: PALETTE.info },
-      { text: `Voice interaction: ${snapshot.voiceSurfaceEnabled ? 'enabled' : 'disabled'}; ready providers ${readiness.readyVoiceProviderCount}/${snapshot.voiceProviderCount}.`, fg: snapshot.voiceSurfaceEnabled ? PALETTE.warn : PALETTE.muted },
-      { text: `TTS config: provider ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}; response model ${snapshot.ttsResponseModel}.`, fg: PALETTE.info },
-      { text: `Selected TTS readiness: ${readiness.selectedTtsProviderLabel} -> ${readiness.selectedTtsProviderStatus}; voice ${readiness.ttsVoiceConfigured ? 'configured' : 'default'}; response route ${readiness.ttsResponseRouteConfigured ? 'configured' : 'chat route'}.`, fg: readiness.selectedTtsProviderStatus === 'ready' ? PALETTE.good : PALETTE.warn },
-      { text: `Media providers: ${snapshot.mediaProviderCount}; understanding: ${snapshot.mediaUnderstandingProviderCount}; generation: ${snapshot.mediaGenerationProviderCount}.`, fg: PALETTE.info },
-      { text: `Ready media providers: ${readiness.readyMediaProviderCount}/${snapshot.mediaProviderCount}.`, fg: readiness.readyMediaProviderCount > 0 ? PALETTE.good : PALETTE.warn },
-      { text: `Browser tools: ${readiness.browserToolState}; public base URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
-      { text: readiness.browserToolNextStep, fg: PALETTE.muted },
-      { text: 'Voice provider readiness', fg: PALETTE.title, bold: true },
-    );
-    for (const provider of voiceRows) {
-      const selected = provider.selected ? 'selected; ' : '';
-      const missing = provider.missingSecretKeyOptions.length > 0 ? `; needs ${provider.missingSecretKeyOptions.join('|')}` : '';
-      base.push({
-        text: `${provider.label}: ${selected}${provider.setupState}; ${provider.features.join(', ') || 'registered'}${missing}.`,
-        fg: provider.setupState === 'ready' ? PALETTE.good : provider.setupState === 'needs-secret' ? PALETTE.warn : PALETTE.muted,
-      });
-    }
-    if (snapshot.voiceProviderCount > voiceRows.length) base.push({ text: `${snapshot.voiceProviderCount - voiceRows.length} more voice provider(s).`, fg: PALETTE.dim });
-    base.push({ text: 'Media provider readiness', fg: PALETTE.title, bold: true });
-    for (const provider of mediaRows) {
-      const missing = provider.missingSecretKeyOptions.length > 0 ? `; needs ${provider.missingSecretKeyOptions.join('|')}` : '';
-      base.push({
-        text: `${provider.label}: ${provider.setupState}; ${provider.features.join(', ') || 'registered'}${missing}.`,
-        fg: provider.setupState === 'ready' ? PALETTE.good : provider.setupState === 'needs-secret' ? PALETTE.warn : PALETTE.muted,
-      });
-    }
-    if (snapshot.mediaProviderCount > mediaRows.length) base.push({ text: `${snapshot.mediaProviderCount - mediaRows.length} more media provider(s).`, fg: PALETTE.dim });
-    for (const step of readiness.nextSteps.slice(0, 4)) base.push({ text: `Next: ${step}`, fg: PALETTE.info });
-    base.push(
-      { text: 'No secret values are rendered. Voice, browser, and generated media side effects require explicit user action.', fg: PALETTE.warn },
-      { text: 'Image input uses prompt attachments; media generation/provider setup stays behind explicit commands and configured providers.', fg: PALETTE.muted },
+      { text: `Voice: ${readiness.readyVoiceProviderCount}/${snapshot.voiceProviderCount} ready; TTS ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}.`, fg: readiness.readyVoiceProviderCount > 0 ? PALETTE.good : PALETTE.warn },
+      { text: `Media: ${readiness.readyMediaProviderCount}/${snapshot.mediaProviderCount} ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: readiness.readyMediaProviderCount > 0 ? PALETTE.good : PALETTE.warn },
+      { text: `Browser: ${readiness.browserToolState}; public URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: readiness.nextSteps[0] ? `Next: ${compactText(readiness.nextSteps[0])}` : 'Next: voice/media setup is ready.', fg: readiness.nextSteps.length > 0 ? PALETTE.info : PALETTE.good },
+      { text: 'Secrets hidden; voice, browser, and media side effects require explicit action.', fg: PALETTE.warn },
     );
   } else if (category.id === 'profiles') {
     const defaultProfile = snapshot.selectedRuntimeProfile
       ? `${snapshot.selectedRuntimeProfile}${snapshot.selectedRuntimeProfileExists ? '' : ' (missing)'}`
       : '(base Agent home)';
     base.push(
-      { text: `Active Agent profile: ${snapshot.activeRuntimeProfile}`, fg: PALETTE.info },
-      { text: `Default for next launch: ${defaultProfile}`, fg: snapshot.selectedRuntimeProfileExists || !snapshot.selectedRuntimeProfile ? PALETTE.info : PALETTE.warn },
-      { text: `Agent profiles under this home: ${snapshot.runtimeProfileCount}`, fg: PALETTE.info },
-      { text: `Starter templates: ${snapshot.runtimeStarterTemplateCount}; local custom: ${snapshot.localStarterTemplateCount}`, fg: PALETTE.info },
-      { text: `Starter ids: ${snapshot.runtimeStarterTemplates.map((template) => template.id).join(', ') || 'none'}`, fg: PALETTE.info },
-      { text: 'Starter Templates', fg: PALETTE.title, bold: true },
-      { text: `Agent profile root: ${snapshot.runtimeProfileRoot}`, fg: PALETTE.muted },
-      { text: '' },
-      ...profileLines(snapshot),
-      { text: '' },
-      ...starterTemplateLines(snapshot),
-      { text: '' },
-      { text: 'Named Agent profiles isolate local config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
-      { text: 'Starter authoring: browse, export, edit, import, and create Agent profiles from inside this workspace.', fg: PALETTE.info },
-      { text: 'The connected GoodVibes host stays shared unless that host is configured separately.', fg: PALETTE.warn },
-      { text: 'Portable bundles require explicit export/import commands with real paths and --yes.', fg: PALETTE.muted },
+      { text: `Profiles: active ${snapshot.activeRuntimeProfile}; default ${defaultProfile}.`, fg: snapshot.selectedRuntimeProfileExists || !snapshot.selectedRuntimeProfile ? PALETTE.info : PALETTE.warn },
+      { text: `Local profiles: ${snapshot.runtimeProfileCount}; starters ${snapshot.runtimeStarterTemplateCount}; custom ${snapshot.localStarterTemplateCount}.`, fg: PALETTE.info },
+      { text: `Starter ids: ${truncateDisplay(snapshot.runtimeStarterTemplates.map((template) => template.id).join(', ') || 'none', 96, '...')}`, fg: PALETTE.muted },
+      { text: 'Profiles isolate local Agent config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
     );
   } else if (category.id === 'memory') {
     base.push(
-      { text: `Session memories: ${snapshot.sessionMemoryCount}`, fg: PALETTE.info },
-      { text: `Agent memory: ${snapshot.localMemoryCount}; prompt-active: ${snapshot.localMemoryPromptActiveCount}; review queue: ${snapshot.localMemoryReviewQueueCount}`, fg: PALETTE.info },
-      { text: `Scratchpad notes: ${snapshot.localNoteCount}; review queue: ${snapshot.localNoteReviewQueueCount}`, fg: PALETTE.info },
-      { text: `Local routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
-      { text: `Local skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}; bundles: ${snapshot.localSkillBundleCount}; active skills: ${snapshot.activeSkillCount}`, fg: PALETTE.info },
-      { text: `Local personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
-      { text: 'Durable memory, scratchpad notes, routines, skills, and personas remain Agent-local until shared registry contracts exist.', fg: PALETTE.good },
-      { text: 'Secrets are rejected/redacted; store secret references instead of secret values.', fg: PALETTE.warn },
-      { text: '' },
-      ...localLibraryLines('Agent Memory', snapshot.localMemories, 'No Agent memory yet. Create one here with Create memory.', workspace.selectedLocalLibraryItem('memory')?.id ?? null),
+      { text: `Memory: ${snapshot.localMemoryCount}; prompt ${snapshot.localMemoryPromptActiveCount}; queue ${snapshot.localMemoryReviewQueueCount}; session ${snapshot.sessionMemoryCount}.`, fg: PALETTE.info },
+      { text: `Notes: ${snapshot.localNoteCount}; skills ${snapshot.localSkillCount}/${snapshot.enabledSkillCount}; routines ${snapshot.localRoutineCount}/${snapshot.enabledRoutineCount}; personas ${snapshot.localPersonaCount}.`, fg: PALETTE.info },
+      { text: `Active persona: ${snapshot.activePersonaName}.`, fg: PALETTE.info },
+      ...compactLocalLibraryLines('Agent Memory', snapshot.localMemories, 'Create one with Create memory.', workspace.selectedLocalLibraryItem('memory')?.id ?? null),
+      { text: 'Secrets are rejected or redacted; use secret references.', fg: PALETTE.warn },
     );
   } else if (category.id === 'notes') {
     base.push(
       { text: `Scratchpad notes: ${snapshot.localNoteCount}; review queue: ${snapshot.localNoteReviewQueueCount}`, fg: PALETTE.info },
-      { text: 'Notes are Agent-local working context for source triage, temporary decisions, and operator handoff.', fg: PALETTE.good },
-      { text: 'Notes do not become memory and are not ingested into Agent Knowledge unless the user takes a separate explicit action.', fg: PALETTE.warn },
-      { text: 'Use reviewed notes to prefill durable memory, skills, routines, or personas, or to decide that a reviewed source deserves Agent Knowledge ingest.', fg: PALETTE.muted },
-      { text: '' },
-      ...localLibraryLines('Scratchpad Notes', snapshot.localNotes, 'No local notes yet. Create one here with Create note.', workspace.selectedLocalLibraryItem('note')?.id ?? null),
+      ...compactLocalLibraryLines('Scratchpad Notes', snapshot.localNotes, 'Create one with Create note.', workspace.selectedLocalLibraryItem('note')?.id ?? null),
+      { text: 'Notes stay local unless promoted by explicit action.', fg: PALETTE.warn },
     );
   } else if (category.id === 'personas') {
     base.push(
       { text: `Personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
-      { text: 'Personas are local behavior profiles for the serial main-conversation assistant, not separate Agent jobs.', fg: PALETTE.good },
-      { text: 'Use them for tone, role, domain constraints, tool posture, and repeatable operating preferences.', fg: PALETTE.muted },
-      { text: '' },
-      ...localLibraryLines('Persona Library', snapshot.localPersonas, 'No local personas yet. Create one here with Create persona.', workspace.selectedLocalLibraryItem('persona')?.id ?? null),
+      ...compactLocalLibraryLines('Persona Library', snapshot.localPersonas, 'Create one with Create persona.', workspace.selectedLocalLibraryItem('persona')?.id ?? null),
+      { text: 'Personas shape the serial main-conversation assistant.', fg: PALETTE.good },
     );
   } else if (category.id === 'skills') {
     base.push(
       { text: `Skills: ${snapshot.localSkillCount}; enabled: ${snapshot.enabledSkillCount}; bundles: ${snapshot.localSkillBundleCount}; enabled bundles: ${snapshot.enabledSkillBundleCount}; active skills: ${snapshot.activeSkillCount}`, fg: PALETTE.info },
-      { text: 'Skills are reusable local procedures the assistant can apply from the main conversation.', fg: PALETTE.good },
-      { text: 'Enabled skills and enabled bundles are injected as operating guidance; secret-looking content is rejected.', fg: PALETTE.warn },
-      { text: '' },
-      ...localLibraryLines('Skill Library', snapshot.localSkills, 'No local skills yet. Create one here with Create skill.', workspace.selectedLocalLibraryItem('skill')?.id ?? null),
-      { text: '' },
-      ...localLibraryLines('Skill Bundles', snapshot.localSkillBundles, 'No local skill bundles yet. Use Skill bundles and Create bundle after creating skills.', null),
+      ...compactLocalLibraryLines('Skill Library', snapshot.localSkills, 'Create one with Create skill.', workspace.selectedLocalLibraryItem('skill')?.id ?? null),
+      ...compactLocalLibraryLines('Skill Bundles', snapshot.localSkillBundles, 'Create one after adding skills.', null),
+      { text: 'Enabled skills/bundles become operating guidance; secrets are rejected.', fg: PALETTE.warn },
     );
   } else if (category.id === 'routines') {
     const ready = readyRoutineItems(snapshot);
@@ -523,42 +383,34 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `Routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
       { text: `Schedule-ready routines: ${ready.length}; setup gaps: ${needsSetup.length}; review needed: ${needsReview.length}`, fg: needsSetup.length > 0 || needsReview.length > 0 ? PALETTE.warn : PALETTE.good },
-      { text: 'Routines are repeatable main-conversation workflows. Starting one does not create hidden jobs.', fg: PALETTE.good },
-      { text: 'Scheduling a reviewed routine is explicit and requires a confirmed schedule command.', fg: PALETTE.warn },
       routineNextActionLine(snapshot),
-      ...routineScheduleReceiptLines(snapshot),
-      { text: '' },
-      ...localLibraryLines('Routine Library', snapshot.localRoutines, 'No local routines yet. Create one here with Create routine.', workspace.selectedLocalLibraryItem('routine')?.id ?? null),
+      compactRoutineReceiptLine(snapshot),
+      ...compactLocalLibraryLines('Routine Library', snapshot.localRoutines, 'Create one with Create routine.', workspace.selectedLocalLibraryItem('routine')?.id ?? null),
+      { text: 'Scheduling requires a confirmed action.', fg: PALETTE.warn },
     );
   } else if (category.id === 'work') {
     base.push(
-      { text: 'Work plan and approvals are read or explicitly confirmed through public operator routes.', fg: PALETTE.info },
-      { text: 'This workspace does not approve, deny, cancel, or mutate requests by selection alone.', fg: PALETTE.good },
-      { text: 'Approve, deny, and cancel forms require an approval id and typed confirmation.', fg: PALETTE.warn },
+      { text: 'Work plans and approvals are read or explicitly confirmed.', fg: PALETTE.info },
+      { text: 'Selection alone does not approve, deny, cancel, or mutate requests.', fg: PALETTE.good },
+      { text: 'Approval actions require id plus typed confirmation.', fg: PALETTE.warn },
     );
   } else if (category.id === 'automation') {
     const ready = readyRoutineItems(snapshot);
     base.push(
-      { text: 'Automation and schedules default to read-only observability; side effects require confirmed forms.', fg: PALETTE.info },
-      { text: 'Confirmed reminders and routine promotion use connected schedules only.', fg: PALETTE.info },
-      { text: 'Local scheduler mutation controls remain blocked; job/run/schedule controls go through the connected host.', fg: PALETTE.warn },
-      { text: 'Reminder path: Create reminder -> choose at/every/cron -> optional delivery target -> confirm yes.', fg: PALETTE.good },
-      { text: 'Operator path: choose job/run/schedule action -> enter id -> type yes -> dispatch once.', fg: PALETTE.good },
-      { text: 'Routine path: Routines -> resolve setup -> review selected -> Promote routine -> Reconcile schedules.', fg: PALETTE.good },
-      { text: `Schedule-ready routines: ${ready.length}; local promotion receipts: ${snapshot.routineScheduleReceiptCount}`, fg: ready.length > 0 ? PALETTE.good : PALETTE.warn },
+      { text: `Automation: ${ready.length} schedule-ready routine(s); receipts ${snapshot.routineScheduleReceiptCount}.`, fg: ready.length > 0 ? PALETTE.good : PALETTE.warn },
       automationNextActionLine(snapshot),
-      ...routineScheduleReceiptLines(snapshot),
+      compactRoutineReceiptLine(snapshot),
+      { text: 'Reminders and routine promotion require confirmation.', fg: PALETTE.warn },
     );
   } else if (category.id === 'delegate') {
     base.push(
-      { text: 'Build/fix/review work is handed to GoodVibes TUI/shared-session contracts.', fg: PALETTE.info },
+      { text: 'Build/fix/review work is handed to GoodVibes TUI.', fg: PALETTE.info },
       { text: `Delegated review policy: ${snapshot.delegatedReviewPolicy}`, fg: PALETTE.warn },
-      { text: 'Agent does not create coding-role Agent jobs.', fg: PALETTE.good },
+      { text: 'No coding-role Agent jobs are created here.', fg: PALETTE.good },
     );
   }
   if (snapshot.warnings.length > 0) {
-    base.push({ text: '', dim: true }, { text: 'Warnings', fg: PALETTE.warn, bold: true });
-    for (const warning of snapshot.warnings) base.push({ text: warning, fg: PALETTE.warn });
+    base.push({ text: `Warnings: ${snapshot.warnings.map((warning) => compactText(warning, 60)).join('; ')}`, fg: PALETTE.warn });
   }
   return base;
 }
@@ -567,30 +419,23 @@ function editorContextLines(editor: AgentWorkspaceLocalEditor): ContextLine[] {
   const selected = editor.fields[editor.selectedFieldIndex];
   const lines: ContextLine[] = [
     { text: editor.title, fg: PALETTE.title, bold: true },
-    { text: editor.message, fg: editor.message.includes('required') || editor.message.includes('cannot') || editor.message.includes('Cannot') ? PALETTE.warn : PALETTE.info },
-    { text: 'Enter advances fields and saves from the final field. Ctrl-J adds a line inside multiline fields. Esc cancels without writing.', fg: PALETTE.muted },
+    { text: compactText(editor.message), fg: editor.message.includes('required') || editor.message.includes('cannot') || editor.message.includes('Cannot') ? PALETTE.warn : PALETTE.info },
+    { text: 'Enter next/save; Ctrl-J newline; Esc cancel.', fg: PALETTE.muted },
   ];
   if (selected) {
     lines.push(
-      { text: '' },
       { text: `Editing: ${selected.label}${selected.required ? ' (required)' : ''}`, fg: PALETTE.title, bold: true },
-      { text: selected.hint, fg: PALETTE.muted },
+      { text: compactText(selected.hint), fg: PALETTE.muted },
     );
   }
   return lines;
 }
 
 function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCategory, action: AgentWorkspaceAction | null, width: number): WorkspaceRow[] {
-  const compactPrimarySurface = category.id === 'home' || category.id === 'setup';
   const lines: ContextLine[] = [
     { text: category.label, fg: PALETTE.title, bold: true },
     { text: category.summary, fg: PALETTE.subtitle },
-    ...(compactPrimarySurface ? [] : [
-      { text: '' },
-      { text: category.detail, fg: PALETTE.text },
-    ] satisfies ContextLine[]),
     ...(workspace.actionSearchActive ? [
-      { text: '' },
       { text: 'Action Search', fg: PALETTE.title, bold: true },
       {
         text: workspace.actionSearchQuery.length > 0
@@ -598,35 +443,25 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
           : 'Type to search every Agent workspace action.',
         fg: workspace.actionSearchQuery.length > 0 && workspace.actionSearchResults.length === 0 ? PALETTE.warn : PALETTE.info,
       },
-      { text: 'Enter opens the selected result. Esc clears search and returns to normal workspace navigation.', fg: PALETTE.muted },
-      { text: '' },
+      { text: 'Enter opens; Esc clears.', fg: PALETTE.muted },
     ] satisfies ContextLine[] : []),
     ...(workspace.localEditor ? editorContextLines(workspace.localEditor) : []),
-    ...(workspace.localEditor ? [{ text: '' }] : []),
   ];
 
   const selectedActionLines: ContextLine[] = action
     ? [
-      { text: '' },
       { text: `Selected: ${action.label}`, fg: PALETTE.title, bold: true },
-      { text: action.detail, fg: PALETTE.text },
-      { text: `Command: ${actionCommand(action)}`, fg: action.kind === 'command' ? PALETTE.info : PALETTE.muted },
-      { text: `Safety: ${action.safety}`, fg: safetyColor(action) },
+      actionMetaLine(action),
     ]
     : [];
-  const snapshotContextLines: ContextLine[] = [
-    { text: '' },
-    ...snapshotLines(workspace, category, workspace.runtimeSnapshot),
-  ];
-  if (compactPrimarySurface) lines.push(...selectedActionLines, ...snapshotContextLines);
-  else lines.push(...snapshotContextLines, ...selectedActionLines);
+  const snapshotContextLines = snapshotLines(workspace, category, workspace.runtimeSnapshot);
+  lines.push(...selectedActionLines, ...snapshotContextLines);
 
   if (workspace.lastActionResult) {
     lines.push(
-      { text: '' },
       { text: 'Action Result', fg: PALETTE.title, bold: true },
       { text: workspace.lastActionResult.title, fg: actionResultColor(workspace.lastActionResult), bold: true },
-      { text: workspace.lastActionResult.detail, fg: PALETTE.text },
+      { text: compactText(workspace.lastActionResult.detail), fg: PALETTE.text },
     );
     if (workspace.lastActionResult.command) {
       lines.push({ text: `Command: ${workspace.lastActionResult.command}`, fg: PALETTE.muted });
@@ -762,12 +597,11 @@ function footerText(workspace: AgentWorkspace): string {
 export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, height: number): Line[] {
   const category = workspace.selectedActionCategory;
   const action = workspace.selectedAction;
-  const compactPrimarySurface = category.id === 'home' || category.id === 'setup';
   const layoutOptions = {
     width,
     height,
     leftWidth: width < 90 ? undefined : 30,
-    contextRatio: compactPrimarySurface ? 0.4 : 0.62,
+    contextRatio: 0.4,
     minContextRows: 10,
   };
   const metrics = getFullscreenWorkspaceMetrics(layoutOptions);

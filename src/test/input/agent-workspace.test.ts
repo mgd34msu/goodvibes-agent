@@ -1234,7 +1234,7 @@ describe('AgentWorkspace', () => {
 
     expect(workspace.runtimeSnapshot?.localMemoryCount).toBe(1);
     expect(workspace.runtimeSnapshot?.localMemoryPromptActiveCount).toBe(1);
-    expect(output).toContain('Agent memory: 1; prompt-active: 1; review queue: 0');
+    expect(output).toContain('Memory: 1; prompt 1; queue 0; session 0.');
     expect(output).toContain('Never fallback to non-Agent knowledge segments');
     expect(output).toContain('project/constraint');
     expect(output).not.toContain('default knowledge');
