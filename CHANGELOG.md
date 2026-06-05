@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.1.0 - 2026-06-05
+
+- Add a final onboarding Finish category with Apply & close completion that saves the user onboarding marker and keeps future normal launches in the main conversation.
+
 ## 1.0.44 - 2026-06-05
 
 - Compact Agent workspace top-pane copy across every category so the fullscreen onboarding surface keeps settings and actions visible.
