@@ -6,7 +6,7 @@ import {
   stableWindow,
   WORKSPACE_PALETTE as PALETTE,
   type WorkspaceRow,
-} from '../fullscreen-workspace.ts';
+} from './onboarding-workspace.ts';
 import { GLYPHS } from '../ui-primitives.ts';
 import {
   type OnboardingWizardController,
