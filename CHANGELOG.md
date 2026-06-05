@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.39 - 2026-06-04
+
+- Removed the body-scoped onboarding overlay fallback so onboarding can only render through the shell fullscreen composite.
+- Added regression coverage for the fullscreen onboarding composite and nested model workspace composite.
+
 ## 1.0.38 - 2026-06-04
 
 - Onboarding now uses the shared fullscreen workspace surface so it owns the full terminal height, including the composer area.
