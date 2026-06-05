@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.44 - 2026-06-05
+
+- Compact Agent workspace top-pane copy across every category so the fullscreen onboarding surface keeps settings and actions visible.
+
 ## 1.0.43 - 2026-06-05
 
 - Keep the Agent Home and Setup workspace top pane compact so setup actions stay visible.
