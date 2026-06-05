@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { buildVerificationLedger } from './verification-ledger.ts';
 import { findAgentKnowledgeScopeContamination } from '../cli/agent-knowledge-runtime.ts';
+import { normalizeAgentKnowledgeJsonText } from '../agent/knowledge-scope-alias.ts';
 
 const AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS = [
   ['home', ' assistant'].join(''),
@@ -12,7 +13,7 @@ const AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS = [
 const AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_PATTERNS = [
   {
     label: 'default knowledge scope id',
-    pattern: /["']?(?:knowledge[-_\s]*space[-_\s]*id|knowledgespaceid|space[-_\s]*id|spaceid|spaceId|knowledgeSpaceId)["']?\s*[:=]\s*["']?default["']?/i,
+    pattern: /["']?(?:knowledge[-_\s]*space[-_\s]*id|knowledgespaceid|space[-_\s]*id|spaceid|spaceId|knowledgeSpaceId|namespace)["']?\s*[:=]\s*["']?default["']?/i,
   },
 ] as const;
 const AGENT_KNOWLEDGE_READ_ROUTE_CHECKS = [
@@ -390,17 +391,18 @@ function countStatuses(checks: readonly LiveVerificationCheck[]): Record<LiveVer
 }
 
 export function findAgentKnowledgeResponseContamination(body: string): string | null {
-  const lower = body.toLowerCase();
+  const normalizedBody = normalizeAgentKnowledgeJsonText(body);
+  const lower = normalizedBody.toLowerCase();
   for (const marker of AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_MARKERS) {
     if (lower.includes(marker)) return marker;
   }
   for (const { label, pattern } of AGENT_KNOWLEDGE_FORBIDDEN_RESPONSE_PATTERNS) {
-    if (pattern.test(body)) return label;
+    if (pattern.test(normalizedBody)) return label;
   }
   try {
-    return findAgentKnowledgeScopeContamination(JSON.parse(body) as unknown);
+    return findAgentKnowledgeScopeContamination(JSON.parse(normalizedBody) as unknown);
   } catch {
-    return findAgentKnowledgeScopeContamination(body);
+    return findAgentKnowledgeScopeContamination(normalizedBody);
   }
 }
 

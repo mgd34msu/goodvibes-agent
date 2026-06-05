@@ -130,7 +130,7 @@ Use Agent Workspace -> Knowledge for source-backed Agent Knowledge. The valid co
 /api/goodvibes-agent/knowledge/*
 ```
 
-Agent commands fail closed if the route is unavailable or a successful-looking response exposes default-scope metadata.
+Agent commands fail closed if the route is unavailable or a successful-looking response carries non-Agent contamination. Parseable public Agent-route scope aliases are normalized before rendering.
 
 The Knowledge workspace also exposes route-backed and command-backed workflows for issue review, prompt packet previews, context-selection explain output, consolidation, and reindex. Read-only ask/search/list/get/map/connector/packet/explain paths do not require mutation confirmation. Ingest, review-issue, consolidation, and reindex paths require explicit confirmation.
 

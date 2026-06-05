@@ -123,8 +123,8 @@
         "capabilityCoverage": "Covers isolated Agent Knowledge ask, search, source review, connectors, ingest, reindex, consolidation, graph operations, and status without default knowledge fallback.",
         "userAccess": "The user can operate Agent Knowledge from the workspace, /knowledge, and goodvibes-agent knowledge CLI mirrors.",
         "modelAccess": "agent_knowledge and agent_knowledge_ingest expose status, ask/search, source/node/issue lists, item lookup, map summary, connector inspection, and ingest; agent_harness mode:\"workspace_actions\", mode:\"workspace_action\", mode:\"run_workspace_action\", mode:\"commands\", mode:\"command\", mode:\"run_command\", mode:\"operator_methods\", mode:\"operator_method\", mode:\"tools\", and mode:\"tool\" expose review, packet/explain, consolidation, reindex, tool schemas, and route metadata to the model.",
-        "safetyBoundary": "Connected-host Knowledge traffic targets only /api/goodvibes-agent/knowledge/*, rejects non-Agent space-selection flags, and fails closed when successful responses expose default scope metadata or known non-Agent payload markers; local Knowledge service review/consolidation routes remain isolated to Agent Knowledge.",
-        "releaseEvidence": "Package-facing required text, architecture policy, readiness evidence, and live verification checks require isolated Knowledge status, ask, search, library, item, map, connector outcomes, and response-scope contamination detection."
+        "safetyBoundary": "Connected-host Knowledge traffic targets only /api/goodvibes-agent/knowledge/*, rejects non-Agent space-selection flags, normalizes parseable public Agent-route scope aliases, and fails closed on known non-Agent payload markers; local Knowledge service review/consolidation routes remain isolated to Agent Knowledge.",
+        "releaseEvidence": "Package-facing required text, architecture policy, readiness evidence, and live verification checks require isolated Knowledge status, ask, search, library, item, map, connector outcomes, Agent-route scope alias normalization, and response contamination detection."
       }
     },
     {
@@ -453,8 +453,8 @@
         "capabilityCoverage": "Covers Agent Knowledge handlers, ingestion, connectors, graph operations, refinement, jobs, schedules, ask, search, and status through isolated connected-host routes.",
         "userAccess": "The user can operate isolated Agent Knowledge from TUI and CLI without selecting or leaking into non-Agent knowledge spaces.",
         "modelAccess": "agent_knowledge, agent_knowledge_ingest, agent_harness mode:\"operator_methods\" and mode:\"operator_method\", and connected-host capability reports expose isolated Knowledge operation to the model.",
-        "safetyBoundary": "Only /api/goodvibes-agent/knowledge/* routes are allowed, and Agent rejects default or alternate knowledge space routing plus successful responses that carry default scope metadata.",
-        "releaseEvidence": "Readiness evidence cites connected-host evidence alias and Knowledge docs, with live verification requiring isolated status, ask, search, library, item, map, connector checks, and response-scope contamination detection."
+        "safetyBoundary": "Only /api/goodvibes-agent/knowledge/* routes are allowed. Agent rejects alternate knowledge space routing, normalizes parseable public Agent-route scope aliases, and fails closed on known non-Agent payload markers.",
+        "releaseEvidence": "Readiness evidence cites connected-host evidence alias and Knowledge docs, with live verification requiring isolated status, ask, search, library, item, map, connector checks, Agent-route scope alias normalization, and response contamination detection."
       }
     },
     {

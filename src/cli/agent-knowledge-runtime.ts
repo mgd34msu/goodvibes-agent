@@ -1,6 +1,7 @@
-import { createBrowserAgentSdk } from '@pellux/goodvibes-sdk/browser/agent';
+import { createBrowserAgentSdk, type BrowserAgentSdk } from '@pellux/goodvibes-sdk/browser/agent';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { VERSION } from '../version.ts';
+import { normalizeAgentKnowledgeScopeAliases } from '../agent/knowledge-scope-alias.ts';
 import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import type { ConnectedHostCallMethod } from './agent-knowledge-methods.ts';
 
@@ -106,18 +107,32 @@ export async function classifyKnowledgeError(error: unknown, connection: AgentKn
   return { ok: false, kind: 'connected_host_error', error: message, baseUrl: connection.baseUrl, route };
 }
 
-export function createAgentSdk(connection: AgentKnowledgeConnection) {
-  return createBrowserAgentSdk({
+export function normalizeAgentKnowledgeData<TData>(data: TData): TData {
+  return normalizeAgentKnowledgeScopeAliases(data);
+}
+
+export function createAgentSdk(connection: AgentKnowledgeConnection): BrowserAgentSdk {
+  const sdk = createBrowserAgentSdk({
     baseUrl: connection.baseUrl,
     authToken: connection.token,
   });
+  return {
+    ...sdk,
+    knowledge: {
+      ...sdk.knowledge,
+      ask: async (input) => normalizeAgentKnowledgeData(await sdk.knowledge.ask(input)),
+      search: async (input) => normalizeAgentKnowledgeData(await sdk.knowledge.search(input)),
+      status: async (input) => normalizeAgentKnowledgeData(await sdk.knowledge.status(input)),
+      map: async (input) => normalizeAgentKnowledgeData(await sdk.knowledge.map(input)),
+    },
+  };
 }
 
-const AGENT_KNOWLEDGE_SCOPE_KEYS = new Set(['spaceid', 'knowledgespaceid']);
+const AGENT_KNOWLEDGE_SCOPE_KEYS = new Set(['spaceid', 'knowledgespaceid', 'namespace']);
 const AGENT_KNOWLEDGE_SCOPE_TEXT_PATTERNS: readonly { readonly label: string; readonly pattern: RegExp }[] = [
   {
     label: 'default knowledge scope id',
-    pattern: /["']?(?:knowledge[-_\s]*space[-_\s]*id|knowledgespaceid|space[-_\s]*id|spaceid)["']?\s*[:=]\s*["']?default["']?/i,
+    pattern: /["']?(?:knowledge[-_\s]*space[-_\s]*id|knowledgespaceid|space[-_\s]*id|spaceid|namespace)["']?\s*[:=]\s*["']?default["']?/i,
   },
   { label: 'host assistant payload marker', pattern: /home\s*assistant/i },
   { label: 'host graph payload marker', pattern: /home\s*graph|homegraph/i },
@@ -189,9 +204,10 @@ export function validateAgentKnowledgeData<TData>(
   connection: AgentKnowledgeConnection,
   method: ConnectedHostCallMethod,
 ): AgentKnowledgeResult<TData> {
-  const contamination = findAgentKnowledgeScopeContamination(data);
+  const normalized = normalizeAgentKnowledgeData(data);
+  const contamination = findAgentKnowledgeScopeContamination(normalized);
   if (contamination) return agentKnowledgeScopeContaminationFailure(connection, method.route, contamination);
-  return { ok: true, kind: method.kind, route: method.route, data };
+  return { ok: true, kind: method.kind, route: method.route, data: normalized };
 }
 
 export async function postAgentKnowledgeJson<TData>(
@@ -220,7 +236,7 @@ export async function postAgentKnowledgeJson<TData>(
     const detail = isRecord(parsed) && typeof parsed.error === 'string' ? parsed.error : text;
     throw new Error(`HTTP ${response.status} ${response.statusText}${detail ? `: ${detail}` : ''}`);
   }
-  return parsed as TData;
+  return normalizeAgentKnowledgeData(parsed as TData);
 }
 
 function queryRoute(route: string, query: JsonRecord): string {
@@ -264,7 +280,7 @@ export async function getAgentKnowledgeJson<TData>(
     const detail = isRecord(parsed) && typeof parsed.error === 'string' ? parsed.error : text;
     throw new Error(`HTTP ${response.status} ${response.statusText}${detail ? `: ${detail}` : ''}`);
   }
-  return parsed as TData;
+  return normalizeAgentKnowledgeData(parsed as TData);
 }
 
 export function findDisallowedKnowledgeScopeFlag(args: readonly string[]): string | null {

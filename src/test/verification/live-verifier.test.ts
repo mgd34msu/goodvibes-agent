@@ -122,9 +122,10 @@ describe('live verification report', () => {
     expect(source).not.toContain('/api/knowledge/connectors');
   });
 
-  it('detects default-scope and non-Agent Agent Knowledge live responses', () => {
-    expect(findAgentKnowledgeResponseContamination('{"ok":true,"spaceId":"default"}')).toBe('default knowledge scope id');
-    expect(findAgentKnowledgeResponseContamination('{"metadata":{"knowledgeSpaceId":"default"}}')).toBe('default knowledge scope id');
+  it('normalizes Agent Knowledge JSON scope aliases and still detects non-Agent live responses', () => {
+    expect(findAgentKnowledgeResponseContamination('{"ok":true,"spaceId":"default"}')).toBeNull();
+    expect(findAgentKnowledgeResponseContamination('{"metadata":{"knowledgeSpaceId":"default","namespace":"default"}}')).toBeNull();
+    expect(findAgentKnowledgeResponseContamination('spaceId: default')).toBe('default knowledge scope id');
     expect(findAgentKnowledgeResponseContamination('{"node":{"kind":"homeGraphDevice"}}')).toBe('homegraph');
     expect(findAgentKnowledgeResponseContamination('{"ok":true,"spaceId":"goodvibes-agent:default"}')).toBeNull();
   });

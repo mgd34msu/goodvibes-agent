@@ -163,7 +163,7 @@ goodvibes-agent knowledge reindex --yes
 /knowledge consolidate light --yes
 ```
 
-Agent rejects route-selection flags that would target another knowledge space, including `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces`. Contaminated connected-host responses return `scope_contamination`.
+Agent rejects route-selection flags that would target another knowledge space, including `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces`. Parseable public Agent-route scope aliases are normalized; contaminated connected-host responses return `scope_contamination`.
 
 ## Approvals, Automation, And Schedules
 

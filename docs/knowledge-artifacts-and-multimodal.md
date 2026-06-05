@@ -43,7 +43,7 @@ If those routes are unavailable, Agent commands fail closed with a structured er
 
 The CLI and slash-command layers reject route-selection flags such as `--space`, `--knowledge-space`, `--knowledge-space-id`, and `--include-all-spaces` because those would violate the Agent product boundary.
 
-Successful route responses are validated before rendering. If a connected host response exposes default-scope metadata or carries known non-Agent payload markers, Agent returns a `scope_contamination` error instead of treating that payload as isolated Agent Knowledge.
+Successful route responses are validated before rendering. Parseable public Agent-route scope aliases are normalized. If a connected host response carries known non-Agent payload markers or unparseable default-scope text, Agent returns a `scope_contamination` error instead of treating that payload as isolated Agent Knowledge.
 
 Agent Knowledge writes are explicit-user-action paths. Slash commands that ingest, import, review issues, reindex, or run consolidation require `--yes`; ask/search/status/list/get/map/connector paths remain read-only.
 

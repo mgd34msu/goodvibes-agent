@@ -189,7 +189,7 @@ describe('agent_knowledge tool', () => {
     }
   });
 
-  test('fails closed when the isolated Agent Knowledge route returns default scope metadata', async () => {
+  test('normalizes default scope aliases returned by isolated Agent Knowledge routes', async () => {
     const paths = shellPaths();
     const tool = createAgentKnowledgeTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
@@ -210,10 +210,11 @@ describe('agent_knowledge tool', () => {
     try {
       const result = await tool.execute({ action: 'sources', limit: 2 });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('scope_contamination');
-      expect(result.error).toContain('knowledgeSpaceId=default');
-      expect(result.error).toContain('/api/goodvibes-agent/knowledge/sources');
+      expect(result.success).toBe(true);
+      if (!result.success) throw new Error(result.error);
+      expect(result.output).toContain('Agent Knowledge sources');
+      expect(result.output).toContain('Default source');
+      expect(result.output).not.toContain('scope_contamination');
       expect(requests.map((request) => request.url)).toEqual([
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/sources?limit=2',
       ]);

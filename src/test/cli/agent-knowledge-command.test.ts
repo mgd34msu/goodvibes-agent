@@ -771,7 +771,7 @@ describe('Agent Knowledge CLI route isolation', () => {
     }
   });
 
-  test('fails closed when an Agent Knowledge route returns default scope metadata', async () => {
+  test('normalizes Agent Knowledge default scope aliases on public Agent routes', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input, init) => {
@@ -811,17 +811,20 @@ describe('Agent Knowledge CLI route isolation', () => {
       ]));
       const parsed = JSON.parse(result.output) as unknown;
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(0);
       expect(requests.map((request) => request.url)).toEqual([
         'http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ask',
       ]);
       expect(requests.map((request) => request.url).filter((url) => url.includes('/api/knowledge/'))).toEqual([]);
       expect(parsed).toMatchObject({
-        ok: false,
-        kind: 'scope_contamination',
+        ok: true,
+        kind: 'agentKnowledge.ask',
         route: '/api/goodvibes-agent/knowledge/ask',
+        data: {
+          spaceId: 'goodvibes-agent:default',
+        },
       });
-      expect(result.output).toContain('spaceId=default');
+      expect(result.output).not.toContain('"spaceId": "default"');
     } finally {
       globalThis.fetch = originalFetch;
     }

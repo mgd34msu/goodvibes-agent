@@ -114,7 +114,7 @@ Agent Knowledge is its own product segment. Agent uses only:
 /api/goodvibes-agent/knowledge/*
 ```
 
-Agent does not fall back to default knowledge or other product-specific knowledge routes. Successful connected-host responses are checked for scope contamination before rendering.
+Agent does not fall back to default knowledge or other product-specific knowledge routes. Successful connected-host responses normalize public Agent-route scope aliases before checking for non-Agent contamination.
 
 The Knowledge workspace and model tools support status, ask/search, source/node/issue lists, item lookup, map review, connector inspection, URL/file/URL-list/bookmark/browser-history/connector ingest, issue review, prompt packet/explain previews, consolidation, review queue, and reindex.
 

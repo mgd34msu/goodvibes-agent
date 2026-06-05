@@ -47,7 +47,7 @@ Use public connected-host/operator routes only. For Agent Knowledge, the only va
 /api/goodvibes-agent/knowledge/*
 ```
 
-If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default knowledge, another product segment, or private connected-host files. If an Agent-specific route returns default scope metadata, treat that as contamination and fail the call.
+If an Agent-specific route is missing, fail closed or show guidance. Do not substitute the default knowledge, another product segment, or private connected-host files. Normalize parseable public Agent-route scope aliases before rendering, and fail the call when the response carries known non-Agent contamination.
 
 Harness and settings operations use the Agent-owned `agent_harness` tool. Generic settings/context mutators are not the model-facing Agent contract.
 

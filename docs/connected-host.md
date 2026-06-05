@@ -79,6 +79,6 @@ The model can inspect live connected-host readiness with `agent_harness` mode `c
 
 The model can inspect companion pairing posture with `agent_harness` mode `pairing_posture`, and inspect one pairing/mobile route with `pairing_route`. Those modes report the control-plane endpoint binding, pairing surface id, token presence/fingerprint, and route catalog without returning raw tokens or QR payloads. Pairing display, manual token display, companion connection, channel delivery, task, approval, provider/model, and attachment actions remain visible user flows.
 
-Agent Knowledge is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` only and must not fall back to default knowledge or other product-specific knowledge routes. Agent also rejects successful-looking responses that expose default scope metadata or known non-Agent payload markers.
+Agent Knowledge is its own product segment. Agent uses `/api/goodvibes-agent/knowledge/*` only and must not fall back to default knowledge or other product-specific knowledge routes. Agent normalizes public Agent-route scope aliases and rejects successful-looking responses that carry known non-Agent payload markers.
 
 Normal assistant chat uses companion chat. Build/fix/review work is delegated explicitly to GoodVibes TUI through public runtime/session contracts, and delegated review is requested only when explicitly asked for build/fix/review work.
