@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.37 - 2026-06-04
+
+- Onboarding setup now renders full-bleed across the terminal with no inset edge.
+- The Agent workspace rail now uses shared, meaningful section groups instead of one header per workspace.
+
 ## 1.0.36 - 2026-06-04
 
 - Workspace navigation now uses distinct category group names instead of repeated setup headings.
