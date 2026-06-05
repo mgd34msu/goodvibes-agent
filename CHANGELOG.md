@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.1.3 - 2026-06-05
+
+- Add telephony channel support through the updated Agent platform dependency.
+- Keep Agent Knowledge scope alias normalization inside Agent CLI, model tools, and live verification while preserving fail-closed non-Agent contamination checks.
+
 ## 1.1.2 - 2026-06-05
 
 - Remove the redundant Finish action so onboarding completion presents only Apply & close.
