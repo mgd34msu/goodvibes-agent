@@ -1,6 +1,6 @@
 import { TerminalBuffer } from './buffer.ts';
 import { DiffEngine } from './diff.ts';
-import { type Line, createEmptyCell, createStyledCell } from '../types/grid.ts';
+import { type Line, createEmptyCell, createEmptyLine, createStyledCell } from '../types/grid.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import type { SearchManager } from '../input/search.ts';
 import { allowTerminalWrite } from '../runtime/terminal-output-guard.ts';
@@ -249,6 +249,12 @@ export class Compositor {
         }
       }
     });
+
+    for (let i = viewport.length; i < vHeight; i += 1) {
+      const screenY = viewportStartY + i;
+      if (screenY >= height) break;
+      newBuffer.blitLine(screenY, createEmptyLine(width));
+    }
 
     // Draw separator on remaining viewport rows past content (when panel is active)
     if (hasPanel && panel!.separator) {

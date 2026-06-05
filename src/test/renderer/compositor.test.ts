@@ -105,6 +105,22 @@ describe('Compositor — no panel', () => {
     expect(cellAt(compositor, 0, 0)?.char).toBe('T');
     expect(cellAt(compositor, 0, HEIGHT - 1)?.char).toBe('B');
   });
+
+  test('clears stale footer rows when fullscreen viewport replaces the shell', () => {
+    const { compositor } = makeCompositor();
+    compositor.composite(makeBaseRequest());
+    expect(cellAt(compositor, 0, HEIGHT - 1)?.char).toBe('F');
+
+    compositor.composite(makeBaseRequest({
+      header: [],
+      viewport: [makeLine(WIDTH, 'O')],
+      footer: [],
+    }));
+
+    expect(cellAt(compositor, 0, 0)?.char).toBe('O');
+    expect(cellAt(compositor, 0, HEIGHT - 1)?.char).toBe(' ');
+    expect(cellAt(compositor, WIDTH - 1, HEIGHT - 1)?.char).toBe(' ');
+  });
 });
 
 describe('Compositor — with panel', () => {

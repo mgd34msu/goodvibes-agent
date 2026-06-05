@@ -87,7 +87,7 @@ describe('applyConversationOverlays onboarding shell', () => {
     expect(textLines.join('\n')).toContain('Onboarding Wizard');
     expect(textLines.join('\n')).not.toContain('fake prompt row');
     expect(textLines.join('\n')).not.toContain('visible search row');
-    expect(textLines.at(-1)).toContain('[Enter]');
+    expect(textLines.at(-2)).toContain('[Enter]');
   });
 
   test('lets the fullscreen model workspace own the viewport while nested from onboarding', () => {

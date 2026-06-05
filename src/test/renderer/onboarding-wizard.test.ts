@@ -127,16 +127,16 @@ describe('renderOnboardingWizard', () => {
 
     const textLines = linesToText(lines);
     const text = textLines.join('\n');
-    expect(textLines[0]?.startsWith('┌')).toBe(true);
-    expect(textLines[0]?.endsWith('┐')).toBe(true);
-    expect(textLines.at(-1)?.startsWith('└')).toBe(true);
-    expect(textLines.at(-1)?.endsWith('┘')).toBe(true);
+    expect(textLines[0]?.trimStart().startsWith('┌')).toBe(true);
+    expect(textLines[0]?.trimEnd().endsWith('┐')).toBe(true);
+    expect(textLines.at(-1)?.trimStart().startsWith('└')).toBe(true);
+    expect(textLines.at(-1)?.trimEnd().endsWith('┘')).toBe(true);
     expect(text).toContain('Onboarding Wizard');
     expect(text).toContain('Summary');
     expect(text).toContain('Steps');
     expect(text).toContain('Controls:');
     expect(text).toContain('Esc');
-    expect(linesToText(lines).at(-1)).toContain('[Enter]');
+    expect(textLines.at(-2)).toContain('[Enter]');
   });
 
   test('uses visible frame chrome and readable rail labels on wide terminals', () => {
@@ -145,7 +145,7 @@ describe('renderOnboardingWizard', () => {
 
     const text = linesToText(renderOnboardingWizard(wizard, 188, 42)).join('\n');
 
-    expect(text).toContain('┌─Onboarding Wizard');
+    expect(text).toContain('GoodVibes Agent / Onboarding Wizard');
     expect(text).toContain('1. Agent');
     expect(text).toContain('Agent setup');
     expect(text).toContain('Create starter profile');
@@ -188,7 +188,8 @@ describe('renderOnboardingWizard', () => {
     expect(text).toContain('Local memory and behavior');
     expect(text).toContain('Routines');
     expect(text).toContain('1 discovered');
-    expect(text).toContain('profile from discovered behavior');
+    expect(text).toContain('profile from discovered');
+    expect(text).toContain('behavior. Import candidates');
     expect(text).toContain('Import');
     expect(text).toContain('candidates: Research Operator');
     expect(text).toContain('Research Operator');

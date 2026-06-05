@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { homedir } from 'node:os';
 import { Compositor } from './renderer/compositor.ts';
-import { type Line } from './types/grid.ts';
 import { UIFactory } from './renderer/ui-factory.ts';
 import { Orchestrator } from './core/orchestrator';
 import { conversationMessagesAsSessionRecords } from './core/conversation-message-snapshot.ts';
@@ -41,6 +40,7 @@ import {
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState } from './shell/blocking-input.ts';
+import { createOnboardingFullscreenComposite } from './shell/onboarding-fullscreen.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
 import { buildPersistedSessionContext, formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
@@ -471,6 +471,14 @@ async function main() {
   const render = () => {
     const width = stdout.columns || 80;
     const height = stdout.rows || 24;
+
+    if (input.onboardingWizard.active) {
+      input.setPanelMouseLayout(null);
+      activeConversationWidth = width;
+      conversation.setSplashSuppressed(true);
+      compositor.composite(createOnboardingFullscreenComposite(input, width, height));
+      return;
+    }
 
     // Cache the current model for consistent values across the entire render frame
     const currentModel = providerRegistry.getCurrentModel();
