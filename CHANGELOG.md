@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.36 - 2026-06-04
+
+- Workspace navigation now uses distinct category group names instead of repeated setup headings.
+- Onboarding now owns the full terminal viewport and blocks composer-adjacent overlays while setup is active.
+- Onboarding renderer coverage now guards the bottom row so the setup flow cannot leave the input area visually available.
+
 ## 1.0.35 - 2026-06-04
 
 - Added searchable `agent_harness` mode discovery: `mode:"modes"` searches every harness mode by task, family, effect type, id, alias, and parameter name, while `mode:"mode"` inspects one mode contract.
