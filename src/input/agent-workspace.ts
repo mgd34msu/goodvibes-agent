@@ -20,6 +20,7 @@ import { buildAgentWorkspaceRequirements } from './agent-workspace-requirements.
 import { appendAgentWorkspaceActionSearchText, backspaceAgentWorkspaceActionSearch, beginAgentWorkspaceActionSearch, clearAgentWorkspaceActionSearch, commitAgentWorkspaceActionSearchSelection, searchAgentWorkspaceActions } from './agent-workspace-search.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+import { writeOnboardingCheckMarker } from '../runtime/onboarding/index.ts';
 
 export type { AgentWorkspaceChannelRisk, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
 export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCategoryId, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
@@ -304,6 +305,46 @@ export class AgentWorkspace {
       finishLocalOperation: (kind, title, detail) => this.finishLocalOperation(kind, title, detail),
       openDeleteEditor: (kind, selected) => this.openDeleteEditor(kind, selected),
     });
+  }
+
+  completeOnboarding(): void {
+    const shellPaths = this.context?.workspace?.shellPaths;
+    if (!shellPaths) {
+      this.status = 'Cannot complete onboarding without Agent shell paths.';
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Onboarding completion unavailable',
+        detail: 'The Agent workspace cannot locate the user onboarding completion marker path for this runtime.',
+        safety: 'safe',
+      };
+      return;
+    }
+
+    try {
+      writeOnboardingCheckMarker(shellPaths, {
+        scope: 'user',
+        source: 'wizard',
+        mode: 'new',
+        workspaceRoot: shellPaths.workingDirectory,
+      });
+      this.status = 'Onboarding applied and closed.';
+      this.lastActionResult = {
+        kind: 'refreshed',
+        title: 'Onboarding complete',
+        detail: 'Saved the user onboarding completion marker. Future normal launches start in the main conversation.',
+        safety: 'safe',
+      };
+      if (!this.context?.dismissAgentWorkspace?.()) this.close();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.status = 'Onboarding completion failed.';
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Onboarding completion failed',
+        detail,
+        safety: 'safe',
+      };
+    }
   }
 
   private selectedItemForOperation(operation: AgentWorkspaceLocalOperation): AgentWorkspaceLocalLibraryItem | null {

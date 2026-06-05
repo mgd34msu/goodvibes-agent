@@ -27,11 +27,12 @@ export const AGENT_WORKSPACE_CATEGORY_IDS = [
   'host',
   'automation',
   'delegate',
+  'finish',
 ] as const;
 
 export type AgentWorkspaceCategoryId = (typeof AGENT_WORKSPACE_CATEGORY_IDS)[number];
 
-export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'local-selection' | 'local-operation';
+export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'local-selection' | 'local-operation' | 'onboarding-complete';
 
 export type AgentWorkspaceLocalEditorKind = 'memory' | 'note' | 'persona' | 'skill' | 'routine' | 'profile';
 

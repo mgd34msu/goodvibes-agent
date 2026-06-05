@@ -16,6 +16,7 @@ import { createAgentRuntimeProfile, getAgentRuntimeProfilesRoot, listAgentRuntim
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { readOnboardingCheckMarker } from '../../runtime/onboarding/index.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { Line } from '../../types/grid.ts';
@@ -237,8 +238,10 @@ describe('AgentWorkspace', () => {
       'CAPABILITIES',
       'LOCAL BEHAVIOR',
       'OPERATIONS',
+      'FINISH',
     ]);
-    expect(singletonGroups).toEqual([]);
+    expect(singletonGroups).toEqual(['FINISH']);
+    expect(AGENT_WORKSPACE_CATEGORIES.at(-1)?.group).toBe('FINISH');
     expect(repeatedSetupGroups).toEqual([]);
     expect(repeatedAfterChange).toEqual([]);
   });
@@ -311,12 +314,46 @@ describe('AgentWorkspace', () => {
 
     expect(workspace.active).toBe(true);
     expect(workspace.selectedCategory.label).toBe('Home');
+    expect(workspace.categories.at(-1)?.id).toBe('finish');
     expect(workspace.selectedAction?.label).toBe('Continue assistant chat');
 
     workspace.activateSelected();
 
     expect(dispatched).toEqual([]);
     expect(workspace.status).toContain('main conversation');
+  });
+
+  test('finishes onboarding by writing the user marker and closing the workspace', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-onboarding-finish-'));
+    const shellPaths = createShellPathService({
+      workingDirectory: join(root, 'workspace'),
+      homeDirectory: join(root, 'home'),
+    });
+    const workspace = new AgentWorkspace();
+    let dismissed = false;
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+      dismissAgentWorkspace: () => {
+        dismissed = true;
+        workspace.close();
+        return true;
+      },
+    } as unknown as CommandContext;
+
+    workspace.open(ctx, () => undefined, 'finish');
+    expect(workspace.selectedCategory.id).toBe('finish');
+    expect(workspace.selectedAction?.label).toBe('Apply & close');
+
+    workspace.activateSelected();
+
+    const marker = readOnboardingCheckMarker(shellPaths, 'user');
+    expect(dismissed).toBe(true);
+    expect(workspace.active).toBe(false);
+    expect(marker.exists).toBe(true);
+    expect(marker.payload?.source).toBe('wizard');
+    expect(marker.payload?.mode).toBe('new');
+    expect(marker.payload?.workspaceRoot).toBe(shellPaths.workingDirectory);
   });
 
   test('dispatches command actions through the shell-owned callback', () => {

@@ -36,6 +36,7 @@ interface AgentWorkspaceActivationHost {
   moveLocalLibraryItemSelection(kind: AgentWorkspaceLocalEditorKind, delta: number): void;
   selectedLocalLibraryItem(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null;
   applyLocalLibraryOperation(operation: AgentWorkspaceLocalOperation): void;
+  completeOnboarding(): void;
   hasCommandDispatch(): boolean;
   dispatchWorkspaceCommand: AgentWorkspaceCommandDispatcher;
   commitActionSearchSelection(): boolean;
@@ -87,6 +88,10 @@ export function activateAgentWorkspaceSelection(
   }
   if (action.kind === 'local-operation' && action.localOperation) {
     workspace.applyLocalLibraryOperation(action.localOperation);
+    return;
+  }
+  if (action.kind === 'onboarding-complete') {
+    workspace.completeOnboarding();
     return;
   }
   if (action.kind === 'guidance' || !action.command) {

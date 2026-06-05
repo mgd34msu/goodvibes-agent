@@ -408,6 +408,12 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Delegated review policy: ${snapshot.delegatedReviewPolicy}`, fg: PALETTE.warn },
       { text: 'No coding-role Agent jobs are created here.', fg: PALETTE.good },
     );
+  } else if (category.id === 'finish') {
+    base.push(
+      { text: 'Apply & close marks onboarding finished for this user.', fg: PALETTE.good },
+      { text: 'Future normal launches start in the main conversation.', fg: PALETTE.info },
+      { text: 'Use /agent, /setup, or /onboarding to reopen this workspace later.', fg: PALETTE.muted },
+    );
   }
   if (snapshot.warnings.length > 0) {
     base.push({ text: `Warnings: ${snapshot.warnings.map((warning) => compactText(warning, 60)).join('; ')}`, fg: PALETTE.warn });

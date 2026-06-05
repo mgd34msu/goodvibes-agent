@@ -98,7 +98,7 @@ describe('initial TUI onboarding startup check', () => {
     expect(result.workspaceCategories).toEqual([undefined]);
   });
 
-  test('opens Agent workspace after the global user check marker exists', () => {
+  test('does not open Agent workspace on normal startup after the global user check marker exists', () => {
     const shellPaths = makeShellPaths();
     writeOnboardingCheckMarker(shellPaths, {
       scope: 'user',
@@ -107,6 +107,21 @@ describe('initial TUI onboarding startup check', () => {
     });
 
     const result = runStartup(shellPaths);
+    expect(result.workspaceCategories).toEqual([]);
+  });
+
+  test('still opens Agent workspace for the explicit onboarding command after the marker exists', () => {
+    const shellPaths = makeShellPaths();
+    writeOnboardingCheckMarker(shellPaths, {
+      scope: 'user',
+      source: 'wizard',
+      mode: 'new',
+    });
+
+    const result = runStartup(shellPaths, makeCli({
+      command: 'onboarding',
+      rawCommand: 'onboarding',
+    }));
     expect(result.workspaceCategories).toEqual([undefined]);
   });
 

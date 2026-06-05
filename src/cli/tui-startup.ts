@@ -110,8 +110,6 @@ export function applyInitialTuiCliState(options: {
     }
   } else if (!globalOnboardingMarker.exists) {
     input.openAgentWorkspace(commandContext);
-  } else if (cli.command === 'tui' && seededPrompt === undefined) {
-    input.openAgentWorkspace(commandContext);
   }
 
   if (seededPrompt) {
