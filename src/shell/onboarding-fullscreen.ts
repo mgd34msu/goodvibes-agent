@@ -35,6 +35,7 @@ export function createOnboardingFullscreenComposite(
     header: [],
     viewport,
     footer: [],
+    forceFullRedraw: true,
     panelWidth: 0,
   };
 }

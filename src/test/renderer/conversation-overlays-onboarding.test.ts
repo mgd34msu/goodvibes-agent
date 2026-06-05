@@ -71,6 +71,7 @@ describe('applyConversationOverlays onboarding shell', () => {
 
     expect(composite.header).toEqual([]);
     expect(composite.footer).toEqual([]);
+    expect(composite.forceFullRedraw).toBe(true);
     expect(composite.panelWidth).toBe(0);
     const lines = composite.viewport;
     expect(lines).toHaveLength(height);

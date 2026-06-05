@@ -38,6 +38,7 @@ import { registerAgentNotifyTool } from '../tools/agent-notify-tool.ts';
 import { registerAgentOperatorActionTool } from '../tools/agent-operator-action-tool.ts';
 import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
 import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
+import { getTerminalSize } from '../shell/terminal-size.ts';
 import { registerAgentWorkPlanTool } from '../tools/agent-work-plan-tool.ts';
 import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
@@ -200,7 +201,7 @@ export async function initializeBootstrapCore(
   });
 
   const conversation = new ConversationManager(() => {
-    const width = stdout.columns || 80;
+    const width = getTerminalSize(stdout).width;
     if (panelManager.isVisible() && panelManager.getAllOpen().length > 0) {
       return Math.max(1, panelManager.getLeftWidth(width) - 1);
     }

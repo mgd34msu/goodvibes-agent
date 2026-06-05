@@ -121,6 +121,24 @@ describe('Compositor — no panel', () => {
     expect(cellAt(compositor, 0, HEIGHT - 1)?.char).toBe(' ');
     expect(cellAt(compositor, WIDTH - 1, HEIGHT - 1)?.char).toBe(' ');
   });
+
+  test('forced fullscreen redraw writes through the bottom row', () => {
+    const { compositor, stream } = makeCompositor();
+    compositor.composite(makeBaseRequest());
+    const writeCountBefore = stream.writes.length;
+
+    compositor.composite(makeBaseRequest({
+      header: [],
+      viewport: [makeLine(WIDTH, 'O')],
+      footer: [],
+      forceFullRedraw: true,
+    }));
+
+    const output = stream.writes.slice(writeCountBefore).join('');
+    expect(output).toContain(`\x1b[${HEIGHT};1H`);
+    expect(cellAt(compositor, 0, 0)?.char).toBe('O');
+    expect(cellAt(compositor, 0, HEIGHT - 1)?.char).toBe(' ');
+  });
 });
 
 describe('Compositor — with panel', () => {

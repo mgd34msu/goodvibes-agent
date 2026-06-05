@@ -41,6 +41,7 @@ import {
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState } from './shell/blocking-input.ts';
 import { createOnboardingFullscreenComposite } from './shell/onboarding-fullscreen.ts';
+import { getTerminalSize } from './shell/terminal-size.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
 import { buildPersistedSessionContext, formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
@@ -115,7 +116,7 @@ async function main() {
     sessionLineageTracker: ctx.services.sessionLineageTracker,
     idempotencyStore: ctx.services.idempotencyStore,
   });
-  let activeConversationWidth = stdout.columns || 80;
+  let activeConversationWidth = getTerminalSize(stdout).width;
   conversation.setWidthProvider(() => activeConversationWidth);
   {
     const hitlMode = configManager.get('behavior.hitlMode') as HITLMode | undefined;
@@ -166,17 +167,18 @@ async function main() {
   let scrollLocked = true;
 
   const getPromptContentWidth = () => {
-    const w = stdout.columns || 80;
+    const w = getTerminalSize(stdout).width;
     const boxMargin = 2;
     const boxWidth = w - (boxMargin * 2);
     return boxWidth - 4 - 3; // minus padding (4) minus prefix width (3: ' > ')
   };
 
   const getViewportHeight = (): number => {
-    if (input.onboardingWizard.active) return stdout.rows || 24;
+    const { height } = getTerminalSize(stdout);
+    if (input.onboardingWizard.active) return height;
     const promptLines: number = input.getVisiblePromptLineCount(getPromptContentWidth());
     const currentModel = providerRegistry.getCurrentModel();
-    return (stdout.rows || 24) - 2 - estimateShellFooterHeight(promptLines, currentModel.contextWindow);
+    return height - 2 - estimateShellFooterHeight(promptLines, currentModel.contextWindow);
   };
 
   const scroll = (delta: number) => {
@@ -469,8 +471,7 @@ async function main() {
   };
 
   const render = () => {
-    const width = stdout.columns || 80;
-    const height = stdout.rows || 24;
+    const { width, height } = getTerminalSize(stdout);
 
     if (input.onboardingWizard.active) {
       input.setPanelMouseLayout(null);

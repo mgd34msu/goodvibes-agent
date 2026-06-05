@@ -44,6 +44,7 @@ export interface CompositeRequest {
   header: Line[];
   viewport: Line[];
   footer: Line[];
+  forceFullRedraw?: boolean;
   selection?: SelectionInfo;
   search?: SearchInfo;
   panel?: PanelCompositeData;
@@ -74,12 +75,15 @@ export class Compositor {
   }
 
   public composite(params: CompositeRequest): void {
-    const { width, height, header, viewport, footer, selection, search, panel, panelWidth } = params;
+    const { width, height, header, viewport, footer, forceFullRedraw, selection, search, panel, panelWidth } = params;
+    const previousFrontBuffer = forceFullRedraw ? null : this.frontBuffer;
+    if (forceFullRedraw) this.diffEngine.reset();
+
     // R3: Reuse back-buffer instead of allocating each frame
     if (!this.backBuffer) {
       this.backBuffer = new TerminalBuffer(width, height);
     } else {
-      this.backBuffer.reset(width, height, this.frontBuffer);
+      this.backBuffer.reset(width, height, previousFrontBuffer);
     }
     const newBuffer = this.backBuffer;
 
@@ -275,7 +279,7 @@ export class Compositor {
 
     // 4. Diff and Render
     // R3: Diff against front-buffer (last-rendered), then swap front/back — no clone() needed
-    const diff = this.diffEngine.diff(this.frontBuffer, newBuffer);
+    const diff = this.diffEngine.diff(previousFrontBuffer, newBuffer);
     if (diff) {
       allowTerminalWrite(() => this.stdout.write(diff));
     }
