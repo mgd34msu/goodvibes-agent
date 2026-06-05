@@ -4,6 +4,7 @@ import { CommandRegistry, type CommandContext } from '../../input/command-regist
 import { InputHandler } from '../../input/handler.ts';
 import { SelectionManager } from '../../input/selection.ts';
 import { applyConversationOverlays } from '../../renderer/conversation-overlays.ts';
+import { createOnboardingFullscreenComposite } from '../../shell/onboarding-fullscreen.ts';
 import { createEmptyLine } from '../../types/grid.ts';
 import { InfiniteBuffer } from '../../core/history.ts';
 import { createDefaultUiRuntimeServices } from '../helpers/ui-services.ts';
@@ -60,12 +61,51 @@ function wireModelPicker(input: InputHandler): unknown[] {
 }
 
 describe('applyConversationOverlays onboarding shell', () => {
-  test('replaces the visible composer area while onboarding owns the viewport', () => {
+  test('builds a full-terminal onboarding composite without shell chrome', () => {
+    const width = 100;
+    const height = 20;
+    const input = makeInput();
+    input.openOnboardingWizard({ mode: 'edit', preload: () => {} });
+
+    const composite = createOnboardingFullscreenComposite(input, width, height);
+
+    expect(composite.header).toEqual([]);
+    expect(composite.footer).toEqual([]);
+    expect(composite.panelWidth).toBe(0);
+    const lines = composite.viewport;
+    expect(lines).toHaveLength(height);
+    expect(lines.every((line) => line.length === width)).toBe(true);
+    const textLines = linesToText(lines);
+    expect(textLines.join('\n')).toContain('Onboarding Wizard');
+    expect(textLines.at(-2)).toContain('[Enter]');
+    expect(textLines.at(-1)?.trimStart().startsWith('└')).toBe(true);
+  });
+
+  test('builds a full-terminal model workspace composite while nested from onboarding', () => {
+    const width = 100;
+    const height = 20;
+    const input = makeInput();
+    input.openOnboardingWizard();
+    input.modelPicker.openProviders(['openai', 'anthropic'], 'openai');
+
+    const composite = createOnboardingFullscreenComposite(input, width, height);
+
+    expect(composite.header).toEqual([]);
+    expect(composite.footer).toEqual([]);
+    const lines = composite.viewport;
+    expect(lines).toHaveLength(height);
+    expect(lines.every((line) => line.length === width)).toBe(true);
+    const text = linesToText(lines).join('\n');
+    expect(text).toContain('Model Workspace');
+    expect(text).toContain('Provider list');
+  });
+
+  test('leaves onboarding out of body-scoped conversation overlays', () => {
     const width = 100;
     const height = 20;
     const viewport = Array.from({ length: height }, (_, index) => (
       index === height - 1
-        ? lineWithText(width, ' > fake prompt row that must not remain visible')
+        ? lineWithText(width, ' > fake prompt row owned by the shell')
         : createEmptyLine(width)
     ));
     const input = makeInput();
@@ -82,36 +122,11 @@ describe('applyConversationOverlays onboarding shell', () => {
       viewportHeight: height,
     });
 
-    expect(lines).toHaveLength(height);
-    const textLines = linesToText(lines);
-    expect(textLines.join('\n')).toContain('Onboarding Wizard');
-    expect(textLines.join('\n')).not.toContain('fake prompt row');
-    expect(textLines.join('\n')).not.toContain('visible search row');
-    expect(textLines.at(-2)).toContain('[Enter]');
-  });
-
-  test('lets the fullscreen model workspace own the viewport while nested from onboarding', () => {
-    const width = 100;
-    const height = 20;
-    const viewport = Array.from({ length: height }, () => createEmptyLine(width));
-    const input = makeInput();
-    input.openOnboardingWizard();
-    input.modelPicker.openProviders(['openai', 'anthropic'], 'openai');
-
-    const lines = applyConversationOverlays(viewport, {
-      input,
-      conversation: {} as ConversationManager,
-      commandRegistry: { getAll: () => [] } as never,
-      keybindingsManager: createDefaultUiRuntimeServices().shell.keybindingsManager,
-      conversationWidth: width,
-      viewportHeight: height,
-    });
-
-    expect(lines.length).toBeGreaterThan(0);
-    expect(lines.length).toBeLessThanOrEqual(height);
     const text = linesToText(lines).join('\n');
-    expect(text).toContain('Model Workspace');
-    expect(text).toContain('Provider list');
+    expect(lines).toBe(viewport);
+    expect(text).not.toContain('Onboarding Wizard');
+    expect(text).not.toContain('visible search row');
+    expect(text).toContain('fake prompt row owned by the shell');
   });
 
   test('guards duplicate onboarding modal pushes in the shared stack', () => {
