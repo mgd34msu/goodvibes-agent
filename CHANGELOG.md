@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.43 - 2026-06-05
+
+- Keep the Agent Home and Setup workspace top pane compact so setup actions stay visible.
+- Replace noisy setup checklist route text with a concise setup overview and selected-action detail.
+- Add renderer coverage for compact setup layout and removed arrow-style checklist output.
+
 ## 1.0.42 - 2026-06-05
 
 - Make /agent the sole fullscreen Agent workspace for setup and onboarding entrypoints.
