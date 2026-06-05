@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.1.2 - 2026-06-05
+
+- Remove the redundant Finish action so onboarding completion presents only Apply & close.
+
 ## 1.1.1 - 2026-06-05
 
 - Fix first-run onboarding so clean launches open the fullscreen setup workspace until the user explicitly chooses Finish -> Apply & close.
