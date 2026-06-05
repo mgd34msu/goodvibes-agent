@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.42 - 2026-06-05
+
+- Make /agent the sole fullscreen Agent workspace for setup and onboarding entrypoints.
+- Route /setup, /onboarding, first-run startup, and model-visible UI surface metadata to plain /agent.
+- Remove obsolete onboarding modal renderer and controller paths.
+
 ## 1.0.41 - 2026-06-04
 
 - Fixed Agent setup onboarding so the settings-style fullscreen workspace forces a complete terminal redraw and covers the shell input/status rows on packaged installs.
