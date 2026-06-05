@@ -62,31 +62,63 @@ function actionCommand(action: AgentWorkspaceAction): string {
   return action.command ?? '(guidance)';
 }
 
-function setupChecklistLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
-  const readyCount = snapshot.setupChecklist.filter((item) => item.status === 'ready').length;
-  const recommendedCount = snapshot.setupChecklist.filter((item) => item.status === 'recommended').length;
-  const blockedCount = snapshot.setupChecklist.filter((item) => item.status === 'blocked').length;
+function setupCounts(snapshot: AgentWorkspaceRuntimeSnapshot): { ready: number; recommended: number; optional: number; blocked: number } {
+  return {
+    ready: snapshot.setupChecklist.filter((item) => item.status === 'ready').length,
+    recommended: snapshot.setupChecklist.filter((item) => item.status === 'recommended').length,
+    optional: snapshot.setupChecklist.filter((item) => item.status === 'optional').length,
+    blocked: snapshot.setupChecklist.filter((item) => item.status === 'blocked').length,
+  };
+}
+
+function setupStatusLabel(status: AgentWorkspaceRuntimeSnapshot['setupChecklist'][number]['status']): string {
+  return status === 'ready'
+    ? 'Ready'
+    : status === 'recommended'
+      ? 'Recommended'
+      : status === 'blocked'
+        ? 'Blocked'
+        : 'Optional';
+}
+
+function setupAttentionItems(snapshot: AgentWorkspaceRuntimeSnapshot, limit: number): AgentWorkspaceRuntimeSnapshot['setupChecklist'] {
+  return [
+    ...snapshot.setupChecklist.filter((item) => item.status === 'blocked'),
+    ...snapshot.setupChecklist.filter((item) => item.status === 'recommended'),
+    ...snapshot.setupChecklist.filter((item) => item.status === 'optional'),
+  ].slice(0, limit);
+}
+
+function conciseSetupLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
+  const counts = setupCounts(snapshot);
+  return {
+    text: `Setup: ${counts.ready}/${snapshot.setupChecklist.length} ready; ${counts.recommended} recommended; ${counts.blocked} blocked.`,
+    fg: counts.blocked > 0 ? PALETTE.warn : PALETTE.info,
+  };
+}
+
+function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const counts = setupCounts(snapshot);
+  const nextItems = setupAttentionItems(snapshot, 3);
   const lines: ContextLine[] = [
-    { text: 'Setup Checklist', fg: PALETTE.title, bold: true },
-    { text: `${readyCount}/${snapshot.setupChecklist.length} ready; ${recommendedCount} recommended; ${blockedCount} blocked`, fg: blockedCount > 0 ? PALETTE.warn : PALETTE.info },
+    { text: 'Setup Overview', fg: PALETTE.title, bold: true },
+    { text: `${counts.ready}/${snapshot.setupChecklist.length} ready; ${counts.recommended} recommended; ${counts.optional} optional; ${counts.blocked} blocked.`, fg: counts.blocked > 0 ? PALETTE.warn : PALETTE.info },
+    { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}.`, fg: PALETTE.info },
+    { text: `Local: ${snapshot.localPersonaCount} personas, ${snapshot.localSkillCount} skills, ${snapshot.localRoutineCount} routines, ${snapshot.localMemoryCount} memories.`, fg: PALETTE.info },
   ];
-  for (const item of snapshot.setupChecklist) {
-    const command = item.command ? ` -> ${item.command}` : '';
+  if (nextItems.length > 0) {
+    const item = nextItems[0]!;
     lines.push({
-      text: `${item.status.toUpperCase()} ${item.label}${command}`,
+      text: `Next: ${item.label} (${setupStatusLabel(item.status).toLowerCase()})`,
       fg: setupStatusColor(item.status),
       bold: item.status === 'blocked',
     });
-    lines.push({ text: `  ${item.detail}`, fg: PALETTE.muted });
   }
   return lines;
 }
 
 function homeNextActionLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
-  const blocked = snapshot.setupChecklist.filter((item) => item.status === 'blocked');
-  const recommended = snapshot.setupChecklist.filter((item) => item.status === 'recommended');
-  const optional = snapshot.setupChecklist.filter((item) => item.status === 'optional');
-  const candidates = [...blocked, ...recommended, ...optional].slice(0, 5);
+  const candidates = setupAttentionItems(snapshot, 3);
   if (candidates.length === 0) {
     return [
       { text: 'Next Actions', fg: PALETTE.title, bold: true },
@@ -95,13 +127,11 @@ function homeNextActionLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLi
   }
   const lines: ContextLine[] = [{ text: 'Next Actions', fg: PALETTE.title, bold: true }];
   for (const item of candidates) {
-    const command = item.command ? ` -> ${item.command}` : '';
     lines.push({
-      text: `${item.status.toUpperCase()} ${item.label}${command}`,
+      text: `${setupStatusLabel(item.status)}: ${item.label}`,
       fg: setupStatusColor(item.status),
       bold: item.status === 'blocked',
     });
-    lines.push({ text: `  ${item.detail}`, fg: PALETTE.muted });
   }
   return lines;
 }
@@ -118,31 +148,6 @@ function companionAccessLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLi
     text: `Companion: ${access.surface}; token ${tokenState}; QR ${access.qrCommand}; manual token text hidden${error}.`,
     fg: access.pairingReady ? PALETTE.good : PALETTE.warn,
   };
-}
-
-function discoverySummaryLine(label: string, summary: AgentWorkspaceRuntimeSnapshot['discoveredBehavior']['personas'], actionLabel: string): ContextLine[] {
-  if (summary.count === 0) return [];
-  const names = summary.names.length > 0
-    ? ` ${summary.names.join(', ')}${summary.count > summary.names.length ? `, +${summary.count - summary.names.length} more` : ''}.`
-    : '';
-  return [
-    { text: `${label}: ${summary.count} discovered; project ${summary.projectLocalCount}; global ${summary.globalCount}.`, fg: PALETTE.info, bold: true },
-    { text: `  Choose ${actionLabel} to preview, then use the import form after review.${names}`, fg: PALETTE.muted },
-  ];
-}
-
-function behaviorDiscoveryLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
-  const lines: ContextLine[] = [
-    ...discoverySummaryLine('Discovered personas', snapshot.discoveredBehavior.personas, 'Personas -> Discover persona files'),
-    ...discoverySummaryLine('Discovered skills', snapshot.discoveredBehavior.skills, 'Skills -> Discover skill files'),
-    ...discoverySummaryLine('Discovered routines', snapshot.discoveredBehavior.routines, 'Routines -> Discover routine files'),
-  ];
-  if (lines.length === 0) return [];
-  return [
-    { text: '' },
-    { text: 'Discovered Behavior Files', fg: PALETTE.title, bold: true },
-    ...lines,
-  ];
 }
 
 function localLibraryLines(
@@ -325,27 +330,18 @@ function starterTemplateLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextL
 
 function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   if (!snapshot) return [{ text: 'Runtime context is not loaded yet.', fg: PALETTE.warn }];
-  const base: ContextLine[] = [{ text: 'Live Agent Context', fg: PALETTE.title, bold: true }];
+  const base: ContextLine[] = [];
   if (category.id === 'home') {
     base.push(
       { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
       { text: `Session: ${snapshot.sessionId}`, fg: PALETTE.muted },
       { text: `Policy: ${snapshot.executionPolicy}; delegated review ${snapshot.delegatedReviewPolicy}`, fg: PALETTE.good },
-      { text: `Knowledge: ${snapshot.knowledgeRoute}; ${snapshot.knowledgeIsolation}; no fallback`, fg: PALETTE.good },
-      { text: `Local: ${snapshot.localMemoryCount} memory, ${snapshot.localNoteCount} notes, ${snapshot.localPersonaCount} personas, ${snapshot.localSkillCount} skills, ${snapshot.localRoutineCount} routines.`, fg: PALETTE.info },
-      { text: `Channels: ${snapshot.channels.filter((channel) => channel.ready).length}/${snapshot.channels.length} ready; MCP ${snapshot.mcpConnectedServerCount}/${snapshot.mcpServerCount} connected; voice/media ${snapshot.voiceProviderCount}/${snapshot.mediaProviderCount}.`, fg: PALETTE.info },
-      { text: '' },
+      conciseSetupLine(snapshot),
       ...homeNextActionLines(snapshot),
     );
   } else if (category.id === 'setup') {
     base.push(
-      { text: `Connection: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
-      { text: 'Agent role: interactive operator TUI; setup changes here are Agent-local.', fg: PALETTE.good },
-      ...setupChecklistLines(snapshot),
-      ...behaviorDiscoveryLines(snapshot),
-      { text: '' },
-      { text: `Workspace: ${snapshot.workingDirectory}`, fg: PALETTE.muted },
-      { text: `Home: ${snapshot.homeDirectory}`, fg: PALETTE.muted },
+      ...setupOverviewLines(snapshot),
     );
   } else if (category.id === 'artifacts') {
     const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;
@@ -585,13 +581,16 @@ function editorContextLines(editor: AgentWorkspaceLocalEditor): ContextLine[] {
 }
 
 function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCategory, action: AgentWorkspaceAction | null, width: number): WorkspaceRow[] {
+  const compactPrimarySurface = category.id === 'home' || category.id === 'setup';
   const lines: ContextLine[] = [
     { text: category.label, fg: PALETTE.title, bold: true },
     { text: category.summary, fg: PALETTE.subtitle },
-    { text: '' },
-    { text: category.detail, fg: PALETTE.text },
-    { text: '' },
+    ...(compactPrimarySurface ? [] : [
+      { text: '' },
+      { text: category.detail, fg: PALETTE.text },
+    ] satisfies ContextLine[]),
     ...(workspace.actionSearchActive ? [
+      { text: '' },
       { text: 'Action Search', fg: PALETTE.title, bold: true },
       {
         text: workspace.actionSearchQuery.length > 0
@@ -604,18 +603,23 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
     ] satisfies ContextLine[] : []),
     ...(workspace.localEditor ? editorContextLines(workspace.localEditor) : []),
     ...(workspace.localEditor ? [{ text: '' }] : []),
-    ...snapshotLines(workspace, category, workspace.runtimeSnapshot),
   ];
 
-  if (action) {
-    lines.push(
+  const selectedActionLines: ContextLine[] = action
+    ? [
       { text: '' },
       { text: `Selected: ${action.label}`, fg: PALETTE.title, bold: true },
       { text: action.detail, fg: PALETTE.text },
       { text: `Command: ${actionCommand(action)}`, fg: action.kind === 'command' ? PALETTE.info : PALETTE.muted },
       { text: `Safety: ${action.safety}`, fg: safetyColor(action) },
-    );
-  }
+    ]
+    : [];
+  const snapshotContextLines: ContextLine[] = [
+    { text: '' },
+    ...snapshotLines(workspace, category, workspace.runtimeSnapshot),
+  ];
+  if (compactPrimarySurface) lines.push(...selectedActionLines, ...snapshotContextLines);
+  else lines.push(...snapshotContextLines, ...selectedActionLines);
 
   if (workspace.lastActionResult) {
     lines.push(
@@ -758,13 +762,13 @@ function footerText(workspace: AgentWorkspace): string {
 export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, height: number): Line[] {
   const category = workspace.selectedActionCategory;
   const action = workspace.selectedAction;
-  const setupCategory = category.id === 'setup';
+  const compactPrimarySurface = category.id === 'home' || category.id === 'setup';
   const layoutOptions = {
     width,
     height,
     leftWidth: width < 90 ? undefined : 30,
-    contextRatio: setupCategory ? 0.86 : 0.62,
-    minContextRows: setupCategory ? 18 : 10,
+    contextRatio: compactPrimarySurface ? 0.4 : 0.62,
+    minContextRows: 10,
   };
   const metrics = getFullscreenWorkspaceMetrics(layoutOptions);
 

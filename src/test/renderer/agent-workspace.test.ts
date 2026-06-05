@@ -356,7 +356,7 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 50));
 
-    expect(output).toContain('Live Agent Context');
+    expect(output).toContain('Chat route: openai-subscriber / GPT-5.5');
     expect(output).toContain('openai-subscriber / GPT-5.5');
     expect(output).toContain('agent-session-1');
     expect(output).toContain('serial-proactive');
@@ -370,17 +370,17 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 44));
 
-    expect(output).toContain('Setup Checklist');
-    expect(output).toContain('Connection: http://127.0.0.1:3421');
-    expect(output).toContain('Agent role: interactive operator TUI');
-    expect(output).toContain('setup changes here are Agent-local');
-    expect(output).toContain('READY Provider and model -> Setup -> Provider and model');
-    expect(output).toContain('RECOMMENDED Agent Knowledge -> Knowledge');
-    expect(output).toContain('READY Persona -> Personas');
-    expect(output).toContain('RECOMMENDED Skills -> Skills');
-    expect(output).toContain('1 missing setup requirement(s).');
-    expect(output).toContain('RECOMMENDED Routines -> Routines');
-    expect(output).toContain('READY Channels -> Channels');
+    expect(output).toContain('Selected: Open settings');
+    expect(output).toContain('Setup Overview');
+    expect(output).toContain('7/11 ready; 3 recommended; 1 optional; 0 blocked.');
+    expect(output).toContain('Chat: openai-subscriber / GPT-5.5.');
+    expect(output).toContain('Local: 1 personas, 1 skills, 1 routines, 1 memories.');
+    expect(output).toContain('Next: Agent Knowledge (recommended)');
+    expect(output).toContain('Provider and model');
+    expect(output).toContain('Agent profiles');
+    expect(output).not.toContain('READY Provider and model -> Setup -> Provider and model');
+    expect(output).not.toContain('RECOMMENDED Agent Knowledge -> Knowledge');
+    expect(output).not.toContain('READY Persona -> Personas');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('daemonBaseUrl');
     expect(output).not.toContain('daemon URL');
@@ -390,6 +390,21 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('tunnel provider setup');
     expect(output).not.toContain('non-Agent assistant segment');
     expect(output).not.toContain('non-Agent graph segment');
+  });
+
+  test('keeps setup context compact enough to show setup actions', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined, 'setup');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 37));
+
+    expect(output).toContain('Selected: Open settings');
+    expect(output).toContain('Next: Provider and model (blocked)');
+    expect(output).toContain('Set domain verbosity');
+    expect(output).toContain('Agent profiles');
+    expect(output).not.toContain('Setup Checklist');
+    expect(output).not.toContain('RECOMMENDED');
+    expect(output).not.toContain('-> Personas');
   });
 
   test('renders model favorites maintenance in the setup workspace', () => {
@@ -622,18 +637,20 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 150, 52));
 
-    expect(output).toContain('RECOMMENDED Agent profile -> Profiles');
-    expect(output).toContain('3 discovered behavior file(s) can seed an isolated Agent profile');
-    expect(output).toContain('RECOMMENDED Persona -> Personas');
-    expect(output).toContain('RECOMMENDED Skills -> Skills');
-    expect(output).toContain('RECOMMENDED Routines -> Routines');
-    expect(output).toContain('Discovered Behavior Files');
-    expect(output).toContain('Discovered personas: 1 discovered; project 1; global 0.');
-    expect(output).toContain('Research Operator');
-    expect(output).toContain('Discovered skills: 1 discovered; project 1; global 0.');
-    expect(output).toContain('Daily Brief Skill');
-    expect(output).toContain('Discovered routines: 1 discovered; project 1; global 0.');
-    expect(output).toContain('Evening Review');
+    expect(output).toContain('Setup Overview');
+    expect(output).toContain('2/11 ready; 5 recommended; 4 optional; 0 blocked.');
+    expect(output).toContain('Next: Agent Knowledge (recommended)');
+    expect(output).toContain('Profile from discovered beha');
+    expect(output).toContain('edit profile-from-discovered');
+    expect(output).toContain('Personas');
+    expect(output).toContain('open personas');
+    expect(output).toContain('Skills');
+    expect(output).toContain('open skills');
+    expect(output).toContain('Routines');
+    expect(output).toContain('open routines');
+    expect(output).not.toContain('RECOMMENDED Agent profile -> Profiles');
+    expect(output).not.toContain('RECOMMENDED Persona -> Personas');
+    expect(output).not.toContain('Discovered Behavior Files');
     expect(output).not.toContain('default knowledge');
   });
 
@@ -642,16 +659,18 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
-    const output = text(renderAgentWorkspace(workspace, 150, 48));
+    const expectSetupAction = (id: string, label: string, command: string) => {
+      workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === id);
+      const output = text(renderAgentWorkspace(workspace, 150, 48));
+      expect(output).toContain(label);
+      expect(output).toContain(command);
+      expect(output).not.toContain('->');
+    };
 
-    expect(output).toContain('Skills');
-    expect(output).toContain('Skills -> Skills');
-    expect(output).toContain('Routines');
-    expect(output).toContain('Routines -> Routines');
-    expect(output).toContain('Agent Knowledge');
-    expect(output).toContain('Agent Knowledge -> Knowledge');
-    expect(output).toContain('Voice and media');
-    expect(output).toContain('Voice and media -> Voice & Media');
+    expectSetupAction('setup-skills', 'Skills', 'open skills');
+    expectSetupAction('setup-routines', 'Routines', 'open routines');
+    expectSetupAction('setup-agent-knowledge', 'Agent Knowledge', 'open knowledge');
+    expectSetupAction('setup-voice-media', 'Voice and media', 'open voice-media');
   });
 
   test('renders local persona posture in the memory workspace', () => {
