@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.38 - 2026-06-04
+
+- Onboarding now uses the shared fullscreen workspace surface so it owns the full terminal height, including the composer area.
+- Fullscreen composition now clears stale shell footer rows when overlays replace the normal prompt surface.
+
 ## 1.0.37 - 2026-06-04
 
 - Onboarding setup now renders full-bleed across the terminal with no inset edge.
