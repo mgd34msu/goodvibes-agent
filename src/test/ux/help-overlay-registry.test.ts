@@ -49,8 +49,7 @@ describe('renderHelpOverlay Quick Start sourced from live registry (β3)', () =>
   test('shows the setup row with its Agent setup description', () => {
     const text = renderText([makeCmd('setup')]);
     expect(text).toContain('/setup');
-    expect(text).toContain('Open Agent setup with current settings');
-    expect(text).toContain('preloaded');
+    expect(text).toContain('Open the Agent workspace');
   });
 
   test('shows /agent when the Agent workspace command is registered', () => {
@@ -58,7 +57,7 @@ describe('renderHelpOverlay Quick Start sourced from live registry (β3)', () =>
     const text = renderText(commands);
     expect(text).toContain('/agent');
     expect(text).toContain('Open workspace; press / there to search every action');
-    expect(text).toContain('/agent setup');
+    expect(text).not.toContain('/agent setup');
     expect(text).toContain('/agent knowledge');
     expect(text).toContain('/agent voice-media');
   });

@@ -96,10 +96,9 @@ describe('wireShellUiOpeners', () => {
     );
   });
 
-  test('openOnboardingWizard delegates through the shared opener route', () => {
-    input.openOnboardingWizard = mock(() => {});
-    (commandContext.openOnboardingWizard as (mode?: 'new' | 'edit') => void)('new');
-    expect(input.openOnboardingWizard).toHaveBeenCalledWith('new');
-    expect(render).not.toHaveBeenCalled();
+  test('openAgentWorkspace delegates through the shared opener route', () => {
+    (commandContext.openAgentWorkspace as () => void)();
+    expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, undefined);
+    expect(render).toHaveBeenCalled();
   });
 });

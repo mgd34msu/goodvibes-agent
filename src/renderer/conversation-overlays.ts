@@ -13,7 +13,6 @@ import { renderLiveTailModal } from './live-tail-modal.ts';
 import { renderContextInspector } from './context-inspector.ts';
 import { renderSettingsModal } from './settings-modal.ts';
 import { renderMcpWorkspace } from './mcp-workspace.ts';
-import { renderAgentWorkspace } from './agent-workspace.ts';
 import { renderSessionPickerModal } from './session-picker-modal.ts';
 import { renderProfilePickerModal } from './profile-picker-modal.ts';
 import { renderBookmarkModal } from './bookmark-modal.ts';
@@ -38,10 +37,6 @@ export function applyConversationOverlays(
   const { input, conversation, commandRegistry, keybindingsManager, conversationWidth, viewportHeight, contextWindow } = context;
   let next = viewport;
   const bottomDockInset = 1 + (input.searchManager.active || input.historySearch.active ? 1 : 0);
-
-  if (input.onboardingWizard.active) {
-    return next;
-  }
 
   if (input.filePicker.active) {
     const lines = renderFilePickerOverlay(input.filePicker, conversationWidth, viewportHeight);
@@ -88,11 +83,6 @@ export function applyConversationOverlays(
 
   if (input.mcpWorkspace.active) {
     const lines = renderMcpWorkspace(input.mcpWorkspace, conversationWidth, viewportHeight);
-    next = replaceViewportWithOverlay(lines, conversationWidth, viewportHeight);
-  }
-
-  if (input.agentWorkspace.active) {
-    const lines = renderAgentWorkspace(input.agentWorkspace, conversationWidth, viewportHeight);
     next = replaceViewportWithOverlay(lines, conversationWidth, viewportHeight);
   }
 

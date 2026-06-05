@@ -21,7 +21,6 @@ import { renderSessionPickerPackageText } from '../renderer/session-picker-modal
 import { renderSelectionModalPackageText } from '../renderer/selection-modal-overlay.ts';
 import { renderSettingsModalPackageText } from '../renderer/settings-modal.ts';
 import { renderAgentWorkspacePackageText } from '../input/agent-workspace-categories.ts';
-import { renderOnboardingWizardPackageText } from '../input/onboarding/onboarding-wizard.ts';
 import { CommandRegistry } from '../input/command-registry.ts';
 import { registerBuiltinCommands } from '../input/commands.ts';
 import { AGENT_HARNESS_MODES } from '../tools/agent-harness-tool-schema.ts';
@@ -493,12 +492,6 @@ function packageFacingCliHelpTextSources(): readonly PackageFacingTextSource[] {
       content: renderModelWorkspacePackageText(),
       sourcePath: 'src/renderer/model-workspace.ts',
       sourceFunction: 'renderModelWorkspacePackageText',
-    },
-    {
-      path: 'tui:onboarding-wizard',
-      content: renderOnboardingWizardPackageText(),
-      sourcePath: 'src/input/onboarding/onboarding-wizard.ts',
-      sourceFunction: 'renderOnboardingWizardPackageText',
     },
     {
       path: 'tui:process-modal',

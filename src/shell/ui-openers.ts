@@ -273,10 +273,6 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     input.openSelection(title, items, opts, callback);
   };
 
-  commandContext.openOnboardingWizard = (modeOrOptions) => {
-    input.openOnboardingWizard(modeOrOptions);
-  };
-
   commandContext.openContextInspector = () => {
     input.modalOpened('contextInspector');
     input.contextInspectorModal.open();

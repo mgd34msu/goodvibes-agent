@@ -1,15 +1,18 @@
 import type { CommandRegistry } from '../command-registry.ts';
-import { openOnboardingWizard } from './runtime-services.ts';
 
 export function registerOnboardingRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'setup',
     aliases: ['onboarding'],
-    description: 'Open Agent setup with current settings preloaded for review and editing',
+    description: 'Open the Agent workspace',
     usage: '',
-    handler(_args, ctx) {
-      openOnboardingWizard(ctx, { mode: 'edit', reset: true });
-      ctx.print('Opening Agent setup.');
+    async handler(_args, ctx) {
+      if (ctx.executeCommand && await ctx.executeCommand('agent', [])) return;
+      if (!ctx.openAgentWorkspace) {
+        ctx.print('Agent workspace is not available in this runtime.');
+        return;
+      }
+      ctx.openAgentWorkspace();
     },
   });
 }

@@ -1,22 +1,37 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
+import { registerAgentWorkspaceRuntimeCommands } from '../../input/commands/agent-workspace-runtime.ts';
 import { registerGuidanceRuntimeCommands } from '../../input/commands/guidance-runtime.ts';
 import { registerOnboardingRuntimeCommands } from '../../input/commands/onboarding-runtime.ts';
-import type { OpenOnboardingWizardOptions } from '../../input/handler-ui-state.ts';
-import { wireShellUiOpeners } from '../../shell/ui-openers.ts';
-import { getTestRuntimeServices, resetTestRuntimeServices } from '../helpers/runtime-services.ts';
+import { resetTestRuntimeServices } from '../helpers/runtime-services.ts';
 
 afterEach(() => {
   resetTestRuntimeServices();
 });
 
-function makeContext(out: string[]): CommandContext {
-  return {
+function makeContext(out: string[], registry?: CommandRegistry): CommandContext & {
+  openedWorkspaceCategories: Array<string | undefined>;
+  delegatedCommands: Array<{ name: string; args: string[] }>;
+} {
+  const openedWorkspaceCategories: Array<string | undefined> = [];
+  const delegatedCommands: Array<{ name: string; args: string[] }> = [];
+  const ctx = {
     print: (text: string) => {
       out.push(text);
     },
     renderRequest: () => {},
     exit: () => {},
+    executeCommand: registry
+      ? async (name: string, args: string[]) => {
+          delegatedCommands.push({ name, args });
+          return registry.execute(name, args, ctx as CommandContext);
+        }
+      : undefined,
+    openAgentWorkspace: (categoryId?: string) => {
+      openedWorkspaceCategories.push(categoryId);
+    },
+    openedWorkspaceCategories,
+    delegatedCommands,
     session: {
       conversationManager: {} as never,
       runtime: {
@@ -41,93 +56,81 @@ function makeContext(out: string[]): CommandContext {
       toolRegistry: {} as never,
       mcpRegistry: {} as never,
     },
-  } as unknown as CommandContext;
-}
-
-function makeWiredContext(out: string[]): {
-  ctx: CommandContext;
-  inputState: { active: boolean; mode: 'new' | 'edit' | 'reopen' | undefined; modalStack: string[] };
-} {
-  const runtimeServices = getTestRuntimeServices();
-  const inputState = {
-    active: false,
-    mode: undefined as 'new' | 'edit' | 'reopen' | undefined,
-    modalStack: [] as string[],
+  } as unknown as CommandContext & {
+    openedWorkspaceCategories: Array<string | undefined>;
+    delegatedCommands: Array<{ name: string; args: string[] }>;
   };
-  const input = {
-    openOnboardingWizard: (modeOrOptions?: 'new' | 'edit' | 'reopen' | OpenOnboardingWizardOptions) => {
-      inputState.active = true;
-      inputState.mode = typeof modeOrOptions === 'string'
-        ? modeOrOptions
-        : modeOrOptions?.mode ?? 'new';
-      inputState.modalStack = ['onboarding'];
-    },
-  } as never;
-
-  const ctx = makeContext(out);
-  wireShellUiOpeners({
-    commandContext: ctx,
-    input,
-    panelManager: runtimeServices.panelManager,
-    conversation: {
-      setSplashSuppressed: () => {},
-      rebuildHistory: () => {},
-    } as never,
-    configManager: runtimeServices.configManager,
-    providerRegistry: runtimeServices.providerRegistry,
-    runtime: ctx.session.runtime as never,
-    featureFlags: runtimeServices.featureFlags,
-    mcpRegistry: runtimeServices.mcpRegistry,
-    subscriptionManager: runtimeServices.subscriptionManager,
-    serviceRegistry: runtimeServices.serviceRegistry,
-    getConfiguredProviderIds: () => [],
-    getPinned: async () => [],
-    render: () => {},
-  });
-
-  return { ctx, inputState };
+  return ctx;
 }
 
-describe('onboarding entrypoints', () => {
-  test('top-level setup command opens the same hydrated edit wizard path', async () => {
-    const registry = new CommandRegistry();
-    registerOnboardingRuntimeCommands(registry);
+function makeRegistry(): CommandRegistry {
+  const registry = new CommandRegistry();
+  registerAgentWorkspaceRuntimeCommands(registry);
+  registerOnboardingRuntimeCommands(registry);
+  return registry;
+}
 
+describe('setup entrypoints', () => {
+  test('top-level setup command delegates to plain /agent', async () => {
+    const registry = makeRegistry();
     const out: string[] = [];
-    const { ctx, inputState } = makeWiredContext(out);
+    const ctx = makeContext(out, registry);
 
     await expect(registry.execute('setup', [], ctx)).resolves.toBe(true);
 
-    expect(inputState.active).toBe(true);
-    expect(inputState.mode).toBe('edit');
-    expect(inputState.modalStack).toEqual(['onboarding']);
-    expect(out.join('\n')).toContain('Opening Agent setup.');
+    expect(ctx.delegatedCommands).toEqual([{ name: 'agent', args: [] }]);
+    expect(ctx.openedWorkspaceCategories).toEqual([undefined]);
+    expect(out).toEqual([]);
   });
 
-  test('legacy onboarding alias opens Agent setup', async () => {
-    const registry = new CommandRegistry();
-    registerOnboardingRuntimeCommands(registry);
-
+  test('legacy onboarding alias delegates to plain /agent', async () => {
+    const registry = makeRegistry();
     const out: string[] = [];
-    const { ctx, inputState } = makeWiredContext(out);
+    const ctx = makeContext(out, registry);
 
     await expect(registry.execute('onboarding', [], ctx)).resolves.toBe(true);
 
-    expect(inputState.active).toBe(true);
-    expect(inputState.mode).toBe('edit');
-    expect(inputState.modalStack).toEqual(['onboarding']);
-    expect(out.join('\n')).toContain('Opening Agent setup.');
+    expect(ctx.delegatedCommands).toEqual([{ name: 'agent', args: [] }]);
+    expect(ctx.openedWorkspaceCategories).toEqual([undefined]);
+    expect(out).toEqual([]);
   });
 
-  test('welcome print points users at Agent setup', () => {
+  test('setup command falls back to plain workspace opener when command delegation is unavailable', async () => {
+    const registry = new CommandRegistry();
+    registerOnboardingRuntimeCommands(registry);
+    const out: string[] = [];
+    const ctx = makeContext(out);
+
+    await expect(registry.execute('setup', [], ctx)).resolves.toBe(true);
+
+    expect(ctx.delegatedCommands).toEqual([]);
+    expect(ctx.openedWorkspaceCategories).toEqual([undefined]);
+    expect(out).toEqual([]);
+  });
+
+  test('welcome open delegates to plain /agent', async () => {
+    const registry = makeRegistry();
+    registerGuidanceRuntimeCommands(registry);
+    const out: string[] = [];
+    const ctx = makeContext(out, registry);
+
+    await expect(registry.execute('welcome', ['open'], ctx)).resolves.toBe(true);
+
+    expect(ctx.delegatedCommands).toEqual([{ name: 'agent', args: [] }]);
+    expect(ctx.openedWorkspaceCategories).toEqual([undefined]);
+    expect(out).toEqual([]);
+  });
+
+  test('welcome print points users at the Agent workspace', async () => {
     const registry = new CommandRegistry();
     registerGuidanceRuntimeCommands(registry);
-
     const out: string[] = [];
-    registry.get('welcome')!.handler(['print'], makeContext(out));
+
+    await expect(registry.execute('welcome', ['print'], makeContext(out))).resolves.toBe(true);
 
     expect(out.join('\n')).toContain('/setup');
-    expect(out.join('\n')).toContain('open Agent setup');
+    expect(out.join('\n')).toContain('open the Agent workspace');
+    expect(out.join('\n')).not.toContain('/agent setup');
     expect(out.join('\n')).not.toContain('first-run checklist');
   });
 });

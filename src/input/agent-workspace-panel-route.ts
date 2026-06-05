@@ -39,5 +39,6 @@ export function agentWorkspaceCategoryForPanel(panelId: string): AgentWorkspaceC
 }
 
 export function agentWorkspaceCommandForPanel(panelId: string): string {
-  return `/agent ${agentWorkspaceCategoryForPanel(panelId)}`;
+  const category = agentWorkspaceCategoryForPanel(panelId);
+  return category === 'setup' ? '/agent' : `/agent ${category}`;
 }

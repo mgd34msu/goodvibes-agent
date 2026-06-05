@@ -56,17 +56,13 @@ function makeCli(overrides: Partial<GoodVibesCliParseResult> = {}): GoodVibesCli
 function runStartup(
   shellPaths: ReturnType<typeof makeShellPaths>,
   cli: GoodVibesCliParseResult = makeCli(),
-): { readonly onboardingOpened: number; readonly workspaceOpened: number; readonly prompt: string } {
-  let opened = 0;
-  let workspaceOpened = 0;
+): { readonly workspaceCategories: Array<string | undefined>; readonly prompt: string } {
+  const workspaceCategories: Array<string | undefined> = [];
   const input = {
     prompt: '',
     cursorPos: 0,
-    openOnboardingWizard: () => {
-      opened += 1;
-    },
-    openAgentWorkspace: () => {
-      workspaceOpened += 1;
+    openAgentWorkspace: (_context: CommandContext, categoryId?: string) => {
+      workspaceCategories.push(categoryId);
     },
   } as unknown as InputHandler;
 
@@ -79,16 +75,15 @@ function runStartup(
     render: () => {},
   });
 
-  return { onboardingOpened: opened, workspaceOpened, prompt: input.prompt };
+  return { workspaceCategories, prompt: input.prompt };
 }
 
 describe('initial TUI onboarding startup check', () => {
-  test('opens onboarding when the global user check marker is absent', () => {
+  test('opens the plain Agent workspace when the global user check marker is absent', () => {
     const shellPaths = makeShellPaths();
 
     const result = runStartup(shellPaths);
-    expect(result.onboardingOpened).toBe(1);
-    expect(result.workspaceOpened).toBe(0);
+    expect(result.workspaceCategories).toEqual([undefined]);
   });
 
   test('does not use project markers as the global onboarding check', () => {
@@ -100,8 +95,7 @@ describe('initial TUI onboarding startup check', () => {
     });
 
     const result = runStartup(shellPaths);
-    expect(result.onboardingOpened).toBe(1);
-    expect(result.workspaceOpened).toBe(0);
+    expect(result.workspaceCategories).toEqual([undefined]);
   });
 
   test('opens Agent workspace after the global user check marker exists', () => {
@@ -113,8 +107,7 @@ describe('initial TUI onboarding startup check', () => {
     });
 
     const result = runStartup(shellPaths);
-    expect(result.onboardingOpened).toBe(0);
-    expect(result.workspaceOpened).toBe(1);
+    expect(result.workspaceCategories).toEqual([undefined]);
   });
 
   test('does not replace a seeded prompt with the Agent workspace', () => {
@@ -129,8 +122,7 @@ describe('initial TUI onboarding startup check', () => {
       positionals: ['summarize', 'today'],
     }));
 
-    expect(result.onboardingOpened).toBe(0);
-    expect(result.workspaceOpened).toBe(0);
+    expect(result.workspaceCategories).toEqual([]);
     expect(result.prompt).toBe('summarize today');
   });
 });

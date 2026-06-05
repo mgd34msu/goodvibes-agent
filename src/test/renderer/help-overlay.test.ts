@@ -91,8 +91,7 @@ describe('renderHelpOverlay', () => {
   test('shows the setup quick-start row when setup is registered', () => {
     const text = renderAllText([{ name: 'setup', description: 'Setup surfaces', handler: () => {} }]);
     expect(text).toContain('/setup');
-    expect(text).toContain('Open Agent setup with current settings');
-    expect(text).toContain('preloaded');
+    expect(text).toContain('Open the Agent workspace');
     expect(text).not.toContain('first-run checklist');
   });
 

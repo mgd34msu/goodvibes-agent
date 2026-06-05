@@ -9,8 +9,6 @@ import type { SelectionItem, SelectionResult, SelectionAction } from './selectio
 import type { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
 import type { PanelManager } from '../panels/panel-manager.ts';
 import type { KeybindingsManager } from './keybindings.ts';
-import type { OnboardingWizardMode } from './onboarding/onboarding-wizard.ts';
-import type { OpenOnboardingWizardOptions } from './handler-ui-state.ts';
 import type { KnowledgeApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { HookApi } from '@pellux/goodvibes-sdk/platform/hooks';
 import type { McpApi } from '@pellux/goodvibes-sdk/platform/mcp';
@@ -85,7 +83,6 @@ export interface CommandUiActions {
 
 export interface CommandShellUiOpeners {
   reloadSystemPrompt?: () => string;
-  openOnboardingWizard?: (modeOrOptions?: OnboardingWizardMode | OpenOnboardingWizardOptions) => void;
   openModelPicker?: () => void;
   openModelPickerWithTarget?: (target: import('./model-picker.ts').ModelPickerTarget) => boolean;
   openProviderModelPickerWithTarget?: (target: import('./model-picker.ts').ModelPickerTarget) => boolean;

@@ -19,8 +19,6 @@ import type { McpWorkspace } from './mcp-workspace.ts';
 import type { AgentWorkspace } from './agent-workspace.ts';
 import { SessionPickerModal } from './session-picker-modal.ts';
 import { ProfilePickerModal } from './profile-picker-modal.ts';
-import type { OnboardingWizardController } from './onboarding/onboarding-wizard.ts';
-import type { OnboardingWizardAction } from './onboarding/onboarding-wizard.ts';
 import {
   IMAGE_EXTENSIONS,
   formatFileSize,
@@ -71,7 +69,7 @@ import type { ModelPickerTarget } from './model-picker.ts';
  *   - `pasteRegistry`, `imageRegistry` — owned Maps, never replaced
  *   - `selectionModal`, `bookmarkModal`, `settingsModal`, `sessionPickerModal`,
  *     `profilePickerModal` — modal objects constructed once in InputHandler constructor
- *   - `filePicker`, `modelPicker`, `onboardingWizard`, `processModal`, `liveTailModal`,
+ *   - `filePicker`, `modelPicker`, `processModal`, `liveTailModal`,
  *     `contextInspectorModal`, `blockActionsMenu`, `searchManager`, `historySearch` —
  *     service objects constructed once
  *   - `panelManager`, `keybindingsManager` — from uiServices, stable for app lifetime
@@ -117,7 +115,6 @@ export interface InputFeedContext {
   autocomplete: AutocompleteEngine | null;
   readonly filePicker: FilePickerModal;
   readonly modelPicker: ModelPickerModal;
-  readonly onboardingWizard: OnboardingWizardController;
   readonly processModal: ProcessModal;
   readonly liveTailModal: LiveTailModal;
   readonly contextInspectorModal: ContextInspectorModal;
@@ -158,10 +155,9 @@ export interface InputFeedContext {
   readonly findMarkerAtPos: (pos: number) => { start: number; end: number } | null;
   readonly cleanupMarkerRegistry: (text: string) => void;
   readonly expandPrompt: (text: string) => string | import('@pellux/goodvibes-sdk/platform/providers').ContentPart[];
-  readonly openModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings' | 'onboarding') => boolean;
-  readonly openProviderModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings' | 'onboarding') => boolean;
+  readonly openModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings') => boolean;
+  readonly openProviderModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings') => boolean;
   readonly onModelPickerCommit: () => boolean;
-  readonly onOnboardingAction: (action: OnboardingWizardAction) => void;
   readonly exitApp: () => void;
 }
 
@@ -193,7 +189,6 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       agentWorkspace: context.agentWorkspace,
       sessionPickerModal: context.sessionPickerModal,
       profilePickerModal: context.profilePickerModal,
-      onboardingWizard: context.onboardingWizard,
       helpOverlayActive: context.helpOverlayActive,
       helpScrollOffset: context.helpScrollOffset,
       shortcutsOverlayActive: context.shortcutsOverlayActive,
@@ -227,7 +222,6 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       openModelPickerWithTarget: context.openModelPickerWithTarget,
       openProviderModelPickerWithTarget: context.openProviderModelPickerWithTarget,
       onModelPickerCommit: context.onModelPickerCommit,
-      onOnboardingAction: context.onOnboardingAction,
     }, token);
     context.selectionCallback = modalRoute.selectionCallback;
     context.helpOverlayActive = modalRoute.helpOverlayActive;

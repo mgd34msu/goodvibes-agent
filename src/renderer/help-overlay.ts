@@ -14,10 +14,9 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 
 const FEATURED_HELP_COMMANDS: Array<[name: string, argHint: string, desc: string]> = [
   ['agent',        '',           'Open workspace; press / there to search every action'],
-  ['agent',        'setup',      'Open setup workspace for local behavior, channels, and voice'],
   ['agent',        'knowledge',  'Open isolated Agent Knowledge workspace actions'],
   ['agent',        'voice-media', 'Open voice, image, browser, and media workspace actions'],
-  ['setup',        '',           'Open Agent setup with current settings preloaded'],
+  ['setup',        '',           'Open the Agent workspace'],
   ['knowledge',    'status',     'Inspect isolated Agent Knowledge readiness'],
   ['memory',       '',           'Manage Agent-local memory records'],
   ['personas',     '',           'Manage serial Agent operating personas'],

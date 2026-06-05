@@ -102,14 +102,14 @@ export function applyInitialTuiCliState(options: {
   const globalOnboardingMarker = readOnboardingCheckMarker(shellPaths, 'user');
   const seededPrompt = cli.flags.prompt ?? (cli.rawCommand === undefined && cli.positionals.length > 0 ? cli.positionals.join(' ') : undefined);
   if (cli.command === 'onboarding') {
-    input.openOnboardingWizard({ mode: 'edit', reset: true });
+    input.openAgentWorkspace(commandContext);
   } else if (cli.command === 'sessions' && cli.commandArgs[0] === 'resume') {
     const target = cli.commandArgs.slice(1).join(' ').trim();
     if (target) {
       void commandRegistry.execute('session', ['resume', target], commandContext).then(() => render());
     }
   } else if (!globalOnboardingMarker.exists) {
-    input.openOnboardingWizard({ mode: 'new', reset: true });
+    input.openAgentWorkspace(commandContext);
   } else if (cli.command === 'tui' && seededPrompt === undefined) {
     input.openAgentWorkspace(commandContext);
   }

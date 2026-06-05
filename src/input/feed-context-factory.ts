@@ -32,7 +32,6 @@ import type { McpWorkspace } from './mcp-workspace.ts';
 import type { AgentWorkspace } from './agent-workspace.ts';
 import type { SessionPickerModal } from './session-picker-modal.ts';
 import type { ProfilePickerModal } from './profile-picker-modal.ts';
-import type { OnboardingWizardController } from './onboarding/onboarding-wizard.ts';
 import type { WrappedPromptInfo } from './handler-prompt-buffer.ts';
 import type { Panel } from '../panels/types.ts';
 import type { PanelManager } from '../panels/panel-manager.ts';
@@ -82,8 +81,8 @@ export interface FeedContextMutableInit {
  *   - `selectionModal`, `bookmarkModal`, `settingsModal`, `sessionPickerModal`,
  *     `profilePickerModal` — modal objects constructed once
  *   - `filePicker`, `modelPicker`, `processModal`, `liveTailModal`,
- *     `contextInspectorModal`, `blockActionsMenu`,
- *     `searchManager`, `historySearch`, `onboardingWizard` — service objects constructed once
+ *     `contextInspectorModal`, `blockActionsMenu`, `searchManager`, `historySearch` —
+ *     service objects constructed once
  *   - `panelManager`, `keybindingsManager` — from uiServices, stable
  *   - `modalStack` — reference to the handler's shared array
  *   - `getHistory`, `getViewportHeight`, `getScrollTop`, `scroll`, `exitApp` — callbacks
@@ -113,7 +112,6 @@ export interface FeedContextStableRefs {
   autocomplete: AutocompleteEngine | null;
   filePicker: FilePickerModal;
   modelPicker: ModelPickerModal;
-  onboardingWizard: OnboardingWizardController;
   processModal: ProcessModal;
   liveTailModal: LiveTailModal;
   contextInspectorModal: ContextInspectorModal;
@@ -157,10 +155,9 @@ export interface FeedContextClosures {
   findMarkerAtPos: (pos: number) => { start: number; end: number } | null;
   cleanupMarkerRegistry: (text: string) => void;
   expandPrompt: (text: string) => string | import('@pellux/goodvibes-sdk/platform/providers').ContentPart[];
-  openModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings' | 'onboarding') => boolean;
-  openProviderModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings' | 'onboarding') => boolean;
+  openModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings') => boolean;
+  openProviderModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings') => boolean;
   onModelPickerCommit: () => boolean;
-  onOnboardingAction: (action: import('./onboarding/onboarding-wizard.ts').OnboardingWizardAction) => void;
 }
 
 /**

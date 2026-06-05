@@ -16,9 +16,7 @@ import type { ContextInspectorModal } from '../renderer/context-inspector.ts';
 import type { FilePickerModal } from './file-picker.ts';
 import type { BlockActionsMenu, BlockActionId } from '../renderer/block-actions.ts';
 import type { SearchManager } from './search.ts';
-import type { OnboardingWizardAction, OnboardingWizardController } from './onboarding/onboarding-wizard.ts';
 import { handleHistorySearchToken, handleOverlayToken, handleSearchModeToken } from './handler-ui-state.ts';
-import { handleOnboardingWizardToken } from './onboarding/handler-onboarding-routes.ts';
 import {
   handleBookmarkModalToken,
   handleProfilePickerToken,
@@ -48,7 +46,6 @@ export type ModalTokenRouteState = {
   agentWorkspace: AgentWorkspace;
   sessionPickerModal: SessionPickerModal;
   profilePickerModal: ProfilePickerModal;
-  onboardingWizard: OnboardingWizardController;
   helpOverlayActive: boolean;
   helpScrollOffset: number;
   shortcutsOverlayActive: boolean;
@@ -82,16 +79,13 @@ export type ModalTokenRouteState = {
   /** Callback to open the model picker with a specific target (helper or tool). Optional — only wired when available. */
   openModelPickerWithTarget?: (
     target: import('./model-picker.ts').ModelPickerTarget,
-    source?: 'settings' | 'onboarding',
+    source?: 'settings',
   ) => boolean;
   openProviderModelPickerWithTarget?: (
     target: import('./model-picker.ts').ModelPickerTarget,
-    source?: 'settings' | 'onboarding',
+    source?: 'settings',
   ) => boolean;
-  clearOnboardingModelPickerCancelState?: () => void;
-  restoreOnboardingModelPickerCancelState?: () => void;
   onModelPickerCommit?: () => boolean;
-  onOnboardingAction?: (action: OnboardingWizardAction) => void;
 };
 
 export function handleModalTokenRoutes(state: ModalTokenRouteState, token: InputToken): {
@@ -214,17 +208,6 @@ export function handleModalTokenRoutes(state: ModalTokenRouteState, token: Input
     requestRender: state.requestRender,
     handleEscape: state.handleEscape,
     onModelPickerCommit: state.onModelPickerCommit,
-  }, token)) {
-    return withState(state, true);
-  }
-
-  if (handleOnboardingWizardToken({
-    onboardingWizard: state.onboardingWizard,
-    getViewportHeight: state.getViewportHeight,
-    requestRender: state.requestRender,
-    handleEscape: state.handleEscape,
-    openModelPickerWithTarget: state.openModelPickerWithTarget,
-    onAction: state.onOnboardingAction,
   }, token)) {
     return withState(state, true);
   }

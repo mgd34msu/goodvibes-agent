@@ -20,7 +20,6 @@ function modelCatalogContext(): CommandContext {
     print: noop,
     exit: noop,
     executeCommand: async () => true,
-    openOnboardingWizard: noop,
     openModelPicker: noop,
     openModelPickerWithTarget: () => true,
     openProviderModelPickerWithTarget: () => true,

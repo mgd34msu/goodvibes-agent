@@ -172,7 +172,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       summary: 'Agent setup has not been applied for this user.',
       cause: 'No global user setup completion marker was found.',
       impact: 'Provider/model, Agent Knowledge, local behavior, channel, and permission choices may still be implicit defaults.',
-      action: 'Run /setup in GoodVibes Agent or goodvibes-agent setup status to review setup state.',
+      action: 'Run /agent in GoodVibes Agent or goodvibes-agent setup status to review setup state.',
     });
   }
 

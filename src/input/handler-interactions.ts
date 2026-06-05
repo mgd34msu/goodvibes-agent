@@ -1,62 +1,6 @@
-import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
-import type { OnboardingWizardMode } from './onboarding/onboarding-wizard.ts';
-import { collectOnboardingSnapshot } from '../runtime/onboarding/index.ts';
 import { cleanupMarkerRegistry, expandPrompt, findMarkerAtPos, handleBlockCopy, handleBlockRerun, handleBlockSave, handleBlockToggle, handleBookmark, handleClipboardPaste, handleCopy, handleCtrlC, registerPaste } from './handler-content-actions.ts';
 import { clearModalStack, handleEscape, modalOpened } from './handler-modal-stack.ts';
-import { openOnboardingWizardState, type OpenOnboardingWizardOptions } from './handler-ui-state.ts';
 import type { InputHandler } from './handler.ts';
-
-export function openOnboardingWizardForHandler(
-  handler: InputHandler,
-    modeOrOptions: OnboardingWizardMode | OpenOnboardingWizardOptions = 'new',
-  ): void {
-    const options = typeof modeOrOptions === 'string' ? { mode: modeOrOptions } : modeOrOptions;
-    if (!handler.modalStack.includes('onboarding')) handler.modalOpened('onboarding');
-    handler.clearOnboardingModelPickerCancelState();
-    openOnboardingWizardState(handler.onboardingWizard, options);
-    const hydrationSerial = ++handler.onboardingHydrationSerial;
-    if (options.preload === undefined) {
-      handler.onboardingWizard.beginRuntimeHydration();
-      void handler.hydrateOnboardingWizardFromRuntime(hydrationSerial);
-    }
-    handler.requestRender();
-  }
-
-export async function hydrateOnboardingWizardFromRuntimeForHandler(handler: InputHandler, hydrationSerial: number): Promise<void> {
-    try {
-      const snapshot = await collectOnboardingSnapshot({
-        config: handler.uiServices.platform.configManager,
-        shellPaths: handler.uiServices.environment.shellPaths,
-        acknowledgementScope: 'project',
-        subscriptions: handler.uiServices.platform.subscriptionManager,
-        secrets: handler.uiServices.platform.secretsManager,
-        auth: handler.uiServices.platform.localUserAuthManager,
-        services: handler.uiServices.platform.serviceRegistry,
-        surfaces: {
-          list: () => handler.uiServices.platform.surfaceRegistry.syncConfiguredSurfaces(),
-        },
-        providerAccounts: {
-          loadSnapshot: () => buildProviderAccountSnapshot({
-            providerModels: handler.uiServices.providers.providerRegistry,
-            services: handler.uiServices.platform.serviceRegistry,
-            subscriptions: handler.uiServices.platform.subscriptionManager,
-            environment: {
-              hasEnvironmentVariable: (name: string) => Boolean(process.env[name]),
-            },
-          }),
-        },
-      });
-      if (!handler.onboardingWizard.active || hydrationSerial !== handler.onboardingHydrationSerial) return;
-      handler.onboardingWizard.hydrateRuntimeState({ snapshot }, { resetValues: true });
-      handler.requestRender();
-    } catch (error) {
-      if (!handler.onboardingWizard.active || hydrationSerial !== handler.onboardingHydrationSerial) return;
-      const message = error instanceof Error ? error.message : String(error);
-      handler.onboardingWizard.failRuntimeHydration(message);
-      handler.commandContext?.print?.(`Onboarding runtime snapshot failed: ${message}`);
-      handler.requestRender();
-    }
-  }
 
 export function registerPasteForHandler(handler: InputHandler, content: string): string {
     const result = registerPaste({
@@ -220,7 +164,6 @@ export function handleEscapeForHandler(handler: InputHandler): void {
       filePicker: handler.filePicker,
       blockActionsMenu: handler.blockActionsMenu,
       selectionModal: handler.selectionModal,
-      onboardingWizard: handler.onboardingWizard,
       commandMode: handler.commandMode,
       modalStack: handler.modalStack,
       modalReturnFocus: handler.modalReturnFocus,
@@ -236,8 +179,6 @@ export function handleEscapeForHandler(handler: InputHandler): void {
       autocompleteUpdate: (query: string) => handler.autocomplete?.update(query),
       helpScrollOffset: handler.helpScrollOffset,
       shortcutsScrollOffset: handler.shortcutsScrollOffset,
-      clearOnboardingModelPickerCancelState: () => handler.clearOnboardingModelPickerCancelState(),
-      restoreOnboardingModelPickerCancelState: () => handler.restoreOnboardingModelPickerCancelState(),
     });
     handler.prompt = result.prompt;
     handler.cursorPos = result.cursorPos;

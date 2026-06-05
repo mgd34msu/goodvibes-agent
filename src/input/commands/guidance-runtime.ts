@@ -4,22 +4,23 @@ export function registerGuidanceRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'welcome',
     aliases: ['guide'],
-    description: 'Open the Agent setup workspace',
+    description: 'Open the Agent workspace',
     usage: '[open|print]',
-    handler(args, ctx) {
+    async handler(args, ctx) {
       const sub = args[0] ?? 'open';
       if (sub === 'open' || sub === 'panel') {
-        if (ctx.openOnboardingWizard) {
-          ctx.openOnboardingWizard({ mode: 'edit' });
+        if (ctx.executeCommand && await ctx.executeCommand('agent', [])) return;
+        if (ctx.openAgentWorkspace) {
+          ctx.openAgentWorkspace();
           return;
         }
-        ctx.print('Use /setup to open Agent setup.');
+        ctx.print('Use /agent to open the Agent workspace.');
         return;
       }
       if (sub === 'print') {
         ctx.print([
           'Welcome To GoodVibes Agent',
-          '  /setup              - open Agent setup with current settings preloaded',
+          '  /setup              - open the Agent workspace',
           '  /agent              - open the Agent operator workspace',
           '  /knowledge          - inspect isolated Agent Knowledge status, ask/search, libraries, map, connectors, and ingest paths',
           '  /memory             - manage Agent-local memory',

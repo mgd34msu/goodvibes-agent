@@ -83,11 +83,6 @@ function optionalModelTarget(args: AgentHarnessUiSurfaceArgs): 'main' | 'helper'
   return target === 'main' || target === 'helper' || target === 'tool' || target === 'tts' ? target : undefined;
 }
 
-function optionalOnboardingMode(args: AgentHarnessUiSurfaceArgs): 'new' | 'edit' | 'reopen' | undefined {
-  const target = readString(args.target);
-  return target === 'new' || target === 'edit' || target === 'reopen' ? target : undefined;
-}
-
 function workspaceCategory(args: AgentHarnessUiSurfaceArgs): string | undefined {
   return readString(args.categoryId || args.category || args.target) || undefined;
 }
@@ -614,19 +609,17 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
   },
   {
     id: 'onboarding',
-    label: 'Onboarding Wizard',
-    kind: 'modal',
-    summary: 'First-run and setup review wizard for Agent readiness.',
-    command: '/setup',
-    preferredModelRoute: `Use ${agentHarnessModes('workspace_actions', 'settings')} for concrete setup operation.`,
-    parameters: ['target=new|edit|reopen'],
-    available: (context) => typeof context.openOnboardingWizard === 'function',
-    open: (context, args) => {
+    label: 'Agent Workspace',
+    kind: 'workspace',
+    summary: 'Agent workspace entry for first-run and setup review.',
+    command: '/agent',
+    preferredModelRoute: `Use ${agentHarnessModes('workspace', 'workspace_actions', 'settings')} for concrete setup operation.`,
+    available: (context) => typeof context.openAgentWorkspace === 'function',
+    open: (context) => {
       const surface = findSurfaceById('onboarding')!;
-      if (!context.openOnboardingWizard) return routeUnavailable(surface);
-      const mode = optionalOnboardingMode(args);
-      context.openOnboardingWizard(mode);
-      return opened(surface, { mode: mode ?? 'default' });
+      if (!context.openAgentWorkspace) return routeUnavailable(surface);
+      context.openAgentWorkspace();
+      return opened(surface);
     },
   },
 ];

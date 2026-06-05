@@ -1,7 +1,6 @@
-import type { InputHandler } from '../input/handler.ts';
+import type { AgentWorkspace } from '../input/agent-workspace.ts';
 import type { CompositeRequest } from '../renderer/compositor.ts';
-import { renderModelWorkspace } from '../renderer/model-workspace.ts';
-import { renderOnboardingWizard } from '../renderer/onboarding/onboarding-wizard.ts';
+import { renderAgentWorkspace } from '../renderer/agent-workspace.ts';
 import { type Line, createEmptyLine } from '../types/grid.ts';
 
 function normalizeFullscreenViewport(lines: readonly Line[], width: number, height: number): Line[] {
@@ -17,23 +16,16 @@ function normalizeFullscreenViewport(lines: readonly Line[], width: number, heig
   return viewport;
 }
 
-export function createOnboardingFullscreenComposite(
-  input: InputHandler,
+export function createAgentWorkspaceFullscreenComposite(
+  workspace: AgentWorkspace,
   width: number,
   height: number,
 ): CompositeRequest {
-  const viewport = normalizeFullscreenViewport(
-    input.modelPicker.active
-      ? renderModelWorkspace(input.modelPicker, width, height)
-      : renderOnboardingWizard(input.onboardingWizard, width, height),
-    width,
-    height,
-  );
   return {
     width,
     height,
     header: [],
-    viewport,
+    viewport: normalizeFullscreenViewport(renderAgentWorkspace(workspace, width, height), width, height),
     footer: [],
     forceFullRedraw: true,
     panelWidth: 0,

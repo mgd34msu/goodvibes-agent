@@ -40,7 +40,7 @@ import {
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState } from './shell/blocking-input.ts';
-import { createOnboardingFullscreenComposite } from './shell/onboarding-fullscreen.ts';
+import { createAgentWorkspaceFullscreenComposite } from './shell/agent-workspace-fullscreen.ts';
 import { getTerminalSize } from './shell/terminal-size.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
@@ -175,7 +175,7 @@ async function main() {
 
   const getViewportHeight = (): number => {
     const { height } = getTerminalSize(stdout);
-    if (input.onboardingWizard.active) return height;
+    if (input.agentWorkspace.active) return height;
     const promptLines: number = input.getVisiblePromptLineCount(getPromptContentWidth());
     const currentModel = providerRegistry.getCurrentModel();
     return height - 2 - estimateShellFooterHeight(promptLines, currentModel.contextWindow);
@@ -473,11 +473,11 @@ async function main() {
   const render = () => {
     const { width, height } = getTerminalSize(stdout);
 
-    if (input.onboardingWizard.active) {
+    if (input.agentWorkspace.active) {
       input.setPanelMouseLayout(null);
       activeConversationWidth = width;
       conversation.setSplashSuppressed(true);
-      compositor.composite(createOnboardingFullscreenComposite(input, width, height));
+      compositor.composite(createAgentWorkspaceFullscreenComposite(input.agentWorkspace, width, height));
       return;
     }
 
@@ -540,10 +540,9 @@ async function main() {
       composerPendingRisk: composerState.pendingRisk,
     }).lines;
 
-    const onboardingOwnsScreen = input.onboardingWizard.active;
-    const shellHeaderLines = onboardingOwnsScreen ? [] : headerLines;
-    const shellFooterLines = onboardingOwnsScreen ? [] : footerLines;
-    const panelWidth = !onboardingOwnsScreen && panelManager.isVisible() && panelManager.getAllOpen().length > 0
+    const shellHeaderLines = headerLines;
+    const shellFooterLines = footerLines;
+    const panelWidth = panelManager.isVisible() && panelManager.getAllOpen().length > 0
       ? panelManager.getRightWidth(width)
       : 0;
     const shellLayout = createShellLayout({
@@ -566,7 +565,7 @@ async function main() {
     const vHeight = shellLayout.body.height;
     const conversationWidth = shellLayout.conversation.width;
     activeConversationWidth = conversationWidth;
-    const hasPanelWorkspace = !onboardingOwnsScreen && panelManager.isVisible() && panelManager.getAllOpen().length > 0;
+    const hasPanelWorkspace = panelManager.isVisible() && panelManager.getAllOpen().length > 0;
     conversation.setSplashSuppressed(hasPanelWorkspace);
 
     // Flush pending renders after updating the width provider and splash posture
@@ -630,9 +629,7 @@ async function main() {
     });
 
     // Panel composite data
-    const panelComposite = onboardingOwnsScreen
-      ? { panelData: undefined, panelWidth: 0 }
-      : buildPanelCompositeData(
+    const panelComposite = buildPanelCompositeData(
         panelManager,
         input,
         shellLayout.panel?.width ?? 0,
@@ -644,12 +641,12 @@ async function main() {
       header: shellHeaderLines,
       viewport,
       footer: shellFooterLines,
-      selection: onboardingOwnsScreen ? undefined : {
+      selection: {
         isCellSelected: (col, row) => selection.isCellSelected(col, row),
         scrollTop,
         lineCount: conversation.history.getLineCount(),
       },
-      search: !onboardingOwnsScreen && input.searchManager.active ? {
+      search: input.searchManager.active ? {
         manager: input.searchManager,
         scrollTop,
         viewportStartY: shellHeaderLines.length,

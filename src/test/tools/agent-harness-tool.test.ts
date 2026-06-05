@@ -276,9 +276,6 @@ function makeFixture(options: {
     openShortcutsOverlay: () => {
       openedSurfaces.push({ id: 'shortcuts-overlay' });
     },
-    openOnboardingWizard: (modeOrOptions) => {
-      openedSurfaces.push({ id: 'onboarding', detail: typeof modeOrOptions === 'string' ? modeOrOptions : modeOrOptions?.mode });
-    },
     openSelection,
     workspace: options.keybindings === false
       ? { shellPaths: paths, panelManager, bookmarkManager }
@@ -1368,7 +1365,7 @@ describe('agent_harness tool', () => {
       expect(panels.success).toBe(true);
       expect(panels.output).toContain('"id": "provider-health"');
       expect(panels.output).toContain('"open": true');
-      expect(panels.output).toContain('"command": "/agent setup"');
+      expect(panels.output).toContain('"command": "/agent"');
       expectCompactSummaryFields(JSON.parse(panels.output));
       expectModelFacingText(panels.output);
       const panelsPayload = JSON.parse(panels.output) as {

@@ -1,8 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { InputTokenizer } from '@pellux/goodvibes-sdk/platform/core';
-import { clearModalStackForHandler, cleanupMarkerRegistryForHandler, executeBlockActionForHandler, expandPromptForHandler, findMarkerAtPosForHandler, getImageAttachmentsForHandler, handleBlockCopyForHandler, handleBlockRerunForHandler, handleBlockSaveForHandler, handleBlockToggleForHandler, handleBookmarkForHandler, handleCopyForHandler, handleCtrlCForHandler, handleEscapeForHandler, hydrateOnboardingWizardFromRuntimeForHandler, modalOpenedForHandler, openOnboardingWizardForHandler, registerPasteForHandler } from './handler-interactions.ts';
-import { clearOnboardingModelPickerCancelStateForHandler, clearOnboardingPendingModelPickerTargetForHandler, getOnboardingConfigValueForHandler, getOnboardingRuntimePostureForHandler, handleModelPickerCommitForHandler, handleOnboardingActionForHandler, handleOpenAiSubscriptionFinishForHandler, handleOpenAiSubscriptionStartForHandler, openModelPickerWithTargetForHandler, openProviderModelPickerWithTargetForHandler, refreshOnboardingHydrationForHandler, restartOnboardingExternalServicesIfNeededForHandler, restoreOnboardingModelPickerCancelStateForHandler, syncRuntimeFromOnboardingRequestForHandler, verifyOnboardingRuntimePostureForHandler, type OnboardingRuntimePosture } from './handler-onboarding.ts';
+import { clearModalStackForHandler, cleanupMarkerRegistryForHandler, executeBlockActionForHandler, expandPromptForHandler, findMarkerAtPosForHandler, getImageAttachmentsForHandler, handleBlockCopyForHandler, handleBlockRerunForHandler, handleBlockSaveForHandler, handleBlockToggleForHandler, handleBookmarkForHandler, handleCopyForHandler, handleCtrlCForHandler, handleEscapeForHandler, modalOpenedForHandler, registerPasteForHandler } from './handler-interactions.ts';
 import { SelectionManager } from './selection.ts';
 import type { InfiniteBuffer } from '../core/history.ts';
 import type { CommandRegistry, CommandContext } from './command-registry.ts';
@@ -25,19 +24,6 @@ import { AgentWorkspace } from './agent-workspace.ts';
 import { parseSlashCommand } from './slash-command-parser.ts';
 import { SessionPickerModal } from './session-picker-modal.ts';
 import { ProfilePickerModal } from './profile-picker-modal.ts';
-import { OnboardingWizardController, type OnboardingWizardAction, type OnboardingWizardMode } from './onboarding/onboarding-wizard.ts';
-import {
-  applyOnboardingRequest,
-  collectOnboardingSnapshot,
-  getOnboardingCheckMarkerPath,
-  verifyOnboardingRequest,
-} from '../runtime/onboarding/index.ts';
-import type {
-  OnboardingApplyOperation,
-  OnboardingApplyRequest,
-  OnboardingShellPaths,
-  OnboardingVerificationItem,
-} from '../runtime/onboarding/index.ts';
 import {
   IMAGE_EXTENSIONS,
   cleanupMarkerRegistry,
@@ -77,32 +63,7 @@ import {
 } from './handler-prompt-buffer.ts';
 import { clearModalStack, handleEscape, modalOpened } from './handler-modal-stack.ts';
 import { handleModalTokenRoutes } from './handler-modal-token-routes.ts';
-import {
-  captureOnboardingWizardSnapshot,
-  handleHistorySearchToken,
-  handleOverlayToken,
-  openOnboardingWizardState,
-  restoreOnboardingWizardSnapshot,
-  handleSearchModeToken,
-  type OnboardingWizardSnapshot,
-  type OpenOnboardingWizardOptions,
-} from './handler-ui-state.ts';
-import {
-  handleBookmarkModalToken,
-  handleProfilePickerToken,
-  handleSelectionModalToken,
-  handleSessionPickerToken,
-  handleSettingsModalToken,
-} from './handler-modal-routes.ts';
 import { handleCommandModeToken } from './handler-command-route.ts';
-import {
-  handleBlockActionsToken,
-  handleEscapeOnlyModalToken,
-  handleFilePickerToken,
-  handleLiveTailToken,
-  handleModelPickerToken,
-  handleProcessModalToken,
-} from './handler-picker-routes.ts';
 import { handleGlobalShortcutToken } from './handler-shortcuts.ts';
 import { feedInputTokens } from './handler-feed.ts';
 import { buildInitialFeedContext, syncFeedContextMutableFields } from './feed-context-factory.ts';
@@ -155,10 +116,6 @@ export class InputHandler {
   public settingsModal = new SettingsModal();
   public mcpWorkspace = new McpWorkspace();
   public agentWorkspace = new AgentWorkspace();
-  public onboardingWizard = new OnboardingWizardController();
-  public onboardingModelPickerCancelSnapshot: OnboardingWizardSnapshot | null = null;
-  public onboardingHydrationSerial = 0;
-  public onboardingApplyPending = false;
 
   /**
    * Modal navigation stack. Each element is the name of an open modal.
@@ -271,7 +228,6 @@ export class InputHandler {
         autocomplete: this.autocomplete,
         filePicker: this.filePicker,
         modelPicker: this.modelPicker,
-        onboardingWizard: this.onboardingWizard,
         processModal: this.processModal,
         liveTailModal: this.liveTailModal,
         contextInspectorModal: this.contextInspectorModal,
@@ -313,12 +269,9 @@ export class InputHandler {
         findMarkerAtPos: (pos: number) => this.findMarkerAtPos(pos),
         cleanupMarkerRegistry: (text: string) => this.cleanupMarkerRegistry(text),
         expandPrompt: (text: string) => this.expandPrompt(text),
-        openModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings' | 'onboarding') =>
-          this.openModelPickerWithTarget(target, source),
-        openProviderModelPickerWithTarget: (target: ModelPickerTarget, source?: 'settings' | 'onboarding') =>
-          this.openProviderModelPickerWithTarget(target, source),
+        openModelPickerWithTarget: (target: ModelPickerTarget) => this.openModelPickerWithTarget(target),
+        openProviderModelPickerWithTarget: (target: ModelPickerTarget) => this.openProviderModelPickerWithTarget(target),
         onModelPickerCommit: () => this.handleModelPickerCommit(),
-        onOnboardingAction: (action: OnboardingWizardAction) => { void this.handleOnboardingAction(action); },
       },
     );
   }
@@ -369,12 +322,6 @@ export class InputHandler {
     this.requestRender();
   }
 
-
-  public openOnboardingWizard(
-    modeOrOptions: OnboardingWizardMode | OpenOnboardingWizardOptions = 'new',
-  ): void { openOnboardingWizardForHandler(this, modeOrOptions); }
-
-  public async hydrateOnboardingWizardFromRuntime(hydrationSerial: number): Promise<void> { await hydrateOnboardingWizardFromRuntimeForHandler(this, hydrationSerial); }
   public registerPaste(content: string): string { return registerPasteForHandler(this, content); }
   public expandPrompt(text: string) { return expandPromptForHandler(this, text); }
   public getImageAttachments(): Map<string, { data: string; mediaType: string }> { return getImageAttachmentsForHandler(this); }
@@ -388,15 +335,29 @@ export class InputHandler {
   public handleBlockRerun(): void { handleBlockRerunForHandler(this); }
   public handleBlockToggle(): void { handleBlockToggleForHandler(this); }
   public handleCtrlC(): void { handleCtrlCForHandler(this); }
-  public modalOpened(name: string): void { modalOpenedForHandler(this, name); }
+  public modalOpened(name: string): void {
+    if (name !== 'agentWorkspace' && this.agentWorkspace.active) {
+      this.closeAgentWorkspaceModal();
+    }
+    modalOpenedForHandler(this, name);
+  }
   public clearModalStack(): void { clearModalStackForHandler(this); }
   public handleEscape(): void { handleEscapeForHandler(this); }
 
-  public clearOnboardingPendingModelPickerTarget(): void { clearOnboardingPendingModelPickerTargetForHandler(this); }
-  public clearOnboardingModelPickerCancelState(): void { clearOnboardingModelPickerCancelStateForHandler(this); }
-  public restoreOnboardingModelPickerCancelState(): void { restoreOnboardingModelPickerCancelStateForHandler(this); }
-  public openModelPickerWithTarget(target: ModelPickerTarget, source: 'settings' | 'onboarding' = 'settings'): boolean { return openModelPickerWithTargetForHandler(this, target, source); }
-  public openProviderModelPickerWithTarget(target: ModelPickerTarget, source: 'settings' | 'onboarding' = 'settings'): boolean { return openProviderModelPickerWithTargetForHandler(this, target, source); }
+  public openModelPickerWithTarget(target: ModelPickerTarget): boolean {
+    const openModelPicker = this.commandContext?.openModelPicker;
+    if (!openModelPicker) return false;
+    this.modelPicker.target = target;
+    openModelPicker();
+    return true;
+  }
+  public openProviderModelPickerWithTarget(target: ModelPickerTarget): boolean {
+    const openProviderPicker = this.commandContext?.openProviderPicker;
+    if (!openProviderPicker) return false;
+    this.modelPicker.target = target;
+    openProviderPicker();
+    return true;
+  }
   public openMcpWorkspace(context: CommandContext): void {
     this.panelFocused = false;
     this.indicatorFocused = false;
@@ -449,16 +410,7 @@ export class InputHandler {
     context.submitInput?.(prompt);
     this.requestRender();
   }
-  public handleModelPickerCommit(): boolean { return handleModelPickerCommitForHandler(this); }
-  public async handleOnboardingAction(action: OnboardingWizardAction): Promise<void> { await handleOnboardingActionForHandler(this, action); }
-  public async refreshOnboardingHydration(options: { readonly preserveValues?: boolean; readonly targetStepId?: string } = {}): Promise<void> { await refreshOnboardingHydrationForHandler(this, options); }
-  public async handleOpenAiSubscriptionStart(): Promise<void> { await handleOpenAiSubscriptionStartForHandler(this); }
-  public async handleOpenAiSubscriptionFinish(): Promise<void> { await handleOpenAiSubscriptionFinishForHandler(this); }
-  public syncRuntimeFromOnboardingRequest(request: ReturnType<OnboardingWizardController['buildApplyRequest']>): void { syncRuntimeFromOnboardingRequestForHandler(this, request); }
-  public getOnboardingConfigValue(request: OnboardingApplyRequest, key: string): unknown { return getOnboardingConfigValueForHandler(this, request, key); }
-  public getOnboardingRuntimePosture(request: OnboardingApplyRequest): OnboardingRuntimePosture { return getOnboardingRuntimePostureForHandler(this, request); }
-  public async restartOnboardingExternalServicesIfNeeded(request: OnboardingApplyRequest): Promise<OnboardingVerificationItem[]> { return await restartOnboardingExternalServicesIfNeededForHandler(this, request); }
-  public verifyOnboardingRuntimePosture(request: OnboardingApplyRequest): OnboardingVerificationItem[] { return verifyOnboardingRuntimePostureForHandler(this, request); }
+  public handleModelPickerCommit(): boolean { return false; }
 
 
   /**

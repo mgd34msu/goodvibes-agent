@@ -34,7 +34,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'ui-navigation',
       confirmation,
       preferredModelTool: agentHarnessModes('workspace_actions', 'workspace_action', 'open_ui_surface'),
-      boundary: 'Setup opens the visible Agent onboarding or setup workspace. Model-side changes should use setting modes or workspace actions.',
+      boundary: 'Setup opens the visible Agent workspace. Model-side changes should use setting modes or workspace actions.',
     };
   }
   if (root === 'commands' || root === 'help' || root === 'shortcuts') {

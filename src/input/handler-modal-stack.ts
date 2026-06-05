@@ -50,8 +50,6 @@ export type EscapeState = ModalStackState & {
   selectionModal: ModalStackState['selectionModal'];
   autocompleteReset: () => void;
   autocompleteUpdate?: (query: string) => void;
-  clearOnboardingModelPickerCancelState?: () => void;
-  restoreOnboardingModelPickerCancelState?: () => void;
 };
 
 export function handleEscape(state: EscapeState): {
@@ -129,10 +127,7 @@ export function handleEscape(state: EscapeState): {
       closeProfilePicker: () => state.profilePickerModal.close(),
       closeContextInspector: () => state.contextInspectorModal.close(),
       closeProcess: () => state.processModal.close(),
-      closeModelPicker: () => {
-        state.modelPicker.close();
-        state.restoreOnboardingModelPickerCancelState?.();
-      },
+      closeModelPicker: () => state.modelPicker.close(),
       closeFilePicker: () => state.filePicker.close(),
       closeBlockActions: () => state.blockActionsMenu.close(),
       closeSelection: () => {
@@ -140,10 +135,6 @@ export function handleEscape(state: EscapeState): {
         selectionCallback = null;
         state.selectionModal.close();
         cb?.(null);
-      },
-      closeOnboarding: () => {
-        state.onboardingWizard?.close();
-        state.clearOnboardingModelPickerCancelState?.();
       },
       closeCommandMode: () => {
         commandMode = false;
@@ -166,7 +157,6 @@ export function handleEscape(state: EscapeState): {
       openContextInspector: () => state.contextInspectorModal.open(),
       openMcpWorkspace: () => state.mcpWorkspace?.reopen(),
       openAgentWorkspace: () => state.agentWorkspace?.reopen(),
-      openOnboarding: () => state.onboardingWizard?.reopen(),
       openCommandMode: () => {
         commandMode = true;
         prompt = '/';

@@ -41,7 +41,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Use this to configure the assistant: provider/model, setup checklist, Agent Knowledge, local behavior, channels, and voice/media. Changes here stay Agent-owned.',
     actions: [
       { id: 'config', label: 'Open settings', detail: 'Open the fullscreen Agent settings workspace.', command: '/config', kind: 'command', safety: 'safe' },
-      { id: 'setup', label: 'Run setup', detail: 'Review Agent settings in the fullscreen setup flow.', command: '/setup', kind: 'command', safety: 'safe' },
+      { id: 'setup', label: 'Setup workspace', detail: 'Review Agent setup in this fullscreen workspace.', kind: 'guidance', safety: 'safe' },
       { id: 'setup-provider-model', label: 'Provider and model', detail: 'Choose the provider/model route for normal assistant chat.', command: '/model', kind: 'command', safety: 'safe' },
       { id: 'setup-model-pinned', label: 'Pinned models', detail: 'Inspect model favorites from the Agent TUI before changing model selection.', command: '/pin', kind: 'command', safety: 'read-only' },
       { id: 'setup-model-refresh', label: 'Refresh model catalog', detail: 'Refresh model catalog, benchmark, and token-limit metadata from the Agent TUI.', command: '/refresh-models', kind: 'command', safety: 'safe' },

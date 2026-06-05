@@ -99,15 +99,6 @@ export function openCommandPanel(
   showPanel(panelId, pane);
 }
 
-export function openOnboardingWizard(
-  context: Pick<CommandContext, 'openOnboardingWizard'>,
-  modeOrOptions?: import('../onboarding/onboarding-wizard.ts').OnboardingWizardMode
-    | import('../handler-ui-state.ts').OpenOnboardingWizardOptions,
-): void {
-  const openWizard = requireContextValue(context.openOnboardingWizard, 'openOnboardingWizard');
-  openWizard(modeOrOptions);
-}
-
 export function requireKeybindingsManager(context: CommandContext) {
   return requireContextValue(context.workspace.keybindingsManager, 'workspace.keybindingsManager');
 }
