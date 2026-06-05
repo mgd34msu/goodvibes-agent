@@ -5,8 +5,11 @@ import { dirname, join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import {
   getOnboardingCheckMarkerPath,
+  getOnboardingCompletionMarkerPath,
   readOnboardingCheckMarkers,
+  readOnboardingCompletionMarker,
   writeOnboardingCheckMarker,
+  writeOnboardingCompletionMarker,
 } from '../../../runtime/onboarding/index.ts';
 
 function createShellPaths() {
@@ -80,5 +83,31 @@ describe('onboarding check marker helpers', () => {
     expect(markers.project.payload?.checkedAt).toBe(400);
     expect(markers.user.payload).toBeNull();
     expect(markers.effective).toBeNull();
+  });
+
+  test('stores completion separately from check markers', () => {
+    const shellPaths = createShellPaths();
+
+    writeOnboardingCheckMarker(shellPaths, {
+      scope: 'user',
+      checkedAt: 500,
+      source: 'command',
+    });
+    writeOnboardingCompletionMarker(shellPaths, {
+      scope: 'user',
+      checkedAt: 600,
+      source: 'wizard',
+      mode: 'new',
+    });
+
+    const checkPath = getOnboardingCheckMarkerPath(shellPaths, 'user');
+    const completionPath = getOnboardingCompletionMarkerPath(shellPaths, 'user');
+    const markers = readOnboardingCheckMarkers(shellPaths);
+    const completion = readOnboardingCompletionMarker(shellPaths, 'user');
+
+    expect(completionPath).not.toBe(checkPath);
+    expect(markers.user.payload?.checkedAt).toBe(500);
+    expect(completion.payload?.checkedAt).toBe(600);
+    expect(completion.payload?.source).toBe('wizard');
   });
 });

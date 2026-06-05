@@ -16,7 +16,7 @@ import { createAgentRuntimeProfile, getAgentRuntimeProfilesRoot, listAgentRuntim
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
-import { readOnboardingCheckMarker } from '../../runtime/onboarding/index.ts';
+import { readOnboardingCheckMarker, readOnboardingCompletionMarker } from '../../runtime/onboarding/index.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { Line } from '../../types/grid.ts';
@@ -347,13 +347,15 @@ describe('AgentWorkspace', () => {
 
     workspace.activateSelected();
 
-    const marker = readOnboardingCheckMarker(shellPaths, 'user');
+    const checkMarker = readOnboardingCheckMarker(shellPaths, 'user');
+    const completionMarker = readOnboardingCompletionMarker(shellPaths, 'user');
     expect(dismissed).toBe(true);
     expect(workspace.active).toBe(false);
-    expect(marker.exists).toBe(true);
-    expect(marker.payload?.source).toBe('wizard');
-    expect(marker.payload?.mode).toBe('new');
-    expect(marker.payload?.workspaceRoot).toBe(shellPaths.workingDirectory);
+    expect(checkMarker.exists).toBe(true);
+    expect(completionMarker.exists).toBe(true);
+    expect(completionMarker.payload?.source).toBe('wizard');
+    expect(completionMarker.payload?.mode).toBe('new');
+    expect(completionMarker.payload?.workspaceRoot).toBe(shellPaths.workingDirectory);
   });
 
   test('dispatches command actions through the shell-owned callback', () => {

@@ -1,6 +1,6 @@
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import type { InputHandler } from '../input/handler.ts';
-import { readOnboardingCheckMarker } from '../runtime/onboarding/index.ts';
+import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 import type { GoodVibesCliParseResult } from './types.ts';
 
 export type InteractiveTerminalCheckInput = {
@@ -95,11 +95,11 @@ export function applyInitialTuiCliState(options: {
   readonly input: InputHandler;
   readonly commandRegistry: CommandRegistry;
   readonly commandContext: CommandContext;
-  readonly shellPaths: Parameters<typeof readOnboardingCheckMarker>[0];
+  readonly shellPaths: Parameters<typeof readOnboardingCompletionMarker>[0];
   readonly render: () => void;
 }): void {
   const { cli, input, commandRegistry, commandContext, shellPaths, render } = options;
-  const globalOnboardingMarker = readOnboardingCheckMarker(shellPaths, 'user');
+  const onboardingCompletionMarker = readOnboardingCompletionMarker(shellPaths, 'user');
   const seededPrompt = cli.flags.prompt ?? (cli.rawCommand === undefined && cli.positionals.length > 0 ? cli.positionals.join(' ') : undefined);
   if (cli.command === 'onboarding') {
     input.openAgentWorkspace(commandContext);
@@ -108,8 +108,8 @@ export function applyInitialTuiCliState(options: {
     if (target) {
       void commandRegistry.execute('session', ['resume', target], commandContext).then(() => render());
     }
-  } else if (!globalOnboardingMarker.exists) {
-    input.openAgentWorkspace(commandContext);
+  } else if (!onboardingCompletionMarker.payload) {
+    input.openAgentWorkspace(commandContext, 'setup');
   }
 
   if (seededPrompt) {

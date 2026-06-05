@@ -11,6 +11,7 @@ import type {
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 const ONBOARDING_CHECK_MARKER_FILE = 'onboarding-checked.json';
+const ONBOARDING_COMPLETION_MARKER_FILE = 'onboarding-complete.json';
 
 type OnboardingShellPaths = Pick<
   ShellPathService,
@@ -20,10 +21,11 @@ type OnboardingShellPaths = Pick<
 function resolveMarkerPath(
   shellPaths: OnboardingShellPaths,
   scope: OnboardingStateScope,
+  fileName = ONBOARDING_CHECK_MARKER_FILE,
 ): string {
   return scope === 'project'
-    ? shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, ONBOARDING_CHECK_MARKER_FILE)
-    : shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, ONBOARDING_CHECK_MARKER_FILE);
+    ? shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, fileName)
+    : shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, fileName);
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -87,11 +89,12 @@ export function getOnboardingCheckMarkerPath(
   return resolveMarkerPath(shellPaths, scope);
 }
 
-export function readOnboardingCheckMarker(
+function readOnboardingMarker(
   shellPaths: OnboardingShellPaths,
-  scope: OnboardingStateScope = 'user',
+  scope: OnboardingStateScope,
+  fileName: string,
 ): OnboardingCheckMarkerState {
-  const path = resolveMarkerPath(shellPaths, scope);
+  const path = resolveMarkerPath(shellPaths, scope, fileName);
   if (!existsSync(path)) return buildMissingMarkerState(scope, path);
 
   try {
@@ -112,6 +115,27 @@ export function readOnboardingCheckMarker(
   }
 }
 
+export function readOnboardingCheckMarker(
+  shellPaths: OnboardingShellPaths,
+  scope: OnboardingStateScope = 'user',
+): OnboardingCheckMarkerState {
+  return readOnboardingMarker(shellPaths, scope, ONBOARDING_CHECK_MARKER_FILE);
+}
+
+export function getOnboardingCompletionMarkerPath(
+  shellPaths: OnboardingShellPaths,
+  scope: OnboardingStateScope = 'user',
+): string {
+  return resolveMarkerPath(shellPaths, scope, ONBOARDING_COMPLETION_MARKER_FILE);
+}
+
+export function readOnboardingCompletionMarker(
+  shellPaths: OnboardingShellPaths,
+  scope: OnboardingStateScope = 'user',
+): OnboardingCheckMarkerState {
+  return readOnboardingMarker(shellPaths, scope, ONBOARDING_COMPLETION_MARKER_FILE);
+}
+
 export function readOnboardingCheckMarkers(
   shellPaths: OnboardingShellPaths,
 ): OnboardingCheckMarkersState {
@@ -125,12 +149,13 @@ export function readOnboardingCheckMarkers(
   };
 }
 
-export function writeOnboardingCheckMarker(
+function writeOnboardingMarker(
   shellPaths: OnboardingShellPaths,
-  options: WriteOnboardingCheckMarkerOptions = {},
+  options: WriteOnboardingCheckMarkerOptions,
+  fileName: string,
 ): OnboardingCheckMarkerState {
   const scope = options.scope ?? 'user';
-  const path = resolveMarkerPath(shellPaths, scope);
+  const path = resolveMarkerPath(shellPaths, scope, fileName);
   const checkedAt = options.checkedAt ?? Date.now();
   const payload: OnboardingCheckMarkerPayload = {
     version: 1,
@@ -144,5 +169,19 @@ export function writeOnboardingCheckMarker(
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`, 'utf-8');
 
-  return readOnboardingCheckMarker(shellPaths, scope);
+  return readOnboardingMarker(shellPaths, scope, fileName);
+}
+
+export function writeOnboardingCheckMarker(
+  shellPaths: OnboardingShellPaths,
+  options: WriteOnboardingCheckMarkerOptions = {},
+): OnboardingCheckMarkerState {
+  return writeOnboardingMarker(shellPaths, options, ONBOARDING_CHECK_MARKER_FILE);
+}
+
+export function writeOnboardingCompletionMarker(
+  shellPaths: OnboardingShellPaths,
+  options: WriteOnboardingCheckMarkerOptions = {},
+): OnboardingCheckMarkerState {
+  return writeOnboardingMarker(shellPaths, options, ONBOARDING_COMPLETION_MARKER_FILE);
 }

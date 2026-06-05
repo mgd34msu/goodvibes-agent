@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { createShellPathService } from '@/runtime/index.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { applyInitialTuiCliState, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from '../../cli/tui-startup.ts';
-import { writeOnboardingCheckMarker } from '../../runtime/onboarding/index.ts';
+import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../../runtime/onboarding/index.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import type { InputHandler } from '../../input/handler.ts';
 import type { GoodVibesCliParseResult } from '../../cli/types.ts';
@@ -79,11 +79,11 @@ function runStartup(
 }
 
 describe('initial TUI onboarding startup check', () => {
-  test('opens the plain Agent workspace when the global user check marker is absent', () => {
+  test('opens the setup workspace when the user completion marker is absent', () => {
     const shellPaths = makeShellPaths();
 
     const result = runStartup(shellPaths);
-    expect(result.workspaceCategories).toEqual([undefined]);
+    expect(result.workspaceCategories).toEqual(['setup']);
   });
 
   test('does not use project markers as the global onboarding check', () => {
@@ -95,12 +95,24 @@ describe('initial TUI onboarding startup check', () => {
     });
 
     const result = runStartup(shellPaths);
-    expect(result.workspaceCategories).toEqual([undefined]);
+    expect(result.workspaceCategories).toEqual(['setup']);
   });
 
-  test('does not open Agent workspace on normal startup after the global user check marker exists', () => {
+  test('opens Agent workspace when only the legacy global user check marker exists', () => {
     const shellPaths = makeShellPaths();
     writeOnboardingCheckMarker(shellPaths, {
+      scope: 'user',
+      source: 'wizard',
+      mode: 'new',
+    });
+
+    const result = runStartup(shellPaths);
+    expect(result.workspaceCategories).toEqual(['setup']);
+  });
+
+  test('does not open Agent workspace on normal startup after the user completion marker exists', () => {
+    const shellPaths = makeShellPaths();
+    writeOnboardingCompletionMarker(shellPaths, {
       scope: 'user',
       source: 'wizard',
       mode: 'new',
@@ -112,7 +124,7 @@ describe('initial TUI onboarding startup check', () => {
 
   test('still opens Agent workspace for the explicit onboarding command after the marker exists', () => {
     const shellPaths = makeShellPaths();
-    writeOnboardingCheckMarker(shellPaths, {
+    writeOnboardingCompletionMarker(shellPaths, {
       scope: 'user',
       source: 'wizard',
       mode: 'new',
@@ -127,7 +139,7 @@ describe('initial TUI onboarding startup check', () => {
 
   test('does not replace a seeded prompt with the Agent workspace', () => {
     const shellPaths = makeShellPaths();
-    writeOnboardingCheckMarker(shellPaths, {
+    writeOnboardingCompletionMarker(shellPaths, {
       scope: 'user',
       source: 'wizard',
       mode: 'new',
