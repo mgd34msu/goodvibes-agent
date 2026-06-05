@@ -617,7 +617,6 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Use this final step after reviewing setup. Apply & close writes the user onboarding completion marker so normal future launches start in the main conversation.',
     actions: [
       { id: 'onboarding-apply-close', label: 'Apply & close', detail: 'Acknowledge onboarding as finished, persist the user completion marker, and close the fullscreen Agent workspace.', kind: 'onboarding-complete', safety: 'safe' },
-      { id: 'finish-review-setup', label: 'Review setup first', detail: 'Jump back to setup before acknowledging onboarding as finished.', targetCategoryId: 'setup', kind: 'workspace', safety: 'safe' },
     ],
   },
 ];
