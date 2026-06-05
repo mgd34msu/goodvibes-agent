@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.40 - 2026-06-04
+
+- Onboarding now uses a dedicated fullscreen workspace renderer copied from the settings-style workspace, so setup can be tuned without changing Settings, MCP, or Agent workspaces.
+- First-run setup keeps the settings-style left rail, detail pane, field pane, and footer while the shell gives it the full terminal height, hiding the prompt/input area until setup is complete.
+
 ## 1.0.39 - 2026-06-04
 
 - Removed the body-scoped onboarding overlay fallback so onboarding can only render through the shell fullscreen composite.
