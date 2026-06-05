@@ -125,7 +125,12 @@ describe('renderOnboardingWizard', () => {
       expect(line.length).toBe(width);
     }
 
-    const text = linesToText(lines).join('\n');
+    const textLines = linesToText(lines);
+    const text = textLines.join('\n');
+    expect(textLines[0]?.startsWith('┌')).toBe(true);
+    expect(textLines[0]?.endsWith('┐')).toBe(true);
+    expect(textLines.at(-1)?.startsWith('└')).toBe(true);
+    expect(textLines.at(-1)?.endsWith('┘')).toBe(true);
     expect(text).toContain('Onboarding Wizard');
     expect(text).toContain('Summary');
     expect(text).toContain('Steps');
@@ -188,7 +193,7 @@ describe('renderOnboardingWizard', () => {
     expect(text).toContain('candidates: Research Operator');
     expect(text).toContain('Research Operator');
     expect(text).toContain('Daily Brief Skill');
-    expect(text).toContain('Evening Review');
+    expect(text).toMatch(/Import candidates: Research Operator, Daily Brief Skill, Evening[\s\S]*Review\./);
   });
 
   test('renders an Agent day-one readiness checklist on the review step', () => {

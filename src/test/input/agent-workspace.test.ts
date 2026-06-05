@@ -220,19 +220,27 @@ describe('AgentWorkspace', () => {
     expect(missingCommands).toEqual([]);
   });
 
-  test('workspace category group labels are unique', () => {
-    const seen = new Map<string, string>();
-    const duplicateGroups: string[] = [];
-    for (const category of AGENT_WORKSPACE_CATEGORIES) {
-      const previousCategoryId = seen.get(category.group);
-      if (previousCategoryId) {
-        duplicateGroups.push(`${category.group}: ${previousCategoryId}, ${category.id}`);
-        continue;
-      }
-      seen.set(category.group, category.id);
-    }
+  test('workspace category group labels are meaningful shared sections', () => {
+    const groups = AGENT_WORKSPACE_CATEGORIES.map((category) => category.group);
+    const uniqueGroups = [...new Set(groups)];
+    const repeatedSetupGroups = uniqueGroups.filter((group) => group === 'SETUP');
+    const singletonGroups = uniqueGroups.filter((group) => groups.filter((candidate) => candidate === group).length < 2);
+    const repeatedAfterChange = groups.filter((group, index) => (
+      index > 0
+      && group !== groups[index - 1]
+      && groups.slice(0, index).includes(group)
+    ));
 
-    expect(duplicateGroups).toEqual([]);
+    expect(uniqueGroups).toEqual([
+      'START',
+      'DAY-TO-DAY',
+      'CAPABILITIES',
+      'LOCAL BEHAVIOR',
+      'OPERATIONS',
+    ]);
+    expect(singletonGroups).toEqual([]);
+    expect(repeatedSetupGroups).toEqual([]);
+    expect(repeatedAfterChange).toEqual([]);
   });
 
   test('first-class product commands have Agent workspace access', () => {

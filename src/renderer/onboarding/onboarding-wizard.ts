@@ -634,8 +634,7 @@ export function renderOnboardingWizard(
   width: number,
   viewportHeight: number,
 ): Line[] {
-  const margin = width >= 64 ? 1 : 0;
-  const layout = createOverlayBoxLayout(width, margin, Math.max(20, width - margin * 2));
+  const layout = createOverlayBoxLayout(width, 0, Math.max(20, width));
   const collapsed = layout.innerWidth < 86;
   return collapsed
     ? renderCollapsedLayout(wizard, width, viewportHeight, layout)
