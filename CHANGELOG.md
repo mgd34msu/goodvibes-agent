@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.0.41 - 2026-06-04
+
+- Fixed Agent setup onboarding so the settings-style fullscreen workspace forces a complete terminal redraw and covers the shell input/status rows on packaged installs.
+- Hardened terminal size detection so fullscreen shell surfaces use getWindowSize or environment dimensions before falling back.
+
 ## 1.0.40 - 2026-06-04
 
 - Onboarding now uses a dedicated fullscreen workspace renderer copied from the settings-style workspace, so setup can be tuned without changing Settings, MCP, or Agent workspaces.
