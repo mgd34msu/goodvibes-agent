@@ -87,6 +87,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action validates the editor fields and saves a local comparison judgment artifact. It never changes the selected model; route updates require separate confirmation.',
     };
   }
+  if (editorKind === 'model-compare-apply') {
+    return {
+      route: 'agent_model_compare',
+      tool: 'agent_model_compare',
+      action: 'apply_comparison_winner',
+      confirmation: 'required',
+      note: 'run_workspace_action applies a revealed saved comparison judgment to provider.model after explicit confirmation.',
+    };
+  }
   if (isAgentWorkspaceCommandEditorKind(editorKind)) {
     return {
       route: 'slash-command-dispatch',

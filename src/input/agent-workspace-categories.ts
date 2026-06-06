@@ -331,7 +331,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'DAY-TO-DAY',
     label: 'Documents & Compare',
     summary: 'Draft docs, files, artifacts, and compare readiness.',
-    detail: 'Use this workspace when the user is producing or evaluating a document. Upload, export, source, artifact, media, and blind comparison routes stay visible here; dedicated document editing, comparison analytics/export, and route-update handoff remain explicit gaps until implemented.',
+    detail: 'Use this workspace when the user is producing or evaluating a document. Upload, export, source, artifact, media, and blind comparison routes stay visible here; dedicated document editing and comparison analytics/export remain explicit gaps until implemented.',
     actions: [
       { id: 'document-ops-map', label: 'Readiness map', detail: 'Use agent_harness mode:"document_ops" to see document, upload, export, source, media, artifact, and blind compare lanes.', kind: 'guidance', safety: 'read-only' },
       { id: 'document-draft-chat', label: 'Draft in conversation', detail: 'Draft or revise a document in the main conversation, then export or save the resulting artifact through the visible export routes.', kind: 'guidance', safety: 'safe' },
@@ -350,6 +350,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'document-run-compare', label: 'Run blind compare', detail: 'Open a confirmed form that runs the same prompt across two to four selectable models, hides candidate identities, and saves a review artifact.', editorKind: 'model-compare', kind: 'editor', safety: 'safe' },
       { id: 'document-review-compare', label: 'Review saved compare', detail: 'Open a read-only form that lists saved blind comparisons or renders one saved comparison review board from its artifact id.', editorKind: 'model-compare-review', kind: 'editor', safety: 'read-only' },
       { id: 'document-judge-compare', label: 'Save compare judgment', detail: 'Open a confirmed form that saves the winning candidate and reasons as a local judgment artifact without changing model routing.', editorKind: 'model-compare-judge', kind: 'editor', safety: 'safe' },
+      { id: 'document-apply-compare', label: 'Apply compare winner', detail: 'Open a confirmed form that applies a revealed saved comparison judgment to the main Agent model route.', editorKind: 'model-compare-apply', kind: 'editor', safety: 'safe' },
     ],
   },
   {
@@ -374,6 +375,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'artifact-generate-media', label: 'Generate image or video', detail: 'Open a confirmed prompt form that generates image or video artifacts through configured media providers.', editorKind: 'media-generate', kind: 'editor', safety: 'safe' },
       { id: 'artifact-review-compare', label: 'Review blind compare', detail: 'Open a read-only saved comparison review form for model comparison artifacts.', editorKind: 'model-compare-review', kind: 'editor', safety: 'read-only' },
       { id: 'artifact-judge-compare', label: 'Save compare judgment', detail: 'Open a confirmed form that saves a comparison winner and reasons as a local artifact without route mutation.', editorKind: 'model-compare-judge', kind: 'editor', safety: 'safe' },
+      { id: 'artifact-apply-compare', label: 'Apply compare winner', detail: 'Open a confirmed form that applies a revealed judgment artifact to provider.model.', editorKind: 'model-compare-apply', kind: 'editor', safety: 'safe' },
       { id: 'artifact-policy', label: 'Artifact safety', detail: 'Artifact creation, ingest, and media generation are explicit actions. Agent never writes to default knowledge or prints inline base64.', kind: 'guidance', safety: 'read-only' },
     ],
   },

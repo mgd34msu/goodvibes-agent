@@ -104,6 +104,7 @@ export type AgentWorkspaceEditorKind =
   | 'model-compare'
   | 'model-compare-review'
   | 'model-compare-judge'
+  | 'model-compare-apply'
   | 'skill-bundle'
   | 'skill-bundle-search'
   | 'skill-bundle-show'

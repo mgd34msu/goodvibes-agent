@@ -409,7 +409,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Document route: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
       { text: `Files: attach, paste, source ingest, and export; artifact limit ${formatMegabytes(snapshot.artifactMaxBytes)}.`, fg: PALETTE.good },
       { text: `Media artifacts: ${mediaReady}/${snapshot.mediaProviderCount} providers ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
-      { text: 'Saved compare review/judgment are available; document editor/history, route handoff, and unified artifact browser remain gaps.', fg: PALETTE.warn },
+      { text: 'Saved compare review/judgment and route update are available; document editor/history and unified artifact browser remain gaps.', fg: PALETTE.warn },
       { text: 'Model route: agent_harness mode:"document_ops" or document_ops_lane.', fg: PALETTE.muted },
     );
   } else if (category.id === 'tools') {

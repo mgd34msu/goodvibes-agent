@@ -251,6 +251,14 @@ export async function initializeBootstrapCore(
     modelCatalog: services.providerRegistry,
     providerRegistry: services.providerRegistry,
     artifactStore: services.artifactStore,
+    applyModelRoute: (registryKey) => {
+      const previousModel = String(configManager.get('provider.model') ?? '').trim();
+      configManager.set('provider.model', registryKey);
+      return {
+        ...(previousModel ? { previousModel } : {}),
+        selectedModel: registryKey,
+      };
+    },
   });
   registerAgentNotifyTool(toolRegistry, configManager, services.webhookNotifier);
   registerAgentOperatorActionTool(toolRegistry, services.shellPaths, configManager);

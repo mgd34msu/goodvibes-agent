@@ -151,8 +151,10 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-run-compare',
     'document-review-compare',
     'document-judge-compare',
+    'document-apply-compare',
     'artifact-review-compare',
     'artifact-judge-compare',
+    'artifact-apply-compare',
     'document-model-routing',
     'account-main-model',
   ], available);
@@ -258,12 +260,12 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       id: 'model_compare',
       label: 'Blind Model Compare',
       status: modelCompareReady ? 'partial' : 'gap',
-      outcome: 'Run the same prompt across multiple models, hide model identities while judging, then reveal identities and keep a saved review artifact.',
+      outcome: 'Run the same prompt across multiple models, hide model identities while judging, save a judgment, then apply the revealed winner only after confirmation.',
       current: modelCompareReady
-        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, and no automatic route mutation. Winner route handoff is still separate.'
+        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, and a separate confirmed winner route update.'
         : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
       next: modelCompareReady
-        ? 'Add richer preference analytics, comparison export from artifacts, and a separate confirmed route-update handoff.'
+        ? 'Add richer preference analytics and comparison export from artifacts.'
         : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
       modelRoute: modelCompareReady ? 'agent_model_compare' : 'agent_harness mode:"model_routing"',
@@ -273,6 +275,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         `Saved comparison artifact: ${modelCompareReady && context.platform.artifactStore ? 'available' : 'gap'}`,
         `Saved review board: ${modelCompareActions.includes('document-review-compare') ? 'available' : 'gap'}`,
         `Saved judgment artifact: ${modelCompareActions.includes('document-judge-compare') ? 'available' : 'gap'}`,
+        `Winner route update: ${modelCompareActions.includes('document-apply-compare') ? 'available' : 'gap'}`,
       ],
       actionIds: modelCompareActions,
     },
@@ -310,7 +313,7 @@ export function documentOpsSummary(context: CommandContext, args: AgentHarnessDo
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
     returned: lanes.length,
     total: lanes.length,
-    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, and model comparison. Dedicated document editing, unified artifact browsing, comparison analytics/export, and route-update handoff remain explicit gaps until real workflows exist.',
+    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, and model comparison. Dedicated document editing, unified artifact browsing, and comparison analytics/export remain explicit gaps until real workflows exist.',
     nextActions: nextActions(lanes),
   };
 }

@@ -1,7 +1,7 @@
 import { createLearnedBehaviorEditor, createLocalEditor, createProfileEditor } from './agent-workspace-editors.ts';
 import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
-import { createAgentModelCompareEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
+import { createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
 import { createReminderScheduleEditor } from './agent-workspace-reminder-schedule-editor.ts';
 import { createRoutineScheduleEditor } from './agent-workspace-routine-schedule-editor.ts';
 import { createAgentWorkspaceWebResearchEditor } from './agent-workspace-web-research-editor.ts';
@@ -188,6 +188,7 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'model-compare') return createAgentModelCompareEditor();
   if (editorKind === 'model-compare-review') return createAgentModelCompareReviewEditor();
   if (editorKind === 'model-compare-judge') return createAgentModelCompareJudgmentEditor();
+  if (editorKind === 'model-compare-apply') return createAgentModelCompareApplyEditor();
   if (editorKind && isAgentWorkspaceBasicCommandEditorKind(editorKind)) return createAgentWorkspaceBasicCommandEditor(editorKind);
   if (editorKind === 'knowledge-ask') return createAgentKnowledgeQueryEditor('ask');
   if (editorKind === 'knowledge-search') return createAgentKnowledgeQueryEditor('search');

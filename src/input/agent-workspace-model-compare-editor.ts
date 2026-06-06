@@ -34,6 +34,13 @@ export interface AgentModelCompareJudgmentWorkspaceToolArgs {
   readonly explicitUserRequest: string;
 }
 
+export interface AgentModelCompareApplyWorkspaceToolArgs {
+  readonly mode: 'apply';
+  readonly artifactId: string;
+  readonly confirm: boolean;
+  readonly explicitUserRequest: string;
+}
+
 function readList(value: string): readonly string[] {
   return value.split(/[\n,]/).map((entry) => entry.trim()).filter(Boolean);
 }
@@ -102,8 +109,22 @@ export function createAgentModelCompareJudgmentEditor(): AgentWorkspaceLocalEdit
       { id: 'winnerBlindId', label: 'Winner', value: '', required: true, multiline: false, hint: 'Candidate label, such as A or Candidate B.' },
       { id: 'reasons', label: 'Reasons', value: '', required: true, multiline: true, hint: 'Why this candidate won. Ctrl-J inserts a new line.' },
       { id: 'notes', label: 'Notes', value: '', required: false, multiline: true, hint: 'Optional risks, follow-ups, or rubric notes.' },
-      { id: 'reveal', label: 'Reveal in judgment', value: 'no', required: false, multiline: false, hint: 'yes/no. Yes includes model identity in the saved judgment and route handoff.' },
+      { id: 'reveal', label: 'Reveal in judgment', value: 'no', required: false, multiline: false, hint: 'yes/no. Yes includes model identity for later route update.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save this judgment artifact.' },
+    ],
+  };
+}
+
+export function createAgentModelCompareApplyEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'model-compare-apply',
+    mode: 'create',
+    title: 'Apply Compare Winner',
+    selectedFieldIndex: 0,
+    message: 'Apply a revealed saved judgment artifact to the main Agent model route. This changes provider.model after confirmation.',
+    fields: [
+      { id: 'artifactId', label: 'Judgment artifact id', value: '', required: true, multiline: false, hint: 'Saved revealed judgment artifact id such as artifact-123.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to change the selected Agent model.' },
     ],
   };
 }
@@ -163,6 +184,18 @@ export function buildAgentModelCompareJudgmentToolArgs(
     reasons: readField('reasons').trim(),
     ...(notes ? { notes } : {}),
     reveal: isAffirmative(readField('reveal')),
+    confirm: true,
+    explicitUserRequest,
+  };
+}
+
+export function buildAgentModelCompareApplyToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentModelCompareApplyWorkspaceToolArgs {
+  return {
+    mode: 'apply',
+    artifactId: readField('artifactId').trim(),
     confirm: true,
     explicitUserRequest,
   };
@@ -389,6 +422,78 @@ export function buildAgentModelCompareJudgmentPromptSubmission(
       kind: 'guidance',
       title: 'Saved comparison judgment',
       detail: 'Submitted a confirmed request to save a local comparison judgment artifact.',
+      safety: 'safe',
+    },
+  };
+}
+
+export function buildAgentModelCompareApplyPromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!isAffirmative(readField('confirm'))) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        selectedFieldIndex: Math.max(0, editor.fields.findIndex((field) => field.id === 'confirm')),
+        message: 'Route update not confirmed. Type yes, then press Enter.',
+      },
+      status: 'Route update not confirmed.',
+      actionResult: {
+        kind: 'error',
+        title: 'Route update not confirmed',
+        detail: 'Type yes on the confirmation field before applying the winning model route.',
+        safety: 'safe',
+      },
+    };
+  }
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the comparison route update request from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const artifactId = readField('artifactId').trim();
+  const explicitUserRequest = 'Apply the revealed blind model comparison judgment from the Agent workspace form.';
+  const prompt = [
+    'Apply a revealed blind model comparison judgment with the `agent_model_compare` tool.',
+    'Use mode:"apply" and confirm:true because this workspace form was explicitly confirmed by the user.',
+    `Use explicitUserRequest: ${JSON.stringify(explicitUserRequest)}.`,
+    artifactId ? `Use artifactId: ${JSON.stringify(artifactId)}.` : 'No artifactId was provided.',
+    'Only proceed if the judgment artifact includes a revealed winner model.',
+  ].join('\n');
+
+  return {
+    kind: 'prompt',
+    prompt,
+    status: 'Submitting comparison route update request.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Apply compare winner',
+      detail: 'Submitted a confirmed request to apply a revealed comparison judgment to the selected model route.',
       safety: 'safe',
     },
   };

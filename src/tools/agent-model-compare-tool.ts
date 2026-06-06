@@ -24,6 +24,11 @@ export interface AgentModelCompareToolArgs {
   readonly explicitUserRequest?: unknown;
 }
 
+export interface AgentModelCompareRouteUpdateResult {
+  readonly previousModel?: string;
+  readonly selectedModel: string;
+}
+
 export interface AgentModelCompareCatalogModel {
   readonly id?: string;
   readonly modelId?: string;
@@ -52,6 +57,7 @@ export interface AgentModelCompareToolDeps {
   readonly modelCatalog: AgentModelCompareModelCatalog;
   readonly providerRegistry: AgentModelCompareProviderRegistry;
   readonly artifactStore?: AgentModelCompareArtifactStore;
+  readonly applyModelRoute?: (registryKey: string) => AgentModelCompareRouteUpdateResult | Promise<AgentModelCompareRouteUpdateResult>;
 }
 
 interface ResolvedCompareModel {
@@ -86,6 +92,21 @@ interface StoredComparison {
   readonly artifactStatus?: ComparisonArtifactStatus;
 }
 
+interface LoadedComparisonJudgment {
+  readonly artifact: SavedComparisonArtifact;
+  readonly judgmentId: string;
+  readonly comparisonId: string;
+  readonly winnerBlindId: string;
+  readonly reasons: string;
+  readonly revealIncludedInJudgment: boolean;
+  readonly winnerModel?: {
+    readonly registryKey: string;
+    readonly providerId: string;
+    readonly modelId: string;
+    readonly displayName: string;
+  };
+}
+
 interface SavedComparisonArtifact {
   readonly artifactId: string;
   readonly filename?: string;
@@ -102,6 +123,7 @@ const MODE_RUN = 'run';
 const MODE_REVEAL = 'reveal';
 const MODE_REVIEW = 'review';
 const MODE_JUDGE = 'judge';
+const MODE_APPLY = 'apply';
 const MAX_PROMPT_CHARS = 24_000;
 const MIN_CANDIDATES = 2;
 const MAX_CANDIDATES = 4;
@@ -601,6 +623,76 @@ function formatJudgmentResult(input: {
   return lines.join('\n');
 }
 
+function parseJudgmentArtifactPayload(value: unknown, artifact: SavedComparisonArtifact): LoadedComparisonJudgment | null {
+  const payload = readRecord(value);
+  if (!payload || readString(payload.schema) !== 'goodvibes.agent.model_compare_judgment.v1') return null;
+  const winnerModel = readRecord(payload.winnerModel);
+  const registryKey = readString(winnerModel?.registryKey);
+  return {
+    artifact,
+    judgmentId: readString(payload.judgmentId) || `judgment_from_${artifact.artifactId}`,
+    comparisonId: readString(payload.comparisonId) || 'unknown-comparison',
+    winnerBlindId: readString(payload.winnerBlindId) || '?',
+    reasons: readString(payload.reasons),
+    revealIncludedInJudgment: payload.revealIncludedInJudgment === true,
+    ...(registryKey ? {
+      winnerModel: {
+        registryKey,
+        providerId: readString(winnerModel?.providerId),
+        modelId: readString(winnerModel?.modelId),
+        displayName: readString(winnerModel?.displayName) || registryKey,
+      },
+    } : {}),
+  };
+}
+
+async function loadJudgmentFromArtifact(
+  artifactStore: AgentModelCompareArtifactStore | undefined,
+  artifactId: string,
+): Promise<LoadedComparisonJudgment | null> {
+  if (!artifactStore?.readContent) return null;
+  const { record, buffer } = await artifactStore.readContent(artifactId);
+  const payload = JSON.parse(buffer.toString('utf-8')) as unknown;
+  return parseJudgmentArtifactPayload(payload, toSavedComparisonArtifact(record));
+}
+
+async function ensureSelectableWinnerModel(
+  catalog: AgentModelCompareModelCatalog,
+  registryKey: string,
+): Promise<void> {
+  const selectableModels = await listSelectableModels(catalog);
+  if (!selectableModels.some((model) => model.registryKey === registryKey)) {
+    throw new Error(`Winner model ${registryKey} is not currently selectable. Refresh model routing before applying this judgment.`);
+  }
+}
+
+function formatApplyPreview(judgment: LoadedComparisonJudgment): string {
+  return [
+    'Agent blind model comparison route update preview',
+    `  judgment ${judgment.judgmentId}`,
+    `  comparison ${judgment.comparisonId}`,
+    `  winner Candidate ${judgment.winnerBlindId}`,
+    `  model ${judgment.winnerModel?.registryKey ?? '(not revealed in judgment)'}`,
+    `  reasons ${previewText(judgment.reasons || '(none)')}`,
+    '  policy changes provider.model only after explicit confirmation',
+  ].join('\n');
+}
+
+function formatApplyResult(input: {
+  readonly judgment: LoadedComparisonJudgment;
+  readonly result: AgentModelCompareRouteUpdateResult;
+}): string {
+  const lines = [
+    `Applied blind model comparison winner ${input.judgment.judgmentId}`,
+    `comparison ${input.judgment.comparisonId}`,
+    `winner Candidate ${input.judgment.winnerBlindId}`,
+    `selected model ${input.result.selectedModel}`,
+  ];
+  if (input.result.previousModel) lines.push(`previous model ${input.result.previousModel}`);
+  lines.push('Judgment and comparison artifacts were not changed.');
+  return lines.join('\n');
+}
+
 function formatRunResult(comparison: StoredComparison, reveal: boolean): string {
   const completed = comparison.candidates.filter((candidate) => candidate.status === 'completed').length;
   const lines = [
@@ -644,10 +736,10 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' {
   const mode = readString(value) || MODE_RUN;
-  if (mode === MODE_RUN || mode === MODE_REVEAL || mode === MODE_REVIEW || mode === MODE_JUDGE) return mode;
-  throw new Error('mode must be run, reveal, review, or judge.');
+  if (mode === MODE_RUN || mode === MODE_REVEAL || mode === MODE_REVIEW || mode === MODE_JUDGE || mode === MODE_APPLY) return mode;
+  throw new Error('mode must be run, reveal, review, judge, or apply.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -865,14 +957,14 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
   return {
     definition: {
       name: 'agent_model_compare',
-      description: 'Run, review, judge, or reveal one blind model comparison.',
+      description: 'Run, review, judge, apply, or reveal one blind comparison.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE],
-            description: 'Use run, review, reveal, or judge a comparison.',
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY],
+            description: 'Use run, review, reveal, judge, or apply winner.',
           },
           prompt: {
             type: 'string',
@@ -913,7 +1005,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           },
           artifactId: {
             type: 'string',
-            description: 'Saved comparison artifact id for review or reveal.',
+            description: 'Saved comparison or judgment artifact id.',
           },
           winnerBlindId: {
             type: 'string',
@@ -933,7 +1025,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true for run and judge modes.',
+            description: 'Required true for run, judge, and apply modes.',
           },
           explicitUserRequest: {
             type: 'string',
@@ -1018,6 +1110,37 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             reasons,
             reveal: readBoolean(args.reveal),
           }));
+        }
+
+        if (mode === MODE_APPLY) {
+          const artifactId = readString(args.artifactId);
+          const explicitUserRequest = readString(args.explicitUserRequest);
+          if (!artifactId) return failure('apply mode requires a saved judgment artifactId.');
+          if (!explicitUserRequest) {
+            return failure('explicitUserRequest is required so route updates stay tied to a direct user request.');
+          }
+          if (!deps.applyModelRoute) {
+            return failure('Model route updates are unavailable in this runtime. Use agent_harness mode:"set_setting" for provider.model if available.');
+          }
+          if (!deps.artifactStore?.readContent) {
+            return failure('Saved judgment artifacts are unavailable because this runtime cannot read artifact content.');
+          }
+          const judgment = await loadJudgmentFromArtifact(deps.artifactStore, artifactId);
+          if (!judgment) return failure('Unknown judgment artifact. Pass a saved model comparison judgment artifactId.');
+          if (!judgment.revealIncludedInJudgment || !judgment.winnerModel?.registryKey) {
+            return failure('Judgment artifact does not include a revealed winner model. Save or reveal the judgment before applying a route update.');
+          }
+          if (!readBoolean(args.confirm)) {
+            return failure([
+              formatApplyPreview(judgment),
+              '',
+              'Route update confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to apply this winning model.',
+            ].join('\n'));
+          }
+          await ensureSelectableWinnerModel(deps.modelCatalog, judgment.winnerModel.registryKey);
+          const result = await deps.applyModelRoute(judgment.winnerModel.registryKey);
+          await deps.modelCatalog.recordModelUsage?.(judgment.winnerModel.registryKey);
+          return output(formatApplyResult({ judgment, result }));
         }
 
         const prompt = readString(args.prompt);

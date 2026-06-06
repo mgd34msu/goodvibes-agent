@@ -176,7 +176,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       },
       {
         area: 'Documents and artifacts',
-        can: 'Draft and revise documents in the main conversation, handle uploads, exports, source checks, generated media artifacts, and run confirmed blind model comparisons with durable local review and judgment artifacts.',
+        can: 'Draft and revise documents in the main conversation, handle uploads, exports, source checks, generated media artifacts, and run confirmed blind model comparisons with durable review, judgment, and route-update actions.',
         tools: [optionalTool('agent_harness'), optionalTool('agent_knowledge'), optionalTool('agent_knowledge_ingest'), optionalTool('agent_media_generate'), optionalTool('agent_model_compare')],
         inspect: 'agent_harness mode:"document_ops"',
       },

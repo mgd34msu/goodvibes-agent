@@ -686,6 +686,7 @@ describe('agent_harness tool', () => {
       expect(modelCompare?.actionIds).toContain('document-run-compare');
       expect(modelCompare?.actionIds).toContain('document-review-compare');
       expect(modelCompare?.actionIds).toContain('document-judge-compare');
+      expect(modelCompare?.actionIds).toContain('document-apply-compare');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
@@ -871,6 +872,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-run-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-review-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-judge-compare')?.modelRoute).toBe('agent_model_compare');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-apply-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });
@@ -2849,6 +2851,34 @@ describe('agent_harness tool', () => {
       expect(judgment.output).toContain('"status": "executed_model_tool"');
       expect(judgment.output).toContain('"tool": "agent_model_compare"');
       expect(judgment.output).toContain('agent_model_compare executed');
+
+      const applyUnconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-apply-compare',
+        fields: {
+          artifactId: 'artifact-2',
+          confirm: 'no',
+        },
+        confirm: true,
+        explicitUserRequest: 'Apply comparison winner.',
+      });
+      expect(applyUnconfirmed.success).toBe(true);
+      expect(applyUnconfirmed.output).toContain('"status": "not_confirmed"');
+
+      const apply = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-apply-compare',
+        fields: {
+          artifactId: 'artifact-2',
+          confirm: 'yes',
+        },
+        confirm: true,
+        explicitUserRequest: 'Apply comparison winner.',
+      });
+      expect(apply.success).toBe(true);
+      expect(apply.output).toContain('"status": "executed_model_tool"');
+      expect(apply.output).toContain('"tool": "agent_model_compare"');
+      expect(apply.output).toContain('agent_model_compare executed');
     } finally {
       fixture.cleanup();
     }

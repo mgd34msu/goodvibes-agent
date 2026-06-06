@@ -71,7 +71,10 @@ function artifactStore() {
   return { inputs, store };
 }
 
-function fixture(options: { readonly artifactStore?: Pick<ArtifactStore, 'create'> } = {}) {
+function fixture(options: {
+  readonly artifactStore?: Pick<ArtifactStore, 'create'> & Partial<Pick<ArtifactStore, 'list' | 'readContent'>>;
+  readonly applyModelRoute?: (registryKey: string) => { readonly previousModel?: string; readonly selectedModel: string };
+} = {}) {
   const models: AgentModelCompareCatalogModel[] = [
     {
       modelId: 'gpt-4.1',
@@ -96,6 +99,8 @@ function fixture(options: { readonly artifactStore?: Pick<ArtifactStore, 'create
     ['anthropic', anthropic],
   ]);
   const recordedUsage: string[] = [];
+  const appliedModelRoutes: string[] = [];
+  let selectedModel = 'openai:gpt-4.1';
   const tool = createAgentModelCompareTool({
     modelCatalog: {
       listModels: () => models,
@@ -112,9 +117,16 @@ function fixture(options: { readonly artifactStore?: Pick<ArtifactStore, 'create
       },
     },
     artifactStore: options.artifactStore,
+    applyModelRoute: options.applyModelRoute ?? ((registryKey) => {
+      const previousModel = selectedModel;
+      selectedModel = registryKey;
+      appliedModelRoutes.push(registryKey);
+      return { previousModel, selectedModel };
+    }),
   });
 
   return {
+    appliedModelRoutes,
     anthropic,
     openai,
     recordedUsage,
@@ -353,6 +365,39 @@ describe('agent_model_compare tool', () => {
     expect(listAfterJudgment.output).toContain('artifact-1');
     expect(listAfterJudgment.output).not.toContain('artifact-2');
     expect(listAfterJudgment.output).not.toContain('artifact-3');
+
+    const hiddenApply = await reviewer.tool.execute({
+      mode: 'apply',
+      artifactId: 'artifact-3',
+      confirm: true,
+      explicitUserRequest: 'Apply the hidden comparison winner.',
+    });
+    expect(hiddenApply.success).toBe(false);
+    expect(hiddenApply.error).toContain('does not include a revealed winner model');
+    expect(reviewer.appliedModelRoutes).toEqual([]);
+
+    const applyPreview = await reviewer.tool.execute({
+      mode: 'apply',
+      artifactId: 'artifact-2',
+      confirm: false,
+      explicitUserRequest: 'Apply the comparison winner.',
+    });
+    expect(applyPreview.success).toBe(false);
+    expect(applyPreview.error).toContain('route update preview');
+    expect(applyPreview.error).toContain('model anthropic:claude-sonnet');
+    expect(reviewer.appliedModelRoutes).toEqual([]);
+
+    const apply = await reviewer.tool.execute({
+      mode: 'apply',
+      artifactId: 'artifact-2',
+      confirm: true,
+      explicitUserRequest: 'Apply the comparison winner.',
+    });
+    expect(apply.success).toBe(true);
+    expect(apply.output).toContain('Applied blind model comparison winner');
+    expect(apply.output).toContain('selected model anthropic:claude-sonnet');
+    expect(apply.output).toContain('previous model openai:gpt-4.1');
+    expect(reviewer.appliedModelRoutes).toEqual(['anthropic:claude-sonnet']);
   });
 
   test('can deliberately skip artifact persistence', async () => {
