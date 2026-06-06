@@ -57,6 +57,7 @@ interface SetupPlanItem {
   readonly bootstrapPlan?: SetupBootstrapPlan;
   readonly serviceProbe?: SetupServiceProbe;
   readonly authPosture?: SetupConnectedHostAuthPosture;
+  readonly installSmokePlan?: SetupInstallSmokePlan;
   readonly localModelReadiness?: Record<string, unknown>;
 }
 
@@ -115,6 +116,22 @@ interface SetupConnectedHostAuthPosture {
     readonly manualTokenRoute: string;
     readonly tokenProvisioningOwner: string;
   };
+}
+
+interface SetupInstallSmokeCheck {
+  readonly id: string;
+  readonly label: string;
+  readonly status: 'ready' | 'blocked' | 'user-run';
+  readonly evidence: string;
+  readonly route: string;
+}
+
+interface SetupInstallSmokePlan {
+  readonly status: 'ready-to-run' | 'blocked';
+  readonly source: string;
+  readonly checks: readonly SetupInstallSmokeCheck[];
+  readonly successCriteria: readonly string[];
+  readonly policy: string;
 }
 
 interface SetupBootstrapStep {
@@ -268,6 +285,7 @@ function planSearchText(item: SetupPlanItem): string {
     ].join(' ')).join('\n') ?? '',
     JSON.stringify(item.serviceProbe ?? {}),
     JSON.stringify(item.authPosture ?? {}),
+    JSON.stringify(item.installSmokePlan ?? {}),
   ].join('\n').toLowerCase();
 }
 
@@ -425,6 +443,88 @@ function connectedHostAuthSignals(posture: SetupConnectedHostAuthPosture): reado
     `compatibility auth sessions: ${posture.compatibilityAuth.sessions}`,
     `bootstrap credential: ${posture.compatibilityAuth.bootstrapCredentialPresent ? 'present' : 'missing'} (${posture.compatibilityAuth.bootstrapCredentialPath})`,
     `token provisioning owner: ${posture.routes.tokenProvisioningOwner}`,
+  ];
+}
+
+function installSmokeCheckStatus(ready: boolean): 'ready' | 'blocked' {
+  return ready ? 'ready' : 'blocked';
+}
+
+function installSmokePlan(
+  providerAccess: OnboardingStep1CapabilityItem,
+  serviceProbe: SetupServiceProbe,
+  authPosture: SetupConnectedHostAuthPosture,
+): SetupInstallSmokePlan {
+  const hostReady = serviceProbe.status === 'reachable';
+  const authReady = authPosture.operatorToken.usable;
+  const modelReady = providerAccess.selected;
+  const checks: SetupInstallSmokeCheck[] = [
+    {
+      id: 'agent-binary',
+      label: 'Agent binary starts',
+      status: 'user-run',
+      evidence: 'The installed package binary should answer version/help/status without exposing secrets.',
+      route: 'goodvibes-agent --version && goodvibes-agent status --json',
+    },
+    {
+      id: 'connected-host-status',
+      label: 'Connected host reachable',
+      status: installSmokeCheckStatus(hostReady),
+      evidence: `Runtime probe is ${serviceProbe.status} at ${serviceProbe.binding}.`,
+      route: 'agent_harness mode:"connected_host_status" includeParameters:true',
+    },
+    {
+      id: 'connected-host-auth',
+      label: 'Connected-host operator auth usable',
+      status: installSmokeCheckStatus(authReady),
+      evidence: authReady
+        ? `Operator token is usable (${authPosture.operatorToken.fingerprint ?? 'fingerprint unavailable'}).`
+        : `Operator token is ${authPosture.operatorToken.present ? 'present but not usable' : 'missing'} at ${authPosture.operatorToken.path}.`,
+      route: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+    },
+    {
+      id: 'provider-model',
+      label: 'Provider/model route selected',
+      status: installSmokeCheckStatus(modelReady),
+      evidence: modelReady ? 'Provider/model access is selected in onboarding state.' : 'Provider/model access is not selected yet.',
+      route: 'agent_harness mode:"model_routing" includeParameters:true',
+    },
+    {
+      id: 'setup-posture',
+      label: 'Setup posture reviewed',
+      status: 'user-run',
+      evidence: 'Setup posture should show no unresolved autonomy blockers before ongoing work.',
+      route: 'agent_harness mode:"setup_posture" includeParameters:true',
+    },
+    {
+      id: 'first-assistant-turn',
+      label: 'First assistant turn responds',
+      status: modelReady ? 'user-run' : 'blocked',
+      evidence: modelReady
+        ? 'Ask the main assistant for a short ready response after model routing is selected.'
+        : 'A first assistant turn needs a provider/model route first.',
+      route: 'Ask the assistant: "Say ready in one sentence and list the active model route."',
+    },
+  ];
+  return {
+    status: hostReady && authReady && modelReady ? 'ready-to-run' : 'blocked',
+    source: 'GoodVibes Agent installed package plus connected GoodVibes host',
+    checks,
+    successCriteria: [
+      'The Agent binary starts and reports status without printing connected-host tokens.',
+      'The connected GoodVibes host is reachable from Agent.',
+      'Connected-host operator auth is usable or the user has an explicit pairing handoff.',
+      'A provider/model route is selected for normal assistant turns.',
+      'The first assistant turn responds in the main conversation.',
+    ],
+    policy: 'Install smoke is read-only, token-safe guidance. Agent does not run package, host, or shell smoke commands implicitly; use explicit user-run commands or confirmed routes only.',
+  };
+}
+
+function installSmokeSignals(plan: SetupInstallSmokePlan): readonly string[] {
+  return [
+    `install smoke: ${plan.status}`,
+    ...plan.checks.map((check) => `${check.id}: ${check.status}`),
   ];
 }
 
@@ -786,6 +886,7 @@ function buildSetupPlan(
   const localModelReadiness = localModelSetupReadiness(localModels);
   const serviceProbe = connectedHostServiceProbe(servicePosture);
   const authPosture = connectedHostAuthPosture(context, snapshot);
+  const smokePlan = installSmokePlan(providerAccess, serviceProbe, authPosture);
 
   const plan: SetupPlanItem[] = [
     {
@@ -848,6 +949,21 @@ function buildSetupPlan(
       modelRoute: 'agent_harness mode:"model_routing" or mode:"provider_accounts"',
       relatedSetupItemId: providerAccess.id,
       signals: setupProviderSignalIds(snapshot),
+    },
+    {
+      id: 'install-smoke',
+      label: 'Install smoke',
+      status: smokePlan.status === 'ready-to-run' ? 'recommended' : 'blocked',
+      priority: 22,
+      blocksAutonomy: false,
+      reason: 'A fresh install should be provable from package binary to reachable host, usable auth, selected model route, reviewed setup posture, and one successful assistant turn.',
+      nextAction: smokePlan.status === 'ready-to-run'
+        ? 'Run the install smoke checks and keep the output token-safe before trusting ongoing autonomous work.'
+        : 'Resolve connected-host, connected-host auth, and provider/model blockers, then rerun the install smoke checks.',
+      userRoute: 'Agent Workspace -> Start -> Install smoke',
+      modelRoute: 'agent_harness mode:"setup_item" setupItemId:"install-smoke"',
+      signals: installSmokeSignals(smokePlan),
+      installSmokePlan: smokePlan,
     },
     {
       id: 'local-model-readiness',
@@ -1003,6 +1119,7 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(item.bootstrapPlan ? { bootstrapRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"' } : {}),
     ...(includeParameters && item.serviceProbe ? { serviceProbe: item.serviceProbe } : {}),
     ...(includeParameters && item.authPosture ? { authPosture: item.authPosture } : {}),
+    ...(includeParameters && item.installSmokePlan ? { installSmokePlan: item.installSmokePlan } : {}),
     ...(includeParameters && item.localModelReadiness ? { localModelReadiness: item.localModelReadiness } : {}),
     ...(includeParameters && item.repairCards && item.repairCards.length > 0 ? { repairCards: item.repairCards.map(describeRepairCard) } : {}),
     ...(includeParameters && item.bootstrapPlan ? { bootstrapPlan: item.bootstrapPlan } : {}),

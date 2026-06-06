@@ -876,6 +876,13 @@ describe('agent_harness tool', () => {
             readonly reconnectRoutes: { readonly agentStatus: string; readonly serviceDiagnostics: string; readonly setupItem: string };
             readonly policy: string;
           };
+          readonly installSmokePlan?: {
+            readonly status: string;
+            readonly source: string;
+            readonly checks: readonly { readonly id: string; readonly status: string; readonly route: string; readonly evidence: string }[];
+            readonly successCriteria: readonly string[];
+            readonly policy: string;
+          };
           readonly localModelReadiness?: {
             readonly cookbookStatus: string;
             readonly inspectRoute: string;
@@ -939,6 +946,29 @@ describe('agent_harness tool', () => {
       expect(provider?.modelRoute).toContain('model_routing');
       expect(provider?.nextAction).toMatch(/Choose a provider\/model route|Review the current model route/);
       expect(posture.nextSetupActions[0]?.setupItemId).toBe('connected-host-readiness');
+
+      const installSmoke = posture.readinessPlan.find((item) => item.setupItemId === 'install-smoke');
+      expect(installSmoke?.status).toBe('blocked');
+      expect(installSmoke?.blocksAutonomy).toBe(false);
+      expect(installSmoke?.priority).toBe(22);
+      expect(installSmoke?.modelRoute).toContain('install-smoke');
+      expect(installSmoke?.signals?.join('\n')).toContain('install smoke');
+      expect(installSmoke?.installSmokePlan?.source).toContain('GoodVibes Agent installed package');
+      expect(installSmoke?.installSmokePlan?.checks.map((check) => check.id)).toEqual([
+        'agent-binary',
+        'connected-host-status',
+        'connected-host-auth',
+        'provider-model',
+        'setup-posture',
+        'first-assistant-turn',
+      ]);
+      expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'agent-binary')?.route).toContain('goodvibes-agent --version');
+      expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'connected-host-status')?.route).toContain('connected_host_status');
+      expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'connected-host-auth')?.route).toContain('connected-host-auth');
+      expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'provider-model')?.route).toContain('model_routing');
+      expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'first-assistant-turn')?.route).toContain('Say ready');
+      expect(installSmoke?.installSmokePlan?.successCriteria.join('\n')).toContain('first assistant turn');
+      expect(installSmoke?.installSmokePlan?.policy).toContain('does not run package, host, or shell smoke commands implicitly');
 
       const localModels = posture.readinessPlan.find((item) => item.setupItemId === 'local-model-readiness');
       expect(localModels?.status).toBe('recommended');
@@ -1010,6 +1040,23 @@ describe('agent_harness tool', () => {
       expect(localModelItem.modelRoute).toContain('model_routing');
       expect(localModelItem.localModelReadiness?.topRecipe?.readinessScore).toBeGreaterThan(0);
       expect(localModelItem.localModelReadiness?.readinessRubric?.dimensions.map((dimension) => dimension.id)).toContain('privacy');
+
+      const installSmokeItem = await executeHarnessJson<{
+        readonly setupItemId: string;
+        readonly status: string;
+        readonly lookup?: { readonly resolvedBy?: string };
+        readonly installSmokePlan?: {
+          readonly status: string;
+          readonly checks: readonly { readonly id: string; readonly status: string; readonly route: string }[];
+          readonly policy: string;
+        };
+      }>(fixture, { mode: 'setup_item', setupItemId: 'install-smoke' });
+      expect(installSmokeItem.setupItemId).toBe('install-smoke');
+      expect(installSmokeItem.status).toBe('blocked');
+      expect(installSmokeItem.lookup?.resolvedBy).toBe('plan-id');
+      expect(installSmokeItem.installSmokePlan?.checks.find((check) => check.id === 'connected-host-auth')?.status).toBe('blocked');
+      expect(installSmokeItem.installSmokePlan?.checks.find((check) => check.id === 'first-assistant-turn')?.status).toBe('user-run');
+      expect(installSmokeItem.installSmokePlan?.policy).toContain('token-safe');
 
       const browserItem = await executeHarnessJson<{
         readonly setupItemId: string;
