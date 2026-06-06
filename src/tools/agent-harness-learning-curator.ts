@@ -7,8 +7,23 @@ import { previewHarnessText } from './agent-harness-text.ts';
 
 type LearningCandidateStatus = 'needs-review' | 'needs-setup' | 'low-confidence' | 'proposal-ready' | 'ready-to-promote' | 'ready';
 type LocalLearningCandidateDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
-type LearningCandidateDomain = LocalLearningCandidateDomain | 'work_plan' | 'research_run' | 'capture';
+type LearningCandidateDomain = LocalLearningCandidateDomain | 'work_plan' | 'research_run' | 'session' | 'capture';
 type LearningProposalTarget = 'memory' | 'skill' | 'routine' | 'persona';
+
+interface SessionInfoLike {
+  readonly name: string;
+  readonly title?: string;
+  readonly model?: string;
+  readonly provider?: string;
+  readonly timestamp?: number;
+  readonly messageCount?: number;
+  readonly filePath?: string;
+}
+
+interface SessionManagerLike {
+  readonly list?: () => readonly SessionInfoLike[];
+  readonly load?: (name: string) => { readonly meta?: { readonly title?: string }; readonly messages?: readonly unknown[] };
+}
 
 interface AgentHarnessLearningCuratorArgs {
   readonly candidateId?: unknown;
@@ -264,6 +279,12 @@ function completedIsoFreshness(iso: string | undefined): number {
   return clampScore(96 - Math.min(45, ageDays * 3));
 }
 
+function completedTimestampFreshness(timestamp: number | undefined): number {
+  if (timestamp === undefined || !Number.isFinite(timestamp) || timestamp <= 0) return 70;
+  const ageDays = Math.max(0, (Date.now() - timestamp) / (24 * 60 * 60 * 1000));
+  return clampScore(96 - Math.min(45, ageDays * 3));
+}
+
 function completedWorkDetail(item: WorkPlanItem, notes: string): string {
   return [
     `Completed work: ${item.title}`,
@@ -414,6 +435,111 @@ function researchRunCompletionCandidate(run: AgentResearchRunRecord): LearningCa
   };
 }
 
+function extractMessageText(message: unknown): string {
+  if (typeof message === 'string') return message;
+  if (typeof message !== 'object' || message === null) return '';
+  const record = message as Record<string, unknown>;
+  const content = record.content;
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content.map((part) => {
+      if (typeof part === 'string') return part;
+      if (typeof part !== 'object' || part === null) return '';
+      const partRecord = part as Record<string, unknown>;
+      return typeof partRecord.text === 'string' ? partRecord.text : '';
+    }).filter(Boolean).join('\n');
+  }
+  return '';
+}
+
+function sessionLoadedText(manager: SessionManagerLike, session: SessionInfoLike): string {
+  if (typeof manager.load !== 'function') return '';
+  try {
+    const loaded = manager.load(session.name);
+    const metaTitle = loaded.meta?.title ?? '';
+    const messageText = (loaded.messages ?? []).map(extractMessageText).filter(Boolean).slice(-8).join('\n');
+    return [metaTitle, messageText].filter(Boolean).join('\n');
+  } catch {
+    return '';
+  }
+}
+
+function sessionProposalTarget(text: string): LearningProposalTarget | null {
+  const normalized = text.toLowerCase();
+  if (/\b(memory|remember|fact|decision|constraint|risk|incident|pattern|architecture|ownership)\b/.test(normalized)) return 'memory';
+  if (/\b(style|tone|preference|respond|answer|voice|persona)\b/.test(normalized)) return 'persona';
+  if (/\b(repeat|routine|workflow|every time|checklist|runbook|process)\b/.test(normalized)) return 'routine';
+  if (/\b(lesson|procedure|steps|how to|when asked|debug|fix|review|test|release|deploy|triage|research|source|citation|report)\b/.test(normalized)) return 'skill';
+  return null;
+}
+
+function sessionDetail(session: SessionInfoLike, loadedText: string): string {
+  return [
+    `Saved session: ${session.title || session.name}`,
+    `Session id: ${session.name}`,
+    session.model ? `Model: ${session.model}` : '',
+    session.provider ? `Provider: ${session.provider}` : '',
+    session.messageCount ? `Messages: ${session.messageCount}` : '',
+    '',
+    loadedText ? `Relevant transcript:\n${previewHarnessText(loadedText, 1200)}` : 'Transcript unavailable from the session manager; inspect the session before capturing durable context.',
+  ].filter(Boolean).join('\n');
+}
+
+function sessionCompletionCandidate(manager: SessionManagerLike, session: SessionInfoLike): LearningCandidate | null {
+  if (!session.name) return null;
+  const loadedText = sessionLoadedText(manager, session);
+  const text = [session.title ?? '', session.name, loadedText].join('\n');
+  const target = sessionProposalTarget(text);
+  if (!target) return null;
+  const labelBase = session.title || session.name;
+  const detail = sessionDetail(session, loadedText);
+  const description = target === 'memory'
+    ? `Durable memory learned from saved session: ${previewHarnessText(labelBase, 80)}`
+    : target === 'routine'
+      ? `Repeatable workflow learned from saved session: ${previewHarnessText(labelBase, 80)}`
+      : target === 'persona'
+        ? `Operating preference learned from saved session: ${previewHarnessText(labelBase, 80)}`
+        : `Reusable skill learned from saved session: ${previewHarnessText(labelBase, 80)}`;
+  return {
+    id: `session-proposal:${target}:${session.name}`,
+    label: `${labelBase} -> ${target}`,
+    domain: 'session',
+    recordId: session.name,
+    status: 'proposal-ready',
+    priority: target === 'memory' ? 54 : 52,
+    reason: `Saved session looks like ${proposalSubject(target)}.`,
+    next: `Inspect the saved session transcript, then capture this as Agent-local ${target} only if it should guide future work.`,
+    scores: {
+      usefulness: clampScore(52 + Math.min(18, (session.messageCount ?? 0) / 2) + (loadedText ? 8 : 0)),
+      freshness: completedTimestampFreshness(session.timestamp),
+      sourceQuality: loadedText ? 68 : 58,
+      risk: loadedText ? 34 : 42,
+    },
+    proposalTarget: target,
+    proposalFields: target === 'memory' ? {
+      cls: inferMemoryClass(text),
+      scope: 'project',
+      summary: previewHarnessText(loadedText || labelBase, 140),
+      detail,
+      tags: 'learned,saved-session,memory',
+      confidence: loadedText ? '76' : '68',
+    } : {
+      target,
+      name: previewHarnessText(labelBase, 80),
+      description: previewHarnessText(description, 140),
+      notes: detail,
+      triggers: target === 'routine' ? 'session, workflow' : target === 'persona' ? 'session preference' : 'session, lesson',
+      tags: `learned,saved-session,${target}`,
+      enable: 'yes',
+    },
+    inspectRoute: `agent_harness mode:"session" sessionId:"${session.name}"`,
+    modelRoute: 'agent_harness mode:"session"',
+    createRoute: target === 'memory'
+      ? 'agent_harness mode:"run_workspace_action" actionId:"memory-create" confirm:true explicitUserRequest:"..."'
+      : 'agent_harness mode:"run_workspace_action" actionId:"learned-behavior" confirm:true explicitUserRequest:"..."',
+  };
+}
+
 function notePromotionCandidate(item: AgentWorkspaceLocalLibraryItem): LearningCandidate | null {
   if (!isReviewed(item) || !item.description.includes('Origin URL')) return null;
   return {
@@ -513,6 +639,21 @@ function researchRunCompletionCandidates(context: CommandContext): readonly Lear
   }
 }
 
+function sessionCompletionCandidates(context: CommandContext): readonly LearningCandidate[] {
+  const manager = context.session?.sessionManager as SessionManagerLike | undefined;
+  if (typeof manager?.list !== 'function') return [];
+  try {
+    return manager.list()
+      .filter((session) => session.name !== context.session?.runtime?.sessionId)
+      .flatMap((session) => {
+        const candidate = sessionCompletionCandidate(manager, session);
+        return candidate ? [candidate] : [];
+      });
+  } catch {
+    return [];
+  }
+}
+
 function candidateSearchText(candidate: LearningCandidate): string {
   return [
     candidate.id,
@@ -541,6 +682,7 @@ function buildLearningCandidates(context: CommandContext): readonly LearningCand
     ...snapshot.localRoutines.flatMap((item) => candidatesForItem('routine', item)),
     ...workPlanCompletionCandidates(context),
     ...researchRunCompletionCandidates(context),
+    ...sessionCompletionCandidates(context),
   ];
   if (candidates.length === 0) candidates.push(captureCandidate());
   return candidates.sort((left, right) => right.priority - left.priority || left.label.localeCompare(right.label));
@@ -626,7 +768,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
     returned: Math.min(filtered.length, limit),
     total: all.length,
     nextActions: nextActions(all),
-    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, completed research runs, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, completed research runs, saved sessions, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
   };
 }
 

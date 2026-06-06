@@ -1723,6 +1723,31 @@ describe('agent_harness tool', () => {
         reportArtifactId: 'artifact-research-1',
         sourceIds: ['source-alpha'],
       });
+      const savedLearningSession = {
+        name: 'session-release-review',
+        title: 'Release review lesson session',
+        model: 'gpt-4.1',
+        provider: 'openai',
+        timestamp: Date.now(),
+        messageCount: 6,
+        filePath: fixture.paths.resolveUserPath('sessions', 'session-release-review.json'),
+      };
+      (fixture.context.session as unknown as Record<string, unknown>).sessionManager = {
+        list: () => [savedLearningSession],
+        search: (query: string) => [savedLearningSession]
+          .filter((session) => [session.name, session.title].join('\n').toLowerCase().includes(query.toLowerCase()))
+          .map((session) => ({ session, matchCount: 1, snippets: ['Lesson: validate release evidence before closing.'] })),
+        load: (name: string) => {
+          if (name !== savedLearningSession.name) throw new Error(`Unknown session ${name}`);
+          return {
+            meta: { title: savedLearningSession.title },
+            messages: [
+              { role: 'user', content: 'Prepare the release review.' },
+              { role: 'assistant', content: 'Lesson: when asked to prepare release review, run typecheck, package verification, UX inventory, and summarize residual risks.' },
+            ],
+          };
+        },
+      };
       const personaRegistry = AgentPersonaRegistry.fromShellPaths(fixture.paths);
       const persona = personaRegistry.create({
         name: 'Fresh operator persona',
@@ -1747,7 +1772,7 @@ describe('agent_harness tool', () => {
       expect(summary.learningCurator?.needsReview).toBeGreaterThan(0);
       expect(summary.learningCurator?.needsSetup).toBeGreaterThan(0);
       expect(summary.learningCurator?.lowConfidence).toBeGreaterThan(0);
-      expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(4);
+      expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(5);
       expect(summary.learningCurator?.readOnly).toBe(true);
 
       const curator = await executeHarnessJson<{
@@ -1769,8 +1794,8 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'learning_curator', includeParameters: true });
       expect(curator.summary.candidates).toBeGreaterThan(3);
       expect(curator.summary.readyToPromote).toBeGreaterThan(0);
-      expect(curator.summary.proposedBehavior).toBeGreaterThan(4);
-      expect(curator.policy).toContain('completed research runs');
+      expect(curator.summary.proposedBehavior).toBeGreaterThan(5);
+      expect(curator.policy).toContain('saved sessions');
       expectRowsHaveCompactModelRoutes(curator.candidates);
       const memoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `memory:${memory.id}:low-confidence`);
       const personaCandidate = curator.candidates.find((candidate) => candidate.domain === 'persona' && candidate.status === 'needs-review');
@@ -1781,6 +1806,7 @@ describe('agent_harness tool', () => {
       const completedCandidate = curator.candidates.find((candidate) => candidate.candidateId === `work-plan-proposal:routine:${completedWork.id}`);
       const completedMemoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `work-plan-proposal:memory:${completedDecision.id}`);
       const researchCandidate = curator.candidates.find((candidate) => candidate.candidateId === `research-run-proposal:skill:${completedResearch.id}`);
+      const sessionCandidate = curator.candidates.find((candidate) => candidate.candidateId === `session-proposal:skill:${savedLearningSession.name}`);
       expect(memoryCandidate?.reviewRoute).toContain('agent_local_registry');
       expect(memoryCandidate?.scores.risk).toBeGreaterThan(0);
       expect(personaCandidate?.label).toContain('Fresh operator persona');
@@ -1805,6 +1831,11 @@ describe('agent_harness tool', () => {
       expect(researchCandidate?.createRoute).toContain('learned-behavior');
       expect(researchCandidate?.proposalTarget).toBe('skill');
       expect(researchCandidate?.proposalFields?.notes).toContain('artifact-research-1');
+      expect(sessionCandidate?.domain).toBe('session');
+      expect(sessionCandidate?.inspectRoute).toContain('mode:"session"');
+      expect(sessionCandidate?.createRoute).toContain('learned-behavior');
+      expect(sessionCandidate?.proposalTarget).toBe('skill');
+      expect(sessionCandidate?.proposalFields?.notes).toContain('typecheck');
 
       const candidate = await executeHarnessJson<{
         readonly candidateId: string;

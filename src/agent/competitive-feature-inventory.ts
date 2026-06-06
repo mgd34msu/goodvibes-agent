@@ -124,9 +124,9 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Learning is automatic enough to be useful, but every durable behavior has provenance, review, rollback, and quality scoring.',
     goodVibesStatus: 'partial',
     owners: ['agent'],
-    goodVibesNow: 'Agent has local memory, notes, personas, skills, routines, learned-behavior capture, and a read-only learning curator that ranks review, stale, missing-setup, low-confidence, reviewed-note, completed-work, and completed-research memory/behavior proposals, and promotion candidates with existing safe routes.',
+    goodVibesNow: 'Agent has local memory, notes, personas, skills, routines, learned-behavior capture, and a read-only learning curator that ranks review, stale, missing-setup, low-confidence, reviewed-note, completed-work, completed-research, and saved-session memory/behavior proposals, and promotion candidates with existing safe routes.',
     nextMoves: [
-      'Extend post-completion proposal capture into session-level completion summaries.',
+      'Consolidate duplicate memory, skill, routine, and persona proposals with user-visible diffs.',
       'Feed usefulness, freshness, source quality, and risk scores into prompt injection and review prioritization.',
       'Add automatic stale review and consolidation with user-visible diffs.',
     ],
