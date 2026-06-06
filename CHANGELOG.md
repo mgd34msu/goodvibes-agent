@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.1.4 - 2026-06-05
+
+- Rebuilt first-run onboarding into actionable Account & Model, Assistant Behavior, Tools & Permissions, Interface, Messaging, Voice & Phone, Context, Verify, and Finish pages with persisted setting actions instead of inert links.
+- Added GoodVibes TUI settings import plus conditional channel, telephony, model, permission, display, behavior, voice, and local-context setup rows that write Agent-owned config and saved settings.
+- Cleaned the model-facing Agent workspace surface with compact summaries, complete workspace action catalog exposure, unique action and category labels, and unambiguous canonical memory lookup.
+- Fixed full-suite temp isolation so exec-tool tests stay stable when other tests clean project temp workspaces.
+
 ## 1.1.3 - 2026-06-05
 
 - Add telephony channel support through the updated Agent platform dependency.
