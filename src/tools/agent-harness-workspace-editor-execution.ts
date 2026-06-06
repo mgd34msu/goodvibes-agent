@@ -93,6 +93,8 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
     || editorKind === 'document-create'
     || editorKind === 'document-update'
     || editorKind === 'document-review'
+    || editorKind === 'document-comment'
+    || editorKind === 'document-resolve-comment'
     || editorKind === 'document-insert-artifact'
     || editorKind === 'document-export'
   ) {
@@ -101,7 +103,7 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       tool: 'agent_documents',
       action: editorKind.replace('document-', ''),
       confirmation: editorKind === 'document-browse' || editorKind === 'document-show' ? 'not-required' : 'required',
-      note: 'run_workspace_action uses Agent-owned markdown drafts with version history. Export creates a saved markdown artifact; artifact insertion appends bounded text or a safe artifact reference. No default knowledge write occurs.',
+      note: 'run_workspace_action uses Agent-owned markdown drafts with version history and review comments. Export creates a saved markdown artifact; artifact insertion appends bounded text or a safe artifact reference. No default knowledge write occurs.',
     };
   }
   if (editorKind === 'model-compare') {

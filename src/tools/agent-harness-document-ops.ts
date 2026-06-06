@@ -118,6 +118,8 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-create-draft',
     'document-revise-draft',
     'document-review-draft',
+    'document-comment-draft',
+    'document-resolve-comment',
     'document-insert-artifact',
     'document-export-draft',
     'document-draft-chat',
@@ -191,6 +193,8 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     && documentActions.includes('document-show-draft')
     && documentActions.includes('document-create-draft')
     && documentActions.includes('document-revise-draft')
+    && documentActions.includes('document-comment-draft')
+    && documentActions.includes('document-resolve-comment')
     && documentActions.includes('document-insert-artifact')
     && documentActions.includes('document-export-draft');
   const artifactBrowserReady = hasTool(context, 'agent_artifacts')
@@ -208,10 +212,10 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: documentsReady ? 'ready' : 'partial',
       outcome: 'Draft, revise, and export user-facing documents without leaving the Agent conversation.',
       current: documentsReady
-        ? 'Agent has project-scoped markdown document drafts with version history, review status, read-only inspection, confirmed artifact insertion, and confirmed artifact export.'
+        ? 'Agent has project-scoped markdown document drafts with version history, review status, review comments, read-only inspection, confirmed artifact insertion, and confirmed artifact export.'
         : 'Agent can draft and revise documents in the main conversation and export transcript/session artifacts, but the dedicated markdown draft tool is not fully wired.',
       next: documentsReady
-        ? 'Add inline comments, AI suggestion review, and richer attach/export/compare reuse targets on top of versioned drafts and artifact insertion.'
+        ? 'Add AI suggestion review and richer attach/export/compare reuse targets on top of versioned drafts, comments, and artifact insertion.'
         : 'Wire agent_documents plus browse/show/create/revise/review/export workspace actions.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Create document draft',
       modelRoute: documentsReady ? 'agent_documents' : 'agent_harness mode:"workspace_actions" categoryId:"documents"',
@@ -221,6 +225,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         `${documentActions.length} document draft action(s)`,
         `${exportActions.length} export action(s) available`,
         documentsReady ? 'Versioned markdown drafts: available' : 'Versioned markdown drafts: gap',
+        documentActions.includes('document-comment-draft') ? 'Review comments: available' : 'Review comments: gap',
         documentActions.includes('document-insert-artifact') ? 'Artifact-to-document insert: available' : 'Artifact-to-document insert: gap',
       ],
       actionIds: documentActions,
@@ -321,7 +326,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, saved preference analytics, markdown report export, and a separate confirmed winner route update.'
         : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
       next: modelCompareReady
-        ? 'Build comments, AI suggestion review, and cross-session synthesis around saved comparison, judgment, analytics, export, and route-update artifacts.'
+        ? 'Build AI suggestion review and cross-session synthesis around saved comparison, judgment, analytics, export, and route-update artifacts.'
         : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
       modelRoute: modelCompareReady ? 'agent_model_compare' : 'agent_harness mode:"model_routing"',
@@ -371,7 +376,7 @@ export function documentOpsSummary(context: CommandContext, args: AgentHarnessDo
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
     returned: lanes.length,
     total: lanes.length,
-    policy: 'Document Ops unifies versioned document drafts, uploads, exports, sources, media artifacts, artifact browsing, artifact-to-Knowledge promotion, and model comparison. Comments and AI suggestion review remain explicit next steps.',
+    policy: 'Document Ops unifies versioned document drafts, review comments, uploads, exports, sources, media artifacts, artifact browsing, artifact-to-Knowledge promotion, and model comparison. AI suggestion review remains an explicit next step.',
     nextActions: nextActions(lanes),
   };
 }

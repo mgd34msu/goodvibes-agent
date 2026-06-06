@@ -3,9 +3,11 @@ import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './ag
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export interface AgentDocumentWorkspaceToolArgs {
-  readonly mode: 'list' | 'show' | 'create' | 'update' | 'review' | 'export' | 'insertArtifact';
+  readonly mode: 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'export' | 'insertArtifact';
   readonly documentId?: string;
   readonly artifactId?: string;
+  readonly commentId?: string;
+  readonly comment?: string;
   readonly query?: string;
   readonly title?: string;
   readonly body?: string;
@@ -118,6 +120,36 @@ export function createAgentDocumentReviewEditor(): AgentWorkspaceLocalEditor {
   };
 }
 
+export function createAgentDocumentCommentEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'document-comment',
+    mode: 'create',
+    title: 'Add Document Comment',
+    selectedFieldIndex: 0,
+    message: 'Add one review comment to an Agent-owned document draft. Comments do not change the document body or append a content version.',
+    fields: [
+      { id: 'documentId', label: 'Document id', value: '', required: true, multiline: false, hint: 'Document id or exact title.' },
+      { id: 'comment', label: 'Comment', value: '', required: true, multiline: true, hint: 'Review note or requested change. Ctrl-J inserts a new line.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to add this document comment.' },
+    ],
+  };
+}
+
+export function createAgentDocumentResolveCommentEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'document-resolve-comment',
+    mode: 'create',
+    title: 'Resolve Document Comment',
+    selectedFieldIndex: 0,
+    message: 'Resolve one review comment on an Agent-owned document draft without changing the document body.',
+    fields: [
+      { id: 'documentId', label: 'Document id', value: '', required: true, multiline: false, hint: 'Document id or exact title.' },
+      { id: 'commentId', label: 'Comment id', value: '', required: true, multiline: false, hint: 'Comment id such as c1.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to resolve this document comment.' },
+    ],
+  };
+}
+
 export function createAgentDocumentExportEditor(): AgentWorkspaceLocalEditor {
   return {
     kind: 'document-export',
@@ -210,6 +242,24 @@ export function buildAgentDocumentToolArgs(
       explicitUserRequest,
     };
   }
+  if (editor.kind === 'document-comment') {
+    return {
+      mode: 'comment',
+      documentId,
+      comment: readField('comment').trim(),
+      confirm: true,
+      explicitUserRequest,
+    };
+  }
+  if (editor.kind === 'document-resolve-comment') {
+    return {
+      mode: 'resolveComment',
+      documentId,
+      commentId: readField('commentId').trim(),
+      confirm: true,
+      explicitUserRequest,
+    };
+  }
   if (editor.kind === 'document-insert-artifact') {
     const placement = readField('placement').trim();
     const sectionTitle = readField('sectionTitle').trim();
@@ -251,6 +301,8 @@ export function buildAgentDocumentPromptSubmission(
   const mutation = editor.kind === 'document-create'
     || editor.kind === 'document-update'
     || editor.kind === 'document-review'
+    || editor.kind === 'document-comment'
+    || editor.kind === 'document-resolve-comment'
     || editor.kind === 'document-insert-artifact'
     || editor.kind === 'document-export';
   if (mutation && !isAffirmative(readField('confirm'))) {
@@ -288,6 +340,8 @@ export function buildAgentDocumentPromptSubmission(
     `mode: ${JSON.stringify(args.mode)}`,
     args.documentId ? `documentId: ${JSON.stringify(args.documentId)}` : 'documentId: none',
     args.artifactId ? `artifactId: ${JSON.stringify(args.artifactId)}` : 'artifactId: none',
+    args.commentId ? `commentId: ${JSON.stringify(args.commentId)}` : 'commentId: none',
+    args.comment ? `comment: ${JSON.stringify(args.comment)}` : 'comment: none',
     args.query ? `query: ${JSON.stringify(args.query)}` : 'query: none',
     args.title ? `title: ${JSON.stringify(args.title)}` : 'title: none',
     args.body ? `body: ${JSON.stringify(args.body)}` : 'body: none',

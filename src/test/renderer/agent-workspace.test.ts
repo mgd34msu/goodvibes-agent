@@ -427,12 +427,14 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Documents & Compare');
     expect(output).toContain('Document route: openai-subscriber / GPT-5.5');
     expect(output).toContain('Files: attach, paste, source ingest, and export');
-    expect(output).toContain('Versioned document drafts, artifact insertion, artifact browser');
-    expect(output).toContain('comments remain a gap.');
+    expect(output).toContain('Versioned document drafts, review comments, artifact insertion');
+    expect(output).toContain('AI suggestion review remains a gap.');
     expect(output).toContain('Browse document drafts');
     expect(output).toContain('Show document draft');
     expect(output).toContain('Create document draft');
     expect(output).toContain('Revise document draft');
+    expect(output).toContain('Add review comment');
+    expect(output).toContain('Resolve review comment');
     expect(output).toContain('Insert artifact in draft');
     expect(output).toContain('Export document artifact');
     expect(output).toContain('analytics, export');

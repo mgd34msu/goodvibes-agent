@@ -25,7 +25,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 | Computer use, browser, shell | Browser, canvas, nodes, system.run | Terminal backends, browser, code execution, computer use | opencode with web/files/shell/MCP | Partial: capabilities exist but Agent diverts execution | Better |
 | Multi-agent and remote execution | Multi-agent routing and session tools | Subagents, kanban, worktrees | Agent runs whole tasks | Partial: foundations exist, Agent blocks fanout | Better |
 | Deep research and reports | Research-oriented workflows | Web tools, session search, trajectory tooling | Deep Research visual reports | Partial: search and knowledge exist, report UX missing | Better |
-| Documents and model comparison | Canvas/web primitives | TUI/dashboard/session tools | Documents and blind Compare | Partial: Document Ops has project-scoped versioned markdown drafts with browse/show/create/revise/review/artifact-insert/export, unified artifact browse/show plus confirmed artifact-to-Knowledge promotion, and a confirmed blind runner with durable JSON artifacts, saved review boards, saved judgments, saved preference analytics, markdown report export, and confirmed route updates; comments, AI suggestion review, and richer attach/export/compare reuse actions remain unfinished | Parity |
+| Documents and model comparison | Canvas/web primitives | TUI/dashboard/session tools | Documents and blind Compare | Partial: Document Ops has project-scoped versioned markdown drafts with browse/show/create/revise/review/comment/artifact-insert/export, unified artifact browse/show plus confirmed artifact-to-Knowledge promotion, and a confirmed blind runner with durable JSON artifacts, saved review boards, saved judgments, saved preference analytics, markdown report export, and confirmed route updates; AI suggestion review and richer attach/export/compare reuse actions remain unfinished | Parity |
 | Mobile, voice, device nodes | macOS/iOS/Android nodes and voice | Termux, messaging, voice memo transcription | Responsive PWA | Partial: pairing and voice exist, command depth unfinished | Better |
 | Web dashboard and PWA | Control UI and WebChat | Local dashboard | Primary responsive web UI | Partial: host has foundations, Agent is terminal-first | Better |
 | Security, permissions, recovery | Secure defaults, pairing, doctor | Approval, isolation, observability | Admin gating and service isolation | Leading: strong policy and audit surfaces | Better |
@@ -35,7 +35,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 1. GoodVibes has many raw foundations already: providers, channels, memory, routines, schedules, MCP, tasks, remote, artifacts, knowledge, media, permissions, and operator APIs.
 2. The largest gap is not raw capability count. It is UX integration. The current Agent often presents implementation boundaries instead of the simplest user path.
 3. The current Agent policy overcorrects against hidden work. The best-in-class target is visible autonomy: jobs can run unattended only when they have clear owner, scope, schedule, status, logs, and cancel/recovery routes.
-4. Email, calendar, document comments and AI suggestion review, richer attach/export/compare artifact reuse actions, deep research reports, local model serving recommendations, and browser/computer-use setup are the clearest product gaps.
+4. Email, calendar, AI suggestion review, richer attach/export/compare artifact reuse actions, deep research reports, local model serving recommendations, and browser/computer-use setup are the clearest product gaps.
 5. GoodVibes can lead on safety if it keeps its approval, redaction, trust, readiness, and release-evidence posture while removing unnecessary ceremony from approved workflows.
 
 ## Product Direction
@@ -48,5 +48,5 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 - Build first-class email/calendar connectors and promote Personal Ops from readiness map into a live inbox/agenda/task queue.
 - Add a learning curator that proposes memory, skill, and routine updates with provenance and rollback.
 - Turn research into a report workflow with source quality, citations, artifacts, and explicit knowledge ingest.
-- Promote Document Ops from versioned drafts into collaborative document review with comments, AI suggestion review, and richer attach/export/compare actions on top of the artifact browser, artifact insertion, and Knowledge promotion routes.
+- Promote Document Ops from versioned drafts and review comments into AI suggestion review and richer attach/export/compare actions on top of the artifact browser, artifact insertion, and Knowledge promotion routes.
 - Make browser, mobile, voice, and device control setup discoverable and repairable from the same assistant cockpit.

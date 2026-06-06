@@ -41,7 +41,7 @@ High-signal TUI routes:
 | `agent_work_plan` | Keep the visible Agent-local work plan current. |
 | `agent_operator_briefing` | Read connected work, approvals, automation, schedules, and capacity posture. |
 | `agent_operator_action` | Run exact confirmed approval/automation/schedule actions. |
-| `agent_documents` | Create, revise, review, list, show, insert saved artifacts into, and export project-scoped versioned Agent document drafts. |
+| `agent_documents` | Create, revise, review, comment on, list, show, insert saved artifacts into, and export project-scoped versioned Agent document drafts. |
 | `agent_artifacts` | Browse saved Agent artifacts and preview text-like content with redacted metadata. |
 | `agent_channel_send` | Send one confirmed channel message. |
 | `agent_notify` | Send one confirmed notification through configured webhook targets. |
@@ -118,7 +118,7 @@ Registered model tool definitions are compact by default. Tool descriptions use 
 Execution routes:
 
 - Local memory, notes, personas, skills, routines, and bundles dispatch through `agent_local_registry`.
-- Agent document draft browse/show/create/revise/review/artifact-insert/export dispatches through `agent_documents`.
+- Agent document draft browse/show/create/revise/review/comment/artifact-insert/export dispatches through `agent_documents`.
 - Confirmed Agent Knowledge URL/file/artifact-id/bookmark/browser-history/connector ingest dispatches through `agent_knowledge_ingest`.
 - Command-backed editors dispatch through `run_command`.
 - Learned-behavior and profile creation use the Agent-local or slash-command route.

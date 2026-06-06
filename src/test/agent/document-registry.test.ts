@@ -61,4 +61,25 @@ describe('AgentDocumentRegistry', () => {
     expect(markdown).toContain('Status: reviewed');
     expect(markdown).toContain('Reviewed body.');
   });
+
+  test('adds and resolves review comments without changing versions', () => {
+    const documents = registry();
+    const created = documents.create({
+      title: 'Reviewable Draft',
+      body: 'Body under review.',
+    });
+    const commented = documents.addComment(created.id, { body: 'Tighten the opening.' });
+
+    expect(commented.comments).toHaveLength(1);
+    expect(commented.comments[0]?.id).toBe('c1');
+    expect(commented.comments[0]?.status).toBe('open');
+    expect(commented.versions).toHaveLength(1);
+    expect(documents.search('opening')[0]?.id).toBe(created.id);
+
+    const resolved = documents.resolveComment(created.id, 'c1');
+    expect(resolved.comments[0]?.status).toBe('resolved');
+    expect(resolved.comments[0]?.resolvedAt).toBeString();
+    expect(resolved.versions).toHaveLength(1);
+    expect(renderAgentDocumentMarkdown(resolved)).toContain('Comments: 0 open / 1 total');
+  });
 });

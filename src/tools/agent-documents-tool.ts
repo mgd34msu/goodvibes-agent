@@ -9,7 +9,7 @@ import {
   type AgentDocumentStatus,
 } from '../agent/document-registry.ts';
 
-export type AgentDocumentsToolMode = 'list' | 'show' | 'create' | 'update' | 'review' | 'export' | 'insertArtifact';
+export type AgentDocumentsToolMode = 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'export' | 'insertArtifact';
 
 export interface AgentDocumentsToolArgs {
   readonly mode?: unknown;
@@ -20,6 +20,8 @@ export interface AgentDocumentsToolArgs {
   readonly tags?: unknown;
   readonly status?: unknown;
   readonly artifactId?: unknown;
+  readonly commentId?: unknown;
+  readonly comment?: unknown;
   readonly placement?: unknown;
   readonly sectionTitle?: unknown;
   readonly includeContent?: unknown;
@@ -32,7 +34,7 @@ export interface AgentDocumentsToolArgs {
 
 type AgentDocumentArtifactStore = Partial<Pick<ArtifactStore, 'create' | 'get' | 'readContent'>>;
 
-const MODES: readonly AgentDocumentsToolMode[] = ['list', 'show', 'create', 'update', 'review', 'export', 'insertArtifact'];
+const MODES: readonly AgentDocumentsToolMode[] = ['list', 'show', 'create', 'update', 'review', 'comment', 'resolveComment', 'export', 'insertArtifact'];
 const MAX_INSERT_TEXT_BYTES = 40_000;
 
 function isMode(value: unknown): value is AgentDocumentsToolMode {
@@ -93,6 +95,12 @@ function requireArtifactId(args: AgentDocumentsToolArgs): string {
   return id;
 }
 
+function requireCommentId(args: AgentDocumentsToolArgs): string {
+  const id = readString(args.commentId);
+  if (!id) throw new Error('commentId is required.');
+  return id;
+}
+
 function requireConfirmed(args: AgentDocumentsToolArgs, action: string): void {
   const explicitUserRequest = readString(args.explicitUserRequest);
   if (!explicitUserRequest) throw new Error(`${action} requires explicitUserRequest with the user's exact request or a short faithful summary.`);
@@ -102,7 +110,9 @@ function requireConfirmed(args: AgentDocumentsToolArgs, action: string): void {
 function formatDocumentSummary(document: AgentDocumentRecord): string {
   const tags = document.tags.length > 0 ? ` tags ${document.tags.join(', ')}` : '';
   const artifact = document.lastArtifactId ? ` artifact ${document.lastArtifactId}` : '';
-  return `${document.id}  ${document.status}  versions ${document.versions.length}  updated ${document.updatedAt}${tags}${artifact}  ${document.title}`;
+  const openComments = document.comments.filter((comment) => comment.status === 'open').length;
+  const comments = document.comments.length > 0 ? ` comments ${openComments}/${document.comments.length}` : '';
+  return `${document.id}  ${document.status}  versions ${document.versions.length}${comments}  updated ${document.updatedAt}${tags}${artifact}  ${document.title}`;
 }
 
 function formatList(documents: readonly AgentDocumentRecord[], total: number, query: string): string {
@@ -122,6 +132,7 @@ function formatList(documents: readonly AgentDocumentRecord[], total: number, qu
 }
 
 function formatShow(document: AgentDocumentRecord, includeVersions: boolean): string {
+  const openComments = document.comments.filter((comment) => comment.status === 'open').length;
   const lines = [
     'Agent document',
     `  id ${document.id}`,
@@ -129,6 +140,7 @@ function formatShow(document: AgentDocumentRecord, includeVersions: boolean): st
     `  status ${document.status}`,
     `  tags ${document.tags.join(', ') || '(none)'}`,
     `  versions ${document.versions.length}`,
+    `  comments ${openComments}/${document.comments.length}`,
     `  created ${document.createdAt}`,
     `  updated ${document.updatedAt}`,
     `  lastArtifact ${document.lastArtifactId ?? '(none)'}`,
@@ -140,6 +152,13 @@ function formatShow(document: AgentDocumentRecord, includeVersions: boolean): st
       '',
       'Versions',
       ...document.versions.map((version) => `  - ${version.id}  ${version.createdAt}  ${version.summary}`),
+    );
+  }
+  if (document.comments.length > 0) {
+    lines.push(
+      '',
+      'Comments',
+      ...document.comments.map((comment) => `  - ${comment.id}  ${comment.status}  ${comment.createdAt}  ${comment.body}`),
     );
   }
   return lines.join('\n');
@@ -312,7 +331,7 @@ export function createAgentDocumentsTool(
   return {
     definition: {
       name: 'agent_documents',
-      description: 'Create, revise, insert artifacts into, and export Agent document drafts.',
+      description: 'Create, comment on, insert artifacts, and export drafts.',
       parameters: {
         type: 'object',
         properties: {
@@ -346,6 +365,14 @@ export function createAgentDocumentsTool(
             type: 'string',
             enum: ['draft', 'reviewed', 'archived'],
             description: 'Optional document status for update.',
+          },
+          commentId: {
+            type: 'string',
+            description: 'Comment id for mode:"resolveComment".',
+          },
+          comment: {
+            type: 'string',
+            description: 'Review comment body for mode:"comment".',
           },
           artifactId: {
             type: 'string',
@@ -453,6 +480,27 @@ export function createAgentDocumentsTool(
             `  id ${document.id}`,
             `  status ${document.status}`,
             `  versions ${document.versions.length}`,
+          ].join('\n'));
+        }
+        if (mode === 'comment') {
+          requireConfirmed(args, 'Agent document comment');
+          const document = registry.addComment(requireDocumentId(args), { body: readString(args.comment) });
+          const latest = document.comments.at(-1);
+          return output([
+            'Added Agent document comment',
+            `  document ${document.id}`,
+            `  comment ${latest?.id ?? '(unknown)'}`,
+            `  open ${document.comments.filter((comment) => comment.status === 'open').length}/${document.comments.length}`,
+          ].join('\n'));
+        }
+        if (mode === 'resolveComment') {
+          requireConfirmed(args, 'Agent document comment resolution');
+          const document = registry.resolveComment(requireDocumentId(args), requireCommentId(args));
+          return output([
+            'Resolved Agent document comment',
+            `  document ${document.id}`,
+            `  comment ${readString(args.commentId)}`,
+            `  open ${document.comments.filter((comment) => comment.status === 'open').length}/${document.comments.length}`,
           ].join('\n'));
         }
         if (mode === 'insertArtifact') {

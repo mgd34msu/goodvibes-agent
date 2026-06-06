@@ -409,7 +409,8 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Document route: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
       { text: `Files: attach, paste, source ingest, and export; artifact limit ${formatMegabytes(snapshot.artifactMaxBytes)}.`, fg: PALETTE.good },
       { text: `Media artifacts: ${mediaReady}/${snapshot.mediaProviderCount} providers ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
-      { text: 'Versioned document drafts, artifact insertion, artifact browser, Knowledge promotion, compare review/judgment, analytics, export, and route update are available; comments remain a gap.', fg: PALETTE.warn },
+      { text: 'Versioned document drafts, review comments, artifact insertion, artifact browser, Knowledge promotion, compare review/judgment, analytics, export, and route update are available.', fg: PALETTE.good },
+      { text: 'AI suggestion review remains a gap.', fg: PALETTE.warn },
       { text: 'Model route: agent_harness mode:"document_ops" or document_ops_lane.', fg: PALETTE.muted },
     );
   } else if (category.id === 'tools') {

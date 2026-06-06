@@ -92,6 +92,34 @@ describe('agent_documents tool', () => {
     expect(insertedShow.output).toContain(`Artifact ID: ${sourceArtifact.id}`);
     expect(insertedShow.output).toContain('Source note body.');
 
+    const comment = await tool.execute({
+      mode: 'comment',
+      documentId: 'launch-plan',
+      comment: 'Clarify the launch owner.',
+      confirm: true,
+      explicitUserRequest: 'Add a review comment to the launch plan.',
+    });
+    expect(comment.success).toBe(true);
+    expect(comment.output).toContain('Added Agent document comment');
+    expect(comment.output).toContain('comment c1');
+
+    const commentedShow = await tool.execute({ mode: 'show', documentId: 'launch-plan', includeVersions: true });
+    expect(commentedShow.success).toBe(true);
+    expect(commentedShow.output).toContain('comments 1/1');
+    expect(commentedShow.output).toContain('c1  open');
+    expect(commentedShow.output).toContain('Clarify the launch owner.');
+
+    const resolved = await tool.execute({
+      mode: 'resolveComment',
+      documentId: 'launch-plan',
+      commentId: 'c1',
+      confirm: true,
+      explicitUserRequest: 'Resolve the launch plan review comment.',
+    });
+    expect(resolved.success).toBe(true);
+    expect(resolved.output).toContain('Resolved Agent document comment');
+    expect(resolved.output).toContain('open 0/1');
+
     const review = await tool.execute({
       mode: 'review',
       documentId: 'launch-plan',

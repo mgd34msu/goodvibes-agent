@@ -5,6 +5,7 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
 
 export type AgentDocumentStatus = 'draft' | 'reviewed' | 'archived';
+export type AgentDocumentCommentStatus = 'open' | 'resolved';
 
 export interface AgentDocumentVersion {
   readonly id: string;
@@ -12,6 +13,15 @@ export interface AgentDocumentVersion {
   readonly body: string;
   readonly summary: string;
   readonly createdAt: string;
+}
+
+export interface AgentDocumentComment {
+  readonly id: string;
+  readonly body: string;
+  readonly status: AgentDocumentCommentStatus;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly resolvedAt?: string;
 }
 
 export interface AgentDocumentRecord {
@@ -23,6 +33,7 @@ export interface AgentDocumentRecord {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly versions: readonly AgentDocumentVersion[];
+  readonly comments: readonly AgentDocumentComment[];
   readonly lastArtifactId?: string;
 }
 
@@ -40,6 +51,10 @@ export interface AgentDocumentUpdateInput {
   readonly summary?: string;
   readonly status?: AgentDocumentStatus;
   readonly lastArtifactId?: string;
+}
+
+export interface AgentDocumentCommentInput {
+  readonly body: string;
 }
 
 export interface AgentDocumentSnapshot {
@@ -102,6 +117,10 @@ function documentStatus(value: unknown): AgentDocumentStatus {
   return 'draft';
 }
 
+function commentStatus(value: unknown): AgentDocumentCommentStatus {
+  return value === 'resolved' ? 'resolved' : 'open';
+}
+
 function assertDocumentContentSafe(fields: readonly string[]): void {
   try {
     assertNoSecretLikeText(fields);
@@ -126,6 +145,23 @@ function parseVersion(value: unknown): AgentDocumentVersion | null {
   };
 }
 
+function parseComment(value: unknown): AgentDocumentComment | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id).trim();
+  const body = readString(value.body).trim();
+  if (!id || !body) return null;
+  const createdAt = readString(value.createdAt, nowIso());
+  const resolvedAt = readString(value.resolvedAt).trim();
+  return {
+    id,
+    body,
+    status: commentStatus(value.status),
+    createdAt,
+    updatedAt: readString(value.updatedAt, createdAt),
+    resolvedAt: resolvedAt || undefined,
+  };
+}
+
 function parseDocument(value: unknown): AgentDocumentRecord | null {
   if (!isRecord(value)) return null;
   const id = readString(value.id).trim();
@@ -135,6 +171,9 @@ function parseDocument(value: unknown): AgentDocumentRecord | null {
   const createdAt = readString(value.createdAt, nowIso());
   const versions = Array.isArray(value.versions)
     ? value.versions.map(parseVersion).filter((entry): entry is AgentDocumentVersion => entry !== null)
+    : [];
+  const comments = Array.isArray(value.comments)
+    ? value.comments.map(parseComment).filter((entry): entry is AgentDocumentComment => entry !== null)
     : [];
   const lastArtifactId = readString(value.lastArtifactId).trim();
   return {
@@ -146,6 +185,7 @@ function parseDocument(value: unknown): AgentDocumentRecord | null {
     createdAt,
     updatedAt: readString(value.updatedAt, createdAt),
     versions,
+    comments,
     lastArtifactId: lastArtifactId || undefined,
   };
 }
@@ -171,13 +211,15 @@ export function documentStorePath(shellPaths: AgentDocumentStorePaths): string {
 
 export function renderAgentDocumentMarkdown(document: AgentDocumentRecord): string {
   const tags = document.tags.length > 0 ? `\nTags: ${document.tags.join(', ')}` : '';
+  const openComments = document.comments.filter((comment) => comment.status === 'open').length;
+  const comments = document.comments.length > 0 ? `\nComments: ${openComments} open / ${document.comments.length} total` : '';
   return [
     `# ${document.title}`,
     '',
     `Document ID: ${document.id}`,
     `Version: ${document.versions.at(-1)?.id ?? 'v1'}`,
     `Status: ${document.status}`,
-    `Updated: ${document.updatedAt}${tags}`,
+    `Updated: ${document.updatedAt}${tags}${comments}`,
     '',
     document.body,
     '',
@@ -213,6 +255,7 @@ export class AgentDocumentRegistry {
       document.status,
       document.lastArtifactId ?? '',
       ...document.tags,
+      ...document.comments.map((comment) => `${comment.id} ${comment.status} ${comment.body}`),
     ].some((field) => field.toLowerCase().includes(normalized)));
   }
 
@@ -252,6 +295,7 @@ export class AgentDocumentRegistry {
       createdAt: timestamp,
       updatedAt: timestamp,
       versions: [version],
+      comments: [],
     };
     this.writeStore({ ...store, documents: [...store.documents, document] });
     return document;
@@ -311,6 +355,56 @@ export class AgentDocumentRegistry {
     return updated;
   }
 
+  public addComment(idOrTitle: string, input: AgentDocumentCommentInput): AgentDocumentRecord {
+    const store = this.readStore();
+    const existing = this.findInStore(store, idOrTitle);
+    if (!existing) throw new Error(`Unknown document ${idOrTitle}`);
+    const body = input.body.trim();
+    if (!body) throw new Error('Comment body is required.');
+    assertDocumentContentSafe([body]);
+    const timestamp = nowIso();
+    const comment: AgentDocumentComment = {
+      id: this.nextCommentId(existing.comments),
+      body,
+      status: 'open',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const updated: AgentDocumentRecord = {
+      ...existing,
+      comments: [...existing.comments, comment],
+      updatedAt: timestamp,
+    };
+    this.writeStore({
+      ...store,
+      documents: store.documents.map((document) => document.id === existing.id ? updated : document),
+    });
+    return updated;
+  }
+
+  public resolveComment(idOrTitle: string, commentId: string): AgentDocumentRecord {
+    const store = this.readStore();
+    const existing = this.findInStore(store, idOrTitle);
+    if (!existing) throw new Error(`Unknown document ${idOrTitle}`);
+    const lookup = commentId.trim().toLowerCase();
+    if (!lookup) throw new Error('commentId is required.');
+    const target = existing.comments.find((comment) => comment.id.toLowerCase() === lookup);
+    if (!target) throw new Error(`Unknown document comment ${commentId}`);
+    const timestamp = nowIso();
+    const updated: AgentDocumentRecord = {
+      ...existing,
+      updatedAt: timestamp,
+      comments: existing.comments.map((comment) => comment.id === target.id
+        ? { ...comment, status: 'resolved', updatedAt: timestamp, resolvedAt: timestamp }
+        : comment),
+    };
+    this.writeStore({
+      ...store,
+      documents: store.documents.map((document) => document.id === existing.id ? updated : document),
+    });
+    return updated;
+  }
+
   public markReviewed(idOrTitle: string): AgentDocumentRecord {
     return this.update(idOrTitle, { status: 'reviewed', summary: 'Marked reviewed.' });
   }
@@ -352,6 +446,15 @@ export class AgentDocumentRegistry {
       if (!existing.has(candidate)) return candidate;
     }
     throw new Error('Unable to allocate a unique document id.');
+  }
+
+  private nextCommentId(comments: readonly AgentDocumentComment[]): string {
+    const existing = new Set(comments.map((comment) => comment.id));
+    for (let index = 1; index < 10_000; index += 1) {
+      const candidate = `c${index}`;
+      if (!existing.has(candidate)) return candidate;
+    }
+    throw new Error('Unable to allocate a unique document comment id.');
   }
 
   private findInStore(store: DocumentStoreFile, idOrTitle: string): AgentDocumentRecord | null {

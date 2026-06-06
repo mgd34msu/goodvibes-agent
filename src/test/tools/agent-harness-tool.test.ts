@@ -729,6 +729,8 @@ describe('agent_harness tool', () => {
       expect(documents?.current).toContain('version history');
       expect(documents?.actionIds).toContain('document-create-draft');
       expect(documents?.actionIds).toContain('document-revise-draft');
+      expect(documents?.actionIds).toContain('document-comment-draft');
+      expect(documents?.actionIds).toContain('document-resolve-comment');
       expect(documents?.actionIds).toContain('document-insert-artifact');
       expect(documents?.actionIds).toContain('document-export-draft');
       expect(uploads?.status).toBe('ready');
@@ -943,6 +945,8 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'documents-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-revise-draft')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-comment-draft')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-resolve-comment')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-insert-artifact')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-insert-document')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-draft')?.modelRoute).toBe('agent_documents');
@@ -2908,6 +2912,36 @@ describe('agent_harness tool', () => {
       });
       expect(revised.success).toBe(true);
       expect(revised.output).toContain('versions 2');
+
+      const commented = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-comment-draft',
+        confirm: true,
+        explicitUserRequest: 'Add a review comment to the launch document draft.',
+        fields: {
+          documentId: 'launch-plan',
+          comment: 'Confirm launch owner.',
+          confirm: 'yes',
+        },
+      });
+      expect(commented.success).toBe(true);
+      expect(commented.output).toContain('"tool": "agent_documents"');
+      expect(commented.output).toContain('Added Agent document comment');
+      expect(commented.output).toContain('comment c1');
+
+      const resolvedComment = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-resolve-comment',
+        confirm: true,
+        explicitUserRequest: 'Resolve the launch document review comment.',
+        fields: {
+          documentId: 'launch-plan',
+          commentId: 'c1',
+          confirm: 'yes',
+        },
+      });
+      expect(resolvedComment.success).toBe(true);
+      expect(resolvedComment.output).toContain('Resolved Agent document comment');
 
       const sourceArtifact = await artifacts.store.create({
         kind: 'document',

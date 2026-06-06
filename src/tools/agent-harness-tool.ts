@@ -373,6 +373,8 @@ async function runWorkspaceEditorAction(
     || editor.kind === 'document-create'
     || editor.kind === 'document-update'
     || editor.kind === 'document-review'
+    || editor.kind === 'document-comment'
+    || editor.kind === 'document-resolve-comment'
     || editor.kind === 'document-insert-artifact'
     || editor.kind === 'document-export'
   ) {
