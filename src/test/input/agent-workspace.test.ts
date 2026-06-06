@@ -4254,7 +4254,20 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
 
     expect(workspace.localEditor?.kind).toBe('delegate-task');
+    expect(workspace.localEditor?.fields.map((field) => field.id)).toEqual([
+      'task',
+      'reason',
+      'success',
+      'workspace',
+      'priority',
+      'review',
+      'confirm',
+    ]);
     feedText(workspace, 'Fix the installer crash and add a regression test');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
     feedText(workspace, 'no');
@@ -4272,6 +4285,35 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.safety).toBe('delegates');
   });
 
+  test('delegation workspace carries structured handoff context into the command', () => {
+    const dispatched: string[] = [];
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegate-task');
+
+    workspace.activateSelected();
+
+    feedText(workspace, 'Stabilize remote artifact import');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Needs isolated GoodVibes TUI verification');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'Diff plus regression test output');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'goodvibes-tui worktree');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'release blocker');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'no');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'yes');
+    feedKey(workspace, 'enter');
+
+    expect(dispatched).toEqual([
+      '/delegate --reason "Needs isolated GoodVibes TUI verification" --success "Diff plus regression test output" --workspace "goodvibes-tui worktree" --priority "release blocker" "Stabilize remote artifact import"',
+    ]);
+  });
+
   test('delegation workspace requests WRFC only when explicitly selected', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
@@ -4282,6 +4324,10 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
 
     feedText(workspace, 'Review the release workflow implementation');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
+    feedKey(workspace, 'enter');
     feedKey(workspace, 'enter');
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');

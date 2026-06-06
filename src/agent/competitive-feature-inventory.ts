@@ -181,9 +181,9 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Parallelism is available when it improves time-to-result, with per-task workspaces, logs, artifacts, and review gates.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'GoodVibes has remote, worktree, task, orchestration, and delegation foundations, but Agent tests intentionally block local fanout and worktree ownership.',
+    goodVibesNow: 'GoodVibes has shared-session, remote runner, artifact, task, worktree, orchestration, and delegation foundations; Agent exposes local-first, TUI handoff, delegated-review, remote-inspection, and hidden-fanout-blocked decision cards plus structured confirmed handoff briefs, while intentionally blocking invisible local fanout and raw remote mutation from Agent.',
     nextMoves: [
-      'Introduce user-visible multi-agent execution for approved large tasks with clear task cards.',
+      'Introduce user-visible multi-agent execution for approved large tasks with clear task cards and explicit lane selection.',
       'Attach every spawned runner to a work plan item, artifact trail, and cancel route.',
       'Keep default chat serial, but route complex execution to supervised parallel work when it clearly helps the user.',
     ],

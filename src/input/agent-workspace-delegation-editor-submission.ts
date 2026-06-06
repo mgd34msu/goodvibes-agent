@@ -38,6 +38,14 @@ export function buildAgentWorkspaceDelegationEditorSubmission(
   }
   const parts = ['/delegate'];
   if (isAffirmative(readField('review')) || isAffirmative(readField('wrfc'))) parts.push('--review');
+  const reason = readField('reason').trim();
+  const success = readField('success').trim();
+  const workspace = readField('workspace').trim();
+  const priority = readField('priority').trim();
+  if (reason) parts.push('--reason', quoteSlashCommandArg(reason));
+  if (success) parts.push('--success', quoteSlashCommandArg(success));
+  if (workspace) parts.push('--workspace', quoteSlashCommandArg(workspace));
+  if (priority) parts.push('--priority', quoteSlashCommandArg(priority));
   parts.push(quoteSlashCommandArg(readField('task')));
   const command = parts.join(' ');
   return {

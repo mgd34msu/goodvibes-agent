@@ -1,6 +1,7 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../input/command-registry.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
+import { delegationDecisionCards } from './agent-harness-delegation-posture.ts';
 import { fileRecoveryCatalogStatus } from './agent-harness-file-recovery.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
@@ -260,6 +261,7 @@ function describeRoute(
   const tools = availableTools(route, toolRegistry);
   const supervisionRoutes = executionSupervisionRoutes(context, route);
   const browserControl = route.browserMcp ? browserControlPosture(context, toolRegistry) : null;
+  const delegationCards = route.id === 'delegation-isolation-parallel-remote' ? delegationDecisionCards(context) : null;
   return {
     executionRouteId: route.id,
     label: route.label,
@@ -281,6 +283,7 @@ function describeRoute(
         anyToolNames: route.anyToolNames ?? [],
         browserMcp: route.browserMcp === true,
         ...(browserControl ? { browserControl } : {}),
+        ...(delegationCards ? { delegationDecisionCards: delegationCards } : {}),
         modelAccess: {
           inspectPosture: 'agent_harness mode:"execution_posture"',
           inspectRoute: `agent_harness mode:"execution_route" executionRouteId:"${route.id}"`,
@@ -319,6 +322,7 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
   const routes = matchingRoutes(query).slice(0, readLimit(args.limit, 100));
   const all = routeDefinitions();
   const browserControl = browserControlPosture(context, toolRegistry);
+  const delegationCards = delegationDecisionCards(context);
   return {
     status: 'available',
     summary: {
@@ -326,6 +330,7 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
       delegationPolicy: 'Use delegation for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.',
       browserControl: browserControl.status,
       browserControlSetup: browserControl,
+      delegationDecisionCards: delegationCards,
       executionHistory: 'agent_harness mode:"execution_history"',
       fileRecovery: fileRecoveryCatalogStatus(context),
       supervision: executionSupervisionSummary(context),

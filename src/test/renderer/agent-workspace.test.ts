@@ -378,7 +378,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    const output = text(renderAgentWorkspace(workspace, 132, 50));
 
     expect(output).toContain('Selected: Import GoodVibes settings');
     expect(output).toContain('Onboarding');
@@ -407,7 +407,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext({ includePersonalOpsNote: true }), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personal-ops');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    const output = text(renderAgentWorkspace(workspace, 132, 52));
 
     expect(output).toContain('Personal Ops');
     expect(output).toContain('Personal Ops: notes 1; routines 1/1');
@@ -1425,8 +1425,11 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Delegate Build Work to GoodVibes TUI');
     expect(output).toContain('Original task *');
-    expect(output).toContain('Request delegated review');
-    expect(output).toContain('Confirm *');
+    expect(output).toContain('Why delegate');
+    expect(output).toContain('Success criteria');
+    expect(output).toContain('Workspace hint');
+    expect(output).toContain('Priority');
+    expect(output).toContain('2 more field(s) below');
     expect(output).toContain('editing delegate-task');
   });
 

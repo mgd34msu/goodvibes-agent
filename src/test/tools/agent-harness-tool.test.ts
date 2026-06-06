@@ -1409,6 +1409,7 @@ describe('agent_harness tool', () => {
             readonly liveTailAvailable: boolean;
             readonly toolInspectorAvailable: boolean;
           };
+          readonly delegationDecisionCards: readonly { readonly lane: string }[];
           readonly registeredExecutionTools: readonly string[];
         };
         readonly decisionRules: readonly string[];
@@ -1554,6 +1555,13 @@ describe('agent_harness tool', () => {
       const delegated = posture.routes.find((route) => route.executionRouteId === 'delegation-isolation-parallel-remote');
       expect(delegated?.availability).toBe('ready');
       expect(delegated?.nextStep).toContain('delegation_posture');
+      expect(posture.summary.delegationDecisionCards.map((card) => card.lane)).toEqual(expect.arrayContaining([
+        'local-first',
+        'tui-shared-session',
+        'delegated-review',
+        'remote-runner',
+        'hidden-fanout-blocked',
+      ]));
 
       const inspectedShell = await executeHarnessJson<{
         readonly executionRouteId: string;
@@ -1573,12 +1581,20 @@ describe('agent_harness tool', () => {
         readonly executionRouteId: string;
         readonly preferredWhen: string;
         readonly useInsteadWhen?: string;
+        readonly delegationDecisionCards?: readonly {
+          readonly id: string;
+          readonly lane: string;
+          readonly requiredFields: readonly string[];
+          readonly confirmationBoundary: string;
+        }[];
       }>(fixture, {
         mode: 'execution_route',
         executionRouteId: 'delegation-isolation-parallel-remote',
       });
       expect(inspectedDelegation.preferredWhen).toContain('remote host');
       expect(inspectedDelegation.useInsteadWhen).toContain('Use local read/edit/exec');
+      expect(inspectedDelegation.delegationDecisionCards?.find((card) => card.lane === 'tui-shared-session')?.requiredFields.join('\n')).toContain('delegation reason');
+      expect(inspectedDelegation.delegationDecisionCards?.find((card) => card.lane === 'hidden-fanout-blocked')?.confirmationBoundary).toContain('never confirmed');
     } finally {
       fixture.cleanup();
     }
@@ -2332,6 +2348,48 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'delegation_posture' });
       expectRowsHaveCompactModelRoutes(delegation.routes);
       expect(delegation.routes.filter((route) => route.commandTemplate !== undefined)).toEqual([]);
+
+      const expandedDelegation = await executeHarnessJson<{
+        readonly summary: {
+          readonly decisionCards: number;
+          readonly operatorClientAttached: boolean;
+        };
+        readonly decisionCards: readonly {
+          readonly id: string;
+          readonly lane: string;
+          readonly status: string;
+          readonly supervision: readonly string[];
+        }[];
+        readonly routes: readonly {
+          readonly delegationRouteId: string;
+          readonly effect: string;
+          readonly lane: string;
+          readonly requiredFields: readonly string[];
+          readonly statusRoutes: readonly string[];
+          readonly recoveryRoutes: readonly string[];
+        }[];
+      }>(fixture, { mode: 'delegation_posture', includeParameters: true });
+      expect(expandedDelegation.summary.decisionCards).toBeGreaterThanOrEqual(5);
+      expect(expandedDelegation.summary.operatorClientAttached).toBe(false);
+      expect(expandedDelegation.decisionCards.find((card) => card.lane === 'tui-shared-session')?.status).toBe('operator-needed');
+      expect(expandedDelegation.decisionCards.find((card) => card.lane === 'remote-runner')?.supervision.join('\n')).toContain('/health remote');
+      expect(expandedDelegation.routes.find((route) => route.delegationRouteId === 'delegate-build-task')?.requiredFields.join('\n')).toContain('success criteria');
+      expect(expandedDelegation.routes.find((route) => route.delegationRouteId === 'remote-runner-inspection')?.statusRoutes.join('\n')).toContain('/health remote');
+      expect(expandedDelegation.routes.find((route) => route.delegationRouteId === 'hidden-local-fanout-blocked')?.effect).toBe('blocked');
+
+      const expandedDelegationRoute = await executeHarnessJson<{
+        readonly delegationRouteId: string;
+        readonly lane: string;
+        readonly requiredFields: readonly string[];
+        readonly successEvidence: readonly string[];
+        readonly recoveryRoutes: readonly string[];
+        readonly modelAccess: { readonly runWorkspaceAction?: string };
+      }>(fixture, { mode: 'delegation_route', delegationRouteId: 'delegate-build-task' });
+      expect(expandedDelegationRoute.lane).toBe('tui-shared-session');
+      expect(expandedDelegationRoute.requiredFields.join('\n')).toContain('delegation reason');
+      expect(expandedDelegationRoute.successEvidence.join('\n')).toContain('verification result');
+      expect(expandedDelegationRoute.recoveryRoutes.join('\n')).toContain('GoodVibes TUI');
+      expect(expandedDelegationRoute.modelAccess.runWorkspaceAction).toContain('delegate-task');
 
       const security = await executeHarnessJson<{
         readonly findings: readonly Record<string, unknown>[];

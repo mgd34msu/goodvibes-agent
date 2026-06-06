@@ -8,7 +8,7 @@ GoodVibes Agent is a TUI-first operator assistant. The workspace is the primary 
 - Agent Knowledge uses only `/api/goodvibes-agent/knowledge/*`.
 - Agent does not query default knowledge or other product knowledge spaces.
 - Connected-host lifecycle is external. Agent reports and uses public routes, but does not start, stop, restart, install, expose, or mutate the host listener.
-- Local read/edit/exec is available for explicit work in the current Agent workspace when permissions are sufficient. `execution_posture` exposes process monitor, live tail, tool inspector, browser/desktop ready-attention-setup state, workflow cards, setup checklists, fallback routes, execution history, and file recovery routes for local work. `execution_history` lists recent redacted tool/shell/edit records with result summaries and follow-up routes. File edit/write recovery is inspectable through `file_recovery` and applied only through confirmed `run_file_recovery`. Delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
+- Local read/edit/exec is available for explicit work in the current Agent workspace when permissions are sufficient. `execution_posture` exposes process monitor, live tail, tool inspector, browser/desktop ready-attention-setup state, workflow cards, setup checklists, fallback routes, execution history, file recovery routes, and delegation decision cards for local work. `execution_history` lists recent redacted tool/shell/edit records with result summaries and follow-up routes. File edit/write recovery is inspectable through `file_recovery` and applied only through confirmed `run_file_recovery`. Delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review; `delegation_posture` and `delegation_route` expose local-first, TUI handoff, delegated-review, remote-inspection, and hidden-fanout-blocked lanes with required fields, success evidence, status routes, and recovery routes.
 - External delivery, notifications, reminders, media generation, setting writes, keybinding writes, UI routing, slash-command execution, workspace-action execution, local destructive changes, and connected-host operator actions require explicit user request and confirmation.
 - Autonomous scheduled work uses `agent_autonomy_schedule` and requires an explicit task, cadence, success criteria, and user request. Simple notification/reminder follow-ups stay on `agent_reminder_schedule`.
 
@@ -29,7 +29,7 @@ High-signal TUI routes:
 | `/channels`, `/notify`, `/qrcode` | Pair companions, inspect channel readiness, and send confirmed messages. |
 | `/media`, `/voice`, `/tts` | Inspect media/voice readiness, generate media, and run spoken turns. |
 | `/mcp`, `/secrets`, `/settings`, `/config` | Inspect or update Agent-local configuration. |
-| `/delegate` | Hand explicit build/fix/review work to GoodVibes TUI. |
+| `/delegate` | Hand explicit build/fix/review work to GoodVibes TUI with a confirmed handoff brief. |
 
 ## Model Tools
 
@@ -234,7 +234,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/config` | Open the fullscreen configuration workspace. |
 | `/context` | Inspect context-window usage and token breakdown. |
 | `/conversation` | Review conversation structure, transcript hotspots, and composer posture. |
-| `/delegate` | Explicitly delegate build/fix/review work to GoodVibes TUI. |
+| `/delegate` | Explicitly delegate build/fix/review work to GoodVibes TUI with reason, success criteria, workspace hint, priority, and explicit review intent. |
 | `/effort` | Show or set reasoning effort level. |
 | `/expand` | Expand rendered blocks by type. |
 | `/export` | Export the current conversation to Markdown. |

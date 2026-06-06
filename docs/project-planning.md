@@ -68,7 +68,7 @@ Use natural language such as "pause planning" or "stop planning" when planning s
 
 The work-plan tracker is for concrete, durable task state after work becomes actionable. It is separate from the planning interview loop.
 
-Use `/workplan` when the work already has tasks and needs status tracking. Use `/delegate` when explicit build/fix/review work should go to GoodVibes TUI.
+Use `/workplan` when the work already has tasks and needs status tracking. Use `/delegate` when explicit build/fix/review work should go to GoodVibes TUI; include the original ask, delegation reason, success evidence, workspace/worktree hint, priority, and explicit review intent.
 
 The model can keep the same visible work plan current with `agent_work_plan`. It can also inspect planning/work-plan visibility through `agent_harness` workspace and panel metadata, and inspect explicit build-delegation posture with `delegation_posture`/`delegation_route`; destructive work-plan changes and delegated submissions still require explicit user request and confirmation.
 
