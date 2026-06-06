@@ -7,7 +7,7 @@ import { previewHarnessText } from './agent-harness-text.ts';
 type LearningCandidateStatus = 'needs-review' | 'needs-setup' | 'low-confidence' | 'proposal-ready' | 'ready-to-promote' | 'ready';
 type LocalLearningCandidateDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
 type LearningCandidateDomain = LocalLearningCandidateDomain | 'work_plan' | 'capture';
-type LearningProposalTarget = 'skill' | 'routine' | 'persona';
+type LearningProposalTarget = 'memory' | 'skill' | 'routine' | 'persona';
 
 interface AgentHarnessLearningCuratorArgs {
   readonly candidateId?: unknown;
@@ -177,20 +177,28 @@ function captureCandidate(): LearningCandidate {
 function noteProposalTarget(item: AgentWorkspaceLocalLibraryItem): LearningProposalTarget | null {
   const tags = item.tags.map((tag) => tag.toLowerCase());
   const text = [item.name, item.description, ...tags].join('\n').toLowerCase();
+  if (tags.some((tag) => ['memory', 'fact', 'decision', 'constraint', 'risk', 'pattern', 'incident', 'architecture', 'ownership'].includes(tag))) return 'memory';
   if (tags.some((tag) => ['routine', 'workflow', 'runbook', 'process'].includes(tag))) return 'routine';
   if (tags.some((tag) => ['persona', 'style', 'preference', 'tone'].includes(tag))) return 'persona';
   if (tags.some((tag) => ['skill', 'procedure', 'lesson', 'learned', 'howto'].includes(tag))) return 'skill';
+  if (/\b(memory|remember|fact|decision|constraint|risk|incident|pattern|architecture|ownership)\b/.test(text)) return 'memory';
   if (/\b(repeat|routine|workflow|every time|checklist|runbook)\b/.test(text)) return 'routine';
   if (/\b(style|tone|preference|respond|answer)\b/.test(text)) return 'persona';
   if (/\b(lesson|procedure|steps|how to|when asked)\b/.test(text)) return 'skill';
   return null;
 }
 
+function proposalSubject(target: LearningProposalTarget): string {
+  return target === 'memory' ? 'durable memory' : `reusable ${target} behavior`;
+}
+
 function noteBehaviorProposalCandidate(item: AgentWorkspaceLocalLibraryItem): LearningCandidate | null {
   if (!isReviewed(item)) return null;
   const target = noteProposalTarget(item);
   if (!target) return null;
-  const actionId = target === 'skill'
+  const actionId = target === 'memory'
+    ? 'notes-to-memory'
+    : target === 'skill'
     ? 'notes-to-skill'
     : target === 'routine'
       ? 'notes-to-routine'
@@ -202,9 +210,9 @@ function noteBehaviorProposalCandidate(item: AgentWorkspaceLocalLibraryItem): Le
     domain: 'note',
     recordId: item.id,
     status: 'proposal-ready',
-    priority: target === 'routine' ? 64 : 60,
-    reason: `Reviewed note looks like reusable ${target} behavior.`,
-    next: `Preview the selected-note ${target} promotion, then save it only if the user wants this durable behavior.`,
+    priority: target === 'routine' ? 64 : target === 'memory' ? 62 : 60,
+    reason: `Reviewed note looks like ${proposalSubject(target)}.`,
+    next: `Preview the selected-note ${target} promotion, then save it only if the user wants this durable context.`,
     scores: {
       usefulness: clampScore(itemUsefulness(item) + 8),
       freshness: itemFreshness(item),
@@ -221,10 +229,24 @@ function noteBehaviorProposalCandidate(item: AgentWorkspaceLocalLibraryItem): Le
 
 function workPlanProposalTarget(item: WorkPlanItem): LearningProposalTarget | null {
   const text = [item.title, item.notes ?? '', item.source ?? '', item.owner ?? ''].join('\n').toLowerCase();
+  if (/\b(memory|remember|fact|decision|constraint|risk|incident|pattern|architecture|ownership)\b/.test(text)) return 'memory';
   if (/\b(style|tone|preference|respond|answer|voice|persona)\b/.test(text)) return 'persona';
   if (/\b(repeat|routine|workflow|every time|checklist|runbook|process|before release|after release)\b/.test(text)) return 'routine';
   if (/\b(lesson|procedure|steps|how to|when asked|debug|fix|review|test|release|deploy|triage)\b/.test(text)) return 'skill';
   return null;
+}
+
+function inferMemoryClass(text: string): string {
+  const normalized = text.toLowerCase();
+  if (/\bdecision|decided|choose|selected\b/.test(normalized)) return 'decision';
+  if (/\bconstraint|must|never|always|required\b/.test(normalized)) return 'constraint';
+  if (/\brisk|hazard|regression\b/.test(normalized)) return 'risk';
+  if (/\bincident|outage|failure\b/.test(normalized)) return 'incident';
+  if (/\bpattern|repeat|recurring\b/.test(normalized)) return 'pattern';
+  if (/\barchitecture|design|system\b/.test(normalized)) return 'architecture';
+  if (/\bowner|ownership|responsible\b/.test(normalized)) return 'ownership';
+  if (/\brunbook|checklist\b/.test(normalized)) return 'runbook';
+  return 'fact';
 }
 
 function completedWorkFreshness(item: WorkPlanItem): number {
@@ -239,20 +261,29 @@ function workPlanCompletionCandidate(item: WorkPlanItem): LearningCandidate | nu
   if (!target) return null;
   const notes = item.notes?.trim() || `Completed work item: ${item.title}`;
   const name = previewHarnessText(item.title, 80);
-  const description = target === 'routine'
+  const description = target === 'memory'
+    ? `Durable memory learned from completed work: ${name}`
+    : target === 'routine'
     ? `Repeatable workflow learned from completed work: ${name}`
     : target === 'persona'
       ? `Operating preference learned from completed work: ${name}`
       : `Reusable skill learned from completed work: ${name}`;
+  const detail = [
+    `Completed work: ${item.title}`,
+    item.owner ? `Owner: ${item.owner}` : '',
+    item.source ? `Source: ${item.source}` : '',
+    '',
+    notes,
+  ].filter(Boolean).join('\n');
   return {
     id: `work-plan-proposal:${target}:${item.id}`,
     label: `${item.title} -> ${target}`,
     domain: 'work_plan',
     recordId: item.id,
     status: 'proposal-ready',
-    priority: target === 'routine' ? 62 : 58,
-    reason: `Completed work item looks like reusable ${target} behavior.`,
-    next: `Review the completed work notes, then capture this as Agent-local ${target} behavior only if the user wants it reused.`,
+    priority: target === 'routine' ? 62 : target === 'memory' ? 60 : 58,
+    reason: `Completed work item looks like ${proposalSubject(target)}.`,
+    next: `Review the completed work notes, then capture this as Agent-local ${target} only if the user wants it reused.`,
     scores: {
       usefulness: clampScore(62 + Math.min(18, notes.length / 12)),
       freshness: completedWorkFreshness(item),
@@ -260,24 +291,27 @@ function workPlanCompletionCandidate(item: WorkPlanItem): LearningCandidate | nu
       risk: 28,
     },
     proposalTarget: target,
-    proposalFields: {
+    proposalFields: target === 'memory' ? {
+      cls: inferMemoryClass(`${item.title}\n${notes}`),
+      scope: 'project',
+      summary: previewHarnessText(item.title, 140),
+      detail,
+      tags: 'learned,completed-work,memory',
+      confidence: '80',
+    } : {
       target,
       name,
       description: previewHarnessText(description, 140),
-      notes: [
-        `Completed work: ${item.title}`,
-        item.owner ? `Owner: ${item.owner}` : '',
-        item.source ? `Source: ${item.source}` : '',
-        '',
-        notes,
-      ].filter(Boolean).join('\n'),
+      notes: detail,
       triggers: target === 'routine' ? 'workflow, checklist' : target === 'persona' ? 'preference' : 'lesson, procedure',
       tags: `learned,completed-work,${target}`,
       enable: 'yes',
     },
     inspectRoute: `agent_work_plan action:"get" id:"${item.id}"`,
     modelRoute: 'agent_work_plan action:"get"',
-    createRoute: 'agent_harness mode:"run_workspace_action" actionId:"learned-behavior" confirm:true explicitUserRequest:"..."',
+    createRoute: target === 'memory'
+      ? 'agent_harness mode:"run_workspace_action" actionId:"memory-create" confirm:true explicitUserRequest:"..."'
+      : 'agent_harness mode:"run_workspace_action" actionId:"learned-behavior" confirm:true explicitUserRequest:"..."',
   };
 }
 
@@ -476,7 +510,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
     returned: Math.min(filtered.length, limit),
     total: all.length,
     nextActions: nextActions(all),
-    policy: 'Learning curator is read-only. Proposed behavior changes use reviewed notes, completed work-plan items, and existing confirmed behavior-capture routes; durable behavior still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
   };
 }
 

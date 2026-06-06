@@ -1683,11 +1683,24 @@ describe('agent_harness tool', () => {
         source: 'agent',
       });
       noteRegistry.markReviewed(workflowNote.id);
+      const decisionNote = noteRegistry.create({
+        title: 'Renderer decision memory',
+        body: 'Decision: keep the existing renderer as the Agent UI foundation.',
+        tags: ['decision', 'memory'],
+        source: 'agent',
+      });
+      noteRegistry.markReviewed(decisionNote.id);
       const completedWork = fixture.context.workspace.workPlanStore!.addItem('Release readiness workflow', {
         status: 'done',
         owner: 'agent',
         source: 'test-learning-curator',
         notes: 'Repeat before release: run package verification, check UX inventory, and summarize residual risks.',
+      });
+      const completedDecision = fixture.context.workspace.workPlanStore!.addItem('Renderer decision capture', {
+        status: 'done',
+        owner: 'agent',
+        source: 'test-learning-curator',
+        notes: 'Decision: use the existing renderer for the autonomous Agent harness.',
       });
       const personaRegistry = AgentPersonaRegistry.fromShellPaths(fixture.paths);
       const persona = personaRegistry.create({
@@ -1713,7 +1726,7 @@ describe('agent_harness tool', () => {
       expect(summary.learningCurator?.needsReview).toBeGreaterThan(0);
       expect(summary.learningCurator?.needsSetup).toBeGreaterThan(0);
       expect(summary.learningCurator?.lowConfidence).toBeGreaterThan(0);
-      expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(1);
+      expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(3);
       expect(summary.learningCurator?.readOnly).toBe(true);
 
       const curator = await executeHarnessJson<{
@@ -1735,15 +1748,17 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'learning_curator', includeParameters: true });
       expect(curator.summary.candidates).toBeGreaterThan(3);
       expect(curator.summary.readyToPromote).toBeGreaterThan(0);
-      expect(curator.summary.proposedBehavior).toBeGreaterThan(1);
-      expect(curator.policy).toContain('completed work-plan items');
+      expect(curator.summary.proposedBehavior).toBeGreaterThan(3);
+      expect(curator.policy).toContain('Proposed memory and behavior changes');
       expectRowsHaveCompactModelRoutes(curator.candidates);
       const memoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `memory:${memory.id}:low-confidence`);
       const personaCandidate = curator.candidates.find((candidate) => candidate.domain === 'persona' && candidate.status === 'needs-review');
       const setupCandidate = curator.candidates.find((candidate) => candidate.domain === 'skill' && candidate.status === 'needs-setup');
       const promoteCandidate = curator.candidates.find((candidate) => candidate.candidateId === `note-promote:${sourceNote.id}`);
       const proposalCandidate = curator.candidates.find((candidate) => candidate.candidateId === `note-proposal:routine:${workflowNote.id}`);
+      const memoryNoteCandidate = curator.candidates.find((candidate) => candidate.candidateId === `note-proposal:memory:${decisionNote.id}`);
       const completedCandidate = curator.candidates.find((candidate) => candidate.candidateId === `work-plan-proposal:routine:${completedWork.id}`);
+      const completedMemoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `work-plan-proposal:memory:${completedDecision.id}`);
       expect(memoryCandidate?.reviewRoute).toContain('agent_local_registry');
       expect(memoryCandidate?.scores.risk).toBeGreaterThan(0);
       expect(personaCandidate?.label).toContain('Fresh operator persona');
@@ -1751,12 +1766,18 @@ describe('agent_harness tool', () => {
       expect(promoteCandidate?.createRoute).toContain('notes-to-knowledge');
       expect(proposalCandidate?.proposalTarget).toBe('routine');
       expect(proposalCandidate?.createRoute).toContain('notes-to-routine');
+      expect(memoryNoteCandidate?.proposalTarget).toBe('memory');
+      expect(memoryNoteCandidate?.createRoute).toContain('notes-to-memory');
       expect(completedCandidate?.domain).toBe('work_plan');
       expect(completedCandidate?.inspectRoute).toContain('agent_work_plan');
       expect(completedCandidate?.createRoute).toContain('learned-behavior');
       expect(completedCandidate?.proposalTarget).toBe('routine');
       expect(completedCandidate?.proposalFields?.target).toBe('routine');
       expect(completedCandidate?.proposalFields?.notes).toContain('Release readiness workflow');
+      expect(completedMemoryCandidate?.proposalTarget).toBe('memory');
+      expect(completedMemoryCandidate?.createRoute).toContain('memory-create');
+      expect(completedMemoryCandidate?.proposalFields?.cls).toBe('decision');
+      expect(completedMemoryCandidate?.proposalFields?.detail).toContain('existing renderer');
 
       const candidate = await executeHarnessJson<{
         readonly candidateId: string;
