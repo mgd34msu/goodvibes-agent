@@ -53,4 +53,4 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 - Deep research browser-backed execution and richer report runner output beyond the current visible local run ledger, run log tails, source queue, credibility scoring, source bundles, citation coverage metadata, repair hints, and saved sourced report artifacts.
 - Live local model benchmarks and guided downloads beyond the current read-only hardware-scored cookbook.
 - First-class browser/desktop-control adapters and richer history-card grouping beyond the current route-backed setup posture, local-first execution posture for read/edit/exec, web fetch, supervision routes, bounded execution history records, confirmed file edit recovery, and delegation routing.
-- Learning curator now ranks local review/setup/stale candidates; proposed memory, skill, routine, and preference updates still need an automatic proposal loop.
+- Learning curator now ranks local review/setup/stale candidates and reviewed-note behavior proposals; automatic post-completion proposal capture and consolidation still need depth.

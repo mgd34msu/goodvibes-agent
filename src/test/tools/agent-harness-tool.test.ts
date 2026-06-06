@@ -1674,6 +1674,13 @@ describe('agent_harness tool', () => {
         source: 'agent',
       });
       noteRegistry.markReviewed(sourceNote.id);
+      const workflowNote = noteRegistry.create({
+        title: 'Release checklist workflow',
+        body: 'Repeat before release: check package verification, review UX inventory, and summarize residual risks.',
+        tags: ['workflow', 'learned'],
+        source: 'agent',
+      });
+      noteRegistry.markReviewed(workflowNote.id);
       const personaRegistry = AgentPersonaRegistry.fromShellPaths(fixture.paths);
       const persona = personaRegistry.create({
         name: 'Fresh operator persona',
@@ -1692,21 +1699,23 @@ describe('agent_harness tool', () => {
       });
 
       const summary = await executeHarnessJson<{
-        readonly learningCurator?: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly lowConfidence: number; readonly readOnly: boolean };
+        readonly learningCurator?: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly lowConfidence: number; readonly proposedBehavior: number; readonly readOnly: boolean };
       }>(fixture, { mode: 'summary' });
       expect(summary.learningCurator?.candidates).toBeGreaterThan(3);
       expect(summary.learningCurator?.needsReview).toBeGreaterThan(0);
       expect(summary.learningCurator?.needsSetup).toBeGreaterThan(0);
       expect(summary.learningCurator?.lowConfidence).toBeGreaterThan(0);
+      expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(0);
       expect(summary.learningCurator?.readOnly).toBe(true);
 
       const curator = await executeHarnessJson<{
-        readonly summary: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly lowConfidence: number; readonly readyToPromote: number };
+        readonly summary: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly lowConfidence: number; readonly proposedBehavior: number; readonly readyToPromote: number };
         readonly candidates: readonly {
           readonly candidateId: string;
           readonly label: string;
           readonly domain: string;
           readonly status: string;
+          readonly proposalTarget?: string;
           readonly priority: number;
           readonly scores: { readonly usefulness: number; readonly freshness: number; readonly sourceQuality: number; readonly risk: number };
           readonly inspectRoute: string;
@@ -1717,17 +1726,21 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'learning_curator', includeParameters: true });
       expect(curator.summary.candidates).toBeGreaterThan(3);
       expect(curator.summary.readyToPromote).toBeGreaterThan(0);
-      expect(curator.policy).toContain('Learning curator is read-only');
+      expect(curator.summary.proposedBehavior).toBeGreaterThan(0);
+      expect(curator.policy).toContain('Proposed behavior changes');
       expectRowsHaveCompactModelRoutes(curator.candidates);
       const memoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `memory:${memory.id}:low-confidence`);
       const personaCandidate = curator.candidates.find((candidate) => candidate.domain === 'persona' && candidate.status === 'needs-review');
       const setupCandidate = curator.candidates.find((candidate) => candidate.domain === 'skill' && candidate.status === 'needs-setup');
       const promoteCandidate = curator.candidates.find((candidate) => candidate.candidateId === `note-promote:${sourceNote.id}`);
+      const proposalCandidate = curator.candidates.find((candidate) => candidate.candidateId === `note-proposal:routine:${workflowNote.id}`);
       expect(memoryCandidate?.reviewRoute).toContain('agent_local_registry');
       expect(memoryCandidate?.scores.risk).toBeGreaterThan(0);
       expect(personaCandidate?.label).toContain('Fresh operator persona');
       expect(setupCandidate?.inspectRoute).toContain('domain:"skill"');
       expect(promoteCandidate?.createRoute).toContain('notes-to-knowledge');
+      expect(proposalCandidate?.proposalTarget).toBe('routine');
+      expect(proposalCandidate?.createRoute).toContain('notes-to-routine');
 
       const candidate = await executeHarnessJson<{
         readonly candidateId: string;

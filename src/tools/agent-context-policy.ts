@@ -166,7 +166,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       },
       {
         area: 'Memory and knowledge',
-        can: 'Use Agent-local memory, notes, personas, skills, routines, learning curator review queues, work plans, and isolated Agent Knowledge ask/search/ingest routes.',
+        can: 'Use Agent-local memory, notes, personas, skills, routines, learning curator review/proposal queues, work plans, and isolated Agent Knowledge ask/search/ingest routes.',
         tools: [optionalTool('agent_local_registry'), optionalTool('agent_work_plan'), optionalTool('agent_knowledge'), optionalTool('agent_knowledge_ingest')],
         inspect: 'agent_harness mode:"learning_curator" or mode:"learning_candidate"',
       },

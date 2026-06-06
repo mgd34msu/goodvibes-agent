@@ -3,8 +3,9 @@ import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-sna
 import type { AgentWorkspaceLocalLibraryItem } from '../input/agent-workspace-types.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
-type LearningCandidateStatus = 'needs-review' | 'needs-setup' | 'low-confidence' | 'ready-to-promote' | 'ready';
+type LearningCandidateStatus = 'needs-review' | 'needs-setup' | 'low-confidence' | 'proposal-ready' | 'ready-to-promote' | 'ready';
 type LearningCandidateDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine' | 'capture';
+type LearningProposalTarget = 'skill' | 'routine' | 'persona';
 
 interface AgentHarnessLearningCuratorArgs {
   readonly candidateId?: unknown;
@@ -35,6 +36,7 @@ interface LearningCandidate {
   readonly enabled?: boolean;
   readonly active?: boolean;
   readonly confidence?: number;
+  readonly proposalTarget?: LearningProposalTarget;
   readonly missingRequirements?: readonly string[];
   readonly inspectRoute: string;
   readonly modelRoute: string;
@@ -169,6 +171,51 @@ function captureCandidate(): LearningCandidate {
   };
 }
 
+function noteProposalTarget(item: AgentWorkspaceLocalLibraryItem): LearningProposalTarget | null {
+  const tags = item.tags.map((tag) => tag.toLowerCase());
+  const text = [item.name, item.description, ...tags].join('\n').toLowerCase();
+  if (tags.some((tag) => ['routine', 'workflow', 'runbook', 'process'].includes(tag))) return 'routine';
+  if (tags.some((tag) => ['persona', 'style', 'preference', 'tone'].includes(tag))) return 'persona';
+  if (tags.some((tag) => ['skill', 'procedure', 'lesson', 'learned', 'howto'].includes(tag))) return 'skill';
+  if (/\b(repeat|routine|workflow|every time|checklist|runbook)\b/.test(text)) return 'routine';
+  if (/\b(style|tone|preference|respond|answer)\b/.test(text)) return 'persona';
+  if (/\b(lesson|procedure|steps|how to|when asked)\b/.test(text)) return 'skill';
+  return null;
+}
+
+function noteBehaviorProposalCandidate(item: AgentWorkspaceLocalLibraryItem): LearningCandidate | null {
+  if (!isReviewed(item)) return null;
+  const target = noteProposalTarget(item);
+  if (!target) return null;
+  const actionId = target === 'skill'
+    ? 'notes-to-skill'
+    : target === 'routine'
+      ? 'notes-to-routine'
+      : 'notes-to-persona';
+  const label = `${item.name} -> ${target}`;
+  return {
+    id: `note-proposal:${target}:${item.id}`,
+    label,
+    domain: 'note',
+    recordId: item.id,
+    status: 'proposal-ready',
+    priority: target === 'routine' ? 64 : 60,
+    reason: `Reviewed note looks like reusable ${target} behavior.`,
+    next: `Preview the selected-note ${target} promotion, then save it only if the user wants this durable behavior.`,
+    scores: {
+      usefulness: clampScore(itemUsefulness(item) + 8),
+      freshness: itemFreshness(item),
+      sourceQuality: itemSourceQuality(item),
+      risk: 24,
+    },
+    reviewState: item.reviewState,
+    proposalTarget: target,
+    inspectRoute: localRegistryRoute('note', 'get', item.id),
+    modelRoute: `agent_harness mode:"workspace_action" actionId:"${actionId}"`,
+    createRoute: `agent_harness mode:"run_workspace_action" actionId:"${actionId}" recordId:"${item.id}" confirm:true explicitUserRequest:"..."`,
+  };
+}
+
 function notePromotionCandidate(item: AgentWorkspaceLocalLibraryItem): LearningCandidate | null {
   if (!isReviewed(item) || !item.description.includes('Origin URL')) return null;
   return {
@@ -232,6 +279,8 @@ function candidatesForItem(domain: LearningCandidateDomain, item: AgentWorkspace
     ));
   }
   if (domain === 'note') {
+    const behaviorProposal = noteBehaviorProposalCandidate(item);
+    if (behaviorProposal) candidates.push(behaviorProposal);
     const promotion = notePromotionCandidate(item);
     if (promotion) candidates.push(promotion);
   }
@@ -282,6 +331,7 @@ function describeCandidate(candidate: LearningCandidate, includeParameters: bool
     ...(candidate.enabled === undefined ? {} : { enabled: candidate.enabled }),
     ...(candidate.active === undefined ? {} : { active: candidate.active }),
     ...(candidate.confidence === undefined ? {} : { confidence: candidate.confidence }),
+    ...(candidate.proposalTarget === undefined ? {} : { proposalTarget: candidate.proposalTarget }),
     ...(candidate.missingRequirements ? { missingRequirements: candidate.missingRequirements } : {}),
     modelRoute: candidate.modelRoute,
     inspectRoute: candidate.inspectRoute,
@@ -319,6 +369,7 @@ export function learningCuratorCatalogStatus(context: CommandContext): Record<st
     needsReview: candidates.filter((candidate) => candidate.status === 'needs-review').length,
     needsSetup: candidates.filter((candidate) => candidate.status === 'needs-setup').length,
     lowConfidence: candidates.filter((candidate) => candidate.status === 'low-confidence').length,
+    proposedBehavior: candidates.filter((candidate) => candidate.status === 'proposal-ready').length,
     readyToPromote: candidates.filter((candidate) => candidate.status === 'ready-to-promote').length,
     readOnly: true,
   };
@@ -336,6 +387,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
       needsReview: all.filter((candidate) => candidate.status === 'needs-review').length,
       needsSetup: all.filter((candidate) => candidate.status === 'needs-setup').length,
       lowConfidence: all.filter((candidate) => candidate.status === 'low-confidence').length,
+      proposedBehavior: all.filter((candidate) => candidate.status === 'proposal-ready').length,
       readyToPromote: all.filter((candidate) => candidate.status === 'ready-to-promote').length,
       ready: all.filter((candidate) => candidate.status === 'ready').length,
     },
@@ -343,7 +395,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
     returned: Math.min(filtered.length, limit),
     total: all.length,
     nextActions: nextActions(all),
-    policy: 'Learning curator is read-only. Durable behavior still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+    policy: 'Learning curator is read-only. Proposed behavior changes use reviewed notes and existing confirmed selected-note promotion routes; durable behavior still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
   };
 }
 

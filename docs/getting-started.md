@@ -46,7 +46,7 @@ Primary first-run areas:
 - Research: read-only web research and URL inspection, project-local visible research runs with log tails, source queue, credibility review, reviewed-source bundles, plus confirmed sourced markdown report artifacts with source maps, citation coverage checks, and repair hints.
 - Documents & Compare: versioned markdown document drafts, review comments, AI suggestion review, draft browse/show/create/revise/review/suggest/accept/reject/artifact-attach/artifact-insert/export, uploads, exports, source checks, generated media artifacts, saved artifact browse/show/export/package, reviewed artifact-to-Knowledge promotion, saved text artifact reuse in blind comparison, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates.
 - Personal Ops: inbox/calendar connector readiness, email/calendar-capable MCP setup routes, plus live records for Agent-owned notes, routines, schedule receipts, and delivery channels.
-- Memory & Skills: local memory, notes, personas, skills, routines, learned behavior capture, and a read-only learning curator for review/setup/stale candidates.
+- Memory & Skills: local memory, notes, personas, skills, routines, learned behavior capture, and a read-only learning curator for review/setup/stale/proposed-behavior candidates.
 - Channels: companion pairing, channel readiness, notification targets, and confirmed sends.
 - Voice & Media: TTS setup, image input, and confirmed generated media.
 - Work & Automation: work-plan tracking, approvals, schedules, reminders, and explicit operator actions.
@@ -124,7 +124,7 @@ Memory, notes, personas, routines, and Agent skills are local to GoodVibes Agent
 Use the workspace first:
 
 - Memory & Skills -> Create memory, Create note, or Capture learned behavior.
-- Memory & Skills -> Learning curator to rank stale, low-confidence, missing-setup, and review-needed local behavior records before they silently guide the assistant.
+- Memory & Skills -> Learning curator to rank stale, low-confidence, missing-setup, reviewed-note behavior proposals, and review-needed local behavior records before they silently guide the assistant.
 - Notes -> Create notes for source triage, temporary decisions, and operator handoff.
 - Personas -> Create, inspect, activate, review, stale, or delete.
 - Skills -> Create, enable/disable, review, bundle, or delete.
