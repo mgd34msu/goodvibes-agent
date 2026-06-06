@@ -67,7 +67,7 @@ Discovery modes:
 | `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
 | `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
-| `provider_accounts`, `model_routing` | Provider auth and provider/model route posture. |
+| `provider_accounts`, `model_routing` | Provider auth, provider/model route posture, and local model cookbook. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus notes, tasks, reminders, routines, and delivery readiness. |
 | `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, setup, pairing, and build-delegation posture. |

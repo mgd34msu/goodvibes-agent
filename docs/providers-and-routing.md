@@ -11,7 +11,7 @@ Provider and model state should be visible in:
 - `/model` and `/provider`;
 - the Agent operator workspace setup checklist;
 - the TTS configuration workspace when spoken turns are used.
-- `agent_harness` modes `model_routing` and `model_route` when the model needs read-only provider/model route posture, selectable model metadata, pinned model status, reasoning support, context-window posture, and safe setting keys. `model_routing` is compact by default; use `includeParameters:true` or `model_route` for full capabilities and route-change hints. Workspace model actions also expose compact `modelRoute` hints for settings, pin/unpin, reasoning effort, and visible picker flows.
+- `agent_harness` modes `model_routing` and `model_route` when the model needs read-only provider/model route posture, selectable model metadata, pinned model status, reasoning support, context-window posture, safe setting keys, and the local model cookbook. `model_routing` is compact by default; use `includeParameters:true` or `model_route` for full capabilities, local cookbook setup steps, and route-change hints. Workspace model actions also expose compact `modelRoute` hints for settings, pin/unpin, reasoning effort, local model recommendations, and visible picker flows.
 - `agent_harness` modes `provider_accounts` and `provider_account` when the model needs read-only provider auth route posture, subscription freshness, usage windows, route issues, and repair guidance without tokens or authorization codes. `provider_accounts` is compact by default; use `includeParameters:true` or `provider_account` for route records, usage windows, issues, notes, and auth-flow hints. Provider/account mutations stay on confirmed workspace or settings routes.
 
 When a selected model is provider-qualified, Agent keeps the runtime provider row and raw model id separate. For example, `openai-subscriber` plus `openai:gpt-5.5` should route as provider `openai-subscriber` and model `gpt-5.5` where the public route expects provider/model fields.
@@ -25,6 +25,10 @@ Agent-owned provider definitions live under the Agent profile root when supporte
 ```
 
 These files are local configuration. They are not Agent Knowledge records and should not be copied into knowledge search state.
+
+## Local Model Cookbook
+
+Agent Workspace -> Model Routing -> Local model cookbook and `agent_harness mode:"model_routing" query:"local"` provide read-only recommendations for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers. The cookbook detects local-compatible provider ids and model routes when available, recommends the easiest first route, and keeps setup steps tied to visible picker, custom-provider, refresh, and settings actions. It does not install servers, download models, or change the selected route without a separate explicit action.
 
 ## Discovery And Health
 

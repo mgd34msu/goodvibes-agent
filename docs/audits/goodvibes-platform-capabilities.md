@@ -44,6 +44,6 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 
 - First-class email and calendar connectors and live Personal Ops queue.
 - Deep research source queue, credibility scoring, cancellation, and checkpoint/resume beyond saved sourced report artifacts.
-- Local model serving cookbook and hardware-aware setup.
+- Local model hardware scanner, benchmark scoring, and guided downloads beyond the read-only cookbook.
 - Browser/computer-use setup and recovery.
 - Learning curator for memory, skill, routine, and preference updates.

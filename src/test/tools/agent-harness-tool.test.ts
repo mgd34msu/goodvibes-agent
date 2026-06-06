@@ -893,6 +893,42 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes a local model cookbook through model routing and workspace actions', async () => {
+    const fixture = makeFixture();
+    try {
+      const cookbook = await executeHarnessJson<{
+        readonly localCookbook: {
+          readonly status: string;
+          readonly recommendation: string;
+          readonly recipes: readonly { readonly id: string; readonly modelRoute?: string }[];
+        };
+        readonly routes: readonly { readonly modelRouteId: string; readonly modelRoute?: string }[];
+      }>(fixture, { mode: 'model_routing', query: 'local', includeParameters: true });
+      expect(cookbook.localCookbook.status).toBe('recommendations-only');
+      expect(cookbook.localCookbook.recommendation).toContain('Ollama');
+      expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('ollama');
+      expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('vllm');
+      expectRowsHaveCompactModelRoutes(cookbook.localCookbook.recipes);
+      expect(cookbook.routes.find((route) => route.modelRouteId === 'local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_route" or mode:"run_command"');
+
+      const inspected = await executeHarnessJson<{
+        readonly modelRouteId: string;
+        readonly localCookbook?: { readonly recipes: readonly { readonly id: string; readonly setup?: readonly string[] }[] };
+      }>(fixture, { mode: 'model_route', modelRouteId: 'local-model-cookbook' });
+      expect(inspected.modelRouteId).toBe('local-model-cookbook');
+      expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'llama-cpp')?.setup?.join('\n')).toContain('GGUF');
+
+      const action = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'account-local-model-cookbook' });
+      expect(action.id).toBe('account-local-model-cookbook');
+      expect(action.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes Agent workspace categories, actions, and editor schemas to the model', async () => {
     const fixture = makeFixture();
     try {
@@ -958,6 +994,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'documents-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-revise-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-comment-draft')?.modelRoute).toBe('agent_documents');

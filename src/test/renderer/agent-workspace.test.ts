@@ -519,6 +519,12 @@ describe('renderAgentWorkspace', () => {
     output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Choose main model');
     expect(output).toContain('model picker');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-local-model-cookbook');
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Local model cookbook');
+    expect(output).toContain('Ollama first');
+    expect(output).toContain('vLLM for GPU throughput');
   });
 
   test('renders support bundle actions in the host workspace when selected', () => {

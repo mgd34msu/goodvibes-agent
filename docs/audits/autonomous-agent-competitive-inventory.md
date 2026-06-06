@@ -17,7 +17,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 |---|---|---|---|---|---|
 | One assistant mental model | Gateway is control plane; assistant is the product | CLI, TUI, gateway, and messaging expose one assistant | One web workspace | Partial: boundaries are exposed too early | Better |
 | First-run and always-on setup | Onboard can install gateway service | Installers and setup wizard configure dependencies and gateway | Docker/native start with admin bootstrap | Partial: onboarding exists, host lifecycle is external | Better |
-| Models and local model cookbook | Multi-provider, subscription auth, failover | Many providers and managed tool gateway | Hardware-aware Cookbook for Ollama, llama.cpp, vLLM | Partial: routing exists, local serving UX is thin | Better |
+| Models and local model cookbook | Multi-provider, subscription auth, failover | Many providers and managed tool gateway | Hardware-aware Cookbook for Ollama, llama.cpp, vLLM | Partial: routing and read-only local cookbook exist; live hardware scan/benchmarks missing | Better |
 | Omnichannel inbox and delivery | Very broad channel list and DM safety | Telegram, Discord, Slack, WhatsApp, Signal, email | Email, browser, ntfy, PWA | Parity on foundations, needs setup UX polish | Better |
 | Email, calendar, notes, tasks | Mail/calendar/reminder workflows in showcase | Email gateway and workspace skills | IMAP/SMTP triage, CalDAV, notes/tasks | Partial: Personal Ops maps notes/tasks/reminders; email/calendar connectors missing | Better |
 | Closed learning loop | Skills and memory | Autonomous memory, skills, session search, user model | Persistent vector/keyword memory and skills | Partial: local libraries exist, no curator loop | Better |
@@ -35,7 +35,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 1. GoodVibes has many raw foundations already: providers, channels, memory, routines, schedules, MCP, tasks, remote, artifacts, knowledge, media, permissions, and operator APIs.
 2. The largest gap is not raw capability count. It is UX integration. The current Agent often presents implementation boundaries instead of the simplest user path.
 3. The current Agent policy overcorrects against hidden work. The best-in-class target is visible autonomy: jobs can run unattended only when they have clear owner, scope, schedule, status, logs, and cancel/recovery routes.
-4. Email, calendar, deep research reports, local model serving recommendations, and browser/computer-use setup are the clearest product gaps.
+4. Email, calendar, live deep research runners, hardware-scored local model serving, and browser/computer-use setup are the clearest product gaps.
 5. GoodVibes can lead on safety if it keeps its approval, redaction, trust, readiness, and release-evidence posture while removing unnecessary ceremony from approved workflows.
 
 ## Product Direction

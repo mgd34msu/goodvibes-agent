@@ -40,7 +40,7 @@ Use the interactive workspace first. CLI subcommands are secondary support paths
 
 Primary first-run areas:
 
-- Setup: provider/model, connected-host compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
+- Setup: provider/model, local model cookbook, connected-host compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Home: normal chat, operator briefing, model selection, and health.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
 - Research: read-only web research and URL inspection, plus confirmed sourced markdown report artifacts with source maps.
@@ -79,6 +79,7 @@ Common model routes:
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |
 | Research reports | `agent_harness mode:"workspace_actions" query:"research"`, `agent_research_report` |
 | Personal operations | `agent_harness mode:"personal_ops"`, `mode:"personal_ops_lane"` |
+| Local model choice | `agent_harness mode:"model_routing" query:"local"`, `mode:"model_route" modelRouteId:"local-model-cookbook"` |
 | Documents, artifacts, compare | `agent_harness mode:"document_ops"`, `mode:"document_ops_lane"`, `agent_documents`, `agent_artifacts`, `agent_model_compare` |
 | Local memory/notes/personas/skills/routines | `agent_local_registry` or confirmed workspace actions |
 | Work plan | `agent_work_plan` |

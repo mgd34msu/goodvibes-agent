@@ -42,6 +42,23 @@ interface RouteCandidate {
   readonly uiSurfaces: readonly string[];
 }
 
+interface LocalModelDetection {
+  readonly providerIds: readonly string[];
+  readonly modelRoutes: readonly string[];
+  readonly stacks: readonly string[];
+}
+
+interface LocalModelRecipe {
+  readonly id: string;
+  readonly label: string;
+  readonly fit: string;
+  readonly bestFor: string;
+  readonly hardware: string;
+  readonly setup: readonly string[];
+  readonly modelExamples: readonly string[];
+  readonly cautions: readonly string[];
+}
+
 interface ProviderApiLike {
   readonly getFavorites: () => Promise<unknown>;
   readonly getCurrentModel: () => Promise<unknown>;
@@ -171,6 +188,159 @@ function listProviderIds(context: CommandContext): readonly string[] {
   return readProviderApi(context)?.listProviderIds() ?? [];
 }
 
+function listRegistryModels(context: CommandContext): readonly unknown[] {
+  try {
+    const registry = context.provider.providerRegistry as { listModels?: () => readonly unknown[] };
+    return registry.listModels?.() ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function localStackFor(value: string): string | null {
+  const normalized = value.toLowerCase();
+  if (/ollama[-_\s]?cloud/.test(normalized)) return null;
+  if (/\bollama\b/.test(normalized)) return 'ollama';
+  if (/llama[.-]?cpp|llamacpp/.test(normalized)) return 'llama.cpp';
+  if (/\bvllm\b/.test(normalized)) return 'vllm';
+  if (/lm[-_\s]?studio/.test(normalized)) return 'openai-compatible';
+  if (/localai|text-generation-inference|\btgi\b/.test(normalized)) return 'openai-compatible';
+  if (/localhost|127\.0\.0\.1|\[?::1\]?/.test(normalized)) return 'openai-compatible';
+  if (/openai-compatible|openai compatible|custom-provider|custom provider/.test(normalized)) return 'openai-compatible';
+  return null;
+}
+
+function localModelDetection(context: CommandContext): LocalModelDetection {
+  const providerIds = new Set<string>();
+  const modelRoutes = new Set<string>();
+  const stacks = new Set<string>();
+  for (const providerId of listProviderIds(context)) {
+    const stack = localStackFor(providerId);
+    if (!stack) continue;
+    providerIds.add(providerId);
+    stacks.add(stack);
+  }
+  for (const model of listRegistryModels(context)) {
+    const record = readRecord(model);
+    const providerId = modelProviderId(model);
+    const registryKey = modelRegistryKey(model);
+    const fields = [
+      providerId,
+      registryKey,
+      modelModelId(model),
+      modelDisplayName(model),
+      readString(record.baseUrl),
+      readString(record.serverType),
+      JSON.stringify(record.providerEnvVars ?? ''),
+    ].join('\n');
+    const stack = localStackFor(fields);
+    if (!stack) continue;
+    if (providerId) providerIds.add(providerId);
+    if (registryKey) modelRoutes.add(registryKey);
+    stacks.add(stack);
+  }
+  return {
+    providerIds: [...providerIds].sort((a, b) => a.localeCompare(b)),
+    modelRoutes: [...modelRoutes].sort((a, b) => a.localeCompare(b)),
+    stacks: [...stacks].sort((a, b) => a.localeCompare(b)),
+  };
+}
+
+function localModelRecipes(): readonly LocalModelRecipe[] {
+  return [
+    {
+      id: 'ollama',
+      label: 'Ollama',
+      fit: 'Best first local route for most users.',
+      bestFor: 'Fast setup, chat, coding help, private everyday assistant work.',
+      hardware: 'Usable on modern CPU or Apple Silicon; 16 GB RAM is comfortable for 7B/8B quantized models, 32 GB+ for 14B/32B.',
+      setup: [
+        'Install Ollama and start the local service.',
+        'Pull one practical model, such as qwen2.5-coder:7b or llama3.1:8b.',
+        'Refresh models in GoodVibes Agent, then choose the discovered ollama:<model> route.',
+      ],
+      modelExamples: ['qwen2.5-coder:7b', 'llama3.1:8b', 'mistral:7b'],
+      cautions: ['Large models may run slowly without enough memory.', 'Use vLLM instead when the goal is multi-user throughput.'],
+    },
+    {
+      id: 'llama-cpp',
+      label: 'llama.cpp',
+      fit: 'Best low-dependency offline route.',
+      bestFor: 'CPU/Metal inference, GGUF files, portable offline use, constrained machines.',
+      hardware: 'Works without a GPU; use Q4/Q5 GGUF files for small systems and larger quantization only when memory allows.',
+      setup: [
+        'Download a GGUF model that fits memory.',
+        'Run llama-server with an OpenAI-compatible endpoint.',
+        'Add or refresh the local OpenAI-compatible provider, then select it in the model picker.',
+      ],
+      modelExamples: ['Qwen2.5-Coder 7B Instruct GGUF', 'Llama 3.1 8B Instruct GGUF', 'Phi-3 Mini GGUF'],
+      cautions: ['Manual model-file choice matters more than with Ollama.', 'Throughput is lower than GPU serving.'],
+    },
+    {
+      id: 'vllm',
+      label: 'vLLM',
+      fit: 'Best high-throughput local or LAN server route.',
+      bestFor: 'NVIDIA GPU serving, batching, OpenAI-compatible APIs, team/shared local models.',
+      hardware: 'Prefer CUDA GPUs; 16 GB VRAM can serve small quantized models, 24-48 GB+ is better for larger coder models.',
+      setup: [
+        'Install vLLM in a CUDA-ready Python environment.',
+        'Serve a model with the OpenAI-compatible API server.',
+        'Add the endpoint as a custom provider and select that route.',
+      ],
+      modelExamples: ['Qwen2.5-Coder 7B Instruct', 'Llama 3.1 8B Instruct', 'DeepSeek Coder V2 Lite'],
+      cautions: ['Not the easiest first setup.', 'GPU drivers and model memory limits are the common failure points.'],
+    },
+    {
+      id: 'openai-compatible-local',
+      label: 'Local OpenAI-compatible server',
+      fit: 'Best when the user already has LM Studio, LocalAI, TGI, or another local endpoint.',
+      bestFor: 'Reusing an existing localhost or LAN model server through one familiar API.',
+      hardware: 'Depends on the server backend; verify context window and memory in the serving app first.',
+      setup: [
+        'Start the local server and confirm its /v1/models endpoint works.',
+        'Add a custom provider with the local base URL.',
+        'Refresh models and select the discovered route.',
+      ],
+      modelExamples: ['LM Studio loaded model', 'LocalAI model', 'TGI-served model'],
+      cautions: ['Some servers omit context-window metadata.', 'Keep LAN endpoints private unless explicitly intended.'],
+    },
+  ];
+}
+
+function describeLocalModelRecipe(recipe: LocalModelRecipe, detection: LocalModelDetection, includeParameters: boolean): Record<string, unknown> {
+  const stackId = recipe.id === 'openai-compatible-local' ? 'openai-compatible' : recipe.id === 'llama-cpp' ? 'llama.cpp' : recipe.id;
+  const detected = detection.stacks.includes(stackId);
+  return {
+    id: recipe.id,
+    label: recipe.label,
+    fit: recipe.fit,
+    bestFor: recipe.bestFor,
+    hardware: previewHarnessText(recipe.hardware, includeParameters ? 180 : 96),
+    detected,
+    modelRoute: 'agent_harness mode:"model_routing" or mode:"open_ui_surface"',
+    ...(includeParameters ? {
+      setup: recipe.setup,
+      modelExamples: recipe.modelExamples,
+      cautions: recipe.cautions,
+    } : {}),
+  };
+}
+
+function localModelCookbook(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
+  const detection = localModelDetection(context);
+  const recipes = localModelRecipes().map((recipe) => describeLocalModelRecipe(recipe, detection, includeParameters));
+  return {
+    status: detection.stacks.length > 0 ? 'detected-local-route' : 'recommendations-only',
+    recommendation: detection.stacks.includes('ollama')
+      ? 'Use the discovered Ollama route first unless throughput requirements point to vLLM.'
+      : 'Start with Ollama for the easiest local route; use llama.cpp for offline GGUF files or vLLM for GPU throughput.',
+    detected: detection,
+    recipes,
+    modelRoute: 'agent_harness mode:"model_routing" query:"local"',
+    policy: 'Read-only cookbook. Installs, downloads, provider edits, and route changes stay separate visible user actions.',
+  };
+}
+
 async function readCurrentModel(context: CommandContext): Promise<unknown> {
   try {
     return await readProviderApi(context)?.getCurrentModel() ?? null;
@@ -255,6 +425,16 @@ function routeCandidates(context: CommandContext): readonly RouteCandidate[] {
     },
     {
       kind: 'route',
+      id: 'local-model-cookbook',
+      label: 'Local model cookbook',
+      detail: 'Hardware-aware recommendations for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers.',
+      currentValue: localModelDetection(context),
+      settingKeys: [],
+      commands: ['/provider add <name> <baseURL> [apiKey] --yes', '/refresh-models', '/model'],
+      uiSurfaces: ['provider-picker', 'model-picker', 'settings'],
+    },
+    {
+      kind: 'route',
       id: 'pinned-models',
       label: 'Pinned model favorites',
       detail: 'Local model favorites used by the model picker.',
@@ -310,7 +490,7 @@ function modelSearchText(model: ModelCandidate): string {
   ].join('\n').toLowerCase();
 }
 
-function describeRoute(route: RouteCandidate, options: { readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> } = {}): Record<string, unknown> {
+function describeRoute(route: RouteCandidate, options: { readonly context: CommandContext; readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> }): Record<string, unknown> {
   return {
     kind: 'route',
     modelRouteId: route.id,
@@ -324,6 +504,7 @@ function describeRoute(route: RouteCandidate, options: { readonly includeParamet
       uiSurfaces: route.uiSurfaces,
     } : {}),
     ...(options.lookup ? { lookup: options.lookup } : {}),
+    ...(route.id === 'local-model-cookbook' && options.includeParameters === true ? { localCookbook: localModelCookbook(options.context, true) } : {}),
     ...(options.includeParameters ? {
       policy: {
         effect: 'read-only',
@@ -451,7 +632,8 @@ export async function modelRoutingSummary(context: CommandContext, args: AgentHa
       }, { includeParameters }) : null,
     },
     providers: providerIds,
-    routes: filteredRoutes.slice(0, limit).map((route) => describeRoute(route, { includeParameters })),
+    localCookbook: localModelCookbook(context, includeParameters),
+    routes: filteredRoutes.slice(0, limit).map((route) => describeRoute(route, { context, includeParameters })),
     models: filteredModels.slice(0, limit).map((model) => describeModel(model, { includeParameters })),
     returned: {
       routes: Math.min(filteredRoutes.length, limit),
@@ -482,11 +664,11 @@ export async function describeHarnessModelRoute(context: CommandContext, args: A
   const routes = routeCandidates(context);
   const normalized = lookup.input.toLowerCase();
   const exactRoute = routes.find((route) => route.id === lookup.input);
-  if (exactRoute) return { status: 'found', route: describeRoute(exactRoute, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'route-id' } }) };
+  if (exactRoute) return { status: 'found', route: describeRoute(exactRoute, { context, includeParameters: true, lookup: { ...lookup, resolvedBy: 'route-id' } }) };
   const exactModel = models.find((model) => model.registryKey === lookup.input || model.modelId === lookup.input);
   if (exactModel) return { status: 'found', route: describeModel(exactModel, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'model-id' } }) };
   const insensitiveRoute = routes.find((route) => route.id.toLowerCase() === normalized);
-  if (insensitiveRoute) return { status: 'found', route: describeRoute(insensitiveRoute, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'case-insensitive-route-id' } }) };
+  if (insensitiveRoute) return { status: 'found', route: describeRoute(insensitiveRoute, { context, includeParameters: true, lookup: { ...lookup, resolvedBy: 'case-insensitive-route-id' } }) };
   const insensitiveModel = models.find((model) => model.registryKey.toLowerCase() === normalized || model.modelId.toLowerCase() === normalized);
   if (insensitiveModel) return { status: 'found', route: describeModel(insensitiveModel, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'case-insensitive-model-id' } }) };
   const searched = [
@@ -498,7 +680,7 @@ export async function describeHarnessModelRoute(context: CommandContext, args: A
     return {
       status: 'found',
       route: found.kind === 'route'
-        ? describeRoute(found, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } })
+        ? describeRoute(found, { context, includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } })
         : describeModel(found, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } }),
     };
   }

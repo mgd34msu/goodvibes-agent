@@ -58,7 +58,7 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'mcp_server', kind: 'inspect', family: 'tools', summary: 'Inspect one MCP server, tools, schemas, auth, and trust posture.', parameters: ['mcpServerId', 'target', 'query'] },
   { id: 'setup_posture', kind: 'discover', family: 'setup', summary: 'Inspect first-run/setup capability posture and derived readiness flags.', next: 'Use setup_item.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'setup_item', kind: 'inspect', family: 'setup', summary: 'Inspect one setup/onboarding posture item and visible remediation route.', parameters: ['setupItemId', 'target', 'query'] },
-  { id: 'model_routing', kind: 'discover', family: 'providers', summary: 'List model/provider route, models, pins, and safe route settings.', next: 'Use model_route.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'model_routing', kind: 'discover', family: 'providers', summary: 'List model/provider routes, local cookbook, pins, and settings.', next: 'Use model_route.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'model_route', kind: 'inspect', family: 'providers', summary: 'Inspect one model route or model candidate and visible selection paths.', parameters: ['modelRouteId', 'target', 'query'] },
   { id: 'personal_ops', kind: 'discover', family: 'personal-ops', summary: 'Map email, calendar, notes, tasks, reminders, and delivery.', next: 'Use personal_ops_lane for personal operations.', parameters: ['includeParameters'] },
   { id: 'personal_ops_lane', kind: 'inspect', family: 'personal-ops', summary: 'Inspect email, calendar, tasks, reminders, or delivery lane.', parameters: ['laneId', 'target', 'query'] },
