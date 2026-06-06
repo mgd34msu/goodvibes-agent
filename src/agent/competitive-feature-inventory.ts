@@ -47,10 +47,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'One guided flow verifies dependencies, installs or starts the host, configures auth, pairs channels, and leaves a working assistant.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'release'],
-    goodVibesNow: 'Agent has onboarding, diagnostics, redacted GoodVibes settings import preview/apply, and a model-visible first-run setup plan that orders connected-host readiness, provider/model access, local model readiness, Agent Knowledge, local behavior, channels, automation review, browser/desktop control, delegation, and finish state with exact user and model routes. Connected-host readiness now includes repair cards for status, service posture, confirmed service install/start/restart when the SDK operator contract exposes those methods, plus an offline bootstrap plan with GoodVibes host install, trust, binary verification, service start, and Agent reconnect commands for missing-host setup.',
+    goodVibesNow: 'Agent has onboarding, diagnostics, redacted GoodVibes settings import preview/apply, and a model-visible first-run setup plan that orders connected-host readiness, provider/model access, local model readiness, Agent Knowledge, local behavior, channels, automation review, browser/desktop control, delegation, and finish state with exact user and model routes. Connected-host readiness now includes live service probe evidence, recommended diagnostic/status cards, confirmed service install/start/restart routes that stay inspect-first unless service status proves need, plus an offline bootstrap plan with GoodVibes host install, trust, binary verification, service start, and Agent reconnect commands for missing-host setup.',
     nextMoves: [
-      'Feed live connected-host probes into repair card state so service install/start/restart is recommended only when the current service status proves it is needed.',
       'Add end-to-end install smoke that proves a user can go from package install to reachable assistant.',
+      'Add setup-state fixtures for missing host, unreachable host, reachable host, missing token, and model-unconfigured paths so first-run guidance cannot regress silently.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Onboarding can install the Gateway daemon so it stays running.' },

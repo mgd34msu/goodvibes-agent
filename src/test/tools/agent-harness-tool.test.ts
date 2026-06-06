@@ -171,11 +171,15 @@ function makeFixture(options: {
   readonly dismissAgentWorkspace?: boolean;
   readonly keybindings?: boolean;
   readonly builtinCommands?: boolean;
+  readonly controlPlaneEnabled?: boolean;
+  readonly controlPlanePort?: number;
   readonly artifactStore?: Pick<ArtifactStore, 'create' | 'get' | 'list' | 'readContent'>;
 } = {}): HarnessFixture {
   const { root, paths, cleanup } = makeShellPaths();
   const commandRegistry = new CommandRegistry();
   const configManager = makeConfig(paths);
+  if (options.controlPlaneEnabled !== undefined) configManager.set('controlPlane.enabled', options.controlPlaneEnabled);
+  if (options.controlPlanePort !== undefined) configManager.set('controlPlane.port', options.controlPlanePort);
   const secretsManager = options.secrets === false
     ? null
     : new SecretsManager({ projectRoot: root, globalHome: root, configManager });
@@ -926,6 +930,62 @@ describe('agent_harness tool', () => {
       expect(browserItem.lookup?.resolvedBy).toBe('plan-id');
       expect(browserItem.modelRoute).toContain('mcp_servers');
       expect(browserItem.signals?.join('\n')).toContain('No browser');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('uses live service probes before recommending connected-host lifecycle repair', async () => {
+    const fixture = makeFixture({ controlPlaneEnabled: true, controlPlanePort: 1 });
+    try {
+      const hostItem = await executeHarnessJson<{
+        readonly setupItemId: string;
+        readonly status: string;
+        readonly signals?: readonly string[];
+        readonly recommendedRepairCards?: readonly string[];
+        readonly bootstrapPlan?: { readonly status: string; readonly recommendedWhen: string };
+        readonly serviceProbe?: {
+          readonly status: string;
+          readonly enabled: boolean;
+          readonly binding: string;
+          readonly diagnosticRoute: string;
+          readonly issues: readonly string[];
+        };
+        readonly repairCards?: readonly {
+          readonly id: string;
+          readonly state: string;
+          readonly recommendation: string;
+          readonly liveEvidence?: { readonly probeStatus: string; readonly summary: string };
+        }[];
+      }>(fixture, { mode: 'setup_item', setupItemId: 'connected-host-readiness' });
+
+      expect(hostItem.setupItemId).toBe('connected-host-readiness');
+      expect(hostItem.status).toBe('blocked');
+      expect(hostItem.serviceProbe).toMatchObject({
+        status: 'unreachable',
+        enabled: true,
+        binding: '127.0.0.1:1',
+      });
+      expect(hostItem.serviceProbe?.diagnosticRoute).toContain('service_posture');
+      expect(hostItem.signals?.join('\n')).toContain('runtime connection probe: unreachable 127.0.0.1:1');
+      expect(hostItem.recommendedRepairCards).toContain('connected-host-status');
+      expect(hostItem.recommendedRepairCards).toContain('service-posture');
+      expect(hostItem.recommendedRepairCards).toContain('service-status');
+      expect(hostItem.recommendedRepairCards).not.toContain('service-install');
+      expect(hostItem.recommendedRepairCards).not.toContain('service-start');
+      expect(hostItem.recommendedRepairCards).not.toContain('service-restart');
+      expect(hostItem.bootstrapPlan?.status).toBe('recommended');
+      expect(hostItem.bootstrapPlan?.recommendedWhen).toContain('runtime connection is enabled but unreachable');
+
+      const start = hostItem.repairCards?.find((card) => card.id === 'service-start');
+      const install = hostItem.repairCards?.find((card) => card.id === 'service-install');
+      const restart = hostItem.repairCards?.find((card) => card.id === 'service-restart');
+      expect(start?.state).toBe('available');
+      expect(start?.recommendation).toBe('inspect-first');
+      expect(start?.liveEvidence?.probeStatus).toBe('unreachable');
+      expect(start?.liveEvidence?.summary).toContain('service status');
+      expect(install?.recommendation).toBe('inspect-first');
+      expect(restart?.recommendation).toBe('inspect-first');
     } finally {
       fixture.cleanup();
     }

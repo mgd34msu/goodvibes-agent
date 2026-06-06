@@ -9,6 +9,7 @@ import type { BrowserControlPosture } from './agent-harness-browser-control.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
 import { localModelCookbook } from './agent-harness-model-routing.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
+import { buildCliServicePosture, type CliServicePosture } from '../cli/service-posture.ts';
 
 export interface AgentHarnessSetupArgs {
   readonly setupItemId?: unknown;
@@ -32,6 +33,8 @@ interface SurfaceRegistryLike {
 type SetupPlanStatus = 'ready' | 'blocked' | 'recommended' | 'optional' | 'check';
 type SetupRepairCardState = 'available' | 'requires-live-host' | 'missing';
 type SetupRepairCardEffect = 'read-only' | 'confirmed-effect';
+type SetupRepairRecommendation = 'recommended' | 'inspect-first' | 'not-needed' | 'unavailable';
+type SetupServiceProbeStatus = 'reachable' | 'unreachable' | 'not-enabled' | 'not-probed';
 
 interface OperatorContractMethod {
   readonly id: string;
@@ -51,6 +54,7 @@ interface SetupPlanItem {
   readonly signals?: readonly string[];
   readonly repairCards?: readonly SetupRepairCard[];
   readonly bootstrapPlan?: SetupBootstrapPlan;
+  readonly serviceProbe?: SetupServiceProbe;
   readonly localModelReadiness?: Record<string, unknown>;
 }
 
@@ -63,8 +67,25 @@ interface SetupRepairCard {
   readonly modelRoute?: string;
   readonly userRoute: string;
   readonly prerequisite?: string;
+  readonly recommendation: SetupRepairRecommendation;
+  readonly liveEvidence?: SetupRepairLiveEvidence;
   readonly recommendedWhen: string;
   readonly safety: string;
+}
+
+interface SetupRepairLiveEvidence {
+  readonly probeStatus: SetupServiceProbeStatus;
+  readonly summary: string;
+}
+
+interface SetupServiceProbe {
+  readonly status: SetupServiceProbeStatus;
+  readonly endpointId: string;
+  readonly label: string;
+  readonly enabled: boolean;
+  readonly binding: string;
+  readonly diagnosticRoute: string;
+  readonly issues: readonly string[];
 }
 
 interface SetupBootstrapStep {
@@ -122,6 +143,26 @@ function surfaceRegistry(context: CommandContext): SurfaceRegistryLike | undefin
     return candidate as SurfaceRegistryLike;
   }
   return undefined;
+}
+
+function setupServiceRuntime(context: CommandContext) {
+  const shellPaths = requireShellPaths(context);
+  return {
+    configManager: requirePlatform(context).configManager,
+    workingDirectory: shellPaths.workingDirectory,
+    homeDirectory: shellPaths.homeDirectory,
+  };
+}
+
+async function collectServicePosture(context: CommandContext): Promise<CliServicePosture | null> {
+  try {
+    return await buildCliServicePosture(setupServiceRuntime(context), {
+      probe: true,
+      logTailBytes: 0,
+    });
+  } catch {
+    return null;
+  }
 }
 
 async function collectSnapshot(context: CommandContext) {
@@ -190,9 +231,13 @@ function planSearchText(item: SetupPlanItem): string {
       card.methodId ?? '',
       card.modelRoute ?? '',
       card.prerequisite ?? '',
+      card.recommendation,
+      card.liveEvidence?.probeStatus ?? '',
+      card.liveEvidence?.summary ?? '',
       card.recommendedWhen,
       card.safety,
     ].join(' ')).join('\n') ?? '',
+    JSON.stringify(item.serviceProbe ?? {}),
   ].join('\n').toLowerCase();
 }
 
@@ -232,8 +277,59 @@ function setupPlanStatusForCapability(
   return item.selected ? 'ready' : fallback;
 }
 
-function hostSetupStatus(snapshot: Awaited<ReturnType<typeof collectSnapshot>>): SetupPlanStatus {
-  return snapshot.collectionIssues.some((issue) => issue.area === 'host') ? 'blocked' : 'check';
+function connectedHostServiceProbe(posture: CliServicePosture | null): SetupServiceProbe {
+  const endpoint = posture?.endpoints.find((candidate) => candidate.id === 'controlPlane');
+  if (!posture || !endpoint) {
+    return {
+      status: 'not-probed',
+      endpointId: 'controlPlane',
+      label: 'runtime connection',
+      enabled: false,
+      binding: '(unavailable)',
+      diagnosticRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      issues: ['Service posture probe is unavailable in this runtime.'],
+    };
+  }
+  const binding = `${endpoint.binding.host}:${endpoint.binding.port}`;
+  const status: SetupServiceProbeStatus = !endpoint.enabled
+    ? 'not-enabled'
+    : endpoint.reachable === true
+      ? 'reachable'
+      : endpoint.reachable === false
+        ? 'unreachable'
+        : 'not-probed';
+  return {
+    status,
+    endpointId: endpoint.id,
+    label: endpoint.label,
+    enabled: endpoint.enabled,
+    binding,
+    diagnosticRoute: 'agent_harness mode:"service_posture" endpointId:"controlPlane" includeParameters:true',
+    issues: posture.issues,
+  };
+}
+
+function serviceProbeSignal(probe: SetupServiceProbe): string {
+  return `runtime connection probe: ${probe.status} ${probe.binding}`;
+}
+
+function repairLiveEvidence(probe: SetupServiceProbe, summary: string): SetupRepairLiveEvidence {
+  return {
+    probeStatus: probe.status,
+    summary,
+  };
+}
+
+function lifecycleRepairRecommendation(probe: SetupServiceProbe): SetupRepairRecommendation {
+  if (probe.status === 'reachable') return 'not-needed';
+  if (probe.status === 'unreachable') return 'inspect-first';
+  return 'inspect-first';
+}
+
+function hostSetupStatus(snapshot: Awaited<ReturnType<typeof collectSnapshot>>, probe: SetupServiceProbe): SetupPlanStatus {
+  if (snapshot.collectionIssues.some((issue) => issue.area === 'host')) return 'blocked';
+  if (probe.status === 'unreachable') return 'blocked';
+  return 'check';
 }
 
 function browserControlSignals(posture: BrowserControlPosture): readonly string[] {
@@ -350,6 +446,8 @@ function setupRepairCard(
     readonly effect: SetupRepairCardEffect;
     readonly userRoute: string;
     readonly prerequisite?: string;
+    readonly recommendation?: SetupRepairRecommendation;
+    readonly liveEvidence?: SetupRepairLiveEvidence;
     readonly recommendedWhen: string;
     readonly safety: string;
     readonly liveHostRequired?: boolean;
@@ -370,17 +468,33 @@ function setupRepairCard(
     ...(options.methodId && methodPresent ? { modelRoute: operatorMethodRoute(options.methodId, options.effect === 'confirmed-effect') } : {}),
     userRoute: options.userRoute,
     ...(options.prerequisite ? { prerequisite: options.prerequisite } : {}),
+    recommendation: !methodPresent || state === 'requires-live-host' ? 'unavailable' : options.recommendation ?? 'inspect-first',
+    ...(options.liveEvidence ? { liveEvidence: options.liveEvidence } : {}),
     recommendedWhen: options.recommendedWhen,
     safety: options.safety,
   };
 }
 
-function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSnapshot>>): readonly SetupRepairCard[] {
+function connectedHostRepairCards(
+  snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
+  probe: SetupServiceProbe,
+): readonly SetupRepairCard[] {
   const methodIds = operatorMethodIds();
   const hostIssue = snapshot.collectionIssues.some((issue) => issue.area === 'host');
   const liveHostPrerequisite = hostIssue
     ? 'Run connected-host status first; confirmed service methods require a reachable compatible operator endpoint and usable token.'
     : 'Requires a reachable compatible operator endpoint and usable token.';
+  const statusRecommendation: SetupRepairRecommendation = probe.status === 'unreachable'
+    ? 'recommended'
+    : probe.status === 'reachable'
+      ? 'not-needed'
+      : 'inspect-first';
+  const postureRecommendation: SetupRepairRecommendation = probe.status === 'unreachable' || probe.issues.length > 0
+    ? 'recommended'
+    : probe.status === 'reachable'
+      ? 'not-needed'
+      : 'inspect-first';
+  const lifecycleRecommendation = lifecycleRepairRecommendation(probe);
   return [
     {
       id: 'connected-host-status',
@@ -389,6 +503,12 @@ function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSna
       effect: 'read-only',
       modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
       userRoute: 'Agent Workspace -> Home -> Host compatibility',
+      recommendation: statusRecommendation,
+      liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
+        ? 'Runtime endpoint is reachable; use connected-host status when token, compatibility, or Knowledge readiness still needs review.'
+        : probe.status === 'unreachable'
+          ? 'Runtime endpoint is enabled but not reachable; inspect connected-host status and service posture before any lifecycle mutation.'
+          : 'Runtime endpoint reachability is not proven; inspect connected-host status before lifecycle mutation.'),
       recommendedWhen: 'Use first for every host setup or repair question.',
       safety: 'Read-only diagnostic; returns redacted token posture and route readiness.',
     },
@@ -399,6 +519,12 @@ function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSna
       effect: 'read-only',
       modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
       userRoute: 'Agent Workspace -> Home -> Doctor diagnostics',
+      recommendation: postureRecommendation,
+      liveEvidence: repairLiveEvidence(probe, probe.issues.length > 0
+        ? `Service posture reports ${probe.issues.length} issue(s); inspect endpoint binding, reachability, and logs before mutation.`
+        : probe.status === 'reachable'
+          ? 'Runtime endpoint is reachable and service posture has no current probe issue.'
+          : 'Inspect endpoint binding, reachability, and logs before choosing a lifecycle action.'),
       recommendedWhen: 'Use when endpoints, bind addresses, ports, logs, or listener exposure may be the blocker.',
       safety: 'Read-only diagnostic; probes endpoints only when requested with includeParameters.',
     },
@@ -409,6 +535,10 @@ function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSna
       effect: 'read-only',
       userRoute: 'Agent Workspace -> Home -> Host compatibility',
       prerequisite: liveHostPrerequisite,
+      recommendation: statusRecommendation,
+      liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
+        ? 'Runtime endpoint is reachable; service status is optional unless the user is auditing install/autostart posture.'
+        : 'Read service status before deciding whether install, start, or restart is actually needed.'),
       recommendedWhen: 'Use when the daemon is reachable and the user needs install/autostart/running posture.',
       safety: 'Read-only daemon method.',
       liveHostRequired: hostIssue,
@@ -420,6 +550,10 @@ function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSna
       effect: 'confirmed-effect',
       userRoute: 'Connected-host service control',
       prerequisite: liveHostPrerequisite,
+      recommendation: lifecycleRecommendation,
+      liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
+        ? 'Runtime endpoint is already reachable; install is not recommended without service status evidence.'
+        : 'Install is not recommended from endpoint reachability alone; require service status to prove the service is not installed.'),
       recommendedWhen: 'Use only when service status says the platform service is not installed and the user explicitly asks to install it.',
       safety: 'Confirmed service mutation; no uninstall or stop action is included in first-run setup.',
       liveHostRequired: hostIssue,
@@ -431,6 +565,10 @@ function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSna
       effect: 'confirmed-effect',
       userRoute: 'Connected-host service control',
       prerequisite: liveHostPrerequisite,
+      recommendation: lifecycleRecommendation,
+      liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
+        ? 'Runtime endpoint is already reachable; start is not recommended without service status evidence.'
+        : 'Start is not recommended from endpoint reachability alone; require service status to prove the service is installed but stopped.'),
       recommendedWhen: 'Use only when service status says the service is installed but not running and the user explicitly asks to start it.',
       safety: 'Confirmed service mutation.',
       liveHostRequired: hostIssue,
@@ -442,6 +580,10 @@ function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSna
       effect: 'confirmed-effect',
       userRoute: 'Connected-host service control',
       prerequisite: liveHostPrerequisite,
+      recommendation: lifecycleRecommendation,
+      liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
+        ? 'Runtime endpoint is reachable; restart is not recommended unless diagnostics prove the host is unhealthy or incompatible.'
+        : 'Restart is not recommended from endpoint reachability alone; require diagnostics or service status to prove a running unhealthy service.'),
       recommendedWhen: 'Use only when the service is running but unhealthy or incompatible and the user explicitly asks to restart it.',
       safety: 'Confirmed service mutation; use diagnostics first to avoid disrupting a healthy host.',
       liveHostRequired: hostIssue,
@@ -449,13 +591,19 @@ function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSna
   ];
 }
 
-function connectedHostBootstrapPlan(snapshot: Awaited<ReturnType<typeof collectSnapshot>>): SetupBootstrapPlan {
+function connectedHostBootstrapPlan(
+  snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
+  probe: SetupServiceProbe,
+): SetupBootstrapPlan {
   const hostIssue = snapshot.collectionIssues.some((issue) => issue.area === 'host');
+  const probeIssue = probe.status === 'unreachable';
   return {
-    status: hostIssue ? 'recommended' : 'optional',
+    status: hostIssue || probeIssue ? 'recommended' : 'optional',
     source: 'goodvibes-tui README, package.json, and bin launchers from the connected-host checkout',
     recommendedWhen: hostIssue
       ? 'Use when Agent cannot reach a compatible connected host, so operator service methods cannot be trusted yet.'
+      : probeIssue
+        ? 'Use when the configured runtime connection is enabled but unreachable, before confirmed service methods have proven an install/start fix.'
       : 'Use only when the user is setting up a new GoodVibes host or wants to verify the owning host install.',
     steps: [
       {
@@ -526,6 +674,7 @@ function buildSetupPlan(
   context: CommandContext,
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
   capabilities: readonly OnboardingStep1CapabilityItem[],
+  servicePosture: CliServicePosture | null,
 ): readonly SetupPlanItem[] {
   const providerAccess = capabilityById(capabilities, 'provider-access');
   const agentKnowledge = capabilityById(capabilities, 'agent-knowledge');
@@ -539,12 +688,13 @@ function buildSetupPlan(
   const settingsImportChanges = settingsImportChangeCount(settingsImport);
   const localModels = localModelCookbook(context, true);
   const localModelReadiness = localModelSetupReadiness(localModels);
+  const serviceProbe = connectedHostServiceProbe(servicePosture);
 
   const plan: SetupPlanItem[] = [
     {
       id: 'connected-host-readiness',
       label: 'Connected host readiness',
-      status: hostSetupStatus(snapshot),
+      status: hostSetupStatus(snapshot, serviceProbe),
       priority: 10,
       blocksAutonomy: true,
       reason: 'Daemon-backed automation, Agent Knowledge, channels, and companion routes need a reachable compatible GoodVibes host.',
@@ -552,9 +702,14 @@ function buildSetupPlan(
       userRoute: 'Agent Workspace -> Home -> Host compatibility',
       modelRoute: 'agent_harness mode:"connected_host_status"',
       relatedSetupItemId: 'operator-terminal',
-      signals: snapshot.collectionIssues.filter((issue) => issue.area === 'host').map((issue) => issue.message),
-      repairCards: connectedHostRepairCards(snapshot),
-      bootstrapPlan: connectedHostBootstrapPlan(snapshot),
+      signals: [
+        serviceProbeSignal(serviceProbe),
+        ...serviceProbe.issues.slice(0, 3),
+        ...snapshot.collectionIssues.filter((issue) => issue.area === 'host').map((issue) => issue.message),
+      ],
+      repairCards: connectedHostRepairCards(snapshot, serviceProbe),
+      bootstrapPlan: connectedHostBootstrapPlan(snapshot, serviceProbe),
+      serviceProbe,
     },
     {
       id: 'goodvibes-settings-import',
@@ -699,10 +854,15 @@ function describeRepairCard(card: SetupRepairCard): Record<string, unknown> {
     label: card.label,
     state: card.state,
     effect: card.effect,
+    recommendation: card.recommendation,
     ...(card.methodId ? { methodId: card.methodId } : {}),
     ...(card.modelRoute ? { modelRoute: card.modelRoute } : {}),
     userRoute: card.userRoute,
     ...(card.prerequisite ? { prerequisite: previewHarnessText(card.prerequisite, 140) } : {}),
+    ...(card.liveEvidence ? { liveEvidence: {
+      probeStatus: card.liveEvidence.probeStatus,
+      summary: previewHarnessText(card.liveEvidence.summary, 160),
+    } } : {}),
     recommendedWhen: previewHarnessText(card.recommendedWhen, 160),
     safety: previewHarnessText(card.safety, 160),
   };
@@ -711,6 +871,9 @@ function describeRepairCard(card: SetupRepairCard): Record<string, unknown> {
 function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Record<string, unknown> {
   const availableRepairCards = item.repairCards
     ?.filter((card) => card.state === 'available')
+    .map((card) => card.id);
+  const recommendedRepairCards = item.repairCards
+    ?.filter((card) => card.state === 'available' && card.recommendation === 'recommended')
     .map((card) => card.id);
   return {
     setupItemId: item.id,
@@ -725,7 +888,9 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(item.relatedSetupItemId ? { relatedSetupItemId: item.relatedSetupItemId } : {}),
     ...(item.signals && item.signals.length > 0 ? { signals: item.signals.slice(0, includeParameters ? 10 : 3) } : {}),
     ...(availableRepairCards && availableRepairCards.length > 0 ? { availableRepairCards } : {}),
+    ...(recommendedRepairCards && recommendedRepairCards.length > 0 ? { recommendedRepairCards } : {}),
     ...(item.bootstrapPlan ? { bootstrapRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"' } : {}),
+    ...(includeParameters && item.serviceProbe ? { serviceProbe: item.serviceProbe } : {}),
     ...(includeParameters && item.localModelReadiness ? { localModelReadiness: item.localModelReadiness } : {}),
     ...(includeParameters && item.repairCards && item.repairCards.length > 0 ? { repairCards: item.repairCards.map(describeRepairCard) } : {}),
     ...(includeParameters && item.bootstrapPlan ? { bootstrapPlan: item.bootstrapPlan } : {}),
@@ -868,7 +1033,8 @@ function describeCandidate(item: OnboardingStep1CapabilityItem): Record<string, 
 
 export async function setupPostureCatalogStatus(context: CommandContext): Promise<Record<string, unknown>> {
   const snapshot = await collectSnapshot(context);
-  const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot));
+  const servicePosture = await collectServicePosture(context);
+  const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot), servicePosture);
   return {
     modes: ['setup_posture', 'setup_item'],
     capabilities: deriveStep1Capabilities(snapshot).length,
@@ -883,10 +1049,11 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
 
 export async function setupPostureSummary(context: CommandContext, args: AgentHarnessSetupArgs): Promise<Record<string, unknown>> {
   const snapshot = await collectSnapshot(context);
+  const servicePosture = await collectServicePosture(context);
   const query = readString(args.query).toLowerCase();
   const includeParameters = args.includeParameters === true;
   const all = deriveStep1Capabilities(snapshot);
-  const plan = buildSetupPlan(context, snapshot, all);
+  const plan = buildSetupPlan(context, snapshot, all, servicePosture);
   const filtered = all
     .filter((item) => !query || itemSearchText(item).includes(query))
     .slice(0, readLimit(args.limit, 100));
@@ -951,8 +1118,9 @@ export async function describeHarnessSetupItem(context: CommandContext, args: Ag
     };
   }
   const snapshot = await collectSnapshot(context);
+  const servicePosture = await collectServicePosture(context);
   const items = deriveStep1Capabilities(snapshot);
-  const plan = buildSetupPlan(context, snapshot, items);
+  const plan = buildSetupPlan(context, snapshot, items, servicePosture);
   const normalized = lookup.input.toLowerCase();
   const exact = items.find((item) => item.id === lookup.input);
   if (exact) return { status: 'found', item: describeItem(exact, snapshot, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'id' } }) };
