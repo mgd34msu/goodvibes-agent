@@ -173,6 +173,7 @@ function localActionRouteHint(action: AgentWorkspaceAction): string {
 }
 
 function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
+  if (action.kind === 'settings-import') return 'agent_harness mode:"run_workspace_action"';
   if (action.id === 'account-local-model-cookbook') return 'agent_harness mode:"model_routing" query:"local"';
   if (action.id === 'research-run-queue') return 'agent_harness mode:"research_runs"';
   if (action.id === 'research-source-queue') return 'agent_harness mode:"research_queue"';
@@ -248,6 +249,15 @@ export function describeWorkspaceAction(
     ...(action.localOperation ? { localOperation: action.localOperation } : {}),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(editor ? { editor: describeWorkspaceEditor(editor) } : {}),
+    ...(action.kind === 'settings-import' ? {
+      modelExecution: {
+        route: 'settings-import',
+        dispatcher: 'run_workspace_action',
+        confirmation: 'required',
+        preview: 'available-without-confirmation',
+        note: 'Copies only Agent-owned GoodVibes TUI settings and provider subscription state after explicit user confirmation.',
+      },
+    } : {}),
     ...(action.kind === 'local-selection' || action.kind === 'local-operation' ? {
       modelExecution: describeLocalWorkspaceModelExecution(action),
     } : {}),

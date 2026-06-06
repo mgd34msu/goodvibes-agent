@@ -56,6 +56,68 @@ export interface TuiSettingsImportOutcome extends SettingMutationOutcome {
   readonly runtimeSnapshot: AgentWorkspaceRuntimeSnapshot | null;
 }
 
+type TuiImportStatus = 'would_import' | 'unchanged' | 'skipped';
+
+interface TuiSettingsImportSource {
+  readonly label: string;
+  readonly path: string;
+  readonly status: 'missing' | 'loaded' | 'invalid' | 'error';
+  readonly importableSettings: number;
+  readonly error?: string;
+}
+
+interface TuiSettingImportPlanEntry {
+  readonly key: string;
+  readonly source: string;
+  readonly value: unknown;
+  readonly status: TuiImportStatus;
+  readonly current: unknown;
+  readonly incoming: unknown;
+  readonly reason?: string;
+}
+
+interface TuiSubscriptionImportPlanEntry {
+  readonly provider?: string;
+  readonly kind: 'active' | 'pending';
+  readonly status: TuiImportStatus;
+  readonly reason?: string;
+}
+
+interface TuiSettingsImportPlan {
+  readonly sources: readonly TuiSettingsImportSource[];
+  readonly settings: readonly TuiSettingImportPlanEntry[];
+  readonly subscriptions: readonly TuiSubscriptionImportPlanEntry[];
+  readonly parseErrors: readonly string[];
+}
+
+export interface TuiSettingsImportPreview {
+  readonly summary: {
+    readonly settingsToImport: number;
+    readonly settingsUnchanged: number;
+    readonly settingsSkipped: number;
+    readonly activeSubscriptionsToImport: number;
+    readonly pendingSubscriptionsToImport: number;
+    readonly subscriptionsUnchanged: number;
+    readonly subscriptionsSkipped: number;
+    readonly parseErrors: number;
+  };
+  readonly sources: readonly TuiSettingsImportSource[];
+  readonly settings: readonly {
+    readonly key: string;
+    readonly source: string;
+    readonly status: TuiImportStatus;
+    readonly current: unknown;
+    readonly incoming: unknown;
+    readonly reason?: string;
+  }[];
+  readonly subscriptions: readonly TuiSubscriptionImportPlanEntry[];
+  readonly policy: {
+    readonly effect: 'read-only' | 'state';
+    readonly confirmation: 'required-for-apply';
+    readonly boundary: string;
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -84,6 +146,15 @@ function valuesMatch(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function redactImportValue(key: string, value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  if (!value) return value;
+  if (/(?:secret|token|password|api[-_.]?key|signing)/i.test(key)) {
+    return value.startsWith('goodvibes://secrets/') ? '<secret-ref>' : '<redacted>';
+  }
+  return value;
+}
+
 function readRecordMap(record: Record<string, unknown>, key: string): readonly unknown[] {
   const value = record[key];
   return isRecord(value) ? Object.values(value) : [];
@@ -109,7 +180,45 @@ function isPendingSubscriptionLogin(value: unknown): value is PendingSubscriptio
     && typeof value.createdAt === 'number';
 }
 
-function importTuiSubscriptions(context: CommandContext, parseErrors: string[]): {
+function planTuiSubscriptions(context: CommandContext, parseErrors: string[]): readonly TuiSubscriptionImportPlanEntry[] {
+  const shellPaths = context.workspace.shellPaths;
+  const manager = context.platform.subscriptionManager;
+  const result: TuiSubscriptionImportPlanEntry[] = [];
+  if (!shellPaths || !manager) return result;
+
+  const sourcePath = shellPaths.resolveUserPath(GOODVIBES_TUI_SURFACE_ROOT, 'subscriptions.json');
+  try {
+    const store = readJsonRecord(sourcePath);
+    if (!store) return result;
+    for (const entry of readRecordMap(store, 'subscriptions')) {
+      if (!isProviderSubscription(entry)) {
+        result.push({ kind: 'active', status: 'skipped', reason: 'active subscription with invalid shape' });
+        continue;
+      }
+      if (valuesMatch(manager.get(entry.provider), entry)) {
+        result.push({ provider: entry.provider, kind: 'active', status: 'unchanged' });
+        continue;
+      }
+      result.push({ provider: entry.provider, kind: 'active', status: 'would_import' });
+    }
+    for (const entry of readRecordMap(store, 'pending')) {
+      if (!isPendingSubscriptionLogin(entry)) {
+        result.push({ kind: 'pending', status: 'skipped', reason: 'pending subscription with invalid shape' });
+        continue;
+      }
+      if (valuesMatch(manager.getPending(entry.provider), entry)) {
+        result.push({ provider: entry.provider, kind: 'pending', status: 'unchanged' });
+        continue;
+      }
+      result.push({ provider: entry.provider, kind: 'pending', status: 'would_import' });
+    }
+  } catch (error) {
+    parseErrors.push(`subscriptions: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return result;
+}
+
+function applyTuiSubscriptions(context: CommandContext, parseErrors: string[]): {
   readonly importedActive: string[];
   readonly importedPending: string[];
   readonly unchangedActive: string[];
@@ -275,6 +384,98 @@ export async function applyAgentWorkspaceSettingValue(
   }
 }
 
+function buildTuiSettingsImportPlan(context: CommandContext | null): TuiSettingsImportPlan | null {
+  const shellPaths = context?.workspace?.shellPaths;
+  const configManager = context?.platform?.configManager;
+  if (!context || !shellPaths || !configManager) return null;
+
+  const sourceInputs = [
+    { label: 'user', path: shellPaths.resolveUserPath(GOODVIBES_TUI_SURFACE_ROOT, 'settings.json') },
+    { label: 'project', path: shellPaths.resolveProjectPath(GOODVIBES_TUI_SURFACE_ROOT, 'settings.json') },
+  ];
+  const values = new Map<string, { readonly value: unknown; readonly source: string }>();
+  const parseErrors: string[] = [];
+  const sources: TuiSettingsImportSource[] = [];
+  for (const source of sourceInputs) {
+    if (!existsSync(source.path)) {
+      sources.push({ ...source, status: 'missing', importableSettings: 0 });
+      continue;
+    }
+    try {
+      const record = readJsonRecord(source.path);
+      if (!record) {
+        const message = `${source.label}: settings store is not an object`;
+        parseErrors.push(message);
+        sources.push({ ...source, status: 'invalid', importableSettings: 0, error: message });
+        continue;
+      }
+      let importableSettings = 0;
+      for (const setting of configManager.getSchema()) {
+        if (!canImportTuiSetting(setting.key)) continue;
+        const value = readNestedSettingValue(record, setting.key);
+        if (value === undefined) continue;
+        importableSettings += 1;
+        values.set(setting.key, { value, source: source.label });
+      }
+      sources.push({ ...source, status: 'loaded', importableSettings });
+    } catch (error) {
+      const message = `${source.label}: ${error instanceof Error ? error.message : String(error)}`;
+      parseErrors.push(message);
+      sources.push({ ...source, status: 'error', importableSettings: 0, error: message });
+    }
+  }
+
+  const settings: TuiSettingImportPlanEntry[] = [];
+  for (const [key, entry] of values) {
+    const setting = agentWorkspaceSettingSchema(context, key);
+    if (!setting) continue;
+    const current = configManager.get(setting.key as ConfigKey);
+    const status: TuiImportStatus = valuesMatch(current, entry.value) ? 'unchanged' : 'would_import';
+    settings.push({
+      key: setting.key,
+      source: entry.source,
+      value: entry.value,
+      status,
+      current: redactImportValue(setting.key, current),
+      incoming: redactImportValue(setting.key, entry.value),
+    });
+  }
+  const subscriptions = planTuiSubscriptions(context, parseErrors);
+  return { sources, settings, subscriptions, parseErrors };
+}
+
+export function previewAgentWorkspaceTuiSettingsImport(context: CommandContext | null): TuiSettingsImportPreview | null {
+  const plan = buildTuiSettingsImportPlan(context);
+  if (!plan) return null;
+  return {
+    summary: {
+      settingsToImport: plan.settings.filter((entry) => entry.status === 'would_import').length,
+      settingsUnchanged: plan.settings.filter((entry) => entry.status === 'unchanged').length,
+      settingsSkipped: plan.settings.filter((entry) => entry.status === 'skipped').length,
+      activeSubscriptionsToImport: plan.subscriptions.filter((entry) => entry.kind === 'active' && entry.status === 'would_import').length,
+      pendingSubscriptionsToImport: plan.subscriptions.filter((entry) => entry.kind === 'pending' && entry.status === 'would_import').length,
+      subscriptionsUnchanged: plan.subscriptions.filter((entry) => entry.status === 'unchanged').length,
+      subscriptionsSkipped: plan.subscriptions.filter((entry) => entry.status === 'skipped').length,
+      parseErrors: plan.parseErrors.length,
+    },
+    sources: plan.sources,
+    settings: plan.settings.map((entry) => ({
+      key: entry.key,
+      source: entry.source,
+      status: entry.status,
+      current: entry.current,
+      incoming: entry.incoming,
+      ...(entry.reason ? { reason: entry.reason } : {}),
+    })),
+    subscriptions: plan.subscriptions,
+    policy: {
+      effect: 'read-only',
+      confirmation: 'required-for-apply',
+      boundary: 'Preview does not mutate state. Apply copies only Agent-owned settings and provider subscriptions from GoodVibes TUI state.',
+    },
+  };
+}
+
 export async function importAgentWorkspaceTuiSettings(context: CommandContext | null): Promise<TuiSettingsImportOutcome> {
   const shellPaths = context?.workspace?.shellPaths;
   const configManager = context?.platform?.configManager;
@@ -291,30 +492,15 @@ export async function importAgentWorkspaceTuiSettings(context: CommandContext | 
     };
   }
 
-  const sources = [
-    { label: 'user', path: shellPaths.resolveUserPath(GOODVIBES_TUI_SURFACE_ROOT, 'settings.json') },
-    { label: 'project', path: shellPaths.resolveProjectPath(GOODVIBES_TUI_SURFACE_ROOT, 'settings.json') },
-  ];
-  const values = new Map<string, { readonly value: unknown; readonly source: string }>();
-  const parseErrors: string[] = [];
-  for (const source of sources) {
-    try {
-      const record = readJsonRecord(source.path);
-      if (!record) continue;
-      for (const setting of configManager.getSchema()) {
-        if (!canImportTuiSetting(setting.key)) continue;
-        const value = readNestedSettingValue(record, setting.key);
-        if (value !== undefined) values.set(setting.key, { value, source: source.label });
-      }
-    } catch (error) {
-      parseErrors.push(`${source.label}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-  const subscriptions = importTuiSubscriptions(context, parseErrors);
+  const plan = buildTuiSettingsImportPlan(context);
+  const values = plan?.settings ?? [];
+  const subscriptionParseErrors: string[] = [];
+  const subscriptions = applyTuiSubscriptions(context, subscriptionParseErrors);
+  const parseErrors: string[] = [...new Set([...(plan?.parseErrors ?? []), ...subscriptionParseErrors])];
   const subscriptionImports = subscriptions.importedActive.length + subscriptions.importedPending.length;
   const subscriptionUnchanged = subscriptions.unchangedActive.length + subscriptions.unchangedPending.length;
 
-  if (values.size === 0 && subscriptionImports === 0 && subscriptionUnchanged === 0 && subscriptions.skipped.length === 0) {
+  if (values.length === 0 && subscriptionImports === 0 && subscriptionUnchanged === 0 && subscriptions.skipped.length === 0) {
     const detail = parseErrors.length > 0
       ? `No importable settings or subscriptions found. ${parseErrors.join('; ')}`
       : 'No GoodVibes TUI settings or subscription store with importable Agent-owned state was found.';
@@ -333,10 +519,10 @@ export async function importAgentWorkspaceTuiSettings(context: CommandContext | 
   const imported: string[] = [];
   const unchanged: string[] = [];
   const skipped: string[] = [];
-  for (const [key, entry] of values) {
-    const setting = agentWorkspaceSettingSchema(context, key);
+  for (const entry of values) {
+    const setting = agentWorkspaceSettingSchema(context, entry.key);
     if (!setting) continue;
-    if (valuesMatch(configManager.get(setting.key as ConfigKey), entry.value)) {
+    if (entry.status === 'unchanged' || valuesMatch(configManager.get(setting.key as ConfigKey), entry.value)) {
       unchanged.push(setting.key);
       continue;
     }

@@ -40,7 +40,7 @@ Use the interactive workspace first. CLI subcommands are secondary support paths
 
 Primary first-run areas:
 
-- Setup: prioritized first-run plan, provider/model, hardware-scored local model cookbook, connected-host compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
+- Setup: prioritized first-run plan, GoodVibes settings import preview/apply, provider/model, hardware-scored local model cookbook, connected-host compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Home: normal chat, operator briefing, model selection, and health.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
 - Research: read-only web research and URL inspection, project-local visible research runs with log tails, source queue, credibility review, reviewed-source bundles, plus confirmed sourced markdown report artifacts with source maps, citation coverage checks, and repair hints.
@@ -73,6 +73,7 @@ Common model routes:
 | Workspace actions | `agent_harness mode:"workspace_actions"`, `mode:"workspace_action"`, `mode:"run_workspace_action"` |
 | Slash commands | `agent_harness mode:"commands"`, `mode:"command"`, `mode:"run_command"` |
 | Settings | `agent_harness mode:"settings"`, `mode:"get_setting"`, `mode:"set_setting"`, `mode:"reset_setting"` |
+| GoodVibes settings import | `agent_harness mode:"run_workspace_action" actionId:"import-goodvibes-tui-settings"` |
 | Visible UI | `agent_harness mode:"panels"`, `mode:"ui_surfaces"`, `mode:"open_panel"`, `mode:"open_ui_surface"` |
 | Keybindings | `agent_harness mode:"shortcuts"`, `mode:"keybindings"`, `mode:"keybinding"`, `mode:"run_keybinding"`, `mode:"set_keybinding"` |
 | Tool contracts | `agent_harness mode:"tools"`, `mode:"tool"` |
@@ -114,7 +115,7 @@ goodvibes-agent profiles templates export research ./research-starter.json --yes
 goodvibes-agent profiles templates import ./research-starter.json --yes
 ```
 
-Named profiles isolate Agent-local config, sessions, memory, notes, personas, skills, routines, and setup state. GoodVibes settings import can bring over existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings.
+Named profiles isolate Agent-local config, sessions, memory, notes, personas, skills, routines, and setup state. GoodVibes settings import can bring over existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings. The workspace action and model route both preview changed counts first, redact secret values, and require confirmation before applying Agent-owned settings or provider subscriptions.
 
 ## Local Behavior
 

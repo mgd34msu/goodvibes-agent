@@ -4061,6 +4061,56 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('previews and applies GoodVibes settings import through workspace action route', async () => {
+    const fixture = makeFixture();
+    try {
+      const nextSaveHistory = !Boolean(fixture.configManager.get('behavior.saveHistory'));
+      mkdirSync(fixture.paths.resolveUserPath('tui'), { recursive: true });
+      writeFileSync(fixture.paths.resolveUserPath('tui', 'settings.json'), JSON.stringify({
+        behavior: { saveHistory: nextSaveHistory },
+        surfaces: {
+          slack: { botToken: 'xoxb-import-secret' },
+        },
+      }, null, 2));
+
+      const preview = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'import-goodvibes-tui-settings',
+      });
+      expect(preview.success).toBe(true);
+      expect(preview.output).toContain('"status": "confirmation_required"');
+      expect(preview.output).toContain('"settingsToImport": 2');
+      expect(preview.output).toContain('<redacted>');
+      expect(preview.output).not.toContain('xoxb-import-secret');
+      expect(fixture.configManager.get('behavior.saveHistory')).toBe(!nextSaveHistory);
+
+      const missingUserRequest = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'import-goodvibes-tui-settings',
+        confirm: true,
+      });
+      expect(missingUserRequest.success).toBe(false);
+      expect(missingUserRequest.error).toContain('explicitUserRequest');
+
+      const applied = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'import-goodvibes-tui-settings',
+        confirm: true,
+        explicitUserRequest: 'Import my existing GoodVibes settings into Agent.',
+      });
+      expect(applied.success).toBe(true);
+      expect(applied.output).toContain('GoodVibes TUI settings imported');
+      expect(applied.output).not.toContain('xoxb-import-secret');
+      expect(fixture.configManager.get('behavior.saveHistory')).toBe(nextSaveHistory);
+      expect(fixture.configManager.get('surfaces.slack.botToken')).toBe(
+        buildGoodVibesSecretRef(buildGoodVibesSecretKey('surfaces.slack.botToken')),
+      );
+      expect(await fixture.secretsManager?.get(buildGoodVibesSecretKey('surfaces.slack.botToken'))).toBe('xoxb-import-secret');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('runs workspace actions by target and query without guessing ambiguous requests', async () => {
     const fixture = makeFixture();
     try {

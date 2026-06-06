@@ -8,6 +8,7 @@ import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToo
 import { buildAgentResearchReportToolArgs } from '../input/agent-workspace-research-report-editor.ts';
 import { buildAgentResearchRunToolArgs } from '../input/agent-workspace-research-run-editor.ts';
 import { buildAgentResearchSourceToolArgs } from '../input/agent-workspace-research-source-editor.ts';
+import { importAgentWorkspaceTuiSettings, previewAgentWorkspaceTuiSettingsImport } from '../input/agent-workspace-settings.ts';
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from '../input/agent-workspace-learned-behavior.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceLocalEditor } from '../input/agent-workspace-types.ts';
@@ -850,6 +851,36 @@ async function runWorkspaceAction(
       });
     }
     return runCommand(deps, { ...args, command: action.command });
+  }
+  if (action.kind === 'settings-import') {
+    const preview = previewAgentWorkspaceTuiSettingsImport(deps.commandContext);
+    if (!preview) return error('GoodVibes settings import is unavailable in this runtime.');
+    if (args.confirm !== true) {
+      return output({
+        status: 'confirmation_required',
+        action: describeWorkspaceAction(category, action, { lookup }),
+        preview,
+        next: 'Run with confirm:true and explicitUserRequest after the user asks to import these settings.',
+      });
+    }
+    const explicitUserRequest = readString(args.explicitUserRequest);
+    if (!explicitUserRequest) {
+      return error('GoodVibes settings import requires explicitUserRequest when confirm is true.');
+    }
+    const outcome = await importAgentWorkspaceTuiSettings(deps.commandContext);
+    return output({
+      status: outcome.status,
+      action: describeWorkspaceAction(category, action, { lookup }),
+      preview,
+      actionResult: outcome.result,
+      runtimeSnapshot: outcome.runtimeSnapshot,
+      policy: {
+        effect: 'state',
+        confirmation: 'confirmed',
+        explicitUserRequest,
+        boundary: 'Applied only Agent-owned settings and subscription state from GoodVibes TUI sources.',
+      },
+    });
   }
   if (action.kind === 'editor' && action.editorKind) {
     const editor = createWorkspaceEditor(action.editorKind, buildWorkspaceEditorContext(deps.commandContext, args));

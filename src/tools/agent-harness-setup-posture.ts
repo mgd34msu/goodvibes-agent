@@ -1,6 +1,7 @@
 import type { OnboardingStep1CapabilityItem, OnboardingSurfaceRecord } from '../runtime/onboarding/index.ts';
 import { collectOnboardingSnapshot, deriveStep1Capabilities, deriveStep1CapabilityFlags } from '../runtime/onboarding/index.ts';
 import type { CommandContext } from '../input/command-registry.ts';
+import { previewAgentWorkspaceTuiSettingsImport } from '../input/agent-workspace-settings.ts';
 import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
 import { requireLocalUserAuthManager, requirePlatform, requireProvider, requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from '../input/commands/runtime-services.ts';
 import type { BrowserControlPosture } from './agent-harness-browser-control.ts';
@@ -177,6 +178,24 @@ function browserControlSignals(posture: BrowserControlPosture): readonly string[
   return signals;
 }
 
+function settingsImportChangeCount(preview: ReturnType<typeof previewAgentWorkspaceTuiSettingsImport>): number {
+  if (!preview) return 0;
+  return preview.summary.settingsToImport
+    + preview.summary.activeSubscriptionsToImport
+    + preview.summary.pendingSubscriptionsToImport;
+}
+
+function settingsImportSignals(preview: ReturnType<typeof previewAgentWorkspaceTuiSettingsImport>): readonly string[] {
+  if (!preview) return ['Import preview unavailable in this runtime.'];
+  return [
+    `settings to import: ${preview.summary.settingsToImport}`,
+    `active subscriptions to import: ${preview.summary.activeSubscriptionsToImport}`,
+    `pending subscriptions to import: ${preview.summary.pendingSubscriptionsToImport}`,
+    `unchanged items: ${preview.summary.settingsUnchanged + preview.summary.subscriptionsUnchanged}`,
+    `parse issues: ${preview.summary.parseErrors}`,
+  ];
+}
+
 function buildSetupPlan(
   context: CommandContext,
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
@@ -190,6 +209,8 @@ function buildSetupPlan(
   const tuiDelegation = capabilityById(capabilities, 'tui-delegation');
   const setupMarkerDone = snapshot.acknowledgements.exists;
   const browserControl = browserControlPosture(context);
+  const settingsImport = previewAgentWorkspaceTuiSettingsImport(context);
+  const settingsImportChanges = settingsImportChangeCount(settingsImport);
 
   const plan: SetupPlanItem[] = [
     {
@@ -204,6 +225,20 @@ function buildSetupPlan(
       modelRoute: 'agent_harness mode:"connected_host_status"',
       relatedSetupItemId: 'operator-terminal',
       signals: snapshot.collectionIssues.filter((issue) => issue.area === 'host').map((issue) => issue.message),
+    },
+    {
+      id: 'goodvibes-settings-import',
+      label: 'GoodVibes settings import',
+      status: settingsImport?.summary.parseErrors ? 'check' : settingsImportChanges > 0 ? 'recommended' : 'optional',
+      priority: 15,
+      blocksAutonomy: false,
+      reason: 'Existing GoodVibes TUI settings can seed Agent provider, subscription, behavior, permission, UI, TTS, channel, helper, tool, release, and automation state.',
+      nextAction: settingsImportChanges > 0
+        ? 'Preview the import, explain the changed setting and subscription counts, then apply only after the user confirms migration.'
+        : 'Use this when migrating from GoodVibes TUI; the preview shows whether anything importable is present.',
+      userRoute: 'Agent Workspace -> Start -> Import GoodVibes settings',
+      modelRoute: 'agent_harness mode:"run_workspace_action" actionId:"import-goodvibes-tui-settings"',
+      signals: settingsImportSignals(settingsImport),
     },
     {
       id: 'provider-access',
