@@ -29,6 +29,7 @@ export interface AssistantCockpit {
 export interface AssistantCockpitMetrics {
   readonly setupBlockers: number;
   readonly setupSmokeResult?: string;
+  readonly setupSmokeTrend?: string;
   readonly modelStatus: string;
   readonly executionRoutes: number;
   readonly personalGaps: number;
@@ -64,10 +65,15 @@ function setupLaneSummary(metrics: AssistantCockpitMetrics): string {
   const base = metrics.setupBlockers > 0
     ? `${metrics.setupBlockers} setup blocker(s) before autonomous work.`
     : 'First-run setup has no blocking assistant issue.';
-  return metrics.setupSmokeResult ? `${base} Last smoke ${metrics.setupSmokeResult}.` : base;
+  const latest = metrics.setupSmokeResult ? ` Last smoke ${metrics.setupSmokeResult}.` : '';
+  const trend = metrics.setupSmokeTrend && metrics.setupSmokeTrend !== 'none'
+    ? ` Trend ${metrics.setupSmokeTrend}.`
+    : '';
+  return `${base}${latest}${trend}`;
 }
 
 function setupLaneNextAction(metrics: AssistantCockpitMetrics): string {
+  if (metrics.setupSmokeTrend === 'regressing') return 'Review recent smoke history, fix new blockers, then rerun setup smoke.';
   if (metrics.setupSmokeResult === 'blocked') return 'Review the saved smoke artifact, resolve blockers, then rerun setup smoke.';
   if (metrics.setupSmokeResult === 'ready-for-user-run') return 'Complete remaining user-run smoke checks, then start the user task.';
   if (metrics.setupBlockers === 0 && !metrics.setupSmokeResult) return 'Run setup smoke before trusting ongoing autonomous work.';
@@ -172,9 +178,11 @@ export function buildAssistantCockpitFromSummaries(input: {
   const documents = readRecord(input.documentOps);
   const security = readRecord(input.securityPosture);
   const setupSmokeEvidence = readNestedRecord(setup, 'setupSmokeEvidence');
+  const setupSmokeHistory = readNestedRecord(setup, 'setupSmokeHistory');
   return buildAssistantCockpitFromMetrics({
     setupBlockers: readNumber(setup, 'autonomyBlockers') || readNumber(setup, 'blockedPlanItems'),
     setupSmokeResult: readString(setupSmokeEvidence, 'result') || undefined,
+    setupSmokeTrend: readString(setupSmokeHistory, 'trend') || undefined,
     modelStatus: readString(model, 'status'),
     executionRoutes: readNumber(execution, 'routes'),
     personalGaps: readNumber(personal, 'gap'),
@@ -213,6 +221,7 @@ export function buildAssistantCockpitFromWorkspaceSnapshot(snapshot: AgentWorksp
   return buildAssistantCockpitFromMetrics({
     setupBlockers,
     setupSmokeResult: undefined,
+    setupSmokeTrend: undefined,
     modelStatus,
     executionRoutes: 1,
     personalGaps,

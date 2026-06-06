@@ -727,7 +727,7 @@ function readArtifactMetadataStringArray(artifact: ArtifactDescriptor, key: stri
   return Array.isArray(value) ? value.map((entry) => readString(entry)).filter(Boolean) : [];
 }
 
-function latestSetupSmokeEvidence(context: CommandContext): Record<string, unknown> {
+function setupSmokeEvidenceArtifacts(context: CommandContext): { readonly status: 'available'; readonly artifacts: readonly ArtifactDescriptor[] } | { readonly status: 'unavailable'; readonly reason: string } {
   const artifactStore = setupSmokeArtifactStore(context);
   if (!artifactStore?.list) {
     return {
@@ -738,6 +738,60 @@ function latestSetupSmokeEvidence(context: CommandContext): Record<string, unkno
   const artifacts = artifactStore.list(100)
     .filter((artifact) => readArtifactMetadataString(artifact, 'purpose') === 'agent-setup-smoke-evidence')
     .sort((left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0));
+  return { status: 'available', artifacts };
+}
+
+function setupSmokeEvidenceScore(artifact: ArtifactDescriptor): number {
+  const result = readArtifactMetadataString(artifact, 'result');
+  if (result === 'ready-for-user-run') return 2;
+  if (result === 'blocked') return 0;
+  return 1;
+}
+
+function setupSmokeEvidenceTrend(artifacts: readonly ArtifactDescriptor[]): string {
+  if (artifacts.length === 0) return 'none';
+  if (artifacts.length === 1) return 'first-run';
+  const latest = setupSmokeEvidenceScore(artifacts[0]!);
+  const previous = setupSmokeEvidenceScore(artifacts[1]!);
+  if (latest > previous) return 'improving';
+  if (latest < previous) return 'regressing';
+  const result = readArtifactMetadataString(artifacts[0]!, 'result');
+  if (result === 'ready-for-user-run') return 'unchanged-ready';
+  if (result === 'blocked') return 'unchanged-blocked';
+  return 'unchanged';
+}
+
+function setupSmokeBlockedCheckFrequency(artifacts: readonly ArtifactDescriptor[]): readonly Record<string, unknown>[] {
+  const counts = new Map<string, number>();
+  for (const artifact of artifacts) {
+    for (const check of readArtifactMetadataStringArray(artifact, 'blockedChecks')) {
+      counts.set(check, (counts.get(check) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 8)
+    .map(([checkId, count]) => ({ checkId, count }));
+}
+
+function describeSetupSmokeEvidenceArtifact(artifact: ArtifactDescriptor): Record<string, unknown> {
+  return {
+    artifactId: artifact.id,
+    filename: artifact.filename ?? null,
+    capturedAt: readArtifactMetadataString(artifact, 'capturedAt') || safeIso(artifact.createdAt),
+    result: readArtifactMetadataString(artifact, 'result') || 'unknown',
+    smokeStatus: readArtifactMetadataString(artifact, 'smokeStatus') || 'unknown',
+    blockedChecks: readArtifactMetadataStringArray(artifact, 'blockedChecks'),
+    userRunChecks: readArtifactMetadataStringArray(artifact, 'userRunChecks'),
+    evidenceFields: readArtifactMetadataStringArray(artifact, 'evidenceFields'),
+    inspectRoute: `agent_artifacts show artifactId:"${artifact.id}" includeContent:false`,
+  };
+}
+
+function latestSetupSmokeEvidence(context: CommandContext): Record<string, unknown> {
+  const listed = setupSmokeEvidenceArtifacts(context);
+  if (listed.status === 'unavailable') return listed;
+  const artifacts = listed.artifacts;
   const latest = artifacts[0];
   if (!latest) {
     return {
@@ -748,16 +802,41 @@ function latestSetupSmokeEvidence(context: CommandContext): Record<string, unkno
   }
   return {
     status: 'saved',
-    artifactId: latest.id,
-    filename: latest.filename ?? null,
-    capturedAt: readArtifactMetadataString(latest, 'capturedAt') || safeIso(latest.createdAt),
-    smokeStatus: readArtifactMetadataString(latest, 'smokeStatus') || 'unknown',
-    result: readArtifactMetadataString(latest, 'result') || 'unknown',
-    blockedChecks: readArtifactMetadataStringArray(latest, 'blockedChecks'),
-    userRunChecks: readArtifactMetadataStringArray(latest, 'userRunChecks'),
-    evidenceFields: readArtifactMetadataStringArray(latest, 'evidenceFields'),
-    inspectRoute: `agent_artifacts show artifactId:"${latest.id}" includeContent:false`,
+    ...describeSetupSmokeEvidenceArtifact(latest),
     rerunRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
+  };
+}
+
+function setupSmokeEvidenceHistory(context: CommandContext): Record<string, unknown> {
+  const listed = setupSmokeEvidenceArtifacts(context);
+  if (listed.status === 'unavailable') return listed;
+  const artifacts = listed.artifacts;
+  if (artifacts.length === 0) {
+    return {
+      status: 'none',
+      total: 0,
+      trend: 'none',
+      reason: 'No saved setup smoke evidence artifact found.',
+      saveRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
+    };
+  }
+  const resultCounts = artifacts.reduce<Record<string, number>>((counts, artifact) => {
+    const result = readArtifactMetadataString(artifact, 'result') || 'unknown';
+    counts[result] = (counts[result] ?? 0) + 1;
+    return counts;
+  }, {});
+  return {
+    status: 'available',
+    total: artifacts.length,
+    trend: setupSmokeEvidenceTrend(artifacts),
+    latestResult: readArtifactMetadataString(artifacts[0]!, 'result') || 'unknown',
+    previousResult: artifacts[1] ? readArtifactMetadataString(artifacts[1], 'result') || 'unknown' : null,
+    resultCounts,
+    blockedCheckFrequency: setupSmokeBlockedCheckFrequency(artifacts),
+    recent: artifacts.slice(0, 5).map(describeSetupSmokeEvidenceArtifact),
+    inspectLatestRoute: `agent_artifacts show artifactId:"${artifacts[0]!.id}" includeContent:false`,
+    rerunRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
+    saveRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
   };
 }
 
@@ -1537,6 +1616,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
   const servicePosture = await collectServicePosture(context);
   const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot), servicePosture);
   const setupSmokeEvidence = latestSetupSmokeEvidence(context);
+  const setupSmokeHistory = setupSmokeEvidenceHistory(context);
   return {
     modes: ['setup_posture', 'setup_item', 'provision_connected_host_token', 'run_setup_smoke'],
     capabilities: deriveStep1Capabilities(snapshot).length,
@@ -1546,6 +1626,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
     collectionIssues: snapshot.collectionIssues.length,
     setupMarkerExists: snapshot.acknowledgements.exists,
     setupSmokeEvidence,
+    setupSmokeHistory,
     readOnly: true,
   };
 }
@@ -1558,6 +1639,7 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
   const all = deriveStep1Capabilities(snapshot);
   const plan = buildSetupPlan(context, snapshot, all, servicePosture);
   const setupSmokeEvidence = latestSetupSmokeEvidence(context);
+  const setupSmokeHistory = setupSmokeEvidenceHistory(context);
   const filtered = all
     .filter((item) => !query || itemSearchText(item).includes(query))
     .slice(0, readLimit(args.limit, 100));
@@ -1593,8 +1675,10 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
       capabilityFlags: deriveStep1CapabilityFlags(snapshot),
       readinessPlan: planSummary(plan),
       setupSmokeEvidence,
+      setupSmokeHistory,
     },
     setupSmokeEvidence,
+    setupSmokeHistory,
     currentRoute: snapshot.providerRouting,
     issues: snapshot.collectionIssues,
     readinessPlan: filteredPlan.map((item) => describePlanItem(item, includeParameters)),

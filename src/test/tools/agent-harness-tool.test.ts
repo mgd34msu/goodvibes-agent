@@ -1222,6 +1222,15 @@ describe('agent_harness tool', () => {
             readonly evidenceFields: readonly string[];
             readonly inspectRoute: string;
           };
+          readonly setupSmokeHistory?: {
+            readonly status: string;
+            readonly total: number;
+            readonly trend: string;
+            readonly latestResult: string;
+            readonly resultCounts: Record<string, number>;
+            readonly blockedCheckFrequency: readonly { readonly checkId: string; readonly count: number }[];
+            readonly recent: readonly { readonly artifactId: string; readonly result: string }[];
+          };
         };
       }>(fixture, { mode: 'summary' });
       expect(summary.setupPosture?.setupSmokeEvidence).toMatchObject({
@@ -1231,8 +1240,21 @@ describe('agent_harness tool', () => {
         evidenceFields: ['agentBinaryOutput', 'statusJson', 'firstAssistantTurn', 'notes'],
       });
       expect(summary.setupPosture?.setupSmokeEvidence?.inspectRoute).toContain('agent_artifacts');
+      expect(summary.setupPosture?.setupSmokeHistory).toMatchObject({
+        status: 'available',
+        total: 1,
+        trend: 'first-run',
+        latestResult: 'blocked',
+      });
+      expect(summary.setupPosture?.setupSmokeHistory?.resultCounts.blocked).toBe(1);
+      expect(summary.setupPosture?.setupSmokeHistory?.blockedCheckFrequency.map((entry) => entry.checkId)).toContain('connected-host-auth');
+      expect(summary.setupPosture?.setupSmokeHistory?.recent[0]).toMatchObject({
+        artifactId: 'artifact-1',
+        result: 'blocked',
+      });
       const setupLane = summary.assistant?.lanes?.find((lane) => lane.id === 'setup');
       expect(setupLane?.summary).toContain('Last smoke blocked');
+      expect(setupLane?.summary).toContain('Trend first-run');
       expect(setupLane?.nextAction).toContain('saved smoke artifact');
     } finally {
       fixture.cleanup();
