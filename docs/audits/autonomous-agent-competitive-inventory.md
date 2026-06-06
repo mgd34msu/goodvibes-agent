@@ -15,7 +15,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 
 | Feature | OpenClaw | Hermes Agent | Odysseus | GoodVibes now | Target |
 |---|---|---|---|---|---|
-| One assistant mental model | Gateway is control plane; assistant is the product | CLI, TUI, gateway, and messaging expose one assistant | One web workspace | Partial: boundaries are exposed too early | Better |
+| One assistant mental model | Gateway is control plane; assistant is the product | CLI, TUI, gateway, and messaging expose one assistant | One web workspace | Partial: summary now starts with an assistant cockpit and moves technical boundaries into diagnostics; visible TUI home still needs the same lane model | Better |
 | First-run and always-on setup | Onboard can install gateway service | Installers and setup wizard configure dependencies and gateway | Docker/native start with admin bootstrap | Partial: route-backed setup plan exists with local model readiness, confirmed service install/start/restart repair cards when the operator endpoint is reachable, and an offline missing-host bootstrap plan with GoodVibes host install/trust/verify/service/reconnect commands; live probe-fed repair state and end-to-end install smoke still need depth | Better |
 | Models and local model cookbook | Multi-provider, subscription auth, failover | Many providers and managed tool gateway | Hardware-aware Cookbook for Ollama, llama.cpp, vLLM | Partial: routing, unified readiness scores, hardware-scored local cookbook, setup/download guidance, provider-refresh routes, benchmark prompts, and saved local benchmark history exist; live benchmark execution still missing | Better |
 | Omnichannel inbox and delivery | Very broad channel list and DM safety | Telegram, Discord, Slack, WhatsApp, Signal, email | Email, browser, ntfy, PWA | Parity on foundations, needs setup UX polish | Better |
@@ -33,14 +33,14 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 ## Key Findings
 
 1. GoodVibes has many raw foundations already: providers, channels, memory, routines, schedules, MCP, tasks, remote, artifacts, knowledge, media, permissions, and operator APIs.
-2. The largest gap is not raw capability count. It is UX integration. The current Agent often presents implementation boundaries instead of the simplest user path.
+2. The largest gap is not raw capability count. It is UX integration. The current Agent now exposes an assistant-first cockpit in summary, but the visible home view still needs to mirror that simplest user path.
 3. The current Agent policy overcorrects against hidden work. The best-in-class target is visible autonomy: jobs can run unattended only when they have clear owner, scope, schedule, status, logs, and cancel/recovery routes.
 4. Email, calendar, browser-backed deep research runners, measured local model serving, and first-class browser/desktop-control adapters are the clearest product gaps.
 5. GoodVibes can lead on safety if it keeps its approval, redaction, trust, readiness, and release-evidence posture while removing unnecessary ceremony from approved workflows.
 
 ## Product Direction
 
-- Present one assistant. Move package and host ownership language into diagnostics.
+- Present one assistant. Summary already starts with assistant lanes; mirror that cockpit in the visible TUI home and keep package/host ownership language in diagnostics.
 - Make setup complete the user's outcome: installed, reachable, authenticated, paired, and ready to act. The current setup plan exposes confirmed service repair cards when the operator endpoint is reachable and offline GoodVibes host bootstrap commands before it is reachable; live probe-fed repair state and end-to-end install smoke still need depth.
 - Prefer supervised local execution over refusal or delegation friction when the Agent has local permission and workspace context; use `execution_posture` to make that route explicit.
 - Use delegation and remote runners for isolation, parallelism, or remote execution, not because the user picked the wrong entrypoint. Keep the handoff brief explicit: original ask, reason, success evidence, workspace/worktree hint, priority, review intent, status route, and recovery path.

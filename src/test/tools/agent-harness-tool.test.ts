@@ -578,9 +578,34 @@ describe('agent_harness tool', () => {
       expect(summary.success).toBe(true);
       if (!summary.success) throw new Error(summary.error);
       const summaryJson = JSON.parse(summary.output ?? '{}') as {
+        readonly assistant?: {
+          readonly status?: string;
+          readonly primaryNextAction?: string;
+          readonly boundaryPolicy?: string;
+          readonly lanes?: readonly {
+            readonly id: string;
+            readonly label: string;
+            readonly state: string;
+            readonly routes: readonly string[];
+          }[];
+        };
         readonly harnessModes?: number;
         readonly modeGuide?: { readonly discover?: readonly string[]; readonly inspect?: readonly string[] };
       };
+      expect(summaryJson.assistant?.status).toBeTruthy();
+      expect(summaryJson.assistant?.primaryNextAction).toBeTruthy();
+      expect(summaryJson.assistant?.boundaryPolicy).toContain('Primary UX is one assistant');
+      expect(summaryJson.assistant?.lanes?.map((lane) => lane.id)).toEqual([
+        'setup',
+        'chat-and-model',
+        'work-and-files',
+        'personal-ops',
+        'research-and-docs',
+        'background-work',
+        'safety-and-recovery',
+      ]);
+      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('setup_posture');
+      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'work-and-files')?.label).toBe('Work in this project');
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
       expect(summaryJson.modeGuide?.discover).toContain('execution_posture');

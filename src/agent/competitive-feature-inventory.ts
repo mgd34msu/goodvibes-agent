@@ -29,11 +29,11 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Every setup, chat, automation, channel, and execution route is presented as one assistant with visible safety and recovery state.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'companion'],
-    goodVibesNow: 'Agent has a strong operator workspace, but docs and policy still expose connected-host and delegation boundaries too early.',
+    goodVibesNow: 'Agent has a strong operator workspace and `agent_harness mode:"summary"` now starts with an assistant-first cockpit: setup, chat/model, project work, Personal Ops, research/docs, background work, and safety/recovery lanes with user-facing next actions. Technical host, daemon, provider, MCP, and delegation details remain available as diagnostics and confirmation boundaries.',
     nextMoves: [
       'Make setup discover, launch, or repair the owning host with explicit user consent.',
-      'Move boundary wording into diagnostics; keep primary UX phrasing assistant-first.',
       'Route model decisions by user task instead of asking the user to choose Agent versus host versus TUI.',
+      'Mirror the assistant cockpit in the visible TUI home view so the renderer shows the same user-first lanes.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Gateway is described as the control plane while the assistant is the product.' },

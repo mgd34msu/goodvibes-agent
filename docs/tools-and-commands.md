@@ -57,13 +57,13 @@ High-signal TUI routes:
 
 ## `agent_harness`
 
-Use `agent_harness mode:"summary"` first. Use `mode:"modes"` to search every harness mode by task, family, effect type, id, alias, or parameter name. Use `mode:"mode"` to inspect one mode contract. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, effect class, and short `modelRoute` or `modelAccess` hints when a route decision is needed. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
+Use `agent_harness mode:"summary"` first. It starts with an assistant cockpit for setup, chat/model, project work, Personal Ops, research/docs, background work, and safety/recovery before implementation counters. Use `mode:"modes"` to search every harness mode by task, family, effect type, id, alias, or parameter name. Use `mode:"mode"` to inspect one mode contract. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, effect class, and short `modelRoute` or `modelAccess` hints when a route decision is needed. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
 
 Discovery modes:
 
 | Mode | What It Lists |
 | --- | --- |
-| `summary` | Compact counts, status, and a short guide for where to drill in next. |
+| `summary` | Assistant cockpit lanes, compact counts, status, and drill-in guide. |
 | `modes` | Searchable catalog of every `agent_harness` mode and its task fit. |
 | `workspace`, `workspace_categories`, `workspace_actions` | Workspace categories and actions. |
 | `commands`, `cli_commands` | Slash commands and top-level package CLI mirrors with compact policy and route hints. |
