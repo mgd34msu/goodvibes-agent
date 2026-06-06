@@ -9,6 +9,7 @@ import { AutomationDeliveryManager, AutomationManager, AutomationRouteStore } fr
 import { ChannelPluginRegistry, ChannelPolicyManager, RouteBindingManager, SurfaceRegistry } from '@pellux/goodvibes-sdk/platform/channels';
 import { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control-plane';
+import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { WatcherRegistry } from '@pellux/goodvibes-sdk/platform/watchers';
 import { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import {
@@ -127,6 +128,64 @@ function buildFallbackModelDefinition(provider: string, modelId: string): ModelD
     selectable: true,
     tier: 'standard',
     ...(isReasoningProvider ? { reasoningEffort: ['instant', 'low', 'medium', 'high'] } : {}),
+  };
+}
+
+function normalizeSharedSessionModelId(modelId: string | undefined, providerId: string | undefined): string | undefined {
+  const trimmedModelId = modelId?.trim();
+  if (!trimmedModelId) return undefined;
+  const trimmedProviderId = providerId?.trim();
+  const separatorIndex = trimmedModelId.indexOf(':');
+  if (separatorIndex > 0) return trimmedModelId;
+  if (trimmedProviderId) return `${trimmedProviderId}:${trimmedModelId}`;
+  return trimmedModelId;
+}
+
+function normalizeSharedSessionFallbackModels(models: readonly string[] | undefined): string[] {
+  return (models ?? [])
+    .filter((model): model is string => typeof model === 'string' && model.trim().length > 0)
+    .map((model) => {
+      const trimmed = model.trim();
+      const separatorIndex = trimmed.indexOf(':');
+      if (separatorIndex <= 0 || separatorIndex === trimmed.length - 1) {
+        throw new Error(`Shared-session fallback model '${model}' must be provider-qualified.`);
+      }
+      return trimmed;
+    });
+}
+
+function buildAgentSpawnRoutingFromSharedSession(
+  routing: SharedSessionRoutingIntent | undefined,
+  options: { readonly restrictTools?: boolean | undefined } = {},
+): Partial<Parameters<AgentManager['spawn']>[0]> {
+  if (!routing) return options.restrictTools ? { restrictTools: true } : {};
+  const provider = routing.providerId?.trim();
+  const model = normalizeSharedSessionModelId(routing.modelId, provider);
+  if (provider && !model) {
+    throw new Error('Shared-session provider routing requires a provider-qualified model when provider is supplied.');
+  }
+  const fallbackModels = normalizeSharedSessionFallbackModels(routing.fallbackModels);
+  const providerFailurePolicy = routing.providerFailurePolicy ?? (
+    fallbackModels.length ? 'ordered-fallbacks' : 'fail'
+  );
+  if (providerFailurePolicy === 'ordered-fallbacks' && fallbackModels.length === 0) {
+    throw new Error('Shared-session ordered fallback routing requires at least one provider-qualified fallback model.');
+  }
+  if (providerFailurePolicy === 'fail' && fallbackModels.length > 0) {
+    throw new Error('Shared-session fail routing cannot include fallback models; use ordered-fallbacks to enable model failover.');
+  }
+  return {
+    ...(model ? { model } : {}),
+    ...(provider ? { provider } : {}),
+    ...(routing.tools?.length ? { tools: [...routing.tools] } : {}),
+    ...(options.restrictTools ? { restrictTools: true } : {}),
+    routing: {
+      providerSelection: routing.providerSelection ?? (provider ? 'concrete' : 'inherit-current'),
+      providerFailurePolicy,
+      ...(fallbackModels.length ? { fallbackModels } : {}),
+    },
+    ...(routing.executionIntent ? { executionIntent: routing.executionIntent } : {}),
+    ...(routing.reasoningEffort ? { reasoningEffort: routing.reasoningEffort } : {}),
   };
 }
 
@@ -516,6 +575,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     createWorktree: createDisabledAgentWrfcWorktreeOps,
   }]) as WrfcController;
+  agentManager.setWrfcController(wrfcController);
   const hookDispatcher = new HookDispatcher({ toolLLM, projectRoot: workingDirectory }, hookActivityTracker);
   configManager.attachHookDispatcher(hookDispatcher);
   const hookWorkbench = createHookWorkbench({
@@ -532,11 +592,13 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     messageSender: agentMessageBus,
   });
   sessionBroker.setContinuationRunner(async ({ task, input }) => {
-    throw new Error([
-      'GoodVibes Agent does not own shared-session task execution.',
-      `Received task for session ${input.sessionId}: ${task}`,
-      'Delegate explicit build/fix/review work to GoodVibes TUI through the public shared-session/build-delegation contract.',
-    ].join(' '));
+    const record = agentManager.spawn({
+      mode: 'spawn',
+      task,
+      ...buildAgentSpawnRoutingFromSharedSession(input.routing, { restrictTools: true }),
+      context: `shared-session:${input.sessionId}`,
+    });
+    return { agentId: record.id };
   });
   const artifactStore = new ArtifactStore({ configManager });
   const memoryEmbeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
@@ -562,11 +624,23 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     runtimeBus: options.runtimeBus,
     deliveryManager,
     spawnTask: (input) => {
-      throw new Error([
-        'GoodVibes Agent does not create local automation jobs and does not spawn local automation agents.',
-        `Received automation prompt: ${input.prompt}`,
-        'Use read-only automation observability here; explicit build/fix/review execution belongs to GoodVibes TUI delegation.',
-      ].join(' '));
+      const record = agentManager.spawn({
+        mode: 'spawn',
+        task: input.prompt,
+        ...(input.modelId ? { model: input.modelId } : {}),
+        ...(input.modelProvider ? { provider: input.modelProvider } : {}),
+        ...(input.fallbackModels ? { fallbackModels: [...input.fallbackModels] } : {}),
+        ...(input.routing ? { routing: input.routing } : {}),
+        ...(input.executionIntent ? { executionIntent: input.executionIntent } : {}),
+        ...(input.template ? { template: input.template } : {}),
+        ...(input.reasoningEffort ? { reasoningEffort: input.reasoningEffort } : {}),
+        ...(input.toolAllowlist ? { tools: [...input.toolAllowlist], restrictTools: true } : {}),
+        context: [
+          'automation-manager:visible-agent',
+          input.context,
+        ].filter((part): part is string => Boolean(part?.trim())).join('\n\n'),
+      });
+      return record.id;
     },
   });
   const agentKnowledgeStore = new KnowledgeStore({

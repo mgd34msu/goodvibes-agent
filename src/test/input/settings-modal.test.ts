@@ -107,6 +107,8 @@ describe('SettingsModal', () => {
       'Models and Providers',
       'Agent-local state',
       'Channels and Tools',
+      'Daemon Runtime',
+      'Advanced Runtime',
       'Advanced',
     ]);
   });
@@ -150,7 +152,7 @@ describe('SettingsModal', () => {
     expect(missing).toEqual([]);
   });
 
-  test('open() does not route runtime-hosting or copied WRFC config into the Agent workspace', () => {
+  test('open() routes daemon/runtime settings while keeping raw danger settings hidden', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     const visibleKeys = new Set<string>();
     for (const entries of modal.groups.values()) {
@@ -158,7 +160,6 @@ describe('SettingsModal', () => {
     }
 
     for (const key of [
-      'danger.daemon',
       'controlPlane.hostMode',
       'httpListener.hostMode',
       'web.hostMode',
@@ -167,6 +168,12 @@ describe('SettingsModal', () => {
       'network.remoteFetch.allowPrivateHosts',
       'orchestration.recursionEnabled',
       'wrfc.scoreThreshold',
+    ]) {
+      expect(isAgentHiddenSettingKey(key)).toBe(false);
+      expect(visibleKeys.has(key)).toBe(true);
+    }
+    for (const key of [
+      'danger.daemon',
       'ui.wrfcMessages',
     ]) {
       expect(isAgentHiddenSettingKey(key)).toBe(true);
@@ -389,7 +396,7 @@ describe('SettingsModal', () => {
     expect(keys).toContain('surfaces.ntfy.topic');
     expect(keys).toContain('surfaces.ntfy.token');
     const copiedSurfacePrefix = ['surfaces.', 'home', 'assistant.'].join('');
-    expect(keys.filter((key) => key.startsWith(copiedSurfacePrefix))).toEqual([]);
+    expect(keys.filter((key) => key.startsWith(copiedSurfacePrefix)).length).toBeGreaterThan(0);
 
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'surfaces.ntfy.baseUrl');
     modal.activateSelected();

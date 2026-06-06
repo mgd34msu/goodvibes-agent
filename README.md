@@ -3,9 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Status: 1.0.x](https://img.shields.io/badge/status-1.0.x-green.svg)](#install)
 
-GoodVibes Agent is the installable personal operator assistant TUI for GoodVibes. It is built for day-to-day operator work: chat, setup, profiles, routines, skills, personas, Agent-local memory and notes, isolated Agent Knowledge, channel readiness, voice/media setup, work-plan tracking, approvals, automation visibility, and explicit build delegation.
+GoodVibes Agent is the installable autonomous operator assistant for GoodVibes. It keeps the existing terminal renderer and workspace bones, but the product goal is different from a vibecoding harness: the user should experience one assistant that can chat, plan, remember, research, schedule, send, generate, run visible agents, and operate the GoodVibes daemon contract with clear confirmation gates.
 
-Agent connects to a GoodVibes host owned outside this package. It does not install, start, stop, restart, expose, or own that host.
+The GoodVibes daemon is Agent's capability runtime. It provides the operator API, schedules, channels, knowledge, media, remote execution, service posture, and long-running automation routes. Agent keeps GoodVibes settings import so users can bring over providers, UI preferences, permissions, subscriptions, surfaces, tools, and daemon endpoint settings instead of rebuilding setup by hand.
 
 ## Install
 
@@ -58,8 +58,8 @@ Workspace areas:
 - Memory & Skills: local memory, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
 - Channels: companion pairing, channel readiness, confirmed channel delivery, and confirmed webhook notification management.
 - Voice & Media: voice review, spoken response setup, image input, confirmed image/video generation, browser-tool posture, and provider readiness.
-- Automation: reminders, schedule status, routine promotion receipts, reconciliation, and exact confirmed approval/automation/schedule actions.
-- Build Delegation: explicit handoff to GoodVibes TUI for build, fix, implementation, or review work.
+- Automation: reminders, schedules, visible autonomous agents, routine promotion receipts, reconciliation, and exact confirmed approval/automation/schedule actions.
+- Operator Runtime: full GoodVibes daemon method discovery, read-only status routes, confirmed write/admin routes, and service posture.
 
 Press `/` inside the workspace to search actions by name, category, command, or detail. Slash commands and CLI subcommands remain power-user/scriptable mirrors; the workspace is the first-class user path.
 
@@ -87,7 +87,9 @@ First-class model tools cover common workflows directly:
 - `agent_local_registry` for Agent-local memory, notes, personas, skills, bundles, and routines.
 - `agent_work_plan` for visible local work-plan tracking.
 - `agent_operator_briefing` and `agent_operator_action` for connected work/approval/automation/schedule posture and exact confirmed actions.
+- `agent_operator_method` for exact GoodVibes daemon contract parity. Read-only routes can run directly; write/admin routes require `confirm:true` and `explicitUserRequest`.
 - `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, and `agent_media_generate` for confirmed delivery, notification, reminder, and media generation.
+- `agent` for visible autonomous work: spawn, batch-spawn, inspect, message, wait, cancel, and report tracked agents.
 
 Registered model tool definitions are compact by default. Top-level descriptions are short, nested parameter descriptions are omitted from the default model catalog, and tool catalog rows include direct harness inspection routes. The model can inspect detailed contracts through `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or the owning harness mode.
 
@@ -104,7 +106,7 @@ Useful workspace paths:
 - Routines -> Create routines, start a routine in chat, review receipts, and explicitly promote one routine to a connected schedule.
 - Profiles -> Create isolated Agent profiles from built-in or imported starter templates.
 
-Starting a routine prints its steps in the main conversation. It does not start background automation. Promotion to a connected schedule is separate, explicit, confirmation-gated, and records a redacted local receipt.
+Starting a routine prints its steps in the main conversation. Promotion to a connected schedule or automation job is separate, explicit, confirmation-gated, visible in the autonomy queue, and records a redacted local receipt.
 
 ## Knowledge And Artifacts
 
@@ -122,7 +124,7 @@ Artifacts are first-class runtime objects for uploaded files, generated media, a
 
 ## Connected Host
 
-Start the owning GoodVibes host before launching Agent. The default connection is:
+Connect Agent to a GoodVibes daemon before using daemon-backed features. The default connection is:
 
 ```text
 http://127.0.0.1:3421
@@ -138,13 +140,13 @@ Model-visible diagnostics are read-only:
 - `connected_host` and `daemon` are compact posture maps by default with direct `modelRoute` hints; `includeParameters:true` adds route families, allowed capabilities, blocked lifecycle/non-Agent surfaces, and first-class tool availability. `connected_host_capability` inspects one capability and returns the matching allowed or blocked route hint.
 - `connected_host_status` and `daemon_status` run live readiness checks for host status, host compatibility, token posture, endpoint binding, isolated Agent Knowledge readiness, and the model route to inspect or act on findings.
 
-Host lifecycle stays outside GoodVibes Agent.
+Service lifecycle and listener changes are available only through explicit setup or confirmed daemon operator routes when the connected daemon supports them. Raw danger toggles stay protected.
 
 ## Product Boundary
 
-GoodVibes Agent owns the operator assistant TUI, serial assistant flow, local behavior libraries, Agent Knowledge routes, companion chat, work-plan tracking, approvals/automation observability, channel/media/reminder tools, and explicit build delegation.
+GoodVibes Agent owns the autonomous assistant harness: the terminal renderer, setup UX, chat, local behavior libraries, Agent Knowledge routes, companion chat, visible agents, work plans, schedules, approvals, channel/media/reminder tools, daemon method access, and user-facing autonomy status.
 
-GoodVibes TUI owns coding execution: file edits, git/worktree workflows, coding panels, execution isolation UX, and delegated review execution. Agent may delegate explicit build/fix/review work; normal assistant chat does not use shared coding sessions.
+GoodVibes TUI remains the vibecoding harness and is still useful when the user wants its coding panels or execution-isolation UX. Agent should use local tools, visible agents, daemon automation, delegation, or remote runners according to what best serves the user, not because package boundaries are exposed as product friction.
 
 ## Package Docs
 

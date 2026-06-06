@@ -74,15 +74,23 @@ type AgentToolPolicyGuardOptions = {
   readonly getLastUserMessage?: () => string | null;
 };
 
-const BLOCKED_MAIN_CONVERSATION_TOOL_NAMES = ['write', 'edit', 'workflow', 'repl'] as const;
+const BLOCKED_MAIN_CONVERSATION_TOOL_NAMES = [] as const;
 const AGENT_EXEC_BACKGROUND_COMMAND = /^\s*bg_(?:status|output|stop)\b/;
 
 const READ_ONLY_AGENT_TOOL_MODES = [
+  'spawn',
+  'batch-spawn',
   'status',
+  'cancel',
   'list',
   'templates',
   'get',
   'budget',
+  'plan',
+  'wait',
+  'message',
+  'wrfc-chains',
+  'wrfc-history',
   'cohort-status',
   'cohort-report',
 ] as const;
@@ -122,15 +130,13 @@ const READ_ONLY_QUERY_TOOL_MODE_SET = new Set<string>(READ_ONLY_QUERY_TOOL_MODES
 const READ_ONLY_CONTROL_TOOL_MODE_SET = new Set<string>(READ_ONLY_CONTROL_TOOL_MODES);
 
 const LOCAL_AGENT_DENIAL = [
-  'GoodVibes Agent does not create coding-role Agent jobs or run local delegated review chains.',
-  'Keep ordinary assistant work serial in the main conversation.',
-  'For explicit build/fix/review work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract with the full original user ask.',
+  'GoodVibes Agent creates only visible, tracked Agent jobs.',
+  'Use a known agent mode and keep spawned work tied to the user request, visible status, and cancellable follow-up.',
 ].join(' ');
 
 const LOCAL_CODING_TOOL_DENIAL = [
-  'GoodVibes Agent does not perform direct local file mutation, local delegated review workflow execution, or local execution-isolation work from the main conversation.',
-  'For explicit build/fix/review/code execution work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract with the full original user ask.',
-  'For durable Agent memory, skills, personas, routines, and knowledge, use the Agent-owned commands and isolated Agent Knowledge routes.',
+  'This tool is not exposed directly in GoodVibes Agent.',
+  'Use a first-class visible Agent tool or a confirmed GoodVibes daemon operator method for the requested workflow.',
 ].join(' ');
 
 const BACKGROUND_EXEC_DENIAL = [
@@ -595,15 +601,14 @@ function isPresent(value: unknown): boolean {
 }
 
 function narrowAgentToolDefinitionForAgentPolicy(tool: Tool): void {
-  tool.definition.description = 'Read-only local Agent inspection for GoodVibes Agent.';
-  tool.definition.sideEffects = [];
+  tool.definition.description = 'Visible local Agent orchestration for GoodVibes Agent: spawn, inspect, message, wait, cancel, and report tracked autonomous work.';
 
   const properties = tool.definition.parameters.properties;
   if (!isRecord(properties)) return;
   const modeProperty = properties.mode;
   if (!isRecord(modeProperty)) return;
   modeProperty.enum = [...READ_ONLY_AGENT_TOOL_MODES];
-  modeProperty.description = 'Read-only Agent inspection mode. Separate Agent job creation, batch creation, cancel, message, wait, and plan modes are disabled in GoodVibes Agent.';
+  modeProperty.description = 'Agent orchestration mode. Spawned work is visible, tracked, and cancellable.';
 }
 
 function narrowExecToolDefinitionForAgentPolicy(tool: Tool): void {

@@ -87,46 +87,44 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
     if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('service-hosting and network categories are not registered for Agent settings', () => {
-    expect(SETTINGS_CATEGORIES).not.toContain('network');
-    expect(SETTINGS_CATEGORIES).not.toContain('controlPlane');
-    expect(SETTINGS_CATEGORIES).not.toContain('httpListener');
-    expect(SETTINGS_CATEGORIES).not.toContain('web');
-    expect(SETTINGS_CATEGORIES).not.toContain('service');
-    expect(SETTINGS_CATEGORIES).not.toContain('runtime');
+  test('service-hosting and network categories are registered for Agent settings', () => {
+    expect(SETTINGS_CATEGORIES).toContain('network');
+    expect(SETTINGS_CATEGORIES).toContain('controlPlane');
+    expect(SETTINGS_CATEGORIES).toContain('httpListener');
+    expect(SETTINGS_CATEGORIES).toContain('web');
+    expect(SETTINGS_CATEGORIES).toContain('service');
+    expect(SETTINGS_CATEGORIES).toContain('runtime');
     expect(SETTINGS_CATEGORIES).not.toContain('danger');
-    expect(SETTINGS_CATEGORIES).not.toContain('wrfc');
-    expect(SETTINGS_CATEGORIES).not.toContain('orchestration');
+    expect(SETTINGS_CATEGORIES).toContain('wrfc');
+    expect(SETTINGS_CATEGORIES).toContain('orchestration');
   });
 
-  test('runtime-hosting, raw network, and copied WRFC keys are policy-hidden', () => {
+  test('only raw danger toggles and internal WRFC message setting are policy-hidden', () => {
     for (const key of [
       'danger.daemon',
       'danger.httpListener',
-      'controlPlane.hostMode',
-      'controlPlane.port',
-      'httpListener.hostMode',
-      'httpListener.port',
-      'web.hostMode',
-      'web.port',
-      'service.autostart',
-      'network.outboundTls.mode',
-      'network.remoteFetch.allowPrivateHosts',
-      'runtime.companionChatLimiter.perSessionLimit',
-      'runtime.eventBus.maxListeners',
-      'orchestration.recursionEnabled',
-      'wrfc.scoreThreshold',
       'ui.wrfcMessages',
     ]) {
       expect(isAgentHiddenSettingKey(key)).toBe(true);
     }
+    for (const key of [
+      'controlPlane.hostMode',
+      'controlPlane.port',
+      'httpListener.hostMode',
+      'service.autostart',
+      'network.outboundTls.mode',
+      'runtime.eventBus.maxListeners',
+      'orchestration.recursionEnabled',
+      'wrfc.scoreThreshold',
+    ]) {
+      expect(isAgentHiddenSettingKey(key)).toBe(false);
+    }
   });
 
-  test('open() does not populate hidden runtime-hosting keys', () => {
+  test('open() populates daemon runtime keys but keeps hidden danger keys out', () => {
     openSettings();
     const keys = visibleKeys();
     for (const key of [
-      'danger.daemon',
       'controlPlane.hostMode',
       'httpListener.hostMode',
       'web.hostMode',
@@ -135,36 +133,32 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
       'runtime.eventBus.maxListeners',
       'orchestration.recursionEnabled',
       'wrfc.scoreThreshold',
+    ]) {
+      expect(keys.has(key)).toBe(true);
+    }
+    for (const key of [
+      'danger.daemon',
       'ui.wrfcMessages',
     ]) {
       expect(keys.has(key)).toBe(false);
     }
   });
 
-  test('selectTarget cannot navigate to hidden runtime-hosting keys', () => {
+  test('selectTarget navigates to daemon runtime keys but not hidden danger keys', () => {
     openSettings();
+    modal.selectTarget('controlPlane.port');
+    expect(modal.getSelected()?.setting.key).toBe('controlPlane.port');
     const before = modal.getSelected()?.setting.key;
     modal.selectTarget('danger.daemon');
-    expect(modal.getSelected()?.setting.key).toBe(before);
-    modal.selectTarget('controlPlane.port');
     expect(modal.getSelected()?.setting.key).toBe(before);
     modal.selectTarget('ui.wrfcMessages');
     expect(modal.getSelected()?.setting.key).toBe(before);
   });
 
-  test('rendered settings workspace does not mention hidden runtime-hosting sections', () => {
+  test('rendered settings workspace does not mention raw danger settings', () => {
     openSettings();
     const text = renderSettingsModal(modal, 120, 30).map(lineText).join('\n');
-    expect(text).not.toContain('External Runtime Connection');
-    expect(text).not.toContain('Runtime API');
-    expect(text).not.toContain('Inbound Events');
-    expect(text).not.toContain('Runtime Install');
     expect(text).not.toContain('Danger');
-    expect(text).not.toContain('WRFC Delegation');
-    expect(text).not.toContain('Agent Orchestration');
-    expect(text).not.toContain('controlPlane.');
-    expect(text).not.toContain('httpListener.');
-    expect(text).not.toContain('service.');
-    expect(text).not.toContain('wrfc.');
+    expect(text).not.toContain('danger.daemon');
   });
 });

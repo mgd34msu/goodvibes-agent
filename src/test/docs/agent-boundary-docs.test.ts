@@ -33,23 +33,8 @@ function collectCatalogCommandRoots(text: string): readonly string[] {
   return [...roots].sort();
 }
 
-function walkProductionFiles(dir: string): readonly string[] {
-  const entries = readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === 'test') continue;
-      files.push(...walkProductionFiles(fullPath));
-      continue;
-    }
-    if (entry.isFile() && (fullPath.endsWith('.ts') || fullPath.endsWith('.md'))) files.push(fullPath);
-  }
-  return files;
-}
-
-describe('Agent boundary docs', () => {
-  test('source tree does not keep copied TUI release, UAT, or WRFC artifacts as Agent docs', () => {
+describe('Agent user-first product docs', () => {
+  test('source tree does not keep copied TUI release, UAT, or WRFC docs as Agent docs', () => {
     const forbiddenPaths = [
       'docs/releases',
       'docs/uat',
@@ -62,56 +47,33 @@ describe('Agent boundary docs', () => {
     }
   });
 
-  test('package-facing docs and production source do not expose internal comparison or copied non-Agent product language', () => {
-    const packageFacingPaths = [
-      'README.md',
-      'docs/README.md',
-      'docs/getting-started.md',
-      'docs/connected-host.md',
-      'docs/release-and-publishing.md',
-    ] as const;
-    const productionSourcePaths = walkProductionFiles(join(ROOT, 'src'))
-      .map((filePath) => filePath.slice(ROOT.length + 1));
-    const forbidden = [
-      `Home ${'Assistant'}`,
-      `Home${'Graph'}`,
-      `@pellux/goodvibes-${'tui'}`,
-      `@pellux/goodvibes-${'daemon'}`,
-      `goodvibes-${'daemon'}`,
-      'TUI-owned',
-      'current TUI session',
-      'No service restart was attempted',
-      'external-service-owned',
-      'service controller',
-      'Service lifecycle commands',
-      'service switches',
-      'services, and automation',
-      'connected-service',
-      'background agents',
-      'wrfc route',
-      'WRFC messages',
-      'configured service providers',
-      'Knowledge/Wiki',
-      'default Knowledge',
-      'Default Knowledge',
-      'local worker',
-      'local workers',
-      'local background workers',
-      'worker agents',
-      'separate workers',
-      'hidden worker flow',
-      'hidden local agents',
-    ] as const;
-    const offenders: string[] = [];
+  test('package-facing docs describe Agent as an autonomous daemon-backed harness', () => {
+    const combined = [
+      readRepoFile('README.md'),
+      readRepoFile('docs/getting-started.md'),
+      readRepoFile('docs/connected-host.md'),
+    ].join('\n\n');
 
-    for (const path of [...packageFacingPaths, ...productionSourcePaths]) {
-      const content = readRepoFile(path);
-      for (const token of forbidden) {
-        if (content.includes(token)) offenders.push(`${path}: ${token}`);
-      }
+    expect(combined).toContain('autonomous');
+    expect(combined).toContain('existing terminal renderer');
+    expect(combined).toContain('GoodVibes daemon');
+    expect(combined).toContain('GoodVibes settings import');
+    expect(combined).toContain('visible agents');
+    expect(combined).toContain('agent_operator_method');
+    expect(combined).toContain('confirm:true');
+    expect(combined).toContain('explicitUserRequest');
+  });
+
+  test('audit docs cover competitor and GoodVibes platform capability inventory', () => {
+    const competitive = readRepoFile('docs/audits/autonomous-agent-competitive-inventory.md');
+    const platform = readRepoFile('docs/audits/goodvibes-platform-capabilities.md');
+
+    for (const token of ['OpenClaw', 'Hermes Agent', 'Odysseus', 'GoodVibes now', 'Target']) {
+      expect(competitive).toContain(token);
     }
-
-    expect(offenders).toEqual([]);
+    for (const token of ['279 methods', 'Automation', 'Knowledge', 'Remote and services', 'Current Code Decisions']) {
+      expect(platform).toContain(token);
+    }
   });
 
   test('source docs describe isolated Agent Knowledge without default knowledge fallback', () => {
@@ -123,7 +85,6 @@ describe('Agent boundary docs', () => {
       'POST /api/knowledge/ask',
       '/api/knowledge/refinement',
       '--space <knowledgeSpaceId>',
-      'TUI-owned',
       'default knowledge store',
       'product-specific graph',
     ] as const;
@@ -136,25 +97,6 @@ describe('Agent boundary docs', () => {
         expect(content).not.toContain(token);
       }
     }
-  });
-
-  test('active planning source uses Agent-owned product language', () => {
-    const commandSource = readRepoFile('src/input/commands/planning-runtime.ts');
-    const panelSource = readRepoFile('src/panels/project-planning-panel.ts');
-    const coordinatorSource = readRepoFile('src/planning/project-planning-coordinator.ts');
-    const docsSource = readRepoFile('docs/project-planning.md');
-    const combined = `${commandSource}\n${panelSource}\n${coordinatorSource}\n${docsSource}`;
-
-    expect(combined).toContain('Agent workspace planning state');
-    expect(combined).toContain('Agent-owned workspace planning state');
-    expect(combined).toContain('Agent main conversation');
-    expect(combined).toContain('Agent-owned planning loop');
-    expect(coordinatorSource).toContain('Planning namespace:');
-    expect(coordinatorSource).not.toContain('Knowledge space:');
-    expect(combined).not.toContain('TUI-owned');
-    expect(combined).not.toContain('non-Agent product setup');
-    expect(docsSource).not.toContain('opens the planning surface');
-    expect(docsSource).not.toContain('planning panel or fullscreen planning view');
   });
 
   test('tools command guide only names registered slash commands', () => {
@@ -173,26 +115,5 @@ describe('Agent boundary docs', () => {
     const documentedRoots = collectCatalogCommandRoots(readRepoFile('docs/tools-and-commands.md'));
 
     expect(documentedRoots).toEqual(canonicalRoots);
-  });
-
-  test('package-facing onboarding stays TUI-first instead of CLI-first', () => {
-    const readme = readRepoFile('README.md');
-    const gettingStarted = readRepoFile('docs/getting-started.md');
-    const tools = readRepoFile('docs/tools-and-commands.md');
-
-    const readmeInstallSection = readme.slice(0, readme.indexOf('## Source Usage'));
-    const gettingStartedInstallSection = gettingStarted.slice(0, gettingStarted.indexOf('## Run From Source'));
-
-    expect(readmeInstallSection).toContain('goodvibes-agent\n```');
-    expect(readmeInstallSection).not.toContain('goodvibes-agent personas');
-    expect(readmeInstallSection).not.toContain('goodvibes-agent skills');
-    expect(readmeInstallSection).not.toContain('goodvibes-agent memory');
-    expect(readmeInstallSection).not.toContain('goodvibes-agent knowledge');
-    expect(gettingStartedInstallSection).not.toContain('goodvibes-agent personas');
-    expect(gettingStartedInstallSection).not.toContain('goodvibes-agent skills');
-    expect(gettingStartedInstallSection).not.toContain('goodvibes-agent memory');
-    expect(tools).not.toContain(`goodvibes-agent ${'automation'}`);
-    expect(readme).toContain('The fullscreen Agent workspace is the primary product surface.');
-    expect(gettingStarted).toContain('Use the interactive workspace first');
   });
 });

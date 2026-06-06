@@ -5,7 +5,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { SettingsModal } from '../../input/settings-modal.ts';
+import { SettingsModal, SETTINGS_CATEGORIES } from '../../input/settings-modal.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
@@ -145,25 +145,26 @@ describe('renderSettingsModal', () => {
     expect(interfaceLines[0]?.[interfaceIndex]).toEqual(expect.objectContaining({ bold: true }));
   });
 
-  test('does not expose connected-host lifecycle or copied WRFC settings as Agent settings', () => {
+  test('exposes daemon runtime settings while hiding raw danger toggles', () => {
     const rendered: string[] = [];
-    for (let index = 0; index < 20; index += 1) {
+    for (let index = 0; index < SETTINGS_CATEGORIES.length; index += 1) {
       rendered.push(linesToText(renderSettingsModal(modal, W, 40)).join('\n'));
       modal.nextCategory();
     }
     const text = rendered.join('\n');
-    expect(text).not.toContain('Runtime API');
-    expect(text).not.toContain('Inbound Events');
-    expect(text).not.toContain('Runtime Install');
+    expect(text).toContain('DAEMON RUNTIME');
+    expect(text).toContain('Control Plane');
+    expect(text).toContain('HTTP Listener');
+    expect(text).toContain('Service');
+    expect(text).toContain('ADVANCED RUNTIME');
+    expect(text).toContain('WRFC');
+    expect(text).toContain('controlPlane.');
+    expect(text).toContain('httpListener.');
+    expect(text).toContain('service.');
+    expect(text).toContain('wrfc.');
+    expect(text).toContain('orchestration.');
     expect(text).not.toContain('Danger');
-    expect(text).not.toContain('WRFC Delegation');
-    expect(text).not.toContain('Agent Orchestration');
-    expect(text).not.toContain('controlPlane.');
-    expect(text).not.toContain('httpListener.');
-    expect(text).not.toContain('service.');
     expect(text).not.toContain('danger.');
-    expect(text).not.toContain('wrfc.');
-    expect(text).not.toContain('orchestration.');
   });
 
   test('settings list shows setting keys', () => {

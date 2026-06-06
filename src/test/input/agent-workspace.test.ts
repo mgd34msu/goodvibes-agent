@@ -7,6 +7,7 @@ import { CONFIG_SCHEMA, SubscriptionManager } from '@pellux/goodvibes-sdk/platfo
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
+import { SETTINGS_CATEGORIES } from '../../input/settings-modal-types.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { registerAgentWorkspaceRuntimeCommands } from '../../input/commands/agent-workspace-runtime.ts';
 import { registerAgentRuntimeProfileRuntimeCommands } from '../../input/commands/agent-runtime-profile-runtime.ts';
@@ -1204,7 +1205,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.detail).toContain('Imported pending subscription(s): anthropic.');
   });
 
-  test('onboarding has no verify page and covers schema-backed Agent settings', () => {
+  test('onboarding has no verify page and routes schema-backed Agent settings', () => {
     expect(AGENT_WORKSPACE_CATEGORIES.some((category) => category.id === 'onboarding-verify')).toBe(false);
 
     const covered = new Set<string>([
@@ -1225,9 +1226,10 @@ describe('AgentWorkspace', () => {
       }
     }
 
+    const settingsCategoryRoots = new Set<string>(SETTINGS_CATEGORIES);
     const missing = CONFIG_SCHEMA
       .map((setting) => setting.key)
-      .filter((key) => !isAgentHiddenSettingKey(key) && !covered.has(key));
+      .filter((key) => !isAgentHiddenSettingKey(key) && !covered.has(key) && !settingsCategoryRoots.has(key.split('.')[0] ?? ''));
     expect(missing).toEqual([]);
   });
 

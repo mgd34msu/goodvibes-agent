@@ -87,14 +87,14 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'release_evidence_artifact', kind: 'inspect', family: 'operator-audit', summary: 'Inspect one operator/audit release artifact and optional content.', parameters: ['artifactId', 'target', 'query'] },
   { id: 'release_readiness', kind: 'discover', family: 'operator-audit', summary: 'Search the operator/audit release-quality inventory.', next: 'Use release_readiness_item.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'release_readiness_item', kind: 'inspect', family: 'operator-audit', summary: 'Inspect one operator/audit readiness inventory item.', parameters: ['itemId', 'target', 'query'] },
-  { id: 'operator_methods', kind: 'discover', family: 'operator', summary: 'List public operator/Agent Knowledge methods and owning tools.', next: 'Use operator_method.', parameters: ['query', 'limit', 'includeParameters'] },
-  { id: 'operator_method', kind: 'inspect', family: 'operator', summary: 'Inspect one operator method and preferred first-class model tool.', parameters: ['methodId', 'target', 'query'] },
+  { id: 'operator_methods', kind: 'discover', family: 'operator', summary: 'List GoodVibes daemon operator methods from the live SDK contract.', next: 'Use operator_method or agent_operator_method.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'operator_method', kind: 'inspect', family: 'operator', summary: 'Inspect one daemon method, route, effect, and confirmation policy.', parameters: ['methodId', 'target', 'query'] },
   { id: 'service_posture', kind: 'discover', family: 'connected-host', summary: 'Inspect service endpoint posture, binding, issues, and probes.', next: 'Use service_endpoint.', parameters: ['includeParameters'] },
   { id: 'service_endpoint', kind: 'inspect', family: 'connected-host', summary: 'Inspect one service endpoint binding and lifecycle boundary.', parameters: ['endpointId', 'target', 'query'] },
   { id: 'connected_host', kind: 'discover', family: 'connected-host', summary: 'Map connected-host capabilities, boundaries, and tool availability.', next: 'Use connected_host_capability or connected_host_status.', parameters: ['includeParameters'] },
   { id: 'connected_host_status', kind: 'inspect', family: 'connected-host', summary: 'Run live read-only connected-host readiness checks.', parameters: ['includeParameters'] },
   { id: 'connected_host_capability', kind: 'inspect', family: 'connected-host', summary: 'Inspect one connected-host capability and blocked surfaces.', parameters: ['capabilityId', 'target', 'query'] },
-  { id: 'daemon', kind: 'alias', family: 'connected-host', summary: 'GoodVibes daemon -> connected_host; lifecycle external.', next: 'Use connected_host for canonical naming.', aliases: ['connected_host'], parameters: ['includeParameters'] },
+  { id: 'daemon', kind: 'alias', family: 'connected-host', summary: 'GoodVibes daemon -> connected_host; mutations use confirmed methods.', next: 'Use connected_host for canonical naming.', aliases: ['connected_host'], parameters: ['includeParameters'] },
   { id: 'daemon_status', kind: 'alias', family: 'connected-host', summary: 'GoodVibes daemon status -> connected_host_status.', next: 'Use connected_host_status for canonical naming.', aliases: ['connected_host_status'], parameters: ['includeParameters'] },
 ] as const;
 

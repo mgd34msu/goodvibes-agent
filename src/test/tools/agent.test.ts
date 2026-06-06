@@ -781,65 +781,72 @@ describe('spawn mode', () => {
     expect(harness.manager.list().filter((agent) => agent.parentAgentId == null)).toHaveLength(1);
   });
 
-  test('Agent runtime guard blocks local spawn and points explicit build work to TUI delegation', async () => {
+  test('Agent runtime guard allows visible local spawn work', async () => {
     const guarded = makeAgentHarness({ guarded: true });
     const result = await guarded.agentTool.execute({
       mode: 'spawn',
       task: 'Build the feature',
       template: 'engineer',
-      reviewMode: 'wrfc',
+      reviewMode: 'none',
+      dangerously_disable_wrfc: true,
     });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toBe(AGENT_LOCAL_SPAWN_DENIAL_MESSAGE);
-    expect(guarded.manager.list()).toHaveLength(0);
+    expect(result.success).toBe(true);
+    const payload = JSON.parse(result.output ?? '{}') as { readonly task?: string; readonly template?: string };
+    expect(payload.task).toBe('Build the feature');
+    expect(payload.template).toBe('engineer');
+    expect(guarded.manager.list()).toHaveLength(1);
   });
 
-  test('Agent runtime guard blocks local batch-spawn fanout', async () => {
+  test('Agent runtime guard allows visible batch-spawn fanout', async () => {
     const guarded = makeAgentHarness({ guarded: true });
     const result = await guarded.agentTool.execute({
       mode: 'batch-spawn',
+      reviewMode: 'none',
+      dangerously_disable_wrfc: true,
       tasks: [
-        { task: 'Implement locally', template: 'engineer' },
-        { task: 'Review locally', template: 'reviewer' },
+        { task: 'Build the API adapter', template: 'engineer', reviewMode: 'none', dangerously_disable_wrfc: true },
+        { task: 'Build the CLI adapter', template: 'engineer', reviewMode: 'none', dangerously_disable_wrfc: true },
       ],
     });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toBe(AGENT_LOCAL_SPAWN_DENIAL_MESSAGE);
-    expect(guarded.manager.list()).toHaveLength(0);
+    expect(result.success).toBe(true);
+    const payload = JSON.parse(result.output ?? '{}') as { readonly agents?: readonly unknown[] };
+    expect(payload.agents).toHaveLength(2);
+    expect(guarded.manager.list()).toHaveLength(2);
   });
 
-  test('Agent runtime guard narrows the advertised agent tool schema to read-only modes', () => {
+  test('Agent runtime guard advertises visible autonomy modes', () => {
     const guarded = makeAgentHarness({ guarded: true });
     const mode = expectPresent(
       guarded.agentTool.definition.parameters.properties as Record<string, unknown> | undefined,
       'guarded agent schema properties',
     );
-    expect(guarded.agentTool.definition.description).toContain('Read-only local Agent inspection');
-    expect(guarded.agentTool.definition.sideEffects).toEqual([]);
+    expect(guarded.agentTool.definition.description).toContain('Visible local Agent orchestration');
     const modeProperty = expectPresent(
       getRecordProperty(mode, 'mode'),
       'guarded agent mode property',
     );
     const enumValues = modeProperty.enum;
     expect(enumValues).toEqual([...AGENT_READ_ONLY_TOOL_MODES]);
-    expect(enumValues).not.toContain('spawn');
-    expect(enumValues).not.toContain('batch-spawn');
-    expect(enumValues).not.toContain('wrfc-chains');
-    expect(enumValues).not.toContain('wrfc-history');
+    expect(enumValues).toContain('spawn');
+    expect(enumValues).toContain('batch-spawn');
+    expect(enumValues).toContain('wrfc-chains');
+    expect(enumValues).toContain('wrfc-history');
   });
 
-  test('Agent runtime guard blocks copied local agent mutation modes beyond spawn', async () => {
+  test('Agent runtime guard allows local agent cancellation mode', async () => {
     const guarded = makeAgentHarness({ guarded: true });
+    const spawned = await guarded.agentTool.execute({ mode: 'spawn', task: 'Stuck task' });
+    expect(spawned.success).toBe(true);
+    const spawnedPayload = JSON.parse(spawned.output ?? '{}') as { readonly agentId?: string };
     const result = await guarded.agentTool.execute({
       mode: 'cancel',
-      agentId: 'agent-local',
+      agentId: spawnedPayload.agentId,
     });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toBe(AGENT_LOCAL_SPAWN_DENIAL_MESSAGE);
-    expect(guarded.manager.list()).toHaveLength(0);
+    expect(result.success).toBe(true);
+    expect(guarded.manager.getStatus(spawnedPayload.agentId ?? '')?.status).toBe('cancelled');
   });
 
   test('Agent runtime guard leaves read-only agent inspection modes unchanged', () => {
@@ -1236,7 +1243,7 @@ describe('spawn mode', () => {
     expect(result.error).toBe(AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE);
   });
 
-  test('Agent runtime guard routes copied runtime context tool to the Agent harness surface', async () => {
+  test('Agent runtime guard routes copied runtime context tool to Agent capabilities', async () => {
     const registry = new ToolRegistry();
     const guarded = makeAgentHarness();
     registry.register(guarded.agentTool);
@@ -1260,17 +1267,13 @@ describe('spawn mode', () => {
     });
     expect(result.success).toBe(true);
     const payload = JSON.parse(result.output ?? '{}') as {
-      readonly source?: string;
-      readonly route?: string;
-      readonly result?: { readonly received?: Record<string, unknown> };
+      readonly runtime?: string;
+      readonly currentContract?: Record<string, unknown>;
+      readonly canDoNow?: readonly Record<string, unknown>[];
     };
-    expect(payload.source).toBe('agent_harness');
-    expect(payload.route).toBe('agent_harness mode:"summary"');
-    expect(payload.result?.received).toMatchObject({
-      mode: 'summary',
-      query: 'tools',
-      includeParameters: true,
-    });
+    expect(payload.runtime).toBe('GoodVibes Agent');
+    expect(payload.currentContract?.autonomy).toContain('User-directed operator agent');
+    expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Harness operation');
 
     const legacy = await registry.execute('call-context-legacy', 'goodvibes_context', {
       mode: ['home', 'graph'].join(''),

@@ -494,9 +494,13 @@ async function main() {
     // Cache the current model for consistent values across the entire render frame
     const currentModel = providerRegistry.getCurrentModel();
     const sessionSnapshot = uiServices.readModels.session.getSnapshot();
+    const agentSnapshot = uiServices.readModels.agents.getSnapshot();
+    const activeAgents = agentSnapshot.active;
+    const primaryActiveAgent = activeAgents.find((agent) => agent.latestProgress?.trim())
+      ?? activeAgents[0];
 
     const headerLines = UIFactory.createHeader(width, currentModel.id, currentModel.provider, conversation.title || undefined);
-    const runningAgentCount = 0;
+    const runningAgentCount = activeAgents.length;
     const runningProcessCount = processManager.list().filter((p) => !p.status.startsWith('done')).length;
     const cw = getPromptContentWidth();
     const promptInfo = input.getWrappedPromptInfo(cw);
@@ -543,7 +547,9 @@ async function main() {
       runningAgentCount,
       runningProcessCount,
       indicatorFocused: input.indicatorFocused,
-      runningAgentProgress: undefined,
+      runningAgentProgress: primaryActiveAgent
+        ? `${primaryActiveAgent.label}: ${primaryActiveAgent.latestProgress?.trim() || primaryActiveAgent.status}`
+        : undefined,
       composerMode: composerState.modeLabel,
       composerStatus: composerState.statusLabel,
       composerFlags: composerState.flags,

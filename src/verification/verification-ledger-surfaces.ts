@@ -281,7 +281,7 @@ export function countSessionSurface(root: string): CountedSourceSurface {
 }
 
 export function countOperatorMethodSurface(root: string): CountedSourceSurface {
-  return countHarnessSourceSurface(root, HARNESS_OPERATOR_METHOD_MODES, 'src/tools/agent-harness-operator-methods.ts', ['AGENT_KNOWLEDGE_METHODS', 'OPERATOR_ACTIONS', 'schedules.create']);
+  return countHarnessSourceSurface(root, HARNESS_OPERATOR_METHOD_MODES, 'src/tools/agent-harness-operator-methods.ts', ['getOperatorContract', 'agent_operator_method', 'confirmed-admin-connected-host-state']);
 }
 
 export function countHarnessModeCatalogSurface(root: string): CountedHarnessModeCatalogSurface {

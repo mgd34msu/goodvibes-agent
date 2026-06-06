@@ -1,5 +1,4 @@
-import { AGENT_KNOWLEDGE_METHODS } from '../cli/agent-knowledge-methods.ts';
-import { OPERATOR_ACTIONS } from '../agent/operator-actions.ts';
+import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessOperatorMethodArgs {
@@ -13,19 +12,37 @@ export interface AgentHarnessOperatorMethodArgs {
 type OperatorMethodEffect =
   | 'read-only-network'
   | 'confirmed-connected-host-state'
-  | 'confirmed-agent-knowledge-write';
+  | 'confirmed-admin-connected-host-state';
 
 type OperatorMethodLookupSource = 'methodId' | 'target' | 'query';
+
+interface OperatorContractMethod {
+  readonly id: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly category?: string;
+  readonly access?: string;
+  readonly scopes?: readonly string[];
+  readonly http?: {
+    readonly method?: string;
+    readonly path?: string;
+  };
+  readonly inputSchema?: Record<string, unknown>;
+  readonly invokable?: boolean;
+}
 
 interface OperatorMethodDescriptor {
   readonly id: string;
   readonly label: string;
   readonly route: string;
   readonly effect: OperatorMethodEffect;
-  readonly owner: 'connected-host';
+  readonly owner: 'goodvibes-daemon';
   readonly preferredModelTool: string;
   readonly confirmation: string;
   readonly boundary: string;
+  readonly category: string;
+  readonly access: string;
+  readonly scopes: readonly string[];
   readonly parameters?: readonly Record<string, unknown>[];
 }
 
@@ -34,72 +51,7 @@ type OperatorMethodResolution =
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
   | { readonly status: 'missing_lookup'; readonly usage: string };
 
-const OPERATOR_BRIEFING_METHODS: readonly OperatorMethodDescriptor[] = [
-  {
-    id: 'projectPlanning.workPlan.snapshot',
-    label: 'Read work-plan snapshot.',
-    route: '/api/projects/planning/work-plan',
-    effect: 'read-only-network',
-    owner: 'connected-host',
-    preferredModelTool: 'agent_operator_briefing',
-    confirmation: 'Read-only; use the owning first-class tool.',
-    boundary: 'Public operator read route only; no work-plan mutation or hidden task creation.',
-  },
-  {
-    id: 'approvals.list',
-    label: 'List approval posture.',
-    route: '/api/approvals',
-    effect: 'read-only-network',
-    owner: 'connected-host',
-    preferredModelTool: 'agent_operator_briefing',
-    confirmation: 'Read-only; use the owning first-class tool.',
-    boundary: 'Public operator read route only; approval mutations must use explicit allowlisted actions.',
-  },
-  {
-    id: 'automation.integration.snapshot',
-    label: 'Read automation posture.',
-    route: '/api/automation',
-    effect: 'read-only-network',
-    owner: 'connected-host',
-    preferredModelTool: 'agent_operator_briefing',
-    confirmation: 'Read-only; use the owning first-class tool.',
-    boundary: 'Public operator read route only; automation definition creation and lifecycle ownership stay blocked.',
-  },
-  {
-    id: 'schedules.list',
-    label: 'List connected schedules.',
-    route: '/api/automation/schedules',
-    effect: 'read-only-network',
-    owner: 'connected-host',
-    preferredModelTool: 'agent_operator_briefing',
-    confirmation: 'Read-only; use the owning first-class tool.',
-    boundary: 'Public operator read route only; schedule creation/run requires explicit user intent through allowed tools.',
-  },
-  {
-    id: 'scheduler.capacity',
-    label: 'Read scheduler capacity.',
-    route: '/api/runtime/scheduler',
-    effect: 'read-only-network',
-    owner: 'connected-host',
-    preferredModelTool: 'agent_operator_briefing',
-    confirmation: 'Read-only; use the owning first-class tool.',
-    boundary: 'Public operator read route only; no local scheduler or host lifecycle mutation.',
-  },
-];
-
-const AGENT_KNOWLEDGE_READ_KEYS = new Set([
-  'status',
-  'ask',
-  'search',
-  'sourcesList',
-  'nodesList',
-  'issuesList',
-  'itemGet',
-  'map',
-  'connectorsList',
-  'connectorGet',
-  'connectorDoctor',
-]);
+const READ_ONLY_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -111,69 +63,85 @@ function readLimit(value: unknown, fallback: number): number {
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
 }
 
-function agentKnowledgeMethods(): readonly OperatorMethodDescriptor[] {
-  return Object.entries(AGENT_KNOWLEDGE_METHODS).map(([key, method]) => {
-    const readOnly = AGENT_KNOWLEDGE_READ_KEYS.has(key);
-    return {
-      id: method.kind,
-      label: readOnly ? `Read isolated Agent Knowledge ${key}.` : `Mutate isolated Agent Knowledge ${key}.`,
-      route: method.route,
-      effect: readOnly ? 'read-only-network' : 'confirmed-agent-knowledge-write',
-      owner: 'connected-host',
-      preferredModelTool: readOnly ? 'agent_knowledge' : key === 'reindex' ? 'agent_harness mode:"run_command"' : 'agent_knowledge_ingest',
-      confirmation: readOnly ? 'Read-only; use the owning first-class tool.' : 'Requires explicit user request and confirmation through the owning tool or command route.',
-      boundary: 'Isolated Agent Knowledge route family only; default knowledge and non-Agent knowledge segments are forbidden.',
-      ...(readOnly ? {} : {
-        parameters: [
-          { name: 'confirm', required: true },
-          { name: 'explicitUserRequest', required: true },
-        ],
-      }),
-    } satisfies OperatorMethodDescriptor;
-  });
+function operatorContractMethods(): readonly OperatorContractMethod[] {
+  const contract = getOperatorContract();
+  const methods = Array.isArray(contract.operator?.methods)
+    ? contract.operator.methods as OperatorContractMethod[]
+    : [];
+  return methods
+    .filter((method) => method.id && method.http?.method && method.http.path)
+    .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function operatorActionMethods(): readonly OperatorMethodDescriptor[] {
-  return Object.values(OPERATOR_ACTIONS).map((action) => ({
-    id: action.action,
-    label: action.label,
-    route: action.pathTemplate,
-    effect: 'confirmed-connected-host-state',
-    owner: 'connected-host',
-    preferredModelTool: 'agent_operator_action',
-    confirmation: 'Requires confirm:true and explicitUserRequest for the exact target.',
-    boundary: 'Allowlisted public operator action only; no arbitrary route invocation, automation definition creation, or host lifecycle control.',
-    parameters: [
-      { name: action.targetField, required: true },
-      { name: 'confirm', required: true },
-      { name: 'explicitUserRequest', required: true },
-    ],
-  }));
+function methodIsReadOnly(method: OperatorContractMethod): boolean {
+  const httpMethod = method.http?.method?.toUpperCase();
+  if (httpMethod && READ_ONLY_HTTP_METHODS.has(httpMethod)) return true;
+  const scopes = method.scopes ?? [];
+  return scopes.length > 0 && scopes.every((scope) => scope.startsWith('read:'));
+}
+
+function methodEffect(method: OperatorContractMethod): OperatorMethodEffect {
+  if (methodIsReadOnly(method)) return 'read-only-network';
+  return method.access === 'admin'
+    ? 'confirmed-admin-connected-host-state'
+    : 'confirmed-connected-host-state';
+}
+
+function confirmationFor(effect: OperatorMethodEffect): string {
+  if (effect === 'read-only-network') return 'Read-only; confirmation is not required.';
+  if (effect === 'confirmed-admin-connected-host-state') {
+    return 'Admin route. Requires confirm:true and explicitUserRequest naming the requested change.';
+  }
+  return 'Mutation route. Requires confirm:true and explicitUserRequest naming the requested change.';
+}
+
+function preferredToolFor(effect: OperatorMethodEffect): string {
+  if (effect === 'read-only-network') return 'agent_operator_method';
+  return 'agent_operator_method with confirm:true and explicitUserRequest';
+}
+
+function parametersFromInputSchema(method: OperatorContractMethod): readonly Record<string, unknown>[] {
+  const schema = method.inputSchema;
+  const properties = schema?.properties;
+  if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return [];
+  const required = Array.isArray(schema.required)
+    ? new Set(schema.required.filter((entry): entry is string => typeof entry === 'string'))
+    : new Set<string>();
+  return Object.entries(properties as Record<string, Record<string, unknown>>)
+    .slice(0, 48)
+    .map(([name, property]) => ({
+      name,
+      required: required.has(name),
+      type: typeof property?.type === 'string' ? property.type : undefined,
+      enum: Array.isArray(property?.enum) ? property.enum : undefined,
+    }));
+}
+
+function toDescriptor(method: OperatorContractMethod): OperatorMethodDescriptor {
+  const httpMethod = method.http?.method?.toUpperCase() ?? 'GET';
+  const path = method.http?.path ?? '/';
+  const effect = methodEffect(method);
+  const label = method.title ?? method.description ?? method.id;
+  return {
+    id: method.id,
+    label,
+    route: `${httpMethod} ${path}`,
+    effect,
+    owner: 'goodvibes-daemon',
+    preferredModelTool: preferredToolFor(effect),
+    confirmation: confirmationFor(effect),
+    boundary: effect === 'read-only-network'
+      ? 'Reads the connected GoodVibes daemon operator route and returns a redacted response.'
+      : 'Runs a confirmed connected GoodVibes daemon operator route. The model must keep the action visible, reversible when possible, and tied to the user request.',
+    category: method.category ?? 'uncategorized',
+    access: method.access ?? 'authenticated',
+    scopes: method.scopes ?? [],
+    parameters: parametersFromInputSchema(method),
+  };
 }
 
 function allOperatorMethods(): readonly OperatorMethodDescriptor[] {
-  return [
-    ...OPERATOR_BRIEFING_METHODS,
-    ...operatorActionMethods(),
-    ...agentKnowledgeMethods(),
-    {
-      id: 'schedules.create',
-      label: 'Create one connected reminder or routine schedule.',
-      route: '/api/automation/schedules',
-      effect: 'confirmed-connected-host-state',
-      owner: 'connected-host',
-      preferredModelTool: 'agent_reminder_schedule or agent_harness mode:"run_workspace_action"',
-      confirmation: 'Requires explicit user request and confirmation.',
-      boundary: 'Connected schedule creation only; no hidden local scheduler or separate Agent job.',
-      parameters: [
-        { name: 'scheduleKind', required: true },
-        { name: 'scheduleValue', required: true },
-        { name: 'message', required: true },
-        { name: 'confirm', required: true },
-        { name: 'explicitUserRequest', required: true },
-      ],
-    } satisfies OperatorMethodDescriptor,
-  ].sort((a, b) => a.id.localeCompare(b.id));
+  return operatorContractMethods().map(toDescriptor);
 }
 
 function methodSearchText(method: OperatorMethodDescriptor): string {
@@ -184,6 +152,9 @@ function methodSearchText(method: OperatorMethodDescriptor): string {
     method.effect,
     method.preferredModelTool,
     method.boundary,
+    method.category,
+    method.access,
+    method.scopes.join(' '),
   ].join('\n').toLowerCase();
 }
 
@@ -194,14 +165,17 @@ function describeMethod(
   return {
     id: method.id,
     label: method.label,
+    category: method.category,
+    access: method.access,
     effect: method.effect,
     owner: method.owner,
+    route: method.route,
     modelRoute: previewHarnessText(method.preferredModelTool),
+    scopes: method.scopes,
+    confirmation: method.confirmation,
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters ? {
-      route: method.route,
       preferredModelTool: method.preferredModelTool,
-      confirmation: method.confirmation,
       boundary: method.boundary,
       parameters: method.parameters ?? [],
     } : {
@@ -213,7 +187,9 @@ function describeMethod(
 function describeCandidate(method: OperatorMethodDescriptor): Record<string, unknown> {
   return {
     methodId: method.id,
+    category: method.category,
     effect: method.effect,
+    route: method.route,
     modelRoute: previewHarnessText(method.preferredModelTool),
   };
 }
@@ -229,12 +205,18 @@ function lookupFromArgs(args: AgentHarnessOperatorMethodArgs): { readonly source
 
 export function operatorMethodCatalogStatus(): Record<string, unknown> {
   const methods = allOperatorMethods();
+  const categories = methods.reduce<Record<string, number>>((acc, method) => {
+    acc[method.category] = (acc[method.category] ?? 0) + 1;
+    return acc;
+  }, {});
   return {
     modes: ['operator_methods', 'operator_method'],
     methods: methods.length,
     readOnlyMethods: methods.filter((method) => method.effect === 'read-only-network').length,
     confirmedMethods: methods.filter((method) => method.effect !== 'read-only-network').length,
-    policy: 'This is a read-only catalog. Use the preferred first-class model tool for execution; arbitrary connected-host route invocation remains unavailable.',
+    adminMethods: methods.filter((method) => method.effect === 'confirmed-admin-connected-host-state').length,
+    categories,
+    policy: 'Full GoodVibes SDK operator contract. Read-only routes can run through agent_operator_method; write/admin routes require confirm:true and explicitUserRequest.',
   };
 }
 
@@ -250,7 +232,7 @@ export function operatorMethodSummary(args: AgentHarnessOperatorMethodArgs): Rec
     methods,
     returned: methods.length,
     total: allOperatorMethods().length,
-    policy: 'Read-only operator method catalog. Execute only through the listed preferred first-class tool and only when its confirmation policy is satisfied.',
+    policy: 'Dynamic GoodVibes daemon operator catalog. Prefer simpler first-class tools when available; use agent_operator_method for exact contract parity.',
   };
 }
 

@@ -37,6 +37,7 @@ import { registerAgentMediaGenerateTool } from '../tools/agent-media-generate-to
 import { registerAgentNotifyTool } from '../tools/agent-notify-tool.ts';
 import { registerAgentOperatorActionTool } from '../tools/agent-operator-action-tool.ts';
 import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
+import { registerAgentOperatorMethodTool } from '../tools/agent-operator-method-tool.ts';
 import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
 import { getTerminalSize } from '../shell/terminal-size.ts';
 import { registerAgentWorkPlanTool } from '../tools/agent-work-plan-tool.ts';
@@ -248,6 +249,7 @@ export async function initializeBootstrapCore(
   registerAgentNotifyTool(toolRegistry, configManager, services.webhookNotifier);
   registerAgentOperatorActionTool(toolRegistry, services.shellPaths, configManager);
   registerAgentOperatorBriefingTool(toolRegistry, services.shellPaths, configManager);
+  registerAgentOperatorMethodTool(toolRegistry, services.shellPaths, configManager);
   registerAgentReminderScheduleTool(toolRegistry, services.shellPaths, configManager);
   registerAgentWorkPlanTool(toolRegistry, services.workPlanStore);
   installAgentToolPolicyGuard(toolRegistry, {

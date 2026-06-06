@@ -693,8 +693,8 @@ export function connectedHostSummary(
     baseUrl: connection.baseUrl,
     operatorToken: connection.token ? 'configured' : 'missing',
     tokenPath: connection.tokenPath,
-    ownership: 'external-connected-host',
-    lifecycle: 'GoodVibes Agent can use public connected-host operator routes, but does not start, stop, restart, install, expose, or mutate the host listener.',
+    ownership: 'goodvibes-daemon',
+    lifecycle: 'GoodVibes Agent can inspect daemon posture and use confirmed operator methods for supported service lifecycle/listener changes.',
     modes: {
       servicePosture: agentHarnessModes('service_posture', 'service_endpoint'),
       operatorMethods: agentHarnessModes('operator_methods', 'operator_method'),
@@ -710,7 +710,7 @@ export function connectedHostSummary(
       servicePosture: 'agent_harness mode:"service_posture"',
       daemonAliases: 'agent_harness mode:"daemon" or mode:"daemon_status"',
       daemonStatusAlias: 'agent_harness mode:"daemon_status"',
-      lifecycleBlocked: 'start, stop, restart, install, upgrade, expose-listener, and listener mutation are not exposed through Agent.',
+      lifecycle: 'use setup or agent_operator_method with confirm:true and explicitUserRequest for supported daemon service methods.',
     },
     counts: {
       routeFamilies: routeFamilies.length,
@@ -730,16 +730,16 @@ export function blockedConnectedHostCapabilities(): readonly Record<string, unkn
   return [
     {
       id: 'connected-host-lifecycle',
-      blocked: ['start', 'stop', 'restart', 'install', 'upgrade', 'expose-listener', 'mutate-listener'],
-      modelRoute: blockedConnectedHostModelRoute(),
+      confirmationGated: ['start', 'stop', 'restart', 'install', 'upgrade', 'expose-listener', 'mutate-listener'],
+      modelRoute: 'agent_operator_method',
       harnessRoute: 'agent_harness mode:"connected_host_capability"',
       modelAccess: {
         inspectCapability: 'agent_harness mode:"connected_host_capability"',
         liveStatus: 'agent_harness mode:"connected_host_status"',
         endpointPosture: 'agent_harness mode:"service_posture"',
-        operate: 'not exposed',
+        operate: 'agent_operator_method with confirm:true and explicitUserRequest when the daemon contract exposes the method',
       },
-      reason: 'The connected host and listener are externally owned by GoodVibes; Agent can use public operator routes but not manage hosting.',
+      reason: 'Lifecycle changes are powerful daemon operations. They are available only through explicit setup or confirmed operator methods, never as ambient background side effects.',
     },
     {
       id: 'non-agent-knowledge',
@@ -756,29 +756,29 @@ export function blockedConnectedHostCapabilities(): readonly Record<string, unkn
     },
     {
       id: 'hidden-background-work',
-      blocked: ['separate-agent-jobs', 'implicit-delegated-review', 'local-schedulers'],
+      blocked: ['hidden-agent-jobs', 'implicit-delegated-review', 'untracked-local-schedulers'],
       modelRoute: blockedConnectedHostModelRoute(),
       harnessRoute: 'agent_harness mode:"connected_host_capability"',
       modelAccess: {
         inspectCapability: 'agent_harness mode:"connected_host_capability"',
-        allowedDelegation: 'agent_harness mode:"delegation_posture"',
+        allowedAutonomy: 'agent tool spawn/batch-spawn, schedules, automation jobs, or confirmed delegation with visible status/cancel routes',
         liveStatus: 'agent_harness mode:"connected_host_status"',
-        operate: 'not exposed',
+        operate: 'use a visible autonomy route',
       },
-      reason: 'All model work is serial and visible unless the user explicitly requests delegation through an exposed surface.',
+      reason: 'Autonomy is allowed when it is visible, statused, and cancellable. Hidden jobs are blocked.',
     },
     {
       id: 'arbitrary-connected-host-mutations',
-      blocked: ['route-discovery-mutation', 'account-creation', 'automation-definition-creation'],
-      modelRoute: blockedConnectedHostModelRoute(),
+      confirmationGated: ['route-discovery-mutation', 'account-creation', 'automation-definition-creation'],
+      modelRoute: 'agent_operator_method',
       harnessRoute: 'agent_harness mode:"connected_host_capability"',
       modelAccess: {
         inspectCapability: 'agent_harness mode:"connected_host_capability"',
-        allowedActions: 'agent_operator_action for documented allowlisted mutations only',
+        allowedActions: 'agent_operator_action for simple allowlisted mutations or agent_operator_method for exact confirmed daemon contract methods',
         liveStatus: 'agent_harness mode:"connected_host_status"',
-        operate: 'not exposed',
+        operate: 'agent_operator_method with confirm:true and explicitUserRequest',
       },
-      reason: 'Only the documented allowlisted model tools and slash-command routes are exposed.',
+      reason: 'Daemon mutations must resolve to a documented SDK operator method and carry explicit user authorization.',
     },
   ];
 }
@@ -789,6 +789,6 @@ export function settingsPolicySummary(): Record<string, unknown> {
     mutation: 'Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest; ambiguous setting lookups are refused.',
     secretHandling: 'Raw secret values are persisted through the secret manager; config receives only a secret reference and tool output is redacted.',
     writablePolicy: 'Each setting descriptor includes writable, visibleInWorkspace, and lockReason when applicable.',
-    readOnlyHostOwnedPrefixes: ['service.*', 'controlPlane.*', 'httpListener.*', 'web.*', 'danger.daemon.*', 'danger.httpListener.*'],
+    protectedRawDangerKeys: ['danger.daemon', 'danger.httpListener'],
   };
 }

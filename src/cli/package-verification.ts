@@ -173,7 +173,6 @@ const PACKAGE_FACING_FORBIDDEN_TEXT = [
   ['~/.goodvibes/', 'tui'].join(''),
   ['Home', ' Assistant'].join(''),
   ['Home', 'Graph'].join(''),
-  ['Cloud', 'flare'].join(''),
   ['near', '-fork'].join(''),
   ['Optional ', 'Browser Access'].join(''),
   ['Optional ', 'Other-Device Access'].join(''),
@@ -199,7 +198,6 @@ const PACKAGE_FACING_FORBIDDEN_TEXT = [
   'Every plan must have a multi-agent execution strategy',
   'ALWAYS work in parallel when implementing a plan',
   'PRIMARY GOAL: Fully complete and functional code',
-  'WRFC',
   'ReviewerReport',
   '"wrfcId"',
 ] as const;
@@ -2639,7 +2637,7 @@ function verifyHarnessSettingsModelAccessPolicy(root: string): readonly string[]
     const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
       { marker: 'settingsPolicySummary', label: 'settings policy summary export' },
       { marker: 'secretHandling', label: 'settings secret handling policy' },
-      { marker: 'readOnlyHostOwnedPrefixes', label: 'host-owned read-only prefix policy' },
+      { marker: 'protectedRawDangerKeys', label: 'protected raw danger key policy' },
     ];
     for (const { marker, label } of requiredMarkers) {
       if (!source.includes(marker)) {
@@ -2890,9 +2888,9 @@ function verifyHarnessConnectedHostModelAccessPolicy(root: string): readonly str
       { marker: 'harnessRoute: \'agent_harness mode:"connected_host_capability"\'', label: 'capability harness inspection route' },
       { marker: 'connectedHostSummary', label: 'connected-host summary export' },
       { marker: 'daemonAliases', label: 'daemon alias route summary' },
-      { marker: 'lifecycleBlocked', label: 'blocked lifecycle model-access boundary' },
+      { marker: 'agent_operator_method with confirm:true and explicitUserRequest', label: 'confirmed lifecycle/mutation model-access boundary' },
       { marker: 'operate: connectedHostCapabilityModelRoute(capability)', label: 'allowed capability operation route' },
-      { marker: "operate: 'not exposed'", label: 'blocked capability operation denial' },
+      { marker: "operate: 'use a visible autonomy route'", label: 'hidden autonomy denial route' },
       { marker: 'agent_harness mode:"daemon"', label: 'daemon inventory alias' },
       { marker: 'agent_harness mode:"daemon_status"', label: 'daemon status alias' },
       { marker: 'blockedConnectedHostCapabilities', label: 'blocked connected-host capability inventory' },
@@ -2911,7 +2909,7 @@ function verifyHarnessConnectedHostModelAccessPolicy(root: string): readonly str
     const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
       { marker: 'modelRoute: \'agent_harness mode:"connected_host_status" or mode:"service_posture"\'', label: 'connected-host status model route' },
       { marker: 'daemonAliases', label: 'connected-host status daemon aliases' },
-      { marker: 'lifecycleBlocked', label: 'connected-host status lifecycle boundary' },
+      { marker: 'supported daemon service methods', label: 'connected-host status lifecycle boundary' },
       { marker: 'connectedHostFindings', label: 'connected-host status findings' },
       { marker: 'capabilitySummary', label: 'connected-host status capability summary' },
     ];

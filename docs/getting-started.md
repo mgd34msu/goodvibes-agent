@@ -1,14 +1,12 @@
 # Getting Started
 
-GoodVibes Agent is the installable `1.0.x` personal operator assistant TUI for GoodVibes.
+GoodVibes Agent is the installable autonomous operator assistant for GoodVibes.
 
 ## Requirements
 
 - Bun `1.3.10` or newer.
-- A connected GoodVibes host with compatible public Agent routes.
-- Connected-host token/config state accepted by that host.
-
-Agent does not launch or manage the connected host.
+- A connected GoodVibes daemon or compatible host with operator routes.
+- Token/config state accepted by that daemon.
 
 ## Install From Package
 
@@ -49,6 +47,7 @@ Primary first-run areas:
 - Channels: companion pairing, channel readiness, notification targets, and confirmed sends.
 - Voice & Media: TTS setup, image input, and confirmed generated media.
 - Work & Automation: work-plan tracking, approvals, schedules, reminders, and explicit operator actions.
+- Operator Runtime: daemon status, method discovery, confirmed write/admin routes, visible autonomous agents, and cancellation/status follow-up.
 
 Press `/` inside the Agent workspace to search actions by name, category, command, or detail.
 
@@ -77,8 +76,9 @@ Common model routes:
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |
 | Local memory/notes/personas/skills/routines | `agent_local_registry` or confirmed workspace actions |
 | Work plan | `agent_work_plan` |
+| Visible autonomous work | `agent` with `mode:"spawn"`, `mode:"batch-spawn"`, `mode:"status"`, `mode:"message"`, `mode:"wait"`, or `mode:"cancel"` |
 | Channels, notifications, reminders, media | `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_media_generate` |
-| Operator state/actions | `agent_operator_briefing`, `agent_operator_action`, `agent_harness mode:"operator_methods"` |
+| Operator state/actions | `agent_operator_briefing`, `agent_operator_action`, `agent_operator_method`, `agent_harness mode:"operator_methods"` |
 | Connected host/daemon posture | `agent_harness mode:"service_posture"`, `mode:"connected_host"`, `mode:"connected_host_capability"`, `mode:"connected_host_status"`, `mode:"daemon"`, `mode:"daemon_status"` |
 | Operator/audit evidence | `agent_harness mode:"release_evidence"`, `mode:"release_evidence_artifact"`, `mode:"release_readiness"`, `mode:"release_readiness_item"` |
 
@@ -105,7 +105,7 @@ goodvibes-agent profiles templates export research ./research-starter.json --yes
 goodvibes-agent profiles templates import ./research-starter.json --yes
 ```
 
-Named profiles isolate Agent-local config, sessions, memory, notes, personas, skills, routines, and setup state. They do not start or isolate the connected host.
+Named profiles isolate Agent-local config, sessions, memory, notes, personas, skills, routines, and setup state. GoodVibes settings import can bring over existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings.
 
 ## Local Behavior
 
@@ -120,7 +120,7 @@ Use the workspace first:
 - Routines -> Create, start in chat, review receipts, or explicitly promote to a connected schedule.
 - Work -> Add work item, review work plan, and update status.
 
-Starting a routine records local usage and prints its steps in the main conversation. It does not start background automation. Promotion to a connected schedule is separate, explicit, confirmation-gated, and keeps Agent Knowledge isolated.
+Starting a routine records local usage and prints its steps in the main conversation. Promotion to a connected schedule or automation job is separate, explicit, confirmation-gated, visible in the autonomy queue, and keeps Agent Knowledge isolated.
 
 ## Knowledge And Artifacts
 
@@ -140,7 +140,7 @@ Use the Artifacts area and Voice & Media workspace for images, source files, gen
 
 ## Connected Host
 
-Start the owning GoodVibes host before using connected features. Agent expects:
+Connect Agent to a GoodVibes daemon before using daemon-backed features. Agent expects:
 
 ```text
 http://127.0.0.1:3421
@@ -167,8 +167,8 @@ Host diagnostics:
 - `goodvibes-agent doctor`
 - `goodvibes-agent compat`
 
-Model-visible diagnostics are `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`, `daemon`, and `daemon_status`. Connected-host posture/status/capability results include compact route hints for the next safe Agent-owned tool or harness mode. These modes are read-only and do not expose host lifecycle control.
+Model-visible diagnostics are `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`, `daemon`, and `daemon_status`. `agent_harness mode:"operator_methods"` inventories the full GoodVibes daemon contract. `agent_operator_method` can run read-only routes directly and write/admin routes only with `confirm:true` plus `explicitUserRequest`.
 
 ## Current Product Notes
 
-Agent uses the GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. The active policy is serial/proactive by default, blocks hidden Agent-owned job fanout, and delegates explicit build/fix/review work to GoodVibes TUI instead of turning Agent into a coding TUI.
+Agent uses the GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. The active policy is visible autonomy: long-running work must have a user-readable task, status/progress, cancellation route, and confirmation gates for external or daemon-mutating effects.

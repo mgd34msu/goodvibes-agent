@@ -128,12 +128,12 @@ describe('/config fullscreen workspace command', () => {
       }
 
       expect(isAgentHiddenSettingKey('danger.daemon')).toBe(true);
-      expect(isAgentHiddenSettingKey('controlPlane.port')).toBe(true);
-      expect(isAgentHiddenSettingKey('runtime.eventBus.maxListeners')).toBe(true);
+      expect(isAgentHiddenSettingKey('controlPlane.port')).toBe(false);
+      expect(isAgentHiddenSettingKey('runtime.eventBus.maxListeners')).toBe(false);
       expect(isAgentHiddenSettingKey('ui.wrfcMessages')).toBe(true);
       expect(workspaceKeys.has('danger.daemon')).toBe(false);
-      expect(workspaceKeys.has('controlPlane.port')).toBe(false);
-      expect(workspaceKeys.has('runtime.eventBus.maxListeners')).toBe(false);
+      expect(workspaceKeys.has('controlPlane.port')).toBe(true);
+      expect(workspaceKeys.has('runtime.eventBus.maxListeners')).toBe(true);
       expect(workspaceKeys.has('ui.wrfcMessages')).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });

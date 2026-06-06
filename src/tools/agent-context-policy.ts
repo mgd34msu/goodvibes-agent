@@ -37,7 +37,7 @@ const CONTEXT_TOOL_FALLBACK = {
   preferredTool: 'agent_harness',
   routes: {
     summary: 'agent_harness mode:"summary"',
-    capabilities: 'agent_harness mode:"summary" includeParameters:true',
+    capabilities: 'goodvibes_context mode:"capabilities"',
     tools: 'agent_harness mode:"tools"',
     tool: 'agent_harness mode:"tool"',
     settings: 'agent_harness mode:"settings"',
@@ -71,6 +71,8 @@ export function wrapAgentContextToolForAgentPolicy(tool: Tool, registry?: ToolRe
   tool.execute = async (rawArgs) => {
     const args = rawArgs as AgentContextArgs;
     const mode = readAgentContextMode(args.mode);
+    if (mode === 'capabilities') return ok(buildAgentCapabilitiesContract(registry));
+
     const harnessMode = agentContextModeToHarnessMode(mode);
     const harnessTool = registry?.list().find((entry) => entry.definition.name === 'agent_harness');
     if (!harnessTool) {
@@ -93,7 +95,7 @@ export function wrapAgentContextToolForAgentPolicy(tool: Tool, registry?: ToolRe
       category: args.category,
       prefix: args.prefix,
       includeHidden: args.includeHidden,
-      includeParameters: mode === 'capabilities' ? true : args.includeParameters,
+      includeParameters: args.includeParameters,
       limit: args.limit,
     };
     const result = await harnessTool.execute(dropUndefined(harnessArgs));
@@ -116,7 +118,6 @@ function readAgentContextMode(value: unknown): AgentContextMode {
 }
 
 function agentContextModeToHarnessMode(mode: AgentContextMode): string {
-  if (mode === 'capabilities') return 'summary';
   if (mode === 'modes') return 'modes';
   if (mode === 'tools') return 'tools';
   if (mode === 'tool') return 'tool';
@@ -127,6 +128,88 @@ function agentContextModeToHarnessMode(mode: AgentContextMode): string {
   if (mode === 'workspace') return 'workspace';
   if (mode === 'status') return 'connected_host_status';
   return 'summary';
+}
+
+function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string, unknown> {
+  const availableTools = new Set(safeToolNames(registry));
+  const has = (name: string) => availableTools.has(name);
+  const optionalTool = (name: string) => has(name) ? name : `${name} (not registered)`;
+
+  return {
+    runtime: 'GoodVibes Agent',
+    answerStyle: 'Answer user capability questions from this contract. Do not dump inventory counts.',
+    currentContract: {
+      autonomy: 'User-directed operator agent. It can inspect, plan, edit, run tools, and perform confirmed effects; it is not an unrestricted background account-creation or self-expansion agent.',
+      confirmations: 'External sends, reminders, media generation, settings writes, slash-command execution, workspace actions, and operator actions require an explicit user request plus confirm:true where the tool requires it.',
+      secrets: 'Do not reveal raw secrets. Use configured secret refs, provider accounts, and channel readiness routes.',
+    },
+    canDoNow: [
+      {
+        area: 'Project and computer work',
+        can: 'Read, search, analyze, edit, and write workspace files; run bounded shell commands; inspect diffs and project structure.',
+        tools: ['read', 'find', 'analyze', 'inspect', 'edit', 'write', 'exec'].filter(has),
+      },
+      {
+        area: 'Web research',
+        can: has('web_search')
+          ? 'Search the web with bounded read-only evidence, inspect URLs, and summarize sourced findings in the main conversation.'
+          : 'Web research is not available until the web_search tool is registered.',
+        tools: [optionalTool('web_search'), optionalTool('fetch')],
+        inspect: 'agent_harness mode:"tool" toolName:"web_search"',
+      },
+      {
+        area: 'Harness operation',
+        can: 'Discover and use harness modes, slash commands, workspace actions, settings, panels, UI surfaces, keybindings, and model tools.',
+        tools: [optionalTool('agent_harness'), 'goodvibes_context'],
+        inspect: 'agent_harness mode:"modes" query:"capability"',
+      },
+      {
+        area: 'Memory and knowledge',
+        can: 'Use Agent-local memory, notes, personas, skills, routines, work plans, and isolated Agent Knowledge ask/search/ingest routes.',
+        tools: [optionalTool('agent_local_registry'), optionalTool('agent_work_plan'), optionalTool('agent_knowledge'), optionalTool('agent_knowledge_ingest')],
+      },
+      {
+        area: 'Configured services and messages',
+        can: 'Inspect configured channel readiness and send one confirmed message/notification/reminder/media request through configured targets.',
+        tools: [optionalTool('agent_channel_send'), optionalTool('agent_notify'), optionalTool('agent_reminder_schedule'), optionalTool('agent_media_generate')],
+        inspect: 'agent_harness mode:"channels" or mode:"notifications"',
+      },
+      {
+        area: 'Provider and setup work',
+        can: 'Inspect provider accounts, subscriptions, model routing, setup posture, service posture, and connected-host status; apply supported settings changes when explicitly requested.',
+        tools: [optionalTool('agent_harness')],
+        inspect: 'agent_harness mode:"provider_accounts", mode:"model_routing", mode:"setup_posture", or mode:"settings"',
+      },
+    ],
+    needsSetupOrIntegration: [
+      'Email inbox triage and replies are not a built-in advertised Agent tool in this package; they require a configured plugin, MCP server, or channel/service connector that exposes inbox and send/reply actions.',
+      'New third-party service signup/account creation is not a built-in autonomous flow. The Agent can help fill instructions and run explicit tools, but it should not use local personal information to create accounts without a user-owned integration and confirmation path.',
+      'Long-running autonomous operation requires an explicit schedule, routine, automation, or connected-host route. The main conversation does not silently create hidden background jobs.',
+      'New capabilities can come from installed plugins, MCP servers, configured services, or code changes; the Agent should inspect what is installed before claiming a capability exists.',
+    ],
+    commonRoutes: {
+      findCapability: 'agent_harness mode:"modes" query:"<task>"',
+      listTools: 'agent_harness mode:"tools" query:"<task>"',
+      inspectTool: 'agent_harness mode:"tool" toolName:"<tool>"',
+      listCommands: 'agent_harness mode:"commands" query:"<task>"',
+      runCommand: 'agent_harness mode:"run_command" command:"/<command> ..." confirm:true explicitUserRequest:"..."',
+      listWorkspaceActions: 'agent_harness mode:"workspace_actions" query:"<task>"',
+      runWorkspaceAction: 'agent_harness mode:"run_workspace_action" actionId:"<id>" confirm:true explicitUserRequest:"..."',
+      inspectSettings: 'agent_harness mode:"settings" query:"<setting>"',
+      setSetting: 'agent_harness mode:"set_setting" key:"<key>" value:<value> confirm:true explicitUserRequest:"..."',
+      webResearch: has('web_search') ? 'web_search query:"<research request>" verbosity:"evidence" maxResults:10 evidenceTopN:3' : 'not registered',
+      channels: 'agent_harness mode:"channels"; send with agent_channel_send only after explicit user request',
+    },
+    registeredModelTools: safeToolNames(registry),
+  };
+}
+
+function safeToolNames(registry?: ToolRegistry): readonly string[] {
+  try {
+    return registry?.getToolDefinitions().map((tool) => tool.name).sort((a, b) => a.localeCompare(b)) ?? [];
+  } catch {
+    return [];
+  }
 }
 
 function dropUndefined<T extends Record<string, unknown>>(value: T): Record<string, unknown> {

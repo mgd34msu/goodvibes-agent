@@ -170,11 +170,11 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     modeCatalog: 'Search mode:"modes" with query|target; inspect one contract with mode:"mode" target:"...".',
     releaseEvidence: 'Operator/audit: list mode:"release_evidence"; inspect mode:"release_evidence_artifact"; includeParameters:true inlines artifact detail.',
     releaseReadiness: 'Operator/audit: list mode:"release_readiness"; inspect mode:"release_readiness_item"; includeParameters:true inlines item detail.',
-    operatorMethods: 'List mode:"operator_methods"; inspect mode:"operator_method"; execute only through the returned first-class tool.',
+    operatorMethods: 'List mode:"operator_methods"; inspect mode:"operator_method"; run exact daemon methods with agent_operator_method; write/admin routes require confirmation.',
     servicePosture: 'List mode:"service_posture"; inspect mode:"service_endpoint"; includeParameters:true adds probes and redacted log tail.',
-    connectedHost: 'Map mode:"connected_host"; inspect mode:"connected_host_capability"; no lifecycle control.',
+    connectedHost: 'Map mode:"connected_host"; inspect mode:"connected_host_capability"; supported lifecycle changes use confirmed daemon operator methods.',
     connectedHostStatus: 'Live read-only mode:"connected_host_status" for host reachability, token posture, and Knowledge readiness.',
-    daemon: 'Daemon aliases route to mode:"connected_host" and mode:"connected_host_status"; lifecycle control is not exposed.',
+    daemon: 'Daemon aliases route to mode:"connected_host" and mode:"connected_host_status"; use agent_operator_method for exact contract calls.',
   };
 }
 

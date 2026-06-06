@@ -323,7 +323,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localSignalVerified: operatorMethods.availableModes + operatorMethods.availableSources,
       localBehaviorVerified: operatorMethods.availableModes + operatorMethods.availableSources,
       externalOutcomeRequired: 0,
-      notes: `${operatorMethods.modes} agent_harness modes, operator_methods and operator_method, and ${operatorMethods.sources} method sources must stay locally inspectable without arbitrary route invocation.`,
+      notes: `${operatorMethods.modes} agent_harness modes, operator_methods and operator_method, and ${operatorMethods.sources} SDK-backed method source markers must stay locally inspectable with exact-route invocation gated by agent_operator_method confirmation policy.`,
     },
     {
       area: 'Model-visible harness mode catalog',

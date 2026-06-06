@@ -32,6 +32,18 @@ export type SettingsCategory =
   | 'tts'
   | 'surfaces'
   | 'automation'
+  | 'service'
+  | 'controlPlane'
+  | 'httpListener'
+  | 'web'
+  | 'watchers'
+  | 'network'
+  | 'orchestration'
+  | 'runtime'
+  | 'sandbox'
+  | 'batch'
+  | 'cloudflare'
+  | 'wrfc'
   | 'telemetry'
   | 'cache'
   | 'mcp'
@@ -48,6 +60,8 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'mcp', 'automation'] },
+  { label: 'Daemon Runtime', categories: ['service', 'controlPlane', 'httpListener', 'web', 'watchers', 'network'] },
+  { label: 'Advanced Runtime', categories: ['orchestration', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc'] },
   { label: 'Advanced', categories: ['flags', 'release'] },
 ];
 

@@ -83,8 +83,8 @@ function describeEndpoint(
       policy: {
         effect: 'read-only',
         modelOperation: 'Inspect endpoint binding, network-facing posture, and optional reachability only.',
-        lifecycle: 'GoodVibes Agent does not start, stop, restart, install, expose, or mutate connected-host listeners.',
-        settings: 'Use agent_harness mode:"settings" or mode:"get_setting" for read-only inspection of endpoint settings; connected-host lifecycle/listener settings stay locked in Agent.',
+        lifecycle: 'Use setup or confirmed GoodVibes daemon operator methods for service lifecycle/listener changes.',
+        settings: 'Use agent_harness mode:"settings" or mode:"get_setting" for endpoint settings; raw danger toggles stay protected.',
       },
     } : {}),
   };
@@ -174,7 +174,7 @@ export function servicePostureCatalogStatus(): Record<string, unknown> {
     modes: ['service_posture', 'service_endpoint'],
     endpointIds: SERVICE_ENDPOINT_IDS,
     readOnly: true,
-    lifecycle: 'Connected-host and listener lifecycle stay outside GoodVibes Agent.',
+    lifecycle: 'Service posture is diagnostic; lifecycle/listener changes require setup or confirmed daemon operator methods.',
   };
 }
 
@@ -185,9 +185,9 @@ export async function servicePostureSummary(
   const includeDetails = args.includeParameters === true;
   const posture = await buildCliServicePosture(servicePostureRuntime(context), servicePostureOptions(args));
   return {
-    ownership: 'external-connected-host',
+    ownership: 'goodvibes-daemon',
     readOnly: true,
-    lifecycle: 'GoodVibes Agent reports connected-host/service posture but does not start, stop, restart, install, expose, or mutate host listeners.',
+    lifecycle: 'GoodVibes Agent reports service posture here. Lifecycle/listener changes require setup or confirmed daemon operator methods.',
     modelRoute: serviceEndpointModelRoute(),
     config: posture.config,
     managed: posture.managed,

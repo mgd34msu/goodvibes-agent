@@ -58,7 +58,8 @@
     "perf:check": "bun run scripts/perf-check.ts",
     "architecture:check": "bun run scripts/check-architecture.ts",
     "verification:ledger": "bun run scripts/verification-ledger.ts",
-    "verification:live": "bun run scripts/verify-live.ts"
+    "verification:live": "bun run scripts/verify-live.ts",
+    "ux:inventory": "bun run scripts/competitive-ux-inventory.ts"
   },
   "license": "MIT",
   "repository": {

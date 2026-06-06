@@ -671,7 +671,7 @@ describe('agent_harness tool', () => {
         readonly preferredModelTool?: string;
       }>(fixture, { mode: 'operator_method', methodId: 'schedules.create' });
       expectCompactModelRoute(expandedOperatorMethod.modelRoute);
-      expect(expandedOperatorMethod.preferredModelTool).toContain('agent_reminder_schedule');
+      expect(expandedOperatorMethod.preferredModelTool).toContain('agent_operator_method');
     } finally {
       fixture.cleanup();
     }
@@ -1217,18 +1217,18 @@ describe('agent_harness tool', () => {
 
       const catalog = await fixture.tool.execute({
         mode: 'operator_methods',
-        query: 'agentKnowledge',
+        query: 'knowledge',
         includeParameters: true,
-        limit: 50,
+        limit: 120,
       });
       expect(catalog.success).toBe(true);
       if (!catalog.success) throw new Error(catalog.error);
       const catalogJson = JSON.parse(catalog.output) as {
         readonly methods: readonly { readonly id: string; readonly route: string; readonly preferredModelTool: string; readonly parameters?: readonly unknown[] }[];
       };
-      expect(catalogJson.methods.map((method) => method.id)).toContain('agentKnowledge.map');
-      expect(catalogJson.methods.map((method) => method.route)).toContain('/api/goodvibes-agent/knowledge/connectors/{id}/doctor');
-      expect(catalogJson.methods.find((method) => method.id === 'agentKnowledge.ingest.url')?.parameters?.length).toBeGreaterThan(0);
+      expect(catalogJson.methods.map((method) => method.id)).toContain('knowledge.map');
+      expect(catalogJson.methods.map((method) => method.route)).toContain('GET /api/knowledge/connectors/{id}/doctor');
+      expect(catalogJson.methods.find((method) => method.id === 'knowledge.ingest.url')?.parameters?.length).toBeGreaterThan(0);
 
       const schedule = await fixture.tool.execute({ mode: 'operator_method', methodId: 'schedules.create' });
       expect(schedule.success).toBe(true);
@@ -1239,15 +1239,12 @@ describe('agent_harness tool', () => {
         readonly parameters: readonly { readonly name: string; readonly required: boolean }[];
       };
       expect(scheduleJson.id).toBe('schedules.create');
-      expect(scheduleJson.preferredModelTool).toContain('agent_reminder_schedule');
-      expect(scheduleJson.preferredModelTool).toContain('agent_harness mode:"run_workspace_action"');
-      expect(scheduleJson.preferredModelTool).not.toContain(['agent_harness', 'run_workspace_action'].join(' '));
+      expect(scheduleJson.preferredModelTool).toContain('agent_operator_method');
       expect(scheduleJson.parameters.map((parameter) => parameter.name)).toEqual(expect.arrayContaining([
-        'scheduleKind',
-        'scheduleValue',
-        'message',
-        'confirm',
-        'explicitUserRequest',
+        'prompt',
+        'kind',
+        'every',
+        'delivery',
       ]));
 
       const posture = await fixture.tool.execute({ mode: 'service_posture', includeParameters: true });
@@ -1259,7 +1256,7 @@ describe('agent_harness tool', () => {
       };
       expect(postureJson.readOnly).toBe(true);
       expect(postureJson.endpoints.map((endpoint) => endpoint.id)).toEqual(['controlPlane', 'httpListener', 'web']);
-      expect(postureJson.endpoints[0]?.policy.lifecycle).toContain('does not start, stop, restart, install, expose, or mutate');
+      expect(postureJson.endpoints[0]?.policy.lifecycle).toContain('confirmed GoodVibes daemon operator methods');
 
       const endpoint = await fixture.tool.execute({ mode: 'service_endpoint', query: 'browser companion route' });
       expect(endpoint.success).toBe(true);
@@ -1276,7 +1273,7 @@ describe('agent_harness tool', () => {
         resolvedBy: 'label',
       });
       expect(endpointJson.policy.effect).toBe('read-only');
-      expect(endpointJson.policy.lifecycle).toContain('does not start, stop, restart, install, expose, or mutate');
+      expect(endpointJson.policy.lifecycle).toContain('confirmed GoodVibes daemon operator methods');
     } finally {
       fixture.cleanup();
     }
@@ -2637,7 +2634,7 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('gates setting mutations and keeps connected-host-owned settings read-only', async () => {
+  test('gates setting mutations and allows daemon setup settings through confirmed harness routes', async () => {
     const fixture = makeFixture();
     try {
       const missingConfirmation = await fixture.tool.execute({
@@ -2659,15 +2656,15 @@ describe('agent_harness tool', () => {
       expect(set.success).toBe(true);
       expect(fixture.configManager.get('provider.model')).toBe('openai:gpt-4.1');
 
-      const hostOwned = await fixture.tool.execute({
+      const serviceSetting = await fixture.tool.execute({
         mode: 'set_setting',
         key: 'service.enabled',
         value: true,
         confirm: true,
         explicitUserRequest: 'Turn on the host service.',
       });
-      expect(hostOwned.success).toBe(false);
-      expect(hostOwned.error).toContain('connected GoodVibes host');
+      expect(serviceSetting.success).toBe(true);
+      expect(fixture.configManager.get('service.enabled')).toBe(true);
     } finally {
       fixture.cleanup();
     }
