@@ -7,6 +7,7 @@ export const AGENT_HARNESS_MODES = [
   'setup_posture', 'setup_item',
   'model_routing', 'model_route',
   'execution_posture', 'execution_route',
+  'execution_history', 'execution_history_item',
   'file_recovery', 'run_file_recovery',
   'personal_ops', 'personal_ops_lane',
   'autonomy_intake', 'autonomy_queue', 'autonomy_queue_item',
@@ -90,6 +91,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   executionRouteId: {
     type: 'string',
     description: 'Execution route id for execution_route mode.',
+  },
+  executionRecordId: {
+    type: 'string',
+    description: 'Execution history record id for execution_history_item mode.',
   },
   recoveryAction: {
     type: 'string',

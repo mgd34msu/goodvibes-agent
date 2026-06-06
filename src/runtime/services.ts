@@ -90,6 +90,7 @@ import {
   type WorkflowServices,
 } from '@pellux/goodvibes-sdk/platform/tools';
 import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
+import { AgentExecutionLedger } from './execution-ledger.ts';
 
 type WorktreeRegistry = RuntimeShell.WorktreeRegistry;
 type SdkRuntimeServices = RuntimeFoundationClientsOptions['runtimeServices'];
@@ -464,6 +465,7 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly processManager: ProcessManager;
   readonly modeManager: ModeManager;
   readonly fileUndoManager: FileUndoManager;
+  readonly executionLedger: AgentExecutionLedger;
   readonly integrationHelpers: IntegrationHelperService;
   /**
    * Re-root workspace-bound stores to a new working directory.
@@ -758,6 +760,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const processManager = new ProcessManager();
   const modeManager = new ModeManager();
   const fileUndoManager = new FileUndoManager();
+  const executionLedger = new AgentExecutionLedger(options.runtimeBus);
   const integrationHelpers = new IntegrationHelperService({
     workingDirectory,
     homeDirectory,
@@ -890,6 +893,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     processManager,
     modeManager,
     fileUndoManager,
+    executionLedger,
     integrationHelpers,
     async rerootStores(newWorkingDir: string): Promise<void> {
       await projectIndex.reroot(newWorkingDir);

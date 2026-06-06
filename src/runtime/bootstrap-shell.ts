@@ -243,6 +243,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     remoteRuntime,
     planRuntime,
     fileUndoManager: services.fileUndoManager,
+    executionLedger: services.executionLedger,
     memoryRegistry: services.memoryRegistry,
     integrationHelpers: services.integrationHelpers,
     automationManager: services.automationManager,

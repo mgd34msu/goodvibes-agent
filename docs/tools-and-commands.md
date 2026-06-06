@@ -8,7 +8,7 @@ GoodVibes Agent is a TUI-first operator assistant. The workspace is the primary 
 - Agent Knowledge uses only `/api/goodvibes-agent/knowledge/*`.
 - Agent does not query default knowledge or other product knowledge spaces.
 - Connected-host lifecycle is external. Agent reports and uses public routes, but does not start, stop, restart, install, expose, or mutate the host listener.
-- Local read/edit/exec is available for explicit work in the current Agent workspace when permissions are sufficient. `execution_posture` exposes process monitor, live tail, tool inspector, browser/desktop setup, and file recovery routes for local work. File edit/write recovery is inspectable through `file_recovery` and applied only through confirmed `run_file_recovery`. Delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
+- Local read/edit/exec is available for explicit work in the current Agent workspace when permissions are sufficient. `execution_posture` exposes process monitor, live tail, tool inspector, browser/desktop setup, execution history, and file recovery routes for local work. `execution_history` lists recent redacted tool/shell/edit records with result summaries and follow-up routes. File edit/write recovery is inspectable through `file_recovery` and applied only through confirmed `run_file_recovery`. Delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
 - External delivery, notifications, reminders, media generation, setting writes, keybinding writes, UI routing, slash-command execution, workspace-action execution, local destructive changes, and connected-host operator actions require explicit user request and confirmation.
 
 ## User-Facing Surfaces
@@ -69,7 +69,7 @@ Discovery modes:
 | `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
 | `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
-| `provider_accounts`, `model_routing`, `execution_posture`, `file_recovery` | Provider auth, provider/model route posture, hardware-scored local model cookbook, local-vs-delegated execution routing, and file edit recovery. |
+| `provider_accounts`, `model_routing`, `execution_posture`, `execution_history`, `file_recovery` | Provider auth, provider/model route posture, hardware-scored local model cookbook, local-vs-delegated execution routing, redacted execution records, and file edit recovery. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus live Agent-owned note, routine, schedule-receipt, and delivery records. |
 | `autonomy_intake`, `autonomy_queue`, `autonomy_queue_item` | Ongoing-work route selection, visible autonomous work owners, status, live records, log tails, inspect routes, and cancel/recovery routes. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, and routine review candidates. |

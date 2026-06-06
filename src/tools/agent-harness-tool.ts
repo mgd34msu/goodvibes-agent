@@ -24,6 +24,7 @@ import { describeHarnessNotificationTarget, listHarnessNotificationTargets, noti
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
 import { describeDocumentOpsLane, documentOpsCatalogStatus, documentOpsSummary } from './agent-harness-document-ops.ts';
+import { describeExecutionHistoryItem, executionHistoryCatalogStatus, executionHistorySummary } from './agent-harness-execution-history.ts';
 import { describeHarnessExecutionRoute, executionPostureCatalogStatus, executionPostureSummary } from './agent-harness-execution-posture.ts';
 import { fileRecoveryCatalogStatus, fileRecoverySummary, runFileRecovery } from './agent-harness-file-recovery.ts';
 import { runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-harness-local-operations.ts';
@@ -64,6 +65,7 @@ interface AgentHarnessToolArgs {
   readonly setupItemId?: unknown;
   readonly modelRouteId?: unknown;
   readonly executionRouteId?: unknown;
+  readonly executionRecordId?: unknown;
   readonly recoveryAction?: unknown;
   readonly laneId?: unknown;
   readonly queueItemId?: unknown;
@@ -181,6 +183,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     setupPosture: 'List mode:"setup_posture"; inspect plan rows with mode:"setup_item"; setup mutations stay visible.',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',
+    executionHistory: 'List mode:"execution_history"; inspect mode:"execution_history_item"; use returned supervision and recovery routes.',
     fileRecovery: 'List mode:"file_recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use live records and returned routes for personal ops.',
     autonomyQueue: 'Start mode:"autonomy_intake" for ongoing-work requests; list mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay confirmed.',
@@ -910,6 +913,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               error: formatHarnessError(err),
             })),
             executionPosture: executionPostureCatalogStatus(deps.commandContext, deps.toolRegistry),
+            executionHistory: executionHistoryCatalogStatus(deps.commandContext),
             fileRecovery: fileRecoveryCatalogStatus(deps.commandContext),
             personalOps: personalOpsCatalogStatus(deps.commandContext),
             autonomyQueue: autonomyQueueCatalogStatus(deps.commandContext),
@@ -1067,6 +1071,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = describeHarnessExecutionRoute(deps.commandContext, deps.toolRegistry, args);
           if (resolved.status === 'found') return output(resolved.route);
           if (resolved.status === 'ambiguous') return error(`Ambiguous execution route ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'execution_history') return output(executionHistorySummary(deps.commandContext, args));
+        if (args.mode === 'execution_history_item') {
+          const resolved = describeExecutionHistoryItem(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.record);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous execution history record ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'file_recovery') return output(fileRecoverySummary(deps.commandContext, args));

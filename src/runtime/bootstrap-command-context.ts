@@ -41,6 +41,7 @@ import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
+import type { AgentExecutionLedger } from './execution-ledger.ts';
 import {
   createBootstrapCommandActions,
   createBootstrapCommandClientsSection,
@@ -74,6 +75,7 @@ export type CreateBootstrapCommandContextOptions = {
   remoteRuntime?: RemoteCommandService;
   planRuntime?: PlanRuntimeService;
   fileUndoManager: FileUndoManager;
+  executionLedger?: AgentExecutionLedger;
   memoryRegistry?: MemoryRegistry;
   integrationHelpers?: IntegrationHelperService;
   automationManager?: ShellAutomationManagerRuntimeService;
@@ -146,6 +148,7 @@ export function createBootstrapCommandContext(
     remoteRuntime,
     planRuntime,
     fileUndoManager,
+    executionLedger,
     memoryRegistry,
     integrationHelpers,
     automationManager,
@@ -279,7 +282,7 @@ export function createBootstrapCommandContext(
     provider,
     workspace,
     platform,
-    ops: createBootstrapCommandOpsSection(shellServices),
+    ops: createBootstrapCommandOpsSection(shellServices, { executionLedger }),
     extensions,
     clients,
     ...actions,

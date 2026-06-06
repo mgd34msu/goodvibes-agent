@@ -324,6 +324,7 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
       delegationPolicy: 'Use delegation for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.',
       browserControl: browserControl.status,
       browserControlSetup: browserControl,
+      executionHistory: 'agent_harness mode:"execution_history"',
       fileRecovery: fileRecoveryCatalogStatus(context),
       supervision: executionSupervisionSummary(context),
       registeredExecutionTools: [...registeredToolNames(toolRegistry)].filter((name) => ['read', 'find', 'inspect', 'analyze', 'edit', 'write', 'exec', 'fetch', 'web_search'].includes(name)).sort(),

@@ -62,6 +62,8 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'model_route', kind: 'inspect', family: 'providers', summary: 'Inspect one model route, fit score, or visible selection path.', parameters: ['modelRouteId', 'target', 'query'] },
   { id: 'execution_posture', kind: 'discover', family: 'execution', summary: 'Pick local shell/edit execution vs delegation.', next: 'Use execution_route.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'execution_route', kind: 'inspect', family: 'execution', summary: 'Inspect one local, browser, web, or delegation route.', parameters: ['executionRouteId', 'target', 'query'] },
+  { id: 'execution_history', kind: 'discover', family: 'execution', summary: 'List recent local tool/shell/edit execution records.', next: 'Use execution_history_item.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'execution_history_item', kind: 'inspect', family: 'execution', summary: 'Inspect one execution record with routes and recovery.', parameters: ['executionRecordId', 'recordId', 'target', 'query'] },
   { id: 'file_recovery', kind: 'discover', family: 'execution', summary: 'Inspect local file edit undo/redo recovery.', next: 'Use run_file_recovery with confirmation.', parameters: ['includeParameters'] },
   { id: 'run_file_recovery', kind: 'effect', family: 'execution', summary: 'Apply one local file undo or redo snapshot.', requiresConfirmation: true, parameters: ['recoveryAction', 'target', 'query', 'confirm', 'explicitUserRequest'] },
   { id: 'personal_ops', kind: 'discover', family: 'personal-ops', summary: 'Map email, calendar, tasks, reminders, notes, and live records.', next: 'Use personal_ops_lane for personal operations.', parameters: ['includeParameters'] },

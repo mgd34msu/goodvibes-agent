@@ -35,6 +35,7 @@ import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { listGoodVibesCliCommands } from '../../cli/parser.ts';
 import { compactRegisteredToolDefinitions } from '../../tools/tool-definition-compaction.ts';
+import type { AgentExecutionRecord } from '../../runtime/execution-ledger.ts';
 
 type ShellPaths = ReturnType<typeof createShellPathService>;
 type HarnessOpenSelection = NonNullable<CommandContext['openSelection']>;
@@ -54,6 +55,7 @@ interface HarnessFixture {
   readonly routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }>;
   readonly openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }>;
   readonly openedSelections: Array<{ readonly title: string; readonly itemIds: readonly string[]; readonly preSelectId?: string }>;
+  readonly executionRecords: AgentExecutionRecord[];
   readonly cleanup: () => void;
 }
 
@@ -186,6 +188,7 @@ function makeFixture(options: {
   const routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }> = [];
   const openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }> = [];
   const openedSelections: Array<{ readonly title: string; readonly itemIds: readonly string[]; readonly preSelectId?: string }> = [];
+  const executionRecords: AgentExecutionRecord[] = [];
   const savedSessions = [{
     name: 'session-alpha',
     title: 'Alpha planning session',
@@ -440,7 +443,20 @@ function makeFixture(options: {
         getContextWindowForModel: () => 128_000,
       },
     },
-    ops: {},
+    ops: {
+      executionLedger: {
+        getSnapshot: () => ({
+          records: executionRecords,
+          total: executionRecords.length,
+          running: executionRecords.filter((record) => record.status === 'running').length,
+          succeeded: executionRecords.filter((record) => record.status === 'succeeded').length,
+          failed: executionRecords.filter((record) => record.status === 'failed').length,
+          cancelled: executionRecords.filter((record) => record.status === 'cancelled').length,
+        }),
+        subscribe: () => () => {},
+        dispose: () => {},
+      },
+    },
     extensions: { toolRegistry },
   } as unknown as CommandContext;
 
@@ -466,6 +482,7 @@ function makeFixture(options: {
     routedPanels,
     openedSurfaces,
     openedSelections,
+    executionRecords,
     cleanup,
   };
 }
@@ -564,12 +581,14 @@ describe('agent_harness tool', () => {
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
       expect(summaryJson.modeGuide?.discover).toContain('execution_posture');
+      expect(summaryJson.modeGuide?.discover).toContain('execution_history');
       expect(summaryJson.modeGuide?.discover).toContain('file_recovery');
       expect(summaryJson.modeGuide?.discover).toContain('personal_ops');
       expect(summaryJson.modeGuide?.discover).toContain('autonomy_intake');
       expect(summaryJson.modeGuide?.discover).toContain('research_runs');
       expect(summaryJson.modeGuide?.inspect).toContain('mode');
       expect(summaryJson.modeGuide?.inspect).toContain('execution_route');
+      expect(summaryJson.modeGuide?.inspect).toContain('execution_history_item');
       expect(summaryJson.modeGuide?.inspect).toContain('personal_ops_lane');
       expect(summaryJson.modeGuide?.inspect).toContain('research_run');
       expect(summaryJson.modeGuide?.inspect).toContain('research_source');
@@ -619,6 +638,10 @@ describe('agent_harness tool', () => {
       const recoveryModes = await fixture.tool.execute({ mode: 'modes', query: 'file edit undo recovery' });
       expect(recoveryModes.success).toBe(true);
       expect(recoveryModes.output).toContain('file_recovery');
+
+      const historyModes = await fixture.tool.execute({ mode: 'modes', query: 'execution history record' });
+      expect(historyModes.success).toBe(true);
+      expect(historyModes.output).toContain('execution_history');
 
       const documentModes = await fixture.tool.execute({ mode: 'modes', query: 'blind model comparison documents uploads' });
       expect(documentModes.success).toBe(true);
@@ -1210,6 +1233,7 @@ describe('agent_harness tool', () => {
           readonly localFirstPolicy: string;
           readonly delegationPolicy: string;
           readonly browserControl: string;
+          readonly executionHistory: string;
           readonly browserControlSetup: {
             readonly status: string;
             readonly setupRoute: string;
@@ -1242,6 +1266,7 @@ describe('agent_harness tool', () => {
       expect(posture.summary.localFirstPolicy).toContain('Use local read/edit/exec');
       expect(posture.summary.delegationPolicy).toContain('isolation');
       expect(posture.summary.browserControl).toBe('setup-needed');
+      expect(posture.summary.executionHistory).toContain('execution_history');
       expect(posture.summary.browserControlSetup.setupRoute).toContain('browser-desktop-control');
       expect(posture.summary.browserControlSetup.recommendedRoute).toContain('mcp_servers');
       expect(posture.summary.supervision.processMonitorAvailable).toBe(true);
@@ -1323,6 +1348,104 @@ describe('agent_harness tool', () => {
       });
       expect(inspectedDelegation.preferredWhen).toContain('remote host');
       expect(inspectedDelegation.useInsteadWhen).toContain('Use local read/edit/exec');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes local execution history records with supervision and recovery routes', async () => {
+    const fixture = makeFixture();
+    try {
+      const now = Date.now();
+      const target = join(fixture.root, 'history-edit.txt');
+      writeFileSync(target, 'after', 'utf-8');
+      fixture.context.workspace.fileUndoManager?.snapshot({
+        path: target,
+        beforeContent: 'before',
+        afterContent: 'after',
+        tool: 'edit',
+      });
+      fixture.executionRecords.push(
+        {
+          id: 'call-shell',
+          callId: 'call-shell',
+          turnId: 'turn-1',
+          tool: 'exec',
+          routeKind: 'shell',
+          status: 'succeeded',
+          phase: 'TOOL_SUCCEEDED',
+          receivedAt: now - 2000,
+          updatedAt: now - 1000,
+          completedAt: now - 1000,
+          durationMs: 1000,
+          permissionApproved: true,
+          argsPreview: '{"command":"bun test","apiKey":"[redacted]"}',
+          argsKeys: ['command'],
+          commandPreview: 'bun test src/test/tools/agent-harness-tool.test.ts',
+          resultSummary: { kind: 'text', byteSize: 42, preview: '84 pass, 0 fail' },
+        },
+        {
+          id: 'call-edit',
+          callId: 'call-edit',
+          turnId: 'turn-1',
+          tool: 'edit',
+          routeKind: 'write',
+          status: 'succeeded',
+          phase: 'TOOL_SUCCEEDED',
+          receivedAt: now - 4000,
+          updatedAt: now - 3000,
+          completedAt: now - 3000,
+          durationMs: 1000,
+          argsPreview: '{"path":"history-edit.txt","content":"after"}',
+          argsKeys: ['content', 'path'],
+          targetPreview: 'history-edit.txt',
+          resultSummary: { kind: 'json', byteSize: 18, preview: '{"ok":true}' },
+        },
+      );
+
+      const summary = await executeHarnessJson<{
+        readonly summary: {
+          readonly records: number;
+          readonly succeeded: number;
+          readonly routeKinds: { readonly shell: number; readonly write: number };
+        };
+        readonly records: readonly {
+          readonly executionRecordId: string;
+          readonly tool: string;
+          readonly routeKind: string;
+          readonly commandPreview?: string;
+          readonly argsPreview: string;
+          readonly resultSummary?: { readonly preview?: string };
+          readonly supervisionRoutes?: readonly { readonly id: string; readonly modelRoute: string }[];
+          readonly recoveryRoute?: string;
+        }[];
+      }>(fixture, { mode: 'execution_history', includeParameters: true });
+      expect(summary.summary.records).toBe(2);
+      expect(summary.summary.succeeded).toBe(2);
+      expect(summary.summary.routeKinds.shell).toBe(1);
+      expect(summary.summary.routeKinds.write).toBe(1);
+      expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.commandPreview).toContain('bun test');
+      expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.argsPreview).toContain('[redacted]');
+      expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.resultSummary?.preview).toContain('84 pass');
+      expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.supervisionRoutes?.map((route) => route.id)).toEqual(expect.arrayContaining(['process-monitor', 'live-tail']));
+      expect(summary.records.find((record) => record.executionRecordId === 'call-edit')?.recoveryRoute).toContain('file_recovery');
+
+      const searched = await executeHarnessJson<{
+        readonly records: readonly { readonly executionRecordId: string }[];
+      }>(fixture, { mode: 'execution_history', query: 'bun test' });
+      expect(searched.records.map((record) => record.executionRecordId)).toEqual(['call-shell']);
+
+      const inspected = await executeHarnessJson<{
+        readonly executionRecordId: string;
+        readonly policy?: { readonly effect: string; readonly values: string };
+        readonly modelAccess?: { readonly toolInspector: string; readonly fileRecovery: string };
+        readonly lookup?: { readonly resolvedBy?: string };
+      }>(fixture, { mode: 'execution_history_item', executionRecordId: 'call-edit' });
+      expect(inspected.executionRecordId).toBe('call-edit');
+      expect(inspected.lookup?.resolvedBy).toBe('id');
+      expect(inspected.policy?.effect).toBe('read-only');
+      expect(inspected.policy?.values).toContain('redacted args');
+      expect(inspected.modelAccess?.fileRecovery).toContain('file_recovery');
     } finally {
       fixture.cleanup();
     }

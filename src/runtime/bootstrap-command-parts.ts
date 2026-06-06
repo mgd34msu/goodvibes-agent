@@ -44,6 +44,7 @@ import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
+import type { AgentExecutionLedger } from './execution-ledger.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 
 export type BootstrapCommandSessionSection = CommandContext['session'];
@@ -88,6 +89,7 @@ export interface BootstrapCommandSectionOptions {
   readonly readModels: UiReadModels;
   readonly shellPaths: ShellPathService;
   readonly fileUndoManager: FileUndoManager;
+  readonly executionLedger?: AgentExecutionLedger;
   readonly memoryRegistry?: MemoryRegistry;
   readonly integrationHelpers?: IntegrationHelperService;
   readonly knowledgeService?: KnowledgeService;
@@ -329,8 +331,12 @@ export function createBootstrapCommandPlatformSection(
 
 export function createBootstrapCommandOpsSection(
   shellServices: BootstrapCommandShellServices,
+  options: Pick<BootstrapCommandSectionOptions, 'executionLedger'> = {},
 ): BootstrapCommandOpsSection {
-  return shellServices.ops;
+  return {
+    ...shellServices.ops,
+    executionLedger: options.executionLedger,
+  };
 }
 
 export function createBootstrapCommandExtensionsSection(

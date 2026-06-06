@@ -21,6 +21,7 @@ import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
+import type { AgentExecutionLedger } from '../runtime/execution-ledger.ts';
 import type {
   CommandWorkspaceShellServices,
 } from '@/runtime/index.ts';
@@ -183,7 +184,9 @@ export interface CommandPlatformServices
     CommandPlatformShellServices {}
 
 export interface CommandOpsServices
-  extends CommandOpsShellServices {}
+  extends CommandOpsShellServices {
+  readonly executionLedger?: AgentExecutionLedger;
+}
 
 export interface CommandExtensionRegistryServices {
   readonly toolRegistry: ToolRegistry;
