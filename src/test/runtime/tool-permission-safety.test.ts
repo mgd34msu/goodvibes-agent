@@ -51,6 +51,7 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_artifacts', { mode: 'show' })).toBe('read');
     expect(manager.getCategory('agent_artifacts', { mode: 'export' })).toBe('write');
     expect(manager.getCategory('agent_artifacts', { mode: 'package' })).toBe('write');
+    expect(manager.getCategory('agent_artifacts', { mode: 'archive' })).toBe('write');
     expect(manager.getCategory('unknown_tool')).toBe('delegate');
   });
 
@@ -63,6 +64,7 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_artifacts', { mode: 'list' })).toBe('read');
     expect(manager.getCategory('agent_artifacts', { mode: 'export' })).toBe('write');
     expect(manager.getCategory('agent_artifacts', { mode: 'package' })).toBe('write');
+    expect(manager.getCategory('agent_artifacts', { mode: 'archive' })).toBe('write');
     expect(manager.getCategory('exec')).toBe('execute');
     expect(manager.getCategory('agent_channel_send')).toBe('delegate');
   });
@@ -75,6 +77,7 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('agent_artifacts', { mode: 'show' })).resolves.toBe(true);
     await expect(manager.check('agent_artifacts', { mode: 'export' })).resolves.toBe(false);
     await expect(manager.check('agent_artifacts', { mode: 'package' })).resolves.toBe(false);
+    await expect(manager.check('agent_artifacts', { mode: 'archive' })).resolves.toBe(false);
     await expect(manager.check('exec', { commands: [] })).resolves.toBe(false);
 
     const detailed = await manager.checkDetailed('agent_harness', { mode: 'summary' });

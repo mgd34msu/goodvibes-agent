@@ -3,7 +3,7 @@ import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './ag
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export interface AgentArtifactBrowserWorkspaceToolArgs {
-  readonly mode: 'list' | 'show' | 'export' | 'package';
+  readonly mode: 'list' | 'show' | 'export' | 'package' | 'archive';
   readonly artifactId?: string;
   readonly artifactIds?: readonly string[];
   readonly destinationPath?: string;
@@ -123,12 +123,13 @@ export function createAgentArtifactPackageEditor(): AgentWorkspaceLocalEditor {
     mode: 'create',
     title: 'Export Artifact Package',
     selectedFieldIndex: 0,
-    message: 'Copy multiple saved artifacts into a workspace package directory with exact bytes, a redacted manifest, and a README. Existing directories require overwrite confirmation.',
+    message: 'Copy multiple saved artifacts into a workspace package directory or ZIP archive with exact bytes, a redacted manifest, and a README. Existing outputs require overwrite confirmation.',
     fields: [
       { id: 'artifactIds', label: 'Artifact ids', value: '', required: true, multiline: true, hint: 'Comma-separated or newline-separated saved artifact ids.' },
-      { id: 'destinationPath', label: 'Destination directory', value: '', required: true, multiline: false, hint: 'Workspace-relative directory such as exports/research-package.' },
-      { id: 'overwrite', label: 'Overwrite existing', value: 'no', required: false, multiline: false, hint: 'yes/no. Keep no unless replacing a reviewed package directory.' },
-      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to copy these artifacts to the package directory.' },
+      { id: 'packageFormat', label: 'Format', value: 'directory', required: false, multiline: false, hint: 'directory or zip. Directory keeps files reviewable; zip creates one archive file.' },
+      { id: 'destinationPath', label: 'Destination path', value: '', required: true, multiline: false, hint: 'Workspace-relative directory such as exports/research-package, or ZIP path such as exports/research-package.zip.' },
+      { id: 'overwrite', label: 'Overwrite existing', value: 'no', required: false, multiline: false, hint: 'yes/no. Keep no unless replacing a reviewed package output.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to copy these artifacts to the package output.' },
     ],
   };
 }
@@ -204,8 +205,10 @@ export function buildAgentArtifactPackageToolArgs(
   explicitUserRequest: string,
 ): AgentArtifactBrowserWorkspaceToolArgs {
   const artifactIds = splitList(readField('artifactIds'));
+  const packageFormat = readField('packageFormat').trim().toLowerCase();
+  const mode = packageFormat === 'zip' || packageFormat === 'archive' ? 'archive' : 'package';
   return {
-    mode: 'package',
+    mode,
     artifactIds,
     destinationPath: readField('destinationPath').trim(),
     overwrite: isAffirmative(readField('overwrite')),
@@ -436,7 +439,7 @@ export function buildAgentArtifactPackagePromptSubmission(
   if (!isAffirmative(readField('confirm'))) {
     return {
       kind: 'editor',
-      editor: { ...editor, message: 'Type yes to confirm copying these artifacts to the package directory.' },
+      editor: { ...editor, message: 'Type yes to confirm copying these artifacts to the package output.' },
       status: 'Artifact package export not confirmed.',
     };
   }
@@ -460,10 +463,13 @@ export function buildAgentArtifactPackagePromptSubmission(
 
   const args = buildAgentArtifactPackageToolArgs(
     readField,
-    'Export reviewed saved Agent artifacts to a workspace package directory.',
+    readField('packageFormat').trim().toLowerCase() === 'zip' || readField('packageFormat').trim().toLowerCase() === 'archive'
+      ? 'Export reviewed saved Agent artifacts to a workspace ZIP archive.'
+      : 'Export reviewed saved Agent artifacts to a workspace package directory.',
   );
+  const outputKind = args.mode === 'archive' ? 'ZIP archive' : 'package directory';
   const prompt = [
-    'Export reviewed saved Agent artifacts to a workspace package directory.',
+    `Export reviewed saved Agent artifacts to a workspace ${outputKind}.`,
     'Use the `agent_artifacts` tool with these arguments:',
     `mode: ${JSON.stringify(args.mode)}`,
     `artifactIds: ${JSON.stringify(args.artifactIds ?? [])}`,
@@ -471,7 +477,7 @@ export function buildAgentArtifactPackagePromptSubmission(
     `overwrite: ${args.overwrite ? 'true' : 'false'}`,
     'confirm: true',
     `explicitUserRequest: ${JSON.stringify(args.explicitUserRequest)}`,
-    'Policy: copy exact artifact bytes into a workspace directory with a redacted manifest and README; do not print content, delete artifacts, or write outside the project.',
+    'Policy: copy exact artifact bytes into the workspace output with a redacted manifest and README; do not print content, delete artifacts, or write outside the project.',
   ].join('\n');
 
   return {
@@ -481,7 +487,7 @@ export function buildAgentArtifactPackagePromptSubmission(
     actionResult: {
       kind: 'guidance',
       title: 'Artifact package export',
-      detail: 'Submitted a confirmed request to copy selected saved artifacts to a workspace package directory.',
+      detail: `Submitted a confirmed request to copy selected saved artifacts to a workspace ${outputKind}.`,
       safety: 'safe',
     },
   };

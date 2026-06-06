@@ -399,19 +399,24 @@ async function runWorkspaceEditorAction(
   if (editor.kind === 'artifact-export-package') {
     const confirmationError = requireConfirmedAction(args, 'Workspace artifact package export');
     if (confirmationError) return error(confirmationError);
-    const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();
+    const readField = fieldReader(editor, fields);
+    const formConfirmation = readField('confirm').trim().toLowerCase();
     if (formConfirmation !== 'yes' && formConfirmation !== 'true') {
       return output({
         status: 'not_confirmed',
         action: action.id,
         editor: describeWorkspaceEditor(editor),
         modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
-        note: 'Type yes in the editor confirmation field before exporting the selected artifacts to a package directory.',
+        note: 'Type yes in the editor confirmation field before exporting the selected artifacts to a package output.',
       });
     }
+    const packageFormat = readField('packageFormat').trim().toLowerCase();
+    const defaultRequest = packageFormat === 'zip' || packageFormat === 'archive'
+      ? 'Export reviewed saved Agent artifacts to a workspace ZIP archive.'
+      : 'Export reviewed saved Agent artifacts to a workspace package directory.';
     const artifactToolArgs = buildAgentArtifactPackageToolArgs(
-      fieldReader(editor, fields),
-      readString(args.explicitUserRequest) || 'Export reviewed saved Agent artifacts to a workspace package directory.',
+      readField,
+      readString(args.explicitUserRequest) || defaultRequest,
     );
     const result = await deps.toolRegistry.execute(
       'agent-harness-workspace-artifact-package-export',

@@ -120,7 +120,7 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       tool: 'agent_artifacts',
       action: 'export_artifact_package',
       confirmation: 'required',
-      note: 'run_workspace_action copies selected reviewed artifacts into a workspace package directory after confirmation. It preserves exact bytes, writes a redacted manifest and README, refuses existing directories unless overwrite is requested, and never deletes artifacts or prints content.',
+      note: 'run_workspace_action copies selected reviewed artifacts into a workspace package directory or ZIP archive after confirmation. It preserves exact bytes, writes a redacted manifest and README, refuses existing outputs unless overwrite is requested, and never deletes artifacts or prints content.',
     };
   }
   if (editorKind === 'artifact-promote-knowledge') {

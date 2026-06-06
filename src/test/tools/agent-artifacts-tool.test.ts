@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { inflateRawSync } from 'node:zlib';
 import type { ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { createAgentArtifactsTool, registerAgentArtifactsTool } from '../../tools/agent-artifacts-tool.ts';
@@ -58,6 +59,25 @@ class ArtifactBrowserTestStore implements Partial<Pick<ArtifactStore, 'get' | 'l
     if (!record || !buffer) throw new Error(`Unknown artifact: ${id}`);
     return { record, buffer };
   }
+}
+
+function unzipLocalEntries(buffer: Buffer): Map<string, Buffer> {
+  const entries = new Map<string, Buffer>();
+  let offset = 0;
+  while (offset + 4 < buffer.byteLength && buffer.readUInt32LE(offset) === 0x04034b50) {
+    const method = buffer.readUInt16LE(offset + 8);
+    const compressedSize = buffer.readUInt32LE(offset + 18);
+    const nameLength = buffer.readUInt16LE(offset + 26);
+    const extraLength = buffer.readUInt16LE(offset + 28);
+    const nameStart = offset + 30;
+    const dataStart = nameStart + nameLength + extraLength;
+    const dataEnd = dataStart + compressedSize;
+    const name = buffer.subarray(nameStart, nameStart + nameLength).toString('utf-8');
+    const compressed = buffer.subarray(dataStart, dataEnd);
+    entries.set(name, method === 8 ? inflateRawSync(compressed) : Buffer.from(compressed));
+    offset = dataEnd;
+  }
+  return entries;
 }
 
 describe('agent_artifacts tool', () => {
@@ -309,6 +329,71 @@ describe('agent_artifacts tool', () => {
       });
       expect(overwritten.success).toBe(true);
       expect(overwritten.output).toContain('overwrite yes');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('exports multiple artifacts as a validated ZIP archive with exact bytes and redacted manifest', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-archive-'));
+    try {
+      const store = new ArtifactBrowserTestStore();
+      const imageBytes = Buffer.from([137, 80, 78, 71]);
+      store.add({
+        id: 'artifact-report',
+        mimeType: 'text/markdown',
+        filename: 'report.md',
+        text: '# Report\n\nBody',
+        sourceUri: 'https://example.test/report?token=secret-token&ok=1',
+        metadata: { purpose: 'research', apiKey: 'secret-value' },
+      });
+      store.add({
+        id: 'artifact-image',
+        kind: 'image',
+        mimeType: 'image/png',
+        filename: 'generated.png',
+        buffer: imageBytes,
+      });
+      const tool = createAgentArtifactsTool(store, { projectRoot: root });
+
+      const exported = await tool.execute({
+        mode: 'archive',
+        artifactIds: ['artifact-report', 'artifact-image'],
+        destinationPath: 'exports/research-package.zip',
+        confirm: true,
+        explicitUserRequest: 'Export the reviewed research artifacts as a ZIP archive.',
+      });
+
+      expect(exported.success).toBe(true);
+      expect(exported.output).toContain('Exported Agent artifact archive');
+      expect(exported.output).toContain('archive zip');
+      expect(exported.output).toContain('artifacts 2');
+      expect(exported.output).not.toContain('secret-value');
+      expect(exported.output).not.toContain('# Report');
+      const archive = readFileSync(join(root, 'exports', 'research-package.zip'));
+      expect(archive.readUInt32LE(0)).toBe(0x04034b50);
+      const entries = unzipLocalEntries(archive);
+      const manifest = JSON.parse(entries.get('manifest.json')?.toString('utf-8') ?? '{}') as {
+        readonly artifacts: Array<{ readonly id: string; readonly file: string; readonly metadata: Record<string, unknown>; readonly sourceUri: string }>;
+      };
+      expect(manifest.artifacts.map((entry) => entry.id)).toEqual(['artifact-report', 'artifact-image']);
+      expect(manifest.artifacts[0]?.metadata.apiKey).toBe('<redacted>');
+      expect(manifest.artifacts[0]?.sourceUri).toContain('token=%3Credacted%3E');
+      const reportFile = manifest.artifacts.find((entry) => entry.id === 'artifact-report')?.file;
+      const imageFile = manifest.artifacts.find((entry) => entry.id === 'artifact-image')?.file;
+      expect(entries.get(reportFile ?? '')?.toString('utf-8')).toContain('# Report');
+      expect(entries.get(imageFile ?? '')).toEqual(imageBytes);
+      expect(entries.get('README.md')?.toString('utf-8')).toContain('GoodVibes Agent Artifact Package');
+
+      const existing = await tool.execute({
+        mode: 'archive',
+        artifactIds: ['artifact-report', 'artifact-image'],
+        destinationPath: 'exports/research-package.zip',
+        confirm: true,
+        explicitUserRequest: 'Export the archive again.',
+      });
+      expect(existing.success).toBe(false);
+      expect(existing.error).toContain('already exists');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -45,7 +45,7 @@ High-signal TUI routes:
 | `agent_operator_action` | Run exact confirmed approval/automation/schedule actions. |
 | `agent_schedule_edit` | Edit one confirmed connected schedule by id. |
 | `agent_documents` | Create, revise, review, comment on, suggest changes to, list, show, attach saved artifacts to, insert saved artifacts into, and export project-scoped versioned Agent document drafts. |
-| `agent_artifacts` | Browse, preview, export, and package saved Agent artifacts. |
+| `agent_artifacts` | Browse, preview, export, package, and archive saved Agent artifacts. |
 | `agent_research_runs` | Create, checkpoint, pause, resume, cancel, complete, fail, list, and show log tails for project-local visible research run records. |
 | `agent_research_sources` | Capture, review, reject, mark used, list, and bundle project-local research source queue records. |
 | `agent_research_report` | Save one confirmed sourced markdown research report artifact with source map, citation coverage metadata, and repair hints. |

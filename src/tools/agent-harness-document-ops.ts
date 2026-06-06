@@ -234,7 +234,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? 'Agent has project-scoped markdown document drafts with version history, review status, review comments, AI suggestion review, read-only inspection, confirmed artifact attachment, confirmed artifact insertion, and confirmed artifact export.'
         : 'Agent can draft and revise documents in the main conversation and export transcript/session artifacts, but the dedicated markdown draft tool is not fully wired.',
       next: documentsReady
-        ? 'Use versioned drafts, comments, suggestions, artifact reuse, artifact packages, and artifact-backed comparison as one document workflow.'
+        ? 'Use versioned drafts, comments, suggestions, artifact reuse, artifact packages or ZIP archives, and artifact-backed comparison as one document workflow.'
         : 'Wire agent_documents plus browse/show/create/revise/review/export workspace actions.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Create document draft',
       modelRoute: documentsReady ? 'agent_documents' : 'agent_harness mode:"workspace_actions" categoryId:"documents"',
@@ -321,10 +321,10 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: artifactBrowserReady ? 'ready' : artifactBrowserActions.length > 0 ? 'partial' : 'gap',
       outcome: 'Find and reuse uploaded, exported, generated, and source-backed artifacts from one place.',
       current: artifactBrowserReady
-        ? 'Agent has a unified artifact browser with filters, redacted metadata, bounded text previews, confirmed artifact export-to-file, confirmed multi-artifact package export, confirmed artifact-to-Knowledge promotion, confirmed artifact-to-document attachment, and confirmed artifact-to-document insertion over the SDK artifact store.'
+        ? 'Agent has a unified artifact browser with filters, redacted metadata, bounded text previews, confirmed artifact export-to-file, confirmed multi-artifact package export and ZIP archive export, confirmed artifact-to-Knowledge promotion, confirmed artifact-to-document attachment, and confirmed artifact-to-document insertion over the SDK artifact store.'
         : 'Artifacts are real and visible in transcript, source, session, and media routes, but the unified browser is not fully wired in this runtime.',
       next: artifactBrowserReady
-        ? 'Use package exports across document, upload, generated media, session, comparison, and Knowledge artifacts.'
+        ? 'Use package or ZIP archive exports across document, upload, generated media, session, comparison, and Knowledge artifacts.'
         : 'Wire agent_artifacts and browse/show workspace actions over the SDK artifact store.',
       userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts, Export package, or Promote to Knowledge',
       modelRoute: artifactBrowserReady ? 'agent_artifacts + agent_knowledge_ingest' : 'agent_harness mode:"workspace_actions" categoryId:"artifacts"',
