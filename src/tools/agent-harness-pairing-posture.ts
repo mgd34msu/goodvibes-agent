@@ -25,7 +25,7 @@ interface PairingRoute {
   readonly id: string;
   readonly label: string;
   readonly detail: string;
-  readonly effect: 'read-only' | 'visible-navigation' | 'external-network' | 'confirmation-gated-secret-display';
+  readonly effect: 'read-only' | 'visible-navigation' | 'external-network' | 'confirmation-gated-secret-display' | 'confirmed-local-auth-provisioning';
   readonly command?: string;
   readonly harnessRoute?: string;
   readonly capabilityIds?: readonly string[];
@@ -98,6 +98,15 @@ function pairingRoutes(): readonly PairingRoute[] {
       command: '/agent channels',
       harnessRoute: 'agent_harness mode:"workspace_action" target:"pair"',
       capabilityIds: ['companion-pairing', 'mobile-command-routing'],
+    },
+    {
+      id: 'connected-host-token-provisioning',
+      label: 'Connected-host token provisioning',
+      detail: 'Confirmed SDK-backed route that creates or repairs the local canonical connected-host token file without printing the raw token.',
+      effect: 'confirmed-local-auth-provisioning',
+      harnessRoute: 'agent_harness mode:"provision_connected_host_token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."',
+      capabilityIds: ['connected-host-status', 'companion-pairing'],
+      requiresConfirmation: true,
     },
     {
       id: 'connected-host-status',

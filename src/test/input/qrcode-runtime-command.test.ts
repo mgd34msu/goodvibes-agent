@@ -110,7 +110,7 @@ describe('qrcode runtime command', () => {
     expect(text).not.toContain('Connected-host operator token is required.');
   });
 
-  test('does not create connected-host auth tokens when pairing token is missing', async () => {
+  test('points to confirmed setup token provisioning when pairing token is missing', async () => {
     const registry = new CommandRegistry();
     registerQrcodeRuntimeCommands(registry);
     const command = registry.get('qrcode');
@@ -125,7 +125,8 @@ describe('qrcode runtime command', () => {
 
     const text = out.join('\n');
     expect(text).toContain('Connected-host operator token is required.');
-    expect(text).toContain('Agent does not create or rotate connected-host auth tokens.');
+    expect(text).toContain('provision_connected_host_token');
+    expect(text).toContain('confirm:true');
     expect(text).not.toContain('existing-connected-host-token');
   });
 });

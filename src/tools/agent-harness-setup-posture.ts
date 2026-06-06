@@ -1,8 +1,12 @@
+import { statSync } from 'node:fs';
+import { join } from 'node:path';
 import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
+import { getOrCreateCompanionToken } from '@pellux/goodvibes-sdk/platform/pairing';
 import type { ArtifactDescriptor, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { OnboardingStep1CapabilityItem, OnboardingSurfaceRecord } from '../runtime/onboarding/index.ts';
 import { collectOnboardingSnapshot, deriveStep1Capabilities, deriveStep1CapabilityFlags } from '../runtime/onboarding/index.ts';
 import type { CommandContext } from '../input/command-registry.ts';
+import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 import { previewAgentWorkspaceTuiSettingsImport } from '../input/agent-workspace-settings.ts';
 import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
 import { requireLocalUserAuthManager, requirePlatform, requireProvider, requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from '../input/commands/runtime-services.ts';
@@ -11,7 +15,7 @@ import { browserControlPosture } from './agent-harness-browser-control.ts';
 import { localModelCookbook } from './agent-harness-model-routing.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { buildCliServicePosture, type CliServicePosture } from '../cli/service-posture.ts';
-import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
+import { connectedHostOperatorTokenFingerprint, connectedHostOperatorTokenPath, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 
 export interface AgentHarnessSetupArgs {
   readonly setupItemId?: unknown;
@@ -118,7 +122,9 @@ interface SetupConnectedHostAuthPosture {
     readonly pairingPosture: string;
     readonly qrPairingRoute: string;
     readonly manualTokenRoute: string;
+    readonly provisionTokenRoute: string;
     readonly tokenProvisioningOwner: string;
+    readonly tokenProvisioningSource: string;
   };
 }
 
@@ -203,6 +209,18 @@ function operatorMethodRoute(methodId: string, confirmed: boolean): string {
 function safeIso(value: number | null | undefined): string | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   return new Date(value).toISOString();
+}
+
+function provisionConnectedHostTokenRoute(): string {
+  return 'agent_harness mode:"provision_connected_host_token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."';
+}
+
+function safeFileMode(path: string): string | null {
+  try {
+    return `0${(statSync(path).mode & 0o777).toString(8)}`;
+  } catch {
+    return null;
+  }
 }
 
 function setupSmokeArtifactStore(context: CommandContext): SetupSmokeArtifactStore | null {
@@ -440,7 +458,9 @@ function connectedHostAuthPosture(
       pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
       qrPairingRoute: 'agent_harness mode:"pairing_route" pairingRouteId:"qr-pairing"',
       manualTokenRoute: 'agent_harness mode:"pairing_route" pairingRouteId:"manual-token-display"',
-      tokenProvisioningOwner: 'owning GoodVibes host; Agent does not create, rotate, or clear connected-host operator tokens',
+      provisionTokenRoute: provisionConnectedHostTokenRoute(),
+      tokenProvisioningOwner: 'connected GoodVibes host canonical token store',
+      tokenProvisioningSource: 'SDK getOrCreateCompanionToken writes ~/.goodvibes/daemon/operator-tokens.json with mode 0600; Agent exposes it only through confirmed setup and never returns the raw token',
     },
   };
 }
@@ -453,10 +473,10 @@ function connectedHostAuthStatus(posture: SetupConnectedHostAuthPosture): SetupP
 
 function connectedHostAuthNextAction(posture: SetupConnectedHostAuthPosture): string {
   if (!posture.operatorToken.present) {
-    return 'Provision connected-host operator access through the owning GoodVibes host, inspect pairing posture for the visible handoff routes, then rerun auth review and connected-host status.';
+    return 'Run the confirmed connected-host token provisioning route, inspect pairing posture for visible handoff routes, then rerun auth review and connected-host status.';
   }
   if (!posture.operatorToken.usable) {
-    return 'Repair or replace the connected-host operator token through the owning GoodVibes host, then rerun auth review.';
+    return 'Run the confirmed connected-host token provisioning route to repair the local token file, then rerun auth review and connected-host status.';
   }
   if (posture.compatibilityAuth.bootstrapCredentialPresent) {
     return 'Review auth status and clear or rotate the compatibility bootstrap credential through the owning GoodVibes host if it is no longer needed.';
@@ -469,10 +489,12 @@ function connectedHostAuthSignals(posture: SetupConnectedHostAuthPosture): reado
     `operator token: ${posture.operatorToken.usable ? 'usable' : posture.operatorToken.present ? 'present but unusable' : 'missing'} (${posture.operatorToken.path})`,
     ...(posture.operatorToken.fingerprint ? [`operator token fingerprint: ${posture.operatorToken.fingerprint}`] : []),
     ...(posture.operatorToken.error ? [`operator token parse error: ${posture.operatorToken.error}`] : []),
+    `token provisioning route: ${posture.routes.provisionTokenRoute}`,
     `compatibility auth users: ${posture.compatibilityAuth.users}`,
     `compatibility auth sessions: ${posture.compatibilityAuth.sessions}`,
     `bootstrap credential: ${posture.compatibilityAuth.bootstrapCredentialPresent ? 'present' : 'missing'} (${posture.compatibilityAuth.bootstrapCredentialPath})`,
     `token provisioning owner: ${posture.routes.tokenProvisioningOwner}`,
+    `token provisioning source: ${posture.routes.tokenProvisioningSource}`,
   ];
 }
 
@@ -1163,10 +1185,12 @@ function buildSetupPlan(
       status: connectedHostAuthStatus(authPosture),
       priority: 12,
       blocksAutonomy: true,
-      reason: 'Protected daemon routes, approvals, schedules, channels, and Agent Knowledge writes need a usable connected-host operator token without Agent owning credential lifecycle.',
+      reason: 'Protected daemon routes, approvals, schedules, channels, and Agent Knowledge writes need a usable connected-host operator token from the canonical GoodVibes host token store.',
       nextAction: connectedHostAuthNextAction(authPosture),
       userRoute: 'Agent Workspace -> Host -> Connected-host auth owner; /auth review',
-      modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      modelRoute: authPosture.operatorToken.usable
+        ? 'agent_harness mode:"connected_host_status" includeParameters:true'
+        : authPosture.routes.provisionTokenRoute,
       relatedSetupItemId: 'operator-terminal',
       signals: connectedHostAuthSignals(authPosture),
       authPosture,
@@ -1514,7 +1538,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
   const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot), servicePosture);
   const setupSmokeEvidence = latestSetupSmokeEvidence(context);
   return {
-    modes: ['setup_posture', 'setup_item', 'run_setup_smoke'],
+    modes: ['setup_posture', 'setup_item', 'provision_connected_host_token', 'run_setup_smoke'],
     capabilities: deriveStep1Capabilities(snapshot).length,
     planItems: plan.length,
     blockedPlanItems: plan.filter((item) => item.status === 'blocked').length,
@@ -1589,6 +1613,141 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
     total: all.length,
     policy: 'Read-only setup/onboarding posture. Apply, import, auth, profile, channel, and setting mutations remain confirmation-gated through visible workspace, settings, slash-command, or first-class tool flows.',
   };
+}
+
+export function provisionConnectedHostOperatorToken(context: CommandContext, args: AgentHarnessSetupArgs): Record<string, unknown> {
+  const setupItemId = readString(args.setupItemId);
+  if (setupItemId && setupItemId !== 'connected-host-auth') {
+    return {
+      status: 'unsupported_setup_item',
+      usage: 'provision_connected_host_token supports setupItemId:"connected-host-auth" only.',
+    };
+  }
+
+  const shellPaths = requireShellPaths(context);
+  const before = readConnectedHostOperatorToken(shellPaths.homeDirectory);
+  const explicitUserRequest = readString(args.explicitUserRequest);
+  const beforeFingerprint = before.token ? connectedHostOperatorTokenFingerprint(before.token) : null;
+  if (before.token && before.path.startsWith('env:')) {
+    return {
+      status: 'already_usable_env_token',
+      mode: 'provision_connected_host_token',
+      setupItemId: 'connected-host-auth',
+      explicitUserRequest: previewHarnessText(explicitUserRequest, 160),
+      token: {
+        path: before.path,
+        present: true,
+        usable: true,
+        fingerprint: beforeFingerprint,
+        rawValueReturned: false,
+      },
+      mutation: {
+        performed: false,
+        reason: 'Environment-provided connected-host token is already effective; no local token file was written.',
+      },
+      routes: {
+        inspectAuth: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+        inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+        pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
+      },
+      policy: {
+        effect: 'confirmed-local-token-provisioning',
+        secrets: 'Raw connected-host tokens are never returned.',
+        boundary: 'Environment-provided tokens take precedence and are not modified by this route.',
+      },
+    };
+  }
+
+  const daemonHomeDir = join(shellPaths.homeDirectory, '.goodvibes', 'daemon');
+  const canonicalPath = connectedHostOperatorTokenPath(shellPaths.homeDirectory);
+  try {
+    const record = getOrCreateCompanionToken(GOODVIBES_AGENT_PAIRING_SURFACE, { daemonHomeDir });
+    const after = readConnectedHostOperatorToken(shellPaths.homeDirectory);
+    if (!after.token) {
+      return {
+        status: 'failed',
+        mode: 'provision_connected_host_token',
+        setupItemId: 'connected-host-auth',
+        explicitUserRequest: previewHarnessText(explicitUserRequest, 160),
+        error: after.error ? previewHarnessText(after.error, 160) : 'SDK token provisioning completed but no usable connected-host token was readable.',
+        token: {
+          path: after.path,
+          present: after.present,
+          usable: false,
+          rawValueReturned: false,
+        },
+        routes: {
+          inspectAuth: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+          inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+        },
+      };
+    }
+    const afterFingerprint = connectedHostOperatorTokenFingerprint(after.token);
+    const changed = beforeFingerprint !== afterFingerprint;
+    const result = before.token
+      ? changed ? 'repaired' : 'already_usable'
+      : before.present ? 'repaired' : 'created';
+    return {
+      status: result,
+      mode: 'provision_connected_host_token',
+      setupItemId: 'connected-host-auth',
+      explicitUserRequest: previewHarnessText(explicitUserRequest, 160),
+      token: {
+        path: after.path,
+        canonicalPath,
+        present: true,
+        usable: true,
+        fingerprint: afterFingerprint,
+        rawValueReturned: false,
+        fileMode: safeFileMode(canonicalPath),
+      },
+      companionRecord: {
+        surface: GOODVIBES_AGENT_PAIRING_SURFACE,
+        peerId: record.peerId,
+        createdAt: safeIso(record.createdAt),
+      },
+      mutation: {
+        performed: result === 'created' || result === 'repaired',
+        result,
+        existingTokenPreserved: result === 'already_usable',
+        source: 'getOrCreateCompanionToken',
+      },
+      routes: {
+        inspectAuth: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+        inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+        pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
+        runSetupSmoke: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
+      },
+      policy: {
+        effect: 'confirmed-local-token-provisioning',
+        source: 'SDK platform pairing helper writes the canonical connected-host operator token file with owner-only permissions.',
+        secrets: 'Only path, fingerprint, peer id, and timestamps are returned; the raw token is not returned.',
+        rotation: 'This route preserves a valid existing token and only creates or repairs the local canonical file.',
+      },
+    };
+  } catch (error) {
+    return {
+      status: 'failed',
+      mode: 'provision_connected_host_token',
+      setupItemId: 'connected-host-auth',
+      explicitUserRequest: previewHarnessText(explicitUserRequest, 160),
+      error: previewHarnessText(error instanceof Error ? error.message : String(error), 160),
+      token: {
+        path: canonicalPath,
+        present: before.present,
+        usable: false,
+        rawValueReturned: false,
+      },
+      routes: {
+        inspectAuth: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+        inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      },
+      policy: {
+        effect: 'confirmed-local-token-provisioning',
+        secrets: 'Raw connected-host tokens are never returned.',
+      },
+    };
+  }
 }
 
 export async function runSetupInstallSmoke(context: CommandContext, args: AgentHarnessSetupArgs): Promise<Record<string, unknown>> {

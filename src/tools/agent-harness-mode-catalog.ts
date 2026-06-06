@@ -58,6 +58,7 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'mcp_server', kind: 'inspect', family: 'tools', summary: 'Inspect one MCP server, tools, schemas, auth, and trust posture.', parameters: ['mcpServerId', 'target', 'query'] },
   { id: 'setup_posture', kind: 'discover', family: 'setup', summary: 'Inspect first-run/always-on setup plan, posture, and flags.', next: 'Use setup_item.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'setup_item', kind: 'inspect', family: 'setup', summary: 'Inspect one first-run/always-on setup plan item.', parameters: ['setupItemId', 'target', 'query'] },
+  { id: 'provision_connected_host_token', kind: 'effect', family: 'setup', summary: 'Create or repair local connected-host token safely.', requiresConfirmation: true, parameters: ['setupItemId', 'confirm', 'explicitUserRequest'] },
   { id: 'run_setup_smoke', kind: 'effect', family: 'setup', summary: 'Run redacted first-run setup smoke evidence collection.', requiresConfirmation: true, parameters: ['setupItemId', 'fields', 'includeParameters', 'confirm', 'explicitUserRequest'] },
   { id: 'model_routing', kind: 'discover', family: 'providers', summary: 'List model routes, readiness scores, local cookbook, and pins.', next: 'Use model_route.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'model_route', kind: 'inspect', family: 'providers', summary: 'Inspect one model route, fit score, or visible selection path.', parameters: ['modelRouteId', 'target', 'query'] },

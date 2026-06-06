@@ -98,7 +98,7 @@ export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetric
         state: metrics.setupBlockers > 0 ? 'attention' : 'ready',
         summary: setupLaneSummary(metrics),
         nextAction: setupLaneNextAction(metrics),
-        routes: ['agent_harness mode:"setup_posture"', 'agent_harness mode:"setup_item"', 'agent_harness mode:"run_setup_smoke"'],
+        routes: ['agent_harness mode:"setup_posture"', 'agent_harness mode:"setup_item"', 'agent_harness mode:"provision_connected_host_token"', 'agent_harness mode:"run_setup_smoke"'],
       }),
       lane({
         id: 'chat-and-model',

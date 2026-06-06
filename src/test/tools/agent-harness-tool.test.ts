@@ -702,6 +702,7 @@ describe('agent_harness tool', () => {
         'safety-and-recovery',
       ]);
       expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('setup_posture');
+      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('provision_connected_host_token');
       expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('run_setup_smoke');
       expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'work-and-files')?.label).toBe('Work in this project');
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
@@ -1318,7 +1319,9 @@ describe('agent_harness tool', () => {
               readonly pairingPosture: string;
               readonly qrPairingRoute: string;
               readonly manualTokenRoute: string;
+              readonly provisionTokenRoute: string;
               readonly tokenProvisioningOwner: string;
+              readonly tokenProvisioningSource: string;
             };
           };
         }>(fixture, { mode: 'setup_item', setupItemId: 'connected-host-auth' });
@@ -1326,9 +1329,10 @@ describe('agent_harness tool', () => {
         expect(missing.setupItemId).toBe('connected-host-auth');
         expect(missing.status).toBe('blocked');
         expect(missing.blocksAutonomy).toBe(true);
-        expect(missing.nextAction).toContain('Provision connected-host operator access through the owning GoodVibes host');
+        expect(missing.nextAction).toContain('confirmed connected-host token provisioning route');
         expect(missing.signals?.join('\n')).toContain('operator token: missing');
-        expect(missing.signals?.join('\n')).toContain('Agent does not create, rotate, or clear connected-host operator tokens');
+        expect(missing.signals?.join('\n')).toContain('provision_connected_host_token');
+        expect(missing.signals?.join('\n')).toContain('getOrCreateCompanionToken');
         expect(missing.authPosture?.owner).toBe('connected-host');
         expect(missing.authPosture?.operatorToken).toMatchObject({ present: false, usable: false });
         expect(missing.authPosture?.routes.reviewCommand).toBe('/auth review');
@@ -1336,7 +1340,74 @@ describe('agent_harness tool', () => {
         expect(missing.authPosture?.routes.pairingPosture).toContain('pairing_posture');
         expect(missing.authPosture?.routes.qrPairingRoute).toContain('qr-pairing');
         expect(missing.authPosture?.routes.manualTokenRoute).toContain('manual-token-display');
-        expect(missing.authPosture?.routes.tokenProvisioningOwner).toContain('owning GoodVibes host');
+        expect(missing.authPosture?.routes.provisionTokenRoute).toContain('provision_connected_host_token');
+        expect(missing.authPosture?.routes.tokenProvisioningOwner).toContain('canonical token store');
+        expect(missing.authPosture?.routes.tokenProvisioningSource).toContain('operator-tokens.json');
+
+        const unconfirmedProvision = await fixture.tool.execute({
+          mode: 'provision_connected_host_token',
+          setupItemId: 'connected-host-auth',
+        });
+        expect(unconfirmedProvision.success).toBe(false);
+        expect(unconfirmedProvision.error).toContain('explicitUserRequest');
+
+        const missingProvisionConfirm = await fixture.tool.execute({
+          mode: 'provision_connected_host_token',
+          setupItemId: 'connected-host-auth',
+          explicitUserRequest: 'Provision connected-host auth for setup.',
+        });
+        expect(missingProvisionConfirm.success).toBe(false);
+        expect(missingProvisionConfirm.error).toContain('confirm:true');
+
+        const provisioned = await executeHarnessJson<{
+          readonly status: string;
+          readonly mode: string;
+          readonly setupItemId: string;
+          readonly token: {
+            readonly path: string;
+            readonly present: boolean;
+            readonly usable: boolean;
+            readonly fingerprint?: string | null;
+            readonly rawValueReturned: boolean;
+            readonly fileMode?: string | null;
+          };
+          readonly companionRecord?: { readonly peerId?: string; readonly surface?: string };
+          readonly mutation?: {
+            readonly performed?: boolean;
+            readonly result?: string;
+            readonly source?: string;
+          };
+          readonly routes: { readonly inspectStatus: string; readonly runSetupSmoke: string };
+          readonly policy: { readonly secrets: string; readonly rotation: string };
+        }>(fixture, {
+          mode: 'provision_connected_host_token',
+          setupItemId: 'connected-host-auth',
+          confirm: true,
+          explicitUserRequest: 'Provision connected-host auth for setup.',
+        });
+
+        expect(provisioned.status).toBe('created');
+        expect(provisioned.mode).toBe('provision_connected_host_token');
+        expect(provisioned.setupItemId).toBe('connected-host-auth');
+        expect(provisioned.token.present).toBe(true);
+        expect(provisioned.token.usable).toBe(true);
+        expect(provisioned.token.rawValueReturned).toBe(false);
+        expect(provisioned.token.path).toBe(join(fixture.root, '.goodvibes', 'daemon', 'operator-tokens.json'));
+        expect(provisioned.token.fileMode).toBe('0600');
+        expect(provisioned.token.fingerprint).toHaveLength(12);
+        expect(provisioned.companionRecord?.surface).toBe('goodvibes-agent');
+        expect(provisioned.companionRecord?.peerId).toHaveLength(24);
+        expect(provisioned.mutation?.performed).toBe(true);
+        expect(provisioned.mutation?.source).toBe('getOrCreateCompanionToken');
+        expect(provisioned.routes.inspectStatus).toContain('connected_host_status');
+        expect(provisioned.routes.runSetupSmoke).toContain('run_setup_smoke');
+        expect(provisioned.policy.secrets).toContain('raw token is not returned');
+        expect(provisioned.policy.rotation).toContain('preserves a valid existing token');
+        const tokenRecordPath = join(fixture.root, '.goodvibes', 'daemon', 'operator-tokens.json');
+        expect(existsSync(tokenRecordPath)).toBe(true);
+        const tokenRecord = JSON.parse(readFileSync(tokenRecordPath, 'utf-8')) as { readonly token?: string };
+        expect(tokenRecord.token?.startsWith('gv_')).toBe(true);
+        expect(JSON.stringify(provisioned)).not.toContain(tokenRecord.token ?? 'missing-generated-token');
 
         writeConnectedHostOperatorToken(fixture);
         const ready = await executeHarnessJson<{

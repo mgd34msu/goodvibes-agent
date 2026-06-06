@@ -57,7 +57,8 @@ export function connectedHostTokenRequiredMessage(path: string): string {
   return [
     'Connected-host operator token is required.',
     `  token path ${path}`,
-    '  Agent does not create or rotate connected-host auth tokens.',
-    '  Provision or repair connected-host access through the owning GoodVibes host, then rerun this command.',
+    '  Agent can create or repair the local canonical token only through the confirmed setup route:',
+    '  agent_harness mode:"provision_connected_host_token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."',
+    '  Then rerun this command or inspect agent_harness mode:"connected_host_status".',
   ].join('\n');
 }

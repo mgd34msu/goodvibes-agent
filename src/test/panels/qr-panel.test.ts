@@ -15,7 +15,8 @@ describe('QrPanel', () => {
     const text = linesToText(panel.render(100, 18)).join('\n');
 
     expect(text).toContain('Pairing unavailable');
-    expect(text).toContain('Agent does not create or rotate host auth tokens');
+    expect(text).toContain('Use confirmed setup to create or repair it');
+    expect(text).toContain('provision_connected_host_token');
     expect(text).toContain('host auth required');
     expect(text).not.toContain('copy token');
 

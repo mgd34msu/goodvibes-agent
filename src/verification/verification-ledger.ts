@@ -267,7 +267,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localSignalVerified: setupPosture.availableModes + setupPosture.availableSources,
       localBehaviorVerified: setupPosture.availableModes + setupPosture.availableSources,
       externalOutcomeRequired: 0,
-      notes: `${setupPosture.modes} agent_harness modes, setup_posture and setup_item, and ${setupPosture.sources} setup/onboarding source markers must stay locally inspectable without applying setup or exposing secret values.`,
+      notes: `${setupPosture.modes} agent_harness modes, setup_posture, setup_item, provision_connected_host_token, and run_setup_smoke, and ${setupPosture.sources} setup/onboarding source markers must stay locally inspectable while confirmed setup effects avoid exposing secret values.`,
     },
     {
       area: 'Model-visible model routing posture',

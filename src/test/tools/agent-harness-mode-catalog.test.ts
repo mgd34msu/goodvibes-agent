@@ -80,6 +80,13 @@ describe('agent_harness mode catalog', () => {
     expect(smoke.modes[0]?.id).toBe('run_setup_smoke');
     expect(smoke.modes[0]?.requiresConfirmation).toBe(true);
     expect(smoke.modes[0]?.parameters).toEqual(expect.arrayContaining(['confirm', 'explicitUserRequest']));
+
+    const auth = listHarnessModes({ query: 'connected host token provision', includeParameters: true, limit: 5 }) as {
+      readonly modes: readonly { readonly id: string; readonly requiresConfirmation?: boolean; readonly parameters?: readonly string[] }[];
+    };
+    expect(auth.modes[0]?.id).toBe('provision_connected_host_token');
+    expect(auth.modes[0]?.requiresConfirmation).toBe(true);
+    expect(auth.modes[0]?.parameters).toEqual(expect.arrayContaining(['confirm', 'explicitUserRequest']));
   });
 
   test('finds Document Ops by uploads, artifacts, and blind compare wording', () => {

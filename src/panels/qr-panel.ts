@@ -158,12 +158,12 @@ export class QrPanel extends BasePanel {
       );
       lines.push(
         buildPanelLine(width, [
-          [' Connected-host operator token is missing. Agent does not create or rotate host auth tokens. ', C.dim],
+          [' Connected-host operator token is missing. Use confirmed setup to create or repair it. ', C.dim],
         ]),
       );
       lines.push(
         buildPanelLine(width, [
-          [' Provision or repair connected-host access through the owning GoodVibes host, then reopen this panel. ', C.dim],
+          [' agent_harness mode:"provision_connected_host_token" then reopen this panel. ', C.dim],
         ]),
       );
     }
