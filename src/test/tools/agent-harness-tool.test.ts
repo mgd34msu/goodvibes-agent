@@ -684,6 +684,7 @@ describe('agent_harness tool', () => {
       expect(modelCompare?.status).toBe('partial');
       expect(modelCompare?.current).toContain('confirmed blind comparison runner');
       expect(modelCompare?.actionIds).toContain('document-run-compare');
+      expect(modelCompare?.actionIds).toContain('document-review-compare');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
@@ -867,6 +868,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-ingest-file')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-generate-media')?.modelRoute).toBe('agent_media_generate');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-run-compare')?.modelRoute).toBe('agent_model_compare');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-review-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });
@@ -2799,6 +2801,19 @@ describe('agent_harness tool', () => {
       expect(executed.output).toContain('"status": "executed_model_tool"');
       expect(executed.output).toContain('"tool": "agent_model_compare"');
       expect(executed.output).toContain('agent_model_compare executed');
+
+      const review = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-review-compare',
+        fields: {
+          artifactId: 'artifact-1',
+          reveal: 'no',
+        },
+      });
+      expect(review.success).toBe(true);
+      expect(review.output).toContain('"status": "executed_model_tool"');
+      expect(review.output).toContain('"tool": "agent_model_compare"');
+      expect(review.output).toContain('agent_model_compare executed');
     } finally {
       fixture.cleanup();
     }

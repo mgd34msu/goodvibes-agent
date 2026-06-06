@@ -15,6 +15,7 @@ export interface AgentModelCompareToolArgs {
   readonly reveal?: unknown;
   readonly saveArtifact?: unknown;
   readonly comparisonId?: unknown;
+  readonly artifactId?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -41,10 +42,12 @@ export interface AgentModelCompareProviderRegistry {
   readonly getForModel: (modelId: string, provider?: string) => LLMProvider;
 }
 
+type AgentModelCompareArtifactStore = Pick<ArtifactStore, 'create'> & Partial<Pick<ArtifactStore, 'list' | 'readContent'>>;
+
 export interface AgentModelCompareToolDeps {
   readonly modelCatalog: AgentModelCompareModelCatalog;
   readonly providerRegistry: AgentModelCompareProviderRegistry;
-  readonly artifactStore?: Pick<ArtifactStore, 'create'>;
+  readonly artifactStore?: AgentModelCompareArtifactStore;
 }
 
 interface ResolvedCompareModel {
@@ -93,6 +96,7 @@ interface ComparisonArtifactStatus {
 
 const MODE_RUN = 'run';
 const MODE_REVEAL = 'reveal';
+const MODE_REVIEW = 'review';
 const MAX_PROMPT_CHARS = 24_000;
 const MIN_CANDIDATES = 2;
 const MAX_CANDIDATES = 4;
@@ -105,6 +109,12 @@ const BLIND_LABELS = ['A', 'B', 'C', 'D'] as const;
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
 function readBoolean(value: unknown): boolean {
@@ -355,6 +365,30 @@ function formatReveal(comparison: StoredComparison): string {
   ].join('\n');
 }
 
+function formatSavedComparisonArtifacts(artifactStore?: AgentModelCompareArtifactStore): string {
+  if (!artifactStore?.list) {
+    return 'Saved blind comparison artifacts are unavailable because the artifact store does not expose listing in this runtime.';
+  }
+  const artifacts = artifactStore.list(50)
+    .filter(isModelCompareArtifact)
+    .slice(0, 10);
+  if (artifacts.length === 0) {
+    return 'No saved blind comparison artifacts found. Run agent_model_compare mode:"run" first.';
+  }
+  return [
+    'Saved blind comparison artifacts',
+    ...artifacts.map((artifact) => {
+      const comparisonId = readString(artifact.metadata.comparisonId) || 'unknown-comparison';
+      const promptPreview = readString(artifact.metadata.promptPreview) || '(prompt unavailable)';
+      const completed = typeof artifact.metadata.completedCandidates === 'number' ? artifact.metadata.completedCandidates : '?';
+      const count = typeof artifact.metadata.candidateCount === 'number' ? artifact.metadata.candidateCount : '?';
+      return `  ${artifact.id} ${comparisonId} candidates ${completed}/${count} prompt ${promptPreview}`;
+    }),
+    '',
+    'Review one with mode:"review" and artifactId, or reveal with mode:"reveal" after judging.',
+  ].join('\n');
+}
+
 function formatArtifactStatus(comparison: StoredComparison): string {
   if (comparison.artifact) {
     const filename = comparison.artifact.filename ? ` ${comparison.artifact.filename}` : '';
@@ -362,6 +396,62 @@ function formatArtifactStatus(comparison: StoredComparison): string {
   }
   if (comparison.artifactStatus) return `artifact ${comparison.artifactStatus.message}`;
   return 'artifact not saved';
+}
+
+function formatIndentedContent(content: string): string {
+  return candidateContent(content)
+    .split('\n')
+    .map((line) => `    ${line}`)
+    .join('\n');
+}
+
+function formatReviewCandidate(candidate: CompareCandidateResult, reveal: boolean): string {
+  const lines = [
+    `Candidate ${candidate.blindId}`,
+    `  status ${candidate.status}`,
+    `  latency ${candidate.latencyMs}ms`,
+  ];
+  if (reveal) lines.push(`  model ${candidate.model.registryKey} (${candidate.model.displayName})`);
+  if (candidate.status === 'failed') {
+    lines.push(`  error ${reveal ? candidate.error ?? 'unknown' : 'Provider-specific error hidden until reveal.'}`);
+    return lines.join('\n');
+  }
+  lines.push(`  stop ${candidate.stopReason ?? 'unknown'}`);
+  lines.push(`  usage ${formatUsage(candidate.usage)}`);
+  lines.push('  output');
+  lines.push(formatIndentedContent(candidate.content));
+  return lines.join('\n');
+}
+
+function formatReview(comparison: StoredComparison, reveal: boolean): string {
+  const lines = [
+    `Blind model comparison review ${comparison.comparisonId}`,
+    `created ${comparison.createdAt}`,
+    `prompt ${comparison.promptPreview}`,
+    `rubric ${comparison.rubric || '(none)'}`,
+    formatArtifactStatus(comparison),
+    '',
+    'Review board',
+    ...comparison.candidates.flatMap((candidate, index) => [
+      formatReviewCandidate(candidate, reveal),
+      ...(index < comparison.candidates.length - 1 ? [''] : []),
+    ]),
+    '',
+    'Decision worksheet',
+    '  winner: (user chooses after reading the blinded outputs)',
+    '  reasons: capture strengths, weaknesses, factuality, tone, and fit to rubric',
+    '  route update: separate confirmed model-routing action only',
+  ];
+  if (reveal) {
+    lines.push('');
+    lines.push('Reveal');
+    lines.push(...comparison.candidates.map((candidate) => `  ${candidate.blindId}: ${candidate.model.registryKey} (${candidate.model.displayName})`));
+  } else {
+    lines.push('');
+    lines.push(`Identities hidden. Reveal after judging with mode:"reveal" and comparisonId:"${comparison.comparisonId}".`);
+  }
+  lines.push('No selected model was changed.');
+  return lines.join('\n');
 }
 
 function formatRunResult(comparison: StoredComparison, reveal: boolean): string {
@@ -407,10 +497,10 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' {
   const mode = readString(value) || MODE_RUN;
-  if (mode === MODE_RUN || mode === MODE_REVEAL) return mode;
-  throw new Error('mode must be run or reveal.');
+  if (mode === MODE_RUN || mode === MODE_REVEAL || mode === MODE_REVIEW) return mode;
+  throw new Error('mode must be run, reveal, or review.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -478,7 +568,7 @@ function toSavedComparisonArtifact(descriptor: ArtifactDescriptor): SavedCompari
 }
 
 async function saveComparisonArtifact(input: {
-  readonly artifactStore?: Pick<ArtifactStore, 'create'>;
+  readonly artifactStore?: AgentModelCompareArtifactStore;
   readonly comparison: StoredComparison;
   readonly prompt: string;
   readonly systemPrompt: string;
@@ -525,19 +615,115 @@ async function saveComparisonArtifact(input: {
   }
 }
 
+function isModelCompareArtifact(artifact: ArtifactDescriptor): boolean {
+  return readString(artifact.metadata.purpose) === 'agent-model-compare'
+    || readString(artifact.filename).startsWith('blind-model-comparison-');
+}
+
+function parseArtifactUsage(value: unknown): ChatResponse['usage'] | undefined {
+  const record = readRecord(value);
+  if (!record) return undefined;
+  const inputTokens = readNumber(record.inputTokens, Number.NaN);
+  const outputTokens = readNumber(record.outputTokens, Number.NaN);
+  if (!Number.isFinite(inputTokens) || !Number.isFinite(outputTokens)) return undefined;
+  return {
+    inputTokens,
+    outputTokens,
+    ...(typeof record.cacheReadTokens === 'number' ? { cacheReadTokens: record.cacheReadTokens } : {}),
+    ...(typeof record.cacheWriteTokens === 'number' ? { cacheWriteTokens: record.cacheWriteTokens } : {}),
+  };
+}
+
+function parseArtifactCandidate(value: unknown, index: number): CompareCandidateResult | null {
+  const candidate = readRecord(value);
+  if (!candidate) return null;
+  const model = readRecord(candidate.model) ?? {};
+  const blindId = readString(candidate.blindId) || BLIND_LABELS[index] || String(index + 1);
+  const status = readString(candidate.status) === 'failed' ? 'failed' : 'completed';
+  return {
+    blindId,
+    status,
+    content: readString(candidate.content),
+    latencyMs: Math.max(0, readNumber(candidate.latencyMs, 0)),
+    ...(readString(candidate.stopReason) ? { stopReason: readString(candidate.stopReason) } : {}),
+    ...(parseArtifactUsage(candidate.usage) ? { usage: parseArtifactUsage(candidate.usage) } : {}),
+    ...(typeof candidate.toolCallCount === 'number' ? { toolCallCount: Math.max(0, Math.trunc(candidate.toolCallCount)) } : {}),
+    ...(readString(candidate.error) ? { error: readString(candidate.error) } : {}),
+    model: {
+      registryKey: readString(model.registryKey) || `artifact:${blindId}`,
+      providerId: readString(model.providerId) || 'artifact',
+      modelId: readString(model.modelId) || blindId,
+      displayName: readString(model.displayName) || readString(model.modelId) || blindId,
+      current: model.current === true,
+    },
+  };
+}
+
+function parseComparisonArtifactPayload(
+  value: unknown,
+  artifact: SavedComparisonArtifact,
+): StoredComparison | null {
+  const payload = readRecord(value);
+  if (!payload || readString(payload.schema) !== 'goodvibes.agent.model_compare.v1') return null;
+  const rawCandidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+  const candidates = rawCandidates
+    .map(parseArtifactCandidate)
+    .filter((candidate): candidate is CompareCandidateResult => candidate !== null);
+  if (candidates.length === 0) return null;
+  const prompt = readString(payload.prompt);
+  return {
+    comparisonId: readString(payload.comparisonId) || `cmp_from_${artifact.artifactId}`,
+    createdAt: readString(payload.createdAt) || new Date().toISOString(),
+    promptPreview: readString(payload.promptPreview) || previewText(prompt || '(prompt unavailable)', 160),
+    rubric: readString(payload.rubric),
+    candidates,
+    artifact,
+    artifactStatus: { state: 'saved', message: `loaded from ${artifact.artifactId}` },
+  };
+}
+
+async function loadComparisonFromArtifact(
+  artifactStore: AgentModelCompareArtifactStore | undefined,
+  artifactId: string,
+): Promise<StoredComparison | null> {
+  if (!artifactStore?.readContent) return null;
+  const { record, buffer } = await artifactStore.readContent(artifactId);
+  const artifact = toSavedComparisonArtifact(record);
+  const parsed = JSON.parse(buffer.toString('utf-8')) as unknown;
+  return parseComparisonArtifactPayload(parsed, artifact);
+}
+
+async function resolveComparisonForRead(input: {
+  readonly artifactStore?: AgentModelCompareArtifactStore;
+  readonly comparisons: Map<string, StoredComparison>;
+  readonly comparisonId: string;
+  readonly artifactId: string;
+}): Promise<StoredComparison | null> {
+  if (input.comparisonId) {
+    const inMemory = input.comparisons.get(input.comparisonId);
+    if (inMemory) return inMemory;
+    const artifact = input.artifactStore?.list?.(100)
+      .filter(isModelCompareArtifact)
+      .find((entry) => readString(entry.metadata.comparisonId) === input.comparisonId);
+    if (artifact) return loadComparisonFromArtifact(input.artifactStore, artifact.id);
+  }
+  if (input.artifactId) return loadComparisonFromArtifact(input.artifactStore, input.artifactId);
+  return null;
+}
+
 export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): Tool {
   const comparisons = new Map<string, StoredComparison>();
   return {
     definition: {
       name: 'agent_model_compare',
-      description: 'Run one confirmed blind model comparison.',
+      description: 'Run, review, or reveal one blind model comparison.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL],
-            description: 'Use run to compare models or reveal to reveal a stored comparison.',
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW],
+            description: 'Use run, review saved outputs, or reveal identities.',
           },
           prompt: {
             type: 'string',
@@ -576,6 +762,10 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             type: 'string',
             description: 'Stored comparison id for mode reveal.',
           },
+          artifactId: {
+            type: 'string',
+            description: 'Saved comparison artifact id for review or reveal.',
+          },
           confirm: {
             type: 'boolean',
             description: 'Required true for mode run only when the user requested this comparison.',
@@ -595,12 +785,26 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
       try {
         const args = rawArgs as AgentModelCompareToolArgs;
         const mode = parseMode(args.mode);
-        if (mode === MODE_REVEAL) {
+        if (mode === MODE_REVEAL || mode === MODE_REVIEW) {
           const comparisonId = readString(args.comparisonId);
-          if (!comparisonId) return failure('comparisonId is required for reveal mode.');
-          const comparison = comparisons.get(comparisonId);
-          if (!comparison) return failure(`Unknown comparisonId ${comparisonId}. Run a new comparison in this session.`);
-          return output(formatReveal(comparison));
+          const artifactId = readString(args.artifactId);
+          if (mode === MODE_REVIEW && !comparisonId && !artifactId) {
+            return output(formatSavedComparisonArtifacts(deps.artifactStore));
+          }
+          if (!comparisonId && !artifactId) {
+            return failure(`${mode} mode requires comparisonId or artifactId.`);
+          }
+          const comparison = await resolveComparisonForRead({
+            artifactStore: deps.artifactStore,
+            comparisons,
+            comparisonId,
+            artifactId,
+          });
+          if (!comparison) {
+            return failure(`Unknown comparison. Run a new comparison or pass a saved comparison artifactId.`);
+          }
+          rememberComparison(comparisons, comparison);
+          return output(mode === MODE_REVEAL ? formatReveal(comparison) : formatReview(comparison, readBoolean(args.reveal)));
         }
 
         const prompt = readString(args.prompt);

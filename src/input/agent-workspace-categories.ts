@@ -331,7 +331,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'DAY-TO-DAY',
     label: 'Documents & Compare',
     summary: 'Draft docs, files, artifacts, and compare readiness.',
-    detail: 'Use this workspace when the user is producing or evaluating a document. Upload, export, source, artifact, media, and blind comparison routes stay visible here; dedicated document editing, visual comparison review, and saved preference handoff remain explicit gaps until implemented.',
+    detail: 'Use this workspace when the user is producing or evaluating a document. Upload, export, source, artifact, media, and blind comparison routes stay visible here; dedicated document editing, saved preference handoff, and route-update handoff remain explicit gaps until implemented.',
     actions: [
       { id: 'document-ops-map', label: 'Readiness map', detail: 'Use agent_harness mode:"document_ops" to see document, upload, export, source, media, artifact, and blind compare lanes.', kind: 'guidance', safety: 'read-only' },
       { id: 'document-draft-chat', label: 'Draft in conversation', detail: 'Draft or revise a document in the main conversation, then export or save the resulting artifact through the visible export routes.', kind: 'guidance', safety: 'safe' },
@@ -347,7 +347,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'document-media-providers', label: 'Media providers', detail: 'Inspect configured media provider readiness without generating artifacts.', command: '/media providers', kind: 'command', safety: 'read-only' },
       { id: 'document-generate-media', label: 'Generate media artifact', detail: 'Open a confirmed prompt form that generates image or video artifacts through configured media providers.', editorKind: 'media-generate', kind: 'editor', safety: 'safe' },
       { id: 'document-model-routing', label: 'Model routing', detail: 'Open provider/model route controls before any manual model comparison or route change.', targetCategoryId: 'account-model', kind: 'workspace', safety: 'safe' },
-      { id: 'document-run-compare', label: 'Run blind compare', detail: 'Open a confirmed form that runs the same prompt across two to four selectable models, hides candidate identities, and supports delayed reveal.', editorKind: 'model-compare', kind: 'editor', safety: 'safe' },
+      { id: 'document-run-compare', label: 'Run blind compare', detail: 'Open a confirmed form that runs the same prompt across two to four selectable models, hides candidate identities, and saves a review artifact.', editorKind: 'model-compare', kind: 'editor', safety: 'safe' },
+      { id: 'document-review-compare', label: 'Review saved compare', detail: 'Open a read-only form that lists saved blind comparisons or renders one saved comparison review board from its artifact id.', editorKind: 'model-compare-review', kind: 'editor', safety: 'read-only' },
     ],
   },
   {
@@ -370,6 +371,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'artifact-show-source', label: 'Show source or node', detail: 'Open an in-workspace form that shows one Agent Knowledge source, node, or issue by id.', editorKind: 'knowledge-get', kind: 'editor', safety: 'read-only' },
       { id: 'artifact-media-providers', label: 'Media providers', detail: 'Inspect configured media provider readiness without generating artifacts.', command: '/media providers', kind: 'command', safety: 'read-only' },
       { id: 'artifact-generate-media', label: 'Generate image or video', detail: 'Open a confirmed prompt form that generates image or video artifacts through configured media providers.', editorKind: 'media-generate', kind: 'editor', safety: 'safe' },
+      { id: 'artifact-review-compare', label: 'Review blind compare', detail: 'Open a read-only saved comparison review form for model comparison artifacts.', editorKind: 'model-compare-review', kind: 'editor', safety: 'read-only' },
       { id: 'artifact-policy', label: 'Artifact safety', detail: 'Artifact creation, ingest, and media generation are explicit actions. Agent never writes to default knowledge or prints inline base64.', kind: 'guidance', safety: 'read-only' },
     ],
   },

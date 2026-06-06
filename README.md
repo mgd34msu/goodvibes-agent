@@ -51,7 +51,7 @@ Workspace areas:
 - Home: normal assistant chat, operator briefing, model selection, setup, and health.
 - Conversation: context usage, inline `@file`/`@folder`/`@url` references, compaction, title/session save/load/search/export, bookmarks, paste/image/TTS helpers, undo/redo/retry, clear/reset, shortcuts, and keybindings.
 - Research: read-only web research, URL inspection, source triage, and explicit handoff into Agent Knowledge.
-- Documents & Compare: document drafting, uploads, exports, source checks, generated media artifacts, artifact reuse, and confirmed blind model comparison with delayed reveal plus durable JSON comparison artifacts. Dedicated editing/version history, visual comparison review, saved preference handoff, and a unified artifact browser are tracked gaps.
+- Documents & Compare: document drafting, uploads, exports, source checks, generated media artifacts, artifact reuse, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, and saved review boards. Dedicated editing/version history, saved preference handoff, and a unified artifact browser are tracked gaps.
 - Artifacts: image attachment, conversation/session export, source-file ingest, source lookup, bookmark/browser-history import, and generated media artifacts.
 - Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, reminders, routines, schedules, and delivery readiness in one daily operations area.
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
@@ -90,7 +90,7 @@ First-class model tools cover common workflows directly:
 - `agent_work_plan` for visible local work-plan tracking.
 - `agent_operator_briefing` and `agent_operator_action` for connected work/approval/automation/schedule posture and exact confirmed actions.
 - `agent_operator_method` for exact GoodVibes daemon contract parity. Read-only routes can run directly; write/admin routes require `confirm:true` and `explicitUserRequest`.
-- `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_media_generate`, and `agent_model_compare` for confirmed delivery, notification, reminder, media generation, and blind model comparison.
+- `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_media_generate`, and `agent_model_compare` for confirmed delivery, notification, reminder, media generation, and blind model comparison review.
 - `agent` for visible autonomous work: spawn, batch-spawn, inspect, message, wait, cancel, and report tracked agents.
 
 Registered model tool definitions are compact by default. Top-level descriptions are short, nested parameter descriptions are omitted from the default model catalog, and tool catalog rows include direct harness inspection routes. The model can inspect detailed contracts through `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or the owning harness mode.

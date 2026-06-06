@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
+import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChatRequest, ChatResponse, LLMProvider } from '@pellux/goodvibes-sdk/platform/providers';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import {
@@ -33,21 +33,39 @@ class CompareTestProvider implements LLMProvider {
 
 function artifactStore() {
   const inputs: ArtifactCreateInput[] = [];
-  const store: Pick<ArtifactStore, 'create'> = {
+  const records: ArtifactRecord[] = [];
+  const contents = new Map<string, Buffer>();
+  const store: Pick<ArtifactStore, 'create' | 'list' | 'readContent'> = {
     async create(input: ArtifactCreateInput): Promise<ArtifactDescriptor> {
       inputs.push(input);
-      return {
+      const id = `artifact-${inputs.length}`;
+      const buffer = Buffer.from(input.text ?? '', 'utf-8');
+      const record: ArtifactRecord = {
         id: `artifact-${inputs.length}`,
         kind: input.kind ?? 'data',
         mimeType: input.mimeType ?? 'application/json',
         filename: input.filename,
-        sizeBytes: Buffer.byteLength(input.text ?? '', 'utf-8'),
+        sizeBytes: buffer.byteLength,
         sha256: `sha-${inputs.length}`,
         createdAt: Date.now(),
         acquisitionMode: 'inline-data',
         fetchMode: 'not-applicable',
         metadata: input.metadata ?? {},
+        contentPath: `/tmp/${id}.data`,
+        metadataPath: `/tmp/${id}.json`,
       };
+      records.push(record);
+      contents.set(id, buffer);
+      return record;
+    },
+    list(limit = 100): ArtifactDescriptor[] {
+      return [...records].reverse().slice(0, limit);
+    },
+    async readContent(id: string): Promise<{ record: ArtifactRecord; buffer: Buffer }> {
+      const record = records.find((entry) => entry.id === id);
+      const buffer = contents.get(id);
+      if (!record || !buffer) throw new Error(`Unknown artifact: ${id}`);
+      return { record, buffer };
     },
   };
   return { inputs, store };
@@ -221,6 +239,47 @@ describe('agent_model_compare tool', () => {
     expect(payload.candidates?.[0]?.model?.registryKey).toBe('openai:gpt-4.1');
     expect(payload.candidates?.[1]?.model?.registryKey).toBe('anthropic:claude-sonnet');
     expect(payload.candidates?.[0]?.content).toBe('Candidate A style answer.');
+  });
+
+  test('reviews and reveals a saved comparison artifact across tool instances', async () => {
+    const artifacts = artifactStore();
+    const runner = fixture({ artifactStore: artifacts.store });
+
+    const run = await runner.tool.execute({
+      mode: 'run',
+      prompt: 'Write a concise product update.',
+      modelRefs: ['openai:gpt-4.1', 'anthropic:claude-sonnet'],
+      confirm: true,
+      explicitUserRequest: 'Compare product update drafts.',
+    });
+    expect(run.success).toBe(true);
+
+    const reviewer = fixture({ artifactStore: artifacts.store });
+    const list = await reviewer.tool.execute({ mode: 'review' });
+    expect(list.success).toBe(true);
+    expect(list.output).toContain('Saved blind comparison artifacts');
+    expect(list.output).toContain('artifact-1');
+    expect(list.output).toContain('Write a concise product update.');
+
+    const review = await reviewer.tool.execute({
+      mode: 'review',
+      artifactId: 'artifact-1',
+    });
+    expect(review.success).toBe(true);
+    expect(review.output).toContain('Blind model comparison review');
+    expect(review.output).toContain('Review board');
+    expect(review.output).toContain('Candidate A style answer.');
+    expect(review.output).toContain('Decision worksheet');
+    expect(review.output).not.toContain('openai:gpt-4.1');
+    expect(review.output).not.toContain('anthropic:claude-sonnet');
+
+    const reveal = await reviewer.tool.execute({
+      mode: 'reveal',
+      artifactId: 'artifact-1',
+    });
+    expect(reveal.success).toBe(true);
+    expect(reveal.output).toContain('A: openai:gpt-4.1 (GPT-4.1)');
+    expect(reveal.output).toContain('B: anthropic:claude-sonnet (Claude Sonnet)');
   });
 
   test('can deliberately skip artifact persistence', async () => {

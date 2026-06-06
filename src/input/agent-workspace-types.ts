@@ -102,6 +102,7 @@ export type AgentWorkspaceEditorKind =
   | 'image-input'
   | 'media-generate'
   | 'model-compare'
+  | 'model-compare-review'
   | 'skill-bundle'
   | 'skill-bundle-search'
   | 'skill-bundle-show'

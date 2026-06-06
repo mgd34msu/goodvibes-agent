@@ -69,6 +69,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action validates the editor fields and executes the first-class blind comparison tool with delayed reveal support. The visible workspace form submits the same request to the main conversation.',
     };
   }
+  if (editorKind === 'model-compare-review') {
+    return {
+      route: 'agent_model_compare',
+      tool: 'agent_model_compare',
+      action: 'review_saved_comparison',
+      confirmation: 'not-required',
+      note: 'run_workspace_action renders saved blind comparison artifacts or a read-only review board through the first-class comparison tool; route updates stay separate.',
+    };
+  }
   if (isAgentWorkspaceCommandEditorKind(editorKind)) {
     return {
       route: 'slash-command-dispatch',
