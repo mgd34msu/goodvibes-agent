@@ -60,6 +60,24 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action returns the main-conversation prompt produced by this editor; use that prompt as the conversation task instead of creating a hidden nested turn.',
     };
   }
+  if (editorKind === 'artifact-browser') {
+    return {
+      route: 'agent_artifacts',
+      tool: 'agent_artifacts',
+      action: 'list_artifacts',
+      confirmation: 'not-required',
+      note: 'run_workspace_action searches saved Agent artifacts through the first-class read-only artifact browser. It never deletes artifacts or inlines binary/base64 bytes.',
+    };
+  }
+  if (editorKind === 'artifact-show') {
+    return {
+      route: 'agent_artifacts',
+      tool: 'agent_artifacts',
+      action: 'show_artifact',
+      confirmation: 'not-required',
+      note: 'run_workspace_action inspects one saved Agent artifact with redacted metadata and bounded text previews only.',
+    };
+  }
   if (editorKind === 'model-compare') {
     return {
       route: 'agent_model_compare',

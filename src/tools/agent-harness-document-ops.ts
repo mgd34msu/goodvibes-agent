@@ -147,6 +147,15 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-media-providers',
     'document-generate-media',
   ], available);
+  const artifactBrowserActions = existingActions([
+    'document-browse-artifacts',
+    'document-show-artifact',
+    'artifact-browse',
+    'artifact-show',
+    'document-artifacts',
+    'artifact-flow',
+    'artifact-show-source',
+  ], available);
   const modelCompareActions = existingActions([
     'document-run-compare',
     'document-review-compare',
@@ -163,6 +172,11 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'account-main-model',
   ], available);
   const modelCompareReady = hasTool(context, 'agent_model_compare') && modelCompareActions.includes('document-run-compare');
+  const artifactBrowserReady = hasTool(context, 'agent_artifacts')
+    && Boolean(context.platform.artifactStore?.list)
+    && Boolean(context.platform.artifactStore?.readContent)
+    && artifactBrowserActions.includes('artifact-browse')
+    && artifactBrowserActions.includes('artifact-show');
 
   return [
     {
@@ -248,17 +262,22 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     {
       id: 'artifact_browser',
       label: 'Artifact Browser',
-      status: 'partial',
+      status: artifactBrowserReady ? 'ready' : artifactBrowserActions.length > 0 ? 'partial' : 'gap',
       outcome: 'Find and reuse uploaded, exported, generated, and source-backed artifacts from one place.',
-      current: 'Artifacts are real and visible in transcript, source, session, and media routes, but there is no unified artifact browser with filters and reuse actions.',
-      next: 'Build a unified artifact browser over file, session, source, generated media, and delegation artifacts.',
-      userRoute: 'Agent Workspace -> Documents & Compare -> Artifacts',
-      modelRoute: 'agent_harness mode:"workspace_actions" categoryId:"artifacts"',
+      current: artifactBrowserReady
+        ? 'Agent has a unified read-only artifact browser with filters, redacted metadata, and bounded text previews over the SDK artifact store.'
+        : 'Artifacts are real and visible in transcript, source, session, and media routes, but the unified browser is not fully wired in this runtime.',
+      next: artifactBrowserReady
+        ? 'Add reuse actions on top of the browser once document editing and artifact selection targets exist.'
+        : 'Wire agent_artifacts and browse/show workspace actions over the SDK artifact store.',
+      userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts',
+      modelRoute: artifactBrowserReady ? 'agent_artifacts' : 'agent_harness mode:"workspace_actions" categoryId:"artifacts"',
       signals: [
         `${uploadActions.length + exportActions.length + mediaActions.length} related artifact action(s)`,
-        'Unified artifact browser: gap',
+        `Artifact browser tool: ${hasTool(context, 'agent_artifacts') ? 'available' : 'gap'}`,
+        `Artifact list/read store: ${context.platform.artifactStore?.list && context.platform.artifactStore?.readContent ? 'available' : 'gap'}`,
       ],
-      actionIds: existingActions(['document-artifacts', 'artifact-flow', 'artifact-show-source'], available),
+      actionIds: artifactBrowserActions,
     },
     {
       id: 'model_compare',
@@ -269,7 +288,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, saved preference analytics, markdown report export, and a separate confirmed winner route update.'
         : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
       next: modelCompareReady
-        ? 'Build dedicated document editing and a unified artifact browser around saved comparison, judgment, analytics, export, and route-update artifacts.'
+        ? 'Build dedicated document editing and cross-session synthesis around saved comparison, judgment, analytics, export, and route-update artifacts.'
         : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
       modelRoute: modelCompareReady ? 'agent_model_compare' : 'agent_harness mode:"model_routing"',
@@ -319,7 +338,7 @@ export function documentOpsSummary(context: CommandContext, args: AgentHarnessDo
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
     returned: lanes.length,
     total: lanes.length,
-    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, and model comparison. Dedicated document editing and unified artifact browsing remain explicit gaps until real workflows exist.',
+    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, and model comparison. Dedicated document editing remains an explicit gap until a real workflow exists.',
     nextActions: nextActions(lanes),
   };
 }

@@ -174,7 +174,7 @@ export interface CommandPlatformConfigServices {
   readonly voiceProviderRegistry?: VoiceProviderRegistry;
   readonly voiceService?: VoiceService;
   readonly mediaProviderRegistry?: MediaProviderRegistry;
-  readonly artifactStore?: Pick<ArtifactStore, 'create'>;
+  readonly artifactStore?: Pick<ArtifactStore, 'create'> & Partial<Pick<ArtifactStore, 'get' | 'list' | 'readContent'>>;
   readonly channelDeliveryRouter?: Pick<ChannelDeliveryRouter, 'deliver' | 'listStrategies'>;
 }
 

@@ -17,6 +17,7 @@ const READ_TOOL_NAMES = new Set([
   'inspect',
   'state',
   'registry',
+  'agent_artifacts',
   'goodvibes_context',
   'agent_harness',
   'agent_knowledge',

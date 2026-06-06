@@ -100,6 +100,8 @@ export type AgentWorkspaceEditorKind =
   | 'secret-delete'
   | 'tts-prompt'
   | 'image-input'
+  | 'artifact-browser'
+  | 'artifact-show'
   | 'media-generate'
   | 'model-compare'
   | 'model-compare-review'

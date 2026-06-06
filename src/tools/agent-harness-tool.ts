@@ -1,6 +1,7 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
+import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactShowToolArgs } from '../input/agent-workspace-artifact-browser-editor.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
 import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
@@ -163,7 +164,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; setup mutations stay confirmed visible flows.',
     modelRouting: 'List mode:"model_routing"; inspect mode:"model_route"; selection and provider edits stay confirmed visible flows.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use returned routes for inbox, agenda, notes, tasks, reminders, routines, and delivery.',
-    documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; use returned routes for documents, uploads, exports, source checks, artifacts, and blind compare.',
+    documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, uploads, exports, source checks, artifacts, and blind compare.',
     pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
     delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
     securityPosture: 'List mode:"security_posture"; inspect mode:"security_finding"; mutate only through confirmed security routes.',
@@ -296,6 +297,40 @@ async function runWorkspaceEditorAction(
     return runCommand(deps, {
       ...args,
       command: parts.map((part, index) => index < 2 || part.startsWith('--') ? part : JSON.stringify(part)).join(' '),
+    });
+  }
+
+  if (editor.kind === 'artifact-browser') {
+    const artifactsToolArgs = buildAgentArtifactBrowserToolArgs(fieldReader(editor, fields));
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-artifact-browser',
+      'agent_artifacts',
+      artifactsToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_artifacts',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
+  if (editor.kind === 'artifact-show') {
+    const artifactToolArgs = buildAgentArtifactShowToolArgs(fieldReader(editor, fields));
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-artifact-show',
+      'agent_artifacts',
+      artifactToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_artifacts',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
     });
   }
 

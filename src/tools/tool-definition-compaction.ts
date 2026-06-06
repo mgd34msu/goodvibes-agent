@@ -30,6 +30,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   worklist: 'Manage durable worklists and checklist items.',
   write: 'Write files with batch, mkdir, backup, and validation.',
   agent_harness: 'Harness catalog: modes, settings, commands, UI, tools.',
+  agent_artifacts: 'Browse and preview saved Agent artifacts.',
   agent_knowledge: 'Read isolated Agent Knowledge.',
   agent_knowledge_ingest: 'Ingest confirmed source into Agent Knowledge.',
   agent_local_registry: 'Inspect/update Agent memory, notes, skills, routines.',

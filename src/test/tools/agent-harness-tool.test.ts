@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
@@ -19,6 +20,7 @@ import { registerOperatorRuntimeCommands } from '../../input/commands/operator-r
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
 import { KeybindingsManager } from '../../input/keybindings.ts';
 import { describeCliCommandPolicy, describeCommandPolicy } from '../../tools/agent-harness-metadata.ts';
+import { createAgentArtifactsTool } from '../../tools/agent-artifacts-tool.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
@@ -64,6 +66,47 @@ function makeConfig(paths: ShellPaths): ConfigManager {
     workingDir: paths.workingDirectory,
     homeDir: paths.homeDirectory,
   });
+}
+
+function createHarnessArtifactStore() {
+  const records: ArtifactRecord[] = [];
+  const contents = new Map<string, Buffer>();
+  const store: Pick<ArtifactStore, 'create' | 'get' | 'list' | 'readContent'> = {
+    async create(input: ArtifactCreateInput): Promise<ArtifactDescriptor> {
+      const id = `artifact-${records.length + 1}`;
+      const buffer = Buffer.from(input.text ?? '', 'utf-8');
+      const record: ArtifactRecord = {
+        id,
+        kind: input.kind ?? 'data',
+        mimeType: input.mimeType ?? 'text/plain',
+        ...(input.filename ? { filename: input.filename } : {}),
+        sizeBytes: buffer.byteLength,
+        sha256: `sha-${records.length + 1}`,
+        createdAt: Date.now() + records.length,
+        acquisitionMode: input.acquisitionMode ?? 'inline-data',
+        fetchMode: input.fetchMode ?? 'not-applicable',
+        metadata: input.metadata ?? {},
+        contentPath: `/tmp/${id}.data`,
+        metadataPath: `/tmp/${id}.json`,
+      };
+      records.push(record);
+      contents.set(id, buffer);
+      return record;
+    },
+    get(id: string): ArtifactDescriptor | null {
+      return records.find((record) => record.id === id) ?? null;
+    },
+    list(limit = 100): ArtifactDescriptor[] {
+      return [...records].reverse().slice(0, limit);
+    },
+    async readContent(id: string): Promise<{ record: ArtifactRecord; buffer: Buffer }> {
+      const record = records.find((entry) => entry.id === id);
+      const buffer = contents.get(id);
+      if (!record || !buffer) throw new Error(`Unknown artifact: ${id}`);
+      return { record, buffer };
+    },
+  };
+  return { records, store };
 }
 
 function createFakePanel(id: string, name: string, icon: string, category: PanelCategory): Panel {
@@ -116,6 +159,7 @@ function makeFixture(options: {
   readonly dismissAgentWorkspace?: boolean;
   readonly keybindings?: boolean;
   readonly builtinCommands?: boolean;
+  readonly artifactStore?: Pick<ArtifactStore, 'create' | 'get' | 'list' | 'readContent'>;
 } = {}): HarnessFixture {
   const { root, paths, cleanup } = makeShellPaths();
   const commandRegistry = new CommandRegistry();
@@ -304,6 +348,7 @@ function makeFixture(options: {
           { id: `${providerId ?? 'default'}-voice-b`, label: 'Voice B' },
         ],
       },
+      ...(options.artifactStore ? { artifactStore: options.artifactStore } : {}),
       readModels: {
         security: {
           getSnapshot: () => ({
@@ -645,8 +690,10 @@ describe('agent_harness tool', () => {
   });
 
   test('exposes Document Ops readiness with an honest blind comparison runner', async () => {
-    const fixture = makeFixture();
+    const artifacts = createHarnessArtifactStore();
+    const fixture = makeFixture({ artifactStore: artifacts.store });
     try {
+      fixture.toolRegistry.register(createAgentArtifactsTool(artifacts.store));
       registerStubTool(fixture.toolRegistry, 'agent_model_compare');
       const summary = await executeHarnessJson<{
         readonly documentOps?: { readonly lanes: number; readonly ready: number; readonly partial: number; readonly gap: number };
@@ -673,6 +720,7 @@ describe('agent_harness tool', () => {
       const uploads = ops.lanes.find((lane) => lane.id === 'uploads');
       const exports = ops.lanes.find((lane) => lane.id === 'exports');
       const sourceLibrary = ops.lanes.find((lane) => lane.id === 'source_library');
+      const artifactBrowser = ops.lanes.find((lane) => lane.id === 'artifact_browser');
       const modelCompare = ops.lanes.find((lane) => lane.id === 'model_compare');
       expect(documents?.status).toBe('partial');
       expect(documents?.current).toContain('no dedicated markdown editor');
@@ -681,6 +729,10 @@ describe('agent_harness tool', () => {
       expect(exports?.status).toBe('ready');
       expect(exports?.actionIds).toContain('document-export-conversation');
       expect(sourceLibrary?.status).toBe('ready');
+      expect(artifactBrowser?.status).toBe('ready');
+      expect(artifactBrowser?.current).toContain('unified read-only artifact browser');
+      expect(artifactBrowser?.actionIds).toContain('artifact-browse');
+      expect(artifactBrowser?.actionIds).toContain('artifact-show');
       expect(modelCompare?.status).toBe('partial');
       expect(modelCompare?.current).toContain('confirmed blind comparison runner');
       expect(modelCompare?.actionIds).toContain('document-run-compare');
@@ -689,6 +741,15 @@ describe('agent_harness tool', () => {
       expect(modelCompare?.actionIds).toContain('document-compare-analytics');
       expect(modelCompare?.actionIds).toContain('document-apply-compare');
       expect(modelCompare?.actionIds).toContain('document-export-compare');
+
+      const artifactLane = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly routes?: { readonly model: string };
+      }>(fixture, { mode: 'document_ops_lane', laneId: 'artifact_browser' });
+      expect(artifactLane.id).toBe('artifact_browser');
+      expect(artifactLane.status).toBe('ready');
+      expect(artifactLane.routes?.model).toBe('agent_artifacts');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
@@ -869,6 +930,8 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'documents-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-browse-artifacts')?.modelRoute).toBe('agent_artifacts');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-show')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-ingest-file')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-generate-media')?.modelRoute).toBe('agent_media_generate');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-run-compare')?.modelRoute).toBe('agent_model_compare');
@@ -2080,6 +2143,7 @@ describe('agent_harness tool', () => {
       for (const name of [
         'agent_operator_briefing',
         'agent_operator_action',
+        'agent_artifacts',
         'agent_knowledge',
         'agent_knowledge_ingest',
         'agent_channel_send',
@@ -2770,6 +2834,58 @@ describe('agent_harness tool', () => {
       expect(note?.title).toBe('Source triage');
       expect(note?.body).toContain('reviewed sources');
       expect(note?.tags).toEqual(['research', 'triage']);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs artifact browser workspace editors through agent_artifacts', async () => {
+    const artifacts = createHarnessArtifactStore();
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'text/markdown',
+      filename: 'comparison-export.md',
+      text: 'Saved comparison report\n\nThe winning answer was more concrete.',
+      metadata: {
+        purpose: 'agent-model-compare-export',
+        source: 'agent-model-compare',
+        apiKey: 'not-for-transcript',
+      },
+    });
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      fixture.toolRegistry.register(createAgentArtifactsTool(artifacts.store));
+
+      const browse = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'artifact-browse',
+        fields: {
+          purpose: 'model-compare-export',
+          limit: '10',
+        },
+      });
+      expect(browse.success).toBe(true);
+      expect(browse.output).toContain('"status": "executed_model_tool"');
+      expect(browse.output).toContain('"tool": "agent_artifacts"');
+      expect(browse.output).toContain('comparison-export.md');
+      expect(browse.output).not.toContain('not-for-transcript');
+
+      const show = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-show-artifact',
+        fields: {
+          artifactId: 'artifact-1',
+          includeContent: 'yes',
+          previewBytes: '48',
+        },
+      });
+      expect(show.success).toBe(true);
+      expect(show.output).toContain('"status": "executed_model_tool"');
+      expect(show.output).toContain('"tool": "agent_artifacts"');
+      const showPayload = JSON.parse(show.output ?? '{}') as { readonly output?: string | null };
+      expect(showPayload.output).toContain('Saved comparison report');
+      expect(showPayload.output).toContain('"apiKey": "<redacted>"');
+      expect(showPayload.output).not.toContain('not-for-transcript');
     } finally {
       fixture.cleanup();
     }

@@ -427,14 +427,14 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Documents & Compare');
     expect(output).toContain('Document route: openai-subscriber / GPT-5.5');
     expect(output).toContain('Files: attach, paste, source ingest, and export');
-    expect(output).toContain('Saved compare review/judgment, analytics, export, and route update are available; document');
-    expect(output).toContain('editor/history and unified artifact browser remain gaps.');
+    expect(output).toContain('Saved artifact browser plus compare review/judgment, analytics, export, and route update');
+    expect(output).toContain('document editor/history remains a gap.');
+    expect(output).toContain('Browse artifacts');
+    expect(output).toContain('Show artifact');
     expect(output).toContain('Run blind compare');
     expect(output).toContain('Review saved compare');
     expect(output).toContain('Save compare judgment');
     expect(output).toContain('Compare analytics');
-    expect(output).toContain('Apply compare winner');
-    expect(output).toContain('Export compare report');
     expect(output).toContain('agent_harness mode:"document_ops"');
   });
 
