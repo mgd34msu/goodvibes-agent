@@ -1292,6 +1292,8 @@ describe('agent_harness tool', () => {
             readonly inspectRoute: string;
             readonly cancelRoute?: string;
             readonly checkpointRoute?: string;
+            readonly pauseRoute?: string;
+            readonly resumeRoute?: string;
             readonly logTail?: readonly string[];
             readonly sourceIds?: readonly string[];
             readonly nextSteps?: readonly string[];
@@ -1331,8 +1333,14 @@ describe('agent_harness tool', () => {
       expect(researchRuns?.liveRecords?.[0]?.inspectRoute).toContain('agent_research_runs show');
       expect(researchRuns?.liveRecords?.[0]?.cancelRoute).toContain('agent_research_runs cancel');
       expect(researchRuns?.liveRecords?.[0]?.checkpointRoute).toContain('agent_research_runs checkpoint');
+      expect(researchRuns?.liveRecords?.[0]?.pauseRoute).toContain('agent_research_runs pause');
+      expect(researchRuns?.liveRecords?.[0]?.resumeRoute).toContain('agent_research_runs resume');
       expect(researchRuns?.liveRecords?.[0]?.availableControls).toContain('checkpoint');
+      expect(researchRuns?.liveRecords?.[0]?.availableControls).toContain('pause');
+      expect(researchRuns?.liveRecords?.[0]?.availableControls).toContain('resume');
       expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.modelRoute).toContain('agent_research_runs cancel');
+      expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'pause')?.modelRoute).toContain('agent_research_runs pause');
+      expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'resume')?.modelRoute).toContain('agent_research_runs resume');
       expect(researchRuns?.liveRecords?.[0]?.logTail?.join('\n')).toContain('Waiting on source review before synthesis.');
       expect(researchRuns?.liveRecords?.[0]?.sourceIds).toContain('source-a');
       expect(researchRuns?.liveRecords?.[0]?.nextSteps).toContain('Review source-a');

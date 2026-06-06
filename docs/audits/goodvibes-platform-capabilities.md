@@ -42,7 +42,7 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 - `agent_harness mode:"setup_posture"` now returns a prioritized first-run setup plan with connected-host readiness, service status/posture diagnostics, confirmed service install/start/restart repair cards when the operator endpoint is reachable, GoodVibes settings import preview/apply, provider/model access, Agent Knowledge, local behavior, channels, automation review, delegation, finish state, and exact follow-up routes.
 - `agent_harness mode:"run_workspace_action" actionId:"import-goodvibes-tui-settings"` exposes the same GoodVibes TUI settings import as the workspace: preview is read-only and redacted; apply is confirmation-gated and copies only Agent-owned settings plus provider subscription state.
 - `agent_harness mode:"autonomy_intake"` maps ongoing-work requests to the safest visible route and missing fields before any confirmed effect; `agent_autonomy_schedule` creates one visible connected autonomous schedule when task, cadence, success criteria, and request provenance are explicit; `agent_schedule_edit` updates one existing connected schedule by id with the same confirmation boundary.
-- `agent_harness mode:"autonomy_queue"` now attaches live research run, connected-host task, approval, automation run, and schedule records with exact inspect/control routes where supported.
+- `agent_harness mode:"autonomy_queue"` now attaches live research run, connected-host task, approval, automation run, and schedule records with exact inspect/checkpoint/pause/resume/cancel/control routes where supported.
 
 ## Remaining Product Gaps
 

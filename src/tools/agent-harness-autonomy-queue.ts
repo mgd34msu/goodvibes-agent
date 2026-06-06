@@ -55,6 +55,8 @@ interface AutonomyQueueLiveRecord {
   readonly inspectRoute: string;
   readonly cancelRoute?: string;
   readonly checkpointRoute?: string;
+  readonly pauseRoute?: string;
+  readonly resumeRoute?: string;
   readonly nextSteps?: readonly string[];
   readonly sourceIds?: readonly string[];
   readonly logTail?: readonly string[];
@@ -541,9 +543,19 @@ function statusRank(status: AutonomyQueueStatus): number {
 function researchRunLiveRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRuntimeSnapshot>): readonly AutonomyQueueLiveRecord[] {
   return snapshot.researchRuns.map((run) => {
     const terminal = run.status === 'cancelled' || run.status === 'completed' || run.status === 'failed';
+    const canPause = run.status === 'running' || run.status === 'blocked';
+    const canResume = run.status === 'paused' || run.status === 'planned' || run.status === 'blocked';
     const inspectRoute = `agent_research_runs show id="${run.id}"`;
     const cancelRoute = `agent_research_runs cancel id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
     const checkpointRoute = `agent_research_runs checkpoint id="${run.id}" note="..." progress:${run.progress} confirm:true explicitUserRequest:"..."`;
+    const pauseRoute = `agent_research_runs pause id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
+    const resumeRoute = `agent_research_runs resume id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
+    const availableNextRoutes = [
+      checkpointRoute,
+      ...(canPause ? [pauseRoute] : []),
+      ...(canResume ? [resumeRoute] : []),
+      cancelRoute,
+    ];
     return {
       id: run.id,
       label: run.title,
@@ -562,8 +574,10 @@ function researchRunLiveRecords(snapshot: ReturnType<typeof buildAgentWorkspaceR
       ...(terminal ? {} : {
         cancelRoute,
         checkpointRoute,
+        ...(canPause ? { pauseRoute } : {}),
+        ...(canResume ? { resumeRoute } : {}),
       }),
-      nextSteps: terminal ? run.nextSteps : [...run.nextSteps, checkpointRoute, cancelRoute],
+      nextSteps: terminal ? run.nextSteps : [...run.nextSteps, ...availableNextRoutes],
       sourceIds: run.sourceIds,
       logTail: run.logTail,
       controls: [
@@ -571,6 +585,12 @@ function researchRunLiveRecords(snapshot: ReturnType<typeof buildAgentWorkspaceR
         terminal
           ? unavailableControl('checkpoint', 'Checkpoint research run', `Research run is ${run.status}; checkpoint is only offered before terminal completion.`)
           : availableControl('checkpoint', 'Checkpoint research run', 'confirmed-effect', checkpointRoute),
+        canPause
+          ? availableControl('pause', 'Pause research run', 'confirmed-effect', pauseRoute)
+          : unavailableControl('pause', 'Pause research run', terminal ? `Research run is ${run.status}; pause is only offered before terminal completion.` : `Research run is ${run.status}; pause is offered for running or blocked runs.`),
+        canResume
+          ? availableControl('resume', 'Resume research run', 'confirmed-effect', resumeRoute)
+          : unavailableControl('resume', 'Resume research run', terminal ? `Research run is ${run.status}; resume is only offered before terminal completion.` : `Research run is ${run.status}; resume is offered for planned, paused, or blocked runs.`),
         terminal
           ? unavailableControl('cancel', 'Cancel research run', `Research run is ${run.status}; cancel is only offered before terminal completion.`)
           : availableControl('cancel', 'Cancel research run', 'confirmed-effect', cancelRoute),
@@ -602,6 +622,8 @@ function itemSearchText(item: AutonomyQueueItem): string {
       record.inspectRoute,
       record.cancelRoute ?? '',
       record.checkpointRoute ?? '',
+      record.pauseRoute ?? '',
+      record.resumeRoute ?? '',
       record.nextSteps?.join('\n') ?? '',
       record.sourceIds?.join('\n') ?? '',
       record.logTail?.join('\n') ?? '',
@@ -644,6 +666,8 @@ function describeLiveRecord(record: AutonomyQueueLiveRecord, includeParameters: 
     inspectRoute: record.inspectRoute,
     ...(record.cancelRoute ? { cancelRoute: record.cancelRoute } : {}),
     ...(record.checkpointRoute ? { checkpointRoute: record.checkpointRoute } : {}),
+    ...(record.pauseRoute ? { pauseRoute: record.pauseRoute } : {}),
+    ...(record.resumeRoute ? { resumeRoute: record.resumeRoute } : {}),
     ...(record.nextSteps && record.nextSteps.length > 0 ? { nextSteps: record.nextSteps.slice(0, includeParameters ? 8 : 3) } : {}),
     ...(record.sourceIds && record.sourceIds.length > 0 ? { sourceIds: record.sourceIds.slice(0, includeParameters ? 12 : 4) } : {}),
     ...(record.logTail && record.logTail.length > 0 ? { logTail: record.logTail.slice(-(includeParameters ? 5 : 2)) } : {}),
