@@ -55,7 +55,7 @@ function readString(value: unknown): string {
 function readLimit(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
-  return Math.max(1, Math.min(500, Math.trunc(parsed)));
+  return Math.max(1, Math.min(1000, Math.trunc(parsed)));
 }
 
 function readFieldMap(value: unknown): Readonly<Record<string, string>> {
@@ -256,7 +256,7 @@ export function listWorkspaceActions(
 ): readonly Record<string, unknown>[] {
   const query = readString(args.query);
   const categoryId = readString(args.categoryId || args.category);
-  const limit = readLimit(args.limit, 500);
+  const limit = readLimit(args.limit, 1000);
   const includeEditor = args.includeParameters === true;
   const editorContext = includeEditor ? buildWorkspaceEditorContext(context, args) : null;
   const source = query

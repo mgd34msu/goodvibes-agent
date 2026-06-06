@@ -4,7 +4,7 @@ import { join } from 'node:path';
 const ROOT = process.cwd();
 const SEARCH_ROOT = join(ROOT, 'src');
 const TEST_FILE_RE = /\.(test|spec)\.(ts|tsx)$/;
-const TEST_TMP_ROOT = join(ROOT, '.test-tmp', 'suite');
+const TEST_TMP_ROOT = join(ROOT, '.test-suite-tmp');
 
 function collectTests(dir: string, acc: string[]): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

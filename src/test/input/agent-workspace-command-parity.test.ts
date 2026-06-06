@@ -174,7 +174,11 @@ describe('Agent workspace command parity', () => {
           }
           const workspace = new AgentWorkspace();
           workspace.open(makeCommandContext(), () => {}, category.id);
-          workspace.selectedActionIndex = actionIndex;
+          workspace.selectedActionIndex = workspace.actions.findIndex((entry) => entry.id === action.id);
+          if (workspace.selectedActionIndex < 0) {
+            failures.push(`${actionRef}: editor action is not visible`);
+            continue;
+          }
           workspace.activateSelected();
           if (!workspace.localEditor) {
             failures.push(`${actionRef}: did not open an editor`);

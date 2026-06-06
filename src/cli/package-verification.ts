@@ -1845,7 +1845,7 @@ function verifyRunTestsScriptPolicy(root: string): readonly string[] {
   const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
     { marker: "const SEARCH_ROOT = join(ROOT, 'src')", label: 'src test discovery root' },
     { marker: '\\.(test|spec)\\.(ts|tsx)$', label: 'test/spec file matcher' },
-    { marker: "const TEST_TMP_ROOT = join(ROOT, '.test-tmp', 'suite')", label: 'isolated suite temp root' },
+    { marker: "const TEST_TMP_ROOT = join(ROOT, '.test-suite-tmp')", label: 'isolated suite temp root' },
     { marker: 'function collectTests', label: 'recursive test discovery' },
     { marker: 'readdirSync(dir, { withFileTypes: true })', label: 'directory entry traversal' },
     { marker: 'entry.isDirectory()', label: 'recursive directory descent' },

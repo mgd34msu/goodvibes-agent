@@ -327,7 +327,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'picker',
     summary: 'Reasoning-effort selector for models that expose effort levels.',
     command: '/effort',
-    preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting')} for provider.reasoningEffort when a concrete level is known, or mode:"run_workspace_action" setup-effort with confirmation.`,
+    preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting')} for provider.reasoningEffort when a concrete level is known, or mode:"run_workspace_action" setup-reasoning-effort with confirmation.`,
     available: (context) => typeof context.openReasoningEffortPicker === 'function',
     open: (context) => {
       const surface = findSurfaceById('reasoning-effort-picker')!;

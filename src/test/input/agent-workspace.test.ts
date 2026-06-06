@@ -17,6 +17,8 @@ import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { readOnboardingCheckMarker, readOnboardingCompletionMarker } from '../../runtime/onboarding/index.ts';
+import { ConfigManager } from '../../config/index.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { Line } from '../../types/grid.ts';
@@ -53,6 +55,40 @@ function commandContext(calls: string[] = []): CommandContext {
       calls.push(`print:${text}`);
     },
   } as unknown as CommandContext;
+}
+
+function persistentConfigContext(): {
+  readonly context: CommandContext;
+  readonly configManager: ConfigManager;
+  readonly shellPaths: ReturnType<typeof createShellPathService>;
+} {
+  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-config-'));
+  const workingDirectory = join(root, 'workspace');
+  const homeDirectory = join(root, 'home');
+  mkdirSync(workingDirectory, { recursive: true });
+  mkdirSync(homeDirectory, { recursive: true });
+  const shellPaths = createShellPathService({ workingDirectory, homeDirectory });
+  const configManager = new ConfigManager({
+    homeDir: homeDirectory,
+    workingDir: workingDirectory,
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+  });
+  return {
+    shellPaths,
+    configManager,
+    context: {
+      ...commandContext(),
+      workspace: { shellPaths },
+      platform: { configManager },
+    } as unknown as CommandContext,
+  };
+}
+
+function savedAgentSetting(shellPaths: ReturnType<typeof createShellPathService>, key: string): unknown {
+  const raw = readFileSync(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'settings.json'), 'utf-8');
+  return key.split('.').reduce<unknown>((cursor, part) => (
+    cursor && typeof cursor === 'object' ? (cursor as Record<string, unknown>)[part] : undefined
+  ), JSON.parse(raw) as Record<string, unknown>);
 }
 
 function routineWorkspaceContext(): CommandContext {
@@ -231,19 +267,24 @@ describe('AgentWorkspace', () => {
       && group !== groups[index - 1]
       && groups.slice(0, index).includes(group)
     ));
+    const categoryLabels = AGENT_WORKSPACE_CATEGORIES.map((category) => category.label);
+    const duplicateCategoryLabels = [...new Set(categoryLabels)]
+      .filter((label) => categoryLabels.filter((candidate) => candidate === label).length > 1);
 
     expect(uniqueGroups).toEqual([
       'START',
+      'ONBOARDING',
       'DAY-TO-DAY',
       'CAPABILITIES',
       'LOCAL BEHAVIOR',
       'OPERATIONS',
       'FINISH',
     ]);
-    expect(singletonGroups).toEqual(['FINISH']);
+    expect(singletonGroups).toEqual(['START', 'FINISH']);
     expect(AGENT_WORKSPACE_CATEGORIES.at(-1)?.group).toBe('FINISH');
     expect(repeatedSetupGroups).toEqual([]);
     expect(repeatedAfterChange).toEqual([]);
+    expect(duplicateCategoryLabels).toEqual([]);
   });
 
   test('first-class product commands have Agent workspace access', () => {
@@ -406,7 +447,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/compat');
   });
 
-  test('sets interaction mode from home and setup workspace forms', () => {
+  test('sets interaction mode from home workspace forms', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -428,50 +469,28 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
 
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-effort');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('effort-level');
-    clearEditorField(workspace);
-    feedText(workspace, 'high');
-    feedKey(workspace, 'enter');
-    expect(dispatched.at(-1)).toBe('/effort high');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-mode-domain');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('mode-domain');
-    feedText(workspace, 'approvals');
-    feedKey(workspace, 'enter');
-    clearEditorField(workspace);
-    feedText(workspace, 'verbose');
-    feedKey(workspace, 'enter');
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
     expect(dispatched).toEqual([
       '/mode show',
       '/mode operator --yes',
-      '/effort high',
-      '/mode set-domain approvals verbose --yes',
     ]);
   });
 
-  test('manages model favorites and catalog refresh from setup workspace actions', () => {
+  test('manages model favorites and catalog refresh from account onboarding actions', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-refresh');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-refresh');
     workspace.activateSelected();
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-pin');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-pin');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('model-pin');
     feedText(workspace, 'openai:gpt-5.5');
     feedKey(workspace, 'enter');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-unpin');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-unpin');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('model-unpin');
     feedText(workspace, 'openai:gpt-5.5');
@@ -1047,18 +1066,17 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/pair');
   });
 
-  test('setup workspace opens channels workspace before pairing', () => {
+  test('messaging onboarding pairs companion from the real onboarding page', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'onboarding-pair-companion');
 
     workspace.activateSelected();
 
-    expect(dispatched).toEqual([]);
-    expect(workspace.selectedCategory.id).toBe('channels');
-    expect(workspace.status).toContain('Opened Channels');
+    expect(dispatched).toEqual(['/pair']);
+    expect(workspace.status).toContain('/pair');
   });
 
   test('home workspace jumps directly into setup without dispatching a command', () => {
@@ -1073,77 +1091,78 @@ describe('AgentWorkspace', () => {
     expect(workspace.selectedCategory.id).toBe('setup');
     expect(workspace.focusPane).toBe('actions');
     expect(workspace.lastActionResult?.kind).toBe('refreshed');
-    expect(workspace.status).toContain('Opened Setup');
+    expect(workspace.status).toContain('Opened Start');
   });
 
-  test('setup workspace keeps first-run product areas as direct workspaces', () => {
+  test('onboarding pages use concrete setting editor command or completion actions', () => {
+    const onboarding = AGENT_WORKSPACE_CATEGORIES.filter((category) => category.group === 'ONBOARDING' || category.id === 'finish');
+    const filler = onboarding.flatMap((category) => category.actions
+      .filter((action) => action.kind === 'workspace' || action.kind === 'guidance')
+      .map((action) => `${category.id}/${action.id}`));
+    expect(filler).toEqual([]);
+  });
+
+  test('onboarding setting actions persist live config and saved Agent settings', () => {
+    const { context, configManager, shellPaths } = persistentConfigContext();
+    const workspace = new AgentWorkspace();
+    workspace.open(context, () => undefined);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'assistant-behavior');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'behavior-hitl-mode');
+    workspace.activateSelected();
+    expect(configManager.get('behavior.hitlMode')).toBe('operator');
+    expect(savedAgentSetting(shellPaths, 'behavior.hitlMode')).toBe('operator');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-display');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'display-collapse-threshold');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('setting-set');
+    clearEditorField(workspace);
+    feedText(workspace, '88');
+    feedKey(workspace, 'enter');
+    expect(configManager.get('display.collapseThreshold')).toBe(88);
+    expect(savedAgentSetting(shellPaths, 'display.collapseThreshold')).toBe(88);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-provider-model');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('setting-set');
+    clearEditorField(workspace);
+    feedText(workspace, 'openai:gpt-5.5');
+    feedKey(workspace, 'enter');
+    expect(configManager.get('provider.model')).toBe('openai:gpt-5.5');
+    expect(savedAgentSetting(shellPaths, 'provider.model')).toBe('openai:gpt-5.5');
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-enabled');
+    workspace.activateSelected();
+    expect(configManager.get('surfaces.ntfy.enabled')).toBe(true);
+    expect(savedAgentSetting(shellPaths, 'surfaces.ntfy.enabled')).toBe(true);
+    expect(workspace.actions.some((action) => action.id === 'channel-ntfy-base-url')).toBe(true);
+  });
+
+  test('verify onboarding exposes compatibility and review commands without shell-only paths', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-verify');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-agent-knowledge');
-    workspace.activateSelected();
-    expect(workspace.selectedCategory.id).toBe('knowledge');
-
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-runtime-profiles');
-    workspace.activateSelected();
-    expect(workspace.selectedCategory.id).toBe('profiles');
-
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-personas');
-    workspace.activateSelected();
-    expect(workspace.selectedCategory.id).toBe('personas');
-
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-skills');
-    workspace.activateSelected();
-    expect(workspace.selectedCategory.id).toBe('skills');
-
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-routines');
-    workspace.activateSelected();
-    expect(workspace.selectedCategory.id).toBe('routines');
-
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-memory');
-    workspace.activateSelected();
-    expect(workspace.selectedCategory.id).toBe('memory');
-
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-voice-media');
-    workspace.activateSelected();
-    expect(workspace.selectedCategory.id).toBe('voice-media');
-    expect(dispatched).toEqual([]);
-  });
-
-  test('setup workspace exposes compatibility accounts and subscription review without shell-only paths', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-compat');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'verify-compat');
     workspace.activateSelected();
     expect(workspace.status).toContain('/compat');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-accounts');
-    workspace.activateSelected();
-    expect(workspace.status).toContain('/accounts review');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-providers');
-    workspace.activateSelected();
-    expect(workspace.status).toContain('/subscription providers');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-review');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'verify-subscription');
     workspace.activateSelected();
     expect(workspace.status).toContain('/subscription review');
 
-    expect(dispatched).toEqual(['/compat', '/accounts review', '/subscription providers', '/subscription review']);
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'verify-channels');
+    workspace.activateSelected();
+    expect(workspace.status).toContain('/channels attention');
+
+    expect(dispatched).toEqual(['/compat', '/subscription review', '/channels attention']);
   });
 
-  test('home and setup workspaces jump to Tools and MCP without dispatching commands', () => {
+  test('home opens Tools and onboarding tools opens concrete MCP setup', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -1153,10 +1172,10 @@ describe('AgentWorkspace', () => {
     expect(workspace.selectedCategory.id).toBe('tools');
     expect(workspace.status).toContain('Opened Tools & MCP');
 
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-tools');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools-permissions');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'onboarding-mcp-server');
     workspace.activateSelected();
-    expect(workspace.selectedCategory.id).toBe('tools');
+    expect(workspace.localEditor?.kind).toBe('mcp-server');
     expect(dispatched).toEqual([]);
   });
 
@@ -1694,13 +1713,13 @@ describe('AgentWorkspace', () => {
     ]);
   });
 
-  test('exposes Agent support bundle export inspect and import from the setup workspace', () => {
+  test('exposes Agent support bundle export inspect and import from the host workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-export');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-support-bundle-export');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('support-bundle-export');
     feedKey(workspace, 'enter');
@@ -1715,7 +1734,7 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual(['/bundle export goodvibes-agent-bundle.json --yes']);
     expect(workspace.lastActionResult?.title).toBe('Opening Agent support bundle export');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-inspect');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-support-bundle-inspect');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('support-bundle-inspect');
     clearEditorField(workspace);
@@ -1727,7 +1746,7 @@ describe('AgentWorkspace', () => {
     ]);
     expect(workspace.lastActionResult?.title).toBe('Opening Agent support bundle inspection');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-import');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-support-bundle-import');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('support-bundle-import');
     clearEditorField(workspace);
@@ -1752,11 +1771,11 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening Agent support bundle import');
   });
 
-  test('adds and removes custom providers from setup workspace forms with confirmation', () => {
+  test('adds and removes custom providers from onboarding forms with confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
     workspace.activateSelected();
@@ -1784,6 +1803,7 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'openai-subscriber');
     feedKey(workspace, 'enter');
 
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('provider-add');
@@ -1817,6 +1837,7 @@ describe('AgentWorkspace', () => {
     ]);
     expect(workspace.lastActionResult?.command).toBe('/provider add local_llm http://127.0.0.1:8000/v1 <redacted-api-key> --yes');
 
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-remove');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('provider-remove');
@@ -1943,7 +1964,7 @@ describe('AgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
 
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-show');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('auth-show');
@@ -1975,6 +1996,7 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'auth/custom.json');
     feedKey(workspace, 'enter');
 
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-bundle-export');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('subscription-bundle-export');
@@ -4221,7 +4243,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.focusPane).toBe('categories');
 
     handleAgentWorkspaceToken(workspace, { type: 'key', logicalName: 'down', ctrl: false, meta: false, shift: false, alt: false }, () => undefined, () => undefined);
-    expect(workspace.selectedCategory.label).toBe('Setup');
+    expect(workspace.selectedCategory.label).toBe('Start');
 
     handleAgentWorkspaceToken(workspace, { type: 'key', logicalName: 'right', ctrl: false, meta: false, shift: false, alt: false }, () => undefined, () => undefined);
     expect(workspace.focusPane).toBe('actions');

@@ -2154,7 +2154,7 @@ describe('agent_harness tool', () => {
     const fixture = makeFixture();
     try {
       const local = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'memory-create' });
-      const commandBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'setup-effort' });
+      const commandBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'conversation-save' });
       const promptBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-main' });
       const directLocal = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'learned-behavior' });
       const profile = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'runtime-profile-create' });

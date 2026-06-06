@@ -1,5 +1,6 @@
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
+import type { ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 import type { ShellPathService } from '@/runtime/index.ts';
 import type { CommandContext } from './command-registry.ts';
 import { AgentNoteRegistry } from '../agent/note-registry.ts';
@@ -18,6 +19,7 @@ import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } fr
 import { jumpAgentWorkspaceSelection, moveAgentWorkspaceSelection, selectAgentWorkspaceCategory } from './agent-workspace-navigation.ts';
 import { buildAgentWorkspaceRequirements } from './agent-workspace-requirements.ts';
 import { appendAgentWorkspaceActionSearchText, backspaceAgentWorkspaceActionSearch, beginAgentWorkspaceActionSearch, clearAgentWorkspaceActionSearch, commitAgentWorkspaceActionSearchSelection, searchAgentWorkspaceActions } from './agent-workspace-search.ts';
+import { agentWorkspaceSettingSchema, applyAgentWorkspaceSettingValue, buildAgentWorkspaceSettingActionEffect, importAgentWorkspaceTuiSettings, isAgentWorkspaceActionVisible } from './agent-workspace-settings.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
@@ -39,14 +41,7 @@ export class AgentWorkspace {
   public localEditor: AgentWorkspaceLocalEditor | null = null;
   public actionSearchActive = false;
   public actionSearchQuery = '';
-  public readonly selectedLibraryItemIndexes: AgentWorkspaceLocalSelectionIndexes = {
-    memory: 0,
-    note: 0,
-    persona: 0,
-    skill: 0,
-    routine: 0,
-    profile: 0,
-  };
+  public readonly selectedLibraryItemIndexes: AgentWorkspaceLocalSelectionIndexes = { memory: 0, note: 0, persona: 0, skill: 0, routine: 0, profile: 0 };
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
   private dispatchPrompt: AgentWorkspacePromptDispatcher | null = null;
@@ -63,7 +58,10 @@ export class AgentWorkspace {
     this.localEditor = null;
     this.actionSearchActive = false;
     this.actionSearchQuery = '';
-    if (categoryId && !this.selectCategory(categoryId)) {
+    if (!categoryId) {
+      this.selectedCategoryIndex = 0;
+      this.selectedActionIndex = 0;
+    } else if (!this.selectCategory(categoryId)) {
       const normalized = categoryId.trim();
       this.status = `Unknown Agent workspace area: ${normalized}`;
       this.lastActionResult = {
@@ -98,7 +96,7 @@ export class AgentWorkspace {
 
   get actions(): readonly AgentWorkspaceAction[] {
     if (this.actionSearchActive) return this.actionSearchResults.map((result) => result.action);
-    return this.selectedCategory.actions;
+    return this.selectedCategory.actions.filter((action) => isAgentWorkspaceActionVisible(this.context, action));
   }
 
   get selectedAction(): AgentWorkspaceAction | null {
@@ -111,7 +109,12 @@ export class AgentWorkspace {
   }
 
   get actionSearchResults(): readonly AgentWorkspaceActionSearchResult[] {
-    return this.actionSearchActive ? searchAgentWorkspaceActions(this.categories, this.actionSearchQuery) : [];
+    if (!this.actionSearchActive) return [];
+    const categories = this.categories.map((category) => ({
+      ...category,
+      actions: category.actions.filter((action) => isAgentWorkspaceActionVisible(this.context, action)),
+    }));
+    return searchAgentWorkspaceActions(categories, this.actionSearchQuery);
   }
 
   get selectedActionSearchResult(): AgentWorkspaceActionSearchResult | null {
@@ -178,11 +181,7 @@ export class AgentWorkspace {
     }
     this.runtimeSnapshot = buildAgentWorkspaceRuntimeSnapshot(this.context);
     this.status = 'Runtime context refreshed.';
-    this.lastActionResult = {
-      kind: 'refreshed',
-      title: 'Runtime context refreshed',
-      detail: 'Provider, model, session, local memory, runtime endpoint, and Agent knowledge route posture were re-read from the live command context.',
-    };
+    this.lastActionResult = { kind: 'refreshed', title: 'Runtime context refreshed', detail: 'Provider, model, session, local memory, runtime endpoint, and Agent knowledge route posture were re-read from the live command context.' };
   }
 
   cancelLocalEditor(): void {
@@ -321,32 +320,37 @@ export class AgentWorkspace {
     }
 
     try {
-      const marker = {
-        scope: 'user',
-        source: 'wizard',
-        mode: 'new',
-        workspaceRoot: shellPaths.workingDirectory,
-      } as const;
+      const marker = { scope: 'user', source: 'wizard', mode: 'new', workspaceRoot: shellPaths.workingDirectory } as const;
       writeOnboardingCheckMarker(shellPaths, marker);
       writeOnboardingCompletionMarker(shellPaths, marker);
       this.status = 'Onboarding applied and closed.';
-      this.lastActionResult = {
-        kind: 'refreshed',
-        title: 'Onboarding complete',
-        detail: 'Saved the user onboarding completion marker. Future normal launches start in the main conversation.',
-        safety: 'safe',
-      };
+      this.lastActionResult = { kind: 'refreshed', title: 'Onboarding complete', detail: 'Saved the user onboarding completion marker. Future normal launches start in the main conversation.', safety: 'safe' };
       if (!this.context?.dismissAgentWorkspace?.()) this.close();
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       this.status = 'Onboarding completion failed.';
-      this.lastActionResult = {
-        kind: 'error',
-        title: 'Onboarding completion failed',
-        detail,
-        safety: 'safe',
-      };
+      this.lastActionResult = { kind: 'error', title: 'Onboarding completion failed', detail, safety: 'safe' };
     }
+  }
+
+  applySettingAction(action: AgentWorkspaceAction, requestRender?: () => void): void {
+    const effect = buildAgentWorkspaceSettingActionEffect(this.context, action);
+    if (effect.kind === 'result') {
+      this.status = effect.status;
+      this.lastActionResult = effect.result;
+      return;
+    }
+    if (effect.kind === 'editor') {
+      this.localEditor = effect.editor;
+      this.status = effect.status;
+      this.lastActionResult = effect.result;
+      return;
+    }
+    void this.applySettingValue(effect.setting, effect.value, requestRender);
+  }
+
+  importTuiSettings(requestRender?: () => void): void {
+    void this.importTuiSettingsAsync(requestRender);
   }
 
   private selectedItemForOperation(operation: AgentWorkspaceLocalOperation): AgentWorkspaceLocalLibraryItem | null {
@@ -355,6 +359,24 @@ export class AgentWorkspace {
     if (operation.startsWith('persona-')) return this.selectedLocalLibraryItem('persona');
     if (operation.startsWith('skill-')) return this.selectedLocalLibraryItem('skill');
     return this.selectedLocalLibraryItem('routine');
+  }
+
+  private async applySettingValue(setting: ConfigSetting, value: unknown, requestRender?: () => void): Promise<void> {
+    const outcome = await applyAgentWorkspaceSettingValue(this.context, setting, value);
+    this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
+    this.clampSelection();
+    this.status = outcome.status;
+    this.lastActionResult = outcome.result;
+    requestRender?.();
+  }
+
+  private async importTuiSettingsAsync(requestRender?: () => void): Promise<void> {
+    const outcome = await importAgentWorkspaceTuiSettings(this.context);
+    this.runtimeSnapshot = outcome.runtimeSnapshot ?? this.runtimeSnapshot;
+    this.clampSelection();
+    this.status = outcome.status;
+    this.lastActionResult = outcome.result;
+    requestRender?.();
   }
 
   private memoryApi(): MemoryApi {
@@ -427,6 +449,19 @@ export class AgentWorkspace {
     if (isAgentWorkspaceCommandEditorKind(editor.kind)) {
       this.submitCommandEditor(editor);
       requestRender?.();
+      return;
+    }
+    if (editor.kind === 'setting-set') {
+      const setting = editor.recordId ? agentWorkspaceSettingSchema(this.context, editor.recordId) : null;
+      if (!setting) {
+        this.localEditor = { ...editor, message: 'Unknown setting; cannot save.' };
+        this.status = 'Unknown setting; cannot save.';
+        requestRender?.();
+        return;
+      }
+      const value = this.editorField('value');
+      this.localEditor = null;
+      void this.applySettingValue(setting, value, requestRender);
       return;
     }
     if (editor.kind === 'memory') {

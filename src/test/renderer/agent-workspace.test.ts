@@ -311,7 +311,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('GoodVibes Agent / Operator Workspace');
     expect(output).toContain('Operator Areas');
     expect(output).toContain('Home');
-    expect(output).toContain('Setup checklist');
+    expect(output).toContain('Onboarding');
     expect(output).toContain('open setup');
     expect(output).toContain('Choose model');
     expect(output).toContain('/model');
@@ -363,24 +363,24 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('goodvibes-agent-test-token');
   });
 
-  test('renders setup checklist in the setup workspace', () => {
+  test('renders real onboarding actions in the Start workspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
     const output = text(renderAgentWorkspace(workspace, 132, 44));
 
-    expect(output).toContain('Selected: Open settings');
-    expect(output).toContain('Setup Overview');
+    expect(output).toContain('Selected: Import GoodVibes settings');
+    expect(output).toContain('Onboarding');
     expect(output).toContain('7/11 ready; 3 recommended; 1 optional; 0 blocked.');
     expect(output).toContain('Chat: openai-subscriber / GPT-5.5.');
     expect(output).toContain('Local: 1 personas, 1 skills, 1 routines, 1 memories.');
     expect(output).toContain('Next: Agent Knowledge (recommended)');
-    expect(output).toContain('Provider and model');
-    expect(output).toContain('Agent profiles');
-    expect(output).not.toContain('READY Provider and model -> Setup -> Provider and model');
-    expect(output).not.toContain('RECOMMENDED Agent Knowledge -> Knowledge');
-    expect(output).not.toContain('READY Persona -> Personas');
+    expect(output).toContain('Import GoodVibes settings');
+    expect(output).toContain('Main model');
+    expect(output).toContain('Start subscription login');
+    expect(output).toContain('Store API secret');
+    expect(output).not.toContain('->');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('daemonBaseUrl');
     expect(output).not.toContain('daemon URL');
@@ -392,19 +392,19 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('non-Agent graph segment');
   });
 
-  test('keeps setup context compact enough to show setup actions', () => {
+  test('keeps onboarding context compact enough to show setting actions', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined, 'setup');
 
     const output = text(renderAgentWorkspace(workspace, 132, 37));
 
-    expect(output).toContain('Selected: Open settings');
+    expect(output).toContain('Selected: Import GoodVibes settings');
     expect(output).toContain('Next: Provider and model (blocked)');
-    expect(output).toContain('Set domain verbosity');
-    expect(output).toContain('Agent profiles');
+    expect(output).toContain('Main model');
+    expect(output).toContain('Save conversation history');
     expect(output).not.toContain('Setup Checklist');
     expect(output).not.toContain('RECOMMENDED');
-    expect(output).not.toContain('-> Personas');
+    expect(output).not.toContain('->');
   });
 
   test('keeps every Agent workspace category on the compact top-pane split', () => {
@@ -425,22 +425,17 @@ describe('renderAgentWorkspace', () => {
     }
   });
 
-  test('renders model favorites maintenance in the setup workspace', () => {
+  test('renders model favorites maintenance in account onboarding', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-pinned');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-refresh');
     let output = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(output).toContain('Pinned models');
-    expect(output).toContain('/pin');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-refresh');
-    output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Refresh model catalog');
     expect(output).toContain('/refresh-models');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-model-pin');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-pin');
     workspace.activateSelected();
     output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Pin Model');
@@ -448,28 +443,28 @@ describe('renderAgentWorkspace', () => {
 
     const unpinWorkspace = new AgentWorkspace();
     unpinWorkspace.open(liveCommandContext(), () => undefined);
-    unpinWorkspace.selectedCategoryIndex = unpinWorkspace.categories.findIndex((category) => category.id === 'setup');
-    unpinWorkspace.selectedActionIndex = unpinWorkspace.actions.findIndex((action) => action.id === 'setup-model-unpin');
+    unpinWorkspace.selectedCategoryIndex = unpinWorkspace.categories.findIndex((category) => category.id === 'account-model');
+    unpinWorkspace.selectedActionIndex = unpinWorkspace.actions.findIndex((action) => action.id === 'model-unpin');
     unpinWorkspace.activateSelected();
     output = text(renderAgentWorkspace(unpinWorkspace, 132, 44));
     expect(output).toContain('Unpin Model');
     expect(output).toContain('Model registry key *');
   });
 
-  test('renders support bundle actions in the setup workspace when selected', () => {
+  test('renders support bundle actions in the host workspace when selected', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-export');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-support-bundle-export');
     const exportOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(exportOutput).toContain('Export support bundle');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-inspect');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-support-bundle-inspect');
     const inspectOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(inspectOutput).toContain('Inspect support bundle');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'support-bundle-import');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-support-bundle-import');
     const importOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(importOutput).toContain('Import support bundle');
   });
@@ -500,27 +495,16 @@ describe('renderAgentWorkspace', () => {
     expect(confirmOutput).toContain('Editing: Confirm (required)');
   });
 
-  test('renders custom provider add and remove forms in the setup workspace', () => {
+  test('renders custom provider add and remove forms in onboarding workspaces', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
     const useActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(useActionOutput).toContain('Use provider');
+    expect(useActionOutput).toContain('Switch provider');
     expect(useActionOutput).toContain('edit provider-use');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-effort');
-    const effortActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(effortActionOutput).toContain('Reasoning effort');
-    expect(effortActionOutput).toContain('edit effort-level');
-
-    workspace.activateSelected();
-    const effortEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(effortEditorOutput).toContain('Set Reasoning Effort');
-    expect(effortEditorOutput).toContain('Effort level *');
-
-    workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
     workspace.activateSelected();
     const useEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -552,7 +536,7 @@ describe('renderAgentWorkspace', () => {
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-account-repair');
     const accountRepairActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(accountRepairActionOutput).toContain('Provider account repair');
+    expect(accountRepairActionOutput).toContain('Provider repair guidance');
     expect(accountRepairActionOutput).toContain('edit provider-account-repair');
 
     workspace.activateSelected();
@@ -561,6 +545,7 @@ describe('renderAgentWorkspace', () => {
     expect(accountRepairEditorOutput).toContain('Provider id *');
 
     workspace.cancelLocalEditor();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
     const addActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(addActionOutput).toContain('Add custom provider');
@@ -575,6 +560,7 @@ describe('renderAgentWorkspace', () => {
     expect(addKeyOutput).toContain('API key');
 
     workspace.cancelLocalEditor();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-remove');
     const removeActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(removeActionOutput).toContain('Remove custom provider');
@@ -585,7 +571,7 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
 
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-bundle-export');
     workspace.activateSelected();
     const authOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -593,6 +579,7 @@ describe('renderAgentWorkspace', () => {
     expect(authOutput).toContain('Output path *');
 
     workspace.cancelLocalEditor();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-bundle-inspect');
     workspace.activateSelected();
     const subscriptionOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -616,7 +603,7 @@ describe('renderAgentWorkspace', () => {
     expect(voiceOutput).toContain('Confirm *');
   });
 
-  test('renders discovered behavior files as first-run setup actions', () => {
+  test('renders discovered behavior files as context onboarding actions', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-discovery-'));
     mkdirSync(join(root, '.goodvibes', 'agent', 'personas'), { recursive: true });
     mkdirSync(join(root, '.goodvibes', 'agent', 'skills', 'daily-brief'), { recursive: true });
@@ -651,31 +638,32 @@ describe('renderAgentWorkspace', () => {
     } as unknown as CommandContext;
     const workspace = new AgentWorkspace();
     workspace.open(context, () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
 
     const output = text(renderAgentWorkspace(workspace, 150, 52));
 
-    expect(output).toContain('Setup Overview');
-    expect(output).toContain('2/11 ready; 5 recommended; 4 optional; 0 blocked.');
-    expect(output).toContain('Next: Agent Knowledge (recommended)');
-    expect(output).toContain('Profile from discovered beha');
+    expect(output).toContain('Context');
+    expect(output).toContain('Local persona, memory, skills, routines, notes, and Agent Knowledge.');
+    expect(output).toContain('Profile from discovered files');
     expect(output).toContain('edit profile-from-discovered');
-    expect(output).toContain('Personas');
-    expect(output).toContain('open personas');
-    expect(output).toContain('Skills');
-    expect(output).toContain('open skills');
-    expect(output).toContain('Routines');
-    expect(output).toContain('open routines');
+    expect(output).toContain('Import persona files');
+    expect(output).toContain('edit persona-discovery-import');
+    expect(output).toContain('Import skill files');
+    expect(output).toContain('edit skill-discovery-import');
+    expect(output).toContain('Import routine files');
+    expect(output).toContain('edit routine-discovery-import');
+    expect(output).toContain('Create starter memory');
+    expect(output).toContain('Ingest URL');
     expect(output).not.toContain('RECOMMENDED Agent profile -> Profiles');
     expect(output).not.toContain('RECOMMENDED Persona -> Personas');
     expect(output).not.toContain('Discovered Behavior Files');
     expect(output).not.toContain('default knowledge');
   });
 
-  test('renders first-run setup actions for skills and routines', () => {
+  test('renders context onboarding actions for skills routines and knowledge', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
 
     const expectSetupAction = (id: string, label: string, command: string) => {
       workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === id);
@@ -685,10 +673,10 @@ describe('renderAgentWorkspace', () => {
       expect(output).not.toContain('->');
     };
 
-    expectSetupAction('setup-skills', 'Skills', 'open skills');
-    expectSetupAction('setup-routines', 'Routines', 'open routines');
-    expectSetupAction('setup-agent-knowledge', 'Agent Knowledge', 'open knowledge');
-    expectSetupAction('setup-voice-media', 'Voice and media', 'open voice-media');
+    expectSetupAction('context-create-skill', 'Create skill', 'edit skill');
+    expectSetupAction('context-create-routine', 'Create routine', 'edit routine');
+    expectSetupAction('context-knowledge-url', 'Ingest URL', 'edit knowledge-url');
+    expectSetupAction('context-knowledge-file', 'Ingest file', 'edit knowledge-file');
   });
 
   test('renders local persona posture in the memory workspace', () => {
@@ -1321,7 +1309,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('edit channel-doctor');
     expect(output).toContain('/notify list');
     expect(output).toContain('edit notify-send');
-    expect(output).toContain('Safety: secrets hidden; sends require explicit action.');
+    expect(output).toContain('Secrets hidden; sends require explicit action.');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('TELEGRAM_BOT_TOKEN');
 

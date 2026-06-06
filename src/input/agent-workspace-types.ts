@@ -10,6 +10,14 @@ export type AgentWorkspaceFocusPane = 'categories' | 'actions';
 export const AGENT_WORKSPACE_CATEGORY_IDS = [
   'home',
   'setup',
+  'account-model',
+  'assistant-behavior',
+  'tools-permissions',
+  'onboarding-display',
+  'onboarding-channels',
+  'onboarding-voice-media',
+  'onboarding-context',
+  'onboarding-verify',
   'research',
   'artifacts',
   'conversation',
@@ -32,7 +40,7 @@ export const AGENT_WORKSPACE_CATEGORY_IDS = [
 
 export type AgentWorkspaceCategoryId = (typeof AGENT_WORKSPACE_CATEGORY_IDS)[number];
 
-export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'local-selection' | 'local-operation' | 'onboarding-complete';
+export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'setting' | 'settings-import' | 'local-selection' | 'local-operation' | 'onboarding-complete';
 
 export type AgentWorkspaceLocalEditorKind = 'memory' | 'note' | 'persona' | 'skill' | 'routine' | 'profile';
 
@@ -178,6 +186,7 @@ export type AgentWorkspaceEditorKind =
   | 'schedule-receipt'
   | 'mode-preset'
   | 'mode-domain'
+  | 'setting-set'
   | 'model-pin'
   | 'model-unpin'
   | 'delegate-task'
@@ -247,6 +256,10 @@ export interface AgentWorkspaceAction {
   readonly command?: string;
   readonly targetCategoryId?: AgentWorkspaceCategoryId;
   readonly editorKind?: AgentWorkspaceEditorKind;
+  readonly settingKey?: string;
+  readonly settingValueHint?: string;
+  readonly visibleWhenSettingKey?: string;
+  readonly visibleWhenSettingValue?: string | boolean | number;
   readonly localKind?: AgentWorkspaceLocalEditorKind;
   readonly selectionDelta?: number;
   readonly localOperation?: AgentWorkspaceLocalOperation;

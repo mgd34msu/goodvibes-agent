@@ -17,7 +17,7 @@ import {
   WORKSPACE_PALETTE as PALETTE,
   type WorkspaceRow,
 } from './fullscreen-workspace.ts';
-import { actionResultColor, safetyColor, setupStatusColor, type AgentWorkspaceContextLine as ContextLine } from './agent-workspace-style.ts';
+import { actionResultColor, setupStatusColor, type AgentWorkspaceContextLine as ContextLine } from './agent-workspace-style.ts';
 
 function buildLeftRows(workspace: AgentWorkspace, height: number): WorkspaceRow[] {
   const rows: WorkspaceRow[] = [];
@@ -57,6 +57,8 @@ function buildLeftRows(workspace: AgentWorkspace, height: number): WorkspaceRow[
 function actionCommand(action: AgentWorkspaceAction): string {
   if (action.kind === 'workspace') return action.targetCategoryId ? `open ${action.targetCategoryId}` : '(workspace)';
   if (action.kind === 'editor') return action.editorKind ? `edit ${action.editorKind}` : '(editor)';
+  if (action.kind === 'setting') return action.settingKey ? `set ${action.settingKey}` : 'set setting';
+  if (action.kind === 'settings-import') return 'import GoodVibes settings';
   if (action.kind === 'local-selection') return action.selectionDelta && action.selectionDelta < 0 ? 'select previous' : 'select next';
   if (action.kind === 'local-operation') return action.localOperation ?? '(local action)';
   return action.command ?? '(guidance)';
@@ -91,8 +93,8 @@ function compactText(text: string, maxWidth = 104): string {
 
 function actionMetaLine(action: AgentWorkspaceAction): ContextLine {
   return {
-    text: `${actionCommand(action)}; ${action.safety}`,
-    fg: action.kind === 'command' ? PALETTE.info : safetyColor(action),
+    text: `Does: ${actionCommand(action)}`,
+    fg: action.safety === 'blocked' ? PALETTE.warn : action.kind === 'command' ? PALETTE.info : PALETTE.muted,
   };
 }
 
@@ -116,7 +118,7 @@ function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLin
   const counts = setupCounts(snapshot);
   const nextItems = setupAttentionItems(snapshot, 3);
   const lines: ContextLine[] = [
-    { text: 'Setup Overview', fg: PALETTE.title, bold: true },
+    { text: 'Onboarding', fg: PALETTE.title, bold: true },
     { text: `${counts.ready}/${snapshot.setupChecklist.length} ready; ${counts.recommended} recommended; ${counts.optional} optional; ${counts.blocked} blocked.`, fg: counts.blocked > 0 ? PALETTE.warn : PALETTE.info },
     { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}.`, fg: PALETTE.info },
     { text: `Local: ${snapshot.localPersonaCount} personas, ${snapshot.localSkillCount} skills, ${snapshot.localRoutineCount} routines, ${snapshot.localMemoryCount} memories.`, fg: PALETTE.info },
@@ -309,7 +311,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       companionAccessLine(snapshot),
       { text: `Channels: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} target(s).`, fg: PALETTE.info },
       { text: `Next: ${nextAttentionChannel ? `${nextAttentionChannel.label} - ${compactText(nextAttentionChannel.nextStep)}` : 'All enabled channels ready.'}`, fg: nextAttentionChannel ? PALETTE.warn : PALETTE.good },
-      { text: 'Safety: secrets hidden; sends require explicit action.', fg: PALETTE.warn },
+      { text: 'Secrets hidden; sends require explicit action.', fg: PALETTE.warn },
     );
   } else if (category.id === 'knowledge') {
     base.push(
@@ -536,9 +538,8 @@ function buildEditorFieldRows(editor: AgentWorkspaceLocalEditor, index: number, 
 function buildActionRows(workspace: AgentWorkspace, width: number, height: number): WorkspaceRow[] {
   if (workspace.localEditor) return buildEditorRows(workspace.localEditor, width, height);
   const rows: WorkspaceRow[] = [];
-  const labelWidth = Math.min(28, Math.max(16, Math.floor(width * 0.30)));
-  const safetyWidth = 10;
-  const commandWidth = Math.max(10, width - labelWidth - safetyWidth - 9);
+  const labelWidth = Math.min(34, Math.max(18, Math.floor(width * 0.38)));
+  const commandWidth = Math.max(10, width - labelWidth - 6);
   if (workspace.actionSearchActive) {
     rows.push({
       text: `  Search: ${workspace.actionSearchQuery || '(type to filter actions)'}`,
@@ -547,7 +548,7 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
     });
   }
   rows.push({
-    text: `  ${padDisplay(workspace.actionSearchActive ? 'Result' : 'Action', labelWidth)}  ${padDisplay('Safety', safetyWidth)}  ${padDisplay('Command', commandWidth)}`,
+    text: `  ${padDisplay(workspace.actionSearchActive ? 'Result' : 'Action', labelWidth)}  ${padDisplay('Does', commandWidth)}`,
     fg: PALETTE.muted,
     bold: true,
   });
@@ -564,9 +565,9 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
     const label = searchResult ? `${searchResult.category.label} / ${action.label}` : action.label;
     const marker = selected ? GLYPHS.navigation.selected : ' ';
     rows.push({
-      text: `${marker} ${padDisplay(label, labelWidth)}  ${padDisplay(action.safety, safetyWidth)}  ${padDisplay(actionCommand(action), commandWidth)}`,
+      text: `${marker} ${padDisplay(label, labelWidth)}  ${padDisplay(actionCommand(action), commandWidth)}`,
       selected: selected && workspace.focusPane === 'actions',
-      fg: safetyColor(action),
+      fg: action.safety === 'blocked' ? PALETTE.warn : selected ? PALETTE.text : PALETTE.info,
       bold: selected,
     });
   }
@@ -620,7 +621,7 @@ export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, h
     leftHeader: 'Operator Areas',
     mainHeader: workspace.actionSearchActive
       ? `Search actions · ${workspace.actions.length} result(s)`
-      : `${category.label} · ${category.actions.length} action(s)`,
+      : `${category.label} · ${workspace.actions.length} action(s)`,
     leftRows: buildLeftRows(workspace, metrics.bodyRows),
     contextRows: buildContextRows(workspace, category, action, metrics.contextWidth),
     controlRows: buildActionRows(workspace, metrics.contextWidth, metrics.controlRows),

@@ -36,6 +36,8 @@ interface AgentWorkspaceActivationHost {
   moveLocalLibraryItemSelection(kind: AgentWorkspaceLocalEditorKind, delta: number): void;
   selectedLocalLibraryItem(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null;
   applyLocalLibraryOperation(operation: AgentWorkspaceLocalOperation): void;
+  applySettingAction(action: AgentWorkspaceCategory['actions'][number], requestRender?: () => void): void;
+  importTuiSettings(requestRender?: () => void): void;
   completeOnboarding(): void;
   hasCommandDispatch(): boolean;
   dispatchWorkspaceCommand: AgentWorkspaceCommandDispatcher;
@@ -57,6 +59,14 @@ export function activateAgentWorkspaceSelection(
   if (!workspace.commitActionSearchSelection()) return;
   const action = workspace.selectedAction;
   if (!action) return;
+  if (action.kind === 'setting') {
+    workspace.applySettingAction(action, requestRender);
+    return;
+  }
+  if (action.kind === 'settings-import') {
+    workspace.importTuiSettings(requestRender);
+    return;
+  }
   if (action.kind === 'editor' && action.editorKind) {
     const editor = createAgentWorkspaceEditor(action.editorKind, {
       runtimeStarterTemplates: workspace.runtimeSnapshot?.runtimeStarterTemplates ?? [],
@@ -146,7 +156,7 @@ export function activateAgentWorkspaceSelection(
   workspace.lastActionResult = {
     kind: 'dispatched',
     title: `Opening ${action.label}`,
-    detail: 'The workspace handed this safe or read-only command to the shell-owned command router.',
+    detail: 'The workspace handed this command to the shell-owned command router.',
     command: action.command,
     safety: action.safety,
   };
