@@ -562,10 +562,12 @@ describe('agent_harness tool', () => {
       };
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
+      expect(summaryJson.modeGuide?.discover).toContain('execution_posture');
       expect(summaryJson.modeGuide?.discover).toContain('personal_ops');
       expect(summaryJson.modeGuide?.discover).toContain('autonomy_intake');
       expect(summaryJson.modeGuide?.discover).toContain('research_runs');
       expect(summaryJson.modeGuide?.inspect).toContain('mode');
+      expect(summaryJson.modeGuide?.inspect).toContain('execution_route');
       expect(summaryJson.modeGuide?.inspect).toContain('personal_ops_lane');
       expect(summaryJson.modeGuide?.inspect).toContain('research_run');
       expect(summaryJson.modeGuide?.inspect).toContain('research_source');
@@ -607,6 +609,10 @@ describe('agent_harness tool', () => {
       const autonomyModes = await fixture.tool.execute({ mode: 'modes', query: 'ongoing-work' });
       expect(autonomyModes.success).toBe(true);
       expect(autonomyModes.output).toContain('autonomy_intake');
+
+      const executionModes = await fixture.tool.execute({ mode: 'modes', query: 'local shell execution' });
+      expect(executionModes.success).toBe(true);
+      expect(executionModes.output).toContain('execution_posture');
 
       const documentModes = await fixture.tool.execute({ mode: 'modes', query: 'blind model comparison documents uploads' });
       expect(documentModes.success).toBe(true);
@@ -1167,6 +1173,79 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes a local-first execution posture before delegation', async () => {
+    const fixture = makeFixture();
+    try {
+      for (const name of ['read', 'edit', 'exec', 'fetch', 'web_search']) registerStubTool(fixture.toolRegistry, name);
+
+      const posture = await executeHarnessJson<{
+        readonly summary: {
+          readonly localFirstPolicy: string;
+          readonly delegationPolicy: string;
+          readonly browserControl: string;
+          readonly registeredExecutionTools: readonly string[];
+        };
+        readonly decisionRules: readonly string[];
+        readonly routes: readonly {
+          readonly executionRouteId: string;
+          readonly availability: string;
+          readonly modelRoute: string;
+          readonly nextStep?: string;
+        }[];
+      }>(fixture, {
+        mode: 'execution_posture',
+        includeParameters: true,
+      });
+      expect(posture.summary.localFirstPolicy).toContain('Use local read/edit/exec');
+      expect(posture.summary.delegationPolicy).toContain('isolation');
+      expect(posture.summary.browserControl).toBe('setup-needed');
+      expect(posture.summary.registeredExecutionTools).toEqual(expect.arrayContaining(['read', 'edit', 'exec', 'fetch', 'web_search']));
+      expect(posture.decisionRules.join('\n')).toContain('Do not delegate ordinary local implementation');
+
+      const shell = posture.routes.find((route) => route.executionRouteId === 'local-shell-command');
+      expect(shell?.availability).toBe('ready');
+      expect(shell?.modelRoute).toBe('exec');
+
+      const edit = posture.routes.find((route) => route.executionRouteId === 'local-edit-write');
+      expect(edit?.availability).toBe('ready');
+      expect(edit?.modelRoute).toBe('edit/write');
+
+      const browser = posture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control');
+      expect(browser?.availability).toBe('setup-needed');
+
+      const delegated = posture.routes.find((route) => route.executionRouteId === 'delegation-isolation-parallel-remote');
+      expect(delegated?.availability).toBe('ready');
+      expect(delegated?.nextStep).toContain('delegation_posture');
+
+      const inspectedShell = await executeHarnessJson<{
+        readonly executionRouteId: string;
+        readonly availability: string;
+        readonly safety: string;
+        readonly useInsteadWhen?: string;
+      }>(fixture, {
+        mode: 'execution_route',
+        executionRouteId: 'local-shell-command',
+      });
+      expect(inspectedShell.executionRouteId).toBe('local-shell-command');
+      expect(inspectedShell.availability).toBe('ready');
+      expect(inspectedShell.safety).toContain('foreground serial');
+      expect(inspectedShell.useInsteadWhen).toContain('delegation');
+
+      const inspectedDelegation = await executeHarnessJson<{
+        readonly executionRouteId: string;
+        readonly preferredWhen: string;
+        readonly useInsteadWhen?: string;
+      }>(fixture, {
+        mode: 'execution_route',
+        executionRouteId: 'delegation-isolation-parallel-remote',
+      });
+      expect(inspectedDelegation.preferredWhen).toContain('remote host');
+      expect(inspectedDelegation.useInsteadWhen).toContain('Use local read/edit/exec');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes a read-only learning curator with ranked local review routes', async () => {
     const fixture = makeFixture();
     try {
@@ -1561,6 +1640,11 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'model_routing', limit: 5 });
       expectRowsHaveCompactModelRoutes(modelRouting.routes);
       expect(modelRouting.routes.filter((route) => route.commands !== undefined || route.uiSurfaces !== undefined)).toEqual([]);
+
+      const execution = await executeHarnessJson<{
+        readonly routes: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'execution_posture' });
+      expectRowsHaveCompactModelRoutes(execution.routes);
 
       const pairing = await executeHarnessJson<{
         readonly routes: readonly Record<string, unknown>[];

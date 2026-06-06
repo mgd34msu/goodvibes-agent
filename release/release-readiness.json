@@ -264,17 +264,17 @@
     },
     {
       "id": "explicit-build-delegation",
-      "capability": "Build, fix, review, and implementation work delegates to GoodVibes TUI/shared-session routes only when the user explicitly asks.",
+      "capability": "Build, fix, review, and implementation work uses local read/edit/exec when the current Agent workspace is sufficient, and delegates to GoodVibes TUI/shared-session routes when isolation, parallelism, remote execution, separate worktrees, or delegated review is useful.",
       "owner": "agent",
       "status": "covered",
-      "evidence": "src/input/commands/delegation-runtime.ts; src/input/agent-workspace-delegation-editor-submission.ts; src/tools/agent-harness-delegation-posture.ts; docs/tools-and-commands.md",
-      "action": "Do not turn the personal Agent into a coding TUI or implicit reviewer.",
+      "evidence": "src/tools/agent-harness-execution-posture.ts; src/input/commands/delegation-runtime.ts; src/input/agent-workspace-delegation-editor-submission.ts; src/tools/agent-harness-delegation-posture.ts; docs/tools-and-commands.md",
+      "action": "Prefer local execution for ordinary current-workspace tasks and use delegation only when it improves the user outcome.",
       "quality": {
-        "capabilityCoverage": "Covers build, fix, review, and implementation delegation through explicit shared-session/task routes instead of turning Agent into a coding TUI.",
-        "userAccess": "The user can delegate from Agent workspace forms or /delegate when they explicitly ask for build/fix/review/implementation work.",
-        "modelAccess": "agent_harness mode:\"delegation_posture\" and mode:\"delegation_route\" exposes explicit build-delegation routes, runtime availability, delegated-review policy, main-conversation ownership, blocked local coding ownership, and single delegation-route lookup; delegated work submission remains a visible confirmed workspace or slash-command flow.",
-        "safetyBoundary": "Delegated review or implementation is never the default reasoning path and requires explicit user intent.",
-        "releaseEvidence": "Readiness evidence cites delegation runtime, direct harness source, and docs, with package boundary checks rejecting coding-first Agent product drift."
+        "capabilityCoverage": "Covers local read/search/analyze, edit/write, bounded shell, web/fetch, browser setup blocker reporting, and explicit shared-session/task delegation for isolation, remote, parallel, worktree, or review handoff.",
+        "userAccess": "The user can inspect execution posture from agent_harness, use local tools in the current workspace, or delegate from Agent workspace forms and /delegate when a handoff is useful.",
+        "modelAccess": "agent_harness mode:\"execution_posture\" and mode:\"execution_route\" exposes local-vs-delegated route selection, registered execution tools, browser setup state, decision rules, and single route lookup; mode:\"delegation_posture\" and mode:\"delegation_route\" exposes explicit handoff routes and delegated-review policy.",
+        "safetyBoundary": "Local execution remains governed by first-class tool policies; delegated review or implementation remains a visible confirmed flow and is not the default when local execution is sufficient.",
+        "releaseEvidence": "Readiness evidence cites execution posture, delegation runtime, direct harness source, and docs, with package boundary checks rejecting hidden execution and unconfirmed handoff drift."
       }
     },
     {

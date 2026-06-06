@@ -60,6 +60,8 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'setup_item', kind: 'inspect', family: 'setup', summary: 'Inspect one first-run/always-on setup plan item.', parameters: ['setupItemId', 'target', 'query'] },
   { id: 'model_routing', kind: 'discover', family: 'providers', summary: 'List model routes, hardware-scored local cookbook, and pins.', next: 'Use model_route.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'model_route', kind: 'inspect', family: 'providers', summary: 'Inspect one model route, fit score, or visible selection path.', parameters: ['modelRouteId', 'target', 'query'] },
+  { id: 'execution_posture', kind: 'discover', family: 'execution', summary: 'Pick local shell/edit execution vs delegation.', next: 'Use execution_route.', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'execution_route', kind: 'inspect', family: 'execution', summary: 'Inspect one local, browser, web, or delegation route.', parameters: ['executionRouteId', 'target', 'query'] },
   { id: 'personal_ops', kind: 'discover', family: 'personal-ops', summary: 'Map email, calendar, tasks, reminders, notes, and live records.', next: 'Use personal_ops_lane for personal operations.', parameters: ['includeParameters'] },
   { id: 'personal_ops_lane', kind: 'inspect', family: 'personal-ops', summary: 'Inspect email, calendar, tasks, reminders lane records and routes.', parameters: ['laneId', 'target', 'query'] },
   { id: 'autonomy_intake', kind: 'discover', family: 'personal-ops', summary: 'Pick safest route for ongoing-work requests.', next: 'Use returned route or autonomy_queue.', parameters: ['query', 'target', 'includeParameters'] },
