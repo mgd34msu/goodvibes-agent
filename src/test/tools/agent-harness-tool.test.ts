@@ -2938,6 +2938,12 @@ describe('agent_harness tool', () => {
             readonly confidence: string;
             readonly dimensions: readonly { readonly id: string; readonly weight: number }[];
           };
+          readonly benchmarkHistory?: {
+            readonly status: string;
+            readonly count: number;
+            readonly saveRoute?: string;
+            readonly artifacts?: readonly { readonly artifactId: string; readonly reviewRoute: string }[];
+          };
           readonly recipes: readonly {
             readonly id: string;
             readonly fitScore?: number;
@@ -2985,6 +2991,8 @@ describe('agent_harness tool', () => {
         'cost',
         'privacy',
       ]);
+      expect(cookbook.localCookbook.benchmarkHistory?.status).toBe('unavailable');
+      expect(cookbook.localCookbook.benchmarkHistory?.saveRoute).toContain('benchmarkKind:"local-model-route"');
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('ollama');
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('vllm');
       expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitScore === 'number')).toBe(true);
@@ -3032,6 +3040,83 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'workspace_action', actionId: 'account-local-model-cookbook' });
       expect(action.id).toBe('account-local-model-cookbook');
       expect(action.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('surfaces saved local model benchmark history in cookbook and setup', async () => {
+    const artifacts = createHarnessArtifactStore();
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'blind-model-comparison-cmp_local.json',
+      text: '{}',
+      metadata: {
+        purpose: 'agent-model-compare',
+        benchmarkKind: 'local-model-route',
+        comparisonId: 'cmp_local',
+        promptPreview: 'local model benchmark: Ollama',
+        candidateCount: 2,
+        completedCandidates: 2,
+      },
+    });
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'blind-model-comparison-cmp_other.json',
+      text: '{}',
+      metadata: {
+        purpose: 'agent-model-compare',
+        comparisonId: 'cmp_other',
+        promptPreview: 'Write a concise product update.',
+        candidateCount: 2,
+        completedCandidates: 2,
+      },
+    });
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      const cookbook = await executeHarnessJson<{
+        readonly localCookbook: {
+          readonly benchmarkHistory?: {
+            readonly status: string;
+            readonly count: number;
+            readonly nextAction?: string;
+            readonly analyticsRoute?: string;
+            readonly artifacts: readonly {
+              readonly artifactId: string;
+              readonly comparisonId?: string | null;
+              readonly promptPreview?: string;
+              readonly completedCandidates?: number | null;
+              readonly reviewRoute: string;
+              readonly revealRoute: string;
+            }[];
+          };
+        };
+      }>(fixture, { mode: 'model_routing', query: 'local', includeParameters: true });
+
+      expect(cookbook.localCookbook.benchmarkHistory?.status).toBe('history-found');
+      expect(cookbook.localCookbook.benchmarkHistory?.count).toBe(1);
+      expect(cookbook.localCookbook.benchmarkHistory?.artifacts.map((artifact) => artifact.artifactId)).toEqual(['artifact-1']);
+      expect(cookbook.localCookbook.benchmarkHistory?.artifacts[0]?.comparisonId).toBe('cmp_local');
+      expect(cookbook.localCookbook.benchmarkHistory?.artifacts[0]?.completedCandidates).toBe(2);
+      expect(cookbook.localCookbook.benchmarkHistory?.artifacts[0]?.reviewRoute).toContain('agent_model_compare review');
+      expect(cookbook.localCookbook.benchmarkHistory?.artifacts[0]?.revealRoute).toContain('agent_model_compare reveal');
+      expect(cookbook.localCookbook.benchmarkHistory?.nextAction).toContain('artifact-1');
+      expect(cookbook.localCookbook.benchmarkHistory?.analyticsRoute).toContain('agent_model_compare analytics');
+
+      const setup = await executeHarnessJson<{
+        readonly setupItemId: string;
+        readonly localModelReadiness?: {
+          readonly benchmarkHistory?: {
+            readonly status: string;
+            readonly artifacts: readonly { readonly artifactId: string }[];
+          };
+        };
+      }>(fixture, { mode: 'setup_item', setupItemId: 'local-model-readiness' });
+      expect(setup.setupItemId).toBe('local-model-readiness');
+      expect(setup.localModelReadiness?.benchmarkHistory?.status).toBe('history-found');
+      expect(setup.localModelReadiness?.benchmarkHistory?.artifacts.map((artifact) => artifact.artifactId)).toEqual(['artifact-1']);
     } finally {
       fixture.cleanup();
     }

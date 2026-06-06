@@ -296,6 +296,7 @@ function localModelSetupReadiness(cookbook: Record<string, unknown>): Record<str
       missingSignals: Array.isArray(readiness.missingSignals) ? readiness.missingSignals.slice(0, 3) : [],
     },
     readinessRubric: cookbook.readinessRubric ?? null,
+    benchmarkHistory: cookbook.benchmarkHistory ?? null,
     nextActions: readStringArray(cookbook.nextActions).slice(0, 4),
     inspectRoute: 'agent_harness mode:"model_routing" query:"local" includeParameters:true',
     inspectRecipeRoute: 'agent_harness mode:"model_route" modelRouteId:"local-model-cookbook"',

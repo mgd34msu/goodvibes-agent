@@ -1,4 +1,5 @@
 import { arch, cpus, freemem, platform, totalmem } from 'node:os';
+import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { requireProviderApi } from '../input/commands/runtime-services.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
@@ -117,6 +118,10 @@ interface LocalModelSetupPlan {
   readonly confirmationBoundary: string;
 }
 
+interface ArtifactListLike {
+  readonly list?: (limit?: number) => readonly ArtifactDescriptor[];
+}
+
 interface ProviderApiLike {
   readonly getFavorites: () => Promise<unknown>;
   readonly getCurrentModel: () => Promise<unknown>;
@@ -140,6 +145,11 @@ function readRecord(value: unknown): Record<string, unknown> {
 
 function readStringArray(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.map((entry) => readString(entry)).filter(Boolean) : [];
+}
+
+function readArtifactStore(context: CommandContext): ArtifactListLike | null {
+  const candidate = (context.platform as { readonly artifactStore?: unknown }).artifactStore;
+  return candidate && typeof candidate === 'object' ? candidate as ArtifactListLike : null;
 }
 
 function readConfig(context: CommandContext, key: string): unknown {
@@ -667,6 +677,60 @@ function scoreLocalModelRecipe(
   };
 }
 
+function isLocalModelBenchmarkArtifact(artifact: ArtifactDescriptor): boolean {
+  const purpose = readString(artifact.metadata.purpose);
+  if (purpose !== 'agent-model-compare') return false;
+  if (readString(artifact.metadata.benchmarkKind) === 'local-model-route') return true;
+  const promptPreview = readString(artifact.metadata.promptPreview).toLowerCase();
+  return promptPreview.includes('local model benchmark') || promptPreview.includes('benchmark this local route');
+}
+
+function benchmarkCreatedAt(artifact: ArtifactDescriptor): string | null {
+  const timestamp = typeof artifact.createdAt === 'number' ? artifact.createdAt : null;
+  return timestamp == null ? null : new Date(timestamp).toISOString();
+}
+
+function describeLocalBenchmarkArtifact(artifact: ArtifactDescriptor): Record<string, unknown> {
+  return {
+    artifactId: artifact.id,
+    ...(artifact.filename ? { filename: artifact.filename } : {}),
+    createdAt: benchmarkCreatedAt(artifact),
+    comparisonId: readString(artifact.metadata.comparisonId) || null,
+    promptPreview: previewHarnessText(readString(artifact.metadata.promptPreview) || 'local model benchmark', 120),
+    candidateCount: artifact.metadata.candidateCount ?? null,
+    completedCandidates: artifact.metadata.completedCandidates ?? null,
+    benchmarkKind: readString(artifact.metadata.benchmarkKind) || 'local-model-route',
+    reviewRoute: `agent_model_compare review artifactId:"${artifact.id}"`,
+    revealRoute: `agent_model_compare reveal artifactId:"${artifact.id}"`,
+  };
+}
+
+function localModelBenchmarkHistory(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
+  const store = readArtifactStore(context);
+  if (!store?.list) {
+    return {
+      status: 'unavailable',
+      count: 0,
+      reason: 'Artifact history is unavailable in this runtime.',
+      saveRoute: 'agent_model_compare run benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"..."',
+    };
+  }
+  const artifacts = store.list(100)
+    .filter(isLocalModelBenchmarkArtifact)
+    .slice(0, includeParameters ? 10 : 3);
+  return {
+    status: artifacts.length > 0 ? 'history-found' : 'no-history',
+    count: artifacts.length,
+    artifacts: artifacts.map(describeLocalBenchmarkArtifact),
+    nextAction: artifacts.length > 0
+      ? `Review saved local benchmark ${artifacts[0]!.id} before recommending any default-model change.`
+      : 'Run the setupPlan benchmark prompt and save the comparison artifact before recommending any default-model change.',
+    analyticsRoute: 'agent_model_compare analytics includeReasons:true',
+    saveRoute: 'agent_model_compare run benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"..."',
+    policy: 'Benchmark history is read-only evidence. Route changes still require a separate revealed judgment and confirmed apply/update action.',
+  };
+}
+
 function localModelBenchmarkPlan(recipe: LocalModelRecipe): LocalModelBenchmarkPlan {
   return {
     status: 'plan-ready',
@@ -683,7 +747,7 @@ function localModelBenchmarkPlan(recipe: LocalModelRecipe): LocalModelBenchmarkP
       'whether the model handled project-specific nouns without hallucinating',
       'whether the route supports the needed context window and tool workflow',
     ],
-    compareRoute: `agent_model_compare prompt:"local model benchmark: ${recipe.label}" confirm:true explicitUserRequest:"Compare this local model route before making it default."`,
+    compareRoute: `agent_model_compare prompt:"local model benchmark: ${recipe.label}" benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"Compare this local model route before making it default."`,
     refreshRoute: 'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh model catalog, benchmarks, and token limits after local model setup."',
     notes: [
       'Run the same prompt after selecting each candidate route.',
@@ -894,6 +958,7 @@ export function localModelCookbook(context: CommandContext, includeParameters: b
     hardwareProfile,
     detected: detection,
     recipes,
+    benchmarkHistory: localModelBenchmarkHistory(context, includeParameters),
     readinessRubric: {
       score: '0-100 estimated readiness for autonomous Agent work.',
       confidence: 'estimated until a live route benchmark records latency and task fit on this machine',

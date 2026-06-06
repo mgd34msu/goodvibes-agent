@@ -66,10 +66,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Model setup recommends the best available route, detects local servers, benchmarks fit, and can help download or serve local models.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Provider routing, subscription posture, local compatible provider discovery, model pickers, and a read-only hardware-scored local model cookbook for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers exist; model routes and local recipes now expose one readiness score across latency, context window, tool support, vision, cost, and privacy. The cookbook scans local CPU/RAM/platform, applies safe accelerator hints, ranks fit, and returns setup plans with download/start guidance, provider refresh routes, and local benchmark prompts while keeping all installs/downloads/route changes separate. Live inference benchmark execution is still missing.',
+    goodVibesNow: 'Provider routing, subscription posture, local compatible provider discovery, model pickers, and a read-only hardware-scored local model cookbook for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers exist; model routes and local recipes expose one readiness score across latency, context window, tool support, vision, cost, and privacy. The cookbook scans local CPU/RAM/platform, applies safe accelerator hints, ranks fit, returns setup plans with download/start guidance, provider refresh routes, local benchmark prompts, and now surfaces saved local-route benchmark comparison artifacts before any default-model recommendation. Live inference benchmark execution is still missing.',
     nextMoves: [
       'Add live benchmark execution and feed measured latency/task-fit results back into readiness scoring.',
-      'Persist local route benchmark history as a visible comparison artifact before recommending default-model changes.',
+      'Fold saved benchmark judgments into readiness deltas and route recommendations only after a revealed user-reviewed winner.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Supports multiple model providers plus subscription auth and model failover.' },

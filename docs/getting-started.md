@@ -40,7 +40,7 @@ Use the interactive workspace first. CLI subcommands are secondary support paths
 
 Primary first-run areas:
 
-- Setup: prioritized first-run plan, GoodVibes settings import preview/apply, provider/model, model readiness scores, hardware-scored local model cookbook with setup/download guidance and benchmark prompts, connected-host compatibility, offline GoodVibes host bootstrap commands, confirmed service install/start/restart repair cards when the operator endpoint is reachable, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
+- Setup: prioritized first-run plan, GoodVibes settings import preview/apply, provider/model, model readiness scores, hardware-scored local model cookbook with setup/download guidance, benchmark prompts/history, connected-host compatibility, offline GoodVibes host bootstrap commands, confirmed service install/start/restart repair cards when the operator endpoint is reachable, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Home: normal chat, operator briefing, model selection, and health.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
 - Research: read-only web research and URL inspection, read-only workflow planning, project-local visible research runs with log tails, browser-backed runner readiness/fallback posture, source queue, credibility review, reviewed-source bundles, plus confirmed sourced markdown report artifacts with source maps, citation coverage checks, and repair hints.

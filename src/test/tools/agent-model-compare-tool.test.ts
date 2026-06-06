@@ -253,6 +253,37 @@ describe('agent_model_compare tool', () => {
     expect(payload.candidates?.[0]?.content).toBe('Candidate A style answer.');
   });
 
+  test('tags local model benchmark comparison artifacts for setup history', async () => {
+    const artifacts = artifactStore();
+    const item = fixture({ artifactStore: artifacts.store });
+
+    const result = await item.tool.execute({
+      mode: 'run',
+      prompt: 'local model benchmark: Ollama',
+      modelRefs: ['openai:gpt-4.1', 'anthropic:claude-sonnet'],
+      benchmarkKind: 'local-model-route',
+      confirm: true,
+      explicitUserRequest: 'Compare this local model route before making it default.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(artifacts.inputs).toHaveLength(1);
+    expect(artifacts.inputs[0]?.metadata).toMatchObject({
+      purpose: 'agent-model-compare',
+      benchmarkKind: 'local-model-route',
+      candidateCount: 2,
+      completedCandidates: 2,
+    });
+    const payload = JSON.parse(artifacts.inputs[0]?.text ?? '{}') as {
+      readonly benchmarkKind?: string;
+      readonly prompt?: string;
+      readonly reviewFlow?: { readonly routeMutation?: string };
+    };
+    expect(payload.benchmarkKind).toBe('local-model-route');
+    expect(payload.prompt).toBe('local model benchmark: Ollama');
+    expect(payload.reviewFlow?.routeMutation).toBe('none');
+  });
+
   test('runs blind comparison from a saved text artifact as shared prompt context', async () => {
     const artifacts = artifactStore();
     const source = await artifacts.store.create({

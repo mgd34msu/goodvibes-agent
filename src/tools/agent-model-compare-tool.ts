@@ -14,6 +14,7 @@ export interface AgentModelCompareToolArgs {
   readonly maxTokens?: unknown;
   readonly reveal?: unknown;
   readonly saveArtifact?: unknown;
+  readonly benchmarkKind?: unknown;
   readonly comparisonId?: unknown;
   readonly artifactId?: unknown;
   readonly winner?: unknown;
@@ -130,6 +131,7 @@ const MODE_JUDGE = 'judge';
 const MODE_APPLY = 'apply';
 const MODE_EXPORT = 'export';
 const MODE_ANALYTICS = 'analytics';
+const BENCHMARK_KIND_LOCAL_MODEL_ROUTE = 'local-model-route';
 const MAX_PROMPT_CHARS = 24_000;
 const MIN_CANDIDATES = 2;
 const MAX_CANDIDATES = 4;
@@ -165,6 +167,11 @@ function readNumber(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
   return Math.trunc(parsed);
+}
+
+function readBenchmarkKind(value: unknown): string {
+  const kind = readString(value);
+  return kind === BENCHMARK_KIND_LOCAL_MODEL_ROUTE ? kind : '';
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -973,6 +980,7 @@ function formatPreview(
   refs: readonly string[],
   candidateCount: number,
 ): string {
+  const benchmarkKind = readBenchmarkKind(args.benchmarkKind);
   return [
     'Agent blind model comparison preview',
     `  prompt ${previewText(readString(args.prompt) || '(missing)')}`,
@@ -980,6 +988,7 @@ function formatPreview(
     `  candidates ${refs.length > 0 ? refs.length : candidateCount}`,
     `  selection ${refs.length > 0 ? 'user supplied model refs' : 'auto-select from selectable models'}`,
     `  rubric ${previewText(readString(args.rubric) || '(none)')}`,
+    ...(benchmarkKind ? [`  benchmark ${benchmarkKind}`] : []),
     `  reveal ${readBoolean(args.reveal) ? 'immediate' : 'delayed'}`,
     `  artifact ${readOptionalBoolean(args.saveArtifact, true) ? 'save local JSON review' : 'do not save'}`,
     '  policy model comparison sends the same prompt to each candidate and requires confirm:true plus explicitUserRequest',
@@ -1035,6 +1044,7 @@ function comparisonArtifactText(input: {
   readonly systemPrompt: string;
   readonly maxTokens: number;
   readonly revealIncludedInTranscript: boolean;
+  readonly benchmarkKind?: string;
 }): string {
   return `${JSON.stringify({
     schema: 'goodvibes.agent.model_compare.v1',
@@ -1046,6 +1056,7 @@ function comparisonArtifactText(input: {
     ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
     maxTokens: input.maxTokens,
     rubric: input.comparison.rubric,
+    ...(input.benchmarkKind ? { benchmarkKind: input.benchmarkKind } : {}),
     revealIncludedInTranscript: input.revealIncludedInTranscript,
     reviewFlow: {
       blindFirst: true,
@@ -1117,6 +1128,7 @@ async function saveComparisonArtifact(input: {
   readonly maxTokens: number;
   readonly revealIncludedInTranscript: boolean;
   readonly enabled: boolean;
+  readonly benchmarkKind?: string;
 }): Promise<{
   readonly artifact?: SavedComparisonArtifact;
   readonly status: ComparisonArtifactStatus;
@@ -1140,6 +1152,7 @@ async function saveComparisonArtifact(input: {
         ...(input.comparison.sourceArtifact ? { sourceArtifactId: input.comparison.sourceArtifact.artifactId } : {}),
         candidateCount: input.comparison.candidates.length,
         completedCandidates: input.comparison.candidates.filter((candidate) => candidate.status === 'completed').length,
+        ...(input.benchmarkKind ? { benchmarkKind: input.benchmarkKind } : {}),
         revealStored: true,
         revealIncludedInTranscript: input.revealIncludedInTranscript,
       },
@@ -1317,6 +1330,11 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           saveArtifact: {
             type: 'boolean',
             description: 'Defaults true; save the local JSON review artifact.',
+          },
+          benchmarkKind: {
+            type: 'string',
+            enum: [BENCHMARK_KIND_LOCAL_MODEL_ROUTE],
+            description: 'Optional benchmark tag for saved comparison artifacts.',
           },
           comparisonId: {
             type: 'string',
@@ -1559,6 +1577,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
         const explicitUserRequest = readString(args.explicitUserRequest);
         const sourceArtifactId = readString(args.artifactId);
         const refs = readModelRefs(args.modelRefs);
+        const benchmarkKind = readBenchmarkKind(args.benchmarkKind);
         const candidateCount = clamp(readNumber(args.candidateCount, DEFAULT_CANDIDATE_COUNT), MIN_CANDIDATES, MAX_CANDIDATES);
         if (!promptInput && !sourceArtifactId) return failure('prompt or artifactId is required.');
         if (!explicitUserRequest) {
@@ -1607,6 +1626,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           maxTokens,
           revealIncludedInTranscript: reveal,
           enabled: readOptionalBoolean(args.saveArtifact, true),
+          ...(benchmarkKind ? { benchmarkKind } : {}),
         });
         const comparison: StoredComparison = {
           ...baseComparison,
