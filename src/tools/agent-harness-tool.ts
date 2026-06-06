@@ -12,6 +12,7 @@ import { importAgentWorkspaceTuiSettings, previewAgentWorkspaceTuiSettingsImport
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from '../input/agent-workspace-learned-behavior.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceLocalEditor } from '../input/agent-workspace-types.ts';
+import { agentOrchestrationCatalogStatus, agentOrchestrationSummary, describeAgentOrchestrationAgent } from './agent-harness-agent-orchestration.ts';
 import { autonomyIntakeSummary } from './agent-harness-autonomy-intake.ts';
 import { autonomyQueueCatalogStatus, autonomyQueueSummary, describeAutonomyQueueItem } from './agent-harness-autonomy-queue.ts';
 import { channelReadinessCatalogStatus, describeHarnessChannel, listHarnessChannels } from './agent-harness-channel-metadata.ts';
@@ -108,6 +109,7 @@ interface AgentHarnessToolArgs {
   readonly endpointId?: unknown;
   readonly capabilityId?: unknown;
   readonly toolName?: unknown;
+  readonly agentId?: unknown;
   readonly category?: unknown;
   readonly prefix?: unknown;
   readonly includeHidden?: unknown;
@@ -195,6 +197,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; provision auth with mode:"provision_connected_host_token"; run smoke with mode:"run_setup_smoke".',
     projectContext: 'List mode:"project_context"; inspect mode:"project_context_file"; context files are read-only and secret-scanned.',
+    agentOrchestration: 'List mode:"agent_orchestration"; inspect mode:"agent_orchestration_agent"; spawn/message/wait/cancel stay on first-class agent.',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',
     backgroundProcesses: 'List mode:"background_processes"; inspect mode:"background_process"; start/wait/stop tracked long-running local commands with mode:"run_background_process". PTY/stdin write/sudo are surfaced honestly as unavailable or foreground-only until safe substrate support exists.',
@@ -951,6 +954,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             error: formatHarnessError(err),
           }));
           const projectContext = projectContextCatalogStatus(deps.commandContext);
+          const agentOrchestration = agentOrchestrationCatalogStatus(deps.commandContext, deps.toolRegistry);
           const modelRouting = await modelRoutingCatalogStatus(deps.commandContext).catch((err) => ({
             modes: ['model_routing', 'model_route'],
             status: 'unavailable',
@@ -988,6 +992,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             assistant: buildAssistantCockpitFromSummaries({
               setupPosture,
               projectContext,
+              agentOrchestration,
               modelRouting,
               executionPosture,
               backgroundProcesses,
@@ -1011,6 +1016,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             mcpServers,
             setupPosture,
             projectContext,
+            agentOrchestration,
             modelRouting,
             executionPosture,
             backgroundProcesses,
@@ -1164,6 +1170,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = describeProjectContextFile(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.file);
           if (resolved.status === 'ambiguous') return error(`Ambiguous project context file ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'agent_orchestration') return output(agentOrchestrationSummary(deps.commandContext, deps.toolRegistry, args));
+        if (args.mode === 'agent_orchestration_agent') {
+          const resolved = describeAgentOrchestrationAgent(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.agent);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous visible Agent ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'provision_connected_host_token') {

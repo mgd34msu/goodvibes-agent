@@ -40,6 +40,7 @@ interface AutonomyQueueItem {
   readonly modelRoute: string;
   readonly cancelRoute?: string;
   readonly createRoute?: string;
+  readonly batchCreateRoute?: string;
   readonly methodIds?: readonly string[];
   readonly liveRecords?: readonly AutonomyQueueLiveRecord[];
 }
@@ -683,6 +684,7 @@ function itemSearchText(item: AutonomyQueueItem): string {
     item.modelRoute,
     item.cancelRoute ?? '',
     item.createRoute ?? '',
+    item.batchCreateRoute ?? '',
     item.methodIds?.join('\n') ?? '',
     item.liveRecords?.flatMap((record) => [
       record.id,
@@ -765,6 +767,7 @@ function describeItem(item: AutonomyQueueItem, includeParameters: boolean, looku
     inspectRoute: item.inspectRoute,
     ...(item.cancelRoute ? { cancelRoute: item.cancelRoute } : {}),
     ...(item.createRoute ? { createRoute: item.createRoute } : {}),
+    ...(item.batchCreateRoute ? { batchCreateRoute: item.batchCreateRoute } : {}),
     ...(item.liveRecords && item.liveRecords.length > 0 ? { liveRecords: item.liveRecords.slice(0, includeParameters ? 8 : 3).map((record) => describeLiveRecord(record, includeParameters)) } : {}),
     ...(lookup ? { lookup } : {}),
     ...(includeParameters ? {
@@ -773,6 +776,7 @@ function describeItem(item: AutonomyQueueItem, includeParameters: boolean, looku
         model: item.modelRoute,
         cancel: item.cancelRoute ?? null,
         create: item.createRoute ?? null,
+        batchCreate: item.batchCreateRoute ?? null,
       },
       methodIds: item.methodIds ?? [],
       policy: 'Queue rows are read-only. Create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on their owning confirmed route.',
@@ -1044,10 +1048,11 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       count: 0,
       current: 'Subagent and delegation routes are visible and cancellable; ordinary chat remains serial by default.',
       next: 'Use visible delegation only when isolation, parallelism, remote execution, or an explicit build/fix/review handoff helps the user.',
-      inspectRoute: 'agent tool list route',
-      modelRoute: 'agent_harness mode:"delegation_posture"',
-      cancelRoute: 'agent tool cancel route with agentId',
-      createRoute: 'agent_harness mode:"run_workspace_action" actionId:"delegate-task" confirm:true explicitUserRequest:"..."',
+      inspectRoute: 'agent_harness mode:"agent_orchestration"',
+      modelRoute: 'agent_harness mode:"agent_orchestration"',
+      cancelRoute: 'agent { mode: "cancel", agentId: "..." }',
+      createRoute: 'agent { mode: "spawn", task: "..." }',
+      batchCreateRoute: 'agent { mode: "batch-spawn", tasks: [...] }',
     },
     {
       id: 'delivery-followups',

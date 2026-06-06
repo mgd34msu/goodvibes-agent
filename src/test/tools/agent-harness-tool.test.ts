@@ -1433,6 +1433,140 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes visible Agent orchestration without spawning hidden work', async () => {
+    const fixture = makeFixture();
+    try {
+      const now = Date.now();
+      const agents = [
+        {
+          id: 'agent-alpha',
+          task: 'Investigate auth flow and report user-facing risks.',
+          template: 'engineer',
+          tools: ['read', 'find'],
+          status: 'running',
+          startedAt: now - 5_000,
+          progress: 'Reading auth modules and collecting route evidence.',
+          toolCallCount: 2,
+          context: 'Bounded local project context for auth work.',
+          model: 'gpt-4.1',
+          provider: 'openai',
+          usage: { inputTokens: 120, outputTokens: 40 },
+        },
+        {
+          id: 'agent-beta',
+          task: 'Cancelled browser setup investigation.',
+          template: 'researcher',
+          tools: ['read'],
+          status: 'cancelled',
+          startedAt: now - 10_000,
+          completedAt: now - 1_000,
+          progress: 'Cancelled by operator.',
+          toolCallCount: 1,
+        },
+      ];
+      (fixture.context.ops as unknown as Record<string, unknown>).agentManager = {
+        exportState: () => agents,
+      };
+      registerStubTool(fixture.toolRegistry, 'agent');
+
+      const summary = await executeHarnessJson<{
+        readonly assistant?: { readonly lanes: readonly { readonly id: string; readonly state: string; readonly routes: readonly string[] }[] };
+        readonly agentOrchestration?: {
+          readonly status: string;
+          readonly toolRegistered: boolean;
+          readonly agents: number;
+          readonly running: number;
+          readonly cancellable: number;
+        };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.agentOrchestration?.status).toBe('attention');
+      expect(summary.agentOrchestration?.toolRegistered).toBe(true);
+      expect(summary.agentOrchestration?.agents).toBe(2);
+      expect(summary.agentOrchestration?.running).toBe(1);
+      expect(summary.agentOrchestration?.cancellable).toBe(1);
+      const backgroundLane = summary.assistant?.lanes.find((lane) => lane.id === 'background-work');
+      expect(backgroundLane?.state).toBe('attention');
+      expect(backgroundLane?.routes).toContain('agent_harness mode:"agent_orchestration"');
+
+      const posture = await executeHarnessJson<{
+        readonly summary: {
+          readonly agents: number;
+          readonly running: number;
+          readonly cancellable: number;
+          readonly toolRegistered: boolean;
+          readonly serialDefault: boolean;
+        };
+        readonly agents: readonly {
+          readonly agentId: string;
+          readonly status: string;
+          readonly routes: { readonly cancel: string; readonly message: string };
+          readonly context?: string | null;
+        }[];
+        readonly decisionCards: readonly { readonly id: string; readonly status: string }[];
+        readonly modelAccess: { readonly spawn: string; readonly batchSpawn: string; readonly harness: string };
+        readonly policy: string;
+      }>(fixture, { mode: 'agent_orchestration', includeParameters: true });
+      expect(posture.summary).toMatchObject({
+        agents: 2,
+        running: 1,
+        cancellable: 1,
+        toolRegistered: true,
+        serialDefault: true,
+      });
+      expect(posture.modelAccess.spawn).toBe('agent { mode: "spawn" }');
+      expect(posture.modelAccess.batchSpawn).toBe('agent { mode: "batch-spawn" }');
+      expect(posture.modelAccess.harness).toBe('agent_harness mode:"agent_orchestration"');
+      expect(posture.decisionCards.find((card) => card.id === 'visible-batch-spawn')?.status).toBe('ready');
+      expect(posture.decisionCards.find((card) => card.id === 'hidden-fanout-blocked')?.status).toBe('blocked');
+      expect(posture.agents[0]?.routes.cancel).toBe('agent { mode: "cancel", agentId: "agent-alpha" }');
+      expect(posture.agents[0]?.routes.message).toBe('agent { mode: "message", agentId: "agent-alpha" }');
+      expect(posture.agents[0]?.context).toContain('project context');
+      expect(posture.policy).toContain('hidden fanout is blocked');
+
+      const detail = await executeHarnessJson<{
+        readonly agentId: string;
+        readonly status: string;
+        readonly task: string;
+        readonly routes: { readonly inspect: string; readonly wait: string };
+        readonly tools: readonly string[];
+        readonly usage: { readonly inputTokens: number };
+      }>(fixture, { mode: 'agent_orchestration_agent', agentId: 'agent-alpha' });
+      expect(detail.agentId).toBe('agent-alpha');
+      expect(detail.status).toBe('running');
+      expect(detail.task).toContain('auth flow');
+      expect(detail.routes.inspect).toBe('agent { mode: "get", agentId: "agent-alpha" }');
+      expect(detail.routes.wait).toBe('agent { mode: "wait", agentId: "agent-alpha" }');
+      expect(detail.tools).toEqual(['read', 'find']);
+      expect(detail.usage.inputTokens).toBe(120);
+
+      const filtered = await executeHarnessJson<{
+        readonly returned: number;
+        readonly agents: readonly { readonly agentId: string }[];
+      }>(fixture, { mode: 'agent_orchestration', query: 'auth' });
+      expect(filtered.returned).toBe(1);
+      expect(filtered.agents[0]?.agentId).toBe('agent-alpha');
+
+      const queue = await executeHarnessJson<{
+        readonly queue: readonly {
+          readonly queueItemId: string;
+          readonly modelRoute: string;
+          readonly inspectRoute: string;
+          readonly cancelRoute?: string;
+          readonly createRoute?: string;
+          readonly batchCreateRoute?: string;
+        }[];
+      }>(fixture, { mode: 'autonomy_queue', query: 'subagent', includeParameters: true });
+      const subagents = queue.queue.find((item) => item.queueItemId === 'delegated-subagents');
+      expect(subagents?.modelRoute).toBe('agent_harness mode:"agent_orchestration"');
+      expect(subagents?.inspectRoute).toBe('agent_harness mode:"agent_orchestration"');
+      expect(subagents?.cancelRoute).toBe('agent { mode: "cancel", agentId: "..." }');
+      expect(subagents?.createRoute).toContain('agent { mode: "spawn"');
+      expect(subagents?.batchCreateRoute).toContain('agent { mode: "batch-spawn"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('saves redacted setup smoke evidence artifacts when user-run output is provided', async () => {
     const artifacts = createHarnessArtifactStore();
     const fixture = makeFixture({ artifactStore: artifacts.store });

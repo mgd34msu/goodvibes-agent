@@ -129,6 +129,16 @@ describe('agent_harness mode catalog', () => {
     expect(context.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds visible Agent orchestration by subagent and batch-spawn wording', () => {
+    const orchestration = listHarnessModes({ query: 'subagent batch-spawn multi-agent cancellable agents', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = orchestration.modes.map((mode) => mode.id);
+    expect(ids).toContain('agent_orchestration');
+    expect(ids).toContain('agent_orchestration_agent');
+    expect(orchestration.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('finds Document Ops by uploads, artifacts, and blind compare wording', () => {
     const documentOps = listHarnessModes({ query: 'document upload artifact blind model compare', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

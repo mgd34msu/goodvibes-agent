@@ -6,6 +6,7 @@ export const AGENT_HARNESS_MODES = [
   'provider_accounts', 'provider_account', 'mcp_servers', 'mcp_server',
   'setup_posture', 'setup_item', 'provision_connected_host_token', 'run_setup_smoke',
   'project_context', 'project_context_file',
+  'agent_orchestration', 'agent_orchestration_agent',
   'model_routing', 'model_route',
   'execution_posture', 'execution_route',
   'background_processes', 'background_process', 'run_background_process',
@@ -90,6 +91,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   contextFileId: {
     type: 'string',
     description: 'Project context file id for project_context_file mode.',
+  },
+  agentId: {
+    type: 'string',
+    description: 'Visible Agent id for agent_orchestration_agent mode.',
   },
   modelRouteId: {
     type: 'string',
