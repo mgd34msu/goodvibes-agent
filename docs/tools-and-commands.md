@@ -8,7 +8,7 @@ GoodVibes Agent is a TUI-first operator assistant. The workspace is the primary 
 - Agent Knowledge uses only `/api/goodvibes-agent/knowledge/*`.
 - Agent does not query default knowledge or other product knowledge spaces.
 - Connected-host lifecycle is external. Agent reports and uses public routes, but does not start, stop, restart, install, expose, or mutate the host listener.
-- Local read/edit/exec is available for explicit work in the current Agent workspace when permissions are sufficient. File edit/write recovery is inspectable through `file_recovery` and applied only through confirmed `run_file_recovery`. Delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
+- Local read/edit/exec is available for explicit work in the current Agent workspace when permissions are sufficient. `execution_posture` exposes process monitor, live tail, and tool inspector supervision routes for local work. File edit/write recovery is inspectable through `file_recovery` and applied only through confirmed `run_file_recovery`. Delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
 - External delivery, notifications, reminders, media generation, setting writes, keybinding writes, UI routing, slash-command execution, workspace-action execution, local destructive changes, and connected-host operator actions require explicit user request and confirmation.
 
 ## User-Facing Surfaces

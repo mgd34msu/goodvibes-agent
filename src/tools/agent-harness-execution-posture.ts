@@ -20,6 +20,14 @@ type ExecutionLookupSource = 'executionRouteId' | 'target' | 'query';
 type ExecutionEffect = 'read-only' | 'local-effect' | 'external-read' | 'delegated-work' | 'setup-gap';
 type ExecutionAvailability = 'ready' | 'setup-needed' | 'fallback-only';
 
+interface ExecutionSupervisionRoute {
+  readonly id: string;
+  readonly label: string;
+  readonly available: boolean;
+  readonly modelRoute: string;
+  readonly requiresConfirmation?: boolean;
+}
+
 interface ExecutionRoute {
   readonly id: string;
   readonly label: string;
@@ -212,6 +220,55 @@ function describeCandidate(route: ExecutionRoute, context: CommandContext, toolR
   };
 }
 
+function toolInspectorAvailable(context: CommandContext): boolean {
+  return Boolean(context.workspace.panelManager?.getRegisteredTypes().some((panel) => panel.id === 'tools'));
+}
+
+function executionSupervisionRoutes(context: CommandContext, route: ExecutionRoute): readonly ExecutionSupervisionRoute[] {
+  const routes: ExecutionSupervisionRoute[] = [];
+  if (route.id === 'local-shell-command') {
+    routes.push(
+      {
+        id: 'process-monitor',
+        label: 'Runtime Activity Monitor',
+        available: typeof context.openProcessModal === 'function',
+        modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
+        requiresConfirmation: true,
+      },
+      {
+        id: 'live-tail',
+        label: 'Live Process Output',
+        available: typeof context.openLiveTail === 'function',
+        modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"live-tail"',
+        requiresConfirmation: true,
+      },
+    );
+  }
+  if (route.id === 'local-shell-command' || route.id === 'local-edit-write') {
+    routes.push({
+      id: 'tool-inspector',
+      label: 'Tool Call Inspector',
+      available: toolInspectorAvailable(context),
+      modelRoute: 'agent_harness mode:"open_panel" panelId:"tools"',
+      requiresConfirmation: true,
+    });
+  }
+  return routes;
+}
+
+function executionSupervisionSummary(context: CommandContext): Record<string, unknown> {
+  return {
+    processMonitorAvailable: typeof context.openProcessModal === 'function',
+    liveTailAvailable: typeof context.openLiveTail === 'function',
+    toolInspectorAvailable: toolInspectorAvailable(context),
+    routes: [
+      'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
+      'agent_harness mode:"open_ui_surface" surfaceId:"live-tail"',
+      'agent_harness mode:"open_panel" panelId:"tools"',
+    ],
+  };
+}
+
 function describeRoute(
   route: ExecutionRoute,
   context: CommandContext,
@@ -220,12 +277,14 @@ function describeRoute(
 ): Record<string, unknown> {
   const availability = routeAvailability(route, context, toolRegistry);
   const tools = availableTools(route, toolRegistry);
+  const supervisionRoutes = executionSupervisionRoutes(context, route);
   return {
     executionRouteId: route.id,
     label: route.label,
     effect: route.effect,
     availability,
     ...(tools.length > 0 ? { availableTools: tools } : {}),
+    ...(supervisionRoutes.length > 0 ? { supervisionRoutes } : {}),
     modelRoute: route.modelRoute,
     ...(route.recoveryRoute ? { recoveryRoute: route.recoveryRoute } : {}),
     preferredWhen: options.includeParameters ? route.preferredWhen : previewHarnessText(route.preferredWhen),
@@ -283,6 +342,7 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
       delegationPolicy: 'Use delegation for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.',
       browserControl: browserToolReady(context, toolRegistry) ? 'configured' : 'setup-needed',
       fileRecovery: fileRecoveryCatalogStatus(context),
+      supervision: executionSupervisionSummary(context),
       registeredExecutionTools: [...registeredToolNames(toolRegistry)].filter((name) => ['read', 'find', 'inspect', 'analyze', 'edit', 'write', 'exec', 'fetch', 'web_search'].includes(name)).sort(),
     },
     decisionRules: [

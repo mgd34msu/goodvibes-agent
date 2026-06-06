@@ -1189,6 +1189,11 @@ describe('agent_harness tool', () => {
           readonly localFirstPolicy: string;
           readonly delegationPolicy: string;
           readonly browserControl: string;
+          readonly supervision: {
+            readonly processMonitorAvailable: boolean;
+            readonly liveTailAvailable: boolean;
+            readonly toolInspectorAvailable: boolean;
+          };
           readonly registeredExecutionTools: readonly string[];
         };
         readonly decisionRules: readonly string[];
@@ -1197,6 +1202,11 @@ describe('agent_harness tool', () => {
           readonly availability: string;
           readonly modelRoute: string;
           readonly nextStep?: string;
+          readonly supervisionRoutes?: readonly {
+            readonly id: string;
+            readonly available: boolean;
+            readonly modelRoute: string;
+          }[];
         }[];
       }>(fixture, {
         mode: 'execution_posture',
@@ -1205,17 +1215,23 @@ describe('agent_harness tool', () => {
       expect(posture.summary.localFirstPolicy).toContain('Use local read/edit/exec');
       expect(posture.summary.delegationPolicy).toContain('isolation');
       expect(posture.summary.browserControl).toBe('setup-needed');
+      expect(posture.summary.supervision.processMonitorAvailable).toBe(true);
+      expect(posture.summary.supervision.liveTailAvailable).toBe(true);
       expect(posture.summary.registeredExecutionTools).toEqual(expect.arrayContaining(['read', 'edit', 'exec', 'fetch', 'web_search']));
       expect(posture.decisionRules.join('\n')).toContain('Do not delegate ordinary local implementation');
 
       const shell = posture.routes.find((route) => route.executionRouteId === 'local-shell-command');
       expect(shell?.availability).toBe('ready');
       expect(shell?.modelRoute).toBe('exec');
+      expect(shell?.supervisionRoutes?.map((route) => route.id)).toEqual(expect.arrayContaining(['process-monitor', 'live-tail', 'tool-inspector']));
+      expect(shell?.supervisionRoutes?.find((route) => route.id === 'process-monitor')?.available).toBe(true);
+      expect(shell?.supervisionRoutes?.find((route) => route.id === 'live-tail')?.modelRoute).toContain('open_ui_surface');
 
       const edit = posture.routes.find((route) => route.executionRouteId === 'local-edit-write');
       expect(edit?.availability).toBe('ready');
       expect(edit?.modelRoute).toBe('edit/write');
       expect(JSON.stringify(edit)).toContain('file_recovery');
+      expect(edit?.supervisionRoutes?.map((route) => route.id)).toContain('tool-inspector');
 
       const browser = posture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control');
       expect(browser?.availability).toBe('setup-needed');

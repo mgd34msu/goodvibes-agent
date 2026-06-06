@@ -24,13 +24,13 @@ These are the package-facing docs for the GoodVibes Agent `1.0.x` release line.
 - Connected host: owned outside Agent; Agent reports and uses it but does not manage lifecycle.
 - Agent Knowledge: only `/api/goodvibes-agent/knowledge/*`; no default knowledge fallback.
 - Local state: memory, notes, personas, skills, routines, sessions, setup, and profiles live under the Agent home.
-- Computer work: local read/edit/exec routes are allowed when the current Agent workspace and permissions are sufficient; local file edit/write recovery is inspectable and confirmation-gated; delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
+- Computer work: local read/edit/exec routes are allowed when the current Agent workspace and permissions are sufficient; process monitor/live tail/tool inspector supervision and local file edit/write recovery are inspectable and confirmation-gated; delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
 
 ## Model Access Baseline
 
 Agent-owned model tools expose Agent-controlled product surfaces plus operator/audit inspection routes:
 
-- `agent_harness` for searchable mode discovery, workspace actions, slash commands, settings, panels, UI surfaces, keybindings, tool schemas, hardware-scored local model cookbook, local-vs-delegated execution posture, file edit recovery, ongoing-work intake, visible autonomy queue with live research run, connected-host task, approval, automation run, and schedule records/log tails, service/daemon posture, connected-host capability/status, posture catalogs, and operator/audit release artifact inspection.
+- `agent_harness` for searchable mode discovery, workspace actions, slash commands, settings, panels, UI surfaces, keybindings, tool schemas, hardware-scored local model cookbook, local-vs-delegated execution posture, process monitor/live tail/tool inspector supervision routes, file edit recovery, ongoing-work intake, visible autonomy queue with live research run, connected-host task, approval, automation run, and schedule records/log tails, service/daemon posture, connected-host capability/status, posture catalogs, and operator/audit release artifact inspection.
 - `agent_knowledge` and `agent_knowledge_ingest` for isolated Agent Knowledge.
 - `agent_local_registry` for Agent-local memory, notes, personas, skills, bundles, and routines, with `agent_harness` learning-curator modes for ranked review/setup/stale candidates.
 - `agent_work_plan` for visible local work-plan state.

@@ -162,9 +162,9 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Computer use includes browser control, shell, files, code edits, desktop/device actions, sandboxing, undo, and live tool cards.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'companion'],
-    goodVibesNow: 'Agent exposes local-first execution posture for read/search/analyze, file edit/write, bounded shell commands, web/fetch evidence, confirmed file edit recovery, browser-control setup gaps, and delegation for isolation, parallelism, remote execution, separate worktrees, or requested review.',
+    goodVibesNow: 'Agent exposes local-first execution posture for read/search/analyze, file edit/write, bounded shell commands, web/fetch evidence, visible process monitor/live tail/tool inspector supervision routes, confirmed file edit recovery, browser-control setup gaps, and delegation for isolation, parallelism, remote execution, separate worktrees, or requested review.',
     nextMoves: [
-      'Add richer live execution cards for local shell/edit verification, process output, and recovery history.',
+      'Add richer local execution history cards that combine verification result, process output, and recovery state.',
       'Keep delegation for isolation, parallelism, or remote execution, not as the default user-facing answer to coding work.',
       'Add first-class browser control and desktop/device command setup with safety probes.',
     ],
