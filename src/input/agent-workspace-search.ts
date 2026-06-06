@@ -40,6 +40,9 @@ export function searchAgentWorkspaceActions(
         action.command ?? '',
         action.editorKind ?? '',
         action.targetCategoryId ?? '',
+        action.modelPickerFlow ?? '',
+        action.modelPickerTarget ?? '',
+        action.settingsTarget ?? '',
         action.localOperation ?? '',
         action.safety,
       ].join(' ').toLowerCase();
@@ -80,6 +83,9 @@ function scoreActionSearchResult(
   score += scoreField(action.editorKind, terms, exactQuery, 85, 26);
   score += scoreField(action.command, terms, exactQuery, 75, 22);
   score += scoreField(action.label, terms, exactQuery, 65, 18);
+  score += scoreField(action.modelPickerTarget, terms, exactQuery, 58, 18);
+  score += scoreField(action.settingsTarget, terms, exactQuery, 58, 18);
+  score += scoreField(action.modelPickerFlow, terms, exactQuery, 54, 16);
   score += scoreField(action.localOperation, terms, exactQuery, 50, 16);
   score += scoreField(action.targetCategoryId, terms, exactQuery, 40, 12);
   score += scoreField(action.detail, terms, exactQuery, 24, 6);

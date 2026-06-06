@@ -15,6 +15,8 @@ import { PermissionPromptUI } from './permissions/prompt.ts';
 import { CommandRegistry } from './input/command-registry.ts';
 import type { CommandContext } from './input/command-registry.ts';
 import { renderProcessIndicator } from './renderer/process-indicator.ts';
+import { renderModelWorkspace } from './renderer/model-workspace.ts';
+import { renderSettingsModal } from './renderer/settings-modal.ts';
 import { registerBuiltinCommands } from './input/commands.ts';
 import { ScheduleManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { InputHistory } from './input/input-history.ts';
@@ -40,7 +42,7 @@ import {
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState } from './shell/blocking-input.ts';
-import { createAgentWorkspaceFullscreenComposite } from './shell/agent-workspace-fullscreen.ts';
+import { createAgentWorkspaceFullscreenComposite, createFullscreenCompositeFromLines } from './shell/agent-workspace-fullscreen.ts';
 import { getTerminalSize } from './shell/terminal-size.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
@@ -477,6 +479,14 @@ async function main() {
       input.setPanelMouseLayout(null);
       activeConversationWidth = width;
       conversation.setSplashSuppressed(true);
+      if (input.modelPicker.active) {
+        compositor.composite(createFullscreenCompositeFromLines(renderModelWorkspace(input.modelPicker, width, height), width, height));
+        return;
+      }
+      if (input.settingsModal.active) {
+        compositor.composite(createFullscreenCompositeFromLines(renderSettingsModal(input.settingsModal, width, height), width, height));
+        return;
+      }
       compositor.composite(createAgentWorkspaceFullscreenComposite(input.agentWorkspace, width, height));
       return;
     }

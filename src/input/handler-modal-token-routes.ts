@@ -131,6 +131,18 @@ export function handleModalTokenRoutes(state: ModalTokenRouteState, token: Input
     return withState(state, true);
   }
 
+  if (handleModelPickerToken({
+    modelPicker: state.modelPicker,
+    modalStack: state.modalStack,
+    commandContext: state.commandContext,
+    getViewportHeight: state.getViewportHeight,
+    requestRender: state.requestRender,
+    handleEscape: state.handleEscape,
+    onModelPickerCommit: state.onModelPickerCommit,
+  }, token)) {
+    return withState(state, true);
+  }
+
   if (handleSettingsModalToken({
     settingsModal: state.settingsModal,
     commandContext: state.commandContext,
@@ -198,18 +210,6 @@ export function handleModalTokenRoutes(state: ModalTokenRouteState, token: Input
   };
   if (handleHistorySearchToken(historyState, token)) {
     return withState(state, true, historyState);
-  }
-
-  if (handleModelPickerToken({
-    modelPicker: state.modelPicker,
-    modalStack: state.modalStack,
-    commandContext: state.commandContext,
-    getViewportHeight: state.getViewportHeight,
-    requestRender: state.requestRender,
-    handleEscape: state.handleEscape,
-    onModelPickerCommit: state.onModelPickerCommit,
-  }, token)) {
-    return withState(state, true);
   }
 
   if (handleLiveTailToken({

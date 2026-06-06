@@ -55,12 +55,15 @@ function buildLeftRows(workspace: AgentWorkspace, height: number): WorkspaceRow[
 }
 
 function actionCommand(action: AgentWorkspaceAction): string {
-  if (action.kind === 'workspace') return action.targetCategoryId ? `open ${action.targetCategoryId}` : '(workspace)';
-  if (action.kind === 'editor') return action.editorKind ? `edit ${action.editorKind}` : '(editor)';
-  if (action.kind === 'setting') return action.settingKey ? `set ${action.settingKey}` : 'set setting';
+  if (action.kind === 'workspace') return 'open area';
+  if (action.kind === 'editor') return action.editorKind ? `edit ${action.editorKind}` : 'edit form';
+  if (action.kind === 'setting') return action.settingKey ? `setting ${action.settingKey}` : 'setting';
   if (action.kind === 'settings-import') return 'import GoodVibes settings';
+  if (action.kind === 'model-picker') return action.modelPickerFlow === 'model' ? 'model picker' : 'provider/model picker';
+  if (action.kind === 'settings-modal') return action.settingsTarget ? `settings ${action.settingsTarget}` : 'settings';
   if (action.kind === 'local-selection') return action.selectionDelta && action.selectionDelta < 0 ? 'select previous' : 'select next';
   if (action.kind === 'local-operation') return action.localOperation ?? '(local action)';
+  if (action.kind === 'onboarding-complete') return 'apply and close';
   return action.command ?? '(guidance)';
 }
 
@@ -81,6 +84,11 @@ function setupStatusLabel(status: AgentWorkspaceRuntimeSnapshot['setupChecklist'
       : status === 'blocked'
         ? 'Blocked'
         : 'Optional';
+}
+
+function formatMegabytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
+  return `${Math.round(bytes / (1024 * 1024))} MB`;
 }
 
 function compactText(text: string, maxWidth = 104): string {
@@ -290,6 +298,63 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'setup') {
     base.push(
       ...setupOverviewLines(snapshot),
+    );
+  } else if (category.id === 'account-model') {
+    base.push(
+      { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
+      { text: `Subscriptions: ${snapshot.activeSubscriptionCount} active; ${snapshot.pendingSubscriptionCount} pending; ${snapshot.availableSubscriptionProviderCount} available.`, fg: snapshot.activeSubscriptionCount > 0 ? PALETTE.good : snapshot.pendingSubscriptionCount > 0 ? PALETTE.warn : PALETTE.muted },
+      { text: `Embedding: ${snapshot.embeddingProvider}; reasoning ${snapshot.reasoningEffort}.`, fg: PALETTE.info },
+      { text: `Helper: ${snapshot.helperEnabled ? 'enabled' : 'disabled'}; Tool LLM: ${snapshot.toolLlmEnabled ? 'enabled' : 'disabled'}.`, fg: snapshot.helperEnabled || snapshot.toolLlmEnabled ? PALETTE.good : PALETTE.muted },
+      { text: `Cache: ${snapshot.cacheEnabled ? snapshot.cacheStableTtl : 'off'}; monitor ${snapshot.cacheMonitorHitRate ? snapshot.cacheHitRateWarningThreshold : 'off'}; failure hints ${snapshot.providerFailureHints ? 'on' : 'off'}.`, fg: snapshot.cacheEnabled ? PALETTE.info : PALETTE.muted },
+    );
+  } else if (category.id === 'assistant-behavior') {
+    base.push(
+      { text: `Interaction: ${snapshot.hitlMode}; guidance ${snapshot.guidanceMode}; history ${snapshot.saveHistory ? 'saved' : 'off'}.`, fg: PALETTE.info },
+      { text: `Context: compact at ${snapshot.autoCompactThreshold}; stale warnings ${snapshot.staleContextWarnings ? 'on' : 'off'}.`, fg: PALETTE.info },
+      { text: `Reasoning display: thinking ${snapshot.showThinking ? 'on' : 'off'}; summaries ${snapshot.showReasoningSummary ? 'on' : 'off'}.`, fg: PALETTE.muted },
+    );
+  } else if (category.id === 'tools-permissions') {
+    base.push(
+      { text: `Permission mode: ${snapshot.permissionMode}.`, fg: snapshot.permissionMode === 'allow-all' ? PALETTE.warn : PALETTE.info },
+      { text: `Auto-approve ${snapshot.autoApprove ? 'on' : 'off'}; tool auto-heal ${snapshot.toolAutoHeal ? 'on' : 'off'}; token budget ${snapshot.toolsDefaultTokenBudget}.`, fg: snapshot.autoApprove ? PALETTE.warn : PALETTE.info },
+      { text: `Artifact limit ${formatMegabytes(snapshot.artifactMaxBytes)}; raw prompt telemetry ${snapshot.rawPromptTelemetry ? 'on' : 'off'}.`, fg: snapshot.rawPromptTelemetry ? PALETTE.warn : PALETTE.muted },
+      { text: `MCP servers: ${snapshot.mcpConnectedServerCount}/${snapshot.mcpServerCount} connected; quarantined ${snapshot.mcpQuarantinedServerCount}.`, fg: snapshot.mcpQuarantinedServerCount > 0 ? PALETTE.warn : PALETTE.info },
+      { text: 'MCP and secret setup use forms; selecting a row does not run arbitrary tools.', fg: PALETTE.good },
+    );
+  } else if (category.id === 'onboarding-display') {
+    base.push(
+      { text: `Theme: ${snapshot.theme}; streaming ${snapshot.stream ? 'on' : 'off'}; line numbers ${snapshot.lineNumbers}.`, fg: PALETTE.info },
+      { text: `Messages: operational ${snapshot.operationalMessages}; system ${snapshot.systemMessages}.`, fg: PALETTE.info },
+      { text: `Release channel: ${snapshot.releaseChannel}.`, fg: PALETTE.muted },
+    );
+  } else if (category.id === 'onboarding-channels') {
+    const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
+    const readyCount = snapshot.channels.filter((channel) => channel.ready).length;
+    const needsConfig = snapshot.channels.filter((channel) => channel.setupState === 'needs-config');
+    const needsTarget = snapshot.channels.filter((channel) => channel.setupState === 'needs-target');
+    base.push(
+      { text: `Channels: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled.`, fg: enabledCount > 0 ? PALETTE.info : PALETTE.muted },
+      { text: `Needs config: ${needsConfig.length}; needs target: ${needsTarget.length}.`, fg: needsConfig.length > 0 || needsTarget.length > 0 ? PALETTE.warn : PALETTE.good },
+      { text: 'Enable only the channels you want; hidden channel fields appear after the channel is enabled.', fg: PALETTE.good },
+    );
+  } else if (category.id === 'onboarding-voice-media') {
+    const readiness = snapshot.voiceMediaReadiness;
+    base.push(
+      { text: `Voice: ${snapshot.voiceSurfaceEnabled ? 'enabled' : 'disabled'}; TTS ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}.`, fg: snapshot.voiceSurfaceEnabled ? PALETTE.good : PALETTE.info },
+      { text: `Media readiness: ${readiness.readyMediaProviderCount}/${snapshot.mediaProviderCount}; generation providers ${snapshot.mediaGenerationProviderCount}.`, fg: readiness.readyMediaProviderCount > 0 ? PALETTE.good : PALETTE.muted },
+      { text: `Telephony channel: ${snapshot.channels.find((channel) => channel.id === 'telephony')?.setupState ?? 'disabled'}.`, fg: PALETTE.info },
+    );
+  } else if (category.id === 'onboarding-context') {
+    base.push(
+      { text: `Local context: ${snapshot.localMemoryCount} memories, ${snapshot.localNoteCount} notes, ${snapshot.localPersonaCount} personas.`, fg: PALETTE.info },
+      { text: `Skills: ${snapshot.enabledSkillCount}/${snapshot.localSkillCount} enabled; routines ${snapshot.enabledRoutineCount}/${snapshot.localRoutineCount} enabled.`, fg: PALETTE.info },
+      { text: `Discovered files: personas ${snapshot.discoveredBehavior.personas.count}, skills ${snapshot.discoveredBehavior.skills.count}, routines ${snapshot.discoveredBehavior.routines.count}.`, fg: PALETTE.muted },
+    );
+  } else if (category.id === 'onboarding-automation') {
+    base.push(
+      { text: `Automation: ${snapshot.automationEnabled ? 'enabled' : 'disabled'}; max ${snapshot.automationMaxConcurrentRuns} concurrent; history ${snapshot.automationRunHistoryLimit}.`, fg: snapshot.automationEnabled ? PALETTE.good : PALETTE.muted },
+      { text: `Timeout ${snapshot.automationDefaultTimeoutMs} ms; catch-up ${snapshot.automationCatchUpWindowMinutes} min; cooldown ${snapshot.automationFailureCooldownMs} ms.`, fg: PALETTE.info },
+      { text: `Delete one-shot jobs after success: ${snapshot.automationDeleteAfterRun ? 'yes' : 'no'}.`, fg: snapshot.automationDeleteAfterRun ? PALETTE.info : PALETTE.muted },
     );
   } else if (category.id === 'artifacts') {
     const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;

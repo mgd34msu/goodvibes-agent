@@ -14,6 +14,9 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly provider: string;
   readonly model: string;
   readonly runtimeBaseUrl: string;
+  readonly activeSubscriptionCount: number;
+  readonly pendingSubscriptionCount: number;
+  readonly availableSubscriptionProviderCount: number;
   readonly sessionMemoryCount: number;
   readonly localMemoryCount: number;
   readonly localMemoryReviewQueueCount: number;
@@ -68,6 +71,23 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         ? `Current chat route is ${input.provider} / ${input.model}.`
         : 'Choose a provider and model before relying on assistant turns.',
       command: 'Setup -> Provider and model',
+    },
+    {
+      id: 'subscriptions',
+      label: 'Provider subscriptions',
+      status: input.activeSubscriptionCount > 0
+        ? 'ready'
+        : input.pendingSubscriptionCount > 0
+          ? 'recommended'
+          : input.availableSubscriptionProviderCount > 0 ? 'recommended' : 'optional',
+      detail: input.activeSubscriptionCount > 0
+        ? `${input.activeSubscriptionCount} provider subscription session(s) are active.`
+        : input.pendingSubscriptionCount > 0
+          ? `${input.pendingSubscriptionCount} provider subscription login(s) are pending completion.`
+          : input.availableSubscriptionProviderCount > 0
+            ? `${input.availableSubscriptionProviderCount} subscription-capable provider(s) are available. Start login if you want subscription routing.`
+            : 'No subscription-capable providers are available yet. Use API keys or add an OAuth provider service.',
+      command: 'Start -> Start subscription login',
     },
     {
       id: 'agent-knowledge',

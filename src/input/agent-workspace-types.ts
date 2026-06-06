@@ -1,3 +1,4 @@
+import type { ModelPickerTarget } from './model-picker.ts';
 import type { AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
 import type { AgentWorkspaceSetupChecklistItem } from './agent-workspace-setup.ts';
 import type { AgentWorkspaceVoiceMediaReadiness } from './agent-workspace-voice-media.ts';
@@ -17,7 +18,7 @@ export const AGENT_WORKSPACE_CATEGORY_IDS = [
   'onboarding-channels',
   'onboarding-voice-media',
   'onboarding-context',
-  'onboarding-verify',
+  'onboarding-automation',
   'research',
   'artifacts',
   'conversation',
@@ -40,7 +41,7 @@ export const AGENT_WORKSPACE_CATEGORY_IDS = [
 
 export type AgentWorkspaceCategoryId = (typeof AGENT_WORKSPACE_CATEGORY_IDS)[number];
 
-export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'setting' | 'settings-import' | 'local-selection' | 'local-operation' | 'onboarding-complete';
+export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'setting' | 'settings-import' | 'model-picker' | 'settings-modal' | 'local-selection' | 'local-operation' | 'onboarding-complete';
 
 export type AgentWorkspaceLocalEditorKind = 'memory' | 'note' | 'persona' | 'skill' | 'routine' | 'profile';
 
@@ -258,6 +259,9 @@ export interface AgentWorkspaceAction {
   readonly editorKind?: AgentWorkspaceEditorKind;
   readonly settingKey?: string;
   readonly settingValueHint?: string;
+  readonly modelPickerTarget?: ModelPickerTarget;
+  readonly modelPickerFlow?: 'providerModel' | 'model';
+  readonly settingsTarget?: string;
   readonly visibleWhenSettingKey?: string;
   readonly visibleWhenSettingValue?: string | boolean | number;
   readonly localKind?: AgentWorkspaceLocalEditorKind;
@@ -362,11 +366,49 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly provider: string;
   readonly model: string;
   readonly modelDisplayName: string;
+  readonly embeddingProvider: string;
+  readonly reasoningEffort: string;
+  readonly helperEnabled: boolean;
+  readonly toolLlmEnabled: boolean;
+  readonly providerFailureHints: boolean;
+  readonly cacheEnabled: boolean;
+  readonly cacheStableTtl: string;
+  readonly cacheMonitorHitRate: boolean;
+  readonly cacheHitRateWarningThreshold: number;
+  readonly hitlMode: string;
+  readonly guidanceMode: string;
+  readonly saveHistory: boolean;
+  readonly autoApprove: boolean;
+  readonly autoCompactThreshold: number;
+  readonly staleContextWarnings: boolean;
+  readonly showThinking: boolean;
+  readonly showReasoningSummary: boolean;
+  readonly theme: string;
+  readonly stream: boolean;
+  readonly lineNumbers: string;
+  readonly operationalMessages: string;
+  readonly systemMessages: string;
+  readonly releaseChannel: string;
+  readonly permissionMode: string;
+  readonly toolAutoHeal: boolean;
+  readonly toolsDefaultTokenBudget: number;
+  readonly artifactMaxBytes: number;
+  readonly rawPromptTelemetry: boolean;
+  readonly automationEnabled: boolean;
+  readonly automationMaxConcurrentRuns: number;
+  readonly automationRunHistoryLimit: number;
+  readonly automationDefaultTimeoutMs: number;
+  readonly automationCatchUpWindowMinutes: number;
+  readonly automationFailureCooldownMs: number;
+  readonly automationDeleteAfterRun: boolean;
   readonly sessionId: string;
   readonly workingDirectory: string;
   readonly homeDirectory: string;
   readonly runtimeBaseUrl: string;
   readonly runtimeOwnership: 'external';
+  readonly activeSubscriptionCount: number;
+  readonly pendingSubscriptionCount: number;
+  readonly availableSubscriptionProviderCount: number;
   readonly sessionMemoryCount: number;
   readonly localMemoryCount: number;
   readonly localMemoryReviewQueueCount: number;

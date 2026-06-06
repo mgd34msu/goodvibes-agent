@@ -38,6 +38,8 @@ interface AgentWorkspaceActivationHost {
   applyLocalLibraryOperation(operation: AgentWorkspaceLocalOperation): void;
   applySettingAction(action: AgentWorkspaceCategory['actions'][number], requestRender?: () => void): void;
   importTuiSettings(requestRender?: () => void): void;
+  openModelPickerAction(action: AgentWorkspaceCategory['actions'][number], requestRender?: () => void): void;
+  openSettingsModalAction(action: AgentWorkspaceCategory['actions'][number], requestRender?: () => void): void;
   completeOnboarding(): void;
   hasCommandDispatch(): boolean;
   dispatchWorkspaceCommand: AgentWorkspaceCommandDispatcher;
@@ -65,6 +67,14 @@ export function activateAgentWorkspaceSelection(
   }
   if (action.kind === 'settings-import') {
     workspace.importTuiSettings(requestRender);
+    return;
+  }
+  if (action.kind === 'model-picker') {
+    workspace.openModelPickerAction(action, requestRender);
+    return;
+  }
+  if (action.kind === 'settings-modal') {
+    workspace.openSettingsModalAction(action, requestRender);
     return;
   }
   if (action.kind === 'editor' && action.editorKind) {

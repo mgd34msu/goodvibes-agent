@@ -312,7 +312,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Operator Areas');
     expect(output).toContain('Home');
     expect(output).toContain('Onboarding');
-    expect(output).toContain('open setup');
+    expect(output).toContain('open area');
     expect(output).toContain('Choose model');
     expect(output).toContain('/model');
     expect(output).toContain('Interaction mode');
@@ -372,14 +372,14 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Selected: Import GoodVibes settings');
     expect(output).toContain('Onboarding');
-    expect(output).toContain('7/11 ready; 3 recommended; 1 optional; 0 blocked.');
+    expect(output).toContain('7/12 ready; 3 recommended; 2 optional; 0 blocked.');
     expect(output).toContain('Chat: openai-subscriber / GPT-5.5.');
     expect(output).toContain('Local: 1 personas, 1 skills, 1 routines, 1 memories.');
     expect(output).toContain('Next: Agent Knowledge (recommended)');
     expect(output).toContain('Import GoodVibes settings');
-    expect(output).toContain('Main model');
+    expect(output).toContain('Choose main model');
     expect(output).toContain('Start subscription login');
-    expect(output).toContain('Store API secret');
+    expect(output).toContain('Store secret');
     expect(output).not.toContain('->');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('daemonBaseUrl');
@@ -400,8 +400,8 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Selected: Import GoodVibes settings');
     expect(output).toContain('Next: Provider and model (blocked)');
-    expect(output).toContain('Main model');
-    expect(output).toContain('Save conversation history');
+    expect(output).toContain('Choose main model');
+    expect(output).toContain('Save history');
     expect(output).not.toContain('Setup Checklist');
     expect(output).not.toContain('RECOMMENDED');
     expect(output).not.toContain('->');
@@ -425,30 +425,20 @@ describe('renderAgentWorkspace', () => {
     }
   });
 
-  test('renders model favorites maintenance in account onboarding', () => {
+  test('renders shared provider and model picker actions in account onboarding', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-refresh');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
     let output = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(output).toContain('Refresh model catalog');
-    expect(output).toContain('/refresh-models');
+    expect(output).toContain('Choose provider and model');
+    expect(output).toContain('provider/model picker');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-pin');
-    workspace.activateSelected();
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-main-model');
     output = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(output).toContain('Pin Model');
-    expect(output).toContain('Model registry key *');
-
-    const unpinWorkspace = new AgentWorkspace();
-    unpinWorkspace.open(liveCommandContext(), () => undefined);
-    unpinWorkspace.selectedCategoryIndex = unpinWorkspace.categories.findIndex((category) => category.id === 'account-model');
-    unpinWorkspace.selectedActionIndex = unpinWorkspace.actions.findIndex((action) => action.id === 'model-unpin');
-    unpinWorkspace.activateSelected();
-    output = text(renderAgentWorkspace(unpinWorkspace, 132, 44));
-    expect(output).toContain('Unpin Model');
-    expect(output).toContain('Model registry key *');
+    expect(output).toContain('Choose main model');
+    expect(output).toContain('model picker');
   });
 
   test('renders support bundle actions in the host workspace when selected', () => {
@@ -488,33 +478,18 @@ describe('renderAgentWorkspace', () => {
     expect(browserOutput).toContain('Start Provider Subscription Login');
     expect(browserOutput).toContain('Open browser');
     workspace.moveEditorField(1);
-    const manualOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(manualOutput).toContain('Manual completion');
-    workspace.moveEditorField(1);
     const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(confirmOutput).toContain('Editing: Confirm (required)');
   });
 
-  test('renders custom provider add and remove forms in onboarding workspaces', () => {
+  test('renders provider maintenance forms from workspace actions', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
-    const useActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(useActionOutput).toContain('Switch provider');
-    expect(useActionOutput).toContain('edit provider-use');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
-    workspace.activateSelected();
-    const useEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(useEditorOutput).toContain('Use Provider');
-    expect(useEditorOutput).toContain('Provider id *');
-
-    workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-inspect');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-provider-detail');
     const inspectActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(inspectActionOutput).toContain('Inspect provider');
+    expect(inspectActionOutput).toContain('Provider detail');
     expect(inspectActionOutput).toContain('edit provider-inspect');
 
     workspace.activateSelected();
@@ -523,9 +498,9 @@ describe('renderAgentWorkspace', () => {
     expect(inspectEditorOutput).toContain('Provider id *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-routes');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-provider-routes');
     const routesActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(routesActionOutput).toContain('Inspect provider routes');
+    expect(routesActionOutput).toContain('Provider routes');
     expect(routesActionOutput).toContain('edit provider-routes');
 
     workspace.activateSelected();
@@ -534,7 +509,7 @@ describe('renderAgentWorkspace', () => {
     expect(routesEditorOutput).toContain('Provider id *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-account-repair');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-provider-repair');
     const accountRepairActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(accountRepairActionOutput).toContain('Provider repair guidance');
     expect(accountRepairActionOutput).toContain('edit provider-account-repair');
@@ -571,16 +546,16 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
 
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-bundle-export');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-auth-bundle-export');
     workspace.activateSelected();
     const authOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(authOutput).toContain('Export Auth Review Bundle');
     expect(authOutput).toContain('Output path *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-bundle-inspect');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-subscription-bundle-inspect');
     workspace.activateSelected();
     const subscriptionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(subscriptionOutput).toContain('Inspect Subscription Bundle');
@@ -643,7 +618,7 @@ describe('renderAgentWorkspace', () => {
     const output = text(renderAgentWorkspace(workspace, 150, 52));
 
     expect(output).toContain('Context');
-    expect(output).toContain('Local persona, memory, skills, routines, notes, and Agent Knowledge.');
+    expect(output).toContain('Create/import memory, personas, skills, routines, notes, and Knowledge.');
     expect(output).toContain('Profile from discovered files');
     expect(output).toContain('edit profile-from-discovered');
     expect(output).toContain('Import persona files');

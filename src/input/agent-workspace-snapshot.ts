@@ -1,4 +1,5 @@
 import { basename, sep } from 'node:path';
+import { listAvailableSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from './command-registry.ts';
 import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.ts';
@@ -398,6 +399,41 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const ttsVoice = readConfigString(context, 'tts.voice', '(voice default)');
   const ttsLlmProvider = readConfigString(context, 'tts.llmProvider', '');
   const ttsLlmModel = readConfigString(context, 'tts.llmModel', '');
+  const embeddingProvider = readConfigString(context, 'provider.embeddingProvider', '(provider default)');
+  const reasoningEffort = readConfigString(context, 'provider.reasoningEffort', '(default)');
+  const helperEnabled = readConfigBoolean(context, 'helper.enabled', false);
+  const toolLlmEnabled = readConfigBoolean(context, 'tools.llmEnabled', false);
+  const providerFailureHints = readConfigBoolean(context, 'behavior.suggestAlternativeOnProviderFail', false);
+  const cacheEnabled = readConfigBoolean(context, 'cache.enabled', true);
+  const cacheStableTtl = readConfigString(context, 'cache.stableTtl', '(default)');
+  const cacheMonitorHitRate = readConfigBoolean(context, 'cache.monitorHitRate', true);
+  const cacheHitRateWarningThreshold = readConfigNumber(context, 'cache.hitRateWarningThreshold', 0.3);
+  const hitlMode = readConfigString(context, 'behavior.hitlMode', '(default)');
+  const guidanceMode = readConfigString(context, 'behavior.guidanceMode', '(default)');
+  const saveHistory = readConfigBoolean(context, 'behavior.saveHistory', true);
+  const autoApprove = readConfigBoolean(context, 'behavior.autoApprove', false);
+  const autoCompactThreshold = readConfigNumber(context, 'behavior.autoCompactThreshold', 0);
+  const staleContextWarnings = readConfigBoolean(context, 'behavior.staleContextWarnings', false);
+  const showThinking = readConfigBoolean(context, 'display.showThinking', false);
+  const showReasoningSummary = readConfigBoolean(context, 'display.showReasoningSummary', false);
+  const theme = readConfigString(context, 'display.theme', '(default)');
+  const stream = readConfigBoolean(context, 'display.stream', true);
+  const lineNumbers = readConfigString(context, 'display.lineNumbers', '(default)');
+  const operationalMessages = readConfigString(context, 'ui.operationalMessages', '(default)');
+  const systemMessages = readConfigString(context, 'ui.systemMessages', '(default)');
+  const releaseChannel = readConfigString(context, 'release.channel', '(default)');
+  const permissionMode = readConfigString(context, 'permissions.mode', '(default)');
+  const toolAutoHeal = readConfigBoolean(context, 'tools.autoHeal', false);
+  const toolsDefaultTokenBudget = readConfigNumber(context, 'tools.defaultTokenBudget', 5000);
+  const artifactMaxBytes = readConfigNumber(context, 'storage.artifacts.maxBytes', 512 * 1024 * 1024);
+  const rawPromptTelemetry = readConfigBoolean(context, 'telemetry.includeRawPrompts', false);
+  const automationEnabled = readConfigBoolean(context, 'automation.enabled', false);
+  const automationMaxConcurrentRuns = readConfigNumber(context, 'automation.maxConcurrentRuns', 4);
+  const automationRunHistoryLimit = readConfigNumber(context, 'automation.runHistoryLimit', 100);
+  const automationDefaultTimeoutMs = readConfigNumber(context, 'automation.defaultTimeoutMs', 15 * 60 * 1000);
+  const automationCatchUpWindowMinutes = readConfigNumber(context, 'automation.catchUpWindowMinutes', 30);
+  const automationFailureCooldownMs = readConfigNumber(context, 'automation.failureCooldownMs', 5 * 60 * 1000);
+  const automationDeleteAfterRun = readConfigBoolean(context, 'automation.deleteAfterRun', false);
   const runtimeBaseUrl = `http://${host}:${port}`;
   const companionAccess = (() => {
     const homeDirectory = context.workspace?.shellPaths?.homeDirectory ?? '';
@@ -425,6 +461,18 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       nextStep,
     } as const;
   })();
+  const subscriptionSnapshot = (() => {
+    try {
+      const manager = context.platform?.subscriptionManager;
+      const services = context.platform?.serviceRegistry;
+      const active = manager?.list?.().length ?? 0;
+      const pending = manager?.listPending?.().length ?? 0;
+      const available = services ? listAvailableSubscriptionProviders(services.getAll()).length : 0;
+      return { active, pending, available };
+    } catch {
+      return { active: 0, pending: 0, available: 0 };
+    }
+  })();
   const channels = buildAgentWorkspaceChannels(context);
   const voiceMediaReadiness = buildAgentWorkspaceVoiceMediaReadiness({
     context,
@@ -435,6 +483,9 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     provider,
     model,
     runtimeBaseUrl,
+    activeSubscriptionCount: subscriptionSnapshot.active,
+    pendingSubscriptionCount: subscriptionSnapshot.pending,
+    availableSubscriptionProviderCount: subscriptionSnapshot.available,
     sessionMemoryCount,
     localMemoryCount: memorySnapshot.count,
     localMemoryReviewQueueCount: memorySnapshot.reviewQueueCount,
@@ -463,11 +514,49 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     provider,
     model,
     modelDisplayName: currentModel?.displayName ?? model,
+    embeddingProvider,
+    reasoningEffort,
+    helperEnabled,
+    toolLlmEnabled,
+    providerFailureHints,
+    cacheEnabled,
+    cacheStableTtl,
+    cacheMonitorHitRate,
+    cacheHitRateWarningThreshold,
+    hitlMode,
+    guidanceMode,
+    saveHistory,
+    autoApprove,
+    autoCompactThreshold,
+    staleContextWarnings,
+    showThinking,
+    showReasoningSummary,
+    theme,
+    stream,
+    lineNumbers,
+    operationalMessages,
+    systemMessages,
+    releaseChannel,
+    permissionMode,
+    toolAutoHeal,
+    toolsDefaultTokenBudget,
+    artifactMaxBytes,
+    rawPromptTelemetry,
+    automationEnabled,
+    automationMaxConcurrentRuns,
+    automationRunHistoryLimit,
+    automationDefaultTimeoutMs,
+    automationCatchUpWindowMinutes,
+    automationFailureCooldownMs,
+    automationDeleteAfterRun,
     sessionId: context.session?.runtime?.sessionId ?? 'unknown',
     workingDirectory: context.workspace?.shellPaths?.workingDirectory ?? 'unavailable',
     homeDirectory: context.workspace?.shellPaths?.homeDirectory ?? 'unavailable',
     runtimeBaseUrl,
     runtimeOwnership: 'external',
+    activeSubscriptionCount: subscriptionSnapshot.active,
+    pendingSubscriptionCount: subscriptionSnapshot.pending,
+    availableSubscriptionProviderCount: subscriptionSnapshot.available,
     sessionMemoryCount,
     localMemoryCount: memorySnapshot.count,
     localMemoryReviewQueueCount: memorySnapshot.reviewQueueCount,

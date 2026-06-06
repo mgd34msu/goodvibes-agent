@@ -613,7 +613,7 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       selectedFieldIndex: 0,
       message: 'Inspect one provider subscription route without starting login or printing token values.',
       fields: [
-        { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Subscription provider id from /subscription providers.' },
+        { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Subscription provider id, such as openai.' },
       ],
     };
   }
@@ -623,12 +623,11 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       mode: 'create',
       title: 'Start Provider Subscription Login',
       selectedFieldIndex: 0,
-      message: 'Begin one provider subscription OAuth login. Type yes on the final field to confirm browser and pending-login side effects.',
+      message: 'Begin one provider subscription OAuth login, save the pending session, and return here for completion.',
       fields: [
-        { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Subscription provider id from /subscription providers.' },
+        { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Subscription provider id, such as openai.' },
         { id: 'openBrowser', label: 'Open browser', value: 'yes', required: false, multiline: false, hint: 'yes/no. Use no to print the authorization URL only.' },
-        { id: 'manual', label: 'Manual completion', value: 'yes', required: false, multiline: false, hint: 'Agent always finishes subscription login through the explicit finish form.' },
-        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /subscription login <provider> start with --yes.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save pending login state and open or show the authorization URL.' },
       ],
     };
   }
@@ -638,11 +637,11 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       mode: 'update',
       title: 'Finish Provider Subscription Login',
       selectedFieldIndex: 0,
-      message: 'Finish a pending provider subscription OAuth login from a code or redirected URL. Type yes on the final field to confirm token storage.',
+      message: 'Finish a pending provider subscription OAuth login from a code or redirected URL and save the subscription session.',
       fields: [
         { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Provider id used when starting login.' },
         { id: 'code', label: 'Code or redirect URL', value: '', required: true, multiline: false, hint: 'OAuth code or full redirect URL containing code=...' },
-        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /subscription login <provider> finish with --yes.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to exchange the code and save the provider subscription session.' },
       ],
     };
   }
@@ -652,10 +651,10 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
       mode: 'delete',
       title: 'Logout Provider Subscription',
       selectedFieldIndex: 0,
-      message: 'Remove one stored provider subscription session. Ambient API key resolution applies again if configured. Type yes to confirm.',
+      message: 'Remove one active or pending provider subscription session. Ambient API key resolution applies again if configured.',
       fields: [
         { id: 'provider', label: 'Provider', value: 'openai', required: true, multiline: false, hint: 'Stored subscription provider id.' },
-        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run /subscription logout with --yes.' },
+        { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to remove active or pending subscription state.' },
       ],
     };
   }

@@ -336,7 +336,8 @@ export class InputHandler {
   public handleBlockToggle(): void { handleBlockToggleForHandler(this); }
   public handleCtrlC(): void { handleCtrlCForHandler(this); }
   public modalOpened(name: string): void {
-    if (name !== 'agentWorkspace' && this.agentWorkspace.active) {
+    const keepAgentWorkspaceUnderlay = name === 'modelPicker' || name === 'settings';
+    if (name !== 'agentWorkspace' && !keepAgentWorkspaceUnderlay && this.agentWorkspace.active) {
       this.closeAgentWorkspaceModal();
     }
     modalOpenedForHandler(this, name);

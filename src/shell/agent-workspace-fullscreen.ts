@@ -16,8 +16,8 @@ function normalizeFullscreenViewport(lines: readonly Line[], width: number, heig
   return viewport;
 }
 
-export function createAgentWorkspaceFullscreenComposite(
-  workspace: AgentWorkspace,
+export function createFullscreenCompositeFromLines(
+  lines: readonly Line[],
   width: number,
   height: number,
 ): CompositeRequest {
@@ -25,9 +25,17 @@ export function createAgentWorkspaceFullscreenComposite(
     width,
     height,
     header: [],
-    viewport: normalizeFullscreenViewport(renderAgentWorkspace(workspace, width, height), width, height),
+    viewport: normalizeFullscreenViewport(lines, width, height),
     footer: [],
     forceFullRedraw: true,
     panelWidth: 0,
   };
+}
+
+export function createAgentWorkspaceFullscreenComposite(
+  workspace: AgentWorkspace,
+  width: number,
+  height: number,
+): CompositeRequest {
+  return createFullscreenCompositeFromLines(renderAgentWorkspace(workspace, width, height), width, height);
 }

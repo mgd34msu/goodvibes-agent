@@ -3,6 +3,7 @@ import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
@@ -18,6 +19,7 @@ import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { readOnboardingCheckMarker, readOnboardingCompletionMarker } from '../../runtime/onboarding/index.ts';
 import { ConfigManager } from '../../config/index.ts';
+import { isAgentHiddenSettingKey } from '../../config/agent-settings-policy.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
@@ -475,32 +477,31 @@ describe('AgentWorkspace', () => {
     ]);
   });
 
-  test('manages model favorites and catalog refresh from account onboarding actions', () => {
-    const dispatched: string[] = [];
+  test('opens shared provider and model pickers from account onboarding actions', () => {
+    const opened: string[] = [];
     const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.open({
+      ...commandContext(),
+      openProviderModelPickerWithTarget: (target) => {
+        opened.push(`provider:${target}`);
+        return true;
+      },
+      openModelPickerWithTarget: (target) => {
+        opened.push(`model:${target}`);
+        return true;
+      },
+    } as unknown as CommandContext, () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-refresh');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
     workspace.activateSelected();
+    expect(workspace.lastActionResult?.title).toBe('Opening Choose provider and model');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-pin');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-main-model');
     workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('model-pin');
-    feedText(workspace, 'openai:gpt-5.5');
-    feedKey(workspace, 'enter');
+    expect(workspace.lastActionResult?.title).toBe('Opening Choose main model');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model-unpin');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('model-unpin');
-    feedText(workspace, 'openai:gpt-5.5');
-    feedKey(workspace, 'enter');
-
-    expect(dispatched).toEqual([
-      '/refresh-models',
-      '/pin openai:gpt-5.5',
-      '/unpin openai:gpt-5.5',
-    ]);
+    expect(opened).toEqual(['provider:main', 'model:main']);
   });
 
   test('opens direct Agent workspace categories and reports unknown targets', () => {
@@ -1066,17 +1067,16 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('/pair');
   });
 
-  test('messaging onboarding pairs companion from the real onboarding page', () => {
+  test('messaging onboarding exposes channel settings instead of companion command shortcuts', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'onboarding-pair-companion');
 
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/pair']);
-    expect(workspace.status).toContain('/pair');
+    expect(workspace.actions.some((action) => action.id === 'onboarding-pair-companion')).toBe(false);
+    expect(workspace.actions.some((action) => action.id === 'channel-ntfy-enabled' && action.kind === 'setting')).toBe(true);
+    expect(workspace.actions.some((action) => action.id === 'telephony-enabled' && action.kind === 'setting')).toBe(false);
+    expect(dispatched).toEqual([]);
   });
 
   test('home workspace jumps directly into setup without dispatching a command', () => {
@@ -1124,14 +1124,11 @@ describe('AgentWorkspace', () => {
     expect(savedAgentSetting(shellPaths, 'display.collapseThreshold')).toBe(88);
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-provider-model');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-save-history');
+    const previousSaveHistory = Boolean(configManager.get('behavior.saveHistory'));
     workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('setting-set');
-    clearEditorField(workspace);
-    feedText(workspace, 'openai:gpt-5.5');
-    feedKey(workspace, 'enter');
-    expect(configManager.get('provider.model')).toBe('openai:gpt-5.5');
-    expect(savedAgentSetting(shellPaths, 'provider.model')).toBe('openai:gpt-5.5');
+    expect(configManager.get('behavior.saveHistory')).toBe(!previousSaveHistory);
+    expect(savedAgentSetting(shellPaths, 'behavior.saveHistory')).toBe(!previousSaveHistory);
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-enabled');
@@ -1141,25 +1138,31 @@ describe('AgentWorkspace', () => {
     expect(workspace.actions.some((action) => action.id === 'channel-ntfy-base-url')).toBe(true);
   });
 
-  test('verify onboarding exposes compatibility and review commands without shell-only paths', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-verify');
+  test('onboarding has no verify page and covers schema-backed Agent settings', () => {
+    expect(AGENT_WORKSPACE_CATEGORIES.some((category) => category.id === 'onboarding-verify')).toBe(false);
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'verify-compat');
-    workspace.activateSelected();
-    expect(workspace.status).toContain('/compat');
+    const covered = new Set<string>([
+      'provider.model',
+      'helper.globalProvider',
+      'helper.globalModel',
+      'tools.llmProvider',
+      'tools.llmModel',
+      'tts.llmProvider',
+      'tts.llmModel',
+    ]);
+    for (const category of AGENT_WORKSPACE_CATEGORIES) {
+      if (category.group !== 'ONBOARDING') continue;
+      for (const action of category.actions) {
+        if (action.settingKey) covered.add(action.settingKey);
+        expect(action.kind).not.toBe('command');
+        expect(action.kind).not.toBe('guidance');
+      }
+    }
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'verify-subscription');
-    workspace.activateSelected();
-    expect(workspace.status).toContain('/subscription review');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'verify-channels');
-    workspace.activateSelected();
-    expect(workspace.status).toContain('/channels attention');
-
-    expect(dispatched).toEqual(['/compat', '/subscription review', '/channels attention']);
+    const missing = CONFIG_SCHEMA
+      .map((setting) => setting.key)
+      .filter((key) => !isAgentHiddenSettingKey(key) && !covered.has(key));
+    expect(missing).toEqual([]);
   });
 
   test('home opens Tools and onboarding tools opens concrete MCP setup', () => {
@@ -1771,33 +1774,25 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening Agent support bundle import');
   });
 
-  test('adds and removes custom providers from onboarding forms with confirmation', () => {
+  test('adds removes and inspects providers from workspace forms with confirmation', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('provider-use');
-    feedText(workspace, 'openai-subscriber');
-    feedKey(workspace, 'enter');
-    feedText(workspace, 'gpt-5.5');
-    feedKey(workspace, 'enter');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-inspect');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-provider-detail');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('provider-inspect');
     feedText(workspace, 'openai-subscriber');
     feedKey(workspace, 'enter');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-routes');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-provider-routes');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('provider-routes');
     feedText(workspace, 'openai-subscriber');
     feedKey(workspace, 'enter');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-account-repair');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-provider-repair');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('provider-account-repair');
     feedText(workspace, 'openai-subscriber');
@@ -1817,7 +1812,6 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
-      '/provider openai-subscriber gpt-5.5',
       '/accounts show openai-subscriber',
       '/accounts routes openai-subscriber',
       '/accounts repair openai-subscriber',
@@ -1829,7 +1823,6 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
-      '/provider openai-subscriber gpt-5.5',
       '/accounts show openai-subscriber',
       '/accounts routes openai-subscriber',
       '/accounts repair openai-subscriber',
@@ -1847,7 +1840,6 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual([
-      '/provider openai-subscriber gpt-5.5',
       '/accounts show openai-subscriber',
       '/accounts routes openai-subscriber',
       '/accounts repair openai-subscriber',
@@ -1856,21 +1848,94 @@ describe('AgentWorkspace', () => {
     ]);
   });
 
-  test('starts finishes inspects and logs out provider subscriptions from workspace forms', () => {
+  test('starts finishes and logs out provider subscriptions from workspace services', async () => {
     const dispatched: string[] = [];
+    const serviceOauth = {
+      authUrl: 'https://auth.example.test/oauth',
+      tokenUrl: 'https://auth.example.test/token',
+      clientId: 'test-client',
+      redirectUri: 'http://localhost:1455/auth/callback',
+      manualRedirectUri: 'urn:ietf:wg:oauth:2.0:oob',
+      scopes: ['profile'],
+      usePkce: true,
+      overrideAmbientApiKeys: true,
+    };
+    const calls: string[] = [];
+    const pending = new Map<string, { provider: string; state: string; verifier: string; redirectUri: string; createdAt: number }>();
+    const subscriptions = new Map<string, {
+      provider: string;
+      accessToken: string;
+      tokenType: string;
+      authMode: 'oauth';
+      overrideAmbientApiKeys: boolean;
+      createdAt: number;
+      updatedAt: number;
+    }>();
+    const subscriptionManager = {
+      list: () => [...subscriptions.values()],
+      listPending: () => [...pending.values()],
+      get: (provider: string) => subscriptions.get(provider) ?? null,
+      getPending: (provider: string) => pending.get(provider) ?? null,
+      beginOAuthLogin: async (provider: string, config: typeof serviceOauth) => {
+        calls.push(`begin:${provider}:${config.redirectUri}`);
+        const record = { provider, state: 'state-1', verifier: 'verifier-1', redirectUri: config.redirectUri, createdAt: Date.now() };
+        pending.set(provider, record);
+        return { authorizationUrl: `https://auth.example.test/start?provider=${provider}`, pending: record };
+      },
+      completeOAuthLogin: async (provider: string, config: typeof serviceOauth, code: string) => {
+        calls.push(`finish:${provider}:${code}:${config.redirectUri}`);
+        const now = Date.now();
+        const record = {
+          provider,
+          accessToken: `token-${code}`,
+          tokenType: 'Bearer',
+          authMode: 'oauth' as const,
+          overrideAmbientApiKeys: config.overrideAmbientApiKeys ?? true,
+          createdAt: subscriptions.get(provider)?.createdAt ?? now,
+          updatedAt: now,
+        };
+        subscriptions.set(provider, record);
+        pending.delete(provider);
+        return record;
+      },
+      logout: (provider: string) => {
+        calls.push(`logout:${provider}`);
+        const existed = subscriptions.delete(provider) || pending.delete(provider);
+        return existed;
+      },
+    };
+    const serviceRegistry = {
+      get: (provider: string) => provider === 'test-oauth'
+        ? {
+          name: 'test-oauth',
+          authType: 'oauth',
+          tokenKey: 'TEST_OAUTH_TOKEN',
+          providerId: 'test-oauth',
+          oauth: serviceOauth,
+        }
+        : null,
+      getAll: () => ({
+        'test-oauth': {
+          name: 'test-oauth',
+          authType: 'oauth',
+          tokenKey: 'TEST_OAUTH_TOKEN',
+          providerId: 'test-oauth',
+          oauth: serviceOauth,
+        },
+      }),
+    };
     const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
+    workspace.open({
+      ...commandContext(),
+      platform: { subscriptionManager, serviceRegistry },
+    } as unknown as CommandContext, (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-inspect');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('subscription-inspect');
-    feedKey(workspace, 'enter');
-    expect(dispatched).toEqual(['/subscription inspect openai']);
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-login-start');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('subscription-login-start');
+    clearEditorField(workspace);
+    feedText(workspace, 'test-oauth');
     feedKey(workspace, 'enter');
     clearEditorField(workspace);
     feedText(workspace, 'no');
@@ -1880,83 +1945,62 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
     feedText(workspace, 'no');
     feedKey(workspace, 'enter');
-    expect(dispatched).toEqual(['/subscription inspect openai']);
     expect(workspace.localEditor?.message).toContain('not confirmed');
     feedKey(workspace, 'backspace');
     feedKey(workspace, 'backspace');
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
-    expect(dispatched).toEqual([
-      '/subscription inspect openai',
-      '/subscription login openai start --no-browser --manual --yes',
-    ]);
-    expect(workspace.lastActionResult?.title).toBe('Opening provider subscription login start');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(dispatched).toEqual([]);
+    expect(calls).toEqual(['begin:test-oauth:urn:ietf:wg:oauth:2.0:oob']);
+    expect(workspace.lastActionResult?.title).toBe('Subscription login started');
+    expect(pending.has('test-oauth')).toBe(true);
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-login-finish');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('subscription-login-finish');
+    clearEditorField(workspace);
+    feedText(workspace, 'test-oauth');
     feedKey(workspace, 'enter');
-    feedText(workspace, 'abc-code');
+    feedText(workspace, 'http://localhost/callback?code=abc-code');
     feedKey(workspace, 'enter');
     feedText(workspace, 'no');
     feedKey(workspace, 'enter');
-    expect(dispatched).toEqual([
-      '/subscription inspect openai',
-      '/subscription login openai start --no-browser --manual --yes',
-    ]);
     expect(workspace.localEditor?.message).toContain('not confirmed');
     feedKey(workspace, 'backspace');
     feedKey(workspace, 'backspace');
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
-    expect(dispatched).toEqual([
-      '/subscription inspect openai',
-      '/subscription login openai start --no-browser --manual --yes',
-      '/subscription login openai finish abc-code --yes',
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(dispatched).toEqual([]);
+    expect(calls).toEqual([
+      'begin:test-oauth:urn:ietf:wg:oauth:2.0:oob',
+      'finish:test-oauth:abc-code:urn:ietf:wg:oauth:2.0:oob',
     ]);
-    expect(workspace.lastActionResult?.title).toBe('Opening provider subscription login finish');
+    expect(workspace.lastActionResult?.title).toBe('Subscription session saved');
+    expect(subscriptions.get('test-oauth')?.accessToken).toBe('token-abc-code');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-logout');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('subscription-logout');
+    clearEditorField(workspace);
+    feedText(workspace, 'test-oauth');
     feedKey(workspace, 'enter');
     feedText(workspace, 'no');
     feedKey(workspace, 'enter');
-    expect(dispatched).toEqual([
-      '/subscription inspect openai',
-      '/subscription login openai start --no-browser --manual --yes',
-      '/subscription login openai finish abc-code --yes',
-    ]);
     expect(workspace.localEditor?.message).toContain('not confirmed');
     feedKey(workspace, 'backspace');
     feedKey(workspace, 'backspace');
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
-    expect(dispatched).toEqual([
-      '/subscription inspect openai',
-      '/subscription login openai start --no-browser --manual --yes',
-      '/subscription login openai finish abc-code --yes',
-      '/subscription logout openai --yes',
+    expect(dispatched).toEqual([]);
+    expect(calls).toEqual([
+      'begin:test-oauth:urn:ietf:wg:oauth:2.0:oob',
+      'finish:test-oauth:abc-code:urn:ietf:wg:oauth:2.0:oob',
+      'logout:test-oauth',
     ]);
-    expect(workspace.lastActionResult?.title).toBe('Opening provider subscription logout');
-  });
-
-  test('defaults provider subscription login start to manual completion', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-login-start');
-
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('subscription-login-start');
-    feedKey(workspace, 'enter');
-    feedKey(workspace, 'enter');
-    feedKey(workspace, 'enter');
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
-    expect(dispatched).toEqual(['/subscription login openai start --manual --yes']);
+    expect(workspace.lastActionResult?.title).toBe('Subscription session removed');
+    expect(subscriptions.has('test-oauth')).toBe(false);
   });
 
   test('exposes auth trust subscription and voice bundles from workspace forms', () => {
@@ -1964,20 +2008,20 @@ describe('AgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
 
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-show');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-auth-detail');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('auth-show');
     feedKey(workspace, 'enter');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-repair');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-auth-repair');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('auth-repair');
     clearEditorField(workspace);
     feedText(workspace, 'anthropic');
     feedKey(workspace, 'enter');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-bundle-export');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-auth-bundle-export');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('auth-bundle-export');
     feedKey(workspace, 'enter');
@@ -1989,22 +2033,21 @@ describe('AgentWorkspace', () => {
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'auth-bundle-inspect');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-auth-bundle-inspect');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('auth-bundle-inspect');
     clearEditorField(workspace);
     feedText(workspace, 'auth/custom.json');
     feedKey(workspace, 'enter');
 
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-bundle-export');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-subscription-bundle-export');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('subscription-bundle-export');
     feedKey(workspace, 'enter');
     feedText(workspace, 'yes');
     feedKey(workspace, 'enter');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-bundle-inspect');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-subscription-bundle-inspect');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('subscription-bundle-inspect');
     feedKey(workspace, 'enter');
