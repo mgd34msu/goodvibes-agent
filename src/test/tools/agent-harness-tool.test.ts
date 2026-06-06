@@ -1399,6 +1399,10 @@ describe('agent_harness tool', () => {
             readonly setupRoute: string;
             readonly recommendedRoute: string;
             readonly toolMatches: readonly string[];
+            readonly needsReview: boolean;
+            readonly workflows: readonly { readonly id: string; readonly status: string; readonly inspectRoute: string; readonly safety: string }[];
+            readonly setupChecklist: readonly string[];
+            readonly fallbackRoutes: readonly string[];
           };
           readonly supervision: {
             readonly processMonitorAvailable: boolean;
@@ -1429,6 +1433,12 @@ describe('agent_harness tool', () => {
       expect(posture.summary.executionHistory).toContain('execution_history');
       expect(posture.summary.browserControlSetup.setupRoute).toContain('browser-desktop-control');
       expect(posture.summary.browserControlSetup.recommendedRoute).toContain('mcp_servers');
+      expect(posture.summary.browserControlSetup.needsReview).toBe(false);
+      expect(posture.summary.browserControlSetup.workflows[0]?.id).toBe('browser-navigation');
+      expect(posture.summary.browserControlSetup.workflows[0]?.status).toBe('setup-needed');
+      expect(posture.summary.browserControlSetup.workflows[0]?.inspectRoute).toContain('setup_item');
+      expect(posture.summary.browserControlSetup.setupChecklist.join('\n')).toContain('constrained trust');
+      expect(posture.summary.browserControlSetup.fallbackRoutes.join('\n')).toContain('web-fetch-research');
       expect(posture.summary.supervision.processMonitorAvailable).toBe(true);
       expect(posture.summary.supervision.liveTailAvailable).toBe(true);
       expect(posture.summary.registeredExecutionTools).toEqual(expect.arrayContaining(['read', 'edit', 'exec', 'fetch', 'web_search']));
@@ -1450,6 +1460,64 @@ describe('agent_harness tool', () => {
       const browser = posture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control');
       expect(browser?.availability).toBe('setup-needed');
 
+      const inspectedBrowser = await executeHarnessJson<{
+        readonly executionRouteId: string;
+        readonly availability: string;
+        readonly browserControl?: {
+          readonly status: string;
+          readonly workflows: readonly { readonly id: string; readonly status: string; readonly setupRoute: string }[];
+          readonly policy: string;
+        };
+      }>(fixture, {
+        mode: 'execution_route',
+        executionRouteId: 'browser-or-desktop-control',
+      });
+      expect(inspectedBrowser.executionRouteId).toBe('browser-or-desktop-control');
+      expect(inspectedBrowser.availability).toBe('setup-needed');
+      expect(inspectedBrowser.browserControl?.workflows[0]?.status).toBe('setup-needed');
+      expect(inspectedBrowser.browserControl?.workflows[0]?.setupRoute).toContain('browser-desktop-control');
+      expect(inspectedBrowser.browserControl?.policy).toContain('no live UI control is assumed');
+
+      const mcpApi = fixture.context.clients?.mcpApi as {
+        listServerSecurity: () => readonly unknown[];
+      };
+      mcpApi.listServerSecurity = () => [{
+        name: 'browser-stale',
+        connected: true,
+        trustMode: 'blocked',
+        role: 'browser',
+        schemaFreshness: 'stale',
+        quarantineReason: null,
+        quarantineDetail: null,
+        allowedPaths: [],
+        allowedHosts: ['browser.example.test'],
+      }];
+      const attentionPosture = await executeHarnessJson<{
+        readonly summary: {
+          readonly browserControl: string;
+          readonly browserControlSetup: {
+            readonly configured: boolean;
+            readonly needsReview: boolean;
+            readonly mcpServers: readonly { readonly name: string; readonly readiness: string }[];
+            readonly workflows: readonly { readonly status: string; readonly inspectRoute: string }[];
+          };
+        };
+      }>(fixture, { mode: 'execution_posture' });
+      expect(attentionPosture.summary.browserControl).toBe('attention');
+      expect(attentionPosture.summary.browserControlSetup.configured).toBe(false);
+      expect(attentionPosture.summary.browserControlSetup.needsReview).toBe(true);
+      expect(attentionPosture.summary.browserControlSetup.mcpServers[0]?.readiness).toBe('attention');
+      expect(attentionPosture.summary.browserControlSetup.workflows[0]?.status).toBe('attention');
+
+      const attentionBrowserSetup = await executeHarnessJson<{
+        readonly setupItemId: string;
+        readonly status: string;
+        readonly signals?: readonly string[];
+      }>(fixture, { mode: 'setup_item', setupItemId: 'browser-desktop-control' });
+      expect(attentionBrowserSetup.setupItemId).toBe('browser-desktop-control');
+      expect(attentionBrowserSetup.status).toBe('check');
+      expect(attentionBrowserSetup.signals?.join('\n')).toContain('attention');
+
       registerStubTool(fixture.toolRegistry, 'browser_screenshot');
       const configuredPosture = await executeHarnessJson<{
         readonly summary: {
@@ -1457,6 +1525,7 @@ describe('agent_harness tool', () => {
           readonly browserControlSetup: {
             readonly toolMatches: readonly string[];
             readonly recommendedRoute: string;
+            readonly workflows: readonly { readonly status: string; readonly inspectRoute: string }[];
           };
         };
         readonly routes: readonly {
@@ -1467,6 +1536,8 @@ describe('agent_harness tool', () => {
       expect(configuredPosture.summary.browserControl).toBe('ready');
       expect(configuredPosture.summary.browserControlSetup.toolMatches).toContain('browser_screenshot');
       expect(configuredPosture.summary.browserControlSetup.recommendedRoute).toContain('execution_route');
+      expect(configuredPosture.summary.browserControlSetup.workflows[0]?.status).toBe('ready');
+      expect(configuredPosture.summary.browserControlSetup.workflows[0]?.inspectRoute).toContain('execution_route');
       expect(configuredPosture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control')?.availability).toBe('ready');
 
       const configuredBrowserSetup = await executeHarnessJson<{

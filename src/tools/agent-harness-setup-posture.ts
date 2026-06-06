@@ -171,7 +171,7 @@ function browserControlSignals(posture: BrowserControlPosture): readonly string[
   if (posture.toolMatches.length > 0) signals.push(`tools: ${posture.toolMatches.join(', ')}`);
   if (posture.mcpServers.length > 0) {
     signals.push(...posture.mcpServers.slice(0, 5).map((server) => (
-      `mcp:${server.name} ${server.connected ? 'connected' : 'disconnected'} role=${server.role} trust=${server.trustMode} schema=${server.schemaFreshness}`
+      `mcp:${server.name} ${server.connected ? 'connected' : 'disconnected'} ${server.readiness} role=${server.role} trust=${server.trustMode} schema=${server.schemaFreshness}`
     )));
   }
   if (signals.length === 0) signals.push('No browser, desktop, computer-use, screenshot, or screen-recording tool is configured.');
@@ -305,14 +305,18 @@ function buildSetupPlan(
     {
       id: 'browser-desktop-control',
       label: 'Browser and desktop control',
-      status: browserControl.configured ? 'ready' : 'recommended',
+      status: browserControl.status === 'ready' ? 'ready' : browserControl.status === 'attention' ? 'check' : 'recommended',
       priority: 65,
       blocksAutonomy: false,
       reason: browserControl.configured
         ? 'A trusted browser, desktop, computer-use, screenshot, or screen-recording route is configured.'
+        : browserControl.status === 'attention'
+          ? 'A browser or desktop connector is present but needs trust, connection, or schema review before use.'
         : 'Live browser navigation, UI testing, screenshots, screen recording, and desktop or device actions need a trusted MCP server or first-class tool before the Agent can perform them.',
       nextAction: browserControl.configured
         ? 'Inspect the browser/desktop execution route before using live UI automation.'
+        : browserControl.status === 'attention'
+          ? 'Review the matching MCP server trust, connection, and schema freshness before using live UI automation.'
         : 'Configure and review a trusted browser or desktop MCP server, then inspect the execution route before offering live UI automation.',
       userRoute: 'Agent Workspace -> Tools & MCP',
       modelRoute: browserControl.recommendedRoute,

@@ -162,11 +162,11 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Computer use includes browser control, shell, files, code edits, desktop/device actions, sandboxing, undo, and live tool cards.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'companion'],
-    goodVibesNow: 'Agent exposes local-first execution posture for read/search/analyze, file edit/write, bounded shell commands, web/fetch evidence, visible process monitor/live tail/tool inspector supervision routes, bounded local execution history records with redacted args/result summaries, confirmed file edit recovery, route-backed browser/desktop-control setup, and delegation for isolation, parallelism, remote execution, separate worktrees, or requested review.',
+    goodVibesNow: 'Agent exposes local-first execution posture for read/search/analyze, file edit/write, bounded shell commands, web/fetch evidence, visible process monitor/live tail/tool inspector supervision routes, bounded local execution history records with redacted args/result summaries, confirmed file edit recovery, strict browser/desktop ready-attention-setup posture with workflow cards/checklists/fallback routes, and delegation for isolation, parallelism, remote execution, separate worktrees, or requested review.',
     nextMoves: [
       'Turn local execution history records into richer user-facing cards with verification grouping and process-output attachment when safe.',
       'Keep delegation for isolation, parallelism, or remote execution, not as the default user-facing answer to coding work.',
-      'Implement first-class browser control and desktop/device command adapters once setup posture finds or configures a trusted route.',
+      'Implement first-class browser control and desktop/device command adapters once setup posture finds or configures a trusted ready route.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Provides browser control, canvas, nodes, system.run, camera, screen recording, and session tools.' },

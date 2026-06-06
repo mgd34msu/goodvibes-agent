@@ -259,6 +259,7 @@ function describeRoute(
   const availability = routeAvailability(route, context, toolRegistry);
   const tools = availableTools(route, toolRegistry);
   const supervisionRoutes = executionSupervisionRoutes(context, route);
+  const browserControl = route.browserMcp ? browserControlPosture(context, toolRegistry) : null;
   return {
     executionRouteId: route.id,
     label: route.label,
@@ -279,6 +280,7 @@ function describeRoute(
         toolNames: route.toolNames ?? [],
         anyToolNames: route.anyToolNames ?? [],
         browserMcp: route.browserMcp === true,
+        ...(browserControl ? { browserControl } : {}),
         modelAccess: {
           inspectPosture: 'agent_harness mode:"execution_posture"',
           inspectRoute: `agent_harness mode:"execution_route" executionRouteId:"${route.id}"`,
