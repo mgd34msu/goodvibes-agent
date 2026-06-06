@@ -730,6 +730,17 @@ describe('agent_harness tool', () => {
           readonly userRoute: string;
           readonly modelRoute: string;
           readonly signals?: readonly string[];
+          readonly availableRepairCards?: readonly string[];
+          readonly repairCards?: readonly {
+            readonly id: string;
+            readonly state: string;
+            readonly effect: string;
+            readonly methodId?: string;
+            readonly modelRoute?: string;
+            readonly prerequisite?: string;
+            readonly recommendedWhen: string;
+            readonly safety: string;
+          }[];
         }[];
         readonly nextSetupActions: readonly {
           readonly setupItemId: string;
@@ -750,6 +761,12 @@ describe('agent_harness tool', () => {
       expect(first?.blocksAutonomy).toBe(true);
       expect(first?.modelRoute).toContain('connected_host_status');
       expect(first?.userRoute).toContain('Host compatibility');
+      expect(first?.availableRepairCards).toContain('connected-host-status');
+      expect(first?.repairCards?.find((card) => card.id === 'service-status')?.methodId).toBe('services.status');
+      expect(first?.repairCards?.find((card) => card.id === 'service-install')?.modelRoute).toContain('services.install');
+      expect(first?.repairCards?.find((card) => card.id === 'service-start')?.effect).toBe('confirmed-effect');
+      expect(first?.repairCards?.find((card) => card.id === 'service-restart')?.safety).toContain('Confirmed service mutation');
+      expect(first?.repairCards?.some((card) => card.methodId === 'services.uninstall')).toBe(false);
 
       const provider = posture.readinessPlan.find((item) => item.setupItemId === 'provider-access');
       expect(['ready', 'blocked']).toContain(provider?.status);
@@ -770,12 +787,19 @@ describe('agent_harness tool', () => {
         readonly status: string;
         readonly lookup?: { readonly resolvedBy?: string };
         readonly modelRoute: string;
+        readonly repairCards?: readonly {
+          readonly id: string;
+          readonly state: string;
+          readonly methodId?: string;
+          readonly modelRoute?: string;
+        }[];
         readonly policy?: { readonly effect: string };
       }>(fixture, { mode: 'setup_item', setupItemId: 'connected-host-readiness' });
       expect(hostItem.setupItemId).toBe('connected-host-readiness');
       expect(hostItem.status).toBe('check');
       expect(hostItem.lookup?.resolvedBy).toBe('plan-id');
       expect(hostItem.modelRoute).toContain('connected_host_status');
+      expect(hostItem.repairCards?.find((card) => card.id === 'service-start')?.modelRoute).toContain('services.start');
       expect(hostItem.policy?.effect).toBe('read-only');
 
       const browserItem = await executeHarnessJson<{

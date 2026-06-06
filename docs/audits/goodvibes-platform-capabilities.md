@@ -39,17 +39,17 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 - Shared-session follow-up and automation spawn paths now create visible Agent records instead of failing closed.
 - The footer reads the active agent read model so autonomous work is visible in the existing renderer.
 - Settings visibility no longer hides broad service/control-plane/runtime categories; raw danger toggles stay protected.
-- `agent_harness mode:"setup_posture"` now returns a prioritized first-run setup plan with connected-host readiness, GoodVibes settings import preview/apply, provider/model access, Agent Knowledge, local behavior, channels, automation review, delegation, finish state, and exact follow-up routes.
+- `agent_harness mode:"setup_posture"` now returns a prioritized first-run setup plan with connected-host readiness, service status/posture diagnostics, confirmed service install/start/restart repair cards when the operator endpoint is reachable, GoodVibes settings import preview/apply, provider/model access, Agent Knowledge, local behavior, channels, automation review, delegation, finish state, and exact follow-up routes.
 - `agent_harness mode:"run_workspace_action" actionId:"import-goodvibes-tui-settings"` exposes the same GoodVibes TUI settings import as the workspace: preview is read-only and redacted; apply is confirmation-gated and copies only Agent-owned settings plus provider subscription state.
 - `agent_harness mode:"autonomy_intake"` maps ongoing-work requests to the safest visible route and missing fields before any confirmed effect; `agent_autonomy_schedule` creates one visible connected autonomous schedule when task, cadence, success criteria, and request provenance are explicit; `agent_schedule_edit` updates one existing connected schedule by id with the same confirmation boundary.
 - `agent_harness mode:"autonomy_queue"` now attaches live research run, connected-host task, approval, automation run, and schedule records with exact inspect/control routes where supported.
 
 ## Remaining Product Gaps
 
-- Consent-gated host lifecycle/install repair beyond the current read-only setup plan, status, compat, and service posture routes.
+- Missing-host bootstrap before the connected-host operator endpoint is reachable; setup now exposes confirmed service install/start/restart repair cards after the SDK operator contract is reachable.
 - Provider-specific email/calendar schema mapping into live inbox/agenda records in Personal Ops; Agent-owned notes, routines, schedule receipts, delivery channels, email/calendar-capable MCP connector setup routes, and inbox triage/draft plus calendar agenda/conflict workflow cards already surface in live lane records.
 - Richer schedule edit before/after diffs when the connected host exposes prior schedule records.
-- Richer daemon retry, checkpoint, and host log details in autonomy queue records when the connected host exposes them.
+- Deeper host output streams, diagnostics, and pause/resume lifecycle controls in autonomy queue records when the connected host exposes them.
 - Deep research browser-backed execution and richer report runner output beyond the current visible local run ledger, run log tails, source queue, credibility scoring, source bundles, citation coverage metadata, repair hints, and saved sourced report artifacts.
 - Live local model benchmark execution beyond the current read-only hardware-scored cookbook, setup/download guidance, provider-refresh routes, and benchmark prompts.
 - First-class browser/desktop-control adapters and richer history-card grouping beyond the current strict browser/desktop ready-attention-setup posture, workflow cards/checklists/fallback routes, local-first execution posture for read/edit/exec, web fetch, supervision routes, bounded execution history records, confirmed file edit recovery, and delegation routing.

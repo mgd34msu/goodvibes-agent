@@ -16,7 +16,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 | Feature | OpenClaw | Hermes Agent | Odysseus | GoodVibes now | Target |
 |---|---|---|---|---|---|
 | One assistant mental model | Gateway is control plane; assistant is the product | CLI, TUI, gateway, and messaging expose one assistant | One web workspace | Partial: boundaries are exposed too early | Better |
-| First-run and always-on setup | Onboard can install gateway service | Installers and setup wizard configure dependencies and gateway | Docker/native start with admin bootstrap | Partial: route-backed setup plan exists; host lifecycle is external | Better |
+| First-run and always-on setup | Onboard can install gateway service | Installers and setup wizard configure dependencies and gateway | Docker/native start with admin bootstrap | Partial: route-backed setup plan exists with confirmed service install/start/restart repair cards when the operator endpoint is reachable; missing-host bootstrap is still high-friction | Better |
 | Models and local model cookbook | Multi-provider, subscription auth, failover | Many providers and managed tool gateway | Hardware-aware Cookbook for Ollama, llama.cpp, vLLM | Partial: routing, hardware-scored local cookbook, setup/download guidance, provider-refresh routes, and benchmark prompts exist; live benchmark execution still missing | Better |
 | Omnichannel inbox and delivery | Very broad channel list and DM safety | Telegram, Discord, Slack, WhatsApp, Signal, email | Email, browser, ntfy, PWA | Parity on foundations, needs setup UX polish | Better |
 | Email, calendar, notes, tasks | Mail/calendar/reminder workflows in showcase | Email gateway and workspace skills | IMAP/SMTP triage, CalDAV, notes/tasks | Partial: Personal Ops has live note/routine/delivery records, MCP connector setup routes, and inbox triage/draft plus calendar agenda/conflict workflow cards; live inbox/agenda records still need provider-specific connector schema mapping | Better |
@@ -41,7 +41,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 ## Product Direction
 
 - Present one assistant. Move package and host ownership language into diagnostics.
-- Make setup complete the user's outcome: installed, reachable, authenticated, paired, and ready to act. The current setup plan orders blockers, but host lifecycle/install repair is still a gap.
+- Make setup complete the user's outcome: installed, reachable, authenticated, paired, and ready to act. The current setup plan exposes confirmed service repair cards when the operator endpoint is reachable, but missing-host bootstrap is still a gap.
 - Prefer supervised local execution over refusal or delegation friction when the Agent has local permission and workspace context; use `execution_posture` to make that route explicit.
 - Use delegation and remote runners for isolation, parallelism, or remote execution, not because the user picked the wrong entrypoint. Keep the handoff brief explicit: original ask, reason, success evidence, workspace/worktree hint, priority, review intent, status route, and recovery path.
 - Keep schedule edits explicit and visible; add richer before/after diff previews when the connected host exposes prior schedule records.

@@ -1,3 +1,4 @@
+import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
 import type { OnboardingStep1CapabilityItem, OnboardingSurfaceRecord } from '../runtime/onboarding/index.ts';
 import { collectOnboardingSnapshot, deriveStep1Capabilities, deriveStep1CapabilityFlags } from '../runtime/onboarding/index.ts';
 import type { CommandContext } from '../input/command-registry.ts';
@@ -28,6 +29,12 @@ interface SurfaceRegistryLike {
 }
 
 type SetupPlanStatus = 'ready' | 'blocked' | 'recommended' | 'optional' | 'check';
+type SetupRepairCardState = 'available' | 'requires-live-host' | 'missing';
+type SetupRepairCardEffect = 'read-only' | 'confirmed-effect';
+
+interface OperatorContractMethod {
+  readonly id: string;
+}
 
 interface SetupPlanItem {
   readonly id: string;
@@ -41,6 +48,20 @@ interface SetupPlanItem {
   readonly modelRoute: string;
   readonly relatedSetupItemId?: string;
   readonly signals?: readonly string[];
+  readonly repairCards?: readonly SetupRepairCard[];
+}
+
+interface SetupRepairCard {
+  readonly id: string;
+  readonly label: string;
+  readonly state: SetupRepairCardState;
+  readonly effect: SetupRepairCardEffect;
+  readonly methodId?: string;
+  readonly modelRoute?: string;
+  readonly userRoute: string;
+  readonly prerequisite?: string;
+  readonly recommendedWhen: string;
+  readonly safety: string;
 }
 
 function readString(value: unknown): string {
@@ -51,6 +72,14 @@ function readLimit(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
+}
+
+function quoteRouteValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function operatorMethodRoute(methodId: string, confirmed: boolean): string {
+  return `agent_operator_method methodId:"${quoteRouteValue(methodId)}" input:{}${confirmed ? ' confirm:true explicitUserRequest:"..."' : ''}`;
 }
 
 function safeIso(value: number | null | undefined): string | null {
@@ -123,6 +152,17 @@ function planSearchText(item: SetupPlanItem): string {
     item.modelRoute,
     item.relatedSetupItemId ?? '',
     item.signals?.join('\n') ?? '',
+    item.repairCards?.map((card) => [
+      card.id,
+      card.label,
+      card.state,
+      card.effect,
+      card.methodId ?? '',
+      card.modelRoute ?? '',
+      card.prerequisite ?? '',
+      card.recommendedWhen,
+      card.safety,
+    ].join(' ')).join('\n') ?? '',
   ].join('\n').toLowerCase();
 }
 
@@ -196,6 +236,122 @@ function settingsImportSignals(preview: ReturnType<typeof previewAgentWorkspaceT
   ];
 }
 
+function operatorMethodIds(): ReadonlySet<string> {
+  const contract = getOperatorContract();
+  const methods = Array.isArray(contract.operator?.methods)
+    ? contract.operator.methods as OperatorContractMethod[]
+    : [];
+  return new Set(methods.map((method) => method.id).filter(Boolean));
+}
+
+function setupRepairCard(
+  methodIds: ReadonlySet<string>,
+  options: {
+    readonly id: string;
+    readonly label: string;
+    readonly methodId?: string;
+    readonly effect: SetupRepairCardEffect;
+    readonly userRoute: string;
+    readonly prerequisite?: string;
+    readonly recommendedWhen: string;
+    readonly safety: string;
+    readonly liveHostRequired?: boolean;
+  },
+): SetupRepairCard {
+  const methodPresent = options.methodId ? methodIds.has(options.methodId) : true;
+  const state: SetupRepairCardState = !methodPresent
+    ? 'missing'
+    : options.liveHostRequired
+      ? 'requires-live-host'
+      : 'available';
+  return {
+    id: options.id,
+    label: options.label,
+    state,
+    effect: options.effect,
+    ...(options.methodId ? { methodId: options.methodId } : {}),
+    ...(options.methodId && methodPresent ? { modelRoute: operatorMethodRoute(options.methodId, options.effect === 'confirmed-effect') } : {}),
+    userRoute: options.userRoute,
+    ...(options.prerequisite ? { prerequisite: options.prerequisite } : {}),
+    recommendedWhen: options.recommendedWhen,
+    safety: options.safety,
+  };
+}
+
+function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSnapshot>>): readonly SetupRepairCard[] {
+  const methodIds = operatorMethodIds();
+  const hostIssue = snapshot.collectionIssues.some((issue) => issue.area === 'host');
+  const liveHostPrerequisite = hostIssue
+    ? 'Run connected-host status first; confirmed service methods require a reachable compatible operator endpoint and usable token.'
+    : 'Requires a reachable compatible operator endpoint and usable token.';
+  return [
+    {
+      id: 'connected-host-status',
+      label: 'Inspect connected-host status',
+      state: 'available',
+      effect: 'read-only',
+      modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      userRoute: 'Agent Workspace -> Home -> Host compatibility',
+      recommendedWhen: 'Use first for every host setup or repair question.',
+      safety: 'Read-only diagnostic; returns redacted token posture and route readiness.',
+    },
+    {
+      id: 'service-posture',
+      label: 'Inspect service posture',
+      state: 'available',
+      effect: 'read-only',
+      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      userRoute: 'Agent Workspace -> Home -> Doctor diagnostics',
+      recommendedWhen: 'Use when endpoints, bind addresses, ports, logs, or listener exposure may be the blocker.',
+      safety: 'Read-only diagnostic; probes endpoints only when requested with includeParameters.',
+    },
+    setupRepairCard(methodIds, {
+      id: 'service-status',
+      label: 'Read service install/runtime status',
+      methodId: 'services.status',
+      effect: 'read-only',
+      userRoute: 'Agent Workspace -> Home -> Host compatibility',
+      prerequisite: liveHostPrerequisite,
+      recommendedWhen: 'Use when the daemon is reachable and the user needs install/autostart/running posture.',
+      safety: 'Read-only daemon method.',
+      liveHostRequired: hostIssue,
+    }),
+    setupRepairCard(methodIds, {
+      id: 'service-install',
+      label: 'Install service',
+      methodId: 'services.install',
+      effect: 'confirmed-effect',
+      userRoute: 'Connected-host service control',
+      prerequisite: liveHostPrerequisite,
+      recommendedWhen: 'Use only when service status says the platform service is not installed and the user explicitly asks to install it.',
+      safety: 'Confirmed service mutation; no uninstall or stop action is included in first-run setup.',
+      liveHostRequired: hostIssue,
+    }),
+    setupRepairCard(methodIds, {
+      id: 'service-start',
+      label: 'Start service',
+      methodId: 'services.start',
+      effect: 'confirmed-effect',
+      userRoute: 'Connected-host service control',
+      prerequisite: liveHostPrerequisite,
+      recommendedWhen: 'Use only when service status says the service is installed but not running and the user explicitly asks to start it.',
+      safety: 'Confirmed service mutation.',
+      liveHostRequired: hostIssue,
+    }),
+    setupRepairCard(methodIds, {
+      id: 'service-restart',
+      label: 'Restart service',
+      methodId: 'services.restart',
+      effect: 'confirmed-effect',
+      userRoute: 'Connected-host service control',
+      prerequisite: liveHostPrerequisite,
+      recommendedWhen: 'Use only when the service is running but unhealthy or incompatible and the user explicitly asks to restart it.',
+      safety: 'Confirmed service mutation; use diagnostics first to avoid disrupting a healthy host.',
+      liveHostRequired: hostIssue,
+    }),
+  ];
+}
+
 function buildSetupPlan(
   context: CommandContext,
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
@@ -225,6 +381,7 @@ function buildSetupPlan(
       modelRoute: 'agent_harness mode:"connected_host_status"',
       relatedSetupItemId: 'operator-terminal',
       signals: snapshot.collectionIssues.filter((issue) => issue.area === 'host').map((issue) => issue.message),
+      repairCards: connectedHostRepairCards(snapshot),
     },
     {
       id: 'goodvibes-settings-import',
@@ -350,7 +507,25 @@ function buildSetupPlan(
   return plan.sort((left, right) => left.priority - right.priority);
 }
 
+function describeRepairCard(card: SetupRepairCard): Record<string, unknown> {
+  return {
+    id: card.id,
+    label: card.label,
+    state: card.state,
+    effect: card.effect,
+    ...(card.methodId ? { methodId: card.methodId } : {}),
+    ...(card.modelRoute ? { modelRoute: card.modelRoute } : {}),
+    userRoute: card.userRoute,
+    ...(card.prerequisite ? { prerequisite: previewHarnessText(card.prerequisite, 140) } : {}),
+    recommendedWhen: previewHarnessText(card.recommendedWhen, 160),
+    safety: previewHarnessText(card.safety, 160),
+  };
+}
+
 function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Record<string, unknown> {
+  const availableRepairCards = item.repairCards
+    ?.filter((card) => card.state === 'available')
+    .map((card) => card.id);
   return {
     setupItemId: item.id,
     label: item.label,
@@ -363,10 +538,12 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     modelRoute: previewHarnessText(item.modelRoute, includeParameters ? 140 : 96),
     ...(item.relatedSetupItemId ? { relatedSetupItemId: item.relatedSetupItemId } : {}),
     ...(item.signals && item.signals.length > 0 ? { signals: item.signals.slice(0, includeParameters ? 10 : 3) } : {}),
+    ...(availableRepairCards && availableRepairCards.length > 0 ? { availableRepairCards } : {}),
+    ...(includeParameters && item.repairCards && item.repairCards.length > 0 ? { repairCards: item.repairCards.map(describeRepairCard) } : {}),
     ...(includeParameters ? {
       policy: {
         effect: 'read-only',
-        mutation: 'Setup plan rows only point to visible setup, status, settings, and confirmed tool routes.',
+        mutation: 'Setup plan rows only point to visible setup, status, settings, read-only diagnostics, and confirmed tool routes. Destructive service stop/uninstall actions are intentionally excluded from first-run repair cards.',
       },
     } : {}),
   };
